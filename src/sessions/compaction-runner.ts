@@ -15,6 +15,7 @@ import {
   type FileOperations,
 } from "@earendil-works/pi-coding-agent";
 import {
+  COMPACTION_AGENT_CONTEXT_PROMPT,
   COMPACTION_SUMMARY_PROMPT,
   COMPACTION_SUMMARIZATION_SYSTEM_PROMPT,
   COMPACTION_TURN_PREFIX_SUMMARY_PROMPT,
@@ -67,6 +68,7 @@ export interface ShrimpyCompactionOptions {
   apiKey: string;
   headers?: Record<string, string>;
   customInstructions?: string;
+  sessionSystemPrompt?: string;
   signal?: AbortSignal;
   onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
@@ -113,6 +115,7 @@ export async function compactWithProviderRequestHooks(
           headers: options.headers,
           signal: options.signal,
           customInstructions: options.customInstructions,
+          sessionSystemPrompt: options.sessionSystemPrompt,
           previousSummary,
           onPayload: options.onPayload,
           onResponse: options.onResponse,
@@ -126,6 +129,7 @@ export async function compactWithProviderRequestHooks(
         apiKey: options.apiKey,
         headers: options.headers,
         signal: options.signal,
+        sessionSystemPrompt: options.sessionSystemPrompt,
         onPayload: options.onPayload,
         onResponse: options.onResponse,
         complete,
@@ -141,6 +145,7 @@ export async function compactWithProviderRequestHooks(
       headers: options.headers,
       signal: options.signal,
       customInstructions: options.customInstructions,
+      sessionSystemPrompt: options.sessionSystemPrompt,
       previousSummary,
       onPayload: options.onPayload,
       onResponse: options.onResponse,
@@ -185,6 +190,7 @@ async function generateSummaryWithHooks(input: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   customInstructions?: string;
+  sessionSystemPrompt?: string;
   previousSummary?: string;
   onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
@@ -204,7 +210,7 @@ async function generateSummaryWithHooks(input: {
   );
   const inputTokenBudget = resolveCompactionInputTokenBudget(input.model);
 
-  if (estimateTextTokens(promptText) > inputTokenBudget) {
+  if (estimateCompactionRequestTokens(promptText, input.sessionSystemPrompt) > inputTokenBudget) {
     return generateChunkedSummaryWithHooks(input);
   }
 
@@ -215,6 +221,7 @@ async function generateSummaryWithHooks(input: {
     apiKey: input.apiKey,
     headers: input.headers,
     signal: input.signal,
+    sessionSystemPrompt: input.sessionSystemPrompt,
     onPayload: input.onPayload,
     onResponse: input.onResponse,
     complete: input.complete,
@@ -230,6 +237,7 @@ async function generateChunkedSummaryWithHooks(input: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   customInstructions?: string;
+  sessionSystemPrompt?: string;
   previousSummary?: string;
   onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
@@ -237,7 +245,7 @@ async function generateChunkedSummaryWithHooks(input: {
 }): Promise<string> {
   const chunks = chunkConversationMessages(
     input.messages,
-    resolveChunkContentTokenBudget(input.model),
+    resolveChunkContentTokenBudget(input.model, input.sessionSystemPrompt),
   );
   if (chunks.length === 0) {
     return mergeChunkSummariesWithHooks({
@@ -262,6 +270,7 @@ async function generateChunkedSummaryWithHooks(input: {
       apiKey: input.apiKey,
       headers: input.headers,
       signal: input.signal,
+      sessionSystemPrompt: input.sessionSystemPrompt,
       onPayload: input.onPayload,
       onResponse: input.onResponse,
       complete: input.complete,
@@ -284,6 +293,7 @@ async function mergeChunkSummariesWithHooks(input: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   customInstructions?: string;
+  sessionSystemPrompt?: string;
   previousSummary?: string;
   onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
@@ -298,7 +308,7 @@ async function mergeChunkSummariesWithHooks(input: {
   const inputTokenBudget = resolveCompactionInputTokenBudget(input.model);
 
   if (
-    estimateTextTokens(promptText) <= inputTokenBudget
+    estimateCompactionRequestTokens(promptText, input.sessionSystemPrompt) <= inputTokenBudget
     || input.chunkSummaries.length <= 1
   ) {
     return completeSummaryRequest({
@@ -311,6 +321,7 @@ async function mergeChunkSummariesWithHooks(input: {
       apiKey: input.apiKey,
       headers: input.headers,
       signal: input.signal,
+      sessionSystemPrompt: input.sessionSystemPrompt,
       onPayload: input.onPayload,
       onResponse: input.onResponse,
       complete: input.complete,
@@ -326,7 +337,7 @@ async function mergeChunkSummariesWithHooks(input: {
     input.chunkSummaries.map((summary, index) => ({
       text: `[Chunk ${index + 1}/${input.chunkSummaries.length}]\n${summary}`,
     })),
-    resolveChunkContentTokenBudget(input.model),
+    resolveChunkContentTokenBudget(input.model, input.sessionSystemPrompt),
   );
   const intermediateSummaries: string[] = [];
   for (let index = 0; index < intermediateChunks.length; index++) {
@@ -341,6 +352,7 @@ async function mergeChunkSummariesWithHooks(input: {
       apiKey: input.apiKey,
       headers: input.headers,
       signal: input.signal,
+      sessionSystemPrompt: input.sessionSystemPrompt,
       onPayload: input.onPayload,
       onResponse: input.onResponse,
       complete: input.complete,
@@ -409,11 +421,12 @@ function buildChunkSummaryPrompt(
     "</conversation>",
     "",
     `This is chunk ${chunkIndex} of ${totalChunks} from an oversized session compaction.`,
-    "Summarize only this chunk for a later merge. Preserve concrete goals, constraints, progress, decisions, next steps, file paths, commands, dates, and exact error messages.",
-    "Do not continue the conversation and do not answer any questions inside the chunk.",
+    "Summarize only this chunk for a later merge. Keep concrete goals, constraints, progress, decisions, next steps, file paths, commands, dates, and exact error messages.",
+    "Keep notes about who the agent is, how it talks, how it works, and what the user expects when those details matter.",
+    "Treat questions inside the chunk as history to summarize. Output only the chunk summary.",
     focus.trim(),
     "",
-    "Use concise headings: Goals, Constraints, Progress, Decisions, Next Steps, Critical Context.",
+    "Use short headings or paragraphs only where helpful. Use work-tracking sections only for actual work.",
   ].filter((part) => part.length > 0).join("\n");
 }
 
@@ -445,8 +458,9 @@ function buildIntermediateSummaryPrompt(
     "</chunk-summaries>",
     "",
     "Condense these consecutive compaction chunk summaries into one intermediate summary for a later merge.",
-    "Preserve concrete goals, constraints, progress, decisions, next steps, file paths, commands, dates, and exact error messages.",
-    "Do not add new conclusions beyond what these summaries support.",
+    "Keep concrete goals, constraints, progress, decisions, next steps, file paths, commands, dates, and exact error messages.",
+    "Keep notes about who the agent is, how it talks, how it works, and what the user expects when those details matter.",
+    "Draw conclusions only from these summaries.",
   ].join("\n");
 }
 
@@ -542,10 +556,15 @@ function resolveCompactionInputTokenBudget(model: Model<Api>): number {
   );
 }
 
-function resolveChunkContentTokenBudget(model: Model<Api>): number {
+function resolveChunkContentTokenBudget(
+  model: Model<Api>,
+  sessionSystemPrompt?: string,
+): number {
   return Math.max(
     1_000,
-    resolveCompactionInputTokenBudget(model) - PROMPT_OVERHEAD_TOKENS,
+    resolveCompactionInputTokenBudget(model)
+      - PROMPT_OVERHEAD_TOKENS
+      - estimateTextTokens(buildCompactionSystemPrompt(sessionSystemPrompt)),
   );
 }
 
@@ -570,6 +589,7 @@ function generateTurnPrefixSummaryWithHooks(input: {
   apiKey: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  sessionSystemPrompt?: string;
   onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
@@ -585,6 +605,7 @@ function generateTurnPrefixSummaryWithHooks(input: {
     apiKey: input.apiKey,
     headers: input.headers,
     signal: input.signal,
+    sessionSystemPrompt: input.sessionSystemPrompt,
     onPayload: input.onPayload,
     onResponse: input.onResponse,
     complete: input.complete,
@@ -599,6 +620,7 @@ async function completeSummaryRequest(input: {
   apiKey: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  sessionSystemPrompt?: string;
   onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
@@ -607,7 +629,7 @@ async function completeSummaryRequest(input: {
   const response = await input.complete(
     input.model,
     {
-      systemPrompt: COMPACTION_SUMMARIZATION_SYSTEM_PROMPT,
+      systemPrompt: buildCompactionSystemPrompt(input.sessionSystemPrompt),
       messages: [
         {
           role: "user",
@@ -633,6 +655,30 @@ async function completeSummaryRequest(input: {
     .filter((content) => content.type === "text")
     .map((content) => content.text)
     .join("\n");
+}
+
+export function buildCompactionSystemPrompt(
+  sessionSystemPrompt?: string,
+): string {
+  const trimmed = sessionSystemPrompt?.trim();
+  if (!trimmed) return COMPACTION_SUMMARIZATION_SYSTEM_PROMPT;
+  return [
+    COMPACTION_AGENT_CONTEXT_PROMPT,
+    "",
+    "<session-agent-context>",
+    trimmed,
+    "</session-agent-context>",
+    "",
+    COMPACTION_SUMMARIZATION_SYSTEM_PROMPT,
+  ].join("\n");
+}
+
+function estimateCompactionRequestTokens(
+  promptText: string,
+  sessionSystemPrompt?: string,
+): number {
+  return estimateTextTokens(promptText)
+    + estimateTextTokens(buildCompactionSystemPrompt(sessionSystemPrompt));
 }
 
 export function resolveCompactionMaxTokens(

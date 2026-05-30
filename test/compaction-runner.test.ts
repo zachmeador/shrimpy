@@ -145,6 +145,60 @@ describe("compaction runner", () => {
     });
   });
 
+  test("frames summarization with the parent agent system prompt", async () => {
+    const requests: Array<{ systemPrompt?: string; userPrompt: string }> = [];
+
+    await compactWithProviderRequestHooks(
+      {
+        firstKeptEntryId: "entry-keep",
+        messagesToSummarize: [
+          { role: "user", content: "Summarize this while staying in voice.", timestamp: 1 },
+        ],
+        turnPrefixMessages: [],
+        isSplitTurn: false,
+        tokensBefore: 12345,
+        fileOps: {
+          read: new Set(),
+          edited: new Set(),
+          written: new Set(),
+        },
+        settings: { reserveTokens: 1000 },
+      },
+      qwenModel as any,
+      {
+        apiKey: "test-key",
+        sessionSystemPrompt: [
+          "# SOUL",
+          "You are Ole Scrappy, direct and dry.",
+          "Keep a terse, practical voice.",
+        ].join("\n"),
+        complete: async (_model, context) => {
+          requests.push({
+            systemPrompt: context.systemPrompt,
+            userPrompt: readUserPrompt(context),
+          });
+          return assistantMessage("summary");
+        },
+      },
+    );
+
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].systemPrompt ?? "", /<session-agent-context>/);
+    assert.match(requests[0].systemPrompt ?? "", /You are Ole Scrappy/);
+    assert.match(
+      requests[0].systemPrompt ?? "",
+      /who the agent is, how it talks, how it works/,
+    );
+    assert.match(
+      requests[0].userPrompt,
+      /identity, voice, tone, working habits/,
+    );
+    assert.match(
+      requests[0].userPrompt,
+      /Use work-tracking sections only when there is actual work to track/,
+    );
+  });
+
   test("preserves Pi-style summarization errors", async () => {
     await assert.rejects(
       compactWithProviderRequestHooks(

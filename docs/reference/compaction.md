@@ -1,6 +1,6 @@
 # Compaction
 
-Shrimpy uses Pi's session compaction to keep long-running sessions usable while preserving channel logs and session files as the durable source of truth.
+Shrimpy uses Pi's session compaction to keep long-running sessions usable while keeping channel logs and session files as the records it can return to.
 
 Compaction is working-context maintenance. It does not mutate channel history, and it is not long-term memory. When a session gets too large, older session entries are summarized into a `compaction` entry and recent entries remain in the active prompt context.
 
@@ -8,7 +8,7 @@ Compaction is working-context maintenance. It does not mutate channel history, a
 
 Each Shrimpy session is a private Pi context for one agent and one session label, usually a channel name. Auto-compaction applies to that session file only.
 
-Channel logs remain append-only JSONL under `channels/`. If a summary is too compressed, an agent can use channel and session inspection tools to go back to the original source material.
+Channel logs remain append-only JSONL under `channels/`. If a summary is too compressed, an agent can use channel and session inspection tools to go back to the original logs.
 
 Compaction summaries may cover human-agent, agent-agent, scheduled, and system-originated turns. Prompt wording should describe participants and requests generically, not assume every transcript is a user talking to one coding assistant.
 
@@ -22,7 +22,7 @@ Compaction policy is resolved when a session is opened. Shrimpy passes the effec
 - `thresholdTokens` is Shrimpy syntax for "compact after roughly this many model-visible tokens." When a model context window is known, Shrimpy translates it to `reserveTokens = contextWindow - thresholdTokens`.
 - `instructions` are additional summary instructions appended by Shrimpy's compaction extension.
 
-Defaults are tuned for chat continuity:
+Defaults are tuned to keep chat usable:
 
 ```json
 {
@@ -74,9 +74,10 @@ When compaction starts:
 1. Pi prepares a cut plan: entries to summarize, entries to keep, optional split-turn prefix messages, previous compaction summary, token counts, and file operation details.
 2. Shrimpy's `session_before_compact` extension handles the prepared plan.
 3. The extension reads Shrimpy policy instructions and session inference metadata from the branch entries.
-4. The extension calls Shrimpy's compaction runner with Pi's selected model, model-registry API key, headers, abort signal, and provider payload hook.
-5. If the extension returns a compaction result, Pi persists it as a normal `compaction` entry with `fromHook: true`.
-6. If the extension does not return a compaction result, Pi falls back to its built-in compaction path.
+4. The extension reads the current session system prompt through Pi's extension context and passes it to Shrimpy's compaction runner, so the compaction request has the same parent agent identity, personality, voice, tone, and operating context as the session being compacted.
+5. The extension calls Shrimpy's compaction runner with Pi's selected model, model-registry API key, headers, abort signal, and provider payload hook.
+6. If the extension returns a compaction result, Pi persists it as a normal `compaction` entry with `fromHook: true`.
+7. If the extension does not return a compaction result, Pi falls back to its built-in compaction path.
 
 The compaction entry stores:
 
@@ -90,18 +91,13 @@ After the entry is appended, Pi rebuilds the session context. Future prompts see
 
 ## Summary Shape
 
-Shrimpy keeps Pi's structured summary shape:
+Shrimpy asks the compaction model to write the kind of summary that fits the session rather than forcing one fixed template.
 
-- Goal
-- Constraints & Preferences
-- Progress
-- Key Decisions
-- Next Steps
-- Critical Context
+For task or project work, a summary can use headings for goals, constraints, progress, decisions, blockers, next steps, and important files or commands when those are useful. For casual chat, the summary can instead be a short note with what they were talking about, facts that matter, loose ends, preferences, tone, and timestamps. Empty headings and filler should be omitted.
 
-When a compaction updates an earlier compaction, the summary prompt asks the model to preserve old useful context, add new progress and decisions, update next steps, and keep exact file paths, function names, and error messages.
+When a compaction updates an earlier compaction, the summary prompt asks the model to keep useful old details, add new facts and decisions, update task status when there is task work, update the chat summary when there is chat, and keep exact file paths, function names, commands, dates, and error messages.
 
-Shrimpy also adds a default bias to preserve approximate time anchors for significant events, decisions, and topic shifts. This is deliberate: Shrimpy agents have tools to inspect original channel and session logs by date, so a rough timestamp can be more useful than an over-compressed timeless summary.
+Shrimpy also asks summaries to keep rough time clues and notes about the agent itself. Time clues matter because Shrimpy agents have tools to inspect original channel and session logs by date. Agent notes matter because the same agent resumes after compaction; the summary should carry forward who the agent is, how it talks, how it works, and relevant user/workspace preferences instead of turning the next turn into a generic assistant reply.
 
 If Pi cuts in the middle of a large turn, Shrimpy generates two summaries:
 

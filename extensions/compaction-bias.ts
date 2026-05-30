@@ -50,6 +50,7 @@ export default function (pi: ExtensionAPI) {
           apiKey: auth.apiKey,
           headers: auth.headers,
           customInstructions: instructions,
+          sessionSystemPrompt: ctx.getSystemPrompt(),
           signal: event.signal,
           onPayload: (payload, model) => {
             const next = applyModelVariantInferenceToPayload(payload, inference, model);

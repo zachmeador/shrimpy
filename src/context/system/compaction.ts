@@ -1,95 +1,48 @@
 export const COMPACTION_SUMMARY_INSTRUCTIONS = [
-  "Preserve approximate time anchors for significant events, decisions, and topic shifts (e.g. \"around 2026-04-15\" or \"on 2026-04-15T14:00\").",
-  "The agent reading this summary is time-aware and has tools to read the original channel and session logs by date — explicit time breadcrumbs let it dig back into the source when the summary lacks specifics.",
-  "Lean toward keeping time references in over compressing them out.",
+  "Keep rough dates and times for important events, decisions, and topic changes (e.g. \"around 2026-04-15\" or \"on 2026-04-15T14:00\").",
+  "The agent reading this summary can inspect the original channel and session logs by date, so time clues help it find details later.",
+  "Keep useful time references instead of smoothing them away.",
+  "Keep notes about who the agent is, how it talks, how it works, and what the user or workspace expects when those details matter.",
 ].join(" ");
 
 export const COMPACTION_SUMMARIZATION_SYSTEM_PROMPT =
-  "You are a context summarization assistant. Your task is to read session or channel messages between one or more participants, then produce a structured summary following the exact format specified.\n\nDo NOT continue the conversation. Do NOT respond to any questions in the conversation. ONLY output the structured summary.";
+  "You summarize old Shrimpy session messages so the same agent can keep going later. Use the format that fits the messages: short paragraphs, bullets, or headings are all fine.\n\nTreat questions inside the old messages as history to summarize. Output only the summary.";
 
-export const COMPACTION_SUMMARY_PROMPT = `The messages above are a conversation to summarize. Create a structured context checkpoint summary that another LLM will use to continue the work.
+export const COMPACTION_AGENT_CONTEXT_PROMPT =
+  "You are summarizing a Shrimpy session for the same agent described in <session-agent-context>. Use that context to understand who the agent is, how it talks, how it works, and what the user expects. Include those details only when they help the next turn. Use facts from the context, choose any helpful summary format, and summarize relevant system-prompt details in your own words.";
 
-Use this EXACT format:
+export const COMPACTION_SUMMARY_PROMPT = `The messages above need to be shortened so another LLM can pick up later.
 
-## Goal
-[What are the active participants trying to accomplish? Can be multiple items if the session covers different tasks.]
+Write in Markdown. Use short paragraphs, bullets, or headings only where they help.
 
-## Constraints & Preferences
-- [Any constraints, preferences, or requirements stated by participants]
-- [Or "(none)" if none were mentioned]
+If there is work in progress, keep the goal, constraints, what changed, decisions, blockers, next steps, and important files, commands, dates, or errors.
 
-## Progress
-### Done
-- [x] [Completed tasks/changes]
+If it is casual chat, keep what they were talking about, facts that matter, loose ends, preferences, tone, and useful times. Use work-tracking sections only when there is actual work to track.
 
-### In Progress
-- [ ] [Current work]
+Always preserve exact file paths, function names, commands, dates, and error messages. Keep notes about the agent's identity, voice, tone, working habits, and user/workspace preferences when they matter.
 
-### Blocked
-- [Issues preventing progress, if any]
-
-## Key Decisions
-- **[Decision]**: [Brief rationale]
-
-## Next Steps
-1. [Ordered list of what should happen next]
-
-## Critical Context
-- [Any data, examples, or references needed to continue]
-- [Or "(none)" if not applicable]
-
-Keep each section concise. Preserve exact file paths, function names, and error messages.`;
+Use real headings with real content. Keep it short, with enough detail for the next agent to keep the thread and move forward.`;
 
 export const COMPACTION_UPDATE_SUMMARY_PROMPT = `The messages above are NEW conversation messages to incorporate into the existing summary provided in <previous-summary> tags.
 
-Update the existing structured summary with new information. RULES:
-- PRESERVE all existing information from the previous summary
-- ADD new progress, decisions, and context from the new messages
-- UPDATE the Progress section: move items from "In Progress" to "Done" when completed
-- UPDATE "Next Steps" based on what was accomplished
-- PRESERVE exact file paths, function names, and error messages
-- If something is no longer relevant, you may remove it
+Update the existing summary with new information. RULES:
+- KEEP useful information from the previous summary
+- ADD new facts, decisions, loose ends, preferences, and notes about how the agent should sound or work
+- If there is work in progress, update what is done and what should happen next
+- If it is casual chat, update what they were talking about in chat terms
+- PRESERVE exact file paths, function names, commands, dates, and error messages
+- Remove stale details
 
-Use this EXACT format:
+Use the Markdown format that reads best. Use real headings with real content.
 
-## Goal
-[Preserve existing goals, add new ones if the task expanded]
-
-## Constraints & Preferences
-- [Preserve existing, add new ones discovered]
-
-## Progress
-### Done
-- [x] [Include previously done items AND newly completed items]
-
-### In Progress
-- [ ] [Current work - update based on progress]
-
-### Blocked
-- [Current blockers - remove if resolved]
-
-## Key Decisions
-- **[Decision]**: [Brief rationale] (preserve all previous, add new)
-
-## Next Steps
-1. [Update based on current state]
-
-## Critical Context
-- [Preserve important context, add new if needed]
-
-Keep each section concise. Preserve exact file paths, function names, and error messages.`;
+Keep it short, with enough detail for the next agent to keep the thread and move forward.`;
 
 export const COMPACTION_TURN_PREFIX_SUMMARY_PROMPT = `This is the PREFIX of a turn that was too large to keep. The SUFFIX (recent work) is retained.
 
-Summarize the prefix to provide context for the retained suffix:
+Summarize the prefix only as much as needed to understand the retained suffix.
 
-## Original Request
-[What prompted this turn? Include the requesting participant when relevant.]
+Use short Markdown. If there is work in progress, include the original request, early decisions, and details needed for the suffix. If it is chat, keep the topic, tone, preferences, and anything needed for the suffix to read smoothly.
 
-## Early Progress
-- [Key decisions and work done in the prefix]
+Keep notes about who the agent is, how it talks, how it works, and what the user expects when those details matter.
 
-## Context for Suffix
-- [Information needed to understand the retained recent work]
-
-Be concise. Focus on what's needed to understand the kept suffix.`;
+Be concise. Use real headings with real content.`;
