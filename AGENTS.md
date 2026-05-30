@@ -29,7 +29,9 @@ Use GitHub Releases for public versions. Early versions are alpha-quality unless
 
 - Confirm the working tree is clean and `main` is pushed before cutting a release.
 - Use semantic version tags with a `v` prefix, for example `v0.1.0`.
-- For alpha releases, create a GitHub prerelease with `gh release create <tag> --target main --title "<tag> alpha" --notes "<summary>" --prerelease`.
+- Every public release at `0.1.0` or later gets a short lyrical aquatic release name/tagline. Keep it poetic but concrete, and include it in the release title or notes.
+- `v0.1.0` release name: **First Light in the Tidepool**.
+- For alpha releases, create a GitHub prerelease with `gh release create <tag> --target main --title "<tag> alpha - <release name>" --notes "<summary>" --prerelease`.
 - GitHub automatically provides source archives; only attach release assets when there is a deliberate packaged build.
 
 ## Architecture guidance

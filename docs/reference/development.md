@@ -31,6 +31,12 @@ node dist/cli.js context --config
 node dist/cli.js gateway logs --path
 ```
 
+## Releases
+
+- Public versions use semantic version tags with a `v` prefix, for example `v0.1.0`.
+- Every public release at `0.1.0` or later gets a short lyrical aquatic release name/tagline. Keep it poetic but concrete, and include it in the release title or notes.
+- `v0.1.0` release name: **First Light in the Tidepool**.
+
 ## Docs Layout
 
 - `docs/reference/` — current behavior.
