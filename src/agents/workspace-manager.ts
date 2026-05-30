@@ -1,16 +1,22 @@
 import type { AppRuntime } from "../app/runtime.js";
 import { createAgentPaths } from "../app/paths.js";
 import {
+  type AgentAttentionConfig,
   type AgentConfig,
   DEFAULT_AGENT_ID,
   validateAgentsConfig,
 } from "../config/agents.js";
+import {
+  type AttentionEdit,
+  editAttentionConfig,
+} from "./attention-edit.js";
 import {
   createAgentConfig,
   type AgentConfigDraft,
   patchStoredAgentConfig,
   readAgentWorkspaceConfig,
   renameStoredAgentConfig,
+  setStoredAgentAttention,
   writeAgentWorkspaceConfig,
 } from "./config-store.js";
 import {
@@ -71,6 +77,17 @@ export interface UpdateAgentResult {
   updatedAgent: AgentConfig;
   rootPath: string;
   movedPaths: Array<{ from: string; to: string }>;
+}
+
+export interface EditAgentAttentionInput {
+  agentId: string;
+  edit: AttentionEdit;
+}
+
+export interface EditAgentAttentionResult {
+  configPath: string;
+  previousAttention?: AgentAttentionConfig;
+  nextAttention: AgentAttentionConfig | null;
 }
 
 export function addAgentToWorkspace(
@@ -245,6 +262,32 @@ export function updateAgentInWorkspace(
     updatedAgent: nextAgent,
     rootPath: nextPaths.root,
     movedPaths,
+  };
+}
+
+export function editAgentAttentionInWorkspace(
+  runtime: AppRuntime,
+  input: EditAgentAttentionInput,
+): EditAgentAttentionResult {
+  const editable = readAgentWorkspaceConfig(runtime.config.workspace);
+  const existingAgent = editable.agents.find((agent) => agent.id === input.agentId);
+  if (!existingAgent) {
+    throw new Error(`agent not found: ${input.agentId}`);
+  }
+
+  const nextAttention = editAttentionConfig(existingAgent.attention, input.edit);
+  const nextAgent = setStoredAgentAttention(existingAgent, nextAttention);
+  persistAgentConfigs(
+    editable,
+    editable.agents.map((agent) =>
+      agent.id === input.agentId ? nextAgent : agent
+    ),
+  );
+
+  return {
+    configPath: editable.configPath,
+    previousAttention: existingAgent.attention,
+    nextAttention,
   };
 }
 

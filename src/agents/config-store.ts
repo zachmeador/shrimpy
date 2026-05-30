@@ -96,3 +96,17 @@ export function patchStoredAgentConfig(
     ...(patch.attention !== undefined ? { attention: patch.attention } : {}),
   };
 }
+
+/** Set the stored attention config, or remove the key when `attention` is null. */
+export function setStoredAgentAttention(
+  agent: AgentConfig,
+  attention: AgentAttentionConfig | null,
+): AgentConfig {
+  const next: AgentConfig = { ...agent };
+  if (attention === null) {
+    delete next.attention;
+  } else {
+    next.attention = attention;
+  }
+  return next;
+}

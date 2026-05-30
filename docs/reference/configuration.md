@@ -249,6 +249,20 @@ shrimpy agent attention shrimpy --channel home
 shrimpy agent attention test shrimpy --channel home --sender human --text "@shrimpy wassup"
 ```
 
+Edit fields directly instead of hand-writing the JSON. `set`/`clear` target the base rule, or a channel override when `--channel <pattern>` is given, and leave the rest of the policy untouched:
+
+```bash
+# Narrow the base rule to humans, then add a per-channel override.
+shrimpy agent attention set shrimpy --senders human
+shrimpy agent attention set shrimpy --channel heartbeat --mode all --senders system
+
+# Clear one field, or drop a whole channel override.
+shrimpy agent attention clear shrimpy --senders
+shrimpy agent attention clear shrimpy --channel heartbeat
+```
+
+`set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `attention` block, falling back to the default `all` policy. Channel membership is unaffected — attention only decides whether a member handles a message.
+
 ## Channel Membership
 
 `config/channels.json` shape:

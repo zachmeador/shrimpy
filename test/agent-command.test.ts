@@ -221,6 +221,194 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(decision.message.mentionedAgentIds, ["shrimpy"]);
   });
 
+  test("sets fine-grained base attention fields without dropping the mode", async () => {
+    await setupInit(workspace);
+    await withMutedConsole(() =>
+      cmdAgent(["add", "watcher", "--attention", "mentions"], { workspace } as any)
+    );
+
+    const code = await withMutedConsole(() =>
+      cmdAgent([
+        "attention",
+        "set",
+        "watcher",
+        "--senders",
+        "human,human,system",
+        "--actor-ids",
+        "telegram:42",
+      ], { workspace } as any)
+    );
+
+    assert.equal(code, 0);
+
+    const config = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    );
+    const agent = config.agents.find((entry: any) => entry.id === "watcher");
+    assert.deepEqual(agent.attention, {
+      mode: "mentions",
+      senders: ["human", "system"],
+      actorIds: ["telegram:42"],
+    });
+
+    const homeBus = new ChannelBus(join(workspace, "channels"));
+    const { messages } = homeBus.read("home");
+    assert.deepEqual(messages.at(-1)?.content.data, {
+      kind: "agent_updated",
+      agentId: "watcher",
+      updatedFields: ["attention"],
+    });
+  });
+
+  test("sets and clears a channel attention override", async () => {
+    await setupInit(workspace);
+    await withMutedConsole(() =>
+      cmdAgent(["add", "watcher", "--attention", "mentions"], { workspace } as any)
+    );
+
+    await withMutedConsole(() =>
+      cmdAgent([
+        "attention",
+        "set",
+        "watcher",
+        "--channel",
+        "ops",
+        "--mode",
+        "all",
+        "--senders",
+        "system",
+      ], { workspace } as any)
+    );
+
+    let agent = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ).agents.find((entry: any) => entry.id === "watcher");
+    assert.deepEqual(agent.attention, {
+      mode: "mentions",
+      channels: { ops: { mode: "all", senders: ["system"] } },
+    });
+
+    // Clearing one override field keeps the rest of the override.
+    await withMutedConsole(() =>
+      cmdAgent(["attention", "clear", "watcher", "--channel", "ops", "--senders"], {
+        workspace,
+      } as any)
+    );
+    agent = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ).agents.find((entry: any) => entry.id === "watcher");
+    assert.deepEqual(agent.attention, {
+      mode: "mentions",
+      channels: { ops: { mode: "all" } },
+    });
+
+    // Clearing the override with no fields removes it entirely.
+    await withMutedConsole(() =>
+      cmdAgent(["attention", "clear", "watcher", "--channel", "ops"], { workspace } as any)
+    );
+    agent = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ).agents.find((entry: any) => entry.id === "watcher");
+    assert.deepEqual(agent.attention, { mode: "mentions" });
+  });
+
+  test("removes the attention key when the last field is cleared", async () => {
+    await setupInit(workspace);
+    await withMutedConsole(() =>
+      cmdAgent(["add", "watcher", "--attention", "mentions"], { workspace } as any)
+    );
+
+    const code = await withMutedConsole(() =>
+      cmdAgent(["attention", "clear", "watcher", "--mode"], { workspace } as any)
+    );
+
+    assert.equal(code, 0);
+    const agent = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ).agents.find((entry: any) => entry.id === "watcher");
+    assert.equal("attention" in agent, false);
+  });
+
+  test("edited attention changes the attention test decision", async () => {
+    await setupInit(workspace);
+    await withMutedConsole(() =>
+      cmdAgent(["add", "watcher", "--attention", "all"], { workspace } as any)
+    );
+    await withMutedConsole(() =>
+      cmdAgent(["attention", "set", "watcher", "--senders", "human"], { workspace } as any)
+    );
+
+    const config = {
+      ...JSON.parse(readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8")),
+      workspace,
+    };
+
+    const human = await captureLogs(() =>
+      cmdAgent([
+        "attention",
+        "test",
+        "watcher",
+        "--channel",
+        "home",
+        "--sender",
+        "human",
+        "--text",
+        "hi",
+        "--json",
+      ], config as any)
+    );
+    assert.equal(JSON.parse(human.lines.join("\n")).handles, true);
+
+    const fromAgent = await captureLogs(() =>
+      cmdAgent([
+        "attention",
+        "test",
+        "watcher",
+        "--channel",
+        "home",
+        "--sender",
+        "agent",
+        "--actor-id",
+        "agent:other",
+        "--text",
+        "hi",
+        "--json",
+      ], config as any)
+    );
+    const decision = JSON.parse(fromAgent.lines.join("\n"));
+    assert.equal(decision.handles, false);
+    assert.equal(decision.reason, "sender does not match effective attention filters");
+  });
+
+  test("rejects attention set with no fields and clear with no target", async () => {
+    await setupInit(workspace);
+    await withMutedConsole(() =>
+      cmdAgent(["add", "watcher"], { workspace } as any)
+    );
+
+    const originalError = console.error;
+    console.error = () => {};
+    try {
+      const setCode = await withMutedConsole(() =>
+        cmdAgent(["attention", "set", "watcher"], { workspace } as any)
+      );
+      assert.equal(setCode, 1);
+
+      const clearCode = await withMutedConsole(() =>
+        cmdAgent(["attention", "clear", "watcher"], { workspace } as any)
+      );
+      assert.equal(clearCode, 1);
+    } finally {
+      console.error = originalError;
+    }
+
+    // A failed mutation must not have written an attention block.
+    const agent = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ).agents.find((entry: any) => entry.id === "watcher");
+    assert.equal(agent.attention, undefined);
+  });
+
   test("maps agent thinking on to a medium default", async () => {
     await setupInit(workspace);
 

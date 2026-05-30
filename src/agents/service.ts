@@ -3,6 +3,9 @@ import {
   addAgentToWorkspace,
   type AddAgentInput,
   type AddAgentResult,
+  editAgentAttentionInWorkspace,
+  type EditAgentAttentionInput,
+  type EditAgentAttentionResult,
   removeAgentFromWorkspace,
   type RemoveAgentInput,
   type RemoveAgentResult,
@@ -79,6 +82,19 @@ export function updateAgent(
       ...(input.thinking !== undefined ? ["thinking"] : []),
       ...(input.attention !== undefined ? ["attention"] : []),
     ],
+  });
+  return result;
+}
+
+export function editAgentAttention(
+  runtime: AppRuntime,
+  input: EditAgentAttentionInput,
+): EditAgentAttentionResult {
+  const result = editAgentAttentionInWorkspace(runtime, input);
+  publishLifecycleEvent(runtime, {
+    kind: "agent_updated",
+    agentId: input.agentId,
+    updatedFields: ["attention"],
   });
   return result;
 }

@@ -1,7 +1,14 @@
 import {
+  type AttentionField,
+  type AttentionRuleValues,
+  type AttentionSenderKind,
+} from "../agents/attention-edit.js";
+import {
   explainAgentMessageHandling,
   extractMentionedAgentIds,
 } from "../agents/channel-policy.js";
+import { editAgentAttention } from "../agents/service.js";
+import type { EditAgentAttentionResult } from "../agents/workspace-manager.js";
 import { createAppRuntime } from "../app/index.js";
 import {
   makeMessage,
@@ -12,13 +19,69 @@ import { resolveAgentAttentionForChannel } from "../config/agents.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import { channelMatches } from "../util/channel-pattern.js";
 import {
+  parseAttentionMode,
+  parseCsv,
+} from "./agent-helpers.js";
+import {
   parseCommandArgs,
+  printError,
   requireArg,
 } from "./framework.js";
 
 function parseSenderKind(value?: string): MessageSenderKind {
   if (value === "human" || value === "agent" || value === "system") return value;
   throw new Error("sender must be one of: human, agent, system");
+}
+
+function parseSenderKinds(value: string): AttentionSenderKind[] {
+  const items = parseCsv(value);
+  if (!items) {
+    throw new Error("senders must list at least one of: human, agent, system");
+  }
+  return items.map((item) => parseSenderKind(item));
+}
+
+function requireIds(value: string, label: string): string[] {
+  const items = parseCsv(value);
+  if (!items) {
+    throw new Error(`${label} must list at least one id`);
+  }
+  return items;
+}
+
+function parseChannelTarget(value: string | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+function reportAttentionEdit(
+  action: "set" | "clear",
+  agentId: string,
+  channel: string | undefined,
+  result: EditAgentAttentionResult,
+  json: boolean,
+): number {
+  const target = channel ? `channel:${channel}` : "base";
+  if (json) {
+    console.log(JSON.stringify({
+      action,
+      agentId,
+      target,
+      configPath: result.configPath,
+      previousAttention: result.previousAttention ?? null,
+      attention: result.nextAttention,
+    }, null, 2));
+    return 0;
+  }
+
+  console.log(`attention ${action}: ${agentId}`);
+  console.log(`target: ${target}`);
+  console.log(`config: ${result.configPath}`);
+  console.log(
+    `attention: ${result.nextAttention ? JSON.stringify(result.nextAttention) : "(default)"}`,
+  );
+  return 0;
 }
 
 function parseAddressed(value?: string): string | undefined {
@@ -34,6 +97,12 @@ export async function cmdAgentAttention(
 ): Promise<number> {
   if (args[0] === "test") {
     return cmdAgentAttentionTest(config, args.slice(1), json, usage);
+  }
+  if (args[0] === "set") {
+    return cmdAgentAttentionSet(config, args.slice(1), json, usage);
+  }
+  if (args[0] === "clear") {
+    return cmdAgentAttentionClear(config, args.slice(1), json, usage);
   }
 
   const { values, positionals } = parseCommandArgs({
@@ -101,6 +170,110 @@ export async function cmdAgentAttention(
     console.log(`- ${policy}`);
   }
   return 0;
+}
+
+async function cmdAgentAttentionSet(
+  config: ShrimpyConfig,
+  args: string[],
+  json: boolean,
+  usage: string,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args,
+    options: {
+      channel: { type: "string" },
+      mode: { type: "string" },
+      senders: { type: "string" },
+      "actor-ids": { type: "string" },
+      "user-ids": { type: "string" },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+
+  const agentId = requireArg(positionals[0], usage, "agent id");
+  const channel = parseChannelTarget(values.channel);
+  if (channel === null) {
+    return printError("agent attention set --channel requires a non-empty pattern");
+  }
+
+  const set: AttentionRuleValues = {};
+  if (values.mode !== undefined) {
+    const mode = parseAttentionMode(values.mode);
+    if (mode) set.mode = mode;
+  }
+  if (values.senders !== undefined) set.senders = parseSenderKinds(values.senders);
+  if (values["actor-ids"] !== undefined) {
+    set.actorIds = requireIds(values["actor-ids"], "actor-ids");
+  }
+  if (values["user-ids"] !== undefined) {
+    set.userIds = requireIds(values["user-ids"], "user-ids");
+  }
+
+  if (Object.keys(set).length === 0) {
+    return printError(
+      "agent attention set requires at least one of --mode, --senders, --actor-ids, --user-ids",
+    );
+  }
+
+  const runtime = createAppRuntime(config);
+  const result = editAgentAttention(runtime, {
+    agentId,
+    edit: { ...(channel ? { channel } : {}), set },
+  });
+  return reportAttentionEdit("set", agentId, channel ?? undefined, result, json);
+}
+
+async function cmdAgentAttentionClear(
+  config: ShrimpyConfig,
+  args: string[],
+  json: boolean,
+  usage: string,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args,
+    options: {
+      channel: { type: "string" },
+      mode: { type: "boolean" },
+      senders: { type: "boolean" },
+      "actor-ids": { type: "boolean" },
+      "user-ids": { type: "boolean" },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+
+  const agentId = requireArg(positionals[0], usage, "agent id");
+  const channel = parseChannelTarget(values.channel);
+  if (channel === null) {
+    return printError("agent attention clear --channel requires a non-empty pattern");
+  }
+
+  const clear: AttentionField[] = [];
+  if (values.mode) clear.push("mode");
+  if (values.senders) clear.push("senders");
+  if (values["actor-ids"]) clear.push("actorIds");
+  if (values["user-ids"]) clear.push("userIds");
+
+  const removeChannel = channel !== undefined && clear.length === 0;
+  if (clear.length === 0 && !removeChannel) {
+    return printError(
+      "agent attention clear requires --channel or at least one of --mode, --senders, --actor-ids, --user-ids",
+    );
+  }
+
+  const runtime = createAppRuntime(config);
+  const result = editAgentAttention(runtime, {
+    agentId,
+    edit: {
+      ...(channel ? { channel } : {}),
+      ...(clear.length > 0 ? { clear } : {}),
+      ...(removeChannel ? { removeChannel: true } : {}),
+    },
+  });
+  return reportAttentionEdit("clear", agentId, channel ?? undefined, result, json);
 }
 
 async function cmdAgentAttentionTest(

@@ -65,6 +65,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--thinking`, and `--attention <all|mentions|addressed|none>`. |
 | `shrimpy agent set <id>` | Update root, model default, tools, thinking default, or attention mode. |
 | `shrimpy agent attention <id> [--channel <name>]` | Inspect base and effective attention policy, including implied rules. |
+| `shrimpy agent attention set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel attention fields without rewriting the rest of the policy. |
+| `shrimpy agent attention clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel attention fields; `--channel` with no fields removes the whole override. |
 | `shrimpy agent attention test <id> --channel <name> --sender <human\|agent\|system> --text <text>` | Explain whether a sample message would become a turn. |
 | `shrimpy agent schedules <id>` | List one agent's schedule definitions. |
 | `shrimpy agent schedule <id> <schedule-id>` | Show one agent schedule definition. |

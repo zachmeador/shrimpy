@@ -1,6 +1,6 @@
 # 🦐 ATTENTION-001: Fine-Grained Agent Attention CLI Mutators
 
-Status: todo
+Status: done
 Priority: P1
 Area: Agents
 

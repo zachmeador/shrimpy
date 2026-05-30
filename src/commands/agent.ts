@@ -33,6 +33,8 @@ const USAGE = `usage:
   shrimpy agent rename <old-id> <new-id> [--json]
   shrimpy agent remove <id> [--delete-files] [--json]
   shrimpy agent attention <id> [--channel <name>] [--json]
+  shrimpy agent attention set <id> [--channel <pattern>] [--mode <all|mentions|addressed|none>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b] [--json]
+  shrimpy agent attention clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids] [--json]
   shrimpy agent attention test <id> --channel <name> --sender <human|agent|system> --text <text> [--addressed <id>] [--json]
   shrimpy agent schedules <id> [--json]
   shrimpy agent schedule <id> <schedule-id> [--json]
