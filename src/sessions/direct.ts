@@ -226,7 +226,7 @@ async function runAgentTuiSession(
         cwd,
       });
       installShrimpyContextRendering(interactive);
-      installShrimpyModelSelectionGuard(interactive);
+      installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
       installShrimpySettingsSelector(interactive, {
         runtime: input.runtime,
         agentId: agent.id,

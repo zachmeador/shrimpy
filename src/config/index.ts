@@ -38,6 +38,9 @@ import { readJsonFileStrict } from "../util/json-file.js";
 export interface ShrimpyConfig {
   workspace: string;
   model?: ModelSelectionConfig;
+  tui?: {
+    modelFavorites?: string[];
+  };
   briefing?: BriefingConfig;
   context?: ContextConfig;
   contextDefaults?: ContextDefaultsConfig;
