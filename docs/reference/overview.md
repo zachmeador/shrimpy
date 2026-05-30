@@ -10,7 +10,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Current upstream Pi package
 - Runtime config lives in `workspace/config/shrimpy.json`.
 - Channels are append-only JSONL logs under `workspace/channels/`.
 - Agents live under `workspace/agents/<id>/` with their own prompt resources, memory, skills, and sessions.
-- Pi owns model calls, tool execution, TUI behavior, and transcript persistence. Shrimpy owns session framing and routing.
+- Pi owns model calls, tool execution, the interactive TUI, the session runtime, and transcript persistence. Shrimpy owns session framing, routing, workspace conventions, and targeted TUI seams such as the unified `/settings` selector.
 - Prompts are assembled from typed `PromptSection`s — identity/memory/instruction first, capability next, runtime/activity/evidence last — with a per-turn briefing envelope on top.
 
 ## Core Loop
@@ -21,7 +21,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Current upstream Pi package
 4. The agent uses tools as needed.
 5. Messages addressed to the user go through `send_message`, which logs to the channel and delivers through a surface when one is configured.
 
-`shrimpy` and `shrimpy run` open direct local Pi sessions without first writing the prompt into a channel log.
+`shrimpy` and `shrimpy run` open direct local sessions without first writing the prompt into a channel log. The interactive TUI uses Pi's `InteractiveMode` so slash autocomplete and default UI behavior stay aligned with Pi, while Shrimpy patches `/settings` to expose both Shrimpy and Pi-owned settings.
 
 ## Where to Look Next
 

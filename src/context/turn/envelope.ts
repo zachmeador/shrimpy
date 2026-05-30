@@ -1,9 +1,14 @@
+const CONTEXT_OPEN_TAG = "<context>";
+const CONTEXT_CLOSE_TAG = "</context>";
+
 export function composePromptWithBriefing(
   body: string,
   briefingText?: string,
 ): string {
   const briefing = briefingText?.trim();
-  return briefing ? `<context>\n${briefing}\n</context>\n\n${body}` : body;
+  return briefing
+    ? `${CONTEXT_OPEN_TAG}\n${briefing}\n${CONTEXT_CLOSE_TAG}\n\n${body}`
+    : body;
 }
 
 /**
@@ -12,5 +17,15 @@ export function composePromptWithBriefing(
  * through Pi's command path.
  */
 export function isPromptAlreadyPrepared(body: string): boolean {
-  return body.startsWith("<context>") || body.startsWith("/");
+  return body.startsWith(CONTEXT_OPEN_TAG) || body.startsWith("/");
+}
+
+export function stripPromptBriefingForDisplay(text: string): string {
+  if (!text.startsWith(CONTEXT_OPEN_TAG)) return text;
+
+  const closeIndex = text.indexOf(CONTEXT_CLOSE_TAG);
+  if (closeIndex === -1) return text;
+
+  const afterClose = text.slice(closeIndex + CONTEXT_CLOSE_TAG.length);
+  return afterClose.replace(/^(?:\r?\n){1,2}/, "");
 }

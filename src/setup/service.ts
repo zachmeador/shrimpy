@@ -7,7 +7,10 @@ import {
   loadConfigForWorkspace,
   type ShrimpyConfig,
 } from "../config/index.js";
-import { runInteractiveAgentSession } from "../sessions/index.js";
+import {
+  runInteractiveAgentSession,
+  runPiInteractiveAgentSession,
+} from "../sessions/index.js";
 import {
   ensureWorkspaceInitialized,
   type SetupInitResult,
@@ -80,7 +83,7 @@ export async function launchProviderBootstrapSession(
   input: SetupSessionLaunchInput,
 ): Promise<void> {
   const runtime = createAppRuntime(input.config);
-  await runInteractiveAgentSession({
+  await runPiInteractiveAgentSession({
     runtime,
     agentId: "shrimpy",
     channel: "setup-provider",

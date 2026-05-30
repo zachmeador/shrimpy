@@ -15,6 +15,9 @@ import {
 import type { ThinkingLevel } from "../inference/thinking.js";
 import { mergeModelSelection } from "../config/index.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
+import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
+import { installShrimpyContextRendering } from "../tui/shrimpy-context-rendering.js";
+import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
 import { openSession, openSessionRuntime, resolveModel } from "./factory.js";
 import { createLocalSessionDescriptor } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
@@ -134,6 +137,19 @@ export async function runDirectAgentPrompt(
 export async function runInteractiveAgentSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
+  return runAgentTuiSession(input, "shrimpy");
+}
+
+export async function runPiInteractiveAgentSession(
+  input: RunInteractiveSessionInput,
+): Promise<{ agentId: string }> {
+  return runAgentTuiSession(input, "pi");
+}
+
+async function runAgentTuiSession(
+  input: RunInteractiveSessionInput,
+  mode: "pi" | "shrimpy",
+): Promise<{ agentId: string }> {
   const cwd = input.cwd ?? process.cwd();
   const agent = input.runtime.getAgent(input.agentId);
   const egressRegistry = input.runtime.createCliEgressRegistry();
@@ -198,6 +214,17 @@ export async function runInteractiveAgentSession(
     const interactive = new InteractiveMode(runtime, {
       initialMessage: input.initialMessage,
     });
+    if (mode === "shrimpy") {
+      installShrimpyActivityIndicator(interactive);
+      installShrimpyContextRendering(interactive);
+      installShrimpySettingsSelector(interactive, {
+        runtime: input.runtime,
+        agentId: agent.id,
+        channel: input.channel,
+        sessionType: input.sessionType,
+        cwd,
+      });
+    }
     await interactive.run();
     return { agentId: agent.id };
   } finally {
