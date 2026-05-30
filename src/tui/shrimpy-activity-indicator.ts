@@ -19,6 +19,9 @@ interface InteractiveModeActivityInternals {
 const FRAME_INTERVAL_MS = 180;
 const SHRIMP_BLOCK_WIDTH = 4;
 const SHRIMP_BLOCK_GAP = 1;
+const SHRIMP_WRAP_MARGIN = 1;
+const SHRIMP_SUFFIX_WIDTH = SHRIMP_BLOCK_GAP + SHRIMP_BLOCK_WIDTH;
+const SHRIMP_SUFFIX_RESERVE = SHRIMP_SUFFIX_WIDTH + SHRIMP_WRAP_MARGIN;
 const SHRIMP_BLOCK_EMPTY = " ".repeat(SHRIMP_BLOCK_WIDTH);
 const SHRIMP_FRAMES: Array<[string, string]> = [
   ["🦐  ", SHRIMP_BLOCK_EMPTY],
@@ -44,10 +47,7 @@ export function installShrimpyActivityIndicator(interactive: unknown): void {
 
   footer.render = (width: number) => {
     const busy = isBusy(mode);
-    const contentWidth = Math.max(
-      1,
-      width - SHRIMP_BLOCK_WIDTH - SHRIMP_BLOCK_GAP,
-    );
+    const contentWidth = shrimpyFooterContentWidth(width);
     return renderShrimpyActivityFooter(
       originalRender(contentWidth),
       width,
@@ -68,11 +68,14 @@ export function renderShrimpyActivityFooter(
   busy: boolean,
   frameIndex: number,
 ): string[] {
+  if (!canRenderShrimpSuffix(width)) {
+    return lines.map((line) => truncateToWidth(line, width, ""));
+  }
+
   const block = busy
     ? SHRIMP_FRAMES[frameIndex % SHRIMP_FRAMES.length] ?? SHRIMP_FRAMES[0]
     : IDLE_FRAME;
-  const prefixWidth = SHRIMP_BLOCK_WIDTH + SHRIMP_BLOCK_GAP;
-  const contentWidth = Math.max(1, width - prefixWidth);
+  const contentWidth = shrimpyFooterContentWidth(width);
   const output = [...lines];
 
   while (output.length < 2) {
@@ -82,16 +85,32 @@ export function renderShrimpyActivityFooter(
   const blockStartIndex = output.length - 2;
   return output.map((line, index) => {
     const blockIndex = index - blockStartIndex;
-    const prefix = blockIndex >= 0
-      ? `${padVisibleWidth(block[blockIndex] ?? "", SHRIMP_BLOCK_WIDTH)} `
-      : " ".repeat(prefixWidth);
-    return padVisibleWidth(prefix + truncateToWidth(line, contentWidth, ""), width);
+    const truncated = truncateToWidth(line, contentWidth, "");
+    if (blockIndex < 0) {
+      return truncated;
+    }
+
+    const suffix = `${" ".repeat(SHRIMP_BLOCK_GAP)}${padVisibleWidth(
+      block[blockIndex] ?? "",
+      SHRIMP_BLOCK_WIDTH,
+    )}`;
+    return padVisibleWidth(truncated, contentWidth) + suffix;
   });
 }
 
 function padVisibleWidth(text: string, width: number): string {
   const truncated = truncateToWidth(text, width, "");
   return truncated + " ".repeat(Math.max(0, width - visibleWidth(truncated)));
+}
+
+function canRenderShrimpSuffix(width: number): boolean {
+  return width > SHRIMP_SUFFIX_RESERVE;
+}
+
+function shrimpyFooterContentWidth(width: number): number {
+  return canRenderShrimpSuffix(width)
+    ? Math.max(1, width - SHRIMP_SUFFIX_RESERVE)
+    : width;
 }
 
 function isBusy(mode: InteractiveModeActivityInternals): boolean {
