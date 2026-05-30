@@ -6,7 +6,7 @@
 
 Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent).
 
-*Home agent:* an OpenClaw-like central agent for a personal workspace: one persistent identity reachable through multiple surfaces, with shared memory, local tools, and background work.
+*Home agent:* an OpenClaw-like personal workspace runtime: multiple persisting agents reachable through multiple surfaces, with shared memory, local tools, and background work. 
 
 > *keep it shrimple* 🦐
 
