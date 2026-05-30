@@ -547,6 +547,43 @@ describe("cmdAgent lifecycle", () => {
     const career = agents.find((entry: any) => entry.id === "career");
     assert.equal(career.paths.root, join(workspace, "agent-roots", "career"));
     assert.equal(career.root, "agent-roots/career");
+    assert.deepEqual(career.toolPolicy.activeToolNames, [
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "send_message",
+      "read_channel",
+      "run_child",
+    ]);
+  });
+
+  test("inspects effective tool capability policy", async () => {
+    await setupInit(workspace);
+    await withMutedConsole(() =>
+      cmdAgent(["set", "shrimpy", "--disable-tools", "bash"], { workspace } as any)
+    );
+    const config = {
+      ...JSON.parse(readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8")),
+      workspace,
+    };
+
+    const { result, lines } = await captureLogs(() =>
+      cmdAgent(["inspect", "shrimpy", "--json"], config as any)
+    );
+
+    assert.equal(result, 0);
+    const agent = JSON.parse(lines.join("\n"));
+    assert.deepEqual(agent.disabledTools, ["bash"]);
+    assert.equal(agent.toolPolicy.activeToolNames.includes("bash"), false);
+    assert.equal(
+      agent.toolPolicy.capabilities.find((tool: any) => tool.name === "bash").status,
+      "excluded",
+    );
+    assert.equal(
+      agent.toolPolicy.capabilities.find((tool: any) => tool.name === "grep").status,
+      "registered",
+    );
   });
 
   test("updates agent config and root with set", async () => {
@@ -567,6 +604,8 @@ describe("cmdAgent lifecycle", () => {
         "qwen-27b",
         "--tools",
         "send_message,read_channel",
+        "--disable-tools",
+        "bash",
         "--thinking",
         "high",
         "--attention",
@@ -588,6 +627,7 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.channels, undefined);
     assert.equal(agent.triggers, undefined);
     assert.deepEqual(agent.tools, ["send_message", "read_channel"]);
+    assert.deepEqual(agent.disabledTools, ["bash"]);
     assert.equal(agent.thinking, "high");
     assert.deepEqual(agent.attention, { mode: "addressed" });
 
@@ -607,7 +647,7 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(messages.at(-1)?.content.data, {
       kind: "agent_updated",
       agentId: "helper",
-      updatedFields: ["root", "model", "tools", "thinking", "attention"],
+      updatedFields: ["root", "model", "tools", "disabledTools", "thinking", "attention"],
     });
   });
 

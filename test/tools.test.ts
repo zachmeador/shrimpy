@@ -23,7 +23,11 @@ import {
   renderSendMessageResult,
 } from "../dist/context/index.js";
 import { resolveToolRuntimeConfig } from "../dist/config/tools.js";
-import { DAEMON_TOOL_NAMES } from "../dist/tools/index.js";
+import {
+  DAEMON_TOOL_NAMES,
+  createSessionToolPolicy,
+  resolveAgentToolPolicy,
+} from "../dist/tools/index.js";
 
 let testDir: string;
 
@@ -335,6 +339,43 @@ describe("run_child", () => {
     assert.ok(sessionPlans[0].descriptor.sessionDir.startsWith(base));
     assert.ok(sessionPlans[1].descriptor.sessionDir.startsWith(base));
   });
+
+  test("passes the effective tool policy to child sessions", async () => {
+    const sessionPlans: Array<{ toolPolicy?: { excludedToolNames?: string[] } }> = [];
+    const tools = createDaemonTools({
+      channelBus: createChannelBus(),
+      bootstrap: createBootstrap(),
+      toolPolicy: { excludedToolNames: ["bash"] },
+      sessionFactory: async (_bootstrap, opts) => {
+        sessionPlans.push(opts as any);
+        return {
+          subscribe() {
+            return () => {};
+          },
+          async prompt() {
+            throw new Error("boom");
+          },
+          dispose() {},
+        } as any;
+      },
+    });
+    const runChild = findTool("run_child", tools);
+
+    await assert.rejects(
+      runChild.execute(
+        "call-1",
+        { prompt: "one" },
+        new AbortController().signal,
+        () => {},
+        {},
+      ),
+      /boom/,
+    );
+
+    assert.deepEqual(sessionPlans[0].toolPolicy, {
+      excludedToolNames: ["bash"],
+    });
+  });
 });
 
 describe("tool selection", () => {
@@ -361,6 +402,54 @@ describe("tool selection", () => {
         }),
       /unknown daemon tool/,
     );
+  });
+});
+
+describe("agent tool policy", () => {
+  test("combines default Pi tools with Shrimpy daemon tools", () => {
+    const policy = resolveAgentToolPolicy({
+      id: "shrimpy",
+      attention: {} as any,
+    });
+
+    assert.deepEqual(policy.daemonToolNames, [
+      "send_message",
+      "read_channel",
+      "run_child",
+    ]);
+    assert.deepEqual(policy.activeToolNames, [
+      "read",
+      "bash",
+      "edit",
+      "write",
+      "send_message",
+      "read_channel",
+      "run_child",
+    ]);
+
+    const grep = policy.capabilities.find((tool) => tool.name === "grep");
+    assert.equal(grep?.registered, true);
+    assert.equal(grep?.active, false);
+    assert.equal(grep?.status, "registered");
+  });
+
+  test("marks disabled tools as excluded session policy", () => {
+    const policy = resolveAgentToolPolicy({
+      id: "shrimpy",
+      disabledTools: ["bash", "external_tool"],
+      attention: {} as any,
+    });
+
+    assert.equal(policy.activeToolNames.includes("bash"), false);
+    assert.equal(policy.capabilities.find((tool) => tool.name === "bash")?.status, "excluded");
+    assert.deepEqual(createSessionToolPolicy(policy), {
+      excludedToolNames: ["bash", "external_tool"],
+    });
+
+    const external = policy.capabilities.find((tool) => tool.name === "external_tool");
+    assert.equal(external?.origin, "unknown");
+    assert.equal(external?.registered, false);
+    assert.equal(external?.excluded, true);
   });
 });
 

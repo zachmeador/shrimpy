@@ -1,6 +1,6 @@
 # 🦐 TOOLS-001: Unified Agent Tool Capability View
 
-Status: todo
+Status: done
 Priority: P1
 Area: Runtime
 

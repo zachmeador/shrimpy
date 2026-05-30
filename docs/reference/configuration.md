@@ -24,7 +24,7 @@ The workspace itself is selected by `~/.shrimpy-workspace.json`:
 Sections:
 
 - `model` — workspace default model used when a session does not pass `--provider` / `--model` and the agent has no model override.
-- `agents` — agent ids, root paths, optional default model, allowed tools, optional default `thinking`, attention policy.
+- `agents` — agent ids, root paths, optional default model, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, attention policy.
 - `briefing` — per-turn context budget and channel-unread settings.
 - `runtime` — Pi loader/runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, compaction.
 - `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
@@ -130,11 +130,13 @@ Each agent config entry has:
 - `id` — stable agent id.
 - `root` — workspace-relative or absolute path to that agent's root.
 - `model` — optional default model for sessions opened as that agent. Overrides the workspace `model`.
-- `tools` — allowed Shrimpy daemon tools.
+- `tools` — allowed Shrimpy daemon tools such as `send_message`, `read_channel`, and `run_child`.
+- `disabledTools` — effective tool names to exclude from Pi sessions. Use this to disable Pi built-ins such as `bash`; names are passed to Pi as `excludeTools`, so extension/custom tool names can be listed too.
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `attention` — when channel messages become turns for this agent.
 
-Agent identity, tools, and attention policy live in `agents`. Channel participation lives in `config/channels.json`.
+Agent identity, tool policy, and attention policy live in `agents`. Channel participation lives in `config/channels.json`.
+Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 ## Model Variants
 

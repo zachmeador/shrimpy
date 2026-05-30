@@ -16,11 +16,13 @@ import {
   type UpdateAgentInput,
   type UpdateAgentResult,
 } from "./workspace-manager.js";
+import { resolveAgentToolPolicy } from "../tools/policy.js";
 
 export function listAgentViews(runtime: AppRuntime) {
   return runtime.resolved.agents.map((agent) => ({
     ...agent,
     paths: runtime.getAgentPaths(agent.id),
+    toolPolicy: resolveAgentToolPolicy(agent),
   }));
 }
 
@@ -29,6 +31,7 @@ export function getAgentView(runtime: AppRuntime, agentId: string) {
   return {
     ...agent,
     paths: runtime.getAgentPaths(agent.id),
+    toolPolicy: resolveAgentToolPolicy(agent),
   };
 }
 
@@ -79,6 +82,7 @@ export function updateAgent(
       ...(input.root !== undefined ? ["root"] : []),
       ...(input.model !== undefined ? ["model"] : []),
       ...(input.tools !== undefined ? ["tools"] : []),
+      ...(input.disabledTools !== undefined ? ["disabledTools"] : []),
       ...(input.thinking !== undefined ? ["thinking"] : []),
       ...(input.attention !== undefined ? ["attention"] : []),
     ],

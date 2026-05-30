@@ -23,6 +23,7 @@ export interface AgentConfigDraft {
   root?: string;
   model?: ModelSelectionConfig;
   tools: string[];
+  disabledTools?: string[];
   thinking?: ThinkingLevel;
   attention?: AgentAttentionConfig;
 }
@@ -31,6 +32,7 @@ export interface AgentConfigPatch {
   root?: string;
   model?: ModelSelectionConfig;
   tools?: string[];
+  disabledTools?: string[];
   thinking?: ThinkingLevel;
   attention?: AgentAttentionConfig;
 }
@@ -57,14 +59,18 @@ export function writeAgentWorkspaceConfig(
 }
 
 export function createAgentConfig(input: AgentConfigDraft): AgentConfig {
-  return {
+  const agent: AgentConfig = {
     id: input.agentId,
     root: input.root ?? `agents/${input.agentId}`,
     ...(input.model !== undefined ? { model: input.model } : {}),
     tools: [...new Set(input.tools)],
+    ...(input.disabledTools?.length
+      ? { disabledTools: [...new Set(input.disabledTools)] }
+      : {}),
     ...(input.thinking !== undefined ? { thinking: input.thinking } : {}),
     ...(input.attention !== undefined ? { attention: input.attention } : {}),
   };
+  return agent;
 }
 
 export function renameStoredAgentConfig(
@@ -87,14 +93,23 @@ export function patchStoredAgentConfig(
   agent: AgentConfig,
   patch: AgentConfigPatch,
 ): AgentConfig {
-  return {
+  const next: AgentConfig = {
     ...agent,
     ...(patch.root !== undefined ? { root: patch.root } : {}),
     ...(patch.model !== undefined ? { model: patch.model } : {}),
     ...(patch.tools !== undefined ? { tools: [...new Set(patch.tools)] } : {}),
-    ...(patch.thinking !== undefined ? { thinking: patch.thinking } : {}),
-    ...(patch.attention !== undefined ? { attention: patch.attention } : {}),
   };
+  if (patch.disabledTools !== undefined) {
+    const disabledTools = [...new Set(patch.disabledTools)];
+    if (disabledTools.length > 0) {
+      next.disabledTools = disabledTools;
+    } else {
+      delete next.disabledTools;
+    }
+  }
+  if (patch.thinking !== undefined) next.thinking = patch.thinking;
+  if (patch.attention !== undefined) next.attention = patch.attention;
+  return next;
 }
 
 /** Set the stored attention config, or remove the key when `attention` is null. */

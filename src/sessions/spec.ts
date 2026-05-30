@@ -4,6 +4,7 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PromptResourceRef } from "../context/index.js";
 import type { ModelVariantInference } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
+import type { SessionToolPolicy } from "../tools/policy.js";
 
 export interface SessionDescriptor {
   agentId?: string;
@@ -20,6 +21,7 @@ export interface SessionOpenPlan {
   thinking?: ThinkingLevel;
   defaultThinking?: ThinkingLevel;
   tools?: ToolDefinition[];
+  toolPolicy?: SessionToolPolicy;
   prompt?: {
     appendSystemPrompt?: string;
     skills?: string[];

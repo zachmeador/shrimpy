@@ -9,6 +9,10 @@ import type { ResolvedAgentConfig } from "../config/agents.js";
 import { mergeModelSelection } from "../config/index.js";
 import { resolveModelVariantInference } from "../inference/params.js";
 import {
+  createSessionToolPolicy,
+  resolveAgentToolPolicy,
+} from "../tools/policy.js";
+import {
   createAgentChannelPolicy,
   type AgentChannelPolicy,
 } from "./channel-policy.js";
@@ -37,10 +41,13 @@ export class AgentChannelRuntime {
     this.agentId = opts.agentId;
     this.agent = opts.runtime.getAgent(opts.agentId);
     this.channelBus = opts.channelBus;
+    const toolPolicy = resolveAgentToolPolicy(this.agent);
+    const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
     const tools = opts.runtime.buildRuntimeTools({
       bootstrap: opts.bootstrap,
       channelBus: opts.channelBus,
-      toolNames: this.agent.tools,
+      toolNames: toolPolicy.daemonToolNames,
+      toolPolicy: sessionToolPolicy,
       agentId: this.agent.id,
       actorId: `agent:${this.agent.id}`,
     });
@@ -71,6 +78,7 @@ export class AgentChannelRuntime {
           inference,
           defaultThinking: this.agent.thinking,
           tools,
+          toolPolicy: sessionToolPolicy,
         }),
       turnBriefingForMessage: (channel, message) =>
         buildTurnContext({

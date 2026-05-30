@@ -41,6 +41,15 @@ describe("AgentChannelRuntime", () => {
       buildRuntimeTools() {
         return [];
       },
+      resolveAgentToolPolicy() {
+        return {
+          daemonToolNames: [],
+          disabledToolNames: [],
+          activeToolNames: ["read", "bash", "edit", "write"],
+          registeredToolNames: ["read", "bash", "edit", "write", "grep", "find", "ls"],
+          capabilities: [],
+        };
+      },
     } as any;
 
     const agentRuntime = new AgentChannelRuntime({

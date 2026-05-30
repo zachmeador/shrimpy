@@ -14,6 +14,7 @@ import {
 } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import { mergeModelSelection } from "../config/index.js";
+import { createSessionToolPolicy } from "../tools/policy.js";
 import { openSession, openSessionRuntime, resolveModel } from "./factory.js";
 import { createLocalSessionDescriptor } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
@@ -68,6 +69,8 @@ export async function openDirectAgentSession(
     model,
   });
   const defaultThinking = agent.thinking;
+  const toolPolicy = input.runtime.resolveAgentToolPolicy(agent.id);
+  const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
 
   process.env.PI_SKIP_VERSION_CHECK = "1";
 
@@ -96,10 +99,13 @@ export async function openDirectAgentSession(
       return composePromptWithBriefing(text, renderTurnContext(briefing));
     },
     model,
+    toolPolicy: sessionToolPolicy,
     tools: input.runtime.buildRuntimeTools({
       bootstrap,
       channelBus,
       agentId: agent.id,
+      toolNames: toolPolicy.daemonToolNames,
+      toolPolicy: sessionToolPolicy,
     }),
   });
 
@@ -148,6 +154,8 @@ export async function runInteractiveAgentSession(
     model,
   });
   const defaultThinking = agent.thinking;
+  const toolPolicy = input.runtime.resolveAgentToolPolicy(agent.id);
+  const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
 
   process.env.PI_SKIP_VERSION_CHECK = "1";
 
@@ -176,10 +184,13 @@ export async function runInteractiveAgentSession(
       return composePromptWithBriefing(text, renderTurnContext(briefing));
     },
     model,
+    toolPolicy: sessionToolPolicy,
     tools: input.runtime.buildRuntimeTools({
       bootstrap,
       channelBus,
       agentId: agent.id,
+      toolNames: toolPolicy.daemonToolNames,
+      toolPolicy: sessionToolPolicy,
     }),
   });
 

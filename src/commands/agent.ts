@@ -16,6 +16,7 @@ import {
   cmdAgentTui,
 } from "./agent-session.js";
 import {
+  cmdAgentInspect,
   cmdAgentList,
   cmdAgentShow,
 } from "./agent-view.js";
@@ -28,8 +29,9 @@ import {
 const USAGE = `usage:
   shrimpy agent list [--json]
   shrimpy agent show <id>
-  shrimpy agent add <id> [--root <path>] [--provider <p>] [--model <m>] [--tools a,b] [--thinking <level>] [--attention <mode>] [--json]
-  shrimpy agent set <id> [--root <path>] [--provider <p>] [--model <m>] [--tools a,b] [--thinking <level>] [--attention <mode>] [--json]
+  shrimpy agent inspect <id> [--json]
+  shrimpy agent add <id> [--root <path>] [--provider <p>] [--model <m>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--attention <mode>] [--json]
+  shrimpy agent set <id> [--root <path>] [--provider <p>] [--model <m>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--attention <mode>] [--json]
   shrimpy agent rename <old-id> <new-id> [--json]
   shrimpy agent remove <id> [--delete-files] [--json]
   shrimpy agent attention <id> [--channel <name>] [--json]
@@ -48,6 +50,7 @@ function createAgentCommand(json: boolean): CommandHandler {
     commands: {
       list: ({ config }) => cmdAgentList(config, json),
       show: ({ argv, config, usage }) => cmdAgentShow(config, argv[0], usage),
+      inspect: ({ argv, config, usage }) => cmdAgentInspect(config, argv[0], json, usage),
       run: ({ argv, config, usage }) => cmdAgentRun(config, argv, usage),
       tui: ({ argv, config, usage }) => cmdAgentTui(config, argv, usage),
       remove: ({ argv, config, usage }) => cmdAgentRemove(config, argv, json, usage),

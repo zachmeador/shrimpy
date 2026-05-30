@@ -37,6 +37,11 @@ import {
 import type { SurfaceModuleResolved } from "../surfaces/index.js";
 import { buildRuntimeTools, type DaemonToolName } from "../tools/index.js";
 import {
+  resolveAgentToolPolicy as resolveAgentToolPolicyForConfig,
+  type AgentToolPolicy,
+  type SessionToolPolicy,
+} from "../tools/policy.js";
+import {
   createAgentPaths,
   createWorkspacePaths,
   type AgentPaths,
@@ -60,6 +65,7 @@ export interface AppRuntimeBuildToolsOpts {
   channelBus: ChannelBus;
   agentId?: string;
   toolNames?: DaemonToolName[];
+  toolPolicy?: SessionToolPolicy;
   actorId?: string;
 }
 
@@ -177,8 +183,13 @@ export class AppRuntime {
       toolConfig: this.resolved.tools,
       agentId: opts.agentId,
       toolNames: opts.toolNames,
+      toolPolicy: opts.toolPolicy,
       actorId: opts.actorId,
     });
+  }
+
+  resolveAgentToolPolicy(agentId?: string): AgentToolPolicy {
+    return resolveAgentToolPolicyForConfig(this.getAgent(agentId));
   }
 
   getAgent(agentId?: string): ResolvedAgentConfig {

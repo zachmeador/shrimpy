@@ -43,6 +43,9 @@ interface SessionMetadata {
   env: Record<string, string>;
   compaction: EffectiveCompactionPolicy;
   inference?: ModelVariantInference;
+  toolPolicy?: {
+    excludedToolNames?: string[];
+  };
 }
 
 export async function openSession(
@@ -152,6 +155,7 @@ async function openSessionWithRuntimeDeps(
     model: assembly.resolvedModel,
     thinkingLevel: plan.thinking,
     customTools: plan.tools,
+    excludeTools: plan.toolPolicy?.excludedToolNames,
     sessionStartEvent: opts?.sessionStartEvent,
     cwd: assembly.cwd,
   });
@@ -229,6 +233,7 @@ function recordSessionOpen(input: {
     env: input.env,
     compaction: input.compaction,
     inference: plan.inference,
+    toolPolicy: plan.toolPolicy,
   };
   sessionManager.appendCustomEntry("shrimpy_session_metadata", metadata);
   sessionManager.appendCustomEntry("shrimpy_compaction_policy", input.compaction);

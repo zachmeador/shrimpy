@@ -67,6 +67,7 @@ export interface UpdateAgentInput {
   root?: string;
   model?: AgentConfig["model"];
   tools?: string[];
+  disabledTools?: string[];
   thinking?: AgentConfig["thinking"];
   attention?: AgentConfig["attention"];
 }
@@ -236,6 +237,7 @@ export function updateAgentInWorkspace(
     ...(input.root !== undefined ? { root: input.root } : {}),
     ...(input.model !== undefined ? { model: input.model } : {}),
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
+    ...(input.disabledTools !== undefined ? { disabledTools: input.disabledTools } : {}),
     ...(input.thinking !== undefined ? { thinking: input.thinking } : {}),
     ...(input.attention !== undefined ? { attention: input.attention } : {}),
   });

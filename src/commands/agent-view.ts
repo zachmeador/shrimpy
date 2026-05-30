@@ -8,7 +8,7 @@ import {
   type ShrimpyConfig,
 } from "../config/index.js";
 import { accent, dim } from "../util/style.js";
-import { DEFAULT_AGENT_TOOLS } from "./agent-helpers.js";
+import type { ToolCapabilityView } from "../tools/index.js";
 import { requireArg } from "./framework.js";
 
 export async function cmdAgentList(
@@ -24,11 +24,20 @@ export async function cmdAgentList(
   }
 
   for (const agent of agents) {
-    const tools = (agent.tools ?? DEFAULT_AGENT_TOOLS).join(",");
+    const daemonTools = agent.toolPolicy.daemonToolNames.join(",");
+    const piActiveTools = agent.toolPolicy.capabilities
+      .filter((tool) => tool.origin === "pi_builtin" && tool.active)
+      .map((tool) => tool.name)
+      .join(",");
+    const disabledTools = agent.toolPolicy.disabledToolNames.join(",") || "none";
     const thinking = agent.thinking ?? "inherit";
     const model = agent.model ? formatModelSelection(agent.model) : "workspace";
     console.log(
-      `${accent(agent.id)}  ${dim(`root=${agent.root}  tools=${tools}  thinking=${thinking}  model=${model}`)}`,
+      `${accent(agent.id)}  ${
+        dim(
+          `root=${agent.root}  daemon_tools=${daemonTools}  pi_active=${piActiveTools}  disabled=${disabledTools}  thinking=${thinking}  model=${model}`,
+        )
+      }`,
     );
   }
 
@@ -45,4 +54,51 @@ export async function cmdAgentShow(
   const runtime = createAppRuntime(config);
   console.log(JSON.stringify(getAgentView(runtime, id), null, 2));
   return 0;
+}
+
+export async function cmdAgentInspect(
+  config: ShrimpyConfig,
+  agentId: string | undefined,
+  json: boolean,
+  usage: string,
+): Promise<number> {
+  const id = requireArg(agentId, usage, "agent id");
+
+  const runtime = createAppRuntime(config);
+  const view = getAgentView(runtime, id);
+
+  if (json) {
+    console.log(JSON.stringify(view, null, 2));
+    return 0;
+  }
+
+  const thinking = view.thinking ?? "inherit";
+  const model = view.model ? formatModelSelection(view.model) : "workspace";
+  const active = view.toolPolicy.capabilities.filter((tool) => tool.active);
+  const registeredInactive = view.toolPolicy.capabilities.filter((tool) =>
+    tool.registered && !tool.active && !tool.excluded
+  );
+  const excluded = view.toolPolicy.capabilities.filter((tool) => tool.excluded);
+
+  console.log(accent(view.id));
+  console.log(`root: ${view.root}`);
+  console.log(`model: ${model}`);
+  console.log(`thinking: ${thinking}`);
+  console.log("tools:");
+  console.log(`  active: ${formatToolList(active)}`);
+  console.log(`  registered_inactive: ${formatToolList(registeredInactive)}`);
+  console.log(`  excluded: ${formatToolList(excluded)}`);
+
+  return 0;
+}
+
+function formatToolList(tools: ToolCapabilityView[]): string {
+  if (tools.length === 0) return "(none)";
+  return tools.map((tool) => `${tool.name} (${formatToolOrigin(tool)})`).join(", ");
+}
+
+function formatToolOrigin(tool: ToolCapabilityView): string {
+  if (tool.origin === "pi_builtin") return "pi built-in";
+  if (tool.origin === "shrimpy_daemon") return "shrimpy daemon";
+  return "unknown";
 }

@@ -4,6 +4,7 @@ import type { ResolvedToolRuntimeConfig } from "../config/index.js";
 import type { SessionBootstrap } from "../sessions/index.js";
 import { createDaemonTools } from "./daemon.js";
 import type { DaemonToolName } from "./names.js";
+import type { SessionToolPolicy } from "./policy.js";
 
 interface BuildRuntimeToolsOpts {
   bootstrap: SessionBootstrap;
@@ -11,6 +12,7 @@ interface BuildRuntimeToolsOpts {
   toolConfig: ResolvedToolRuntimeConfig;
   agentId?: string;
   toolNames?: DaemonToolName[];
+  toolPolicy?: SessionToolPolicy;
   actorId?: string;
 }
 
@@ -24,5 +26,6 @@ export function buildRuntimeTools(
     agentId: opts.agentId,
     sendMessageActorId: opts.actorId,
     toolNames: opts.toolNames,
+    toolPolicy: opts.toolPolicy,
   });
 }

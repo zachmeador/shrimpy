@@ -69,6 +69,7 @@ const agentSchema = Type.Object(
     root: Type.Optional(Type.String({ minLength: 1 })),
     model: Type.Optional(modelSelectionSchema),
     tools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+    disabledTools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     thinking: Type.Optional(thinkingLevelSchema),
     attention: Type.Optional(attentionSchema),
   },
@@ -81,6 +82,7 @@ export type ResolvedAgentConfig = {
   root: string;
   model?: ModelSelectionConfig;
   tools?: DaemonToolName[];
+  disabledTools?: string[];
   thinking?: ThinkingLevel;
   attention: Required<AgentAttentionConfig>;
 };
@@ -202,6 +204,7 @@ export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
       tools: agent.tools?.length
         ? ([...new Set(agent.tools)] as DaemonToolName[])
         : undefined,
+      disabledTools: uniqueStrings(agent.disabledTools),
       thinking: agent.thinking,
       attention: resolveAgentAttention(agent.attention),
     };

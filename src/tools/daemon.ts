@@ -24,6 +24,7 @@ import {
   DAEMON_TOOL_NAMES,
   type DaemonToolName,
 } from "./names.js";
+import type { SessionToolPolicy } from "./policy.js";
 
 const SendMessageParams = Type.Object({
   channel: Type.String({
@@ -110,6 +111,7 @@ export interface DaemonToolDeps {
   sendMessageActorId?: string;
   sessionFactory?: typeof openSession;
   toolNames?: DaemonToolName[];
+  toolPolicy?: SessionToolPolicy;
 }
 
 export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
@@ -121,6 +123,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     sendMessageActorId,
     sessionFactory = openSession,
     toolNames,
+    toolPolicy,
   } = deps;
   const toolConfig = rawToolConfig ?? resolveToolRuntimeConfig();
   const resolvedSendMessageActorId =
@@ -222,6 +225,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
             kind: "run",
             channel: "run",
           }),
+          toolPolicy,
         },
       );
 

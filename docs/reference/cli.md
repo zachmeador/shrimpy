@@ -62,8 +62,9 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | --- | --- |
 | `shrimpy agent list` | List configured agents. |
 | `shrimpy agent show <id>` | Show resolved agent config and paths. |
-| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--thinking`, and `--attention <all|mentions|addressed|none>`. |
-| `shrimpy agent set <id>` | Update root, model default, tools, thinking default, or attention mode. |
+| `shrimpy agent inspect <id>` | Show the effective tool capability view, including Pi built-ins, Shrimpy daemon tools, active tools, and excluded tools. |
+| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--tools`, `--disable-tools`, `--thinking`, and `--attention <all|mentions|addressed|none>`. |
+| `shrimpy agent set <id>` | Update root, model default, Shrimpy daemon tools, disabled tools, thinking default, or attention mode. |
 | `shrimpy agent attention <id> [--channel <name>]` | Inspect base and effective attention policy, including implied rules. |
 | `shrimpy agent attention set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel attention fields without rewriting the rest of the policy. |
 | `shrimpy agent attention clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel attention fields; `--channel` with no fields removes the whole override. |

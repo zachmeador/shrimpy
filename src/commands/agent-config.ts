@@ -29,6 +29,7 @@ export async function cmdAgentAdd(
       provider: { type: "string", short: "p" },
       model: { type: "string", short: "m" },
       tools: { type: "string" },
+      "disable-tools": { type: "string" },
       thinking: { type: "string" },
       attention: { type: "string" },
     },
@@ -51,6 +52,7 @@ export async function cmdAgentAdd(
       ? { model: { provider: values.provider, id: values.model } }
       : {}),
     tools: parseCsv(values.tools) ?? [...(defaultAgent.tools ?? DEFAULT_AGENT_TOOLS)],
+    disabledTools: parseCsv(values["disable-tools"]) ?? [...(defaultAgent.disabledTools ?? [])],
     thinking: parseThinking(values.thinking),
     ...(values.attention !== undefined
       ? { attention: { mode: parseAttentionMode(values.attention) } }
@@ -86,6 +88,7 @@ export async function cmdAgentSet(
       provider: { type: "string", short: "p" },
       model: { type: "string", short: "m" },
       tools: { type: "string" },
+      "disable-tools": { type: "string" },
       thinking: { type: "string" },
       attention: { type: "string" },
     },
@@ -103,6 +106,7 @@ export async function cmdAgentSet(
     values.root === undefined
     && values.model === undefined
     && values.tools === undefined
+    && values["disable-tools"] === undefined
     && values.thinking === undefined
     && values.attention === undefined
   ) {
@@ -117,6 +121,9 @@ export async function cmdAgentSet(
       ? { model: { provider: values.provider, id: values.model } }
       : {}),
     ...(values.tools !== undefined ? { tools: parseCsv(values.tools) ?? [] } : {}),
+    ...(values["disable-tools"] !== undefined
+      ? { disabledTools: parseCsv(values["disable-tools"]) ?? [] }
+      : {}),
     ...(values.thinking !== undefined ? { thinking: parseThinking(values.thinking) } : {}),
     ...(values.attention !== undefined
       ? { attention: { mode: parseAttentionMode(values.attention) } }

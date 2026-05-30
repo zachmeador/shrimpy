@@ -22,6 +22,7 @@ describe("resolveAgentsConfig", () => {
           id: "qwen.gguf",
         },
         tools: ["send_message", "send_message", "read_channel"],
+        disabledTools: ["bash", "bash"],
         thinking: "high",
       },
     ]);
@@ -33,6 +34,7 @@ describe("resolveAgentsConfig", () => {
       id: "qwen.gguf",
     });
     assert.deepEqual(agents[0].tools, ["send_message", "read_channel"]);
+    assert.deepEqual(agents[0].disabledTools, ["bash"]);
     assert.equal(agents[0].thinking, "high");
   });
 
