@@ -1,0 +1,49 @@
+{
+  "name": "shrimpy",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "shrimpy": "./dist/cli.js",
+    "shrimpy-gateway": "./dist/gateway.js",
+    "shrimpy-web": "./dist/web/server.js"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc && npm run build:web && chmod +x dist/cli.js dist/gateway.js dist/web/server.js",
+    "build:web": "vite build --config web/vite.config.ts",
+    "lint": "eslint src test web/src --ext .ts",
+    "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",
+    "test:coverage": "npm run build && c8 --all --src src --reporter=text-summary --reporter=lcov node --test --experimental-strip-types test/*.test.ts",
+    "dev": "npm run build && node dist/cli.js",
+    "gateway": "npm run build && node dist/gateway.js",
+    "web": "npm run build && node dist/web/server.js",
+    "web:dev": "node scripts/web-dev.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.77.0",
+    "@earendil-works/pi-ai": "0.77.0",
+    "@earendil-works/pi-coding-agent": "0.77.0",
+    "@earendil-works/pi-tui": "0.77.0",
+    "@sinclair/typebox": "0.34.41",
+    "cron-parser": "^5.5.0",
+    "markdown-it": "^14.1.1",
+    "typebox": "1.1.38"
+  },
+  "piConfig": {
+    "name": "shrimpy",
+    "configDir": ".shrimpy"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@types/markdown-it": "^14.1.2",
+    "c8": "^11.0.0",
+    "eslint": "^10.3.0",
+    "svelte": "^5.0.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.59.1",
+    "vite": "^5.4.0"
+  }
+}

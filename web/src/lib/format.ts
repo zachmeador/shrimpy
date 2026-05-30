@@ -1,0 +1,70 @@
+export function tsHHMMSS(ms: number): string {
+  const d = new Date(ms);
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const s = String(d.getSeconds()).padStart(2, "0");
+  const mi = String(d.getMilliseconds()).padStart(3, "0");
+  return `${h}:${m}:${s}.${mi}`;
+}
+
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+export function formatEventTime(ms: number, now = new Date()): string {
+  if (!ms) return "";
+  const d = new Date(ms);
+  if (isSameLocalDay(d, now)) return tsHHMMSS(ms);
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  const s = String(d.getSeconds()).padStart(2, "0");
+  return `${mo}/${da} ${h}:${m}:${s}`;
+}
+
+export function tsFromIso(iso: string): number {
+  return new Date(iso).getTime();
+}
+
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function shortName(name: string): string {
+  const m = name.match(/^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})-\d{3}Z_([0-9a-f]{8})/);
+  if (m) return `${m[1].replace("T", " ")} ${m[2]}`;
+  return name.replace(/\.jsonl$/, "");
+}
+
+export function argsOneLine(args: unknown): string {
+  if (args == null) return "";
+  if (typeof args !== "object") return String(args);
+  const entries = Object.entries(args as Record<string, unknown>);
+  return entries
+    .map(([k, v]) => {
+      let s: string;
+      if (typeof v === "string") {
+        s = v.length > 60 ? JSON.stringify(v.slice(0, 57)) + "…" : JSON.stringify(v);
+      } else if (v === null || typeof v === "number" || typeof v === "boolean") {
+        s = String(v);
+      } else {
+        const j = JSON.stringify(v);
+        s = j.length > 60 ? j.slice(0, 57) + "…" : j;
+      }
+      return `${k}=${s}`;
+    })
+    .join(", ");
+}
+
+export function firstLines(text: string, n: number): { preview: string; more: boolean } {
+  const lines = text.split("\n");
+  if (lines.length <= n) return { preview: text, more: false };
+  return { preview: lines.slice(0, n).join("\n"), more: true };
+}

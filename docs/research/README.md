@@ -1,0 +1,19 @@
+# 🦐 Research Notes
+
+Date: --
+Status: Index
+
+This directory holds source notes and comparison research that may inform future Shrimpy work. These files are not the stable user-facing docs; promote settled decisions into reference docs when they become part of the project contract.
+
+## Notes
+
+- [local-browser-control.md](local-browser-control.md) — survey of agent web-browsing frameworks and local browser-control mechanisms; includes Webwright, Lightpanda, and how Hermes currently layers browser tools.
+- [macos-seatbelt-helper.md](macos-seatbelt-helper.md) — high-level Seatbelt/App Sandbox notes and a small Mac helper shape for hosting Shrimpy with native per-agent sandboxing.
+- [pi-agent.md](pi-agent.md) — notes from Pi's coding-agent architecture.
+- [qwen35-thinking-control.md](qwen35-thinking-control.md) — thinking-control research for Qwen 3.5 style models.
+- [ralph-loops.md](ralph-loops.md) — loop and runtime behavior notes from Ralph-style agents.
+- [rl-eval-framework.md](rl-eval-framework.md) — watchlist and eventual architecture notes for a Shrimpy personal RL/eval framework.
+
+## Promotion Rule
+
+When a research conclusion becomes a project decision, copy the durable part into the relevant reference doc such as [architecture.md](../reference/architecture.md), [runtime.md](../reference/runtime.md), [configuration.md](../reference/configuration.md), [workspace.md](../reference/workspace.md), or [surfaces.md](../reference/surfaces.md), then keep the research note as background.

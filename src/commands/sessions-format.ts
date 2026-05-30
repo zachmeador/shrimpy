@@ -1,0 +1,173 @@
+import type {
+  executeSessionLifecycleAction,
+  executeSessionThinkingAction,
+  SessionCompactionPolicySummary,
+  SessionListingSummary,
+  SessionPathSummary,
+  SingleSessionListingSummary,
+} from "../sessions/index.js";
+import { accent, dim, label } from "../util/style.js";
+
+export function printSessionListing(
+  summary: SessionListingSummary | SingleSessionListingSummary,
+): void {
+  if ("channel" in summary) {
+    printSingleSessionListing(summary);
+    return;
+  }
+
+  if (summary.active.length === 0 && summary.recentArchives.length === 0) {
+    console.log(dim("(no sessions)"));
+    return;
+  }
+
+  if (summary.active.length === 0) {
+    console.log(dim("(no active sessions)"));
+  } else {
+    console.log(label("active sessions:"));
+    for (const session of summary.active) {
+      console.log(
+        `  ${accent(session.channel)}  ${session.path}  ${dim(session.updatedAt ?? "(unknown)")}`,
+      );
+    }
+  }
+
+  if (summary.recentArchives.length > 0) {
+    console.log(label("recent archives:"));
+    for (const archived of summary.recentArchives) {
+      console.log(`  ${archived.name}  ${dim(archived.path)}`);
+    }
+  }
+}
+
+export function printSessionLifecycleResult(
+  result: ReturnType<typeof executeSessionLifecycleAction>,
+): void {
+  switch (result.kind) {
+    case "local_restore":
+      console.log(`restored ${result.agentId} session for ${result.channel}`);
+      console.log(`restored_from: ${result.restoredFrom}`);
+      if (result.archivedPreviousTo) {
+        console.log(`archived_previous: ${result.archivedPreviousTo}`);
+      }
+      return;
+    case "local_reset":
+      if (result.archivedTo) {
+        console.log(`reset ${result.agentId} session for ${result.channel}`);
+        console.log(`archived: ${result.archivedTo}`);
+      } else {
+        console.log(`no existing ${result.agentId} session for ${result.channel}`);
+      }
+      return;
+    case "requested_restore":
+      console.log(
+        `requested restore session for ${result.agentId} on ${result.channel}${result.requestedArchive ? ` (${result.requestedArchive})` : ""}`,
+      );
+      return;
+    case "requested_reset":
+      console.log(`requested ${result.action} session for ${result.agentId} on ${result.channel}`);
+      return;
+  }
+}
+
+export function printSessionThinkingResult(
+  result: Awaited<ReturnType<typeof executeSessionThinkingAction>>,
+): void {
+  switch (result.kind) {
+    case "local_thinking":
+      console.log(
+        `set thinking for ${result.agentId} session on ${result.channel} to ${result.effectiveLevel}`,
+      );
+      if (result.effectiveLevel !== result.requestedLevel) {
+        console.log(`requested: ${result.requestedLevel}`);
+      }
+      return;
+    case "requested_thinking":
+      console.log(
+        `requested thinking ${result.level} for ${result.agentId} on ${result.channel}`,
+      );
+      return;
+  }
+}
+
+export function printSessionCompactionPolicy(
+  summary: SessionCompactionPolicySummary,
+): void {
+  console.log(`${label("agent:")} ${accent(summary.agentId)}`);
+  console.log(`${label("channel:")} ${accent(summary.channel)}`);
+  console.log(`${label("session_type:")} ${summary.sessionType}`);
+  console.log(`${label("session_dir:")} ${summary.sessionDir}`);
+  console.log(`${label("active:")} ${formatSessionPath(summary.activeSession)}`);
+  if (summary.model) {
+    console.log(
+      `${label("model:")} ${summary.model.provider}/${summary.model.id}`
+      + (summary.model.contextWindow ? ` (${summary.model.contextWindow} tokens)` : ""),
+    );
+    if (summary.model.inference) {
+      console.log(`  inference: ${formatInference(summary.model.inference)}`);
+    }
+  }
+  console.log(label("effective compaction:"));
+  console.log(`  enabled: ${summary.effective.enabled}`);
+  console.log(`  thresholdTokens: ${summary.effective.thresholdTokens ?? "(derived from reserveTokens)"}`);
+  console.log(`  reserveTokens: ${summary.effective.reserveTokens}`);
+  console.log(`  keepRecentTokens: ${summary.effective.keepRecentTokens}`);
+  console.log(`  matched: ${summary.effective.matched.join(" -> ")}`);
+  if (summary.effective.instructions) {
+    console.log(`  instructions: ${summary.effective.instructions}`);
+  }
+  if (summary.recorded) {
+    console.log(label("recorded active policy:"));
+    console.log(`  enabled: ${summary.recorded.enabled}`);
+    console.log(`  thresholdTokens: ${summary.recorded.thresholdTokens ?? "(derived from reserveTokens)"}`);
+    console.log(`  reserveTokens: ${summary.recorded.reserveTokens}`);
+    console.log(`  keepRecentTokens: ${summary.recorded.keepRecentTokens}`);
+  }
+  if (summary.recordedSession) {
+    console.log(label("recorded session runtime:"));
+    if (summary.recordedSession.provider || summary.recordedSession.id) {
+      console.log(
+        `  model: ${summary.recordedSession.provider ?? "(unknown)"}/${summary.recordedSession.id ?? "(unknown)"}`,
+      );
+    }
+    if (summary.recordedSession.bootedAt) {
+      console.log(`  booted_at: ${summary.recordedSession.bootedAt}`);
+    }
+    if (summary.recordedSession.inference) {
+      console.log(`  inference: ${formatInference(summary.recordedSession.inference)}`);
+    }
+  }
+  console.log(`${label("restart_required:")} ${summary.restartRequired}`);
+  console.log(`${label("note:")} ${summary.note}`);
+}
+
+function printSingleSessionListing(summary: SingleSessionListingSummary): void {
+  console.log(`${label("channel:")} ${accent(summary.channel)}`);
+  console.log(`${label("active:")} ${formatSessionPath(summary.active)}`);
+
+  if (summary.archives.length === 0) {
+    console.log(`${label("archives:")} ${dim("(none)")}`);
+    return;
+  }
+
+  console.log(label("archives:"));
+  for (const archived of summary.archives) {
+    console.log(`  ${archived.name}  ${dim(archived.path)}`);
+  }
+}
+
+function formatSessionPath(summary: SessionPathSummary): string {
+  return `${summary.path}${summary.exists ? "" : ` ${dim("(missing)")}`}`;
+}
+
+function formatInference(inference: NonNullable<SessionCompactionPolicySummary["model"]>["inference"]): string {
+  if (!inference) return "none";
+  const params = Object.entries(inference.params)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(" ");
+  return [
+    inference.baseModel ? `baseModel=${inference.baseModel}` : undefined,
+    inference.enableThinking !== undefined ? `enableThinking=${inference.enableThinking}` : undefined,
+    `params=${params || "none"}`,
+  ].filter(Boolean).join(" ");
+}

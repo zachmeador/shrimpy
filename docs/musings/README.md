@@ -1,0 +1,29 @@
+# 🦐 Musings
+
+Date: --
+Status: Index
+
+This directory holds useful but non-authoritative material:
+
+- UX patterns
+- product framing
+- design taste
+- preserved quotes and working notes
+
+Start with `docs/reference/` first, and use `docs/tracking/` for active project state. Come here when you want more design context, unfinished thinking, or the original vibe behind a direction.
+
+Current notes worth scanning:
+
+- `app-habitats.md` — apps as durable habitats for code, channels, skills, state, resident agents, and self-maintaining loops
+- `app-config-patterns.md` — simple-to-complex app/config examples for setup skills, guided init, and consultative check-ins
+- `agent-currency-and-rl.md` — agent currency as a cost/value ledger, runtime policy pressure, and possible reward scaffold for personal RL
+- `asynchronous-agents.md` — first principles for async home-agent design, why heartbeat is only one piece, and how one visible agent can be many internal actors
+- `character-agents.md` — story-character agents, inner voices, and this weird art-project shape as an architecture litmus test
+- `framework-design.md` — broader product direction, preserved quotes, app-agent framing, and onboarding taste
+- `mechanic-agent.md` — why self-modification may want a default `shrimpy-mechanic` specialist instead of leaning on opaque skill discovery
+- `session-model.md` — desired feel of channels, sessions, messaging, surfaces, and `/new`
+- `memory-design.md` — desired feel of memory and continuity
+- `pi-tui-fork-tradeoffs.md` — rough thoughts on replacing Pi's stock TUI, what a semi-custom fork would buy, and what it would cost
+- `desktop-spotlight-surface.md` — macOS-first Spotlight/Raycast-style command surface for Shrimpy
+
+Implementation details belong in reference docs or git history, not here.

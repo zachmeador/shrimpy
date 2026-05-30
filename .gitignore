@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.nyc_output/
+shrimpy-sessions/
+.shrimpy/
+*.tsbuildinfo
+.claude
+shrimpy_pi.code-workspace
+AGENTS-PRIVATE.md
+AGENTS_PRIVATE.md

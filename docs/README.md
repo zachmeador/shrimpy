@@ -1,0 +1,33 @@
+# 🦐 Shrimpy Docs
+
+These docs are the project map for Shrimpy. Current behavior and settled design direction live in `reference/`. Active work, background thinking, and source research live in separate directories so they do not blur into the reference surface.
+
+## Reference
+
+- [reference/README.md](reference/README.md) — stable docs index.
+- [reference/overview.md](reference/overview.md) — short orientation and current project shape.
+- [reference/design.md](reference/design.md) — philosophy, settled decisions, and active architecture reconsiderations.
+- [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
+- [reference/runtime.md](reference/runtime.md) — how CLI sessions, gateway dispatch, scheduler runs, and child runs execute.
+- [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
+- [reference/briefing.md](reference/briefing.md) — compact per-turn alerts and inspect pointers.
+- [reference/compaction.md](reference/compaction.md) — session compaction policy, runtime flow, provider path, and failures.
+- [reference/cli.md](reference/cli.md) — command surface and agent-friendly workflows.
+- [reference/configuration.md](reference/configuration.md) — workspace config files and the knobs that matter.
+- [reference/workspace.md](reference/workspace.md) — workspace layout, prompt resources, sessions, state, and logs.
+- [reference/surfaces.md](reference/surfaces.md) — channels, adapters, Telegram, and visible identity.
+- [reference/development.md](reference/development.md) — repo workflow, tests, docs rules, and implementation guidance.
+
+## Project State
+
+- [backlog/index.md](backlog/index.md) — active engineering work.
+- [tracking/memory-system-design.md](tracking/memory-system-design.md) — memory-system design and docs/code reconciliation.
+- [tracking/memory-redesign.md](tracking/memory-redesign.md) — memory-redesign implementation tracker for the active branch.
+- [vision-reconciliation.md](vision-reconciliation.md) — periodic docs/vision/code reconciliation tracker.
+
+## Background
+
+- [musings/](musings/README.md) — design taste, product direction, and unfinished thinking.
+- [research/](research/README.md) — source notes and external comparison research.
+
+`reference/` is authoritative for current behavior. Musings and research are useful context, but settled decisions should be promoted into reference docs.

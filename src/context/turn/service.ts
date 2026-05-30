@@ -1,0 +1,318 @@
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import type { ChannelMessage } from "../../channels/index.js";
+import {
+  collectGatewayActivity,
+  loadGatewaySchedulerSummary,
+} from "../../gateway/status.js";
+import { buildMemoryBriefing } from "../../memory/index.js";
+import { channelMatches } from "../../util/channel-pattern.js";
+import {
+  isCommandSource,
+  resolveContextSource,
+  type ResolvedContextCommandSource,
+} from "../source.js";
+import { buildTurnFactItems } from "./facts.js";
+import { clipBriefingWithMarker } from "./render.js";
+import {
+  readBriefingState,
+  writeBriefingState,
+} from "./state.js";
+import { renderUnsupportedSurfaceMessage } from "./surface.js";
+import { formatAgentDateTime } from "./time.js";
+import type {
+  TurnContextItem,
+  TurnContext,
+  TurnContextInput,
+} from "./types.js";
+
+const execAsync = promisify(exec);
+
+function briefingAgentId(input: TurnContextInput): string {
+  return input.descriptor.agentId ?? input.runtime.getAgent().id;
+}
+
+export async function buildTurnContext(
+  input: TurnContextInput,
+): Promise<TurnContext> {
+  const agentId = briefingAgentId(input);
+  const channel = input.descriptor.channel;
+  const sessionType = input.descriptor.kind;
+  const capturedAt = formatAgentDateTime();
+  const items = [
+    ...buildTurnFactItems({
+      runtime: input.runtime,
+      descriptor: input.descriptor,
+      agentId,
+      currentMessage: input.currentMessage,
+    }),
+    ...buildGatewayStatusItems(input),
+    ...buildChannelUnreadItems(input),
+    ...await buildCommandItems(input),
+  ];
+
+  const memory = buildMemoryBriefing({
+    runtime: input.runtime,
+    agentId,
+    channel,
+    peerIds: input.currentMessage
+      ? [input.currentMessage.sender.actorId]
+      : [],
+  });
+
+  return {
+    agentId,
+    channel,
+    sessionType,
+    capturedAt,
+    maxChars: input.runtime.resolved.briefing.maxChars,
+    items,
+    memory,
+  };
+}
+
+function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
+  const activity = collectGatewayActivity(
+    input.runtime.paths.channelsDir,
+    input.runtime.resolved.status,
+  );
+  const scheduler = loadGatewaySchedulerSummary(
+    input.runtime.paths.schedulerStatePath,
+    input.runtime.resolved.status,
+  );
+  const pieces: string[] = [];
+
+  if (activity.lastHeartbeat) {
+    pieces.push(
+      `last heartbeat ${formatAge(Date.now() - activity.lastHeartbeat.message.timestamp)} ago`,
+    );
+  }
+  if (scheduler.nextHeartbeatAtMs) {
+    const delta = scheduler.nextHeartbeatAtMs - Date.now();
+    pieces.push(
+      delta >= 0
+        ? `next heartbeat in ${formatAge(delta)}`
+        : `next heartbeat overdue by ${formatAge(Math.abs(delta))}`,
+    );
+  }
+  if (activity.lastUserInteraction) {
+    pieces.push(
+      `last user interaction in ${activity.lastUserInteraction.channel} ${formatAge(Date.now() - activity.lastUserInteraction.message.timestamp)} ago`,
+    );
+  }
+
+  if (pieces.length === 0) return [];
+  return [{
+    id: "gateway:status",
+    summary: `gateway status: ${pieces.join("; ")}`,
+    inspect: "shrimpy gateway status",
+  }];
+}
+
+function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
+  const { currentMessage, runtime } = input;
+  const agentId = briefingAgentId(input);
+  const channel = input.descriptor.channel;
+  const config = runtime.resolved.briefing.channelUnread;
+  if (!channel || !currentMessage || !config.enabled) return [];
+  if (!matchesAny(config.channels, channel)) return [];
+
+  const channelBus = runtime.createChannelBus();
+  const { messages } = channelBus.read(channel);
+  const currentIndex = messages.findIndex((message) => message.id === currentMessage.id);
+  const visibleMessages = currentIndex >= 0
+    ? messages.slice(0, currentIndex + 1)
+    : [...messages, currentMessage];
+  const state = readBriefingState(runtime, agentId);
+  const lastSeenId = state.channels[channel]?.lastSeenMessageId;
+  const lastSeenIndex = lastSeenId
+    ? visibleMessages.findIndex((message) => message.id === lastSeenId)
+    : -1;
+  const unseen = lastSeenIndex >= 0
+    ? visibleMessages.slice(lastSeenIndex + 1)
+    : visibleMessages;
+
+  if (unseen.length <= 1 && unseen[0]?.id === currentMessage.id) return [];
+  if (unseen.length === 0) return [];
+
+  const latest = unseen.at(-1);
+  const latestPreview = latest && config.includeLatest
+    ? `; latest ${senderLabel(latest)} ${formatAge(Date.now() - latest.timestamp)} ago: ${summarizeMessage(latest)}`
+    : "";
+  const after = lastSeenId ? ` --after ${lastSeenId}` : "";
+
+  return [{
+    id: `channels:${channel}:unread`,
+    summary: `${channel}: ${unseen.length} new message${unseen.length === 1 ? "" : "s"} since this agent last handled it${latestPreview}`,
+    inspect: `shrimpy channels read ${channel}${after}`,
+  }];
+}
+
+async function buildCommandItems(input: TurnContextInput): Promise<TurnContextItem[]> {
+  const channel = input.descriptor.channel;
+  const agentId = briefingAgentId(input);
+  const resolved = input.runtime.resolved.context.sources
+    .map(resolveContextSource)
+    .filter(isCommandSource);
+  const commands = resolved.filter(
+    (command) => !channel || matchesAny(command.channels, channel),
+  );
+  if (commands.length === 0) return [];
+
+  const state = readBriefingState(input.runtime, agentId);
+  const results = await Promise.all(commands.map((command) => {
+    const cached = state.commands[command.id];
+    if (!input.preview && isCommandFresh(cached, command.freshForMs)) {
+      return cached.items ?? [];
+    }
+    return runBriefingCommand(command, input);
+  }));
+  return results.flat();
+}
+
+async function runBriefingCommand(
+  command: ResolvedContextCommandSource,
+  input: TurnContextInput,
+): Promise<TurnContextItem[]> {
+  try {
+    const { stdout } = await execAsync(command.command, {
+      cwd: input.runtime.paths.workspace,
+      timeout: command.timeoutMs,
+      env: {
+        ...process.env,
+        SHRIMPY_BRIEFING_AGENT: briefingAgentId(input),
+        SHRIMPY_BRIEFING_CHANNEL: input.descriptor.channel ?? "",
+        SHRIMPY_BRIEFING_SESSION_TYPE: input.descriptor.kind,
+      },
+      maxBuffer: Math.max(command.maxChars * 4, 4096),
+    });
+    const clipped = clipBriefingWithMarker(stdout.trim(), command.maxChars);
+    const items = parseCommandOutput(command.id, clipped);
+    if (!input.preview) rememberCommandRun(command, input, clipped, items);
+    return items;
+  } catch (err) {
+    const items: TurnContextItem[] = [{
+      id: `command:${command.id}:error`,
+      summary: `${command.id}: briefing command failed (${err instanceof Error ? err.message : String(err)})`,
+      inspect: command.command,
+    }];
+    if (!input.preview) rememberCommandRun(command, input, "", items);
+    return items;
+  }
+}
+
+function rememberCommandRun(
+  command: ResolvedContextCommandSource,
+  input: TurnContextInput,
+  output: string,
+  items: TurnContextItem[],
+): void {
+  const agentId = briefingAgentId(input);
+  const state = readBriefingState(input.runtime, agentId);
+  state.commands[command.id] = {
+    lastRunAt: Date.now(),
+    items,
+  };
+  writeBriefingState(input.runtime, agentId, state);
+}
+
+function isCommandFresh(
+  cached: { lastRunAt?: number; items?: TurnContextItem[] } | undefined,
+  freshForMs: number,
+): cached is { lastRunAt: number; items: TurnContextItem[] } {
+  if (!cached?.lastRunAt || !cached.items) return false;
+  return Date.now() - cached.lastRunAt < freshForMs;
+}
+
+function parseCommandOutput(commandId: string, output: string): TurnContextItem[] {
+  if (!output) return [];
+  const parsed = parseJsonOutput(output);
+  if (Array.isArray(parsed)) {
+    return parsed.flatMap((item, index) => parseCommandItem(commandId, item, index));
+  }
+  if (isRecord(parsed) && Array.isArray(parsed.items)) {
+    return parsed.items.flatMap((item, index) => parseCommandItem(commandId, item, index));
+  }
+  if (isRecord(parsed)) {
+    return parseCommandItem(commandId, parsed, 0);
+  }
+  return output.split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => ({
+      id: `command:${commandId}:${index}`,
+      summary: `${commandId}: ${line}`,
+    }));
+}
+
+function parseJsonOutput(output: string): unknown {
+  try {
+    return JSON.parse(output);
+  } catch {
+    return undefined;
+  }
+}
+
+function parseCommandItem(
+  commandId: string,
+  item: unknown,
+  index: number,
+): TurnContextItem[] {
+  if (typeof item === "string") {
+    return [{ id: `command:${commandId}:${index}`, summary: `${commandId}: ${item}` }];
+  }
+  if (!isRecord(item)) return [];
+  const summary = typeof item.summary === "string"
+    ? item.summary
+    : typeof item.text === "string"
+      ? item.text
+      : undefined;
+  if (!summary) return [];
+  return [{
+    id: typeof item.id === "string" ? item.id : `command:${commandId}:${index}`,
+    summary,
+    inspect: typeof item.inspect === "string" ? item.inspect : undefined,
+  }];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function matchesAny(patterns: string[], channel: string): boolean {
+  return patterns.some((pattern) => channelMatches(pattern, channel));
+}
+
+function senderLabel(message: ChannelMessage): string {
+  return message.sender.displayName
+    ? `${message.sender.kind}:${message.sender.displayName}`
+    : `${message.sender.kind}:${message.sender.actorId}`;
+}
+
+function summarizeMessage(message: ChannelMessage): string {
+  const text = message.content.type === "text"
+    ? message.content.data.text
+    : message.content.type === "system"
+      ? JSON.stringify(message.content.data)
+      : message.content.type === "image"
+        ? message.content.data.caption ?? "[image]"
+        : message.content.type === "image_group"
+          ? message.content.data.caption ?? `[image_group: ${message.content.data.paths.length} images]`
+          : renderUnsupportedSurfaceMessage(message.content.data);
+  return clipOneLine(text, 120);
+}
+
+function clipOneLine(text: string, max: number): string {
+  const oneLine = text.replaceAll(/\s+/g, " ").trim();
+  return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 3)}...`;
+}
+
+function formatAge(ms: number): string {
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  return `${Math.floor(hr / 24)}d`;
+}
