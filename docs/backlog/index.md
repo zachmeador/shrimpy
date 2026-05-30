@@ -28,6 +28,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |
 | [DOCTOR-001](doctor-001.md) | todo | P2 | Doctor | [ADMIN-001](admin-001.md) | Admin repair/doctor session |
 | [ONBOARD-001](onboard-001.md) | todo | P2 | Onboarding | [ADMIN-001](admin-001.md) | Guided new user onboarding session |
+| [SETUP-001](setup-001-macos-friendly-install-docs.md) | todo | P2 | Setup | none | macOS-friendly setup and install docs |
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | todo | P2 | Surfaces | none | Telegram typing activity |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-agent-switching.md) | todo | P1 | Surfaces | none | Chat agent switching bug |
