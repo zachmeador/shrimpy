@@ -4,8 +4,14 @@ import type {
   ExtensionAPI,
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
+import {
+  getKeybindings,
+  Key,
+  matchesKey,
+  truncateToWidth,
+  type Component,
+} from "@earendil-works/pi-tui";
 
-const COMMAND_WIDGET_KEY = "shrimpy.commands";
 const DEFAULT_AGENT_ID = "shrimpy";
 const DEFAULT_AGENT_TOOLS = [
   "send_message",
@@ -39,57 +45,148 @@ interface CommandRuntime {
   agents: AgentView[];
 }
 
+const STATUS_SECTIONS = [
+  "overview",
+  "workspace",
+  "agents",
+  "channels",
+  "context",
+  "skills",
+  "model",
+  "doctor",
+] as const;
+
 type PanelBuilder = (runtime: CommandRuntime, ctx: ExtensionCommandContext) => string[];
+type StatusSection = (typeof STATUS_SECTIONS)[number];
+
+const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
+  overview: "Workspace, active agent, model, and available status sections",
+  workspace: "Workspace paths and config",
+  agents: "Active agent and configured agents",
+  channels: "Channel log overview",
+  context: "Context files and source inspection",
+  skills: "Workspace and agent skills",
+  model: "Active model and model state paths",
+  doctor: "Diagnostic command pointers",
+};
+
+const STATUS_PANEL_BUILDERS: Record<StatusSection, PanelBuilder> = {
+  overview: overviewPanel,
+  workspace: workspacePanel,
+  agents: agentsPanel,
+  channels: channelsPanel,
+  context: contextPanel,
+  skills: skillsPanel,
+  model: modelPanel,
+  doctor: doctorPanel,
+};
 
 const HELP_LINES = [
   "Shrimpy commands",
   "",
-  "/workspace  Workspace paths and config",
-  "/agents     Active agent and configured agents",
-  "/channels   Channel log overview",
-  "/context    Context files and source inspection",
-  "/skills     Workspace and agent skills",
-  "/models     Active model and model state paths",
-  "/doctor     Diagnostic command pointers",
-  "/shrimpy    This command list",
+  "/status [section]  Show Shrimpy workspace, agent, channel, context, skill, model, or diagnostic status",
+  "/settings          Open unified Shrimpy and Pi settings",
+  "/model             Select the session model",
+  "/thinking <level>  Set the session thinking level",
+  "/shrimpy           This command list",
+  "",
+  "Pi commands remain available; Shrimpy adds the home-agent status and settings surface.",
 ];
 
 export default function (pi: ExtensionAPI) {
-  registerPanelCommand(pi, "workspace", "Show Shrimpy workspace paths", workspacePanel);
-  registerPanelCommand(pi, "agents", "Show Shrimpy agents", agentsPanel);
-  registerPanelCommand(pi, "channels", "Show Shrimpy channel logs", channelsPanel);
-  registerPanelCommand(pi, "context", "Show Shrimpy context pointers", contextPanel);
-  registerPanelCommand(pi, "skills", "Show Shrimpy skills", skillsPanel);
-  registerPanelCommand(pi, "models", "Show Shrimpy model state", modelsPanel);
-  registerPanelCommand(pi, "doctor", "Show Shrimpy diagnostic commands", doctorPanel);
+  pi.registerCommand("status", {
+    description: "Show Shrimpy status",
+    getArgumentCompletions: (prefix) => {
+      const normalized = prefix.trim().toLowerCase();
+      return STATUS_SECTIONS
+        .filter((section) => normalized.length === 0 || section.startsWith(normalized))
+        .map((section) => ({
+          value: section,
+          label: section,
+          description: STATUS_SECTION_DESCRIPTIONS[section],
+        }));
+    },
+    handler: async (args, ctx) => {
+      const section = parseStatusSection(args);
+      if (!section) {
+        await showPanel(ctx, unknownStatusPanel(args));
+        return;
+      }
+
+      await showPanel(ctx, STATUS_PANEL_BUILDERS[section](resolveRuntime(ctx), ctx));
+    },
+  });
 }
 
 export function registerShrimpyHelpCommand(pi: ExtensionAPI) {
   pi.registerCommand("shrimpy", {
     description: "Show Shrimpy command help",
     handler: async (_args, ctx) => {
-      showPanel(ctx, HELP_LINES);
+      await showPanel(ctx, HELP_LINES);
     },
   });
 }
 
-function registerPanelCommand(
-  pi: ExtensionAPI,
-  name: string,
-  description: string,
-  buildPanel: PanelBuilder,
-): void {
-  pi.registerCommand(name, {
-    description,
-    handler: async (_args, ctx) => {
-      showPanel(ctx, buildPanel(resolveRuntime(ctx), ctx));
-    },
-  });
+async function showPanel(ctx: ExtensionCommandContext, lines: string[]): Promise<void> {
+  await ctx.ui.custom<void>(
+    (_tui, _theme, _keybindings, done) => new ShrimpyStatusPanel(lines, done),
+  );
 }
 
-function showPanel(ctx: ExtensionCommandContext, lines: string[]): void {
-  ctx.ui.setWidget(COMMAND_WIDGET_KEY, lines, { placement: "aboveEditor" });
-  ctx.ui.notify(`${lines[0]} shown`, "info");
+class ShrimpyStatusPanel implements Component {
+  private closed = false;
+  private readonly lines: string[];
+  private readonly done: () => void;
+
+  constructor(lines: string[], done: () => void) {
+    this.lines = lines;
+    this.done = done;
+  }
+
+  render(width: number): string[] {
+    const contentWidth = Math.max(20, width - 2);
+    return [
+      "",
+      ...this.lines.map((line) => truncateToWidth(line, contentWidth)),
+      "",
+      truncateToWidth("Esc/Ctrl+C close", contentWidth),
+    ];
+  }
+
+  handleInput(data: string): void {
+    if (this.closed) return;
+    if (
+      getKeybindings().matches(data, "tui.select.cancel") ||
+      matchesKey(data, Key.escape) ||
+      matchesKey(data, Key.ctrl("c"))
+    ) {
+      this.closed = true;
+      this.done();
+    }
+  }
+
+  invalidate(): void {
+    // Static content.
+  }
+}
+
+function parseStatusSection(args: string): StatusSection | undefined {
+  const trimmed = args.trim().toLowerCase();
+  if (trimmed.length === 0) return "overview";
+  if (!STATUS_SECTIONS.includes(trimmed as StatusSection)) return undefined;
+  return trimmed as StatusSection;
+}
+
+function unknownStatusPanel(args: string): string[] {
+  const requested = args.trim() || "(empty)";
+  return [
+    "Status",
+    "",
+    `Unknown section: ${requested}`,
+    "",
+    "Sections:",
+    ...STATUS_SECTIONS.map((section) => `${section} - ${STATUS_SECTION_DESCRIPTIONS[section]}`),
+  ];
 }
 
 function resolveRuntime(ctx: ExtensionCommandContext): CommandRuntime {
@@ -109,6 +206,22 @@ function resolveRuntime(ctx: ExtensionCommandContext): CommandRuntime {
     configPath,
     agents,
   };
+}
+
+function overviewPanel(runtime: CommandRuntime, ctx: ExtensionCommandContext): string[] {
+  return [
+    "Status",
+    "",
+    `agent: ${runtime.agentId}`,
+    `workspace: ${runtime.workspacePath}`,
+    `cwd: ${ctx.cwd}`,
+    `model: ${formatModel(ctx.model)}`,
+    "",
+    "Sections:",
+    ...STATUS_SECTIONS
+      .filter((section) => section !== "overview")
+      .map((section) => `/status ${section} - ${STATUS_SECTION_DESCRIPTIONS[section]}`),
+  ];
 }
 
 function workspacePanel(runtime: CommandRuntime, ctx: ExtensionCommandContext): string[] {
@@ -204,16 +317,11 @@ function skillsPanel(runtime: CommandRuntime): string[] {
   return lines;
 }
 
-function modelsPanel(runtime: CommandRuntime, ctx: ExtensionCommandContext): string[] {
-  const model = ctx.model as unknown as { provider?: string; modelId?: string; id?: string; name?: string } | undefined;
-  const modelLabel = model
-    ? `${model.provider ?? "provider?"}/${model.modelId ?? model.id ?? model.name ?? "model?"}`
-    : "(none selected)";
-
+function modelPanel(runtime: CommandRuntime, ctx: ExtensionCommandContext): string[] {
   return [
-    "Models",
+    "Model",
     "",
-    `active: ${modelLabel}`,
+    `active: ${formatModel(ctx.model)}`,
     `auth state: ${join(runtime.workspacePath, "state", "pi", "auth.json")}`,
     `model state: ${join(runtime.workspacePath, "state", "pi", "models.json")}`,
     "",
@@ -221,6 +329,12 @@ function modelsPanel(runtime: CommandRuntime, ctx: ExtensionCommandContext): str
     "Use Pi /model for live selection",
     "Use Pi /login for provider auth",
   ];
+}
+
+function formatModel(model: unknown): string {
+  const candidate = model as { provider?: string; modelId?: string; id?: string; name?: string } | undefined;
+  if (!candidate) return "(none selected)";
+  return `${candidate.provider ?? "provider?"}/${candidate.modelId ?? candidate.id ?? candidate.name ?? "model?"}`;
 }
 
 function doctorPanel(runtime: CommandRuntime): string[] {

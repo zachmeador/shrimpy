@@ -93,13 +93,4 @@ export default function (pi: ExtensionAPI) {
   for (const tool of tools) {
     pi.registerTool(tool);
   }
-
-  pi.registerCommand("toolrows", {
-    description: "Toggle compact tool rows between one-line and expanded detail",
-    handler: async (_args, ctx) => {
-      const expanded = !ctx.ui.getToolsExpanded();
-      ctx.ui.setToolsExpanded(expanded);
-      ctx.ui.notify(expanded ? "Tool rows expanded" : "Tool rows collapsed", "info");
-    },
-  });
 }
