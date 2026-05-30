@@ -18,6 +18,7 @@ export interface SessionOpenPlan {
   descriptor: SessionDescriptor;
   model?: Model<Api>;
   inference?: ModelVariantInference;
+  restoreModelFromSession?: boolean;
   thinking?: ThinkingLevel;
   defaultThinking?: ThinkingLevel;
   tools?: ToolDefinition[];

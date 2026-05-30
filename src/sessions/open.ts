@@ -1,9 +1,11 @@
 import { join } from "node:path";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import {
   createAgentSession,
   createAgentSessionRuntime,
   type AgentSession,
   type AgentSessionRuntime,
+  type ModelRegistry,
   type ResourceLoader,
   type SettingsManager,
   type SessionManager,
@@ -11,6 +13,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
 import { isPromptAlreadyPrepared } from "../context/index.js";
+import {
+  resolveModelVariantInference,
+  type ModelVariantInference,
+} from "../inference/params.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import {
   resolveSessionCompactionPolicy,
@@ -20,7 +26,6 @@ import { createInlineSettingsManager } from "./inline-settings.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 import { assembleSessionPrompt } from "./prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
-import type { ModelVariantInference } from "../inference/params.js";
 import { createSessionManager } from "./storage.js";
 
 type CompactionLogEvent =
@@ -118,10 +123,28 @@ async function openSessionWithRuntimeDeps(
     bootstrap.settingsManager.setDefaultThinkingLevel(plan.defaultThinking);
   }
 
-  const assembly = assembleSessionPrompt(bootstrap, plan);
+  const cwd = plan.descriptor.cwd ?? bootstrap.agentRootPath;
+  const sessionManager =
+    opts?.sessionManager ??
+      createSessionManager(cwd, plan.descriptor.sessionDir);
+  const modelPlan = resolveSessionModelPlan({
+    bootstrap,
+    plan,
+    sessionManager,
+  });
+  const assembly = assembleSessionPrompt(bootstrap, modelPlan);
+  const effectivePlan: SessionOpenPlan = {
+    ...modelPlan,
+    model: assembly.resolvedModel,
+    inference: resolveEffectiveInference({
+      bootstrap,
+      originalPlan: plan,
+      model: assembly.resolvedModel,
+    }),
+  };
   const compactionPolicy = resolveSessionCompactionPolicy({
     runtimeConfig: bootstrap.runtimeConfig,
-    descriptor: plan.descriptor,
+    descriptor: effectivePlan.descriptor,
     model: assembly.resolvedModel,
   });
   const settingsManager = createInlineSettingsManager({
@@ -142,9 +165,6 @@ async function openSessionWithRuntimeDeps(
     settingsManager,
   );
 
-  const sessionManager =
-    opts?.sessionManager ??
-      createSessionManager(assembly.cwd, plan.descriptor.sessionDir);
   const { session } = await createAgentSession({
     settingsManager,
     sessionManager,
@@ -152,30 +172,101 @@ async function openSessionWithRuntimeDeps(
     authStorage: bootstrap.authStorage,
     modelRegistry: bootstrap.modelRegistry,
     model: assembly.resolvedModel,
-    thinkingLevel: plan.thinking,
-    customTools: plan.tools,
-    excludeTools: plan.toolPolicy?.excludedToolNames,
+    thinkingLevel: effectivePlan.thinking,
+    customTools: effectivePlan.tools,
+    excludeTools: effectivePlan.toolPolicy?.excludedToolNames,
     sessionStartEvent: opts?.sessionStartEvent,
     cwd: assembly.cwd,
   });
 
-  if (plan.thinking !== undefined) {
-    session.setThinkingLevel(plan.thinking);
+  if (effectivePlan.thinking !== undefined) {
+    session.setThinkingLevel(effectivePlan.thinking);
   }
 
   recordSessionOpen({
     session,
     sessionManager,
     bootstrap,
-    plan,
+    plan: effectivePlan,
     envKeys: assembly.envKeys,
     env: assembly.env,
     compaction: compactionPolicy,
   });
-  wrapPromptPreparation(session, plan);
-  subscribeToCompactionLogs(session, plan);
+  wrapModelMetadataRecording({
+    session,
+    sessionManager,
+    bootstrap,
+    plan: effectivePlan,
+    envKeys: assembly.envKeys,
+    env: assembly.env,
+    compaction: compactionPolicy,
+  });
+  wrapPromptPreparation(session, effectivePlan);
+  subscribeToCompactionLogs(session, effectivePlan);
 
   return { session, resourceLoader };
+}
+
+function resolveSessionModelPlan(input: {
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
+  sessionManager: SessionManager;
+}): SessionOpenPlan {
+  if (!input.plan.restoreModelFromSession) return input.plan;
+
+  const restoredModel = resolveStoredSessionModel(
+    input.sessionManager,
+    input.bootstrap.modelRegistry,
+  );
+  if (!restoredModel) return input.plan;
+
+  return {
+    ...input.plan,
+    model: restoredModel,
+    inference: resolveModelVariantInference({
+      modelsPath: input.bootstrap.modelsPath,
+      model: restoredModel,
+    }),
+  };
+}
+
+function resolveStoredSessionModel(
+  sessionManager: SessionManager,
+  modelRegistry: ModelRegistry,
+): Model<Api> | undefined {
+  const saved = sessionManager.buildSessionContext().model;
+  if (!saved) return undefined;
+
+  const model = modelRegistry.find(saved.provider, saved.modelId);
+  if (!model || !modelRegistry.hasConfiguredAuth(model)) return undefined;
+  return model;
+}
+
+function resolveEffectiveInference(input: {
+  bootstrap: SessionBootstrap;
+  originalPlan: SessionOpenPlan;
+  model?: Model<Api>;
+}): ModelVariantInference | undefined {
+  if (sameModelIdentity(input.originalPlan.model, input.model)) {
+    return input.originalPlan.inference ??
+      resolveModelVariantInference({
+        modelsPath: input.bootstrap.modelsPath,
+        model: input.model,
+      });
+  }
+
+  return resolveModelVariantInference({
+    modelsPath: input.bootstrap.modelsPath,
+    model: input.model,
+  });
+}
+
+function sameModelIdentity(
+  left: Model<Api> | undefined,
+  right: Model<Api> | undefined,
+): boolean {
+  if (!left || !right) return left === right;
+  return left.provider === right.provider && left.id === right.id;
 }
 
 async function resolveSessionResourceLoader(
@@ -221,19 +312,90 @@ function recordSessionOpen(input: {
     session.getAllTools(),
   );
 
+  appendSessionMetadata({
+    sessionManager,
+    bootstrap,
+    plan,
+    envKeys: input.envKeys,
+    env: input.env,
+    compaction: input.compaction,
+    model: session.model,
+  });
+  sessionManager.appendCustomEntry("shrimpy_compaction_policy", input.compaction);
+}
+
+function appendSessionMetadata(input: {
+  sessionManager: SessionManager;
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
+  envKeys: string[];
+  env: Record<string, string>;
+  compaction: EffectiveCompactionPolicy;
+  model?: Model<Api>;
+}): void {
+  const { sessionManager, bootstrap, plan, model } = input;
+  const inference = sameModelIdentity(plan.model, model)
+    ? plan.inference ?? resolveModelVariantInference({
+      modelsPath: bootstrap.modelsPath,
+      model,
+    })
+    : resolveModelVariantInference({
+      modelsPath: bootstrap.modelsPath,
+      model,
+    });
+  const env = {
+    ...input.env,
+    ...(model
+      ? {
+        provider: model.provider,
+        model_id: model.id,
+      }
+      : {}),
+  };
   const metadata: SessionMetadata = {
     workspacePath: bootstrap.workspacePath,
     agentId: plan.descriptor.agentId ?? bootstrap.agentId,
     sessionType: plan.descriptor.kind,
     channel: plan.descriptor.channel,
     envKeys: input.envKeys,
-    env: input.env,
+    env,
     compaction: input.compaction,
-    inference: plan.inference,
+    inference,
     toolPolicy: plan.toolPolicy,
   };
   sessionManager.appendCustomEntry("shrimpy_session_metadata", metadata);
-  sessionManager.appendCustomEntry("shrimpy_compaction_policy", input.compaction);
+}
+
+function wrapModelMetadataRecording(input: {
+  session: AgentSession;
+  sessionManager: SessionManager;
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
+  envKeys: string[];
+  env: Record<string, string>;
+  compaction: EffectiveCompactionPolicy;
+}): void {
+  const { session } = input;
+  const originalSetModel = session.setModel.bind(session);
+  session.setModel = async (model) => {
+    await originalSetModel(model);
+    appendSessionMetadata({
+      ...input,
+      model: session.model,
+    });
+  };
+
+  const originalCycleModel = session.cycleModel.bind(session);
+  session.cycleModel = async (direction) => {
+    const result = await originalCycleModel(direction);
+    if (result) {
+      appendSessionMetadata({
+        ...input,
+        model: session.model,
+      });
+    }
+    return result;
+  };
 }
 
 function wrapPromptPreparation(

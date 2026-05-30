@@ -89,6 +89,7 @@ export async function openDirectAgentSession(
   });
   const session = await openSession(bootstrap, {
     descriptor,
+    restoreModelFromSession: input.provider === undefined && input.model === undefined,
     thinking: input.thinking,
     inference,
     defaultThinking,
@@ -187,6 +188,7 @@ async function runAgentTuiSession(
   });
   const runtime = await openSessionRuntime(bootstrap, {
     descriptor,
+    restoreModelFromSession: input.provider === undefined && input.model === undefined,
     thinking: input.thinking,
     inference,
     defaultThinking,
