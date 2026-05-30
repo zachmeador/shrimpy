@@ -31,8 +31,14 @@ closes it.
   - `shrimpy worker wait <id>`
   - `shrimpy worker cancel <id>`
   - `shrimpy worker close <id>`
+- Keep `shrimpy worker wait <id>` as a blocking CLI command for humans and
+  scripts. Agent-facing async continuation should use durable waits from
+  [WAIT-001](wait-001-durable-agent-waits.md), not a worker-specific poll loop.
 - Add daemon tools that expose the same worker controls to Shrimpy agents with
   bounded, structured outputs.
+- Make worker status structured enough for durable wait predicates, such as
+  waiting until a worker is complete, blocked, failed, or ready for parent
+  review.
 - Support three first-class worker backend types:
   - `codex` for managed Codex terminal sessions.
   - `claude` for managed Claude Code terminal sessions.
@@ -47,7 +53,8 @@ closes it.
   when the backend requires terminal behavior for reliable operation.
 - Treat process exit as the normal completion signal for non-interactive backend
   turns. On exit, update worker status, refresh the summary, and notify the
-  parent; do not close the Shrimpy worker unless the parent asked to close it.
+  parent through the normal worker/wait surfaces; do not close the Shrimpy worker
+  unless the parent asked to close it.
 - For follow-up after review, resume the same backend session/thread under the
   same Shrimpy worker id rather than creating a new worker.
 - Give every external worker a process group and a cleanup path. On close/cancel
@@ -104,6 +111,9 @@ closes it.
   wait for active work, stop active work, or close the worker when review is done.
 - Do not let worker autonomy include destructive or irreversible actions by
   default. Workers may propose those actions, but the parent must decide.
+- Do not invent a worker-specific async wait/wake loop. Worker state should be
+  observable enough for [WAIT-001](wait-001-durable-agent-waits.md) to wake the
+  originating agent/session when a worker reaches the requested condition.
 - Do not require external coding-agent CLIs for Shrimpy to keep working.
 - Do not invent a second channel system; when a worker needs a channel return
   path, use normal Shrimpy channels. Otherwise, keep status, summaries, and logs
@@ -127,6 +137,9 @@ closes it.
   and enforcement model for worker-control tools.
 - Related: [CTX-007](ctx-007.md) should include worker/session status in compact
   briefings.
+- Related: [WAIT-001](wait-001-durable-agent-waits.md) should provide durable
+  continuation for "wait until this worker is done, then wake me" flows across
+  both channel and TUI/direct sessions.
 - Design pressure is sketched in
   [../musings/asynchronous-agents.md](../musings/asynchronous-agents.md),
   especially worker sessions, explicit lineage, pending child work, and the child
@@ -166,6 +179,8 @@ closes it.
 
 - Workers can be started, inspected, messaged, waited on, and cancelled from CLI.
 - Shrimpy agents can perform the same lifecycle operations through daemon tools.
+- Worker completion/blockage/failure status can be used as a durable wait
+  condition without adding a second worker-specific waiting path.
 - Worker metadata records parent lineage, session kind, goal, backend, cwd,
   status, optional return path, and timestamps.
 - Worker storage includes detailed logs and a compact Markdown summary refreshed

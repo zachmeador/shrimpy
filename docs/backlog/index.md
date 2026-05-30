@@ -13,11 +13,12 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [MODELS-002](models-002.md) | todo | P1 | Models | [MODELS-001](models-001.md) | Unified model config boundary and capability selection |
 | [SCHED-001](sched-001.md) | todo | P2 | Scheduler | none | Demote heartbeat to watched schedule config |
 | [TOOLS-001](tools-001.md) | todo | P1 | Runtime | none | Unified agent tool capability view |
+| [WAIT-001](wait-001-durable-agent-waits.md) | draft | P1 | Runtime | [TOOLS-001](tools-001.md), [CTX-007](ctx-007.md) | Durable waits and pending wakes for agent continuations |
 | [TUI-002](tui-002-ctrl-o-tool-expansion.md) | todo | P1 | TUI | none | Ctrl+O tool expansion regression |
 | [TUI-003](tui-003-slash-command-output-ux.md) | todo | P2 | TUI | [TUI-001](tui-001.md) | Slash command output UX polish |
 | [PI-001](pi-001.md) | todo | P2 | Pi Integration | none | Contingency Pi patch branch strategy |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
-| [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [TOOLS-001](tools-001.md), [CTX-007](ctx-007.md) | Agentic worker sessions for inspectable coding-agent delegation |
+| [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [TOOLS-001](tools-001.md), [CTX-007](ctx-007.md), [WAIT-001](wait-001-durable-agent-waits.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [DOCTOR-001](doctor-001.md) | todo | P2 | Doctor | [ADMIN-001](admin-001.md) | Admin repair/doctor session |
