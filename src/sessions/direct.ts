@@ -17,6 +17,7 @@ import { mergeModelSelection } from "../config/index.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
 import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
 import { installShrimpyContextRendering } from "../tui/shrimpy-context-rendering.js";
+import { installShrimpyModelSelectionGuard } from "../tui/shrimpy-model-selection.js";
 import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
 import { openSession, openSessionRuntime, resolveModel } from "./factory.js";
 import { createLocalSessionDescriptor } from "./spec.js";
@@ -217,6 +218,7 @@ async function runAgentTuiSession(
     if (mode === "shrimpy") {
       installShrimpyActivityIndicator(interactive);
       installShrimpyContextRendering(interactive);
+      installShrimpyModelSelectionGuard(interactive);
       installShrimpySettingsSelector(interactive, {
         runtime: input.runtime,
         agentId: agent.id,
