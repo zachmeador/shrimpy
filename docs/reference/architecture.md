@@ -19,7 +19,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances scheduled work.
 - **Scheduler** — file-driven recurring work. Schedules emit channel messages that become normal agent turns. Agent schedules live in `agents/<id>/schedules.json`; optional workspace scheduler definitions live in `config/schedules.json`.
 - **Skill** — prompt and resource material loaded into a session.
-- **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`.
+- **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).
 - **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last) into one system prompt, and prepends the per-turn context envelope with runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices.
 
 ## Boundaries

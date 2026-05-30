@@ -29,5 +29,6 @@ Shrimpy is a multi-agent home AI system built on Pi. Current upstream Pi package
 - [architecture.md](architecture.md) — primitives and layering.
 - [runtime.md](runtime.md) — execution flow.
 - [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
+- [memory.md](memory.md) — memory model and upkeep.
 - [cli.md](cli.md) — commands.
 - [../backlog/index.md](../backlog/index.md) — active work.

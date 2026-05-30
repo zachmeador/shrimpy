@@ -10,7 +10,7 @@ This directory holds useful but non-authoritative material:
 - design taste
 - preserved quotes and working notes
 
-Start with `docs/reference/` first, and use `docs/tracking/` for active project state. Come here when you want more design context, unfinished thinking, or the original vibe behind a direction.
+Start with `docs/reference/` first, and use `docs/backlog/` for active project state. Come here when you want more design context, unfinished thinking, or the original vibe behind a direction.
 
 Current notes worth scanning:
 

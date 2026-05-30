@@ -10,6 +10,7 @@ These docs are the project map for Shrimpy. Current behavior and settled design 
 - [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
 - [reference/runtime.md](reference/runtime.md) — how CLI sessions, gateway dispatch, scheduler runs, and child runs execute.
 - [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
+- [reference/memory.md](reference/memory.md) — memory model, upkeep, and continuity aspiration.
 - [reference/briefing.md](reference/briefing.md) — compact per-turn alerts and inspect pointers.
 - [reference/compaction.md](reference/compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [reference/cli.md](reference/cli.md) — command surface and agent-friendly workflows.
@@ -21,8 +22,6 @@ These docs are the project map for Shrimpy. Current behavior and settled design 
 ## Project State
 
 - [backlog/index.md](backlog/index.md) — active engineering work.
-- [tracking/memory-system-design.md](tracking/memory-system-design.md) — memory-system design and docs/code reconciliation.
-- [tracking/memory-redesign.md](tracking/memory-redesign.md) — memory-redesign implementation tracker for the active branch.
 - [vision-reconciliation.md](vision-reconciliation.md) — periodic docs/vision/code reconciliation tracker.
 
 ## Background

@@ -16,6 +16,7 @@ Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree
 - [docs/reference/overview.md](docs/reference/overview.md) — core model and invariants.
 - [docs/reference/design.md](docs/reference/design.md) — philosophy, settled decisions, and active reconsiderations.
 - [docs/reference/runtime.md](docs/reference/runtime.md) — CLI, gateway, sessions, adapters, and scheduler flow.
+- [docs/reference/memory.md](docs/reference/memory.md) — memory model, upkeep, and continuity aspiration.
 - [docs/reference/configuration.md](docs/reference/configuration.md) — workspace config files and day-to-day knobs.
 - [docs/reference/workspace.md](docs/reference/workspace.md) — workspace layout and agent resources.
 - [docs/backlog/index.md](docs/backlog/index.md) — active project work.
