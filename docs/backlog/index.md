@@ -8,6 +8,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [CTX-007](ctx-007.md) | todo | P1 | Context | none | Session-status briefing items |
 | [CTX-008](ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
+| [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | [TOOLS-001](tools-001.md) | Default browser automation tool |
 | [MODELS-002](models-002.md) | todo | P1 | Models | none | Unified model config boundary and capability selection |
 | [SCHED-001](sched-001.md) | todo | P2 | Scheduler | none | Demote heartbeat to watched schedule config |
 | [TOOLS-001](tools-001.md) | done | P1 | Runtime | none | Unified agent tool capability view |
