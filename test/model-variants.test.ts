@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  applyCurrentModelVariantInferenceToPayload,
   applyModelVariantInferenceToPayload,
   applyInferenceParamsToPayload,
   resolveModelVariantInference,
@@ -26,6 +27,12 @@ const qwenModel = {
   compat: {
     thinkingFormat: "qwen-chat-template",
   },
+};
+
+const codexModel = {
+  provider: "openai-codex",
+  id: "gpt-5.5",
+  api: "openai-codex-responses",
 };
 
 function writeModelsJson(value: unknown): string {
@@ -103,6 +110,54 @@ describe("model variant inference", () => {
         preserve_thinking: true,
       },
     });
+  });
+
+  test("applies variant metadata for the current model only", () => {
+    const modelsPath = writeModelsJson({
+      providers: {
+        local_qwen_moe: {
+          models: [
+            {
+              id: qwenModel.id,
+              baseModel: "dense",
+              inference: {
+                enableThinking: false,
+              },
+            },
+          ],
+        },
+        "openai-codex": {
+          models: [
+            {
+              id: codexModel.id,
+            },
+          ],
+        },
+      },
+    });
+
+    assert.deepEqual(
+      applyCurrentModelVariantInferenceToPayload(
+        { model: qwenModel.id, stream: true },
+        { modelsPath, model: qwenModel as any },
+      ),
+      {
+        model: "dense",
+        stream: true,
+        chat_template_kwargs: {
+          enable_thinking: false,
+          preserve_thinking: true,
+        },
+      },
+    );
+
+    assert.deepEqual(
+      applyCurrentModelVariantInferenceToPayload(
+        { model: codexModel.id, stream: true },
+        { modelsPath, model: codexModel as any },
+      ),
+      { model: codexModel.id, stream: true },
+    );
   });
 
   test("applies selected params to the provider payload", () => {

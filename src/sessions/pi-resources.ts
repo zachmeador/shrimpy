@@ -4,12 +4,10 @@ import {
   type ExtensionFactory,
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import type { Api, Model } from "@earendil-works/pi-ai";
 import { projectRoot } from "../app/project-root.js";
 import type { RuntimeConfig } from "../config/index.js";
 import {
-  applyModelVariantInferenceToPayload,
-  type ModelVariantInference,
+  applyCurrentModelVariantInferenceToPayload,
 } from "../inference/params.js";
 
 const SHRIMPY_EXTENSION_PATHS = [
@@ -28,15 +26,14 @@ export function createShrimpyResourceLoader(opts: {
   settingsManager: SettingsManager;
   runtimeConfig: Required<RuntimeConfig>;
   systemPrompt: string;
-  inference?: ModelVariantInference;
-  model?: Model<Api>;
+  modelsPath?: string;
 }): DefaultResourceLoader {
   return new DefaultResourceLoader({
     cwd: opts.cwd,
     agentDir: join(projectRoot, ".shrimpy"),
     settingsManager: opts.settingsManager,
     additionalExtensionPaths: SHRIMPY_EXTENSION_PATHS,
-    extensionFactories: createInferenceExtensionFactories(opts.inference, opts.model),
+    extensionFactories: createInferenceExtensionFactories(opts.modelsPath),
     additionalSkillPaths: [],
     additionalThemePaths: SHRIMPY_THEME_PATHS,
     noSkills: true,
@@ -51,16 +48,18 @@ export function createShrimpyResourceLoader(opts: {
   });
 }
 
-function createInferenceExtensionFactories(
-  inference: ModelVariantInference | undefined,
-  model: Model<Api> | undefined,
-): ExtensionFactory[] {
-  if (!inference) return [];
+function createInferenceExtensionFactories(modelsPath?: string): ExtensionFactory[] {
+  if (!modelsPath) return [];
   return [
     (pi) => {
-      pi.on("before_provider_request", (event) =>
-        applyModelVariantInferenceToPayload(event.payload, inference, model)
-      );
+      pi.on("before_provider_request", (event, ctx) => {
+        // /model can switch providers inside one TUI session; keep local aliases
+        // scoped to the model Pi is about to call.
+        return applyCurrentModelVariantInferenceToPayload(event.payload, {
+          modelsPath,
+          model: ctx.model,
+        });
+      });
     },
   ];
 }

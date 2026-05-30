@@ -134,6 +134,7 @@ export async function createBootstrap(
     settingsManager,
     runtimeConfig,
     systemPrompt: baseSystemPrompt,
+    modelsPath: source.modelsPath,
   });
   await resourceLoader.reload();
 

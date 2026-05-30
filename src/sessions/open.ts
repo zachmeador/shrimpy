@@ -140,7 +140,6 @@ async function openSessionWithRuntimeDeps(
     bootstrap,
     assembly,
     settingsManager,
-    plan,
   );
 
   const sessionManager =
@@ -183,9 +182,8 @@ async function resolveSessionResourceLoader(
   bootstrap: SessionBootstrap,
   assembly: ReturnType<typeof assembleSessionPrompt>,
   settingsManager: SettingsManager,
-  plan: SessionOpenPlan,
 ): Promise<ResourceLoader> {
-  if (!assembly.needsCustomLoader && plan.inference === undefined) {
+  if (!assembly.needsCustomLoader) {
     return bootstrap.resourceLoader;
   }
 
@@ -194,8 +192,7 @@ async function resolveSessionResourceLoader(
     settingsManager,
     runtimeConfig: bootstrap.runtimeConfig,
     systemPrompt: assembly.systemPrompt,
-    inference: plan.inference,
-    model: assembly.resolvedModel,
+    modelsPath: bootstrap.modelsPath,
   });
   await resourceLoader.reload();
   return resourceLoader;

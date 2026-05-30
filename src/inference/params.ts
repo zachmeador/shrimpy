@@ -95,6 +95,20 @@ export function resolveModelVariantInference(input: {
   );
 }
 
+export function applyCurrentModelVariantInferenceToPayload(
+  payload: unknown,
+  input: {
+    modelsPath?: string;
+    model?: Model<Api>;
+  },
+): unknown {
+  return applyModelVariantInferenceToPayload(
+    payload,
+    resolveModelVariantInference(input),
+    input.model,
+  );
+}
+
 export function applyModelVariantInferenceToPayload(
   payload: unknown,
   inference: ModelVariantInference | undefined,
