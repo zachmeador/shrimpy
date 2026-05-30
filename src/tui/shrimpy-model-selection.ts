@@ -4,7 +4,7 @@ import type {
   AutocompleteSuggestions,
 } from "@earendil-works/pi-tui";
 
-const HIDDEN_SLASH_COMMANDS = new Set(["scoped-models"]);
+const HIDDEN_SLASH_COMMANDS = new Set(["scoped-models", "share"]);
 const MODEL_SELECTION_HINT = "Use /model to change models in Shrimpy.";
 
 interface InteractiveModeModelSelectionInternals {

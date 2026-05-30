@@ -20,6 +20,11 @@ test("Shrimpy autocomplete hides Pi scoped models command", () => {
         description: "Enable/disable models for Ctrl+P cycling",
       },
       {
+        value: "share",
+        label: "share",
+        description: "Share session externally",
+      },
+      {
         value: "settings",
         label: "settings",
       },
@@ -50,17 +55,48 @@ test("Shrimpy autocomplete hides Pi scoped models command", () => {
   );
 });
 
-test("Shrimpy autocomplete returns null when only scoped models would match", () => {
+test("Shrimpy autocomplete hides Pi share command", () => {
+  const filtered = filterScopedModelsAutocompleteSuggestions({
+    prefix: "/sh",
+    items: [
+      {
+        value: "share",
+        label: "share",
+        description: "Share session externally",
+      },
+      {
+        value: "shrimpy",
+        label: "shrimpy",
+      },
+    ],
+  });
+
+  assert.deepEqual(filtered, {
+    prefix: "/sh",
+    items: [
+      {
+        value: "shrimpy",
+        label: "shrimpy",
+      },
+    ],
+  });
+});
+
+test("Shrimpy autocomplete returns null when only hidden slash commands would match", () => {
   assert.equal(
     filterScopedModelsAutocompleteSuggestions({
       prefix: "/scoped",
       items: [
         {
-          value: "scoped-models",
-          label: "scoped-models",
-        },
-      ],
-    }),
+        value: "scoped-models",
+        label: "scoped-models",
+      },
+      {
+        value: "share",
+        label: "share",
+      },
+    ],
+  }),
     null,
   );
 });
