@@ -19,6 +19,10 @@ Every shrimpy feature should be reachable via a `shrimpy <command>` subcommand. 
 
 When adding a new feature, expose it as a CLI subcommand first.
 
+## Live workspace safety
+
+When developing in a running Shrimpy workspace, treat the workspace config and state as user data. Be extra cautious around anything that can destroy, overwrite, reset, or migrate a user's Shrimpy config, including `config/`, `agents/`, `state/`, `runtime/`, `channels/`, `media/`, and the workspace pointer. Prefer inspectable CLI changes, preserve existing files by default, and only run destructive cleanup or reset commands when the user explicitly asks for that exact operation.
+
 ## Release process
 
 Use GitHub Releases for public versions. Early versions are alpha-quality unless the user explicitly says otherwise.

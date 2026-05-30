@@ -3,7 +3,7 @@
 Status: todo
 Priority: P1
 Area: Models
-Depends On: [MODELS-001](models-001.md)
+Depends On: none
 
 ## Why
 Shrimpy currently has too many places that can influence model behavior, and the effective boundary is hard to reason about. Explicit provider/model ids are simple and inspectable, but the selection path is scattered across workspace config, agent config, CLI flags, Pi's model registry, session startup, gateway runtime construction, model-variant inference metadata, and Pi's own first-available fallback.

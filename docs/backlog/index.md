@@ -4,13 +4,11 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [ATTENTION-001](attention-001.md) | done | P1 | Agents | none | Fine-grained agent attention CLI mutators |
 | [CTX-003](ctx-003.md) | todo | P1 | Context | none | High-value turn briefing facts |
 | [CTX-007](ctx-007.md) | todo | P1 | Context | none | Session-status briefing items |
 | [CTX-008](ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
-| [MODELS-001](models-001.md) | done | P1 | Models | none | Provider-supported inference params |
-| [MODELS-002](models-002.md) | todo | P1 | Models | [MODELS-001](models-001.md) | Unified model config boundary and capability selection |
+| [MODELS-002](models-002.md) | todo | P1 | Models | none | Unified model config boundary and capability selection |
 | [SCHED-001](sched-001.md) | todo | P2 | Scheduler | none | Demote heartbeat to watched schedule config |
 | [TOOLS-001](tools-001.md) | todo | P1 | Runtime | none | Unified agent tool capability view |
 | [WAIT-001](wait-001-durable-agent-waits.md) | draft | P1 | Runtime | [TOOLS-001](tools-001.md), [CTX-007](ctx-007.md) | Durable waits and pending wakes for agent continuations |
