@@ -6,6 +6,7 @@ shrimpy-sessions/
 .shrimpy/
 *.tsbuildinfo
 .claude
+.vscode/
 shrimpy_pi.code-workspace
 AGENTS-PRIVATE.md
 AGENTS_PRIVATE.md
