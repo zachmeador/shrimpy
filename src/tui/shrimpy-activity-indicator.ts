@@ -1,6 +1,9 @@
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import {
+  truncateToWidth,
+  visibleWidth,
+} from "@earendil-works/pi-tui";
 
 interface InteractiveModeActivityInternals {
   footer: Component & { dispose?(): void };
@@ -80,10 +83,15 @@ export function renderShrimpyActivityFooter(
   return output.map((line, index) => {
     const blockIndex = index - blockStartIndex;
     const prefix = blockIndex >= 0
-      ? `${block[blockIndex]} `
-      : `${" ".repeat(prefixWidth)}`;
-    return prefix + truncateToWidth(line, contentWidth, "");
+      ? `${padVisibleWidth(block[blockIndex] ?? "", SHRIMP_BLOCK_WIDTH)} `
+      : " ".repeat(prefixWidth);
+    return padVisibleWidth(prefix + truncateToWidth(line, contentWidth, ""), width);
   });
+}
+
+function padVisibleWidth(text: string, width: number): string {
+  const truncated = truncateToWidth(text, width, "");
+  return truncated + " ".repeat(Math.max(0, width - visibleWidth(truncated)));
 }
 
 function isBusy(mode: InteractiveModeActivityInternals): boolean {
