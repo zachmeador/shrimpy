@@ -19,13 +19,14 @@ The desired product feeling is:
 
 Shrimpy should likely ship with a default second agent dedicated to setup, repair, and extension work.
 
-Call it `admin` or `shrimpy-mechanic` for now. `admin` is probably the clearer default workspace id because users are likely to ask for "admin" work when they mean setup, config, repair, or larger Shrimpy modifications.
+Call it `mechanic` for now. `admin` is a plausible conventional name or alias, but `mechanic` better matches the product feel: a capable specialist who works on the home itself.
 
-The distinctive part is not its storage or runtime semantics. If `shrimpy agents` is built correctly, `admin` is just another normal agent. The product choice is that Shrimpy ships it by default with:
+The distinctive part is not its storage or runtime semantics. If `shrimpy agents` is built correctly, `mechanic` is just another normal agent. The product choice is that Shrimpy ships it by default with:
 
 - a clear setup, repair, and extension job
 - richer Shrimpy-specific context than the everyday home agent
 - stronger default model/reasoning settings when available
+- first claim on a capable hosted model endpoint during setup, before the everyday `shrimpy` agent is nudged toward a local/private model
 - an obvious command/surface path for direct use and main-agent deferral
 
 The important part is that this is not a new runtime species or a special storage shape. It is a normal bundled agent with a very clear job.
@@ -56,23 +57,23 @@ That is a much cleaner product story.
 The default shape could be:
 
 - **`shrimpy`** — the main general home agent the user normally talks to
-- **`admin`** — a specialized maintainer/builder agent for the home itself
+- **`mechanic`** — a specialized maintainer/builder agent for the home itself
 - **skills** — optional capability bundles either agent can use inside ordinary sessions
 
 In that shape:
 
 - the main agent can still answer questions about Shrimpy
-- the main agent can inspect admin logs and workspace files like any other files
-- the main agent knows to defer actual Shrimpy modification work to the admin when the request is about setup, repair, config change, or framework extension
-- the admin can use setup or repair skills internally without the user having to know that implementation detail
+- the main agent can inspect mechanic logs and workspace files like any other files
+- the main agent knows to defer actual Shrimpy modification work to the mechanic when the request is about setup, repair, config change, or framework extension
+- the mechanic can use setup or repair skills internally without the user having to know that implementation detail
 
 This keeps skills in the right place: session resources, not the main product abstraction the user has to reason about.
 
-The admin agent should usually default to a more capable paid model, more deliberate reasoning, and richer Shrimpy-specific context than the ordinary home agent. That should come from normal agent config and context resources. This is a policy/config default, not a new privilege boundary.
+The mechanic agent should usually default to a more capable paid model, more deliberate reasoning, and richer Shrimpy-specific context than the ordinary home agent. This matters because Shrimpy can encourage the everyday `shrimpy` agent toward a local model for privacy, while the mechanic still needs enough capability for large coding, repair, and setup tasks. That should come from normal agent config and context resources. This is a policy/config default, not a new privilege boundary.
 
 ## What The Mechanic Agent Would Own
 
-`admin` should probably own work like:
+`mechanic` should probably own work like:
 
 - first-run setup after at least one model works
 - guided environment shaping for channels, agents, and defaults
@@ -118,10 +119,10 @@ This reframes setup in a useful way.
 
 Instead of the polished setup story being "hand off to a base setup skill," the more legible story is:
 
-1. `shrimpy setup` gets one model working if needed.
-2. Shrimpy launches the default admin agent.
-3. The admin guides the rest of the home setup.
-4. The admin uses any setup skill/resources it needs internally.
+1. `shrimpy setup` gets the mechanic model working first, usually by asking for an OpenAI or Anthropic key if no capable hosted endpoint is configured.
+2. Shrimpy launches the default mechanic agent.
+3. The mechanic guides the rest of the home setup.
+4. The mechanic uses any setup skill/resources it needs internally.
 
 That keeps the implementation freedom of skills without making the user think in skill-shaped terms.
 
@@ -137,8 +138,8 @@ Example flow:
 
 1. The user asks `shrimpy` to change some part of the home.
 2. `shrimpy` decides this is real home-modification work, not just explanation.
-3. `shrimpy` invokes or routes to `admin`.
-4. `admin` inspects files, edits config/docs/code, validates the result, and leaves an inspectable trail.
+3. `shrimpy` invokes or routes to `mechanic`.
+4. `mechanic` inspects files, edits config/docs/code, validates the result, and leaves an inspectable trail.
 5. `shrimpy` can summarize the outcome back to the user if the surface wants one main visible persona.
 
 That feels more intentional than either:
@@ -169,7 +170,7 @@ If this direction is right, Shrimpy should expose it explicitly in the CLI.
 Possible shape:
 
 - `shrimpy setup` launches provider bootstrap if needed, then opens a mechanic-guided setup session
-- `shrimpy admin` opens a direct TUI session with `admin`
+- `shrimpy mechanic` opens a direct TUI session with `mechanic`
 - repair-oriented commands like `shrimpy doctor` may become mechanic-led entry points instead of separate conceptual products
 
 That fits the rule that every real feature should be reachable through a normal `shrimpy <command>` path.
@@ -185,9 +186,9 @@ The cleaner split is:
 
 So:
 
-- the user thinks "ask admin"
-- the framework thinks "open an ordinary admin session with these resources"
-- the admin may think "I should use the setup, repair, or automation-building skill bundle here"
+- the user thinks "ask mechanic"
+- the framework thinks "open an ordinary mechanic session with these resources"
+- the mechanic may think "I should use the setup, repair, or automation-building skill bundle here"
 
 That stack is easier to explain than asking the user to reason upward from skills.
 
@@ -195,9 +196,9 @@ That stack is easier to explain than asking the user to reason upward from skill
 
 This likely changes the framing of several current items.
 
-- `ADMIN-001` should establish the bundled admin agent, default workspace shape, richer admin context, and guided setup ownership without changing the ordinary agent contract.
-- `DOCTOR-001` may become less of a separate troubleshooting product and more of a dedicated admin repair entry point or repair mode.
-- Future skill work still matters, but its scope becomes more implementation-facing. Skills remain important session material, while the user-facing product abstraction for self-modification becomes the admin agent.
+- `ADMIN-001` should establish the bundled mechanic agent, default workspace shape, richer mechanic context, and guided setup ownership without changing the ordinary agent contract.
+- `DOCTOR-001` may become less of a separate troubleshooting product and more of a dedicated mechanic repair entry point or repair mode.
+- Future skill work still matters, but its scope becomes more implementation-facing. Skills remain important session material, while the user-facing product abstraction for self-modification becomes the mechanic agent.
 - Architecture work may benefit from this because it clarifies one more clean role split: general home-agent behavior versus home-maintenance specialization.
 
 This is mostly a scope clarification, not a contradiction of the current architecture direction.
@@ -207,9 +208,9 @@ This is mostly a scope clarification, not a contradiction of the current archite
 This direction is probably good if the answer to most of these is yes:
 
 - Can a user discover home modification through an obvious agent identity instead of hidden framework behavior?
-- Can the admin be implemented as an ordinary bundled agent, not a bespoke runtime feature?
-- Can the main `shrimpy` agent defer modification work cleanly while still inspecting the admin's outputs?
-- Can setup, repair, and extension work build continuity through the admin's own memory?
+- Can the mechanic be implemented as an ordinary bundled agent, not a bespoke runtime feature?
+- Can the main `shrimpy` agent defer modification work cleanly while still inspecting the mechanic's outputs?
+- Can setup, repair, and extension work build continuity through the mechanic's own memory?
 - Can skills stay explicit and inspectable without becoming the product's main mental model?
 - Can a user create increasingly complex home software flows without leaving the ordinary agent interface?
 
