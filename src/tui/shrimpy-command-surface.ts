@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import {
@@ -15,9 +16,16 @@ import {
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { ThinkingSelectorComponent } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/thinking-selector.js";
 import { theme } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
+import { formatVersionLabel } from "../app/metadata.js";
 import type { AppRuntime } from "../app/runtime.js";
 import { projectRoot } from "../app/project-root.js";
+import { timeSince } from "../channels/format.js";
 import { formatModelSelection } from "../config/model.js";
+import {
+  collectGatewayActivity,
+  loadGatewaySchedulerSummary,
+  type ChannelMessageSnapshot,
+} from "../gateway/status.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
 type ShowSelectorFactory = (done: () => void) => {
@@ -61,7 +69,7 @@ export interface ShrimpyCommandSurfaceOptions {
 const HELP_LINES = [
   "Shrimpy commands",
   "",
-  "/status [section]  Show Shrimpy workspace, agent, channel, context, skill, model, or diagnostic status",
+  "/status [section]  Show Shrimpy workspace, gateway, agent, channel, context, skill, model, or diagnostic status",
   "/settings          Open unified Shrimpy and Pi settings",
   "/model             Select the session model",
   "/thinking          Open session thinking menu",
@@ -74,6 +82,7 @@ const HELP_LINES = [
 const STATUS_SECTIONS = [
   "overview",
   "workspace",
+  "gateway",
   "agents",
   "channels",
   "context",
@@ -87,6 +96,7 @@ type StatusSection = (typeof STATUS_SECTIONS)[number];
 const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
   overview: "Workspace, active agent, model, and available status sections",
   workspace: "Workspace paths and config",
+  gateway: "Gateway service, heartbeat, scheduler, and interaction status",
   agents: "Active agent and configured agents",
   channels: "Channel log overview",
   context: "Context files and source inspection",
@@ -211,6 +221,8 @@ function buildStatusText(
       return overviewStatusText(mode, options);
     case "workspace":
       return workspaceStatusText(options);
+    case "gateway":
+      return gatewayStatusText(options);
     case "agents":
       return agentsStatusText(options);
     case "channels":
@@ -234,7 +246,9 @@ function overviewStatusText(
   return [
     theme.bold("Shrimpy Status"),
     "",
+    label("Version", formatVersionLabel()),
     label("Agent", options.agentId),
+    label("Gateway", gatewayServiceStatus("is-active")),
     label("Workspace", runtime.paths.workspace),
     label("CWD", options.cwd),
     label("Model", formatSessionModel(mode.session.model)),
@@ -262,6 +276,51 @@ function workspaceStatusText(options: ShrimpyCommandSurfaceOptions): string {
     "shrimpy status",
     "shrimpy context --sections",
   ].join("\n");
+}
+
+function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
+  const runtime = options.runtime;
+  const activity = collectGatewayActivity(
+    runtime.paths.channelsDir,
+    runtime.resolved.status,
+  );
+  const scheduler = loadGatewaySchedulerSummary(
+    runtime.paths.schedulerStatePath,
+    runtime.resolved.status,
+  );
+  const lines = [
+    theme.bold("Gateway"),
+    "",
+    label("Gateway service", gatewayServiceStatus("is-active")),
+    label("Gateway enabled", gatewayServiceStatus("is-enabled")),
+    label("Tracked channels", String(activity.channelCount)),
+    label("Last heartbeat", activity.lastHeartbeat
+      ? when(activity.lastHeartbeat.message.timestamp)
+      : dimText("(none)")),
+    label("Last user interaction", activity.lastUserInteraction
+      ? when(activity.lastUserInteraction.message.timestamp)
+      : dimText("(none)")),
+  ];
+
+  if (activity.lastUserInteraction) {
+    lines.push(
+      label(
+        "Last interaction source",
+        formatInteractionSource(activity.lastUserInteraction),
+      ),
+    );
+  }
+
+  lines.push(
+    label("Next heartbeat due", scheduler.nextHeartbeatAtMs === undefined
+      ? dimText("(unknown)")
+      : `${formatFutureOrPast(scheduler.nextHeartbeatAtMs)} ${dimText(`(${new Date(scheduler.nextHeartbeatAtMs).toLocaleString()})`)}`),
+    "",
+    theme.bold("Inspect"),
+    "shrimpy gateway status",
+    "shrimpy gateway logs",
+  );
+  return lines.join("\n");
 }
 
 function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
@@ -395,6 +454,49 @@ function parseStatusSection(args: string): StatusSection | undefined {
 
 function label(name: string, value: string): string {
   return `${theme.fg("dim", `${name}:`)} ${value}`;
+}
+
+function dimText(text: string): string {
+  return theme.fg("dim", text);
+}
+
+function gatewayServiceStatus(kind: "is-active" | "is-enabled"): string {
+  const result = spawnSync("systemctl", ["--user", kind, "shrimpy-gateway"], {
+    encoding: "utf-8",
+  });
+
+  if (result.error) return "unknown";
+
+  const stdout = result.stdout.trim();
+  if (stdout) return stdout;
+
+  return "unknown";
+}
+
+function formatInteractionSource(snapshot: ChannelMessageSnapshot): string {
+  const sender = snapshot.message.sender.displayName
+    ? `${snapshot.message.sender.kind}:${snapshot.message.sender.displayName}`
+    : `${snapshot.message.sender.kind}:${snapshot.message.sender.actorId}`;
+  return `${snapshot.channel} ${dimText(`(${sender})`)}`;
+}
+
+function formatFutureOrPast(targetMs: number): string {
+  const diffSeconds = Math.floor((targetMs - Date.now()) / 1000);
+  const absSeconds = Math.abs(diffSeconds);
+
+  const amount = absSeconds < 60
+    ? `${absSeconds}s`
+    : absSeconds < 3_600
+      ? `${Math.floor(absSeconds / 60)}m`
+      : absSeconds < 86_400
+        ? `${Math.floor(absSeconds / 3_600)}h`
+        : `${Math.floor(absSeconds / 86_400)}d`;
+
+  return diffSeconds >= 0 ? `in ${amount}` : `${amount} ago`;
+}
+
+function when(ms: number): string {
+  return `${timeSince(ms)} ${dimText(`(${new Date(ms).toLocaleString()})`)}`;
 }
 
 function formatSessionModel(model: unknown): string {

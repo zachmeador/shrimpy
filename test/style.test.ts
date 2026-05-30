@@ -25,7 +25,7 @@ describe("style helpers", () => {
     assert.equal(colorEnabled(), false);
     assert.equal(shrimp("shrimpy"), "shrimpy");
     assert.equal(brand(), "shrimpy");
-    assert.equal(brand("shrimpy v0.1.0"), "shrimpy v0.1.0");
+    assert.equal(brand("shrimpy version"), "shrimpy version");
   });
 
   test("colorEnabled honors NO_COLOR even when forceColor is set", () => {

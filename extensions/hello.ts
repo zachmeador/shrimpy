@@ -1,15 +1,18 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
+import { readAppMetadata } from "../src/app/metadata.ts";
 import { registerShrimpyHelpCommand } from "./shrimpy-commands.ts";
-
-const VERSION = "0.1.0";
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     ctx.ui.setHeader((_tui, theme) => {
+      const metadata = readAppMetadata();
       const logo =
-        theme.bold(theme.fg("accent", "shrimpy")) +
-        theme.fg("dim", ` v${VERSION}`);
+        theme.bold(theme.fg("accent", metadata.name)) +
+        theme.fg("dim", ` v${metadata.version}`) +
+        (metadata.releaseName
+          ? theme.fg("muted", ` - ${metadata.releaseName}`)
+          : "");
       const hints = [
         theme.fg("muted", "/ commands"),
         theme.fg("muted", "! bash"),

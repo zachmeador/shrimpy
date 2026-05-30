@@ -2,6 +2,7 @@
 
 import { loadConfig } from "./config/index.js";
 import { createAppRuntime } from "./app/index.js";
+import { formatVersionLabel, readAppMetadata } from "./app/metadata.js";
 import { cmdChannels } from "./commands/channels.js";
 import { cmdGateway } from "./commands/gateway.js";
 import { cmdRun } from "./commands/run.js";
@@ -26,11 +27,12 @@ import { runInteractiveAgentSession } from "./sessions/index.js";
 import { brand, dim, heading } from "./util/style.js";
 
 function renderHelp(): string {
+  const metadata = readAppMetadata();
   const body = HELP_BODY
     .split("\n")
     .map((line) => styleHelpLine(line))
     .join("\n");
-  return `${brand()} v0.1.0 — a home agent\n\n${heading("usage:")}\n${body}`;
+  return `${brand(formatVersionLabel(metadata))} - ${metadata.description}\n\n${heading("usage:")}\n${body}`;
 }
 
 function styleHelpLine(line: string): string {
@@ -157,7 +159,7 @@ try {
   }
 
   if (values.version) {
-    console.log(`${brand()} v0.1.0`);
+    console.log(brand(formatVersionLabel()));
     process.exit(0);
   }
 

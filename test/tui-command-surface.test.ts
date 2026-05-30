@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getMarkdownTheme, initTheme } from "@earendil-works/pi-coding-agent";
+import { formatVersionLabel } from "../dist/app/metadata.js";
 import { createAppRuntime } from "../dist/app/runtime.js";
 import { installShrimpyCommandSurface } from "../dist/tui/shrimpy-command-surface.js";
 
@@ -38,6 +39,8 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   });
   mode.setupEditorSubmitHandler();
 
+  await mode.defaultEditor.onSubmit!("/status");
+  await mode.defaultEditor.onSubmit!("/status gateway");
   await mode.defaultEditor.onSubmit!("/status agents");
   await mode.defaultEditor.onSubmit!("/status channels");
   await mode.defaultEditor.onSubmit!("/status skills");
@@ -46,6 +49,12 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   await mode.defaultEditor.onSubmit!("/hello");
 
   const chat = stripAnsi(renderChat());
+  assert.match(chat, new RegExp(`Version: ${escapeRegExp(formatVersionLabel())}`));
+  assert.match(chat, /Gateway:/);
+  assert.match(chat, /\/status gateway/);
+  assert.match(chat, /Gateway service:/);
+  assert.match(chat, /Tracked channels: 1/);
+  assert.match(chat, /shrimpy gateway status/);
   assert.match(chat, /Agents/);
   assert.match(chat, /\* admin root=agents\/admin tools=send_message thinking=high/);
   assert.match(chat, /home 2 msgs/);
@@ -53,7 +62,7 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   assert.match(chat, /agent-skill \[agent\]/);
   assert.match(chat, /\/status \[section\]/);
   assert.deepEqual(statuses, ["Share is hidden in Shrimpy for now"]);
-  assert.deepEqual(editorTexts, ["", "", "", "", ""]);
+  assert.deepEqual(editorTexts, ["", "", "", "", "", "", ""]);
   assert.deepEqual(submissions, ["/hello"]);
 });
 
@@ -230,4 +239,8 @@ function createModeHarness(opts: {
 
 function stripAnsi(text: string): string {
   return text.replace(/\x1b\[[0-9;]*m/gu, "");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

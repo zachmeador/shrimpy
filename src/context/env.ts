@@ -1,4 +1,5 @@
 import { hostname } from "node:os";
+import { readAppMetadata } from "../app/metadata.js";
 import type { SessionDescriptor } from "../sessions/spec.js";
 
 export interface BootEnv {
@@ -35,7 +36,7 @@ export const KNOWN_RUNTIME_ENV_KEYS = new Set([
 export function resolveBootEnv(workspacePath: string): BootEnv {
   return {
     workspace_path: workspacePath,
-    shrimpy_version: "0.1.0",
+    shrimpy_version: readAppMetadata().version,
     hostname: hostname(),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     booted_at_iso: new Date().toISOString(),

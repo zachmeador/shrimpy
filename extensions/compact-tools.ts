@@ -1,11 +1,11 @@
 import {
-  createBashTool,
-  createEditTool,
-  createFindTool,
-  createGrepTool,
-  createLsTool,
-  createReadTool,
-  createWriteTool,
+  createBashToolDefinition,
+  createEditToolDefinition,
+  createFindToolDefinition,
+  createGrepToolDefinition,
+  createLsToolDefinition,
+  createReadToolDefinition,
+  createWriteToolDefinition,
   type ExtensionAPI,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
@@ -52,17 +52,30 @@ function empty(): Container {
 }
 
 function compactBuiltInTool(
-  createTool: (cwd: string) => AnyTool,
+  createToolDefinition: (cwd: string) => AnyTool,
   summarize: (args: any) => string,
+  options: { renderExpandedCallWithOriginal?: boolean } = {},
 ): AnyTool {
-  const original = createTool(process.cwd());
+  const original = createToolDefinition(process.cwd());
   return {
     ...original,
     renderShell: "self",
     async execute(toolCallId, params, signal, onUpdate, ctx) {
-      return createTool(ctx.cwd).execute(toolCallId, params, signal, onUpdate, ctx);
+      return createToolDefinition(ctx.cwd).execute(
+        toolCallId,
+        params,
+        signal,
+        onUpdate,
+        ctx,
+      );
     },
     renderCall(args, theme, context) {
+      if (options.renderExpandedCallWithOriginal && context.expanded) {
+        return (
+          original.renderCall?.(args, theme, context) ??
+          compactLine(original.name, summarize(args), theme, context)
+        );
+      }
       return compactLine(original.name, summarize(args), theme, context);
     },
     renderResult(result, options, theme, context) {
@@ -74,20 +87,20 @@ function compactBuiltInTool(
 
 export default function (pi: ExtensionAPI) {
   const tools = [
-    compactBuiltInTool(createReadTool, (args) => clip(args.path)),
-    compactBuiltInTool(createWriteTool, (args) => {
+    compactBuiltInTool(createReadToolDefinition, (args) => clip(args.path)),
+    compactBuiltInTool(createWriteToolDefinition, (args) => {
       const lines = String(args.content ?? "").split("\n").length;
       return `${clip(args.path)} (${lines} lines)`;
-    }),
-    compactBuiltInTool(createEditTool, (args) => clip(args.path)),
-    compactBuiltInTool(createBashTool, (args) => clip(args.command)),
-    compactBuiltInTool(createGrepTool, (args) =>
+    }, { renderExpandedCallWithOriginal: true }),
+    compactBuiltInTool(createEditToolDefinition, (args) => clip(args.path)),
+    compactBuiltInTool(createBashToolDefinition, (args) => clip(args.command)),
+    compactBuiltInTool(createGrepToolDefinition, (args) =>
       `${clip(args.pattern)} in ${clip(args.path ?? ".")}`
     ),
-    compactBuiltInTool(createFindTool, (args) =>
+    compactBuiltInTool(createFindToolDefinition, (args) =>
       `${clip(args.pattern ?? args.name ?? "*")} in ${clip(args.path ?? ".")}`
     ),
-    compactBuiltInTool(createLsTool, (args) => clip(args.path ?? ".")),
+    compactBuiltInTool(createLsToolDefinition, (args) => clip(args.path ?? ".")),
   ];
 
   for (const tool of tools) {
