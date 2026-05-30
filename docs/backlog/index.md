@@ -17,6 +17,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [TUI-003](tui-003-slash-command-output-ux.md) | todo | P2 | TUI | [TUI-001](tui-001.md) | Slash command output UX polish |
 | [PI-001](pi-001.md) | todo | P2 | Pi Integration | none | Contingency Pi patch branch strategy |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
+| [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [TOOLS-001](tools-001.md), [CTX-007](ctx-007.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [DOCTOR-001](doctor-001.md) | todo | P2 | Doctor | [ADMIN-001](admin-001.md) | Admin repair/doctor session |
