@@ -12,14 +12,21 @@ import {
   type Component,
   type MarkdownTheme,
 } from "@earendil-works/pi-tui";
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { ThinkingSelectorComponent } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/thinking-selector.js";
 import { theme } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import type { AppRuntime } from "../app/runtime.js";
 import { projectRoot } from "../app/project-root.js";
 import { formatModelSelection } from "../config/model.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
+type ShowSelectorFactory = (done: () => void) => {
+  component: Component;
+  focus: Component;
+};
 
 interface InteractiveModeCommandSurfaceInternals {
+  showSelector(create: ShowSelectorFactory): void;
   setupEditorSubmitHandler(): void;
   handleChangelogCommand(): void;
   defaultEditor: {
@@ -35,8 +42,12 @@ interface InteractiveModeCommandSurfaceInternals {
     requestRender(): void;
   };
   session: AgentSession;
+  footer: {
+    invalidate(): void;
+  };
   showStatus(message: string): void;
   getMarkdownThemeWithSettings(): MarkdownTheme;
+  updateEditorBorderColor(): void;
 }
 
 export interface ShrimpyCommandSurfaceOptions {
@@ -53,7 +64,7 @@ const HELP_LINES = [
   "/status [section]  Show Shrimpy workspace, agent, channel, context, skill, model, or diagnostic status",
   "/settings          Open unified Shrimpy and Pi settings",
   "/model             Select the session model",
-  "/thinking <level>  Set the session thinking level",
+  "/thinking          Open session thinking menu",
   "/changelog         Show the Shrimpy changelog",
   "/shrimpy           This command list",
   "",
@@ -108,6 +119,12 @@ export function installShrimpyCommandSurface(
         return;
       }
 
+      if (trimmed === "/thinking") {
+        mode.editor.setText("");
+        showThinkingSelector(mode);
+        return;
+      }
+
       if (trimmed === "/shrimpy") {
         appendTextBlock(mode, HELP_LINES.join("\n"));
         mode.editor.setText("");
@@ -123,6 +140,27 @@ export function installShrimpyCommandSurface(
       await originalSubmit?.(text);
     };
   };
+}
+
+function showThinkingSelector(mode: InteractiveModeCommandSurfaceInternals): void {
+  const availableLevels = mode.session.getAvailableThinkingLevels() as ThinkingLevel[];
+  const currentLevel = mode.session.thinkingLevel as ThinkingLevel;
+
+  mode.showSelector((done) => {
+    const selector = new ThinkingSelectorComponent(
+      currentLevel,
+      availableLevels,
+      (level) => {
+        mode.session.setThinkingLevel(level);
+        mode.footer.invalidate();
+        mode.updateEditorBorderColor();
+        mode.showStatus(`Thinking level: ${mode.session.thinkingLevel}`);
+        done();
+      },
+      () => done(),
+    );
+    return { component: selector, focus: selector.getSelectList() };
+  });
 }
 
 function appendShrimpyStatus(

@@ -79,13 +79,87 @@ test("Shrimpy command surface replaces Pi changelog command output", async () =>
   assert.match(chat, /Shrimpy Changelog/);
 });
 
-function createModeHarness() {
+test("Shrimpy command surface opens Pi thinking selector for bare thinking command", async () => {
+  initTheme("dark", false);
+  const workspace = mkdtempSync(join(tmpdir(), "shrimpy-command-surface-test-"));
+  const runtime = createAppRuntime({ workspace } as any);
+  const {
+    mode,
+    editorTexts,
+    selectors,
+    statuses,
+    thinkingChanges,
+    footerInvalidations,
+    borderUpdates,
+  } = createModeHarness({
+    thinkingLevel: "minimal",
+    availableThinkingLevels: ["off", "minimal", "low"],
+  });
+
+  installShrimpyCommandSurface(mode as never, {
+    runtime,
+    agentId: "shrimpy",
+    channel: "home",
+    sessionType: "interactive",
+    cwd: workspace,
+  });
+  mode.setupEditorSubmitHandler();
+
+  await mode.defaultEditor.onSubmit!("/thinking");
+
+  assert.deepEqual(editorTexts, [""]);
+  assert.equal(selectors.length, 1);
+  const rendered = stripAnsi(selectors[0]!.component.render(100).join("\n"));
+  assert.match(rendered, /minimal/);
+  assert.match(rendered, /Light reasoning/);
+  assert.doesNotMatch(rendered, /xhigh/);
+
+  selectors[0]!.focus.onSelect!({ value: "low", label: "low" });
+
+  assert.equal(mode.session.thinkingLevel, "low");
+  assert.deepEqual(thinkingChanges, ["low"]);
+  assert.deepEqual(statuses, ["Thinking level: low"]);
+  assert.equal(footerInvalidations.length, 1);
+  assert.equal(borderUpdates.length, 1);
+  assert.equal(selectors[0]!.doneCount, 1);
+});
+
+function createModeHarness(opts: {
+  thinkingLevel?: string;
+  availableThinkingLevels?: string[];
+} = {}) {
   const submissions: string[] = [];
   const statuses: string[] = [];
   const editorTexts: string[] = [];
+  const thinkingChanges: string[] = [];
+  const footerInvalidations: true[] = [];
+  const borderUpdates: true[] = [];
   const children: Array<{ render(width: number): string[] }> = [];
+  const selectors: Array<{
+    component: { render(width: number): string[] };
+    focus: { onSelect?: (item: { value: string; label: string; description?: string }) => void };
+    doneCount: number;
+  }> = [];
   const mode = {
     defaultEditor: {} as { onSubmit?: (text: string) => void | Promise<void> },
+    showSelector(
+      create: (done: () => void) => {
+        component: { render(width: number): string[] };
+        focus: { onSelect?: (item: { value: string; label: string; description?: string }) => void };
+      },
+    ): void {
+      const selector = { doneCount: 0 } as {
+        component: { render(width: number): string[] };
+        focus: { onSelect?: (item: { value: string; label: string; description?: string }) => void };
+        doneCount: number;
+      };
+      const created = create(() => {
+        selector.doneCount += 1;
+      });
+      selector.component = created.component;
+      selector.focus = created.focus;
+      selectors.push(selector);
+    },
     editor: {
       setText(text: string): void {
         editorTexts.push(text);
@@ -101,6 +175,19 @@ function createModeHarness() {
     },
     session: {
       model: { provider: "openai", id: "gpt-test" },
+      thinkingLevel: opts.thinkingLevel ?? "medium",
+      getAvailableThinkingLevels(): string[] {
+        return opts.availableThinkingLevels ?? ["off", "minimal", "low", "medium", "high", "xhigh"];
+      },
+      setThinkingLevel(level: string): void {
+        mode.session.thinkingLevel = level;
+        thinkingChanges.push(level);
+      },
+    },
+    footer: {
+      invalidate(): void {
+        footerInvalidations.push(true);
+      },
     },
     setupEditorSubmitHandler(): void {
       mode.defaultEditor.onSubmit = async (text: string) => {
@@ -118,6 +205,9 @@ function createModeHarness() {
     showStatus(message: string): void {
       statuses.push(message);
     },
+    updateEditorBorderColor(): void {
+      borderUpdates.push(true);
+    },
     getMarkdownThemeWithSettings() {
       return getMarkdownTheme();
     },
@@ -128,6 +218,10 @@ function createModeHarness() {
     submissions,
     statuses,
     editorTexts,
+    selectors,
+    thinkingChanges,
+    footerInvalidations,
+    borderUpdates,
     renderChat(): string {
       return children.flatMap((component) => component.render(100)).join("\n");
     },
