@@ -38,6 +38,26 @@ Good examples:
 - explain how the pattern grows without pretending every workflow needs all features
 - leave decisions in normal Markdown/config/state files that users and agents can inspect
 
+## Optional Weird Patterns
+
+The collection should have a clearly labeled bundle of more experimental Shrimpy
+configs. These are not first-run defaults, but they are useful because they show
+how far the ordinary primitives can stretch.
+
+One example is a Scrappy-style character agent:
+
+- a persistent agent has a strong personality, voice, lore, and relationship to
+  the user
+- a scheduled morning message asks the character to write the user a letter
+- memory upkeep preserves important facts, recurring motifs, and new bits of
+  lore as ordinary agent memory
+- the character is encouraged to elaborate its own world over time, while still
+  leaving inspectable files, schedules, channels, and session logs behind
+
+This is not especially practical, but it is a good product/design example. It
+shows that Shrimpy can support playful, durable agent habitats without adding a
+special character runtime.
+
 Weak examples:
 
 - generic productivity slogans

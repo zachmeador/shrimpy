@@ -98,6 +98,26 @@ One plausible setup:
 
 Nothing in that flow should be unique to fiction. The same structure should also work for practical helper swarms.
 
+## Morning Letter Pattern
+
+A smaller character-agent pattern is a single resident character that writes the
+user a letter every morning.
+
+The workspace shape can stay ordinary:
+
+- one character agent with a strong personality, voice, lore, and relationship to
+  the user
+- one scheduled wake that asks the agent to write a morning letter
+- one user-facing channel where the letter is delivered
+- character memory that preserves important user facts, fictional continuity,
+  recurring motifs, and new lore
+- normal memory-management schedules that maintain and refine that state over
+  time
+
+The interesting part is that the agent is encouraged to build its lore, then the
+Shrimpy memory system keeps that lore alive as normal workspace state. This makes
+the pattern playful without needing special runtime machinery.
+
 ## What This Protects
 
 Using this as a design test helps protect a few important Shrimpy values:
