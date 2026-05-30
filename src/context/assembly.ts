@@ -173,9 +173,9 @@ export function buildSystemEnvSections(opts: {
         `This session is attached to channel ${opts.channel}.`,
         "",
         "- Plain assistant text stays in this private session transcript. It is not sent to the channel.",
-        `- To send a message to the user, call send_message(channel=\"${opts.channel}\", text=\"...\").`,
-        "- If you are answering a human message from this channel, use send_message.",
-        "- After send_message says the message was delivered, wait until a new message is received.",
+        "- To publish to the user on this channel, call reply(text), ask(text), notify(text), or report(summary).",
+        `- For explicit routing or unusual cases, call send_message(channel=\"${opts.channel}\", text=\"...\").`,
+        "- After a publication or send_message tool says the message was delivered, wait until a new message is received.",
       ].join("\n"),
     });
   }

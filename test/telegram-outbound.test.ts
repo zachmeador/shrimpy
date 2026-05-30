@@ -2,6 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   renderTelegramTextChunks,
+  sendTelegramPublicationText,
   sendTelegramFormattedText,
   TELEGRAM_TEXT_CHUNK_LIMIT,
 } from "../dist/surfaces/telegram/outbound.js";
@@ -52,5 +53,28 @@ describe("telegram outbound formatting", () => {
       { text: "<b>Bold</b>", parseMode: "HTML" },
       { text: "**Bold**", parseMode: undefined },
     ]);
+  });
+
+  test("sends low-urgency notifications silently", async () => {
+    const sent: Array<{ text: string; options?: any }> = [];
+
+    await sendTelegramPublicationText(
+      {
+        async sendMessage(_chatId, text, options) {
+          sent.push({ text, options });
+        },
+      },
+      42,
+      "Schedule updated.",
+      { kind: "notify", urgency: "low" },
+    );
+
+    assert.deepEqual(sent, [{
+      text: "Schedule updated.",
+      options: {
+        parseMode: "HTML",
+        disableNotification: true,
+      },
+    }]);
   });
 });

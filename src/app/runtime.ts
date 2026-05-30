@@ -67,6 +67,7 @@ export interface AppRuntimeBuildToolsOpts {
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
   actorId?: string;
+  activeChannel?: string;
 }
 
 export class AppRuntime {
@@ -185,6 +186,7 @@ export class AppRuntime {
       toolNames: opts.toolNames,
       toolPolicy: opts.toolPolicy,
       actorId: opts.actorId,
+      activeChannel: opts.activeChannel,
     });
   }
 

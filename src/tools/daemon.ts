@@ -2,6 +2,11 @@ import { join } from "node:path";
 import { Type } from "typebox";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
+import type {
+  PublicationIntent,
+  PublicationIntentKind,
+  PublicationUrgency,
+} from "../channels/index.js";
 import type { ChannelBus } from "../channels/bus.js";
 import {
   createStoredSessionDescriptor,
@@ -15,6 +20,7 @@ import {
 } from "../config/index.js";
 import {
   getToolProse,
+  renderPublicationResult,
   renderReadChannelResult,
   renderRunChildResult,
   renderSendMessageResult,
@@ -31,6 +37,43 @@ const SendMessageParams = Type.Object({
     description: TOOL_PARAMETER_PROSE.sendMessageChannel,
   }),
   text: Type.String({ description: TOOL_PARAMETER_PROSE.sendMessageText }),
+});
+
+const ActivePublicationParams = Type.Object({
+  text: Type.String({
+    description: TOOL_PARAMETER_PROSE.activePublicationText,
+  }),
+});
+
+const ReportParams = Type.Object({
+  summary: Type.String({
+    description: TOOL_PARAMETER_PROSE.activePublicationSummary,
+  }),
+});
+
+const NotifyParams = Type.Object({
+  text: Type.String({
+    description: TOOL_PARAMETER_PROSE.activePublicationText,
+  }),
+  urgency: Type.Optional(
+    Type.Union([
+      Type.Literal("low"),
+      Type.Literal("normal"),
+      Type.Literal("high"),
+    ], {
+      description: TOOL_PARAMETER_PROSE.activePublicationUrgency,
+    }),
+  ),
+  quiet: Type.Optional(
+    Type.Boolean({
+      description: TOOL_PARAMETER_PROSE.activePublicationQuiet,
+    }),
+  ),
+  batchable: Type.Optional(
+    Type.Boolean({
+      description: TOOL_PARAMETER_PROSE.activePublicationBatchable,
+    }),
+  ),
 });
 
 const ReadChannelParams = Type.Object({
@@ -112,6 +155,7 @@ export interface DaemonToolDeps {
   sessionFactory?: typeof openSession;
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
+  activeChannel?: string;
 }
 
 export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
@@ -124,13 +168,145 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     sessionFactory = openSession,
     toolNames,
     toolPolicy,
+    activeChannel,
   } = deps;
   const toolConfig = rawToolConfig ?? resolveToolRuntimeConfig();
   const resolvedSendMessageActorId =
     sendMessageActorId ?? toolConfig.sendMessage.defaultActorId;
   const sendMessageProse = getToolProse("send_message");
+  const replyProse = getToolProse("reply");
+  const askProse = getToolProse("ask");
+  const notifyProse = getToolProse("notify");
+  const reportProse = getToolProse("report");
   const readChannelProse = getToolProse("read_channel");
   const runChildProse = getToolProse("run_child");
+
+  async function publishToActiveChannel(
+    intent: PublicationIntent,
+    text: string,
+  ) {
+    if (!activeChannel) {
+      throw new Error(`${intent.kind} requires an active channel`);
+    }
+
+    const delivered = await channelBus.sendAgentText({
+      channel: activeChannel,
+      text,
+      actorId: resolvedSendMessageActorId,
+      publication: intent,
+    });
+
+    return {
+      content: [{
+        type: "text" as const,
+        text: renderPublicationResult({
+          intent: intent.kind,
+          channel: activeChannel,
+          delivered,
+        }),
+      }],
+      details: undefined,
+    };
+  }
+
+  const replyTool: ToolDefinition<typeof ActivePublicationParams> = {
+    name: "reply",
+    label: "Reply",
+    description: replyProse.description,
+    ["promptSnippet"]: replyProse.promptSnippet,
+    parameters: ActivePublicationParams,
+    renderShell: "self",
+    renderCall(params, theme, context) {
+      return compactToolCall(
+        "reply",
+        `${activeChannel ?? "(no active channel)"}: ${clip(params.text)}`,
+        theme,
+        context,
+      );
+    },
+    renderResult(result, options, theme) {
+      return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
+    },
+    async execute(_toolCallId, params) {
+      return publishToActiveChannel({ kind: "reply" }, params.text);
+    },
+  };
+
+  const askTool: ToolDefinition<typeof ActivePublicationParams> = {
+    name: "ask",
+    label: "Ask",
+    description: askProse.description,
+    ["promptSnippet"]: askProse.promptSnippet,
+    parameters: ActivePublicationParams,
+    renderShell: "self",
+    renderCall(params, theme, context) {
+      return compactToolCall(
+        "ask",
+        `${activeChannel ?? "(no active channel)"}: ${clip(params.text)}`,
+        theme,
+        context,
+      );
+    },
+    renderResult(result, options, theme) {
+      return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
+    },
+    async execute(_toolCallId, params) {
+      return publishToActiveChannel({ kind: "ask" }, params.text);
+    },
+  };
+
+  const notifyTool: ToolDefinition<typeof NotifyParams> = {
+    name: "notify",
+    label: "Notify",
+    description: notifyProse.description,
+    ["promptSnippet"]: notifyProse.promptSnippet,
+    parameters: NotifyParams,
+    renderShell: "self",
+    renderCall(params, theme, context) {
+      return compactToolCall(
+        "notify",
+        `${activeChannel ?? "(no active channel)"}: ${clip(params.text)}`,
+        theme,
+        context,
+      );
+    },
+    renderResult(result, options, theme) {
+      return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
+    },
+    async execute(_toolCallId, params) {
+      return publishToActiveChannel(
+        publicationIntent("notify", {
+          urgency: params.urgency,
+          quiet: params.quiet,
+          batchable: params.batchable,
+        }),
+        params.text,
+      );
+    },
+  };
+
+  const reportTool: ToolDefinition<typeof ReportParams> = {
+    name: "report",
+    label: "Report",
+    description: reportProse.description,
+    ["promptSnippet"]: reportProse.promptSnippet,
+    parameters: ReportParams,
+    renderShell: "self",
+    renderCall(params, theme, context) {
+      return compactToolCall(
+        "report",
+        `${activeChannel ?? "(no active channel)"}: ${clip(params.summary)}`,
+        theme,
+        context,
+      );
+    },
+    renderResult(result, options, theme) {
+      return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
+    },
+    async execute(_toolCallId, params) {
+      return publishToActiveChannel({ kind: "report" }, params.summary);
+    },
+  };
 
   const sendMessageTool: ToolDefinition<typeof SendMessageParams> = {
     name: "send_message",
@@ -253,7 +429,15 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     },
   };
 
-  const allTools = [sendMessageTool, readChannelTool, runChildTool] as unknown as ToolDefinition[];
+  const allTools = [
+    replyTool,
+    askTool,
+    notifyTool,
+    reportTool,
+    sendMessageTool,
+    readChannelTool,
+    runChildTool,
+  ] as unknown as ToolDefinition[];
   const allowedNames = toolNames?.length ? Array.from(new Set(toolNames)) : undefined;
 
   if (!allowedNames) return allTools;
@@ -268,6 +452,22 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
   }
 
   return allowedNames.map((name) => byName.get(name)!);
+}
+
+function publicationIntent(
+  kind: PublicationIntentKind,
+  opts: {
+    urgency?: PublicationUrgency;
+    quiet?: boolean;
+    batchable?: boolean;
+  },
+): PublicationIntent {
+  return {
+    kind,
+    ...(opts.urgency ? { urgency: opts.urgency } : {}),
+    ...(opts.quiet !== undefined ? { quiet: opts.quiet } : {}),
+    ...(opts.batchable !== undefined ? { batchable: opts.batchable } : {}),
+  };
 }
 
 function resolveChildRunSessionName(): string {

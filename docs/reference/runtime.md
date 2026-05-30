@@ -31,13 +31,13 @@ surface / CLI channel post / scheduler
   -> AgentChannelRuntime
   -> SessionRegistry
   -> Pi session turn
-  -> tools / send_message
+  -> tools / reply, ask, notify, report, send_message
   -> ChannelBus
   -> ChannelEgress
   -> channel log + optional surface delivery
 ```
 
-Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls `send_message` to send a message to the channel.
+Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` when the turn addresses one agent directly.
 

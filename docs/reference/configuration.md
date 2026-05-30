@@ -130,7 +130,7 @@ Each agent config entry has:
 - `id` — stable agent id.
 - `root` — workspace-relative or absolute path to that agent's root.
 - `model` — optional default model for sessions opened as that agent. Overrides the workspace `model`.
-- `tools` — allowed Shrimpy daemon tools such as `send_message`, `read_channel`, and `run_child`.
+- `tools` — allowed Shrimpy daemon tools such as `reply`, `ask`, `notify`, `report`, `send_message`, `read_channel`, and `run_child`.
 - `disabledTools` — effective tool names to exclude from Pi sessions. Use this to disable Pi built-ins such as `bash`; names are passed to Pi as `excludeTools`, so extension/custom tool names can be listed too.
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `attention` — when channel messages become turns for this agent.

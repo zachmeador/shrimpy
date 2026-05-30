@@ -112,6 +112,7 @@ export async function openDirectAgentSession(
       agentId: agent.id,
       toolNames: toolPolicy.daemonToolNames,
       toolPolicy: sessionToolPolicy,
+      activeChannel: input.channel,
     }),
   });
 
@@ -211,6 +212,7 @@ async function runAgentTuiSession(
       agentId: agent.id,
       toolNames: toolPolicy.daemonToolNames,
       toolPolicy: sessionToolPolicy,
+      activeChannel: input.channel,
     }),
   });
 

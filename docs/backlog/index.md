@@ -32,4 +32,5 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-agent-switching.md) | todo | P1 | Surfaces | none | Chat agent switching bug |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
+| [SURFACE-005](surface-005-publication-layer.md) | done | P2 | Surfaces | none | Surface publication layer for intentional chat messages |
 | [TUI-001](tui-001.md) | todo | P2 | TUI | [TOOLS-001](tools-001.md) | Shrimpy TUI slash command/settings coherence |

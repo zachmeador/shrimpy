@@ -10,6 +10,7 @@ import {
   textContent,
   unsupportedMediaContent,
   type MessageContent,
+  type PublicationIntent,
   type UnsupportedSurfaceMessage,
 } from "./messages.js";
 
@@ -81,6 +82,7 @@ export interface PublishAgentTextInput {
   text: string;
   actorId: string;
   sourceChannel?: string;
+  publication?: PublicationIntent;
 }
 
 export interface PublishHumanImageInput {
@@ -248,7 +250,7 @@ export function agentTextMessageInput(
       transport: "internal",
       sourceChannel: input.sourceChannel ?? input.channel,
     },
-    content: textContent(input.text),
+    content: textContent(input.text, input.publication),
   };
 }
 

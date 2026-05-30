@@ -137,7 +137,15 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       {
         id: "shrimpy",
         root: "agents/shrimpy",
-        tools: ["send_message", "read_channel", "run_child"],
+        tools: [
+          "reply",
+          "ask",
+          "notify",
+          "report",
+          "send_message",
+          "read_channel",
+          "run_child",
+        ],
         attention: {
           mode: "all",
         },

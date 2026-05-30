@@ -87,6 +87,10 @@ describe("setupInit", () => {
     assert.equal(config.scheduler.tickIntervalMs, 1000);
     assert.equal(config.agents[0].root, "agents/shrimpy");
     assert.deepEqual(config.agents[0].tools, [
+      "reply",
+      "ask",
+      "notify",
+      "report",
       "send_message",
       "read_channel",
       "run_child",

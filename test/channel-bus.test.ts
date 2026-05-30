@@ -47,10 +47,10 @@ describe("ChannelBus", () => {
   });
 
   test("sendAgentText logs and delivers through the adapter registry", async () => {
-    const delivered: Array<{ channel: string; text: string }> = [];
+    const delivered: any[] = [];
     const registry = new EgressRegistry();
-    registry.register("telegram-", async (channel, text) => {
-      delivered.push({ channel, text });
+    registry.register("telegram-", async (delivery) => {
+      delivered.push(delivery);
     });
     const channelBus = createChannelBus(registry);
 
@@ -58,15 +58,21 @@ describe("ChannelBus", () => {
       channel: "telegram-42",
       text: "pong",
       actorId: "agent:shrimpy",
+      publication: { kind: "reply" },
     });
 
     assert.equal(result, true);
-    assert.deepEqual(delivered, [{ channel: "telegram-42", text: "pong" }]);
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].channel, "telegram-42");
+    assert.equal(delivered[0].text, "pong");
+    assert.deepEqual(delivered[0].publication, { kind: "reply" });
+    assert.deepEqual(delivered[0].message.content.data.publication, { kind: "reply" });
 
     const { messages } = readMessages(channelBus.path("telegram-42"));
     assert.equal(messages.length, 1);
     assert.equal(messages[0].sender.kind, "agent");
     assert.equal(messages[0].sender.actorId, "agent:shrimpy");
+    assert.deepEqual(messages[0].content.data.publication, { kind: "reply" });
   });
 
 });

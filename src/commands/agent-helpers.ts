@@ -6,6 +6,10 @@ import {
 import type { AgentAttentionMode } from "../config/agents.js";
 
 export const DEFAULT_AGENT_TOOLS = [
+  "reply",
+  "ask",
+  "notify",
+  "report",
   "send_message",
   "read_channel",
   "run_child",

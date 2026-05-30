@@ -43,14 +43,6 @@ export class AgentChannelRuntime {
     this.channelBus = opts.channelBus;
     const toolPolicy = resolveAgentToolPolicy(this.agent);
     const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
-    const tools = opts.runtime.buildRuntimeTools({
-      bootstrap: opts.bootstrap,
-      channelBus: opts.channelBus,
-      toolNames: toolPolicy.daemonToolNames,
-      toolPolicy: sessionToolPolicy,
-      agentId: this.agent.id,
-      actorId: `agent:${this.agent.id}`,
-    });
     this.policy = createAgentChannelPolicy({
       agent: this.agent,
     });
@@ -66,9 +58,18 @@ export class AgentChannelRuntime {
     });
 
     this.registry = new SessionRegistry(opts.bootstrap, {
-      tools,
-      planForChannel: (channel) =>
-        ({
+      planForChannel: (channel) => {
+        const tools = opts.runtime.buildRuntimeTools({
+          bootstrap: opts.bootstrap,
+          channelBus: opts.channelBus,
+          toolNames: toolPolicy.daemonToolNames,
+          toolPolicy: sessionToolPolicy,
+          agentId: this.agent.id,
+          actorId: `agent:${this.agent.id}`,
+          activeChannel: channel,
+        });
+
+        return {
           descriptor: createGatewaySessionDescriptor({
             workspacePath: opts.bootstrap.agentRootPath,
             agentId: this.agent.id,
@@ -79,7 +80,8 @@ export class AgentChannelRuntime {
           defaultThinking: this.agent.thinking,
           tools,
           toolPolicy: sessionToolPolicy,
-        }),
+        };
+      },
       turnBriefingForMessage: (channel, message) =>
         buildTurnContext({
           runtime: opts.runtime,

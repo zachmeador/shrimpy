@@ -27,7 +27,18 @@ export interface TextMessageContent {
   type: "text";
   data: {
     text: string;
+    publication?: PublicationIntent;
   };
+}
+
+export type PublicationIntentKind = "reply" | "ask" | "notify" | "report";
+export type PublicationUrgency = "low" | "normal" | "high";
+
+export interface PublicationIntent {
+  kind: PublicationIntentKind;
+  urgency?: PublicationUrgency;
+  quiet?: boolean;
+  batchable?: boolean;
 }
 
 export interface ImageMessageContent {
@@ -93,10 +104,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function textContent(text: string): TextMessageContent {
+export function textContent(
+  text: string,
+  publication?: PublicationIntent,
+): TextMessageContent {
   return {
     type: "text",
-    data: { text },
+    data: publication ? { text, publication } : { text },
   };
 }
 
@@ -147,7 +161,39 @@ export function isTextMessageContent(
   return isRecord(value)
     && value.type === "text"
     && isRecord(value.data)
-    && typeof value.data.text === "string";
+    && typeof value.data.text === "string"
+    && (
+      value.data.publication === undefined
+      || isPublicationIntent(value.data.publication)
+    );
+}
+
+export function isPublicationIntent(value: unknown): value is PublicationIntent {
+  return isRecord(value)
+    && isPublicationIntentKind(value.kind)
+    && (
+      value.urgency === undefined
+      || isPublicationUrgency(value.urgency)
+    )
+    && (
+      value.quiet === undefined
+      || typeof value.quiet === "boolean"
+    )
+    && (
+      value.batchable === undefined
+      || typeof value.batchable === "boolean"
+    );
+}
+
+function isPublicationIntentKind(value: unknown): value is PublicationIntentKind {
+  return value === "reply"
+    || value === "ask"
+    || value === "notify"
+    || value === "report";
+}
+
+function isPublicationUrgency(value: unknown): value is PublicationUrgency {
+  return value === "low" || value === "normal" || value === "high";
 }
 
 export function isImageMessageContent(

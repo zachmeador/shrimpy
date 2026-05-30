@@ -18,6 +18,7 @@ import {
 } from "../dist/channels/index.js";
 import {
   getToolProse,
+  renderPublicationResult,
   renderReadChannelResult,
   renderRunChildResult,
   renderSendMessageResult,
@@ -91,8 +92,11 @@ describe("send_message", () => {
   test("delivers through the adapter and logs", async () => {
     const delivered: Array<{ channel: string; text: string }> = [];
     const egress = new EgressRegistry();
-    egress.register("telegram-", async (channel, text) => {
-      delivered.push({ channel, text });
+    egress.register("telegram-", async (delivery) => {
+      delivered.push({
+        channel: delivery.channel,
+        text: delivery.text,
+      });
     });
     const channelBus = createChannelBus(egress);
 
@@ -161,9 +165,143 @@ describe("send_message", () => {
       "tg-chat-",
     );
 
-    const delivered = await registry.send("tg-chat-4242", "hi");
+    const delivered = await registry.send({
+      channel: "tg-chat-4242",
+      text: "hi",
+    });
     assert.equal(delivered, true);
     assert.deepEqual(calls, [{ chatId: 4242, text: "hi" }]);
+  });
+});
+
+describe("active publication tools", () => {
+  test("reply publishes to the active channel with intent metadata", async () => {
+    const delivered: any[] = [];
+    const egress = new EgressRegistry();
+    egress.register("telegram-", async (delivery) => {
+      delivered.push(delivery);
+    });
+    const channelBus = createChannelBus(egress);
+
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+      activeChannel: "telegram-123",
+      sendMessageActorId: "agent:surface",
+    });
+    const reply = findTool("reply", tools);
+
+    const result = await reply.execute(
+      "call-1",
+      { text: "Done." },
+      new AbortController().signal,
+      () => {},
+      {},
+    );
+
+    assert.equal(result.content[0].type, "text");
+    assert.equal(
+      result.content[0].text,
+      "Published reply to the user on telegram-123. Wait until a new message is received.",
+    );
+    assert.equal(delivered.length, 1);
+    assert.equal(delivered[0].channel, "telegram-123");
+    assert.equal(delivered[0].text, "Done.");
+    assert.deepEqual(delivered[0].publication, { kind: "reply" });
+    assert.equal(delivered[0].message.sender.actorId, "agent:surface");
+
+    const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].sender.actorId, "agent:surface");
+    assert.deepEqual(messages[0].content.data, {
+      text: "Done.",
+      publication: { kind: "reply" },
+    });
+  });
+
+  test("notify carries urgency and quiet metadata", async () => {
+    const delivered: any[] = [];
+    const egress = new EgressRegistry();
+    egress.register("telegram-", async (delivery) => {
+      delivered.push(delivery);
+    });
+    const channelBus = createChannelBus(egress);
+
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+      activeChannel: "telegram-123",
+    });
+    const notify = findTool("notify", tools);
+
+    await notify.execute(
+      "call-1",
+      {
+        text: "Schedule updated.",
+        urgency: "low",
+        quiet: true,
+        batchable: true,
+      },
+      new AbortController().signal,
+      () => {},
+      {},
+    );
+
+    assert.deepEqual(delivered[0].publication, {
+      kind: "notify",
+      urgency: "low",
+      quiet: true,
+      batchable: true,
+    });
+
+    const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
+    assert.deepEqual(messages[0].content.data.publication, {
+      kind: "notify",
+      urgency: "low",
+      quiet: true,
+      batchable: true,
+    });
+  });
+
+  test("active publication helpers require an active channel", async () => {
+    const tools = createDaemonTools({
+      channelBus: createChannelBus(),
+      bootstrap: createBootstrap(),
+    });
+    const reply = findTool("reply", tools);
+
+    await assert.rejects(
+      reply.execute(
+        "call-1",
+        { text: "hello" },
+        new AbortController().signal,
+        () => {},
+        {},
+      ),
+      /reply requires an active channel/,
+    );
+  });
+
+  test("send_message remains the raw explicit-channel escape hatch", async () => {
+    const channelBus = createChannelBus();
+
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+      activeChannel: "telegram-123",
+    });
+    const sendMessage = findTool("send_message", tools);
+
+    await sendMessage.execute(
+      "call-1",
+      { channel: "other-channel", text: "manual route" },
+      new AbortController().signal,
+      () => {},
+      {},
+    );
+
+    const { messages } = readMessages(channelPath(channelBus.channelsDir, "other-channel"));
+    assert.deepEqual(messages[0].content.data, { text: "manual route" });
   });
 });
 
@@ -383,12 +521,12 @@ describe("tool selection", () => {
     const tools = createDaemonTools({
       channelBus: createChannelBus(),
       bootstrap: createBootstrap(),
-      toolNames: ["read_channel", "send_message"],
+      toolNames: ["reply", "read_channel", "send_message"],
     });
 
     assert.deepEqual(
       tools.map((tool) => tool.name),
-      ["read_channel", "send_message"],
+      ["reply", "read_channel", "send_message"],
     );
   });
 
@@ -413,6 +551,10 @@ describe("agent tool policy", () => {
     });
 
     assert.deepEqual(policy.daemonToolNames, [
+      "reply",
+      "ask",
+      "notify",
+      "report",
       "send_message",
       "read_channel",
       "run_child",
@@ -422,6 +564,10 @@ describe("agent tool policy", () => {
       "bash",
       "edit",
       "write",
+      "reply",
+      "ask",
+      "notify",
+      "report",
       "send_message",
       "read_channel",
       "run_child",
@@ -468,6 +614,14 @@ describe("tool context prose", () => {
     assert.equal(
       renderSendMessageResult({ channel: "home", delivered: true }),
       "Delivered to the user on home. Wait until a new message is received.",
+    );
+    assert.equal(
+      renderPublicationResult({
+        intent: "reply",
+        channel: "home",
+        delivered: true,
+      }),
+      "Published reply to the user on home. Wait until a new message is received.",
     );
     assert.equal(
       renderReadChannelResult({ messages: [{ id: "1" }] }),

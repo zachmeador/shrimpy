@@ -17,7 +17,9 @@ import {
 } from "./client.js";
 import { listTelegramMenuCommands } from "./commands.js";
 import type { ResolvedTelegramInstanceConfig } from "./config.js";
-import { sendTelegramFormattedText } from "./outbound.js";
+import {
+  sendTelegramPublicationText,
+} from "./outbound.js";
 import { TelegramPoller } from "./poller.js";
 
 export function loadTelegramOffset(statePath: string): number {
@@ -53,13 +55,14 @@ export function registerTelegramRoute(
   telegram: Pick<TelegramBotApiClient, "sendMessage">,
   channelPrefix: string,
 ): void {
-  registry.register(channelPrefix, async (channel, text) => {
+  registry.register(channelPrefix, async (delivery) => {
+    const { channel, text, publication } = delivery;
     const chatId = parseInt(channel.slice(channelPrefix.length), 10);
     if (isNaN(chatId)) {
       console.error(`[telegram] invalid chat ID from channel: ${channel}`);
       return;
     }
-    await sendTelegramFormattedText(telegram, chatId, text);
+    await sendTelegramPublicationText(telegram, chatId, text, publication);
   });
 }
 

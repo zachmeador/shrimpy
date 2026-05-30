@@ -45,7 +45,8 @@ there is no framework writer.
 
 ## Tools And Inspection
 
-- `send_message(channel, text)` sends a message to a channel. If the channel is connected to Telegram or another surface, the user sees it there too.
+- `reply(text)`, `ask(text)`, `notify(text, opts?)`, and `report(summary)` publish intentional user-facing text to the active channel.
+- `send_message(channel, text)` sends a message to an explicit channel. Use it for unusual routing or agent DMs.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
@@ -55,7 +56,7 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 
 ## Conventions
 
-- In channel sessions, ordinary assistant text stays in the private session transcript. Use `send_message` for messages the user should see.
+- In channel sessions, ordinary assistant text stays in the private session transcript. Use a publication helper for messages the user should see.
 - Use `read_channel` when you need recent cross-session message history from a channel.
 - Add or inspect agent schedules with `shrimpy agent schedules <id>` and `agents/<id>/schedules.json`.
 - Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.

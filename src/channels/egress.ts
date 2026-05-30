@@ -1,4 +1,14 @@
-export type EgressSendFn = (channel: string, text: string) => Promise<void>;
+import type { ChannelMessage } from "./protocol.js";
+import type { PublicationIntent } from "./messages.js";
+
+export interface ChannelDelivery {
+  channel: string;
+  text: string;
+  message?: ChannelMessage;
+  publication?: PublicationIntent;
+}
+
+export type EgressSendFn = (delivery: ChannelDelivery) => Promise<void>;
 
 /**
  * Channel-prefix → outbound send function. Surfaces register a route
@@ -12,10 +22,10 @@ export class EgressRegistry {
     this.routes.set(prefix, send);
   }
 
-  async send(channel: string, text: string): Promise<boolean> {
+  async send(delivery: ChannelDelivery): Promise<boolean> {
     for (const [prefix, send] of this.routes) {
-      if (channel.startsWith(prefix)) {
-        await send(channel, text);
+      if (delivery.channel.startsWith(prefix)) {
+        await send(delivery);
         return true;
       }
     }
@@ -24,14 +34,19 @@ export class EgressRegistry {
 }
 
 export interface ChannelEgress {
+  deliver(delivery: ChannelDelivery): Promise<boolean>;
   deliverText(channel: string, text: string): Promise<boolean>;
 }
 
 export class EgressRegistryChannelEgress implements ChannelEgress {
   constructor(private readonly registry?: EgressRegistry) {}
 
-  async deliverText(channel: string, text: string): Promise<boolean> {
+  async deliver(delivery: ChannelDelivery): Promise<boolean> {
     if (!this.registry) return false;
-    return this.registry.send(channel, text);
+    return this.registry.send(delivery);
+  }
+
+  async deliverText(channel: string, text: string): Promise<boolean> {
+    return this.deliver({ channel, text });
   }
 }

@@ -49,7 +49,9 @@ Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live 
 
 ## Delivery
 
-Channel sessions do not automatically publish assistant text to a channel. Agents call `send_message(channel="...", text="...")` to deliver to the user.
+Channel sessions do not automatically publish assistant text to a channel. Agents call active-channel helpers such as `reply(text)`, `ask(text)`, `notify(text, opts)`, or `report(summary)` to deliver intentional user-facing text.
+
+`send_message(channel="...", text="...")` remains available for explicit routing and unusual cases.
 
 Private session transcript text stays separate from delivered channel messages.
 

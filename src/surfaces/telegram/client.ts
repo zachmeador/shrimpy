@@ -302,6 +302,7 @@ export class TelegramApiError extends Error {
 
 export interface TelegramSendMessageOptions {
   parseMode?: string;
+  disableNotification?: boolean;
   signal?: AbortSignal;
 }
 
@@ -366,6 +367,7 @@ export class TelegramBotApiClient {
       try {
         const body: Record<string, unknown> = { chat_id: chatId, text };
         if (options?.parseMode) body.parse_mode = options.parseMode;
+        if (options?.disableNotification) body.disable_notification = true;
 
         const resp = await this.api("sendMessage", body, options?.signal);
         if (!resp.ok) {

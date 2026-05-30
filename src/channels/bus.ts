@@ -1,5 +1,6 @@
 import {
   EgressRegistryChannelEgress,
+  type ChannelDelivery,
   type ChannelEgress,
   type EgressRegistry,
 } from "./egress.js";
@@ -103,8 +104,17 @@ export class ChannelBus {
     return this.egress.deliverText(channel, text);
   }
 
+  async deliver(delivery: ChannelDelivery): Promise<boolean> {
+    return this.egress.deliver(delivery);
+  }
+
   async sendAgentText(input: PublishAgentTextInput): Promise<boolean> {
-    this.publishAgentText(input);
-    return this.deliverText(input.channel, input.text);
+    const message = this.publishAgentText(input);
+    return this.deliver({
+      channel: input.channel,
+      text: input.text,
+      message,
+      publication: input.publication,
+    });
   }
 }
