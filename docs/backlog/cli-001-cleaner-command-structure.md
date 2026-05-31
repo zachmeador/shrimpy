@@ -27,6 +27,8 @@ feature has an inspectable `shrimpy <command>` path.
   `shrimpy schedules`.
 - Extract command metadata so top-level help, group usage, docs, and tests do
   not drift from separate hand-written strings.
+- Generate shell tab-completion definitions from the same command metadata for
+  the full `shrimpy` CLI tree.
 - Standardize common verbs and defaults: list, show, read, create/add, set,
   remove, tail, run, and status.
 - Standardize `--json` support for inspection commands that agents are expected
@@ -52,6 +54,8 @@ feature has an inspectable `shrimpy <command>` path.
 - `shrimpy --help` is generated from command metadata.
 - Group usage text and reference CLI docs agree with the implemented command
   registry.
+- Shell tab autocomplete is available for the implemented `shrimpy` command
+  tree.
 - Command names and subcommand verbs follow documented conventions.
 - Inspection commands consistently expose `--json` where useful.
 - Tests cover command dispatch, help generation, representative usage errors,
