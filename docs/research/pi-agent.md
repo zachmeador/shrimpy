@@ -5,17 +5,21 @@ Status: Research
 
 `earendil-works/pi/packages/coding-agent` - TypeScript, MIT, npm: `@earendil-works/pi-coding-agent`
 
-Shrimpy currently pins the older `@mariozechner/*` package scope. Upstream Pi has moved to the `@earendil-works/*` scope, and the latest upstream version checked for this note is `0.77.0`.
+Shrimpy pins registry-published `@earendil-works/*` Pi packages. The latest upstream version checked for this note is `0.77.0`.
 
 ## Current Shrimpy Impact
 
-- Shrimpy is pinned to Pi `0.67.68`; current upstream is `@earendil-works/*@0.77.0`.
-- Moving to current upstream requires replacing direct imports from `@mariozechner/pi-*` with `@earendil-works/pi-*`.
-- Shrimpy imports `pi-agent-core`, `pi-ai`, `pi-coding-agent`, and `pi-tui` directly, so all four should be direct dependencies after the scope migration.
-- Pi `0.75.0+` requires Node `>=22.19.0`. Hosts still on Node 20 need Pi `0.74.2` from the `legacy-node20` tag or a Node upgrade first.
+- Shrimpy pins `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` directly.
+- Shrimpy requires Node `>=22.19.0`, matching Pi `0.75.0+` runtime constraints.
+- The public dependency path is upstream npm registry packages, not a local path dependency, unpacked package, checked-in tarball, or active Pi fork.
+- No local Pi patch is currently required. If a future missing upstream hook forces one, keep it in a separate Pi checkout and branch, install it into Shrimpy only for private testing, and track the base version, patch reason, touched files, and upstreaming status before considering it part of Shrimpy.
 - Tool schemas now use `typebox` 1.x types. Shrimpy's Pi-facing tool definitions should import `Type` from `typebox`; Shrimpy-owned config schemas can keep using `@sinclair/typebox` where they do not flow into Pi `ToolDefinition`.
 - Normal `npm test` does not typecheck `extensions/*.ts`. The Pi bump should include an explicit extension typecheck because extension imports and root exports changed.
 - `ToolRenderContext` still exists internally, but it is not exported from the package root in `0.77.0`. Shrimpy compact-tool renderers should use local structural typing or a deeper supported export if Pi adds one.
+
+## Local Patch Contingency
+
+The normal path is to stay on upstream Pi packages. For a private patch test only, use a separate Pi checkout with an untouched upstream-tracking branch and a small `shrimpy-patches` branch. Build Pi there, create local package artifacts with `npm pack` from the changed Pi package directories, install those artifacts into Shrimpy temporarily, and run Shrimpy's normal build and test commands. Do not check generated tarballs into Shrimpy; before public release, replace the temporary artifacts with upstream packages, a pinned public fork commit, or a scoped registry package.
 
 ## What It Is
 
