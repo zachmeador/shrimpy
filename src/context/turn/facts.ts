@@ -3,6 +3,7 @@ import {
   searchableText,
 } from "../../agents/channel-policy.js";
 import type { AppRuntime } from "../../app/runtime.js";
+import { resolveAgentDmMembers } from "../../channels/dm.js";
 import type { ChannelMessage } from "../../channels/index.js";
 import type { SessionDescriptor } from "../../sessions/spec.js";
 import { formatAgentDateTime } from "./time.js";
@@ -22,6 +23,7 @@ export function buildTurnFactItems(input: TurnFactInput): TurnContextItem[] {
 
   return [
     buildRouteItem(channel, message),
+    buildAgentDmItem(input, channel),
     buildAddressedItem(input.agentId, channel, message),
     buildAttentionItem(input, channel, message),
     buildSchedulerItem(message),
@@ -51,6 +53,22 @@ function buildRouteItem(
     id: `turn:${message.id}:route`,
     summary: route.join("; "),
     inspect: `shrimpy channels read ${channel} --after ${message.id}`,
+  };
+}
+
+function buildAgentDmItem(
+  input: TurnFactInput,
+  channel: string,
+): TurnContextItem | undefined {
+  const members = resolveAgentDmMembers(channel, input.runtime.resolved.agents);
+  if (!members) return undefined;
+
+  return {
+    id: `turn:${channel}:agent-dm`,
+    summary: members.length > 0
+      ? `agent DM: ${channel} is an internal channel for ${members.join(", ")}; "no external adapter" only means no surface send`
+      : `agent DM: ${channel} looks like a DM, but one or more members are not configured agents`,
+    inspect: `shrimpy channels members ${channel}`,
   };
 }
 

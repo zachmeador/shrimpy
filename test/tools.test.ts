@@ -80,13 +80,37 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Logged to unknown-1 (no adapter for delivery).",
+      "Logged to unknown-1. No external adapter matched for outbound delivery.",
     );
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "unknown-1"));
     assert.equal(messages.length, 1);
     assert.equal(messages[0].sender.kind, "agent");
     assert.deepEqual(messages[0].content.data, { text: "hello" });
+  });
+
+  test("explains that agent DMs do not need an external adapter", async () => {
+    const channelBus = createChannelBus();
+
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+    });
+    const sendMessage = findTool("send_message", tools);
+
+    const result = await sendMessage.execute(
+      "call-1",
+      { channel: "dm~helper~shrimpy", text: "hello" },
+      new AbortController().signal,
+      () => {},
+      {},
+    );
+
+    assert.equal(result.content[0].type, "text");
+    assert.equal(
+      result.content[0].text,
+      "Logged to agent DM dm~helper~shrimpy. No external adapter is expected; gateway channel routing handles DM members.",
+    );
   });
 
   test("delivers through the adapter and logs", async () => {
@@ -117,7 +141,7 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Delivered to the user on telegram-123.",
+      "Logged to telegram-123 and delivered through an external adapter.",
     );
     assert.deepEqual(delivered, [
       { channel: "telegram-123", text: "hello" },
@@ -202,7 +226,7 @@ describe("active publication tools", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Published reply to the user on telegram-123. Wait until a new message is received.",
+      "Published reply to telegram-123 and delivered through an external adapter. Wait until a new message is received.",
     );
     assert.equal(delivered.length, 1);
     assert.equal(delivered[0].channel, "telegram-123");
@@ -620,7 +644,7 @@ describe("tool context prose", () => {
   test("renders daemon tool result text", () => {
     assert.equal(
       renderSendMessageResult({ channel: "home", delivered: true }),
-      "Delivered to the user on home.",
+      "Logged to home and delivered through an external adapter.",
     );
     assert.equal(
       renderSendMessageResult({
@@ -628,7 +652,7 @@ describe("tool context prose", () => {
         delivered: true,
         waitForNewMessage: true,
       }),
-      "Delivered to the user on home. Wait until a new message is received.",
+      "Logged to home and delivered through an external adapter. Wait until a new message is received.",
     );
     assert.equal(
       renderPublicationResult({
@@ -636,7 +660,15 @@ describe("tool context prose", () => {
         channel: "home",
         delivered: true,
       }),
-      "Published reply to the user on home. Wait until a new message is received.",
+      "Published reply to home and delivered through an external adapter. Wait until a new message is received.",
+    );
+    assert.equal(
+      renderPublicationResult({
+        intent: "reply",
+        channel: "dm~helper~shrimpy",
+        delivered: false,
+      }),
+      "Logged reply to agent DM dm~helper~shrimpy. No external adapter is expected; gateway channel routing handles DM members. Wait until a new message is received.",
     );
     assert.equal(
       renderReadChannelResult({ messages: [{ id: "1" }] }),

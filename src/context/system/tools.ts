@@ -13,7 +13,7 @@ export interface ToolProse {
 }
 
 const AGENT_DM_CHANNEL_DESCRIPTION =
-  'Direct agent DMs use channel names like "dm~agent-a~agent-b" with the two agent ids sorted alphabetically.';
+  'Direct agent DMs use channel names like "dm~agent-a~agent-b"; `shrimpy channels dm` creates the canonical sorted name. Agent DMs are internal channels, not external surface chats.';
 
 const TOOL_PROSE: Record<ToolProseId, ToolProse> = {
   reply: {
@@ -77,9 +77,13 @@ export function renderSendMessageResult(data: {
   waitForNewMessage?: boolean;
 }): string {
   const suffix = data.waitForNewMessage ? " Wait until a new message is received." : "";
-  return data.delivered
-    ? `Delivered to the user on ${data.channel}.${suffix}`
-    : `Logged to ${data.channel} (no adapter for delivery).${suffix}`;
+  if (data.delivered) {
+    return `Logged to ${data.channel} and delivered through an external adapter.${suffix}`;
+  }
+  if (isAgentDmChannel(data.channel)) {
+    return `Logged to agent DM ${data.channel}. No external adapter is expected; gateway channel routing handles DM members.${suffix}`;
+  }
+  return `Logged to ${data.channel}. No external adapter matched for outbound delivery.${suffix}`;
 }
 
 export function renderPublicationResult(data: {
@@ -87,9 +91,13 @@ export function renderPublicationResult(data: {
   channel: string;
   delivered: boolean;
 }): string {
-  return data.delivered
-    ? `Published ${data.intent} to the user on ${data.channel}. Wait until a new message is received.`
-    : `Logged ${data.intent} to ${data.channel} (no adapter for delivery). Wait until a new message is received.`;
+  if (data.delivered) {
+    return `Published ${data.intent} to ${data.channel} and delivered through an external adapter. Wait until a new message is received.`;
+  }
+  if (isAgentDmChannel(data.channel)) {
+    return `Logged ${data.intent} to agent DM ${data.channel}. No external adapter is expected; gateway channel routing handles DM members. Wait until a new message is received.`;
+  }
+  return `Logged ${data.intent} to ${data.channel}. No external adapter matched for outbound delivery. Wait until a new message is received.`;
 }
 
 export function renderReadChannelResult(data: { messages: unknown[] }): string {
@@ -98,4 +106,9 @@ export function renderReadChannelResult(data: { messages: unknown[] }): string {
 
 export function renderRunChildResult(data: { assistantText: string }): string {
   return data.assistantText || "(no response from child session)";
+}
+
+function isAgentDmChannel(channel: string): boolean {
+  const parts = channel.split("~");
+  return parts.length === 3 && parts[0] === "dm" && parts[1] !== "" && parts[2] !== "";
 }

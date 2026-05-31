@@ -175,10 +175,11 @@ export function buildSystemEnvSections(opts: {
         `This session is attached to channel ${opts.channel}.`,
         "",
         "- Plain assistant text stays in this private session transcript. It is not sent to the channel.",
-        "- To publish to the user on this channel, call reply(text), ask(text), notify(text), or report(summary).",
+        "- To append an intentional message to this channel, call reply(text), ask(text), notify(text), or report(summary). Surface adapters, when configured, also deliver those channel messages externally.",
         `- For explicit routing or unusual cases, call send_message(channel=\"${opts.channel}\", text=\"...\").`,
+        "- Agent DM channels are internal Shrimpy channels: the channel log plus gateway routing is their delivery path, and no external adapter is expected.",
         "- A successful publication normally completes your response for this channel turn; do not also answer the same user with plain assistant text.",
-        "- After a publication or routed send_message tool says the message was delivered, wait until a new message is received.",
+        "- After a publication or routed send_message tool logs or delivers the message, wait until a new message is received.",
       ].join("\n"),
     });
   } else if (opts.sessionType === "tui" || opts.sessionType === "run") {
@@ -195,7 +196,7 @@ export function buildSystemEnvSections(opts: {
         "",
         "- Answer the current conversation with normal assistant messages.",
         "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are only for gateway/channel turns.",
-        "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel or agent DM.",
+        "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel or agent DM. Agent DMs are internal channels, so no external adapter is expected.",
       ].join("\n"),
     });
   }

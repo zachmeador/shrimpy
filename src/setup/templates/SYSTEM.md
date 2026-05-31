@@ -20,6 +20,8 @@ Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there bef
 
 **Sessions** are agent-specific Pi transcripts. In practice there is one session per agent per channel, plus local `tui` and `run` sessions.
 
+**Delivery** starts with the channel log. Surface adapters are optional external delivery after a channel message is logged. Agent DMs are internal channels, so the channel log plus gateway routing is their delivery path.
+
 **Turn context** is compact live state and inspect pointers prepended to each turn. When a turn-context item matters, inspect it with the shown command or a Shrimpy CLI/tool before acting.
 
 **Gateway** watches channels and starts agent turns when new channel messages need attention.
@@ -47,7 +49,7 @@ there is no framework writer.
 
 - In gateway/channel sessions, `reply(text)`, `ask(text)`, `notify(text, opts?)`, and `report(summary)` publish intentional user-facing text to the active channel.
 - In direct `tui` and `run` sessions, answer the current conversation with normal assistant text. Do not use channel publication helpers for the in-session reply.
-- `send_message(channel, text)` sends a message to an explicit channel. Use it for unusual routing or agent DMs, not for answering the current direct TUI/run conversation.
+- `send_message(channel, text)` logs a message to an explicit channel and delivers through an external surface adapter when one matches. Use it for unusual routing or agent DMs, not for answering the current direct TUI/run conversation.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.

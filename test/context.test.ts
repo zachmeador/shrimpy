@@ -124,6 +124,38 @@ describe("buildTurnContext", () => {
     assert.match(text, new RegExp(`inspect: shrimpy channels read home --after ${current.id}`));
   });
 
+  test("explains internal delivery for agent DM turns", async () => {
+    const runtime = createAppRuntime({
+      workspace,
+      agents: [
+        { id: "helper" },
+        { id: "shrimpy" },
+      ],
+    });
+    const current = runtime.createChannelBus().publish({
+      channel: "dm~helper~shrimpy",
+      sender: {
+        kind: "agent",
+        actorId: "agent:helper",
+      },
+      origin: {
+        transport: "internal",
+        sourceChannel: "dm~helper~shrimpy",
+      },
+      content: textContent("hello from helper"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "dm~helper~shrimpy"),
+      currentMessage: current,
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /agent DM: dm~helper~shrimpy is an internal channel for helper, shrimpy; "no external adapter" only means no surface send/);
+    assert.match(text, /inspect: shrimpy channels members dm~helper~shrimpy/);
+  });
+
   test("includes addressed-agent and attention decision facts", async () => {
     const runtime = createAppRuntime({ workspace });
     const current = runtime.createChannelBus().publish({

@@ -131,6 +131,7 @@ describe("resolveContextDefaultsConfig", () => {
     assert.match(sections[0]!.content, /ordinary assistant text/);
     assert.match(sections[0]!.content, /Do not use reply\(text\)/);
     assert.match(sections[0]!.content, /only when explicitly asked/);
+    assert.match(sections[0]!.content, /Agent DMs are internal channels/);
   });
 
   test("adds publication guidance for gateway channel sessions", () => {
@@ -144,6 +145,7 @@ describe("resolveContextDefaultsConfig", () => {
     assert.equal(sections.length, 1);
     assert.equal(sections[0]!.id, "session:delivery");
     assert.match(sections[0]!.content, /Plain assistant text stays/);
+    assert.match(sections[0]!.content, /no external adapter is expected/);
     assert.match(sections[0]!.content, /normally completes your response/);
   });
 });
