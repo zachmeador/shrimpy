@@ -135,8 +135,8 @@ closes it.
   CLIs are available before those backends are enabled.
 - Related: the completed effective capability view should expose and enforce
   worker-control tools.
-- Related: [CTX-007](ctx-007.md) should include worker/session status in compact
-  turn-context items.
+- Related: extend the existing session-status turn-context item with worker
+  state once worker sessions exist.
 - Related: [WAIT-001](wait-001-durable-agent-waits.md) should provide durable
   continuation for "wait until this worker is done, then wake me" flows across
   both channel and TUI/direct sessions.

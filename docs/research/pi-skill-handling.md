@@ -4,8 +4,8 @@ Date: 2026-05-31
 Status: Research note
 
 This note summarizes Pi skill behavior as observed in
-`@earendil-works/pi-coding-agent@0.77.0` and maps it to Shrimpy's planned
-`SKILL-002` work.
+`@earendil-works/pi-coding-agent@0.77.0` and maps it to Shrimpy's Pi-backed
+skill loading design.
 
 ## Sources Checked
 
@@ -111,9 +111,10 @@ RPC `get_commands` reports skills as commands with names like
 `skill:brave-search`, source `skill`, and source/path metadata. Interactive
 autocomplete builds the same command list from `resourceLoader.getSkills()`.
 
-## Pre-SKILL-002 Shrimpy Mismatch
+## Pre-Integration Shrimpy Mismatch
 
-Before SKILL-002, Shrimpy had its own skill scanner and prompt resource path:
+Before Pi-backed skill loading, Shrimpy had its own skill scanner and prompt
+resource path:
 
 - `shrimpy skills list` scans `agents/<id>/skills/` and workspace `skills/`.
 - `shrimpy --skill <id>` and scheduled skill runs load the matching
@@ -213,7 +214,7 @@ If path ordering and name collision handling become awkward, move to Option B
 with `skillsOverride`, but still reuse Pi's `loadSkills`/frontmatter behavior
 where possible.
 
-## SKILL-002 Decisions
+## Skill Loading Decisions
 
 - Shrimpy's public skill id is the directory id. Pi's command name is
   frontmatter `name`. Shrimpy validation treats mismatches as errors so CLI,

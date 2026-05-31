@@ -53,8 +53,8 @@ debugging a session.
 - Likely files: `src/context/source.ts`, `src/context/assembly.ts`,
   `src/context/turn/service.ts`, `src/context/resources.ts`,
   `src/commands/context.ts`, and `src/sessions/prompt.ts`.
-- This should make CTX-003 and CTX-007 easier to add because new turn context facts
-  can be introduced as trace producers with provenance and inspection metadata.
+- This should make future turn-context facts easier to add because new facts can
+  be introduced as trace producers with provenance and inspection metadata.
 
 ## Done
 

@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Skills
-Depends On: [SKILL-002](skill-002-pi-skill-loading-management.md), [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md)
+Depends On: [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md)
 
 ## Why
 

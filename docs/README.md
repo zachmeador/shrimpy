@@ -23,7 +23,6 @@ These docs are the project map for Shrimpy. Current behavior and settled design 
 ## Project State
 
 - [backlog/index.md](backlog/index.md) — active engineering work.
-- [vision-reconciliation.md](vision-reconciliation.md) — periodic docs/vision/code reconciliation tracker.
 
 ## Background
 

@@ -87,8 +87,8 @@ session.
   agent when that worker is complete or blocked.
 - Related: the completed effective tool capability view should make `wait_for`
   visible and enforceable.
-- Related: [CTX-007](ctx-007.md) should include pending/resolved waits in compact
-  session-status turn-context items.
+- Related: extend the existing session-status turn-context item with
+  pending/resolved waits.
 - Related: completed scheduler status work keeps heartbeat/status concepts generic;
   durable waits should reuse generic runtime scheduling concepts without becoming
   another heartbeat control plane.
