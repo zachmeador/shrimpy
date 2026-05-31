@@ -23,7 +23,8 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 - Likely files: `src/setup.ts`, setup templates, `src/agents/workspace-manager.ts`, and skills/resources under setup templates.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
 - `doctor` should stay a clear repair entry point where useful, but the broader product direction is a mechanic specialist rather than a separate doctor identity.
-- Early mechanic skill pack ideas: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, and reusable explainers for how Shrimpy's primitives fit together.
+- Early mechanic skill pack ideas: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
+- Related follow-up: [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md) covers an opt-in mechanic schedule that reviews real Shrimpy usage, writes a Markdown assessment, and messages the user with concrete skill/app ideas to consider.
 
 ## Done
 - New workspaces get `shrimpy` and `mechanic`.

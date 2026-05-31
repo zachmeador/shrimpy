@@ -10,6 +10,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
 | [SCHED-002](sched-002-schedule-inspection-surfaces.md) | todo | P1 | Schedules | none | Schedule inspection surfaces |
+| [SCHED-003](sched-003-schedule-owned-wake-channels.md) | draft | P1 | Schedules | none | Schedule-owned wake channels |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [WAIT-001](wait-001-durable-agent-waits.md) | draft | P1 | Runtime | none | Durable waits and pending wakes for agent continuations |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
@@ -17,6 +18,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [WAIT-001](wait-001-durable-agent-waits.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
+| [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [SCHED-002](sched-002-schedule-inspection-surfaces.md), [APP-001](app-001.md) | Scheduled skill opportunity assessments |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |
@@ -26,4 +28,5 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | [SETUP-001](setup-001-macos-friendly-install-docs.md) | Agent sandboxing and local security strategy |
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | todo | P2 | Surfaces | none | Telegram typing activity |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
+| [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
