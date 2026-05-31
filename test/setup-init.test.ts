@@ -156,6 +156,10 @@ describe("setupInit", () => {
     assert.match(system, /Show file paths clearly/);
     assert.match(system, /Use whole-file writes only for new files or complete rewrites\./);
 
+    const soul = readFileSync(soulPath, "utf-8");
+    // very important
+    assert.match(soul, /Enjoys adding the shrimpy emoji to responses\. 🦐/u);
+
     const workspaceDoc = readFileSync(workspaceDocPath, "utf-8");
     assert.match(workspaceDoc, /This workspace is the home system/);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
