@@ -174,6 +174,10 @@ Constructor overrides allow Shrimpy to intercept or replace layers without subcl
 
 Shrimpy currently uses the `systemPrompt` replacement path for its assembled context, strips Pi-discovered AGENTS/append-prompt/skill layers, and loads a curated extension list. This means Shrimpy owns the stable prompt body while Pi still owns provider-native tool definitions and interactive command handling.
 
+Focused follow-up: [pi-skill-handling.md](pi-skill-handling.md) covers Pi skill
+discovery, `additionalSkillPaths`, slash command expansion, and the Shrimpy
+integration gap in more detail.
+
 ## pi-mom
 
 `packages/mom/` is the upstream example of an external messaging channel driving a Pi agent.

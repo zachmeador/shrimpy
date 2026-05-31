@@ -15,10 +15,11 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [CTX-007](ctx-007.md), [WAIT-001](wait-001-durable-agent-waits.md) | Agentic worker sessions for inspectable coding-agent delegation |
+| [SKILL-002](skill-002-pi-skill-loading-management.md) | todo | P1 | Skills | none | Pi-backed skill loading and management |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
-| [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |
+| [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [SKILL-002](skill-002-pi-skill-loading-management.md), [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |
 | [DOCTOR-001](doctor-001.md) | todo | P2 | Doctor | [ADMIN-001](admin-001.md) | Admin repair/doctor session |
 | [ONBOARD-001](onboard-001.md) | todo | P2 | Onboarding | [ADMIN-001](admin-001.md) | Guided new user onboarding session |
 | [SETUP-001](setup-001-macos-friendly-install-docs.md) | todo | P2 | Setup | none | macOS-friendly setup and install docs |
