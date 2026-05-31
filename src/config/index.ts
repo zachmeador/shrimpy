@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { Value } from "@sinclair/typebox/value";
 import {
   type ContextConfig,
   type ContextDefaultsConfig,
@@ -22,10 +21,6 @@ import {
   resolveGatewayStatusConfig,
   type GatewayStatusConfig,
 } from "./gateway-status.js";
-import {
-  modelSelectionSchema,
-  type ModelSelectionConfig,
-} from "./model.js";
 import { primaryConfigPath } from "./paths.js";
 import { resolveRuntimeConfig, type RuntimeConfig } from "./runtime.js";
 import { surfaceModules } from "../surfaces/index.js";
@@ -37,7 +32,6 @@ import { readJsonFileStrict } from "../util/json-file.js";
 
 export interface ShrimpyConfig {
   workspace: string;
-  model?: ModelSelectionConfig;
   tui?: {
     modelFavorites?: string[];
   };
@@ -72,11 +66,12 @@ function resolveWorkspace(): string {
 }
 
 function validateRawConfig(raw: Record<string, unknown>) {
-  if (raw.context) validateContextConfig(raw.context);
-  if (raw.model !== undefined && !Value.Check(modelSelectionSchema, raw.model)) {
-    const [err] = Value.Errors(modelSelectionSchema, raw.model);
-    throw new Error(`model: ${err?.message ?? "invalid"}`);
+  if (raw.model !== undefined) {
+    throw new Error(
+      "config.model is not supported. Move that provider/id object to agents[].model and remove the top-level model field.",
+    );
   }
+  if (raw.context) validateContextConfig(raw.context);
   if (raw.briefing !== undefined) resolveBriefingConfig(raw.briefing);
   if (raw.contextDefaults !== undefined) {
     resolveContextDefaultsConfig(raw.contextDefaults);

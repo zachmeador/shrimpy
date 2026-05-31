@@ -9,7 +9,6 @@ import {
   type ResolvedGatewayStatusConfig,
   type RuntimeConfig,
   type ShrimpyConfig,
-  type ModelSelectionConfig,
   resolveAdapterRoutingConfig,
   resolveAgentsConfig,
   resolveBriefingConfig,
@@ -24,7 +23,7 @@ import {
 } from "../context/index.js";
 import {
   createBootstrap,
-  resolveModel,
+  resolveModel as resolveSessionModel,
   type SessionBootstrap,
 } from "../sessions/index.js";
 import {
@@ -57,7 +56,6 @@ export interface ResolvedAppConfig {
   status: ResolvedGatewayStatusConfig;
   surfaces: Record<string, SurfaceModuleResolved>;
   tools: ReturnType<typeof resolveToolRuntimeConfig>;
-  model?: ModelSelectionConfig;
 }
 
 export interface AppRuntimeBuildToolsOpts {
@@ -99,7 +97,6 @@ export class AppRuntime {
       status: resolveGatewayStatusConfig(config.status),
       surfaces,
       tools: resolveToolRuntimeConfig(config.tools),
-      model: config.model,
     };
   }
 
@@ -137,9 +134,10 @@ export class AppRuntime {
     bootstrap: SessionBootstrap,
     provider?: string,
     model?: string,
-    defaultModel?: ModelSelectionConfig,
+    defaultModel?: ResolvedAgentConfig["model"],
+    opts?: Parameters<typeof resolveSessionModel>[4],
   ) {
-    return resolveModel(bootstrap, provider, model, defaultModel);
+    return resolveSessionModel(bootstrap, provider, model, defaultModel, opts);
   }
 
   createEgressRegistry(): EgressRegistry {

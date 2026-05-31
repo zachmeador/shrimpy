@@ -52,8 +52,6 @@ export const DEFAULT_CONTEXT_ENV = [
   "session_type",
   "channel",
   "session_dir",
-  "model_id",
-  "provider",
 ];
 
 /**

@@ -68,6 +68,8 @@ export const cmdContext: CommandHandler = async (argv, config) => {
       agent: { type: "string", short: "a" },
       channel: { type: "string", short: "c" },
       skill: { type: "string", short: "k" },
+      provider: { type: "string", short: "p" },
+      model: { type: "string", short: "m" },
       "session-type": { type: "string", short: "s" },
       config: { type: "boolean", default: false },
       sections: { type: "boolean", default: false },
@@ -116,6 +118,13 @@ export const cmdContext: CommandHandler = async (argv, config) => {
     });
   const plan = {
     descriptor,
+    model: runtime.resolveModel(
+      bootstrap,
+      values.provider,
+      values.model,
+      agent.model,
+      { allowMissingDefault: true },
+    ),
     defaultThinking: agent.thinking,
     prompt: {
       skills: values.skill ? [values.skill] : undefined,

@@ -7,7 +7,6 @@ import {
   sessionRestoreMessageInput,
   sessionThinkingLevelMessageInput,
 } from "../channels/index.js";
-import { mergeModelSelection } from "../config/index.js";
 import {
   INFERENCE_PARAM_NAMES,
   resolveModelVariantInference,
@@ -147,7 +146,8 @@ export async function inspectSessionCompactionPolicy(
     bootstrap,
     undefined,
     undefined,
-    mergeModelSelection(runtime.resolved.model, agent.model),
+    agent.model,
+    { allowMissingDefault: true },
   );
   const inference = resolveModelVariantInference({
     modelsPath: bootstrap.modelsPath,

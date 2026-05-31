@@ -13,14 +13,18 @@ import {
   resolveModelVariantInference,
 } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
-import { mergeModelSelection } from "../config/index.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
 import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
 import { installShrimpyCommandSurface } from "../tui/shrimpy-command-surface.js";
 import { installShrimpyContextRendering } from "../tui/shrimpy-context-rendering.js";
 import { installShrimpyModelSelectionGuard } from "../tui/shrimpy-model-selection.js";
 import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
-import { openSession, openSessionRuntime, resolveModel } from "./factory.js";
+import {
+  formatMissingAgentModelMessage,
+  openSession,
+  openSessionRuntime,
+  resolveModel,
+} from "./factory.js";
 import { createLocalSessionDescriptor } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
 
@@ -36,6 +40,8 @@ export interface OpenDirectSessionInput {
   appendSystemPrompt?: string;
   skills?: string[];
   basePromptResources?: PromptResourceRef[];
+  allowMissingModel?: boolean;
+  allowRegistryFallbackModel?: boolean;
 }
 
 export interface OpenDirectSessionResult {
@@ -63,11 +69,17 @@ export async function openDirectAgentSession(
     cwd,
     basePromptResources: input.basePromptResources,
   });
+  const restoreModelFromSession = input.provider === undefined && input.model === undefined;
   const model = resolveModel(
     bootstrap,
     input.provider,
     input.model,
-    mergeModelSelection(input.runtime.resolved.model, agent.model),
+    agent.model,
+    {
+      allowMissingDefault: restoreModelFromSession || input.allowMissingModel,
+      allowRegistryFallback: input.allowRegistryFallbackModel,
+      missingMessage: formatMissingAgentModelMessage(agent.id),
+    },
   );
   const inference = resolveModelVariantInference({
     modelsPath: bootstrap.modelsPath,
@@ -89,7 +101,8 @@ export async function openDirectAgentSession(
   });
   const session = await openSession(bootstrap, {
     descriptor,
-    restoreModelFromSession: input.provider === undefined && input.model === undefined,
+    restoreModelFromSession,
+    allowMissingModel: input.allowMissingModel,
     thinking: input.thinking,
     inference,
     defaultThinking,
@@ -163,11 +176,17 @@ async function runAgentTuiSession(
     cwd,
     basePromptResources: input.basePromptResources,
   });
+  const restoreModelFromSession = input.provider === undefined && input.model === undefined;
   const model = resolveModel(
     bootstrap,
     input.provider,
     input.model,
-    mergeModelSelection(input.runtime.resolved.model, agent.model),
+    agent.model,
+    {
+      allowMissingDefault: restoreModelFromSession || input.allowMissingModel,
+      allowRegistryFallback: input.allowRegistryFallbackModel,
+      missingMessage: formatMissingAgentModelMessage(agent.id),
+    },
   );
   const inference = resolveModelVariantInference({
     modelsPath: bootstrap.modelsPath,
@@ -189,7 +208,8 @@ async function runAgentTuiSession(
   });
   const runtime = await openSessionRuntime(bootstrap, {
     descriptor,
-    restoreModelFromSession: input.provider === undefined && input.model === undefined,
+    restoreModelFromSession,
+    allowMissingModel: input.allowMissingModel,
     thinking: input.thinking,
     inference,
     defaultThinking,

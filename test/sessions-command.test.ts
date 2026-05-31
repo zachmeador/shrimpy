@@ -189,10 +189,14 @@ describe("cmdSessions", () => {
     await setupInit(workspace);
     const config = {
       workspace,
-      model: {
-        provider: "configured_provider",
-        id: "chosen-model",
-      },
+      agents: [{
+        id: "shrimpy",
+        root: "agents/shrimpy",
+        model: {
+          provider: "configured_provider",
+          id: "chosen-model",
+        },
+      }],
     };
     writeModelConfig(config);
     writeModelsJson({
@@ -242,10 +246,14 @@ describe("cmdSessions", () => {
     await setupInit(workspace);
     const config = {
       workspace,
-      model: {
-        provider: "configured_provider",
-        id: "chosen-model",
-      },
+      agents: [{
+        id: "shrimpy",
+        root: "agents/shrimpy",
+        model: {
+          provider: "configured_provider",
+          id: "chosen-model",
+        },
+      }],
     };
     writeModelConfig(config);
     writeModelsJson({

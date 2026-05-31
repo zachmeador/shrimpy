@@ -23,11 +23,11 @@ describe("AgentChannelRuntime", () => {
     const runtime = {
       resolved: {
         adapterRouting: { routes: [] },
-        model: { provider: "local", id: "qwen" },
       },
       getAgent(agentId: string) {
         return {
           id: agentId,
+          model: { provider: "local", id: "qwen" },
           thinking: "high",
           tools: [],
           attention: resolveAgentAttention(),

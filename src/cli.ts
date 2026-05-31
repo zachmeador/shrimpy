@@ -12,6 +12,7 @@ import { cmdContext } from "./commands/context.js";
 import { cmdUsers } from "./commands/users.js";
 import { cmdSessions } from "./commands/sessions.js";
 import { cmdSkills } from "./commands/skills.js";
+import { cmdModels } from "./commands/models.js";
 import { cmdAgent } from "./commands/agent.js";
 import { cmdSurface } from "./commands/surface.js";
 import {
@@ -86,6 +87,8 @@ const HELP_BODY = `  shrimpy                            launch interactive mode
   shrimpy sessions thinking <c> <l>  set session thinking level for a channel
   shrimpy sessions compaction <c>    inspect effective compaction policy
   shrimpy sessions list [channel]    inspect active and archived sessions (--json)
+  shrimpy models                     inspect agent defaults and available models
+  shrimpy models resolve             explain effective model selection
   shrimpy setup                      run first-run setup entrypoint
   shrimpy setup init                 create baseline config files
   shrimpy setup telegram             guided Telegram bot setup
@@ -122,6 +125,7 @@ const commands: Record<string, CommandHandler> = {
   agent: cmdAgent,
   surface: cmdSurface,
   sessions: cmdSessions,
+  models: cmdModels,
   skills: cmdSkills,
   setup: cmdSetup,
   run: cmdRun,

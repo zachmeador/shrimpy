@@ -6,7 +6,6 @@ import {
   markChannelSeen,
 } from "../context/index.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
-import { mergeModelSelection } from "../config/index.js";
 import { resolveModelVariantInference } from "../inference/params.js";
 import {
   createSessionToolPolicy,
@@ -18,6 +17,7 @@ import {
 } from "./channel-policy.js";
 import {
   createGatewaySessionDescriptor,
+  formatMissingAgentModelMessage,
   resolveModel,
   SessionRegistry,
   type SessionBootstrap,
@@ -50,7 +50,10 @@ export class AgentChannelRuntime {
       opts.bootstrap,
       undefined,
       undefined,
-      mergeModelSelection(opts.runtime.resolved.model, this.agent.model),
+      this.agent.model,
+      {
+        missingMessage: formatMissingAgentModelMessage(this.agent.id),
+      },
     );
     const inference = resolveModelVariantInference({
       modelsPath: opts.bootstrap.modelsPath,

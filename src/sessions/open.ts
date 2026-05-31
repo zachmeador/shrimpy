@@ -132,6 +132,12 @@ async function openSessionWithRuntimeDeps(
     plan,
     sessionManager,
   });
+  if (!modelPlan.model && !modelPlan.allowMissingModel) {
+    throw new Error(
+      `session ${modelPlan.descriptor.channel ?? modelPlan.descriptor.kind} has no model. `
+      + `Set a default for agent ${modelPlan.descriptor.agentId ?? bootstrap.agentId}.`,
+    );
+  }
   const assembly = assembleSessionPrompt(bootstrap, modelPlan);
   const effectivePlan: SessionOpenPlan = {
     ...modelPlan,

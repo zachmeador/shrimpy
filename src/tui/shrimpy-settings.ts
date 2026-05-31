@@ -191,7 +191,7 @@ class ShrimpySettingsSubmenu extends Container {
     const runtime = this.options.runtime;
     const agent = runtime.getAgent(this.options.agentId);
     const agentPaths = runtime.getAgentPaths(agent.id);
-    const configuredModel = agent.model ?? runtime.resolved.model;
+    const configuredModel = agent.model;
     const activeTools = this.mode.session.getActiveToolNames();
     const allTools = this.mode.session.getAllTools();
     const compaction = runtime.resolved.runtime.compaction;
@@ -239,8 +239,8 @@ class ShrimpySettingsSubmenu extends Container {
         label: "Model",
         description:
           configuredModel === undefined
-            ? "Current Pi session model. No Shrimpy default model is configured."
-            : `Current Pi session model. Configured default: ${formatModelSelection(configuredModel)}.`,
+            ? "Current Pi session model. This agent has no default model configured."
+            : `Current Pi session model. Agent default: ${formatModelSelection(configuredModel)}.`,
         currentValue: formatSessionModel(this.mode.session.model),
       },
       {

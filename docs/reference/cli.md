@@ -16,6 +16,8 @@ Every Shrimpy feature is reachable through a `shrimpy <command>` subcommand. Com
 | `shrimpy sessions restore <channel>` | Restore an archived session. |
 | `shrimpy sessions thinking <channel> <level>` | Change reasoning effort for a session. |
 | `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model/inference metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
+| `shrimpy models [--json]` | Inspect agent default models and Pi-visible provider models. |
+| `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--json]` | Explain model precedence for a CLI override, local session, channel session, or agent default. |
 
 Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--json` where supported.
 

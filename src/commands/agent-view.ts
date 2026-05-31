@@ -31,7 +31,7 @@ export async function cmdAgentList(
       .join(",");
     const disabledTools = agent.toolPolicy.disabledToolNames.join(",") || "none";
     const thinking = agent.thinking ?? "inherit";
-    const model = agent.model ? formatModelSelection(agent.model) : "workspace";
+    const model = agent.model ? formatModelSelection(agent.model) : "missing";
     console.log(
       `${accent(agent.id)}  ${
         dim(
@@ -73,7 +73,7 @@ export async function cmdAgentInspect(
   }
 
   const thinking = view.thinking ?? "inherit";
-  const model = view.model ? formatModelSelection(view.model) : "workspace";
+  const model = view.model ? formatModelSelection(view.model) : "missing";
   const active = view.toolPolicy.capabilities.filter((tool) => tool.active);
   const registeredInactive = view.toolPolicy.capabilities.filter((tool) =>
     tool.registered && !tool.active && !tool.excluded

@@ -42,15 +42,19 @@ export async function cmdAgentAdd(
   if (values.provider !== undefined && values.model === undefined) {
     return printError("agent add --provider requires --model");
   }
+  if (values.model !== undefined && values.provider === undefined) {
+    return printError("agent add --model requires --provider");
+  }
+  const requestedModel = values.provider !== undefined && values.model !== undefined
+    ? { provider: values.provider, id: values.model }
+    : undefined;
 
   const runtime = createAppRuntime(config);
   const defaultAgent = runtime.resolved.agents[0];
   const result = addAgent(runtime, {
     agentId,
     root: values.root,
-    ...(values.model !== undefined
-      ? { model: { provider: values.provider, id: values.model } }
-      : {}),
+    ...(requestedModel ? { model: requestedModel } : {}),
     tools: parseCsv(values.tools) ?? [...(defaultAgent.tools ?? DEFAULT_AGENT_TOOLS)],
     disabledTools: parseCsv(values["disable-tools"]) ?? [...(defaultAgent.disabledTools ?? [])],
     thinking: parseThinking(values.thinking),
@@ -101,6 +105,12 @@ export async function cmdAgentSet(
   if (values.provider !== undefined && values.model === undefined) {
     return printError("agent set --provider requires --model");
   }
+  if (values.model !== undefined && values.provider === undefined) {
+    return printError("agent set --model requires --provider");
+  }
+  const requestedModel = values.provider !== undefined && values.model !== undefined
+    ? { provider: values.provider, id: values.model }
+    : undefined;
 
   if (
     values.root === undefined
@@ -117,9 +127,7 @@ export async function cmdAgentSet(
   const result = updateAgent(runtime, {
     agentId,
     ...(values.root !== undefined ? { root: values.root } : {}),
-    ...(values.model !== undefined
-      ? { model: { provider: values.provider, id: values.model } }
-      : {}),
+    ...(requestedModel ? { model: requestedModel } : {}),
     ...(values.tools !== undefined ? { tools: parseCsv(values.tools) ?? [] } : {}),
     ...(values["disable-tools"] !== undefined
       ? { disabledTools: parseCsv(values["disable-tools"]) ?? [] }

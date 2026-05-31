@@ -359,12 +359,43 @@ describe("createAgentChannelPolicy", () => {
   });
 });
 
+function testAgents() {
+  return resolveAgentsConfig([
+    { id: "shrimpy", model: { provider: "test", id: "shrimpy-model" } },
+    { id: "career", model: { provider: "test", id: "career-model" } },
+  ]);
+}
+
+function testBootstraps(agents: ReturnType<typeof resolveAgentsConfig>) {
+  return new Map(
+    agents.map((agent) => [
+      agent.id,
+      {
+        workspacePath: workspace,
+        agentRootPath: join(workspace, "agents", agent.id),
+        modelsPath: join(workspace, "state", "pi", "models.json"),
+        modelRegistry: {
+          find(provider: string, id: string) {
+            return provider === "test"
+              ? { provider, id, contextWindow: 1000 }
+              : undefined;
+          },
+          getAvailable() {
+            return agents.map((agent) => ({
+              provider: "test",
+              id: agent.model?.id ?? `${agent.id}-model`,
+              contextWindow: 1000,
+            }));
+          },
+        },
+      },
+    ]),
+  ) as any;
+}
+
 describe("ChannelDeliveryLoop routing", () => {
   test("fans out human messages to all agent members in the channel", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -401,10 +432,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {} as any,
     }) as any;
 
@@ -434,10 +462,7 @@ describe("ChannelDeliveryLoop routing", () => {
   });
 
   test("offers unaddressed messages to subscribed agents", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -474,10 +499,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {} as any,
     }) as any;
 
@@ -499,10 +521,7 @@ describe("ChannelDeliveryLoop routing", () => {
   });
 
   test("uses empty bootstrap membership when a channel has no explicit membership yet", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -529,10 +548,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {} as any,
     }) as any;
 
@@ -555,10 +571,7 @@ describe("ChannelDeliveryLoop routing", () => {
   });
 
   test("dispatches explicitly addressed turns to non-member agents", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -590,10 +603,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {} as any,
     }) as any;
 
@@ -630,10 +640,7 @@ describe("ChannelDeliveryLoop routing", () => {
   });
 
   test("intercepts session reset control messages and resets only the target agent", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -664,10 +671,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {
         async deliverText(channel: string, text: string) {
           delivered.push({ channel, text });
@@ -725,10 +729,7 @@ describe("ChannelDeliveryLoop routing", () => {
   });
 
   test("intercepts session restore control messages and restores only the target agent", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -759,10 +760,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {
         async deliverText(channel: string, text: string) {
           delivered.push({ channel, text });
@@ -823,10 +821,7 @@ describe("ChannelDeliveryLoop routing", () => {
   });
 
   test("intercepts session thinking control messages and updates only the target agent", async () => {
-    const agents = resolveAgentsConfig([
-      { id: "shrimpy" },
-      { id: "career" },
-    ]);
+    const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
       agents,
@@ -857,10 +852,7 @@ describe("ChannelDeliveryLoop routing", () => {
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
-      bootstraps: new Map([
-        ["shrimpy", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "shrimpy") }],
-        ["career", { workspacePath: workspace, agentRootPath: join(workspace, "agents", "career") }],
-      ]) as any,
+      bootstraps: testBootstraps(agents),
       channelBus: {
         async deliverText(channel: string, text: string) {
           delivered.push({ channel, text });

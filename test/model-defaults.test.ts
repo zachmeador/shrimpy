@@ -29,7 +29,7 @@ function bootstrap() {
 }
 
 describe("resolveModel", () => {
-  test("uses a configured default model when no CLI model is provided", () => {
+  test("uses the agent default model when no CLI model is provided", () => {
     assert.equal(
       resolveModel(bootstrap(), undefined, undefined, {
         provider: "local_qwen_moe",
@@ -39,7 +39,7 @@ describe("resolveModel", () => {
     );
   });
 
-  test("lets CLI model selection override the configured default", () => {
+  test("lets CLI model selection override the agent default", () => {
     assert.equal(
       resolveModel(
         bootstrap(),
@@ -51,6 +51,29 @@ describe("resolveModel", () => {
         },
       ),
       twentySevenB,
+    );
+  });
+
+  test("requires an agent default unless missing defaults are explicitly allowed", () => {
+    assert.throws(
+      () => resolveModel(bootstrap(), undefined, undefined, undefined),
+      /agent has no default model/,
+    );
+
+    assert.equal(
+      resolveModel(bootstrap(), undefined, undefined, undefined, {
+        allowMissingDefault: true,
+      }),
+      undefined,
+    );
+  });
+
+  test("uses registry fallback only for explicit bootstrap flows", () => {
+    assert.equal(
+      resolveModel(bootstrap(), undefined, undefined, undefined, {
+        allowRegistryFallback: true,
+      }),
+      a3b,
     );
   });
 });

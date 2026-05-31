@@ -33,11 +33,7 @@ export function assembleSessionPrompt(
   plan: SessionOpenPlan,
 ): SessionPromptAssembly {
   const { descriptor } = plan;
-  let resolvedModel = plan.model;
-  if (!resolvedModel) {
-    const available = bootstrap.modelRegistry.getAvailable();
-    if (available.length > 0) resolvedModel = available[0];
-  }
+  const resolvedModel = plan.model;
 
   const cwd = descriptor.cwd ?? bootstrap.agentRootPath;
   const sessionEnv = resolveSessionEnv({

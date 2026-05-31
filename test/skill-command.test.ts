@@ -93,6 +93,8 @@ describe("skill context inspection", () => {
     assert.equal(parsed.contextLayers, undefined);
     assert.equal(parsed.briefing.sessionType, "gateway");
     assert.match(parsed.systemPrompt, /- `setup` \(agent\):/);
+    assert.doesNotMatch(parsed.systemPrompt, /\*\*model_id\*\*/);
+    assert.doesNotMatch(parsed.systemPrompt, /\*\*provider\*\*/);
     assert.doesNotMatch(parsed.systemPrompt, /Load a skill when/);
     assert.doesNotMatch(parsed.systemPrompt, /\| Skill \| Scope \| Description \|/);
     assert.match(parsed.turnPrompt, /<context>\n\[briefing\]/);

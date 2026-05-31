@@ -335,7 +335,7 @@ function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
     const marker = agent.id === options.agentId ? "*" : "-";
     const tools = agent.tools?.join(",") ?? "default";
     const thinking = agent.thinking ?? "inherit";
-    const model = agent.model ? formatModelSelection(agent.model) : "workspace";
+    const model = agent.model ? formatModelSelection(agent.model) : "missing";
     lines.push(`${marker} ${agent.id} root=${agent.root} tools=${tools} thinking=${thinking} model=${model}`);
   }
 

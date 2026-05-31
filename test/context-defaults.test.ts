@@ -12,6 +12,7 @@ import {
   assemblePromptContext,
   assembleBasePromptSections,
   assembleContextViewSections,
+  buildSystemEnvSections,
   renderPromptSections,
   resolveContextEnvKeys,
   resolveContextConfig,
@@ -77,8 +78,6 @@ describe("resolveContextDefaultsConfig", () => {
         "session_type",
         "channel",
         "session_dir",
-        "model_id",
-        "provider",
       ],
     });
   });
@@ -101,6 +100,23 @@ describe("resolveContextDefaultsConfig", () => {
         }),
       /contextDefaults\.sources\[0\] must start with "workspace:" or "agent:"/,
     );
+  });
+
+  test("keeps model identity out of rendered runtime environment", () => {
+    const sections = buildSystemEnvSections({
+      sessionType: "preview",
+      envKeys: ["workspace_path", "model_id", "provider"],
+      env: {
+        workspace_path: "/tmp/shrimpy",
+        model_id: "gpt-test",
+        provider: "test-provider",
+      },
+    });
+
+    assert.equal(sections.length, 1);
+    assert.match(sections[0]!.content, /\*\*workspace_path\*\*/);
+    assert.doesNotMatch(sections[0]!.content, /\*\*model_id\*\*/);
+    assert.doesNotMatch(sections[0]!.content, /\*\*provider\*\*/);
   });
 });
 

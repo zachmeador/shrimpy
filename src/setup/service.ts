@@ -75,6 +75,7 @@ export async function launchSetupSession(
     sessionType: "tui",
     initialMessage: "Begin setup.",
     skills: ["setup"],
+    allowRegistryFallbackModel: true,
     cwd: input.cwd,
   });
 }
@@ -88,6 +89,7 @@ export async function launchProviderBootstrapSession(
     agentId: "shrimpy",
     channel: "setup-provider",
     sessionType: "tui",
+    allowMissingModel: true,
     cwd: input.cwd,
   });
 }

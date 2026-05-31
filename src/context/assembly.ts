@@ -13,6 +13,7 @@ import {
   parseContextResource,
 } from "./spec.js";
 import type { ContextSourceConfig } from "./source.js";
+import { isPromptRuntimeEnvKey } from "./env.js";
 
 export interface PromptContextAssembly {
   sections: PromptSection[];
@@ -144,6 +145,7 @@ export function buildSystemEnvSections(opts: {
 
   const envRows: string[] = [];
   for (const key of opts.envKeys) {
+    if (!isPromptRuntimeEnvKey(key)) continue;
     const value = opts.env[key];
     if (value !== undefined && value !== "") {
       envRows.push(`- **${key}**: ${value}`);

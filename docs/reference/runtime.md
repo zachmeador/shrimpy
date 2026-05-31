@@ -9,7 +9,7 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
 - `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.
 - `--provider`, `--model`, and `--thinking <off|low|medium|high>` override one session.
-- Without a session override, model selection falls back to `agents[].model`, then workspace `model`, then Pi's first available registry model.
+- Without a CLI override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `agents[].model`. Fresh sessions without an agent default fail with a setup hint.
 - `--skill <id>` loads full skill context into the session.
 
 Direct `tui` and `run` sessions are local execution labels. They do not first write user prompts to a channel log.
@@ -40,6 +40,8 @@ surface / CLI channel post / scheduler
 Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` when the turn addresses one agent directly.
+
+Gateway channel sessions are opened from the agent default model for that gateway process. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default.
 
 ## Prompt Context
 

@@ -33,6 +33,15 @@ export const KNOWN_RUNTIME_ENV_KEYS = new Set([
   "cwd",
 ]);
 
+const SESSION_METADATA_ONLY_ENV_KEYS = new Set([
+  "model_id",
+  "provider",
+]);
+
+export function isPromptRuntimeEnvKey(key: string): boolean {
+  return !SESSION_METADATA_ONLY_ENV_KEYS.has(key);
+}
+
 export function resolveBootEnv(workspacePath: string): BootEnv {
   return {
     workspace_path: workspacePath,
