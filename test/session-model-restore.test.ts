@@ -85,6 +85,120 @@ describe("session model restore", () => {
     }
   });
 
+  test("records model switches as visible model-facing session messages", async () => {
+    const agentRoot = join(workspace, "agents", "shrimpy");
+    mkdirSync(agentRoot, { recursive: true });
+    writeModelsJson({
+      providers: {
+        configured_provider: modelProvider(["configured-model"]),
+        selected_provider: modelProvider(["selected-model"]),
+      },
+    });
+    const bootstrap = await testBootstrap(agentRoot);
+    const descriptor = createLocalSessionDescriptor({
+      workspacePath: agentRoot,
+      agentId: "shrimpy",
+      label: "tui",
+      kind: "tui",
+      channel: "tui",
+    });
+    const configuredModel = bootstrap.modelRegistry.find(
+      "configured_provider",
+      "configured-model",
+    );
+    const selectedModel = bootstrap.modelRegistry.find(
+      "selected_provider",
+      "selected-model",
+    );
+    assert.ok(configuredModel);
+    assert.ok(selectedModel);
+
+    const session = await openSession(bootstrap, {
+      descriptor,
+      model: configuredModel,
+      restoreModelFromSession: true,
+    });
+
+    try {
+      await session.setModel(selectedModel);
+
+      const inMemoryMessage = session.messages.find((message: any) =>
+        message.role === "custom" &&
+        message.customType === "shrimpy_model_switch"
+      ) as any;
+      assert.ok(inMemoryMessage);
+      assert.equal(inMemoryMessage.display, true);
+      assert.match(
+        inMemoryMessage.content,
+        /Model switched: configured_provider\/configured-model -> selected_provider\/selected-model/,
+      );
+      appendAssistantMessage(session.sessionManager, selectedModel);
+
+      const sessionFile = session.sessionFile;
+      assert.ok(sessionFile);
+      const switchMessage = latestCustomMessage(sessionFile, "shrimpy_model_switch");
+      assert.equal(switchMessage.display, true);
+      assert.deepEqual(switchMessage.details.previous, {
+        provider: "configured_provider",
+        id: "configured-model",
+      });
+      assert.deepEqual(switchMessage.details.current, {
+        provider: "selected_provider",
+        id: "selected-model",
+      });
+      assert.equal(switchMessage.details.source, "set");
+    } finally {
+      session.dispose();
+    }
+  });
+
+  test("does not record switch messages when the model identity is unchanged", async () => {
+    const agentRoot = join(workspace, "agents", "shrimpy");
+    mkdirSync(agentRoot, { recursive: true });
+    writeModelsJson({
+      providers: {
+        configured_provider: modelProvider(["configured-model"]),
+      },
+    });
+    const bootstrap = await testBootstrap(agentRoot);
+    const descriptor = createLocalSessionDescriptor({
+      workspacePath: agentRoot,
+      agentId: "shrimpy",
+      label: "tui",
+      kind: "tui",
+      channel: "tui",
+    });
+    const configuredModel = bootstrap.modelRegistry.find(
+      "configured_provider",
+      "configured-model",
+    );
+    assert.ok(configuredModel);
+
+    const session = await openSession(bootstrap, {
+      descriptor,
+      model: configuredModel,
+      restoreModelFromSession: true,
+    });
+
+    try {
+      await session.setModel(configuredModel);
+      appendAssistantMessage(session.sessionManager, configuredModel);
+
+      const sessionFile = session.sessionFile;
+      assert.ok(sessionFile);
+      assert.equal(customMessageCount(sessionFile, "shrimpy_model_switch"), 0);
+      assert.equal(
+        session.messages.some((message: any) =>
+          message.role === "custom" &&
+          message.customType === "shrimpy_model_switch"
+        ),
+        false,
+      );
+    } finally {
+      session.dispose();
+    }
+  });
+
   test("keeps an explicit startup model override ahead of session restore", async () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
@@ -191,6 +305,36 @@ function latestShrimpySessionMetadata(path: string): { env: Record<string, strin
     }
   }
   throw new Error("missing shrimpy_session_metadata entry");
+}
+
+function latestCustomMessage(path: string, customType: string): {
+  display: boolean;
+  content: string;
+  details: any;
+} {
+  const messages = readCustomMessages(path, customType);
+  const latest = messages.at(-1);
+  if (!latest) throw new Error(`missing ${customType} custom message`);
+  return latest;
+}
+
+function customMessageCount(path: string, customType: string): number {
+  return readCustomMessages(path, customType).length;
+}
+
+function readCustomMessages(path: string, customType: string): Array<{
+  display: boolean;
+  content: string;
+  details: any;
+}> {
+  return readFileSync(path, "utf-8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .filter((parsed) =>
+      parsed.type === "custom_message" &&
+      parsed.customType === customType
+    );
 }
 
 function appendAssistantMessage(

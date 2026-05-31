@@ -53,6 +53,21 @@ interface SessionMetadata {
   };
 }
 
+interface ModelSwitchMessageDetails {
+  source: "set" | "cycle";
+  previous?: ModelRef;
+  current?: ModelRef;
+  thinkingLevel?: string;
+  inference?: ModelVariantInference;
+}
+
+interface ModelRef {
+  provider: string;
+  id: string;
+}
+
+const MODEL_SWITCH_CUSTOM_TYPE = "shrimpy_model_switch";
+
 export async function openSession(
   bootstrap: SessionBootstrap,
   plan: SessionOpenPlan,
@@ -341,15 +356,7 @@ function appendSessionMetadata(input: {
   model?: Model<Api>;
 }): void {
   const { sessionManager, bootstrap, plan, model } = input;
-  const inference = sameModelIdentity(plan.model, model)
-    ? plan.inference ?? resolveModelVariantInference({
-      modelsPath: bootstrap.modelsPath,
-      model,
-    })
-    : resolveModelVariantInference({
-      modelsPath: bootstrap.modelsPath,
-      model,
-    });
+  const inference = resolveSessionInference({ bootstrap, plan, model });
   const env = {
     ...input.env,
     ...(model
@@ -385,24 +392,121 @@ function wrapModelMetadataRecording(input: {
   const { session } = input;
   const originalSetModel = session.setModel.bind(session);
   session.setModel = async (model) => {
+    const previousModel = session.model;
     await originalSetModel(model);
     appendSessionMetadata({
       ...input,
       model: session.model,
     });
+    await appendModelSwitchMessage({
+      ...input,
+      previousModel,
+      currentModel: session.model,
+      source: "set",
+    });
   };
 
   const originalCycleModel = session.cycleModel.bind(session);
   session.cycleModel = async (direction) => {
+    const previousModel = session.model;
     const result = await originalCycleModel(direction);
     if (result) {
       appendSessionMetadata({
         ...input,
         model: session.model,
       });
+      await appendModelSwitchMessage({
+        ...input,
+        previousModel,
+        currentModel: session.model,
+        source: "cycle",
+      });
     }
     return result;
   };
+}
+
+function resolveSessionInference(input: {
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
+  model?: Model<Api>;
+}): ModelVariantInference | undefined {
+  return sameModelIdentity(input.plan.model, input.model)
+    ? input.plan.inference ?? resolveModelVariantInference({
+      modelsPath: input.bootstrap.modelsPath,
+      model: input.model,
+    })
+    : resolveModelVariantInference({
+      modelsPath: input.bootstrap.modelsPath,
+      model: input.model,
+    });
+}
+
+async function appendModelSwitchMessage(input: {
+  session: AgentSession;
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
+  previousModel?: Model<Api>;
+  currentModel?: Model<Api>;
+  source: ModelSwitchMessageDetails["source"];
+}): Promise<void> {
+  if (sameModelIdentity(input.previousModel, input.currentModel)) return;
+
+  const inference = resolveSessionInference({
+    bootstrap: input.bootstrap,
+    plan: input.plan,
+    model: input.currentModel,
+  });
+  const thinkingLevel = typeof input.session.thinkingLevel === "string"
+    ? input.session.thinkingLevel
+    : undefined;
+  const details: ModelSwitchMessageDetails = {
+    source: input.source,
+    previous: toModelRef(input.previousModel),
+    current: toModelRef(input.currentModel),
+    thinkingLevel,
+    inference,
+  };
+
+  await input.session.sendCustomMessage({
+    customType: MODEL_SWITCH_CUSTOM_TYPE,
+    content: formatModelSwitchMessage({
+      previousModel: input.previousModel,
+      currentModel: input.currentModel,
+      thinkingLevel,
+    }),
+    display: true,
+    details,
+  });
+}
+
+function formatModelSwitchMessage(input: {
+  previousModel?: Model<Api>;
+  currentModel?: Model<Api>;
+  thinkingLevel?: string;
+}): string {
+  const current = formatModelRef(input.currentModel);
+  const previous = input.previousModel
+    ? formatModelRef(input.previousModel)
+    : "no active model";
+  const thinking = input.thinkingLevel
+    ? ` Thinking: ${input.thinkingLevel}.`
+    : "";
+  return `[session runtime] Model switched: ${previous} -> ${current}.`
+    + `${thinking} Earlier assistant messages may be from ${previous}.`;
+}
+
+function toModelRef(model: Model<Api> | undefined): ModelRef | undefined {
+  if (!model) return undefined;
+  return {
+    provider: model.provider,
+    id: model.id,
+  };
+}
+
+function formatModelRef(model: Model<Api> | undefined): string {
+  if (!model) return "unset";
+  return `${model.provider}/${model.id}`;
 }
 
 function wrapPromptPreparation(
