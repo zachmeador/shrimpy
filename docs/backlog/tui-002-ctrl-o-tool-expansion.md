@@ -1,6 +1,6 @@
 # 🦐 TUI-002: Ctrl+O Tool Expansion Regression
 
-Status: todo
+Status: done
 Priority: P1
 Area: TUI
 
@@ -23,6 +23,12 @@ Shrimpy deliberately renders tool calls compactly, but the collapsed row must re
 - Make compact overrides for Pi built-in tools expand consistently with Shrimpy daemon tools.
 - Cover in-progress, completed, failed, and restored-session tool rows if Pi exposes separate render paths for those states.
 - Keep the compact default unchanged; this is a fix to the expansion path, not a redesign of tool rendering.
+
+## Outcome
+- `installShrimpyContextRendering` now follows Pi's tool-output expansion state and rebuilds existing rows when the state changes.
+- Live pending tool rows survive expansion rebuilds instead of being replaced by stale placeholders.
+- Compact built-in tool renderers show result output when expanded, including read/write detail.
+- Regression tests cover expansion state changes, live pending rows, and compact built-in expanded output.
 
 ## Boundaries
 - Do not fork Pi's full TUI for this fix.

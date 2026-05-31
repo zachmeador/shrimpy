@@ -1,6 +1,6 @@
 # 🦐 SURFACE-003: Chat Agent Switching Bug
 
-Status: todo
+Status: done
 Priority: P1
 Area: Surfaces
 
@@ -22,6 +22,13 @@ This matters because chat surfaces are the main low-friction control path for Sh
 - Ensure the next user message in that chat channel resolves to the selected agent.
 - Make the switch visible through existing channel inspection or route diagnostics.
 - Add a focused regression test around switching agents from a chat channel and sending a follow-up message.
+
+## Outcome
+- Telegram `/agent <id>` updates per-surface thread addressed-agent state.
+- Later Telegram messages from the same chat are stamped with the selected `origin.addressedAgentId` before they enter the channel log.
+- `/new` and `/thinking` target the currently addressed agent for that chat, so session controls follow the selected route.
+- `shrimpy surface` can inspect and mutate the persisted addressed-agent state.
+- Regression tests cover `/agent` switching, later message stamping, `/new` reset behavior, and `/thinking` targeting.
 
 ## Boundaries
 - Do not add a second agent-selection control plane for chat surfaces.

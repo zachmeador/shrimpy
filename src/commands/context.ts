@@ -8,6 +8,7 @@ import {
   createStoredSessionDescriptor,
 } from "../sessions/index.js";
 import { createAppRuntime } from "../app/index.js";
+import type { ShrimpyConfig } from "../config/index.js";
 import {
   makeMessage,
   textContent,
@@ -225,7 +226,7 @@ interface SourceView {
   command?: ResolvedContextCommandSource;
 }
 
-async function cmdContextSources(argv: string[], config: unknown): Promise<number> {
+async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise<number> {
   const sub = argv[0];
   if (sub !== "list" && sub !== "run") {
     console.error("usage: shrimpy context sources list|run ...");
@@ -244,7 +245,7 @@ async function cmdContextSources(argv: string[], config: unknown): Promise<numbe
     usage: USAGE,
   });
 
-  const runtime = createAppRuntime(config as any);
+  const runtime = createAppRuntime(config);
   const agent = runtime.getAgent(values.agent);
   const sources = collectContextSources({
     runtime,
@@ -497,7 +498,7 @@ async function renderRuntimeTurnContext(input: {
   return renderTurnContext(context);
 }
 
-async function cmdContextFiles(argv: string[], config: unknown): Promise<number> {
+async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<number> {
   const sub = argv[0];
   if (sub !== "list" && sub !== "show") {
     console.error("usage: shrimpy context files list|show ...");
@@ -516,7 +517,7 @@ async function cmdContextFiles(argv: string[], config: unknown): Promise<number>
     usage: USAGE,
   });
 
-  const runtime = createAppRuntime(config as any);
+  const runtime = createAppRuntime(config);
   const agent = runtime.getAgent(values.agent);
   const agentPaths = runtime.getAgentPaths(agent.id);
   const contextDir = agentPaths.contextDir;

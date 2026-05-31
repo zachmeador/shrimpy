@@ -1,8 +1,8 @@
 import {
   AuthStorage,
   ModelRegistry,
-  SettingsManager,
   type DefaultResourceLoader,
+  type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { createInlineSettingsManager } from "./inline-settings.js";
 import {

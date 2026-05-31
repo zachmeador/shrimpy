@@ -1,6 +1,6 @@
 # 🦐 TUI-003: Slash Command Output UX Polish
 
-Status: todo
+Status: done
 Priority: P2
 Area: TUI
 
@@ -26,6 +26,13 @@ Inspect:
 - Make multi-line command output visually distinct from the input editor without feeling like a separate debug dump.
 - Improve spacing, labels, wrapping, and grouping for command output that contains paths, active state, follow-up actions, or inspection hints.
 - Preserve agent-friendly text output where commands are also reachable through CLI or logs.
+
+## Outcome
+- Shrimpy-owned command output now appends into the TUI chat log instead of staying pinned as a stale bottom command panel.
+- `/status [section]` consolidates workspace, gateway, agents, channels, context, skills, model, and doctor status in one common output pattern.
+- `/shrimpy` renders command help in the chat log, `/changelog` shows Shrimpy's changelog, and `/thinking` opens Pi's thinking selector instead of dumping text.
+- Hidden or discouraged Pi affordances such as `/share` and scoped model cycling are handled through the Shrimpy command surface.
+- Tests cover command-log rendering, Shrimpy changelog replacement, and thinking selector behavior.
 
 ## Repro
 - Start a Shrimpy TUI session.

@@ -12,6 +12,11 @@ Channel logs are append-only and reliable, but users and agents need better ways
 - Surface recent requests, open threads, and maintenance logs.
 - Keep append-only logs as the source of truth.
 
+## Progress
+- `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels read <name> --limit N`, and `shrimpy channels tail <name>` provide basic list, summary, recent-read, and follow behavior.
+- Channel inspection includes membership and last-message summaries, and JSON output is available for agent use.
+- Remaining work is search/filtering, open-thread/request summaries, and richer maintenance-log views.
+
 ## Boundaries
 - Do not mutate channel history to support summaries.
 - Do not add a database unless JSONL access becomes the concrete constraint.

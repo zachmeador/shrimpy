@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 
 export type PromptSectionKind =
   | "identity"

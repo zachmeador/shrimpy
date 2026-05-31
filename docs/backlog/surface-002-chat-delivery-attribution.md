@@ -29,9 +29,14 @@ Shrimpy should preserve the one-visible-account pattern while making cross-agent
 
 Telegram can compare the message sender against the route's default visible agent or addressed-agent state for the thread. If the delivered sender is a different internal agent, it prepends a compact attribution label using `sender.displayName` when available, otherwise a friendly form of `agent:<id>`. Unknown senders fall back to the existing plain delivery behavior.
 
+## Progress
+- The egress metadata plumbing is already in place: `ChannelBus.sendAgentText` publishes once, then passes a delivery object with the typed `ChannelMessage` and publication intent metadata to egress.
+- Telegram delivery already consumes publication intent metadata for quiet or low-urgency notifications.
+- Remaining work is the attribution policy and Telegram decoration behavior for non-default or non-addressed agent senders.
+
 ## Implementation Notes
-- Extend `src/channels/egress.ts` from `deliverText(channel, text)` to a typed delivery object that includes the published `ChannelMessage`.
-- Update `src/channels/bus.ts` so `sendAgentText` publishes once and delivers the resulting message.
+- Reuse the typed delivery object in `src/channels/egress.ts`, which already includes the published `ChannelMessage`.
+- Build on `src/channels/bus.ts`, where `sendAgentText` already publishes once and delivers the resulting message.
 - Update Telegram egress in `src/surfaces/telegram/surface.ts` to decorate only when sender attribution is needed.
 - Consider a small shared helper under `src/surfaces/shared/` for choosing attribution labels so future chat adapters can reuse the policy.
 - Add tests for plain default-agent delivery, decorated non-default agent delivery, and preservation of the stored channel text.
