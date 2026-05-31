@@ -13,7 +13,7 @@ This run found several small docs/template drifts and fixed them:
 - `AGENTS.md` still described the pre-redesign workspace shape (`MEMORY.md`, `state/memory.json`, root prompt files).
 - `src/setup/templates/WORKSPACE.md` described runtime state as living under `state/` instead of splitting durable `state/` from disposable `runtime/`.
 
-Remaining differences are tracked backlog, not stale docs: heartbeat/status special naming is covered by `docs/backlog/sched-001.md`; richer channel inspection is covered by `docs/backlog/channel-001.md`; more turn briefing facts are covered by `docs/backlog/ctx-003.md` and `docs/backlog/ctx-007.md`; runtime context producer CLI uniformity is covered by `docs/backlog/ctx-008-runtime-context-producers.md`.
+Remaining differences are tracked backlog, not stale docs: heartbeat/status special naming is covered by `docs/backlog/sched-001.md`; richer channel inspection is covered by `docs/backlog/channel-001.md`; session-status briefing items are covered by `docs/backlog/ctx-007.md`; runtime context producer CLI uniformity is covered by `docs/backlog/ctx-008-runtime-context-producers.md`.
 
 ## Source Set
 

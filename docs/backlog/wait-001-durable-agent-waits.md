@@ -85,8 +85,8 @@ session.
 - Related: [CODE-002](code-002-agentic-worker-sessions.md) is the first obvious
   consumer. A worker can expose structured status, and a wait can wake the parent
   agent when that worker is complete or blocked.
-- Related: [TOOLS-001](tools-001.md) should make `wait_for` visible and
-  enforceable in the effective tool capability view.
+- Related: the completed effective tool capability view should make `wait_for`
+  visible and enforceable.
 - Related: [CTX-007](ctx-007.md) should include pending/resolved waits in compact
   session-status briefings.
 - Related: [SCHED-001](sched-001.md) keeps heartbeat/status concepts generic;

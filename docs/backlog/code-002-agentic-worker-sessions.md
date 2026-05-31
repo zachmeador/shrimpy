@@ -133,8 +133,8 @@ closes it.
 
 - Related: [CODE-001](code-001.md) should detect whether Codex and Claude Code
   CLIs are available before those backends are enabled.
-- Related: [TOOLS-001](tools-001.md) should define the effective capability view
-  and enforcement model for worker-control tools.
+- Related: the completed effective capability view should expose and enforce
+  worker-control tools.
 - Related: [CTX-007](ctx-007.md) should include worker/session status in compact
   briefings.
 - Related: [WAIT-001](wait-001-durable-agent-waits.md) should provide durable

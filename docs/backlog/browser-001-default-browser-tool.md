@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Browser
-Depends On: [TOOLS-001](tools-001.md)
+Depends On: none
 
 ## Why
 Shrimpy has research on the browser-control stack it should use, but no active
@@ -71,8 +71,7 @@ agent frameworks as higher-level skills rather than the default backend.
 - Add daemon tools only after the CLI behavior is inspectable and tested. The
   tool names should mirror the compact CLI vocabulary and return bounded
   structured output suitable for prompts.
-- Include browser tool availability in the effective tool capability view from
-  [TOOLS-001](tools-001.md).
+- Include browser tool availability in the effective tool capability view.
 - Add a doctor/diagnostic check that reports whether `agent-browser`, Chrome,
   and any configured engine are available.
 - If Shrimpy later offers an installer/helper for `agent-browser`, make it an
