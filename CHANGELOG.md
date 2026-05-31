@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 0.2.0 - Lanterns in the Current - Unreleased
+## 0.2.0 - Lanterns in the Current - 2026-05-30
 
 - Added a Shrimpy-owned TUI layer on top of Pi interactive mode, including unified `/status` and `/settings` surfaces, model/thinking selectors, compact tool rows with Ctrl+O expansion, and the bottom-row Shrimpy activity indicator.
 - Added release metadata from `package.json` so CLI help/version output follows the configured package version, description, and release name.
