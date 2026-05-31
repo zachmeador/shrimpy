@@ -23,13 +23,34 @@ Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree
 
 ## 🦐 Setup
 
+Install the current `main` build on Linux or macOS:
+
 ```bash
-npm install
-npm run build
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
 shrimpy setup init
 ```
 
-For global local development, run `npm link` after building.
+The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under
+`~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and
+`shrimpy-web` into `~/.local/bin`; add that directory to `PATH` if needed.
+
+To install a specific tag, branch, or commit:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.2.0 bash
+```
+
+For source checkout development:
+
+```bash
+npm install
+npm run build
+npm link
+shrimpy setup init
+```
+
+The installer only installs the CLI. Workspace creation and configuration stay
+explicit through `shrimpy setup init`.
 
 ## 🦐 Usage
 
