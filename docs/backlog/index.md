@@ -4,7 +4,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [CTX-007](ctx-007.md) | todo | P1 | Context | none | Session-status briefing items |
+| [CTX-007](ctx-007.md) | done | P1 | Context | none | Session-status turn context items |
 | [CTX-008](ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](ctx-009-context-trace-debug-view.md) | todo | P1 | Context | [CTX-008](ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |

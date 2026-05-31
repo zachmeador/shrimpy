@@ -9,10 +9,10 @@ These docs are the project map for Shrimpy. Current behavior and settled design 
 - [reference/design.md](reference/design.md) — philosophy, settled decisions, and active architecture reconsiderations.
 - [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
 - [reference/runtime.md](reference/runtime.md) — how CLI sessions, gateway dispatch, scheduler runs, and child runs execute.
-- [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
+- [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn context envelope.
 - [reference/memory.md](reference/memory.md) — memory model, upkeep, and continuity aspiration.
 - [reference/skills.md](reference/skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
-- [reference/briefing.md](reference/briefing.md) — compact per-turn alerts and inspect pointers.
+- [reference/turn-context.md](reference/turn-context.md) — compact per-turn alerts and inspect pointers.
 - [reference/compaction.md](reference/compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [reference/cli.md](reference/cli.md) — command surface and agent-friendly workflows.
 - [reference/configuration.md](reference/configuration.md) — workspace config files and the knobs that matter.

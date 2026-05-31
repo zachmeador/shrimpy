@@ -13,11 +13,11 @@ This run found several small docs/template drifts and fixed them:
 - `AGENTS.md` still described the pre-redesign workspace shape (`MEMORY.md`, `state/memory.json`, root prompt files).
 - `src/setup/templates/WORKSPACE.md` described runtime state as living under `state/` instead of splitting durable `state/` from disposable `runtime/`.
 
-Remaining differences are tracked backlog, not stale docs: richer channel inspection is covered by `docs/backlog/channel-001.md`; session-status briefing items are covered by `docs/backlog/ctx-007.md`; runtime context producer CLI uniformity is covered by `docs/backlog/ctx-008-runtime-context-producers.md`.
+Remaining differences are tracked backlog, not stale docs: richer channel inspection is covered by `docs/backlog/channel-001.md`; session-status turn context items are covered by `docs/backlog/ctx-007.md`; runtime context producer CLI uniformity is covered by `docs/backlog/ctx-008-runtime-context-producers.md`.
 
 ## Source Set
 
-- Stable docs: `docs/README.md`, `docs/reference/overview.md`, `docs/reference/architecture.md`, `docs/reference/runtime.md`, `docs/reference/configuration.md`, `docs/reference/workspace.md`, `docs/reference/context-assembly.md`, `docs/reference/memory.md`, `docs/reference/briefing.md`, `docs/reference/cli.md`, `docs/reference/surfaces.md`, `docs/reference/development.md`
+- Stable docs: `docs/README.md`, `docs/reference/overview.md`, `docs/reference/architecture.md`, `docs/reference/runtime.md`, `docs/reference/configuration.md`, `docs/reference/workspace.md`, `docs/reference/context-assembly.md`, `docs/reference/memory.md`, `docs/reference/turn-context.md`, `docs/reference/cli.md`, `docs/reference/surfaces.md`, `docs/reference/development.md`
 - Backlog: `docs/backlog/index.md` plus active item notes referenced there
 - Setup/templates: `src/setup/templates/**`
 - Implementation evidence: `src/cli.ts`, `src/commands/**`, `src/app/**`, `src/config/**`, `src/context/**`, `src/sessions/**`, `src/channels/**`, `src/surfaces/**`, `src/gateway/**`, `src/scheduler/**`, `src/memory/**`, `src/skills/**`, `src/tools/**`, `src/setup.ts`
@@ -35,7 +35,7 @@ Musings and research were treated as background context only; authoritative beha
 | Agents | Persistent actors with SOUL, context, skills, schedules, sessions, tools, attention policy. | `src/agents/**`, `src/commands/agent*.ts`, `src/setup/defaults.ts`, `docs/reference/configuration.md`. | Implemented | None before merge. |
 | Surfaces | Surface verticals translate transport traffic to/from typed channel messages and maintain addressed-agent state. | `src/surfaces/**`, `src/commands/surface.ts`, `docs/reference/surfaces.md`; `surface show` docs added this run. | Implemented | None before merge. |
 | Gateway and scheduler | Gateway runs surfaces, watches channels, and emits schedule messages into ordinary channel sessions. | `src/gateway/**`, `src/gateway.ts`, `src/scheduler/**`, `docs/reference/runtime.md`, `docs/reference/configuration.md`. | Implemented | None before merge. |
-| Memory | Memory is agent-owned Markdown under `agents/<id>/context/`; no derived memory writer or special memory tool. | `src/memory/briefing.ts`, `src/context/**`, `src/tools/daemon.ts`, `docs/reference/memory.md`, `docs/reference/workspace.md`. | Implemented | None before merge. |
+| Memory | Memory is agent-owned Markdown under `agents/<id>/context/`; no derived memory writer or special memory tool. | `src/memory/context.ts`, `src/context/**`, `src/tools/daemon.ts`, `docs/reference/memory.md`, `docs/reference/workspace.md`. | Implemented | None before merge. |
 | Skills | Skills are Pi-style instruction/resource bundles under workspace or agent skill dirs. | `src/skills/service.ts`, `src/setup/templates/skills/**`, `docs/reference/skills.md`, `docs/reference/architecture.md`. | Implemented | Consider future channel-inspection CLI helpers so memory skills can avoid raw JSONL/JQ recipes. |
 | Setup/templates | Fresh setup seeds docs, default agent, context stubs, workspace skills, channel config, and default schedules. | `src/setup.ts`, `src/setup/defaults.ts`, `src/setup/templates/**`, `test/setup-init.test.ts`. | Implemented | None before merge. |
 

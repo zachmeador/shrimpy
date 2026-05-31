@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  mkdirSync,
   mkdtempSync,
   rmSync,
   readFileSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -13,17 +15,17 @@ import {
   buildTurnContext,
   markChannelSeen,
   renderTurnContext,
+  resolveContextTurnConfig,
 } from "../dist/context/index.js";
 import {
   makeMessage,
   textContent,
 } from "../dist/channels/index.js";
-import { resolveBriefingConfig } from "../dist/config/index.js";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-briefing-test-"));
+  workspace = mkdtempSync(join(tmpdir(), "shrimpy-context-test-"));
 });
 
 afterEach(() => {
@@ -39,14 +41,18 @@ function descriptor(agentId: string, kind: string, channel?: string) {
   };
 }
 
-describe("resolveBriefingConfig", () => {
+describe("resolveContextTurnConfig", () => {
   test("returns small defaults", () => {
-    assert.deepEqual(resolveBriefingConfig(), {
+    assert.deepEqual(resolveContextTurnConfig(), {
       maxChars: 2000,
       channelUnread: {
         enabled: true,
         channels: ["*"],
         includeLatest: true,
+      },
+      sessionStatus: {
+        enabled: true,
+        staleAfterMinutes: 720,
       },
     });
   });
@@ -76,14 +82,14 @@ describe("buildTurnContext", () => {
       content: textContent("third"),
     });
 
-    const briefing = await buildTurnContext({
+    const turnContext = await buildTurnContext({
       runtime,
       descriptor: descriptor("shrimpy", "gateway", "home"),
       currentMessage: current,
     });
-    const text = renderTurnContext(briefing);
+    const text = renderTurnContext(turnContext);
 
-    assert.match(text, /^\[briefing\]/);
+    assert.match(text, /^\[turn-context\]/);
     assert.match(text, /home: 2 new messages since this agent last handled it/);
     assert.match(text, /inspect: shrimpy channels read home --after /);
     assert.match(text, /latest human:alice/);
@@ -107,12 +113,12 @@ describe("buildTurnContext", () => {
       content: textContent("surface turn"),
     });
 
-    const briefing = await buildTurnContext({
+    const turnContext = await buildTurnContext({
       runtime,
       descriptor: descriptor("shrimpy", "gateway", "home"),
       currentMessage: current,
     });
-    const text = renderTurnContext(briefing);
+    const text = renderTurnContext(turnContext);
 
     assert.match(text, /routed via telegram; from human:alice; in channel home; source telegram:123; chat 123; transport user 456/);
     assert.match(text, new RegExp(`inspect: shrimpy channels read home --after ${current.id}`));
@@ -135,12 +141,12 @@ describe("buildTurnContext", () => {
       content: textContent("please handle this"),
     });
 
-    const briefing = await buildTurnContext({
+    const turnContext = await buildTurnContext({
       runtime,
       descriptor: descriptor("shrimpy", "gateway", "home"),
       currentMessage: current,
     });
-    const text = renderTurnContext(briefing);
+    const text = renderTurnContext(turnContext);
 
     assert.match(text, /addressed to shrimpy by origin.addressedAgentId/);
     assert.match(text, /attention: handled because message is explicitly addressed to this agent/);
@@ -163,12 +169,12 @@ describe("buildTurnContext", () => {
       timestamp: Date.parse("2026-05-02T12:00:00Z"),
     });
 
-    const briefing = await buildTurnContext({
+    const turnContext = await buildTurnContext({
       runtime,
       descriptor: descriptor("shrimpy", "gateway", "home"),
       currentMessage: current,
     });
-    const text = renderTurnContext(briefing);
+    const text = renderTurnContext(turnContext);
 
     assert.match(text, /routed via scheduler; from system:system:scheduler; in channel home/);
     assert.match(text, /scheduled wake; daily-check; run run-1; fired .*(Sat|Saturday).*\d{1,2}:\d{2}/);
@@ -176,7 +182,66 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: shrimpy gateway status/);
   });
 
-  test("accepts command briefing JSON", async () => {
+  test("omits session status on scheduled turns with no active sessions", async () => {
+    const runtime = createAppRuntime({ workspace });
+    const current = makeMessage({
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: { transport: "scheduler", scheduleId: "daily-check" },
+      content: textContent("scheduled tick"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "heartbeat"),
+      currentMessage: current,
+    });
+
+    assert.doesNotMatch(renderTurnContext(turnContext), /sessions: /);
+  });
+
+  test("includes recent and stale session status on scheduled turns", async () => {
+    writeActiveSessionFile("ops", 4 * 60 * 1000);
+    writeActiveSessionFile("research", 13 * 60 * 60 * 1000);
+    const runtime = createAppRuntime({ workspace });
+    const current = makeMessage({
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: { transport: "scheduler", scheduleId: "daily-check" },
+      content: textContent("scheduled tick"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "heartbeat"),
+      currentMessage: current,
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /sessions: 2 active across #ops,#research/);
+    assert.match(text, /most recent ops \d+m ago/);
+    assert.match(text, /1 stale >12h/);
+    assert.match(text, /inspect: shrimpy sessions list --json/);
+  });
+
+  test("omits session status on ordinary chat turns", async () => {
+    writeActiveSessionFile("ops", 4 * 60 * 1000);
+    const runtime = createAppRuntime({ workspace });
+    const current = runtime.createChannelBus().publish({
+      channel: "home",
+      sender: { kind: "human", actorId: "human:user" },
+      origin: { transport: "cli" },
+      content: textContent("hello"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "home"),
+      currentMessage: current,
+    });
+
+    assert.doesNotMatch(renderTurnContext(turnContext), /sessions: /);
+  });
+
+  test("accepts command turn-context JSON", async () => {
     const runtime = createAppRuntime({
       workspace,
       context: {
@@ -188,7 +253,7 @@ describe("buildTurnContext", () => {
       },
     });
 
-    const briefing = await buildTurnContext({
+    const turnContext = await buildTurnContext({
       runtime,
       descriptor: descriptor("finance-shrimpy", "gateway", "finance"),
       currentMessage: makeMessage({
@@ -197,13 +262,13 @@ describe("buildTurnContext", () => {
         content: textContent("tick"),
       }),
     });
-    const text = renderTurnContext(briefing);
+    const text = renderTurnContext(turnContext);
 
     assert.match(text, /bank: balance is -10000 USD/);
     assert.match(text, /inspect: finance-shrimpy bank transactions --recent/);
   });
 
-  test("reuses fresh command briefing items without rerunning the command", async () => {
+  test("reuses fresh command context items without rerunning the command", async () => {
     const counterPath = join(workspace, "counter.txt");
     const scriptPath = join(workspace, "counter.js");
     writeFileSync(
@@ -319,9 +384,28 @@ describe("buildTurnContext", () => {
       descriptor: descriptor("shrimpy", "tui", "tui"),
     });
 
-    assert.match(renderTurnContext(first), /broken: briefing command failed/);
+    assert.match(renderTurnContext(first), /broken: context command failed/);
     assert.match(renderTurnContext(first), /broken 1/);
     assert.match(renderTurnContext(second), /broken 1/);
     assert.equal(readFileSync(counterPath, "utf-8"), "1");
   });
 });
+
+function writeActiveSessionFile(channel: string, ageMs: number): void {
+  const sessionDir = join(workspace, "agents", "shrimpy", "sessions", channel);
+  mkdirSync(sessionDir, { recursive: true });
+  const path = join(sessionDir, `${channel}.jsonl`);
+  writeFileSync(
+    path,
+    `${JSON.stringify({
+      type: "session",
+      version: 3,
+      id: path,
+      timestamp: new Date(Date.now() - ageMs).toISOString(),
+      cwd: workspace,
+    })}\n`,
+    "utf-8",
+  );
+  const when = new Date(Date.now() - ageMs);
+  utimesSync(path, when, when);
+}

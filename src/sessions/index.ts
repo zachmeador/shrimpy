@@ -5,5 +5,6 @@ export * from "./factory.js";
 export * from "./registry.js";
 export * from "./service.js";
 export * from "./spec.js";
+export * from "./status.js";
 export * from "./storage.js";
 export * from "./turn-output.js";

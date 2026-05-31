@@ -16,7 +16,7 @@ import {
 } from "../channels/index.js";
 import {
   buildTurnContext,
-  composePromptWithBriefing,
+  composePromptWithContext,
   commandMatchesChannel,
   expandDirectoryResource,
   formatChannelMessage,
@@ -25,7 +25,7 @@ import {
   isDirectoryResource,
   parseContextResource,
   resolveContextSource,
-  clipBriefingWithMarker,
+  clipContextWithMarker,
   renderTurnContext,
   renderPromptSectionManifest,
   summarizePromptSection,
@@ -44,7 +44,6 @@ const USAGE = `usage:
   shrimpy context --channel <name> [prompt]
   shrimpy context --turn --channel <name> [prompt]
   shrimpy context turn [--agent <id>] [--channel <name>] [prompt]
-  shrimpy context --briefing --channel <name>
   shrimpy context --sections [--json]
   shrimpy context --config
   shrimpy context files list [--agent <id>] [--older-than <dur>] [--json]
@@ -61,7 +60,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
     return cmdContextSources(argv.slice(1), config);
   }
   if (argv[0] === "turn") {
-    return cmdContext(["--turn", ...argv.slice(1)], config);
+    return cmdContextTurn(argv.slice(1), config);
   }
 
   const { values, positionals } = parseCommandArgs({
@@ -76,7 +75,6 @@ export const cmdContext: CommandHandler = async (argv, config) => {
       config: { type: "boolean", default: false },
       sections: { type: "boolean", default: false },
       turn: { type: "boolean", default: false },
-      briefing: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -154,7 +152,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
   const userMessage = previewMessage && values.channel
     ? formatChannelMessage(values.channel, previewMessage)
     : prompt;
-  const briefing = (prompt || values.briefing || values.turn)
+  const turnContext = (prompt || values.turn)
     ? await buildTurnContext({
       runtime,
       descriptor,
@@ -162,19 +160,10 @@ export const cmdContext: CommandHandler = async (argv, config) => {
       preview: true,
     })
     : undefined;
-  const briefingText = briefing ? renderTurnContext(briefing) : undefined;
+  const turnContextText = turnContext ? renderTurnContext(turnContext) : undefined;
   const turnPrompt = prompt
-    ? composePromptWithBriefing(userMessage, briefingText)
+    ? composePromptWithContext(userMessage, turnContextText)
     : undefined;
-
-  if (values.briefing && values.json) {
-    console.log(JSON.stringify(
-      briefing ? { ...briefing, text: briefingText } : undefined,
-      null,
-      2,
-    ));
-    return 0;
-  }
 
   if (values.json) {
     console.log(
@@ -183,7 +172,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
           systemPrompt: systemPromptPreview,
           shrimpySystemPrompt: assembly.systemPrompt,
           promptSections: assembly.sections.map(summarizePromptSection),
-          briefing: briefing ? { ...briefing, text: briefingText } : undefined,
+          turnContext: turnContext ? { ...turnContext, text: turnContextText } : undefined,
           turnPrompt,
         },
         null,
@@ -193,14 +182,9 @@ export const cmdContext: CommandHandler = async (argv, config) => {
     return 0;
   }
 
-  if (values.briefing) {
-    console.log(briefingText ?? "");
-    return 0;
-  }
-
   if (values.sections || values.turn) {
     console.log(renderPromptSectionManifest(assembly.sections));
-    if (briefingText) console.log(`\n${briefingText}`);
+    if (turnContextText) console.log(`\n${turnContextText}`);
     if (!values.turn) return 0;
     console.log("\n=== System Prompt ===\n");
   }
@@ -215,6 +199,74 @@ export const cmdContext: CommandHandler = async (argv, config) => {
 
   return 0;
 };
+
+async function cmdContextTurn(argv: string[], config: ShrimpyConfig): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      channel: { type: "string", short: "c" },
+      "session-type": { type: "string", short: "s" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+
+  const runtime = createAppRuntime(config);
+  const agent = runtime.getAgent(values.agent);
+  const agentPaths = runtime.getAgentPaths(agent.id);
+  const cwd = process.cwd();
+  const prompt = positionals.join(" ").trim();
+  const sessionType = values["session-type"]
+    ?? (values.channel ? "gateway" : "preview");
+  const descriptor = values.channel
+    ? {
+      ...createGatewaySessionDescriptor({
+        workspacePath: agentPaths.root,
+        agentId: agent.id,
+        channel: values.channel,
+        cwd,
+      }),
+      kind: sessionType,
+    }
+    : createStoredSessionDescriptor({
+      workspacePath: agentPaths.root,
+      agentId: agent.id,
+      sessionName: join("context-preview", agent.id),
+      kind: sessionType,
+      cwd,
+    });
+  const previewMessage = values.channel
+    ? makeMessage({
+      sender: {
+        kind: "human",
+        actorId: "human:preview",
+        displayName: "(user)",
+      },
+      origin: {
+        transport: "cli",
+        sourceChannel: values.channel,
+      },
+      content: textContent(prompt),
+    })
+    : undefined;
+  const turnContext = await buildTurnContext({
+    runtime,
+    descriptor,
+    currentMessage: previewMessage,
+    preview: true,
+  });
+  const text = renderTurnContext(turnContext);
+
+  if (values.json) {
+    console.log(JSON.stringify({ ...turnContext, text }, null, 2));
+  } else {
+    console.log(text);
+  }
+  return 0;
+}
 
 type SourceKind = "file" | "directory" | "command" | "runtime";
 
@@ -449,13 +501,13 @@ async function runCommandContextSource(
     timeout: command.timeoutMs,
     env: {
       ...process.env,
-      SHRIMPY_BRIEFING_AGENT: input.agentId,
-      SHRIMPY_BRIEFING_CHANNEL: input.channel ?? "",
-      SHRIMPY_BRIEFING_SESSION_TYPE: input.channel ? "gateway" : "preview",
+      SHRIMPY_CONTEXT_AGENT: input.agentId,
+      SHRIMPY_CONTEXT_CHANNEL: input.channel ?? "",
+      SHRIMPY_CONTEXT_SESSION_TYPE: input.channel ? "gateway" : "preview",
     },
     maxBuffer: Math.max(command.maxChars * 4, 4096),
   });
-  return clipBriefingWithMarker(stdout.trim(), command.maxChars);
+  return clipContextWithMarker(stdout.trim(), command.maxChars);
 }
 
 async function renderRuntimeTurnContext(input: {

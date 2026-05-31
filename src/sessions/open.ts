@@ -410,7 +410,7 @@ function wrapPromptPreparation(
   plan: SessionOpenPlan,
 ): void {
   // Wrap session.prompt once so direct runs and Pi's InteractiveMode can use
-  // the same briefing prefix path as routed sessions. Slash commands stay raw
+  // the same turn-context prefix path as routed sessions. Slash commands stay raw
   // so Pi can intercept them before normal prompt handling.
   const originalPrompt = session.prompt.bind(session);
   session.prompt = async (text, options) => {

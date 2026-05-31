@@ -78,7 +78,7 @@ closes it.
 - Persist worker metadata and enough transcript/process state for later
   inspection after the parent session exits.
 - Store detailed worker logs for audit/debugging and maintain a compact Markdown
-  summary for briefing, listing, and later review. The summary should be refreshed
+  summary for turn context, listing, and later review. The summary should be refreshed
   as the worker changes state and finalized when the parent closes the worker.
 - Support the normal review loop: when a worker reports that the spec is complete,
   the parent is notified with the worker id and summary; if the user asks for
@@ -87,7 +87,7 @@ closes it.
 - Ensure every external worker process is supervised for its whole lifetime:
   Shrimpy must be able to stop it, observe exit, record final state, and clean it
   up during normal shutdown.
-- Surface worker status in session-status and turn-briefing context so agents can
+- Surface worker status in session-status and turn context so agents can
   autonomously notice blocked, running, failed, and completed work.
 - Scope workers to an owning agent, and record enough lineage for relevance:
   parent session, session kind, optional originating channel, optional return
@@ -95,7 +95,7 @@ closes it.
 - Start with a simple ownership rule: an agent manages the workers it starts.
   Do not design flows for one agent managing another agent's workers until there
   is a concrete need.
-- Filter worker briefing entries so an agent sees workers it owns, with emphasis
+- Filter worker turn context entries so an agent sees workers it owns, with emphasis
   on workers linked to the current session and, when present, current channel;
   unrelated workers should stay available through explicit inspection commands
   rather than appearing in every turn.
@@ -117,7 +117,7 @@ closes it.
 - Do not require external coding-agent CLIs for Shrimpy to keep working.
 - Do not invent a second channel system; when a worker needs a channel return
   path, use normal Shrimpy channels. Otherwise, keep status, summaries, and logs
-  available through worker inspection commands and parent-session briefings.
+  available through worker inspection commands and parent-session turn-context items.
 - Do not design isolated git worktree ownership in this slice. Workers run in the
   cwd they are given; worktree strategy can be a separate backlog item later.
 - Do not add legacy aliases once the worker-session interface replaces
@@ -136,7 +136,7 @@ closes it.
 - Related: the completed effective capability view should expose and enforce
   worker-control tools.
 - Related: [CTX-007](ctx-007.md) should include worker/session status in compact
-  briefings.
+  turn-context items.
 - Related: [WAIT-001](wait-001-durable-agent-waits.md) should provide durable
   continuation for "wait until this worker is done, then wake me" flows across
   both channel and TUI/direct sessions.
@@ -165,7 +165,7 @@ closes it.
   requested goals without waiting for hand-holding, stop and report when blocked,
   avoid destructive actions, and defer parent-owned decisions such as merging,
   publishing, deleting, resetting, or broad rewrites.
-- Worker briefing relevance likely needs tiers: current parent session first,
+- Worker turn context relevance likely needs tiers: current parent session first,
   current channel/return channel next when a channel exists, other active
   workers owned by the same agent as a compact count or summary, and cross-agent
   workers only when explicitly addressed or requested.
@@ -191,13 +191,13 @@ closes it.
   cleanup and workspace-heartbeat protection against dangling processes.
 - External worker processes are supervised, terminated or reattached on restart,
   and never left running without Shrimpy knowing how to clean them up.
-- Turn briefings make worker relevance clear enough that an agent with multiple
+- Turn context make worker relevance clear enough that an agent with multiple
   active sessions can tell which workers matter to the current turn.
 - Worker backend types exist for Codex, Claude Code, and Pi, with at least one
   backend implemented end to end and the others represented by explicit
   availability/status errors until implemented.
 - Worker session prompts include the shared autonomy and non-destructive action
   contract.
-- Worker state appears in relevant session-status and turn-briefing context.
+- Worker state appears in relevant session-status and turn context.
 - Tests cover lifecycle, persistence, cancellation, restart inspection, and
   agent tool output shapes.

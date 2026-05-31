@@ -4,6 +4,7 @@ import {
   executeSessionThinkingAction,
   inspectSessionCompactionPolicy,
   summarizeAgentSessions,
+  summarizeSessionStatus,
 } from "../sessions/index.js";
 import {
   formatThinkingInputs,
@@ -73,10 +74,16 @@ async function listSessions({ argv, config, usage: usageText }: CommandInvocatio
     agentId: values.agent,
     channel,
   });
+  const status = channel
+    ? undefined
+    : summarizeSessionStatus(runtime, {
+      agentId: values.agent,
+      staleAfterMs: runtime.resolved.context.turn.sessionStatus.staleAfterMinutes * 60_000,
+    });
   if (values.json) {
-    console.log(JSON.stringify(summary, null, 2));
+    console.log(JSON.stringify(status ? { ...summary, status } : summary, null, 2));
   } else {
-    printSessionListing(summary);
+    printSessionListing(summary, status);
   }
   return 0;
 }

@@ -8,6 +8,7 @@ export * from "./turn/envelope.js";
 export * from "./turn/facts.js";
 export * from "./turn/render.js";
 export * from "./turn/scheduler.js";
+export * from "./turn/session-status.js";
 export * from "./turn/service.js";
 export * from "./turn/state.js";
 export * from "./turn/surface.js";

@@ -3,7 +3,7 @@ import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-age
 import type { ChannelMessage } from "../channels/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import {
-  composePromptWithBriefing,
+  composePromptWithContext,
   formatChannelMessage,
   renderTurnContext,
   type TurnContext,
@@ -44,7 +44,7 @@ interface SessionRegistryOpts {
   sessionFactory?: typeof openSession;
   planForChannel?: (channel: string) => SessionOpenPlan;
   tools?: ToolDefinition[];
-  turnBriefingForMessage?: (
+  turnContextForMessage?: (
     channel: string,
     message: ChannelMessage,
   ) => TurnContext | Promise<TurnContext>;
@@ -61,7 +61,7 @@ export class SessionRegistry {
   private readonly sessionFactory: typeof openSession;
   private readonly planForChannel: (channel: string) => SessionOpenPlan;
   private readonly tools: ToolDefinition[];
-  private readonly turnBriefingForMessage?: (
+  private readonly turnContextForMessage?: (
     channel: string,
     message: ChannelMessage,
   ) => TurnContext | Promise<TurnContext>;
@@ -85,7 +85,7 @@ export class SessionRegistry {
       tools: opts?.tools,
     }));
     this.tools = opts?.tools ?? [];
-    this.turnBriefingForMessage = opts?.turnBriefingForMessage;
+    this.turnContextForMessage = opts?.turnContextForMessage;
     this.markMessageHandled = opts?.markMessageHandled;
   }
 
@@ -229,12 +229,12 @@ export class SessionRegistry {
     message: ChannelMessage,
   ): Promise<void> {
     const promptBody = formatChannelMessage(channel, message);
-    const briefing = this.turnBriefingForMessage
-      ? await this.turnBriefingForMessage(channel, message)
+    const turnContext = this.turnContextForMessage
+      ? await this.turnContextForMessage(channel, message)
       : undefined;
-    const prompt = composePromptWithBriefing(
+    const prompt = composePromptWithContext(
       promptBody,
-      briefing ? renderTurnContext(briefing) : undefined,
+      turnContext ? renderTurnContext(turnContext) : undefined,
     );
     const session = await this.ensureSession(managed);
 

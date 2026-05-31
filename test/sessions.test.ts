@@ -77,7 +77,7 @@ function createRegistry(
   sessionFactory: ReturnType<typeof createSessionFactory>,
   workspacePath?: string,
   opts?: {
-    turnBriefingForMessage?: ConstructorParameters<typeof SessionRegistry>[1]["turnBriefingForMessage"];
+    turnContextForMessage?: ConstructorParameters<typeof SessionRegistry>[1]["turnContextForMessage"];
   },
 ) {
   const bootstrap = createFakeBootstrap(workspacePath);
@@ -89,7 +89,7 @@ function createRegistry(
         channel,
       }),
     }),
-    turnBriefingForMessage: opts?.turnBriefingForMessage,
+    turnContextForMessage: opts?.turnContextForMessage,
   });
 }
 
@@ -299,10 +299,10 @@ describe("SessionRegistry", () => {
     ]);
   });
 
-  test("injects turn briefing before the channel message", async () => {
+  test("injects turn context before the channel message", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const registry = createRegistry(sessionFactory, undefined, {
-      turnBriefingForMessage: () => ({
+      turnContextForMessage: () => ({
         agentId: "shrimpy",
         channel: "telegram~shrimpy~1",
         sessionType: "gateway",
@@ -322,7 +322,7 @@ describe("SessionRegistry", () => {
     assert.equal(sessionFactory.sessions[0].prompts.length, 1);
     assert.match(
       sessionFactory.sessions[0].prompts[0],
-      /^<context>\n\[briefing\]/,
+      /^<context>\n\[turn-context\]/,
     );
     assert.match(
       sessionFactory.sessions[0].prompts[0],
@@ -331,7 +331,7 @@ describe("SessionRegistry", () => {
     assert.doesNotMatch(sessionFactory.sessions[0].prompts[0], /\[incoming\]/);
   });
 
-  test("renders turn briefing text from structured data", () => {
+  test("renders turn context text from structured data", () => {
     const text = renderTurnContext({
       agentId: "shrimpy",
       channel: "telegram~shrimpy~1",
@@ -346,7 +346,7 @@ describe("SessionRegistry", () => {
     });
 
     assert.equal(text, [
-      "[briefing]",
+      "[turn-context]",
       "time: Wed, 04/29/2026, 12:00 AM EDT",
       "agent: shrimpy",
       "session: gateway channel: telegram~shrimpy~1",

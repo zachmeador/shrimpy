@@ -6,7 +6,7 @@ import {
 } from "../../util/json-file.js";
 import type { TurnContextItem } from "./types.js";
 
-export interface BriefingState {
+export interface ContextState {
   channels: Record<string, { lastSeenMessageId?: string }>;
   commands: Record<string, {
     lastRunAt?: number;
@@ -14,14 +14,14 @@ export interface BriefingState {
   }>;
 }
 
-function emptyState(): BriefingState {
+function emptyState(): ContextState {
   return {
     channels: {},
     commands: {},
   };
 }
 
-function parseState(raw: unknown): BriefingState {
+function parseState(raw: unknown): ContextState {
   const parsed = typeof raw === "object" && raw !== null && !Array.isArray(raw)
     ? raw as Record<string, unknown>
     : {};
@@ -67,27 +67,27 @@ function parseState(raw: unknown): BriefingState {
   };
 }
 
-export function briefingStatePath(runtime: AppRuntime, agentId: string): string {
-  return join(runtime.paths.runtimeBriefingsDir, `${agentId}.json`);
+export function contextStatePath(runtime: AppRuntime, agentId: string): string {
+  return join(runtime.paths.runtimeContextDir, `${agentId}.json`);
 }
 
-export function readBriefingState(
+export function readContextState(
   runtime: AppRuntime,
   agentId: string,
-): BriefingState {
+): ContextState {
   return readJsonFile(
-    briefingStatePath(runtime, agentId),
+    contextStatePath(runtime, agentId),
     emptyState,
     parseState,
   );
 }
 
-export function writeBriefingState(
+export function writeContextState(
   runtime: AppRuntime,
   agentId: string,
-  state: BriefingState,
+  state: ContextState,
 ): void {
-  writeJsonFileAtomic(briefingStatePath(runtime, agentId), state);
+  writeJsonFileAtomic(contextStatePath(runtime, agentId), state);
 }
 
 function parseItems(raw: unknown): TurnContextItem[] | undefined {
@@ -114,7 +114,7 @@ export function markChannelSeen(
   channel: string,
   messageId: string,
 ): void {
-  const state = readBriefingState(runtime, agentId);
+  const state = readContextState(runtime, agentId);
   state.channels[channel] = { lastSeenMessageId: messageId };
-  writeBriefingState(runtime, agentId, state);
+  writeContextState(runtime, agentId, state);
 }

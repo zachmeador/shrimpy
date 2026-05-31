@@ -5,7 +5,7 @@ import {
 import type { AppRuntime } from "../app/runtime.js";
 import { buildTurnContext } from "../context/index.js";
 import {
-  composePromptWithBriefing,
+  composePromptWithContext,
   renderTurnContext,
   type PromptResourceRef,
 } from "../context/index.js";
@@ -111,11 +111,11 @@ export async function openDirectAgentSession(
       skills: input.skills,
     },
     preparePrompt: async (text) => {
-      const briefing = await buildTurnContext({
+      const turnContext = await buildTurnContext({
         runtime: input.runtime,
         descriptor,
       });
-      return composePromptWithBriefing(text, renderTurnContext(briefing));
+      return composePromptWithContext(text, renderTurnContext(turnContext));
     },
     model,
     toolPolicy: sessionToolPolicy,
@@ -125,7 +125,6 @@ export async function openDirectAgentSession(
       agentId: agent.id,
       toolNames: toolPolicy.daemonToolNames,
       toolPolicy: sessionToolPolicy,
-      activeChannel: input.channel,
     }),
   });
 
@@ -218,11 +217,11 @@ async function runAgentTuiSession(
       skills: input.skills,
     },
     preparePrompt: async (text) => {
-      const briefing = await buildTurnContext({
+      const turnContext = await buildTurnContext({
         runtime: input.runtime,
         descriptor,
       });
-      return composePromptWithBriefing(text, renderTurnContext(briefing));
+      return composePromptWithContext(text, renderTurnContext(turnContext));
     },
     model,
     toolPolicy: sessionToolPolicy,
@@ -232,7 +231,6 @@ async function runAgentTuiSession(
       agentId: agent.id,
       toolNames: toolPolicy.daemonToolNames,
       toolPolicy: sessionToolPolicy,
-      activeChannel: input.channel,
     }),
   });
 

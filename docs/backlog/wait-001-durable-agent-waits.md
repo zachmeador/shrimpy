@@ -55,11 +55,11 @@ session.
   and route the wake through the origin target.
 - Include the final check result, elapsed time, original wait reason, and any
   timeout/cancel context in the wake turn. Keep the wake compact enough to fit in
-  normal turn briefings.
+  normal turn context.
 - Support timeout and cancellation. Timeout policy should be explicit: wake on
   timeout, silently expire, or mark failed for inspection.
 - Surface pending, ready, timed-out, failed, and cancelled waits through status
-  and briefing context so agents can reason about outstanding continuations.
+  and turn context so agents can reason about outstanding continuations.
 - Keep enough delivered/completed wait history for inspection without growing
   runtime state unbounded.
 
@@ -88,7 +88,7 @@ session.
 - Related: the completed effective tool capability view should make `wait_for`
   visible and enforceable.
 - Related: [CTX-007](ctx-007.md) should include pending/resolved waits in compact
-  session-status briefings.
+  session-status turn-context items.
 - Related: completed scheduler status work keeps heartbeat/status concepts generic;
   durable waits should reuse generic runtime scheduling concepts without becoming
   another heartbeat control plane.
@@ -115,7 +115,7 @@ session.
 - Waits can be listed, inspected, cancelled, and manually advanced from CLI.
 - Wait state records owner, origin target, check result, status, timing, timeout,
   and delivery outcome.
-- Turn briefings/status surfaces make relevant pending and resolved waits visible
+- Turn context/status surfaces make relevant pending and resolved waits visible
   without replaying raw transcripts.
 - Tests cover channel wake delivery, TUI/direct pending wake delivery, timeout,
   cancellation, false check no-op behavior, and true check exactly-once wake.

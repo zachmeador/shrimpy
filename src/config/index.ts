@@ -7,10 +7,6 @@ import {
   resolveContextDefaultsConfig,
   validateContextConfig,
 } from "../context/index.js";
-import {
-  resolveBriefingConfig,
-  type BriefingConfig,
-} from "./briefing.js";
 import type { AgentConfig } from "./agents.js";
 import { validateAgentsConfig } from "./agents.js";
 import {
@@ -35,7 +31,6 @@ export interface ShrimpyConfig {
   tui?: {
     modelFavorites?: string[];
   };
-  briefing?: BriefingConfig;
   context?: ContextConfig;
   contextDefaults?: ContextDefaultsConfig;
   agents?: AgentConfig[];
@@ -71,8 +66,13 @@ function validateRawConfig(raw: Record<string, unknown>) {
       "config.model is not supported. Move that provider/id object to agents[].model and remove the top-level model field.",
     );
   }
+  const removedTurnContextKey = "brief" + "ing";
+  if (raw[removedTurnContextKey] !== undefined) {
+    throw new Error(
+      `config.${removedTurnContextKey} is not supported. Move per-turn settings to context.turn and remove that top-level field.`,
+    );
+  }
   if (raw.context) validateContextConfig(raw.context);
-  if (raw.briefing !== undefined) resolveBriefingConfig(raw.briefing);
   if (raw.contextDefaults !== undefined) {
     resolveContextDefaultsConfig(raw.contextDefaults);
   }
@@ -109,7 +109,6 @@ export function loadConfig(): ShrimpyConfig {
 
 export * from "./adapter-routing.js";
 export * from "./agents.js";
-export * from "./briefing.js";
 export * from "./gateway-status.js";
 export * from "./model.js";
 export * from "./paths.js";

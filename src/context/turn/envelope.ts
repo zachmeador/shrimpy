@@ -1,13 +1,13 @@
 const CONTEXT_OPEN_TAG = "<context>";
 const CONTEXT_CLOSE_TAG = "</context>";
 
-export function composePromptWithBriefing(
+export function composePromptWithContext(
   body: string,
-  briefingText?: string,
+  contextText?: string,
 ): string {
-  const briefing = briefingText?.trim();
-  return briefing
-    ? `${CONTEXT_OPEN_TAG}\n${briefing}\n${CONTEXT_CLOSE_TAG}\n\n${body}`
+  const context = contextText?.trim();
+  return context
+    ? `${CONTEXT_OPEN_TAG}\n${context}\n${CONTEXT_CLOSE_TAG}\n\n${body}`
     : body;
 }
 
@@ -20,7 +20,7 @@ export function isPromptAlreadyPrepared(body: string): boolean {
   return body.startsWith(CONTEXT_OPEN_TAG) || body.startsWith("/");
 }
 
-export function stripPromptBriefingForDisplay(text: string): string {
+export function stripPromptContextForDisplay(text: string): string {
   if (!text.startsWith(CONTEXT_OPEN_TAG)) return text;
 
   const closeIndex = text.indexOf(CONTEXT_CLOSE_TAG);

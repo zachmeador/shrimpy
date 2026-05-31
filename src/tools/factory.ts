@@ -14,7 +14,7 @@ interface BuildRuntimeToolsOpts {
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
   actorId?: string;
-  activeChannel?: string;
+  activePublicationChannel?: string;
 }
 
 export function buildRuntimeTools(
@@ -26,7 +26,7 @@ export function buildRuntimeTools(
     toolConfig: opts.toolConfig,
     agentId: opts.agentId,
     sendMessageActorId: opts.actorId,
-    activeChannel: opts.activeChannel,
+    activePublicationChannel: opts.activePublicationChannel,
     toolNames: opts.toolNames,
     toolPolicy: opts.toolPolicy,
   });

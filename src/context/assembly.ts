@@ -8,7 +8,7 @@ import {
 } from "./resources.js";
 import {
   isDirectoryResource,
-  type ContextConfig,
+  type ResolvedContextConfig,
   findContextViewOverrides,
   parseContextResource,
 } from "./spec.js";
@@ -54,7 +54,7 @@ export function collectPromptSections(inputs: PromptSectionInput[]): PromptSecti
 export function assembleBasePromptSections(
   agentRootPath: string,
   workspacePath: string,
-  ctx: Required<ContextConfig>,
+  ctx: ResolvedContextConfig,
   opts?: {
     extraResources?: PromptResourceRef[];
     extraText?: string;
@@ -87,7 +87,7 @@ export function assembleBasePromptSections(
 export function assembleContextViewSections(
   agentRootPath: string,
   workspacePath: string,
-  ctx: Required<ContextConfig>,
+  ctx: ResolvedContextConfig,
   channel?: string,
   agentId?: string,
 ): PromptSection[] {
@@ -177,7 +177,25 @@ export function buildSystemEnvSections(opts: {
         "- Plain assistant text stays in this private session transcript. It is not sent to the channel.",
         "- To publish to the user on this channel, call reply(text), ask(text), notify(text), or report(summary).",
         `- For explicit routing or unusual cases, call send_message(channel=\"${opts.channel}\", text=\"...\").`,
-        "- After a publication or send_message tool says the message was delivered, wait until a new message is received.",
+        "- A successful publication normally completes your response for this channel turn; do not also answer the same user with plain assistant text.",
+        "- After a publication or routed send_message tool says the message was delivered, wait until a new message is received.",
+      ].join("\n"),
+    });
+  } else if (opts.sessionType === "tui" || opts.sessionType === "run") {
+    sections.push({
+      id: "session:direct_delivery",
+      title: "Direct Session Delivery",
+      kind: "runtime",
+      source: "runtime",
+      reason: "Direct local sessions answer in the session transcript",
+      content: [
+        "## Direct Session Delivery",
+        "",
+        `This is a direct ${opts.sessionType} session. The user sees ordinary assistant text in this transcript.`,
+        "",
+        "- Answer the current conversation with normal assistant messages.",
+        "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are only for gateway/channel turns.",
+        "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel or agent DM.",
       ].join("\n"),
     });
   }
@@ -186,7 +204,7 @@ export function buildSystemEnvSections(opts: {
 }
 
 export function resolveContextEnvKeys(
-  ctx: Required<ContextConfig>,
+  ctx: ResolvedContextConfig,
   channel?: string,
   agentId?: string,
 ): string[] {

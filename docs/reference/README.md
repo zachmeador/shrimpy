@@ -8,10 +8,10 @@ Current behavior and settled design direction of Shrimpy.
 - [design.md](design.md) — philosophy, settled decisions, and active architecture reconsiderations.
 - [architecture.md](architecture.md) — primitives, layering, and the boundaries that hold today.
 - [runtime.md](runtime.md) — CLI sessions, gateway dispatch, scheduler runs, child runs.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
+- [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn context envelope.
 - [memory.md](memory.md) — memory model, upkeep, and continuity aspiration.
 - [skills.md](skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
-- [briefing.md](briefing.md) — per-turn briefing items and config.
+- [turn-context.md](turn-context.md) — per-turn context items and config.
 - [compaction.md](compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [cli.md](cli.md) — command surface.
 - [configuration.md](configuration.md) — workspace config files and their fields.

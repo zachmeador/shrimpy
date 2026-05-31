@@ -13,7 +13,7 @@ export interface WorkspacePaths {
   stateDir: string;
   runtimeDir: string;
   runtimeCursorsDir: string;
-  runtimeBriefingsDir: string;
+  runtimeContextDir: string;
   runtimePidsDir: string;
   piStateDir: string;
   authPath: string;
@@ -57,7 +57,7 @@ export function createWorkspacePaths(
     stateDir: join(workspace, "state"),
     runtimeDir: join(workspace, "runtime"),
     runtimeCursorsDir: join(workspace, "runtime", "cursors"),
-    runtimeBriefingsDir: join(workspace, "runtime", "briefings"),
+    runtimeContextDir: join(workspace, "runtime", "context"),
     runtimePidsDir: join(workspace, "runtime", "pids"),
     piStateDir: join(workspace, "state", "pi"),
     authPath: join(workspace, "state", "pi", "auth.json"),

@@ -5,19 +5,17 @@ import { ChannelMembershipStore } from "../channels/membership.js";
 import {
   type ResolvedAdapterRoutingConfig,
   type ResolvedAgentConfig,
-  type ResolvedBriefingConfig,
   type ResolvedGatewayStatusConfig,
   type RuntimeConfig,
   type ShrimpyConfig,
   resolveAdapterRoutingConfig,
   resolveAgentsConfig,
-  resolveBriefingConfig,
   resolveGatewayStatusConfig,
   resolveRuntimeConfig,
   resolveToolRuntimeConfig,
 } from "../config/index.js";
 import {
-  type ContextConfig,
+  type ResolvedContextConfig,
   type PromptResourceRef,
   resolveContextConfig,
 } from "../context/index.js";
@@ -50,8 +48,7 @@ import {
 export interface ResolvedAppConfig {
   agents: ResolvedAgentConfig[];
   adapterRouting: ResolvedAdapterRoutingConfig;
-  briefing: ResolvedBriefingConfig;
-  context: Required<ContextConfig>;
+  context: ResolvedContextConfig;
   runtime: Required<RuntimeConfig>;
   status: ResolvedGatewayStatusConfig;
   surfaces: Record<string, SurfaceModuleResolved>;
@@ -65,7 +62,7 @@ export interface AppRuntimeBuildToolsOpts {
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
   actorId?: string;
-  activeChannel?: string;
+  activePublicationChannel?: string;
 }
 
 export class AppRuntime {
@@ -91,7 +88,6 @@ export class AppRuntime {
     this.resolved = {
       agents,
       adapterRouting: resolveAdapterRoutingConfig(config.adapters, surfaceRoutes),
-      briefing: resolveBriefingConfig(config.briefing),
       context: resolveContextConfig(config.context, config.contextDefaults),
       runtime: resolveRuntimeConfig(config.runtime),
       status: resolveGatewayStatusConfig(config.status),
@@ -184,7 +180,7 @@ export class AppRuntime {
       toolNames: opts.toolNames,
       toolPolicy: opts.toolPolicy,
       actorId: opts.actorId,
-      activeChannel: opts.activeChannel,
+      activePublicationChannel: opts.activePublicationChannel,
     });
   }
 

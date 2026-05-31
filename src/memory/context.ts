@@ -1,5 +1,5 @@
 /**
- * Memory briefing — the per-turn slice of agent context.
+ * Memory context — the per-turn slice of agent context.
  *
  * Path-indexed: for the active turn, load agents/<id>/context/people/<sender>.md
  * and agents/<id>/context/channels/<channel>.md if they exist. No section
@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AppRuntime } from "../app/runtime.js";
 
-export interface MemoryBriefingInput {
+export interface MemoryContextInput {
   runtime: AppRuntime;
   agentId: string;
   channel?: string;
@@ -27,13 +27,13 @@ export interface MemoryTurnContextItem {
   body: string;
 }
 
-export interface MemoryBriefing {
+export interface MemoryContext {
   agentId: string;
   channel?: string;
   items: MemoryTurnContextItem[];
 }
 
-export function buildMemoryBriefing(input: MemoryBriefingInput): MemoryBriefing {
+export function buildMemoryContext(input: MemoryContextInput): MemoryContext {
   const { runtime, agentId, channel, peerIds = [] } = input;
   const agentRoot = safeAgentRoot(runtime, agentId);
   const items: MemoryTurnContextItem[] = [];
@@ -77,12 +77,12 @@ function sanitize(id: string): string {
   return id.replaceAll(/[^A-Za-z0-9_.-]+/g, "-");
 }
 
-export function renderMemoryBriefing(briefing: MemoryBriefing): string {
-  if (briefing.items.length === 0) return "";
+export function renderMemoryContext(context: MemoryContext): string {
+  if (context.items.length === 0) return "";
 
   const blocks: string[] = [];
-  for (const item of briefing.items) {
+  for (const item of context.items) {
     blocks.push([`### ${item.key}`, `*${item.source}* — ${item.path}`, item.body].join("\n"));
   }
-  return ["## Memory Briefing", "", ...blocks].join("\n\n");
+  return ["## Memory Context", "", ...blocks].join("\n\n");
 }

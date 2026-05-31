@@ -17,6 +17,44 @@ export interface ContextAgentOverride {
   channels?: Record<string, ContextChannelOverride>;
 }
 
+export interface ContextTurnChannelUnreadConfig {
+  enabled?: boolean;
+  channels?: string[];
+  includeLatest?: boolean;
+}
+
+export interface ContextTurnSessionStatusConfig {
+  enabled?: boolean;
+  staleAfterMinutes?: number;
+}
+
+export interface ContextTurnConfig {
+  maxChars?: number;
+  channelUnread?: ContextTurnChannelUnreadConfig;
+  sessionStatus?: ContextTurnSessionStatusConfig;
+}
+
+export interface ResolvedContextTurnConfig {
+  maxChars: number;
+  channelUnread: {
+    enabled: boolean;
+    channels: string[];
+    includeLatest: boolean;
+  };
+  sessionStatus: {
+    enabled: boolean;
+    staleAfterMinutes: number;
+  };
+}
+
+export interface ResolvedContextConfig {
+  sources: ContextSourceConfig[];
+  env: string[];
+  channels: Record<string, ContextChannelOverride>;
+  agents: Record<string, ContextAgentOverride>;
+  turn: ResolvedContextTurnConfig;
+}
+
 export type ContextResourceScope = "workspace" | "agent";
 
 export interface ParsedContextResource {
@@ -29,6 +67,7 @@ export interface ContextConfig {
   env?: string[];
   channels?: Record<string, ContextChannelOverride>;
   agents?: Record<string, ContextAgentOverride>;
+  turn?: ContextTurnConfig;
 }
 
 export interface ContextDefaultsConfig {
@@ -83,6 +122,101 @@ function validateSourceList(
     throw new Error(`${key} must be an array of context sources`);
   }
   return value.map((item, index) => validateSource(item, `${key}[${index}]`));
+}
+
+function validatePositiveInteger(
+  value: unknown,
+  key: string,
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || (value as number) < 1) {
+    throw new Error(`${key} must be a positive integer`);
+  }
+  return value as number;
+}
+
+function validateBoolean(value: unknown, key: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "boolean") {
+    throw new Error(`${key} must be a boolean`);
+  }
+  return value;
+}
+
+function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("context.turn must be an object");
+  }
+
+  const obj = value as Record<string, unknown>;
+  const allowed = new Set(["maxChars", "channelUnread", "sessionStatus"]);
+  for (const key of Object.keys(obj)) {
+    if (!allowed.has(key)) {
+      throw new Error(`unknown key in context.turn: "${key}"`);
+    }
+  }
+
+  const maxChars = validatePositiveInteger(obj.maxChars, "context.turn.maxChars");
+  const channelUnread = validateContextTurnChannelUnreadConfig(obj.channelUnread);
+  const sessionStatus = validateContextTurnSessionStatusConfig(obj.sessionStatus);
+
+  return {
+    ...(maxChars !== undefined ? { maxChars } : {}),
+    ...(channelUnread !== undefined ? { channelUnread } : {}),
+    ...(sessionStatus !== undefined ? { sessionStatus } : {}),
+  };
+}
+
+function validateContextTurnChannelUnreadConfig(
+  value: unknown,
+): ContextTurnChannelUnreadConfig | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("context.turn.channelUnread must be an object");
+  }
+
+  const obj = value as Record<string, unknown>;
+  const allowed = new Set(["enabled", "channels", "includeLatest"]);
+  for (const key of Object.keys(obj)) {
+    if (!allowed.has(key)) {
+      throw new Error(`unknown key in context.turn.channelUnread: "${key}"`);
+    }
+  }
+
+  return {
+    enabled: validateBoolean(obj.enabled, "context.turn.channelUnread.enabled"),
+    channels: validateStringList(obj.channels, "context.turn.channelUnread.channels"),
+    includeLatest: validateBoolean(
+      obj.includeLatest,
+      "context.turn.channelUnread.includeLatest",
+    ),
+  };
+}
+
+function validateContextTurnSessionStatusConfig(
+  value: unknown,
+): ContextTurnSessionStatusConfig | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("context.turn.sessionStatus must be an object");
+  }
+
+  const obj = value as Record<string, unknown>;
+  const allowed = new Set(["enabled", "staleAfterMinutes"]);
+  for (const key of Object.keys(obj)) {
+    if (!allowed.has(key)) {
+      throw new Error(`unknown key in context.turn.sessionStatus: "${key}"`);
+    }
+  }
+
+  return {
+    enabled: validateBoolean(obj.enabled, "context.turn.sessionStatus.enabled"),
+    staleAfterMinutes: validatePositiveInteger(
+      obj.staleAfterMinutes,
+      "context.turn.sessionStatus.staleAfterMinutes",
+    ),
+  };
 }
 
 function validateSource(item: unknown, key: string): ContextSourceConfig {
@@ -198,6 +332,7 @@ export function validateContextConfig(ctx: unknown): ContextConfig {
     "env",
     "channels",
     "agents",
+    "turn",
   ]);
 
   for (const key of Object.keys(obj)) {
@@ -208,6 +343,7 @@ export function validateContextConfig(ctx: unknown): ContextConfig {
 
   validateSourceList(obj.sources, "context.sources");
   validateEnvKeyList(obj.env, "context.env");
+  const turn = validateContextTurnConfig(obj.turn);
 
   if (obj.channels !== undefined) {
     validateChannelOverrides(obj.channels, "context.channels");
@@ -251,7 +387,13 @@ export function validateContextConfig(ctx: unknown): ContextConfig {
     }
   }
 
-  return obj as ContextConfig;
+  return {
+    ...(obj.sources !== undefined ? { sources: validateSourceList(obj.sources, "context.sources") } : {}),
+    ...(obj.env !== undefined ? { env: validateEnvKeyList(obj.env, "context.env") } : {}),
+    ...(obj.channels !== undefined ? { channels: obj.channels as Record<string, ContextChannelOverride> } : {}),
+    ...(obj.agents !== undefined ? { agents: obj.agents as Record<string, ContextAgentOverride> } : {}),
+    ...(turn !== undefined ? { turn } : {}),
+  };
 }
 
 function validateChannelOverrides(value: unknown, key: string): void {
@@ -289,7 +431,7 @@ function validateChannelOverrides(value: unknown, key: string): void {
 export function resolveContextConfig(
   raw?: unknown,
   defaultsRaw?: unknown,
-): Required<ContextConfig> {
+): ResolvedContextConfig {
   const defaults = resolveContextDefaultsConfig(defaultsRaw);
   if (!raw) {
     return {
@@ -297,6 +439,7 @@ export function resolveContextConfig(
       env: [...defaults.env],
       channels: {},
       agents: {},
+      turn: resolveContextTurnConfig(),
     };
   }
 
@@ -306,6 +449,24 @@ export function resolveContextConfig(
     env: validated.env ?? defaults.env,
     channels: validated.channels ?? {},
     agents: validated.agents ?? {},
+    turn: resolveContextTurnConfig(validated.turn),
+  };
+}
+
+export function resolveContextTurnConfig(
+  raw?: ContextTurnConfig,
+): ResolvedContextTurnConfig {
+  return {
+    maxChars: raw?.maxChars ?? 2000,
+    channelUnread: {
+      enabled: raw?.channelUnread?.enabled ?? true,
+      channels: raw?.channelUnread?.channels ?? ["*"],
+      includeLatest: raw?.channelUnread?.includeLatest ?? true,
+    },
+    sessionStatus: {
+      enabled: raw?.sessionStatus?.enabled ?? true,
+      staleAfterMinutes: raw?.sessionStatus?.staleAfterMinutes ?? 12 * 60,
+    },
   };
 }
 
@@ -323,7 +484,7 @@ export function findChannelOverrides(
 }
 
 export function findContextViewOverrides(
-  ctx: Required<ContextConfig>,
+  ctx: ResolvedContextConfig,
   opts?: {
     agentId?: string;
     channel?: string;

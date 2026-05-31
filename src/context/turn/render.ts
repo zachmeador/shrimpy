@@ -1,35 +1,35 @@
-import { renderMemoryBriefing } from "../../memory/briefing.js";
+import { renderMemoryContext } from "../../memory/context.js";
 import type { TurnContext } from "./types.js";
 
 export function renderTurnContext(
-  briefing: TurnContext,
-  maxChars = briefing.maxChars,
+  context: TurnContext,
+  maxChars = context.maxChars,
 ): string {
   const lines = [
-    "[briefing]",
-    `time: ${briefing.capturedAt}`,
-    `agent: ${briefing.agentId}`,
-    `session: ${briefing.sessionType}${briefing.channel ? ` channel: ${briefing.channel}` : ""}`,
+    "[turn-context]",
+    `time: ${context.capturedAt}`,
+    `agent: ${context.agentId}`,
+    `session: ${context.sessionType}${context.channel ? ` channel: ${context.channel}` : ""}`,
   ];
 
-  if (briefing.items.length === 0) {
-    lines.push("- no briefing items");
+  if (context.items.length === 0) {
+    lines.push("- no turn-context items");
   } else {
-    for (const item of briefing.items) {
+    for (const item of context.items) {
       lines.push(`- ${item.summary}`);
       if (item.inspect) lines.push(`  inspect: ${item.inspect}`);
     }
   }
 
-  if (briefing.memory) {
-    const memoryBlock = renderMemoryBriefing(briefing.memory);
+  if (context.memory) {
+    const memoryBlock = renderMemoryContext(context.memory);
     if (memoryBlock) lines.push("", memoryBlock);
   }
 
-  return clipBriefingWithMarker(lines.join("\n"), maxChars);
+  return clipContextWithMarker(lines.join("\n"), maxChars);
 }
 
-export function clipBriefingWithMarker(text: string, maxChars: number): string {
+export function clipContextWithMarker(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
-  return `${text.slice(0, Math.max(0, maxChars - 28)).trimEnd()}\n[briefing truncated]`;
+  return `${text.slice(0, Math.max(0, maxChars - 32)).trimEnd()}\n[turn-context truncated]`;
 }

@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { InteractiveMode } from "@earendil-works/pi-coding-agent";
-import { stripPromptBriefingForDisplay } from "../context/index.js";
+import { stripPromptContextForDisplay } from "../context/index.js";
 
 interface AddMessageOptions {
   populateHistory?: boolean;
@@ -72,7 +72,7 @@ export function installShrimpyContextRendering(
 }
 
 export function stripLeadingContextBlockForDisplay(text: string): string {
-  return stripPromptBriefingForDisplay(text);
+  return stripPromptContextForDisplay(text);
 }
 
 function collapseUserContextForDisplay(message: AgentMessage): AgentMessage {

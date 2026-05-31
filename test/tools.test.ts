@@ -80,7 +80,7 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Logged to unknown-1 (no adapter for delivery). Wait until a new message is received.",
+      "Logged to unknown-1 (no adapter for delivery).",
     );
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "unknown-1"));
@@ -117,7 +117,7 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Delivered to the user on telegram-123. Wait until a new message is received.",
+      "Delivered to the user on telegram-123.",
     );
     assert.deepEqual(delivered, [
       { channel: "telegram-123", text: "hello" },
@@ -186,7 +186,7 @@ describe("active publication tools", () => {
     const tools = createDaemonTools({
       channelBus,
       bootstrap: createBootstrap(),
-      activeChannel: "telegram-123",
+      activePublicationChannel: "telegram-123",
       sendMessageActorId: "agent:surface",
     });
     const reply = findTool("reply", tools);
@@ -230,7 +230,7 @@ describe("active publication tools", () => {
     const tools = createDaemonTools({
       channelBus,
       bootstrap: createBootstrap(),
-      activeChannel: "telegram-123",
+      activePublicationChannel: "telegram-123",
     });
     const notify = findTool("notify", tools);
 
@@ -263,22 +263,28 @@ describe("active publication tools", () => {
     });
   });
 
-  test("active publication helpers require an active channel", async () => {
+  test("active publication helpers are omitted without an active publication channel", async () => {
     const tools = createDaemonTools({
       channelBus: createChannelBus(),
       bootstrap: createBootstrap(),
     });
-    const reply = findTool("reply", tools);
 
-    await assert.rejects(
-      reply.execute(
-        "call-1",
-        { text: "hello" },
-        new AbortController().signal,
-        () => {},
-        {},
-      ),
-      /reply requires an active channel/,
+    assert.deepEqual(
+      tools.map((tool) => tool.name),
+      ["send_message", "read_channel", "run_child"],
+    );
+  });
+
+  test("explicit tool selection still omits active publication helpers without a publication channel", () => {
+    const tools = createDaemonTools({
+      channelBus: createChannelBus(),
+      bootstrap: createBootstrap(),
+      toolNames: ["reply", "read_channel", "send_message"],
+    });
+
+    assert.deepEqual(
+      tools.map((tool) => tool.name),
+      ["read_channel", "send_message"],
     );
   });
 
@@ -288,7 +294,7 @@ describe("active publication tools", () => {
     const tools = createDaemonTools({
       channelBus,
       bootstrap: createBootstrap(),
-      activeChannel: "telegram-123",
+      activePublicationChannel: "telegram-123",
     });
     const sendMessage = findTool("send_message", tools);
 
@@ -522,6 +528,7 @@ describe("tool selection", () => {
       channelBus: createChannelBus(),
       bootstrap: createBootstrap(),
       toolNames: ["reply", "read_channel", "send_message"],
+      activePublicationChannel: "telegram-123",
     });
 
     assert.deepEqual(
@@ -613,6 +620,14 @@ describe("tool context prose", () => {
   test("renders daemon tool result text", () => {
     assert.equal(
       renderSendMessageResult({ channel: "home", delivered: true }),
+      "Delivered to the user on home.",
+    );
+    assert.equal(
+      renderSendMessageResult({
+        channel: "home",
+        delivered: true,
+        waitForNewMessage: true,
+      }),
       "Delivered to the user on home. Wait until a new message is received.",
     );
     assert.equal(

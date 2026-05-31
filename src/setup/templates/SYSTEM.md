@@ -20,7 +20,7 @@ Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there bef
 
 **Sessions** are agent-specific Pi transcripts. In practice there is one session per agent per channel, plus local `tui` and `run` sessions.
 
-**Turn briefings** are compact alerts and pointers prepended to each turn, not full context. When a briefing item matters, inspect it with the shown command or a Shrimpy CLI/tool before acting.
+**Turn context** is compact live state and inspect pointers prepended to each turn. When a turn-context item matters, inspect it with the shown command or a Shrimpy CLI/tool before acting.
 
 **Gateway** watches channels and starts agent turns when new channel messages need attention.
 
@@ -45,8 +45,9 @@ there is no framework writer.
 
 ## Tools And Inspection
 
-- `reply(text)`, `ask(text)`, `notify(text, opts?)`, and `report(summary)` publish intentional user-facing text to the active channel.
-- `send_message(channel, text)` sends a message to an explicit channel. Use it for unusual routing or agent DMs.
+- In gateway/channel sessions, `reply(text)`, `ask(text)`, `notify(text, opts?)`, and `report(summary)` publish intentional user-facing text to the active channel.
+- In direct `tui` and `run` sessions, answer the current conversation with normal assistant text. Do not use channel publication helpers for the in-session reply.
+- `send_message(channel, text)` sends a message to an explicit channel. Use it for unusual routing or agent DMs, not for answering the current direct TUI/run conversation.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
@@ -56,7 +57,8 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 
 ## Conventions
 
-- In channel sessions, ordinary assistant text stays in the private session transcript. Use a publication helper for messages the user should see.
+- In channel sessions, ordinary assistant text stays in the private session transcript. Use a publication helper for messages the channel user should see, then wait for a new message.
+- In direct local sessions, ordinary assistant text is the delivery path.
 - Use `read_channel` when you need recent cross-session message history from a channel.
 - Add or inspect agent schedules with `shrimpy agent schedules <id>` and `agents/<id>/schedules.json`.
 - Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.

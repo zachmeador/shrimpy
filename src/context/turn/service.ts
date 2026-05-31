@@ -6,7 +6,7 @@ import {
   loadGatewaySchedulerSummary,
 } from "../../gateway/status.js";
 import { loadGatewayScheduleIds } from "../../gateway/scheduler-service.js";
-import { buildMemoryBriefing } from "../../memory/index.js";
+import { buildMemoryContext } from "../../memory/index.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import {
   isCommandSource,
@@ -14,10 +14,11 @@ import {
   type ResolvedContextCommandSource,
 } from "../source.js";
 import { buildTurnFactItems } from "./facts.js";
-import { clipBriefingWithMarker } from "./render.js";
+import { clipContextWithMarker } from "./render.js";
+import { buildSessionStatusItems } from "./session-status.js";
 import {
-  readBriefingState,
-  writeBriefingState,
+  readContextState,
+  writeContextState,
 } from "./state.js";
 import { renderUnsupportedSurfaceMessage } from "./surface.js";
 import { formatAgentDateTime } from "./time.js";
@@ -29,14 +30,14 @@ import type {
 
 const execAsync = promisify(exec);
 
-function briefingAgentId(input: TurnContextInput): string {
+function contextAgentId(input: TurnContextInput): string {
   return input.descriptor.agentId ?? input.runtime.getAgent().id;
 }
 
 export async function buildTurnContext(
   input: TurnContextInput,
 ): Promise<TurnContext> {
-  const agentId = briefingAgentId(input);
+  const agentId = contextAgentId(input);
   const channel = input.descriptor.channel;
   const sessionType = input.descriptor.kind;
   const capturedAt = formatAgentDateTime();
@@ -48,11 +49,12 @@ export async function buildTurnContext(
       currentMessage: input.currentMessage,
     }),
     ...buildGatewayStatusItems(input),
+    ...buildSessionStatusItems({ turn: input, agentId }),
     ...buildChannelUnreadItems(input),
     ...await buildCommandItems(input),
   ];
 
-  const memory = buildMemoryBriefing({
+  const memory = buildMemoryContext({
     runtime: input.runtime,
     agentId,
     channel,
@@ -66,7 +68,7 @@ export async function buildTurnContext(
     channel,
     sessionType,
     capturedAt,
-    maxChars: input.runtime.resolved.briefing.maxChars,
+    maxChars: input.runtime.resolved.context.turn.maxChars,
     items,
     memory,
   };
@@ -115,9 +117,9 @@ function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
 
 function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
   const { currentMessage, runtime } = input;
-  const agentId = briefingAgentId(input);
+  const agentId = contextAgentId(input);
   const channel = input.descriptor.channel;
-  const config = runtime.resolved.briefing.channelUnread;
+  const config = runtime.resolved.context.turn.channelUnread;
   if (!channel || !currentMessage || !config.enabled) return [];
   if (!matchesAny(config.channels, channel)) return [];
 
@@ -127,7 +129,7 @@ function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
   const visibleMessages = currentIndex >= 0
     ? messages.slice(0, currentIndex + 1)
     : [...messages, currentMessage];
-  const state = readBriefingState(runtime, agentId);
+  const state = readContextState(runtime, agentId);
   const lastSeenId = state.channels[channel]?.lastSeenMessageId;
   const lastSeenIndex = lastSeenId
     ? visibleMessages.findIndex((message) => message.id === lastSeenId)
@@ -154,7 +156,7 @@ function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
 
 async function buildCommandItems(input: TurnContextInput): Promise<TurnContextItem[]> {
   const channel = input.descriptor.channel;
-  const agentId = briefingAgentId(input);
+  const agentId = contextAgentId(input);
   const resolved = input.runtime.resolved.context.sources
     .map(resolveContextSource)
     .filter(isCommandSource);
@@ -163,18 +165,18 @@ async function buildCommandItems(input: TurnContextInput): Promise<TurnContextIt
   );
   if (commands.length === 0) return [];
 
-  const state = readBriefingState(input.runtime, agentId);
+  const state = readContextState(input.runtime, agentId);
   const results = await Promise.all(commands.map((command) => {
     const cached = state.commands[command.id];
     if (!input.preview && isCommandFresh(cached, command.freshForMs)) {
       return cached.items ?? [];
     }
-    return runBriefingCommand(command, input);
+    return runContextSourceCommand(command, input);
   }));
   return results.flat();
 }
 
-async function runBriefingCommand(
+async function runContextSourceCommand(
   command: ResolvedContextCommandSource,
   input: TurnContextInput,
 ): Promise<TurnContextItem[]> {
@@ -184,20 +186,20 @@ async function runBriefingCommand(
       timeout: command.timeoutMs,
       env: {
         ...process.env,
-        SHRIMPY_BRIEFING_AGENT: briefingAgentId(input),
-        SHRIMPY_BRIEFING_CHANNEL: input.descriptor.channel ?? "",
-        SHRIMPY_BRIEFING_SESSION_TYPE: input.descriptor.kind,
+        SHRIMPY_CONTEXT_AGENT: contextAgentId(input),
+        SHRIMPY_CONTEXT_CHANNEL: input.descriptor.channel ?? "",
+        SHRIMPY_CONTEXT_SESSION_TYPE: input.descriptor.kind,
       },
       maxBuffer: Math.max(command.maxChars * 4, 4096),
     });
-    const clipped = clipBriefingWithMarker(stdout.trim(), command.maxChars);
+    const clipped = clipContextWithMarker(stdout.trim(), command.maxChars);
     const items = parseCommandOutput(command.id, clipped);
     if (!input.preview) rememberCommandRun(command, input, clipped, items);
     return items;
   } catch (err) {
     const items: TurnContextItem[] = [{
       id: `command:${command.id}:error`,
-      summary: `${command.id}: briefing command failed (${err instanceof Error ? err.message : String(err)})`,
+      summary: `${command.id}: context command failed (${err instanceof Error ? err.message : String(err)})`,
       inspect: command.command,
     }];
     if (!input.preview) rememberCommandRun(command, input, "", items);
@@ -211,13 +213,13 @@ function rememberCommandRun(
   output: string,
   items: TurnContextItem[],
 ): void {
-  const agentId = briefingAgentId(input);
-  const state = readBriefingState(input.runtime, agentId);
+  const agentId = contextAgentId(input);
+  const state = readContextState(input.runtime, agentId);
   state.commands[command.id] = {
     lastRunAt: Date.now(),
     items,
   };
-  writeBriefingState(input.runtime, agentId, state);
+  writeContextState(input.runtime, agentId, state);
 }
 
 function isCommandFresh(

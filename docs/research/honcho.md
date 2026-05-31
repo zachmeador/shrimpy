@@ -49,14 +49,14 @@ Both systems land on a similar two-layer instinct, then diverge sharply on subst
 | Operating rules       | `SYSTEM.md` (folds in Pi harness guidance)    | host block config + persona prompt                       |
 | Long-lived facts      | `agents/<id>/MEMORY.md` (agent writes it)     | Conclusions + user peer card (Honcho writes them)        |
 | World state           | `channels/*.jsonl` (append-only)              | `session.messages` (server-stored)                       |
-| Live "what changed"   | per-turn briefing in `runtime/briefings/`       | dialectic supplement re-fired every N turns              |
+| Live "what changed"   | per-turn context in `runtime/context/`       | dialectic supplement re-fired every N turns              |
 | Multi-agent isolation | per-agent workspace dir, channel membership   | per-peer profile within a workspace                      |
 | Inspection            | `cat`, `grep`, `shrimpy context`, JSONL diff  | `hermes honcho status`, dashboard at app.honcho.dev      |
 | Cost per turn         | filesystem reads only                         | 1+ LLM calls (dialectic) + 1 service write (sync_turn)   |
 
 So the shapes overlap — both have stable identity, durable breadcrumbs, conversational world, and a live supplement layer — but Honcho replaces the legible file substrate with an LLM-driven service, and replaces explicit agent-authored memory with derived server-side memory.
 
-The closest analog to Shrimpy's per-turn briefing is Honcho's dialectic supplement: both are short-lived "what's relevant right now" injections. The difference is that briefings are deterministic state transitions ("3 new messages on `home` since you last handled it; inspect with…") while the dialectic is a fresh LLM synthesis. Briefings cost zero tokens to produce and point at inspect tools. The dialectic costs an LLM call and produces prose meant to be read in-line.
+The closest analog to Shrimpy's per-turn context is Honcho's dialectic supplement: both are short-lived "what's relevant right now" injections. The difference is that turn-context items are deterministic state transitions ("3 new messages on `home` since you last handled it; inspect with…") while the dialectic is a fresh LLM synthesis. Turn-context items cost zero tokens to produce and point at inspect tools. The dialectic costs an LLM call and produces prose meant to be read in-line.
 
 The closest analog to `MEMORY.md` is Honcho's conclusions + user representation. The difference is who writes them. In Shrimpy the agent decides what to commit; in Honcho the service decides via dialectic reasoning over observed turns. Honcho's deletion is gated to PII removal precisely because the service is supposed to self-heal — but that means a wrong derived "fact" lives on until it's reasoned away by future evidence, which directly conflicts with `memory-design.md`'s "explicit, reviewable, reversible" principle.
 
@@ -68,7 +68,7 @@ The "peers symmetric, not user-vs-assistant" abstraction is interesting and part
 
 **Cold-vs-warm prompt selection is good.** Honcho's pass-0 prompt swaps based on whether base context is populated: "Who is this person?" when cold, "What from this session matters now?" when warm. That's a small, principled trick that biases the LLM toward novel signal at session start and toward continuity mid-session. Easy to steal regardless of substrate.
 
-**The trivial-prompt skip is good.** A regex of `ok|yes|thanks|...` that suppresses memory injection entirely on one-word turns. Cheap, prevents stale derived context from derailing acknowledgement turns, and would be useful in any briefing system.
+**The trivial-prompt skip is good.** A regex of `ok|yes|thanks|...` that suppresses memory injection entirely on one-word turns. Cheap, prevents stale derived context from derailing acknowledgement turns, and would be useful in any turn context system.
 
 **The "peers symmetric" framing is good** — agent self-modeling is a category most memory systems handwave. Honcho's model where the agent is just another peer being observed is cleaner than the user/assistant split.
 
@@ -97,12 +97,12 @@ The 30+ config knobs are **a tell**. The "three orthogonal cadence knobs" framin
 
 ## Worth borrowing into Shrimpy
 
-The two-layer instinct (durable + live) is one Shrimpy already has, and it lands on the right side of the trade-offs in `musings/memory-design.md`. Files for the durable layer keep it legible; briefings for the live layer keep it cheap and inspect-pointed. Honcho's specific approach — running LLM passes server-side to populate a derived memory — directly conflicts with the principles laid out in that musing ("legible rather than magical", "local-first transparency", "explicit, reviewable, reversible"). So the wholesale "swap MEMORY.md for Honcho" path is a poor fit on principle, not just on cost.
+The two-layer instinct (durable + live) is one Shrimpy already has, and it lands on the right side of the trade-offs in `musings/memory-design.md`. Files for the durable layer keep it legible; turn-context items for the live layer keep it cheap and inspect-pointed. Honcho's specific approach — running LLM passes server-side to populate a derived memory — directly conflicts with the principles laid out in that musing ("legible rather than magical", "local-first transparency", "explicit, reviewable, reversible"). So the wholesale "swap MEMORY.md for Honcho" path is a poor fit on principle, not just on cost.
 
 What is worth stealing as small primitives, regardless of substrate:
 
 - **Cold-vs-warm prompt selection** in any future "summarize what I should know about this user" pass. If shrimpy ever runs a periodic memory-consolidation job, a single switch at "is this the first pass on this peer or a refresh" will make the prompts dramatically better.
-- **Trivial-prompt skip**. If briefings or any future live layer ever invoke an LLM, the same regex (or its TS port) avoids spending tokens on "ok" and "thanks".
+- **Trivial-prompt skip**. If turn-context items or any future live layer ever invoke an LLM, the same regex (or its TS port) avoids spending tokens on "ok" and "thanks".
 - **`observeMe` / `observeOthers` per-peer toggles**. If shrimpy ever derives memory from observed channel traffic — even cheap things like "summarize what each agent did in this channel today" — the observation matrix is a useful model for what feeds what. Today every agent has its own `MEMORY.md` so the question doesn't arise; the moment shared-channel memory gets derived, it will.
 - **The per-peer abstraction itself**, as an architectural reframing — channels already have typed senders (`human:*`, `agent:*`), and a future memory-derivation pass that treats each as a peer with its own card would mirror Shrimpy's existing channel membership model cleanly.
 
@@ -111,7 +111,7 @@ What is **not** worth borrowing:
 - The external-service substrate, full stop. Files first. The `musings/memory-design.md` principles all push the same direction.
 - The 30+ config knobs. If a feature lands, land it with one knob.
 - The multi-pass dialectic with bail-out. One `.chat()` (or in Shrimpy's case, one consolidation pass) with a good prompt is plenty.
-- The `<memory-context>` fence-into-user-message trick. Shrimpy briefings use a compact `<context>...</context>` envelope with inspect pointers, which is cleaner.
+- The `<memory-context>` fence-into-user-message trick. Shrimpy turn-context items use a compact `<context>...</context>` envelope with inspect pointers, which is cleaner.
 - Server-derived conclusions that the user can only delete for "PII reasons". That's the spookiest version of autonomous memory upkeep, and `musings/memory-design.md` explicitly flags spooky as a non-goal.
 
 ## Sources

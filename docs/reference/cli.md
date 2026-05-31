@@ -31,8 +31,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy status` | Show workspace, gateway, channels, scheduled-run, and Telegram offset status. |
 | `shrimpy context` | Render assembled session context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
-| `shrimpy context --briefing -c <name>` | Render only the turn briefing preview for a channel/session. |
-| `shrimpy context turn --channel <name>` | Render prompt sections plus the turn-context preview. |
+| `shrimpy context --turn -c <name>` | Render the full turn preview, including prompt sections and turn context. |
+| `shrimpy context turn --channel <name>` | Render only turn context for a channel/session. |
 | `shrimpy context files list [--agent <id>] [--older-than <dur>] [--json]` | List agent context Markdown files. Useful for upkeep skills. |
 | `shrimpy context files show [--agent <id>] <path>` | Print one agent context file. |
 | `shrimpy context sources list [--agent <id>] [--channel <name>] [--json]` | Inspect configured file/directory/command sources plus runtime turn context. |

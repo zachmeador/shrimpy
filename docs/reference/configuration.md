@@ -24,10 +24,9 @@ The workspace itself is selected by `~/.shrimpy-workspace.json`:
 Sections:
 
 - `agents` — agent ids, root paths, optional default model, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, attention policy.
-- `briefing` — per-turn context budget and channel-unread settings.
 - `runtime` — Pi loader/runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, compaction.
 - `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
-- `context` / `contextDefaults` — stable prompt sources, command sources, env fields, channel overrides, agent-scoped context views.
+- `context` / `contextDefaults` — stable prompt sources, turn-context settings, command sources, env fields, channel overrides, agent-scoped context views.
 - `telegram` — configured Telegram surface instances with token, channel prefix, allowlist, stable user mappings, default agent, reliability policy.
 - `scheduler` — scheduler tick behavior.
 - `status` — optional targeted schedule watches for diagnostics.
@@ -80,16 +79,22 @@ Compaction precedence is:
 
 Use `sessions.<sessionType>` for a broad class such as `gateway` or `tui`. Use `sessions.<sessionLabel>` for a concrete session directory label such as `heartbeat`.
 
-## Briefings
+## Turn Context
 
 ```json
 {
-  "briefing": {
-    "maxChars": 2000,
-    "channelUnread": {
-      "enabled": true,
-      "channels": ["*"],
-      "includeLatest": true
+  "context": {
+    "turn": {
+      "maxChars": 2000,
+      "channelUnread": {
+        "enabled": true,
+        "channels": ["*"],
+        "includeLatest": true
+      },
+      "sessionStatus": {
+        "enabled": true,
+        "staleAfterMinutes": 720
+      }
     }
   }
 }
@@ -359,7 +364,7 @@ Channel membership stays in `config/channels.json`. Agent schedules choose a cha
       {
         "type": "command",
         "id": "finance_alerts",
-        "command": "finance-shrimpy alerts briefing",
+        "command": "finance-shrimpy alerts context",
         "channels": ["heartbeat", "finance"],
         "freshForMs": 60000
       }
@@ -372,4 +377,4 @@ Channel membership stays in `config/channels.json`. Agent schedules choose a cha
 
 The runtime environment prompt includes workspace and session routing facts. Current model/provider identity is recorded in session metadata for inspection rather than rendered into the agent prompt, because model selection can change inside a running session.
 
-Live state lands in [turn context](briefing.md) rather than static prompt resources. See [context-assembly.md](context-assembly.md) for how sections are assembled.
+Live state lands in [turn context](turn-context.md) rather than static prompt resources. See [context-assembly.md](context-assembly.md) for how sections are assembled.

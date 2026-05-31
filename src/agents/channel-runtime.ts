@@ -69,7 +69,7 @@ export class AgentChannelRuntime {
           toolPolicy: sessionToolPolicy,
           agentId: this.agent.id,
           actorId: `agent:${this.agent.id}`,
-          activeChannel: channel,
+          activePublicationChannel: channel,
         });
 
         return {
@@ -85,7 +85,7 @@ export class AgentChannelRuntime {
           toolPolicy: sessionToolPolicy,
         };
       },
-      turnBriefingForMessage: (channel, message) =>
+      turnContextForMessage: (channel, message) =>
         buildTurnContext({
           runtime: opts.runtime,
           descriptor: createGatewaySessionDescriptor({

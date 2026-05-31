@@ -118,6 +118,34 @@ describe("resolveContextDefaultsConfig", () => {
     assert.doesNotMatch(sections[0]!.content, /\*\*model_id\*\*/);
     assert.doesNotMatch(sections[0]!.content, /\*\*provider\*\*/);
   });
+
+  test("adds direct-session delivery guidance for TUI sessions", () => {
+    const sections = buildSystemEnvSections({
+      sessionType: "tui",
+      envKeys: [],
+      env: {},
+    });
+
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0]!.id, "session:direct_delivery");
+    assert.match(sections[0]!.content, /ordinary assistant text/);
+    assert.match(sections[0]!.content, /Do not use reply\(text\)/);
+    assert.match(sections[0]!.content, /only when explicitly asked/);
+  });
+
+  test("adds publication guidance for gateway channel sessions", () => {
+    const sections = buildSystemEnvSections({
+      sessionType: "gateway",
+      channel: "telegram-123",
+      envKeys: [],
+      env: {},
+    });
+
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0]!.id, "session:delivery");
+    assert.match(sections[0]!.content, /Plain assistant text stays/);
+    assert.match(sections[0]!.content, /normally completes your response/);
+  });
 });
 
 describe("resolveContextConfig", () => {
@@ -141,6 +169,7 @@ describe("resolveContextConfig", () => {
       env: ["workspace_path", "channel"],
       channels: {},
       agents: {},
+      turn: defaultTurnContextConfig(),
     });
   });
 
@@ -163,6 +192,7 @@ describe("resolveContextConfig", () => {
       env: ["workspace_path"],
       channels: {},
       agents: {},
+      turn: defaultTurnContextConfig(),
     });
   });
 
@@ -191,6 +221,7 @@ describe("resolveContextConfig", () => {
       env: ["workspace_path"],
       channels: {},
       agents: {},
+      turn: defaultTurnContextConfig(),
     });
   });
 
@@ -208,6 +239,21 @@ describe("resolveContextConfig", () => {
     );
   });
 });
+
+function defaultTurnContextConfig() {
+  return {
+    maxChars: 2000,
+    channelUnread: {
+      enabled: true,
+      channels: ["*"],
+      includeLatest: true,
+    },
+    sessionStatus: {
+      enabled: true,
+      staleAfterMinutes: 720,
+    },
+  };
+}
 
 describe("assembleContextViewSections", () => {
   test("renders only channel-scoped resources in the stable session context", () => {

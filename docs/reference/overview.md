@@ -11,7 +11,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 - Channels are append-only JSONL logs under `workspace/channels/`.
 - Agents live under `workspace/agents/<id>/` with their own prompt resources, memory, skills, and sessions.
 - Pi owns model calls, tool execution, the interactive TUI, the session runtime, and transcript persistence. Shrimpy owns session framing, routing, workspace conventions, and targeted TUI seams such as the unified `/settings` selector.
-- Prompts are assembled from typed `PromptSection`s — identity/memory/instruction first, capability next, runtime/activity/evidence last — with a per-turn briefing envelope on top.
+- Prompts are assembled from typed `PromptSection`s — identity/memory/instruction first, capability next, runtime/activity/evidence last — with a per-turn context envelope on top.
 
 ## Core Loop
 
@@ -19,16 +19,16 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 2. The gateway watches channel logs and decides which agent sessions wake.
 3. Each target agent runs a private Pi session for that channel.
 4. The agent uses tools as needed.
-5. Messages addressed to the user go through active-channel publication helpers such as `reply` or `ask`, which log to the channel and deliver through a surface when one is configured. `send_message` remains available for explicit channel routing.
+5. Messages addressed to the channel user go through active-channel publication helpers such as `reply` or `ask`, which log to the channel and deliver through a surface when one is configured. `send_message` remains available for explicit channel routing.
 
-`shrimpy` and `shrimpy run` open direct local sessions without first writing the prompt into a channel log. The interactive TUI uses Pi's `InteractiveMode` so slash autocomplete and default UI behavior stay aligned with Pi, while Shrimpy patches `/settings` to expose both Shrimpy and Pi-owned settings.
+`shrimpy` and `shrimpy run` open direct local sessions without first writing the prompt into a channel log. In those sessions, normal assistant text is the response path; channel publication helpers are for gateway/channel turns. The interactive TUI uses Pi's `InteractiveMode` so slash autocomplete and default UI behavior stay aligned with Pi, while Shrimpy patches `/settings` to expose both Shrimpy and Pi-owned settings.
 
 ## Where to Look Next
 
 - [design.md](design.md) — philosophy, settled decisions, and active reconsiderations.
 - [architecture.md](architecture.md) — primitives and layering.
 - [runtime.md](runtime.md) — execution flow.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
+- [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn context envelope.
 - [memory.md](memory.md) — memory model and upkeep.
 - [skills.md](skills.md) — skill bundle shape and Pi-backed loading.
 - [cli.md](cli.md) — commands.

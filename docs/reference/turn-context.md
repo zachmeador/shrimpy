@@ -2,7 +2,7 @@
 
 Turn context is generated live state, prepended to the user message in a `<context>...</context>` envelope.
 
-The runtime still labels the rendered header `[briefing]` for compact prompt readability, but the public API is `shrimpy context`.
+The runtime labels the rendered header `[turn-context]`, and the public API is `shrimpy context`.
 
 ## Shape
 
@@ -25,7 +25,7 @@ Shrimpy includes:
 - path-indexed memory slices from `context/people/<sender>.md` and `context/channels/<channel>.md`
 - workspace-configured command sources from `context.sources`
 
-Command sources let workspace-specific agents add their own alerts. For example, a finance agent can expose `finance-shrimpy alerts briefing` and Shrimpy includes its output for selected channels.
+Command sources let workspace-specific agents add their own alerts. For example, a finance agent can expose `finance-shrimpy alerts context` and Shrimpy includes its output for selected channels.
 
 Command output is compact text. Use evidence or inspect commands inside that text when the agent should know how to drill down.
 
@@ -33,15 +33,19 @@ Command output is compact text. Use evidence or inspect commands inside that tex
 
 ```json
 {
-  "briefing": {
-    "maxChars": 2000,
-    "channelUnread": {
-      "enabled": true,
-      "channels": ["*"],
-      "includeLatest": true
-    }
-  },
   "context": {
+    "turn": {
+      "maxChars": 2000,
+      "channelUnread": {
+        "enabled": true,
+        "channels": ["*"],
+        "includeLatest": true
+      },
+      "sessionStatus": {
+        "enabled": true,
+        "staleAfterMinutes": 720
+      }
+    },
     "sources": [
       "workspace:profile/WORKSPACE.md",
       "workspace:profile/SYSTEM.md",
@@ -51,7 +55,7 @@ Command output is compact text. Use evidence or inspect commands inside that tex
       {
         "type": "command",
         "id": "finance_alerts",
-        "command": "finance-shrimpy alerts briefing",
+        "command": "finance-shrimpy alerts context",
         "channels": ["heartbeat", "finance"],
         "timeoutMs": 5000,
         "maxChars": 1200,
@@ -62,12 +66,11 @@ Command output is compact text. Use evidence or inspect commands inside that tex
 }
 ```
 
-`briefing.maxChars` controls the total rendered turn-context budget. Command-source `freshForMs` controls how long Shrimpy may reuse command output before running the command again. Preview runs do not update freshness state.
+`context.turn.maxChars` controls the total rendered turn-context budget. `context.turn.sessionStatus` controls scheduled-turn session recency pointers. Command-source `freshForMs` controls how long Shrimpy may reuse command output before running the command again. Preview runs do not update freshness state.
 
 ## Inspection
 
 ```bash
-shrimpy context --briefing --agent shrimpy --channel home
 shrimpy context turn --agent shrimpy --channel home
 shrimpy context sources list --agent shrimpy --channel home
 shrimpy context sources run finance_alerts --agent shrimpy --channel finance

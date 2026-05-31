@@ -12,7 +12,7 @@ import {
   FALLBACK_IDENTITY_TEXT,
   resolveBootEnv,
   type BootEnv,
-  type ContextConfig,
+  type ResolvedContextConfig,
   type PromptResourceRef,
   type PromptSection,
 } from "../context/index.js";
@@ -31,7 +31,7 @@ export interface SessionBootstrap {
   authPath: string;
   modelsPath: string;
   config: ShrimpyConfig;
-  contextConfig: Required<ContextConfig>;
+  contextConfig: ResolvedContextConfig;
   runtimeConfig: Required<RuntimeConfig>;
   bootEnv: BootEnv;
   baseSystemPrompt: string;
@@ -46,7 +46,7 @@ export interface SessionBootstrapSource {
   workspacePath: string;
   authPath: string;
   modelsPath: string;
-  contextConfig: Required<ContextConfig>;
+  contextConfig: ResolvedContextConfig;
   runtimeConfig: Required<RuntimeConfig>;
 }
 

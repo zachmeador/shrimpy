@@ -167,18 +167,22 @@ function defaultShrimpyConfig(): Record<string, unknown> {
         defaultLimit: 20,
       },
     },
-    briefing: {
-      maxChars: 2000,
-      channelUnread: {
-        enabled: true,
-        channels: ["*"],
-        includeLatest: true,
-      },
-    },
     context: {
       sources: [...DEFAULT_CONTEXT_SOURCES],
       env: [...DEFAULT_CONTEXT_ENV],
       channels: {},
+      turn: {
+        maxChars: 2000,
+        channelUnread: {
+          enabled: true,
+          channels: ["*"],
+          includeLatest: true,
+        },
+        sessionStatus: {
+          enabled: true,
+          staleAfterMinutes: 720,
+        },
+      },
     },
     scheduler: {
       tickIntervalMs: 1000,

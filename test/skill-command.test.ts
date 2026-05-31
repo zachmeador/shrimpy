@@ -75,7 +75,7 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     assert.match(output, /## Delivery/);
     assert.match(output, /send_message\(channel="home", text="\.\.\."\)/);
-    assert.match(output, /<context>\n\[briefing\]/);
+    assert.match(output, /<context>\n\[turn-context\]/);
     assert.match(output, /\[channel: home, sender: human:\(user\)\]\nhello/);
     assert.doesNotMatch(output, /\[incoming\]/);
   });
@@ -98,7 +98,7 @@ describe("skill context inspection", () => {
       ["identity", "memory", "runtime"],
     );
     assert.equal(parsed.contextLayers, undefined);
-    assert.equal(parsed.briefing.sessionType, "gateway");
+    assert.equal(parsed.turnContext.sessionType, "gateway");
     assert.match(parsed.systemPrompt, /<available_skills>/);
     assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
@@ -108,27 +108,27 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(parsed.systemPrompt, /\*\*provider\*\*/);
     assert.doesNotMatch(parsed.systemPrompt, /Load a skill when/);
     assert.doesNotMatch(parsed.systemPrompt, /\| Skill \| Scope \| Description \|/);
-    assert.match(parsed.turnPrompt, /<context>\n\[briefing\]/);
+    assert.match(parsed.turnPrompt, /<context>\n\[turn-context\]/);
     assert.match(parsed.turnPrompt, /\[channel: home, sender: human:\(user\)\]\nhello/);
     assert.doesNotMatch(parsed.turnPrompt, /\[incoming\]/);
   });
 
-  test("context command can render only the briefing preview", async () => {
+  test("context turn subcommand can render only turn context", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdContext(["--channel", "home", "--briefing"], { workspace } as any)
+      cmdContext(["turn", "--channel", "home"], { workspace } as any)
     );
 
     const output = lines.join("\n");
     assert.equal(result, 0);
-    assert.match(output, /^\[briefing\]/);
+    assert.match(output, /^\[turn-context\]/);
     assert.match(output, /session: gateway channel: home/);
     assert.doesNotMatch(output, /## Prompt Sections/);
     assert.doesNotMatch(output, /=== System Prompt ===/);
   });
 
-  test("context turn preview includes channel unread briefing", async () => {
+  test("context turn preview includes channel unread context", async () => {
     await setupInit(workspace);
     const runtime = createAppRuntime({ workspace });
     const channelBus = runtime.createChannelBus();
@@ -151,7 +151,7 @@ describe("skill context inspection", () => {
 
     assert.equal(result, 0);
     const parsed = JSON.parse(lines.join("\n"));
-    assert.match(parsed.briefing.text, /home: 2 new messages/);
+    assert.match(parsed.turnContext.text, /home: 2 new messages/);
     assert.match(parsed.turnPrompt, /inspect: shrimpy channels read home/);
   });
 
@@ -188,7 +188,7 @@ describe("skill context inspection", () => {
     config.context.sources.push({
       type: "command",
       id: "test.command",
-      command: "node -e \"console.log(process.env.SHRIMPY_BRIEFING_CHANNEL + ':ok')\"",
+      command: "node -e \"console.log(process.env.SHRIMPY_CONTEXT_CHANNEL + ':ok')\"",
       channels: ["home"],
       maxChars: 100,
     });
@@ -217,13 +217,13 @@ describe("skill context inspection", () => {
     assert.match(output, /## Prompt Sections/);
     assert.match(output, /\[identity\]/);
     assert.match(output, /\[runtime\]/);
-    assert.match(output, /\[briefing\]/);
+    assert.match(output, /\[turn-context\]/);
     assert.match(output, /=== System Prompt ===/);
     assert.match(output, /<available_skills>/);
     assert.match(output, /=== User Message ===/);
   });
 
-  test("context turn subcommand renders a full turn preview without a prompt", async () => {
+  test("context turn subcommand renders turn context without a prompt", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -232,9 +232,9 @@ describe("skill context inspection", () => {
 
     const output = lines.join("\n");
     assert.equal(result, 0);
-    assert.match(output, /## Prompt Sections/);
-    assert.match(output, /\[briefing\]/);
-    assert.match(output, /=== System Prompt ===/);
+    assert.match(output, /^\[turn-context\]/);
+    assert.doesNotMatch(output, /## Prompt Sections/);
+    assert.doesNotMatch(output, /=== System Prompt ===/);
     assert.doesNotMatch(output, /=== User Message ===/);
   });
 

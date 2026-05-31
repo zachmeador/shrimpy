@@ -28,6 +28,7 @@ import {
 } from "../context/index.js";
 import {
   DAEMON_TOOL_NAMES,
+  isActivePublicationToolName,
   type DaemonToolName,
 } from "./names.js";
 import type { SessionToolPolicy } from "./policy.js";
@@ -155,7 +156,7 @@ export interface DaemonToolDeps {
   sessionFactory?: typeof openSession;
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
-  activeChannel?: string;
+  activePublicationChannel?: string;
 }
 
 export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
@@ -168,7 +169,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     sessionFactory = openSession,
     toolNames,
     toolPolicy,
-    activeChannel,
+    activePublicationChannel,
   } = deps;
   const toolConfig = rawToolConfig ?? resolveToolRuntimeConfig();
   const resolvedSendMessageActorId =
@@ -181,16 +182,16 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
   const readChannelProse = getToolProse("read_channel");
   const runChildProse = getToolProse("run_child");
 
-  async function publishToActiveChannel(
+  async function publishToActivePublicationChannel(
     intent: PublicationIntent,
     text: string,
   ) {
-    if (!activeChannel) {
-      throw new Error(`${intent.kind} requires an active channel`);
+    if (!activePublicationChannel) {
+      throw new Error(`${intent.kind} requires an active publication channel`);
     }
 
     const delivered = await channelBus.sendAgentText({
-      channel: activeChannel,
+      channel: activePublicationChannel,
       text,
       actorId: resolvedSendMessageActorId,
       publication: intent,
@@ -201,7 +202,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
         type: "text" as const,
         text: renderPublicationResult({
           intent: intent.kind,
-          channel: activeChannel,
+          channel: activePublicationChannel,
           delivered,
         }),
       }],
@@ -219,7 +220,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     renderCall(params, theme, context) {
       return compactToolCall(
         "reply",
-        `${activeChannel ?? "(no active channel)"}: ${clip(params.text)}`,
+        `${activePublicationChannel ?? "(no active channel)"}: ${clip(params.text)}`,
         theme,
         context,
       );
@@ -228,7 +229,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
     },
     async execute(_toolCallId, params) {
-      return publishToActiveChannel({ kind: "reply" }, params.text);
+      return publishToActivePublicationChannel({ kind: "reply" }, params.text);
     },
   };
 
@@ -242,7 +243,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     renderCall(params, theme, context) {
       return compactToolCall(
         "ask",
-        `${activeChannel ?? "(no active channel)"}: ${clip(params.text)}`,
+        `${activePublicationChannel ?? "(no active channel)"}: ${clip(params.text)}`,
         theme,
         context,
       );
@@ -251,7 +252,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
     },
     async execute(_toolCallId, params) {
-      return publishToActiveChannel({ kind: "ask" }, params.text);
+      return publishToActivePublicationChannel({ kind: "ask" }, params.text);
     },
   };
 
@@ -265,7 +266,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     renderCall(params, theme, context) {
       return compactToolCall(
         "notify",
-        `${activeChannel ?? "(no active channel)"}: ${clip(params.text)}`,
+        `${activePublicationChannel ?? "(no active channel)"}: ${clip(params.text)}`,
         theme,
         context,
       );
@@ -274,7 +275,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
     },
     async execute(_toolCallId, params) {
-      return publishToActiveChannel(
+      return publishToActivePublicationChannel(
         publicationIntent("notify", {
           urgency: params.urgency,
           quiet: params.quiet,
@@ -295,7 +296,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     renderCall(params, theme, context) {
       return compactToolCall(
         "report",
-        `${activeChannel ?? "(no active channel)"}: ${clip(params.summary)}`,
+        `${activePublicationChannel ?? "(no active channel)"}: ${clip(params.summary)}`,
         theme,
         context,
       );
@@ -304,7 +305,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
     },
     async execute(_toolCallId, params) {
-      return publishToActiveChannel({ kind: "report" }, params.summary);
+      return publishToActivePublicationChannel({ kind: "report" }, params.summary);
     },
   };
 
@@ -339,6 +340,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
           text: renderSendMessageResult({
             channel: params.channel,
             delivered,
+            waitForNewMessage: Boolean(activePublicationChannel),
           }),
         }],
         details: undefined,
@@ -438,18 +440,21 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     readChannelTool,
     runChildTool,
   ] as unknown as ToolDefinition[];
-  const allowedNames = toolNames?.length ? Array.from(new Set(toolNames)) : undefined;
-
-  if (!allowedNames) return allTools;
-
   const byName = new Map(allTools.map((tool) => [tool.name, tool]));
-  for (const name of allowedNames) {
+  const selectedNames = toolNames?.length
+    ? Array.from(new Set(toolNames))
+    : [...DAEMON_TOOL_NAMES];
+  for (const name of selectedNames) {
     if (!byName.has(name)) {
       throw new Error(
         `unknown daemon tool "${name}". Known tools: ${DAEMON_TOOL_NAMES.join(", ")}`,
       );
     }
   }
+
+  const allowedNames = activePublicationChannel
+    ? selectedNames
+    : selectedNames.filter((name) => !isActivePublicationToolName(name));
 
   return allowedNames.map((name) => byName.get(name)!);
 }

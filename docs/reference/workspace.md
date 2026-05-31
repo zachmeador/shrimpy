@@ -19,7 +19,7 @@ state/scheduler.json            persisted scheduler next-run timestamps
 state/telegram/                 Telegram polling offsets
 runtime/cursors/channels.json   gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
-runtime/briefings/              generated turn briefing state
+runtime/context/                generated turn-context state
 channels/                       append-only channel logs
 media/                          downloaded media
 runtime/logs/gateway.log        gateway runtime log
@@ -45,7 +45,7 @@ management.
 
 ## Context Resources
 
-Stable prompt material loaded into an agent session before the per-turn briefing arrives:
+Stable prompt material loaded into an agent session before per-turn context arrives:
 
 - `profile/WORKSPACE.md` defines shared system/home context.
 - `profile/SYSTEM.md` covers Shrimpy framework conventions, Pi harness guidance, memory conventions, and tool/inspection guidance.

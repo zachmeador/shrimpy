@@ -4,12 +4,15 @@ import type {
   SessionCompactionPolicySummary,
   SessionListingSummary,
   SessionPathSummary,
+  SessionStatusSummary,
   SingleSessionListingSummary,
 } from "../sessions/index.js";
+import { formatSessionAge } from "../sessions/index.js";
 import { accent, dim, label } from "../util/style.js";
 
 export function printSessionListing(
   summary: SessionListingSummary | SingleSessionListingSummary,
+  status?: SessionStatusSummary,
 ): void {
   if ("channel" in summary) {
     printSingleSessionListing(summary);
@@ -26,8 +29,21 @@ export function printSessionListing(
   } else {
     console.log(label("active sessions:"));
     for (const session of summary.active) {
+      const statusEntry = status?.active.find((entry) =>
+        entry.channel === session.channel && entry.path === session.path
+      );
+      const recency = statusEntry
+        ? `  ${statusEntry.status} ${formatSessionAge(statusEntry.ageMs)} ago`
+        : "";
       console.log(
-        `  ${accent(session.channel)}  ${session.path}  ${dim(session.updatedAt ?? "(unknown)")}`,
+        `  ${accent(session.channel)}  ${session.path}  ${dim(session.updatedAt ?? "(unknown)")}${recency}`,
+      );
+    }
+    if (status) {
+      console.log(
+        dim(
+          `  ${status.counts.recent} recent, ${status.counts.stale} stale (>${formatSessionAge(status.staleAfterMs)})`,
+        ),
       );
     }
   }

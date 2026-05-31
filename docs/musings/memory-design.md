@@ -89,7 +89,7 @@ Everything else is implementation.
 ## Desired Layers
 
 - **Evidence** — channel logs, session transcripts, files, and documents.
-- **Working context** — recent messages, active task state, compaction summaries, and turn briefings.
+- **Working context** — recent messages, active task state, compaction summaries, and turn context.
 - **Time context** — compact recency/staleness/change summaries available in
   every agent session, either as stable system context or progressive turn
   injections.

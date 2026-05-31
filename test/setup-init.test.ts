@@ -104,6 +104,18 @@ describe("setupInit", () => {
       "workspace:profile/USER.md",
       "agent:context/",
     ]);
+    assert.deepEqual(config.context.turn, {
+      maxChars: 2000,
+      channelUnread: {
+        enabled: true,
+        channels: ["*"],
+        includeLatest: true,
+      },
+      sessionStatus: {
+        enabled: true,
+        staleAfterMinutes: 720,
+      },
+    });
 
     const schedules = JSON.parse(readFileSync(schedulesPath, "utf-8"));
     assert.equal(Array.isArray(schedules), true);
@@ -134,7 +146,7 @@ describe("setupInit", () => {
 
     const system = readFileSync(systemPath, "utf-8");
     assert.match(system, /Start with `README\.md` there before reading `musings\/`\./);
-    assert.match(system, /Turn briefings\*\* are compact alerts and pointers/);
+    assert.match(system, /Turn context\*\* is compact live state and inspect pointers/);
     assert.match(system, /default agent has `vault\/`/);
     assert.match(system, /Tools And Inspection/);
     assert.equal(system.includes(join(projectRoot, "docs")), true);

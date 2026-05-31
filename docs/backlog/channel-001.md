@@ -27,5 +27,5 @@ Channel logs are append-only and reliable, but users and agents need better ways
 
 ## Done
 - `shrimpy channels` exposes the richer inspection paths.
-- Agents can follow briefing pointers without manual raw-file reads.
+- Agents can follow turn context pointers without manual raw-file reads.
 - Tests cover search/filter behavior and summary bounds.

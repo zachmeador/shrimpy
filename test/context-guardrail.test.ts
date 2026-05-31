@@ -15,7 +15,7 @@ const ALLOWED_PREFIXES = [
 ];
 const PROMPT_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   { name: "context envelope", pattern: /<context>/ },
-  { name: "briefing header", pattern: /\[briefing\]/ },
+  { name: "turn context header", pattern: /\[turn-context\]/ },
   { name: "channel header", pattern: /\[channel:/ },
   { name: "image marker", pattern: /\[Image:/ },
   { name: "system marker", pattern: /\[System:/ },

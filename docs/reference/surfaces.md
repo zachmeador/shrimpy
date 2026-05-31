@@ -49,10 +49,12 @@ Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live 
 
 ## Delivery
 
-Channel sessions do not automatically publish assistant text to a channel. Agents call active-channel helpers such as `reply(text)`, `ask(text)`, `notify(text, opts)`, or `report(summary)` to deliver intentional user-facing text.
+Gateway/channel sessions do not automatically publish assistant text to a channel. Agents call active-channel helpers such as `reply(text)`, `ask(text)`, `notify(text, opts)`, or `report(summary)` to deliver intentional user-facing text.
 
-`send_message(channel="...", text="...")` remains available for explicit routing and unusual cases.
+Direct local sessions such as `tui` and `run` are different: ordinary assistant text is already visible in the session transcript, so active-channel publication helpers are not part of that response path.
 
-Private session transcript text stays separate from delivered channel messages.
+`send_message(channel="...", text="...")` remains available for explicit routing and unusual cases, including agent DMs. It should not be used to answer the current direct TUI/run conversation.
+
+Private gateway session transcript text stays separate from delivered channel messages.
 
 For operator-driven testing or automation: `shrimpy channels post <channel> <text>` injects a CLI human message into a channel log. Adding `--agent <id>` stamps `origin.addressedAgentId` and routes the turn directly to that agent.

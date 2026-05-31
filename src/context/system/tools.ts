@@ -18,27 +18,27 @@ const AGENT_DM_CHANNEL_DESCRIPTION =
 const TOOL_PROSE: Record<ToolProseId, ToolProse> = {
   reply: {
     description:
-      "Publish a concise response to the active channel for the current surface session. Use this instead of send_message when answering the current human message.",
-    promptSnippet: "reply — publish a response to the active channel",
+      "Publish a concise response to the active gateway/channel turn. This is only for sessions handling channel messages; in TUI or run sessions, answer with ordinary assistant text.",
+    promptSnippet: "reply — publish a response to the active gateway channel",
   },
   ask: {
     description:
-      "Publish a question to the active channel for the current surface session. Use this when you need user input before continuing.",
-    promptSnippet: "ask — ask the user a question on the active channel",
+      "Publish a question to the active gateway/channel turn. This is only for sessions handling channel messages; in TUI or run sessions, ask with ordinary assistant text.",
+    promptSnippet: "ask — ask the user a question on the active gateway channel",
   },
   notify: {
     description:
-      "Publish a brief notification to the active channel for the current surface session. Supports intent metadata such as urgency, quiet delivery, and batchability.",
-    promptSnippet: "notify — publish a notification to the active channel",
+      "Publish a brief notification to the active gateway/channel turn. Supports intent metadata such as urgency, quiet delivery, and batchability.",
+    promptSnippet: "notify — publish a notification to the active gateway channel",
   },
   report: {
     description:
-      "Publish a concise completion report or summary to the active channel for the current surface session.",
-    promptSnippet: "report — publish a completion report to the active channel",
+      "Publish a concise completion report or summary to the active gateway/channel turn.",
+    promptSnippet: "report — publish a completion report to the active gateway channel",
   },
   send_message: {
     description:
-      "Send a message to an explicit channel. Use this lower-level primitive for unusual routing or agent messages; prefer reply, ask, notify, or report for the active user-facing channel.",
+      "Send a message to an explicit channel. Use this lower-level primitive for unusual routing or agent DMs, not for answering the current TUI/run conversation.",
     promptSnippet: "send_message — send text to an explicit channel",
   },
   read_channel: {
@@ -74,10 +74,12 @@ export function getToolProse(toolId: ToolProseId): ToolProse {
 export function renderSendMessageResult(data: {
   channel: string;
   delivered: boolean;
+  waitForNewMessage?: boolean;
 }): string {
+  const suffix = data.waitForNewMessage ? " Wait until a new message is received." : "";
   return data.delivered
-    ? `Delivered to the user on ${data.channel}. Wait until a new message is received.`
-    : `Logged to ${data.channel} (no adapter for delivery). Wait until a new message is received.`;
+    ? `Delivered to the user on ${data.channel}.${suffix}`
+    : `Logged to ${data.channel} (no adapter for delivery).${suffix}`;
 }
 
 export function renderPublicationResult(data: {

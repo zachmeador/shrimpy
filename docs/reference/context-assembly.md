@@ -33,7 +33,7 @@ but rendered by Pi as an `<available_skills>` block after the Shrimpy base promp
       {
         "type": "command",
         "id": "finance_alerts",
-        "command": "finance-shrimpy alerts briefing",
+        "command": "finance-shrimpy alerts context",
         "channels": ["heartbeat", "finance"],
         "timeoutMs": 5000,
         "maxChars": 1200,
@@ -76,7 +76,7 @@ Per turn, the prompt body is prefixed with a `<context>...</context>` block from
 
 ```text
 <context>
-[briefing]
+[turn-context]
 time: 2026-04-29T12:00:00Z
 agent: shrimpy
 session: gateway channel: home
@@ -85,7 +85,7 @@ session: gateway channel: home
 - home: 3 new messages since this agent last handled it
   inspect: shrimpy channels read home --after <message-id>
 
-## Memory Briefing
+## Memory Context
 
 ### channel:home
 project notes from agents/shrimpy/context/channels/home.md
@@ -98,14 +98,14 @@ working notes from agents/shrimpy/context/people/human:alice.md
 ...
 ```
 
-The memory briefing block is built by `buildMemoryBriefing` (`src/memory/briefing.ts`). It reads path-indexed files for the active turn:
+The memory context block is built by `buildMemoryContext` (`src/memory/context.ts`). It reads path-indexed files for the active turn:
 
 - `context/people/<sender>.md`
 - `context/channels/<channel>.md`
 
 Missing files emit nothing. There is no heading parser, derived peer card, or framework-owned memory writer.
 
-Per-agent turn-context state under `runtime/briefings/` records what the agent has already seen so the next turn surfaces only new channel-unread pointers.
+Per-agent turn-context state under `runtime/context/` records what the agent has already seen so the next turn surfaces only new channel-unread pointers.
 
 ## Inspection
 
@@ -114,7 +114,7 @@ shrimpy context --agent shrimpy                 # rendered system prompt
 shrimpy context --agent shrimpy --json          # includes systemPrompt with Pi skills and shrimpySystemPrompt without them
 shrimpy context --agent shrimpy --sections      # section manifest with provenance
 shrimpy context --agent shrimpy --sections --json
-shrimpy context --briefing --channel home       # turn-context envelope only
+shrimpy context --turn --channel home       # full turn preview
 shrimpy context turn --agent shrimpy --channel home
 shrimpy context sources list --agent shrimpy --channel home --json
 shrimpy context sources run runtime:turn-context --agent shrimpy --channel home
