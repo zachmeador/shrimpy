@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { makeMessage } from "../dist/channels/index.js";
 import { SessionRegistry } from "../dist/sessions/registry.js";
+import { assembleSessionPrompt } from "../dist/sessions/prompt.js";
 import {
   formatChannelMessage,
   renderTurnContext,
@@ -29,14 +30,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function createMockSession(opts?: { turnDurationMs?: number }) {
+const STABLE_SYSTEM_PROMPT = "# SOUL\n\nStable cacheable identity.";
+
+function createMockSession(opts?: {
+  turnDurationMs?: number;
+  systemPrompt?: string;
+}) {
   const turnDuration = opts?.turnDurationMs ?? 10;
   const listeners: Listener[] = [];
   const prompts: string[] = [];
+  const systemPromptSnapshots: string[] = [];
   const thinkingChanges: string[] = [];
 
   const session = {
     prompts,
+    systemPrompt: opts?.systemPrompt ?? STABLE_SYSTEM_PROMPT,
+    systemPromptSnapshots,
     thinkingChanges,
     thinkingLevel: "off",
     disposed: false,
@@ -49,6 +58,7 @@ function createMockSession(opts?: { turnDurationMs?: number }) {
     },
     async prompt(text: string): Promise<void> {
       prompts.push(text);
+      systemPromptSnapshots.push(session.systemPrompt);
       await sleep(turnDuration);
       for (const listener of [...listeners]) {
         listener({ type: "agent_end", messages: [] });
@@ -68,8 +78,28 @@ function createMockSession(opts?: { turnDurationMs?: number }) {
 
 function createFakeBootstrap(workspacePath = "/tmp/shrimpy-test-workspace") {
   return {
+    agentId: "shrimpy",
     agentRootPath: workspacePath,
     workspacePath,
+    bootEnv: {},
+    contextConfig: {
+      sources: [],
+      env: [],
+      channels: {},
+      agents: {},
+    },
+    runtimeConfig: {
+      noSkills: true,
+    },
+    baseSystemPrompt: STABLE_SYSTEM_PROMPT,
+    baseSystemSections: [{
+      id: "base:SOUL.md",
+      title: "SOUL.md",
+      kind: "identity",
+      source: "test",
+      reason: "test stable base context",
+      content: STABLE_SYSTEM_PROMPT,
+    }],
   } as any;
 }
 
@@ -105,8 +135,12 @@ function createSessionFactory(opts?: {
     calls++;
     await sleep(opts?.creationDelayMs ?? 0);
     createSessionOpts.push(createOpts);
+    const assembly = createOpts
+      ? assembleSessionPrompt(_bootstrap as any, createOpts as any)
+      : undefined;
     const session = createMockSession({
       turnDurationMs: opts?.turnDurationMs,
+      systemPrompt: assembly?.systemPrompt,
     });
     sessions.push(session);
     return session as any;
@@ -329,6 +363,55 @@ describe("SessionRegistry", () => {
       /prior thing happened[\s\S]*<\/context>\n\n\[channel: telegram~shrimpy~1, sender: human:alice\]\nhello/,
     );
     assert.doesNotMatch(sessionFactory.sessions[0].prompts[0], /\[incoming\]/);
+  });
+
+  test("keeps routed turn context out of the stable system prompt for prompt caching", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    const registry = createRegistry(sessionFactory, undefined, {
+      turnContextForMessage: (_channel, message) => {
+        const text = message.content.type === "text"
+          ? message.content.data.text
+          : "unknown";
+        return {
+          agentId: "shrimpy",
+          channel: "telegram~shrimpy~1",
+          sessionType: "gateway",
+          capturedAt: "Wed, 04/29/2026, 12:00 AM EDT",
+          maxChars: 2000,
+          items: [{
+            id: `turn:${text}`,
+            summary: `${text} live turn context`,
+            inspect: `shrimpy channels read telegram~shrimpy~1 --text ${text}`,
+          }],
+        };
+      },
+    });
+
+    await registry.dispatch("telegram~shrimpy~1", humanText("first"));
+    await registry.dispatch("telegram~shrimpy~1", humanText("second"));
+
+    assert.equal(sessionFactory.calls, 1);
+    const session = sessionFactory.sessions[0];
+    assert.equal(session.prompts.length, 2);
+    assert.notEqual(session.prompts[0], session.prompts[1]);
+    assert.deepEqual(session.systemPromptSnapshots, [
+      session.systemPrompt,
+      session.systemPrompt,
+    ]);
+    assert.match(session.systemPrompt, /# SOUL/);
+    assert.match(session.systemPrompt, /## Delivery/);
+    assert.doesNotMatch(
+      session.systemPrompt,
+      /<context>|\[turn-context\]|first live turn context|second live turn context/,
+    );
+    assert.match(
+      session.prompts[0],
+      /first live turn context[\s\S]*<\/context>\n\n\[channel: telegram~shrimpy~1, sender: human:alice\]\nfirst/,
+    );
+    assert.match(
+      session.prompts[1],
+      /second live turn context[\s\S]*<\/context>\n\n\[channel: telegram~shrimpy~1, sender: human:alice\]\nsecond/,
+    );
   });
 
   test("renders turn context text from structured data", () => {
