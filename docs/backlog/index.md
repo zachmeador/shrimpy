@@ -10,9 +10,11 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
+| [SCHED-002](sched-002-schedule-inspection-surfaces.md) | todo | P1 | Schedules | none | Schedule inspection surfaces |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [WAIT-001](wait-001-durable-agent-waits.md) | draft | P1 | Runtime | [CTX-007](ctx-007.md) | Durable waits and pending wakes for agent continuations |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
+| [CLI-001](cli-001-cleaner-command-structure.md) | draft | P2 | CLI | none | Cleaner command structure |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [CTX-007](ctx-007.md), [WAIT-001](wait-001-durable-agent-waits.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [SKILL-002](skill-002-pi-skill-loading-management.md) | todo | P1 | Skills | none | Pi-backed skill loading and management |
