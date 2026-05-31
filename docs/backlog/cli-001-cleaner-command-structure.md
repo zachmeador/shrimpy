@@ -25,6 +25,9 @@ feature has an inspectable `shrimpy <command>` path.
 - Decide the relationship between nested views such as
   `shrimpy agent schedules <id>` and workspace-wide resource commands such as
   `shrimpy schedules`.
+- Keep continuation-related inspection aligned with the resources that own the state:
+  channels show typed messages, `shrimpy agent attention test` explains handling,
+  and schedule/worker commands point at emitted channel message ids.
 - Extract command metadata so top-level help, group usage, docs, and tests do
   not drift from separate hand-written strings.
 - Generate shell tab-completion definitions from the same command metadata for

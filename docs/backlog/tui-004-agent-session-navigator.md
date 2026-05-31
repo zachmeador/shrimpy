@@ -56,7 +56,6 @@ The selected session path must not just call Pi's existing `switchSession()` aga
 - Current session summaries are per-agent and mostly active/archive paths. The navigator needs richer per-file metadata and should reuse Shrimpy custom metadata entries where present.
 - Pi's own `/resume` remains a Pi session selector for the current runtime/session directory. `/agent` should be the Shrimpy workspace-level navigator.
 - Related: the completed Shrimpy command-surface work for TUI coherence and the completed command-output polish work for selector/output patterns.
-
 ## Done
 
 - `/agent` lets the user choose a configured agent and then a session from that agent without leaving the TUI.

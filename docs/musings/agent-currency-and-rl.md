@@ -177,7 +177,7 @@ hidden framework state.
 The first implementation should be boring:
 
 1. Capture session costs: tokens, model, tool calls, duration, retries, wake
-   reason, owner, and return path.
+   reason, owner, and channel/message path.
 2. Capture outcome signals: accepted, corrected, abandoned, test result,
    command result, schema validity, user edit delta, or explicit rating.
 3. Normalize those into an inspectable `impact_ledger` record with evidence

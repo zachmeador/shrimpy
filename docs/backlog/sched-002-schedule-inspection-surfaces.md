@@ -23,8 +23,9 @@ raw definitions, but it does not answer workspace-level questions such as
 - Add `shrimpy schedules show <schedule-id> [--json]` for one resolved schedule,
   where agent schedules use the resolved `agent-id/local-schedule-id` id.
 - Report the source path, owner agent when relevant, local id, enabled state,
-  trigger, timezone, concurrency policy, target channel/action, next run from
-  scheduler state, and last observed run from channel logs when available.
+  trigger, timezone, concurrency policy, target channel, expected attention
+  behavior, next run from scheduler state, last observed run from channel logs,
+  and recent emitted channel message id when available.
 - Include both `agents/<id>/schedules.json` and `config/schedules.json`.
 - Back the command with a shared schedule-inspection service rather than
   duplicating gateway scheduler loading logic in CLI and TUI code.
@@ -44,6 +45,16 @@ raw definitions, but it does not answer workspace-level questions such as
   or formatter-friendly data model.
 - Do not add compatibility shims or legacy aliases.
 
+## Notes
+
+- Related: [SCHED-003](sched-003-scheduled-channel-messages.md) changes the
+  schedule routing model to typed messages in ordinary channels.
+- Related: [SCHED-003](sched-003-scheduled-channel-messages.md) should use the
+  existing agent attention model; schedule inspection should explain the target
+  channel and expected attention behavior.
+- Related: [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) adds
+  one-time runtime schedules that should appear in the same inspection surfaces.
+
 ## Done
 
 - `shrimpy schedules` lists all configured workspace and agent schedules.
@@ -51,6 +62,7 @@ raw definitions, but it does not answer workspace-level questions such as
 - `shrimpy schedules show <schedule-id>` prints one resolved schedule.
 - JSON output is stable enough for agents to consume.
 - TUI `/status schedules` shows schedule count, next due run, recent run
-  activity, and the active agent's schedules.
+  activity, target channel, expected attention behavior, and the active agent's
+  schedules.
 - Tests cover schedule inventory, JSON output, filtering, missing ids, and TUI
   status text generation or its shared data source.

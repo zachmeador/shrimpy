@@ -41,7 +41,8 @@ The trick is:
 - Treat **sessions** as private minds attached to channels.
 - Prefer **roles** over hard-coded runtime species.
 - Make background work produce **inspectable artifacts**, not invisible magic.
-- Make every wake have a **reason**, an **owner**, and a **return path**.
+- Make every wake have a **reason**, an **owner**, and an inspectable
+  **channel/message path**.
 - Let **budget** shape cadence, context size, and model choice.
 - Treat heartbeat as a **maintenance sweep**, not the whole architecture.
 
@@ -142,13 +143,13 @@ A tool completes, a file changes, a process exits, a transport reconnects, or an
 
 This is usually more valuable than fixed polling.
 
-### Scheduled Wake
+### Scheduled Message
 
 A reminder, daily sweep, quiet-hours review, or periodic maintenance check.
 
 This is what heartbeat is closest to.
 
-### Self-Scheduled Wake
+### Self-Scheduled Continuation
 
 An agent explicitly asks the system to wake it later or re-check something under certain conditions.
 
@@ -285,18 +286,20 @@ The missing layer is closer to:
 
 Give the system a compact machine-readable summary of active sessions so a heartbeat or steward can reason over status lines instead of raw transcripts.
 
-### 2. Wake Records
+### 2. Attention-Routed Channel Messages
 
-Represent wakes as typed events with fields like:
+Represent asynchronous prompts as ordinary channel messages with fields like:
 
 - reason
 - source
-- target agent
+- source channel
 - related session
 - urgency
 - budget class
 
-That makes wake behavior inspectable and easier to evolve.
+Channel membership and agent attention decide whether a given agent handles the
+message. That makes wake behavior an effect of normal routing instead of a
+separate runtime path.
 
 ### 3. Child Session Contract
 
@@ -304,7 +307,7 @@ When an agent spawns bounded work, store:
 
 - parent session
 - goal
-- expected return channel
+- related channel or user request
 - timeout or completion rule
 
 This makes "create and monitor sessions" feel like a first-class pattern instead of ad hoc prompt behavior.

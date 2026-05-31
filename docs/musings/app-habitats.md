@@ -28,7 +28,7 @@ Shrimpy already has most of the raw material:
 - agents are persistent identities with memory and sessions
 - channels are durable comms/logs
 - skills are prompt/resource bundles for ordinary sessions
-- schedules can wake channels
+- schedules can write typed messages into channels
 - tools let agents edit files, call CLIs, and run scripts
 
 The missing piece is a first-class convention for grouping those primitives
@@ -245,7 +245,8 @@ This direction likely needs these changes, in order:
    in an app context.
 
 6. **App-aware schedules**
-   Let schedules carry optional app metadata and default return channels.
+   Let schedules carry optional app metadata while still writing ordinary
+   messages into ordinary channels.
 
 7. **Promotion workflow skill**
    Add a system skill that knows how to turn a useful skill or repeated workflow

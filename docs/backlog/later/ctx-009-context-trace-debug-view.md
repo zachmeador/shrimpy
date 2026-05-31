@@ -1,7 +1,7 @@
 # CTX-009: First-Class Context Trace Debug View
 
 Status: todo
-Priority: P1
+Priority: P2
 Area: Context
 
 ## Why
@@ -21,6 +21,12 @@ The inspection view should match the actual material used for the prompt and
 turn context, so agents and developers can trust `shrimpy context` output when
 debugging a session.
 
+This is lowest-priority observability work. Build it only when context
+provenance becomes a recurring debugging problem, or when continuation,
+schedule, and worker-status context expands enough that the existing
+`shrimpy context --sections`, `shrimpy context turn`, and
+`shrimpy context sources list/run` surfaces are no longer sufficient.
+
 ## Build
 
 - Add a normalized `ContextTrace` or `ContextPlan` layer for a resolved session
@@ -28,6 +34,9 @@ debugging a session.
 - Represent each produced block with stable metadata: `id`, `scope`, `kind`,
   body or summary, provenance, freshness/cache state, inspect command, and
   materialization status.
+- Represent continuation context with enough provenance to explain the source
+  message, source record, message channel, attention route, and related
+  wait/schedule/worker id without treating it as a special prompt side channel.
 - Render existing `PromptSection` and `TurnContextItem` outputs from the trace
   instead of treating them as separate source systems.
 - Make `shrimpy context --sections`, `shrimpy context turn`, and
@@ -55,6 +64,8 @@ debugging a session.
   `src/commands/context.ts`, and `src/sessions/prompt.ts`.
 - This should make future turn-context facts easier to add because new facts can
   be introduced as trace producers with provenance and inspection metadata.
+- Related: continuation trace output should reuse the existing attention
+  explanation path so it can explain why a message reached the current turn.
 
 ## Done
 
@@ -63,6 +74,8 @@ debugging a session.
 - JSON output exposes the trace with source plan, produced blocks, render
   targets, provenance, freshness/cache status, inspect commands, and skipped or
   failed source statuses.
+- Continuation-related trace entries point back to channel messages and their
+  source records.
 - Existing text output remains compact and agent-friendly.
 - Tests cover prompt/trace parity, turn context/trace parity, source listing,
   source rendering, command freshness behavior, and skipped/failed sources.

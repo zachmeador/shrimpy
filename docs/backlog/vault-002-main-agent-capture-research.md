@@ -35,8 +35,8 @@ paths plus next actions.
   - optional artifacts under a clearly named subfolder.
 - Teach the agent to use worker sessions from
   [CODE-002](code-002-agentic-worker-sessions.md) for bounded research or
-  implementation work when available, with the vault packet as the handoff and
-  return path.
+  implementation work when available, with the vault packet as the handoff
+  material.
 - Before CODE-002 exists, keep the workflow usable with normal direct sessions,
   `run_child`, or manually invoked tools, but do not create a second durable
   worker abstraction.

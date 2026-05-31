@@ -187,7 +187,8 @@ Architecture:
 - Slack Socket Mode receives messages, logs them to per-channel `log.jsonl`, and queues them for sequential processing.
 - Per-channel state includes `log.jsonl`, `context.jsonl`, and `MEMORY.md`.
 - `ChannelQueue` handles one-message-at-a-time processing per channel.
-- Event trigger files can wake channels immediately, once at a scheduled time, or periodically.
+- Event trigger files can trigger channel processing immediately, once at a
+  scheduled time, or periodically.
 
 Relevance to Shrimpy: prior art for channel-to-agent routing. Key differences from Shrimpy's design are that mom responds via Slack API directly, handles only Slack, and runs one agent per channel.
 

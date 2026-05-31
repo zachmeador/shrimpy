@@ -37,7 +37,7 @@ that risky capabilities are safe for everyone.
 5. Skills are resources, not a control plane.
 6. Memory must not pollute context or storage; it should remember what the user
    cares about and what the agent needs to do its job.
-7. Background work needs a reason, owner, return path, and artifact.
+7. Background work needs a reason, owner, channel/message path, and artifact.
 8. Capability claims must match real boundaries and assume user judgment.
 9. Cheap models must be able to understand the system.
 10. Bash and small CLIs beat tool sprawl by default.

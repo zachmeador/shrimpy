@@ -3,6 +3,7 @@
 Status: draft
 Priority: P1
 Area: Coding Agents
+Depends On: [CODE-001](code-001.md)
 
 ## Why
 
@@ -20,7 +21,7 @@ closes it.
 ## Build
 
 - Define a first-class worker session model with stable ids, parent lineage,
-  owner agent, goal, cwd, tool/provider kind, optional channel/return path,
+  owner agent, goal, cwd, tool/provider kind, related channel when applicable,
   status, timestamps, and completion policy.
 - Add CLI coverage before tool automation, for example:
   - `shrimpy worker start ...`
@@ -32,13 +33,12 @@ closes it.
   - `shrimpy worker cancel <id>`
   - `shrimpy worker close <id>`
 - Keep `shrimpy worker wait <id>` as a blocking CLI command for humans and
-  scripts. Agent-facing async continuation should use durable waits from
-  [WAIT-001](wait-001-durable-agent-waits.md), not a worker-specific poll loop.
+  scripts. Do not add an agent-facing async continuation primitive in this
+  worker slice; agents can inspect worker state through tools and turn context.
 - Add daemon tools that expose the same worker controls to Shrimpy agents with
   bounded, structured outputs.
-- Make worker status structured enough for durable wait predicates, such as
-  waiting until a worker is complete, blocked, failed, or ready for parent
-  review.
+- Make worker status structured enough for inspection and turn context, such as
+  complete, blocked, failed, or ready for parent review.
 - Support three first-class worker backend types:
   - `codex` for managed Codex terminal sessions.
   - `claude` for managed Claude Code terminal sessions.
@@ -52,9 +52,8 @@ closes it.
 - Use direct stdio/JSON protocols when a backend supports them; use a PTY only
   when the backend requires terminal behavior for reliable operation.
 - Treat process exit as the normal completion signal for non-interactive backend
-  turns. On exit, update worker status, refresh the summary, and notify the
-  parent through the normal worker/wait surfaces; do not close the Shrimpy worker
-  unless the parent asked to close it.
+  turns. On exit, update worker status and refresh the summary; do not close the
+  Shrimpy worker unless the parent asked to close it.
 - For follow-up after review, resume the same backend session/thread under the
   same Shrimpy worker id rather than creating a new worker.
 - Give every external worker a process group and a cleanup path. On close/cancel
@@ -80,18 +79,19 @@ closes it.
 - Store detailed worker logs for audit/debugging and maintain a compact Markdown
   summary for turn context, listing, and later review. The summary should be refreshed
   as the worker changes state and finalized when the parent closes the worker.
-- Support the normal review loop: when a worker reports that the spec is complete,
-  the parent is notified with the worker id and summary; if the user asks for
-  changes, the parent sends the feedback to the same worker session unless it has
-  already been closed.
+- Support the normal review loop: when a worker reports that the spec is
+  complete, blocked, or failed, the worker id and summary are persisted and
+  visible through inspection and relevant turn context. If the user asks for
+  changes, the parent sends the feedback to the same worker session unless it
+  has already been closed.
 - Ensure every external worker process is supervised for its whole lifetime:
   Shrimpy must be able to stop it, observe exit, record final state, and clean it
   up during normal shutdown.
 - Surface worker status in session-status and turn context so agents can
   autonomously notice blocked, running, failed, and completed work.
 - Scope workers to an owning agent, and record enough lineage for relevance:
-  parent session, session kind, optional originating channel, optional return
-  channel, goal, and current status.
+  parent session, session kind, optional originating channel, goal, and current
+  status.
 - Start with a simple ownership rule: an agent manages the workers it starts.
   Do not design flows for one agent managing another agent's workers until there
   is a concrete need.
@@ -111,9 +111,9 @@ closes it.
   wait for active work, stop active work, or close the worker when review is done.
 - Do not let worker autonomy include destructive or irreversible actions by
   default. Workers may propose those actions, but the parent must decide.
-- Do not invent a worker-specific async wait/wake loop. Worker state should be
-  observable enough for [WAIT-001](wait-001-durable-agent-waits.md) to wake the
-  originating agent/session when a worker reaches the requested condition.
+- Do not invent a worker-specific async continuation loop. Worker state should be
+  observable through inspection commands, relevant turn context, and ordinary
+  channels when a parent explicitly sends status onward.
 - Do not require external coding-agent CLIs for Shrimpy to keep working.
 - Do not invent a second channel system; when a worker needs a channel return
   path, use normal Shrimpy channels. Otherwise, keep status, summaries, and logs
@@ -137,9 +137,8 @@ closes it.
   worker-control tools.
 - Related: extend the existing session-status turn-context item with worker
   state once worker sessions exist.
-- Related: [WAIT-001](wait-001-durable-agent-waits.md) should provide durable
-  continuation for "wait until this worker is done, then wake me" flows across
-  both channel and TUI/direct sessions.
+- Related: channel-origin continuation should use the existing attention routing
+  model rather than a worker-specific path.
 - Design pressure is sketched in
   [../musings/asynchronous-agents.md](../musings/asynchronous-agents.md),
   especially worker sessions, explicit lineage, pending child work, and the child
@@ -166,9 +165,9 @@ closes it.
   avoid destructive actions, and defer parent-owned decisions such as merging,
   publishing, deleting, resetting, or broad rewrites.
 - Worker turn context relevance likely needs tiers: current parent session first,
-  current channel/return channel next when a channel exists, other active
-  workers owned by the same agent as a compact count or summary, and cross-agent
-  workers only when explicitly addressed or requested.
+  current channel next when a channel exists, other active workers owned by the
+  same agent as a compact count or summary, and cross-agent workers only when
+  explicitly addressed or requested.
 - Worker storage should prefer two views of the same work: raw backend/session
   events for full inspection, and a compact Markdown summary that captures goal,
   status, key actions, files/artifacts touched, blockers, and final result.
@@ -179,10 +178,10 @@ closes it.
 
 - Workers can be started, inspected, messaged, waited on, and cancelled from CLI.
 - Shrimpy agents can perform the same lifecycle operations through daemon tools.
-- Worker completion/blockage/failure status can be used as a durable wait
-  condition without adding a second worker-specific waiting path.
+- Worker completion/blockage/failure status is structured and inspectable
+  without adding a second worker-specific waiting path.
 - Worker metadata records parent lineage, session kind, goal, backend, cwd,
-  status, optional return path, and timestamps.
+  status, related channel when applicable, and timestamps.
 - Worker storage includes detailed logs and a compact Markdown summary refreshed
   during work and finalized at worker close.
 - Completed work can receive follow-up under the same Shrimpy worker id by
@@ -191,7 +190,7 @@ closes it.
   cleanup and workspace-heartbeat protection against dangling processes.
 - External worker processes are supervised, terminated or reattached on restart,
   and never left running without Shrimpy knowing how to clean them up.
-- Turn context make worker relevance clear enough that an agent with multiple
+- Turn context makes worker relevance clear enough that an agent with multiple
   active sessions can tell which workers matter to the current turn.
 - Worker backend types exist for Codex, Claude Code, and Pi, with at least one
   backend implemented end to end and the others represented by explicit

@@ -10,6 +10,11 @@ Channel logs are append-only and reliable, but users and agents need better ways
 ## Build
 - Add richer channel inspection, search, and summary commands.
 - Surface recent requests, open threads, and maintenance logs.
+- Surface schedule/worker-originated messages in channels clearly enough to
+  answer "why did this agent handle the message?", "which channel carried the
+  message?", and "which source record caused it?" without reading raw JSONL.
+- Add filters for message content/source kinds that matter to agents, including
+  user text, scheduler messages, worker-related messages, and system messages.
 - Keep append-only logs as the source of truth.
 
 ## Progress
@@ -24,8 +29,13 @@ Channel logs are append-only and reliable, but users and agents need better ways
 ## Notes
 - Likely files: `src/commands/channels.ts`, `src/channels/service.ts`, `src/channels/bus.ts`, and `src/web/read.ts`.
 - Output should be agent-friendly and easy to compose from the CLI.
+- Related: schedule/worker continuations depend on normal channel
+  inspection being good enough that attention routing is legible, not a hidden
+  runtime side effect.
 
 ## Done
 - `shrimpy channels` exposes the richer inspection paths.
 - Agents can follow turn context pointers without manual raw-file reads.
+- Schedule/worker-originated messages can be found, filtered, and traced
+  back to their source records from channel inspection output.
 - Tests cover search/filter behavior and summary bounds.

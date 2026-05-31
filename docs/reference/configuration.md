@@ -345,7 +345,7 @@ Channel membership stays in `config/channels.json`. Agent schedules choose a cha
 ```
 
 - `label` is the diagnostic name. If omitted, Shrimpy uses `scheduleId`.
-- `channel` is the channel log where the scheduler writes the wake message.
+- `channel` is the channel log where the scheduler writes the scheduled message.
 - `scheduleId` is the resolved scheduler id, for example `agent-id/local-schedule-id` for agent-owned schedules.
 
 ## Context

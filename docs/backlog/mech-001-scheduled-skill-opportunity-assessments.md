@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Mechanic
-Depends On: [ADMIN-001](admin-001.md), [SCHED-002](sched-002-schedule-inspection-surfaces.md), [APP-001](app-001.md)
+Depends On: [ADMIN-001](admin-001.md), [SCHED-002](sched-002-schedule-inspection-surfaces.md), [SCHED-003](sched-003-scheduled-channel-messages.md), [APP-001](app-001.md)
 
 ## Why
 
@@ -22,6 +22,8 @@ highest-signal recommendations.
 ## Build
 
 - Add an opt-in mechanic-owned schedule for recurring usage assessment.
+- Run the recurrence through an ordinary configured channel where the mechanic is
+  a member and its attention policy accepts the scheduled message.
 - Let the user trigger the same assessment manually from a normal mechanic
   session before enabling recurrence.
 - Implement the assessment as a mechanic skill/resource, not a special runtime
@@ -59,6 +61,8 @@ highest-signal recommendations.
   [ADMIN-001](admin-001.md).
 - [SCHED-002](sched-002-schedule-inspection-surfaces.md) gives the mechanic a
   safer way to inspect its own recurrence and explain when it will run next.
+- [SCHED-003](sched-003-scheduled-channel-messages.md) keeps recurrence routing on
+  ordinary channel membership and attention instead of addressed-agent bypasses.
 - Good candidate recommendations: turn repeated manual requests into a skill,
   add a small recurring schedule, split a focused app-agent out of the main
   agent, add a vault collection/index, or create a channel convention.
@@ -67,6 +71,8 @@ highest-signal recommendations.
 
 - The mechanic can run a manual usage assessment from an ordinary session.
 - The mechanic can optionally run the same assessment on a recurring schedule.
+- Recurring assessment work becomes a mechanic turn through normal channel
+  membership and mechanic attention.
 - Each assessment writes a timestamped Markdown report in an inspectable
   workspace path.
 - Each non-empty assessment sends the user a concise message with concrete

@@ -107,7 +107,7 @@ The workspace shape can stay ordinary:
 
 - one character agent with a strong personality, voice, lore, and relationship to
   the user
-- one scheduled wake that asks the agent to write a morning letter
+- one scheduled message that asks the agent to write a morning letter
 - one user-facing channel where the letter is delivered
 - character memory that preserves important user facts, fictional continuity,
   recurring motifs, and new lore
