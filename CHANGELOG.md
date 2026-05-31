@@ -4,12 +4,18 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 0.2.0 - Lanterns in the Current - Unreleased
 
-- Added the Shrimpy-owned TUI mode on top of Pi interactive mode.
-- Added unified `/settings` sections for Shrimpy workspace state and Pi runtime settings.
-- Added `/status` as the consolidated Shrimpy session status surface.
-- Hid session-scoped model rotation controls in favor of explicit `/model` selection.
-- Added compact context-block rendering that follows Pi's Ctrl+O expansion toggle.
-- Added the bottom-row Shrimpy activity indicator for active work.
+- Added a Shrimpy-owned TUI layer on top of Pi interactive mode, including unified `/status` and `/settings` surfaces, model/thinking selectors, compact tool rows with Ctrl+O expansion, and the bottom-row Shrimpy activity indicator.
+- Added release metadata from `package.json` so CLI help/version output follows the configured package version, description, and release name.
+- Added `shrimpy models` and `shrimpy models resolve` for inspecting agent defaults, Pi-visible provider models, session/channel model precedence, and missing default-model setup hints.
+- Changed model defaults to require explicit provider/id pairs, restore saved model selections for local `tui` and `run` sessions, and record current model/inference metadata in session history.
+- Added `shrimpy agent inspect`, `--disable-tools`, and tool capability policy reporting so agents can enable Shrimpy daemon tools while excluding Pi built-ins or other registered tools.
+- Added active-channel publication tools: `reply`, `ask`, `notify`, and `report`. Publication intent now flows through channel egress, and Telegram low-urgency notifications can be delivered quietly.
+- Added fine-grained `shrimpy agent attention set` and `shrimpy agent attention clear` mutators for base and per-channel attention policies.
+- Improved compaction summaries with session-agent context, looser summary formats, system-prompt-aware chunking, and stronger preservation of agent voice/workspace expectations.
+- Improved model-variant inference handling so payload rewrites and sampler params apply only to the current model.
+- Added memory reference documentation, Discord DM adapter research, release-process docs, and new backlog notes for browser automation, worker sessions, durable waits, vault conventions, setup/security, and surface work.
+- Removed completed backlog/tracking notes and stale VS Code workspace settings; added a checked-in `shrimpy.code-workspace`.
+- Expanded regression coverage for the new TUI surfaces, model commands/restoration, tool policy, attention mutators, compaction, Telegram outbound formatting, and channel delivery behavior.
 
 ## 0.1.0 - First Light in the Tidepool - 2026-05-30
 
