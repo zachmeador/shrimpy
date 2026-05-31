@@ -38,6 +38,11 @@ skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
 ```
 
+Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under
+`agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same
+id. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI
+management.
+
 ## Context Resources
 
 Stable prompt material loaded into an agent session before the per-turn briefing arrives:

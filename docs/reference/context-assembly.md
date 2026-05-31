@@ -12,7 +12,10 @@ A `PromptSection` (`src/context/resources.ts`) carries:
 - `source` — file path or `inline`/`runtime` for generated content
 - `reason` — why this section is here
 
-Resource-backed sections load from disk via `assemblePromptResourceSections`. Generated sections such as runtime environment, delivery hints, available skills, and turn context are built by context services.
+Resource-backed sections load from disk via `assemblePromptResourceSections`.
+Generated Shrimpy sections such as runtime environment, delivery hints, and turn
+context are built by context services. Available skills are resolved by Shrimpy
+but rendered by Pi as an `<available_skills>` block after the Shrimpy base prompt.
 
 ## Source Configuration
 
@@ -59,12 +62,13 @@ Sections are sorted by kind at assembly time. The order (`PROMPT_SECTION_KIND_OR
 1. `identity` — workspace, system, user, and agent identity docs
 2. `memory` — agent context files
 3. `instruction` — extra system prompt additions
-4. `capability` — available skill list
+4. `capability` — Shrimpy-owned capability guidance
 5. `runtime` — environment facts, delivery hints
 6. `activity` — turn context items
 7. `evidence` — inspectable evidence sections
 
-Live state lands at the end of the prompt — closest to the model's most recent context.
+Live state lands at the end of the Shrimpy base prompt. Pi appends its
+available-skill block after that base prompt so previews match runtime sessions.
 
 ## Turn Envelope
 
@@ -107,6 +111,7 @@ Per-agent turn-context state under `runtime/briefings/` records what the agent h
 
 ```bash
 shrimpy context --agent shrimpy                 # rendered system prompt
+shrimpy context --agent shrimpy --json          # includes systemPrompt with Pi skills and shrimpySystemPrompt without them
 shrimpy context --agent shrimpy --sections      # section manifest with provenance
 shrimpy context --agent shrimpy --sections --json
 shrimpy context --briefing --channel home       # turn-context envelope only

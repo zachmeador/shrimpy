@@ -27,6 +27,7 @@ export function createShrimpyResourceLoader(opts: {
   runtimeConfig: Required<RuntimeConfig>;
   systemPrompt: string;
   modelsPath?: string;
+  skillPaths?: string[];
 }): DefaultResourceLoader {
   return new DefaultResourceLoader({
     cwd: opts.cwd,
@@ -34,14 +35,17 @@ export function createShrimpyResourceLoader(opts: {
     settingsManager: opts.settingsManager,
     additionalExtensionPaths: SHRIMPY_EXTENSION_PATHS,
     extensionFactories: createInferenceExtensionFactories(opts.modelsPath),
-    additionalSkillPaths: [],
+    additionalSkillPaths: opts.runtimeConfig.noSkills
+      ? []
+      : (opts.skillPaths ?? []),
     additionalThemePaths: SHRIMPY_THEME_PATHS,
     noSkills: true,
     noPromptTemplates: opts.runtimeConfig.noPromptTemplates,
     // Shrimpy owns session context assembly and passes Pi one explicit
-    // prompt body. Keep Pi discovery for extensions/themes, but strip
-    // discovered skills, AGENTS.md, and APPEND_SYSTEM.md inputs so cwd-local
-    // repos do not silently reshape the session.
+    // prompt body. Keep Pi discovery for extensions/themes, but strip ambient
+    // skills, AGENTS.md, and APPEND_SYSTEM.md inputs so cwd-local repos do not
+    // silently reshape the session. Shrimpy-approved skill paths are passed
+    // explicitly through additionalSkillPaths above.
     systemPrompt: opts.systemPrompt,
     agentsFilesOverride: () => ({ agentsFiles: [] }),
     appendSystemPromptOverride: () => [],

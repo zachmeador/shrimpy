@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { promisify } from "node:util";
+import { formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 import {
   assembleSessionPrompt,
   createGatewaySessionDescriptor,
@@ -133,6 +134,8 @@ export const cmdContext: CommandHandler = async (argv, config) => {
   };
 
   const assembly = assembleSessionPrompt(bootstrap, plan);
+  const systemPromptPreview = assembly.systemPrompt
+    + formatSkillsForPrompt(bootstrap.resourceLoader.getSkills().skills);
   const prompt = positionals.join(" ").trim();
   const previewMessage = values.channel
     ? makeMessage({
@@ -177,7 +180,8 @@ export const cmdContext: CommandHandler = async (argv, config) => {
     console.log(
       JSON.stringify(
         {
-          systemPrompt: assembly.systemPrompt,
+          systemPrompt: systemPromptPreview,
+          shrimpySystemPrompt: assembly.systemPrompt,
           promptSections: assembly.sections.map(summarizePromptSection),
           briefing: briefing ? { ...briefing, text: briefingText } : undefined,
           turnPrompt,
@@ -201,7 +205,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
     console.log("\n=== System Prompt ===\n");
   }
 
-  console.log(assembly.systemPrompt);
+  console.log(systemPromptPreview);
 
   if (prompt) {
     console.log(

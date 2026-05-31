@@ -1,6 +1,6 @@
 # 🦐 SKILL-002: Pi-Backed Skill Loading And Management
 
-Status: todo
+Status: done
 Priority: P1
 Area: Skills
 Depends On: none
@@ -37,6 +37,11 @@ pass Shrimpy-resolved skill entry files to Pi explicitly. In other words:
 winning `SKILL.md` files for the active agent. Use `skillsOverride` only if
 explicit path loading cannot express Shrimpy's precedence or naming rules cleanly.
 
+Assume workspace-level skills are intentionally curated. The first slice should
+not add automatic top-k relevance filtering or a separate "installed but hidden"
+visibility model. If an agent has too many effective skills, Shrimpy should
+diagnose the prompt-size risk rather than trying to guess which skills matter.
+
 ## Build
 
 - Define one Shrimpy skill resolution model for:
@@ -63,9 +68,13 @@ explicit path loading cannot express Shrimpy's precedence or naming rules cleanl
     context;
   - scheduled runs that name a skill load that skill in the same way;
   - Pi's interactive skill handling does not expose a different skill universe.
+- Add a soft diagnostic threshold for large effective skill sets, initially
+  around 20 visible skills. Surface this through `shrimpy skills list`,
+  `shrimpy doctor` when available, or another inspection path. This is a warning,
+  not an automatic filter.
 - Decide and document the public identifier rule. Prefer `skills/<id>/` matching
   frontmatter `name` so `shrimpy --skill <id>`, schedules, and `/skill:<name>`
-  are predictable. If they differ, `shrimpy skills validate` should warn.
+  are predictable. If they differ, `shrimpy skills validate` should fail.
 - Extend `shrimpy skills` with CLI-first management:
   - `shrimpy skills list [--agent <id>] [--json]` is backed by the same Pi-loaded
     skill view enriched with Shrimpy id, scope, source path, description, and
@@ -94,6 +103,8 @@ explicit path loading cannot express Shrimpy's precedence or naming rules cleanl
   for sessions; CLI commands are for inspection and file management.
 - Do not auto-invoke skills behind the user's back. Agents may choose skills
   from advertised context, and users/schedules may preload skills explicitly.
+- Do not implement automatic relevance ranking, top-k skill selection, or
+  hidden-by-default installed skills in the first slice.
 - Do not migrate or overwrite existing workspace or agent skills without an
   explicit user action.
 - Do not add a remote marketplace or package manager in this slice. Local
@@ -115,5 +126,8 @@ explicit path loading cannot express Shrimpy's precedence or naming rules cleanl
   inspectable, non-destructive command.
 - `--skill`, scheduled skill runs, TUI skill affordances, and available-skill
   prompt advertising all use the same resolution rules.
+- Large effective skill sets produce an inspectable warning, but Shrimpy does
+  not silently drop skills from Pi's advertised list in this slice.
 - Tests cover skill resolution precedence, Pi loader inputs, CLI scaffolding,
-  install refusal/force behavior, validation failures, and prompt assembly.
+  install refusal/force behavior, validation failures, large-skill-set warnings,
+  and prompt assembly.

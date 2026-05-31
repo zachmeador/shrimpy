@@ -10,7 +10,9 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.
 - `--provider`, `--model`, and `--thinking <off|low|medium|high>` override one session.
 - Without a CLI override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `agents[].model`. Fresh sessions without an agent default fail with a setup hint.
-- `--skill <id>` loads full skill context into the session.
+- `--skill <id>` loads full skill context into the session. The normal
+  workspace/agent skill list is also passed to Pi so `/skill:<name>`,
+  autocomplete, and available-skill prompt advertising see the same skill set.
 
 Direct `tui` and `run` sessions are local execution labels. They do not first write user prompts to a channel log.
 
@@ -45,9 +47,15 @@ Gateway channel sessions are opened from the agent default model for that gatewa
 
 ## Prompt Context
 
-Shrimpy passes Pi one explicit system prompt. Pi's cwd-discovered `AGENTS.md` and append-system prompts are suppressed so session context is inspectable and controlled by Shrimpy.
+Shrimpy passes Pi one explicit system prompt. Pi's cwd-discovered `AGENTS.md`,
+append-system prompts, and ambient skill roots are suppressed so session context
+is inspectable and controlled by Shrimpy.
 
-The system prompt is assembled from typed `PromptSection`s ordered by kind: identity, memory, and instructions first; capability next; runtime, activity, and evidence last. See [context-assembly.md](context-assembly.md).
+The Shrimpy-owned base system prompt is assembled from typed `PromptSection`s
+ordered by kind: identity, memory, and instructions first; capability next;
+runtime, activity, and evidence last. Pi then appends its own
+`<available_skills>` block for the Shrimpy-approved skill paths. See
+[context-assembly.md](context-assembly.md) and [skills.md](skills.md).
 
 At turn time, Shrimpy prepends a `<context>...</context>` block: current time/session facts, channel-unread pointers, path-indexed memory slices, command-source output, and inspect commands.
 

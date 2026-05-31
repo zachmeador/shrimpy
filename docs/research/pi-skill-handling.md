@@ -111,9 +111,9 @@ RPC `get_commands` reports skills as commands with names like
 `skill:brave-search`, source `skill`, and source/path metadata. Interactive
 autocomplete builds the same command list from `resourceLoader.getSkills()`.
 
-## Current Shrimpy Mismatch
+## Pre-SKILL-002 Shrimpy Mismatch
 
-Shrimpy currently has its own skill scanner and prompt resource path:
+Before SKILL-002, Shrimpy had its own skill scanner and prompt resource path:
 
 - `shrimpy skills list` scans `agents/<id>/skills/` and workspace `skills/`.
 - `shrimpy --skill <id>` and scheduled skill runs load the matching
@@ -121,20 +121,20 @@ Shrimpy currently has its own skill scanner and prompt resource path:
 - `createBootstrap()` advertises available skills through Shrimpy's own
   `capability:available_skills` section.
 
-But Shrimpy's Pi loader currently passes:
+But Shrimpy's Pi loader passed:
 
 ```ts
 additionalSkillPaths: [],
 noSkills: true,
 ```
 
-So Pi's actual `resourceLoader.getSkills()` is empty in normal Shrimpy sessions.
+So Pi's actual `resourceLoader.getSkills()` was empty in normal Shrimpy sessions.
 That means Pi slash skill commands, autocomplete, RPC command discovery, and
 Pi's XML skill prompt block do not match the Shrimpy skill list.
 
-There is also a prompt-preview risk. If Shrimpy simply starts giving Pi skills,
+There was also a prompt-preview risk. If Shrimpy simply started giving Pi skills,
 Pi will append its own XML `<available_skills>` block to the custom system
-prompt. Shrimpy's current prompt preview and Shrimpy's existing available-skill
+prompt. Shrimpy's prompt preview and Shrimpy's existing available-skill
 section would need to be adjusted to avoid duplicated or divergent skill
 advertising.
 
@@ -213,15 +213,19 @@ If path ordering and name collision handling become awkward, move to Option B
 with `skillsOverride`, but still reuse Pi's `loadSkills`/frontmatter behavior
 where possible.
 
-## Open Questions For SKILL-002
+## SKILL-002 Decisions
 
-- Should Shrimpy's public skill id always equal Pi's frontmatter `name`, or can
-  a Shrimpy skill have a path id that differs from its Pi slash-command name?
-- Should `disable-model-invocation` hide a skill from Shrimpy's available-skill
-  prompt exactly as Pi does?
-- Should `shrimpy skills list --json` expose both `id` and Pi `name`, plus
-  collision/shadowing diagnostics?
-- Should Shrimpy keep its own concise available-skill prose, or standardize on
-  Pi's XML block for prompt parity?
-- How should scheduled runs refer to skills if a frontmatter `name` differs
-  from the Shrimpy path id?
+- Shrimpy's public skill id is the directory id. Pi's command name is
+  frontmatter `name`. Shrimpy validation treats mismatches as errors so CLI,
+  schedules, and `/skill:<name>` all stay aligned.
+- `disable-model-invocation` follows Pi behavior: the skill remains loadable,
+  but it is omitted from Pi's available-skill prompt block.
+- `shrimpy skills list --json` exposes Shrimpy id, Pi name, scope, source paths,
+  load state, diagnostics, and shadowed skills.
+- Shrimpy prompt previews include Pi's XML `<available_skills>` block for parity
+  with runtime sessions. The Shrimpy-only base prompt is still exposed as
+  `shrimpySystemPrompt` in `shrimpy context --json`.
+- Scheduled and explicit Shrimpy skill preloads continue to resolve by Shrimpy
+  id. Pi slash commands resolve by Pi name.
+- No automatic relevance ranking or top-k filtering is part of the first slice.
+  Effective skill sets above 20 visible skills produce an inspectable warning.

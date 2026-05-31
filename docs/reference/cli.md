@@ -75,8 +75,11 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy agent schedule <id> <schedule-id>` | Show one agent schedule definition. |
 | `shrimpy agent rename <old> <new>` | Rename an agent and update local state. |
 | `shrimpy agent remove <id>` | Remove an agent from config/state. |
-| `shrimpy skills list` | List agent and workspace skills. |
-| `shrimpy skills show <id>` | Print a skill's `SKILL.md`. |
+| `shrimpy skills list [--agent <id>] [--json]` | List the effective Pi-loaded agent and workspace skill view, including warnings. |
+| `shrimpy skills show <id> [--agent <id>]` | Print a skill's `SKILL.md`. |
+| `shrimpy skills add <id> [--agent <id>\|--workspace] [--description <text>] [--force]` | Scaffold a valid workspace or agent skill bundle. |
+| `shrimpy skills install <source> [--agent <id>\|--workspace] [--id <id>] [--force]` | Copy a local skill bundle or Markdown entrypoint into the workspace. |
+| `shrimpy skills validate [id] [--agent <id>] [--json]` | Validate skill frontmatter, Pi loading, path layout, shadowing, and large effective skill sets. |
 | `shrimpy users list` | List identity links and the resolved owner. |
 | `shrimpy users get-owner` | Print the resolved owner identity. |
 | `shrimpy users set-owner <userId>` | Set the workspace owner; CLI publishing routes through the owner's actorId when set. |

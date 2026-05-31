@@ -10,7 +10,6 @@ import {
   assemblePromptContext,
   createPromptSection,
   FALLBACK_IDENTITY_TEXT,
-  renderAvailableSkillsPrompt,
   resolveBootEnv,
   type BootEnv,
   type ContextConfig,
@@ -18,7 +17,7 @@ import {
   type PromptSection,
 } from "../context/index.js";
 import type { RuntimeConfig, ShrimpyConfig } from "../config/index.js";
-import { listSkillViewsFromPaths } from "../skills/index.js";
+import { listEffectiveSkillEntryPathsFromPaths } from "../skills/index.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 
 export interface SessionBootstrap {
@@ -37,6 +36,7 @@ export interface SessionBootstrap {
   bootEnv: BootEnv;
   baseSystemPrompt: string;
   baseSystemSections: PromptSection[];
+  skillEntryPaths: string[];
 }
 
 export interface SessionBootstrapSource {
@@ -68,16 +68,13 @@ export async function createBootstrap(
   } = source;
   const cwd = opts?.cwd ?? agentRootPath;
   const bootEnv = resolveBootEnv(workspacePath);
-
-  const availableSkillsPrompt = source.runtimeConfig.noSkills
-    ? ""
-    : renderAvailableSkillsPrompt(
-      listSkillViewsFromPaths({
-        agentId,
-        agentRootPath,
-        workspacePath,
-      }),
-    );
+  const skillEntryPaths = source.runtimeConfig.noSkills
+    ? []
+    : listEffectiveSkillEntryPathsFromPaths({
+      agentId,
+      agentRootPath,
+      workspacePath,
+    });
   const baseSections = assembleBasePromptSections(
     agentRootPath,
     workspacePath,
@@ -96,14 +93,6 @@ export async function createBootstrap(
       content: FALLBACK_IDENTITY_TEXT,
     });
   }
-  const availableSkillsSection = createPromptSection({
-    id: "capability:available_skills",
-    title: "Available Skills",
-    kind: "capability",
-    source: "skills",
-    reason: "Advertise available skills without loading full skill context",
-    content: availableSkillsPrompt,
-  });
   const appendSection = createPromptSection({
     id: "base:append_system_prompt",
     title: "Append System Prompt",
@@ -116,7 +105,6 @@ export async function createBootstrap(
     sections: [
       baseSections,
       appendSection,
-      availableSkillsSection,
     ],
     fallback: FALLBACK_IDENTITY_TEXT,
   });
@@ -135,6 +123,7 @@ export async function createBootstrap(
     runtimeConfig,
     systemPrompt: baseSystemPrompt,
     modelsPath: source.modelsPath,
+    skillPaths: skillEntryPaths,
   });
   await resourceLoader.reload();
 
@@ -160,5 +149,6 @@ export async function createBootstrap(
     bootEnv,
     baseSystemPrompt,
     baseSystemSections,
+    skillEntryPaths,
   };
 }

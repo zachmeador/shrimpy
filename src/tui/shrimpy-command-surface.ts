@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import {
   DynamicBorder,
   type AgentSession,
@@ -27,6 +27,7 @@ import {
   type ChannelMessageSnapshot,
 } from "../gateway/status.js";
 import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
+import { inspectSkills } from "../skills/index.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
 type ShowSelectorFactory = (done: () => void) => {
@@ -388,20 +389,23 @@ function contextStatusText(options: ShrimpyCommandSurfaceOptions): string {
 }
 
 function skillsStatusText(options: ShrimpyCommandSurfaceOptions): string {
-  const runtime = options.runtime;
-  const agentPaths = runtime.getAgentPaths(options.agentId);
-  const workspaceSkillsDir = join(runtime.paths.workspace, "skills");
-  const skills = [
-    ...listSkills(workspaceSkillsDir, workspaceSkillsDir, "workspace"),
-    ...listSkills(agentPaths.skillsDir, agentPaths.skillsDir, "agent"),
-  ];
+  const inventory = inspectSkills(options.runtime, options.agentId);
   const lines = [theme.bold("Skills"), ""];
 
-  if (skills.length === 0) {
+  if (inventory.skills.length === 0) {
     lines.push("(none)");
   } else {
-    lines.push(...skills.slice(0, 16));
-    if (skills.length > 16) lines.push(`... ${skills.length - 16} more`);
+    lines.push(...inventory.skills.slice(0, 16).map((skill) => {
+      const name = skill.name !== skill.id ? ` name=${skill.name}` : "";
+      const loaded = skill.loaded ? "" : " (not loaded by Pi)";
+      return `${skill.id} [${skill.scope}]${name}${loaded}`;
+    }));
+    if (inventory.skills.length > 16) {
+      lines.push(`... ${inventory.skills.length - 16} more`);
+    }
+    for (const warning of inventory.warnings) {
+      lines.push(`warning: ${warning}`);
+    }
   }
 
   lines.push("", theme.bold("Inspect"), `shrimpy skills list --agent ${options.agentId}`);
@@ -517,33 +521,4 @@ function countLines(path: string): number {
   const text = readFileSync(path, "utf-8");
   if (!text) return 0;
   return text.endsWith("\n") ? text.split("\n").length - 1 : text.split("\n").length;
-}
-
-function listSkills(root: string, relativeRoot: string, scope: "agent" | "workspace"): string[] {
-  if (!existsSync(root)) return [];
-  return walkSkillRoots(root).map((skillRoot) => {
-    const id = relative(relativeRoot, skillRoot).replaceAll("\\", "/");
-    return `${id} [${scope}]`;
-  });
-}
-
-function walkSkillRoots(root: string): string[] {
-  const found: string[] = [];
-  const stack = [root];
-
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    const entryPath = join(current, "SKILL.md");
-    if (existsSync(entryPath)) {
-      found.push(current);
-      continue;
-    }
-
-    for (const name of readdirSync(current).sort().reverse()) {
-      const child = join(current, name);
-      if (statSync(child).isDirectory()) stack.push(child);
-    }
-  }
-
-  return found.sort();
 }

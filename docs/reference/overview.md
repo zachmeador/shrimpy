@@ -30,5 +30,6 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 - [runtime.md](runtime.md) — execution flow.
 - [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn briefing envelope.
 - [memory.md](memory.md) — memory model and upkeep.
+- [skills.md](skills.md) — skill bundle shape and Pi-backed loading.
 - [cli.md](cli.md) — commands.
 - [../backlog/index.md](../backlog/index.md) — active work.

@@ -37,6 +37,9 @@ Sections:
 
 - Pi prompt-template discovery is disabled.
 - Pi-discovered `AGENTS.md` and append-system prompts are suppressed.
+- Pi ambient skill discovery is suppressed. When `runtime.noSkills` is false,
+  Shrimpy passes the active agent's resolved workspace/agent skill entrypoints
+  to Pi explicitly.
 - Shrimpy owns the system prompt passed into Pi.
 - Compaction defaults are tuned for chat-style continuity: `reserveTokens: 32768`, `keepRecentTokens: 30000`.
 - Compaction can be overridden globally, by agent id, by channel pattern, or by session label. `thresholdTokens` is translated to Pi's `reserveTokens` for the selected model.

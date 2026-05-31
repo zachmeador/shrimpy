@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdContext } from "../dist/commands/context.js";
@@ -15,6 +22,7 @@ import {
 import {
   getSkillPromptResources,
   getSkillView,
+  inspectSkills,
   listSkillViews,
   loadSkillPrompt,
 } from "../dist/skills/index.js";
@@ -82,17 +90,20 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     const parsed = JSON.parse(lines.join("\n"));
     assert.ok(parsed.promptSections.some((section: any) => section.id === "base:SOUL.md"));
-    assert.ok(parsed.promptSections.some((section: any) => section.id === "capability:available_skills"));
     assert.ok(parsed.promptSections.some((section: any) =>
       section.id === "session:runtime_environment" && section.kind === "runtime"
     ));
     assert.deepEqual(
       [...new Set(parsed.promptSections.map((section: any) => section.kind))].sort(),
-      ["capability", "identity", "memory", "runtime"],
+      ["identity", "memory", "runtime"],
     );
     assert.equal(parsed.contextLayers, undefined);
     assert.equal(parsed.briefing.sessionType, "gateway");
-    assert.match(parsed.systemPrompt, /- `setup` \(agent\):/);
+    assert.match(parsed.systemPrompt, /<available_skills>/);
+    assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
+    assert.match(parsed.shrimpySystemPrompt, /# SOUL/);
+    assert.doesNotMatch(parsed.shrimpySystemPrompt, /<available_skills>/);
     assert.doesNotMatch(parsed.systemPrompt, /\*\*model_id\*\*/);
     assert.doesNotMatch(parsed.systemPrompt, /\*\*provider\*\*/);
     assert.doesNotMatch(parsed.systemPrompt, /Load a skill when/);
@@ -205,10 +216,10 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     assert.match(output, /## Prompt Sections/);
     assert.match(output, /\[identity\]/);
-    assert.match(output, /\[capability\]/);
     assert.match(output, /\[runtime\]/);
     assert.match(output, /\[briefing\]/);
     assert.match(output, /=== System Prompt ===/);
+    assert.match(output, /<available_skills>/);
     assert.match(output, /=== User Message ===/);
   });
 
@@ -237,9 +248,130 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     assert.match(lines.join("\n"), /setup \[agent\]/);
     assert.match(lines.join("\n"), /memory-management \[workspace\]/);
+    assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[workspace\]/);
     assert.match(lines.join("\n"), /journal-compact \[workspace\]/);
     assert.doesNotMatch(lines.join("\n"), /activity-summary/);
+  });
+
+  test("skills command can scaffold and validate a workspace skill", async () => {
+    await setupInit(workspace);
+
+    const add = await captureLogs(() =>
+      cmdSkills(
+        ["add", "meal-plan", "--description", "Plan weekly meals."],
+        { workspace } as any,
+      )
+    );
+    assert.equal(add.result, 0);
+    const skillPath = join(workspace, "skills", "meal-plan", "SKILL.md");
+    assert.equal(existsSync(skillPath), true);
+    assert.match(readFileSync(skillPath, "utf-8"), /name: meal-plan/);
+
+    const validate = await captureLogs(() =>
+      cmdSkills(["validate", "meal-plan"], { workspace } as any)
+    );
+    assert.equal(validate.result, 0);
+    assert.match(validate.lines.join("\n"), /skills validation passed/);
+  });
+
+  test("skills command installs local bundles without overwriting by default", async () => {
+    await setupInit(workspace);
+    const source = mkdtempSync(join(tmpdir(), "shrimpy-skill-source-"));
+    const invalidSource = mkdtempSync(join(tmpdir(), "shrimpy-invalid-skill-source-"));
+    mkdirSync(join(source, "scripts"), { recursive: true });
+    writeFileSync(
+      join(source, "SKILL.md"),
+      [
+        "---",
+        "name: source-skill",
+        "description: Source skill for install tests.",
+        "---",
+        "",
+        "# Source Skill",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    try {
+      await assert.rejects(
+        () => cmdSkills(["install", invalidSource, "--id", "invalid-source"], { workspace } as any),
+        /missing SKILL\.md/,
+      );
+      assert.equal(existsSync(join(workspace, "skills", "invalid-source")), false);
+
+      const install = await captureLogs(() =>
+        cmdSkills(
+          ["install", source, "--id", "source-skill"],
+          { workspace } as any,
+        )
+      );
+      assert.equal(install.result, 0);
+      const installedPath = join(workspace, "skills", "source-skill", "SKILL.md");
+      assert.equal(existsSync(installedPath), true);
+
+      await assert.rejects(
+        () => cmdSkills(["install", source, "--id", "source-skill"], { workspace } as any),
+        /skill already exists/,
+      );
+    } finally {
+      rmSync(source, { recursive: true, force: true });
+      rmSync(invalidSource, { recursive: true, force: true });
+    }
+  });
+
+  test("skills validation fails when directory id and Pi name differ", async () => {
+    await setupInit(workspace);
+    const root = join(workspace, "skills", "public-name");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(
+      join(root, "SKILL.md"),
+      [
+        "---",
+        "name: pi-name",
+        "description: Mismatched skill for validation tests.",
+        "---",
+        "",
+        "# Mismatch",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const validate = await captureLogs(() =>
+      cmdSkills(["validate", "public-name"], { workspace } as any)
+    );
+    assert.equal(validate.result, 1);
+    assert.match(validate.lines.join("\n"), /\[error\] public-name skill id "public-name" must match Pi skill name "pi-name"/);
+  });
+
+  test("skills validation warns for large effective skill sets", async () => {
+    await setupInit(workspace);
+    for (let index = 0; index < 21; index += 1) {
+      const id = `bulk-${String(index).padStart(2, "0")}`;
+      const root = join(workspace, "skills", id);
+      mkdirSync(root, { recursive: true });
+      writeFileSync(
+        join(root, "SKILL.md"),
+        [
+          "---",
+          `name: ${id}`,
+          `description: Bulk skill ${index}.`,
+          "---",
+          "",
+          `# ${id}`,
+          "",
+        ].join("\n"),
+        "utf-8",
+      );
+    }
+
+    const validate = await captureLogs(() =>
+      cmdSkills(["validate"], { workspace } as any)
+    );
+    assert.equal(validate.result, 0);
+    assert.match(validate.lines.join("\n"), /effective skills will be advertised to Pi/);
   });
 });
 
@@ -258,6 +390,7 @@ describe("skill service", () => {
 
     const skill = getSkillView(runtime, "setup");
     assert.match(skill.entryPath, /agents\/shrimpy\/skills\/setup\/SKILL\.md$/);
+    assert.equal(skill.loaded, true);
     assert.match(loadSkillPrompt(runtime, "setup"), /first usable Shrimpy config/);
     assert.deepEqual(getSkillPromptResources(runtime, "setup"), [{
       rootPath: join(workspace, "agents", "shrimpy"),
@@ -274,5 +407,40 @@ describe("skill service", () => {
     const runtime = createAppRuntime({ workspace });
 
     assert.throws(() => getSkillView(runtime, "bad~name"), /invalid skill id/);
+  });
+
+  test("wires Shrimpy skills into Pi while ignoring ambient cwd skills", async () => {
+    await setupInit(workspace);
+    const ambientRoot = join(workspace, ".pi", "skills", "ambient");
+    mkdirSync(ambientRoot, { recursive: true });
+    writeFileSync(
+      join(ambientRoot, "SKILL.md"),
+      [
+        "---",
+        "name: ambient",
+        "description: Should not load through Shrimpy.",
+        "---",
+        "",
+        "# Ambient",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const runtime = createAppRuntime({ workspace });
+    const bootstrap = await runtime.createBootstrap({
+      cwd: workspace,
+    });
+    const piSkillNames = bootstrap.resourceLoader.getSkills().skills
+      .map((skill: any) => skill.name)
+      .sort();
+
+    assert.deepEqual(piSkillNames, [
+      "journal-compact",
+      "journal-daily",
+      "memory-management",
+      "setup",
+    ]);
+    assert.deepEqual(inspectSkills(runtime).warnings, []);
   });
 });

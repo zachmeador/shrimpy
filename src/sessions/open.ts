@@ -290,6 +290,7 @@ async function resolveSessionResourceLoader(
     runtimeConfig: bootstrap.runtimeConfig,
     systemPrompt: assembly.systemPrompt,
     modelsPath: bootstrap.modelsPath,
+    skillPaths: bootstrap.skillEntryPaths,
   });
   await resourceLoader.reload();
   return resourceLoader;

@@ -17,7 +17,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [CLI-001](cli-001-cleaner-command-structure.md) | draft | P2 | CLI | none | Cleaner command structure |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [CTX-007](ctx-007.md), [WAIT-001](wait-001-durable-agent-waits.md) | Agentic worker sessions for inspectable coding-agent delegation |
-| [SKILL-002](skill-002-pi-skill-loading-management.md) | todo | P1 | Skills | none | Pi-backed skill loading and management |
+| [SKILL-002](skill-002-pi-skill-loading-management.md) | done | P1 | Skills | none | Pi-backed skill loading and management |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
