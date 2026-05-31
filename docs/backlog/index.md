@@ -12,7 +12,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [WAIT-001](wait-001-durable-agent-waits.md) | draft | P1 | Runtime | [CTX-007](ctx-007.md) | Durable waits and pending wakes for agent continuations |
-| [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | [TUI-001](tui-001.md) | Interactive `/agent` navigator for agents and sessions |
+| [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [PI-001](pi-001.md) | todo | P2 | Pi Integration | none | Contingency Pi patch branch strategy |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [CTX-007](ctx-007.md), [WAIT-001](wait-001-durable-agent-waits.md) | Agentic worker sessions for inspectable coding-agent delegation |
@@ -27,4 +27,3 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | todo | P2 | Surfaces | none | Telegram typing activity |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
-| [TUI-001](tui-001.md) | todo | P2 | TUI | none | Shrimpy TUI slash command/settings coherence |

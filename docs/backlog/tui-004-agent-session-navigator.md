@@ -55,7 +55,7 @@ The selected session path must not just call Pi's existing `switchSession()` aga
 - Current Shrimpy TUI launch captures the active agent in `runAgentTuiSession`; cross-agent switching needs that capture point to become a target resolver.
 - Current session summaries are per-agent and mostly active/archive paths. The navigator needs richer per-file metadata and should reuse Shrimpy custom metadata entries where present.
 - Pi's own `/resume` remains a Pi session selector for the current runtime/session directory. `/agent` should be the Shrimpy workspace-level navigator.
-- Related: [TUI-001](tui-001.md) for command-surface coherence and the completed command-output polish work for selector/output patterns.
+- Related: the completed Shrimpy command-surface work for TUI coherence and the completed command-output polish work for selector/output patterns.
 
 ## Done
 
