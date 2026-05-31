@@ -20,7 +20,7 @@ A turn-context item carries a summary line and an optional inspect command:
 Shrimpy includes:
 
 - current turn metadata in the header
-- gateway status pointers such as last/next heartbeat and latest user interaction
+- gateway status pointers such as scheduled-run recency, next run time, and latest user interaction
 - channel unread summaries for matching channels
 - path-indexed memory slices from `context/people/<sender>.md` and `context/channels/<channel>.md`
 - workspace-configured command sources from `context.sources`

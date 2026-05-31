@@ -13,7 +13,7 @@ This run found several small docs/template drifts and fixed them:
 - `AGENTS.md` still described the pre-redesign workspace shape (`MEMORY.md`, `state/memory.json`, root prompt files).
 - `src/setup/templates/WORKSPACE.md` described runtime state as living under `state/` instead of splitting durable `state/` from disposable `runtime/`.
 
-Remaining differences are tracked backlog, not stale docs: heartbeat/status special naming is covered by `docs/backlog/sched-001.md`; richer channel inspection is covered by `docs/backlog/channel-001.md`; session-status briefing items are covered by `docs/backlog/ctx-007.md`; runtime context producer CLI uniformity is covered by `docs/backlog/ctx-008-runtime-context-producers.md`.
+Remaining differences are tracked backlog, not stale docs: richer channel inspection is covered by `docs/backlog/channel-001.md`; session-status briefing items are covered by `docs/backlog/ctx-007.md`; runtime context producer CLI uniformity is covered by `docs/backlog/ctx-008-runtime-context-producers.md`.
 
 ## Source Set
 
@@ -32,12 +32,12 @@ Musings and research were treated as background context only; authoritative beha
 | Workspace model | File-backed home workspace with profile docs, agents, channels, runtime/state, skills, and framework docs. | `src/app/paths.ts`, `src/setup.ts`, `AGENTS.md`, `docs/reference/workspace.md`, `src/setup/templates/WORKSPACE.md`. | Implemented | None before merge. |
 | Sessions | Pi owns transcripts; Shrimpy owns framing, local labels, channel sessions, reset/restore/thinking/compaction inspection. | `src/sessions/**`, `src/commands/sessions.ts`, `docs/reference/runtime.md`, `docs/reference/compaction.md`. | Implemented | None before merge. |
 | Channels | Append-only JSONL logs route messages; membership and attention decide which agents wake. | `src/channels/**`, `src/agents/channel-policy.ts`, `docs/reference/architecture.md`, `docs/reference/surfaces.md`. | Implemented | Richer inspection remains `CHANNEL-001`, not doc drift. |
-| Agents | Persistent actors with SOUL, context, skills, schedules, sessions, tools, attention policy. | `src/agents/**`, `src/commands/agent*.ts`, `src/scheduler/builtins.ts`, `docs/reference/configuration.md`. | Implemented | None before merge. |
+| Agents | Persistent actors with SOUL, context, skills, schedules, sessions, tools, attention policy. | `src/agents/**`, `src/commands/agent*.ts`, `src/setup/defaults.ts`, `docs/reference/configuration.md`. | Implemented | None before merge. |
 | Surfaces | Surface verticals translate transport traffic to/from typed channel messages and maintain addressed-agent state. | `src/surfaces/**`, `src/commands/surface.ts`, `docs/reference/surfaces.md`; `surface show` docs added this run. | Implemented | None before merge. |
-| Gateway and scheduler | Gateway runs surfaces, watches channels, and emits schedule messages into ordinary channel sessions. | `src/gateway/**`, `src/gateway.ts`, `src/scheduler/**`, `docs/reference/runtime.md`, `docs/reference/configuration.md`. | Implemented | Heartbeat/status naming cleanup remains `SCHED-001`. |
+| Gateway and scheduler | Gateway runs surfaces, watches channels, and emits schedule messages into ordinary channel sessions. | `src/gateway/**`, `src/gateway.ts`, `src/scheduler/**`, `docs/reference/runtime.md`, `docs/reference/configuration.md`. | Implemented | None before merge. |
 | Memory | Memory is agent-owned Markdown under `agents/<id>/context/`; no derived memory writer or special memory tool. | `src/memory/briefing.ts`, `src/context/**`, `src/tools/daemon.ts`, `docs/reference/memory.md`, `docs/reference/workspace.md`. | Implemented | None before merge. |
 | Skills | Skills are Pi-style instruction/resource bundles under workspace or agent skill dirs. | `src/skills/service.ts`, `src/setup/templates/skills/**`, `src/context/system/skills.ts`, `docs/reference/architecture.md`. | Implemented | Consider future channel-inspection CLI helpers so memory skills can avoid raw JSONL/JQ recipes. |
-| Setup/templates | Fresh setup seeds docs, default agent, context stubs, workspace skills, channel config, and default schedules. | `src/setup.ts`, `src/scheduler/builtins.ts`, `src/setup/templates/**`, `test/setup-init.test.ts`. | Implemented | None before merge. |
+| Setup/templates | Fresh setup seeds docs, default agent, context stubs, workspace skills, channel config, and default schedules. | `src/setup.ts`, `src/setup/defaults.ts`, `src/setup/templates/**`, `test/setup-init.test.ts`. | Implemented | None before merge. |
 
 ## Drift And Gaps
 
@@ -45,7 +45,7 @@ Musings and research were treated as background context only; authoritative beha
 - Fixed: `docs/reference/cli.md` did not list `shrimpy agent schedules <id>`, `shrimpy agent schedule <id> <schedule-id>`, or `shrimpy surface show <surface> <thread-id>`.
 - Fixed: `AGENTS.md` listed removed workspace files and omitted the current `profile/`, `context/`, `runtime/`, and schedule paths.
 - Fixed: `src/setup/templates/WORKSPACE.md` now distinguishes durable `state/` from disposable `runtime/`.
-- Planned, not drift: `status.heartbeatChannel` and `status.heartbeatScheduleId` are still first-class status config names in code; `docs/backlog/sched-001.md` tracks making them generic watched schedule config.
+- Reconciled by SCHED-001: status now reports generic scheduled-run activity instead of heartbeat-specific status keys.
 - Planned, not drift: richer channel search/filtering would make upkeep skills cleaner; `docs/backlog/channel-001.md` is the right home for that work.
 
 ## Decisions Or Clarifications Needed
@@ -56,7 +56,6 @@ Musings and research were treated as background context only; authoritative beha
 
 - Final merge review can treat stable docs as current after the fixes from this run.
 - When `CHANNEL-001` lands, replace the raw JSONL/JQ upkeep examples with first-class `shrimpy channels` filters.
-- When `SCHED-001` lands, update `docs/reference/configuration.md`, `docs/reference/runtime.md`, `docs/reference/cli.md`, and this tracker to remove heartbeat-specific status naming.
 
 ## Run Log
 

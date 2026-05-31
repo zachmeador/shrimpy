@@ -28,7 +28,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy setup` | Initialize and launch setup flow. |
 | `shrimpy setup init` | Create baseline workspace files. |
 | `shrimpy setup telegram` | Guided Telegram config. |
-| `shrimpy status` | Show workspace, gateway, channels, heartbeat, and Telegram offset status. |
+| `shrimpy status` | Show workspace, gateway, channels, scheduled-run, and Telegram offset status. |
 | `shrimpy context` | Render assembled session context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --briefing -c <name>` | Render only the turn briefing preview for a channel/session. |

@@ -56,7 +56,7 @@ function appendAt(
 }
 
 describe("collectGatewayActivity", () => {
-  test("tracks scheduled heartbeat and last user interaction", () => {
+  test("tracks watched scheduled text messages and last user interaction", () => {
     const channelsDir = join(testDir, "channels");
     mkdirSync(channelsDir, { recursive: true });
 
@@ -64,11 +64,11 @@ describe("collectGatewayActivity", () => {
 
       sender: { kind: "system", actorId: "system:scheduler" },
       origin: { transport: "scheduler", scheduleId: "shrimpy/heartbeat" },
-      content: systemContent({ trigger: "scheduled" }),
+      content: textContent("scheduled maintenance"),
       timestamp: 1_000,
     });
 
-    // Should not override last heartbeat because it is an agent message.
+    // Should not override the watched schedule because it is an agent response.
     appendAt(channelsDir, "heartbeat", {
 
       sender: { kind: "agent", actorId: "agent:shrimpy" },
@@ -112,10 +112,18 @@ describe("collectGatewayActivity", () => {
       timestamp: 5_000,
     });
 
-    const summary = collectGatewayActivity(channelsDir);
+    const summary = collectGatewayActivity(channelsDir, {
+      watchedSchedules: [{
+        label: "heartbeat",
+        channel: "heartbeat",
+        scheduleId: "shrimpy/heartbeat",
+      }],
+    });
     assert.equal(summary.channelCount, 4);
-    assert.equal(summary.lastHeartbeat?.channel, "heartbeat");
-    assert.equal(summary.lastHeartbeat?.message.timestamp, 1_000);
+    assert.equal(summary.lastScheduledRun?.channel, "heartbeat");
+    assert.equal(summary.lastScheduledRun?.message.timestamp, 1_000);
+    assert.equal(summary.watchedSchedules.heartbeat.channel, "heartbeat");
+    assert.equal(summary.watchedSchedules.heartbeat.lastRun?.message.timestamp, 1_000);
     assert.equal(summary.lastUserInteraction?.channel, "local");
     assert.equal(summary.lastUserInteraction?.message.sender.displayName, "CLI");
     assert.equal(summary.lastUserInteraction?.message.timestamp, 5_000);
@@ -124,21 +132,21 @@ describe("collectGatewayActivity", () => {
   test("returns empty summary when channels directory is missing", () => {
     const summary = collectGatewayActivity(join(testDir, "missing-channels"));
     assert.equal(summary.channelCount, 0);
-    assert.equal(summary.lastHeartbeat, undefined);
+    assert.deepEqual(summary.watchedSchedules, {});
     assert.equal(summary.lastUserInteraction, undefined);
   });
 
-  test("supports configured heartbeat channel and schedule id", () => {
+  test("supports configured non-heartbeat watched schedule", () => {
     const channelsDir = join(testDir, "channels");
     mkdirSync(channelsDir, { recursive: true });
 
     appendAt(channelsDir, "pulse", {
 
       sender: { kind: "system", actorId: "system:scheduler" },
-      origin: { transport: "scheduler", scheduleId: "ops.pulse" },
+      origin: { transport: "scheduler", scheduleId: "ops/pulse" },
       content: systemContent({
         trigger: "scheduled",
-        scheduleId: "ops.pulse",
+        scheduleId: "ops/pulse",
       }),
       timestamp: 1_000,
     });
@@ -155,17 +163,53 @@ describe("collectGatewayActivity", () => {
     });
 
     const summary = collectGatewayActivity(channelsDir, {
-      heartbeatChannel: "pulse",
-      heartbeatScheduleId: "ops.pulse",
+      watchedSchedules: [{
+        label: "pulse",
+        channel: "pulse",
+        scheduleId: "ops/pulse",
+      }],
     });
 
-    assert.equal(summary.lastHeartbeat?.channel, "pulse");
-    assert.equal(summary.lastHeartbeat?.message.timestamp, 1_000);
+    assert.equal(summary.watchedSchedules.pulse.channel, "pulse");
+    assert.equal(summary.watchedSchedules.pulse.lastRun?.message.timestamp, 1_000);
+  });
+
+  test("tracks last scheduled run across configured schedules", () => {
+    const channelsDir = join(testDir, "channels");
+    mkdirSync(channelsDir, { recursive: true });
+
+    appendAt(channelsDir, "heartbeat", {
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: { transport: "scheduler", scheduleId: "shrimpy/heartbeat" },
+      content: textContent("scheduled maintenance"),
+      timestamp: 1_000,
+    });
+    appendAt(channelsDir, "ops", {
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: { transport: "scheduler", scheduleId: "ops/pulse" },
+      content: textContent("scheduled ops"),
+      timestamp: 2_000,
+    });
+    appendAt(channelsDir, "old", {
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: { transport: "scheduler", scheduleId: "removed/job" },
+      content: textContent("old scheduled job"),
+      timestamp: 3_000,
+    });
+
+    const summary = collectGatewayActivity(
+      channelsDir,
+      undefined,
+      ["shrimpy/heartbeat", "ops/pulse"],
+    );
+
+    assert.equal(summary.lastScheduledRun?.channel, "ops");
+    assert.equal(summary.lastScheduledRun?.message.origin.scheduleId, "ops/pulse");
   });
 });
 
 describe("loadGatewaySchedulerSummary", () => {
-  test("reads next heartbeat from scheduler state", () => {
+  test("reads next watched schedule from scheduler state", () => {
     const workspace = join(testDir, "workspace");
     mkdirSync(workspace, { recursive: true });
     const statePath = join(workspace, "scheduler-state.json");
@@ -174,29 +218,78 @@ describe("loadGatewaySchedulerSummary", () => {
       "custom.schedule": { nextRunAtMs: 99_999 },
     });
 
-    const summary = loadGatewaySchedulerSummary(statePath);
-    assert.equal(summary.nextHeartbeatAtMs, 12_345);
+    const summary = loadGatewaySchedulerSummary(
+      statePath,
+      {
+        watchedSchedules: [{
+          label: "heartbeat",
+          channel: "heartbeat",
+          scheduleId: "shrimpy/heartbeat",
+        }],
+      },
+      ["shrimpy/heartbeat"],
+    );
+    assert.equal(summary.nextScheduledRun?.scheduleId, "shrimpy/heartbeat");
+    assert.equal(summary.nextScheduledRun?.nextRunAtMs, 12_345);
+    assert.equal(summary.watchedSchedules.heartbeat.nextRunAtMs, 12_345);
   });
 
-  test("returns undefined heartbeat when scheduler state does not exist", () => {
+  test("returns undefined next run when scheduler state does not exist", () => {
     const summary = loadGatewaySchedulerSummary(
       join(testDir, "workspace", "scheduler-state.json"),
+      {
+        watchedSchedules: [{
+          label: "heartbeat",
+          channel: "heartbeat",
+          scheduleId: "shrimpy/heartbeat",
+        }],
+      },
+      ["shrimpy/heartbeat"],
     );
-    assert.equal(summary.nextHeartbeatAtMs, undefined);
+    assert.equal(summary.nextScheduledRun, undefined);
+    assert.equal(summary.watchedSchedules.heartbeat.nextRunAtMs, undefined);
   });
 
-  test("uses configured heartbeat schedule id", () => {
+  test("uses configured non-heartbeat schedule id", () => {
     const workspace = join(testDir, "workspace");
     mkdirSync(workspace, { recursive: true });
     const statePath = join(workspace, "scheduler-state.json");
     saveSchedulerState(statePath, {
-      "ops.pulse": { nextRunAtMs: 77_777 },
+      "ops/pulse": { nextRunAtMs: 77_777 },
       "shrimpy/heartbeat": { nextRunAtMs: 12_345 },
     });
 
-    const summary = loadGatewaySchedulerSummary(statePath, {
-      heartbeatScheduleId: "ops.pulse",
+    const summary = loadGatewaySchedulerSummary(
+      statePath,
+      {
+        watchedSchedules: [{
+          label: "pulse",
+          channel: "pulse",
+          scheduleId: "ops/pulse",
+        }],
+      },
+      ["ops/pulse"],
+    );
+    assert.equal(summary.nextScheduledRun?.scheduleId, "ops/pulse");
+    assert.equal(summary.watchedSchedules.pulse.nextRunAtMs, 77_777);
+  });
+
+  test("reads next scheduled run across configured schedules", () => {
+    const workspace = join(testDir, "workspace");
+    mkdirSync(workspace, { recursive: true });
+    const statePath = join(workspace, "scheduler-state.json");
+    saveSchedulerState(statePath, {
+      "removed/job": { nextRunAtMs: 10 },
+      "ops/pulse": { nextRunAtMs: 77_777 },
+      "shrimpy/heartbeat": { nextRunAtMs: 12_345 },
     });
-    assert.equal(summary.nextHeartbeatAtMs, 77_777);
+
+    const summary = loadGatewaySchedulerSummary(
+      statePath,
+      undefined,
+      ["shrimpy/heartbeat", "ops/pulse"],
+    );
+    assert.equal(summary.nextScheduledRun?.scheduleId, "shrimpy/heartbeat");
+    assert.equal(summary.nextScheduledRun?.nextRunAtMs, 12_345);
   });
 });

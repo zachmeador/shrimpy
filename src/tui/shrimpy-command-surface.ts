@@ -26,6 +26,7 @@ import {
   loadGatewaySchedulerSummary,
   type ChannelMessageSnapshot,
 } from "../gateway/status.js";
+import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
 type ShowSelectorFactory = (done: () => void) => {
@@ -96,7 +97,7 @@ type StatusSection = (typeof STATUS_SECTIONS)[number];
 const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
   overview: "Workspace, active agent, model, and available status sections",
   workspace: "Workspace paths and config",
-  gateway: "Gateway service, heartbeat, scheduler, and interaction status",
+  gateway: "Gateway service, scheduled runs, scheduler, and interaction status",
   agents: "Active agent and configured agents",
   channels: "Channel log overview",
   context: "Context files and source inspection",
@@ -280,13 +281,16 @@ function workspaceStatusText(options: ShrimpyCommandSurfaceOptions): string {
 
 function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   const runtime = options.runtime;
+  const scheduleIds = loadGatewayScheduleIds(runtime);
   const activity = collectGatewayActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
+    scheduleIds,
   );
   const scheduler = loadGatewaySchedulerSummary(
     runtime.paths.schedulerStatePath,
     runtime.resolved.status,
+    scheduleIds,
   );
   const lines = [
     theme.bold("Gateway"),
@@ -294,13 +298,15 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
     label("Gateway service", gatewayServiceStatus("is-active")),
     label("Gateway enabled", gatewayServiceStatus("is-enabled")),
     label("Tracked channels", String(activity.channelCount)),
-    label("Last heartbeat", activity.lastHeartbeat
-      ? when(activity.lastHeartbeat.message.timestamp)
-      : dimText("(none)")),
-    label("Last user interaction", activity.lastUserInteraction
-      ? when(activity.lastUserInteraction.message.timestamp)
-      : dimText("(none)")),
   ];
+
+  lines.push(label("Last scheduled run", activity.lastScheduledRun
+    ? when(activity.lastScheduledRun.message.timestamp)
+    : dimText("(none)")));
+
+  lines.push(label("Last user interaction", activity.lastUserInteraction
+    ? when(activity.lastUserInteraction.message.timestamp)
+    : dimText("(none)")));
 
   if (activity.lastUserInteraction) {
     lines.push(
@@ -311,10 +317,11 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
     );
   }
 
+  lines.push(label("Next scheduled run due", scheduler.nextScheduledRun === undefined
+    ? dimText("(unknown)")
+    : `${formatFutureOrPast(scheduler.nextScheduledRun.nextRunAtMs)} ${dimText(`(${new Date(scheduler.nextScheduledRun.nextRunAtMs).toLocaleString()})`)}`));
+
   lines.push(
-    label("Next heartbeat due", scheduler.nextHeartbeatAtMs === undefined
-      ? dimText("(unknown)")
-      : `${formatFutureOrPast(scheduler.nextHeartbeatAtMs)} ${dimText(`(${new Date(scheduler.nextHeartbeatAtMs).toLocaleString()})`)}`),
     "",
     theme.bold("Inspect"),
     "shrimpy gateway status",

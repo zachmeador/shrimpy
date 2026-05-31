@@ -3,6 +3,8 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
+import { collectGatewayActivity } from "../gateway/status.js";
+import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
 import {
   loadTelegramOffset,
   telegramStatePath,
@@ -52,14 +54,15 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
     console.log(`${label("channels:")} ${dim("(none)")}`);
   }
 
-  const heartbeatChannel = runtime.resolved.status.heartbeatChannel;
-  const hbPath = channelBus.path(heartbeatChannel);
-  if (existsSync(hbPath)) {
-    const { messages } = channelBus.read(heartbeatChannel);
-    if (messages.length > 0) {
-      const last = messages[messages.length - 1];
-      console.log(`${label("last heartbeat:")} ${timeSince(last.timestamp)}`);
-    }
+  const activity = collectGatewayActivity(
+    runtime.paths.channelsDir,
+    runtime.resolved.status,
+    loadGatewayScheduleIds(runtime),
+  );
+  if (activity.lastScheduledRun) {
+    console.log(
+      `${label("last scheduled run:")} ${timeSince(activity.lastScheduledRun.message.timestamp)}`,
+    );
   }
 
   const telegram = runtime.surfaceConfig<ResolvedTelegramRuntimeConfig>("telegram");

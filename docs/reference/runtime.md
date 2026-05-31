@@ -65,7 +65,7 @@ At turn time, Shrimpy prepends a `<context>...</context>` block: current time/se
 
 ## Background Work
 
-- The heartbeat is a default scheduled task that emits into a normal channel/session pair.
+- The heartbeat is a setup-seeded scheduled task that emits into a normal channel/session pair.
 - Schedules live in each agent workspace at `agents/<id>/schedules.json`.
 - Agent schedules emit addressed channel messages with plain text instructions for the owning agent.
 - Fresh setup also seeds ordinary memory upkeep schedules for `memory-management`, `journal-daily`, and `journal-compact`.
@@ -75,6 +75,6 @@ At turn time, Shrimpy prepends a `<context>...</context>` block: current time/se
 ## Observability
 
 - `shrimpy status` summarizes workspace and gateway activity.
-- `shrimpy gateway status` reports gateway service, heartbeat, and scheduler status.
+- `shrimpy gateway status` reports gateway service, scheduled-run, and scheduler status.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` renders assembled session context for inspection.

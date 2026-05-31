@@ -76,7 +76,7 @@ Per turn, the prompt body is prefixed with a `<context>...</context>` block from
 time: 2026-04-29T12:00:00Z
 agent: shrimpy
 session: gateway channel: home
-- gateway status: last heartbeat 5m ago; next heartbeat in 10m
+- gateway status: last scheduled run 5m ago; next scheduled run in 10m
   inspect: shrimpy gateway status
 - home: 3 new messages since this agent last handled it
   inspect: shrimpy channels read home --after <message-id>

@@ -4,6 +4,7 @@ import { readMessages, type ChannelMessage } from "../channels/index.js";
 import {
   resolveGatewayStatusConfig,
   type GatewayStatusConfig,
+  type ResolvedWatchedScheduleStatusConfig,
 } from "../config/index.js";
 import { loadSchedulerState } from "../scheduler/index.js";
 
@@ -14,12 +15,33 @@ export interface ChannelMessageSnapshot {
 
 export interface GatewayActivitySummary {
   channelCount: number;
-  lastHeartbeat?: ChannelMessageSnapshot;
+  lastScheduledRun?: ChannelMessageSnapshot;
+  watchedSchedules: Record<string, GatewayWatchedScheduleActivity>;
   lastUserInteraction?: ChannelMessageSnapshot;
 }
 
 export interface GatewaySchedulerSummary {
-  nextHeartbeatAtMs?: number;
+  nextScheduledRun?: GatewayScheduledRunSchedulerStatus;
+  watchedSchedules: Record<string, GatewayWatchedScheduleSchedulerStatus>;
+}
+
+export interface GatewayScheduledRunSchedulerStatus {
+  scheduleId: string;
+  nextRunAtMs: number;
+}
+
+export interface GatewayWatchedScheduleActivity {
+  label: string;
+  channel: string;
+  scheduleId: string;
+  lastRun?: ChannelMessageSnapshot;
+}
+
+export interface GatewayWatchedScheduleSchedulerStatus {
+  label: string;
+  channel: string;
+  scheduleId: string;
+  nextRunAtMs?: number;
 }
 
 function latest(
@@ -31,28 +53,52 @@ function latest(
   return current;
 }
 
-function isScheduledHeartbeat(
+function createWatchedScheduleActivity(
+  watchedSchedules: ResolvedWatchedScheduleStatusConfig[],
+): Record<string, GatewayWatchedScheduleActivity> {
+  return Object.fromEntries(
+    watchedSchedules.map((schedule) => [
+      schedule.label,
+      { ...schedule },
+    ]),
+  );
+}
+
+function systemPayloadScheduleId(message: ChannelMessage): string | undefined {
+  if (message.content.type !== "system") return undefined;
+  return typeof message.content.data.scheduleId === "string"
+    ? message.content.data.scheduleId
+    : undefined;
+}
+
+function messageScheduleId(message: ChannelMessage): string | undefined {
+  return message.origin.scheduleId ?? systemPayloadScheduleId(message);
+}
+
+function isScheduledRun(
+  message: ChannelMessage,
+  scheduleIds?: ReadonlySet<string>,
+): boolean {
+  if (message.origin.transport !== "scheduler") return false;
+  const scheduleId = messageScheduleId(message);
+  if (!scheduleIds) return true;
+  return scheduleId !== undefined && scheduleIds.has(scheduleId);
+}
+
+function isWatchedScheduledRun(
   channel: string,
   message: ChannelMessage,
-  heartbeatChannel: string,
-  heartbeatScheduleId: string,
+  schedule: ResolvedWatchedScheduleStatusConfig,
 ): boolean {
-  if (channel !== heartbeatChannel) return false;
-  if (message.sender.kind !== "system") return false;
-  if (message.content.type !== "system") return false;
+  if (channel !== schedule.channel) return false;
   if (message.origin.transport !== "scheduler") return false;
 
-  if (message.content.data.trigger !== "scheduled") return false;
-
   const originScheduleId = message.origin.scheduleId;
-  const payloadScheduleId =
-    typeof message.content.data.scheduleId === "string"
-      ? message.content.data.scheduleId
-      : undefined;
+  const payloadScheduleId = systemPayloadScheduleId(message);
 
   if (
-    originScheduleId !== heartbeatScheduleId &&
-    payloadScheduleId !== heartbeatScheduleId
+    originScheduleId !== schedule.scheduleId &&
+    payloadScheduleId !== schedule.scheduleId
   ) {
     return false;
   }
@@ -61,21 +107,25 @@ function isScheduledHeartbeat(
 }
 
 function isUserInteraction(
-  channel: string,
   message: ChannelMessage,
-  heartbeatChannel: string,
 ): boolean {
-  if (channel === heartbeatChannel) return false;
   return message.sender.kind === "human";
 }
 
 export function collectGatewayActivity(
   channelsDir: string,
   statusConfig?: GatewayStatusConfig,
+  activeScheduleIds?: Iterable<string>,
 ): GatewayActivitySummary {
   const resolvedStatusConfig = resolveGatewayStatusConfig(statusConfig);
+  const scheduleIds = activeScheduleIds
+    ? new Set(activeScheduleIds)
+    : undefined;
   const summary: GatewayActivitySummary = {
     channelCount: 0,
+    watchedSchedules: createWatchedScheduleActivity(
+      resolvedStatusConfig.watchedSchedules,
+    ),
   };
 
   if (!existsSync(channelsDir)) return summary;
@@ -93,24 +143,17 @@ export function collectGatewayActivity(
     for (const message of messages) {
       const snapshot = { channel, message };
 
-      if (
-        isScheduledHeartbeat(
-          channel,
-          message,
-          resolvedStatusConfig.heartbeatChannel,
-          resolvedStatusConfig.heartbeatScheduleId,
-        )
-      ) {
-        summary.lastHeartbeat = latest(summary.lastHeartbeat, snapshot);
+      if (isScheduledRun(message, scheduleIds)) {
+        summary.lastScheduledRun = latest(summary.lastScheduledRun, snapshot);
       }
 
-      if (
-        isUserInteraction(
-          channel,
-          message,
-          resolvedStatusConfig.heartbeatChannel,
-        )
-      ) {
+      for (const schedule of resolvedStatusConfig.watchedSchedules) {
+        if (!isWatchedScheduledRun(channel, message, schedule)) continue;
+        const watched = summary.watchedSchedules[schedule.label];
+        watched.lastRun = latest(watched.lastRun, snapshot);
+      }
+
+      if (isUserInteraction(message)) {
         summary.lastUserInteraction = latest(
           summary.lastUserInteraction,
           snapshot,
@@ -125,11 +168,32 @@ export function collectGatewayActivity(
 export function loadGatewaySchedulerSummary(
   schedulerStatePath: string,
   statusConfig?: GatewayStatusConfig,
+  activeScheduleIds?: Iterable<string>,
 ): GatewaySchedulerSummary {
   const resolvedStatusConfig = resolveGatewayStatusConfig(statusConfig);
   const state = loadSchedulerState(schedulerStatePath);
+  const scheduleIds = activeScheduleIds ? new Set(activeScheduleIds) : undefined;
+  const nextScheduledRun = Object.entries(state)
+    .filter(([scheduleId]) =>
+      !scheduleIds || scheduleIds.has(scheduleId)
+    )
+    .filter(([, entry]) => typeof entry.nextRunAtMs === "number")
+    .map(([scheduleId, entry]) => ({
+      scheduleId,
+      nextRunAtMs: entry.nextRunAtMs!,
+    }))
+    .sort((a, b) => a.nextRunAtMs - b.nextRunAtMs)[0];
+
   return {
-    nextHeartbeatAtMs:
-      state[resolvedStatusConfig.heartbeatScheduleId]?.nextRunAtMs,
+    nextScheduledRun,
+    watchedSchedules: Object.fromEntries(
+      resolvedStatusConfig.watchedSchedules.map((schedule) => [
+        schedule.label,
+        {
+          ...schedule,
+          nextRunAtMs: state[schedule.scheduleId]?.nextRunAtMs,
+        },
+      ]),
+    ),
   };
 }

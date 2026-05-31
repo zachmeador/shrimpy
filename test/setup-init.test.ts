@@ -85,6 +85,7 @@ describe("setupInit", () => {
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     assert.equal(config.scheduler.tickIntervalMs, 1000);
+    assert.deepEqual(config.status, {});
     assert.equal(config.agents[0].root, "agents/shrimpy");
     assert.deepEqual(config.agents[0].tools, [
       "reply",

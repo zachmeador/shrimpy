@@ -22,7 +22,10 @@ import {
 } from "./surfaces/telegram/index.js";
 import { createAgentPaths, createWorkspacePaths } from "./app/index.js";
 import { writeChannelMemberships } from "./channels/membership.js";
-import { createDefaultShrimpySchedules } from "./scheduler/index.js";
+import {
+  createDefaultShrimpySchedules,
+  createDefaultStatusConfig,
+} from "./setup/defaults.js";
 import {
   DEFAULT_CONTEXT_ENV,
   DEFAULT_CONTEXT_SOURCES,
@@ -180,10 +183,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
     scheduler: {
       tickIntervalMs: 1000,
     },
-    status: {
-      heartbeatChannel: "heartbeat",
-      heartbeatScheduleId: "shrimpy/heartbeat",
-    },
+    status: createDefaultStatusConfig(),
   };
 }
 

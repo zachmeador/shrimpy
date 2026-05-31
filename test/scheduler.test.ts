@@ -4,8 +4,6 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  createHeartbeatSchedule,
-  createDefaultShrimpySchedules,
   createScheduler,
   emitChannelTargetRun,
   loadAgentScheduleDefinitions,
@@ -19,6 +17,10 @@ import {
   type ScheduleRunDue,
   type SchedulerStateSnapshot,
 } from "../dist/scheduler/index.js";
+import {
+  createDefaultHeartbeatSchedule,
+  createDefaultShrimpySchedules,
+} from "../dist/setup/defaults.js";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { channelPath, readMessages } from "../dist/channels/index.js";
 import {
@@ -36,9 +38,9 @@ afterEach(() => {
   rmSync(testDir, { recursive: true, force: true });
 });
 
-describe("createHeartbeatSchedule", () => {
+describe("createDefaultHeartbeatSchedule", () => {
   test("creates an enabled every_ms agent schedule", () => {
-    const schedule = createHeartbeatSchedule({ intervalMs: 5_000 });
+    const schedule = createDefaultHeartbeatSchedule({ intervalMs: 5_000 });
     assert.equal(schedule.id, "heartbeat");
     assert.equal(schedule.enabled, true);
     assert.equal(schedule.trigger.type, "every_ms");
@@ -211,7 +213,7 @@ describe("emitChannelTargetRun", () => {
 
     const schedule = resolveAgentScheduleDefinition(
       "shrimpy",
-      createHeartbeatSchedule({ intervalMs: 1_000 }),
+      createDefaultHeartbeatSchedule({ intervalMs: 1_000 }),
     );
     const run: ScheduleRunDue = {
       schedule,

@@ -5,6 +5,7 @@ import {
   collectGatewayActivity,
   loadGatewaySchedulerSummary,
 } from "../../gateway/status.js";
+import { loadGatewayScheduleIds } from "../../gateway/scheduler-service.js";
 import { buildMemoryBriefing } from "../../memory/index.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import {
@@ -72,27 +73,30 @@ export async function buildTurnContext(
 }
 
 function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
+  const scheduleIds = loadGatewayScheduleIds(input.runtime);
   const activity = collectGatewayActivity(
     input.runtime.paths.channelsDir,
     input.runtime.resolved.status,
+    scheduleIds,
   );
   const scheduler = loadGatewaySchedulerSummary(
     input.runtime.paths.schedulerStatePath,
     input.runtime.resolved.status,
+    scheduleIds,
   );
   const pieces: string[] = [];
 
-  if (activity.lastHeartbeat) {
+  if (activity.lastScheduledRun) {
     pieces.push(
-      `last heartbeat ${formatAge(Date.now() - activity.lastHeartbeat.message.timestamp)} ago`,
+      `last scheduled run ${formatAge(Date.now() - activity.lastScheduledRun.message.timestamp)} ago`,
     );
   }
-  if (scheduler.nextHeartbeatAtMs) {
-    const delta = scheduler.nextHeartbeatAtMs - Date.now();
+  if (scheduler.nextScheduledRun) {
+    const delta = scheduler.nextScheduledRun.nextRunAtMs - Date.now();
     pieces.push(
       delta >= 0
-        ? `next heartbeat in ${formatAge(delta)}`
-        : `next heartbeat overdue by ${formatAge(Math.abs(delta))}`,
+        ? `next scheduled run in ${formatAge(delta)}`
+        : `next scheduled run overdue by ${formatAge(Math.abs(delta))}`,
     );
   }
   if (activity.lastUserInteraction) {

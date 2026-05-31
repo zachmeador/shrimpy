@@ -30,7 +30,7 @@ Sections:
 - `context` / `contextDefaults` — stable prompt sources, command sources, env fields, channel overrides, agent-scoped context views.
 - `telegram` — configured Telegram surface instances with token, channel prefix, allowlist, stable user mappings, default agent, reliability policy.
 - `scheduler` — scheduler tick behavior.
-- `status` — heartbeat channel and schedule id used by status commands.
+- `status` — optional targeted schedule watches for diagnostics.
 - `adapters` — extra channel-prefix to surface routes. Telegram routes are derived from configured Telegram instances.
 
 ## Runtime Defaults
@@ -315,6 +315,30 @@ Fresh setup seeds four ordinary schedules for the default `shrimpy` agent:
 - `journal-compact` — Sundays at 04:00, compacts old journal notes.
 
 Channel membership stays in `config/channels.json`. Agent schedules choose a channel to log through, and scheduled messages are addressed to the owning agent.
+
+## Scheduler Status
+
+`shrimpy status`, `shrimpy gateway status`, the TUI status surface, and turn context summarize scheduled runs across all configured agent and workspace schedules. This aggregate status is not tied to the default heartbeat schedule.
+
+`status.watchedSchedules` is optional targeted diagnostic config for callers that need to track a specific schedule/channel pair:
+
+```json
+{
+  "status": {
+    "watchedSchedules": [
+      {
+        "label": "heartbeat",
+        "channel": "heartbeat",
+        "scheduleId": "shrimpy/heartbeat"
+      }
+    ]
+  }
+}
+```
+
+- `label` is the diagnostic name. If omitted, Shrimpy uses `scheduleId`.
+- `channel` is the channel log where the scheduler writes the wake message.
+- `scheduleId` is the resolved scheduler id, for example `agent-id/local-schedule-id` for agent-owned schedules.
 
 ## Context
 

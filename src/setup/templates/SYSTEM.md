@@ -50,7 +50,7 @@ there is no framework writer.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
-- `shrimpy gateway status` inspects gateway, scheduler, heartbeat, and recent interaction status.
+- `shrimpy gateway status` inspects gateway, scheduler, scheduled-run, and recent interaction status.
 
 Plus Pi's built-in tools like file read/write, bash, and web search when available.
 

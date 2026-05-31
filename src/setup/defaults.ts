@@ -1,10 +1,15 @@
-import type { AgentScheduleDefinition } from "./schema.js";
+import type { GatewayStatusConfig } from "../config/index.js";
 import { renderHeartbeatScheduleInstructions } from "../context/turn/scheduler.js";
+import type { AgentScheduleDefinition } from "../scheduler/schema.js";
 
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
 const DEFAULT_MAINTENANCE_CHANNEL = "heartbeat";
 
-export function createHeartbeatSchedule(opts?: {
+export function createDefaultStatusConfig(): GatewayStatusConfig {
+  return {};
+}
+
+export function createDefaultHeartbeatSchedule(opts?: {
   intervalMs?: number;
   scheduleId?: string;
   channel?: string;
@@ -13,7 +18,7 @@ export function createHeartbeatSchedule(opts?: {
 
   return {
     id: opts?.scheduleId ?? "heartbeat",
-    name: "Built-in heartbeat",
+    name: "Heartbeat",
     enabled: true,
     trigger: {
       type: "every_ms",
@@ -93,7 +98,7 @@ export function createJournalCompactSchedule(opts?: {
 
 export function createDefaultShrimpySchedules(): AgentScheduleDefinition[] {
   return [
-    createHeartbeatSchedule(),
+    createDefaultHeartbeatSchedule(),
     createMemoryManagementSchedule(),
     createJournalDailySchedule(),
     createJournalCompactSchedule(),

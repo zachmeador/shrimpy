@@ -89,7 +89,7 @@ session.
   visible and enforceable.
 - Related: [CTX-007](ctx-007.md) should include pending/resolved waits in compact
   session-status briefings.
-- Related: [SCHED-001](sched-001.md) keeps heartbeat/status concepts generic;
+- Related: completed scheduler status work keeps heartbeat/status concepts generic;
   durable waits should reuse generic runtime scheduling concepts without becoming
   another heartbeat control plane.
 - `shrimpy worker wait <id>` can remain a blocking CLI command for humans and

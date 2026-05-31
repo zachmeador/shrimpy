@@ -5,19 +5,23 @@ import {
   collectGatewayActivity,
   loadGatewaySchedulerSummary,
 } from "../gateway/status.js";
+import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
 import { dim, label } from "../util/style.js";
 
 const SERVICE_NAME = "shrimpy-gateway";
 
 export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0]): void {
   const runtime = createAppRuntime(config);
+  const scheduleIds = loadGatewayScheduleIds(runtime);
   const activity = collectGatewayActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
+    scheduleIds,
   );
   const scheduler = loadGatewaySchedulerSummary(
     runtime.paths.schedulerStatePath,
     runtime.resolved.status,
+    scheduleIds,
   );
 
   console.log(`${label("workspace:")} ${runtime.paths.workspace}`);
@@ -25,12 +29,12 @@ export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0
   console.log(`${label("gateway enabled:")} ${systemctlStatus("is-enabled")}`);
   console.log(`${label("tracked channels:")} ${activity.channelCount}`);
 
-  if (activity.lastHeartbeat) {
+  if (activity.lastScheduledRun) {
     console.log(
-      `${label("time since last heartbeat:")} ${when(activity.lastHeartbeat.message.timestamp)}`,
+      `${label("time since last scheduled run:")} ${when(activity.lastScheduledRun.message.timestamp)}`,
     );
   } else {
-    console.log(`${label("time since last heartbeat:")} ${dim("(none)")}`);
+    console.log(`${label("time since last scheduled run:")} ${dim("(none)")}`);
   }
 
   if (activity.lastUserInteraction) {
@@ -47,13 +51,12 @@ export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0
     console.log(`${label("time since last user interaction:")} ${dim("(none)")}`);
   }
 
-  if (scheduler.nextHeartbeatAtMs !== undefined) {
-    const nextHeartbeat = scheduler.nextHeartbeatAtMs;
+  if (scheduler.nextScheduledRun) {
     console.log(
-      `${label("next heartbeat due:")} ${formatFutureOrPast(nextHeartbeat)} ${dim(`(${new Date(nextHeartbeat).toLocaleString()})`)}`,
+      `${label("next scheduled run due:")} ${formatFutureOrPast(scheduler.nextScheduledRun.nextRunAtMs)} ${dim(`(${new Date(scheduler.nextScheduledRun.nextRunAtMs).toLocaleString()})`)}`,
     );
   } else {
-    console.log(`${label("next heartbeat due:")} ${dim("(unknown)")}`);
+    console.log(`${label("next scheduled run due:")} ${dim("(unknown)")}`);
   }
 }
 

@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import {
-  createDefaultShrimpySchedules,
   createScheduler,
   emitChannelTargetRun,
   loadAgentScheduleDefinitions,
@@ -14,6 +13,7 @@ import {
   type Scheduler,
   type ResolvedAgentScheduleDefinition,
 } from "../scheduler/index.js";
+import { createDefaultShrimpySchedules } from "../setup/defaults.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 
 export function ensureGatewaySchedulesFile(runtime: AppRuntime): void {
@@ -56,6 +56,15 @@ export function loadGatewayAgentSchedules(
   }
 
   return schedules;
+}
+
+export function loadGatewayScheduleIds(runtime: AppRuntime): string[] {
+  const agentSchedules = loadGatewayAgentSchedules(runtime);
+  const systemSchedules = loadScheduleDefinitions(runtime.paths.systemSchedulesPath);
+  return [
+    ...agentSchedules.map((schedule) => schedule.id),
+    ...systemSchedules.map((schedule) => schedule.id),
+  ];
 }
 
 export function startGatewayScheduler(

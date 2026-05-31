@@ -11,7 +11,6 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
-| [SCHED-001](sched-001.md) | todo | P2 | Scheduler | none | Demote heartbeat to watched schedule config |
 | [WAIT-001](wait-001-durable-agent-waits.md) | draft | P1 | Runtime | [CTX-007](ctx-007.md) | Durable waits and pending wakes for agent continuations |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | [TUI-001](tui-001.md) | Interactive `/agent` navigator for agents and sessions |
 | [PI-001](pi-001.md) | todo | P2 | Pi Integration | none | Contingency Pi patch branch strategy |
