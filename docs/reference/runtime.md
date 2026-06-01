@@ -1,6 +1,6 @@
 # 🦐 Runtime
 
-Shrimpy has two execution modes: direct local sessions and channel sessions. Both use the same workspace, model registry, auth files, context assembly, skills, and tool surface.
+Shrimpy has two execution modes: direct local sessions and channel sessions. Both use the same workspace, model registry, auth files, context assembly, skills, and tool surface. See [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
 
 ## Direct CLI Sessions
 
@@ -34,13 +34,18 @@ surface / CLI channel post / scheduler
   -> AgentChannelRuntime
   -> SessionRegistry
   -> Pi session turn
-  -> tools / reply, ask, notify, report, send_message
+  -> Pi built-ins + Shrimpy daemon tools
   -> ChannelBus
   -> ChannelEgress
   -> channel log + optional surface delivery
 ```
 
 Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.
+
+Direct local sessions do not have an active publication channel, so `reply`,
+`ask`, `notify`, and `report` are not registered there. Local sessions answer
+with ordinary assistant text unless explicitly asked to send or read a Shrimpy
+channel.
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` when the turn addresses one agent directly.
 

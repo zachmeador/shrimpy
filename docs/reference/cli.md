@@ -66,7 +66,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | --- | --- |
 | `shrimpy agent list` | List configured agents. |
 | `shrimpy agent show <id>` | Show resolved agent config and paths. |
-| `shrimpy agent inspect <id>` | Show the effective tool capability view, including Pi built-ins, Shrimpy daemon tools, active tools, and excluded tools. |
+| `shrimpy agent inspect <id>` | Show the effective tool capability view, including Pi built-ins, Shrimpy daemon tools, active tools, and excluded tools. See [tools.md](tools.md). |
 | `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--tools`, `--disable-tools`, `--thinking`, and `--attention <all|mentions|addressed|none>`. |
 | `shrimpy agent set <id>` | Update root, model default, Shrimpy daemon tools, disabled tools, thinking default, or attention mode. |
 | `shrimpy agent attention <id> [--channel <name>]` | Inspect base and effective attention policy, including implied rules. |

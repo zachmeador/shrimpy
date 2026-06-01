@@ -142,7 +142,7 @@ Each agent config entry has:
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `attention` — when channel messages become turns for this agent.
 
-Agent identity, model defaults, tool policy, and attention policy live in `agents`. Channel participation lives in `config/channels.json`.
+Agent identity, model defaults, tool policy, and attention policy live in `agents`. Channel participation lives in `config/channels.json`. See [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
 Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.
