@@ -61,8 +61,8 @@ highest-signal recommendations.
   [ADMIN-001](admin-001.md).
 - [SCHED-002](sched-002-schedule-inspection-surfaces.md) gives the mechanic a
   safer way to inspect its own recurrence and explain when it will run next.
-- [SCHED-003](sched-003-scheduled-channel-messages.md) keeps recurrence routing on
-  ordinary channel membership and attention instead of addressed-agent bypasses.
+- [CHANNEL-002](channel-002-attention-routed-channel-events.md) owns the routing
+  contract for the mechanic's scheduled turns.
 - Good candidate recommendations: turn repeated manual requests into a skill,
   add a small recurring schedule, split a focused app-agent out of the main
   agent, add a vault collection/index, or create a channel convention.

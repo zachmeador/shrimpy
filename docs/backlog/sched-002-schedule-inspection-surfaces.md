@@ -47,11 +47,10 @@ raw definitions, but it does not answer workspace-level questions such as
 
 ## Notes
 
-- Related: [SCHED-003](sched-003-scheduled-channel-messages.md) changes the
-  schedule routing model to typed messages in ordinary channels.
-- Related: [SCHED-003](sched-003-scheduled-channel-messages.md) should use the
-  existing agent attention model; schedule inspection should explain the target
-  channel and expected attention behavior.
+- Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) owns the
+  shared channel-event routing contract that schedule inspection should explain.
+- Related: [SCHED-003](sched-003-scheduled-channel-messages.md) applies that
+  contract to recurring schedules.
 - Related: [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) adds
   one-time runtime schedules that should appear in the same inspection surfaces.
 

@@ -3,30 +3,26 @@
 Status: draft
 Priority: P1
 Area: Schedules
-Depends On: none
+Depends On: [CHANNEL-002](channel-002-attention-routed-channel-events.md)
 
 ## Why
 
 Scheduled agent runs currently publish addressed messages into an arbitrary
-target channel. This works, but it makes routing harder to reason about: a
-schedule can cause an agent turn through `origin.addressedAgentId` even when
-that agent is not a member of the channel where the message is logged.
+target channel. That makes routing harder to reason about: a schedule can cause
+an agent turn through `origin.addressedAgentId` even when that agent is not a
+member of the channel where the message is logged.
 
-The simpler model is that schedules write ordinary messages into ordinary
-channels. Channel membership determines which agents can see that message, and
-each agent's attention policy determines whether the message becomes a turn.
-There is no schedule-specific channel type, message type, or paired delivery
-channel type.
+This item applies the [attention-routed channel-event contract](channel-002-attention-routed-channel-events.md)
+to recurring schedules.
 
 ## Build
 
-- Make each schedule target an ordinary channel.
+- Make each schedule target a channel that participates in the shared
+  channel-event routing contract.
 - Emit scheduler runs as ordinary channel messages with schedule provenance:
   schedule id, local id, owner agent when applicable, target channel, run id,
   fire time, trigger metadata, and inspect commands.
 - Stop relying on `origin.addressedAgentId` to route agent-owned schedules.
-  Scheduled messages should become turns because those agents are members of the
-  target channel and their attention policy accepts the message.
 - Ensure setup/default schedule generation configures normal channel membership
   and attention deliberately. A schedule may target an internal agent channel by
   convention, but that channel is still just a channel.
@@ -42,17 +38,14 @@ channel type.
 - Update schedule inspection so `shrimpy schedules` and related status surfaces
   show target channel, expected agent attention, session path, last run, next
   run, and recent emitted channel message id.
-- Update the Scrappy-style character-agent docs/examples to use ordinary channel
-  membership plus attention instead of addressed-agent schedule routing.
+- Update the Scrappy-style character-agent docs/examples to reference
+  [CHANNEL-002](channel-002-attention-routed-channel-events.md) instead of
+  addressed-agent schedule routing.
 
 ## Boundaries
 
-- Do not introduce a second channel system. Scheduled messages live in normal
-  channels with normal logs, membership, cursors, sessions, context overrides,
-  and inspection commands.
-- Do not introduce schedule-specific channel types, message types, or paired
-  delivery-channel concepts. Internal work channels are, at most, workspace
-  conventions over ordinary channels.
+- Do not add schedule-specific routing concepts beyond
+  [CHANNEL-002](channel-002-attention-routed-channel-events.md).
 - Do not keep the current addressed-agent schedule path as a compatibility shim
   after replacing it. Existing logs can remain as history, but new runtime
   behavior should use the new model directly.
@@ -68,18 +61,11 @@ channel type.
 
 ## Notes
 
-- This complements [SCHED-002](sched-002-schedule-inspection-surfaces.md):
-  inspection should expose the target channel, expected attention behavior, and
-  recent emitted channel message ids, but the routing cleanup is its own runtime
-  change.
-- Shrimpy already has the attention machinery this should use:
-  `src/agents/channel-policy.ts` for routing decisions and
-  `shrimpy agent attention test` for inspection.
+- This complements [SCHED-002](sched-002-schedule-inspection-surfaces.md), which
+  should expose target channel, expected attention behavior, and recent emitted
+  channel message ids.
 - Agent-specific scheduled work can still use a stable internal channel by
-  convention. The important point is that this is not a separate channel type.
-- The first implementation can keep direct CLI/user addressing if it is still
-  useful, but agent-owned schedules should not depend on the addressed-agent
-  bypass.
+  convention.
 - The current Ole Scrappy schedule is the motivating example: it logs scheduler
   messages in a Telegram channel and routes to `ole_scrappy` through explicit
   addressing even though that channel's membership belongs to `shrimpy`.
@@ -87,8 +73,8 @@ channel type.
 ## Done
 
 - Scheduled runs emit ordinary channel messages with schedule provenance.
-- Scheduled runs are delivered through normal membership plus attention, without
-  an addressed-agent routing bypass.
+- Scheduled runs follow [CHANNEL-002](channel-002-attention-routed-channel-events.md)
+  without an addressed-agent routing bypass.
 - Schedule turns receive compact context for schedule id, run id, target channel,
   and emitted channel message id.
 - Schedule inspection surfaces show target channel, expected attention behavior,

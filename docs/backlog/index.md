@@ -7,8 +7,9 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
+| [CHANNEL-002](channel-002-attention-routed-channel-events.md) | draft | P1 | Channels | none | Attention-routed channel events |
 | [SCHED-002](sched-002-schedule-inspection-surfaces.md) | todo | P1 | Schedules | none | Schedule inspection surfaces |
-| [SCHED-003](sched-003-scheduled-channel-messages.md) | draft | P1 | Schedules | none | Scheduled channel messages through existing agent attention |
+| [SCHED-003](sched-003-scheduled-channel-messages.md) | draft | P1 | Schedules | [CHANNEL-002](channel-002-attention-routed-channel-events.md) | Scheduled channel messages through existing agent attention |
 | [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) | draft | P1 | Schedules | [SCHED-003](sched-003-scheduled-channel-messages.md) | One-time scheduled channel messages |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |

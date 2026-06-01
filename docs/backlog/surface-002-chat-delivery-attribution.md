@@ -39,10 +39,9 @@ Telegram can compare the message sender against the route's default visible agen
 - Build on `src/channels/bus.ts`, where `sendAgentText` already publishes once and delivers the resulting message.
 - Update Telegram egress in `src/surfaces/telegram/surface.ts` to decorate only when sender attribution is needed.
 - Consider a small shared helper under `src/surfaces/shared/` for choosing attribution labels so future chat adapters can reuse the policy.
-- Related: [SCHED-003](sched-003-scheduled-channel-messages.md) makes
-  scheduled/app-agent work become turns through ordinary channel membership and
-  attention; this item keeps later cross-agent chat deliveries legible at the
-  surface.
+- Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) makes
+  async app-agent work flow through ordinary channel messages; this item keeps
+  later cross-agent chat deliveries legible at the surface.
 - Add tests for plain default-agent delivery, decorated non-default agent delivery, and preservation of the stored channel text.
 
 ## Done

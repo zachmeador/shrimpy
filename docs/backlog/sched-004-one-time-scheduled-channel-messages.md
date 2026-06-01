@@ -11,10 +11,9 @@ The most useful near-term continuation is not a general conditional wait system.
 It is a one-time scheduled channel message: "remind me tomorrow", "check this
 again at 3pm", or "continue this thread in 20 minutes".
 
-This should use Shrimpy's existing scheduler, channel membership, and agent
-attention model. A one-time schedule writes an ordinary channel message at a
-specific time. Whether an agent handles it is decided by the channel's
-membership and that agent's attention config.
+This item adds the one-time timer record. Routing follows
+[CHANNEL-002](channel-002-attention-routed-channel-events.md) through the same
+channel-event path as recurring schedules.
 
 ## Build
 
@@ -28,9 +27,7 @@ membership and that agent's attention config.
   - `shrimpy schedules cancel <id>`
   - `shrimpy schedules show <id>`
   - `shrimpy schedules list --one-time`
-- Reuse normal channel append and gateway dispatch. Do not publish an addressed
-  message unless a human explicitly uses an addressing feature that already
-  exists.
+- When due, emit the one-time record through the shared channel append path.
 - Include one-time schedule provenance in the emitted channel message and turn
   context: schedule id, due time, target channel, source, and inspect command.
 - Make schedule inspection show pending, fired, cancelled, failed, and expired
@@ -43,20 +40,18 @@ membership and that agent's attention config.
 
 - Do not build a general conditional polling system here. This is time-based
   scheduling only.
-- Do not add schedule-specific channel types or special routing. The scheduled
-  message is an ordinary channel message.
-- Do not bypass channel membership or agent attention.
+- Do not add one-time-schedule routing semantics beyond
+  [CHANNEL-002](channel-002-attention-routed-channel-events.md).
 - Do not make one-time schedules static recurring config. They are runtime
   schedule state with explicit lifecycle.
-- Do not silently repair missing membership or attention config. Inspection
-  should show when the target channel is unlikely to produce an agent turn.
 
 ## Notes
 
 - This intentionally stops at time-based scheduling. If command-polling
   continuations become important later, add a specific backlog item then.
-- This builds on [SCHED-003](sched-003-scheduled-channel-messages.md): scheduled
-  work writes ordinary channel messages and uses existing attention.
+- This builds on [SCHED-003](sched-003-scheduled-channel-messages.md), which
+  applies [CHANNEL-002](channel-002-attention-routed-channel-events.md) to
+  recurring schedules.
 - [SCHED-002](sched-002-schedule-inspection-surfaces.md) should include one-time
   schedules once this lands.
 
@@ -64,7 +59,7 @@ membership and that agent's attention config.
 
 - Users and agents can create one-time scheduled channel messages from CLI.
 - Due one-time schedules write ordinary channel messages at the requested time.
-- Delivery to agents uses normal channel membership and attention.
+- Delivery to agents follows [CHANNEL-002](channel-002-attention-routed-channel-events.md).
 - One-time schedules can be listed, shown, cancelled, and inspected after firing.
 - Emitted turns include compact schedule provenance and inspect commands.
 - Tests cover due-time parsing, firing, cancellation, restart persistence,

@@ -29,9 +29,8 @@ Channel logs are append-only and reliable, but users and agents need better ways
 ## Notes
 - Likely files: `src/commands/channels.ts`, `src/channels/service.ts`, `src/channels/bus.ts`, and `src/web/read.ts`.
 - Output should be agent-friendly and easy to compose from the CLI.
-- Related: schedule/worker continuations depend on normal channel
-  inspection being good enough that attention routing is legible, not a hidden
-  runtime side effect.
+- Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) defines
+  the routing contract this inspection work should make legible.
 
 ## Done
 - `shrimpy channels` exposes the richer inspection paths.

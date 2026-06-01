@@ -112,8 +112,9 @@ closes it.
 - Do not let worker autonomy include destructive or irreversible actions by
   default. Workers may propose those actions, but the parent must decide.
 - Do not invent a worker-specific async continuation loop. Worker state should be
-  observable through inspection commands, relevant turn context, and ordinary
-  channels when a parent explicitly sends status onward.
+  observable through inspection commands, relevant turn context, and the
+  [CHANNEL-002](channel-002-attention-routed-channel-events.md) path when a
+  parent explicitly sends status onward.
 - Do not require external coding-agent CLIs for Shrimpy to keep working.
 - Do not invent a second channel system; when a worker needs a channel return
   path, use normal Shrimpy channels. Otherwise, keep status, summaries, and logs
@@ -137,8 +138,8 @@ closes it.
   worker-control tools.
 - Related: extend the existing session-status turn-context item with worker
   state once worker sessions exist.
-- Related: channel-origin continuation should use the existing attention routing
-  model rather than a worker-specific path.
+- Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) is the
+  shared channel-origin continuation path; workers should not add their own.
 - Design pressure is sketched in
   [../musings/asynchronous-agents.md](../musings/asynchronous-agents.md),
   especially worker sessions, explicit lineage, pending child work, and the child

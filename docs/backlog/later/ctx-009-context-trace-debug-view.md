@@ -36,7 +36,7 @@ schedule, and worker-status context expands enough that the existing
   materialization status.
 - Represent continuation context with enough provenance to explain the source
   message, source record, message channel, attention route, and related
-  wait/schedule/worker id without treating it as a special prompt side channel.
+  schedule/worker id without treating it as a special prompt side channel.
 - Render existing `PromptSection` and `TurnContextItem` outputs from the trace
   instead of treating them as separate source systems.
 - Make `shrimpy context --sections`, `shrimpy context turn`, and
@@ -64,8 +64,8 @@ schedule, and worker-status context expands enough that the existing
   `src/commands/context.ts`, and `src/sessions/prompt.ts`.
 - This should make future turn-context facts easier to add because new facts can
   be introduced as trace producers with provenance and inspection metadata.
-- Related: continuation trace output should reuse the existing attention
-  explanation path so it can explain why a message reached the current turn.
+- Related: active channel-event routing guidance lives in
+  [../channel-002-attention-routed-channel-events.md](../channel-002-attention-routed-channel-events.md).
 
 ## Done
 
