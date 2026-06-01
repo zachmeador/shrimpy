@@ -17,6 +17,14 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed direct `tui` and `run` sessions to prepend turn context to user prompts while keeping live turn context out of the stable system prompt.
 - Scoped active publication helpers to gateway/channel sessions and clarified direct-session delivery, explicit `send_message` routing, and internal agent DM delivery.
 
+### Schedules
+
+- Added `shrimpy schedules` and `shrimpy schedules show` for workspace-wide schedule inspection, including agent-owned and workspace-level schedules, target channels, membership, expected attention, scheduler state, recent emitted message ids, and diagnostics.
+- Added TUI `/status schedules` backed by the same schedule-inspection service.
+- Changed agent-owned schedules to emit unaddressed scheduler-authored channel messages routed by channel membership and agent attention instead of `origin.addressedAgentId`.
+- Added schedule provenance to scheduler-origin channel messages and turn context, including owner/local ids, target channel, trigger metadata, run ids, and inspect commands.
+- Improved agent-facing breadcrumbs and CLI output for schedule routing, channel membership, and effective attention filters.
+
 ### Sessions & Models
 
 - Added visible session messages when a session model changes, including previous/current model refs, thinking level, and resolved inference metadata.

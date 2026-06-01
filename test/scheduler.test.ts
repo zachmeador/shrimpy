@@ -232,7 +232,17 @@ describe("emitChannelTargetRun", () => {
     assert.equal(messages[0].sender.kind, "system");
     assert.equal(messages[0].sender.actorId, "system:scheduler");
     assert.equal(messages[0].origin.transport, "scheduler");
-    assert.equal(messages[0].origin.addressedAgentId, "shrimpy");
+    assert.equal(messages[0].origin.addressedAgentId, undefined);
+    assert.equal(messages[0].origin.schedule?.ownerAgentId, "shrimpy");
+    assert.equal(messages[0].origin.schedule?.localId, "heartbeat");
+    assert.equal(messages[0].origin.schedule?.targetChannel, "heartbeat");
+    assert.deepEqual(messages[0].origin.schedule?.trigger, {
+      type: "every_ms",
+      everyMs: 1_000,
+    });
+    assert.deepEqual(messages[0].origin.schedule?.inspect, [
+      "shrimpy schedules show shrimpy/heartbeat",
+    ]);
     assert.equal(messages[0].content.type, "text");
     assert.equal(messages[0].content.data.scheduleId, undefined);
     assert.equal(messages[0].content.data.text, schedule.action.target.contentData?.text);
@@ -257,7 +267,7 @@ describe("agent schedule definitions loading", () => {
     assert.equal(schedules[0].instructions, "check in");
   });
 
-  test("resolves agent schedules with addressed channel targets", () => {
+  test("resolves agent schedules with attention-routed channel targets", () => {
     const schedule = resolveAgentScheduleDefinition("shrimpy", {
       id: "heartbeat",
       trigger: { type: "every_ms", everyMs: 5_000 },
@@ -269,7 +279,7 @@ describe("agent schedule definitions loading", () => {
     assert.equal(schedule.localId, "heartbeat");
     assert.equal(schedule.ownerAgentId, "shrimpy");
     assert.equal(schedule.action.target.channel, "heartbeat");
-    assert.equal(schedule.action.target.addressedAgentId, "shrimpy");
+    assert.equal(schedule.action.target.addressedAgentId, undefined);
     assert.equal(schedule.action.target.contentType, "text");
     assert.deepEqual(schedule.action.target.contentData, { text: "check in" });
   });

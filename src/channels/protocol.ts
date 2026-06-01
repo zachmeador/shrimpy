@@ -53,6 +53,15 @@ export interface MessageOrigin {
   scheduleId?: string;
   runId?: string;
   sourceChannel?: string;
+  schedule?: MessageScheduleProvenance;
+}
+
+export interface MessageScheduleProvenance {
+  ownerAgentId?: string;
+  localId?: string;
+  targetChannel?: string;
+  trigger?: Record<string, unknown>;
+  inspect?: string[];
 }
 
 export interface PublishChannelMessageInput {

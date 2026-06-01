@@ -48,7 +48,9 @@ One example is a Scrappy-style character agent:
 
 - a persistent agent has a strong personality, voice, lore, and relationship to
   the user
-- a scheduled morning message asks the character to write the user a letter
+- a scheduled morning message logs into an ordinary channel, and the character
+  becomes eligible for that turn through channel membership plus its attention
+  config
 - memory upkeep preserves important facts, recurring motifs, and new bits of
   lore as ordinary agent memory
 - the character is encouraged to elaborate its own world over time, while still

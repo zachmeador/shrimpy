@@ -17,7 +17,10 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **SessionRegistry** — one active turn at a time per session, with FIFO queuing.
 - **Surface** — a transport-facing interaction layer such as Telegram. Each surface is a self-contained vertical at `src/surfaces/<name>/` and registers via the `ChatSurfaceModule` interface; `AppRuntime` aggregates the registry without knowing surface kinds.
 - **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances scheduled work.
-- **Scheduler** — file-driven recurring work. Schedules emit channel messages that become normal agent turns. Agent schedules live in `agents/<id>/schedules.json`; optional workspace scheduler definitions live in `config/schedules.json`.
+- **Scheduler** — file-driven recurring work. Schedules emit channel messages;
+  channel membership and agent attention decide whether those messages become
+  turns. Agent schedules live in `agents/<id>/schedules.json`; optional
+  workspace scheduler definitions live in `config/schedules.json`.
 - **Skill** — prompt and resource material loaded into a session.
 - **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).
 - **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last) into one system prompt, and prepends the per-turn context envelope with runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices.
@@ -60,4 +63,4 @@ Where each concept lives:
 
 ## Direction
 
-The current architecture supports durable agents, channels, scheduler wakes, skills, and child runs. The design pressure behind these choices is captured in [design.md](design.md). Active refinement work is tracked in [../backlog/index.md](../backlog/index.md). Context assembly details live in [context-assembly.md](context-assembly.md).
+The current architecture supports durable agents, channels, scheduled channel messages, skills, and child runs. The design pressure behind these choices is captured in [design.md](design.md). Active refinement work is tracked in [../backlog/index.md](../backlog/index.md). Context assembly details live in [context-assembly.md](context-assembly.md).

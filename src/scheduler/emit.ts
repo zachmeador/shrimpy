@@ -1,10 +1,16 @@
 import type { ChannelBus } from "../channels/bus.js";
 import {
+  type MessageScheduleProvenance,
   systemContent,
   textContent,
 } from "../channels/index.js";
 import { renderScheduledTextRun } from "../context/turn/scheduler.js";
-import type { ScheduleRunDue } from "./schema.js";
+import type {
+  ResolvedAgentScheduleDefinition,
+  ScheduleDefinition,
+  ScheduleRunDue,
+  ScheduleTrigger,
+} from "./schema.js";
 
 export function emitChannelTargetRun(
   channelBus: ChannelBus,
@@ -39,8 +45,43 @@ export function emitChannelTargetRun(
       runId: run.runId,
       sourceChannel: target.channel,
       addressedAgentId: target.addressedAgentId,
+      schedule: scheduleProvenance(run.schedule, target.channel),
     },
     content,
   });
   return true;
+}
+
+function scheduleProvenance(
+  schedule: ScheduleDefinition,
+  targetChannel: string,
+): MessageScheduleProvenance {
+  const resolved = schedule as Partial<ResolvedAgentScheduleDefinition>;
+  return {
+    ...(resolved.ownerAgentId ? { ownerAgentId: resolved.ownerAgentId } : {}),
+    ...(resolved.localId ? { localId: resolved.localId } : {}),
+    targetChannel,
+    trigger: triggerMetadata(schedule.trigger, schedule.timezone),
+    inspect: [`shrimpy schedules show ${schedule.id}`],
+  };
+}
+
+function triggerMetadata(
+  trigger: ScheduleTrigger,
+  timezone?: string,
+): Record<string, unknown> {
+  if (trigger.type === "every_ms") {
+    return {
+      type: trigger.type,
+      everyMs: trigger.everyMs,
+    };
+  }
+
+  return {
+    type: trigger.type,
+    expression: trigger.expression,
+    ...(trigger.timezone ?? timezone
+      ? { timezone: trigger.timezone ?? timezone }
+      : {}),
+  };
 }

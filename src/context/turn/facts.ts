@@ -108,15 +108,26 @@ function buildAttentionItem(
 
 function buildSchedulerItem(message: ChannelMessage): TurnContextItem | undefined {
   if (message.origin.transport !== "scheduler") return undefined;
-  const pieces = ["scheduled wake"];
+  const pieces = ["scheduled message"];
   if (message.origin.scheduleId) pieces.push(message.origin.scheduleId);
+  if (message.origin.schedule?.ownerAgentId) {
+    pieces.push(`owner ${message.origin.schedule.ownerAgentId}`);
+  }
+  if (message.origin.schedule?.localId) {
+    pieces.push(`local ${message.origin.schedule.localId}`);
+  }
+  if (message.origin.schedule?.targetChannel) {
+    pieces.push(`target ${message.origin.schedule.targetChannel}`);
+  }
   if (message.origin.runId) pieces.push(`run ${message.origin.runId}`);
   pieces.push(`fired ${formatAgentDateTime(message.timestamp)}`);
 
   return {
     id: `turn:${message.id}:scheduler`,
     summary: pieces.join("; "),
-    inspect: "shrimpy gateway status",
+    inspect: message.origin.scheduleId
+      ? `shrimpy schedules show ${message.origin.scheduleId}`
+      : "shrimpy gateway status",
   };
 }
 

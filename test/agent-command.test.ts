@@ -380,6 +380,46 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(decision.reason, "sender does not match effective attention filters");
   });
 
+  test("attention test text output shows sender identity and effective filters", async () => {
+    await setupInit(workspace);
+
+    const configPath = join(workspace, "config", "shrimpy.json");
+    const configJson = JSON.parse(readFileSync(configPath, "utf-8"));
+    configJson.agents[0].attention = {
+      channels: {
+        home: {
+          mode: "all",
+          senders: ["system"],
+          actorIds: ["system:scheduler"],
+        },
+      },
+    };
+    writeFileSync(configPath, JSON.stringify(configJson, null, 2) + "\n", "utf-8");
+    const config = { ...configJson, workspace };
+
+    const { result, lines } = await captureLogs(() =>
+      cmdAgent([
+        "attention",
+        "test",
+        "shrimpy",
+        "--channel",
+        "home",
+        "--sender",
+        "system",
+        "--actor-id",
+        "system:scheduler",
+        "--text",
+        "tick",
+      ], config as any)
+    );
+
+    assert.equal(result, 0);
+    assert.ok(lines.includes("sender: system"));
+    assert.ok(lines.includes("actor_id: system:scheduler"));
+    assert.ok(lines.includes("effective_senders: system"));
+    assert.ok(lines.includes("effective_actor_ids: system:scheduler"));
+  });
+
   test("rejects attention set with no fields and clear with no target", async () => {
     await setupInit(workspace);
     await withMutedConsole(() =>

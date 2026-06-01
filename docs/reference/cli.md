@@ -29,6 +29,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy setup init` | Create baseline workspace files. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy status` | Show workspace, gateway, channels, scheduled-run, and Telegram offset status. |
+| `shrimpy schedules [--agent <id>] [--json]` | Inspect configured workspace and agent schedules, including target channels, expected attention, next runs, and recent emitted messages. |
+| `shrimpy schedules show <schedule-id> [--json]` | Show one resolved schedule; agent-owned schedules use `agent-id/local-schedule-id`. |
 | `shrimpy context` | Render assembled session context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, including prompt sections and turn context. |
@@ -70,7 +72,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy agent attention <id> [--channel <name>]` | Inspect base and effective attention policy, including implied rules. |
 | `shrimpy agent attention set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel attention fields without rewriting the rest of the policy. |
 | `shrimpy agent attention clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel attention fields; `--channel` with no fields removes the whole override. |
-| `shrimpy agent attention test <id> --channel <name> --sender <human\|agent\|system> --text <text>` | Explain whether a sample message would become a turn. |
+| `shrimpy agent attention test <id> --channel <name> --sender <human\|agent\|system> --text <text> [--actor-id <id>] [--user-id <id>] [--addressed <id>]` | Explain whether a sample message would become a turn, including matched overrides and effective attention filters. |
 | `shrimpy agent schedules <id>` | List one agent's schedule definitions. |
 | `shrimpy agent schedule <id> <schedule-id>` | Show one agent schedule definition. |
 | `shrimpy agent rename <old> <new>` | Rename an agent and update local state. |

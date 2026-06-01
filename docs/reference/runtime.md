@@ -30,6 +30,7 @@ surface / CLI channel post / scheduler
   -> ChannelStore
   -> workspace/channels/*.jsonl
   -> ChannelDeliveryLoop
+  -> channel membership + agent attention
   -> AgentChannelRuntime
   -> SessionRegistry
   -> Pi session turn
@@ -74,8 +75,13 @@ At turn time, Shrimpy prepends a `<context>...</context>` block: current time/se
 ## Background Work
 
 - The heartbeat is a setup-seeded scheduled task that emits into a normal channel/session pair.
-- Schedules live in each agent workspace at `agents/<id>/schedules.json`.
-- Agent schedules emit addressed channel messages with plain text instructions for the owning agent.
+- Agent schedules live in each agent workspace at `agents/<id>/schedules.json`;
+  optional workspace-level schedules live in `config/schedules.json`.
+- Agent schedules emit scheduler-authored channel messages with plain text
+  instructions. The owning agent must be a member of the target channel and have
+  attention configured to handle those messages.
+- Scheduler-origin messages carry schedule provenance in `origin.schedule`, and
+  turn context points back to `shrimpy schedules show <schedule-id>`.
 - Fresh setup also seeds ordinary memory upkeep schedules for `memory-management`, `journal-daily`, and `journal-compact`.
 - The `run_child` tool opens a fresh child `run` session for bounded work and returns the result to the parent session.
 - Child runs reuse the same auth and model registry while keeping separate session persistence.
@@ -84,5 +90,7 @@ At turn time, Shrimpy prepends a `<context>...</context>` block: current time/se
 
 - `shrimpy status` summarizes workspace and gateway activity.
 - `shrimpy gateway status` reports gateway service, scheduled-run, and scheduler status.
+- `shrimpy schedules` reports source paths, target channels, expected attention,
+  next runs, and recent emitted scheduler messages.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` renders assembled session context for inspection.

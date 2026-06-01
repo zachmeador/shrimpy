@@ -520,6 +520,105 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(calls, ["career", "shrimpy"]);
   });
 
+  test("routes Scrappy-style scheduled messages through channel membership and attention", async () => {
+    const agents = resolveAgentsConfig([
+      {
+        id: "shrimpy",
+        model: { provider: "test", id: "shrimpy-model" },
+        attention: { mode: "all", senders: ["human"] },
+      },
+      {
+        id: "ole_scrappy",
+        model: { provider: "test", id: "scrappy-model" },
+        attention: {
+          mode: "none",
+          channels: {
+            "telegram~main~4242": {
+              mode: "all",
+              senders: ["system"],
+              actorIds: ["system:scheduler"],
+            },
+          },
+        },
+      },
+    ]);
+    const memberships = new ChannelMembershipStore(
+      join(workspace, "config", "channels.json"),
+      agents,
+    );
+    memberships.write({
+      channels: {
+        "telegram~main~4242": {
+          agents: {
+            shrimpy: {},
+            ole_scrappy: {},
+          },
+        },
+      },
+    });
+
+    const runtime = {
+      resolved: {
+        agents,
+        sessions: undefined,
+      },
+      createChannelMembershipStore() {
+        return memberships;
+      },
+      getAgent(agentId: string) {
+        return agents.find((agent) => agent.id === agentId) ?? agents[0];
+      },
+      buildRuntimeTools() {
+        return [];
+      },
+      paths: {
+        cursorsPath: join(workspace, "cursors.json"),
+      },
+    } as any;
+
+    const dispatcher = new ChannelDeliveryLoop({
+      runtime,
+      bootstraps: testBootstraps(agents),
+      channelBus: {} as any,
+    }) as any;
+
+    const calls: string[] = [];
+    dispatcher.agentRuntimes = new Map(agents.map((agent) => [
+      agent.id,
+      {
+        handleMessage: async (channel: string, message: any) => {
+          if (shouldAgentHandleMessage(agent, channel, message)) {
+            calls.push(agent.id);
+          }
+        },
+      },
+    ]));
+
+    await dispatcher.dispatchMessage("telegram~main~4242", {
+      id: "scrappy-schedule",
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: {
+        transport: "scheduler",
+        scheduleId: "ole_scrappy/morning-letter",
+        runId: "run-1",
+        sourceChannel: "telegram~main~4242",
+        schedule: {
+          ownerAgentId: "ole_scrappy",
+          localId: "morning-letter",
+          targetChannel: "telegram~main~4242",
+          inspect: ["shrimpy schedules show ole_scrappy/morning-letter"],
+        },
+      },
+      content: {
+        type: "text",
+        data: { text: "Write a morning letter in character." },
+      },
+      timestamp: Date.now(),
+    }, "live");
+
+    assert.deepEqual(calls, ["ole_scrappy"]);
+  });
+
   test("uses empty bootstrap membership when a channel has no explicit membership yet", async () => {
     const agents = testAgents();
     const memberships = new ChannelMembershipStore(

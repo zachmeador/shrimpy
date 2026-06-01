@@ -422,7 +422,6 @@ export function resolveAgentScheduleDefinition(
       target: {
         kind: "channel",
         channel: schedule.channel,
-        addressedAgentId: agentId,
         senderKind: "system",
         senderActorId: "system:scheduler",
         contentType: "text",

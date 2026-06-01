@@ -1,6 +1,6 @@
 # 🦐 Overview
 
-Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; it does not carry a local Pi fork or vendored Pi artifact. The workspace is the home system; agents are persistent actors inside it. Shrimpy wraps Pi with home-agent primitives: workspace context, durable agents, channels, surfaces, scheduler wakes, and a CLI.
+Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; it does not carry a local Pi fork or vendored Pi artifact. The workspace is the home system; agents are persistent actors inside it. Shrimpy wraps Pi with home-agent primitives: workspace context, durable agents, channels, surfaces, scheduled channel messages, and a CLI.
 
 ## Current Shape
 
@@ -16,10 +16,12 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 ## Core Loop
 
 1. A human, surface, scheduler, CLI command, or agent writes a typed message to a channel.
-2. The gateway watches channel logs and decides which agent sessions wake.
-3. Each target agent runs a private Pi session for that channel.
-4. The agent uses tools as needed.
-5. Messages addressed to the channel user go through active-channel publication helpers such as `reply` or `ask`, which log to the channel and deliver through a surface when one is configured. `send_message` remains available for explicit channel routing.
+2. The gateway watches channel logs and offers messages to channel members.
+3. Each candidate agent's attention policy decides whether the message becomes
+   a turn.
+4. Each handling agent runs a private Pi session for that channel.
+5. The agent uses tools as needed.
+6. Messages addressed to the channel user go through active-channel publication helpers such as `reply` or `ask`, which log to the channel and deliver through a surface when one is configured. `send_message` remains available for explicit channel routing.
 
 `shrimpy` and `shrimpy run` open direct local sessions without first writing the prompt into a channel log. In those sessions, normal assistant text is the response path; channel publication helpers are for gateway/channel turns. The interactive TUI uses Pi's `InteractiveMode` so slash autocomplete and default UI behavior stay aligned with Pi, while Shrimpy patches `/settings` to expose both Shrimpy and Pi-owned settings.
 

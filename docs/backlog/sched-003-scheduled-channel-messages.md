@@ -1,23 +1,23 @@
 # SCHED-003: Scheduled Channel Messages
 
-Status: draft
+Status: review
 Priority: P1
 Area: Schedules
 Depends On: [CHANNEL-002](channel-002-attention-routed-channel-events.md)
 
 ## Why
 
-Scheduled agent runs currently publish addressed messages into an arbitrary
-target channel. That makes routing harder to reason about: a schedule can cause
-an agent turn through `origin.addressedAgentId` even when that agent is not a
-member of the channel where the message is logged.
+Scheduled agent runs used to publish addressed messages into an arbitrary target
+channel. That made routing harder to reason about: a schedule could cause an
+agent turn through `origin.addressedAgentId` even when that agent was not a
+member of the channel where the message was logged.
 
 This item applies the [attention-routed channel-event contract](channel-002-attention-routed-channel-events.md)
 to recurring schedules.
 
 ## Build
 
-- Make each schedule target a channel that participates in the shared
+- Make each agent schedule target a channel that participates in the shared
   channel-event routing contract.
 - Emit scheduler runs as ordinary channel messages with schedule provenance:
   schedule id, local id, owner agent when applicable, target channel, run id,
@@ -41,6 +41,28 @@ to recurring schedules.
 - Update the Scrappy-style character-agent docs/examples to reference
   [CHANNEL-002](channel-002-attention-routed-channel-events.md) instead of
   addressed-agent schedule routing.
+
+## Review State
+
+- Agent-owned schedules now resolve to unaddressed scheduler-authored channel
+  messages. The gateway delivers them through channel membership and attention.
+- Fresh setup already seeds `heartbeat` channel membership for the default
+  `shrimpy` agent, so default scheduled upkeep keeps working on the shared path.
+- Turn context and stable docs now use message-oriented wording instead of
+  wake-oriented wording.
+- Scheduler-origin messages now carry schedule provenance in `origin.schedule`,
+  including owner/local ids, target channel, trigger metadata, and inspect
+  commands.
+- `shrimpy schedules` and TUI `/status schedules` now show target channel,
+  expected attention behavior, session path, next run, last observed run, recent
+  emitted message id, and diagnostics for target channels whose membership or
+  attention config will not produce a turn.
+- Tests cover attention-routed agent schedule resolution, scheduled message
+  emission without `addressedAgentId`, turn-context schedule facts, inspection
+  diagnostics, and a Scrappy-style scheduled message becoming a turn through
+  normal channel membership plus agent attention.
+- No remaining implementation work is expected for this item before final
+  review.
 
 ## Boundaries
 
@@ -66,9 +88,10 @@ to recurring schedules.
   channel message ids.
 - Agent-specific scheduled work can still use a stable internal channel by
   convention.
-- The current Ole Scrappy schedule is the motivating example: it logs scheduler
-  messages in a Telegram channel and routes to `ole_scrappy` through explicit
-  addressing even though that channel's membership belongs to `shrimpy`.
+- The former Ole Scrappy schedule shape is the motivating example: instead of
+  logging in a Telegram channel while routing by explicit addressing, the target
+  channel should include `ole_scrappy` as a member and that agent's attention
+  should opt into the scheduler-authored message.
 
 ## Done
 
@@ -76,7 +99,7 @@ to recurring schedules.
 - Scheduled runs follow [CHANNEL-002](channel-002-attention-routed-channel-events.md)
   without an addressed-agent routing bypass.
 - Schedule turns receive compact context for schedule id, run id, target channel,
-  and emitted channel message id.
+  owner/local schedule ids when available, run id, and inspect commands.
 - Schedule inspection surfaces show target channel, expected attention behavior,
   session path, next run, last observed run, and recent emitted channel message
   id.

@@ -15,6 +15,7 @@ import { cmdSkills } from "./commands/skills.js";
 import { cmdModels } from "./commands/models.js";
 import { cmdAgent } from "./commands/agent.js";
 import { cmdSurface } from "./commands/surface.js";
+import { cmdSchedules } from "./commands/schedules.js";
 import {
   parseCommandArgs,
   runCommand,
@@ -68,6 +69,9 @@ const HELP_BODY = `  shrimpy                            launch interactive mode
   shrimpy channels members <name>    show channel membership
   shrimpy channels join <n> --agent <id>  add an agent to a channel
   shrimpy channels leave <n> --agent <id> remove an agent from a channel
+  shrimpy schedules                 inspect workspace schedules
+  shrimpy schedules --agent <id>    inspect one agent's schedules
+  shrimpy schedules show <id>       show one resolved schedule
   shrimpy agent list                 list configured agents
   shrimpy agent show <id>            show one agent config
   shrimpy agent add <id>             add a new agent and scaffold docs
@@ -125,6 +129,7 @@ const commands: Record<string, CommandHandler> = {
   agent: cmdAgent,
   surface: cmdSurface,
   sessions: cmdSessions,
+  schedules: cmdSchedules,
   models: cmdModels,
   skills: cmdSkills,
   setup: cmdSetup,

@@ -297,7 +297,10 @@ shrimpy agent attention clear shrimpy --channel heartbeat
 
 ## Schedules
 
-Schedules live in `agents/<id>/schedules.json`. The gateway compiles them into addressed channel messages for the owning agent, so scheduled/background wakeups use the same channel dispatch path as Telegram, CLI channel posts, and other async events.
+Schedules live in `agents/<id>/schedules.json` for agent-owned schedules and
+`config/schedules.json` for optional workspace-level schedules. The gateway
+compiles them into scheduler-authored channel messages. Channel membership and
+agent attention config decide whether the scheduled message becomes a turn.
 
 Triggers:
 
@@ -322,11 +325,22 @@ Fresh setup seeds four ordinary schedules for the default `shrimpy` agent:
 - `journal-daily` — daily at 22:30, writes a same-day journal note only if activity warrants it.
 - `journal-compact` — Sundays at 04:00, compacts old journal notes.
 
-Channel membership stays in `config/channels.json`. Agent schedules choose a channel to log through, and scheduled messages are addressed to the owning agent.
+Channel membership stays in `config/channels.json`. Agent schedules choose a
+channel to log through; setup seeds the default `heartbeat` channel with the
+default `shrimpy` agent as a member.
+
+Inspect schedules with `shrimpy schedules [--agent <id>] [--json]` or
+`shrimpy schedules show <resolved-schedule-id>`. The inspection surface reports
+source paths, owner/local ids, target channel, channel membership, expected
+attention behavior, next run from scheduler state, and recent emitted channel
+message ids from channel logs.
 
 ## Scheduler Status
 
-`shrimpy status`, `shrimpy gateway status`, the TUI status surface, and turn context summarize scheduled runs across all configured agent and workspace schedules. This aggregate status is not tied to the default heartbeat schedule.
+`shrimpy status`, `shrimpy gateway status`, `shrimpy schedules`, TUI
+`/status schedules`, and turn context summarize scheduled runs across all
+configured agent and workspace schedules. This aggregate status is not tied to
+the default heartbeat schedule.
 
 `status.watchedSchedules` is optional targeted diagnostic config for callers that need to track a specific schedule/channel pair:
 

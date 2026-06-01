@@ -15,7 +15,10 @@ Channels are durable shared rooms:
 
 ## Addressing
 
-Surfaces may set `origin.addressedAgentId` on a message. Addressing routes that turn directly to one agent without changing channel membership.
+Surfaces may set `origin.addressedAgentId` on a message. Addressing routes that
+turn directly to one agent without changing channel membership. This is a
+surface/user-facing affordance; scheduler-authored agent schedules use ordinary
+channel membership and attention instead.
 
 This supports a one-visible-account pattern:
 

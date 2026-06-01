@@ -185,7 +185,7 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: shrimpy agent attention test shrimpy --channel home --sender human --actor-id human:alice --addressed shrimpy --text 'please handle this'/);
   });
 
-  test("includes scheduler wake facts", async () => {
+  test("includes scheduler message facts", async () => {
     const runtime = createAppRuntime({ workspace });
     const current = runtime.createChannelBus().publish({
       channel: "home",
@@ -195,7 +195,6 @@ describe("buildTurnContext", () => {
         scheduleId: "daily-check",
         runId: "run-1",
         sourceChannel: "home",
-        addressedAgentId: "shrimpy",
       },
       content: textContent("scheduled tick"),
       timestamp: Date.parse("2026-05-02T12:00:00Z"),
@@ -209,9 +208,9 @@ describe("buildTurnContext", () => {
     const text = renderTurnContext(turnContext);
 
     assert.match(text, /routed via scheduler; from system:system:scheduler; in channel home/);
-    assert.match(text, /scheduled wake; daily-check; run run-1; fired .*(Sat|Saturday).*\d{1,2}:\d{2}/);
+    assert.match(text, /scheduled message; daily-check; run run-1; fired .*(Sat|Saturday).*\d{1,2}:\d{2}/);
     assert.doesNotMatch(text, /2026-05-02T12:00:00\.000Z/);
-    assert.match(text, /inspect: shrimpy gateway status/);
+    assert.match(text, /inspect: shrimpy schedules show daily-check/);
   });
 
   test("omits session status on scheduled turns with no active sessions", async () => {

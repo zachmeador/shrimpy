@@ -6,7 +6,7 @@
  * Three jobs:
  * 1. Channel adapters (Telegram polling → channel files)
  * 2. Channel watcher → SessionRegistry dispatch
- * 3. Scheduler (includes built-in heartbeat schedule)
+ * 3. Scheduler (emits configured scheduled channel messages)
  */
 
 import { loadConfig } from "./config/index.js";

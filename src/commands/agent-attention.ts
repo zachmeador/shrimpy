@@ -349,6 +349,11 @@ async function cmdAgentAttentionTest(
 
   console.log(`agent: ${view.agentId}`);
   console.log(`channel: ${view.channel}`);
+  console.log(`sender: ${view.message.sender.kind}`);
+  console.log(`actor_id: ${view.message.sender.actorId}`);
+  if (view.message.sender.userId) {
+    console.log(`user_id: ${view.message.sender.userId}`);
+  }
   console.log(`handles: ${view.handles}`);
   console.log(`reason: ${view.reason}`);
   if (view.impliedRule) {
@@ -356,6 +361,9 @@ async function cmdAgentAttentionTest(
   }
   console.log(`matched_overrides: ${matchedChannelOverrides.join(",") || "(none)"}`);
   console.log(`effective_mode: ${view.effectiveAttention.mode}`);
+  console.log(`effective_senders: ${view.effectiveAttention.senders.join(",") || "(any)"}`);
+  console.log(`effective_actor_ids: ${view.effectiveAttention.actorIds.join(",") || "(any)"}`);
+  console.log(`effective_user_ids: ${view.effectiveAttention.userIds.join(",") || "(any)"}`);
   console.log(`mentions: ${view.message.mentionedAgentIds.join(",") || "(none)"}`);
   return 0;
 }

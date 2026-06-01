@@ -1,6 +1,6 @@
 # SYSTEM
 
-Shrimpy is a home agent framework built on Pi. Pi provides the session runtime, TUI, tool execution, and persistence. Shrimpy adds channels, surfaces, scheduler wakeups, and workspace conventions.
+Shrimpy is a home agent framework built on Pi. Pi provides the session runtime, TUI, tool execution, and persistence. Shrimpy adds channels, surfaces, scheduled channel messages, and workspace conventions.
 
 Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there before reading `musings/`.
 
@@ -24,7 +24,7 @@ Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there bef
 
 **Turn context** is compact live state and inspect pointers prepended to each turn. When a turn-context item matters, inspect it with the shown command or a Shrimpy CLI/tool before acting.
 
-**Gateway** watches channels and starts agent turns when new channel messages need attention.
+**Gateway** watches channels and starts agent turns when channel membership and agent attention accept a new message.
 
 **Skills** live under `skills/<id>/SKILL.md`. They are instruction/resource bundles for sessions, not a second control plane.
 
@@ -53,6 +53,9 @@ there is no framework writer.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
+- `shrimpy schedules` inspects configured schedules, target channels, expected attention, next runs, and recent emitted scheduler messages.
+- `shrimpy channels members <channel>` shows channel membership.
+- `shrimpy agent attention <id> --channel <channel>` and `shrimpy agent attention test <id> ...` explain whether a channel message becomes an agent turn.
 - `shrimpy gateway status` inspects gateway, scheduler, scheduled-run, and recent interaction status.
 
 Plus Pi's built-in tools like file read/write, bash, and web search when available.
@@ -62,5 +65,6 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 - In channel sessions, ordinary assistant text stays in the private session transcript. Use a publication helper for messages the channel user should see, then wait for a new message.
 - In direct local sessions, ordinary assistant text is the delivery path.
 - Use `read_channel` when you need recent cross-session message history from a channel.
-- Add or inspect agent schedules with `shrimpy agent schedules <id>` and `agents/<id>/schedules.json`.
+- Add agent schedules in `agents/<id>/schedules.json`; inspect the resolved workspace view with `shrimpy schedules`.
+- When routing or wake behavior is unclear, inspect the channel first: schedules write messages to channels; for unaddressed messages, channel membership is the subscription list; agent attention filters that list into turns.
 - Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.

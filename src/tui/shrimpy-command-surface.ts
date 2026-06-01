@@ -27,6 +27,7 @@ import {
   type ChannelMessageSnapshot,
 } from "../gateway/status.js";
 import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
+import { inspectSchedules, type ScheduleInspection } from "../scheduler/index.js";
 import { inspectSkills } from "../skills/index.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
@@ -71,7 +72,7 @@ export interface ShrimpyCommandSurfaceOptions {
 const HELP_LINES = [
   "Shrimpy commands",
   "",
-  "/status [section]  Show Shrimpy workspace, gateway, agent, channel, context, skill, model, or diagnostic status",
+  "/status [section]  Show Shrimpy workspace, gateway, schedule, agent, channel, context, skill, model, or diagnostic status",
   "/settings          Open unified Shrimpy and Pi settings",
   "/model             Select the session model",
   "/thinking          Open session thinking menu",
@@ -85,6 +86,7 @@ const STATUS_SECTIONS = [
   "overview",
   "workspace",
   "gateway",
+  "schedules",
   "agents",
   "channels",
   "context",
@@ -99,6 +101,7 @@ const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
   overview: "Workspace, active agent, model, and available status sections",
   workspace: "Workspace paths and config",
   gateway: "Gateway service, scheduled runs, scheduler, and interaction status",
+  schedules: "Schedule inventory, next runs, recent runs, and expected attention",
   agents: "Active agent and configured agents",
   channels: "Channel log overview",
   context: "Context files and source inspection",
@@ -225,6 +228,8 @@ function buildStatusText(
       return workspaceStatusText(options);
     case "gateway":
       return gatewayStatusText(options);
+    case "schedules":
+      return schedulesStatusText(options);
     case "agents":
       return agentsStatusText(options);
     case "channels":
@@ -331,6 +336,60 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   return lines.join("\n");
 }
 
+function schedulesStatusText(options: ShrimpyCommandSurfaceOptions): string {
+  const schedules = inspectSchedules(options.runtime);
+  const activeAgentSchedules = schedules.filter((schedule) =>
+    schedule.ownerAgentId === options.agentId
+  );
+  const next = schedules
+    .filter((schedule) => schedule.nextRunAtMs !== undefined)
+    .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0))[0];
+  const recent = schedules
+    .filter((schedule) => schedule.lastObservedRun)
+    .sort((a, b) =>
+      (b.lastObservedRun?.timestamp ?? 0) - (a.lastObservedRun?.timestamp ?? 0)
+    )[0];
+  const ordered = [
+    ...activeAgentSchedules,
+    ...schedules.filter((schedule) => schedule.ownerAgentId !== options.agentId),
+  ];
+
+  const lines = [
+    theme.bold("Schedules"),
+    "",
+    label("Configured", String(schedules.length)),
+    label(`Agent ${options.agentId}`, String(activeAgentSchedules.length)),
+    label("Next due", next?.nextRunAtMs === undefined
+      ? dimText("(unknown)")
+      : `${next.id} ${formatFutureOrPast(next.nextRunAtMs)}`),
+    label("Last run", recent?.lastObservedRun
+      ? `${recent.id} ${when(recent.lastObservedRun.timestamp)}`
+      : dimText("(none)")),
+    "",
+    theme.bold("Inventory"),
+  ];
+
+  if (ordered.length === 0) {
+    lines.push("(none)");
+  } else {
+    for (const schedule of ordered.slice(0, 10)) {
+      lines.push(formatScheduleSummaryLine(schedule, options.agentId));
+    }
+    if (ordered.length > 10) {
+      lines.push(`... ${ordered.length - 10} more`);
+    }
+  }
+
+  lines.push(
+    "",
+    theme.bold("Inspect"),
+    "shrimpy schedules",
+    `shrimpy schedules --agent ${options.agentId}`,
+    "shrimpy schedules show <schedule-id>",
+  );
+  return lines.join("\n");
+}
+
 function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
   const runtime = options.runtime;
   const lines = [
@@ -349,6 +408,22 @@ function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
 
   lines.push("", theme.bold("Inspect"), "shrimpy agent list", `shrimpy agent show ${options.agentId}`);
   return lines.join("\n");
+}
+
+function formatScheduleSummaryLine(
+  schedule: ScheduleInspection,
+  activeAgentId: string,
+): string {
+  const marker = schedule.ownerAgentId === activeAgentId ? "*" : "-";
+  const status = schedule.enabled ? "enabled" : "disabled";
+  const turns = schedule.expectedTurnAgentIds.join(",") || "(none)";
+  const next = schedule.nextRunAtMs === undefined
+    ? "next=unknown"
+    : `next=${formatFutureOrPast(schedule.nextRunAtMs)}`;
+  const diagnostic = schedule.diagnostics.length > 0
+    ? ` warnings=${schedule.diagnostics.length}`
+    : "";
+  return `${marker} ${schedule.id} ${status} ${schedule.triggerText} -> ${schedule.targetChannel} turns=${turns} ${next}${diagnostic}`;
 }
 
 function channelsStatusText(options: ShrimpyCommandSurfaceOptions): string {

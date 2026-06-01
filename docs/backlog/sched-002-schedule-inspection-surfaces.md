@@ -1,19 +1,19 @@
 # SCHED-002: Schedule Inspection Surfaces
 
-Status: todo
+Status: review
 Priority: P1
 Area: Schedules
 
 ## Why
 
-Schedules are now ordinary Shrimpy workspace state, but inspection is split
+Schedules are ordinary Shrimpy workspace state, but inspection had been split
 between per-agent definitions, aggregate gateway status, scheduler state, and
-channel logs. Users and agents need one reliable schedule inventory from the
-CLI, and the TUI status surface should expose the same information without
-leaving the current session.
+channel logs. Users and agents needed one reliable schedule inventory from the
+CLI, and the TUI status surface needed the same information without leaving the
+current session.
 
-The current `shrimpy agent schedules <id>` command is useful for one agent's
-raw definitions, but it does not answer workspace-level questions such as
+The existing `shrimpy agent schedules <id>` command is still useful for one
+agent's raw definitions, but it does not answer workspace-level questions such as
 "what schedules exist?", "which one fires next?", "where will it post?", or
 "when did this schedule last run?".
 
@@ -34,6 +34,25 @@ raw definitions, but it does not answer workspace-level questions such as
 - Add `/status schedules` to the TUI status section list and point users to
   `shrimpy schedules` for full detail.
 - Update `docs/reference/cli.md` and schedule-related reference docs.
+
+## Review State
+
+- Implemented a shared schedule-inspection service that inventories agent-owned
+  schedules from `agents/<id>/schedules.json` and workspace schedules from
+  `config/schedules.json`.
+- Implemented `shrimpy schedules [--agent <id>] [--json]` and
+  `shrimpy schedules show <schedule-id> [--json]`.
+- Implemented TUI `/status schedules` as a compact read-only view backed by the same
+  service.
+- Inspection reports source paths, owner/local ids, enabled state, trigger,
+  timezone, concurrency policy, target channel, explicit membership, expected
+  attention, session path, scheduler next-run state, recent emitted message id,
+  and diagnostics for missing membership/attention.
+- Tests cover schedule inventory, JSON output, agent filtering, one-schedule
+  show output, missing ids, emitted message provenance, and missing attention
+  diagnostics.
+- No remaining implementation work is expected for this item before final
+  review.
 
 ## Boundaries
 
@@ -63,5 +82,5 @@ raw definitions, but it does not answer workspace-level questions such as
 - TUI `/status schedules` shows schedule count, next due run, recent run
   activity, target channel, expected attention behavior, and the active agent's
   schedules.
-- Tests cover schedule inventory, JSON output, filtering, missing ids, and TUI
-  status text generation or its shared data source.
+- Tests cover schedule inventory, JSON output, filtering, missing ids, emitted
+  message provenance, and the shared data source used by TUI status text.

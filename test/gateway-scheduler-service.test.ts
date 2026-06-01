@@ -69,7 +69,7 @@ describe("gateway scheduler service", () => {
       ["shrimpy/heartbeat", "ops/heartbeat"],
     );
     assert.equal(schedules[0].ownerAgentId, "shrimpy");
-    assert.equal(schedules[1].action.target.addressedAgentId, "ops");
+    assert.equal(schedules[1].action.target.addressedAgentId, undefined);
   });
 
   test("initializes default agent schedules without creating channel config", () => {
