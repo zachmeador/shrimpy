@@ -11,6 +11,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [MODEL-001](model-001-user-configurable-model-policy.md) | draft | P1 | Models | none | User-configurable model policy |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
+| [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
