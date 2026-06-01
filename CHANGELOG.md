@@ -4,6 +4,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 0.3.0 - A Window in the Reef - Unreleased
 
+### Installation
+
+- Added a curl-friendly installer script and README setup path for installing a selected GitHub ref under `~/.local/share/shrimpy/app` and linking Shrimpy binaries into `~/.local/bin`.
+
 ### Skills
 
 - Added Pi-backed workspace and agent skill management, including `shrimpy skills list`, `show`, `add`, `install`, and `validate`.
@@ -32,9 +36,9 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Docs & Project Hygiene
 
-- Added skills reference documentation and Pi skill-handling research.
-- Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, and schedule inspection surfaces.
-- Removed completed skill/context backlog notes and the vision reconciliation tracker.
+- Added skills and tool-model reference documentation plus Pi skill-handling research.
+- Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, schedule follow-ups, and chat operation/status surfaces.
+- Removed completed skill/context/schedule backlog notes and the vision reconciliation tracker.
 - Added Shrimpy emoji guidance to the default initialized `SOUL.md` template.
 
 ### Tests
