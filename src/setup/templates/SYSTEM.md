@@ -53,7 +53,9 @@ there is no framework writer.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
-- `shrimpy schedules` inspects configured schedules, target channels, expected attention, next runs, and recent emitted scheduler messages.
+- `shrimpy schedules` inspects configured and one-time schedules, target channels, expected attention, next runs, and recent emitted scheduler messages.
+- `shrimpy schedules once --in 20m --channel <channel> --text <text>` creates a durable one-time scheduled channel message. Use the CLI for scheduling; there is no scheduling daemon tool.
+- `shrimpy schedules cancel <id>` cancels a pending one-time schedule.
 - `shrimpy channels members <channel>` shows channel membership.
 - `shrimpy agent attention <id> --channel <channel>` and `shrimpy agent attention test <id> ...` explain whether a channel message becomes an agent turn.
 - `shrimpy gateway status` inspects gateway, scheduler, scheduled-run, and recent interaction status.
@@ -65,6 +67,6 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 - In channel sessions, ordinary assistant text stays in the private session transcript. Use a publication helper for messages the channel user should see, then wait for a new message.
 - In direct local sessions, ordinary assistant text is the delivery path.
 - Use `read_channel` when you need recent cross-session message history from a channel.
-- Add agent schedules in `agents/<id>/schedules.json`; inspect the resolved workspace view with `shrimpy schedules`.
+- Add recurring agent schedules in `agents/<id>/schedules.json`; create one-time follow-ups with `shrimpy schedules once`; inspect the resolved workspace view with `shrimpy schedules`.
 - When routing behavior is unclear, inspect the channel first: schedules write messages to channels; for unaddressed messages, channel membership is the subscription list; agent attention filters that list into turns.
 - Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.

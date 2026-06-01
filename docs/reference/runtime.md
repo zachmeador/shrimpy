@@ -85,6 +85,12 @@ At turn time, Shrimpy prepends a `<context>...</context>` block: current time/se
 - Agent schedules emit scheduler-authored channel messages with plain text
   instructions. The owning agent must be a member of the target channel and have
   attention configured to handle those messages.
+- One-time schedules live in runtime state at `state/one-time-schedules.json`.
+  Create them with `shrimpy schedules once --at <time>` or
+  `shrimpy schedules once --in <duration>`. Agents use the same CLI surface;
+  there is no separate scheduling daemon tool.
+- The gateway scheduler tick drains pending one-time records and emits the due
+  text as ordinary scheduler-authored channel messages.
 - Scheduler-origin messages carry schedule provenance in `origin.schedule`, and
   turn context points back to `shrimpy schedules show <schedule-id>`.
 - Fresh setup also seeds ordinary memory upkeep schedules for `memory-management`, `journal-daily`, and `journal-compact`.

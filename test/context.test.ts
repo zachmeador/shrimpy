@@ -213,6 +213,43 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: shrimpy schedules show daily-check/);
   });
 
+  test("includes one-time scheduler message facts", async () => {
+    const runtime = createAppRuntime({ workspace });
+    const current = runtime.createChannelBus().publish({
+      channel: "home",
+      sender: { kind: "system", actorId: "system:scheduler" },
+      origin: {
+        transport: "scheduler",
+        scheduleId: "once-test",
+        runId: "run-1",
+        sourceChannel: "home",
+        schedule: {
+          kind: "one_time",
+          targetChannel: "home",
+          trigger: {
+            type: "once",
+            dueAt: "2026-05-02T12:00:00.000Z",
+          },
+          source: {
+            kind: "cli",
+          },
+        },
+      },
+      content: textContent("scheduled tick"),
+      timestamp: Date.parse("2026-05-02T12:00:01Z"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "home"),
+      currentMessage: current,
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /one-time scheduled message; once-test; target home; due 2026-05-02T12:00:00\.000Z; source cli; run run-1/);
+    assert.match(text, /inspect: shrimpy schedules show once-test/);
+  });
+
   test("omits session status on scheduled turns with no active sessions", async () => {
     const runtime = createAppRuntime({ workspace });
     const current = makeMessage({

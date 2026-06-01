@@ -16,6 +16,7 @@ state/pi/auth.json              provider credentials
 state/pi/models.json            model registry
 state/users.json                identity links (transport→userId) + workspace owner
 state/scheduler.json            persisted scheduler next-run timestamps
+state/one-time-schedules.json   runtime one-time scheduled channel messages
 state/telegram/                 Telegram polling offsets
 runtime/cursors/channels.json   gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
@@ -65,5 +66,5 @@ Durable machine state lives under `state/`. Disposable runtime state lives under
 - Identity links live in `state/users.json`. The optional `owner` field names the canonical workspace user; CLI publishing routes through that identity when set. Manage with `shrimpy users list|get-owner|set-owner`.
 - Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries.
 - Gateway logs live at `runtime/logs/gateway.log`, readable through `shrimpy gateway logs`.
-- Surface cursors and generated turn-context state live under `runtime/`. Scheduler state lives under `state/`.
+- Surface cursors and generated turn-context state live under `runtime/`. Scheduler state and one-time schedule records live under `state/`.
 - Auth and models live under `state/pi/`, isolating Shrimpy from a user's stock Pi config.

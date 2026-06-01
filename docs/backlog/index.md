@@ -8,7 +8,6 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
 | [CHANNEL-002](channel-002-attention-routed-channel-events.md) | review | P1 | Channels | none | Channel message routing |
-| [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) | draft | P1 | Schedules | [CHANNEL-002](channel-002-attention-routed-channel-events.md) | One-time scheduled channel messages |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |

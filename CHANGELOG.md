@@ -24,6 +24,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Schedules
 
 - Added `shrimpy schedules` and `shrimpy schedules show` for workspace-wide schedule inspection, including agent-owned and workspace-level schedules, target channels, membership, expected attention, scheduler state, recent emitted message ids, and diagnostics.
+- Added CLI-managed one-time scheduled channel messages with `shrimpy schedules once --at/--in`, `shrimpy schedules cancel`, `shrimpy schedules list --one-time`, durable `state/one-time-schedules.json` records, gateway firing through ordinary scheduler-authored channel messages, and post-fire inspection.
 - Added TUI `/status schedules` backed by the same schedule-inspection service.
 - Changed agent-owned schedules to emit unaddressed scheduler-authored channel messages routed by channel membership and agent attention instead of `origin.addressedAgentId`.
 - Added schedule provenance to scheduler-origin channel messages and turn context, including owner/local ids, target channel, trigger metadata, run ids, and inspect commands.

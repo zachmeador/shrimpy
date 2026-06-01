@@ -75,8 +75,7 @@ let membership and attention decide who handles it.
 
 ## Related Items
 
-- [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) applies this
-  rule to one-time scheduled messages.
+- One-time scheduled messages use this same ordinary channel-message path.
 - [CHANNEL-001](channel-001.md) should make channel logs searchable and
   traceable enough for this rule to be easy to debug.
 - [CODE-002](code-002-agentic-worker-sessions.md) should keep worker state

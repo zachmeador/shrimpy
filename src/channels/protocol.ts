@@ -57,10 +57,12 @@ export interface MessageOrigin {
 }
 
 export interface MessageScheduleProvenance {
+  kind?: "recurring" | "one_time";
   ownerAgentId?: string;
   localId?: string;
   targetChannel?: string;
   trigger?: Record<string, unknown>;
+  source?: Record<string, unknown>;
   inspect?: string[];
 }
 

@@ -108,7 +108,11 @@ function buildAttentionItem(
 
 function buildSchedulerItem(message: ChannelMessage): TurnContextItem | undefined {
   if (message.origin.transport !== "scheduler") return undefined;
-  const pieces = ["scheduled message"];
+  const pieces = [
+    message.origin.schedule?.kind === "one_time"
+      ? "one-time scheduled message"
+      : "scheduled message",
+  ];
   if (message.origin.scheduleId) pieces.push(message.origin.scheduleId);
   if (message.origin.schedule?.ownerAgentId) {
     pieces.push(`owner ${message.origin.schedule.ownerAgentId}`);
@@ -118,6 +122,14 @@ function buildSchedulerItem(message: ChannelMessage): TurnContextItem | undefine
   }
   if (message.origin.schedule?.targetChannel) {
     pieces.push(`target ${message.origin.schedule.targetChannel}`);
+  }
+  const dueAt = message.origin.schedule?.trigger?.dueAt;
+  if (typeof dueAt === "string") {
+    pieces.push(`due ${dueAt}`);
+  }
+  const sourceKind = message.origin.schedule?.source?.kind;
+  if (typeof sourceKind === "string") {
+    pieces.push(`source ${sourceKind}`);
   }
   if (message.origin.runId) pieces.push(`run ${message.origin.runId}`);
   pieces.push(`fired ${formatAgentDateTime(message.timestamp)}`);

@@ -72,6 +72,8 @@ const HELP_BODY = `  shrimpy                            launch interactive mode
   shrimpy schedules                 inspect workspace schedules
   shrimpy schedules --agent <id>    inspect one agent's schedules
   shrimpy schedules show <id>       show one resolved schedule
+  shrimpy schedules once --in 20m --channel <n> --text <text>
+  shrimpy schedules cancel <id>     cancel a pending one-time schedule
   shrimpy agent list                 list configured agents
   shrimpy agent show <id>            show one agent config
   shrimpy agent add <id>             add a new agent and scaffold docs

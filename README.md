@@ -81,7 +81,7 @@ agents/          per-agent resources, skills, memory, and sessions
 channels/        append-only JSONL message logs
 media/           downloaded media
 logs/            gateway logs
-state/           cursors, scheduler state, provider auth, and model registry
+state/           scheduler state, one-time schedules, provider auth, and model registry
 ```
 
 See [docs/reference/workspace.md](docs/reference/workspace.md) for the full workspace map.
@@ -96,7 +96,7 @@ See [docs/reference/design.md](docs/reference/design.md), [docs/reference/overvi
 - **Sessions** — Pi sessions persisted per agent and per channel.
 - **SessionRegistry** — per-session FIFO turn control.
 - **Adapters** — thin transport translators; Telegram is the main one today.
-- **Scheduler** — file-driven recurring work; heartbeat is a normal scheduled job.
+- **Scheduler** — file-driven recurring work plus runtime one-time channel messages; heartbeat is a normal scheduled job.
 
 ## 🦐 Structure
 

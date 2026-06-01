@@ -7,6 +7,7 @@ import type {
 export interface SchedulerConfig {
   schedules: ScheduleDefinition[];
   onRunDue: (run: ScheduleRunDue) => Promise<void> | void;
+  onTick?: (nowMs: number) => Promise<void> | void;
   tickIntervalMs?: number;
   defaultTimezone?: string;
   initialState?: SchedulerStateSnapshot;
@@ -59,6 +60,7 @@ export function createScheduler(config: SchedulerConfig): Scheduler {
   const {
     schedules,
     onRunDue,
+    onTick,
     tickIntervalMs = DEFAULT_TICK_INTERVAL_MS,
     defaultTimezone,
     initialState,
@@ -157,6 +159,14 @@ export function createScheduler(config: SchedulerConfig): Scheduler {
         await onRunDue(run);
       } catch (err) {
         logger.error(`[scheduler] onRunDue failed for ${run.scheduleId}:`, err);
+      }
+    }
+
+    if (onTick) {
+      try {
+        await onTick(nowMs);
+      } catch (err) {
+        logger.error("[scheduler] onTick failed:", err);
       }
     }
 

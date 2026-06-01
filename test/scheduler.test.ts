@@ -5,13 +5,18 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   createScheduler,
+  drainDueOneTimeSchedules,
   emitChannelTargetRun,
+  addOneTimeSchedule,
   loadAgentScheduleDefinitions,
+  loadOneTimeScheduleStore,
   loadScheduleDefinitions,
   parseAgentScheduleDefinitions,
+  parseDurationMs,
   loadSchedulerState,
   parseScheduleDefinitions,
   resolveAgentScheduleDefinition,
+  saveOneTimeScheduleStore,
   saveSchedulerState,
   type ScheduleDefinition,
   type ScheduleRunDue,
@@ -203,6 +208,30 @@ describe("createScheduler", () => {
     assert.equal(runs.length, 1);
     assert.equal(runs[0].fireTimeMs, Date.parse("2026-04-08T13:00:00.000Z"));
   });
+
+  test("runs onTick even when recurring schedules are not due", async () => {
+    const ticks: number[] = [];
+    const schedule: ScheduleDefinition = {
+      id: "test.tick",
+      trigger: { type: "every_ms", everyMs: 1_000 },
+      action: {
+        kind: "agent",
+        target: { kind: "channel", channel: "heartbeat" },
+      },
+    };
+
+    const scheduler = createScheduler({
+      schedules: [schedule],
+      now: () => 0,
+      onRunDue: async () => {},
+      onTick: async (nowMs) => {
+        ticks.push(nowMs);
+      },
+    });
+
+    await scheduler.tick();
+    assert.deepEqual(ticks, [0]);
+  });
 });
 
 describe("emitChannelTargetRun", () => {
@@ -374,6 +403,118 @@ describe("scheduler state persistence", () => {
   test("load returns empty state on missing file", () => {
     const loaded = loadSchedulerState(join(testDir, "does-not-exist.json"));
     assert.deepEqual(loaded, {});
+  });
+});
+
+describe("one-time schedules", () => {
+  test("parses relative durations", () => {
+    assert.equal(parseDurationMs("30s"), 30_000);
+    assert.equal(parseDurationMs("1h30m"), 5_400_000);
+    assert.equal(parseDurationMs("2 days"), 172_800_000);
+    assert.throws(() => parseDurationMs("later"), /duration/);
+  });
+
+  test("fires due records through scheduler channel provenance and persists emitted ids", () => {
+    const storePath = join(testDir, "state", "one-time-schedules.json");
+    const channelsDir = join(testDir, "channels");
+    mkdirSync(channelsDir, { recursive: true });
+    const channelBus = new ChannelBus(channelsDir);
+
+    const dueAtMs = Date.parse("2026-05-01T10:00:00.000Z");
+    const record = addOneTimeSchedule(storePath, {
+      id: "once-test",
+      targetChannel: "heartbeat",
+      text: "check this later",
+      dueAtMs,
+      ownerAgentId: "shrimpy",
+      source: {
+        kind: "cli",
+        agentId: "shrimpy",
+      },
+    }, Date.parse("2026-05-01T09:00:00.000Z"));
+
+    const fired = drainDueOneTimeSchedules({
+      storePath,
+      channelBus,
+      nowMs: dueAtMs + 1,
+    });
+
+    assert.equal(fired.length, 1);
+    assert.equal(fired[0].id, record.id);
+
+    const store = loadOneTimeScheduleStore(storePath);
+    assert.equal(store.records[0].status, "fired");
+    assert.equal(typeof store.records[0].emittedChannelMessageId, "string");
+    assert.equal(typeof store.records[0].runId, "string");
+
+    const { messages } = readMessages(channelPath(channelsDir, "heartbeat"));
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].id, store.records[0].emittedChannelMessageId);
+    assert.equal(messages[0].timestamp, dueAtMs + 1);
+    assert.equal(messages[0].sender.actorId, "system:scheduler");
+    assert.equal(messages[0].origin.transport, "scheduler");
+    assert.equal(messages[0].origin.scheduleId, "once-test");
+    assert.equal(messages[0].origin.schedule?.kind, "one_time");
+    assert.equal(messages[0].origin.schedule?.ownerAgentId, "shrimpy");
+    assert.equal(messages[0].origin.schedule?.targetChannel, "heartbeat");
+    assert.deepEqual(messages[0].origin.schedule?.trigger, {
+      type: "once",
+      dueAt: new Date(dueAtMs).toISOString(),
+      dueAtMs,
+    });
+    assert.deepEqual(messages[0].origin.schedule?.source, {
+      kind: "cli",
+      agentId: "shrimpy",
+    });
+    assert.deepEqual(messages[0].origin.schedule?.inspect, [
+      "shrimpy schedules show once-test",
+    ]);
+    assert.equal(messages[0].content.type, "text");
+    assert.equal(messages[0].content.data.text, "check this later");
+  });
+
+  test("bounds completed one-time schedule history while preserving pending records", () => {
+    const storePath = join(testDir, "state", "one-time-schedules.json");
+    saveOneTimeScheduleStore(storePath, {
+      version: 1,
+      records: [
+        {
+          id: "pending",
+          targetChannel: "heartbeat",
+          text: "future",
+          dueAtMs: 9_999_999,
+          dueAtIso: new Date(9_999_999).toISOString(),
+          source: { kind: "test" },
+          status: "pending",
+          createdAtMs: 0,
+          createdAtIso: new Date(0).toISOString(),
+          updatedAtMs: 0,
+          updatedAtIso: new Date(0).toISOString(),
+        },
+        ...Array.from({ length: 501 }, (_, index) => ({
+          id: `fired-${index}`,
+          targetChannel: "heartbeat",
+          text: "done",
+          dueAtMs: index,
+          dueAtIso: new Date(index).toISOString(),
+          source: { kind: "test" },
+          status: "fired" as const,
+          createdAtMs: index,
+          createdAtIso: new Date(index).toISOString(),
+          updatedAtMs: index,
+          updatedAtIso: new Date(index).toISOString(),
+          firedAtMs: index,
+          firedAtIso: new Date(index).toISOString(),
+          emittedChannelMessageId: `message-${index}`,
+        })),
+      ],
+    });
+
+    const loaded = loadOneTimeScheduleStore(storePath);
+    assert.equal(loaded.records.length, 501);
+    assert.equal(loaded.records.some((record) => record.id === "pending"), true);
+    assert.equal(loaded.records.some((record) => record.id === "fired-0"), false);
+    assert.equal(loaded.records.some((record) => record.id === "fired-500"), true);
   });
 });
 

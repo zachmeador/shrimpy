@@ -27,6 +27,7 @@ export interface WorkspacePaths {
   cursorsPath: string;
   surfaceStatePath: string;
   schedulerStatePath: string;
+  oneTimeSchedulesPath: string;
   systemSchedulesPath: string;
   workspacePromptPath: string;
   systemPromptPath: string;
@@ -71,6 +72,7 @@ export function createWorkspacePaths(
     cursorsPath: join(workspace, "runtime", "cursors", "channels.json"),
     surfaceStatePath: join(workspace, "runtime", "cursors", "surface-threads.json"),
     schedulerStatePath: join(workspace, "state", "scheduler.json"),
+    oneTimeSchedulesPath: join(workspace, "state", "one-time-schedules.json"),
     systemSchedulesPath: join(workspace, "config", "schedules.json"),
     workspacePromptPath: join(workspace, "profile", "WORKSPACE.md"),
     systemPromptPath: join(workspace, "profile", "SYSTEM.md"),

@@ -78,6 +78,9 @@ limit comes from `tools.readChannel.defaultLimit`.
 persistence under the agent workspace while reusing Shrimpy's Pi auth and model
 registry.
 
+Scheduling is intentionally CLI-only: agents create one-time follow-ups with
+`shrimpy schedules once --at/--in ...`, not a daemon tool.
+
 ## Agent Policy
 
 Agent tool policy lives in `agents[]` inside `config/shrimpy.json`.

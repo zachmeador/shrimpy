@@ -13,9 +13,31 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   initTheme("dark", false);
   const workspace = mkdtempSync(join(tmpdir(), "shrimpy-command-surface-test-"));
   mkdirSync(join(workspace, "channels"), { recursive: true });
+  mkdirSync(join(workspace, "state"), { recursive: true });
   mkdirSync(join(workspace, "skills", "workspace-skill"), { recursive: true });
   mkdirSync(join(workspace, "agents", "admin", "skills", "agent-skill"), { recursive: true });
   writeFileSync(join(workspace, "channels", "home.jsonl"), "{}\n{}\n");
+  writeFileSync(
+    join(workspace, "state", "one-time-schedules.json"),
+    JSON.stringify({
+      version: 1,
+      records: [{
+        id: "once-ui",
+        targetChannel: "home",
+        text: "check later",
+        dueAtMs: Date.parse("2030-01-01T00:00:00.000Z"),
+        dueAtIso: "2030-01-01T00:00:00.000Z",
+        ownerAgentId: "admin",
+        source: { kind: "cli", agentId: "admin" },
+        status: "pending",
+        createdAtMs: Date.parse("2026-05-01T00:00:00.000Z"),
+        createdAtIso: "2026-05-01T00:00:00.000Z",
+        updatedAtMs: Date.parse("2026-05-01T00:00:00.000Z"),
+        updatedAtIso: "2026-05-01T00:00:00.000Z",
+      }],
+    }),
+    "utf-8",
+  );
   writeFileSync(join(workspace, "skills", "workspace-skill", "SKILL.md"), "# Workspace Skill\n");
   writeFileSync(join(workspace, "agents", "admin", "skills", "agent-skill", "SKILL.md"), "# Agent Skill\n");
 
@@ -41,6 +63,7 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
 
   await mode.defaultEditor.onSubmit!("/status");
   await mode.defaultEditor.onSubmit!("/status gateway");
+  await mode.defaultEditor.onSubmit!("/status schedules");
   await mode.defaultEditor.onSubmit!("/status agents");
   await mode.defaultEditor.onSubmit!("/status channels");
   await mode.defaultEditor.onSubmit!("/status skills");
@@ -55,6 +78,9 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   assert.match(chat, /Gateway service:/);
   assert.match(chat, /Tracked channels: 1/);
   assert.match(chat, /shrimpy gateway status/);
+  assert.match(chat, /One-time pending: 1/);
+  assert.match(chat, /\* once-ui pending -> home/);
+  assert.match(chat, /shrimpy schedules list --one-time/);
   assert.match(chat, /Agents/);
   assert.match(chat, /\* admin root=agents\/admin tools=send_message thinking=high/);
   assert.match(chat, /home 2 msgs/);
@@ -62,7 +88,7 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   assert.match(chat, /agent-skill \[agent\]/);
   assert.match(chat, /\/status \[section\]/);
   assert.deepEqual(statuses, ["Share is hidden in Shrimpy for now"]);
-  assert.deepEqual(editorTexts, ["", "", "", "", "", "", ""]);
+  assert.deepEqual(editorTexts, ["", "", "", "", "", "", "", ""]);
   assert.deepEqual(submissions, ["/hello"]);
 });
 

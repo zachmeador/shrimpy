@@ -3,8 +3,10 @@ import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import {
   createScheduler,
+  drainDueOneTimeSchedules,
   emitChannelTargetRun,
   loadAgentScheduleDefinitions,
+  loadOneTimeScheduleStore,
   loadScheduleDefinitions,
   loadSchedulerState,
   resolveAgentScheduleDefinition,
@@ -61,9 +63,11 @@ export function loadGatewayAgentSchedules(
 export function loadGatewayScheduleIds(runtime: AppRuntime): string[] {
   const agentSchedules = loadGatewayAgentSchedules(runtime);
   const systemSchedules = loadScheduleDefinitions(runtime.paths.systemSchedulesPath);
+  const oneTimeSchedules = loadOneTimeScheduleStore(runtime.paths.oneTimeSchedulesPath);
   return [
     ...agentSchedules.map((schedule) => schedule.id),
     ...systemSchedules.map((schedule) => schedule.id),
+    ...oneTimeSchedules.records.map((schedule) => schedule.id),
   ];
 }
 
@@ -93,6 +97,13 @@ export function startGatewayScheduler(
     },
     onRunDue: async (run) => {
       emitChannelTargetRun(channelBus, run);
+    },
+    onTick: async (nowMs) => {
+      drainDueOneTimeSchedules({
+        storePath: runtime.paths.oneTimeSchedulesPath,
+        channelBus,
+        nowMs,
+      });
     },
   });
   scheduler.start();

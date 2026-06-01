@@ -29,8 +29,11 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy setup init` | Create baseline workspace files. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy status` | Show workspace, gateway, channels, scheduled-run, and Telegram offset status. |
-| `shrimpy schedules [--agent <id>] [--json]` | Inspect configured workspace and agent schedules, including target channels, expected attention, next runs, and recent emitted messages. |
-| `shrimpy schedules show <schedule-id> [--json]` | Show one resolved schedule; agent-owned schedules use `agent-id/local-schedule-id`. |
+| `shrimpy schedules [--agent <id>] [--json]` | Inspect configured recurring schedules and one-time schedules, including target channels, expected attention, next runs, and recent emitted messages. |
+| `shrimpy schedules list --one-time [--status <status>] [--json]` | Inspect pending, fired, cancelled, failed, or expired one-time schedules. |
+| `shrimpy schedules once (--at <time>\|--in <duration>) --channel <name> --text <text> [--agent <id>]` | Create a durable one-time scheduled channel message. Agents use this CLI command too; there is no scheduling daemon tool. |
+| `shrimpy schedules cancel <schedule-id> [--json]` | Cancel a pending one-time schedule. |
+| `shrimpy schedules show <schedule-id> [--json]` | Show one resolved recurring or one-time schedule; agent-owned recurring schedules use `agent-id/local-schedule-id`. |
 | `shrimpy context` | Render assembled session context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, including prompt sections and turn context. |
