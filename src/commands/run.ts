@@ -9,8 +9,9 @@ import {
   usage,
   type CommandHandler,
 } from "./framework.js";
+import { renderCommandUsage } from "./catalog.js";
 
-const USAGE = "usage: shrimpy run [--agent <id>] [--skill <id>] <prompt> [--provider <p>] [--model <m>] [--thinking <level>]";
+const USAGE = renderCommandUsage(["run"]);
 
 export const cmdRun: CommandHandler = async (argv, config) => {
   const { values, positionals } = parseCommandArgs({

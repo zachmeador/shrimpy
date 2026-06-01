@@ -12,23 +12,14 @@ import {
   cmdChannelsMembers,
 } from "./channels-membership.js";
 import { cmdChannelsPost } from "./channels-post.js";
+import { renderGroupUsage } from "./catalog.js";
 import {
   createCommandGroup,
   stripFlag,
   type CommandHandler,
 } from "./framework.js";
 
-const USAGE = `usage:
-  shrimpy channels [--json]
-  shrimpy channels show <name> [--json]
-  shrimpy channels read <name> [--limit N] [--json]
-  shrimpy channels tail <name>
-  shrimpy channels create <name> [--json]
-  shrimpy channels post <name> [--agent <id>] <text> [--json]
-  shrimpy channels dm <agent-a> <agent-b> [--json]
-  shrimpy channels members <name> [--json]
-  shrimpy channels join <name> --agent <id> [--json]
-  shrimpy channels leave <name> --agent <id> [--json]`;
+const USAGE = renderGroupUsage("channels");
 
 function createChannelsCommand(json: boolean): CommandHandler {
   return createCommandGroup({

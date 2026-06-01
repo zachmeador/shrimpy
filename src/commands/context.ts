@@ -36,20 +36,14 @@ import {
   parseCommandArgs,
   type CommandHandler,
 } from "./framework.js";
+import {
+  renderCommandUsage,
+  renderGroupUsage,
+} from "./catalog.js";
 
 const execAsync = promisify(exec);
 
-const USAGE = `usage:
-  shrimpy context [--agent <id>] [--skill <id>] [prompt]
-  shrimpy context --channel <name> [prompt]
-  shrimpy context --turn --channel <name> [prompt]
-  shrimpy context turn [--agent <id>] [--channel <name>] [prompt]
-  shrimpy context --sections [--json]
-  shrimpy context --config
-  shrimpy context files list [--agent <id>] [--older-than <dur>] [--json]
-  shrimpy context files show [--agent <id>] <path>
-  shrimpy context sources list [--agent <id>] [--channel <name>] [--json]
-  shrimpy context sources run <id> [--agent <id>] [--channel <name>]`;
+const USAGE = renderGroupUsage("context");
 
 export const cmdContext: CommandHandler = async (argv, config) => {
   // files subcommand splits off early — no session bootstrap needed
@@ -285,7 +279,10 @@ interface SourceView {
 async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise<number> {
   const sub = argv[0];
   if (sub !== "list" && sub !== "run") {
-    console.error("usage: shrimpy context sources list|run ...");
+    console.error([
+      renderCommandUsage(["context", "sources", "list"]),
+      renderCommandUsage(["context", "sources", "run"]),
+    ].join("\n"));
     return 2;
   }
 
@@ -322,7 +319,7 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
 
   const id = positionals[0];
   if (!id) {
-    console.error("usage: shrimpy context sources run <id> [--agent <id>] [--channel <name>]");
+    console.error(renderCommandUsage(["context", "sources", "run"]));
     return 2;
   }
   const source = sources.find((candidate) => candidate.id === id);
@@ -557,7 +554,10 @@ async function renderRuntimeTurnContext(input: {
 async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<number> {
   const sub = argv[0];
   if (sub !== "list" && sub !== "show") {
-    console.error("usage: shrimpy context files list|show ...");
+    console.error([
+      renderCommandUsage(["context", "files", "list"]),
+      renderCommandUsage(["context", "files", "show"]),
+    ].join("\n"));
     return 2;
   }
 
@@ -608,7 +608,7 @@ async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<n
   // show
   const target = positionals[0];
   if (!target) {
-    console.error("usage: shrimpy context files show [--agent <id>] <path>");
+    console.error(renderCommandUsage(["context", "files", "show"]));
     return 2;
   }
   const fullPath = join(agentPaths.root, target);

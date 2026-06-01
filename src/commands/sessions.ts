@@ -16,6 +16,7 @@ import {
   printSessionCompactionPolicy,
   printSessionThinkingResult,
 } from "./sessions-format.js";
+import { renderGroupUsage } from "./catalog.js";
 import {
   createCommandGroup,
   parseCommandArgs,
@@ -26,13 +27,7 @@ import {
   type CommandInvocation,
 } from "./framework.js";
 
-const USAGE = `usage:
-  shrimpy sessions new <channel> [--agent <id>]
-  shrimpy sessions clear <channel> [--agent <id>]
-  shrimpy sessions restore <channel> [--agent <id>] [--archive <name>]
-  shrimpy sessions thinking <channel> <level> [--agent <id>]
-  shrimpy sessions list [channel] [--agent <id>] [--json]
-  shrimpy sessions compaction <channel> [--agent <id>] [--session-type <type>] [--json]`;
+const USAGE = renderGroupUsage("sessions");
 
 function parseSessionArgs(argv: string[], usageText: string) {
   return parseCommandArgs({

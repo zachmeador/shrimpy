@@ -2,6 +2,12 @@
 
 Every Shrimpy feature is reachable through a `shrimpy <command>` subcommand. Commands print inspectable output, avoid hidden interactive requirements where possible, and compose with other tools.
 
+## Command Structure
+
+Command metadata lives in `src/commands/catalog.ts`. Top-level `shrimpy --help`, group usage text, and shell completion are generated from that catalog so command names, options, and docs have one source to compare against.
+
+Canonical resource groups currently keep the implemented names: singular `agent` and `surface`, plural `channels`, `sessions`, `schedules`, `skills`, `models`, and `users`. Prefer standard verbs for new commands: `list`, `show`, `read`, `create`/`add`, `set`, `remove`, `tail`, `run`, and `status`. Inspection commands intended for agents should expose `--json`.
+
 ## Session Commands
 
 | Command | Purpose |
@@ -57,7 +63,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy channels post <name> --agent <id> <text>` | Post a CLI human message addressed to one agent. |
 | `shrimpy channels dm <a> <b>` | Create a deterministic agent DM channel. |
 | `shrimpy channels members <name>` | Show channel members. |
-| `shrimpy channels join/leave <name> --agent <id>` | Update channel membership. Agent `attention` config decides which channel messages become turns. |
+| `shrimpy channels join <name> --agent <id>` | Add an agent to channel membership. Agent `attention` config decides which channel messages become turns. |
+| `shrimpy channels leave <name> --agent <id>` | Remove an agent from channel membership. Agent `attention` config decides which channel messages become turns. |
 | `shrimpy surface` | List surface thread state. |
 | `shrimpy surface show <surface> <thread-id>` | Show one surface thread state entry. |
 | `shrimpy surface set-agent <surface> <thread-id> <agent>` | Set addressed agent for a surface thread. |
@@ -102,4 +109,9 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 
 ## Plumbing
 
-Command plumbing lives in `src/commands/framework.ts`: shared group dispatcher, parse wrapper, usage errors, and common flag helpers. Inspection commands that other agents may consume support `--json`.
+| Command | Purpose |
+| --- | --- |
+| `shrimpy completion bash` | Print Bash completion generated from the CLI catalog. |
+| `shrimpy completion zsh` | Print Zsh completion generated from the CLI catalog. |
+
+Command plumbing lives in `src/commands/framework.ts`: shared group dispatcher, parse wrapper, usage errors, and common flag helpers. Command metadata lives in `src/commands/catalog.ts`. Inspection commands that other agents may consume support `--json`.

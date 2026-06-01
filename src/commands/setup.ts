@@ -2,11 +2,9 @@ import {
   createCommandGroup,
   type CommandHandler,
 } from "./framework.js";
+import { renderGroupUsage } from "./catalog.js";
 
-const USAGE = `usage:
-  shrimpy setup
-  shrimpy setup init
-  shrimpy setup telegram`;
+const USAGE = renderGroupUsage("setup");
 
 export const cmdSetup: CommandHandler = createCommandGroup({
   name: "setup",

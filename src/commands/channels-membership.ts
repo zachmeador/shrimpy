@@ -5,14 +5,15 @@ import {
   formatChannelAgentIds,
   updateChannelMembership,
 } from "../channels/service.js";
+import { renderCommandUsage } from "./catalog.js";
 import {
   parseCommandArgs,
   requireArg,
 } from "./framework.js";
 
-const CREATE_USAGE = "usage: shrimpy channels create <name>";
-const DM_USAGE = "usage: shrimpy channels dm <agent-a> <agent-b>";
-const MEMBERS_USAGE = "usage: shrimpy channels members <name>";
+const CREATE_USAGE = renderCommandUsage(["channels", "create"]);
+const DM_USAGE = renderCommandUsage(["channels", "dm"]);
+const MEMBERS_USAGE = renderCommandUsage(["channels", "members"]);
 
 function printMembership(channel: string, agents: string[]): void {
   console.log(`channel: ${channel}`);
@@ -77,7 +78,7 @@ export async function cmdChannelsJoinOrLeave(
   args: string[],
   json: boolean,
 ): Promise<number> {
-  const usage = `usage: shrimpy channels ${action} <name> --agent <id>`;
+  const usage = renderCommandUsage(["channels", action]);
   const { values, positionals } = parseCommandArgs({
     args,
     options: {

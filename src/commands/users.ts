@@ -7,11 +7,9 @@ import {
   usage,
   type CommandHandler,
 } from "./framework.js";
+import { renderGroupUsage } from "./catalog.js";
 
-const USAGE = `usage:
-  shrimpy users list [--json]
-  shrimpy users get-owner [--json]
-  shrimpy users set-owner <userId>`;
+const USAGE = renderGroupUsage("users");
 
 export const cmdUsers: CommandHandler = async (argv, config) => {
   const { values, positionals } = parseCommandArgs({

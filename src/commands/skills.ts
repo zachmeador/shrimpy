@@ -24,13 +24,9 @@ import {
   requireArg,
   type CommandHandler,
 } from "./framework.js";
+import { renderGroupUsage } from "./catalog.js";
 
-const USAGE = `usage:
-  shrimpy skills list [--agent <id>] [--json]
-  shrimpy skills show <id> [--agent <id>]
-  shrimpy skills add <id> [--agent <id>|--workspace] [--description <text>] [--force]
-  shrimpy skills install <source> [--agent <id>|--workspace] [--id <id>] [--force]
-  shrimpy skills validate [id] [--agent <id>] [--json]`;
+const USAGE = renderGroupUsage("skills");
 
 async function listSkills({ argv, config, usage }: CommandInvocation): Promise<number> {
   const { values } = parseCommandArgs({

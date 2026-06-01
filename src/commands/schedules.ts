@@ -20,11 +20,9 @@ import {
   usage as printUsage,
   type CommandHandler,
 } from "./framework.js";
+import { renderGroupUsage } from "./catalog.js";
 
-const USAGE = `usage: shrimpy schedules [list] [--agent <id>] [--one-time] [--status <status>] [--json]
-       shrimpy schedules show <schedule-id> [--json]
-       shrimpy schedules once (--at <time> | --in <duration>) --channel <name> --text <text> [--agent <id>] [--timezone <tz>] [--json]
-       shrimpy schedules cancel <schedule-id> [--json]`;
+const USAGE = renderGroupUsage("schedules");
 
 export const cmdSchedules: CommandHandler = async (argv, config) => {
   const action = argv[0];

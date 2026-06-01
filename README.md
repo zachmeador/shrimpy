@@ -52,6 +52,14 @@ shrimpy setup init
 The installer only installs the CLI. Workspace creation and configuration stay
 explicit through `shrimpy setup init`.
 
+Shell completion scripts are generated from the same CLI metadata as
+`shrimpy --help`:
+
+```bash
+shrimpy completion bash
+shrimpy completion zsh
+```
+
 ## 🦐 Usage
 
 ```bash

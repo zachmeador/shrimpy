@@ -2,13 +2,14 @@ import { createAppRuntime } from "../app/index.js";
 import { gatewayCtl } from "../gateway-ctl.js";
 import { printGatewayLogs } from "./gateway-logs.js";
 import { printGatewayStatus } from "./gateway-status.js";
+import { renderGroupUsage } from "./catalog.js";
 import {
   createCommandGroup,
   type CommandHandler,
   type CommandInvocation,
 } from "./framework.js";
 
-const USAGE = "usage: shrimpy gateway <status|logs|install|uninstall|start|stop|restart>";
+const USAGE = renderGroupUsage("gateway");
 
 function controlGateway(action: "install" | "uninstall" | "start" | "stop" | "restart") {
   return async ({ config }: CommandInvocation): Promise<number> => {

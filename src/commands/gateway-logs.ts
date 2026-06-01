@@ -7,12 +7,13 @@ import {
   watchFile,
 } from "node:fs";
 import { createAppRuntime } from "../app/index.js";
+import { renderCommandUsage } from "./catalog.js";
 import {
   parseCommandArgs,
   printError,
 } from "./framework.js";
 
-const USAGE = "usage: shrimpy gateway logs [--lines N|--tail N] [--follow] [--path]";
+const USAGE = renderCommandUsage(["gateway", "logs"]);
 
 export function printGatewayLogs(
   config: Parameters<typeof createAppRuntime>[0],

@@ -1,6 +1,6 @@
 # CLI-001: Cleaner Command Structure
 
-Status: draft
+Status: review
 Priority: P2
 Area: CLI
 
@@ -63,3 +63,18 @@ feature has an inspectable `shrimpy <command>` path.
 - Inspection commands consistently expose `--json` where useful.
 - Tests cover command dispatch, help generation, representative usage errors,
   and at least one JSON inspection path per major command group.
+
+## Review Notes
+
+- Kept the implemented canonical resource names for this pass: singular
+  `agent` and `surface`; plural `channels`, `sessions`, `schedules`, `skills`,
+  `models`, and `users`.
+- Added `src/commands/catalog.ts` as the shared command metadata source for
+  top-level help, group usage strings, shell completion, and CLI reference docs.
+- Added `shrimpy completion bash` and `shrimpy completion zsh`; completion does
+  not load workspace config.
+- Standardized remaining command usage strings onto the catalog instead of
+  file-local hand-written usage text.
+- Added CLI catalog tests for generated help, group usage, shell completion,
+  no-config completion dispatch, and reference docs coverage for completion.
+- Updated the CLI reference and README setup hints for generated completion.

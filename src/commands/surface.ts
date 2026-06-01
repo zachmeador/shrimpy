@@ -1,5 +1,6 @@
 import { createAppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
+import { renderGroupUsage } from "./catalog.js";
 import {
   createCommandGroup,
   requireArg,
@@ -8,11 +9,7 @@ import {
   type CommandInvocation,
 } from "./framework.js";
 
-const USAGE = `usage:
-  shrimpy surface [--json]
-  shrimpy surface show <surface> <thread-id>
-  shrimpy surface set-agent <surface> <thread-id> <agent-id> [--json]
-  shrimpy surface clear-agent <surface> <thread-id> [--json]`;
+const USAGE = renderGroupUsage("surface");
 
 function createSurfaceCommand(json: boolean): CommandHandler {
   return createCommandGroup({

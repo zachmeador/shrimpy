@@ -9,14 +9,15 @@ import {
   summarizeChannel,
 } from "../channels/service.js";
 import { accent, dim, label } from "../util/style.js";
+import { renderCommandUsage } from "./catalog.js";
 import {
   requireArg,
   usage,
 } from "./framework.js";
 
-const READ_USAGE = "usage: shrimpy channels read <name> [--limit N]";
-const SHOW_USAGE = "usage: shrimpy channels show <name> [--json]";
-const TAIL_USAGE = "usage: shrimpy channels tail <name>";
+const READ_USAGE = renderCommandUsage(["channels", "read"]);
+const SHOW_USAGE = renderCommandUsage(["channels", "show"]);
+const TAIL_USAGE = renderCommandUsage(["channels", "tail"]);
 
 function parseLimit(argv: string[]): number {
   const limitIdx = argv.indexOf("--limit");

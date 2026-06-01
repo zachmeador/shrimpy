@@ -1,12 +1,13 @@
 import type { AppRuntime } from "../app/index.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { IdentityStore } from "../gateway/identity-store.js";
+import { renderCommandUsage } from "./catalog.js";
 import {
   parseCommandArgs,
   usage,
 } from "./framework.js";
 
-const USAGE = "usage: shrimpy channels post <name> [--agent <id>] <text> [--json]";
+const USAGE = renderCommandUsage(["channels", "post"]);
 
 export async function cmdChannelsPost(
   runtime: AppRuntime,

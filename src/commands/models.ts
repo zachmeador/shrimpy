@@ -18,10 +18,9 @@ import {
   printError,
   type CommandHandler,
 } from "./framework.js";
+import { renderGroupUsage } from "./catalog.js";
 
-const USAGE = `usage:
-  shrimpy models [--json]
-  shrimpy models resolve [--agent <id>] [--session <name>|--channel <name>] [--provider <p>] [--model <m>] [--json]`;
+const USAGE = renderGroupUsage("models");
 
 interface ModelRef {
   provider: string;
