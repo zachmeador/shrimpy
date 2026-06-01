@@ -3,7 +3,7 @@
 Status: draft
 Priority: P1
 Area: Schedules
-Depends On: [SCHED-003](sched-003-scheduled-channel-messages.md)
+Depends On: [CHANNEL-002](channel-002-attention-routed-channel-events.md)
 
 ## Why
 
@@ -13,7 +13,7 @@ again at 3pm", or "continue this thread in 20 minutes".
 
 This item adds the one-time timer record. Routing follows
 [CHANNEL-002](channel-002-attention-routed-channel-events.md) through the same
-channel-event path as recurring schedules.
+channel-message path already used by recurring schedules.
 
 Shrimpy already has a recurring scheduler loop. This item should reuse that
 gateway tick and shared scheduler emit path; the new work is durable one-time
@@ -64,11 +64,8 @@ record lifecycle, not a second scheduler subsystem.
 
 - This intentionally stops at time-based scheduling. If command-polling
   continuations become important later, add a specific backlog item then.
-- This builds on [SCHED-003](sched-003-scheduled-channel-messages.md), which
-  applies [CHANNEL-002](channel-002-attention-routed-channel-events.md) to
-  recurring schedules.
-- [SCHED-002](sched-002-schedule-inspection-surfaces.md) should include one-time
-  schedules once this lands.
+- Recurring schedule inspection and channel-message routing already exist; this
+  item adds the same lifecycle and inspection treatment for one-time records.
 - Normal TUI sessions are not channel sessions. If a user asks for a reminder
   from TUI, the created one-time record still needs an explicit target channel
   such as Telegram, a DM channel, or another Shrimpy channel.

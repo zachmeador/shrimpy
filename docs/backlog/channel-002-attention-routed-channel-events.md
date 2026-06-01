@@ -1,89 +1,93 @@
-# CHANNEL-002: Attention-Routed Channel Events
+# CHANNEL-002: Channel Message Routing
 
-Status: draft
+Status: review
 Priority: P1
 Area: Channels
 Depends On: none
 
 ## Why
 
-Shrimpy already has the right core shape: producers append messages to channel
-logs, the gateway observes those logs, channel membership scopes eligible agents,
-and each agent's attention config decides whether a message becomes a turn.
+Shrimpy should have one way for asynchronous work to reach agents: write a
+message to a channel.
 
-Async features should share that shape instead of growing separate wake,
-return-channel, or continuation subsystems. "Wake" should remain a plain-language
-effect: an agent handled a channel message. It should not become its own durable
-resource, command group, or routing plane.
+Schedules already work this way. Future one-time schedules, workers, and app
+events should use the same path. If each feature invents its own callback,
+return channel, or routing state, debugging "why did this agent run?" gets hard.
 
-This item owns the cross-feature contract so schedule, worker, app, channel
-inspection, and context items can stay focused on their own implementation
-details.
+## Rule
 
-## Contract
+1. Something writes a message to a channel.
+2. If the message has `origin.addressedAgentId`, the gateway sends it only to
+   that agent. This is mainly for explicit user-facing addressing.
+3. Otherwise, the gateway sends the message to the agents listed as members of
+   that channel.
+4. Each member agent's `attention` config decides whether the message becomes a
+   turn.
+5. If the agent needs to report somewhere else, it sends a normal message to
+   that channel.
 
-- Producers append ordinary channel messages with enough `sender`, `origin`,
-  content, and provenance to explain where the message came from.
-- Channel membership determines which agents are candidates for an unaddressed
+For system-created messages, prefer step 3 and step 4: target a channel, then
+let membership and attention decide who handles it.
+
+## Current State
+
+- `src/delivery/channel-delivery-loop.ts` implements the addressed-or-members
+  dispatch rule.
+- `src/agents/channel-policy.ts` decides whether one agent handles one channel
   message.
-- An agent's effective attention config determines whether a candidate agent
-  handles the message.
-- Explicit human/user addressing may remain a direct routing affordance, but
-  runtime producers should not rely on `origin.addressedAgentId` as a hidden
-  bypass for membership and attention.
-- If work should report somewhere else, the agent sends an ordinary message to
-  that channel through normal tools and instructions.
-- Inspection surfaces should be able to answer: which message caused this turn,
-  which channel carried it, which source record emitted it, and which attention
-  rule accepted or rejected it.
+- `shrimpy channels members <channel>` shows who is subscribed to a channel.
+- `shrimpy agent attention <id> --channel <channel>` shows the effective
+  attention policy.
+- `shrimpy agent attention test <id> ...` explains whether one sample message
+  would become a turn.
+- Recurring schedules now write scheduler-authored channel messages instead of
+  using hidden `origin.addressedAgentId` routing.
+- `shrimpy schedules` and `shrimpy schedules show <id>` report target channel,
+  members, expected attention, recent emitted message ids, and diagnostics.
+- Turn context includes route, addressed-agent, attention, and scheduler facts
+  with inspect commands.
 
-## Build
+## Remaining
 
-- Name this contract in stable docs and keep active backlog items linked to it
-  instead of restating the same routing rules.
-- Keep channel-event provenance consistent enough for schedules, one-time
-  schedules, worker-related messages, app-agent messages, and surface messages to
-  be inspected the same way.
-- Reuse `src/agents/channel-policy.ts` and `shrimpy agent attention test` as the
-  explanation path for why an agent did or did not handle a message.
-- Add or adjust diagnostics where routing is hard to understand, favoring CLI
-  output over silent repair.
-- Treat internal work channels as naming conventions over ordinary channels, not
-  a distinct channel type.
+- Keep backlog items linked to this note instead of restating separate routing
+  rules.
+- When a new async feature writes a channel message, include enough facts on the
+  message to inspect where it came from: source kind, source id, target channel,
+  run/idempotency id when relevant, and a CLI inspect command.
+- Add clearer channel-level diagnostics as part of
+  [CHANNEL-001](channel-001.md), especially for "this message did not produce a
+  turn" cases.
+- Keep worker and app-agent events on ordinary channels unless a concrete
+  limitation forces a separate design.
 
 ## Boundaries
 
-- Do not add `shrimpy wakes`, wake channels, return channels, or a separate
-  wake/continuation control plane.
-- Do not create special schedule or worker routing paths when ordinary channel
-  messages plus attention are enough.
-- Do not silently add channel membership or loosen attention to make a producer
-  work. Show the mismatch in inspection output.
-- Do not make skills, memory, or worker state a routing plane. They can inform
-  turns, but channel messages start asynchronous turns.
+- Do not add a separate callback, return-channel, continuation, or routing
+  control plane.
+- Do not create schedule-specific, worker-specific, or app-specific routing when
+  ordinary channel messages plus attention are enough.
+- Do not silently add channel membership or loosen attention to make a message
+  produce a turn. Show the mismatch in inspection output.
+- Do not make skills, memory, or worker state responsible for routing turns.
+  They can inform turns, but channel messages start asynchronous turns.
 - Do not remove explicit user addressing unless a separate item deliberately
   replaces that user-facing affordance.
 
 ## Related Items
 
-- [SCHED-003](sched-003-scheduled-channel-messages.md) applies this contract to
-  recurring scheduled runs.
 - [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) applies this
-  contract to one-time scheduled messages.
-- [CHANNEL-001](channel-001.md) makes channel logs searchable and traceable
-  enough for this contract to be legible.
-- [SCHED-002](sched-002-schedule-inspection-surfaces.md) explains schedule
-  targets, emitted messages, and expected attention behavior.
-- [CODE-002](code-002-agentic-worker-sessions.md) keeps worker state inspectable
-  without adding a worker-specific wake path.
+  rule to one-time scheduled messages.
+- [CHANNEL-001](channel-001.md) should make channel logs searchable and
+  traceable enough for this rule to be easy to debug.
+- [CODE-002](code-002-agentic-worker-sessions.md) should keep worker state
+  inspectable without adding worker-specific routing.
 
 ## Done
 
-- The attention-routed channel-event contract is documented and linked from the
-  backlog items that depend on it.
-- Schedule and worker backlog items no longer duplicate the routing philosophy;
-  they describe only their resource-specific behavior.
-- Runtime producers that can start asynchronous agent turns use ordinary channel
-  messages or explicitly document why they need an exception.
-- Inspection paths can point from an agent turn back to the channel message,
-  source record, and attention explanation.
+- The routing rule is documented in stable docs, setup prompts, CLI output, and
+  linked backlog notes.
+- Recurring schedules use ordinary channel messages and attention routing.
+- Schedule inspection can point from a scheduled turn back to the channel
+  message, source schedule, and attention explanation.
+- Future async features can follow this note without adding another routing
+  system.

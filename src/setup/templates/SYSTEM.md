@@ -66,5 +66,5 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 - In direct local sessions, ordinary assistant text is the delivery path.
 - Use `read_channel` when you need recent cross-session message history from a channel.
 - Add agent schedules in `agents/<id>/schedules.json`; inspect the resolved workspace view with `shrimpy schedules`.
-- When routing or wake behavior is unclear, inspect the channel first: schedules write messages to channels; for unaddressed messages, channel membership is the subscription list; agent attention filters that list into turns.
+- When routing behavior is unclear, inspect the channel first: schedules write messages to channels; for unaddressed messages, channel membership is the subscription list; agent attention filters that list into turns.
 - Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.

@@ -7,10 +7,8 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-001](channel-001.md) | todo | P1 | Channels | none | Richer channel inspection |
-| [CHANNEL-002](channel-002-attention-routed-channel-events.md) | draft | P1 | Channels | none | Attention-routed channel events |
-| [SCHED-002](sched-002-schedule-inspection-surfaces.md) | review | P1 | Schedules | none | Schedule inspection surfaces |
-| [SCHED-003](sched-003-scheduled-channel-messages.md) | review | P1 | Schedules | [CHANNEL-002](channel-002-attention-routed-channel-events.md) | Scheduled channel messages through existing agent attention |
-| [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) | draft | P1 | Schedules | [SCHED-003](sched-003-scheduled-channel-messages.md) | One-time scheduled channel messages |
+| [CHANNEL-002](channel-002-attention-routed-channel-events.md) | review | P1 | Channels | none | Channel message routing |
+| [SCHED-004](sched-004-one-time-scheduled-channel-messages.md) | draft | P1 | Schedules | [CHANNEL-002](channel-002-attention-routed-channel-events.md) | One-time scheduled channel messages |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
@@ -18,7 +16,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | none | Bundled admin agent |
-| [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [SCHED-002](sched-002-schedule-inspection-surfaces.md), [SCHED-003](sched-003-scheduled-channel-messages.md), [APP-001](app-001.md) | Scheduled skill opportunity assessments |
+| [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [APP-001](app-001.md) | Scheduled skill opportunity assessments |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |

@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Mechanic
-Depends On: [ADMIN-001](admin-001.md), [SCHED-002](sched-002-schedule-inspection-surfaces.md), [SCHED-003](sched-003-scheduled-channel-messages.md), [APP-001](app-001.md)
+Depends On: [ADMIN-001](admin-001.md), [APP-001](app-001.md)
 
 ## Why
 
@@ -59,8 +59,8 @@ highest-signal recommendations.
 - This is a concrete scheduled check-in loop for [APP-001](app-001.md).
 - It should probably ship after the bundled mechanic exists in
   [ADMIN-001](admin-001.md).
-- [SCHED-002](sched-002-schedule-inspection-surfaces.md) gives the mechanic a
-  safer way to inspect its own recurrence and explain when it will run next.
+- Existing `shrimpy schedules` inspection gives the mechanic a safer way to
+  inspect its own recurrence and explain when it will run next.
 - [CHANNEL-002](channel-002-attention-routed-channel-events.md) owns the routing
   contract for the mechanic's scheduled turns.
 - Good candidate recommendations: turn repeated manual requests into a skill,
