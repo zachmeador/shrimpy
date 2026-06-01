@@ -95,6 +95,10 @@ or pulling several provider SDKs into the default install.
 
 ## Notes
 
+- Research: [web-search-providers.md](../research/web-search-providers.md)
+  surveys candidate providers and recommends Tavily first, Brave second, with
+  Serper/SearXNG as follow-on adapters; xAI/Perplexity are answer engines, not
+  result APIs.
 - Related: [BROWSER-001](browser-001-default-browser-tool.md) remains the path
   for actual browser interaction and page inspection.
 - Related: [SKILL-001](skill-001-web-fetch-action-patterns.md) can use search as

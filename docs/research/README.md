@@ -15,6 +15,7 @@ This directory holds source notes and comparison research that may inform future
 - [qwen35-thinking-control.md](qwen35-thinking-control.md) — thinking-control research for Qwen 3.5 style models.
 - [ralph-loops.md](ralph-loops.md) — loop and runtime behavior notes from Ralph-style agents.
 - [rl-eval-framework.md](rl-eval-framework.md) — watchlist and eventual architecture notes for a Shrimpy personal RL/eval framework.
+- [web-search-providers.md](web-search-providers.md) — survey of web search API providers for SEARCH-001 (Tavily, Brave, Serper, SearXNG, Exa, Linkup, You.com, Kagi, Jina) and why answer engines like xAI/Perplexity are a different shape.
 
 ## Promotion Rule
 
