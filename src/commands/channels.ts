@@ -2,6 +2,7 @@ import { createAppRuntime } from "../app/index.js";
 import {
   cmdChannelsList,
   cmdChannelsRead,
+  cmdChannelsSearch,
   cmdChannelsShow,
   cmdChannelsTail,
 } from "./channels-inspect.js";
@@ -29,6 +30,7 @@ function createChannelsCommand(json: boolean): CommandHandler {
     commands: {
       show: ({ argv, config }) => cmdChannelsShow(createAppRuntime(config), argv, json),
       read: ({ argv, config }) => cmdChannelsRead(createAppRuntime(config), argv, json),
+      search: ({ argv, config }) => cmdChannelsSearch(createAppRuntime(config), argv, json),
       tail: ({ argv, config }) => {
         const runtime = createAppRuntime(config);
         return cmdChannelsTail(runtime.createChannelBus(), argv);

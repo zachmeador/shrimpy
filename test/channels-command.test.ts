@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
+import { systemContent, textContent } from "../dist/channels/index.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { cmdChannels } from "../dist/commands/channels.js";
 import { setupInit } from "../dist/setup.js";
@@ -147,5 +148,208 @@ describe("cmdChannels", () => {
     assert.equal(posted.channel, "home");
     assert.equal(posted.message.origin.addressedAgentId, "career");
     assert.equal(posted.message.content.data.text, "please handle this");
+  });
+
+  test("searches channel messages with agent-friendly filters", async () => {
+    await setupInit(workspace);
+    const channelBus = new ChannelBus(join(workspace, "channels"));
+    channelBus.publish({
+      channel: "home",
+      id: "human-request",
+      timestamp: Date.parse("2026-05-01T10:00:00.000Z"),
+      sender: {
+        kind: "human",
+        actorId: "human:user:alice",
+        userId: "user:alice",
+        displayName: "alice",
+      },
+      origin: {
+        transport: "cli",
+        sourceChannel: "home",
+      },
+      content: textContent("please check the logs"),
+    });
+    channelBus.publish({
+      channel: "home",
+      id: "agent-reply",
+      timestamp: Date.parse("2026-05-01T10:01:00.000Z"),
+      sender: {
+        kind: "agent",
+        actorId: "shrimpy",
+      },
+      origin: {
+        transport: "internal",
+        sourceChannel: "home",
+      },
+      content: textContent("I checked them."),
+    });
+
+    const { result, lines } = await captureLogs(() =>
+      cmdChannels(["search", "home", "check", "--kind", "user-text", "--json"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const payload = JSON.parse(lines.join("\n"));
+    assert.equal(payload.channel, "home");
+    assert.equal(payload.totalMessages, 2);
+    assert.equal(payload.matchedCount, 1);
+    assert.equal(payload.messages[0].id, "human-request");
+    assert.equal(payload.messages[0].kind, "user_text");
+    assert.equal(payload.messages[0].source.transport, "cli");
+  });
+
+  test("search traces scheduler and system messages", async () => {
+    await setupInit(workspace);
+    const channelBus = new ChannelBus(join(workspace, "channels"));
+    channelBus.publish({
+      channel: "home",
+      id: "scheduler-message",
+      timestamp: Date.parse("2026-05-01T10:00:00.000Z"),
+      sender: {
+        kind: "system",
+        actorId: "system:scheduler",
+      },
+      origin: {
+        transport: "scheduler",
+        scheduleId: "shrimpy/heartbeat",
+        runId: "run-1",
+        sourceChannel: "home",
+        schedule: {
+          kind: "recurring",
+          ownerAgentId: "shrimpy",
+          localId: "heartbeat",
+          targetChannel: "home",
+          inspect: ["shrimpy schedules show shrimpy/heartbeat"],
+        },
+      },
+      content: textContent("scheduled heartbeat"),
+    });
+    channelBus.publish({
+      channel: "home",
+      id: "maintenance-message",
+      timestamp: Date.parse("2026-05-01T10:01:00.000Z"),
+      sender: {
+        kind: "system",
+        actorId: "system:maintenance",
+      },
+      origin: {
+        transport: "internal",
+        sourceChannel: "home",
+      },
+      content: systemContent({ kind: "maintenance", note: "rotated logs" }),
+    });
+
+    const { result: schedulerResult, lines: schedulerLines } = await captureLogs(() =>
+      cmdChannels(["search", "home", "--kind", "scheduler", "--json"], { workspace } as any)
+    );
+
+    assert.equal(schedulerResult, 0);
+    const schedulerPayload = JSON.parse(schedulerLines.join("\n"));
+    assert.equal(schedulerPayload.matchedCount, 1);
+    assert.equal(schedulerPayload.messages[0].id, "scheduler-message");
+    assert.equal(schedulerPayload.messages[0].source.id, "shrimpy/heartbeat");
+    assert.equal(schedulerPayload.messages[0].source.runId, "run-1");
+    assert.deepEqual(schedulerPayload.messages[0].source.inspectCommands, [
+      "shrimpy schedules show shrimpy/heartbeat",
+    ]);
+
+    const { result: systemResult, lines: systemLines } = await captureLogs(() =>
+      cmdChannels(["search", "home", "--kind", "system", "--json"], { workspace } as any)
+    );
+
+    assert.equal(systemResult, 0);
+    const systemPayload = JSON.parse(systemLines.join("\n"));
+    assert.equal(systemPayload.matchedCount, 1);
+    assert.equal(systemPayload.messages[0].id, "maintenance-message");
+    assert.equal(systemPayload.messages[0].kind, "system");
+  });
+
+  test("show includes channel activity summaries", async () => {
+    await setupInit(workspace);
+    const channelBus = new ChannelBus(join(workspace, "channels"));
+    channelBus.publish({
+      channel: "home",
+      id: "human-request",
+      timestamp: Date.parse("2026-05-01T10:00:00.000Z"),
+      sender: {
+        kind: "human",
+        actorId: "human:user:alice",
+        userId: "user:alice",
+      },
+      origin: {
+        transport: "cli",
+        sourceChannel: "home",
+      },
+      content: textContent("can you inspect this?"),
+    });
+    channelBus.publish({
+      channel: "home",
+      id: "scheduler-message",
+      timestamp: Date.parse("2026-05-01T10:01:00.000Z"),
+      sender: {
+        kind: "system",
+        actorId: "system:scheduler",
+      },
+      origin: {
+        transport: "scheduler",
+        scheduleId: "shrimpy/heartbeat",
+        runId: "run-1",
+        sourceChannel: "home",
+        schedule: {
+          targetChannel: "home",
+          inspect: ["shrimpy schedules show shrimpy/heartbeat"],
+        },
+      },
+      content: textContent("scheduled check"),
+    });
+
+    const { result, lines } = await captureLogs(() =>
+      cmdChannels(["show", "home", "--json"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const summary = JSON.parse(lines.join("\n"));
+    assert.equal(summary.activity.kindCounts.user_text, 1);
+    assert.equal(summary.activity.kindCounts.scheduler, 1);
+    assert.deepEqual(
+      summary.activity.recentRequests.map((message: any) => message.id),
+      ["human-request", "scheduler-message"],
+    );
+    assert.equal(summary.activity.sourceRecords[0].id, "shrimpy/heartbeat");
+    assert.deepEqual(summary.activity.inspectCommands, [
+      "shrimpy schedules show shrimpy/heartbeat",
+    ]);
+  });
+
+  test("show bounds recent request summaries", async () => {
+    await setupInit(workspace);
+    const channelBus = new ChannelBus(join(workspace, "channels"));
+    for (let i = 0; i < 6; i++) {
+      channelBus.publish({
+        channel: "home",
+        id: `request-${i}`,
+        timestamp: Date.parse("2026-05-01T10:00:00.000Z") + i,
+        sender: {
+          kind: "human",
+          actorId: "human:user:alice",
+        },
+        origin: {
+          transport: "cli",
+          sourceChannel: "home",
+        },
+        content: textContent(`request ${i}`),
+      });
+    }
+
+    const { result, lines } = await captureLogs(() =>
+      cmdChannels(["show", "home", "--json"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const summary = JSON.parse(lines.join("\n"));
+    assert.deepEqual(
+      summary.activity.recentRequests.map((message: any) => message.id),
+      ["request-1", "request-2", "request-3", "request-4", "request-5"],
+    );
   });
 });

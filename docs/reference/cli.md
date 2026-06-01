@@ -55,8 +55,9 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | Command | Purpose |
 | --- | --- |
 | `shrimpy channels` | List channels. |
-| `shrimpy channels show <name>` | Inspect one channel. |
+| `shrimpy channels show <name>` | Inspect one channel, including membership, recent request-like messages, message kind counts, and traceable source records. |
 | `shrimpy channels read <name>` | Read recent channel messages. |
+| `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]` | Search and filter channel messages. `--kind` accepts `user_text`, `agent_text`, `scheduler`, `worker`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--schedule`, and `--source-kind`. |
 | `shrimpy channels tail <name>` | Watch a channel log. |
 | `shrimpy channels create <name>` | Create/bootstrap channel membership. |
 | `shrimpy channels post <name> <text>` | Post a CLI human message into a channel log. |

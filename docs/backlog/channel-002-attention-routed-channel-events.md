@@ -44,6 +44,9 @@ let membership and attention decide who handles it.
   using hidden `origin.addressedAgentId` routing.
 - `shrimpy schedules` and `shrimpy schedules show <id>` report target channel,
   members, expected attention, recent emitted message ids, and diagnostics.
+- `shrimpy channels show <channel>` and `shrimpy channels search <channel>`
+  surface channel-level message kinds, request-like messages, source records,
+  and scheduler/worker-originated message traceability.
 - Turn context includes route, addressed-agent, attention, and scheduler facts
   with inspect commands.
 
@@ -54,9 +57,8 @@ let membership and attention decide who handles it.
 - When a new async feature writes a channel message, include enough facts on the
   message to inspect where it came from: source kind, source id, target channel,
   run/idempotency id when relevant, and a CLI inspect command.
-- Add clearer channel-level diagnostics as part of
-  [CHANNEL-001](channel-001.md), especially for "this message did not produce a
-  turn" cases.
+- Use channel inspection plus attention inspection for "this message did not
+  produce a turn" diagnostics; do not add a separate routing debug path.
 - Keep worker and app-agent events on ordinary channels unless a concrete
   limitation forces a separate design.
 
@@ -76,8 +78,6 @@ let membership and attention decide who handles it.
 ## Related Items
 
 - One-time scheduled messages use this same ordinary channel-message path.
-- [CHANNEL-001](channel-001.md) should make channel logs searchable and
-  traceable enough for this rule to be easy to debug.
 - [CODE-002](code-002-agentic-worker-sessions.md) should keep worker state
   inspectable without adding worker-specific routing.
 

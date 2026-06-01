@@ -77,6 +77,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["channels"], "[--json]", "List channels.", "Channels And Surfaces", [jsonOption]),
   entry(["channels", "show"], "<name> [--json]", "Inspect one channel.", "Channels And Surfaces", [jsonOption]),
   entry(["channels", "read"], "<name> [--limit N] [--json]", "Read recent channel messages.", "Channels And Surfaces", [{ name: "--limit", takesValue: true }, jsonOption]),
+  entry(["channels", "search"], "<name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]", "Search and filter channel messages.", "Channels And Surfaces", [{ name: "--text", takesValue: true }, { name: "--kind", takesValue: true }, { name: "--sender", takesValue: true }, { name: "--actor-id", takesValue: true }, { name: "--transport", takesValue: true }, { name: "--content-type", takesValue: true }, { name: "--addressed", takesValue: true }, { name: "--schedule", takesValue: true }, { name: "--source-kind", takesValue: true }, { name: "--limit", takesValue: true }, jsonOption]),
   entry(["channels", "tail"], "<name>", "Watch a channel log.", "Channels And Surfaces"),
   entry(["channels", "create"], "<name> [--json]", "Create or bootstrap channel membership.", "Channels And Surfaces", [jsonOption]),
   entry(["channels", "post"], "<name> [--agent <id>] <text> [--json]", "Post a CLI human message into a channel log.", "Channels And Surfaces", [agentOption, jsonOption]),

@@ -52,6 +52,9 @@ export interface MessageOrigin {
   addressedAgentId?: string;
   scheduleId?: string;
   runId?: string;
+  sourceKind?: string;
+  sourceId?: string;
+  workerId?: string;
   sourceChannel?: string;
   schedule?: MessageScheduleProvenance;
 }

@@ -26,7 +26,7 @@ export function renderCliHelp(): string {
     })
     .filter(Boolean)
     .join("\n\n");
-  return `${brand(formatVersionLabel(metadata))}\n\n${heading("usage:")}\n${body}`;
+  return `${brand(formatVersionLabel(metadata))} - ${dim(metadata.description)}\n\n${heading("usage:")}\n${body}`;
 }
 
 const HELP_WIDTH = 80;
