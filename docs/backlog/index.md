@@ -37,3 +37,4 @@ Deferred notes that are intentionally outside the active backlog.
 |---|---|---|---|---|---|
 | [CTX-008](later/ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](later/ctx-009-context-trace-debug-view.md) | todo | P2 | Context | [CTX-008](later/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
+| [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [MODEL-001](model-001-user-configurable-model-policy.md), [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
