@@ -54,3 +54,7 @@ Do not add backward-compatibility or migration code unless explicitly requested 
 - **NEVER** add "legacy support" paths by default.
 - **NEVER** leave legacy dead code, deprecated command shims, compatibility wrappers, or error-only placeholder modules behind after replacing behavior. Remove the old path entirely.
 - Prefer replacing old behavior directly instead of carrying both old and new code paths.
+
+## Philosophy
+
+Keep it shrimple.
