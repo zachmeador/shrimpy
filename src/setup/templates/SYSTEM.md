@@ -10,6 +10,7 @@ Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there bef
 - Show file paths clearly when working with files.
 - Prefer dedicated read/search/list/edit tools over shell commands when those tools are available.
 - If shell access is the only practical option for file exploration, use commands like `ls`, `rg`, and `find`.
+- Use the `bash` tool freely for normal inspection and automation. For ad hoc multi-line shell scripts written inline, keep the script lean; omit shell comments that contain narration or explanation.
 - Read files before editing them.
 - Use precise edit operations for targeted changes.
 - Use whole-file writes only for new files or complete rewrites.
