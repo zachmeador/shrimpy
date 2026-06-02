@@ -12,6 +12,7 @@ import {
   COMMAND_REGISTRY,
   configForRegisteredCommand,
 } from "./commands/registry.js";
+import { bootstrapInteractiveCompletion } from "./commands/completion-runtime.js";
 import {
   formatThinkingInputs,
   parseThinkingLevel,
@@ -20,6 +21,8 @@ import { runInteractiveAgentSession } from "./sessions/index.js";
 import { brand } from "./util/style.js";
 
 try {
+  await bootstrapInteractiveCompletion();
+
   const sub = process.argv[2];
   const registration = sub ? COMMAND_REGISTRY[sub] : undefined;
   if (registration) {

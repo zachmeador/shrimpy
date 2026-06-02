@@ -93,7 +93,27 @@ ${completionCaseLines()}
 
   compadd -- \${=suggestions}
 }
-_shrimpy "$@"`;
+_shrimpy_register_completion() {
+  if (( ! $+functions[compdef] )); then
+    return 0
+  fi
+
+  compdef _shrimpy shrimpy
+  precmd_functions=(\${precmd_functions:#_shrimpy_register_completion})
+  unfunction _shrimpy_register_completion 2>/dev/null
+}
+
+_shrimpy_register_completion
+if (( ! $+functions[compdef] )); then
+  typeset -ga precmd_functions
+  if [[ -z "\${precmd_functions[(r)_shrimpy_register_completion]}" ]]; then
+    precmd_functions+=(_shrimpy_register_completion)
+  fi
+fi
+
+if [[ "\${funcstack[1]:-}" == "_shrimpy" ]]; then
+  _shrimpy "$@"
+fi`;
 }
 
 function completionCaseLines(): string {

@@ -114,5 +114,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | --- | --- |
 | `shrimpy completion bash` | Print Bash completion generated from the CLI catalog. |
 | `shrimpy completion zsh` | Print Zsh completion generated from the CLI catalog. |
+| `shrimpy completion install [bash\|zsh]` | Install cached shell completion into the current shell profile. |
+| `shrimpy completion write-state [bash\|zsh]` | Write cached shell completion without changing shell profiles. |
+| `shrimpy completion status [bash\|zsh]` | Print shell completion profile and cache paths. |
 
 Command plumbing lives in `src/commands/framework.ts`: shared group dispatcher, parse wrapper, usage errors, and common flag helpers. Command metadata lives in `src/commands/catalog.ts`. Inspection commands that other agents may consume support `--json`.

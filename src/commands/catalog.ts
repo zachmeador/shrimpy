@@ -122,6 +122,9 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
 
   entry(["completion", "bash"], undefined, "Print Bash completion generated from the CLI catalog.", "Plumbing"),
   entry(["completion", "zsh"], undefined, "Print Zsh completion generated from the CLI catalog.", "Plumbing"),
+  entry(["completion", "install"], "[bash|zsh]", "Install cached shell completion into the current shell profile.", "Plumbing"),
+  entry(["completion", "write-state"], "[bash|zsh]", "Write cached shell completion without changing shell profiles.", "Plumbing"),
+  entry(["completion", "status"], "[bash|zsh]", "Print shell completion profile and cache paths.", "Plumbing"),
 ];
 
 export const CLI_CATEGORIES: readonly CliCommandCategory[] = [

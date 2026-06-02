@@ -1,11 +1,18 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   renderCommandUsage,
   renderGroupUsage,
 } from "../dist/commands/catalog.js";
 import { renderShellCompletion } from "../dist/commands/completion-script.js";
+import {
+  installCompletion,
+  isCompletionInstalled,
+  resolveCompletionCachePath,
+} from "../dist/commands/completion-runtime.js";
 import { renderCliHelp } from "../dist/commands/help.js";
 import {
   COMMAND_REGISTRY,
@@ -43,8 +50,32 @@ describe("CLI catalog", () => {
     assert.match(bash, /"agent"\) suggestions="[^"]*attention[^"]*list[^"]*run/);
     assert.match(bash, /"channels"\) suggestions="[^"]*join[^"]*leave[^"]*read/);
     assert.match(zsh, /#compdef shrimpy/);
+    assert.match(zsh, /compdef _shrimpy shrimpy/);
+    assert.doesNotMatch(zsh, /\n_shrimpy "\$@"$/);
     assert.match(zsh, /skip_next=1/);
     assert.match(zsh, /"context sources"\) suggestions="list run"/);
+  });
+
+  test("completion install writes a cached zsh source block idempotently", async () => {
+    const home = mkdtempSync(join(tmpdir(), "shrimpy-completion-home-"));
+    const state = mkdtempSync(join(tmpdir(), "shrimpy-completion-state-"));
+    const env = { ...process.env, HOME: home, XDG_STATE_HOME: state };
+    try {
+      const first = await installCompletion("zsh", env);
+      const second = await installCompletion("zsh", env);
+      const profile = readFileSync(join(home, ".zshrc"), "utf-8");
+      const cachePath = resolveCompletionCachePath("zsh", env);
+
+      assert.equal(first.changed, true);
+      assert.equal(second.changed, false);
+      assert.equal(await isCompletionInstalled("zsh", env), true);
+      assert.equal(existsSync(cachePath), true);
+      assert.equal(profile.match(/# Shrimpy Completion/g)?.length, 1);
+      assert.match(profile, new RegExp(escapeRegExp(`source '${cachePath}'`)));
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(state, { recursive: true, force: true });
+    }
   });
 
   test("completion command does not require workspace config", () => {
@@ -61,6 +92,7 @@ describe("CLI catalog", () => {
 
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "bash"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "zsh"]).replace(/^usage: /, "")}\``)));
+    assert.match(docs, /`shrimpy completion install \[bash\\\|zsh\]`/);
   });
 });
 

@@ -15,6 +15,8 @@ Environment:
   SHRIMPY_REF          Branch, tag, or commit to install (default: main)
   SHRIMPY_INSTALL_DIR  App install directory (default: ~/.local/share/shrimpy/app)
   SHRIMPY_BIN_DIR      Directory for command symlinks (default: ~/.local/bin)
+  SHRIMPY_NO_AUTO_COMPLETION
+                       Set to 1 to skip automatic zsh completion install
 
 Example:
   curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
@@ -99,6 +101,13 @@ mkdir -p "$bin_dir"
 ln -sfn "$install_dir/dist/cli.js" "$bin_dir/shrimpy"
 ln -sfn "$install_dir/dist/gateway.js" "$bin_dir/shrimpy-gateway"
 ln -sfn "$install_dir/dist/web/server.js" "$bin_dir/shrimpy-web"
+
+if [[ "${SHRIMPY_NO_AUTO_COMPLETION:-}" != "1" && "${SHELL##*/}" == "zsh" ]]; then
+  echo "Installing zsh completion"
+  if ! "$bin_dir/shrimpy" completion install zsh; then
+    echo "warning: zsh completion install failed; run 'shrimpy completion install zsh' later" >&2
+  fi
+fi
 
 echo
 echo "Shrimpy installed."
