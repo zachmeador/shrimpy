@@ -9,6 +9,10 @@ import type { RuntimeConfig } from "../config/index.js";
 import {
   applyCurrentModelVariantInferenceToPayload,
 } from "../inference/params.js";
+import {
+  createTurnContextExtensionFactory,
+  type SessionTurnContextController,
+} from "./turn-context.js";
 
 const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "hello.ts"),
@@ -28,13 +32,17 @@ export function createShrimpyResourceLoader(opts: {
   systemPrompt: string;
   modelsPath?: string;
   skillPaths?: string[];
+  turnContextController?: SessionTurnContextController;
 }): DefaultResourceLoader {
   return new DefaultResourceLoader({
     cwd: opts.cwd,
     agentDir: join(projectRoot, ".shrimpy"),
     settingsManager: opts.settingsManager,
     additionalExtensionPaths: SHRIMPY_EXTENSION_PATHS,
-    extensionFactories: createInferenceExtensionFactories(opts.modelsPath),
+    extensionFactories: createExtensionFactories({
+      modelsPath: opts.modelsPath,
+      turnContextController: opts.turnContextController,
+    }),
     additionalSkillPaths: opts.runtimeConfig.noSkills
       ? []
       : (opts.skillPaths ?? []),
@@ -50,6 +58,20 @@ export function createShrimpyResourceLoader(opts: {
     agentsFilesOverride: () => ({ agentsFiles: [] }),
     appendSystemPromptOverride: () => [],
   });
+}
+
+function createExtensionFactories(opts: {
+  modelsPath?: string;
+  turnContextController?: SessionTurnContextController;
+}): ExtensionFactory[] {
+  return [
+    ...createInferenceExtensionFactories(opts.modelsPath),
+    ...(
+      opts.turnContextController
+        ? [createTurnContextExtensionFactory(opts.turnContextController)]
+        : []
+    ),
+  ];
 }
 
 function createInferenceExtensionFactories(modelsPath?: string): ExtensionFactory[] {

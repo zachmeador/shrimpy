@@ -12,7 +12,6 @@ import {
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
-import { isPromptAlreadyPrepared } from "../context/index.js";
 import {
   resolveModelVariantInference,
   type ModelVariantInference,
@@ -27,6 +26,10 @@ import { createShrimpyResourceLoader } from "./pi-resources.js";
 import { assembleSessionPrompt } from "./prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
 import { createSessionManager } from "./storage.js";
+import {
+  createSessionTurnContextController,
+  type SessionTurnContextController,
+} from "./turn-context.js";
 
 type CompactionLogEvent =
   | { type: "compaction_start"; reason?: string }
@@ -168,6 +171,9 @@ async function openSessionWithRuntimeDeps(
     descriptor: effectivePlan.descriptor,
     model: assembly.resolvedModel,
   });
+  const turnContextController = createSessionTurnContextController({
+    prepare: effectivePlan.prepareTurnContext,
+  });
   const settingsManager = createInlineSettingsManager({
     theme: bootstrap.runtimeConfig.theme,
     quietStartup: bootstrap.runtimeConfig.quietStartup,
@@ -184,6 +190,7 @@ async function openSessionWithRuntimeDeps(
     bootstrap,
     assembly,
     settingsManager,
+    turnContextController,
   );
 
   const { session } = await createAgentSession({
@@ -222,7 +229,6 @@ async function openSessionWithRuntimeDeps(
     env: assembly.env,
     compaction: compactionPolicy,
   });
-  wrapPromptPreparation(session, effectivePlan);
   subscribeToCompactionLogs(session, effectivePlan);
 
   return { session, resourceLoader };
@@ -294,11 +300,8 @@ async function resolveSessionResourceLoader(
   bootstrap: SessionBootstrap,
   assembly: ReturnType<typeof assembleSessionPrompt>,
   settingsManager: SettingsManager,
+  turnContextController: SessionTurnContextController,
 ): Promise<ResourceLoader> {
-  if (!assembly.needsCustomLoader) {
-    return bootstrap.resourceLoader;
-  }
-
   const resourceLoader = createShrimpyResourceLoader({
     cwd: assembly.cwd,
     settingsManager,
@@ -306,6 +309,7 @@ async function resolveSessionResourceLoader(
     systemPrompt: assembly.systemPrompt,
     modelsPath: bootstrap.modelsPath,
     skillPaths: bootstrap.skillEntryPaths,
+    turnContextController,
   });
   await resourceLoader.reload();
   return resourceLoader;
@@ -507,22 +511,6 @@ function toModelRef(model: Model<Api> | undefined): ModelRef | undefined {
 function formatModelRef(model: Model<Api> | undefined): string {
   if (!model) return "unset";
   return `${model.provider}/${model.id}`;
-}
-
-function wrapPromptPreparation(
-  session: AgentSession,
-  plan: SessionOpenPlan,
-): void {
-  // Wrap session.prompt once so direct runs and Pi's InteractiveMode can use
-  // the same turn-context prefix path as routed sessions. Slash commands stay raw
-  // so Pi can intercept them before normal prompt handling.
-  const originalPrompt = session.prompt.bind(session);
-  session.prompt = async (text, options) => {
-    const prepared = plan.preparePrompt && !isPromptAlreadyPrepared(text)
-      ? await plan.preparePrompt(text)
-      : text;
-    return originalPrompt(prepared, options);
-  };
 }
 
 function subscribeToCompactionLogs(

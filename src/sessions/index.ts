@@ -7,4 +7,5 @@ export * from "./service.js";
 export * from "./spec.js";
 export * from "./status.js";
 export * from "./storage.js";
+export * from "./turn-context.js";
 export * from "./turn-output.js";

@@ -16,7 +16,6 @@ import {
 } from "../channels/index.js";
 import {
   buildTurnContext,
-  composePromptWithContext,
   commandMatchesChannel,
   expandDirectoryResource,
   formatChannelMessage,
@@ -155,9 +154,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
     })
     : undefined;
   const turnContextText = turnContext ? renderTurnContext(turnContext) : undefined;
-  const turnPrompt = prompt
-    ? composePromptWithContext(userMessage, turnContextText)
-    : undefined;
+  const userMessagePreview = prompt ? userMessage : undefined;
 
   if (values.json) {
     console.log(
@@ -167,7 +164,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
           shrimpySystemPrompt: assembly.systemPrompt,
           promptSections: assembly.sections.map(summarizePromptSection),
           turnContext: turnContext ? { ...turnContext, text: turnContextText } : undefined,
-          turnPrompt,
+          userMessage: userMessagePreview,
         },
         null,
         2,
@@ -185,9 +182,15 @@ export const cmdContext: CommandHandler = async (argv, config) => {
 
   console.log(systemPromptPreview);
 
+  if (prompt && turnContextText && !values.turn) {
+    console.log(
+      `\n=== Turn Context ===\n\n${turnContextText}`,
+    );
+  }
+
   if (prompt) {
     console.log(
-      `\n=== User Message ===\n\n${turnPrompt}`,
+      `\n=== User Message ===\n\n${userMessage}`,
     );
   }
 

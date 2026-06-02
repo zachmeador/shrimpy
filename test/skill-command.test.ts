@@ -64,7 +64,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /Shrimpy Setup Skill/);
   });
 
-  test("context command renders the composed user message preview", async () => {
+  test("context command renders separate turn context and user message previews", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -75,7 +75,8 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     assert.match(output, /## Delivery/);
     assert.match(output, /send_message\(channel="home", text="\.\.\."\)/);
-    assert.match(output, /<context>\n\[turn-context\]/);
+    assert.match(output, /=== Turn Context ===\n\n\[turn-context\]/);
+    assert.match(output, /=== User Message ===/);
     assert.match(output, /\[channel: home, sender: human:\(user\)\]\nhello/);
     assert.doesNotMatch(output, /\[incoming\]/);
   });
@@ -108,9 +109,9 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(parsed.systemPrompt, /\*\*provider\*\*/);
     assert.doesNotMatch(parsed.systemPrompt, /Load a skill when/);
     assert.doesNotMatch(parsed.systemPrompt, /\| Skill \| Scope \| Description \|/);
-    assert.match(parsed.turnPrompt, /<context>\n\[turn-context\]/);
-    assert.match(parsed.turnPrompt, /\[channel: home, sender: human:\(user\)\]\nhello/);
-    assert.doesNotMatch(parsed.turnPrompt, /\[incoming\]/);
+    assert.match(parsed.turnContext.text, /^\[turn-context\]/);
+    assert.equal(parsed.userMessage, "[channel: home, sender: human:(user)]\nhello");
+    assert.doesNotMatch(parsed.userMessage, /\[incoming\]/);
   });
 
   test("context turn subcommand can render only turn context", async () => {
@@ -152,7 +153,7 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     const parsed = JSON.parse(lines.join("\n"));
     assert.match(parsed.turnContext.text, /home: 2 new messages/);
-    assert.match(parsed.turnPrompt, /inspect: shrimpy channels read home/);
+    assert.match(parsed.turnContext.text, /inspect: shrimpy channels read home/);
   });
 
   test("context sources list exposes configured and runtime sources", async () => {

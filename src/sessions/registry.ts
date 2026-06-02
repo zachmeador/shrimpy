@@ -3,7 +3,6 @@ import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-age
 import type { ChannelMessage } from "../channels/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import {
-  composePromptWithContext,
   formatChannelMessage,
   renderTurnContext,
   type TurnContext,
@@ -17,6 +16,10 @@ interface ManagedSession {
   session: AgentSession | null;
   channel: string;
   runChain: Promise<void>;
+  pendingTurnContext?: {
+    prompt: string;
+    text: string;
+  };
 }
 
 export interface SessionResetResult {
@@ -47,7 +50,7 @@ interface SessionRegistryOpts {
   turnContextForMessage?: (
     channel: string,
     message: ChannelMessage,
-  ) => TurnContext | Promise<TurnContext>;
+  ) => TurnContext | undefined | Promise<TurnContext | undefined>;
   markMessageHandled?: (
     channel: string,
     message: ChannelMessage,
@@ -64,7 +67,7 @@ export class SessionRegistry {
   private readonly turnContextForMessage?: (
     channel: string,
     message: ChannelMessage,
-  ) => TurnContext | Promise<TurnContext>;
+  ) => TurnContext | undefined | Promise<TurnContext | undefined>;
   private readonly markMessageHandled?: (
     channel: string,
     message: ChannelMessage,
@@ -114,7 +117,10 @@ export class SessionRegistry {
       return session;
     }
 
-    const plan = this.planForChannel(managed.channel);
+    const plan = this.planWithPendingTurnContext(
+      managed,
+      this.planForChannel(managed.channel),
+    );
     const creating = this.sessionFactory(this.bootstrap, {
       ...plan,
       tools: plan.tools ?? this.tools,
@@ -232,19 +238,34 @@ export class SessionRegistry {
     const turnContext = this.turnContextForMessage
       ? await this.turnContextForMessage(channel, message)
       : undefined;
-    const prompt = composePromptWithContext(
-      promptBody,
-      turnContext ? renderTurnContext(turnContext) : undefined,
-    );
     const session = await this.ensureSession(managed);
+    const turnContextText = turnContext ? renderTurnContext(turnContext) : undefined;
+    managed.pendingTurnContext = turnContextText
+      ? { prompt: promptBody, text: turnContextText }
+      : undefined;
 
     try {
-      await runSessionTurn(session, prompt);
+      await runSessionTurn(session, promptBody);
     } catch (err) {
       console.error(`[session:${managed.channel}] turn error:`, err);
     } finally {
+      managed.pendingTurnContext = undefined;
       await this.markMessageHandled?.(channel, message);
     }
+  }
+
+  private planWithPendingTurnContext(
+    managed: ManagedSession,
+    plan: SessionOpenPlan,
+  ): SessionOpenPlan {
+    return {
+      ...plan,
+      prepareTurnContext: async (prompt, images) => {
+        const pending = managed.pendingTurnContext;
+        if (pending && pending.prompt === prompt) return pending.text;
+        return plan.prepareTurnContext?.(prompt, images);
+      },
+    };
   }
 
   private async resetManaged(

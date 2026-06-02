@@ -5,7 +5,6 @@ import {
 import type { AppRuntime } from "../app/runtime.js";
 import { buildTurnContext } from "../context/index.js";
 import {
-  composePromptWithContext,
   renderTurnContext,
   type PromptResourceRef,
 } from "../context/index.js";
@@ -16,7 +15,7 @@ import type { ThinkingLevel } from "../inference/thinking.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
 import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
 import { installShrimpyCommandSurface } from "../tui/shrimpy-command-surface.js";
-import { installShrimpyContextRendering } from "../tui/shrimpy-context-rendering.js";
+import { installShrimpyToolRendering } from "../tui/shrimpy-tool-rendering.js";
 import { installShrimpyModelSelectionGuard } from "../tui/shrimpy-model-selection.js";
 import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
 import {
@@ -110,12 +109,12 @@ export async function openDirectAgentSession(
       appendSystemPrompt: input.appendSystemPrompt,
       skills: input.skills,
     },
-    preparePrompt: async (text) => {
+    prepareTurnContext: async () => {
       const turnContext = await buildTurnContext({
         runtime: input.runtime,
         descriptor,
       });
-      return composePromptWithContext(text, renderTurnContext(turnContext));
+      return renderTurnContext(turnContext);
     },
     model,
     toolPolicy: sessionToolPolicy,
@@ -216,12 +215,12 @@ async function runAgentTuiSession(
       appendSystemPrompt: input.appendSystemPrompt,
       skills: input.skills,
     },
-    preparePrompt: async (text) => {
+    prepareTurnContext: async () => {
       const turnContext = await buildTurnContext({
         runtime: input.runtime,
         descriptor,
       });
-      return composePromptWithContext(text, renderTurnContext(turnContext));
+      return renderTurnContext(turnContext);
     },
     model,
     toolPolicy: sessionToolPolicy,
@@ -247,7 +246,7 @@ async function runAgentTuiSession(
         sessionType: input.sessionType,
         cwd,
       });
-      installShrimpyContextRendering(interactive);
+      installShrimpyToolRendering(interactive);
       installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
       installShrimpySettingsSelector(interactive, {
         runtime: input.runtime,

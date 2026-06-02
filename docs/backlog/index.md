@@ -8,6 +8,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [CHANNEL-002](channel-002-attention-routed-channel-events.md) | review | P1 | Channels | none | Channel message routing |
+| [SESSION-001](session-001-pi-native-session-context.md) | review | P1 | Sessions | none | Pi-native session context |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [MODEL-001](model-001-user-configurable-model-policy.md) | draft | P1 | Models | none | User-configurable model policy |

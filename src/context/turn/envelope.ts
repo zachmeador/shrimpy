@@ -1,31 +1,12 @@
 const CONTEXT_OPEN_TAG = "<context>";
 const CONTEXT_CLOSE_TAG = "</context>";
 
-export function composePromptWithContext(
-  body: string,
-  contextText?: string,
-): string {
-  const context = contextText?.trim();
-  return context
-    ? `${CONTEXT_OPEN_TAG}\n${context}\n${CONTEXT_CLOSE_TAG}\n\n${body}`
-    : body;
-}
-
-/**
- * Pi only recognizes slash commands when the raw prompt starts with `/`.
- * Leave those inputs untouched so extension commands and built-ins still route
- * through Pi's command path.
- */
-export function isPromptAlreadyPrepared(body: string): boolean {
-  return body.startsWith(CONTEXT_OPEN_TAG) || body.startsWith("/");
-}
-
-export function stripPromptContextForDisplay(text: string): string {
-  if (!text.startsWith(CONTEXT_OPEN_TAG)) return text;
-
-  const closeIndex = text.indexOf(CONTEXT_CLOSE_TAG);
-  if (closeIndex === -1) return text;
-
-  const afterClose = text.slice(closeIndex + CONTEXT_CLOSE_TAG.length);
-  return afterClose.replace(/^(?:\r?\n){1,2}/, "");
+export function formatEphemeralTurnContext(text: string): string {
+  return [
+    CONTEXT_OPEN_TAG,
+    text,
+    CONTEXT_CLOSE_TAG,
+    "",
+    "Use this ephemeral context for the immediately following message. Do not answer the context itself.",
+  ].join("\n");
 }

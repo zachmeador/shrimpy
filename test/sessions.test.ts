@@ -15,9 +15,28 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import {
+  AuthStorage,
+  createAgentSession,
+  DefaultResourceLoader,
+  ModelRegistry,
+  SessionManager,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
+import {
+  createAssistantMessageEventStream,
+  type Api,
+  type AssistantMessage,
+  type Context,
+  type Model,
+} from "@earendil-works/pi-ai";
 import { makeMessage } from "../dist/channels/index.js";
 import { SessionRegistry } from "../dist/sessions/registry.js";
 import { assembleSessionPrompt } from "../dist/sessions/prompt.js";
+import {
+  createSessionTurnContextController,
+  createTurnContextExtensionFactory,
+} from "../dist/sessions/turn-context.js";
 import {
   formatChannelMessage,
   renderTurnContext,
@@ -32,6 +51,57 @@ function sleep(ms: number): Promise<void> {
 
 const STABLE_SYSTEM_PROMPT = "# SOUL\n\nStable cacheable identity.";
 
+function createCaptureModel(provider = "shrimpy-context-capture"): Model<Api> {
+  return {
+    id: "capture-model",
+    name: "Capture Model",
+    api: "openai-completions",
+    provider,
+    baseUrl: "https://example.invalid",
+    reasoning: false,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 128000,
+    maxTokens: 4096,
+  };
+}
+
+function createDoneStream(api: Api, provider: string): ReturnType<typeof createAssistantMessageEventStream> {
+  const stream = createAssistantMessageEventStream();
+  const message: AssistantMessage = {
+    role: "assistant",
+    content: [{ type: "text", text: "ok" }],
+    api,
+    provider,
+    model: "capture-model",
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+    stopReason: "stop",
+    timestamp: Date.now(),
+  };
+  stream.end(message);
+  return stream;
+}
+
+function messageText(message: unknown): string {
+  const content = (message as { content?: unknown }).content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((block) =>
+      typeof block === "object" && block !== null && "text" in block
+        ? String((block as { text?: unknown }).text ?? "")
+        : ""
+    )
+    .join("");
+}
+
 function createMockSession(opts?: {
   turnDurationMs?: number;
   systemPrompt?: string;
@@ -39,16 +109,30 @@ function createMockSession(opts?: {
   const turnDuration = opts?.turnDurationMs ?? 10;
   const listeners: Listener[] = [];
   const prompts: string[] = [];
+  const llmPromptBatches: string[][] = [];
   const systemPromptSnapshots: string[] = [];
   const thinkingChanges: string[] = [];
+  let beforePrompt: ((text: string) => Promise<void>) | undefined;
 
   const session = {
     prompts,
+    llmPromptBatches,
     systemPrompt: opts?.systemPrompt ?? STABLE_SYSTEM_PROMPT,
     systemPromptSnapshots,
     thinkingChanges,
     thinkingLevel: "off",
     disposed: false,
+    agent: {
+      state: {
+        messages: [] as any[],
+      },
+      transformContext: undefined as
+        | ((messages: any[], signal?: AbortSignal) => Promise<any[]>)
+        | undefined,
+    },
+    setBeforePrompt(fn: (text: string) => Promise<void>): void {
+      beforePrompt = fn;
+    },
     subscribe(listener: Listener): () => void {
       listeners.push(listener);
       return () => {
@@ -59,6 +143,27 @@ function createMockSession(opts?: {
     async prompt(text: string): Promise<void> {
       prompts.push(text);
       systemPromptSnapshots.push(session.systemPrompt);
+      await beforePrompt?.(text);
+      const message = {
+        role: "user",
+        content: [{ type: "text", text }],
+        timestamp: Date.now(),
+      };
+      const modelMessages = session.agent.transformContext
+        ? await session.agent.transformContext([
+          ...session.agent.state.messages,
+          message,
+        ])
+        : [...session.agent.state.messages, message];
+      llmPromptBatches.push(modelMessages.map((item: any) =>
+        Array.isArray(item.content)
+          ? item.content
+            .filter((block: any) => block.type === "text")
+            .map((block: any) => block.text)
+            .join("")
+          : "",
+      ));
+      session.agent.state.messages.push(message);
       await sleep(turnDuration);
       for (const listener of [...listeners]) {
         listener({ type: "agent_end", messages: [] });
@@ -142,6 +247,11 @@ function createSessionFactory(opts?: {
       turnDurationMs: opts?.turnDurationMs,
       systemPrompt: assembly?.systemPrompt,
     });
+    const controller = createSessionTurnContextController({
+      prepare: (createOpts as any)?.prepareTurnContext,
+    });
+    session.setBeforePrompt((text) => controller.prepareForPrompt(text));
+    session.agent.transformContext = async (messages) => controller.transform(messages);
     sessions.push(session);
     return session as any;
   };
@@ -297,6 +407,94 @@ describe("createGatewaySessionDescriptor", () => {
   });
 });
 
+describe("turn context Pi extension", () => {
+  test("injects ephemeral turn context through Pi's real context hook without persisting it", async () => {
+    const root = mkdtempSync(join(tmpdir(), "shrimpy-pi-context-"));
+    const cwd = join(root, "cwd");
+    const agentDir = join(root, "agent");
+    mkdirSync(cwd, { recursive: true });
+    mkdirSync(agentDir, { recursive: true });
+
+    const model = createCaptureModel(`capture-${Date.now()}`);
+    const capturedContexts: Context[] = [];
+    const settingsManager = SettingsManager.inMemory({});
+    const authStorage = AuthStorage.create(join(agentDir, "auth.json"));
+    authStorage.setRuntimeApiKey(model.provider, "test-api-key");
+    const modelRegistry = ModelRegistry.create(authStorage, join(agentDir, "models.json"));
+    modelRegistry.registerProvider(model.provider, {
+      api: model.api,
+      baseUrl: model.baseUrl,
+      apiKey: "test-api-key",
+      streamSimple: (_model, context) => {
+        capturedContexts.push(context);
+        return createDoneStream(model.api, model.provider);
+      },
+      models: [{
+        id: model.id,
+        name: model.name,
+        api: model.api,
+        baseUrl: model.baseUrl,
+        reasoning: false,
+        input: ["text"],
+        cost: model.cost,
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
+      }],
+    });
+
+    const controller = createSessionTurnContextController({
+      prepare: (prompt) =>
+        prompt === "hello from pi"
+          ? "prepared by Pi before_agent_start"
+          : undefined,
+    });
+    const resourceLoader = new DefaultResourceLoader({
+      cwd,
+      agentDir,
+      settingsManager,
+      extensionFactories: [createTurnContextExtensionFactory(controller)],
+      noExtensions: true,
+      noSkills: true,
+      noPromptTemplates: true,
+      noThemes: true,
+      noContextFiles: true,
+      systemPrompt: STABLE_SYSTEM_PROMPT,
+    });
+    await resourceLoader.reload();
+
+    const sessionManager = SessionManager.inMemory(cwd);
+    const { session } = await createAgentSession({
+      cwd,
+      agentDir,
+      model,
+      authStorage,
+      modelRegistry,
+      settingsManager,
+      sessionManager,
+      resourceLoader,
+    });
+
+    try {
+      await session.prompt("hello from pi");
+
+      assert.equal(capturedContexts.length, 1);
+      const providerText = capturedContexts[0].messages.map(messageText).join("\n");
+      assert.match(providerText, /<context>\nprepared by Pi before_agent_start/);
+      assert.match(providerText, /Use this ephemeral context for the immediately following message/);
+      assert.match(providerText, /hello from pi/);
+
+      const persistedText = (session as any).messages.map(messageText).join("\n");
+      assert.match(persistedText, /hello from pi/);
+      assert.match(persistedText, /ok/);
+      assert.doesNotMatch(persistedText, /prepared by Pi before_agent_start|<context>/);
+    } finally {
+      session.dispose();
+      modelRegistry.unregisterProvider(model.provider);
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("SessionRegistry", () => {
   test("deduplicates concurrent session creation per channel", async () => {
     const sessionFactory = createSessionFactory({ creationDelayMs: 20 });
@@ -333,7 +531,7 @@ describe("SessionRegistry", () => {
     ]);
   });
 
-  test("injects turn context before the channel message", async () => {
+  test("injects turn context into model context without persisting it in the prompt", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const registry = createRegistry(sessionFactory, undefined, {
       turnContextForMessage: () => ({
@@ -354,15 +552,53 @@ describe("SessionRegistry", () => {
     await registry.dispatch("telegram~shrimpy~1", message);
 
     assert.equal(sessionFactory.sessions[0].prompts.length, 1);
-    assert.match(
+    assert.equal(
       sessionFactory.sessions[0].prompts[0],
-      /^<context>\n\[turn-context\]/,
+      "[channel: telegram~shrimpy~1, sender: human:alice]\nhello",
+    );
+    const modelBatch = sessionFactory.sessions[0].llmPromptBatches[0];
+    assert.equal(modelBatch.length, 2);
+    assert.match(
+      modelBatch[0],
+      /^<context>\n\[turn-context\][\s\S]*prior thing happened[\s\S]*<\/context>/,
+    );
+    assert.equal(
+      modelBatch[1],
+      "[channel: telegram~shrimpy~1, sender: human:alice]\nhello",
+    );
+    assert.doesNotMatch(modelBatch.join("\n"), /\[incoming\]/);
+  });
+
+  test("injects prepared session context through the same model context path", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    const bootstrap = createFakeBootstrap();
+    const registry = new SessionRegistry(bootstrap, {
+      sessionFactory: sessionFactory.factory as any,
+      planForChannel: (channel) => ({
+        descriptor: createGatewaySessionDescriptor({
+          workspacePath: bootstrap.workspacePath,
+          channel,
+        }),
+        prepareTurnContext: async () => "prepared direct/TUI-style context",
+      }),
+    });
+    const message = humanText("hello");
+
+    await registry.dispatch("local", message);
+
+    const session = sessionFactory.sessions[0];
+    assert.equal(
+      session.prompts[0],
+      "[channel: local, sender: human:alice]\nhello",
     );
     assert.match(
-      sessionFactory.sessions[0].prompts[0],
-      /prior thing happened[\s\S]*<\/context>\n\n\[channel: telegram~shrimpy~1, sender: human:alice\]\nhello/,
+      session.llmPromptBatches[0][0],
+      /^<context>\nprepared direct\/TUI-style context[\s\S]*<\/context>/,
     );
-    assert.doesNotMatch(sessionFactory.sessions[0].prompts[0], /\[incoming\]/);
+    assert.equal(
+      session.llmPromptBatches[0][1],
+      "[channel: local, sender: human:alice]\nhello",
+    );
   });
 
   test("keeps routed turn context out of the stable system prompt for prompt caching", async () => {
@@ -404,14 +640,64 @@ describe("SessionRegistry", () => {
       session.systemPrompt,
       /<context>|\[turn-context\]|first live turn context|second live turn context/,
     );
-    assert.match(
+    assert.equal(
       session.prompts[0],
-      /first live turn context[\s\S]*<\/context>\n\n\[channel: telegram~shrimpy~1, sender: human:alice\]\nfirst/,
+      "[channel: telegram~shrimpy~1, sender: human:alice]\nfirst",
+    );
+    assert.equal(
+      session.prompts[1],
+      "[channel: telegram~shrimpy~1, sender: human:alice]\nsecond",
     );
     assert.match(
-      session.prompts[1],
-      /second live turn context[\s\S]*<\/context>\n\n\[channel: telegram~shrimpy~1, sender: human:alice\]\nsecond/,
+      session.llmPromptBatches[0].join("\n"),
+      /first live turn context[\s\S]*\[channel: telegram~shrimpy~1, sender: human:alice\]\nfirst/,
     );
+    assert.match(
+      session.llmPromptBatches[1].join("\n"),
+      /second live turn context[\s\S]*\[channel: telegram~shrimpy~1, sender: human:alice\]\nsecond/,
+    );
+  });
+
+  test("does not leak routed turn context into later turns", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    const registry = createRegistry(sessionFactory, undefined, {
+      turnContextForMessage: (_channel, message) => {
+        const text = message.content.type === "text"
+          ? message.content.data.text
+          : "";
+        if (text !== "first") return undefined;
+        return {
+          agentId: "shrimpy",
+          channel: "telegram~shrimpy~1",
+          sessionType: "gateway",
+          capturedAt: "Wed, 04/29/2026, 12:00 AM EDT",
+          maxChars: 2000,
+          items: [{
+            id: "turn:first",
+            summary: "first-only live turn context",
+          }],
+        };
+      },
+    });
+    const first = humanText("first");
+    const second = humanText("second");
+
+    await registry.dispatch("telegram~shrimpy~1", first);
+    await registry.dispatch("telegram~shrimpy~1", second);
+
+    const session = sessionFactory.sessions[0];
+    assert.match(
+      session.llmPromptBatches[0].join("\n"),
+      /first-only live turn context/,
+    );
+    assert.doesNotMatch(
+      session.llmPromptBatches[1].join("\n"),
+      /first-only live turn context|<context>|\[turn-context\]/,
+    );
+    assert.deepEqual(session.llmPromptBatches[1], [
+      formatChannelMessage("telegram~shrimpy~1", first),
+      formatChannelMessage("telegram~shrimpy~1", second),
+    ]);
   });
 
   test("renders turn context text from structured data", () => {

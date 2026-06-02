@@ -5,6 +5,7 @@ import type { PromptResourceRef } from "../context/index.js";
 import type { ModelVariantInference } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import type { SessionToolPolicy } from "../tools/policy.js";
+import type { PrepareSessionTurnContext } from "./turn-context.js";
 
 export interface SessionDescriptor {
   agentId?: string;
@@ -29,7 +30,7 @@ export interface SessionOpenPlan {
     skills?: string[];
     extraResources?: PromptResourceRef[];
   };
-  preparePrompt?: (text: string) => string | Promise<string>;
+  prepareTurnContext?: PrepareSessionTurnContext;
 }
 
 export function sanitizeSessionSegment(value: string): string {
