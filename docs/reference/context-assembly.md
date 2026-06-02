@@ -1,6 +1,14 @@
 # 🦐 Prompt Context
 
-Shrimpy assembles the agent's prompt from `PromptSection`s. Each section has a `kind`, content, and provenance. The assembler orders sections, renders them into one system prompt at session open, and prepends a per-turn `<context>...</context>` envelope at turn time.
+Shrimpy assembles stable session prompt text from `PromptSection`s. Each
+section has a `kind`, content, and provenance. The assembler orders sections
+and renders them into one system prompt at session open.
+
+Per-turn context is separate. At turn time Shrimpy renders live state into a
+`<context>...</context>` envelope and injects it through Pi's provider-bound
+context hook immediately before the current user message. The durable user
+message is not rewritten, and the envelope is not persisted in the Pi session
+file.
 
 ## Sections
 
@@ -13,9 +21,12 @@ A `PromptSection` (`src/context/resources.ts`) carries:
 - `reason` — why this section is here
 
 Resource-backed sections load from disk via `assemblePromptResourceSections`.
-Generated Shrimpy sections such as runtime environment, delivery hints, and turn
-context are built by context services. Available skills are resolved by Shrimpy
-but rendered by Pi as an `<available_skills>` block after the Shrimpy base prompt.
+Generated Shrimpy session sections such as runtime environment and delivery
+hints are built by context services. Available skills are resolved by Shrimpy
+but rendered by Pi as an `<available_skills>` block after the Shrimpy base
+prompt. Turn-scoped command sources are inspected through the same context
+configuration, but they render into the per-turn envelope instead of the stable
+system prompt.
 
 ## Source Configuration
 
@@ -64,18 +75,19 @@ Sections are sorted by kind at assembly time. The order (`PROMPT_SECTION_KIND_OR
 3. `instruction` — extra system prompt additions
 4. `capability` — Shrimpy-owned capability guidance
 5. `runtime` — environment facts, delivery hints
-6. `activity` — turn context items
+6. `activity` — stable activity sections when present
 7. `evidence` — inspectable evidence sections
 
-Live state lands at the end of the Shrimpy base prompt. Pi appends its
-available-skill block after that base prompt so previews match runtime sessions.
+Stable runtime facts land near the end of the Shrimpy base prompt. Pi appends
+its available-skill block after that base prompt so previews match runtime
+sessions.
 
-## Turn Envelope
+## Turn Context Injection
 
-Per turn, the prompt body is prefixed with a `<context>...</context>` block from `buildTurnContext` (`src/context/turn/service.ts`):
+Per turn, `buildTurnContext` (`src/context/turn/service.ts`) gathers live
+facts and `renderTurnContext` renders the body:
 
 ```text
-<context>
 [turn-context]
 time: 2026-04-29T12:00:00Z
 agent: shrimpy
@@ -92,11 +104,29 @@ project notes from agents/shrimpy/context/channels/home.md
 
 ### peer:human:alice
 working notes from agents/shrimpy/context/people/human:alice.md
+```
+
+`formatEphemeralTurnContext` wraps that rendered text in `<context>` tags with
+a short instruction. Shrimpy's Pi extension uses `before_agent_start`,
+`context`, and `agent_end` hooks to insert that wrapped context as an ephemeral
+provider-facing user message immediately before the durable user prompt:
+
+```text
+<context>
+[turn-context]
+...
 </context>
+
+Use this ephemeral context for the immediately following message. Do not answer
+the context itself.
 
 [channel: home, sender: human:alice]
 ...
 ```
+
+The final channel/user prompt remains the persisted message. This keeps direct
+TUI, direct `run`, gateway channel, and child-session behavior aligned while
+keeping channel-origin facts out of durable user text.
 
 The memory context block is built by `buildMemoryContext` (`src/memory/context.ts`). It reads path-indexed files for the active turn:
 
@@ -114,10 +144,11 @@ shrimpy context --agent shrimpy                 # rendered system prompt
 shrimpy context --agent shrimpy --json          # includes systemPrompt with Pi skills and shrimpySystemPrompt without them
 shrimpy context --agent shrimpy --sections      # section manifest with provenance
 shrimpy context --agent shrimpy --sections --json
-shrimpy context --turn --channel home       # full turn preview
+shrimpy context --turn --channel home           # full preview with separate turn context and user message
 shrimpy context turn --agent shrimpy --channel home
 shrimpy context sources list --agent shrimpy --channel home --json
 shrimpy context sources run runtime:turn-context --agent shrimpy --channel home
 ```
 
 `--sections --json` returns each section's id, kind, source, reason, and length.
+`--turn --json` includes `turnContext` and `userMessage` as separate fields.

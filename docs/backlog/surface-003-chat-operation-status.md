@@ -47,6 +47,10 @@ Exact wording should be adapter-neutral in shared code and adapter-specific at t
 ## Implementation Notes
 - Build on the current compaction event subscription in `src/sessions/open.ts`.
 - Thread a scoped operation-status publisher into gateway session opening, likely from `SessionRegistry` or `AgentChannelRuntime`, so direct `tui` and `run` sessions do not publish chat statuses.
+- Keep operation-status emission tied to accepted gateway/session lifecycle
+  events, not to turn-context preparation or Pi's provider-bound context hook.
+  Status is surface-facing runtime telemetry; turn context is model-facing
+  ephemeral context.
 - Extend `src/channels/egress.ts` and `src/channels/bus.ts` with a non-message or clearly typed status delivery path.
 - Keep this parallel to, but distinct from, the ephemeral surface activity route used for typing.
 - If statuses are appended to channel logs, store them as typed system/status messages, not as fake agent replies. If they are not logged, make that explicit and inspectable through gateway logs.

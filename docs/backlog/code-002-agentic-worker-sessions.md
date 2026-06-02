@@ -89,6 +89,10 @@ closes it.
   up during normal shutdown.
 - Surface worker status in session-status and turn context so agents can
   autonomously notice blocked, running, failed, and completed work.
+- For Pi-backed workers, feed worker state through the same
+  `prepareTurnContext` / Pi `context` hook path as direct, TUI, and gateway
+  sessions. Worker prompts should stay durable prompt bodies, not prompt-prefix
+  wrappers.
 - Scope workers to an owning agent, and record enough lineage for relevance:
   parent session, session kind, optional originating channel, goal, and current
   status.
@@ -115,6 +119,9 @@ closes it.
   observable through inspection commands, relevant turn context, and the
   [CHANNEL-002](channel-002-attention-routed-channel-events.md) path when a
   parent explicitly sends status onward.
+- Do not introduce worker-specific prompt rewriting or a second ephemeral
+  context injection mechanism. Use the existing Shrimpy/Pi session hook path
+  unless Pi is the proven constraint for a backend.
 - Do not require external coding-agent CLIs for Shrimpy to keep working.
 - Do not invent a second channel system; when a worker needs a channel return
   path, use normal Shrimpy channels. Otherwise, keep status, summaries, and logs
@@ -138,6 +145,10 @@ closes it.
   worker-control tools.
 - Related: extend the existing session-status turn-context item with worker
   state once worker sessions exist.
+- Related: the stable turn-context boundary is documented in
+  [turn-context.md](../reference/turn-context.md); workers should add facts
+  through turn context, not durable prompt prefixes or worker-only routing
+  instructions.
 - Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) is the
   shared channel-origin continuation path; workers should not add their own.
 - Design pressure is sketched in
@@ -165,6 +176,9 @@ closes it.
   requested goals without waiting for hand-holding, stop and report when blocked,
   avoid destructive actions, and defer parent-owned decisions such as merging,
   publishing, deleting, resetting, or broad rewrites.
+- The worker summary used for turn context should be a context producer feeding
+  Shrimpy's existing turn-context renderer, not prose manually spliced into the
+  parent's prompt.
 - Worker turn context relevance likely needs tiers: current parent session first,
   current channel next when a channel exists, other active workers owned by the
   same agent as a compact count or summary, and cross-agent workers only when

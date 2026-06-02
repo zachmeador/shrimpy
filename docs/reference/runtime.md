@@ -63,7 +63,12 @@ runtime, activity, and evidence last. Pi then appends its own
 `<available_skills>` block for the Shrimpy-approved skill paths. See
 [context-assembly.md](context-assembly.md) and [skills.md](skills.md).
 
-At turn time, Shrimpy prepends a `<context>...</context>` block: current time/session facts, channel-unread pointers, path-indexed memory slices, command-source output, and inspect commands.
+At turn time, Shrimpy prepares a separate ephemeral `<context>...</context>`
+message with current time/session facts, channel-unread pointers, path-indexed
+memory slices, command-source output, and inspect commands. That message is
+injected through Pi's context hook before the current user prompt. It is
+provider-facing only: the persisted user prompt remains the direct prompt body
+or formatted channel message.
 
 ## Session Lifecycle
 
@@ -104,4 +109,5 @@ At turn time, Shrimpy prepends a `<context>...</context>` block: current time/se
 - `shrimpy schedules` reports source paths, target channels, expected attention,
   next runs, and recent emitted scheduler messages.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
-- `shrimpy context` renders assembled session context for inspection.
+- `shrimpy context` renders the assembled session prompt and can preview
+  per-turn context separately from the user message.

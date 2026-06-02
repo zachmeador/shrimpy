@@ -28,6 +28,9 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 - Do not silently accept DMs from unconfigured Discord users.
 - Do not add name-based authorization. Discord user ids are the authorization key.
 - Do not create a second chat/session system. Discord DMs become normal Shrimpy channels and gateway sessions.
+- Do not add Discord-specific session semantics. Once a DM is normalized into a
+  Shrimpy channel message, the normal gateway session and Pi turn-context hook
+  path should carry origin/routing facts.
 - Do not add legacy shims, deprecated config aliases, or migration paths.
 
 ## Shape

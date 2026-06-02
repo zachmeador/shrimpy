@@ -14,12 +14,15 @@ inspection still flow through separate paths.
 Make context assembly inspectable as one deterministic trace:
 
 ```text
-source config -> resolved source plan -> produced context blocks -> rendered prompt/turn context
+source config -> resolved source plan -> produced context blocks -> rendered prompt/turn context -> provider-facing injected turn
 ```
 
 The inspection view should match the actual material used for the prompt and
 turn context, so agents and developers can trust `shrimpy context` output when
-debugging a session.
+debugging a session. The trace should keep four artifacts distinct: stable
+system prompt, ephemeral turn context, durable user message, and the
+provider-facing message sequence after Pi's context hook has injected the
+ephemeral context.
 
 This is lowest-priority observability work. Build it only when context
 provenance becomes a recurring debugging problem, or when continuation,
@@ -41,6 +44,8 @@ schedule, and worker-status context expands enough that the existing
   instead of treating them as separate source systems.
 - Make `shrimpy context --sections`, `shrimpy context turn`, and
   `shrimpy context sources list/run` read from the same trace model.
+- Include the durable user message and provider-facing injected context view in
+  turn traces, without persisting the injected context as a transcript message.
 - Keep command and runtime producers explicitly inspectable without duplicating
   execution logic in the CLI.
 
@@ -52,6 +57,9 @@ schedule, and worker-status context expands enough that the existing
   accidentally execute command sources or mutate turn context freshness state.
 - Preserve stable prompt resources as session context and live facts as turn
   context.
+- Preserve the stable session-context boundary: trace/debug views may show
+  provider-facing injected context, but they must not turn it back into durable
+  prompt text.
 - Do not add legacy compatibility paths unless a concrete workspace-facing break
   requires it.
 
@@ -70,7 +78,8 @@ schedule, and worker-status context expands enough that the existing
 ## Done
 
 - Context source resolution, block materialization, prompt rendering, turn
-  turn context rendering, and CLI inspection share one trace model.
+  context rendering, provider-facing turn injection preview, and CLI inspection
+  share one trace model.
 - JSON output exposes the trace with source plan, produced blocks, render
   targets, provenance, freshness/cache status, inspect commands, and skipped or
   failed source statuses.

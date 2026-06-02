@@ -10,10 +10,10 @@ Current behavior of Shrimpy.
 - [runtime.md](runtime.md) — CLI sessions, gateway dispatch, scheduler runs, child runs.
 - [tools.md](tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
 - [security.md](security.md) — tool policy and inspection commands.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn context envelope.
+- [context-assembly.md](context-assembly.md) — prompt section assembly and provider-bound turn-context injection.
 - [memory.md](memory.md) — memory model, upkeep, and context loading.
 - [skills.md](skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
-- [turn-context.md](turn-context.md) — per-turn context items and config.
+- [turn-context.md](turn-context.md) — per-turn context generation and config.
 - [compaction.md](compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [cli.md](cli.md) — command surface.
 - [configuration.md](configuration.md) — workspace config files and their fields.

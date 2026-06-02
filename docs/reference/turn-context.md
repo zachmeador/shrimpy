@@ -1,8 +1,12 @@
 # 🦐 Turn Context
 
-Turn context is generated live state, prepended to the user message in a `<context>...</context>` envelope.
+Turn context is generated live state for one model turn. Shrimpy renders it as
+a `<context>...</context>` envelope and injects it through Pi's provider-bound
+context hook immediately before the current user message.
 
-The runtime labels the rendered header `[turn-context]`, and the public API is `shrimpy context`.
+The durable user message is not rewritten and the context envelope is not saved
+to the Pi session transcript. The runtime labels the rendered header
+`[turn-context]`, and the public API is `shrimpy context`.
 
 ## Shape
 
@@ -28,6 +32,18 @@ Shrimpy includes:
 Command sources let workspace-specific agents add their own alerts. For example, a finance agent can expose `finance-shrimpy alerts context` and Shrimpy includes its output for selected channels.
 
 Command output is compact text. Use evidence or inspect commands inside that text when the agent should know how to drill down.
+
+## Runtime Path
+
+Direct TUI, direct `run`, gateway channel sessions, and child sessions all use
+the same session-open hook shape. A session plan provides
+`prepareTurnContext`; Shrimpy's Pi extension prepares context in
+`before_agent_start`, inserts it during Pi's `context` event, and clears it on
+`agent_end`.
+
+Gateway sessions bind the pending context to the exact formatted channel
+message being handled, so queued channel turns cannot leak context into one
+another.
 
 ## Config
 

@@ -11,7 +11,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 - Channels are append-only JSONL logs under `workspace/channels/`.
 - Agents live under `workspace/agents/<id>/` with their own prompt resources, memory, skills, and sessions.
 - Pi owns model calls, tool execution, the interactive TUI, the session runtime, and transcript persistence. Shrimpy owns session framing, routing, workspace conventions, and targeted TUI seams such as the unified `/settings` selector.
-- Prompts are assembled from typed `PromptSection`s — identity/memory/instruction first, capability next, runtime/activity/evidence last — with a per-turn context envelope on top.
+- Prompts are assembled from typed `PromptSection`s — identity/memory/instruction first, capability next, runtime/activity/evidence last — into a stable system prompt. Per-turn context is injected separately through Pi's context hook.
 
 ## Core Loop
 
@@ -30,7 +30,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 - [design.md](design.md) — current design principles and constraints.
 - [architecture.md](architecture.md) — primitives and layering.
 - [runtime.md](runtime.md) — execution flow.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn context envelope.
+- [context-assembly.md](context-assembly.md) — prompt section assembly and provider-bound turn-context injection.
 - [memory.md](memory.md) — memory model and upkeep.
 - [skills.md](skills.md) — skill bundle shape and Pi-backed loading.
 - [cli.md](cli.md) — commands.

@@ -12,7 +12,8 @@ Pi owns the tool loop:
 2. The model emits a tool call.
 3. Pi validates the arguments against the tool's TypeBox schema.
 4. Pi runs the tool's `execute()` function.
-5. Pi appends the tool result back into the turn context.
+5. Pi appends the tool result back into the provider-facing message stream for
+   that turn.
 
 Tool calls may run in parallel within a turn when the provider/model emits
 parallel calls. Tool output should stay bounded and prompt-safe.

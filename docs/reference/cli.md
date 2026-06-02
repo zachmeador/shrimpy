@@ -40,9 +40,9 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy schedules once (--at <time>\|--in <duration>) --channel <name> --text <text> [--agent <id>]` | Create a durable one-time scheduled channel message. Agents use this CLI command too; there is no scheduling daemon tool. |
 | `shrimpy schedules cancel <schedule-id> [--json]` | Cancel a pending one-time schedule. |
 | `shrimpy schedules show <schedule-id> [--json]` | Show one resolved recurring or one-time schedule; agent-owned recurring schedules use `agent-id/local-schedule-id`. |
-| `shrimpy context` | Render assembled session context. |
+| `shrimpy context` | Render assembled session prompt context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
-| `shrimpy context --turn -c <name>` | Render the full turn preview, including prompt sections and turn context. |
+| `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |
 | `shrimpy context turn --channel <name>` | Render only turn context for a channel/session. |
 | `shrimpy context files list [--agent <id>] [--older-than <dur>] [--json]` | List agent context Markdown files. Useful for upkeep skills. |
 | `shrimpy context files show [--agent <id>] <path>` | Print one agent context file. |

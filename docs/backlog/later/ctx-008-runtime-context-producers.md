@@ -21,16 +21,21 @@ no longer inspectable enough.
 - Define explicit inputs for rendering built-in runtime context producers.
 - Add CLI coverage for rendering individual runtime producers with agent,
   channel, and turn/session inputs where relevant.
+- Feed producer output through `buildTurnContext` / `renderTurnContext` so the
+  CLI view matches the ephemeral context injected by Shrimpy's Pi context hook.
 - Include producers for continuation-adjacent runtime facts as they land,
   especially current source-message metadata, one-time schedule provenance, and
   worker status pointers.
 - Decide whether `runtime` remains a source type or becomes a set of built-in
   command-backed sources.
-- Keep prompt assembly on the existing unified context-source path.
+- Keep prompt assembly on the existing unified context-source path, and keep
+  turn-scoped producers out of durable user prompt text.
 
 ## Boundaries
 
 - Do not create a second prompt assembly path.
+- Do not introduce prompt-prefix preview/rendering paths. The provider-facing
+  context hook remains the runtime path for turn context.
 - Keep output compact, deterministic, and inspectable.
 - Do not add migration or compatibility code unless a concrete workspace-facing
   break requires it.

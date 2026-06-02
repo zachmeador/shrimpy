@@ -8,9 +8,9 @@ Depends On: none
 ## Why
 
 TUI, CLI, and gateway turns should behave like different surfaces over the same
-session model. Today they can diverge because Shrimpy sometimes prepares a
-prompt by prefixing turn context into the durable user message, while routed
-gateway turns can inject context separately.
+session model. This item replaces the old divergence where some Shrimpy paths
+prepared a prompt by prefixing turn context into the durable user message while
+routed gateway turns could inject context separately.
 
 That makes session transcripts heavier than they need to be and blurs the
 boundary between durable conversation history and ephemeral routing/runtime
@@ -73,12 +73,13 @@ by rewriting the prompt text passed to `session.prompt()`.
 
 ## Pi Pressure Points
 
-Pi already exposes the important primitive:
+Pi already exposes the important primitives:
 
 - `Agent.transformContext` runs immediately before provider conversion.
 - `pi-coding-agent` wires that into the extension `context` event.
-- `before_agent_start` is not suitable for ephemeral context because injected
-  messages persist as session messages.
+- `before_agent_start` can prepare pending ephemeral context for the current
+  prompt, but injection belongs in the `context` event so the extra message is
+  provider-facing only.
 
 If Shrimpy needs more metadata than the current `context` event provides, the
 preferred extension is a small Pi API such as `session.prompt(text,

@@ -32,7 +32,11 @@ This should be modeled as `runtime activity -> surface activity projection`, not
 - Extend `src/channels/bus.ts` with a non-logging activity helper, probably separate from `deliverText`.
 - Implement `sendChatAction` in `src/surfaces/telegram/client.ts` and register Telegram activity in `src/surfaces/telegram/surface.ts`.
 - Add a small Telegram activity guard for repeated authorization failures, following OpenClaw's adapter-side `sendChatAction` backoff pattern.
-- Start/stop the activity around `runSessionTurn` in `src/sessions/registry.ts`, after `shouldHandleMessage` has passed in `src/agents/channel-runtime.ts`.
+- Start/stop the activity around the accepted gateway turn lifecycle in
+  `src/sessions/registry.ts`, after `shouldHandleMessage` has passed in
+  `src/agents/channel-runtime.ts`. Do not hook typing to turn-context
+  preparation or Pi's provider-bound context event; those are model-context
+  concerns, not surface activity.
 - Keep the direct TUI's existing activity indicator conceptually aligned: both TUI animation and Telegram typing are surface renderings of active session work.
 - Keep tests focused on routing, Telegram API call shape, lifecycle cleanup, and no activity for ignored messages.
 

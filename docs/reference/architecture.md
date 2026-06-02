@@ -23,7 +23,8 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
   workspace scheduler definitions live in `config/schedules.json`.
 - **Skill** — prompt and resource material loaded into a session.
 - **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).
-- **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last) into one system prompt, and prepends the per-turn context envelope with runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices.
+- **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last) into one system prompt.
+- **Turn context** — renders runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices for one turn, then injects them through Pi's provider-bound context hook without rewriting the persisted user message.
 
 ## Boundaries
 
