@@ -1,16 +1,17 @@
 # 🦐 Reference
 
-Current behavior and settled design direction of Shrimpy.
+Current behavior of Shrimpy.
 
 ## Index
 
 - [overview.md](overview.md) — orientation and current shape.
-- [design.md](design.md) — philosophy, settled decisions, and active architecture reconsiderations.
+- [design.md](design.md) — current design principles and constraints.
 - [architecture.md](architecture.md) — primitives, layering, and the boundaries that hold today.
 - [runtime.md](runtime.md) — CLI sessions, gateway dispatch, scheduler runs, child runs.
 - [tools.md](tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
+- [security.md](security.md) — tool policy and inspection commands.
 - [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn context envelope.
-- [memory.md](memory.md) — memory model, upkeep, and continuity aspiration.
+- [memory.md](memory.md) — memory model, upkeep, and context loading.
 - [skills.md](skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
 - [turn-context.md](turn-context.md) — per-turn context items and config.
 - [compaction.md](compaction.md) — session compaction policy, runtime flow, provider path, and failures.

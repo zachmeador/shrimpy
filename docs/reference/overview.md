@@ -27,7 +27,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 
 ## Where to Look Next
 
-- [design.md](design.md) — philosophy, settled decisions, and active reconsiderations.
+- [design.md](design.md) — current design principles and constraints.
 - [architecture.md](architecture.md) — primitives and layering.
 - [runtime.md](runtime.md) — execution flow.
 - [context-assembly.md](context-assembly.md) — prompt section assembly and the per-turn context envelope.

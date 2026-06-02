@@ -21,7 +21,7 @@ Shrimpy enters this model through Pi's SDK options:
 
 - `customTools` — additive Shrimpy daemon tools.
 - `excludeTools` — denied effective tool names, used for Pi built-ins,
-  Shrimpy daemon tools, extension tools, or future custom tools.
+  Shrimpy daemon tools, extension tools, or other registered custom tools.
 
 ## Native Pi Tools
 
@@ -35,8 +35,7 @@ Default active Pi built-ins:
 - `edit`
 - `write`
 
-Known registered Pi built-ins that may be selected by Pi policy or future
-configuration:
+Additional registered Pi built-ins:
 
 - `grep`
 - `find`
@@ -139,11 +138,3 @@ Skills are Pi-style prompt/resource bundles, not executable daemon tools.
 Shrimpy chooses which workspace and agent skill files Pi can see, while Pi owns
 skill parsing, `/skill:<name>` expansion, autocomplete, and the
 `<available_skills>` prompt block. See [skills.md](skills.md).
-
-## Future Tools
-
-Planned browser and web-search capabilities follow the same rule: CLI first,
-then daemon tools that mirror inspectable CLI behavior. Active backlog notes:
-
-- [browser-001-default-browser-tool.md](../backlog/browser-001-default-browser-tool.md)
-- [search-001-web-search-provider-wrapper.md](../backlog/search-001-web-search-provider-wrapper.md)

@@ -1,17 +1,20 @@
 # 🦐 Shrimpy Docs
 
-These docs are the project map for Shrimpy. Current behavior and settled design direction live in `reference/`. Active work, background thinking, and source research live in separate directories so they do not blur into the reference surface.
+These docs are the project map for Shrimpy. Current behavior lives in
+`reference/`. Active work, background thinking, and source research live in
+separate directories so they do not blur into the reference surface.
 
 ## Reference
 
 - [reference/README.md](reference/README.md) — stable docs index.
 - [reference/overview.md](reference/overview.md) — short orientation and current project shape.
-- [reference/design.md](reference/design.md) — philosophy, settled decisions, and active architecture reconsiderations.
+- [reference/design.md](reference/design.md) — current design principles and constraints.
 - [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
 - [reference/runtime.md](reference/runtime.md) — how CLI sessions, gateway dispatch, scheduler runs, and child runs execute.
 - [reference/tools.md](reference/tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
+- [reference/security.md](reference/security.md) — tool policy and inspection commands.
 - [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn context envelope.
-- [reference/memory.md](reference/memory.md) — memory model, upkeep, and continuity aspiration.
+- [reference/memory.md](reference/memory.md) — memory model, upkeep, and context loading.
 - [reference/skills.md](reference/skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
 - [reference/turn-context.md](reference/turn-context.md) — compact per-turn alerts and inspect pointers.
 - [reference/compaction.md](reference/compaction.md) — session compaction policy, runtime flow, provider path, and failures.
@@ -30,4 +33,4 @@ These docs are the project map for Shrimpy. Current behavior and settled design 
 - [musings/](musings/README.md) — design taste, product direction, and unfinished thinking.
 - [research/](research/README.md) — source notes and external comparison research.
 
-`reference/` is authoritative for current behavior. Musings and research are useful context, but settled decisions should be promoted into reference docs.
+`reference/` is authoritative for current behavior. Musings and research are useful context, but they do not become reference docs until the behavior ships.

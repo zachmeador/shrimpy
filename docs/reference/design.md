@@ -65,14 +65,6 @@ Avoid:
 - fake security gates
 - feature parity as strategy
 
-## Active Design Questions
-
-- How much of Pi's TUI should Shrimpy replace?
-- Should self-modification center on a bundled `admin` agent?
-- What is the smallest useful app-habitat primitive?
-- What replaces naive heartbeat?
-- Which external tools deserve core support?
-
 ## Gate For New Work
 
 Add to core only when the change:

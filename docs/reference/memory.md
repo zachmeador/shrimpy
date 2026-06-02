@@ -2,9 +2,8 @@
 
 > a shrimpy never forgets
 
-Design aspiration: Shrimpy should preserve the continuity that matters, make it
-legible and recoverable, and avoid turning memory into hidden framework state or
-prompt sludge.
+Shrimpy keeps memory in ordinary files so continuity stays legible and
+recoverable instead of becoming hidden framework state or prompt sludge.
 
 ## Current Shape
 
