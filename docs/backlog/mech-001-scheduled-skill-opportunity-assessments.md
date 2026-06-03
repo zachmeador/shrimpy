@@ -30,9 +30,11 @@ highest-signal recommendations.
 - Implement the assessment as a mechanic skill/resource, not a special runtime
   control plane.
 - Inspect recent channel activity, configured watches, installed skills,
-  agent prompts/context, and vault/workspace files when available.
-- Produce a timestamped Markdown report under the mechanic's workspace, likely
-  `agents/mechanic/context/assessments/` or a mechanic vault folder.
+  agent prompts/context, and vault/project files when available.
+- Produce a timestamped Markdown report under the mechanic's vault, following
+  the agent-report convention in
+  [WORKSPACE-001](workspace-001-storage-workspace-defaults.md):
+  `agents/mechanic/vault/assessments/`.
 - Send the user a concise message after each assessment with:
   - the report path;
   - one to three concrete implementation skill ideas;

@@ -27,7 +27,9 @@ This is planned behavior. Current behavior is documented in
   emits into a meaningful user/security channel only when there are findings,
   useful no-op summaries, or actionable failures.
 - Let users trigger the same audit manually from a normal `security` session.
-- Write timestamped Markdown reports under the security agent workspace, likely
+- Write timestamped Markdown reports under the security agent vault, following
+  the agent-report convention in
+  [WORKSPACE-001](workspace-001-storage-workspace-defaults.md):
   `agents/security/vault/audits/YYYY-MM-DD.md`.
 - Maintain a compact token-efficient inventory of active systems in scope,
   likely `agents/security/context/active-systems.md`.

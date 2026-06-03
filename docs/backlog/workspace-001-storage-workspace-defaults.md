@@ -11,36 +11,58 @@ working files and user-owned material. Today the starter guidance names agent
 roots, context, vaults, state, runtime files, sessions, and logs, but it does
 not establish a simple storage model.
 
-The default guidance should make a few ordinary filesystem homes obvious:
+The default guidance should make a few ordinary filesystem homes obvious.
+
+Shared workspace level, useful across agents:
 
 - `vault/`: shared user-organized collections, primarily Markdown, arranged in
   whatever lightweight shape the user wants.
-- `projects/`: workspace-level projects for apps, app-agents, experiments, or
-  other tightly scoped things that should be useful across agents.
-- `agents/<id>/workspace/`: the agent's own working area for active project
-  files, drafts, intermediate artifacts, and other material owned by that
-  agent.
+- `projects/`: workspace-level code projects, app-agents, experiments, or other
+  tightly scoped things that should be useful across agents.
 
-This keeps active work and user collections separate from prompt context,
-durable memory, per-agent loose files, channel logs, runtime state, and provider
-auth.
+Per agent, under `agents/<id>/`:
+
+- `context/`: the agent's durable memory and prompt resources, primarily
+  Markdown loaded into the agent every turn.
+- `vault/`: the agent's own collections and the outputs it accumulates over
+  time, such as periodic reports, audits, and assessments. Mirrors top-level
+  `vault/` but scoped to one agent.
+- `projects/`: the agent's code projects, or tightly scoped directories
+  (Markdown or otherwise) that belong to that agent.
+
+For now agents are trusted to use the shared workspace level without OS
+isolation; guidance should keep them non-destructive there until it is clear
+they own a given path. This keeps active work and collections separate from
+prompt context, channel logs, runtime state, and provider auth.
 
 ## Build
 
 - Add default storage guidance to `profile/WORKSPACE.md` and
   `profile/SYSTEM.md` starter templates.
-- Update reference docs to show `vault/`, `projects/`, and
-  `agents/<id>/workspace/` in the workspace layout.
-- Update `shrimpy setup init` to create the shared `vault/`, shared
-  `projects/`, and default agent `agents/shrimpy/workspace/` directories.
+- Update reference docs to show shared `vault/` and `projects/`, plus per-agent
+  `agents/<id>/context/`, `agents/<id>/vault/`, and `agents/<id>/projects/` in
+  the workspace layout.
+- Update `shrimpy setup init` to create the shared `vault/`, shared `projects/`,
+  and the default agent's `agents/shrimpy/vault/` directory. Create per-agent
+  `projects/` lazily when an agent first needs it rather than seeding it empty.
 - Update setup validation resources and setup-init tests for the new seeded
   directories.
-- Clarify when an agent should use `vault/`, `projects/`,
-  `agents/<id>/workspace/`, `agents/<id>/context/`, and
-  `agents/<id>/vault/`.
+- Clarify when an agent should use the shared `vault/` and `projects/` versus
+  its own `agents/<id>/context/`, `agents/<id>/vault/`, and
+  `agents/<id>/projects/`:
+  - `context/` holds durable memory and prompt resources only.
+  - `vault/` holds the agent's collections and the kept outputs it generates
+    over time.
+  - `projects/` holds code projects or tightly scoped directories.
+- Give agent-generated durable reports one default home,
+  `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` and
+  `agents/mechanic/vault/assessments/`. Reports are kept outputs, so they do not
+  belong in `context/`, which stays memory and prompt resources. A living
+  reference an agent reads each run, such as a maintained inventory, can still
+  sit in `context/`.
 - Keep the guidance practical and light: `vault/` is for collections,
-  `projects/` is for scoped app/project work, and the agent workspace is for
-  that agent's own active files.
+  `projects/` is for code or scoped project work, and `context/` is for memory
+  and prompt resources.
 
 ## Boundaries
 
@@ -54,6 +76,9 @@ auth.
 - Do not seed many empty category directories by default.
 - Do not place Shrimpy runtime state, channels, sessions, auth, or watch
   runtime data under these directories.
+- Do not assume agents are sandboxed from the shared workspace level yet. Until
+  path ownership and OS isolation exist, rely on non-destructive guidance, not
+  enforcement.
 
 ## Notes
 
@@ -62,13 +87,17 @@ auth.
   model exists.
 - Related to [ONBOARD-001](onboard-001.md): guided onboarding should explain
   the storage model in plain terms when a user starts customizing a workspace.
+- Related to [SECURITY-001](security-001-agent-sandboxing-security-strategy.md):
+  the shared-workspace trust assumption here is what later sandboxing would
+  replace with real path ownership and isolation.
 
 ## Done
 
-- Fresh `shrimpy setup init` creates `vault/`, `projects/`, and the default
-  agent workspace.
+- Fresh `shrimpy setup init` creates shared `vault/` and `projects/`, plus the
+  default agent's `context/` and `vault/`.
 - Starter prompts make the directory choice clear enough for agents to use the
   right location without asking every time.
-- Reference docs show the new layout and distinguish workspace, context, vault,
-  state, runtime, sessions, and channels.
+- Reference docs show the layout and distinguish per-agent `context/`, `vault/`,
+  and `projects/` from shared collections, state, runtime, sessions, and
+  channels.
 - Setup validation and setup-init tests cover the new defaults.
