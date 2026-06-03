@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   archiveSessionDir,
+  archiveSessionFile,
   listArchivedSessionDirs,
   restoreArchivedSessionDir,
 } from "../dist/sessions/index.js";
@@ -38,6 +39,22 @@ describe("session storage helpers", () => {
     assert.equal(existsSync(sessionDir), true);
     assert.equal(existsSync(sessionFile), true);
     assert.match(readFileSync(sessionFile, "utf-8"), /"state":"archived"/);
+  });
+
+  test("archives a specific session JSONL file", () => {
+    const sessionDir = join(testDir, "sessions", "shrimpy", "tui");
+    mkdirSync(sessionDir, { recursive: true });
+    const oldFile = join(sessionDir, "old.jsonl");
+    const newFile = join(sessionDir, "new.jsonl");
+    writeSessionFile(oldFile);
+    writeSessionFile(newFile);
+
+    const archivedTo = archiveSessionFile(oldFile);
+
+    assert.equal(archivedTo, oldFile);
+    assert.deepEqual(listArchivedSessionDirs(sessionDir), [oldFile]);
+    assert.match(readFileSync(oldFile, "utf-8"), /"state":"archived"/);
+    assert.doesNotMatch(readFileSync(newFile, "utf-8"), /"state":"archived"/);
   });
 
   test("lists archived session files for one session root newest first", async () => {

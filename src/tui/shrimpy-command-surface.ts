@@ -32,6 +32,7 @@ import {
   type WatchInspection,
 } from "../watches/index.js";
 import { inspectSkills } from "../skills/index.js";
+import { archiveSessionFile } from "../sessions/storage.js";
 import { formatFutureOrPast } from "../util/time-format.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
@@ -57,6 +58,7 @@ interface InteractiveModeCommandSurfaceInternals {
     requestRender(): void;
   };
   session: AgentSession;
+  handleClearCommand(): Promise<void>;
   footer: {
     invalidate(): void;
   };
@@ -120,6 +122,25 @@ export function installShrimpyCommandSurface(
 ): void {
   const mode = interactive as unknown as InteractiveModeCommandSurfaceInternals;
   const originalSetupEditorSubmitHandler = mode.setupEditorSubmitHandler.bind(mode);
+  const originalHandleClearCommand = mode.handleClearCommand.bind(mode);
+
+  mode.handleClearCommand = async () => {
+    const previousSessionFile = mode.session.sessionFile;
+    await originalHandleClearCommand();
+    const currentSessionFile = mode.session.sessionFile;
+
+    if (
+      previousSessionFile &&
+      previousSessionFile !== currentSessionFile
+    ) {
+      try {
+        archiveSessionFile(previousSessionFile);
+      } catch (err) {
+        console.error("[tui] failed to archive previous session after /new:", err);
+        mode.showStatus("New session started, but the previous session was not archived");
+      }
+    }
+  };
 
   mode.handleChangelogCommand = () => {
     appendShrimpyChangelog(mode);

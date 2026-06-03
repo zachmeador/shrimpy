@@ -26,8 +26,13 @@ interface StoredSessionSummary {
 export function archiveSessionDir(sessionDir: string): string | undefined {
   const active = findActiveSessionFile(sessionDir);
   if (!active) return undefined;
-  appendLifecycleEntry(active, "archived");
-  return active;
+  return archiveSessionFile(active);
+}
+
+export function archiveSessionFile(sessionFile: string): string | undefined {
+  if (!readStoredSession(sessionFile)) return undefined;
+  appendLifecycleEntry(sessionFile, "archived");
+  return sessionFile;
 }
 
 export function listArchivedSessionDirs(sessionDir: string): string[] {
