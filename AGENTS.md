@@ -47,6 +47,10 @@ Prefer strengthening boundaries over threading new behavior through whatever cod
 - Shrimpy should provide clean guardrails and comms patterns, not hardwire agent decision-making that can live in prompts, skills, or normal session logs.
 - Coverage is diagnostic, not a gate. Add tests for major seams, lifecycle behavior, and regressions; do not chase percentages with low-signal tests.
 
+## Writing
+
+When creating agent instructions, skills, and anything that's intended to be fed to an LLM, **always** write briefly but succinctly.
+
 ## Legacy support policy
 
 Do not add backward-compatibility or migration code unless explicitly requested by the user.
