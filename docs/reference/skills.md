@@ -1,7 +1,11 @@
 # 🦐 Skills
 
-Skills are Pi-style capability bundles stored in the Shrimpy workspace. They are
-session prompt resources, not a separate decision or automation control plane.
+Agent Skills are Pi-style capability bundles stored in the Shrimpy workspace.
+They are session prompt resources, not a separate decision or automation control
+plane.
+Repository developer skills under `src/skills/` are source-tree prompts for
+working on Shrimpy itself; they are not automatically installed into a Shrimpy
+workspace.
 
 Shrimpy follows the [Agent Skills specification](https://agentskills.io/specification)
 through Pi's skill loader and prompt renderer. Shrimpy adds workspace-specific

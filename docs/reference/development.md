@@ -15,6 +15,9 @@
 - Watch clock: `src/watches/`
 - Tools: `src/tools/`
 - Setup templates: `src/setup/templates/`
+- Repository developer skills: `src/skills/<id>/SKILL.md`. These are
+  source-tree skill prompts for Shrimpy development work, separate from the
+  workspace and agent skill bundles described in [skills.md](skills.md).
 
 ## Commands
 

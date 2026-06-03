@@ -24,6 +24,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed session startup to pass Shrimpy-selected skill entrypoints to Pi while keeping Pi's ambient skill discovery disabled.
 - Added skill inspection and validation for agent-over-workspace shadowing, Pi loader diagnostics, id/name mismatches, unsafe layouts, and large visible skill sets.
 - Added a built-in `coding-delegation` skill for preparing, dispatching, and supervising coding-agent handoffs.
+- Added a `shrimpy-dev-reference-docs` source skill for using source/reference diffs to keep `docs/reference/` aligned with current behavior.
 
 ### Turn Context & Delivery
 
