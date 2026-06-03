@@ -29,6 +29,12 @@ Workspace-wide facts belong in `profile/*.md`, especially `profile/USER.md` and
 `profile/SYSTEM.md`, because those files are shared truth rather than one
 agent's working model.
 
+Do not use `context/` as a filing cabinet. Put shared notes, reports, and
+other saved files in `vault/`. Put shared code or app work in `projects/`. For
+one agent's files, use `agents/<id>/vault/` or create
+`agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent
+should load into prompts.
+
 ## Upkeep
 
 Fresh setup seeds ordinary schedules for memory work:

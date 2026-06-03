@@ -11,6 +11,8 @@ profile/USER.md                 workspace owner identity and preferences
 config/shrimpy.json             main runtime config
 config/channels.json            channel membership
 config/schedules.json           optional workspace-level scheduler definitions
+vault/                          shared saved files and collections
+projects/                       shared code, apps, and experiment work
 agents/                         per-agent workspaces
 state/pi/auth.json              provider credentials
 state/pi/models.json            model registry
@@ -32,8 +34,9 @@ Each agent workspace under `agents/<id>/` contains:
 
 ```text
 SOUL.md                         identity and voice
-context/                        agent-owned durable Markdown context
-vault/                          loose files and working material
+context/                        agent memory and prompt files
+vault/                          agent saved files and reports
+projects/                       agent code, apps, and work folders, created when needed
 schedules.json                  agent-owned recurring work
 skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
@@ -44,6 +47,30 @@ Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under
 id. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI
 management.
 
+## Storage
+
+Use `vault/` for saved files and collections. Use `projects/` for code, apps,
+experiments, or a focused work folder. These are normal directories.
+
+Inside an agent root:
+
+- `agents/<id>/context/` is memory and prompt files.
+- `agents/<id>/vault/` is saved files and reports for that agent.
+- `agents/<id>/projects/` is code, apps, or work folders for that agent. Create
+  it when needed.
+
+Reports should go under `agents/<id>/vault/<kind>/`, for example
+`agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do
+not put reports in `context/`. Put a reference in `context/` only if the agent
+should load it every run.
+
+Do not put channel logs, runtime state, sessions, auth, model metadata, or
+watch/scheduler state under `vault/` or `projects/`.
+
+`shrimpy setup init` creates shared `vault/` and `projects/`, plus the default
+agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent
+`projects/` directories are created when needed.
+
 ## Context Resources
 
 Stable prompt material loaded into an agent session before per-turn context arrives:
@@ -52,7 +79,7 @@ Stable prompt material loaded into an agent session before per-turn context arri
 - `profile/SYSTEM.md` covers Shrimpy framework conventions, Pi harness guidance, memory conventions, and tool/inspection guidance.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
 - `SOUL.md` defines who an agent is.
-- `context/*.md` is the agent's long-lived session context: identity notes, habits, projects, and other durable working knowledge.
+- `context/*.md` is the agent's long-lived prompt context: identity notes, habits, active references, and other memory the agent should load.
 - `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns.
 
 `shrimpy setup init` creates baseline files from `src/setup/templates/`.

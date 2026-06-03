@@ -40,6 +40,8 @@ describe("setupInit", () => {
     const soulPath = join(agentRoot, "SOUL.md");
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
     const contextHabitsPath = join(agentRoot, "context", "habits.md");
+    const sharedVaultPath = join(workspace, "vault");
+    const sharedProjectsPath = join(workspace, "projects");
     const memoryManagementSkillPath = join(
       workspace,
       "skills",
@@ -64,7 +66,8 @@ describe("setupInit", () => {
       "setup",
       "SKILL.md",
     );
-    const vaultPath = join(agentRoot, "vault");
+    const agentVaultPath = join(agentRoot, "vault");
+    const agentProjectsPath = join(agentRoot, "projects");
     const setupValidatorPath = setupSkillValidatorPath(workspace);
 
     assert.equal(existsSync(configPath), true);
@@ -76,11 +79,14 @@ describe("setupInit", () => {
     assert.equal(existsSync(soulPath), true);
     assert.equal(existsSync(contextIdentityPath), true);
     assert.equal(existsSync(contextHabitsPath), true);
+    assert.equal(existsSync(sharedVaultPath), true);
+    assert.equal(existsSync(sharedProjectsPath), true);
     assert.equal(existsSync(memoryManagementSkillPath), true);
     assert.equal(existsSync(journalDailySkillPath), true);
     assert.equal(existsSync(journalCompactSkillPath), true);
     assert.equal(existsSync(setupSkillPath), true);
-    assert.equal(existsSync(vaultPath), true);
+    assert.equal(existsSync(agentVaultPath), true);
+    assert.equal(existsSync(agentProjectsPath), false);
     assert.equal(existsSync(setupValidatorPath), true);
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -147,7 +153,9 @@ describe("setupInit", () => {
     const system = readFileSync(systemPath, "utf-8");
     assert.match(system, /Start with `README\.md` there before reading `musings\/`\./);
     assert.match(system, /Turn context\*\* is compact live state and inspect pointers/);
-    assert.match(system, /default agent has `vault\/`/);
+    assert.match(system, /Storage\*\* is plain directories/);
+    assert.match(system, /use `context\/` for memory and prompt files/);
+    assert.match(system, /Reports belong in `agents\/<id>\/vault\/<kind>\/`/);
     assert.match(system, /Coding Work/);
     assert.match(system, /core UX direction is optional delegation/);
     assert.match(system, /work came from a user conversation/);
@@ -165,6 +173,9 @@ describe("setupInit", () => {
 
     const workspaceDoc = readFileSync(workspaceDocPath, "utf-8");
     assert.match(workspaceDoc, /This workspace is the home system/);
+    assert.match(workspaceDoc, /Shared saved files and collections live under `vault\/`/);
+    assert.match(workspaceDoc, /Shared code, apps, experiments, and focused work folders live under `projects\/`/);
+    assert.match(workspaceDoc, /Do not put reports in `context\/`/);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
 
     const identity = readFileSync(contextIdentityPath, "utf-8");

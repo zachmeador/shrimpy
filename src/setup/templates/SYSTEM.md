@@ -29,7 +29,9 @@ Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there bef
 
 **Skills** live under `skills/<id>/SKILL.md`. They are instruction/resource bundles for sessions, not a second control plane.
 
-**Vaults** are ordinary filesystem locations the agent can inspect when needed. The default agent has `vault/` as a low-friction place for loose files and working material, but users may point agents at any readable directory.
+**Storage** is plain directories. Use shared `vault/` for saved files and collections. Use shared `projects/` for code, apps, experiments, or focused work folders.
+
+Inside `agents/<id>/`, use `context/` for memory and prompt files, `vault/` for that agent's saved files and reports, and `projects/` for that agent's code or work folders. Create `projects/` when needed.
 
 ## Coding Work
 
@@ -41,10 +43,9 @@ Delegation is a product choice, not a requirement. If worker/session controls ar
 
 ## Memory
 
-Memory is just markdown files under `agents/<id>/context/`. The agent owns its
-own context directory:
+Memory is markdown under `agents/<id>/context/`. Use it only for notes the agent should load into prompts. The agent owns its own context directory:
 
-- `context/*.md` (top level) — always-on agent identity, habits, projects.
+- `context/*.md` (top level) — always-on identity, habits, and active references.
 - `context/people/<actor-id>.md` — loaded per-turn when that peer is the sender.
 - `context/channels/<name>.md` — loaded per-turn when that channel is active.
 - `context/journal/{days,weeks,months}/...` — journal entries with cascading
@@ -53,6 +54,8 @@ own context directory:
 The path is the routing index. Missing files emit nothing. Writes happen
 through normal file edit tools (Read/Write/Edit) during scheduled upkeep —
 there is no framework writer.
+
+Reports belong in `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Code or work folders belong in shared `projects/` or `agents/<id>/projects/`.
 
 ## Tools And Inspection
 
@@ -78,4 +81,4 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 - Use `read_channel` when you need recent cross-session message history from a channel.
 - Add recurring agent schedules in `agents/<id>/schedules.json`; create one-time follow-ups with `shrimpy schedules once`; inspect the resolved workspace view with `shrimpy schedules`.
 - When wake behavior is unclear, inspect the channel first: schedules write messages to channels; channel membership is the visibility list; each visible agent's channel policy decides whether to wake.
-- Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.
+- Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go. Put saved files and reports in `vault/`; put code and work folders in `projects/`.

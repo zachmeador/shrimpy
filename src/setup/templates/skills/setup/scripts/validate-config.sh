@@ -49,6 +49,8 @@ const schedules = readJson(schedulesPath, "agents/shrimpy/schedules.json");
 requireFile(path.join(workspaceRoot, "profile", "WORKSPACE.md"), "profile/WORKSPACE.md");
 requireFile(path.join(workspaceRoot, "profile", "USER.md"), "profile/USER.md");
 requireFile(path.join(workspaceRoot, "profile", "SYSTEM.md"), "profile/SYSTEM.md");
+requireDir(path.join(workspaceRoot, "vault"), "vault");
+requireDir(path.join(workspaceRoot, "projects"), "projects");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "context"), "agents/shrimpy/context");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "skills", "setup", "SKILL.md"), "agents/shrimpy/skills/setup/SKILL.md");
