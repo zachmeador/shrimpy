@@ -578,7 +578,6 @@ describe("agent tool policy", () => {
   test("combines default Pi tools with Shrimpy daemon tools", () => {
     const policy = resolveAgentToolPolicy({
       id: "shrimpy",
-      attention: {} as any,
     });
 
     assert.deepEqual(policy.daemonToolNames, [
@@ -614,7 +613,6 @@ describe("agent tool policy", () => {
     const policy = resolveAgentToolPolicy({
       id: "shrimpy",
       disabledTools: ["bash", "external_tool"],
-      attention: {} as any,
     });
 
     assert.equal(policy.activeToolNames.includes("bash"), false);

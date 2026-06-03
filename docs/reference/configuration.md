@@ -23,7 +23,7 @@ The workspace itself is selected by `~/.shrimpy-workspace.json`:
 
 Sections:
 
-- `agents` — agent ids, root paths, optional default model, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, attention policy.
+- `agents` — agent ids, root paths, optional default model, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, and agent-owned channel policy.
 - `runtime` — Pi loader/runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, compaction.
 - `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
 - `context` / `contextDefaults` — stable prompt sources, turn-context settings, command sources, env fields, channel overrides, agent-scoped context views.
@@ -140,9 +140,9 @@ Each agent config entry has:
 - `tools` — allowed Shrimpy daemon tools such as `reply`, `ask`, `notify`, `report`, `send_message`, `read_channel`, and `run_child`.
 - `disabledTools` — effective tool names to exclude from Pi sessions. Use this to disable Pi built-ins such as `bash`; names are passed to Pi as `excludeTools`, so extension/custom tool names can be listed too.
 - `thinking` — default reasoning effort for sessions opened as that agent.
-- `attention` — when channel messages become turns for this agent.
+- `channelPolicy` — when visible channel messages become turns for this agent.
 
-Agent identity, model defaults, tool policy, and attention policy live in `agents`. Channel participation lives in `config/channels.json`. See [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
+Agent identity, model defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
 Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.
@@ -217,7 +217,7 @@ Use llama.cpp's `repeat_penalty` spelling; `repetition_penalty` is accepted in m
 
 `apiKey` and custom `headers` in `state/pi/models.json` support Pi's current config value syntax: `"$ENV_VAR"` / `"${ENV_VAR}"` interpolation, `"!command"` command execution, `"$$"` for a literal dollar prefix, and `"$!"` for a literal bang prefix. Command values are resolved at request time, so slow or flaky secret fetches should be wrapped in a caching script if needed.
 
-Attention defaults to:
+Channel policy defaults to:
 
 ```json
 {
@@ -227,23 +227,22 @@ Attention defaults to:
 
 Modes:
 
-- `all` handles unaddressed messages from subscribed channels.
-- `mentions` handles only explicit `@agent` text mentions or addressed metadata.
-- `addressed` handles only explicit addressed metadata.
-- `none` ignores channel messages unless another control path handles them.
+- `all` wakes for all visible channel messages after sender filters.
+- `mentions` wakes only for messages addressed to this agent or with a single `@agent` mention.
+- `addressed` wakes only for messages addressed to this agent.
+- `none` ignores visible channel messages.
 
-System-implied attention rules apply before configurable attention:
+Addressing and mentions are inputs to the agent's own policy. They do not route
+around channel visibility, and they do not override `mode: "none"`. An agent is
+not re-offered its own channel messages.
 
-- `origin.addressedAgentId` routes only to that agent.
-- A human single-agent `@agent` mention calls that agent even if its ambient attention is quiet.
-- An agent never handles its own channel message.
-
-Attention can be narrowed by sender (`system`, `human`, `agent`), stable `actorIds`, or stable `userIds`, and overridden by channel pattern:
+Channel policy can be narrowed by sender (`system`, `human`, `agent`), stable
+`actorIds`, or stable `userIds`, and overridden by channel pattern:
 
 ```json
 {
   "id": "shrimpy",
-  "attention": {
+  "channelPolicy": {
     "mode": "mentions",
     "channels": {
       "home": { "mode": "all", "senders": ["human", "system"] },
@@ -256,23 +255,23 @@ Attention can be narrowed by sender (`system`, `human`, `agent`), stable `actorI
 Inspect and test the effective policy with:
 
 ```bash
-shrimpy agent attention shrimpy --channel home
-shrimpy agent attention test shrimpy --channel home --sender human --text "@shrimpy wassup"
+shrimpy agent channel-policy shrimpy --channel home
+shrimpy agent channel-policy explain shrimpy --channel home --sender human --text "@shrimpy wassup"
 ```
 
 Edit fields directly instead of hand-writing the JSON. `set`/`clear` target the base rule, or a channel override when `--channel <pattern>` is given, and leave the rest of the policy untouched:
 
 ```bash
 # Narrow the base rule to humans, then add a per-channel override.
-shrimpy agent attention set shrimpy --senders human
-shrimpy agent attention set shrimpy --channel heartbeat --mode all --senders system
+shrimpy agent channel-policy set shrimpy --senders human
+shrimpy agent channel-policy set shrimpy --channel heartbeat --mode all --senders system
 
 # Clear one field, or drop a whole channel override.
-shrimpy agent attention clear shrimpy --senders
-shrimpy agent attention clear shrimpy --channel heartbeat
+shrimpy agent channel-policy clear shrimpy --senders
+shrimpy agent channel-policy clear shrimpy --channel heartbeat
 ```
 
-`set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `attention` block, falling back to the default `all` policy. Channel membership is unaffected — attention only decides whether a member handles a message.
+`set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `channelPolicy` block, falling back to the default `all` policy. Channel membership is unaffected; policy only decides whether a visible member wakes.
 
 ## Channel Membership
 
@@ -292,15 +291,15 @@ shrimpy agent attention clear shrimpy --channel heartbeat
 
 - `channels.<name>.agents` is keyed by agent id.
 - Membership means the agent participates in that channel.
-- `shrimpy channels join <name> --agent <id>` adds membership; the agent's own `attention` policy decides what becomes a turn.
-- Surfaces may stamp a message with `addressedAgentId`, which routes directly without changing membership.
+- `shrimpy channels join <name> --agent <id>` adds membership; the agent's own `channelPolicy` decides what becomes a turn.
+- Surfaces may stamp a message with `addressedAgentId`; visible agents evaluate that fact through their own channel policy.
 
 ## Schedules
 
 Schedules live in `agents/<id>/schedules.json` for agent-owned schedules and
 `config/schedules.json` for optional workspace-level schedules. The gateway
 compiles them into scheduler-authored channel messages. Channel membership and
-agent attention config decide whether the scheduled message becomes a turn.
+agent channel policy decide whether the scheduled message becomes a turn.
 
 Triggers:
 
@@ -332,7 +331,7 @@ default `shrimpy` agent as a member.
 Inspect schedules with `shrimpy schedules [--agent <id>] [--json]` or
 `shrimpy schedules show <resolved-schedule-id>`. The inspection surface reports
 source paths, owner/local ids, target channel, channel membership, expected
-attention behavior, next run from scheduler state, and recent emitted channel
+wake behavior, next run from scheduler state, and recent emitted channel
 message ids from channel logs.
 
 ## Scheduler Status

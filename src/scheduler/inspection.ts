@@ -1,4 +1,4 @@
-import { explainAgentMessageHandling } from "../agents/channel-policy.js";
+import { evaluateAgentChannelPolicy } from "../agents/channel-policy.js";
 import type { AppRuntime } from "../app/runtime.js";
 import { channelAgentIds } from "../channels/membership.js";
 import {
@@ -8,7 +8,7 @@ import {
   type ChannelMessage,
 } from "../channels/index.js";
 import type {
-  AgentAttentionRule,
+  AgentChannelPolicyRule,
   ResolvedAgentConfig,
 } from "../config/agents.js";
 import { createGatewaySessionDescriptor } from "../sessions/spec.js";
@@ -37,13 +37,14 @@ export interface ScheduleInspectionLastRun {
   runId?: string;
 }
 
-export interface ScheduleAttentionExpectation {
+export interface ScheduleWakeExpectation {
   agentId: string;
   member: boolean;
-  handles: boolean;
+  action: "wake" | "ignore";
   reason: string;
-  impliedRule?: string;
-  effectiveAttention?: Required<AgentAttentionRule>;
+  policyOwner: "agent";
+  effectivePolicy?: Required<AgentChannelPolicyRule>;
+  runtimeGuard?: string;
   sessionPath: string;
   inspectCommand: string;
 }
@@ -52,7 +53,7 @@ export interface ScheduleInspectionCommands {
   schedule: string;
   channel: string;
   membership: string;
-  attention: string[];
+  wake: string[];
 }
 
 export interface ScheduleInspection {
@@ -72,7 +73,7 @@ export interface ScheduleInspection {
     exists: boolean;
     agentIds: string[];
   };
-  expectedAttention: ScheduleAttentionExpectation[];
+  expectedWake: ScheduleWakeExpectation[];
   expectedTurnAgentIds: string[];
   nextRunAtMs?: number;
   lastObservedRun?: ScheduleInspectionLastRun;
@@ -111,9 +112,9 @@ export function inspectSchedules(
     const target = entry.schedule.action.target;
     const membership = membershipStore.get(target.channel);
     const memberAgentIds = membership ? channelAgentIds(membership) : [];
-    const expectedAttention = inspectExpectedAttention(runtime, entry, memberAgentIds);
-    const expectedTurnAgentIds = expectedAttention
-      .filter((agent) => agent.handles)
+    const expectedWake = inspectExpectedWake(runtime, entry, memberAgentIds);
+    const expectedTurnAgentIds = expectedWake
+      .filter((agent) => agent.action === "wake")
       .map((agent) => agent.agentId);
     const lastObservedRun = findLastObservedRun(
       channelBus.read(target.channel).messages,
@@ -146,7 +147,7 @@ export function inspectSchedules(
         exists: membership !== null,
         agentIds: memberAgentIds,
       },
-      expectedAttention,
+      expectedWake,
       expectedTurnAgentIds,
       ...(schedulerState[entry.schedule.id]?.nextRunAtMs !== undefined
         ? { nextRunAtMs: schedulerState[entry.schedule.id]?.nextRunAtMs }
@@ -157,7 +158,7 @@ export function inspectSchedules(
         schedule: `shrimpy schedules show ${entry.schedule.id}`,
         channel: `shrimpy channels show ${target.channel}`,
         membership: `shrimpy channels members ${target.channel}`,
-        attention: expectedAttention.map((agent) => agent.inspectCommand),
+        wake: expectedWake.map((agent) => agent.inspectCommand),
       },
       diagnostics,
       schedule: entry.schedule,
@@ -212,36 +213,34 @@ function loadScheduleInspectionEntries(
   return entries;
 }
 
-function inspectExpectedAttention(
+function inspectExpectedWake(
   runtime: AppRuntime,
   entry: ScheduleInspectionEntry,
   memberAgentIds: string[],
-): ScheduleAttentionExpectation[] {
+): ScheduleWakeExpectation[] {
   const target = entry.schedule.action.target;
-  const candidateAgentIds = target.addressedAgentId
-    ? [target.addressedAgentId]
-    : memberAgentIds;
   const message = sampleScheduleMessage(entry.schedule);
 
-  return candidateAgentIds.flatMap((agentId) => {
+  return memberAgentIds.flatMap((agentId) => {
     const agent = findAgent(runtime, agentId);
     if (!agent) return [];
-    const explanation = explainAgentMessageHandling(agent, target.channel, message);
+    const decision = evaluateAgentChannelPolicy(agent, target.channel, message, {
+      visible: true,
+    });
     return [{
       agentId: agent.id,
       member: memberAgentIds.includes(agent.id),
-      handles: explanation.handles,
-      reason: explanation.reason,
-      ...(explanation.impliedRule ? { impliedRule: explanation.impliedRule } : {}),
-      ...(explanation.effectiveAttention
-        ? { effectiveAttention: explanation.effectiveAttention }
-        : {}),
+      action: decision.action,
+      reason: decision.reason,
+      policyOwner: decision.policyOwner,
+      ...(decision.effectivePolicy ? { effectivePolicy: decision.effectivePolicy } : {}),
+      ...(decision.runtimeGuard ? { runtimeGuard: decision.runtimeGuard } : {}),
       sessionPath: createGatewaySessionDescriptor({
         workspacePath: runtime.getAgentPaths(agent.id).root,
         agentId: agent.id,
         channel: target.channel,
       }).sessionDir,
-      inspectCommand: attentionInspectCommand(agent.id, target.channel, message),
+      inspectCommand: wakeInspectCommand(agent.id, target.channel, message),
     }];
   });
 }
@@ -349,12 +348,9 @@ function scheduleDiagnostics(input: {
     diagnostics.push("schedule is disabled");
   }
   if (target.addressedAgentId) {
-    diagnostics.push(
-      "target uses origin.addressedAgentId; routing bypasses channel membership",
-    );
     if (!input.memberAgentIds.includes(target.addressedAgentId)) {
       diagnostics.push(
-        `addressed agent ${target.addressedAgentId} is not a member of ${target.channel}`,
+        `addressed agent ${target.addressedAgentId} has no visibility into ${target.channel}`,
       );
     }
   }
@@ -425,7 +421,7 @@ function triggerMetadata(
   };
 }
 
-function attentionInspectCommand(
+function wakeInspectCommand(
   agentId: string,
   channel: string,
   message: ChannelMessage,
@@ -434,7 +430,7 @@ function attentionInspectCommand(
     ? message.content.data.text
     : JSON.stringify(message.content.data);
   return [
-    "shrimpy agent attention test",
+    "shrimpy agent channel-policy explain",
     shellQuote(agentId),
     "--channel",
     shellQuote(channel),

@@ -296,7 +296,7 @@ describe("agent schedule definitions loading", () => {
     assert.equal(schedules[0].instructions, "check in");
   });
 
-  test("resolves agent schedules with attention-routed channel targets", () => {
+  test("resolves agent schedules with channel targets", () => {
     const schedule = resolveAgentScheduleDefinition("shrimpy", {
       id: "heartbeat",
       trigger: { type: "every_ms", everyMs: 5_000 },

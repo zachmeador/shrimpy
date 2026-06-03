@@ -30,7 +30,7 @@ surface / CLI channel post / scheduler
   -> ChannelStore
   -> workspace/channels/*.jsonl
   -> ChannelDeliveryLoop
-  -> channel membership + agent attention
+  -> channel membership + agent channelPolicy
   -> AgentChannelRuntime
   -> SessionRegistry
   -> Pi session turn
@@ -89,7 +89,7 @@ or formatted channel message.
   optional workspace-level schedules live in `config/schedules.json`.
 - Agent schedules emit scheduler-authored channel messages with plain text
   instructions. The owning agent must be a member of the target channel and have
-  attention configured to handle those messages.
+  channelPolicy configured to wake for those messages.
 - One-time schedules live in runtime state at `state/one-time-schedules.json`.
   Create them with `shrimpy schedules once --at <time>` or
   `shrimpy schedules once --in <duration>`. Agents use the same CLI surface;
@@ -106,7 +106,7 @@ or formatted channel message.
 
 - `shrimpy status` summarizes workspace and gateway activity.
 - `shrimpy gateway status` reports gateway service, scheduled-run, and scheduler status.
-- `shrimpy schedules` reports source paths, target channels, expected attention,
+- `shrimpy schedules` reports source paths, target channels, expected wake,
   next runs, and recent emitted scheduler messages.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` renders the assembled session prompt and can preview

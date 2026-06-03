@@ -3,7 +3,7 @@ import {
   parseThinkingLevel,
   type ThinkingLevel,
 } from "../inference/thinking.js";
-import type { AgentAttentionMode } from "../config/agents.js";
+import type { AgentChannelPolicyMode } from "../config/agents.js";
 
 export const DEFAULT_AGENT_TOOLS = [
   "reply",
@@ -30,7 +30,9 @@ export function parseThinking(value?: string): ThinkingLevel | undefined {
   return parsed;
 }
 
-export function parseAttentionMode(value?: string): AgentAttentionMode | undefined {
+export function parseChannelPolicyMode(
+  value?: string,
+): AgentChannelPolicyMode | undefined {
   if (value === undefined) return undefined;
   if (
     value === "all" ||
@@ -40,5 +42,5 @@ export function parseAttentionMode(value?: string): AgentAttentionMode | undefin
   ) {
     return value;
   }
-  throw new Error("attention must be one of: all, mentions, addressed, none");
+  throw new Error("channel policy mode must be one of: all, mentions, addressed, none");
 }

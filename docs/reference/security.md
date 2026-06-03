@@ -37,7 +37,7 @@ When the relevant tools or surfaces are available:
   commands;
 - web/search/browser-like tools add external content to session input;
 - channel surfaces can turn remote messages into agent turns when membership
-  and attention policy accept them;
+  gives an agent visibility and that agent's channel policy accepts them;
 - schedules can repeat work without a human watching every run;
 - generated apps and scripts can remain part of the user's local environment
   after Shrimpy has built or modified them.
@@ -48,7 +48,7 @@ Use these current commands when inspecting workspace config:
 
 ```bash
 shrimpy agent inspect <id>
-shrimpy agent attention <id> --channel <channel>
+shrimpy agent channel-policy <id> --channel <channel>
 shrimpy channels members <channel>
 shrimpy schedules
 shrimpy schedules show <schedule-id>

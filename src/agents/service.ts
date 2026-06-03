@@ -3,9 +3,9 @@ import {
   addAgentToWorkspace,
   type AddAgentInput,
   type AddAgentResult,
-  editAgentAttentionInWorkspace,
-  type EditAgentAttentionInput,
-  type EditAgentAttentionResult,
+  editAgentChannelPolicyInWorkspace,
+  type EditAgentChannelPolicyInput,
+  type EditAgentChannelPolicyResult,
   removeAgentFromWorkspace,
   type RemoveAgentInput,
   type RemoveAgentResult,
@@ -84,21 +84,21 @@ export function updateAgent(
       ...(input.tools !== undefined ? ["tools"] : []),
       ...(input.disabledTools !== undefined ? ["disabledTools"] : []),
       ...(input.thinking !== undefined ? ["thinking"] : []),
-      ...(input.attention !== undefined ? ["attention"] : []),
+      ...(input.channelPolicy !== undefined ? ["channelPolicy"] : []),
     ],
   });
   return result;
 }
 
-export function editAgentAttention(
+export function editAgentChannelPolicy(
   runtime: AppRuntime,
-  input: EditAgentAttentionInput,
-): EditAgentAttentionResult {
-  const result = editAgentAttentionInWorkspace(runtime, input);
+  input: EditAgentChannelPolicyInput,
+): EditAgentChannelPolicyResult {
+  const result = editAgentChannelPolicyInWorkspace(runtime, input);
   publishLifecycleEvent(runtime, {
     kind: "agent_updated",
     agentId: input.agentId,
-    updatedFields: ["attention"],
+    updatedFields: ["channelPolicy"],
   });
   return result;
 }

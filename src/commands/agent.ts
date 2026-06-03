@@ -1,8 +1,8 @@
-import { cmdAgentAttention } from "./agent-attention.js";
 import {
   cmdAgentAdd,
   cmdAgentSet,
 } from "./agent-config.js";
+import { cmdAgentChannelPolicy } from "./agent-channel-policy.js";
 import {
   cmdAgentRemove,
   cmdAgentRename,
@@ -43,7 +43,8 @@ function createAgentCommand(json: boolean): CommandHandler {
       rename: ({ argv, config, usage }) => cmdAgentRename(config, argv, json, usage),
       add: ({ argv, config, usage }) => cmdAgentAdd(config, argv, json, usage),
       set: ({ argv, config, usage }) => cmdAgentSet(config, argv, json, usage),
-      attention: ({ argv, config, usage }) => cmdAgentAttention(config, argv, json, usage),
+      "channel-policy": ({ argv, config, usage }) =>
+        cmdAgentChannelPolicy(config, argv, json, usage),
       schedules: ({ argv, config, usage }) => cmdAgentSchedules(config, argv, json, usage),
       schedule: ({ argv, config, usage }) => cmdAgentSchedule(config, argv, json, usage),
     },

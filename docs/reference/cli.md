@@ -35,7 +35,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy setup init` | Create baseline workspace files. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy status` | Show workspace, gateway, channels, scheduled-run, and Telegram offset status. |
-| `shrimpy schedules [--agent <id>] [--json]` | Inspect configured recurring schedules and one-time schedules, including target channels, expected attention, next runs, and recent emitted messages. |
+| `shrimpy schedules [--agent <id>] [--json]` | Inspect configured recurring schedules and one-time schedules, including target channels, expected wake decisions, next runs, and recent emitted messages. |
 | `shrimpy schedules list --one-time [--status <status>] [--json]` | Inspect pending, fired, cancelled, failed, or expired one-time schedules. |
 | `shrimpy schedules once (--at <time>\|--in <duration>) --channel <name> --text <text> [--agent <id>]` | Create a durable one-time scheduled channel message. Agents use this CLI command too; there is no scheduling daemon tool. |
 | `shrimpy schedules cancel <schedule-id> [--json]` | Cancel a pending one-time schedule. |
@@ -64,8 +64,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy channels post <name> --agent <id> <text>` | Post a CLI human message addressed to one agent. |
 | `shrimpy channels dm <a> <b>` | Create a deterministic agent DM channel. |
 | `shrimpy channels members <name>` | Show channel members. |
-| `shrimpy channels join <name> --agent <id>` | Add an agent to channel membership. Agent `attention` config decides which channel messages become turns. |
-| `shrimpy channels leave <name> --agent <id>` | Remove an agent from channel membership. Agent `attention` config decides which channel messages become turns. |
+| `shrimpy channels join <name> --agent <id>` | Add an agent to channel membership. Agent `channelPolicy` config decides which visible channel messages become turns. |
+| `shrimpy channels leave <name> --agent <id>` | Remove an agent from channel membership. Agent `channelPolicy` config decides which visible channel messages become turns. |
 | `shrimpy surface` | List surface thread state. |
 | `shrimpy surface show <surface> <thread-id>` | Show one surface thread state entry. |
 | `shrimpy surface set-agent <surface> <thread-id> <agent>` | Set addressed agent for a surface thread. |
@@ -78,12 +78,12 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy agent list` | List configured agents. |
 | `shrimpy agent show <id>` | Show resolved agent config and paths. |
 | `shrimpy agent inspect <id>` | Show the effective tool capability view, including Pi built-ins, Shrimpy daemon tools, active tools, and excluded tools. See [tools.md](tools.md). |
-| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--tools`, `--disable-tools`, `--thinking`, and `--attention <all|mentions|addressed|none>`. |
-| `shrimpy agent set <id>` | Update root, model default, Shrimpy daemon tools, disabled tools, thinking default, or attention mode. |
-| `shrimpy agent attention <id> [--channel <name>]` | Inspect base and effective attention policy, including implied rules. |
-| `shrimpy agent attention set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel attention fields without rewriting the rest of the policy. |
-| `shrimpy agent attention clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel attention fields; `--channel` with no fields removes the whole override. |
-| `shrimpy agent attention test <id> --channel <name> --sender <human\|agent\|system> --text <text> [--actor-id <id>] [--user-id <id>] [--addressed <id>]` | Explain whether a sample message would become a turn, including matched overrides and effective attention filters. |
+| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--tools`, `--disable-tools`, `--thinking`, and `--channel-policy <all|mentions|addressed|none>`. |
+| `shrimpy agent set <id>` | Update root, model default, Shrimpy daemon tools, disabled tools, thinking default, or base channel policy mode. |
+| `shrimpy agent channel-policy <id> [--channel <name>]` | Inspect base and effective agent-owned channel policy. |
+| `shrimpy agent channel-policy set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel policy fields without rewriting the rest of the policy. |
+| `shrimpy agent channel-policy clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel policy fields; `--channel` with no fields removes the whole override. |
+| `shrimpy agent channel-policy explain <id> --channel <name> --sender <human\|agent\|system> --text <text> [--actor-id <id>] [--user-id <id>] [--addressed <id>]` | Explain whether a visible sample message would become a turn, including membership visibility and effective policy filters. |
 | `shrimpy agent schedules <id>` | List one agent's schedule definitions. |
 | `shrimpy agent schedule <id> <schedule-id>` | Show one agent schedule definition. |
 | `shrimpy agent rename <old> <new>` | Rename an agent and update local state. |

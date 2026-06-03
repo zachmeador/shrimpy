@@ -4,13 +4,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  resolveAgentAttention,
+  resolveAgentChannelPolicy,
   resolveAgentsConfig,
 } from "../dist/config/agents.js";
 import {
-  createAgentChannelPolicy,
-  isExplicitlyTargetedToAgent,
-  shouldAgentHandleMessage,
+  evaluateAgentChannelPolicy,
+  extractMentionedAgentIds,
+  shouldAgentWakeForChannelMessage,
 } from "../dist/agents/channel-policy.js";
 import { ChannelMembershipStore } from "../dist/channels/membership.js";
 import {
@@ -145,62 +145,62 @@ describe("shouldDispatchBacklogMessage", () => {
   });
 });
 
-describe("shouldAgentHandleMessage", () => {
-  function agent(id: string, attention?: Parameters<typeof resolveAgentAttention>[0]) {
-    return { id, attention: resolveAgentAttention(attention) };
+describe("agent channel policy", () => {
+  function agent(id: string, channelPolicy?: Parameters<typeof resolveAgentChannelPolicy>[0]) {
+    return { id, channelPolicy: resolveAgentChannelPolicy(channelPolicy) };
   }
 
-  test("lets agents handle human messages", () => {
+  test("wakes for visible human messages by default", () => {
     assert.equal(
-      shouldAgentHandleMessage(agent("shrimpy"), "home", {
+      shouldAgentWakeForChannelMessage(agent("shrimpy"), "home", {
         id: "human-1",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "hello" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       true,
     );
   });
 
   test("suppresses self-authored agent messages", () => {
     assert.equal(
-      shouldAgentHandleMessage(agent("career"), "home", {
+      shouldAgentWakeForChannelMessage(agent("career"), "home", {
         id: "agent-1",
         sender: { kind: "agent", actorId: "agent:career" },
         origin: { transport: "internal" },
         content: { type: "text", data: { text: "note" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       false,
     );
   });
 
-  test("honors explicit addressed-agent metadata", () => {
+  test("uses addressed-agent metadata as an agent policy input", () => {
     assert.equal(
-      shouldAgentHandleMessage(agent("career"), "home", {
+      shouldAgentWakeForChannelMessage(agent("career"), "home", {
         id: "human-2",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram", addressedAgentId: "career" },
         content: { type: "text", data: { text: "hello" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       true,
     );
 
     assert.equal(
-      shouldAgentHandleMessage(agent("shrimpy"), "home", {
+      shouldAgentWakeForChannelMessage(agent("shrimpy"), "home", {
         id: "human-3",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram", addressedAgentId: "career" },
         content: { type: "text", data: { text: "hello" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       false,
     );
   });
 
-  test("routes addressed system messages only to the targeted agent", () => {
+  test("agent policy accepts addressed system messages for the targeted visible agent", () => {
     const message = {
       id: "system-1",
       sender: { kind: "system" as const, actorId: "system:cli" },
@@ -213,51 +213,51 @@ describe("shouldAgentHandleMessage", () => {
     };
 
     assert.equal(
-      shouldAgentHandleMessage(agent("career"), "home", message),
+      shouldAgentWakeForChannelMessage(agent("career"), "home", message, { visible: true }),
       true,
     );
     assert.equal(
-      shouldAgentHandleMessage(agent("shrimpy"), "home", message),
+      shouldAgentWakeForChannelMessage(agent("shrimpy"), "home", message, { visible: true }),
       false,
     );
   });
 
   test("lets all-mode channel members handle unaddressed messages", () => {
     assert.equal(
-      shouldAgentHandleMessage(agent("career"), "home", {
+      shouldAgentWakeForChannelMessage(agent("career"), "home", {
         id: "human-4",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "just chatting" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       true,
     );
 
     assert.equal(
-      shouldAgentHandleMessage(agent("career"), "home", {
+      shouldAgentWakeForChannelMessage(agent("career"), "home", {
         id: "human-5",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "@career please jump in" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       true,
     );
 
     assert.equal(
-      shouldAgentHandleMessage(agent("career"), "home", {
+      shouldAgentWakeForChannelMessage(agent("career"), "home", {
         id: "human-6",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram", addressedAgentId: "shrimpy" },
         content: { type: "text", data: { text: "hello shrimpy" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       false,
     );
   });
 
-  test("supports mention-only and channel-specific attention", () => {
+  test("supports mention-only and channel-specific policy", () => {
     const career = agent("career", {
       mode: "mentions",
       channels: {
@@ -266,57 +266,57 @@ describe("shouldAgentHandleMessage", () => {
     });
 
     assert.equal(
-      shouldAgentHandleMessage(career, "home", {
+      shouldAgentWakeForChannelMessage(career, "home", {
         id: "human-7",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "anyone around?" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       false,
     );
     assert.equal(
-      shouldAgentHandleMessage(career, "home", {
+      shouldAgentWakeForChannelMessage(career, "home", {
         id: "human-8",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "@career around?" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       true,
     );
     assert.equal(
-      shouldAgentHandleMessage(career, "team-ops", {
+      shouldAgentWakeForChannelMessage(career, "team-ops", {
         id: "human-9",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "standup" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       true,
     );
   });
 
-  test("human single-agent mentions override quiet attention modes", () => {
+  test("none mode ignores mentions and addressed mode ignores multi-agent mentions", () => {
     assert.equal(
-      shouldAgentHandleMessage(agent("career", { mode: "none" }), "home", {
+      shouldAgentWakeForChannelMessage(agent("career", { mode: "none" }), "home", {
         id: "human-10",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "@career can you take this?" } },
         timestamp: Date.now(),
-      }),
-      true,
+      }, { visible: true }),
+      false,
     );
 
     assert.equal(
-      shouldAgentHandleMessage(agent("career", { mode: "addressed" }), "home", {
+      shouldAgentWakeForChannelMessage(agent("career", { mode: "addressed" }), "home", {
         id: "human-11",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "@career and @music can you coordinate?" } },
         timestamp: Date.now(),
-      }),
+      }, { visible: true }),
       false,
     );
   });
@@ -324,38 +324,28 @@ describe("shouldAgentHandleMessage", () => {
 
 describe("targeting helpers", () => {
   test("detects explicit single-target mentions", () => {
-    assert.equal(
-      isExplicitlyTargetedToAgent("career", {
+    assert.deepEqual(
+      extractMentionedAgentIds({
         id: "human-7",
         sender: { kind: "human", actorId: "human:alice" },
         origin: { transport: "telegram" },
         content: { type: "text", data: { text: "@career take this" } },
         timestamp: Date.now(),
       }),
-      true,
+      ["career"],
     );
 
-    assert.equal(
-      isExplicitlyTargetedToAgent("career", {
-        id: "human-8",
-        sender: { kind: "human", actorId: "human:alice" },
-        origin: { transport: "telegram" },
-        content: { type: "text", data: { text: "@career and @music both look" } },
-        timestamp: Date.now(),
-      }),
-      false,
-    );
-  });
-});
-
-describe("createAgentChannelPolicy", () => {
-  test("does not expose a turn-end delivery hook", () => {
-    const policy = createAgentChannelPolicy({
-      agent: { id: "shrimpy", attention: resolveAgentAttention() },
-    });
-
-    assert.equal(typeof policy.shouldHandleMessage, "function");
-    assert.equal("onTurnEnd" in policy, false);
+    const decision = evaluateAgentChannelPolicy({
+      id: "career",
+      channelPolicy: resolveAgentChannelPolicy({ mode: "mentions" }),
+    }, "home", {
+      id: "human-8",
+      sender: { kind: "human", actorId: "human:alice" },
+      origin: { transport: "telegram" },
+      content: { type: "text", data: { text: "@career and @music both look" } },
+      timestamp: Date.now(),
+    }, { visible: true });
+    assert.equal(decision.action, "ignore");
   });
 });
 
@@ -520,17 +510,17 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(calls, ["career", "shrimpy"]);
   });
 
-  test("routes Scrappy-style scheduled messages through channel membership and attention", async () => {
+  test("routes Scrappy-style scheduled messages through channel membership and agent channel policy", async () => {
     const agents = resolveAgentsConfig([
       {
         id: "shrimpy",
         model: { provider: "test", id: "shrimpy-model" },
-        attention: { mode: "all", senders: ["human"] },
+        channelPolicy: { mode: "all", senders: ["human"] },
       },
       {
         id: "ole_scrappy",
         model: { provider: "test", id: "scrappy-model" },
-        attention: {
+        channelPolicy: {
           mode: "none",
           channels: {
             "telegram~main~4242": {
@@ -587,7 +577,7 @@ describe("ChannelDeliveryLoop routing", () => {
       agent.id,
       {
         handleMessage: async (channel: string, message: any) => {
-          if (shouldAgentHandleMessage(agent, channel, message)) {
+          if (shouldAgentWakeForChannelMessage(agent, channel, message, { visible: true })) {
             calls.push(agent.id);
           }
         },
@@ -669,7 +659,7 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(memberships.get("room-1")?.agents, {});
   });
 
-  test("dispatches explicitly addressed turns to non-member agents", async () => {
+  test("does not dispatch explicitly addressed turns to non-member agents", async () => {
     const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
@@ -710,14 +700,24 @@ describe("ChannelDeliveryLoop routing", () => {
     dispatcher.agentRuntimes = new Map([
       ["shrimpy", {
         handleMessage: async (_channel: string, message: any) => {
-          if (shouldAgentHandleMessage(agents.find((agent) => agent.id === "shrimpy")!, _channel, message)) {
+          if (shouldAgentWakeForChannelMessage(
+            agents.find((agent) => agent.id === "shrimpy")!,
+            _channel,
+            message,
+            { visible: true },
+          )) {
             calls.push("shrimpy");
           }
         },
       }],
       ["career", {
         handleMessage: async (_channel: string, message: any) => {
-          if (shouldAgentHandleMessage(agents.find((agent) => agent.id === "career")!, _channel, message)) {
+          if (shouldAgentWakeForChannelMessage(
+            agents.find((agent) => agent.id === "career")!,
+            _channel,
+            message,
+            { visible: true },
+          )) {
             calls.push("career");
           }
         },
@@ -732,7 +732,7 @@ describe("ChannelDeliveryLoop routing", () => {
       timestamp: Date.now(),
     }, "live");
 
-    assert.deepEqual(calls, ["career"]);
+    assert.deepEqual(calls, []);
     assert.deepEqual(memberships.get("telegram~main~4242")?.agents, {
       shrimpy: {},
     });

@@ -6,7 +6,7 @@ import { createAppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import {
   DEFAULT_AGENT_TOOLS,
-  parseAttentionMode,
+  parseChannelPolicyMode,
   parseCsv,
   parseThinking,
 } from "./agent-helpers.js";
@@ -31,7 +31,7 @@ export async function cmdAgentAdd(
       tools: { type: "string" },
       "disable-tools": { type: "string" },
       thinking: { type: "string" },
-      attention: { type: "string" },
+      "channel-policy": { type: "string" },
     },
     allowPositionals: true,
     strict: true,
@@ -58,8 +58,8 @@ export async function cmdAgentAdd(
     tools: parseCsv(values.tools) ?? [...(defaultAgent.tools ?? DEFAULT_AGENT_TOOLS)],
     disabledTools: parseCsv(values["disable-tools"]) ?? [...(defaultAgent.disabledTools ?? [])],
     thinking: parseThinking(values.thinking),
-    ...(values.attention !== undefined
-      ? { attention: { mode: parseAttentionMode(values.attention) } }
+    ...(values["channel-policy"] !== undefined
+      ? { channelPolicy: { mode: parseChannelPolicyMode(values["channel-policy"]) } }
       : {}),
   });
 
@@ -94,7 +94,7 @@ export async function cmdAgentSet(
       tools: { type: "string" },
       "disable-tools": { type: "string" },
       thinking: { type: "string" },
-      attention: { type: "string" },
+      "channel-policy": { type: "string" },
     },
     allowPositionals: true,
     strict: true,
@@ -118,7 +118,7 @@ export async function cmdAgentSet(
     && values.tools === undefined
     && values["disable-tools"] === undefined
     && values.thinking === undefined
-    && values.attention === undefined
+    && values["channel-policy"] === undefined
   ) {
     return printError("agent set requires at least one field to update");
   }
@@ -133,8 +133,8 @@ export async function cmdAgentSet(
       ? { disabledTools: parseCsv(values["disable-tools"]) ?? [] }
       : {}),
     ...(values.thinking !== undefined ? { thinking: parseThinking(values.thinking) } : {}),
-    ...(values.attention !== undefined
-      ? { attention: { mode: parseAttentionMode(values.attention) } }
+    ...(values["channel-policy"] !== undefined
+      ? { channelPolicy: { mode: parseChannelPolicyMode(values["channel-policy"]) } }
       : {}),
   });
 

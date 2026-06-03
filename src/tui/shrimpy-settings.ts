@@ -195,7 +195,7 @@ class ShrimpySettingsSubmenu extends Container {
     const activeTools = this.mode.session.getActiveToolNames();
     const allTools = this.mode.session.getAllTools();
     const compaction = runtime.resolved.runtime.compaction;
-    const attentionSummary = formatAttention(agent.attention.mode);
+    const channelPolicySummary = formatChannelPolicy(agent.channelPolicy.mode);
 
     return [
       {
@@ -257,10 +257,10 @@ class ShrimpySettingsSubmenu extends Container {
         currentValue: `${activeTools.length}/${allTools.length} active`,
       },
       {
-        id: "attention",
-        label: "Attention",
-        description: "Base Shrimpy attention mode for this agent. Channel overrides can refine it.",
-        currentValue: attentionSummary,
+        id: "channel-policy",
+        label: "Channel policy",
+        description: "Agent-owned policy for visible channel messages.",
+        currentValue: channelPolicySummary,
       },
       {
         id: "auto-compact",
@@ -612,6 +612,6 @@ function formatSessionModel(model: AgentSession["model"]): string {
   return [model.provider, model.id].filter(Boolean).join("/") || "set";
 }
 
-function formatAttention(mode: string): string {
+function formatChannelPolicy(mode: string): string {
   return mode || "all";
 }

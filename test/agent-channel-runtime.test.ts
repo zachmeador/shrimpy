@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AgentChannelRuntime } from "../dist/agents/channel-runtime.js";
-import { resolveAgentAttention } from "../dist/config/agents.js";
+import { resolveAgentChannelPolicy } from "../dist/config/agents.js";
 
 let workspace: string;
 
@@ -30,7 +30,7 @@ describe("AgentChannelRuntime", () => {
           model: { provider: "local", id: "qwen" },
           thinking: "high",
           tools: [],
-          attention: resolveAgentAttention(),
+          channelPolicy: resolveAgentChannelPolicy(),
         };
       },
       getAgentPaths() {

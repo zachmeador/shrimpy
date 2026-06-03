@@ -12,13 +12,13 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Typed Channel Protocol** — channel message `content` is one of `text`, `image`, `image_group`, `unsupported_media`, or `system`.
 - **Channel egress** — surface-backed delivery for text already logged to a channel.
 - **Channel membership** — the source of truth for which agents participate in a channel.
-- **Agent attention** — per-agent policy for which subscribed channel messages become turns.
+- **Agent channel policy** — per-agent policy for which visible channel messages become turns.
 - **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`).
 - **SessionRegistry** — one active turn at a time per session, with FIFO queuing.
 - **Surface** — a transport-facing interaction layer such as Telegram. Each surface is a self-contained vertical at `src/surfaces/<name>/` and registers via the `ChatSurfaceModule` interface; `AppRuntime` aggregates the registry without knowing surface kinds.
 - **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances scheduled work.
 - **Scheduler** — file-driven recurring work. Schedules emit channel messages;
-  channel membership and agent attention decide whether those messages become
+  channel membership and agent channel policy decide whether those messages become
   turns. Agent schedules live in `agents/<id>/schedules.json`; optional
   workspace scheduler definitions live in `config/schedules.json`.
 - **Skill** — prompt and resource material loaded into a session.

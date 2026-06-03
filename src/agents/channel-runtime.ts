@@ -12,8 +12,7 @@ import {
   resolveAgentToolPolicy,
 } from "../tools/policy.js";
 import {
-  createAgentChannelPolicy,
-  type AgentChannelPolicy,
+  shouldAgentWakeForChannelMessage,
 } from "./channel-policy.js";
 import {
   createGatewaySessionDescriptor,
@@ -34,7 +33,6 @@ export class AgentChannelRuntime {
   readonly agentId: string;
   private readonly agent: ResolvedAgentConfig;
   private readonly channelBus: ChannelBus;
-  private readonly policy: AgentChannelPolicy;
   private readonly registry: SessionRegistry;
 
   constructor(opts: AgentChannelRuntimeOpts) {
@@ -43,9 +41,6 @@ export class AgentChannelRuntime {
     this.channelBus = opts.channelBus;
     const toolPolicy = resolveAgentToolPolicy(this.agent);
     const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
-    this.policy = createAgentChannelPolicy({
-      agent: this.agent,
-    });
     const model = resolveModel(
       opts.bootstrap,
       undefined,
@@ -101,7 +96,9 @@ export class AgentChannelRuntime {
   }
 
   shouldHandleMessage(channel: string, message: ChannelMessage): boolean {
-    return this.policy.shouldHandleMessage(channel, message);
+    return shouldAgentWakeForChannelMessage(this.agent, channel, message, {
+      visible: true,
+    });
   }
 
   async handleMessage(channel: string, message: ChannelMessage): Promise<void> {

@@ -96,7 +96,7 @@ describe("setupInit", () => {
       "read_channel",
       "run_child",
     ]);
-    assert.deepEqual(config.agents[0].attention, { mode: "all" });
+    assert.deepEqual(config.agents[0].channelPolicy, { mode: "all" });
     assert.deepEqual(config.context.sources, [
       "workspace:profile/WORKSPACE.md",
       "workspace:profile/SYSTEM.md",
@@ -148,6 +148,9 @@ describe("setupInit", () => {
     assert.match(system, /Start with `README\.md` there before reading `musings\/`\./);
     assert.match(system, /Turn context\*\* is compact live state and inspect pointers/);
     assert.match(system, /default agent has `vault\/`/);
+    assert.match(system, /Coding Work/);
+    assert.match(system, /core UX direction is optional delegation/);
+    assert.match(system, /work came from a user conversation/);
     assert.match(system, /Tools And Inspection/);
     assert.equal(system.includes(join(projectRoot, "docs")), true);
     assert.equal(system.includes(workspace), false);

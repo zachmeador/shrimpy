@@ -1,5 +1,5 @@
 import {
-  explainAgentMessageHandling,
+  evaluateAgentChannelPolicy,
   searchableText,
 } from "../../agents/channel-policy.js";
 import type { AppRuntime } from "../../app/runtime.js";
@@ -25,7 +25,7 @@ export function buildTurnFactItems(input: TurnFactInput): TurnContextItem[] {
     buildRouteItem(channel, message),
     buildAgentDmItem(input, channel),
     buildAddressedItem(input.agentId, channel, message),
-    buildAttentionItem(input, channel, message),
+    buildWakeItem(input, channel, message),
     buildSchedulerItem(message),
   ].filter((item): item is TurnContextItem => item !== undefined);
 }
@@ -85,24 +85,26 @@ function buildAddressedItem(
     summary: addressed === agentId
       ? `addressed to ${agentId} by origin.addressedAgentId`
       : `addressed to ${addressed} by origin.addressedAgentId`,
-    inspect: attentionInspectCommand(agentId, channel, message),
+    inspect: wakeInspectCommand(agentId, channel, message),
   };
 }
 
-function buildAttentionItem(
+function buildWakeItem(
   input: TurnFactInput,
   channel: string,
   message: ChannelMessage,
 ): TurnContextItem | undefined {
   const agent = getKnownAgent(input.runtime, input.agentId);
   if (!agent) return undefined;
-  const explanation = explainAgentMessageHandling(agent, channel, message);
-  if (!explanation.handles) return undefined;
+  const decision = evaluateAgentChannelPolicy(agent, channel, message, {
+    visible: true,
+  });
+  if (decision.action !== "wake") return undefined;
 
   return {
-    id: `turn:${message.id}:attention`,
-    summary: `attention: handled because ${explanation.reason}`,
-    inspect: attentionInspectCommand(input.agentId, channel, message),
+    id: `turn:${message.id}:wake`,
+    summary: `wake: ${decision.reason}; policy owner agent:${input.agentId}`,
+    inspect: wakeInspectCommand(input.agentId, channel, message),
   };
 }
 
@@ -143,14 +145,14 @@ function buildSchedulerItem(message: ChannelMessage): TurnContextItem | undefine
   };
 }
 
-function attentionInspectCommand(
+function wakeInspectCommand(
   agentId: string,
   channel: string,
   message: ChannelMessage,
 ): string {
   const text = searchableText(message) || `[${message.content.type}]`;
   return [
-    "shrimpy agent attention test",
+    "shrimpy agent channel-policy explain",
     agentId,
     "--channel",
     channel,

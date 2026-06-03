@@ -47,7 +47,7 @@ describe("CLI catalog", () => {
 
     assert.match(bash, /complete -F _shrimpy_completion shrimpy/);
     assert.match(bash, /skip_next=1; continue/);
-    assert.match(bash, /"agent"\) suggestions="[^"]*attention[^"]*list[^"]*run/);
+    assert.match(bash, /"agent"\) suggestions="[^"]*channel-policy[^"]*list[^"]*run/);
     assert.match(bash, /"channels"\) suggestions="[^"]*join[^"]*leave[^"]*read/);
     assert.match(zsh, /#compdef shrimpy/);
     assert.match(zsh, /compdef _shrimpy shrimpy/);

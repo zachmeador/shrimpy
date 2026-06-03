@@ -11,8 +11,8 @@ import {
   parseOneTimeDue,
   type OneTimeScheduleInspection,
   type OneTimeScheduleStatus,
-  type ScheduleAttentionExpectation,
   type ScheduleInspection,
+  type ScheduleWakeExpectation,
 } from "../scheduler/index.js";
 import {
   parseCommandArgs,
@@ -289,19 +289,19 @@ function printScheduleDetail(schedule: AnyScheduleInspection): void {
     console.log(`addressed_agent: ${schedule.addressedAgentId}`);
   }
   console.log(
-    "routing: scheduler writes to target_channel; unaddressed messages go to channel members, then attention filters them into turns",
+    "wake: scheduler writes to target_channel; channel members receive visibility and each agent owns its wake/response policy",
   );
   console.log(
     `channel_members: ${
       schedule.channelMembership.agentIds.join(",") || "(none)"
     }${schedule.channelMembership.exists ? "" : " (no explicit membership)"}`,
   );
-  console.log("expected_attention:");
-  if (schedule.expectedAttention.length === 0) {
+  console.log("expected_wake:");
+  if (schedule.expectedWake.length === 0) {
     console.log("- (none)");
   } else {
-    for (const agent of schedule.expectedAttention) {
-      console.log(`- ${formatAttentionExpectation(agent)}`);
+    for (const agent of schedule.expectedWake) {
+      console.log(`- ${formatWakeExpectation(agent)}`);
     }
   }
   console.log(
@@ -321,7 +321,7 @@ function printScheduleDetail(schedule: AnyScheduleInspection): void {
   console.log(`- ${schedule.inspectCommands.schedule}`);
   console.log(`- ${schedule.inspectCommands.channel}`);
   console.log(`- ${schedule.inspectCommands.membership}`);
-  for (const command of schedule.inspectCommands.attention) {
+  for (const command of schedule.inspectCommands.wake) {
     console.log(`- ${command}`);
   }
   if (schedule.diagnostics.length > 0) {
@@ -365,19 +365,19 @@ function printOneTimeScheduleDetail(schedule: OneTimeScheduleInspection): void {
   console.log(`emitted_message: ${schedule.emittedChannelMessageId ?? "(none)"}`);
   console.log(`text: ${schedule.text}`);
   console.log(
-    "routing: scheduler writes to target_channel; unaddressed messages go to channel members, then attention filters them into turns",
+    "wake: scheduler writes to target_channel; channel members receive visibility and each agent owns its wake/response policy",
   );
   console.log(
     `channel_members: ${
       schedule.channelMembership.agentIds.join(",") || "(none)"
     }${schedule.channelMembership.exists ? "" : " (no explicit membership)"}`,
   );
-  console.log("expected_attention:");
-  if (schedule.expectedAttention.length === 0) {
+  console.log("expected_wake:");
+  if (schedule.expectedWake.length === 0) {
     console.log("- (none)");
   } else {
-    for (const agent of schedule.expectedAttention) {
-      console.log(`- ${formatAttentionExpectation(agent)}`);
+    for (const agent of schedule.expectedWake) {
+      console.log(`- ${formatWakeExpectation(agent)}`);
     }
   }
   console.log("inspect:");
@@ -387,7 +387,7 @@ function printOneTimeScheduleDetail(schedule: OneTimeScheduleInspection): void {
   if (schedule.inspectCommands.cancel) {
     console.log(`- ${schedule.inspectCommands.cancel}`);
   }
-  for (const command of schedule.inspectCommands.attention) {
+  for (const command of schedule.inspectCommands.wake) {
     console.log(`- ${command}`);
   }
   if (schedule.diagnostics.length > 0) {
@@ -398,12 +398,12 @@ function printOneTimeScheduleDetail(schedule: OneTimeScheduleInspection): void {
   }
 }
 
-function formatAttentionExpectation(
-  expectation: ScheduleAttentionExpectation,
+function formatWakeExpectation(
+  expectation: ScheduleWakeExpectation,
 ): string {
-  const status = expectation.handles ? "handles" : "skips";
+  const status = expectation.action === "wake" ? "wakes" : "ignores";
   const member = expectation.member ? "member" : "not-member";
-  return `${expectation.agentId}: ${status} (${member}) ${expectation.reason} session=${expectation.sessionPath}`;
+  return `${expectation.agentId}: ${status} (${member}) ${expectation.reason} policy_owner=${expectation.policyOwner} session=${expectation.sessionPath}`;
 }
 
 function formatFutureOrPast(targetMs: number): string {

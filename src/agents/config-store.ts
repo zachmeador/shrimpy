@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import {
-  type AgentAttentionConfig,
+  type AgentChannelPolicyConfig,
   type AgentConfig,
   validateAgentsConfig,
 } from "../config/agents.js";
@@ -25,7 +25,7 @@ export interface AgentConfigDraft {
   tools: string[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
-  attention?: AgentAttentionConfig;
+  channelPolicy?: AgentChannelPolicyConfig;
 }
 
 export interface AgentConfigPatch {
@@ -34,7 +34,7 @@ export interface AgentConfigPatch {
   tools?: string[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
-  attention?: AgentAttentionConfig;
+  channelPolicy?: AgentChannelPolicyConfig;
 }
 
 export function readAgentWorkspaceConfig(workspace: string): AgentWorkspaceConfig {
@@ -68,7 +68,7 @@ export function createAgentConfig(input: AgentConfigDraft): AgentConfig {
       ? { disabledTools: [...new Set(input.disabledTools)] }
       : {}),
     ...(input.thinking !== undefined ? { thinking: input.thinking } : {}),
-    ...(input.attention !== undefined ? { attention: input.attention } : {}),
+    ...(input.channelPolicy !== undefined ? { channelPolicy: input.channelPolicy } : {}),
   };
   return agent;
 }
@@ -108,20 +108,6 @@ export function patchStoredAgentConfig(
     }
   }
   if (patch.thinking !== undefined) next.thinking = patch.thinking;
-  if (patch.attention !== undefined) next.attention = patch.attention;
-  return next;
-}
-
-/** Set the stored attention config, or remove the key when `attention` is null. */
-export function setStoredAgentAttention(
-  agent: AgentConfig,
-  attention: AgentAttentionConfig | null,
-): AgentConfig {
-  const next: AgentConfig = { ...agent };
-  if (attention === null) {
-    delete next.attention;
-  } else {
-    next.attention = attention;
-  }
+  if (patch.channelPolicy !== undefined) next.channelPolicy = patch.channelPolicy;
   return next;
 }

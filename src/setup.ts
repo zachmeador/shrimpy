@@ -149,7 +149,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
           "read_channel",
           "run_child",
         ],
-        attention: {
+        channelPolicy: {
           mode: "all",
         },
       },

@@ -1,156 +1,185 @@
-import type { ChannelMessage } from "../channels/index.js";
+import type { ChannelMessage, MessageSenderKind } from "../channels/index.js";
 import {
-  resolveAgentAttentionForChannel,
-  type AgentAttentionRule,
+  resolveAgentChannelPolicyForChannel,
+  type AgentChannelPolicyRule,
   type ResolvedAgentConfig,
 } from "../config/agents.js";
-import type { MessageSenderKind } from "../channels/index.js";
 
-export interface AgentChannelPolicy {
-  shouldHandleMessage(channel: string, message: ChannelMessage): boolean;
-}
+export type AgentChannelPolicyAction = "wake" | "ignore";
 
-export interface AgentMessageHandlingExplanation {
-  handles: boolean;
+export interface AgentChannelPolicyDecision {
+  agentId: string;
+  channel: string;
+  visible: boolean;
+  action: AgentChannelPolicyAction;
   reason: string;
-  effectiveAttention?: Required<AgentAttentionRule>;
-  impliedRule?: string;
+  policyOwner: "agent";
+  effectivePolicy?: Required<AgentChannelPolicyRule>;
+  runtimeGuard?: string;
+  addressedAgentId?: string;
+  mentionedAgentIds: string[];
 }
 
-interface CreateAgentChannelPolicyOpts {
-  agent: Pick<ResolvedAgentConfig, "id" | "attention">;
+interface EvaluateAgentChannelPolicyOpts {
+  visible: boolean;
 }
 
-export function createAgentChannelPolicy(
-  opts: CreateAgentChannelPolicyOpts,
-): AgentChannelPolicy {
-  return {
-    shouldHandleMessage(channel, message) {
-      return shouldAgentHandleMessage(opts.agent, channel, message);
-    },
+export function evaluateAgentChannelPolicy(
+  agent: Pick<ResolvedAgentConfig, "id" | "channelPolicy">,
+  channel: string,
+  message: ChannelMessage,
+  opts: EvaluateAgentChannelPolicyOpts,
+): AgentChannelPolicyDecision {
+  const mentionedAgentIds = extractMentionedAgentIds(message);
+  const base = {
+    agentId: agent.id,
+    channel,
+    visible: opts.visible,
+    policyOwner: "agent" as const,
+    ...(message.origin.addressedAgentId
+      ? { addressedAgentId: message.origin.addressedAgentId }
+      : {}),
+    mentionedAgentIds,
   };
-}
 
-export function shouldAgentHandleMessage(
-  agent: Pick<ResolvedAgentConfig, "id" | "attention">,
-  channel: string,
-  message: ChannelMessage,
-): boolean {
-  return explainAgentMessageHandling(agent, channel, message).handles;
-}
-
-export function explainAgentMessageHandling(
-  agent: Pick<ResolvedAgentConfig, "id" | "attention">,
-  channel: string,
-  message: ChannelMessage,
-): AgentMessageHandlingExplanation {
-  if (message.sender.kind === "agent" && message.sender.actorId === `agent:${agent.id}`) {
+  if (!opts.visible) {
     return {
-      handles: false,
-      reason: "self-authored agent message",
-      impliedRule: "agents do not handle their own channel messages",
+      ...base,
+      action: "ignore",
+      reason: "agent has no visibility into this channel",
     };
   }
 
-  if (message.origin.addressedAgentId) {
-    const handles = message.origin.addressedAgentId === agent.id;
+  if (isSelfAuthoredAgentMessage(agent.id, message)) {
     return {
-      handles,
-      reason: handles
-        ? "message is explicitly addressed to this agent"
-        : `message is explicitly addressed to ${message.origin.addressedAgentId}`,
-      impliedRule: "origin.addressedAgentId routes only to that agent",
+      ...base,
+      action: "ignore",
+      reason: "self-authored channel message",
+      runtimeGuard: "self-authored agent messages are not re-offered to the same agent",
     };
   }
 
-  if (message.sender.kind === "human" && isExplicitlyTargetedToAgent(agent.id, message)) {
+  const effectivePolicy = resolveAgentChannelPolicyForChannel(
+    agent.channelPolicy,
+    channel,
+  );
+
+  if (
+    message.origin.addressedAgentId &&
+    message.origin.addressedAgentId !== agent.id
+  ) {
     return {
-      handles: true,
-      reason: "human single-agent mention",
-      impliedRule: "human @agent mentions call that agent even when ambient attention is quiet",
+      ...base,
+      action: "ignore",
+      reason: `message is addressed to ${message.origin.addressedAgentId}`,
+      effectivePolicy,
     };
   }
 
-  const attention = resolveAgentAttentionForChannel(agent.attention, channel);
-  if (!senderMatches(attention, message)) {
+  if (!senderMatches(effectivePolicy, message)) {
     return {
-      handles: false,
-      reason: "sender does not match effective attention filters",
-      effectiveAttention: attention,
+      ...base,
+      action: "ignore",
+      reason: "sender does not match agent channel policy filters",
+      effectivePolicy,
     };
   }
 
-  switch (attention.mode) {
+  const addressedToAgent = message.origin.addressedAgentId === agent.id;
+  const mentionedAgent = isSingleAgentMention(agent.id.toLowerCase(), mentionedAgentIds);
+
+  switch (effectivePolicy.mode) {
     case "none":
       return {
-        handles: false,
-        reason: "effective attention mode is none",
-        effectiveAttention: attention,
+        ...base,
+        action: "ignore",
+        reason: "agent channel policy mode is none",
+        effectivePolicy,
       };
     case "addressed":
-      return {
-        handles: false,
-        reason: "effective attention mode is addressed and message is not explicitly addressed",
-        effectiveAttention: attention,
-      };
-    case "mentions":
-      if (isExplicitlyTargetedToAgent(agent.id, message)) {
-        return {
-          handles: true,
-          reason: "effective attention mode is mentions and message names this agent",
-          effectiveAttention: attention,
+      return addressedToAgent
+        ? {
+          ...base,
+          action: "wake",
+          reason: "agent channel policy accepts addressed messages for this agent",
+          effectivePolicy,
+        }
+        : {
+          ...base,
+          action: "ignore",
+          reason: "agent channel policy mode is addressed and message is not addressed to this agent",
+          effectivePolicy,
         };
-      }
-      return {
-        handles: false,
-        reason: "effective attention mode is mentions and message is not a single-agent mention",
-        effectiveAttention: attention,
-      };
+    case "mentions":
+      return addressedToAgent || mentionedAgent
+        ? {
+          ...base,
+          action: "wake",
+          reason: addressedToAgent
+            ? "agent channel policy accepts addressed messages for this agent"
+            : "agent channel policy accepts single-agent mentions for this agent",
+          effectivePolicy,
+        }
+        : {
+          ...base,
+          action: "ignore",
+          reason: "agent channel policy mode is mentions and message does not name this agent",
+          effectivePolicy,
+        };
     case "all":
       return {
-        handles: true,
-        reason: "effective attention mode is all",
-        effectiveAttention: attention,
+        ...base,
+        action: "wake",
+        reason: "agent channel policy mode is all",
+        effectivePolicy,
       };
   }
+}
+
+export function shouldAgentWakeForChannelMessage(
+  agent: Pick<ResolvedAgentConfig, "id" | "channelPolicy">,
+  channel: string,
+  message: ChannelMessage,
+  opts: EvaluateAgentChannelPolicyOpts,
+): boolean {
+  return evaluateAgentChannelPolicy(agent, channel, message, opts).action === "wake";
 }
 
 function senderMatches(
-  attention: Required<AgentAttentionRule>,
+  policy: Required<AgentChannelPolicyRule>,
   message: ChannelMessage,
 ): boolean {
   const senderKind: MessageSenderKind = message.sender.kind;
   if (
-    attention.senders.length > 0 &&
-    !attention.senders.includes(senderKind)
+    policy.senders.length > 0 &&
+    !policy.senders.includes(senderKind)
   ) {
     return false;
   }
   if (
-    attention.actorIds.length > 0 &&
-    !attention.actorIds.includes(message.sender.actorId)
+    policy.actorIds.length > 0 &&
+    !policy.actorIds.includes(message.sender.actorId)
   ) {
     return false;
   }
   if (
-    attention.userIds.length > 0 &&
-    (!message.sender.userId || !attention.userIds.includes(message.sender.userId))
+    policy.userIds.length > 0 &&
+    (!message.sender.userId || !policy.userIds.includes(message.sender.userId))
   ) {
     return false;
   }
   return true;
 }
 
-export function isExplicitlyTargetedToAgent(
+function isSingleAgentMention(agentId: string, mentionedAgentIds: string[]): boolean {
+  return mentionedAgentIds.length === 1 && mentionedAgentIds[0] === agentId;
+}
+
+export function isSelfAuthoredAgentMessage(
   agentId: string,
   message: ChannelMessage,
 ): boolean {
-  if (message.origin.addressedAgentId === agentId) {
-    return true;
-  }
-
-  const mentions = extractMentionedAgentIds(message);
-  return mentions.length === 1 && mentions[0] === agentId;
+  return message.sender.kind === "agent" && message.sender.actorId === `agent:${agentId}`;
 }
 
 export function extractMentionedAgentIds(

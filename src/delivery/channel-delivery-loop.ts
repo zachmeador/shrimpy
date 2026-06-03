@@ -117,11 +117,7 @@ export class ChannelDeliveryLoop {
       return;
     }
 
-    const agentIds = new Set(
-      message.origin.addressedAgentId
-        ? [message.origin.addressedAgentId]
-        : this.memberships.listAgentIds(channel),
-    );
+    const agentIds = new Set(this.memberships.listAgentIds(channel));
 
     await Promise.all([...agentIds].map(async (agentId) => {
       const agentRuntime = this.agentRuntimes.get(agentId);

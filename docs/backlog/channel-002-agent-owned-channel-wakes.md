@@ -1,6 +1,6 @@
 # CHANNEL-002: Agent-Owned Channel Wakes
 
-Status: draft
+Status: review
 Priority: P1
 Area: Channels
 Depends On: none
@@ -11,10 +11,10 @@ Shrimpy needs one legible answer to "who can see this channel message?" and a
 separate agent-owned answer to "do I wake for it?"
 
 The current implementation splits that answer across the delivery loop,
-agent attention/wake policy, and repeated addressing checks:
+agent `channelPolicy` wake policy, and repeated addressing checks:
 
 - `src/delivery/channel-delivery-loop.ts` chooses addressed-agent-or-members.
-- `src/agents/channel-runtime.ts` applies a second agent attention/wake gate.
+- `src/agents/channel-runtime.ts` applies a second agent channel-policy wake gate.
 - `origin.addressedAgentId` is interpreted in multiple places.
 
 That creates a real bug shape: an addressed message can wake an agent that is
@@ -29,9 +29,10 @@ provenance. Agent messages should preserve the sending agent identity,
 publication intent when relevant, and source channel/session context when known.
 Non-human producers such as agent-owned watches, managed worker sessions, apps,
 or signal projections should include source provenance and useful diagnostics. The
-correction is not to create a central router or rename Shrimpy-owned attention
-config to "wake" config. The correction is to keep channels as semantic
-communication logs, with agent-owned wake and response decisions at the edge.
+correction is not to create a central router or keep a Shrimpy-owned attention
+control plane under another name. The correction is to keep channels as semantic
+communication logs, with agent-owned `channelPolicy` wake and response decisions
+at the edge.
 
 ## Rule
 
@@ -42,9 +43,11 @@ communication logs, with agent-owned wake and response decisions at the edge.
    that are present in that channel or otherwise explicitly given channel
    visibility. Membership is a pure set; it carries no wake policy.
 3. **Each agent owns its wake policy.** Shrimpy runs agents; agents run their
-   wake and response policies. A present agent can decide to wake because the
-   user `@mention`ed it, because another agent addressed it, because it cares
-   about that user/channel/topic, or because it otherwise wants to respond.
+   wake and response policies. The agent-level `channelPolicy` is the
+   inspectable config surface for visible channel messages. A present agent can
+   decide to wake because the user `@mention`ed it, because another agent
+   addressed it, because it cares about that user/channel/topic, or because it
+   otherwise wants to respond.
 4. **Addressing and mentions are policy inputs, not routing.** `@scrappy` does
    not invoke a central router; it is a fact in the message that Scrappy's own
    wake policy may care about. The agent still needs visibility into the channel
@@ -63,11 +66,11 @@ communication logs, with agent-owned wake and response decisions at the edge.
 There is no central router and no Shrimpy-owned wake policy control plane.
 Channels provide visibility; agents decide whether to wake.
 
-## Current State
+## Original State
 
 - `src/delivery/channel-delivery-loop.ts` still has an addressed-agent bypass
   before channel presence fan-out.
-- `src/agents/channel-policy.ts` makes the attention/wake decision
+- `src/agents/channel-policy.ts` makes the agent wake decision
   independently of membership.
 - `src/channels/membership.ts` is already close to the desired shape: a pure
   channel-presence set.
@@ -90,9 +93,10 @@ Channels provide visibility; agents decide whether to wake.
   explanation. Shrimpy may expose the explanation, but it must not own the
   policy.
 - Remove duplicated addressing checks and helper drift.
-- Replace the `shrimpy agent attention` CLI surface with agent wake inspection.
-  Do not keep old command names, aliases, compatibility wrappers, or legacy
-  config paths merely to prevent breakage.
+- Replace the `shrimpy agent attention` CLI surface with
+  `shrimpy agent channel-policy` inspection. Do not keep old command names,
+  aliases, compatibility wrappers, or legacy config paths merely to prevent
+  breakage.
 - Update diagnostics so an addressed-to-non-member message clearly reports that
   the agent has no visibility into the channel and therefore cannot notice the
   mention.

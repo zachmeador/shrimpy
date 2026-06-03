@@ -1,25 +1,25 @@
 import {
-  type AttentionField,
-  type AttentionRuleValues,
-  type AttentionSenderKind,
-} from "../agents/attention-edit.js";
-import {
-  explainAgentMessageHandling,
-  extractMentionedAgentIds,
-} from "../agents/channel-policy.js";
-import { editAgentAttention } from "../agents/service.js";
-import type { EditAgentAttentionResult } from "../agents/workspace-manager.js";
+  type ChannelPolicyField,
+  type ChannelPolicyRuleValues,
+  type ChannelPolicySenderKind,
+} from "../agents/channel-policy-edit.js";
+import { evaluateAgentChannelPolicy, extractMentionedAgentIds } from "../agents/channel-policy.js";
+import { editAgentChannelPolicy } from "../agents/service.js";
+import type { EditAgentChannelPolicyResult } from "../agents/workspace-manager.js";
 import { createAppRuntime } from "../app/index.js";
 import {
   makeMessage,
   textContent,
   type MessageSenderKind,
 } from "../channels/index.js";
-import { resolveAgentAttentionForChannel } from "../config/agents.js";
+import { channelAgentIds } from "../channels/membership.js";
+import {
+  resolveAgentChannelPolicyForChannel,
+} from "../config/agents.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import { channelMatches } from "../util/channel-pattern.js";
 import {
-  parseAttentionMode,
+  parseChannelPolicyMode,
   parseCsv,
 } from "./agent-helpers.js";
 import {
@@ -33,7 +33,7 @@ function parseSenderKind(value?: string): MessageSenderKind {
   throw new Error("sender must be one of: human, agent, system");
 }
 
-function parseSenderKinds(value: string): AttentionSenderKind[] {
+function parseSenderKinds(value: string): ChannelPolicySenderKind[] {
   const items = parseCsv(value);
   if (!items) {
     throw new Error("senders must list at least one of: human, agent, system");
@@ -43,9 +43,7 @@ function parseSenderKinds(value: string): AttentionSenderKind[] {
 
 function requireIds(value: string, label: string): string[] {
   const items = parseCsv(value);
-  if (!items) {
-    throw new Error(`${label} must list at least one id`);
-  }
+  if (!items) throw new Error(`${label} must list at least one id`);
   return items;
 }
 
@@ -55,11 +53,16 @@ function parseChannelTarget(value: string | undefined): string | null | undefine
   return trimmed === "" ? null : trimmed;
 }
 
-function reportAttentionEdit(
+function parseAddressed(value?: string): string | undefined {
+  if (value === undefined || value === "" || value === "none") return undefined;
+  return value;
+}
+
+function reportChannelPolicyEdit(
   action: "set" | "clear",
   agentId: string,
   channel: string | undefined,
-  result: EditAgentAttentionResult,
+  result: EditAgentChannelPolicyResult,
   json: boolean,
 ): number {
   const target = channel ? `channel:${channel}` : "base";
@@ -69,40 +72,35 @@ function reportAttentionEdit(
       agentId,
       target,
       configPath: result.configPath,
-      previousAttention: result.previousAttention ?? null,
-      attention: result.nextAttention,
+      previousChannelPolicy: result.previousChannelPolicy ?? null,
+      channelPolicy: result.nextChannelPolicy,
     }, null, 2));
     return 0;
   }
 
-  console.log(`attention ${action}: ${agentId}`);
+  console.log(`channel_policy ${action}: ${agentId}`);
   console.log(`target: ${target}`);
   console.log(`config: ${result.configPath}`);
   console.log(
-    `attention: ${result.nextAttention ? JSON.stringify(result.nextAttention) : "(default)"}`,
+    `channel_policy: ${result.nextChannelPolicy ? JSON.stringify(result.nextChannelPolicy) : "(default)"}`,
   );
   return 0;
 }
 
-function parseAddressed(value?: string): string | undefined {
-  if (value === undefined || value === "" || value === "none") return undefined;
-  return value;
-}
-
-export async function cmdAgentAttention(
+export async function cmdAgentChannelPolicy(
   config: ShrimpyConfig,
   args: string[],
   json: boolean,
   usage: string,
 ): Promise<number> {
-  if (args[0] === "test") {
-    return cmdAgentAttentionTest(config, args.slice(1), json, usage);
+  if (args[0] === "explain") {
+    return cmdAgentChannelPolicyExplain(config, args.slice(1), json, usage);
   }
   if (args[0] === "set") {
-    return cmdAgentAttentionSet(config, args.slice(1), json, usage);
+    return cmdAgentChannelPolicySet(config, args.slice(1), json, usage);
   }
   if (args[0] === "clear") {
-    return cmdAgentAttentionClear(config, args.slice(1), json, usage);
+    return cmdAgentChannelPolicyClear(config, args.slice(1), json, usage);
   }
 
   const { values, positionals } = parseCommandArgs({
@@ -116,32 +114,33 @@ export async function cmdAgentAttention(
   });
 
   const agentId = requireArg(positionals[0], usage, "agent id");
-
   const runtime = createAppRuntime(config);
   const agent = runtime.getAgent(agentId);
   const matchedChannelOverrides = values.channel
-    ? Object.keys(agent.attention.channels)
+    ? Object.keys(agent.channelPolicy.channels)
       .filter((pattern) => channelMatches(pattern, values.channel!))
     : [];
   const effective = values.channel
-    ? resolveAgentAttentionForChannel(agent.attention, values.channel)
+    ? resolveAgentChannelPolicyForChannel(agent.channelPolicy, values.channel)
     : undefined;
+  const membership = values.channel
+    ? runtime.createChannelMembershipStore().seedChannel(values.channel)
+    : undefined;
+  const memberAgentIds = membership ? channelAgentIds(membership) : undefined;
 
   const view = {
     agentId: agent.id,
-    attention: agent.attention,
+    channelPolicy: agent.channelPolicy,
     ...(values.channel
       ? {
         channel: values.channel,
+        visible: memberAgentIds?.includes(agent.id) ?? false,
+        memberAgentIds,
         matchedChannelOverrides,
-        effectiveAttention: effective,
+        effectiveChannelPolicy: effective,
       }
       : {}),
-    impliedPolicies: [
-      "origin.addressedAgentId routes only to that agent",
-      "human single-agent @agent mentions call that agent even when ambient attention is quiet",
-      "agents do not handle their own channel messages",
-    ],
+    policyOwner: "agent",
   };
 
   if (json) {
@@ -150,29 +149,28 @@ export async function cmdAgentAttention(
   }
 
   console.log(`agent: ${agent.id}`);
-  console.log(`base_mode: ${agent.attention.mode}`);
-  console.log(`base_senders: ${agent.attention.senders.join(",") || "(any)"}`);
-  console.log(`base_actor_ids: ${agent.attention.actorIds.join(",") || "(any)"}`);
-  console.log(`base_user_ids: ${agent.attention.userIds.join(",") || "(any)"}`);
+  console.log(`policy_owner: agent`);
+  console.log(`base_mode: ${agent.channelPolicy.mode}`);
+  console.log(`base_senders: ${agent.channelPolicy.senders.join(",") || "(any)"}`);
+  console.log(`base_actor_ids: ${agent.channelPolicy.actorIds.join(",") || "(any)"}`);
+  console.log(`base_user_ids: ${agent.channelPolicy.userIds.join(",") || "(any)"}`);
   if (values.channel && effective) {
     console.log(`channel: ${values.channel}`);
+    console.log(`visible: ${view.visible}`);
+    console.log(`members: ${memberAgentIds?.join(",") || "(none)"}`);
     console.log(`matched_overrides: ${matchedChannelOverrides.join(",") || "(none)"}`);
     console.log(`effective_mode: ${effective.mode}`);
     console.log(`effective_senders: ${effective.senders.join(",") || "(any)"}`);
     console.log(`effective_actor_ids: ${effective.actorIds.join(",") || "(any)"}`);
     console.log(`effective_user_ids: ${effective.userIds.join(",") || "(any)"}`);
   } else {
-    const patterns = Object.keys(agent.attention.channels);
+    const patterns = Object.keys(agent.channelPolicy.channels);
     console.log(`channel_overrides: ${patterns.join(",") || "(none)"}`);
-  }
-  console.log("implied_policies:");
-  for (const policy of view.impliedPolicies) {
-    console.log(`- ${policy}`);
   }
   return 0;
 }
 
-async function cmdAgentAttentionSet(
+async function cmdAgentChannelPolicySet(
   config: ShrimpyConfig,
   args: string[],
   json: boolean,
@@ -195,12 +193,12 @@ async function cmdAgentAttentionSet(
   const agentId = requireArg(positionals[0], usage, "agent id");
   const channel = parseChannelTarget(values.channel);
   if (channel === null) {
-    return printError("agent attention set --channel requires a non-empty pattern");
+    return printError("agent channel-policy set --channel requires a non-empty pattern");
   }
 
-  const set: AttentionRuleValues = {};
+  const set: ChannelPolicyRuleValues = {};
   if (values.mode !== undefined) {
-    const mode = parseAttentionMode(values.mode);
+    const mode = parseChannelPolicyMode(values.mode);
     if (mode) set.mode = mode;
   }
   if (values.senders !== undefined) set.senders = parseSenderKinds(values.senders);
@@ -213,19 +211,19 @@ async function cmdAgentAttentionSet(
 
   if (Object.keys(set).length === 0) {
     return printError(
-      "agent attention set requires at least one of --mode, --senders, --actor-ids, --user-ids",
+      "agent channel-policy set requires at least one of --mode, --senders, --actor-ids, --user-ids",
     );
   }
 
   const runtime = createAppRuntime(config);
-  const result = editAgentAttention(runtime, {
+  const result = editAgentChannelPolicy(runtime, {
     agentId,
     edit: { ...(channel ? { channel } : {}), set },
   });
-  return reportAttentionEdit("set", agentId, channel ?? undefined, result, json);
+  return reportChannelPolicyEdit("set", agentId, channel ?? undefined, result, json);
 }
 
-async function cmdAgentAttentionClear(
+async function cmdAgentChannelPolicyClear(
   config: ShrimpyConfig,
   args: string[],
   json: boolean,
@@ -248,10 +246,10 @@ async function cmdAgentAttentionClear(
   const agentId = requireArg(positionals[0], usage, "agent id");
   const channel = parseChannelTarget(values.channel);
   if (channel === null) {
-    return printError("agent attention clear --channel requires a non-empty pattern");
+    return printError("agent channel-policy clear --channel requires a non-empty pattern");
   }
 
-  const clear: AttentionField[] = [];
+  const clear: ChannelPolicyField[] = [];
   if (values.mode) clear.push("mode");
   if (values.senders) clear.push("senders");
   if (values["actor-ids"]) clear.push("actorIds");
@@ -260,12 +258,12 @@ async function cmdAgentAttentionClear(
   const removeChannel = channel !== undefined && clear.length === 0;
   if (clear.length === 0 && !removeChannel) {
     return printError(
-      "agent attention clear requires --channel or at least one of --mode, --senders, --actor-ids, --user-ids",
+      "agent channel-policy clear requires --channel or at least one of --mode, --senders, --actor-ids, --user-ids",
     );
   }
 
   const runtime = createAppRuntime(config);
-  const result = editAgentAttention(runtime, {
+  const result = editAgentChannelPolicy(runtime, {
     agentId,
     edit: {
       ...(channel ? { channel } : {}),
@@ -273,10 +271,10 @@ async function cmdAgentAttentionClear(
       ...(removeChannel ? { removeChannel: true } : {}),
     },
   });
-  return reportAttentionEdit("clear", agentId, channel ?? undefined, result, json);
+  return reportChannelPolicyEdit("clear", agentId, channel ?? undefined, result, json);
 }
 
-async function cmdAgentAttentionTest(
+async function cmdAgentChannelPolicyExplain(
   config: ShrimpyConfig,
   args: string[],
   json: boolean,
@@ -301,13 +299,12 @@ async function cmdAgentAttentionTest(
   const channel = requireArg(values.channel, usage, "channel");
   const sender = requireArg(values.sender, usage, "sender");
   const text = requireArg(values.text, usage, "text");
-
   const runtime = createAppRuntime(config);
   const agent = runtime.getAgent(agentId);
   const senderKind = parseSenderKind(sender);
-  const actorId = values["actor-id"] ?? `${senderKind}:attention-test`;
+  const actorId = values["actor-id"] ?? `${senderKind}:channel-policy-explain`;
   const message = makeMessage({
-    id: "attention-test",
+    id: "channel-policy-explain",
     timestamp: 0,
     sender: {
       kind: senderKind,
@@ -321,19 +318,14 @@ async function cmdAgentAttentionTest(
     },
     content: textContent(text),
   });
-  const explanation = explainAgentMessageHandling(agent, channel, message);
-  const matchedChannelOverrides = Object.keys(agent.attention.channels)
-    .filter((pattern) => channelMatches(pattern, channel));
-
+  const membership = runtime.createChannelMembershipStore().seedChannel(channel);
+  const memberAgentIds = channelAgentIds(membership);
+  const decision = evaluateAgentChannelPolicy(agent, channel, message, {
+    visible: memberAgentIds.includes(agent.id),
+  });
   const view = {
-    agentId: agent.id,
-    channel,
-    handles: explanation.handles,
-    reason: explanation.reason,
-    impliedRule: explanation.impliedRule,
-    matchedChannelOverrides,
-    effectiveAttention: explanation.effectiveAttention
-      ?? resolveAgentAttentionForChannel(agent.attention, channel),
+    ...decision,
+    memberAgentIds,
     message: {
       sender: message.sender,
       origin: message.origin,
@@ -349,21 +341,24 @@ async function cmdAgentAttentionTest(
 
   console.log(`agent: ${view.agentId}`);
   console.log(`channel: ${view.channel}`);
+  console.log(`visible: ${view.visible}`);
+  console.log(`action: ${view.action}`);
+  console.log(`reason: ${view.reason}`);
+  console.log(`policy_owner: ${view.policyOwner}`);
+  if (view.runtimeGuard) console.log(`runtime_guard: ${view.runtimeGuard}`);
   console.log(`sender: ${view.message.sender.kind}`);
   console.log(`actor_id: ${view.message.sender.actorId}`);
   if (view.message.sender.userId) {
     console.log(`user_id: ${view.message.sender.userId}`);
   }
-  console.log(`handles: ${view.handles}`);
-  console.log(`reason: ${view.reason}`);
-  if (view.impliedRule) {
-    console.log(`implied_rule: ${view.impliedRule}`);
-  }
-  console.log(`matched_overrides: ${matchedChannelOverrides.join(",") || "(none)"}`);
-  console.log(`effective_mode: ${view.effectiveAttention.mode}`);
-  console.log(`effective_senders: ${view.effectiveAttention.senders.join(",") || "(any)"}`);
-  console.log(`effective_actor_ids: ${view.effectiveAttention.actorIds.join(",") || "(any)"}`);
-  console.log(`effective_user_ids: ${view.effectiveAttention.userIds.join(",") || "(any)"}`);
+  if (view.addressedAgentId) console.log(`addressed: ${view.addressedAgentId}`);
   console.log(`mentions: ${view.message.mentionedAgentIds.join(",") || "(none)"}`);
+  console.log(`members: ${view.memberAgentIds.join(",") || "(none)"}`);
+  if (view.effectivePolicy) {
+    console.log(`effective_mode: ${view.effectivePolicy.mode}`);
+    console.log(`effective_senders: ${view.effectivePolicy.senders.join(",") || "(any)"}`);
+    console.log(`effective_actor_ids: ${view.effectivePolicy.actorIds.join(",") || "(any)"}`);
+    console.log(`effective_user_ids: ${view.effectivePolicy.userIds.join(",") || "(any)"}`);
+  }
   return 0;
 }

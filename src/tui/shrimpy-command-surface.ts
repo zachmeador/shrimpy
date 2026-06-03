@@ -106,7 +106,7 @@ const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
   overview: "Workspace, active agent, model, and available status sections",
   workspace: "Workspace paths and config",
   gateway: "Gateway service, scheduled runs, scheduler, and interaction status",
-  schedules: "Schedule inventory, next runs, recent runs, and expected attention",
+  schedules: "Schedule inventory, next runs, recent runs, and expected wake opportunities",
   agents: "Active agent and configured agents",
   channels: "Channel log overview",
   context: "Context files and source inspection",

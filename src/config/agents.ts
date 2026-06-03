@@ -14,29 +14,29 @@ import {
   type ModelSelectionConfig,
 } from "./model.js";
 
-export type AgentAttentionMode = "all" | "mentions" | "addressed" | "none";
+export type AgentChannelPolicyMode = "all" | "mentions" | "addressed" | "none";
 
-export interface AgentAttentionRule {
-  mode?: AgentAttentionMode;
+export interface AgentChannelPolicyRule {
+  mode?: AgentChannelPolicyMode;
   senders?: Array<"system" | "human" | "agent">;
   actorIds?: string[];
   userIds?: string[];
 }
 
-export interface AgentAttentionConfig extends AgentAttentionRule {
-  channels?: Record<string, AgentAttentionRule>;
+export interface AgentChannelPolicyConfig extends AgentChannelPolicyRule {
+  channels?: Record<string, AgentChannelPolicyRule>;
 }
 
-const attentionModeSchema = Type.Union([
+const channelPolicyModeSchema = Type.Union([
   Type.Literal("all"),
   Type.Literal("mentions"),
   Type.Literal("addressed"),
   Type.Literal("none"),
 ]);
 
-const attentionRuleSchema = Type.Object(
+const channelPolicyRuleSchema = Type.Object(
   {
-    mode: Type.Optional(attentionModeSchema),
+    mode: Type.Optional(channelPolicyModeSchema),
     senders: Type.Optional(Type.Array(Type.Union([
       Type.Literal("system"),
       Type.Literal("human"),
@@ -48,9 +48,9 @@ const attentionRuleSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const attentionSchema = Type.Object(
+const channelPolicySchema = Type.Object(
   {
-    mode: Type.Optional(attentionModeSchema),
+    mode: Type.Optional(channelPolicyModeSchema),
     senders: Type.Optional(Type.Array(Type.Union([
       Type.Literal("system"),
       Type.Literal("human"),
@@ -58,7 +58,7 @@ const attentionSchema = Type.Object(
     ]))),
     actorIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     userIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
-    channels: Type.Optional(Type.Record(Type.String(), attentionRuleSchema)),
+    channels: Type.Optional(Type.Record(Type.String(), channelPolicyRuleSchema)),
   },
   { additionalProperties: false },
 );
@@ -71,7 +71,7 @@ const agentSchema = Type.Object(
     tools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     disabledTools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     thinking: Type.Optional(thinkingLevelSchema),
-    attention: Type.Optional(attentionSchema),
+    channelPolicy: Type.Optional(channelPolicySchema),
   },
   { additionalProperties: false },
 );
@@ -84,7 +84,7 @@ export type ResolvedAgentConfig = {
   tools?: DaemonToolName[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
-  attention: Required<AgentAttentionConfig>;
+  channelPolicy: Required<AgentChannelPolicyConfig>;
 };
 export const DEFAULT_AGENT_ID = "shrimpy";
 
@@ -92,9 +92,9 @@ function uniqueStrings(values?: string[]): string[] {
   return [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
 }
 
-function resolveAttentionRule(
-  raw?: AgentAttentionRule,
-): Required<AgentAttentionRule> {
+function resolveChannelPolicyRule(
+  raw?: AgentChannelPolicyRule,
+): Required<AgentChannelPolicyRule> {
   return {
     mode: raw?.mode ?? "all",
     senders: uniqueStrings(raw?.senders) as Array<"system" | "human" | "agent">,
@@ -103,33 +103,33 @@ function resolveAttentionRule(
   };
 }
 
-export function resolveAgentAttention(
-  raw?: AgentAttentionConfig,
-): Required<AgentAttentionConfig> {
-  const base = resolveAttentionRule(raw);
+export function resolveAgentChannelPolicy(
+  raw?: AgentChannelPolicyConfig,
+): Required<AgentChannelPolicyConfig> {
+  const base = resolveChannelPolicyRule(raw);
   return {
     ...base,
     channels: Object.fromEntries(
       Object.entries(raw?.channels ?? {}).map(([pattern, rule]) => [
         pattern,
-        resolveAttentionRule(rule),
+        resolveChannelPolicyRule(rule),
       ]),
     ),
   };
 }
 
-export function resolveAgentAttentionForChannel(
-  attention: Required<AgentAttentionConfig>,
+export function resolveAgentChannelPolicyForChannel(
+  channelPolicy: Required<AgentChannelPolicyConfig>,
   channel: string,
-): Required<AgentAttentionRule> {
-  let rule: Required<AgentAttentionRule> = {
-    mode: attention.mode,
-    senders: [...attention.senders],
-    actorIds: [...attention.actorIds],
-    userIds: [...attention.userIds],
+): Required<AgentChannelPolicyRule> {
+  let rule: Required<AgentChannelPolicyRule> = {
+    mode: channelPolicy.mode,
+    senders: [...channelPolicy.senders],
+    actorIds: [...channelPolicy.actorIds],
+    userIds: [...channelPolicy.userIds],
   };
 
-  for (const [pattern, override] of Object.entries(attention.channels)) {
+  for (const [pattern, override] of Object.entries(channelPolicy.channels)) {
     if (!channelMatches(pattern, channel)) continue;
     const senders = override.senders ?? [];
     const actorIds = override.actorIds ?? [];
@@ -193,7 +193,7 @@ export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
     return [{
       id: DEFAULT_AGENT_ID,
       root: `agents/${DEFAULT_AGENT_ID}`,
-      attention: resolveAgentAttention(),
+      channelPolicy: resolveAgentChannelPolicy(),
     }];
   }
   return validateAgentsConfig(raw).map((agent) => {
@@ -206,7 +206,7 @@ export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
         : undefined,
       disabledTools: uniqueStrings(agent.disabledTools),
       thinking: agent.thinking,
-      attention: resolveAgentAttention(agent.attention),
+      channelPolicy: resolveAgentChannelPolicy(agent.channelPolicy),
     };
   });
 }

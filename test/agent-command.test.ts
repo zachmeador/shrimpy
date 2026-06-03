@@ -136,11 +136,11 @@ describe("cmdAgent lifecycle", () => {
     });
   });
 
-  test("stores an agent attention mode when provided", async () => {
+  test("stores an agent channel policy mode when provided", async () => {
     await setupInit(workspace);
 
     const code = await withMutedConsole(() =>
-      cmdAgent(["add", "listener", "--attention", "mentions"], { workspace } as any)
+      cmdAgent(["add", "listener", "--channel-policy", "mentions"], { workspace } as any)
     );
 
     assert.equal(code, 0);
@@ -149,15 +149,15 @@ describe("cmdAgent lifecycle", () => {
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
     const agent = config.agents.find((entry: any) => entry.id === "listener");
-    assert.deepEqual(agent.attention, { mode: "mentions" });
+    assert.deepEqual(agent.channelPolicy, { mode: "mentions" });
   });
 
-  test("shows effective agent attention for a channel", async () => {
+  test("shows effective agent channel policy for a channel", async () => {
     await setupInit(workspace);
 
     const configPath = join(workspace, "config", "shrimpy.json");
     const configJson = JSON.parse(readFileSync(configPath, "utf-8"));
-    configJson.agents[0].attention = {
+    configJson.agents[0].channelPolicy = {
       mode: "mentions",
       channels: {
         home: { mode: "all", senders: ["human"] },
@@ -167,38 +167,37 @@ describe("cmdAgent lifecycle", () => {
     const config = { ...configJson, workspace };
 
     const { result, lines } = await captureLogs(() =>
-      cmdAgent(["attention", "shrimpy", "--channel", "home", "--json"], config as any)
+      cmdAgent(["channel-policy", "shrimpy", "--channel", "home", "--json"], config as any)
     );
 
     assert.equal(result, 0);
-    const attention = JSON.parse(lines.join("\n"));
-    assert.equal(attention.agentId, "shrimpy");
-    assert.deepEqual(attention.matchedChannelOverrides, ["home"]);
-    assert.deepEqual(attention.effectiveAttention, {
+    const policy = JSON.parse(lines.join("\n"));
+    assert.equal(policy.agentId, "shrimpy");
+    assert.equal(policy.policyOwner, "agent");
+    assert.equal(policy.visible, true);
+    assert.deepEqual(policy.memberAgentIds, ["shrimpy"]);
+    assert.deepEqual(policy.matchedChannelOverrides, ["home"]);
+    assert.deepEqual(policy.effectiveChannelPolicy, {
       mode: "all",
       senders: ["human"],
       actorIds: [],
       userIds: [],
     });
-    assert.equal(
-      attention.impliedPolicies.includes("origin.addressedAgentId routes only to that agent"),
-      true,
-    );
   });
 
-  test("tests agent attention decisions with reasons", async () => {
+  test("explains agent channel policy decisions with reasons", async () => {
     await setupInit(workspace);
 
     const configPath = join(workspace, "config", "shrimpy.json");
     const configJson = JSON.parse(readFileSync(configPath, "utf-8"));
-    configJson.agents[0].attention = { mode: "none" };
+    configJson.agents[0].channelPolicy = { mode: "none" };
     writeFileSync(configPath, JSON.stringify(configJson, null, 2) + "\n", "utf-8");
     const config = { ...configJson, workspace };
 
     const { result, lines } = await captureLogs(() =>
       cmdAgent([
-        "attention",
-        "test",
+        "channel-policy",
+        "explain",
         "shrimpy",
         "--channel",
         "home",
@@ -212,24 +211,21 @@ describe("cmdAgent lifecycle", () => {
 
     assert.equal(result, 0);
     const decision = JSON.parse(lines.join("\n"));
-    assert.equal(decision.handles, true);
-    assert.equal(decision.reason, "human single-agent mention");
-    assert.equal(
-      decision.impliedRule,
-      "human @agent mentions call that agent even when ambient attention is quiet",
-    );
+    assert.equal(decision.action, "ignore");
+    assert.equal(decision.reason, "agent channel policy mode is none");
+    assert.equal(decision.policyOwner, "agent");
     assert.deepEqual(decision.message.mentionedAgentIds, ["shrimpy"]);
   });
 
-  test("sets fine-grained base attention fields without dropping the mode", async () => {
+  test("sets fine-grained base channel policy fields without dropping the mode", async () => {
     await setupInit(workspace);
     await withMutedConsole(() =>
-      cmdAgent(["add", "watcher", "--attention", "mentions"], { workspace } as any)
+      cmdAgent(["add", "watcher", "--channel-policy", "mentions"], { workspace } as any)
     );
 
     const code = await withMutedConsole(() =>
       cmdAgent([
-        "attention",
+        "channel-policy",
         "set",
         "watcher",
         "--senders",
@@ -245,7 +241,7 @@ describe("cmdAgent lifecycle", () => {
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
     const agent = config.agents.find((entry: any) => entry.id === "watcher");
-    assert.deepEqual(agent.attention, {
+    assert.deepEqual(agent.channelPolicy, {
       mode: "mentions",
       senders: ["human", "system"],
       actorIds: ["telegram:42"],
@@ -256,19 +252,19 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(messages.at(-1)?.content.data, {
       kind: "agent_updated",
       agentId: "watcher",
-      updatedFields: ["attention"],
+      updatedFields: ["channelPolicy"],
     });
   });
 
-  test("sets and clears a channel attention override", async () => {
+  test("sets and clears a channel policy override", async () => {
     await setupInit(workspace);
     await withMutedConsole(() =>
-      cmdAgent(["add", "watcher", "--attention", "mentions"], { workspace } as any)
+      cmdAgent(["add", "watcher", "--channel-policy", "mentions"], { workspace } as any)
     );
 
     await withMutedConsole(() =>
       cmdAgent([
-        "attention",
+        "channel-policy",
         "set",
         "watcher",
         "--channel",
@@ -283,59 +279,59 @@ describe("cmdAgent lifecycle", () => {
     let agent = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     ).agents.find((entry: any) => entry.id === "watcher");
-    assert.deepEqual(agent.attention, {
+    assert.deepEqual(agent.channelPolicy, {
       mode: "mentions",
       channels: { ops: { mode: "all", senders: ["system"] } },
     });
 
     // Clearing one override field keeps the rest of the override.
     await withMutedConsole(() =>
-      cmdAgent(["attention", "clear", "watcher", "--channel", "ops", "--senders"], {
+      cmdAgent(["channel-policy", "clear", "watcher", "--channel", "ops", "--senders"], {
         workspace,
       } as any)
     );
     agent = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     ).agents.find((entry: any) => entry.id === "watcher");
-    assert.deepEqual(agent.attention, {
+    assert.deepEqual(agent.channelPolicy, {
       mode: "mentions",
       channels: { ops: { mode: "all" } },
     });
 
     // Clearing the override with no fields removes it entirely.
     await withMutedConsole(() =>
-      cmdAgent(["attention", "clear", "watcher", "--channel", "ops"], { workspace } as any)
+      cmdAgent(["channel-policy", "clear", "watcher", "--channel", "ops"], { workspace } as any)
     );
     agent = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     ).agents.find((entry: any) => entry.id === "watcher");
-    assert.deepEqual(agent.attention, { mode: "mentions" });
+    assert.deepEqual(agent.channelPolicy, { mode: "mentions" });
   });
 
-  test("removes the attention key when the last field is cleared", async () => {
+  test("removes the channel policy key when the last field is cleared", async () => {
     await setupInit(workspace);
     await withMutedConsole(() =>
-      cmdAgent(["add", "watcher", "--attention", "mentions"], { workspace } as any)
+      cmdAgent(["add", "watcher", "--channel-policy", "mentions"], { workspace } as any)
     );
 
     const code = await withMutedConsole(() =>
-      cmdAgent(["attention", "clear", "watcher", "--mode"], { workspace } as any)
+      cmdAgent(["channel-policy", "clear", "watcher", "--mode"], { workspace } as any)
     );
 
     assert.equal(code, 0);
     const agent = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     ).agents.find((entry: any) => entry.id === "watcher");
-    assert.equal("attention" in agent, false);
+    assert.equal("channelPolicy" in agent, false);
   });
 
-  test("edited attention changes the attention test decision", async () => {
+  test("edited channel policy changes the explain decision", async () => {
     await setupInit(workspace);
     await withMutedConsole(() =>
-      cmdAgent(["add", "watcher", "--attention", "all"], { workspace } as any)
+      cmdAgent(["add", "watcher", "--channel-policy", "all"], { workspace } as any)
     );
     await withMutedConsole(() =>
-      cmdAgent(["attention", "set", "watcher", "--senders", "human"], { workspace } as any)
+      cmdAgent(["channel-policy", "set", "watcher", "--senders", "human"], { workspace } as any)
     );
 
     const config = {
@@ -345,8 +341,8 @@ describe("cmdAgent lifecycle", () => {
 
     const human = await captureLogs(() =>
       cmdAgent([
-        "attention",
-        "test",
+        "channel-policy",
+        "explain",
         "watcher",
         "--channel",
         "home",
@@ -357,12 +353,41 @@ describe("cmdAgent lifecycle", () => {
         "--json",
       ], config as any)
     );
-    assert.equal(JSON.parse(human.lines.join("\n")).handles, true);
+    assert.equal(JSON.parse(human.lines.join("\n")).action, "ignore");
+    assert.equal(
+      JSON.parse(human.lines.join("\n")).reason,
+      "agent has no visibility into this channel",
+    );
+
+    const membershipsPath = join(workspace, "config", "channels.json");
+    const memberships = JSON.parse(readFileSync(membershipsPath, "utf-8"));
+    memberships.channels.home.agents.watcher = {};
+    writeFileSync(membershipsPath, JSON.stringify(memberships, null, 2) + "\n", "utf-8");
+    const visibleConfig = {
+      ...JSON.parse(readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8")),
+      workspace,
+    };
+
+    const visibleHuman = await captureLogs(() =>
+      cmdAgent([
+        "channel-policy",
+        "explain",
+        "watcher",
+        "--channel",
+        "home",
+        "--sender",
+        "human",
+        "--text",
+        "hi",
+        "--json",
+      ], visibleConfig as any)
+    );
+    assert.equal(JSON.parse(visibleHuman.lines.join("\n")).action, "wake");
 
     const fromAgent = await captureLogs(() =>
       cmdAgent([
-        "attention",
-        "test",
+        "channel-policy",
+        "explain",
         "watcher",
         "--channel",
         "home",
@@ -373,19 +398,19 @@ describe("cmdAgent lifecycle", () => {
         "--text",
         "hi",
         "--json",
-      ], config as any)
+      ], visibleConfig as any)
     );
     const decision = JSON.parse(fromAgent.lines.join("\n"));
-    assert.equal(decision.handles, false);
-    assert.equal(decision.reason, "sender does not match effective attention filters");
+    assert.equal(decision.action, "ignore");
+    assert.equal(decision.reason, "sender does not match agent channel policy filters");
   });
 
-  test("attention test text output shows sender identity and effective filters", async () => {
+  test("channel policy explain text output shows sender identity and effective filters", async () => {
     await setupInit(workspace);
 
     const configPath = join(workspace, "config", "shrimpy.json");
     const configJson = JSON.parse(readFileSync(configPath, "utf-8"));
-    configJson.agents[0].attention = {
+    configJson.agents[0].channelPolicy = {
       channels: {
         home: {
           mode: "all",
@@ -399,8 +424,8 @@ describe("cmdAgent lifecycle", () => {
 
     const { result, lines } = await captureLogs(() =>
       cmdAgent([
-        "attention",
-        "test",
+        "channel-policy",
+        "explain",
         "shrimpy",
         "--channel",
         "home",
@@ -420,7 +445,7 @@ describe("cmdAgent lifecycle", () => {
     assert.ok(lines.includes("effective_actor_ids: system:scheduler"));
   });
 
-  test("rejects attention set with no fields and clear with no target", async () => {
+  test("rejects channel policy set with no fields and clear with no target", async () => {
     await setupInit(workspace);
     await withMutedConsole(() =>
       cmdAgent(["add", "watcher"], { workspace } as any)
@@ -430,23 +455,23 @@ describe("cmdAgent lifecycle", () => {
     console.error = () => {};
     try {
       const setCode = await withMutedConsole(() =>
-        cmdAgent(["attention", "set", "watcher"], { workspace } as any)
+        cmdAgent(["channel-policy", "set", "watcher"], { workspace } as any)
       );
       assert.equal(setCode, 1);
 
       const clearCode = await withMutedConsole(() =>
-        cmdAgent(["attention", "clear", "watcher"], { workspace } as any)
+        cmdAgent(["channel-policy", "clear", "watcher"], { workspace } as any)
       );
       assert.equal(clearCode, 1);
     } finally {
       console.error = originalError;
     }
 
-    // A failed mutation must not have written an attention block.
+    // A failed mutation must not have written a channelPolicy block.
     const agent = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     ).agents.find((entry: any) => entry.id === "watcher");
-    assert.equal(agent.attention, undefined);
+    assert.equal(agent.channelPolicy, undefined);
   });
 
   test("maps agent thinking on to a medium default", async () => {
@@ -652,7 +677,7 @@ describe("cmdAgent lifecycle", () => {
         "bash",
         "--thinking",
         "high",
-        "--attention",
+        "--channel-policy",
         "addressed",
       ], { workspace } as any)
     );
@@ -673,7 +698,7 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(agent.tools, ["send_message", "read_channel"]);
     assert.deepEqual(agent.disabledTools, ["bash"]);
     assert.equal(agent.thinking, "high");
-    assert.deepEqual(agent.attention, { mode: "addressed" });
+    assert.deepEqual(agent.channelPolicy, { mode: "addressed" });
 
     const memberships = JSON.parse(
       readFileSync(join(workspace, "config", "channels.json"), "utf-8"),
@@ -691,7 +716,7 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(messages.at(-1)?.content.data, {
       kind: "agent_updated",
       agentId: "helper",
-      updatedFields: ["root", "model", "tools", "disabledTools", "thinking", "attention"],
+      updatedFields: ["root", "model", "tools", "disabledTools", "thinking", "channelPolicy"],
     });
   });
 

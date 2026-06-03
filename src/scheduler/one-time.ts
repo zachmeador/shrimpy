@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { channelAgentIds } from "../channels/membership.js";
-import { explainAgentMessageHandling } from "../agents/channel-policy.js";
-import type { AgentAttentionRule, ResolvedAgentConfig } from "../config/agents.js";
+import { evaluateAgentChannelPolicy } from "../agents/channel-policy.js";
+import type { ResolvedAgentConfig } from "../config/agents.js";
 import { createGatewaySessionDescriptor } from "../sessions/spec.js";
 import {
   readJsonFile,
@@ -13,7 +13,7 @@ import {
   emitOneTimeScheduleRun,
   previewOneTimeScheduleMessage,
 } from "./emit.js";
-import type { ScheduleAttentionExpectation } from "./inspection.js";
+import type { ScheduleWakeExpectation } from "./inspection.js";
 
 export type OneTimeScheduleStatus =
   | "pending"
@@ -95,13 +95,13 @@ export interface OneTimeScheduleInspection {
     exists: boolean;
     agentIds: string[];
   };
-  expectedAttention: ScheduleAttentionExpectation[];
+  expectedWake: ScheduleWakeExpectation[];
   expectedTurnAgentIds: string[];
   inspectCommands: {
     schedule: string;
     channel: string;
     membership: string;
-    attention: string[];
+    wake: string[];
     cancel?: string;
   };
   diagnostics: string[];
@@ -378,13 +378,13 @@ export function inspectOneTimeSchedules(
     .map((record) => {
       const membership = membershipStore.get(record.targetChannel);
       const memberAgentIds = membership ? channelAgentIds(membership) : [];
-      const expectedAttention = inspectExpectedAttention(
+      const expectedWake = inspectExpectedWake(
         runtime,
         record,
         memberAgentIds,
       );
-      const expectedTurnAgentIds = expectedAttention
-        .filter((agent) => agent.handles)
+      const expectedTurnAgentIds = expectedWake
+        .filter((agent) => agent.action === "wake")
         .map((agent) => agent.agentId);
       const diagnostics = oneTimeDiagnostics({
         record,
@@ -422,13 +422,13 @@ export function inspectOneTimeSchedules(
           exists: membership !== null,
           agentIds: memberAgentIds,
         },
-        expectedAttention,
+        expectedWake,
         expectedTurnAgentIds,
         inspectCommands: {
           schedule: `shrimpy schedules show ${record.id}`,
           channel: `shrimpy channels show ${record.targetChannel}`,
           membership: `shrimpy channels members ${record.targetChannel}`,
-          attention: expectedAttention.map((agent) => agent.inspectCommand),
+          wake: expectedWake.map((agent) => agent.inspectCommand),
           ...(record.status === "pending"
             ? { cancel: `shrimpy schedules cancel ${record.id}` }
             : {}),
@@ -528,41 +528,42 @@ function unitMultiplierMs(unit: string): number {
   }
 }
 
-function inspectExpectedAttention(
+function inspectExpectedWake(
   runtime: AppRuntime,
   record: OneTimeScheduleRecord,
   memberAgentIds: string[],
-): ScheduleAttentionExpectation[] {
+): ScheduleWakeExpectation[] {
   return memberAgentIds.flatMap((agentId) => {
     const agent = findAgent(runtime, agentId);
     if (!agent) return [];
     const message = previewOneTimeScheduleMessage(record);
-    const explanation = explainAgentMessageHandling(agent, record.targetChannel, message);
+    const decision = evaluateAgentChannelPolicy(agent, record.targetChannel, message, {
+      visible: true,
+    });
     return [{
       agentId: agent.id,
       member: memberAgentIds.includes(agent.id),
-      handles: explanation.handles,
-      reason: explanation.reason,
-      ...(explanation.impliedRule ? { impliedRule: explanation.impliedRule } : {}),
-      ...(explanation.effectiveAttention
-        ? { effectiveAttention: explanation.effectiveAttention as Required<AgentAttentionRule> }
-        : {}),
+      action: decision.action,
+      reason: decision.reason,
+      policyOwner: decision.policyOwner,
+      ...(decision.effectivePolicy ? { effectivePolicy: decision.effectivePolicy } : {}),
+      ...(decision.runtimeGuard ? { runtimeGuard: decision.runtimeGuard } : {}),
       sessionPath: createGatewaySessionDescriptor({
         workspacePath: runtime.getAgentPaths(agent.id).root,
         agentId: agent.id,
         channel: record.targetChannel,
       }).sessionDir,
-      inspectCommand: attentionInspectCommand(agent.id, record),
+      inspectCommand: wakeInspectCommand(agent.id, record),
     }];
   });
 }
 
-function attentionInspectCommand(
+function wakeInspectCommand(
   agentId: string,
   record: OneTimeScheduleRecord,
 ): string {
   return [
-    "shrimpy agent attention test",
+    "shrimpy agent channel-policy explain",
     shellQuote(agentId),
     "--channel",
     shellQuote(record.targetChannel),

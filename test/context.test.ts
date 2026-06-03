@@ -156,7 +156,7 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: shrimpy channels members dm~helper~shrimpy/);
   });
 
-  test("includes addressed-agent and attention decision facts", async () => {
+  test("includes addressed-agent and channel policy wake facts", async () => {
     const runtime = createAppRuntime({ workspace });
     const current = runtime.createChannelBus().publish({
       channel: "home",
@@ -181,8 +181,8 @@ describe("buildTurnContext", () => {
     const text = renderTurnContext(turnContext);
 
     assert.match(text, /addressed to shrimpy by origin.addressedAgentId/);
-    assert.match(text, /attention: handled because message is explicitly addressed to this agent/);
-    assert.match(text, /inspect: shrimpy agent attention test shrimpy --channel home --sender human --actor-id human:alice --addressed shrimpy --text 'please handle this'/);
+    assert.match(text, /wake: agent channel policy mode is all; policy owner agent:shrimpy/);
+    assert.match(text, /inspect: shrimpy agent channel-policy explain shrimpy --channel home --sender human --actor-id human:alice --addressed shrimpy --text 'please handle this'/);
   });
 
   test("includes scheduler message facts", async () => {

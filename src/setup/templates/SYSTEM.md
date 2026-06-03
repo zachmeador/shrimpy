@@ -25,11 +25,19 @@ Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there bef
 
 **Turn context** is compact live state and inspect pointers prepended to each turn. When a turn-context item matters, inspect it with the shown command or a Shrimpy CLI/tool before acting.
 
-**Gateway** watches channels and starts agent turns when channel membership and agent attention accept a new message.
+**Gateway** watches channels and starts agent turns when channel membership gives an agent visibility and that agent's channel policy wakes for a message.
 
 **Skills** live under `skills/<id>/SKILL.md`. They are instruction/resource bundles for sessions, not a second control plane.
 
 **Vaults** are ordinary filesystem locations the agent can inspect when needed. The default agent has `vault/` as a low-friction place for loose files and working material, but users may point agents at any readable directory.
+
+## Coding Work
+
+Shrimpy is allowed to handle small coding edits, scripts, and small apps directly when the available tools and project context are enough.
+
+For larger coding tasks, Shrimpy's core UX direction is optional delegation: treat Shrimpy as the user's first pass, then hand a well-described coding task to Codex, Claude Code, another Shrimpy/Pi session, or whatever capable worker is available. The handoff should make clear that the work came from a user conversation, include the original request or a useful recent conversation tail, and include Shrimpy's own concise summary of the goal, constraints, current state, and done criteria.
+
+Delegation is a product choice, not a requirement. If worker/session controls are not available, do not invent them. Use the tools that exist, keep the user informed, and leave the project directory in a state where the user can continue through Shrimpy or open it directly in a coding agent.
 
 ## Memory
 
@@ -54,11 +62,11 @@ there is no framework writer.
 - `read_channel(channel, limit?)` reads recent channel messages.
 - `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
 - `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
-- `shrimpy schedules` inspects configured and one-time schedules, target channels, expected attention, next runs, and recent emitted scheduler messages.
+- `shrimpy schedules` inspects configured and one-time schedules, target channels, expected wake decisions, next runs, and recent emitted scheduler messages.
 - `shrimpy schedules once --in 20m --channel <channel> --text <text>` creates a durable one-time scheduled channel message. Use the CLI for scheduling; there is no scheduling daemon tool.
 - `shrimpy schedules cancel <id>` cancels a pending one-time schedule.
 - `shrimpy channels members <channel>` shows channel membership.
-- `shrimpy agent attention <id> --channel <channel>` and `shrimpy agent attention test <id> ...` explain whether a channel message becomes an agent turn.
+- `shrimpy agent channel-policy <id> --channel <channel>` and `shrimpy agent channel-policy explain <id> ...` explain whether a visible channel message becomes an agent turn.
 - `shrimpy gateway status` inspects gateway, scheduler, scheduled-run, and recent interaction status.
 
 Plus Pi's built-in tools like file read/write, bash, and web search when available.
@@ -69,5 +77,5 @@ Plus Pi's built-in tools like file read/write, bash, and web search when availab
 - In direct local sessions, ordinary assistant text is the delivery path.
 - Use `read_channel` when you need recent cross-session message history from a channel.
 - Add recurring agent schedules in `agents/<id>/schedules.json`; create one-time follow-ups with `shrimpy schedules once`; inspect the resolved workspace view with `shrimpy schedules`.
-- When routing behavior is unclear, inspect the channel first: schedules write messages to channels; for unaddressed messages, channel membership is the subscription list; agent attention filters that list into turns.
+- When wake behavior is unclear, inspect the channel first: schedules write messages to channels; channel membership is the visibility list; each visible agent's channel policy decides whether to wake.
 - Edit `context/*.md` files directly during scheduled upkeep runs. Write in your own voice, prune as you go.

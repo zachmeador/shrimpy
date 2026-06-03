@@ -10,15 +10,15 @@ Channels are durable shared rooms:
 - Channel logs live under `workspace/channels/*.jsonl`.
 - Message content is typed: `text`, `image`, `image_group`, `unsupported_media`, or `system`.
 - Message identity is split between `sender` and `origin`.
-- Surface users can be mapped to stable Shrimpy user ids so peer cards and attention policy do not depend on transport-specific ids.
-- Channel membership controls which agents participate; each agent's `attention` config controls which channel messages become turns.
+- Surface users can be mapped to stable Shrimpy user ids so peer cards and channel policy do not depend on transport-specific ids.
+- Channel membership controls which agents can see a channel; each agent's `channelPolicy` config controls which visible messages become turns.
 
 ## Addressing
 
-Surfaces may set `origin.addressedAgentId` on a message. Addressing routes that
-turn directly to one agent without changing channel membership. This is a
-surface/user-facing affordance; scheduler-authored agent schedules use ordinary
-channel membership and attention instead.
+Surfaces may set `origin.addressedAgentId` on a message. Addressing is a
+surface/user-facing affordance and an input to each visible agent's channel
+policy; it does not route around channel membership. Scheduler-authored agent
+schedules use ordinary channel membership and agent channel policy too.
 
 This supports a one-visible-account pattern:
 
@@ -60,4 +60,4 @@ Direct local sessions such as `tui` and `run` are different: ordinary assistant 
 
 Private gateway session transcript text stays separate from delivered channel messages.
 
-For operator-driven testing or automation: `shrimpy channels post <channel> <text>` injects a CLI human message into a channel log. Adding `--agent <id>` stamps `origin.addressedAgentId` and routes the turn directly to that agent.
+For operator-driven testing or automation: `shrimpy channels post <channel> <text>` injects a CLI human message into a channel log. Adding `--agent <id>` stamps `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.

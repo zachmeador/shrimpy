@@ -1,22 +1,21 @@
 import type { AppRuntime } from "../app/runtime.js";
 import { createAgentPaths } from "../app/paths.js";
 import {
-  type AgentAttentionConfig,
+  type AgentChannelPolicyConfig,
   type AgentConfig,
   DEFAULT_AGENT_ID,
   validateAgentsConfig,
 } from "../config/agents.js";
 import {
-  type AttentionEdit,
-  editAttentionConfig,
-} from "./attention-edit.js";
+  type ChannelPolicyEdit,
+  editChannelPolicyConfig,
+} from "./channel-policy-edit.js";
 import {
   createAgentConfig,
   type AgentConfigDraft,
   patchStoredAgentConfig,
   readAgentWorkspaceConfig,
   renameStoredAgentConfig,
-  setStoredAgentAttention,
   writeAgentWorkspaceConfig,
 } from "./config-store.js";
 import {
@@ -69,7 +68,7 @@ export interface UpdateAgentInput {
   tools?: string[];
   disabledTools?: string[];
   thinking?: AgentConfig["thinking"];
-  attention?: AgentConfig["attention"];
+  channelPolicy?: AgentConfig["channelPolicy"];
 }
 
 export interface UpdateAgentResult {
@@ -80,15 +79,15 @@ export interface UpdateAgentResult {
   movedPaths: Array<{ from: string; to: string }>;
 }
 
-export interface EditAgentAttentionInput {
+export interface EditAgentChannelPolicyInput {
   agentId: string;
-  edit: AttentionEdit;
+  edit: ChannelPolicyEdit;
 }
 
-export interface EditAgentAttentionResult {
+export interface EditAgentChannelPolicyResult {
   configPath: string;
-  previousAttention?: AgentAttentionConfig;
-  nextAttention: AgentAttentionConfig | null;
+  previousChannelPolicy?: AgentChannelPolicyConfig;
+  nextChannelPolicy: AgentChannelPolicyConfig | null;
 }
 
 export function addAgentToWorkspace(
@@ -239,7 +238,7 @@ export function updateAgentInWorkspace(
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
     ...(input.disabledTools !== undefined ? { disabledTools: input.disabledTools } : {}),
     ...(input.thinking !== undefined ? { thinking: input.thinking } : {}),
-    ...(input.attention !== undefined ? { attention: input.attention } : {}),
+    ...(input.channelPolicy !== undefined ? { channelPolicy: input.channelPolicy } : {}),
   });
   persistAgentConfigs(
     editable,
@@ -267,18 +266,26 @@ export function updateAgentInWorkspace(
   };
 }
 
-export function editAgentAttentionInWorkspace(
+export function editAgentChannelPolicyInWorkspace(
   runtime: AppRuntime,
-  input: EditAgentAttentionInput,
-): EditAgentAttentionResult {
+  input: EditAgentChannelPolicyInput,
+): EditAgentChannelPolicyResult {
   const editable = readAgentWorkspaceConfig(runtime.config.workspace);
   const existingAgent = editable.agents.find((agent) => agent.id === input.agentId);
   if (!existingAgent) {
     throw new Error(`agent not found: ${input.agentId}`);
   }
 
-  const nextAttention = editAttentionConfig(existingAgent.attention, input.edit);
-  const nextAgent = setStoredAgentAttention(existingAgent, nextAttention);
+  const nextChannelPolicy = editChannelPolicyConfig(
+    existingAgent.channelPolicy,
+    input.edit,
+  );
+  const nextAgent = patchStoredAgentConfig(existingAgent, {
+    channelPolicy: nextChannelPolicy ?? {},
+  });
+  if (nextChannelPolicy === null) {
+    delete nextAgent.channelPolicy;
+  }
   persistAgentConfigs(
     editable,
     editable.agents.map((agent) =>
@@ -288,8 +295,8 @@ export function editAgentAttentionInWorkspace(
 
   return {
     configPath: editable.configPath,
-    previousAttention: existingAgent.attention,
-    nextAttention,
+    previousChannelPolicy: existingAgent.channelPolicy,
+    nextChannelPolicy,
   };
 }
 

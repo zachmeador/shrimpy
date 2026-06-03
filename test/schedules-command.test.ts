@@ -47,7 +47,7 @@ async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines:
 }
 
 describe("schedule inspection surfaces", () => {
-  test("inspects agent schedules with state, channel logs, and attention", async () => {
+  test("inspects agent schedules with state, channel logs, and wake policy", async () => {
     await setupInit(workspace);
     const runtime = createAppRuntime({ workspace });
     const future = Date.parse("2030-01-01T00:00:00.000Z");
@@ -82,7 +82,7 @@ describe("schedule inspection surfaces", () => {
     assert.equal(inspected.nextRunAtMs, future);
     assert.equal(inspected.lastObservedRun?.runId, "run-1");
     assert.equal(inspected.recentEmittedMessageId, inspected.lastObservedRun?.messageId);
-    assert.match(inspected.expectedAttention[0]?.sessionPath ?? "", /agents\/shrimpy\/sessions\/heartbeat$/);
+    assert.match(inspected.expectedWake[0]?.sessionPath ?? "", /agents\/shrimpy\/sessions\/heartbeat$/);
     assert.deepEqual(inspected.diagnostics, []);
 
     const { messages } = runtime.createChannelBus().read("heartbeat");
@@ -123,7 +123,7 @@ describe("schedule inspection surfaces", () => {
     assert.equal(payload.schedules[0].inspectCommands.schedule, "shrimpy schedules show shrimpy/heartbeat");
   });
 
-  test("includes workspace-level schedules and missing attention diagnostics", async () => {
+  test("includes workspace-level schedules and missing wake diagnostics", async () => {
     await setupInit(workspace);
     writeFileSync(
       join(workspace, "config", "schedules.json"),
