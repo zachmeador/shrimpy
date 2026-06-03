@@ -29,11 +29,15 @@ Pi owns session mechanics:
 Shrimpy owns surface semantics:
 
 - channel and surface event normalization
-- channel visibility and agent wake policy
+- channel visibility and the plumbing that asks visible agents whether they wake
 - active delivery channel and publication tools
 - turn-context assembly
 - the decision about which facts are durable transcript versus ephemeral model
   context
+
+Agents own wake and response policy. Session context can expose facts an agent
+may use to make that decision, but Shrimpy should not turn context, skills,
+memory, or session wrappers into a second wake-policy control plane.
 
 Ephemeral turn context must enter through Pi's provider-bound context path, not
 by rewriting the prompt text passed to `session.prompt()`.
@@ -67,6 +71,8 @@ by rewriting the prompt text passed to `session.prompt()`.
 - Do not fork Pi's TUI/session runtime to get this behavior.
 - Do not make channels carry instructions; channels carry messages and logs.
 - Do not make skills or memory a second control plane for session dispatch.
+- Do not use session context injection to smuggle Shrimpy-owned wake policy into
+  agent turns. It should carry inspectable facts, not central decisions.
 - Do not add bespoke tool-output caps or transcript pruning unless Pi lacks the
   needed primitive at a clear pressure point.
 - Do not add legacy compatibility paths for the old prompt-prefix behavior.
@@ -106,6 +112,7 @@ preferred extension is a small Pi API such as `session.prompt(text,
 - Shrimpy turn context is injected through Pi's context hook and is not written
   into the session transcript.
 - There is one Shrimpy integration point for ephemeral context injection.
-- Existing session transcripts remain readable by Pi without a migration path.
+- Session persistence remains Pi-native; no Shrimpy prompt-prefix compatibility
+  or migration path is carried forward.
 - Tests cover prompt persistence, model-facing context, no cross-turn context
   leakage, and a real Pi session using the extension `context` hook.
