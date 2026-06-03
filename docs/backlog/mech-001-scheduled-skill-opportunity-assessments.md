@@ -33,7 +33,7 @@ highest-signal recommendations.
   agent prompts/context, and vault/project files when available.
 - Produce a timestamped Markdown report under the mechanic's vault, following
   the agent-report convention in
-  [WORKSPACE-001](workspace-001-storage-workspace-defaults.md):
+  [workspace.md](../reference/workspace.md):
   `agents/mechanic/vault/assessments/`.
 - Send the user a concise message after each assessment with:
   - the report path;

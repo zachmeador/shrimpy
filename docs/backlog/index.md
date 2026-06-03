@@ -4,7 +4,6 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [WORKSPACE-001](workspace-001-storage-workspace-defaults.md) | todo | P1 | Workspace | none | Storage workspace defaults |
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [SCHED-001](sched-001-scheduler-job-runner.md) | draft | P1 | Watches | none | Agent-owned watches |

@@ -26,8 +26,8 @@ to use a different place.
 - Clarify the distinction between `[workspace]/vault/` for shared user
   collections and `agents/<id>/vault/` for the agent's own collections and
   generated outputs, following the storage model in
-  [WORKSPACE-001](workspace-001-storage-workspace-defaults.md). Code projects and
-  tightly scoped directories belong in `agents/<id>/projects/`.
+  [workspace.md](../reference/workspace.md). Code projects and tightly scoped
+  directories belong in `agents/<id>/projects/`.
 - Seed `[workspace]/vault/` as its own lightweight git repo so user collections
   can be versioned without mixing with Shrimpy runtime state.
 - Add strict default ignore rules in the vault repo. Track only simple
