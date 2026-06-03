@@ -14,6 +14,10 @@ Keep the changelog useful to a user deciding whether to install or upgrade
 Shrimpy. It should summarize meaningful behavior changes, manual-action risks,
 and release highlights without becoming a commit log.
 
+Implementation and tests are the authority. Existing changelog entries,
+backlog notes, docs, and commit titles are hints to verify against diffs, not
+source material to copy.
+
 ## Files
 
 - `CHANGELOG.md` is the canonical public changelog.
@@ -32,15 +36,35 @@ and release highlights without becoming a commit log.
    - `sed -n '1,260p' CHANGELOG.md`
    - `node -e "console.log(require('./package.json').version)"`
 3. If summarizing recent work, inspect the relevant diffs and commits:
-   - `git log --oneline --decorate --max-count=30`
+   - `git tag --list 'v[0-9]*' --sort=-v:refname | head`
+   - `git log --oneline --decorate <last-release-tag>..HEAD`
    - `git diff --name-status <last-release-tag>..HEAD`
+   - `git diff --stat <last-release-tag>..HEAD`
    - `git diff <last-release-tag>..HEAD -- <relevant paths>`
-   Use the latest semver release tag when one exists.
+   Use the latest semver release tag when one exists. For a normal unreleased
+   update after a public release, the baseline is usually the latest `v*` tag.
 4. Update the active `Unreleased` section unless the user is cutting a release.
 5. For release prep, change the heading from `Unreleased` to the release date
    only when the user has asked to prepare or cut that release.
 6. Edit only changelog entries that are needed for the current work. Preserve
    unrelated release notes and user edits.
+
+## Evidence Checks
+
+Before trusting a bullet, verify the concrete surface:
+
+- Commands, flags, and help text: `src/commands/catalog.ts` plus command tests.
+- Config keys and validation: `src/config/`, `src/context/spec.ts`, setup tests.
+- Workspace files: `src/app/paths.ts`, `src/setup.ts`, setup templates/tests.
+- Session behavior: `src/sessions/`, TUI code, session tests.
+- Channel/wake behavior: `src/channels/`, `src/agents/channel-policy*`,
+  delivery-loop tests.
+- Watches/gateway behavior: `src/watches/`, `src/gateway/`, watch tests.
+- Skills: `src/skills/`, `src/setup/templates/skills/`, skill command tests.
+
+If the old changelog says a feature exists, still check the diff. Correct
+wrong verbs, removed command names, outdated config keys, and claims based on
+plans rather than shipped code.
 
 ## Style
 
@@ -78,22 +102,25 @@ Write bullets in the existing Shrimpy voice:
 
 Reuse existing section names when they fit. Good Shrimpy sections include:
 
-- `Breaking Changes` or `Manual Actions` when needed.
+- `Breaking Changes` or `Manual Actions`
 - `Installation`
-- `CLI`
+- `CLI & Plumbing`
 - `Workspace & Setup`
-- `Skills`
-- `Turn Context & Delivery`
-- `Channels & Agent Policy`
-- `Watches`
-- `Sessions & Models`
-- `TUI`
+- `Agents, Skills & Tools`
+- `Turn Context`
+- `Channels, Surfaces & Agent Policy`
+- `Watches & Gateway`
+- `Sessions, Models & TUI`
 - `Release & Dependencies`
 - `Docs & Project Hygiene`
 - `Tests`
 
 Do not create every section for every release. Include only sections with
 meaningful entries.
+
+Use `Breaking Changes` when config keys, workspace file names, command names,
+or routing behavior changed in a way an existing workspace or workflow may
+notice. Mention the old and new names plainly.
 
 ## Impact Ordering
 
@@ -103,7 +130,7 @@ When choosing bullet order inside a section, prefer:
 2. Setup, install, and upgrade changes that affect whether Shrimpy runs.
 3. User-visible commands, TUI behavior, channel behavior, and agent workflows.
 4. New inspection/debugging surfaces that make behavior observable.
-5. Documentation, tests, and project hygiene.
+5. Maintainer-facing source skills, reference docs, tests, and project hygiene.
 
 Let concrete impact win over chronology. Do not reorder old release sections
 unless the user asks for cleanup.

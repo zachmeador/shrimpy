@@ -4,44 +4,53 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 🦐 0.3.0 - A Window in the Reef - Unreleased
 
+### Breaking Changes
+
+- Replaced `agents[].attention`, `--attention`, and `shrimpy agent attention ...` with `agents[].channelPolicy`, `--channel-policy`, and `shrimpy agent channel-policy ...`.
+- Replaced top-level `briefing` config and `shrimpy context --briefing` with `context.turn` and `shrimpy context turn`; old `briefing` config now fails validation.
+- Replaced scheduler/schedule config and state with agent-owned `watches.json`, `watchClock`, and `status.watchedWatches`; legacy schedule commands, scheduler state, and schedule/reminder provenance were removed.
+- Changed channel delivery so addressing no longer bypasses membership, and `mode: none` no longer wakes on mentions or addressing; channel membership plus each agent's `channelPolicy` decides every wake.
+
 ### Installation
 
 - Added a curl-friendly installer script and README setup path for installing a selected GitHub ref under `~/.local/share/shrimpy/app` and linking Shrimpy binaries into `~/.local/bin`.
-- Added generated Bash/Zsh completion commands, cached completion state, and installer/profile wiring so Zsh completion is enabled during install.
+- Added generated Bash/Zsh completion commands, cached completion state, and installer/interactive startup wiring so Zsh completion can be installed or refreshed automatically.
 
-### CLI
+### CLI & Plumbing
 
 - Added a shared command catalog for top-level help, group usage, and shell completion so command metadata has one source of truth.
 - Cleaned up CLI help output across command groups and added `shrimpy completion bash|zsh|install|write-state|status`.
 
 ### Workspace & Setup
 
-- Added shared `vault/` and `projects/` workspace defaults plus setup-template guidance for saved files, reports, and project work folders.
+- Added shared and per-agent `vault/` and `projects/` workspace defaults plus setup-template guidance for saved files, reports, and project work folders.
 
-### Skills
+### Agents, Skills & Tools
 
 - Changed session startup to pass Shrimpy-selected skill entrypoints to Pi while keeping Pi's ambient skill discovery disabled.
 - Added Pi-backed workspace and agent skill management, including `shrimpy skills list`, `show`, `add`, `install`, and `validate`.
 - Added skill inspection and validation for agent-over-workspace shadowing, Pi loader diagnostics, id/name mismatches, unsafe layouts, and large visible skill sets.
+- Added an `add-agent` setup skill for CLI-first agent creation, channel wiring, model/tool selection, and wake-policy verification.
 - Added a built-in `coding-delegation` skill for preparing, dispatching, and supervising coding-agent handoffs.
 - Added a `shrimpy-dev-reference-docs` source skill for using source/reference diffs to keep `docs/reference/` aligned with current behavior.
 - Added a `shrimpy-dev-changelog` source skill for keeping `CHANGELOG.md` organized around release impact, categories, and user-facing wording.
+- Added a `shrimpy-dev-pi-upgrade` source skill for assessing Pi dependency upgrades from a local Pi clone and writing a root-level upgrade plan.
 
-### Turn Context & Delivery
+### Turn Context
 
 - Replaced briefing terminology with turn context across config, docs, CLI output, environment variables, and memory naming.
 - Added `shrimpy context turn` plus `context.turn` settings for max size, unread channel context, and session recency status.
-- Changed direct `tui` and `run` sessions to prepend turn context to user prompts while keeping live turn context out of the stable system prompt.
-- Changed session startup to pass live turn context through Pi's context-hook path instead of baking turn context into stable session resources.
-- Scoped active publication helpers to gateway/channel sessions and clarified direct-session delivery, explicit `send_message` routing, and internal agent DM delivery.
+- Changed direct and gateway sessions to inject live turn context through Pi's context hook before the current prompt instead of baking it into stable session resources or persisted user messages.
+- Unified command-source execution for turn context previews and runtime turns, including inspectable items, error reporting, freshness state, and `--session-type` support for `shrimpy context sources run`.
 
-### Channels & Agent Policy
+### Channels, Surfaces & Agent Policy
 
 - Added richer channel inspection with `shrimpy channels show` message counts, recent request-like messages, traceable source records, and `shrimpy channels search` filters for kind, sender, transport, actor, content type, addressing, watch, and source kind.
 - Changed channel wake behavior from channel-owned attention to agent-owned `channelPolicy`, including base and per-channel modes, sender/actor/user filters, membership visibility checks, and inspectable wake/ignore explanations.
 - Renamed the agent attention config and CLI surface to `channelPolicy` and `shrimpy agent channel-policy`, with `--channel-policy` on `agent add` and `agent set`.
+- Scoped active publication helpers to gateway/channel sessions and clarified direct-session delivery, explicit `send_message` routing, and internal agent DM delivery.
 
-### Watches
+### Watches & Gateway
 
 - Replaced the scheduler/schedules surface with agent-owned watches in `agents/<id>/watches.json`; recurring work now uses one watch config concept instead of separate schedule, reminder, and scheduler state shapes.
 - Added `shrimpy watches list|show|add|history|run` for inspecting, creating, and manually running watches, including target channels, expected channel-policy wake decisions, clock state, active runs, run history, diagnostics, and inspect commands.
@@ -50,10 +59,12 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed fresh setup to seed focused `memory-management`, `journal-daily`, and `journal-compact` watches on the `maintenance` channel instead of a broad catch-all upkeep entry.
 - Removed legacy scheduler modules, schedule commands, one-time schedule/reminder state, scheduler/reminder channel provenance, and the old heartbeat-specific compaction/status handling.
 
-### Sessions & Models
+### Sessions, Models & TUI
 
 - Added visible session messages when a session model changes, including previous/current model refs, thinking level, and resolved inference metadata.
 - Improved session metadata recording after model switches so resumed sessions and inspection output reflect the active model.
+- Added contained system prompt rendering so Pi skill inventory and runtime facts are represented as Shrimpy prompt sections with an explicit context boundary.
+- Changed TUI `/new` handling to archive the previous TUI session file after Pi opens a fresh session, keeping session listing and restore behavior consistent.
 
 ### Docs & Project Hygiene
 
@@ -66,7 +77,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Tests
 
-- Expanded regression coverage for skill commands, turn context defaults, prompt-cache-stable routed sessions, direct/gateway delivery guidance, internal agent DM messaging, visible model-switch records, CLI catalog/completion, channel inspection/search, agent channel policy, watches, and workspace setup defaults.
+- Expanded regression coverage for skill commands, turn context defaults and command sources, prompt-cache-stable routed sessions, direct/gateway delivery guidance, internal agent DM messaging, visible model-switch records, TUI session archiving, CLI catalog/completion, channel inspection/search, agent channel policy, watches, and workspace setup defaults.
 
 ## 🦐 0.2.0 - Lanterns in the Current - 2026-05-30
 
