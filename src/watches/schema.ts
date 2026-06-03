@@ -196,6 +196,10 @@ function parseAction(raw: unknown, index: number): WatchAction {
   if (raw.kind === "message") {
     const channel = assertString(raw.channel, `watches[${index}].action.channel`);
     const text = assertString(raw.text, `watches[${index}].action.text`);
+    const senderKind = parseSenderKind(
+      raw.senderKind,
+      `watches[${index}].action.senderKind`,
+    );
     if (
       raw.addressedAgentId !== undefined &&
       typeof raw.addressedAgentId !== "string"
@@ -209,14 +213,7 @@ function parseAction(raw: unknown, index: number): WatchAction {
       channel,
       text,
       ...(raw.addressedAgentId ? { addressedAgentId: raw.addressedAgentId } : {}),
-      ...(parseSenderKind(raw.senderKind, `watches[${index}].action.senderKind`)
-        ? {
-          senderKind: parseSenderKind(
-            raw.senderKind,
-            `watches[${index}].action.senderKind`,
-          ),
-        }
-        : {}),
+      ...(senderKind ? { senderKind } : {}),
       ...(typeof raw.senderActorId === "string"
         ? { senderActorId: raw.senderActorId }
         : {}),
@@ -252,19 +249,16 @@ function parseEmit(raw: unknown, index: number): WatchEmitConfig | undefined {
   ) {
     throw new Error(`watches[${index}].emit.addressedAgentId must be a string`);
   }
+  const senderKind = parseSenderKind(
+    raw.senderKind,
+    `watches[${index}].emit.senderKind`,
+  );
   return {
     policy: raw.policy as WatchEmitPolicy,
     ...(raw.channel ? { channel: raw.channel } : {}),
     ...(raw.template ? { template: raw.template } : {}),
     ...(raw.addressedAgentId ? { addressedAgentId: raw.addressedAgentId } : {}),
-    ...(parseSenderKind(raw.senderKind, `watches[${index}].emit.senderKind`)
-      ? {
-        senderKind: parseSenderKind(
-          raw.senderKind,
-          `watches[${index}].emit.senderKind`,
-        ),
-      }
-      : {}),
+    ...(senderKind ? { senderKind } : {}),
     ...(typeof raw.senderActorId === "string" ? { senderActorId: raw.senderActorId } : {}),
     ...(typeof raw.senderUserId === "string" ? { senderUserId: raw.senderUserId } : {}),
     ...(typeof raw.senderDisplayName === "string"

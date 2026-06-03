@@ -107,7 +107,7 @@ not a fake wake pipe.
   - `src/watches/actions.ts`
   - `src/watches/runner.ts`
   - `src/watches/run-store.ts`
-- Keep `engine.ts` focused on due-time calculation and persisted next-run state.
+- Keep `src/watches/clock.ts` focused on due-time calculation and persisted next-run state.
 - Replace `kind: "agent"` actions with clearer primitives:
   - `kind: "command"`: run a deterministic command and capture output.
   - `kind: "message"`: send explicit text/system content to a meaningful
