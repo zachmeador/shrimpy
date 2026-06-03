@@ -1,7 +1,5 @@
-import { exec } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { promisify } from "node:util";
 import {
   assembleSessionPrompt,
   createGatewaySessionDescriptor,
@@ -23,12 +21,13 @@ import {
   isDirectoryResource,
   parseContextResource,
   resolveContextSource,
-  clipContextWithMarker,
   renderTurnContext,
   renderPromptSectionManifest,
+  runContextSourceCommand,
   summarizePromptSection,
   type ContextSourceConfig,
   type ResolvedContextCommandSource,
+  type TurnContextItem,
 } from "../context/index.js";
 import {
   parseCommandArgs,
@@ -38,8 +37,6 @@ import {
   renderCommandUsage,
   renderGroupUsage,
 } from "./catalog.js";
-
-const execAsync = promisify(exec);
 
 const USAGE = renderGroupUsage("context");
 
@@ -292,6 +289,7 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
     options: {
       agent: { type: "string", short: "a" },
       channel: { type: "string", short: "c" },
+      "session-type": { type: "string", short: "s" },
       json: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -301,6 +299,8 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
 
   const runtime = createAppRuntime(config);
   const agent = runtime.getAgent(values.agent);
+  const sessionType = values["session-type"]
+    ?? (values.channel ? "gateway" : "preview");
   const sources = collectContextSources({
     runtime,
     agentId: agent.id,
@@ -329,18 +329,28 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
     return 1;
   }
 
-  const output = await runContextSource({
+  const result = await runContextSource({
     source,
     runtime,
     agentId: agent.id,
     channel: values.channel,
+    sessionType,
   });
   if (values.json) {
-    console.log(JSON.stringify({ id: source.id, output }, null, 2));
+    console.log(JSON.stringify({
+      id: source.id,
+      output: result.output,
+      ...(result.items ? { items: result.items } : {}),
+      ...(result.error ? { error: result.error } : {}),
+    }, null, 2));
   } else {
-    console.log(output);
+    if (result.error) {
+      console.error(renderContextSourceError(result));
+    } else {
+      console.log(result.output);
+    }
   }
-  return 0;
+  return result.error ? 1 : 0;
 }
 
 function collectContextSources(input: {
@@ -455,32 +465,39 @@ function sourceToJson(source: SourceView): Record<string, unknown> {
   };
 }
 
+interface SourceRunResult {
+  output: string;
+  items?: TurnContextItem[];
+  error?: string;
+}
+
 async function runContextSource(input: {
   source: SourceView;
   runtime: ReturnType<typeof createAppRuntime>;
   agentId: string;
   channel?: string;
-}): Promise<string> {
+  sessionType: string;
+}): Promise<SourceRunResult> {
   if (input.source.command) {
     return runCommandContextSource(input.source.command, input);
   }
   if (input.source.type === "runtime") {
-    return renderRuntimeTurnContext(input);
+    return { output: await renderRuntimeTurnContext(input) };
   }
   if (!input.source.rootPath || !input.source.path) {
-    return "";
+    return { output: "" };
   }
   if (input.source.type === "directory") {
     const refs = expandDirectoryResource(input.source.rootPath, input.source.path);
-    if (refs.length === 0) return "";
-    return refs.map((ref) => {
+    if (refs.length === 0) return { output: "" };
+    return { output: refs.map((ref) => {
       const path = join(ref.rootPath, ref.resourcePath);
       return `## ${ref.resourcePath}\n\n${readFileSync(path, "utf-8")}`;
-    }).join("\n\n---\n\n");
+    }).join("\n\n---\n\n") };
   }
   const path = join(input.source.rootPath, input.source.path);
-  if (!existsSync(path)) return "";
-  return readFileSync(path, "utf-8");
+  if (!existsSync(path)) return { output: "" };
+  return { output: readFileSync(path, "utf-8") };
 }
 
 async function runCommandContextSource(
@@ -489,44 +506,57 @@ async function runCommandContextSource(
     runtime: ReturnType<typeof createAppRuntime>;
     agentId: string;
     channel?: string;
+    sessionType: string;
   },
-): Promise<string> {
+): Promise<SourceRunResult> {
   if (!commandMatchesChannel(command, input.channel)) {
-    return "";
+    return { output: "" };
   }
-  const { stdout } = await execAsync(command.command, {
-    cwd: input.runtime.paths.workspace,
-    timeout: command.timeoutMs,
-    env: {
-      ...process.env,
-      SHRIMPY_CONTEXT_AGENT: input.agentId,
-      SHRIMPY_CONTEXT_CHANNEL: input.channel ?? "",
-      SHRIMPY_CONTEXT_SESSION_TYPE: input.channel ? "gateway" : "preview",
-    },
-    maxBuffer: Math.max(command.maxChars * 4, 4096),
+  const result = await runContextSourceCommand(command, {
+    runtime: input.runtime,
+    agentId: input.agentId,
+    channel: input.channel,
+    sessionType: input.sessionType,
   });
-  return clipContextWithMarker(stdout.trim(), command.maxChars);
+  return {
+    output: result.raw,
+    items: result.items,
+    error: result.error,
+  };
+}
+
+function renderContextSourceError(result: SourceRunResult): string {
+  if (!result.items || result.items.length === 0) {
+    return result.error ?? "context source failed";
+  }
+  return result.items.map((item) =>
+    item.inspect ? `${item.summary}\n  inspect: ${item.inspect}` : item.summary
+  ).join("\n");
 }
 
 async function renderRuntimeTurnContext(input: {
   runtime: ReturnType<typeof createAppRuntime>;
   agentId: string;
   channel?: string;
+  sessionType: string;
 }): Promise<string> {
   const agentPaths = input.runtime.getAgentPaths(input.agentId);
   const cwd = process.cwd();
   const descriptor = input.channel
-    ? createGatewaySessionDescriptor({
-      workspacePath: agentPaths.root,
-      agentId: input.agentId,
-      channel: input.channel,
-      cwd,
-    })
+    ? {
+      ...createGatewaySessionDescriptor({
+        workspacePath: agentPaths.root,
+        agentId: input.agentId,
+        channel: input.channel,
+        cwd,
+      }),
+      kind: input.sessionType,
+    }
     : createStoredSessionDescriptor({
       workspacePath: agentPaths.root,
       agentId: input.agentId,
       sessionName: join("context-preview", input.agentId),
-      kind: "preview",
+      kind: input.sessionType,
       cwd,
     });
   const previewMessage = input.channel

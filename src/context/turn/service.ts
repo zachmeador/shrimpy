@@ -1,5 +1,3 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
 import type { ChannelMessage } from "../../channels/index.js";
 import {
   collectGatewayActivity,
@@ -13,8 +11,8 @@ import {
   resolveContextSource,
   type ResolvedContextCommandSource,
 } from "../source.js";
+import { runContextSourceCommand } from "./command-source.js";
 import { buildTurnFactItems } from "./facts.js";
-import { clipContextWithMarker } from "./render.js";
 import { buildSessionStatusItems } from "./session-status.js";
 import {
   readContextState,
@@ -27,8 +25,6 @@ import type {
   TurnContext,
   TurnContextInput,
 } from "./types.js";
-
-const execAsync = promisify(exec);
 
 function contextAgentId(input: TurnContextInput): string {
   return input.descriptor.agentId ?? input.runtime.getAgent().id;
@@ -166,51 +162,26 @@ async function buildCommandItems(input: TurnContextInput): Promise<TurnContextIt
   if (commands.length === 0) return [];
 
   const state = readContextState(input.runtime, agentId);
-  const results = await Promise.all(commands.map((command) => {
+  const results = await Promise.all(commands.map(async (command) => {
     const cached = state.commands[command.id];
     if (!input.preview && isCommandFresh(cached, command.freshForMs)) {
       return cached.items ?? [];
     }
-    return runContextSourceCommand(command, input);
+    const result = await runContextSourceCommand(command, {
+      runtime: input.runtime,
+      agentId,
+      channel,
+      sessionType: input.descriptor.kind,
+    });
+    if (!input.preview) rememberCommandRun(command, input, result.items);
+    return result.items;
   }));
   return results.flat();
-}
-
-async function runContextSourceCommand(
-  command: ResolvedContextCommandSource,
-  input: TurnContextInput,
-): Promise<TurnContextItem[]> {
-  try {
-    const { stdout } = await execAsync(command.command, {
-      cwd: input.runtime.paths.workspace,
-      timeout: command.timeoutMs,
-      env: {
-        ...process.env,
-        SHRIMPY_CONTEXT_AGENT: contextAgentId(input),
-        SHRIMPY_CONTEXT_CHANNEL: input.descriptor.channel ?? "",
-        SHRIMPY_CONTEXT_SESSION_TYPE: input.descriptor.kind,
-      },
-      maxBuffer: Math.max(command.maxChars * 4, 4096),
-    });
-    const clipped = clipContextWithMarker(stdout.trim(), command.maxChars);
-    const items = parseCommandOutput(command.id, clipped);
-    if (!input.preview) rememberCommandRun(command, input, clipped, items);
-    return items;
-  } catch (err) {
-    const items: TurnContextItem[] = [{
-      id: `command:${command.id}:error`,
-      summary: `${command.id}: context command failed (${err instanceof Error ? err.message : String(err)})`,
-      inspect: command.command,
-    }];
-    if (!input.preview) rememberCommandRun(command, input, "", items);
-    return items;
-  }
 }
 
 function rememberCommandRun(
   command: ResolvedContextCommandSource,
   input: TurnContextInput,
-  output: string,
   items: TurnContextItem[],
 ): void {
   const agentId = contextAgentId(input);
@@ -228,61 +199,6 @@ function isCommandFresh(
 ): cached is { lastRunAt: number; items: TurnContextItem[] } {
   if (!cached?.lastRunAt || !cached.items) return false;
   return Date.now() - cached.lastRunAt < freshForMs;
-}
-
-function parseCommandOutput(commandId: string, output: string): TurnContextItem[] {
-  if (!output) return [];
-  const parsed = parseJsonOutput(output);
-  if (Array.isArray(parsed)) {
-    return parsed.flatMap((item, index) => parseCommandItem(commandId, item, index));
-  }
-  if (isRecord(parsed) && Array.isArray(parsed.items)) {
-    return parsed.items.flatMap((item, index) => parseCommandItem(commandId, item, index));
-  }
-  if (isRecord(parsed)) {
-    return parseCommandItem(commandId, parsed, 0);
-  }
-  return output.split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => ({
-      id: `command:${commandId}:${index}`,
-      summary: `${commandId}: ${line}`,
-    }));
-}
-
-function parseJsonOutput(output: string): unknown {
-  try {
-    return JSON.parse(output);
-  } catch {
-    return undefined;
-  }
-}
-
-function parseCommandItem(
-  commandId: string,
-  item: unknown,
-  index: number,
-): TurnContextItem[] {
-  if (typeof item === "string") {
-    return [{ id: `command:${commandId}:${index}`, summary: `${commandId}: ${item}` }];
-  }
-  if (!isRecord(item)) return [];
-  const summary = typeof item.summary === "string"
-    ? item.summary
-    : typeof item.text === "string"
-      ? item.text
-      : undefined;
-  if (!summary) return [];
-  return [{
-    id: typeof item.id === "string" ? item.id : `command:${commandId}:${index}`,
-    summary,
-    inspect: typeof item.inspect === "string" ? item.inspect : undefined,
-  }];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function matchesAny(patterns: string[], channel: string): boolean {

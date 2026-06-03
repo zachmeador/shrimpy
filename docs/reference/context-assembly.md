@@ -76,7 +76,7 @@ String sources use resource addresses:
 
 String sources ending in `/` are directory sources. They load top-level `.md` files in deterministic order. Subdirectories are skipped so `agent:context/` loads `context/*.md` without also loading turn-scoped files under `context/people/`, `context/channels/`, or journal subdirectories.
 
-Command sources are turn-scoped. Their output is clipped by `maxChars`, can be channel-filtered with `channels`, and is inspectable with `shrimpy context sources run <id>`.
+Command sources are turn-scoped. Their output is clipped by `maxChars`, can be channel-filtered with `channels`, and is inspectable with `shrimpy context sources run <id>`. Pass `--session-type <type>` to preview the same `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose.
 
 Channel- or agent-specific overrides live under `context.channels`, `context.agents.<id>`, and `context.agents.<id>.channels`.
 

@@ -46,11 +46,11 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy context` | Render assembled session prompt context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |
-| `shrimpy context turn --channel <name>` | Render only turn context for a channel/session. |
+| `shrimpy context turn --channel <name> [--session-type <type>]` | Render only turn context for a channel/session. |
 | `shrimpy context files list [--agent <id>] [--older-than <dur>] [--json]` | List agent context Markdown files. Useful for upkeep skills. |
 | `shrimpy context files show [--agent <id>] <path>` | Print one agent context file. |
 | `shrimpy context sources list [--agent <id>] [--channel <name>] [--json]` | Inspect configured file/directory/command sources plus runtime turn context. |
-| `shrimpy context sources run <id> [--agent <id>] [--channel <name>]` | Render one context source for debugging. |
+| `shrimpy context sources run <id> [--agent <id>] [--channel <name>] [--session-type <type>] [--json]` | Render one context source for debugging. |
 | `shrimpy context --config` | Show resolved context config. |
 
 ## Channels And Surfaces

@@ -305,6 +305,46 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: finance-shrimpy bank transactions --recent/);
   });
 
+  test("passes command source agent, channel, and session type env", async () => {
+    const scriptPath = join(workspace, "env-command.js");
+    writeFileSync(
+      scriptPath,
+      [
+        "console.log(JSON.stringify({",
+        "  summary: [",
+        "    process.env.SHRIMPY_CONTEXT_AGENT,",
+        "    process.env.SHRIMPY_CONTEXT_CHANNEL,",
+        "    process.env.SHRIMPY_CONTEXT_SESSION_TYPE,",
+        "  ].join('|'),",
+        "}));",
+      ].join("\n"),
+      "utf-8",
+    );
+    const runtime = createAppRuntime({
+      workspace,
+      context: {
+        sources: [{
+          type: "command",
+          id: "env",
+          command: `node ${scriptPath}`,
+          channels: ["maintenance"],
+        }],
+      },
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "watch", "maintenance"),
+      currentMessage: makeMessage({
+        sender: { kind: "system", actorId: "system:watch-runner" },
+        origin: { transport: "watch" },
+        content: textContent("tick"),
+      }),
+    });
+
+    assert.match(renderTurnContext(turnContext), /shrimpy\|maintenance\|watch/);
+  });
+
   test("reuses fresh command context items without rerunning the command", async () => {
     const counterPath = join(workspace, "counter.txt");
     const scriptPath = join(workspace, "counter.js");

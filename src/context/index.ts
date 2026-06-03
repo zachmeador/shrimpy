@@ -4,6 +4,7 @@ export * from "./spec.js";
 export * from "./source.js";
 export * from "./env.js";
 export * from "./turn/channel-message.js";
+export * from "./turn/command-source.js";
 export * from "./turn/envelope.js";
 export * from "./turn/facts.js";
 export * from "./turn/render.js";
