@@ -3,7 +3,7 @@ name: shrimpy-dev-changelog
 description: Use when updating Shrimpy's root CHANGELOG.md for unreleased work, release preparation, or release-note cleanup, especially when deciding categories, ordering, and user-facing wording.
 ---
 
-# Shrimpy Dev Changelog
+# 🦐 Shrimpy Dev Changelog
 
 Use this Shrimpy developer skill from the Shrimpy repository when the user wants
 to update `CHANGELOG.md`.
@@ -48,6 +48,11 @@ Use the helpful parts of Home Assistant-style release notes without turning
 Shrimpy's changelog into a blog post:
 
 - Put the most important user-visible changes first.
+- Keep the root title as `# 🦐 Shrimpy Changelog`.
+- Prefix each release heading with the shrimp emoji, for example
+  `## 🦐 0.3.0 - A Window in the Reef - Unreleased`.
+- Use 🦐 for the changelog title and release headings. Keep product-area
+  headings and bullets plain unless the item itself is about Shrimpy identity.
 - Use stable product-area sections so readers can scan what changed.
 - Within each section, put the highest-impact bullets first.
 - Call out breaking, backward-incompatible, removed, or manual-action items
@@ -108,7 +113,7 @@ unless the user asks for cleanup.
 Current shape:
 
 ```markdown
-## 0.3.0 - A Window in the Reef - Unreleased
+## 🦐 0.3.0 - A Window in the Reef - Unreleased
 ```
 
 For public releases at `0.1.0` or later, keep the version, aquatic release name,

@@ -1,8 +1,8 @@
-# Shrimpy Changelog
+# 🦐 Shrimpy Changelog
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 0.3.0 - A Window in the Reef - Unreleased
+## 🦐 0.3.0 - A Window in the Reef - Unreleased
 
 ### Installation
 
@@ -20,11 +20,12 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Skills
 
-- Added Pi-backed workspace and agent skill management, including `shrimpy skills list`, `show`, `add`, `install`, and `validate`.
 - Changed session startup to pass Shrimpy-selected skill entrypoints to Pi while keeping Pi's ambient skill discovery disabled.
+- Added Pi-backed workspace and agent skill management, including `shrimpy skills list`, `show`, `add`, `install`, and `validate`.
 - Added skill inspection and validation for agent-over-workspace shadowing, Pi loader diagnostics, id/name mismatches, unsafe layouts, and large visible skill sets.
 - Added a built-in `coding-delegation` skill for preparing, dispatching, and supervising coding-agent handoffs.
 - Added a `shrimpy-dev-reference-docs` source skill for using source/reference diffs to keep `docs/reference/` aligned with current behavior.
+- Added a `shrimpy-dev-changelog` source skill for keeping `CHANGELOG.md` organized around release impact, categories, and user-facing wording.
 
 ### Turn Context & Delivery
 
@@ -67,7 +68,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Expanded regression coverage for skill commands, turn context defaults, prompt-cache-stable routed sessions, direct/gateway delivery guidance, internal agent DM messaging, visible model-switch records, CLI catalog/completion, channel inspection/search, agent channel policy, watches, and workspace setup defaults.
 
-## 0.2.0 - Lanterns in the Current - 2026-05-30
+## 🦐 0.2.0 - Lanterns in the Current - 2026-05-30
 
 ### TUI
 
@@ -104,7 +105,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Expanded regression coverage for the new TUI surfaces, model commands/restoration, tool policy, attention mutators, compaction, Telegram outbound formatting, and channel delivery behavior.
 
-## 0.1.0 - First Light in the Tidepool - 2026-05-30
+## 🦐 0.1.0 - First Light in the Tidepool - 2026-05-30
 
 ### Release
 
