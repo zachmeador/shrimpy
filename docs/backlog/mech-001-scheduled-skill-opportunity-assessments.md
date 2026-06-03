@@ -64,8 +64,8 @@ highest-signal recommendations.
   [ADMIN-001](admin-001.md).
 - [SCHED-001](sched-001-scheduler-job-runner.md) should give the mechanic a
   safer way to inspect its own watch recurrence, run history, and next run.
-- [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) owns the channel wake
-  contract for any mechanic assessment emitted into a channel.
+- [channels.md](../reference/channels.md) owns the channel wake contract for any
+  mechanic assessment emitted into a channel.
 - Good candidate recommendations: turn repeated manual requests into a skill,
   add a small recurring watch, split a focused app-agent out of the main
   agent, add a vault collection/index, or create a channel convention.

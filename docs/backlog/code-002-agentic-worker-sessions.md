@@ -118,8 +118,8 @@ closes it.
   default. Workers may propose those actions, but the parent must decide.
 - Do not invent a worker-specific async continuation loop. Worker state should be
   observable through inspection commands, relevant turn context, and
-  [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) when a parent
-  explicitly sends status onward through a channel.
+  [channels.md](../reference/channels.md) when a parent explicitly sends status
+  onward through a channel.
 - Do not introduce worker-specific prompt rewriting or a second ephemeral
   context injection mechanism. Use the existing Shrimpy/Pi session hook path
   unless Pi is the proven constraint for a backend.
@@ -150,9 +150,8 @@ closes it.
   [turn-context.md](../reference/turn-context.md); workers should add facts
   through turn context, not durable prompt prefixes or worker-only dispatch
   instructions.
-- Related: [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) is the shared
-  channel wake/provenance contract; workers should not add their own dispatch
-  path.
+- Related: [channels.md](../reference/channels.md) is the shared channel
+  wake/provenance contract; workers should not add their own dispatch path.
 - Design pressure is sketched in
   [../musings/asynchronous-agents.md](../musings/asynchronous-agents.md),
   especially worker sessions, explicit lineage, pending child work, and the child

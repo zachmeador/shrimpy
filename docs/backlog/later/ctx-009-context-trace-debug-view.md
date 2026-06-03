@@ -73,7 +73,7 @@ and worker-status context expands enough that the existing
 - This should make future turn-context facts easier to add because new facts can
   be introduced as trace producers with provenance and inspection metadata.
 - Related: active channel wake guidance lives in
-  [../channel-002-agent-owned-channel-wakes.md](../channel-002-agent-owned-channel-wakes.md).
+  [channels.md](../../reference/channels.md).
 
 ## Done
 

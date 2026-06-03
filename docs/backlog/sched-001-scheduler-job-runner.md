@@ -3,7 +3,7 @@
 Status: draft
 Priority: P1
 Area: Watches
-Depends On: [CHANNEL-002](channel-002-agent-owned-channel-wakes.md)
+Depends On: none
 
 ## Why
 
@@ -173,8 +173,8 @@ not a fake wake pipe.
 
 ## Related Items
 
-- [CHANNEL-002](channel-002-agent-owned-channel-wakes.md): channel presence,
-  agent-owned wake policy, and channel-message attribution/provenance.
+- [channels.md](../reference/channels.md): channel presence, agent-owned wake
+  policy, and channel-message attribution/provenance.
 - [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md): a mechanic
   usage assessment should be a mechanic-owned watch that records run history and
   emits a user-facing message only when there are useful recommendations.

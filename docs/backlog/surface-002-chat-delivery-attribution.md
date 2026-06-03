@@ -43,9 +43,9 @@ Unknown senders fall back to the existing plain delivery behavior.
 - Build on `src/channels/bus.ts`, where `sendAgentText` already publishes once and delivers the resulting message.
 - Update Telegram egress in `src/surfaces/telegram/surface.ts` to decorate only when sender attribution is needed.
 - Consider a small shared helper under `src/surfaces/shared/` for choosing attribution labels so future chat adapters can reuse the policy.
-- Related: [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) keeps
-  channel-emitting app-agent work inspectable; this item keeps later cross-agent
-  chat deliveries legible at the surface.
+- Related: [channels.md](../reference/channels.md) keeps channel-emitting
+  app-agent work inspectable; this item keeps later cross-agent chat deliveries
+  legible at the surface.
 - Add tests for plain default-agent delivery, decorated non-default agent delivery, and preservation of the stored channel text.
 
 ## Done
