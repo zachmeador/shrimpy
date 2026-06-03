@@ -12,15 +12,21 @@ project.
 
 Future Shrimpy setup should require the user to provide at least one
 coding-tier model so the bundled mechanic/admin path can do serious setup,
-repair, and development work. The user may or may not also configure a local
-model. Those two cases need different behavior:
+repair, and development work. Most normal users will also use that same capable
+hosted model for everyday Shrimpy work. Some users may later split everyday
+home-agent work onto a cheaper, local, or private model. Those cases need
+different behavior:
 
 - Heavy development, repair, and mechanic work should use a ranked capable
   chain such as `openai/gpt5.5`, then `anthropic/claudeopus`, then a local
   fallback.
 - Normal home-agent work, app control, agent-owned watches, and ambient channel handling
-  should be able to say "local model or bust" and fail clearly when no local
-  model policy candidate is configured.
+  should resolve through a user-owned `home` policy. First setup should normally
+  create a working `home` policy from the same hosted candidate as `coding` so a
+  new user can talk to Shrimpy immediately.
+- Advanced users should still be able to make `home` say "local model or bust"
+  by listing only local/private candidates. In that case, normal home sessions
+  should fail clearly when no listed candidate is usable.
 
 This should be user-owned policy, not hardcoded provider preference and not an
 agent prompt convention.
@@ -32,7 +38,7 @@ model candidates. A policy is resolved at session start against the Pi model
 registry and auth state. Shrimpy selects the first usable candidate and records
 both the selected model and the policy source in session metadata.
 
-Example shape:
+Normal first-run shape:
 
 ```json
 {
@@ -46,7 +52,7 @@ Example shape:
     },
     "home": {
       "candidates": [
-        { "provider": "local", "id": "qwen-general" }
+        { "provider": "openai", "id": "gpt5.5" }
       ]
     }
   },
@@ -57,11 +63,12 @@ Example shape:
 }
 ```
 
-The `home` policy is intentionally just a candidate list. "Local only" is not a
-separate runtime guess; it is enforced by the absence of hosted candidates. If a
-user has not added a local model, `home` should be unresolved and normal home
-sessions should fail with an actionable message. If a user wants hosted fallback
-for normal work, they can put hosted candidates in that policy.
+The `home` policy is intentionally just a candidate list. For the default setup
+path, it may contain the same hosted candidate as `coding`. For a local/private
+setup, it can contain only local candidates. "Local only" is not a separate
+runtime guess; it is enforced by the absence of hosted candidates. If a user
+chooses a local-only `home` policy and has not added a usable local model,
+normal home sessions should fail with an actionable message.
 
 ## Build
 
@@ -72,18 +79,21 @@ for normal work, they can put hosted candidates in that policy.
 - Add a session intent field to the model resolution path. Initial standard
   intents should include:
   - `coding` for heavy development work, coding workers, and codebase changes.
-  - `maintenance` or `mechanic` for setup, doctor, repair, and admin sessions.
+  - `maintenance` or `mechanic` for setup, repair, admin, and direct mechanic
+    sessions.
   - `home` for the default Shrimpy agent, app control, agent-owned watches, and
     normal channel handling.
-- Decide whether `maintenance` is its own policy or an alias/default to
-  `coding`. Start simple if there is no clear product need for separate model
-  choice.
+- Start by treating `maintenance`/`mechanic` as an alias/default to `coding`
+  unless a clear product need for a separate model policy appears.
 - Make setup require a resolvable coding-tier policy before guided setup,
-  doctor, and worker/coding flows are considered available.
-- Do not require a local/home policy to resolve during first setup. If the user
-  has only the required coding-tier model, normal home sessions should fail with
-  a clear "configure a local/home model policy" message rather than silently
-  using the coding model.
+  mechanic repair, and worker/coding flows are considered available.
+- During first setup, after `coding` resolves, default `home` to the same
+  provider/model candidate so the normal path yields a working Shrimpy agent.
+  Ask before creating a separate `home` policy, and frame local/private home
+  inference as an advanced preference.
+- If the user explicitly leaves `home` unresolved or configures `home` with only
+  unusable candidates, normal home sessions should fail with a clear
+  "configure a home model policy" message rather than silently using `coding`.
 - Keep explicit CLI `--provider`/`--model` overrides as the highest-precedence
   one-session escape hatch.
 - Add an explicit `--model-policy <name>` CLI override for commands that open
@@ -112,7 +122,8 @@ for normal work, they can put hosted candidates in that policy.
 - Surface policy resolution in `shrimpy models` alongside provider availability
   and agent defaults.
 - Update setup/onboarding docs and prompts so the required first model is
-  framed as the coding/maintenance policy, not as the everyday home-agent model.
+  framed as the coding/maintenance policy first, then ask whether the same
+  model should power everyday Shrimpy.
 - Update reference docs for config, runtime model resolution, and setup.
 - Add focused tests for config validation, precedence, unresolved policies,
   saved-session policy compatibility, and CLI JSON output shapes.
@@ -123,7 +134,8 @@ for normal work, they can put hosted candidates in that policy.
   The examples can mention those providers, but the runtime should use the
   user's configured policy order.
 - Do not silently escalate normal home/app/channel work to the coding policy
-  when the home policy is unresolved.
+  when the home policy is unresolved. Setup may explicitly copy the selected
+  coding candidate into `home`, but runtime resolution should not guess.
 - Do not make model policy a hidden agent decision. Agents may request a session
   or worker intent through normal Shrimpy controls, but the framework resolves
   models from explicit user config.
@@ -138,10 +150,15 @@ for normal work, they can put hosted candidates in that policy.
 ## Notes
 
 - Related: [ONBOARD-001](onboard-001.md) should use the coding/maintenance
-  policy as the first working model path before encouraging a local/private
-  default home agent.
-- Related: [DOCTOR-001](doctor-001.md) should launch through the maintenance or
-  coding policy so repair work has enough model capability.
+  policy as the first working model path, then default `home` to the same
+  hosted candidate unless the user explicitly chooses a separate local/private
+  path.
+- Related: [SETUP-002](setup-002-provider-model-policy-bootstrap.md) should own
+  the deterministic provider auth, policy writing, and smoke-test step before
+  mechanic-led onboarding starts.
+- Related: [MECH-002](mech-002-direct-mechanic-tui-command.md) should launch
+  mechanic through the maintenance or coding policy so setup, repair, and
+  extension work has enough model capability.
 - Related: [CODE-002](code-002-agentic-worker-sessions.md) should select worker
   models through the coding policy rather than each worker backend choosing its
   own default.
@@ -150,7 +167,7 @@ for normal work, they can put hosted candidates in that policy.
 - This fits the mechanic-agent direction in
   [../musings/mechanic-agent.md](../musings/mechanic-agent.md): mechanic gets
   first claim on a capable hosted model during setup, while the everyday
-  `shrimpy` agent can stay local/private.
+  `shrimpy` agent can either use that same hosted model or stay local/private.
 - Later slices can add richer candidate selectors, tags, cost budgets, or
   watch-aware intents. The first slice should stay concrete and inspectable:
   ordered candidate list in, selected provider/model or clear failure out.
@@ -164,13 +181,15 @@ for normal work, they can put hosted candidates in that policy.
   CLI overrides, explicit policy overrides, session intent, and agent defaults
   in that order.
 - Setup requires and validates a resolvable coding-tier policy.
-- A workspace with only the required coding-tier policy can complete setup, but
-  home/local-only sessions fail clearly until a home policy candidate exists.
+- Setup normally creates a resolvable `home` policy by copying the selected
+  coding candidate, while explicit local-only or unresolved `home` policies fail
+  clearly until a usable home candidate exists.
 - Saved TUI session models cannot bypass the effective policy.
 - CLI inspection explains policy resolution and unresolved candidates in human
   and JSON forms.
-- Worker/coding, mechanic/doctor, and normal home sessions use distinct intents.
-- Docs explain how to configure "hosted frontier fallback for coding" and
-  "local or bust for home" without hardcoded provider assumptions.
+- Worker/coding, mechanic/setup/repair, and normal home sessions use distinct intents.
+- Docs explain the normal "one hosted model for setup and home" path plus the
+  advanced "hosted frontier fallback for coding" and "local or bust for home"
+  path without hardcoded provider assumptions.
 - Tests cover policy validation, precedence, unresolved home policy behavior,
   saved-session compatibility, and CLI output.

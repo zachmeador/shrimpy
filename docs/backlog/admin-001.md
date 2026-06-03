@@ -5,15 +5,17 @@ Priority: P2
 Area: Mechanic Agent
 
 ## Why
-Workspace setup, repair, configuration changes, and larger Shrimpy modifications need a normal agent with richer default context. A bundled `mechanic` agent should use existing Shrimpy primitives instead of a separate control plane.
+Workspace setup, repair, configuration changes, and larger Shrimpy modifications need a normal agent with richer default context. Every initialized Shrimpy environment should include a bundled `mechanic` agent alongside the default `shrimpy` agent, using existing Shrimpy primitives instead of a separate control plane.
 
 ## Build
 - Ship a bundled ordinary `mechanic` agent.
+- Treat `shrimpy` and `mechanic` as the two default agents in every new environment.
 - `shrimpy setup init` should create both `shrimpy` and `mechanic`.
 - Give mechanic richer default context/resources for setup and repair work.
-- Configure mechanic to prefer a powerful hosted model endpoint and deliberate reasoning when available. The main `shrimpy` agent can still be encouraged toward local/private models for everyday chat.
+- Configure mechanic to use the coding/maintenance model policy and deliberate reasoning when available. The normal setup path may point both mechanic and the main `shrimpy` agent at the same hosted model; a separate local/private home policy remains an advanced preference.
 - Seed a default mechanic skill pack for setup, repair, configuration changes, and app/agent guidance. `admin` can remain a historical/backlog label or alias if useful, but `mechanic` is the preferred user-facing name.
 - Polished setup should launch an interactive mechanic session that uses setup skills/resources internally.
+- The top-level maintenance chat entry point is `shrimpy mechanic`; do not add a competing `shrimpy doctor` front door.
 
 ## Boundaries
 - Do not make mechanic a privileged runtime species.
@@ -21,8 +23,8 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 
 ## Notes
 - Likely files: `src/setup.ts`, setup templates, `src/agents/workspace-manager.ts`, and skills/resources under setup templates.
+- Depends on [MODEL-001](model-001-user-configurable-model-policy.md): mechanic should point at a user-owned coding/maintenance policy instead of carrying a hardcoded model default.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
-- `doctor` should stay a clear repair entry point where useful, but the broader product direction is a mechanic specialist rather than a separate doctor identity.
 - Early mechanic skill pack ideas: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
 - Related follow-up: [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md)
   covers an opt-in mechanic-owned watch that reviews real Shrimpy usage, writes
@@ -32,5 +34,6 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 ## Done
 - New workspaces get `shrimpy` and `mechanic`.
 - Mechanic has distinct prompt resources and useful setup/repair skills.
-- Mechanic has an inspectable default model path suitable for setup, repair, and larger coding tasks.
+- Mechanic has an inspectable `modelPolicy` path suitable for setup, repair, and larger coding tasks.
+- The project has a clear follow-up path for `shrimpy mechanic` as the direct TUI command.
 - Tests cover setup output and agent config shape.

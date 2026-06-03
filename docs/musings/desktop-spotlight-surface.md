@@ -50,7 +50,7 @@ Every Shrimpy feature should already be reachable through `shrimpy <command>`, s
 - open or continue sessions
 - send messages to channels
 - inspect recent channel/session state
-- run setup/doctor-style flows
+- run setup, mechanic, and diagnostic flows
 - surface background work and heartbeat summaries
 
 This reinforces the CLI-first architecture instead of bypassing it. The app is a native command surface over Shrimpy, not a second product model.

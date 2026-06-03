@@ -22,7 +22,7 @@ or pulling several provider SDKs into the default install.
 - Add CLI coverage before daemon tools, for example:
   - `shrimpy search web <query>`
   - `shrimpy search providers`
-  - `shrimpy search doctor`
+  - `shrimpy search status`
 - Keep the first search command compact and agent-friendly:
   - `--provider <name>` to override the configured default;
   - `--count <n>` with a conservative default and maximum;
@@ -61,7 +61,7 @@ or pulling several provider SDKs into the default install.
 - Keep secrets out of prompts, logs, channel messages, command output, and saved
   search result notes. API keys should come from environment variables or the
   existing secret/auth storage path once that is available for tool providers.
-- Add a doctor/diagnostic path that reports configured providers, missing API key
+- Add a diagnostic path that reports configured providers, missing API key
   env vars, unsupported provider types, and whether the default provider is
   usable.
 - Add daemon tools only after the CLI is inspectable and tested. The agent-facing
@@ -117,7 +117,7 @@ or pulling several provider SDKs into the default install.
 ## Done
 
 - `shrimpy search web <query>` returns stable, bounded, source-linked results.
-- `shrimpy search providers` and `shrimpy search doctor` make provider
+- `shrimpy search providers` and `shrimpy search status` make provider
   availability inspectable.
 - The base Shrimpy install does not require provider SDKs, API keys, browser
   automation, or cloud search accounts.

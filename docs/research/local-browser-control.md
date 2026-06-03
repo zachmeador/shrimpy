@@ -468,7 +468,7 @@ direct browser tool when their workflow shape is useful.
 ## Open questions
 
 - Should Shrimpy vendor a pinned `agent-browser` version or install it as an
-  external dependency during `shrimpy doctor`?
+  external dependency during setup or a mechanic-guided diagnostic flow?
 - Should each Shrimpy agent get its own browser profile by default, or should
   profiles be task-scoped and ephemeral unless explicitly persisted?
 - Should Shrimpy support attach-to-user-browser in v1, or defer it until domain

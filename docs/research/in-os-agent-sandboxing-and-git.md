@@ -224,7 +224,7 @@ the same questions on every backend.
 
 ## Likely First Experiments
 
-1. **Inspection only.** Add a CLI command or doctor check that says "no native
+1. **Inspection only.** Add a CLI command or diagnostic check that says "no native
    sandbox active" and shows intended policy once configured.
 2. **Linux command runner prototype.** Use `bubblewrap` to run a benign command
    with a read-only project mount and writable scratch, then inspect whether

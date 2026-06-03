@@ -171,7 +171,7 @@ Possible shape:
 
 - `shrimpy setup` launches provider bootstrap if needed, then opens a mechanic-guided setup session
 - `shrimpy mechanic` opens a direct TUI session with `mechanic`
-- repair-oriented commands like `shrimpy doctor` may become mechanic-led entry points instead of separate conceptual products
+- repair-oriented work returns to the same `shrimpy mechanic` front door instead of adding a separate top-level doctor product
 
 That fits the rule that every real feature should be reachable through a normal `shrimpy <command>` path.
 
@@ -197,7 +197,7 @@ That stack is easier to explain than asking the user to reason upward from skill
 This likely changes the framing of several current items.
 
 - `ADMIN-001` should establish the bundled mechanic agent, default workspace shape, richer mechanic context, and guided setup ownership without changing the ordinary agent contract.
-- `DOCTOR-001` may become less of a separate troubleshooting product and more of a dedicated mechanic repair entry point or repair mode.
+- `MECH-002` should establish `shrimpy mechanic` as the direct maintenance TUI command; repair can be a mechanic-led workflow rather than a separate doctor identity.
 - Future skill work still matters, but its scope becomes more implementation-facing. Skills remain important session material, while the user-facing product abstraction for self-modification becomes the mechanic agent.
 - Architecture work may benefit from this because it clarifies one more clean role split: general home-agent behavior versus home-maintenance specialization.
 

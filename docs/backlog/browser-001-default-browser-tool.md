@@ -72,7 +72,7 @@ agent frameworks as higher-level skills rather than the default backend.
   tool names should mirror the compact CLI vocabulary and return bounded
   structured output suitable for prompts.
 - Include browser tool availability in the effective tool capability view.
-- Add a doctor/diagnostic check that reports whether `agent-browser`, Chrome,
+- Add a diagnostic check that reports whether `agent-browser`, Chrome,
   and any configured engine are available.
 - If Shrimpy later offers an installer/helper for `agent-browser`, make it an
   explicit opt-in setup action rather than part of the base install.
@@ -146,7 +146,7 @@ agent frameworks as higher-level skills rather than the default backend.
   represented as opt-in when implemented.
 - `browser.cdpUrl` and `SHRIMPY_BROWSER_CDP_URL` are supported or explicitly
   diagnosed as unavailable.
-- `shrimpy doctor` or equivalent diagnostics report browser capability status.
+- Status or equivalent diagnostics report browser capability status.
 - Agent-facing browser tools mirror the CLI after the CLI is stable.
 - Effective agent tool inspection shows browser capability availability.
 - Tests cover CLI argument parsing, config/env resolution, command wrapping,

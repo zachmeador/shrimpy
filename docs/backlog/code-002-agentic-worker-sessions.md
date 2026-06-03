@@ -3,7 +3,7 @@
 Status: draft
 Priority: P1
 Area: Coding Agents
-Depends On: [CODE-001](code-001.md)
+Depends On: [CODE-001](code-001.md), [MODEL-001](model-001-user-configurable-model-policy.md)
 
 ## Why
 
@@ -43,6 +43,8 @@ closes it.
   - `codex` for managed Codex terminal sessions.
   - `claude` for managed Claude Code terminal sessions.
   - `pi` for managed Shrimpy/Pi sessions.
+- Select worker-capable Pi/Shrimpy models through the `coding` model policy
+  rather than letting each worker backend or parent agent invent its own default.
 - Keep a clear adapter seam between backend-specific process/session handling and
   the shared worker lifecycle model.
 - Implement worker execution through a small Shrimpy worker runner, not by

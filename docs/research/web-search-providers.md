@@ -296,7 +296,7 @@ vendor's free tier surviving.
 
 - **Pricing volatility is real.** Brave deleted its free tier (Feb 2026) and Bing
   was retired outright (Aug 2025). Keep cost/limits out of code; surface them via
-  `shrimpy search doctor`, not constants.
+  `shrimpy search status`, not constants.
 - **SERP-resale vs. owned index.** Serper/SerpAPI resell Google results; that is
   cheap and familiar but carries terms-of-service and longevity exposure the
   note's "don't scrape SERP pages" boundary is wary of. Owned indexes

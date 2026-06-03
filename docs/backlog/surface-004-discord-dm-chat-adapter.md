@@ -19,7 +19,7 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 - Drop guild messages, group DMs, bot-authored messages, self messages, and unauthorized users before publishing anything to Shrimpy channels.
 - Publish inbound DM text through `ChatSurfacePublisher` with `transport: "discord"`, Discord author id as `transportUserId`, the DM channel/conversation id as `transportChatId`, and mapped stable human identity.
 - Implement outbound egress for Discord-backed channels with Discord's create-message API, 2000-character chunking, and mention suppression by default.
-- Add `shrimpy setup discord` and status/doctor inspection enough to verify token, gateway connection, configured authorized users, and recent channel delivery from the CLI.
+- Add `shrimpy setup discord` and status/diagnostic inspection enough to verify token, gateway connection, configured authorized users, and recent channel delivery from the CLI.
 
 ## Boundaries
 - No Discord guild/server channel support in this item.

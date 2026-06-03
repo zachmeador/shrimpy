@@ -30,6 +30,7 @@ The current setup story leans on Linux assumptions in docs and gateway service m
 ## Notes
 - Related musing: `docs/musings/desktop-spotlight-surface.md`.
 - Related research: `docs/research/macos-seatbelt-helper.md`.
+- Related setup behavior: [SETUP-002](setup-002-provider-model-policy-bootstrap.md).
 - Later-scope security follow-up: [SECURITY-001](security-001-agent-sandboxing-security-strategy.md).
 - Likely files: `README.md`, `docs/README.md`, `docs/reference/README.md`, a new stable setup/install doc under `docs/reference/`, `src/gateway-ctl.ts`, `src/commands/gateway.ts`, `src/commands/status.ts`, `src/setup.ts`, and setup template resources.
 - Preserve CLI coverage: every platform-specific setup and lifecycle action should remain reachable through `shrimpy <command>`.
