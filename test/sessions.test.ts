@@ -37,6 +37,8 @@ import {
   createSessionTurnContextController,
   createTurnContextExtensionFactory,
 } from "../dist/sessions/turn-context.js";
+import { createShrimpyResourceLoader } from "../dist/sessions/pi-resources.js";
+import { resolveRuntimeConfig } from "../dist/config/runtime.js";
 import {
   formatChannelMessage,
   renderTurnContext,
@@ -100,6 +102,10 @@ function messageText(message: unknown): string {
         : ""
     )
     .join("");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function createMockSession(opts?: {
@@ -408,6 +414,96 @@ describe("createGatewaySessionDescriptor", () => {
 });
 
 describe("turn context Pi extension", () => {
+  test("replaces Pi prompt appendices with the contained Shrimpy prompt", async () => {
+    const root = mkdtempSync(join(tmpdir(), "shrimpy-pi-prompt-"));
+    const cwd = join(root, "cwd");
+    const agentDir = join(root, "agent");
+    const skillDir = join(root, "skill");
+    mkdirSync(cwd, { recursive: true });
+    mkdirSync(agentDir, { recursive: true });
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      join(skillDir, "SKILL.md"),
+      [
+        "---",
+        "name: sample-skill",
+        "description: Sample skill for prompt containment.",
+        "---",
+        "",
+        "# Sample Skill",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const model = createCaptureModel(`capture-${Date.now()}`);
+    const capturedSystemPrompts: string[] = [];
+    const settingsManager = SettingsManager.inMemory({});
+    const authStorage = AuthStorage.create(join(agentDir, "auth.json"));
+    authStorage.setRuntimeApiKey(model.provider, "test-api-key");
+    const modelRegistry = ModelRegistry.create(authStorage, join(agentDir, "models.json"));
+    modelRegistry.registerProvider(model.provider, {
+      api: model.api,
+      baseUrl: model.baseUrl,
+      apiKey: "test-api-key",
+      streamSimple: (_model, context) => {
+        capturedSystemPrompts.push(context.systemPrompt);
+        return createDoneStream(model.api, model.provider);
+      },
+      models: [{
+        id: model.id,
+        name: model.name,
+        api: model.api,
+        baseUrl: model.baseUrl,
+        reasoning: false,
+        input: ["text"],
+        cost: model.cost,
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
+      }],
+    });
+
+    const resourceLoader = createShrimpyResourceLoader({
+      cwd,
+      settingsManager,
+      runtimeConfig: resolveRuntimeConfig({ noPromptTemplates: true }),
+      systemPrompt: "[context base:test identity]\n\n# BASE",
+      skillPaths: [join(skillDir, "SKILL.md")],
+    });
+    await resourceLoader.reload();
+
+    const sessionManager = SessionManager.inMemory(cwd);
+    const { session } = await createAgentSession({
+      cwd,
+      agentDir,
+      model,
+      authStorage,
+      modelRegistry,
+      settingsManager,
+      sessionManager,
+      resourceLoader,
+    });
+
+    try {
+      await session.prompt("hello from pi");
+
+      assert.equal(capturedSystemPrompts.length, 1);
+      const prompt = capturedSystemPrompts[0]!;
+      assert.match(prompt, /^\[context base:test identity\]\n\n# BASE/);
+      assert.match(prompt, /\[context pi:available_skills capability\]/);
+      assert.match(prompt, /<name>sample-skill<\/name>/);
+      assert.match(prompt, /\[context pi:runtime_facts runtime\]/);
+      assert.match(prompt, /Current date: \d{4}-\d{2}-\d{2}/);
+      assert.match(prompt, new RegExp(`Current working directory: ${escapeRegExp(cwd)}`));
+      assert.match(prompt, /\[end context\]$/);
+      assert.equal((prompt.match(/<available_skills>/g) ?? []).length, 1);
+      assert.equal((prompt.match(/Current date:/g) ?? []).length, 1);
+    } finally {
+      session.dispose();
+      modelRegistry.unregisterProvider(model.provider);
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("injects ephemeral turn context through Pi's real context hook without persisting it", async () => {
     const root = mkdtempSync(join(tmpdir(), "shrimpy-pi-context-"));
     const cwd = join(root, "cwd");

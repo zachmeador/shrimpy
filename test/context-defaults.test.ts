@@ -55,7 +55,10 @@ describe("assemblePromptContext", () => {
       "capability:skill",
       "session:env",
     ]);
-    assert.match(context.systemPrompt, /^# IDENTITY\n\n---\n\n# SKILL\n\n---\n\n# RUNTIME$/);
+    assert.match(
+      context.systemPrompt,
+      /^\[context base:identity identity\]\n\n# IDENTITY\n\n---\n\n\[context capability:skill capability\]\n\n# SKILL\n\n---\n\n\[context session:env runtime\]\n\n# RUNTIME$/,
+    );
   });
 });
 
@@ -358,7 +361,7 @@ describe("assembleBasePromptSections", () => {
         }),
       ));
 
-      assert.match(rendered, /^# WORKSPACE/);
+      assert.match(rendered, /^\[context base:profile\/WORKSPACE\.md identity\]\n\n# WORKSPACE/);
       assert.match(rendered, /# SOUL/);
     } finally {
       rmSync(workspace, { recursive: true, force: true });

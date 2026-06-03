@@ -149,9 +149,17 @@ export function assemblePromptResourceSections(
 
 export function renderPromptSections(sections: PromptSection[]): string {
   return sections
-    .map((section) => section.content)
+    .map(renderPromptSection)
     .filter(Boolean)
     .join("\n\n---\n\n");
+}
+
+export function renderPromptSection(section: PromptSection): string {
+  return [
+    `[context ${section.id} ${section.kind}]`,
+    "",
+    section.content.trimEnd(),
+  ].join("\n");
 }
 
 export function summarizePromptSection(section: PromptSection): PromptSectionSummary {

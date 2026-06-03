@@ -12,6 +12,7 @@ import {
 } from "../context/index.js";
 import { getSkillPromptResourcesFromPaths } from "../skills/index.js";
 import type { SessionBootstrap } from "./bootstrap.js";
+import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
 
 export interface ResolvedSessionModel {
@@ -20,11 +21,14 @@ export interface ResolvedSessionModel {
 
 export interface SessionPromptAssembly {
   systemPrompt: string;
+  baseSystemPrompt: string;
   resolvedModel: Model<Api> | undefined;
   cwd: string;
   envKeys: string[];
   env: Record<string, string>;
   sections: PromptSection[];
+  baseSections: PromptSection[];
+  containedSections: PromptSection[];
   needsCustomLoader: boolean;
 }
 
@@ -95,7 +99,7 @@ export function assembleSessionPrompt(
     extraBasePromptSections.length > 0 ||
     sessionPromptSections.length > 0 ||
     Boolean(appendSection);
-  const context = needsCustomLoader
+  const baseContext = needsCustomLoader
     ? assemblePromptContext({
       sections: [
         bootstrap.baseSystemSections,
@@ -110,14 +114,24 @@ export function assembleSessionPrompt(
       sections: bootstrap.baseSystemSections,
       systemPrompt: bootstrap.baseSystemPrompt,
     };
+  const contained = buildContainedSystemPrompt({
+    basePrompt: baseContext.systemPrompt,
+    cwd,
+    skills: bootstrap.runtimeConfig.noSkills
+      ? []
+      : bootstrap.resourceLoader.getSkills().skills,
+  });
 
   return {
-    systemPrompt: context.systemPrompt,
+    systemPrompt: contained.systemPrompt,
+    baseSystemPrompt: baseContext.systemPrompt,
     resolvedModel,
     cwd,
     envKeys,
     env,
-    sections: context.sections,
+    sections: [...baseContext.sections, ...contained.sections],
+    baseSections: baseContext.sections,
+    containedSections: contained.sections,
     needsCustomLoader,
   };
 }

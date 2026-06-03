@@ -96,13 +96,24 @@ describe("skill context inspection", () => {
     ));
     assert.deepEqual(
       [...new Set(parsed.promptSections.map((section: any) => section.kind))].sort(),
-      ["identity", "memory", "runtime"],
+      ["capability", "identity", "memory", "runtime"],
     );
+    assert.ok(parsed.promptSections.some((section: any) =>
+      section.id === "pi:available_skills" && section.kind === "capability"
+    ));
+    assert.ok(parsed.promptSections.some((section: any) =>
+      section.id === "pi:runtime_facts" && section.kind === "runtime"
+    ));
     assert.equal(parsed.contextLayers, undefined);
     assert.equal(parsed.turnContext.sessionType, "gateway");
+    assert.match(parsed.systemPrompt, /\[context pi:available_skills capability\]/);
     assert.match(parsed.systemPrompt, /<available_skills>/);
     assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
+    assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
+    assert.match(parsed.systemPrompt, /Current date: \d{4}-\d{2}-\d{2}/);
+    assert.match(parsed.systemPrompt, /Current working directory:/);
+    assert.match(parsed.systemPrompt, /\[end context\]$/);
     assert.match(parsed.shrimpySystemPrompt, /# SOUL/);
     assert.doesNotMatch(parsed.shrimpySystemPrompt, /<available_skills>/);
     assert.doesNotMatch(parsed.systemPrompt, /\*\*model_id\*\*/);

@@ -13,6 +13,7 @@ import {
   createTurnContextExtensionFactory,
   type SessionTurnContextController,
 } from "./turn-context.js";
+import { buildContainedSystemPromptFromPiOptions } from "./contained-system-prompt.js";
 
 const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "hello.ts"),
@@ -49,11 +50,13 @@ export function createShrimpyResourceLoader(opts: {
     additionalThemePaths: SHRIMPY_THEME_PATHS,
     noSkills: true,
     noPromptTemplates: opts.runtimeConfig.noPromptTemplates,
-    // Shrimpy owns session context assembly and passes Pi one explicit
-    // prompt body. Keep Pi discovery for extensions/themes, but strip ambient
-    // skills, AGENTS.md, and APPEND_SYSTEM.md inputs so cwd-local repos do not
-    // silently reshape the session. Shrimpy-approved skill paths are passed
-    // explicitly through additionalSkillPaths above.
+    // Shrimpy owns session context assembly and passes Pi the file-backed base
+    // prompt body. The prompt-containment extension below replaces Pi's
+    // built prompt with Shrimpy's contained system prompt before model calls.
+    // Keep Pi discovery for extensions/themes, but strip ambient skills,
+    // AGENTS.md, and APPEND_SYSTEM.md inputs so cwd-local repos do not silently
+    // reshape the session. Shrimpy-approved skill paths are passed explicitly
+    // through additionalSkillPaths above.
     systemPrompt: opts.systemPrompt,
     agentsFilesOverride: () => ({ agentsFiles: [] }),
     appendSystemPromptOverride: () => [],
@@ -71,7 +74,19 @@ function createExtensionFactories(opts: {
         ? [createTurnContextExtensionFactory(opts.turnContextController)]
         : []
     ),
+    createPromptContainmentExtensionFactory(),
   ];
+}
+
+function createPromptContainmentExtensionFactory(): ExtensionFactory {
+  return (pi) => {
+    pi.on("before_agent_start", (event) => ({
+      systemPrompt: buildContainedSystemPromptFromPiOptions(
+        event.systemPromptOptions,
+        event.systemPrompt,
+      ),
+    }));
+  };
 }
 
 function createInferenceExtensionFactories(modelsPath?: string): ExtensionFactory[] {

@@ -21,6 +21,7 @@ import {
   resolveSessionCompactionPolicy,
   type EffectiveCompactionPolicy,
 } from "./compaction-policy.js";
+import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
 import { createInlineSettingsManager } from "./inline-settings.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 import { assembleSessionPrompt } from "./prompt.js";
@@ -210,6 +211,14 @@ async function openSessionWithRuntimeDeps(
   if (effectivePlan.thinking !== undefined) {
     session.setThinkingLevel(effectivePlan.thinking);
   }
+  session.state.systemPrompt = buildContainedSystemPrompt({
+    basePrompt: resourceLoader.getSystemPrompt() ?? assembly.baseSystemPrompt,
+    cwd: assembly.cwd,
+    skills: bootstrap.runtimeConfig.noSkills
+      ? []
+      : resourceLoader.getSkills().skills,
+    selectedTools: session.getActiveToolNames(),
+  }).systemPrompt;
 
   recordSessionOpen({
     session,
@@ -306,7 +315,7 @@ async function resolveSessionResourceLoader(
     cwd: assembly.cwd,
     settingsManager,
     runtimeConfig: bootstrap.runtimeConfig,
-    systemPrompt: assembly.systemPrompt,
+    systemPrompt: assembly.baseSystemPrompt,
     modelsPath: bootstrap.modelsPath,
     skillPaths: bootstrap.skillEntryPaths,
     turnContextController,

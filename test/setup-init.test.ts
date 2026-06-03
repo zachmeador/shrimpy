@@ -158,21 +158,21 @@ describe("setupInit", () => {
     });
 
     const system = readFileSync(systemPath, "utf-8");
-    assert.match(system, /Start with `README\.md` there before reading `musings\/`\./);
-    assert.match(system, /Turn context\*\* is compact live state and inspect pointers/);
-    assert.match(system, /Storage\*\* is plain directories/);
-    assert.match(system, /use `context\/` for memory and prompt files/);
-    assert.match(system, /Reports belong in `agents\/<id>\/vault\/<kind>\/`/);
+    assert.match(system, /editable workspace-level Shrimpy framework context/);
+    assert.match(system, /Compact immutable system instructions are prepended separately/);
+    assert.match(system, /Framework Map/);
+    assert.match(system, /reference\/context-assembly\.md/);
     assert.match(system, /Coding Work/);
-    assert.match(system, /core UX direction is optional delegation/);
-    assert.match(system, /work came from a user conversation/);
-    assert.match(system, /Tools And Inspection/);
+    assert.match(system, /optional delegation is preferred/);
+    assert.match(system, /real worker\/session handoff exists/);
+    assert.match(system, /CLI Breadcrumbs/);
+    assert.match(system, /When the `bash` tool is available/);
+    assert.match(system, /shrimpy context --sections/);
+    assert.match(system, /shrimpy channels read <name>/);
+    assert.match(system, /Storage Breadcrumbs/);
+    assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
     assert.equal(system.includes(join(projectRoot, "docs")), true);
     assert.equal(system.includes(workspace), false);
-
-    assert.match(system, /Be concise\./);
-    assert.match(system, /Show file paths clearly/);
-    assert.match(system, /Use whole-file writes only for new files or complete rewrites\./);
 
     const soul = readFileSync(soulPath, "utf-8");
     // very important

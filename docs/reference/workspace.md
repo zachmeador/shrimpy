@@ -6,7 +6,7 @@ The workspace is Shrimpy's persistent home directory. By default it is `.shrimpy
 
 ```text
 profile/WORKSPACE.md            shared workspace/home instructions
-profile/SYSTEM.md               Shrimpy + Pi guidance, memory conventions, tool list
+profile/SYSTEM.md               workspace-level Shrimpy framework map and breadcrumbs
 profile/USER.md                 workspace owner identity and preferences
 config/shrimpy.json             main runtime config
 config/channels.json            channel membership
@@ -75,7 +75,7 @@ agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent
 Stable prompt material loaded into an agent session before per-turn context arrives:
 
 - `profile/WORKSPACE.md` defines shared system/home context.
-- `profile/SYSTEM.md` covers Shrimpy framework conventions, Pi harness guidance, memory conventions, and tool/inspection guidance.
+- `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and inspection breadcrumbs. It does not contain the compact immutable instructions prepended during bootstrap.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
 - `SOUL.md` defines who an agent is.
 - `context/*.md` is the agent's long-lived prompt context: identity notes, habits, active references, and other memory the agent should load.

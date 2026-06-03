@@ -8,7 +8,10 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { resolveContextConfig } from "../dist/context/index.js";
+import {
+  resolveContextConfig,
+  SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
+} from "../dist/context/index.js";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
 import { createBootstrap } from "../dist/sessions/index.js";
 
@@ -23,6 +26,38 @@ afterEach(() => {
 });
 
 describe("createBootstrap", () => {
+  test("always includes immutable Shrimpy system instructions", async () => {
+    const agentRoot = join(workspace, "agents", "shrimpy");
+    mkdirSync(agentRoot, { recursive: true });
+
+    const bootstrap = await createBootstrap({
+      config: { workspace },
+      agentId: "shrimpy",
+      agentRootPath: agentRoot,
+      workspacePath: workspace,
+      contextConfig: resolveContextConfig({
+        sources: [],
+        env: [],
+      }),
+      runtimeConfig: resolveRuntimeConfig(),
+    });
+
+    assert.match(
+      bootstrap.baseSystemPrompt,
+      /^\[context builtin:immutable_system_instructions identity\]\n\n# Shrimpy Framework/,
+    );
+    assert.match(bootstrap.baseSystemPrompt, /You are shrimpy\./);
+    assert.ok(
+      bootstrap.baseSystemPrompt.includes(
+        SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
+      ),
+    );
+    assert.deepEqual(bootstrap.baseSystemSections.map((section) => section.id), [
+      "builtin:immutable_system_instructions",
+      "base:fallback",
+    ]);
+  });
+
   test("uses Shrimpy-owned system prompt assembly instead of Pi prompt discovery", async () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
@@ -69,7 +104,12 @@ describe("createBootstrap", () => {
       runtimeConfig: resolveRuntimeConfig(),
     });
 
-    const expectedPrompt = [system, soul, identity].join("\n\n---\n\n");
+    const expectedPrompt = [
+      `[context builtin:immutable_system_instructions identity]\n\n${SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS}`,
+      `[context base:profile/SYSTEM.md identity]\n\n${system.trimEnd()}`,
+      `[context base:SOUL.md identity]\n\n${soul.trimEnd()}`,
+      `[context base:context/identity.md memory]\n\n${identity.trimEnd()}`,
+    ].join("\n\n---\n\n");
 
     assert.equal(bootstrap.baseSystemPrompt, expectedPrompt);
     assert.equal(bootstrap.resourceLoader.getSystemPrompt(), expectedPrompt);

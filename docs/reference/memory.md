@@ -25,9 +25,9 @@ framework provides context-loading primitives, CLI inspection, skills, and
 watches; the owning agent decides what is worth preserving during normal
 upkeep. The user can also edit memory files directly.
 
-Workspace-wide facts belong in `profile/*.md`, especially `profile/USER.md` and
-`profile/SYSTEM.md`, because those files are shared truth rather than one
-agent's working model.
+Workspace-wide facts belong in `profile/*.md`, especially `profile/USER.md`,
+`profile/WORKSPACE.md`, and `profile/SYSTEM.md`, because those files are shared
+truth rather than one agent's working model.
 
 Do not use `context/` as a filing cabinet. Put shared notes, reports, and
 other saved files in `vault/`. Put shared code or app work in `projects/`. For

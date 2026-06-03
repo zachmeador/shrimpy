@@ -21,7 +21,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Watch Clock** — the small clock used by watches with time triggers. It does not choose which agent wakes; normal channel membership and agent policy handle delivery.
 - **Skill** — prompt and resource material loaded into a session.
 - **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).
-- **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last) into one system prompt.
+- **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last), adds generated skill/runtime sections, and renders the contained system prompt.
 - **Turn context** — renders runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices for one turn, then injects them through Pi's provider-bound context hook without rewriting the persisted user message.
 
 ## Boundaries
@@ -32,9 +32,11 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - Channel membership, not agent config, determines channel participation. Agent config owns wake policy.
 - Agent resources (`SOUL.md`, `context/`, skills, sessions, watches) are part of the agent contract.
 - Agent memory is normal Markdown; there is no separate memory control plane.
-- Shared framework/tool guidance lives in workspace `profile/SYSTEM.md` instead of being copied per agent.
+- Shrimpy prepends one compact immutable system-instruction section during session bootstrap. This is the only immutable instruction slot Shrimpy adds.
+- Workspace `profile/SYSTEM.md` carries shared editable framework context and breadcrumbs. Agent-specific system guidance can also load from agent-owned context files or any configured agent resource; configured sources add together.
 - Skills are Pi-style capability bundles under workspace or agent skill directories.
-- Prompt sections are ordered by kind: stable identity/memory/instruction first, capability next, runtime/activity/evidence last.
+- Shrimpy owns the contained system prompt shape. Pi receives the Shrimpy base prompt for session setup, then Shrimpy replaces Pi's built prompt with the contained system prompt before model calls.
+- Prompt sections are ordered by kind for the base prompt: stable identity/memory/instruction first, capability next, runtime/activity/evidence last. Generated skill and Pi runtime-fact sections are appended by the contained system prompt renderer.
 - Live state in prompts points at tools or CLI commands instead of dumping raw logs.
 - Shrimpy wraps Pi; extension happens at specific pressure points.
 - One-user project: no legacy compatibility paths unless explicitly requested.

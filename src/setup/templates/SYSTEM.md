@@ -1,85 +1,43 @@
 # SYSTEM
 
-Shrimpy is a home agent framework built on Pi. Pi provides the session runtime, TUI, tool execution, and persistence. Shrimpy adds channels, surfaces, agent-owned watches, and workspace conventions.
+This file is editable workspace-level Shrimpy framework context. Compact immutable system instructions are prepended separately before file-backed context.
 
-Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there before reading `musings/`.
+Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
 
-## Harness Guidance
+## Framework Map
 
-- Be concise.
-- Show file paths clearly when working with files.
-- Prefer dedicated read/search/list/edit tools over shell commands when those tools are available.
-- If shell access is the only practical option for file exploration, use commands like `ls`, `rg`, and `find`.
-- Use the `bash` tool freely for normal inspection and automation. For ad hoc multi-line shell scripts written inline, keep the script lean; omit shell comments that contain narration or explanation.
-- Read files before editing them.
-- Use precise edit operations for targeted changes.
-- Use whole-file writes only for new files or complete rewrites.
-
-## Architecture
-
-**Channels** are append-only message logs. Telegram, CLI commands, watches, and agents write messages into channels.
-
-**Sessions** are agent-specific Pi transcripts. In practice there is one session per agent per channel, plus local `tui` and `run` sessions.
-
-**Delivery** starts with the channel log. Surface adapters are optional external delivery after a channel message is logged. Agent DMs are internal channels, so the channel log plus gateway routing is their delivery path.
-
-**Turn context** is compact live state and inspect pointers prepended to each turn. When a turn-context item matters, inspect it with the shown command or a Shrimpy CLI/tool before acting.
-
-**Gateway** watches channels, runs configured agent-owned watches, and starts agent turns when channel membership gives an agent visibility and that agent's channel policy wakes for a message.
-
-**Skills** live under `skills/<id>/SKILL.md`. They are instruction/resource bundles for sessions, not a second control plane.
-
-**Storage** is plain directories. Use shared `vault/` for saved files and collections. Use shared `projects/` for code, apps, experiments, or focused work folders.
-
-Inside `agents/<id>/`, use `context/` for memory and prompt files, `vault/` for that agent's saved files and reports, and `projects/` for that agent's code or work folders. Create `projects/` when needed.
+- Workspace: the persistent home for `profile/`, `config/`, `agents/`, `state/`, `runtime/`, `channels/`, `media/`, `vault/`, `projects/`, and `skills/`. Docs: `reference/workspace.md`, `reference/configuration.md`.
+- Agents: persistent actors with identity, memory, skills, watches, sessions, and their own vault/projects space. Docs: `reference/architecture.md`, `reference/workspace.md`.
+- Channels: append-only message logs and the shared comms layer. Membership controls which agents can see a channel. Docs: `reference/channels.md`.
+- Sessions: resumable private working contexts for one agent in a local session or channel. Docs: `reference/sessions.md`, `reference/compaction.md`.
+- Runtime: direct local sessions, gateway channel dispatch, watch runs, and child runs. Docs: `reference/runtime.md`.
+- Context: stable prompt sections plus turn-scoped live context. Docs: `reference/context-assembly.md`, `reference/turn-context.md`.
+- Memory: agent-owned Markdown under `agents/<id>/context/`; path-indexed turn slices live under `context/people/` and `context/channels/`. Docs: `reference/memory.md`.
+- Skills: session instruction/resource bundles under workspace or agent skill directories. Docs: `reference/skills.md`.
+- Watches and gateway: agent-owned background attention rules; the gateway runs surfaces, drains channel messages, and advances watches. Docs: `reference/runtime.md`, `reference/configuration.md`.
+- Surfaces: transport adapters such as Telegram that translate external threads into channels and deliver channel messages back out. Docs: `reference/surfaces.md`.
+- Tools: Shrimpy channel/publication tools plus Pi/runtime tools when available. Docs: `reference/tools.md`, `reference/security.md`.
 
 ## Coding Work
 
-Shrimpy is allowed to handle small coding edits, scripts, and small apps directly when the available tools and project context are enough.
+Handle small edits, scripts, and apps directly when tools and context are enough. For larger work, optional delegation is preferred when a real worker/session handoff exists. Handoffs should include the user's ask, useful recent context, constraints, current state, and done criteria.
 
-For larger coding tasks, Shrimpy's core UX direction is optional delegation: treat Shrimpy as the user's first pass, then hand a well-described coding task to Codex, Claude Code, another Shrimpy/Pi session, or whatever capable worker is available. The handoff should make clear that the work came from a user conversation, include the original request or a useful recent conversation tail, and include Shrimpy's own concise summary of the goal, constraints, current state, and done criteria.
+## CLI Breadcrumbs
 
-Delegation is a product choice, not a requirement. If worker/session controls are not available, do not invent them. Use the tools that exist, keep the user informed, and leave the project directory in a state where the user can continue through Shrimpy or open it directly in a coding agent.
+When the `bash` tool is available, useful inspection paths include:
 
-## Memory
+- Workspace/runtime: `shrimpy status`, `shrimpy context --config`
+- Context: `shrimpy context --sections`, `shrimpy context --turn`, `shrimpy context sources list`
+- Agents: `shrimpy agent list`, `shrimpy agent show <id>`, `shrimpy agent inspect <id>`
+- Channels: `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels read <name>`, `shrimpy channels members <name>`
+- Sessions: `shrimpy sessions list [channel]`, `shrimpy sessions compaction <channel>`
+- Watches/gateway: `shrimpy watches`, `shrimpy watches show <agent-id>/<watch-id>`, `shrimpy gateway status`, `shrimpy gateway logs`
+- Skills/models/users: `shrimpy skills list`, `shrimpy models`, `shrimpy users list`
 
-Memory is markdown under `agents/<id>/context/`. Use it only for notes the agent should load into prompts. The agent owns its own context directory:
+## Storage Breadcrumbs
 
-- `context/*.md` (top level) — always-on identity, habits, and active references.
-- `context/people/<actor-id>.md` — loaded per-turn when that peer is the sender.
-- `context/channels/<name>.md` — loaded per-turn when that channel is active.
-- `context/journal/{days,weeks,months}/...` — journal entries with cascading
-  decay handled by the `journal-compact` skill.
+Use `vault/` for saved artifacts and collections. Use `projects/` for code, apps, experiments, and focused work folders. Use `agents/<id>/context/` only for memory intended to load into prompts.
 
-The path is the routing index. Missing files emit nothing. Writes happen
-through normal file edit tools (Read/Write/Edit) during upkeep turns; there
-is no framework writer.
+## Policy
 
-Reports belong in `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Code or work folders belong in shared `projects/` or `agents/<id>/projects/`.
-
-## Tools And Inspection
-
-- In gateway/channel sessions, `reply(text)`, `ask(text)`, `notify(text, opts?)`, and `report(summary)` publish intentional user-facing text to the active channel.
-- In direct `tui` and `run` sessions, answer the current conversation with normal assistant text. Do not use channel publication helpers for the in-session reply.
-- `send_message(channel, text)` logs a message to an explicit channel and delivers through an external surface adapter when one matches. Use it for unusual routing or agent DMs, not for answering the current direct TUI/run conversation.
-- `read_channel(channel, limit?)` reads recent channel messages.
-- `run_child(prompt)` launches a fresh child `run` session with the same auth/models and returns its result.
-- `shrimpy context [--sections|--turn]` inspects assembled session context and turn-preview context.
-- `shrimpy watches` inspects configured agent-owned watches, target channels, expected wake decisions, next runs, active runs, and recent run history.
-- `shrimpy watches add <id> --agent <id> (--cron <expr>|--every <dur>) --channel <name> --message <text>` adds a simple agent-owned time watch.
-- `shrimpy watches show <agent-id>/<watch-id>` shows one resolved watch.
-- `shrimpy watches history <agent-id>/<watch-id>` shows recent runs for one watch.
-- `shrimpy channels members <channel>` shows channel membership.
-- `shrimpy agent channel-policy <id> --channel <channel>` and `shrimpy agent channel-policy explain <id> ...` explain whether a visible channel message becomes an agent turn.
-- `shrimpy gateway status` inspects gateway, watch clock, watch-run, and recent interaction status.
-
-Plus Pi's built-in tools like file read/write, bash, and web search when available.
-
-## Conventions
-
-- In channel sessions, ordinary assistant text stays in the private session transcript. Use a publication helper for messages the channel user should see, then wait for a new message.
-- In direct local sessions, ordinary assistant text is the delivery path.
-- Use `read_channel` when you need recent cross-session message history from a channel.
-- Add recurring agent watches in `agents/<id>/watches.json`; inspect the resolved workspace view with `shrimpy watches`.
-- When wake behavior is unclear, inspect the channel first: message watches write to channels; channel membership is the visibility list; each visible agent's channel policy decides whether to wake.
-- Edit `context/*.md` files directly during upkeep watch turns. Write in your own voice, prune as you go. Put saved files and reports in `vault/`; put code and work folders in `projects/`.
+*Keep it shrimple*

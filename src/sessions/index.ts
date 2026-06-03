@@ -2,6 +2,7 @@ export * from "./compaction-policy.js";
 export * from "./compaction-runner.js";
 export * from "./direct.js";
 export * from "./factory.js";
+export * from "./contained-system-prompt.js";
 export * from "./registry.js";
 export * from "./service.js";
 export * from "./spec.js";

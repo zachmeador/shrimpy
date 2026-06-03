@@ -10,6 +10,7 @@ import {
   assemblePromptContext,
   createPromptSection,
   FALLBACK_IDENTITY_TEXT,
+  SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
   resolveBootEnv,
   type BootEnv,
   type ResolvedContextConfig,
@@ -103,6 +104,14 @@ export async function createBootstrap(
   });
   const baseContext = assemblePromptContext({
     sections: [
+      {
+        id: "builtin:immutable_system_instructions",
+        title: "Immutable System Instructions",
+        kind: "identity",
+        source: "builtin",
+        reason: "Compact immutable system instructions",
+        content: SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
+      },
       baseSections,
       appendSection,
     ],
