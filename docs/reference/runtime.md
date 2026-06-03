@@ -1,6 +1,6 @@
 # 🦐 Runtime
 
-Shrimpy has two execution modes: direct local sessions and channel sessions. Both use the same workspace, model registry, auth files, context assembly, skills, and tool surface. See [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
+Shrimpy has two execution modes: direct local sessions and channel sessions. Both use the same workspace, model registry, auth files, context assembly, skills, and tool surface. See [channels.md](channels.md) for channel semantics, [sessions.md](sessions.md) for session files and lifecycle, and [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
 
 ## Direct CLI Sessions
 
@@ -21,7 +21,7 @@ Direct `tui` and `run` sessions are local execution labels. They do not first wr
 The gateway runs three jobs:
 
 1. Run configured surfaces such as Telegram.
-2. Watch channel logs and offer new messages to subscribed agent sessions.
+2. Watch channel logs and offer new messages to channel-member agent sessions.
 3. Run the scheduler and emit scheduled messages into channels.
 
 ```text
@@ -47,9 +47,9 @@ Direct local sessions do not have an active publication channel, so `reply`,
 with ordinary assistant text unless explicitly asked to send or read a Shrimpy
 channel.
 
-For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` when the turn addresses one agent directly.
+For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
 
-Gateway channel sessions are opened from the agent default model for that gateway process. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default.
+Gateway channel sessions are opened from the agent default model for that gateway process. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default. See [sessions.md](sessions.md).
 
 ## Prompt Context
 
@@ -72,15 +72,11 @@ or formatted channel message.
 
 ## Session Lifecycle
 
-- Sessions persist under the agent workspace.
-- Each agent has its own session directory per channel.
-- Each channel session directory contains all of that channel's Pi `.jsonl` session files.
-- Shrimpy records session metadata and lifecycle state as Pi custom entries inside the `.jsonl`.
-- `SessionRegistry` serializes turns per session: one channel session has one active turn at a time.
-- `shrimpy sessions new <channel>` and `clear` mark the active `.jsonl` archived; the next turn creates a fresh one.
-- `shrimpy sessions restore <channel>` marks an archived `.jsonl` active and archives the previously active file.
-- For direct local labels (`tui`, `run`), session commands mutate local session dirs directly.
-- For channel sessions handled by the gateway, session commands publish control messages that the gateway handles.
+Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy
+custom entries for metadata and lifecycle state. `SessionRegistry` serializes
+turns per gateway channel session. `shrimpy sessions new|clear|restore` mutate
+local `tui`/`run` session files directly and publish control messages for
+gateway channel sessions. See [sessions.md](sessions.md).
 
 ## Background Work
 
@@ -100,7 +96,7 @@ or formatted channel message.
   turn context points back to `shrimpy schedules show <schedule-id>`.
 - Fresh setup also seeds ordinary memory upkeep schedules for `memory-management`, `journal-daily`, and `journal-compact`.
 - The `run_child` tool opens a fresh child `run` session for bounded work and returns the result to the parent session.
-- Child runs reuse the same auth and model registry while keeping separate session persistence.
+- Child runs reuse the same auth and model registry while keeping separate session persistence. See [sessions.md](sessions.md#session-kinds).
 
 ## Observability
 

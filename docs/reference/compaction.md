@@ -1,6 +1,6 @@
 # Compaction
 
-Shrimpy uses Pi's session compaction to keep long-running sessions usable while keeping channel logs and session files as the records it can return to.
+Shrimpy uses Pi's session compaction to keep long-running sessions usable while keeping channel logs and session files as the records it can return to. See [sessions.md](sessions.md) for session files and lifecycle.
 
 Compaction is working-context maintenance. It does not mutate channel history, and it is not long-term memory. When a session gets too large, older session entries are summarized into a `compaction` entry and recent entries remain in the active prompt context.
 
@@ -36,7 +36,7 @@ Defaults are tuned to keep chat usable:
 }
 ```
 
-The built-in `heartbeat` channel policy uses `thresholdTokens: 100000`, keeps about `30000` recent tokens, and asks the summary to preserve unresolved follow-ups, active or stale sessions, recent interactions, memory changes, and behavior-changing decisions.
+The built-in `heartbeat` compaction override uses `thresholdTokens: 100000`, keeps about `30000` recent tokens, and asks the summary to preserve unresolved follow-ups, active or stale sessions, recent interactions, memory changes, and behavior-changing decisions.
 
 Policy precedence is:
 

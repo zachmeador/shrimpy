@@ -61,10 +61,10 @@ Durable machine state lives under `state/`. Disposable runtime state lives under
 
 ## State And Logs
 
-- Channel logs are append-only JSONL files under `channels/`.
+- Channel logs are append-only JSONL files under `channels/`. See [channels.md](channels.md).
 - Agent memory is plain Markdown under `agents/<id>/context/`; agents update it through normal file edits during scheduled upkeep. See [memory.md](memory.md).
 - Identity links live in `state/users.json`. The optional `owner` field names the canonical workspace user; CLI publishing routes through that identity when set. Manage with `shrimpy users list|get-owner|set-owner`.
-- Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries.
+- Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries. See [sessions.md](sessions.md).
 - Gateway logs live at `runtime/logs/gateway.log`, readable through `shrimpy gateway logs`.
 - Surface cursors and generated turn-context state live under `runtime/`. Scheduler state and one-time schedule records live under `state/`.
 - Auth and models live under `state/pi/`, isolating Shrimpy from a user's stock Pi config.

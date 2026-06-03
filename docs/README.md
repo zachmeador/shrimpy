@@ -10,7 +10,9 @@ separate directories so they do not blur into the reference surface.
 - [reference/overview.md](reference/overview.md) — short orientation and current project shape.
 - [reference/design.md](reference/design.md) — current design principles and constraints.
 - [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
-- [reference/runtime.md](reference/runtime.md) — how CLI sessions, gateway dispatch, scheduler runs, and child runs execute.
+- [reference/runtime.md](reference/runtime.md) — how direct runs, gateway dispatch, scheduler runs, and child runs execute.
+- [reference/channels.md](reference/channels.md) — channel protocol, membership, addressing, wake policy, inspection, and egress.
+- [reference/sessions.md](reference/sessions.md) — session kinds, files, lifecycle, model metadata, and inspection.
 - [reference/tools.md](reference/tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
 - [reference/security.md](reference/security.md) — tool policy and inspection commands.
 - [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn context envelope.
@@ -21,7 +23,7 @@ separate directories so they do not blur into the reference surface.
 - [reference/cli.md](reference/cli.md) — command surface and agent-friendly workflows.
 - [reference/configuration.md](reference/configuration.md) — workspace config files and the knobs that matter.
 - [reference/workspace.md](reference/workspace.md) — workspace layout, prompt resources, sessions, state, and logs.
-- [reference/surfaces.md](reference/surfaces.md) — channels, adapters, Telegram, and visible identity.
+- [reference/surfaces.md](reference/surfaces.md) — adapters, Telegram, visible identity, and surface thread state.
 - [reference/development.md](reference/development.md) — repo workflow, tests, docs rules, and implementation guidance.
 
 ## Project State

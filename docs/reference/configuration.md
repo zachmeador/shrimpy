@@ -42,7 +42,7 @@ Sections:
 - Shrimpy owns the system prompt passed into Pi.
 - Compaction defaults are tuned for chat-style continuity: `reserveTokens: 32768`, `keepRecentTokens: 30000`.
 - Compaction can be overridden globally, by agent id, by channel pattern, or by session label. `thresholdTokens` is translated to Pi's `reserveTokens` for the selected model.
-- The built-in `heartbeat` channel policy compacts after roughly `100000` model-visible tokens and keeps roughly `30000` recent tokens.
+- The built-in `heartbeat` compaction override compacts after roughly `100000` model-visible tokens and keeps roughly `30000` recent tokens.
 - Inspect the resolved policy and selected model metadata with `shrimpy sessions compaction <channel> [--agent <id>] [--json]`. The command also shows whether the active session file recorded older policy or model/inference settings; running gateway sessions need to be reset/reopened or the gateway restarted before changed settings take effect.
 - Runtime behavior, summary shape, provider request handling, and failure debugging are covered in [compaction.md](compaction.md).
 
@@ -142,7 +142,7 @@ Each agent config entry has:
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `channelPolicy` — when visible channel messages become turns for this agent.
 
-Agent identity, model defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
+Agent identity, model defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
 Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.
@@ -217,7 +217,7 @@ Use llama.cpp's `repeat_penalty` spelling; `repetition_penalty` is accepted in m
 
 `apiKey` and custom `headers` in `state/pi/models.json` support Pi's current config value syntax: `"$ENV_VAR"` / `"${ENV_VAR}"` interpolation, `"!command"` command execution, `"$$"` for a literal dollar prefix, and `"$!"` for a literal bang prefix. Command values are resolved at request time, so slow or flaky secret fetches should be wrapped in a caching script if needed.
 
-Channel policy defaults to:
+Agent-owned channel policy defaults to:
 
 ```json
 {
@@ -271,7 +271,7 @@ shrimpy agent channel-policy clear shrimpy --senders
 shrimpy agent channel-policy clear shrimpy --channel heartbeat
 ```
 
-`set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `channelPolicy` block, falling back to the default `all` policy. Channel membership is unaffected; policy only decides whether a visible member wakes.
+`set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `channelPolicy` block, falling back to the default `all` policy. Channel membership is unaffected; policy only decides whether a visible member wakes. See [channels.md](channels.md) for the delivery model.
 
 ## Channel Membership
 
@@ -293,6 +293,9 @@ shrimpy agent channel-policy clear shrimpy --channel heartbeat
 - Membership means the agent participates in that channel.
 - `shrimpy channels join <name> --agent <id>` adds membership; the agent's own `channelPolicy` decides what becomes a turn.
 - Surfaces may stamp a message with `addressedAgentId`; visible agents evaluate that fact through their own channel policy.
+
+See [channels.md](channels.md) for protocol, addressing, delivery, and egress
+semantics.
 
 ## Schedules
 

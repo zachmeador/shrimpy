@@ -10,8 +10,8 @@ Depends On: none
 Shrimpy needs one legible answer to "who can see this channel message?" and a
 separate agent-owned answer to "do I wake for it?"
 
-The current implementation splits that answer across the delivery loop,
-agent `channelPolicy` wake policy, and repeated addressing checks:
+The old implementation split that answer across the delivery loop, agent
+`channelPolicy` wake policy, and repeated addressing checks:
 
 - `src/delivery/channel-delivery-loop.ts` chooses addressed-agent-or-members.
 - `src/agents/channel-runtime.ts` applies a second agent channel-policy wake gate.
@@ -29,7 +29,7 @@ provenance. Agent messages should preserve the sending agent identity,
 publication intent when relevant, and source channel/session context when known.
 Non-human producers such as agent-owned watches, managed worker sessions, apps,
 or signal projections should include source provenance and useful diagnostics. The
-correction is not to create a central router or keep a Shrimpy-owned attention
+correction is not to create a central router or keep a Shrimpy-owned wake
 control plane under another name. The correction is to keep channels as semantic
 communication logs, with agent-owned `channelPolicy` wake and response decisions
 at the edge.
@@ -74,9 +74,8 @@ Channels provide visibility; agents decide whether to wake.
   independently of membership.
 - `src/channels/membership.ts` is already close to the desired shape: a pure
   channel-presence set.
-- The current `shrimpy agent attention <id> ...` and
-  `shrimpy agent attention test <id> ...` commands inspect/explain the old
-  attention gate.
+- The earlier wake-policy CLI inspected/explained the old central gate instead
+  of the agent-owned channel policy.
 - The current `shrimpy schedules` command, plus `shrimpy channels show` and
   `shrimpy channels search`, already demonstrate useful provenance and
   diagnostics for emitted messages.
@@ -93,10 +92,9 @@ Channels provide visibility; agents decide whether to wake.
   explanation. Shrimpy may expose the explanation, but it must not own the
   policy.
 - Remove duplicated addressing checks and helper drift.
-- Replace the `shrimpy agent attention` CLI surface with
-  `shrimpy agent channel-policy` inspection. Do not keep old command names,
-  aliases, compatibility wrappers, or legacy config paths merely to prevent
-  breakage.
+- Replace the old wake-policy CLI surface with `shrimpy agent channel-policy`
+  inspection. Do not keep old command names, aliases, compatibility wrappers,
+  or old config paths merely to prevent breakage.
 - Update diagnostics so an addressed-to-non-member message clearly reports that
   the agent has no visibility into the channel and therefore cannot notice the
   mention.
@@ -116,10 +114,10 @@ Channels provide visibility; agents decide whether to wake.
 - Do not let `origin.addressedAgentId` bypass channel membership.
 - Do not fold wake policy into the membership record. Membership stays a pure
   presence/visibility set.
-- Do not keep Shrimpy-owned `attention` policy as a compatibility layer, rename
-  it to `wake`, or preserve old config/CLI surfaces just to avoid breaking old
-  workspaces. Replace old concepts directly when they conflict with the agent
-  ownership boundary.
+- Do not keep a Shrimpy-owned wake policy as a compatibility layer, rename it,
+  or preserve old config/CLI surfaces just to avoid breaking old workspaces.
+  Replace old concepts directly when they conflict with the agent ownership
+  boundary.
 - Do not add a central routing control plane, callback system, return-channel
   mechanism, or master status channel.
 - Do not silently add membership or loosen wake policy to force a turn. Show the

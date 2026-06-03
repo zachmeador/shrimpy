@@ -1,17 +1,6 @@
 # 🦐 Surfaces
 
-Surfaces translate outside interaction into Shrimpy channels and translate Shrimpy channel replies back to the outside world. Transport details live at the edge; typed channel messages live inside.
-
-## Channels
-
-Channels are durable shared rooms:
-
-- A channel can represent a human chat, an agent DM, a group, a system feed, a work log, or a surface thread.
-- Channel logs live under `workspace/channels/*.jsonl`.
-- Message content is typed: `text`, `image`, `image_group`, `unsupported_media`, or `system`.
-- Message identity is split between `sender` and `origin`.
-- Surface users can be mapped to stable Shrimpy user ids so peer cards and channel policy do not depend on transport-specific ids.
-- Channel membership controls which agents can see a channel; each agent's `channelPolicy` config controls which visible messages become turns.
+Surfaces translate outside interaction into Shrimpy channels and translate Shrimpy channel replies back to the outside world. Transport details live at the edge; typed channel messages live inside. Channel protocol, membership, addressing, and egress semantics live in [channels.md](channels.md).
 
 ## Addressing
 
@@ -19,6 +8,9 @@ Surfaces may set `origin.addressedAgentId` on a message. Addressing is a
 surface/user-facing affordance and an input to each visible agent's channel
 policy; it does not route around channel membership. Scheduler-authored agent
 schedules use ordinary channel membership and agent channel policy too.
+
+Surface users can be mapped to stable Shrimpy user ids so peer cards and agent
+channel policy do not depend on transport-specific ids.
 
 This supports a one-visible-account pattern:
 

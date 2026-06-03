@@ -50,7 +50,8 @@ agent's `disabledTools` to deny shell execution for that agent.
 
 Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services.
 They exist to connect a Pi session to Shrimpy channels, surfaces, and child
-session execution.
+session execution. See [channels.md](channels.md) for channel publication and
+egress semantics.
 
 | Tool | Purpose |
 | --- | --- |
@@ -76,7 +77,7 @@ limit comes from `tools.readChannel.defaultLimit`.
 
 `run_child` is for bounded delegated work. The child run gets separate session
 persistence under the agent workspace while reusing Shrimpy's Pi auth and model
-registry.
+registry. See [sessions.md](sessions.md#session-kinds).
 
 Scheduling is intentionally CLI-only: agents create one-time follow-ups with
 `shrimpy schedules once --at/--in ...`, not a daemon tool.

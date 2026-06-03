@@ -10,6 +10,9 @@ Canonical resource groups currently keep the implemented names: singular `agent`
 
 ## Session Commands
 
+See [sessions.md](sessions.md) for session files, lifecycle, model metadata,
+and the direct-vs-gateway behavior behind these commands.
+
 | Command | Purpose |
 | --- | --- |
 | `shrimpy` | Open the default agent's TUI session. |
@@ -51,6 +54,9 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy context --config` | Show resolved context config. |
 
 ## Channels And Surfaces
+
+See [channels.md](channels.md) for the channel protocol, membership, addressing,
+agent channel policy, and egress behavior behind these commands.
 
 | Command | Purpose |
 | --- | --- |

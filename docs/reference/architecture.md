@@ -7,13 +7,13 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Workspace** — the persistent home for config, channels, schedules, framework docs, agents, auth, models, logs, media, and state.
 - **Agent** — a persistent actor with identity docs, memory, tools, skills, and Pi sessions.
 - **AppRuntime** — the application kernel that resolves paths, config, surface routes, tool config, context config, and session bootstrap inputs.
-- **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage, typed message construction, and outbound delivery to focused channel components.
+- **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage, typed message construction, and outbound delivery to focused channel components. See [channels.md](channels.md).
 - **ChannelStore** — append-only JSONL persistence, reads, watches, backlog draining, and byte-offset cursors.
 - **Typed Channel Protocol** — channel message `content` is one of `text`, `image`, `image_group`, `unsupported_media`, or `system`.
 - **Channel egress** — surface-backed delivery for text already logged to a channel.
 - **Channel membership** — the source of truth for which agents participate in a channel.
 - **Agent channel policy** — per-agent policy for which visible channel messages become turns.
-- **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`).
+- **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`). See [sessions.md](sessions.md).
 - **SessionRegistry** — one active turn at a time per session, with FIFO queuing.
 - **Surface** — a transport-facing interaction layer such as Telegram. Each surface is a self-contained vertical at `src/surfaces/<name>/` and registers via the `ChatSurfaceModule` interface; `AppRuntime` aggregates the registry without knowing surface kinds.
 - **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances scheduled work.
@@ -31,7 +31,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - Every feature is reachable through a `shrimpy <command>` path.
 - Channels are append-only logs.
 - Sessions carry instructions and private working context. Channels carry routing and logs.
-- Channel membership, not agent config, determines channel participation.
+- Channel membership, not agent config, determines channel participation. Agent config owns wake policy.
 - Agent resources (`SOUL.md`, `context/`, skills, sessions, schedules) are part of the agent contract.
 - Agent memory is normal Markdown; there is no separate memory control plane.
 - Shared framework/tool guidance lives in workspace `profile/SYSTEM.md` instead of being copied per agent.
@@ -56,7 +56,7 @@ Where each concept lives:
 
 - Cross-cutting config parsing: `src/config/`. Each surface's config schema and resolver: `src/surfaces/<name>/config.ts`.
 - Workspace paths: `src/app/paths.ts`.
-- Channel persistence, typed message construction, egress (including the prefix→send registry), and membership: `src/channels/`.
+- Channel persistence, typed message construction, egress (including the prefix→send registry), and membership: `src/channels/`. Protocol and policy semantics are in [channels.md](channels.md).
 - Each surface vertical: third-party client, real-time listener, channel translation, outbound formatting, command dispatch, config schema, lifecycle. Shared chat primitives and the surface module contract: `src/surfaces/shared/`.
 - Session context, turn context, metadata, and Pi bootstrap: `src/sessions/` and `src/context/`.
 - Path-indexed memory turn slices: `src/memory/context.ts`.
