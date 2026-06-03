@@ -12,7 +12,9 @@ First-run users currently land in `shrimpy setup init`, which produces baseline 
 - Cover at minimum: getting the mechanic provider/model authenticated and reachable first, walking the user through their initial agent's identity and prompt, and persisting the resulting starter docs to the workspace.
 - Start by asking for an OpenAI or Anthropic key when no capable hosted provider is configured. The mechanic should be available for big setup, repair, and coding tasks before the user is encouraged to make the main `shrimpy` agent local/private.
 - Ask whether the user wants a chat surface at all, and if so which platform they prefer. Telegram is the first implemented option, but the flow should be shaped to add more surfaces later without rewriting the setup conversation.
-- Include a short, consultative explainer for when to create a new agent or app-agent instead of using the default agent, a skill, a schedule, or a channel.
+- Include a short, consultative explainer for when to create a new agent or
+  app-agent instead of using the default agent, a skill, an agent-owned watch, or
+  a channel.
 - Drive the flow from mechanic's setup skills/resources rather than embedding flow logic in code.
 - Surface clear next steps when onboarding ends (where files landed, how to launch the agent normally).
 

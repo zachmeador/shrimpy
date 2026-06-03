@@ -60,9 +60,10 @@ closes it.
   or Shrimpy shutdown, terminate the process group with a grace period before
   force-killing it.
 - Add a parent/watchdog guard so workers are not left running if the Shrimpy
-  gateway dies unexpectedly. Use a workspace heartbeat with an owner token rather
-  than relying only on parent pid checks; if the heartbeat stops or ownership
-  changes, the runner kills its process group and records the worker state.
+  gateway dies unexpectedly. Use a workspace runner lease/heartbeat with an owner
+  token rather than relying only on parent pid checks; if the lease stops or
+  ownership changes, the runner kills its process group and records the worker
+  state.
 - On Shrimpy restart, do not adopt already-running external backend processes.
   Terminate them through the recorded process group, preserve captured logs, and
   mark the worker state clearly so the parent can resume with a fresh backend
@@ -116,9 +117,9 @@ closes it.
 - Do not let worker autonomy include destructive or irreversible actions by
   default. Workers may propose those actions, but the parent must decide.
 - Do not invent a worker-specific async continuation loop. Worker state should be
-  observable through inspection commands, relevant turn context, and the
-  [CHANNEL-002](channel-002-attention-routed-channel-events.md) path when a
-  parent explicitly sends status onward.
+  observable through inspection commands, relevant turn context, and
+  [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) when a parent
+  explicitly sends status onward through a channel.
 - Do not introduce worker-specific prompt rewriting or a second ephemeral
   context injection mechanism. Use the existing Shrimpy/Pi session hook path
   unless Pi is the proven constraint for a backend.
@@ -147,10 +148,11 @@ closes it.
   state once worker sessions exist.
 - Related: the stable turn-context boundary is documented in
   [turn-context.md](../reference/turn-context.md); workers should add facts
-  through turn context, not durable prompt prefixes or worker-only routing
+  through turn context, not durable prompt prefixes or worker-only dispatch
   instructions.
-- Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) is the
-  shared channel-origin continuation path; workers should not add their own.
+- Related: [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) is the shared
+  channel wake/provenance contract; workers should not add their own dispatch
+  path.
 - Design pressure is sketched in
   [../musings/asynchronous-agents.md](../musings/asynchronous-agents.md),
   especially worker sessions, explicit lineage, pending child work, and the child
@@ -202,7 +204,8 @@ closes it.
 - Completed work can receive follow-up under the same Shrimpy worker id by
   resuming the same backend session/thread until the parent closes it.
 - External workers run through the Shrimpy worker runner with process-group
-  cleanup and workspace-heartbeat protection against dangling processes.
+  cleanup and workspace runner lease/heartbeat protection against dangling
+  processes.
 - External worker processes are supervised, terminated or reattached on restart,
   and never left running without Shrimpy knowing how to clean them up.
 - Turn context makes worker relevance clear enough that an agent with multiple

@@ -6,7 +6,10 @@ Area: TUI
 
 ## Why
 
-Shrimpy agents each own prompt resources, memory, skills, schedules, and Pi session transcripts under `agents/<id>/`. The TUI should make that environment navigable without requiring the user to quit, relaunch with `--agent`, or remember exact session labels.
+Shrimpy agents each own prompt resources, memory, skills, watches, and Pi
+session transcripts under `agents/<id>/`. The TUI should make that environment
+navigable without requiring the user to quit, relaunch with `--agent`, or
+remember exact session labels.
 
 Now that Shrimpy has more control over the Pi TUI instance, `/agent` can become an interactive path for moving between agents and their sessions. This should feel like normal Shrimpy navigation, not a second control plane over sessions.
 

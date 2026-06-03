@@ -25,8 +25,8 @@ provider-facing message sequence after Pi's context hook has injected the
 ephemeral context.
 
 This is lowest-priority observability work. Build it only when context
-provenance becomes a recurring debugging problem, or when continuation,
-schedule, and worker-status context expands enough that the existing
+provenance becomes a recurring debugging problem, or when continuation, watch,
+and worker-status context expands enough that the existing
 `shrimpy context --sections`, `shrimpy context turn`, and
 `shrimpy context sources list/run` surfaces are no longer sufficient.
 
@@ -38,8 +38,8 @@ schedule, and worker-status context expands enough that the existing
   body or summary, provenance, freshness/cache state, inspect command, and
   materialization status.
 - Represent continuation context with enough provenance to explain the source
-  message, source record, message channel, attention route, and related
-  schedule/worker id without treating it as a special prompt side channel.
+  message, source record, message channel, wake decision, and related
+  watch/worker id without treating it as a special prompt side channel.
 - Render existing `PromptSection` and `TurnContextItem` outputs from the trace
   instead of treating them as separate source systems.
 - Make `shrimpy context --sections`, `shrimpy context turn`, and
@@ -72,8 +72,8 @@ schedule, and worker-status context expands enough that the existing
   `src/commands/context.ts`, and `src/sessions/prompt.ts`.
 - This should make future turn-context facts easier to add because new facts can
   be introduced as trace producers with provenance and inspection metadata.
-- Related: active channel-event routing guidance lives in
-  [../channel-002-attention-routed-channel-events.md](../channel-002-attention-routed-channel-events.md).
+- Related: active channel wake guidance lives in
+  [../channel-002-agent-owned-channel-wakes.md](../channel-002-agent-owned-channel-wakes.md).
 
 ## Done
 

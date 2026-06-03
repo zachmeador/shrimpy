@@ -5,7 +5,7 @@ Priority: P2
 Area: Surfaces
 
 ## Why
-Chat surfaces often expose one visible Shrimpy account even when multiple internal agents can deliver into the same user-facing channel. For example, a scheduled app-agent can write a poem into a Telegram session, but Telegram shows the message as coming from the Shrimpy bot account. The channel log already records the real `sender`, but adapter delivery currently receives only `(channel, text)`, so the surface cannot lightly distinguish "Shrimpy replied" from "Ole Scrappy dropped by."
+Chat surfaces often expose one visible Shrimpy account even when multiple internal agents can deliver into the same user-facing channel. For example, an app-agent watch can write a poem into a Telegram session, but Telegram shows the message as coming from the Shrimpy bot account. The channel log already records the real `sender`, but adapter delivery currently receives only `(channel, text)`, so the surface cannot lightly distinguish "Shrimpy replied" from "Ole Scrappy dropped by."
 
 Shrimpy should preserve the one-visible-account pattern while making cross-agent deliveries legible at the surface edge.
 
@@ -25,9 +25,13 @@ Shrimpy should preserve the one-visible-account pattern while making cross-agent
 - Do not add legacy shims or migration paths.
 
 ## Shape
-`ChannelBus.sendAgentText` should publish the typed channel message, then pass that published message to egress instead of only passing raw text. `EgressRegistry` can route an outbound delivery object like `{ channel, message }` to the surface adapter. The adapter decides whether the transport needs decoration.
+`ChannelBus.sendAgentText` should publish the typed channel message, then pass that published message to egress instead of only passing raw text. `EgressRegistry` can dispatch an outbound delivery object like `{ channel, message }` to the surface adapter. The adapter decides whether the transport needs decoration.
 
-Telegram can compare the message sender against the route's default visible agent or addressed-agent state for the thread. If the delivered sender is a different internal agent, it prepends a compact attribution label using `sender.displayName` when available, otherwise a friendly form of `agent:<id>`. Unknown senders fall back to the existing plain delivery behavior.
+Telegram can compare the message sender against the channel/session's default
+visible agent and publication intent metadata. If the delivered sender is a
+different internal agent, it prepends a compact attribution label using
+`sender.displayName` when available, otherwise a friendly form of `agent:<id>`.
+Unknown senders fall back to the existing plain delivery behavior.
 
 ## Progress
 - The egress metadata plumbing is already in place: `ChannelBus.sendAgentText` publishes once, then passes a delivery object with the typed `ChannelMessage` and publication intent metadata to egress.
@@ -39,9 +43,9 @@ Telegram can compare the message sender against the route's default visible agen
 - Build on `src/channels/bus.ts`, where `sendAgentText` already publishes once and delivers the resulting message.
 - Update Telegram egress in `src/surfaces/telegram/surface.ts` to decorate only when sender attribution is needed.
 - Consider a small shared helper under `src/surfaces/shared/` for choosing attribution labels so future chat adapters can reuse the policy.
-- Related: [CHANNEL-002](channel-002-attention-routed-channel-events.md) makes
-  async app-agent work flow through ordinary channel messages; this item keeps
-  later cross-agent chat deliveries legible at the surface.
+- Related: [CHANNEL-002](channel-002-agent-owned-channel-wakes.md) keeps
+  channel-emitting app-agent work inspectable; this item keeps later cross-agent
+  chat deliveries legible at the surface.
 - Add tests for plain default-agent delivery, decorated non-default agent delivery, and preservation of the stored channel text.
 
 ## Done

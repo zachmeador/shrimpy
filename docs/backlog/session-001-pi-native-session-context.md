@@ -10,10 +10,10 @@ Depends On: none
 TUI, CLI, and gateway turns should behave like different surfaces over the same
 session model. This item replaces the old divergence where some Shrimpy paths
 prepared a prompt by prefixing turn context into the durable user message while
-routed gateway turns could inject context separately.
+gateway channel turns could inject context separately.
 
 That makes session transcripts heavier than they need to be and blurs the
-boundary between durable conversation history and ephemeral routing/runtime
+boundary between durable conversation history and ephemeral delivery/runtime
 facts.
 
 ## Rule
@@ -29,7 +29,7 @@ Pi owns session mechanics:
 Shrimpy owns surface semantics:
 
 - channel and surface event normalization
-- attention and routing policy
+- channel visibility and agent wake policy
 - active delivery channel and publication tools
 - turn-context assembly
 - the decision about which facts are durable transcript versus ephemeral model
@@ -66,7 +66,7 @@ by rewriting the prompt text passed to `session.prompt()`.
 - Do not introduce a second session format.
 - Do not fork Pi's TUI/session runtime to get this behavior.
 - Do not make channels carry instructions; channels carry messages and logs.
-- Do not make skills or memory a second control plane for session routing.
+- Do not make skills or memory a second control plane for session dispatch.
 - Do not add bespoke tool-output caps or transcript pruning unless Pi lacks the
   needed primitive at a clear pressure point.
 - Do not add legacy compatibility paths for the old prompt-prefix behavior.

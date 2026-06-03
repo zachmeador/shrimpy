@@ -18,7 +18,7 @@ model. Those two cases need different behavior:
 - Heavy development, repair, and mechanic work should use a ranked capable
   chain such as `openai/gpt5.5`, then `anthropic/claudeopus`, then a local
   fallback.
-- Normal home-agent work, app control, schedules, and ambient channel handling
+- Normal home-agent work, app control, agent-owned watches, and ambient channel handling
   should be able to say "local model or bust" and fail clearly when no local
   model policy candidate is configured.
 
@@ -73,8 +73,8 @@ for normal work, they can put hosted candidates in that policy.
   intents should include:
   - `coding` for heavy development work, coding workers, and codebase changes.
   - `maintenance` or `mechanic` for setup, doctor, repair, and admin sessions.
-  - `home` for the default Shrimpy agent, app control, schedules, and normal
-    channel handling.
+  - `home` for the default Shrimpy agent, app control, agent-owned watches, and
+    normal channel handling.
 - Decide whether `maintenance` is its own policy or an alias/default to
   `coding`. Start simple if there is no clear product need for separate model
   choice.
@@ -152,7 +152,7 @@ for normal work, they can put hosted candidates in that policy.
   first claim on a capable hosted model during setup, while the everyday
   `shrimpy` agent can stay local/private.
 - Later slices can add richer candidate selectors, tags, cost budgets, or
-  schedule-aware routing. The first slice should stay concrete and inspectable:
+  watch-aware intents. The first slice should stay concrete and inspectable:
   ordered candidate list in, selected provider/model or clear failure out.
 
 ## Done

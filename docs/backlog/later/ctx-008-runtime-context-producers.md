@@ -12,9 +12,9 @@ deterministic CLI render path would make debugging cleaner and may let the
 runtime source type collapse into ordinary command-like context sources later.
 
 This is lowest-priority observability work. Build it only when runtime context
-provenance becomes a recurring debugging problem, or when continuation,
-schedule, and worker-status facts expand enough that `runtime:turn-context` is
-no longer inspectable enough.
+provenance becomes a recurring debugging problem, or when continuation, watch,
+and worker-status facts expand enough that `runtime:turn-context` is no longer
+inspectable enough.
 
 ## Build
 
@@ -24,8 +24,8 @@ no longer inspectable enough.
 - Feed producer output through `buildTurnContext` / `renderTurnContext` so the
   CLI view matches the ephemeral context injected by Shrimpy's Pi context hook.
 - Include producers for continuation-adjacent runtime facts as they land,
-  especially current source-message metadata, one-time schedule provenance, and
-  worker status pointers.
+  especially current source-message metadata, watch/run provenance, and worker
+  status pointers.
 - Decide whether `runtime` remains a source type or becomes a set of built-in
   command-backed sources.
 - Keep prompt assembly on the existing unified context-source path, and keep

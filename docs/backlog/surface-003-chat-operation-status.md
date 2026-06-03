@@ -11,7 +11,8 @@ Telegram and future chat adapters should be able to show small operational statu
 This should grow into a general operations status mechanism for chat surfaces, not a Telegram-only compaction special case.
 
 ## Build
-- Add a generic chat operation status path for routed channel sessions.
+- Add a generic chat operation status path for accepted gateway channel
+  sessions.
 - Start with compaction lifecycle statuses:
   - compaction started
   - compaction finished
@@ -28,11 +29,12 @@ This should grow into a general operations status mechanism for chat surfaces, n
 - Do not expose private session summary content, model prompts, token counts, or provider internals in user-facing status text by default.
 - Do not make every internal event a chat message. Only surface events that explain visible delay, changed working context, or actionable failure.
 - Do not replace ephemeral activity indicators such as typing status; this is a visible status/update path, not a keepalive.
-- Do not hardwire Telegram into session or compaction code. Route through the shared channel/surface boundary.
+- Do not hardwire Telegram into session or compaction code. Deliver through the
+  shared channel/surface boundary.
 - Do not add legacy shims or migration paths.
 
 ## Shape
-Introduce a small operation-status delivery primitive beside normal text delivery and ephemeral activity. Session/runtime code emits typed operation status events; channel egress routes them by channel prefix; each chat adapter decides how to display them.
+Introduce a small operation-status delivery primitive beside normal text delivery and ephemeral activity. Session/runtime code emits typed operation status events; channel egress dispatches them by channel prefix; each chat adapter decides how to display them.
 
 This should share the same surface-boundary shape as [SURFACE-001](surface-001-telegram-typing-activity.md), but not the same semantics: activity is ephemeral and refreshed while work is running; operation status is a visible one-shot update for user-relevant lifecycle events.
 
@@ -56,7 +58,8 @@ Exact wording should be adapter-neutral in shared code and adapter-specific at t
 - If statuses are appended to channel logs, store them as typed system/status messages, not as fake agent replies. If they are not logged, make that explicit and inspectable through gateway logs.
 - Add Telegram formatting in `src/surfaces/telegram/surface.ts` or a nearby outbound helper.
 - Consider dependencies and overlap with [SURFACE-001](surface-001-telegram-typing-activity.md): typing is ephemeral while a turn is running; operation status is a visible chat update for important lifecycle events.
-- Add tests for compaction start/end routing, Telegram formatting, disabled status policy, and no status emission for direct local sessions.
+- Add tests for compaction start/end dispatch, Telegram formatting, disabled
+  status policy, and no status emission for direct local sessions.
 
 ## Done
 - A Telegram-backed gateway session can visibly report compaction start, success, and failure when enabled.
@@ -64,4 +67,4 @@ Exact wording should be adapter-neutral in shared code and adapter-specific at t
 - Status updates do not expose private session contents or provider internals.
 - Direct local sessions do not emit chat operation statuses.
 - CLI or tests can trigger a synthetic operation status for adapter verification.
-- Unit tests cover routing, formatting, config gating, and failure isolation.
+- Unit tests cover dispatch, formatting, config gating, and failure isolation.

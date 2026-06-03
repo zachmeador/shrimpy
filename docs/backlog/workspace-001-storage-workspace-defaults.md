@@ -52,8 +52,8 @@ auth.
 - Do not require a rigid taxonomy under `vault/` or `projects/`; users and
   agents should add folders only when the work calls for them.
 - Do not seed many empty category directories by default.
-- Do not place Shrimpy runtime state, channels, sessions, auth, or scheduler
-  data under these directories.
+- Do not place Shrimpy runtime state, channels, sessions, auth, or watch
+  runtime data under these directories.
 
 ## Notes
 

@@ -23,7 +23,7 @@ local sandbox story for macOS and Linux that normal people can live with.
 ## Do Not
 - Do not implement native sandbox runners as part of this strategy item.
 - Do not grant broad home-directory access as the convenient default.
-- Do not present prompt rules, command allowlists, disabled tools, attention
+- Do not present prompt rules, command allowlists, disabled tools, wake
   policy, remote execution, or separate nodes as sandboxing.
 - Do not block the simpler macOS setup/install work on this item.
 
