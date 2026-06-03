@@ -16,6 +16,7 @@ export interface WorkspacePaths {
   runtimeDir: string;
   runtimeCursorsDir: string;
   runtimeContextDir: string;
+  runtimeWatchesDir: string;
   runtimePidsDir: string;
   piStateDir: string;
   authPath: string;
@@ -28,9 +29,7 @@ export interface WorkspacePaths {
   usersPath: string;
   cursorsPath: string;
   surfaceStatePath: string;
-  schedulerStatePath: string;
-  oneTimeSchedulesPath: string;
-  systemSchedulesPath: string;
+  watchClockStatePath: string;
   workspacePromptPath: string;
   systemPromptPath: string;
   userPromptPath: string;
@@ -42,7 +41,7 @@ export interface AgentPaths {
   contextDir: string;
   vaultDir: string;
   projectsDir: string;
-  schedulesPath: string;
+  watchesPath: string;
   skillsDir: string;
   sessionsDir: string;
 }
@@ -65,6 +64,7 @@ export function createWorkspacePaths(
     runtimeDir: join(workspace, "runtime"),
     runtimeCursorsDir: join(workspace, "runtime", "cursors"),
     runtimeContextDir: join(workspace, "runtime", "context"),
+    runtimeWatchesDir: join(workspace, "runtime", "watches"),
     runtimePidsDir: join(workspace, "runtime", "pids"),
     piStateDir: join(workspace, "state", "pi"),
     authPath: join(workspace, "state", "pi", "auth.json"),
@@ -77,9 +77,7 @@ export function createWorkspacePaths(
     usersPath: join(workspace, "state", "users.json"),
     cursorsPath: join(workspace, "runtime", "cursors", "channels.json"),
     surfaceStatePath: join(workspace, "runtime", "cursors", "surface-threads.json"),
-    schedulerStatePath: join(workspace, "state", "scheduler.json"),
-    oneTimeSchedulesPath: join(workspace, "state", "one-time-schedules.json"),
-    systemSchedulesPath: join(workspace, "config", "schedules.json"),
+    watchClockStatePath: join(workspace, "state", "watch-clock.json"),
     workspacePromptPath: join(workspace, "profile", "WORKSPACE.md"),
     systemPromptPath: join(workspace, "profile", "SYSTEM.md"),
     userPromptPath: join(workspace, "profile", "USER.md"),
@@ -97,7 +95,7 @@ export function createAgentPaths(
     contextDir: join(root, "context"),
     vaultDir: join(root, "vault"),
     projectsDir: join(root, "projects"),
-    schedulesPath: join(root, "schedules.json"),
+    watchesPath: join(root, "watches.json"),
     skillsDir: join(root, "skills"),
     sessionsDir: join(root, "sessions"),
   };

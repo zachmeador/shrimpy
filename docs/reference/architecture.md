@@ -4,7 +4,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 
 ## Primitives
 
-- **Workspace** — the persistent home for config, channels, schedules, framework docs, agents, auth, models, logs, media, and state.
+- **Workspace** — the persistent home for config, channels, watches, framework docs, agents, auth, models, logs, media, and state.
 - **Agent** — a persistent actor with identity docs, memory, tools, skills, and Pi sessions.
 - **AppRuntime** — the application kernel that resolves paths, config, surface routes, tool config, context config, and session bootstrap inputs.
 - **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage, typed message construction, and outbound delivery to focused channel components. See [channels.md](channels.md).
@@ -16,11 +16,9 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`). See [sessions.md](sessions.md).
 - **SessionRegistry** — one active turn at a time per session, with FIFO queuing.
 - **Surface** — a transport-facing interaction layer such as Telegram. Each surface is a self-contained vertical at `src/surfaces/<name>/` and registers via the `ChatSurfaceModule` interface; `AppRuntime` aggregates the registry without knowing surface kinds.
-- **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances scheduled work.
-- **Scheduler** — file-driven recurring work. Schedules emit channel messages;
-  channel membership and agent channel policy decide whether those messages become
-  turns. Agent schedules live in `agents/<id>/schedules.json`; optional
-  workspace scheduler definitions live in `config/schedules.json`.
+- **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances agent-owned watches.
+- **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a real channel for that agent.
+- **Watch Clock** — the small clock used by watches with time triggers. It does not choose which agent wakes; normal channel membership and agent policy handle delivery.
 - **Skill** — prompt and resource material loaded into a session.
 - **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).
 - **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last) into one system prompt.
@@ -32,7 +30,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - Channels are append-only logs.
 - Sessions carry instructions and private working context. Channels carry routing and logs.
 - Channel membership, not agent config, determines channel participation. Agent config owns wake policy.
-- Agent resources (`SOUL.md`, `context/`, skills, sessions, schedules) are part of the agent contract.
+- Agent resources (`SOUL.md`, `context/`, skills, sessions, watches) are part of the agent contract.
 - Agent memory is normal Markdown; there is no separate memory control plane.
 - Shared framework/tool guidance lives in workspace `profile/SYSTEM.md` instead of being copied per agent.
 - Skills are Pi-style capability bundles under workspace or agent skill directories.
@@ -64,4 +62,4 @@ Where each concept lives:
 
 ## Direction
 
-The current architecture supports durable agents, channels, scheduled channel messages, skills, and child runs. The design pressure behind these choices is captured in [design.md](design.md). Active refinement work is tracked in [../backlog/index.md](../backlog/index.md). Context assembly details live in [context-assembly.md](context-assembly.md).
+The current architecture supports durable agents, channels, agent-owned watches, skills, and child runs. The design pressure behind these choices is captured in [design.md](design.md). Active refinement work is tracked in [../backlog/index.md](../backlog/index.md). Context assembly details live in [context-assembly.md](context-assembly.md).

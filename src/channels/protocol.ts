@@ -42,7 +42,7 @@ export interface MessageSender {
 export interface MessageOrigin {
   /**
    * Free-form transport identifier stamped by the producing surface.
-   * Built-in producers use "cli", "scheduler", "internal"; surface modules
+   * Built-in producers use "cli", "watch", "internal"; surface modules
    * stamp their own (e.g. "telegram"). Channel-protocol consumers should
    * not switch on specific values.
    */
@@ -50,22 +50,22 @@ export interface MessageOrigin {
   transportUserId?: string;
   transportChatId?: string;
   addressedAgentId?: string;
-  scheduleId?: string;
+  watchId?: string;
   runId?: string;
   sourceKind?: string;
   sourceId?: string;
   workerId?: string;
   sourceChannel?: string;
-  schedule?: MessageScheduleProvenance;
+  watch?: MessageWatchProvenance;
 }
 
-export interface MessageScheduleProvenance {
-  kind?: "recurring" | "one_time";
+export interface MessageWatchProvenance {
+  kind?: "recurring" | "manual";
   ownerAgentId?: string;
   localId?: string;
   targetChannel?: string;
   trigger?: Record<string, unknown>;
-  source?: Record<string, unknown>;
+  actionKind?: string;
   inspect?: string[];
 }
 

@@ -7,7 +7,7 @@ description: |
 
 # Journal Compaction
 
-Invoked weekly or monthly by my scheduled upkeep. Keeps `context/journal/`
+Invoked by my default journal compaction watch. Keeps `context/journal/`
 bounded by collapsing old day-notes into week summaries, and old week-notes
 into month summaries.
 

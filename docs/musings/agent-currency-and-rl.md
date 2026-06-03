@@ -75,7 +75,7 @@ Credits:
 - accurate triage that avoided an unnecessary expensive wake
 - successful delegation
 - user correction incorporated
-- scheduled follow-up completed
+- time-based follow-up completed
 - prevented regression or caught a real issue
 
 The ledger should store the evidence, not just the number. A score without the

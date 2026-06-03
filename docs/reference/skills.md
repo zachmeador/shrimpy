@@ -39,7 +39,7 @@ Instructions for when and how to use this skill.
 ```
 
 The public Shrimpy id is the directory id, while Pi's slash command name comes
-from frontmatter `name`. They must match so `shrimpy --skill <id>`, schedules,
+from frontmatter `name`. They must match so `shrimpy --skill <id>`, watches,
 and `/skill:<name>` all point at the same name. If they differ,
 `shrimpy skills validate` fails.
 
@@ -74,7 +74,7 @@ inspection, and local file management.
 
 At session start, Pi advertises visible skills by name, description, and
 location. Full `SKILL.md` content is loaded only when the user preloads a skill
-with `--skill <id>`, a schedule names a skill, the model reads the skill file,
+with `--skill <id>`, a watch names a skill, the model reads the skill file,
 or the user invokes `/skill:<name>`. Skills with `disable-model-invocation: true`
 are not shown in Pi's prompt block, but can still be invoked explicitly.
 

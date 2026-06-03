@@ -44,7 +44,7 @@ Memory is not one feature. It is the arrangement of several things:
 - selective prompt injection at turn time
 - command-generated prompt injections
 - storage layout and naming
-- schedules that ask agents to review or update memory
+- watches that ask agents to review or update memory
 - tools and skills that let agents create, read, update, and delete memory
 - time-awareness across all of the above
 
@@ -66,7 +66,7 @@ Everything else is implementation.
 - The user should be able to trust that memory is legible rather than magical.
 - Local-first transparency matters, especially for a single-user system.
 - One healthy target is generous enough budget that continuity can stay rich without pretending tokens are infinitely cheap.
-- Memory should be tied to Shrimpy's real nouns: users, agents, channels, sessions, schedules, and skills.
+- Memory should be tied to Shrimpy's real nouns: users, agents, channels, sessions, watches, and skills.
 - The framework should provide memory surfaces and update prompts; agents should own judgment about what matters.
 - Time is part of memory, not just metadata. Agents need a compact sense of
   what happened recently, what is stale, what recurs, and what changed since
@@ -137,7 +137,7 @@ agents/<agent-id>/memory/
     career.md
 ```
 
-The framework can detect interaction and schedule/update tasks. The agent,
+The framework can detect interaction and queue/update tasks. The agent,
 guided by a memory skill, decides what belongs in the card.
 
 Cards should avoid:
@@ -162,7 +162,7 @@ The trigger shape is unresolved, but it should be legible.
 
 Likely ingredients:
 
-- deterministic signals from channels, sessions, schedules, and changed files
+- deterministic signals from channels, sessions, watches, and changed files
 - a memory-management agent or process that reviews those signals
 - normal channel messages that ask specific agents to update their own memory
 - user-visible requests when memory decisions need human judgment

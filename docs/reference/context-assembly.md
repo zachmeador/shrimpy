@@ -45,7 +45,7 @@ system prompt.
         "type": "command",
         "id": "finance_alerts",
         "command": "finance-shrimpy alerts context",
-        "channels": ["heartbeat", "finance"],
+        "channels": ["maintenance", "finance"],
         "timeoutMs": 5000,
         "maxChars": 1200,
         "freshForMs": 60000
@@ -92,7 +92,7 @@ facts and `renderTurnContext` renders the body:
 time: 2026-04-29T12:00:00Z
 agent: shrimpy
 session: gateway channel: home
-- gateway status: last scheduled run 5m ago; next scheduled run in 10m
+- gateway status: last watch run 5m ago; next watch run in 10m
   inspect: shrimpy gateway status
 - home: 3 new messages since this agent last handled it
   inspect: shrimpy channels read home --after <message-id>

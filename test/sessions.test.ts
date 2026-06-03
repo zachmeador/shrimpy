@@ -332,22 +332,22 @@ function humanImageGroup() {
   });
 }
 
-function scheduledSystemMessage() {
+function watchSystemMessage() {
   return makeMessage({
     sender: {
       kind: "system",
-      actorId: "system:scheduler",
-      displayName: "scheduler",
+      actorId: "system:watch-runner",
+      displayName: "watch-runner",
     },
     origin: {
-      transport: "scheduler",
-      scheduleId: "system.heartbeat",
-      sourceChannel: "heartbeat",
+      transport: "watch",
+      watchId: "system.maintenance",
+      sourceChannel: "maintenance",
     },
     content: {
       type: "system",
       data: {
-        trigger: "scheduled",
+        trigger: "watch",
       },
     },
   });
@@ -366,7 +366,7 @@ describe("formatMessage", () => {
   test("formats image, image group, and system messages with the same header", () => {
     const image = humanImage();
     const imageGroup = humanImageGroup();
-    const system = scheduledSystemMessage();
+    const system = watchSystemMessage();
 
     assert.equal(
       formatChannelMessage("telegram~shrimpy~123", image),
@@ -377,8 +377,8 @@ describe("formatMessage", () => {
       "[channel: telegram~shrimpy~123, sender: human:alice]\n[Image: /tmp/image-a.jpg]\n[Image: /tmp/image-b.jpg]\nalbum caption",
     );
     assert.equal(
-      formatChannelMessage("heartbeat", system),
-      '[channel: heartbeat, sender: system:scheduler]\n[System: {"trigger":"scheduled"}]',
+      formatChannelMessage("maintenance", system),
+      '[channel: maintenance, sender: system:watch-runner]\n[System: {"trigger":"watch"}]',
     );
   });
 });

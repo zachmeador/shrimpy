@@ -28,7 +28,7 @@ Shrimpy already has most of the raw material:
 - agents are persistent identities with memory and sessions
 - channels are durable comms/logs
 - skills are prompt/resource bundles for ordinary sessions
-- schedules can write typed messages into channels
+- watches can write typed messages into channels
 - tools let agents edit files, call CLIs, and run scripts
 
 The missing piece is a first-class convention for grouping those primitives
@@ -61,7 +61,7 @@ Shrimpy currently has no app primitive. It has:
 - agent-level skills under `agents/<id>/skills/<id>/`
 - channels under `channels/`
 - sessions under each agent workspace
-- schedules under `agents/<id>/schedules.json`
+- watches under `agents/<id>/watches.json`
 
 This is enough to fake apps by convention:
 
@@ -69,7 +69,7 @@ This is enough to fake apps by convention:
 - create channels like `career`, `career-dev`, `career-log`
 - put code somewhere in the workspace or a repo
 - put operating skills under `agents/career/skills/`
-- schedule wakeups into `career-log` or `career`
+- configure watches that wake into `career-log` or `career`
 
 But the framework does not understand that these pieces belong together.
 
@@ -148,7 +148,7 @@ An app adds:
 - app-local files and state
 - app-owned channels
 - app-owned agents
-- app-owned schedules
+- app-owned watches
 - app-level status/inspection
 
 So the framework should resist making apps a separate execution model.
@@ -164,7 +164,7 @@ An app should be able to have channels like:
 
 - `career` — user-facing app front door
 - `career-dev` — build/spec/design work
-- `career-log` — background maintenance and scheduler output
+- `career-log` — background maintenance and watch output
 - `career-issues` — GitHub issue mirror or request queue
 - `career-private` — app-agent scratch/coordination if needed
 
@@ -183,18 +183,18 @@ A Shrimpy app should eventually be able to own loops such as:
 - stale task cleanup
 - dependency checks
 - draft generation
-- app-specific heartbeat
+- app-specific watches
 
-Today this can be approximated with scheduler messages into channels. The
+Today this can be approximated with watch messages into channels. The
 missing piece is ownership:
 
-- which app owns this schedule?
+- which app owns this watch?
 - which agent is responsible?
 - where should logs go?
 - what is the app's current maintenance state?
 - what should happen if the loop fails?
 
-This argues for app metadata around schedules, not a new scheduler.
+This argues for app metadata around watches, not a new scheduler.
 
 ## Skill Graduation
 
@@ -217,7 +217,7 @@ Graduation should be a normal mechanic/librarian workflow:
 3. create or assign a resident agent
 4. move reusable instructions into app skills
 5. create app channels
-6. create app schedules if needed
+6. create app watches if needed
 7. leave the original skill as a launcher or migration note
 
 ## Minimal Changes Needed
@@ -244,8 +244,8 @@ This direction likely needs these changes, in order:
    Extend skill resolution to include app-local skills when a session is opened
    in an app context.
 
-6. **App-aware schedules**
-   Let schedules carry optional app metadata while still writing ordinary
+6. **App-aware watches**
+   Let watches carry optional app metadata while still writing ordinary
    messages into ordinary channels.
 
 7. **Promotion workflow skill**

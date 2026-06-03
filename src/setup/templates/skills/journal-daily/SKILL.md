@@ -7,7 +7,7 @@ description: |
 
 # Daily Journal
 
-Invoked by my scheduled upkeep at end-of-day. Produces at most one file:
+Invoked by my default end-of-day upkeep watch. Produces at most one file:
 `context/journal/days/<today>.md`.
 
 ## What to write

@@ -8,7 +8,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 
 - **Entry point:** `src/cli.ts`
 - **Workspace:** `~/.shrimpy-workspace.json` → `workspace` field (default: `projectRoot/.shrimpy`). Config at `workspace/config/shrimpy.json`.
-- **Workspace contents:** `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `config/schedules.json`, `agents/<id>/SOUL.md`, `agents/<id>/context/`, `agents/<id>/vault/`, `agents/<id>/schedules.json`, `agents/<id>/sessions/`, `agents/<id>/skills/`, `skills/`, `state/pi/auth.json`, `state/pi/models.json`, `state/users.json`, `state/scheduler.json`, `runtime/cursors/`, `runtime/context/`, `runtime/logs/`, `channels/`, `media/`
+- **Workspace contents:** `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/<id>/SOUL.md`, `agents/<id>/context/`, `agents/<id>/vault/`, `agents/<id>/watches.json`, `agents/<id>/sessions/`, `agents/<id>/skills/`, `skills/`, `state/pi/auth.json`, `state/pi/models.json`, `state/users.json`, `state/watch-clock.json`, `runtime/cursors/`, `runtime/context/`, `runtime/watches/`, `runtime/logs/`, `channels/`, `media/`
 - **Binary:** `~/.local/bin/shrimpy` → `dist/cli.js`
 - **Project docs:** `docs/README.md`, `docs/reference/`, `docs/backlog/`, `docs/musings/`, `docs/research/`
 - **Upcoming goals:** `docs/backlog/index.md` is the source of truth for planned project work. Each active item has its own note in `docs/backlog/`.

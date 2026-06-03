@@ -248,6 +248,8 @@ describe("skill context inspection", () => {
 
     assert.equal(result, 0);
     assert.match(lines.join("\n"), /setup \[agent\]/);
+    assert.match(lines.join("\n"), /add-agent \[workspace\]/);
+    assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[workspace\]/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[workspace\]/);
@@ -383,6 +385,7 @@ describe("skill service", () => {
 
     const skills = listSkillViews(runtime);
     assert.deepEqual(skills.map((skill) => `${skill.id}:${skill.scope}`), [
+      "add-agent:workspace",
       "journal-compact:workspace",
       "journal-daily:workspace",
       "memory-management:workspace",
@@ -437,6 +440,7 @@ describe("skill service", () => {
       .sort();
 
     assert.deepEqual(piSkillNames, [
+      "add-agent",
       "journal-compact",
       "journal-daily",
       "memory-management",

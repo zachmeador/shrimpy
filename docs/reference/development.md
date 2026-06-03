@@ -12,7 +12,7 @@
 - Sessions/context: `src/sessions/`, `src/context/`
 - Agents: `src/agents/`
 - Surfaces: `src/surfaces/<name>/` per-surface verticals; `src/surfaces/shared/` for the `ChatSurfaceModule` contract and shared chat primitives
-- Scheduler: `src/scheduler/`
+- Watch clock: `src/watches/`
 - Tools: `src/tools/`
 - Setup templates: `src/setup/templates/`
 

@@ -257,7 +257,7 @@ Shrimpy already has several of the right primitives:
 
 - channels as durable shared logs
 - per-agent per-channel sessions
-- scheduler events that enter the same messaging backbone
+- watch events that enter the same messaging backbone
 - session control messages as normal channel events
 - a clear distinction between routed channel work and local direct sessions
 
@@ -265,7 +265,7 @@ That is a strong foundation.
 
 The current built-in heartbeat looks too basic mostly because it is still just:
 
-- a fixed scheduled message
+- a fixed watch-origin message
 - into a heartbeat channel
 - with a small extra instruction file
 
@@ -276,7 +276,7 @@ The missing layer is closer to:
 - richer wake reasons
 - a summary view of live sessions
 - explicit worker lineage
-- self-scheduled re-checks
+- self-requested re-checks
 - clearer delivery ownership
 - cheap coordination between persistent agents
 

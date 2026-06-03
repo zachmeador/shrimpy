@@ -1,14 +1,14 @@
-import type { SchedulerStateSnapshot } from "./engine.js";
+import type { WatchClockStateSnapshot } from "./clock.js";
 import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
 
-function parseSchedulerState(raw: unknown): SchedulerStateSnapshot {
+function parseWatchClockState(raw: unknown): WatchClockStateSnapshot {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
 
-  const result: SchedulerStateSnapshot = {};
-  for (const [scheduleId, value] of Object.entries(raw)) {
+  const result: WatchClockStateSnapshot = {};
+  for (const [watchId, value] of Object.entries(raw)) {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
 
     const nextRunAtMs = (value as Record<string, unknown>).nextRunAtMs;
@@ -16,20 +16,20 @@ function parseSchedulerState(raw: unknown): SchedulerStateSnapshot {
       continue;
     }
 
-    result[scheduleId] = { nextRunAtMs };
+    result[watchId] = { nextRunAtMs };
   }
   return result;
 }
 
-export function loadSchedulerState(
+export function loadWatchClockState(
   statePath: string,
-): SchedulerStateSnapshot {
-  return readJsonFile(statePath, () => ({}), parseSchedulerState);
+): WatchClockStateSnapshot {
+  return readJsonFile(statePath, () => ({}), parseWatchClockState);
 }
 
-export function saveSchedulerState(
+export function saveWatchClockState(
   statePath: string,
-  state: SchedulerStateSnapshot,
+  state: WatchClockStateSnapshot,
 ): void {
   writeJsonFileAtomic(statePath, state);
 }

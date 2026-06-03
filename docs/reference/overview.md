@@ -1,6 +1,6 @@
 # 🦐 Overview
 
-Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; it does not carry a local Pi fork or vendored Pi artifact. The workspace is the home system; agents are persistent actors inside it. Shrimpy wraps Pi with home-agent primitives: workspace context, durable agents, channels, surfaces, scheduled channel messages, and a CLI.
+Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; it does not carry a local Pi fork or vendored Pi artifact. The workspace is the home system; agents are persistent actors inside it. Shrimpy wraps Pi with home-agent primitives: workspace context, durable agents, channels, surfaces, agent-owned watches, and a CLI.
 
 ## Current Shape
 
@@ -15,7 +15,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 
 ## Core Loop
 
-1. A human, surface, scheduler, CLI command, or agent writes a typed message to a channel.
+1. A human, surface, watch, CLI command, or agent writes a typed message to a channel.
 2. The gateway watches channel logs and offers messages to channel members.
 3. Each visible agent's channel policy decides whether the message becomes a
    turn.

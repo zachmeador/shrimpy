@@ -1,6 +1,6 @@
-# SCHED-001: Agent-Owned Watches
+# WATCH-001: Agent-Owned Watches
 
-Status: draft
+Status: review
 Priority: P1
 Area: Watches
 Depends On: none
@@ -13,11 +13,11 @@ runtime into a central brain.
 The bad shape is:
 
 ```text
-global scheduler -> fake heartbeat/status channel -> agent wakes
+global clock/router -> fake heartbeat/status channel -> agent wakes
 ```
 
-That makes schedules feel like runtime-owned routing and encourages channels
-that are not meaningful rooms or logs.
+That makes recurring work feel like runtime-owned routing and encourages
+channels that are not meaningful rooms or logs.
 
 The better shape is:
 
@@ -33,27 +33,26 @@ happens next.
 
 ## Model
 
-- **Watch** — an agent-owned recurring or one-shot check. It answers "what does
+- **Watch** — an agent-owned background attention rule. It answers "what does
   this agent want to keep an eye on?"
-- **Trigger** — when the watch should run: cron, interval, one-shot due time, or
-  explicit manual run.
+- **Trigger** — what fires the watch: time, a command observation, a file event,
+  a feed item, or explicit manual run.
 - **Action** — the deterministic work to perform when due, such as a command or
   built-in inspection.
 - **Run** — the durable operational record of what happened.
 - **Observation** — optional structured output from a run: no change, changed,
   failed, threshold crossed, item found, etc.
 - **Message** — optional channel communication created from an observation.
-- **Wake** — never scheduler-owned. A message can wake an agent only through
+- **Wake** — never clock-owned. A message can wake an agent only through
   channel visibility and that agent's own wake policy.
 
-There is no scheduler router. The runtime only provides a clock and runner for
+There is no watch router. The runtime only provides a clock and runner for
 agent-owned watches.
 
 ## Shape
 
-Agent watch definitions should live with the owning agent, for example in
-`agents/<id>/watches.json` or a replacement for the current
-`agents/<id>/schedules.json`.
+Agent watch definitions live with the owning agent in
+`agents/<id>/watches.json`.
 
 Example:
 
@@ -63,7 +62,7 @@ Example:
     "id": "open-pr-review",
     "name": "Open PR review",
     "enabled": true,
-    "trigger": { "type": "cron", "expression": "0 */2 * * *" },
+    "trigger": { "kind": "time", "cron": "0 */2 * * *" },
     "action": {
       "kind": "command",
       "command": "shrimpy github scan-open-prs --json"
@@ -83,30 +82,31 @@ not a fake wake pipe.
 
 ## Current State
 
-- `src/scheduler/engine.ts` already calculates due times and calls `onRunDue`.
-- `src/gateway/scheduler-service.ts` currently treats due runs as channel
-  message emission through `emitChannelTargetRun`.
-- `src/scheduler/schema.ts` models recurring work as `kind: "agent"` channel
-  targets, and agent schedules use `{ channel, instructions }` shorthand.
-- `src/scheduler/inspection.ts` infers recent recurring runs from emitted
-  channel messages.
-- `src/scheduler/one-time.ts` has useful precedent for compact status,
-  emitted message ids, and inspection.
-- Default setup still seeds broad heartbeat-style work that should become
-  explicit agent-owned watches or be removed.
+- Agent-owned watches live in `agents/<id>/watches.json`.
+- Time triggers use `{ "kind": "time", "cron": "..." }` or
+  `{ "kind": "time", "everyMs": 60000 }`.
+- The gateway loads all agent watch files, advances time triggers with the
+  watch clock, and records watch run history under
+  `runtime/watches/`.
+- `shrimpy watches` lists, shows, manually runs, and inspects watch history.
+- Emitted messages carry watch provenance and are routed through ordinary channel
+  membership and agent channel policy.
+- `shrimpy watches` is the one public command for watch inspection and manual
+  runs. `agents/<id>/watches.json` is the one public config location for this
+  work.
 
 ## Build
 
-- Rename the mental model from scheduler-owned jobs to agent-owned watches.
+- Rename the mental model from watch-owned jobs to agent-owned watches.
 - Keep a small runtime clock/runner service, but make ownership explicit in
   every definition, run record, inspection view, and emitted message.
-- Remove the gateway requirement that at least one schedule/watch exists.
+- Remove the gateway requirement that at least one watch exists.
 - Stop seeding an enabled broad heartbeat as a default. Keep memory, journal,
   security, mechanic, or other recurring work explicit and agent-owned.
 - Add watch execution modules:
-  - `src/scheduler/actions.ts`
-  - `src/scheduler/runner.ts`
-  - `src/scheduler/run-store.ts`
+  - `src/watches/actions.ts`
+  - `src/watches/runner.ts`
+  - `src/watches/run-store.ts`
 - Keep `engine.ts` focused on due-time calculation and persisted next-run state.
 - Replace `kind: "agent"` actions with clearer primitives:
   - `kind: "command"`: run a deterministic command and capture output.
@@ -135,9 +135,7 @@ not a fake wake pipe.
   - `shrimpy watches show <agent>/<watch>`
   - `shrimpy watches history <agent>/<watch>`
   - `shrimpy watches run <agent>/<watch>`
-- Decide the user-facing command name once. Prefer `shrimpy watches`; do not
-  keep `schedules` as a legacy alias unless the user explicitly asks for that
-  compatibility path.
+- Expose only `shrimpy watches`; do not keep the old command as a legacy alias.
 - Implement real concurrency behavior or remove the knob:
   - `forbid`: skip when the same watch is already active.
   - `allow`: permit overlapping runs.
@@ -163,19 +161,19 @@ not a fake wake pipe.
 
 ## Replacement
 
-- Replace old `{ channel, instructions }` agent schedules with explicit
+- Replace old `{ channel, instructions }` recurring definitions with explicit
   agent-owned watch definitions.
 - Replace old `action.kind = "agent"` channel targets with `command` or
   `message` watch actions.
-- Remove the default enabled heartbeat schedule.
+- Remove the old default enabled heartbeat.
 - Update setup templates, docs, and tests to describe recurring work as
-  agent-owned watches, not global scheduler jobs or special agent wakeups.
+  agent-owned watches, not global clock jobs or special agent wakeups.
 
 ## Related Items
 
 - [channels.md](../reference/channels.md): channel presence, agent-owned wake
   policy, and channel-message attribution/provenance.
-- [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md): a mechanic
+- [MECH-001](mech-001-skill-opportunity-watch.md): a mechanic
   usage assessment should be a mechanic-owned watch that records run history and
   emits a user-facing message only when there are useful recommendations.
 - [SECURITY-002](security-002-default-security-audit-agent.md): a default

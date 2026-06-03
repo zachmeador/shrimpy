@@ -65,12 +65,12 @@ describe("telegram outbound formatting", () => {
         },
       },
       42,
-      "Schedule updated.",
+      "Plan updated.",
       { kind: "notify", urgency: "low" },
     );
 
     assert.deepEqual(sent, [{
-      text: "Schedule updated.",
+      text: "Plan updated.",
       options: {
         parseMode: "HTML",
         disableNotification: true,

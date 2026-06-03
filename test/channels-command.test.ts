@@ -198,31 +198,31 @@ describe("cmdChannels", () => {
     assert.equal(payload.messages[0].source.transport, "cli");
   });
 
-  test("search traces scheduler and system messages", async () => {
+  test("search traces watch and system messages", async () => {
     await setupInit(workspace);
     const channelBus = new ChannelBus(join(workspace, "channels"));
     channelBus.publish({
       channel: "home",
-      id: "scheduler-message",
+      id: "watch-message",
       timestamp: Date.parse("2026-05-01T10:00:00.000Z"),
       sender: {
         kind: "system",
-        actorId: "system:scheduler",
+        actorId: "system:watch-runner",
       },
       origin: {
-        transport: "scheduler",
-        scheduleId: "shrimpy/heartbeat",
+        transport: "watch",
+        watchId: "shrimpy/maintenance",
         runId: "run-1",
         sourceChannel: "home",
-        schedule: {
+        watch: {
           kind: "recurring",
           ownerAgentId: "shrimpy",
-          localId: "heartbeat",
+          localId: "maintenance",
           targetChannel: "home",
-          inspect: ["shrimpy schedules show shrimpy/heartbeat"],
+          inspect: ["shrimpy watches show shrimpy/maintenance"],
         },
       },
-      content: textContent("scheduled heartbeat"),
+      content: textContent("watch maintenance"),
     });
     channelBus.publish({
       channel: "home",
@@ -239,18 +239,18 @@ describe("cmdChannels", () => {
       content: systemContent({ kind: "maintenance", note: "rotated logs" }),
     });
 
-    const { result: schedulerResult, lines: schedulerLines } = await captureLogs(() =>
-      cmdChannels(["search", "home", "--kind", "scheduler", "--json"], { workspace } as any)
+    const { result: watchResult, lines: watchLines } = await captureLogs(() =>
+      cmdChannels(["search", "home", "--kind", "watch", "--watch", "shrimpy/maintenance", "--json"], { workspace } as any)
     );
 
-    assert.equal(schedulerResult, 0);
-    const schedulerPayload = JSON.parse(schedulerLines.join("\n"));
-    assert.equal(schedulerPayload.matchedCount, 1);
-    assert.equal(schedulerPayload.messages[0].id, "scheduler-message");
-    assert.equal(schedulerPayload.messages[0].source.id, "shrimpy/heartbeat");
-    assert.equal(schedulerPayload.messages[0].source.runId, "run-1");
-    assert.deepEqual(schedulerPayload.messages[0].source.inspectCommands, [
-      "shrimpy schedules show shrimpy/heartbeat",
+    assert.equal(watchResult, 0);
+    const watchPayload = JSON.parse(watchLines.join("\n"));
+    assert.equal(watchPayload.matchedCount, 1);
+    assert.equal(watchPayload.messages[0].id, "watch-message");
+    assert.equal(watchPayload.messages[0].source.id, "shrimpy/maintenance");
+    assert.equal(watchPayload.messages[0].source.runId, "run-1");
+    assert.deepEqual(watchPayload.messages[0].source.inspectCommands, [
+      "shrimpy watches show shrimpy/maintenance",
     ]);
 
     const { result: systemResult, lines: systemLines } = await captureLogs(() =>
@@ -284,23 +284,23 @@ describe("cmdChannels", () => {
     });
     channelBus.publish({
       channel: "home",
-      id: "scheduler-message",
+      id: "watch-message",
       timestamp: Date.parse("2026-05-01T10:01:00.000Z"),
       sender: {
         kind: "system",
-        actorId: "system:scheduler",
+        actorId: "system:watch-runner",
       },
       origin: {
-        transport: "scheduler",
-        scheduleId: "shrimpy/heartbeat",
+        transport: "watch",
+        watchId: "shrimpy/maintenance",
         runId: "run-1",
         sourceChannel: "home",
-        schedule: {
+        watch: {
           targetChannel: "home",
-          inspect: ["shrimpy schedules show shrimpy/heartbeat"],
+          inspect: ["shrimpy watches show shrimpy/maintenance"],
         },
       },
-      content: textContent("scheduled check"),
+      content: textContent("watch check"),
     });
 
     const { result, lines } = await captureLogs(() =>
@@ -310,14 +310,18 @@ describe("cmdChannels", () => {
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
     assert.equal(summary.activity.kindCounts.user_text, 1);
-    assert.equal(summary.activity.kindCounts.scheduler, 1);
+    assert.equal(summary.activity.kindCounts.watch, 1);
     assert.deepEqual(
       summary.activity.recentRequests.map((message: any) => message.id),
-      ["human-request", "scheduler-message"],
+      ["human-request"],
     );
-    assert.equal(summary.activity.sourceRecords[0].id, "shrimpy/heartbeat");
+    const watchRecord = summary.activity.sourceRecords.find(
+      (record: any) => record.kind === "watch",
+    );
+    assert.ok(watchRecord);
+    assert.equal(watchRecord.id, "shrimpy/maintenance");
     assert.deepEqual(summary.activity.inspectCommands, [
-      "shrimpy schedules show shrimpy/heartbeat",
+      "shrimpy watches show shrimpy/maintenance",
     ]);
   });
 

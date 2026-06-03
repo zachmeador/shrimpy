@@ -3,25 +3,26 @@ import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
 import {
   collectGatewayActivity,
-  loadGatewaySchedulerSummary,
+  loadGatewayWatchClockSummary,
 } from "../gateway/status.js";
-import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
+import { loadGatewayWatchIds } from "../gateway/watch-service.js";
 import { dim, label } from "../util/style.js";
+import { formatFutureOrPast } from "../util/time-format.js";
 
 const SERVICE_NAME = "shrimpy-gateway";
 
 export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0]): void {
   const runtime = createAppRuntime(config);
-  const scheduleIds = loadGatewayScheduleIds(runtime);
+  const watchIds = loadGatewayWatchIds(runtime);
   const activity = collectGatewayActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
-    scheduleIds,
+    watchIds,
   );
-  const scheduler = loadGatewaySchedulerSummary(
-    runtime.paths.schedulerStatePath,
+  const watchClock = loadGatewayWatchClockSummary(
+    runtime.paths.watchClockStatePath,
     runtime.resolved.status,
-    scheduleIds,
+    watchIds,
   );
 
   console.log(`${label("workspace:")} ${runtime.paths.workspace}`);
@@ -29,12 +30,12 @@ export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0
   console.log(`${label("gateway enabled:")} ${systemctlStatus("is-enabled")}`);
   console.log(`${label("tracked channels:")} ${activity.channelCount}`);
 
-  if (activity.lastScheduledRun) {
+  if (activity.lastWatchRun) {
     console.log(
-      `${label("time since last scheduled run:")} ${when(activity.lastScheduledRun.message.timestamp)}`,
+      `${label("time since last watch run:")} ${when(activity.lastWatchRun.message.timestamp)}`,
     );
   } else {
-    console.log(`${label("time since last scheduled run:")} ${dim("(none)")}`);
+    console.log(`${label("time since last watch run:")} ${dim("(none)")}`);
   }
 
   if (activity.lastUserInteraction) {
@@ -51,12 +52,12 @@ export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0
     console.log(`${label("time since last user interaction:")} ${dim("(none)")}`);
   }
 
-  if (scheduler.nextScheduledRun) {
+  if (watchClock.nextWatchRun) {
     console.log(
-      `${label("next scheduled run due:")} ${formatFutureOrPast(scheduler.nextScheduledRun.nextRunAtMs)} ${dim(`(${new Date(scheduler.nextScheduledRun.nextRunAtMs).toLocaleString()})`)}`,
+      `${label("next watch run due:")} ${formatFutureOrPast(watchClock.nextWatchRun.nextRunAtMs)} ${dim(`(${new Date(watchClock.nextWatchRun.nextRunAtMs).toLocaleString()})`)}`,
     );
   } else {
-    console.log(`${label("next scheduled run due:")} ${dim("(unknown)")}`);
+    console.log(`${label("next watch run due:")} ${dim("(unknown)")}`);
   }
 }
 
@@ -71,21 +72,6 @@ function systemctlStatus(kind: "is-active" | "is-enabled"): string {
   if (stdout) return stdout;
 
   return "unknown";
-}
-
-function formatFutureOrPast(targetMs: number): string {
-  const diffSeconds = Math.floor((targetMs - Date.now()) / 1000);
-  const absSeconds = Math.abs(diffSeconds);
-
-  const amount = absSeconds < 60
-    ? `${absSeconds}s`
-    : absSeconds < 3_600
-      ? `${Math.floor(absSeconds / 60)}m`
-      : absSeconds < 86_400
-        ? `${Math.floor(absSeconds / 3_600)}h`
-        : `${Math.floor(absSeconds / 86_400)}d`;
-
-  return diffSeconds >= 0 ? `in ${amount}` : `${amount} ago`;
 }
 
 function when(ms: number): string {

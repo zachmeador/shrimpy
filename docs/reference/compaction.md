@@ -10,7 +10,7 @@ Each Shrimpy session is a private Pi context for one agent and one session label
 
 Channel logs remain append-only JSONL under `channels/`. If a summary is too compressed, an agent can use channel and session inspection tools to go back to the original logs.
 
-Compaction summaries may cover human-agent, agent-agent, scheduled, and system-originated turns. Prompt wording should describe participants and requests generically, not assume every transcript is a user talking to one coding assistant.
+Compaction summaries may cover human-agent, agent-agent, watch-origin, and system-originated turns. Prompt wording should describe participants and requests generically, not assume every transcript is a user talking to one coding assistant.
 
 ## Policy
 
@@ -36,8 +36,6 @@ Defaults are tuned to keep chat usable:
 }
 ```
 
-The built-in `heartbeat` compaction override uses `thresholdTokens: 100000`, keeps about `30000` recent tokens, and asks the summary to preserve unresolved follow-ups, active or stale sessions, recent interactions, memory changes, and behavior-changing decisions.
-
 Policy precedence is:
 
 1. `runtime.compaction`
@@ -46,7 +44,7 @@ Policy precedence is:
 4. matching `runtime.compaction.channels.<pattern>`
 5. `runtime.compaction.sessions.<sessionLabel>`
 
-`sessionType` is a broad class such as `gateway` or `tui`. `sessionLabel` is the concrete session directory label, such as `heartbeat`.
+`sessionType` is a broad class such as `gateway` or `tui`. `sessionLabel` is the concrete session directory label, such as `maintenance`.
 
 ## Recorded Policy
 

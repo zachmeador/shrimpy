@@ -4,7 +4,7 @@ import { basename, join } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
 import { collectGatewayActivity } from "../gateway/status.js";
-import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
+import { loadGatewayWatchIds } from "../gateway/watch-service.js";
 import {
   loadTelegramOffset,
   telegramStatePath,
@@ -57,11 +57,11 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
   const activity = collectGatewayActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
-    loadGatewayScheduleIds(runtime),
+    loadGatewayWatchIds(runtime),
   );
-  if (activity.lastScheduledRun) {
+  if (activity.lastWatchRun) {
     console.log(
-      `${label("last scheduled run:")} ${timeSince(activity.lastScheduledRun.message.timestamp)}`,
+      `${label("last watch run:")} ${timeSince(activity.lastWatchRun.message.timestamp)}`,
     );
   }
 

@@ -10,7 +10,7 @@ Shrimpy should have a repo-owned Markdown collection of app/config ideas: simple
 The point is not to ship a grab bag of generic automations. The useful artifact is a ladder of patterns that help someone recognize what kind of Shrimpy environment they are building:
 
 - a small assistant with a few stable docs and one channel
-- a recurring personal operations loop with schedules, memory, and checklists
+- a recurring personal operations loop with watches, memory, and checklists
 - a project workspace with channels, skills, resident agents, and local state
 - a durable app-agent habitat that maintains itself, consults the user, and leaves inspectable files behind
 
@@ -22,9 +22,9 @@ Possible homes:
 
 - a setup/admin skill used during `shrimpy setup init` or guided onboarding
 - a workspace review skill that inspects the user's current files and suggests deeper patterns
-- scheduled check-ins where Shrimpy asks targeted questions about whether a workspace wants to grow into a richer app/config pattern
+- watch-driven check-ins where Shrimpy asks targeted questions about whether a workspace wants to grow into a richer app/config pattern
 
-The best version feels consultative. Shrimpy can look at the user's actual workspace, notice recurring intent, and ask about concrete next steps: add a schedule, split a channel, create a skill, name a resident agent, add a small state file, or turn a repeated workflow into a durable app pattern.
+The best version feels consultative. Shrimpy can look at the user's actual workspace, notice recurring intent, and ask about concrete next steps: add a watch, split a channel, create a skill, name a resident agent, add a small state file, or turn a repeated workflow into a durable app pattern.
 
 ## Taste
 
@@ -48,13 +48,13 @@ One example is a Scrappy-style character agent:
 
 - a persistent agent has a strong personality, voice, lore, and relationship to
   the user
-- a scheduled morning message logs into an ordinary channel, and the character
+- a watch-origin morning message logs into an ordinary channel, and the character
   becomes eligible for that turn through channel membership plus its attention
   config
 - memory upkeep preserves important facts, recurring motifs, and new bits of
   lore as ordinary agent memory
 - the character is encouraged to elaborate its own world over time, while still
-  leaving inspectable files, schedules, channels, and session logs behind
+  leaving inspectable files, watches, channels, and session logs behind
 
 This is not especially practical, but it is a good product/design example. It
 shows that Shrimpy can support playful, durable agent habitats without adding a
@@ -63,7 +63,7 @@ special character runtime.
 Weak examples:
 
 - generic productivity slogans
-- app ideas without concrete files, channels, schedules, or agent responsibilities
+- app ideas without concrete files, channels, watches, or agent responsibilities
 - patterns that require hidden runtime policy instead of ordinary Shrimpy workspace structure
 
 ## Backlog

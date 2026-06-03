@@ -22,7 +22,7 @@ memory belongs to a turn, and there is no framework-owned global memory blob.
 
 Agents write memory in their own voice as notes to their future selves. The
 framework provides context-loading primitives, CLI inspection, skills, and
-schedules; the owning agent decides what is worth preserving during normal
+watches; the owning agent decides what is worth preserving during normal
 upkeep. The user can also edit memory files directly.
 
 Workspace-wide facts belong in `profile/*.md`, especially `profile/USER.md` and
@@ -37,7 +37,7 @@ should load into prompts.
 
 ## Upkeep
 
-Fresh setup seeds ordinary schedules for memory work:
+Fresh setup seeds ordinary watches for memory work:
 
 - `memory-management` runs daily and asks the agent to review recent activity,
   update its own context files when durable memory is warranted, and prune stale
@@ -46,7 +46,7 @@ Fresh setup seeds ordinary schedules for memory work:
 - `journal-compact` summarizes old daily and weekly journal notes into longer
   horizon files.
 
-These are normal scheduled agent turns. They use skills and CLI/file inspection;
+These are normal watch-origin agent turns. They use skills and CLI/file inspection;
 they are not a separate memory control plane.
 
 ## Context Assembly

@@ -20,18 +20,7 @@ const compactionSchema = Type.Object(
     keepRecentTokens: Type.Number({ minimum: 1, default: 30000 }),
     instructions: Type.Optional(Type.String({ minLength: 1 })),
     agents: Type.Optional(Type.Record(Type.String(), compactionPolicySchema)),
-    channels: Type.Optional(
-      Type.Record(Type.String(), compactionPolicySchema, {
-        default: {
-          heartbeat: {
-            thresholdTokens: 100000,
-            keepRecentTokens: 30000,
-            instructions:
-              "For heartbeat compaction, preserve unresolved follow-ups, active or stale sessions, recent user interactions, memory changes, and decisions that changed future behavior. Collapse repetitive no-op heartbeat turns into a short time-bounded note.",
-          },
-        },
-      }),
-    ),
+    channels: Type.Optional(Type.Record(Type.String(), compactionPolicySchema)),
     sessions: Type.Optional(Type.Record(Type.String(), compactionPolicySchema)),
   },
   { additionalProperties: false, default: {} },

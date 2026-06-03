@@ -24,7 +24,7 @@ A turn-context item carries a summary line and an optional inspect command:
 Shrimpy includes:
 
 - current turn metadata in the header
-- gateway status pointers such as scheduled-run recency, next run time, and latest user interaction
+- gateway status pointers such as watch-run recency, next run time, and latest user interaction
 - channel unread summaries for matching channels
 - path-indexed memory slices from `context/people/<sender>.md` and `context/channels/<channel>.md`
 - workspace-configured command sources from `context.sources`
@@ -72,7 +72,7 @@ another.
         "type": "command",
         "id": "finance_alerts",
         "command": "finance-shrimpy alerts context",
-        "channels": ["heartbeat", "finance"],
+        "channels": ["maintenance", "finance"],
         "timeoutMs": 5000,
         "maxChars": 1200,
         "freshForMs": 60000
@@ -82,7 +82,7 @@ another.
 }
 ```
 
-`context.turn.maxChars` controls the total rendered turn-context budget. `context.turn.sessionStatus` controls scheduled-turn session recency pointers. Command-source `freshForMs` controls how long Shrimpy may reuse command output before running the command again. Preview runs do not update freshness state.
+`context.turn.maxChars` controls the total rendered turn-context budget. `context.turn.sessionStatus` controls watch-turn session recency pointers. Command-source `freshForMs` controls how long Shrimpy may reuse command output before running the command again. Preview runs do not update freshness state.
 
 ## Inspection
 

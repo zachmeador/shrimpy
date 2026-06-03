@@ -6,7 +6,7 @@ Every Shrimpy feature is reachable through a `shrimpy <command>` subcommand. Com
 
 Command metadata lives in `src/commands/catalog.ts`. Top-level `shrimpy --help`, group usage text, and shell completion are generated from that catalog so command names, options, and docs have one source to compare against.
 
-Canonical resource groups currently keep the implemented names: singular `agent` and `surface`, plural `channels`, `sessions`, `schedules`, `skills`, `models`, and `users`. Prefer standard verbs for new commands: `list`, `show`, `read`, `create`/`add`, `set`, `remove`, `tail`, `run`, and `status`. Inspection commands intended for agents should expose `--json`.
+Canonical resource groups currently keep the implemented names: singular `agent` and `surface`, plural `channels`, `sessions`, `watches`, `skills`, `models`, and `users`. Prefer standard verbs for new commands: `list`, `show`, `read`, `create`/`add`, `set`, `remove`, `tail`, `run`, and `status`. Inspection commands intended for agents should expose `--json`.
 
 ## Session Commands
 
@@ -37,12 +37,12 @@ Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--js
 | `shrimpy setup` | Initialize and launch setup flow. |
 | `shrimpy setup init` | Create baseline workspace files. |
 | `shrimpy setup telegram` | Guided Telegram config. |
-| `shrimpy status` | Show workspace, gateway, channels, scheduled-run, and Telegram offset status. |
-| `shrimpy schedules [--agent <id>] [--json]` | Inspect configured recurring schedules and one-time schedules, including target channels, expected wake decisions, next runs, and recent emitted messages. |
-| `shrimpy schedules list --one-time [--status <status>] [--json]` | Inspect pending, fired, cancelled, failed, or expired one-time schedules. |
-| `shrimpy schedules once (--at <time>\|--in <duration>) --channel <name> --text <text> [--agent <id>]` | Create a durable one-time scheduled channel message. Agents use this CLI command too; there is no scheduling daemon tool. |
-| `shrimpy schedules cancel <schedule-id> [--json]` | Cancel a pending one-time schedule. |
-| `shrimpy schedules show <schedule-id> [--json]` | Show one resolved recurring or one-time schedule; agent-owned recurring schedules use `agent-id/local-schedule-id`. |
+| `shrimpy status` | Show workspace, gateway, channels, watch-run, and Telegram offset status. |
+| `shrimpy watches [--agent <id>] [--json]` | Inspect configured agent-owned watches, including source paths, target channels, expected wake decisions, next runs, active runs, and recent history. |
+| `shrimpy watches add <id> --agent <id> (--cron <expr>\|--every <dur>) --channel <name> --message <text>` | Add a simple agent-owned time watch. |
+| `shrimpy watches show <agent-id>/<watch-id> [--json]` | Show one resolved watch with diagnostics and inspect commands. |
+| `shrimpy watches history <agent-id>/<watch-id> [--limit N] [--json]` | Show recent run records for one watch. |
+| `shrimpy watches run <agent-id>/<watch-id> [--json]` | Run one watch immediately and record it in watch history. |
 | `shrimpy context` | Render assembled session prompt context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |
@@ -63,7 +63,7 @@ agent channel policy, and egress behavior behind these commands.
 | `shrimpy channels` | List channels. |
 | `shrimpy channels show <name>` | Inspect one channel, including membership, recent request-like messages, message kind counts, and traceable source records. |
 | `shrimpy channels read <name>` | Read recent channel messages. |
-| `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]` | Search and filter channel messages. `--kind` accepts `user_text`, `agent_text`, `scheduler`, `worker`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--schedule`, and `--source-kind`. |
+| `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]` | Search and filter channel messages. `--kind` accepts `user_text`, `agent_text`, `watch`, `worker`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--watch`, and `--source-kind`. |
 | `shrimpy channels tail <name>` | Watch a channel log. |
 | `shrimpy channels create <name>` | Create/bootstrap channel membership. |
 | `shrimpy channels post <name> <text>` | Post a CLI human message into a channel log. |
@@ -90,8 +90,6 @@ agent channel policy, and egress behavior behind these commands.
 | `shrimpy agent channel-policy set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel policy fields without rewriting the rest of the policy. |
 | `shrimpy agent channel-policy clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel policy fields; `--channel` with no fields removes the whole override. |
 | `shrimpy agent channel-policy explain <id> --channel <name> --sender <human\|agent\|system> --text <text> [--actor-id <id>] [--user-id <id>] [--addressed <id>]` | Explain whether a visible sample message would become a turn, including membership visibility and effective policy filters. |
-| `shrimpy agent schedules <id>` | List one agent's schedule definitions. |
-| `shrimpy agent schedule <id> <schedule-id>` | Show one agent schedule definition. |
 | `shrimpy agent rename <old> <new>` | Rename an agent and update local state. |
 | `shrimpy agent remove <id>` | Remove an agent from config/state. |
 | `shrimpy skills list [--agent <id>] [--json]` | List the effective Pi-loaded agent and workspace skill view, including warnings. |
@@ -107,7 +105,7 @@ agent channel policy, and egress behavior behind these commands.
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy gateway status` | Show gateway activity and scheduler status. |
+| `shrimpy gateway status` | Show gateway activity and watch clock status. |
 | `shrimpy gateway logs` | Print recent `workspace/runtime/logs/gateway.log` lines. |
 | `shrimpy gateway logs --lines 200` | Print a specific number of log lines. |
 | `shrimpy gateway logs --follow` | Follow the workspace gateway log. |

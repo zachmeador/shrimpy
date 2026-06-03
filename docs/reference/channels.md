@@ -5,7 +5,7 @@ facts, and evidence. Sessions do the private thinking; channels are the shared
 communication record.
 
 A channel can represent a home chat, a surface thread, an agent DM, a group, a
-system feed, a work log, or a scheduler target. Channel logs live as append-only
+system feed, a work log, or a watch target. Channel logs live as append-only
 JSONL files under `workspace/channels/`.
 
 ## Message Protocol
@@ -44,15 +44,14 @@ Each channel message has:
 
 `origin` records where the message came from and how it should be interpreted:
 
-- `transport` is a producer label such as `cli`, `internal`, `scheduler`, or a
+- `transport` is a producer label such as `cli`, `internal`, `watch`, or a
   surface name such as `telegram`.
 - `sourceChannel` points back to the source channel when a message is relayed or
   published.
 - `transportUserId` and `transportChatId` keep transport ids out of agent
   policy.
 - `addressedAgentId` is addressing metadata for visible agents to evaluate.
-- scheduler-origin messages can also carry `scheduleId` and `schedule`
-  provenance.
+- watch-origin messages can also carry `watchId` and `watch` provenance.
 
 `content.type` is one of `text`, `image`, `image_group`, `unsupported_media`,
 or `system`. Publication helpers such as `reply`, `ask`, `notify`, and
@@ -160,7 +159,7 @@ shrimpy agent channel-policy set <id> --channel hangout --mode all --senders hum
 ## Addressing
 
 `origin.addressedAgentId` is a message fact, not delivery authorization. It can
-come from a surface thread state, CLI injection, or scheduler target metadata.
+come from a surface thread state, CLI injection, or watch target metadata.
 
 This supports a one-visible-account pattern:
 
@@ -192,7 +191,7 @@ shrimpy channels tail <name>
 ```
 
 `channels search` can filter by message kind, sender kind, transport, actor id,
-content type, addressed agent, schedule id, and source kind. `channels show`
+content type, addressed agent, watch id, and source kind. `channels show`
 summarizes membership, message kind counts, recent request-like messages, and
 traceable source records.
 
@@ -217,19 +216,21 @@ agent DMs. Agent DM channel names are canonical sorted names like
 `dm~agent-a~agent-b` and are internal channels unless an adapter is deliberately
 configured for them.
 
-## Schedules
+## Watches
 
-Recurring and one-time schedules emit ordinary scheduler-authored channel
-messages. The target channel records the scheduled work, and the owner/target
-agent still needs both channel visibility and an agent channel policy that wakes
-for the scheduler message.
+Message watches emit ordinary watch-authored channel messages. The target
+channel records the watch work, and the owner/target agent still needs both
+channel visibility and an agent channel policy that wakes for the watch message.
+Command watches can also emit channel messages when their `emit.policy` matches
+the command observation.
 
-Inspect schedule delivery with:
+Inspect watch delivery with:
 
 ```bash
-shrimpy schedules
-shrimpy schedules show <schedule-id>
-shrimpy channels search <channel> --schedule <schedule-id>
+shrimpy watches
+shrimpy watches show <agent-id>/<watch-id>
+shrimpy watches history <agent-id>/<watch-id>
+shrimpy channels search <channel> --kind watch
 ```
 
 ## Boundaries

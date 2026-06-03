@@ -100,7 +100,7 @@ This idea should not require:
 
 - a privileged hidden control plane for one special agent
 - the mechanic silently mutating the main agent's identity
-- a second unrelated scheduler, session type, or surface model
+- a second unrelated clock, session type, or surface model
 - replacing skills with agents everywhere
 - forcing the user to always talk to the mechanic directly
 

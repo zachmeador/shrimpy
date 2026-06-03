@@ -79,8 +79,9 @@ limit comes from `tools.readChannel.defaultLimit`.
 persistence under the agent workspace while reusing Shrimpy's Pi auth and model
 registry. See [sessions.md](sessions.md#session-kinds).
 
-Scheduling is intentionally CLI-only: agents create one-time follow-ups with
-`shrimpy schedules once --at/--in ...`, not a daemon tool.
+Background attention rules are configured as agent-owned watches in
+`agents/<id>/watches.json` and inspected with `shrimpy watches`; there is no
+separate scheduling daemon tool.
 
 ## Agent Policy
 

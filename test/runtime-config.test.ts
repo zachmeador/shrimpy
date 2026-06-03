@@ -15,14 +15,6 @@ describe("resolveRuntimeConfig", () => {
         enabled: true,
         reserveTokens: 32768,
         keepRecentTokens: 30000,
-        channels: {
-          heartbeat: {
-            thresholdTokens: 100000,
-            keepRecentTokens: 30000,
-            instructions:
-              "For heartbeat compaction, preserve unresolved follow-ups, active or stale sessions, recent user interactions, memory changes, and decisions that changed future behavior. Collapse repetitive no-op heartbeat turns into a short time-bounded note.",
-          },
-        },
       },
     });
   });
@@ -42,14 +34,6 @@ describe("resolveRuntimeConfig", () => {
         enabled: true,
         reserveTokens: 32768,
         keepRecentTokens: 16000,
-        channels: {
-          heartbeat: {
-            thresholdTokens: 100000,
-            keepRecentTokens: 30000,
-            instructions:
-              "For heartbeat compaction, preserve unresolved follow-ups, active or stale sessions, recent user interactions, memory changes, and decisions that changed future behavior. Collapse repetitive no-op heartbeat turns into a short time-bounded note.",
-          },
-        },
       },
     });
   });
@@ -65,24 +49,21 @@ describe("resolveRuntimeConfig", () => {
     );
   });
 
-  test("resolves heartbeat threshold against the selected model window", () => {
+  test("uses base compaction policy when no channel override is configured", () => {
     const policy = resolveSessionCompactionPolicy({
       runtimeConfig: resolveRuntimeConfig(),
       descriptor: {
         kind: "gateway",
-        channel: "heartbeat",
-        sessionDir: "/tmp/shrimpy/sessions/heartbeat",
+        channel: "maintenance",
+        sessionDir: "/tmp/shrimpy/sessions/maintenance",
       },
       model: { contextWindow: 262144 } as any,
     });
 
-    assert.equal(policy.thresholdTokens, 100000);
-    assert.equal(policy.reserveTokens, 162144);
+    assert.equal(policy.thresholdTokens, undefined);
+    assert.equal(policy.reserveTokens, 32768);
     assert.equal(policy.keepRecentTokens, 30000);
-    assert.deepEqual(policy.matched, [
-      "runtime.compaction",
-      "runtime.compaction.channels.heartbeat",
-    ]);
+    assert.deepEqual(policy.matched, ["runtime.compaction"]);
   });
 
   test("lets exact session labels override channel compaction policy", () => {
@@ -90,17 +71,17 @@ describe("resolveRuntimeConfig", () => {
       runtimeConfig: resolveRuntimeConfig({
         compaction: {
           channels: {
-            heartbeat: { thresholdTokens: 100000, keepRecentTokens: 30000 },
+            maintenance: { thresholdTokens: 100000, keepRecentTokens: 30000 },
           },
           sessions: {
-            heartbeat: { thresholdTokens: 80000, keepRecentTokens: 12000 },
+            maintenance: { thresholdTokens: 80000, keepRecentTokens: 12000 },
           },
         },
       }),
       descriptor: {
         kind: "gateway",
-        channel: "heartbeat",
-        sessionDir: "/tmp/shrimpy/sessions/heartbeat",
+        channel: "maintenance",
+        sessionDir: "/tmp/shrimpy/sessions/maintenance",
       },
       model: { contextWindow: 262144 } as any,
     });
@@ -110,8 +91,8 @@ describe("resolveRuntimeConfig", () => {
     assert.equal(policy.keepRecentTokens, 12000);
     assert.deepEqual(policy.matched, [
       "runtime.compaction",
-      "runtime.compaction.channels.heartbeat",
-      "runtime.compaction.sessions.heartbeat",
+      "runtime.compaction.channels.maintenance",
+      "runtime.compaction.sessions.maintenance",
     ]);
   });
 

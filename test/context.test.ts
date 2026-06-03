@@ -185,18 +185,24 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: shrimpy agent channel-policy explain shrimpy --channel home --sender human --actor-id human:alice --addressed shrimpy --text 'please handle this'/);
   });
 
-  test("includes scheduler message facts", async () => {
+  test("includes watch message facts", async () => {
     const runtime = createAppRuntime({ workspace });
     const current = runtime.createChannelBus().publish({
       channel: "home",
-      sender: { kind: "system", actorId: "system:scheduler" },
+      sender: { kind: "system", actorId: "system:watch-runner" },
       origin: {
-        transport: "scheduler",
-        scheduleId: "daily-check",
+        transport: "watch",
+        watchId: "daily-check",
         runId: "run-1",
         sourceChannel: "home",
+        watch: {
+          ownerAgentId: "shrimpy",
+          localId: "daily-check",
+          targetChannel: "home",
+          actionKind: "message",
+        },
       },
-      content: textContent("scheduled tick"),
+      content: textContent("watch tick"),
       timestamp: Date.parse("2026-05-02T12:00:00Z"),
     });
 
@@ -207,79 +213,42 @@ describe("buildTurnContext", () => {
     });
     const text = renderTurnContext(turnContext);
 
-    assert.match(text, /routed via scheduler; from system:system:scheduler; in channel home/);
-    assert.match(text, /scheduled message; daily-check; run run-1; fired .*(Sat|Saturday).*\d{1,2}:\d{2}/);
+    assert.match(text, /routed via watch; from system:system:watch-runner; in channel home/);
+    assert.match(text, /watch message; daily-check; owner shrimpy; local daily-check; target home; action message; run run-1; fired .*(Sat|Saturday).*\d{1,2}:\d{2}/);
     assert.doesNotMatch(text, /2026-05-02T12:00:00\.000Z/);
-    assert.match(text, /inspect: shrimpy schedules show daily-check/);
+    assert.match(text, /inspect: shrimpy watches show daily-check/);
   });
 
-  test("includes one-time scheduler message facts", async () => {
-    const runtime = createAppRuntime({ workspace });
-    const current = runtime.createChannelBus().publish({
-      channel: "home",
-      sender: { kind: "system", actorId: "system:scheduler" },
-      origin: {
-        transport: "scheduler",
-        scheduleId: "once-test",
-        runId: "run-1",
-        sourceChannel: "home",
-        schedule: {
-          kind: "one_time",
-          targetChannel: "home",
-          trigger: {
-            type: "once",
-            dueAt: "2026-05-02T12:00:00.000Z",
-          },
-          source: {
-            kind: "cli",
-          },
-        },
-      },
-      content: textContent("scheduled tick"),
-      timestamp: Date.parse("2026-05-02T12:00:01Z"),
-    });
-
-    const turnContext = await buildTurnContext({
-      runtime,
-      descriptor: descriptor("shrimpy", "gateway", "home"),
-      currentMessage: current,
-    });
-    const text = renderTurnContext(turnContext);
-
-    assert.match(text, /one-time scheduled message; once-test; target home; due 2026-05-02T12:00:00\.000Z; source cli; run run-1/);
-    assert.match(text, /inspect: shrimpy schedules show once-test/);
-  });
-
-  test("omits session status on scheduled turns with no active sessions", async () => {
+  test("omits session status on watch turns with no active sessions", async () => {
     const runtime = createAppRuntime({ workspace });
     const current = makeMessage({
-      sender: { kind: "system", actorId: "system:scheduler" },
-      origin: { transport: "scheduler", scheduleId: "daily-check" },
-      content: textContent("scheduled tick"),
+      sender: { kind: "system", actorId: "system:watch-runner" },
+      origin: { transport: "watch", watchId: "daily-check" },
+      content: textContent("watch tick"),
     });
 
     const turnContext = await buildTurnContext({
       runtime,
-      descriptor: descriptor("shrimpy", "gateway", "heartbeat"),
+      descriptor: descriptor("shrimpy", "gateway", "maintenance"),
       currentMessage: current,
     });
 
     assert.doesNotMatch(renderTurnContext(turnContext), /sessions: /);
   });
 
-  test("includes recent and stale session status on scheduled turns", async () => {
+  test("includes recent and stale session status on watch turns", async () => {
     writeActiveSessionFile("ops", 4 * 60 * 1000);
     writeActiveSessionFile("research", 13 * 60 * 60 * 1000);
     const runtime = createAppRuntime({ workspace });
     const current = makeMessage({
-      sender: { kind: "system", actorId: "system:scheduler" },
-      origin: { transport: "scheduler", scheduleId: "daily-check" },
-      content: textContent("scheduled tick"),
+      sender: { kind: "system", actorId: "system:watch-runner" },
+      origin: { transport: "watch", watchId: "daily-check" },
+      content: textContent("watch tick"),
     });
 
     const turnContext = await buildTurnContext({
       runtime,
-      descriptor: descriptor("shrimpy", "gateway", "heartbeat"),
+      descriptor: descriptor("shrimpy", "gateway", "maintenance"),
       currentMessage: current,
     });
     const text = renderTurnContext(turnContext);

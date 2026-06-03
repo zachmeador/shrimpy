@@ -3,44 +3,44 @@ import assert from "node:assert/strict";
 import { resolveGatewayStatusConfig } from "../dist/config/gateway-status.js";
 
 describe("resolveGatewayStatusConfig", () => {
-  test("returns empty watched schedules when config is omitted", () => {
+  test("returns empty watched watches when config is omitted", () => {
     assert.deepEqual(resolveGatewayStatusConfig(), {
-      watchedSchedules: [],
+      watchedWatches: [],
     });
   });
 
   test("merges custom values", () => {
     assert.deepEqual(
       resolveGatewayStatusConfig({
-        watchedSchedules: [{
+        watchedWatches: [{
           label: "pulse",
           channel: "ops",
-          scheduleId: "ops/pulse",
+          watchId: "ops/pulse",
         }],
       }),
       {
-        watchedSchedules: [{
+        watchedWatches: [{
           label: "pulse",
           channel: "ops",
-          scheduleId: "ops/pulse",
+          watchId: "ops/pulse",
         }],
       },
     );
   });
 
-  test("falls back to schedule id as label", () => {
+  test("falls back to watch id as label", () => {
     assert.deepEqual(
       resolveGatewayStatusConfig({
-        watchedSchedules: [{
+        watchedWatches: [{
           channel: "ops",
-          scheduleId: "ops/pulse",
+          watchId: "ops/pulse",
         }],
       }),
       {
-        watchedSchedules: [{
+        watchedWatches: [{
           label: "ops/pulse",
           channel: "ops",
-          scheduleId: "ops/pulse",
+          watchId: "ops/pulse",
         }],
       },
     );
@@ -49,19 +49,19 @@ describe("resolveGatewayStatusConfig", () => {
   test("rejects invalid values", () => {
     assert.throws(
       () => resolveGatewayStatusConfig({
-        watchedSchedules: [{
+        watchedWatches: [{
           label: "",
           channel: "ops",
-          scheduleId: "ops/pulse",
+          watchId: "ops/pulse",
         }],
       }),
       /Expected string length greater or equal to 1/,
     );
     assert.throws(
       () => resolveGatewayStatusConfig({
-        watchedSchedules: [
-          { label: "pulse", channel: "ops", scheduleId: "ops/pulse" },
-          { label: "pulse", channel: "ops", scheduleId: "ops/other" },
+        watchedWatches: [
+          { label: "pulse", channel: "ops", watchId: "ops/pulse" },
+          { label: "pulse", channel: "ops", watchId: "ops/other" },
         ],
       }),
       /duplicate label "pulse"/,

@@ -18,24 +18,24 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   mkdirSync(join(workspace, "agents", "admin", "skills", "agent-skill"), { recursive: true });
   writeFileSync(join(workspace, "channels", "home.jsonl"), "{}\n{}\n");
   writeFileSync(
-    join(workspace, "state", "one-time-schedules.json"),
+    join(workspace, "state", "watch-clock.json"),
     JSON.stringify({
-      version: 1,
-      records: [{
-        id: "once-ui",
-        targetChannel: "home",
-        text: "check later",
-        dueAtMs: Date.parse("2030-01-01T00:00:00.000Z"),
-        dueAtIso: "2030-01-01T00:00:00.000Z",
-        ownerAgentId: "admin",
-        source: { kind: "cli", agentId: "admin" },
-        status: "pending",
-        createdAtMs: Date.parse("2026-05-01T00:00:00.000Z"),
-        createdAtIso: "2026-05-01T00:00:00.000Z",
-        updatedAtMs: Date.parse("2026-05-01T00:00:00.000Z"),
-        updatedAtIso: "2026-05-01T00:00:00.000Z",
-      }],
+      "admin/daily-check": { nextRunAtMs: Date.parse("2030-01-01T00:00:00.000Z") },
     }),
+    "utf-8",
+  );
+  writeFileSync(
+    join(workspace, "agents", "admin", "watches.json"),
+    JSON.stringify([{
+      id: "daily-check",
+      trigger: { kind: "time", everyMs: 60_000 },
+      concurrencyPolicy: "forbid",
+      action: {
+        kind: "message",
+        channel: "home",
+        text: "Run a daily workspace check.",
+      },
+    }]),
     "utf-8",
   );
   writeFileSync(join(workspace, "skills", "workspace-skill", "SKILL.md"), "# Workspace Skill\n");
@@ -63,7 +63,7 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
 
   await mode.defaultEditor.onSubmit!("/status");
   await mode.defaultEditor.onSubmit!("/status gateway");
-  await mode.defaultEditor.onSubmit!("/status schedules");
+  await mode.defaultEditor.onSubmit!("/status watches");
   await mode.defaultEditor.onSubmit!("/status agents");
   await mode.defaultEditor.onSubmit!("/status channels");
   await mode.defaultEditor.onSubmit!("/status skills");
@@ -78,9 +78,10 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   assert.match(chat, /Gateway service:/);
   assert.match(chat, /Tracked channels: 1/);
   assert.match(chat, /shrimpy gateway status/);
-  assert.match(chat, /One-time pending: 1/);
-  assert.match(chat, /\* once-ui pending -> home/);
-  assert.match(chat, /shrimpy schedules list --one-time/);
+  assert.match(chat, /Configured: 1/);
+  assert.match(chat, /Agent admin: 1/);
+  assert.match(chat, /\* admin\/daily-check enabled time every 60000ms action=message -> home/);
+  assert.match(chat, /shrimpy watches history <agent-id>\/<watch-id>/);
   assert.match(chat, /Agents/);
   assert.match(chat, /\* admin root=agents\/admin tools=send_message thinking=high/);
   assert.match(chat, /home 2 msgs/);

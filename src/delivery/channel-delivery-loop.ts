@@ -25,7 +25,7 @@ interface ChannelDeliveryLoopOpts {
 export function shouldDispatchBacklogMessage(message: ChannelMessage): boolean {
   if (isSessionControlMessage(message)) return true;
   if (message.sender.kind !== "system") return true;
-  return message.origin.transport !== "scheduler";
+  return message.origin.transport !== "watch";
 }
 
 export class ChannelDeliveryLoop {

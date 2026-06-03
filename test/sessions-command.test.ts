@@ -132,14 +132,15 @@ describe("cmdSessions", () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "heartbeat", "--json"], { workspace } as any)
+      cmdSessions(["compaction", "maintenance", "--json"], { workspace } as any)
     );
 
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
     assert.equal(summary.agentId, "shrimpy");
-    assert.equal(summary.channel, "heartbeat");
-    assert.equal(summary.effective.thresholdTokens, 100000);
+    assert.equal(summary.channel, "maintenance");
+    assert.equal(summary.effective.thresholdTokens, undefined);
+    assert.equal(summary.effective.reserveTokens, 32768);
     assert.equal(summary.effective.keepRecentTokens, 30000);
     assert.equal(summary.recorded, undefined);
     assert.equal(summary.restartRequired, false);
@@ -152,11 +153,11 @@ describe("cmdSessions", () => {
     const sessionDir = createGatewaySessionDescriptor({
       workspacePath: agentRoot,
       agentId: "shrimpy",
-      channel: "heartbeat",
+      channel: "maintenance",
     }).sessionDir;
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(
-      join(sessionDir, "heartbeat-active.jsonl"),
+      join(sessionDir, "maintenance-active.jsonl"),
       `${JSON.stringify({
         type: "custom",
         customType: "shrimpy_compaction_policy",
@@ -174,13 +175,13 @@ describe("cmdSessions", () => {
     );
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "heartbeat", "--json"], { workspace } as any)
+      cmdSessions(["compaction", "maintenance", "--json"], { workspace } as any)
     );
 
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
     assert.equal(summary.recorded.thresholdTokens, 229376);
-    assert.equal(summary.effective.thresholdTokens, 100000);
+    assert.equal(summary.effective.thresholdTokens, undefined);
     assert.equal(summary.restartRequired, true);
     assert.match(summary.note, /different compaction policy/);
   });
@@ -224,7 +225,7 @@ describe("cmdSessions", () => {
     });
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "heartbeat", "--json"], config as any)
+      cmdSessions(["compaction", "maintenance", "--json"], config as any)
     );
 
     assert.equal(result, 0);
@@ -239,7 +240,7 @@ describe("cmdSessions", () => {
         temperature: 0.7,
       },
     });
-    assert.equal(summary.effective.reserveTokens, 100000);
+    assert.equal(summary.effective.reserveTokens, 32768);
   });
 
   test("reports stale recorded model metadata for active sessions", async () => {
@@ -277,11 +278,11 @@ describe("cmdSessions", () => {
     const sessionDir = createGatewaySessionDescriptor({
       workspacePath: agentRoot,
       agentId: "shrimpy",
-      channel: "heartbeat",
+      channel: "maintenance",
     }).sessionDir;
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(
-      join(sessionDir, "heartbeat-active.jsonl"),
+      join(sessionDir, "maintenance-active.jsonl"),
       `${JSON.stringify({
         type: "custom",
         customType: "shrimpy_session_metadata",
@@ -305,7 +306,7 @@ describe("cmdSessions", () => {
       })}\n${JSON.stringify({
         type: "custom",
         customType: "shrimpy_compaction_policy",
-        data: heartbeatCompactionPolicy(),
+        data: recordedDefaultCompactionPolicy(),
         id: "policy",
         parentId: null,
         timestamp: new Date().toISOString(),
@@ -313,7 +314,7 @@ describe("cmdSessions", () => {
     );
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "heartbeat", "--json"], config as any)
+      cmdSessions(["compaction", "maintenance", "--json"], config as any)
     );
 
     assert.equal(result, 0);
@@ -398,17 +399,11 @@ function modelProvider(models: Array<Record<string, unknown>>): Record<string, u
   };
 }
 
-function heartbeatCompactionPolicy(): Record<string, unknown> {
+function recordedDefaultCompactionPolicy(): Record<string, unknown> {
   return {
     enabled: true,
-    reserveTokens: 100000,
-    thresholdTokens: 100000,
+    reserveTokens: 32768,
     keepRecentTokens: 30000,
-    instructions:
-      "For heartbeat compaction, preserve unresolved follow-ups, active or stale sessions, recent user interactions, memory changes, and decisions that changed future behavior. Collapse repetitive no-op heartbeat turns into a short time-bounded note.",
-    matched: [
-      "runtime.compaction",
-      "runtime.compaction.channels.heartbeat",
-    ],
+    matched: ["runtime.compaction"],
   };
 }

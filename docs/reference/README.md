@@ -7,7 +7,7 @@ Current behavior of Shrimpy.
 - [overview.md](overview.md) — orientation and current shape.
 - [design.md](design.md) — current design principles and constraints.
 - [architecture.md](architecture.md) — primitives, layering, and the boundaries that hold today.
-- [runtime.md](runtime.md) — direct runs, gateway dispatch, scheduler runs, child runs.
+- [runtime.md](runtime.md) — direct runs, gateway dispatch, watch runs, child runs.
 - [channels.md](channels.md) — message protocol, membership, addressing, policy, inspection, and egress.
 - [sessions.md](sessions.md) — session kinds, files, lifecycle, model metadata, and inspection.
 - [tools.md](tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.

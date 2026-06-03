@@ -8,10 +8,6 @@ import {
   cmdAgentRename,
 } from "./agent-identity.js";
 import {
-  cmdAgentSchedule,
-  cmdAgentSchedules,
-} from "./agent-schedules.js";
-import {
   cmdAgentRun,
   cmdAgentTui,
 } from "./agent-session.js";
@@ -45,8 +41,6 @@ function createAgentCommand(json: boolean): CommandHandler {
       set: ({ argv, config, usage }) => cmdAgentSet(config, argv, json, usage),
       "channel-policy": ({ argv, config, usage }) =>
         cmdAgentChannelPolicy(config, argv, json, usage),
-      schedules: ({ argv, config, usage }) => cmdAgentSchedules(config, argv, json, usage),
-      schedule: ({ argv, config, usage }) => cmdAgentSchedule(config, argv, json, usage),
     },
   });
 }

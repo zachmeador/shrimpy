@@ -1,13 +1,13 @@
 ---
 name: memory-management
 description: |
-  Periodic upkeep of my own context/ directory. Run when scheduled; gate on
+  Periodic upkeep of my own context/ directory. Run when my watch fires; gate on
   activity, write in my own voice, prune as I go.
 ---
 
 # Memory Management
 
-This skill is invoked by my scheduled upkeep run. The job is to look at recent
+This skill is invoked by my default upkeep watch. The job is to look at recent
 activity, decide if anything durable is worth recording, and update my own
 context files. If nothing's durable, do nothing.
 

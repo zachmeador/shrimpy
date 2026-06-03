@@ -23,7 +23,7 @@ import {
 import { createAgentPaths, createWorkspacePaths } from "./app/index.js";
 import { writeChannelMemberships } from "./channels/membership.js";
 import {
-  createDefaultShrimpySchedules,
+  createDefaultShrimpyWatches,
   createDefaultStatusConfig,
 } from "./setup/defaults.js";
 import {
@@ -184,7 +184,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
         },
       },
     },
-    scheduler: {
+    watchClock: {
       tickIntervalMs: 1000,
     },
     status: createDefaultStatusConfig(),
@@ -222,6 +222,10 @@ function workspaceSkillBundleFiles(
   docsPath: string,
 ): Array<{ path: string; content: string }> {
   return [
+    {
+      path: workspaceSkillPath(workspace, "add-agent"),
+      content: loadSetupTemplate("skills/add-agent/SKILL.md", docsPath),
+    },
     {
       path: workspaceSkillPath(workspace, "memory-management"),
       content: loadSetupTemplate("skills/memory-management/SKILL.md", docsPath),
@@ -292,12 +296,12 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
     existing.push(configTargetPath);
   }
 
-  const schedulesTargetPath = agentPaths.schedulesPath;
-  if (!existsSync(schedulesTargetPath)) {
-    writeJsonFileAtomic(schedulesTargetPath, createDefaultShrimpySchedules());
-    created.push(schedulesTargetPath);
+  const watchesTargetPath = agentPaths.watchesPath;
+  if (!existsSync(watchesTargetPath)) {
+    writeJsonFileAtomic(watchesTargetPath, createDefaultShrimpyWatches());
+    created.push(watchesTargetPath);
   } else {
-    existing.push(schedulesTargetPath);
+    existing.push(watchesTargetPath);
   }
 
   const channelMembershipsPath = paths.channelMembershipsPath;
@@ -309,7 +313,7 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
             shrimpy: {},
           },
         },
-        heartbeat: {
+        maintenance: {
           agents: {
             shrimpy: {},
           },

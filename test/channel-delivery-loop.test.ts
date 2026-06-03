@@ -43,20 +43,20 @@ describe("shouldDispatchBacklogMessage", () => {
     );
   });
 
-  test("skips scheduler/system backlog messages", () => {
+  test("skips watch/system backlog messages", () => {
     assert.equal(
       shouldDispatchBacklogMessage({
         id: "system",
-        sender: { kind: "system", actorId: "system:scheduler" },
-        origin: { transport: "scheduler" },
-        content: { type: "system", data: { trigger: "scheduled" } },
+        sender: { kind: "system", actorId: "system:watch-runner" },
+        origin: { transport: "watch" },
+        content: { type: "system", data: { trigger: "watch" } },
         timestamp: Date.now(),
       }),
       false,
     );
   });
 
-  test("replays non-scheduler system backlog messages", () => {
+  test("replays non-generated system backlog messages", () => {
     assert.equal(
       shouldDispatchBacklogMessage({
         id: "system-cli",
@@ -510,7 +510,7 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(calls, ["career", "shrimpy"]);
   });
 
-  test("routes Scrappy-style scheduled messages through channel membership and agent channel policy", async () => {
+  test("routes Scrappy-style watch messages through channel membership and agent channel policy", async () => {
     const agents = resolveAgentsConfig([
       {
         id: "shrimpy",
@@ -526,7 +526,7 @@ describe("ChannelDeliveryLoop routing", () => {
             "telegram~main~4242": {
               mode: "all",
               senders: ["system"],
-              actorIds: ["system:scheduler"],
+              actorIds: ["system:watch-runner"],
             },
           },
         },
@@ -585,18 +585,18 @@ describe("ChannelDeliveryLoop routing", () => {
     ]));
 
     await dispatcher.dispatchMessage("telegram~main~4242", {
-      id: "scrappy-schedule",
-      sender: { kind: "system", actorId: "system:scheduler" },
+      id: "scrappy-watch",
+      sender: { kind: "system", actorId: "system:watch-runner" },
       origin: {
-        transport: "scheduler",
-        scheduleId: "ole_scrappy/morning-letter",
+        transport: "watch",
+        watchId: "ole_scrappy/morning-letter",
         runId: "run-1",
         sourceChannel: "telegram~main~4242",
-        schedule: {
+        watch: {
           ownerAgentId: "ole_scrappy",
           localId: "morning-letter",
           targetChannel: "telegram~main~4242",
-          inspect: ["shrimpy schedules show ole_scrappy/morning-letter"],
+          inspect: ["shrimpy watches show ole_scrappy/morning-letter"],
         },
       },
       content: {

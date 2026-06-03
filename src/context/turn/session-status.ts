@@ -4,8 +4,8 @@ import {
 } from "../../sessions/status.js";
 import type { TurnContextInput, TurnContextItem } from "./types.js";
 
-export function isScheduledTurn(input: TurnContextInput): boolean {
-  return input.currentMessage?.origin.transport === "scheduler";
+export function isGeneratedWakeTurn(input: TurnContextInput): boolean {
+  return input.currentMessage?.origin.transport === "watch";
 }
 
 export function buildSessionStatusItems(input: {
@@ -13,7 +13,7 @@ export function buildSessionStatusItems(input: {
   agentId: string;
 }): TurnContextItem[] {
   const config = input.turn.runtime.resolved.context.turn.sessionStatus;
-  if (!config.enabled || !isScheduledTurn(input.turn)) return [];
+  if (!config.enabled || !isGeneratedWakeTurn(input.turn)) return [];
 
   const staleAfterMs = config.staleAfterMinutes * 60 * 1000;
   const status = summarizeSessionStatus(input.turn.runtime, {

@@ -204,7 +204,7 @@ describe("cursor persistence", () => {
     const cursorsPath = join(testDir, "cursors.json");
     const cursors: Record<string, ChannelCursor> = {
       "telegram-123": { byteOffset: 456 },
-      heartbeat: { byteOffset: 789 },
+      maintenance: { byteOffset: 789 },
     };
 
     saveCursors(cursorsPath, cursors);

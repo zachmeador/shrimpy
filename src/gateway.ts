@@ -6,7 +6,7 @@
  * Three jobs:
  * 1. Channel adapters (Telegram polling → channel files)
  * 2. Channel watcher → SessionRegistry dispatch
- * 3. Scheduler (emits configured scheduled channel messages)
+ * 3. Watch clock (runs time-based agent-owned watches)
  */
 
 import { loadConfig } from "./config/index.js";
@@ -25,10 +25,10 @@ import {
   logGatewayStartup,
 } from "./gateway/runtime-helpers.js";
 import {
-  ensureGatewaySchedulesFile,
-  startGatewayScheduler,
-} from "./gateway/scheduler-service.js";
-import { saveSchedulerState } from "./scheduler/index.js";
+  ensureGatewayWatchFiles,
+  startGatewayWatchClock,
+} from "./gateway/watch-service.js";
+import { saveWatchClockState } from "./watches/index.js";
 import { ChannelDeliveryLoop } from "./delivery/channel-delivery-loop.js";
 import {
   createConfiguredGatewaySurfaces,
@@ -76,8 +76,8 @@ async function run() {
   await deliveryLoop.drainBacklog();
   deliveryLoop.start();
 
-  ensureGatewaySchedulesFile(runtime);
-  const scheduler = startGatewayScheduler(runtime, channelBus);
+  ensureGatewayWatchFiles(runtime);
+  const watchClock = startGatewayWatchClock(runtime, channelBus);
 
   let shuttingDown = false;
   async function shutdown(signal: string) {
@@ -85,8 +85,8 @@ async function run() {
     shuttingDown = true;
     console.log(`\n[gateway] ${signal} received, shutting down...`);
 
-    scheduler.stop();
-    saveSchedulerState(runtime.paths.schedulerStatePath, scheduler.getState());
+    watchClock.stop();
+    saveWatchClockState(runtime.paths.watchClockStatePath, watchClock.getState());
     await Promise.allSettled(surfaces.map((surface) => surface.stop()));
     await deliveryLoop.stop();
 

@@ -26,7 +26,7 @@ export function buildTurnFactItems(input: TurnFactInput): TurnContextItem[] {
     buildAgentDmItem(input, channel),
     buildAddressedItem(input.agentId, channel, message),
     buildWakeItem(input, channel, message),
-    buildSchedulerItem(message),
+    buildWatchItem(message),
   ].filter((item): item is TurnContextItem => item !== undefined);
 }
 
@@ -108,39 +108,30 @@ function buildWakeItem(
   };
 }
 
-function buildSchedulerItem(message: ChannelMessage): TurnContextItem | undefined {
-  if (message.origin.transport !== "scheduler") return undefined;
-  const pieces = [
-    message.origin.schedule?.kind === "one_time"
-      ? "one-time scheduled message"
-      : "scheduled message",
-  ];
-  if (message.origin.scheduleId) pieces.push(message.origin.scheduleId);
-  if (message.origin.schedule?.ownerAgentId) {
-    pieces.push(`owner ${message.origin.schedule.ownerAgentId}`);
+function buildWatchItem(message: ChannelMessage): TurnContextItem | undefined {
+  if (message.origin.transport !== "watch") return undefined;
+  const pieces = ["watch message"];
+  if (message.origin.watchId) pieces.push(message.origin.watchId);
+  if (message.origin.watch?.ownerAgentId) {
+    pieces.push(`owner ${message.origin.watch.ownerAgentId}`);
   }
-  if (message.origin.schedule?.localId) {
-    pieces.push(`local ${message.origin.schedule.localId}`);
+  if (message.origin.watch?.localId) {
+    pieces.push(`local ${message.origin.watch.localId}`);
   }
-  if (message.origin.schedule?.targetChannel) {
-    pieces.push(`target ${message.origin.schedule.targetChannel}`);
+  if (message.origin.watch?.targetChannel) {
+    pieces.push(`target ${message.origin.watch.targetChannel}`);
   }
-  const dueAt = message.origin.schedule?.trigger?.dueAt;
-  if (typeof dueAt === "string") {
-    pieces.push(`due ${dueAt}`);
-  }
-  const sourceKind = message.origin.schedule?.source?.kind;
-  if (typeof sourceKind === "string") {
-    pieces.push(`source ${sourceKind}`);
+  if (message.origin.watch?.actionKind) {
+    pieces.push(`action ${message.origin.watch.actionKind}`);
   }
   if (message.origin.runId) pieces.push(`run ${message.origin.runId}`);
   pieces.push(`fired ${formatAgentDateTime(message.timestamp)}`);
 
   return {
-    id: `turn:${message.id}:scheduler`,
+    id: `turn:${message.id}:watch`,
     summary: pieces.join("; "),
-    inspect: message.origin.scheduleId
-      ? `shrimpy schedules show ${message.origin.scheduleId}`
+    inspect: message.origin.watchId
+      ? `shrimpy watches show ${message.origin.watchId}`
       : "shrimpy gateway status",
   };
 }

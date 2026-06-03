@@ -38,7 +38,7 @@ export interface ShrimpyConfig {
   runtime?: RuntimeConfig;
   status?: GatewayStatusConfig;
   adapters?: AdapterRoutingConfig;
-  scheduler?: {
+  watchClock?: {
     tickIntervalMs?: number;
     defaultTimezone?: string;
   };

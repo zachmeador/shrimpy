@@ -19,6 +19,7 @@ export function ensureGatewayDirectories(runtime: AppRuntime): void {
     runtime.paths.runtimeDir,
     runtime.paths.runtimeCursorsDir,
     runtime.paths.runtimeContextDir,
+    runtime.paths.runtimeWatchesDir,
     runtime.paths.runtimePidsDir,
     runtime.paths.piStateDir,
     runtime.paths.channelsDir,

@@ -36,12 +36,18 @@ describe("setupInit", () => {
     const userPath = join(workspace, "profile", "USER.md");
     const systemPath = join(workspace, "profile", "SYSTEM.md");
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const schedulesPath = join(agentRoot, "schedules.json");
+    const watchesPath = join(agentRoot, "watches.json");
     const soulPath = join(agentRoot, "SOUL.md");
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
     const contextHabitsPath = join(agentRoot, "context", "habits.md");
     const sharedVaultPath = join(workspace, "vault");
     const sharedProjectsPath = join(workspace, "projects");
+    const addAgentSkillPath = join(
+      workspace,
+      "skills",
+      "add-agent",
+      "SKILL.md",
+    );
     const memoryManagementSkillPath = join(
       workspace,
       "skills",
@@ -72,7 +78,7 @@ describe("setupInit", () => {
 
     assert.equal(existsSync(configPath), true);
     assert.equal(existsSync(channelsConfigPath), true);
-    assert.equal(existsSync(schedulesPath), true);
+    assert.equal(existsSync(watchesPath), true);
     assert.equal(existsSync(workspaceDocPath), true);
     assert.equal(existsSync(userPath), true);
     assert.equal(existsSync(systemPath), true);
@@ -81,6 +87,7 @@ describe("setupInit", () => {
     assert.equal(existsSync(contextHabitsPath), true);
     assert.equal(existsSync(sharedVaultPath), true);
     assert.equal(existsSync(sharedProjectsPath), true);
+    assert.equal(existsSync(addAgentSkillPath), true);
     assert.equal(existsSync(memoryManagementSkillPath), true);
     assert.equal(existsSync(journalDailySkillPath), true);
     assert.equal(existsSync(journalCompactSkillPath), true);
@@ -90,7 +97,7 @@ describe("setupInit", () => {
     assert.equal(existsSync(setupValidatorPath), true);
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    assert.equal(config.scheduler.tickIntervalMs, 1000);
+    assert.equal(config.watchClock.tickIntervalMs, 1000);
     assert.deepEqual(config.status, {});
     assert.equal(config.agents[0].root, "agents/shrimpy");
     assert.deepEqual(config.agents[0].tools, [
@@ -123,30 +130,30 @@ describe("setupInit", () => {
       },
     });
 
-    const schedules = JSON.parse(readFileSync(schedulesPath, "utf-8"));
-    assert.equal(Array.isArray(schedules), true);
-    assert.deepEqual(schedules.map((schedule: any) => schedule.id), [
-      "heartbeat",
+    const watches = JSON.parse(readFileSync(watchesPath, "utf-8"));
+    assert.equal(Array.isArray(watches), true);
+    assert.deepEqual(watches.map((watch: any) => watch.id), [
       "memory-management",
       "journal-daily",
       "journal-compact",
     ]);
-    assert.equal(schedules[0].id, "heartbeat");
-    assert.equal(schedules[0].channel, "heartbeat");
-    assert.equal(typeof schedules[0].instructions, "string");
+    assert.equal(watches[0].id, "memory-management");
+    assert.deepEqual(watches[0].trigger, { kind: "time", cron: "0 3 * * *" });
+    assert.equal(watches[0].action.kind, "message");
+    assert.equal(watches[0].action.channel, "maintenance");
     assert.deepEqual(
-      schedules.map((schedule: any) => schedule.channel),
-      ["heartbeat", "heartbeat", "heartbeat", "heartbeat"],
+      watches.map((watch: any) => watch.action.channel),
+      ["maintenance", "maintenance", "maintenance"],
     );
-    assert.match(schedules[1].instructions, /memory-management/);
-    assert.match(schedules[2].instructions, /journal-daily/);
-    assert.match(schedules[3].instructions, /journal-compact/);
+    assert.match(watches[0].action.text, /memory-management/);
+    assert.match(watches[1].action.text, /journal-daily/);
+    assert.match(watches[2].action.text, /journal-compact/);
 
     const channelMemberships = JSON.parse(readFileSync(channelsConfigPath, "utf-8"));
     assert.deepEqual(channelMemberships.channels.home.agents, {
       shrimpy: {},
     });
-    assert.deepEqual(channelMemberships.channels.heartbeat.agents, {
+    assert.deepEqual(channelMemberships.channels.maintenance.agents, {
       shrimpy: {},
     });
 
@@ -183,6 +190,10 @@ describe("setupInit", () => {
     const habits = readFileSync(contextHabitsPath, "utf-8");
     assert.match(habits, /How I tend to work/);
 
+    const addAgent = readFileSync(addAgentSkillPath, "utf-8");
+    assert.match(addAgent, /name: add-agent/);
+    assert.match(addAgent, /shrimpy agent add/);
+    assert.match(addAgent, /channel-policy explain/);
     const memoryManagement = readFileSync(memoryManagementSkillPath, "utf-8");
     assert.match(memoryManagement, /name: memory-management/);
     assert.match(memoryManagement, /No special memory tool/);

@@ -1,6 +1,6 @@
 # WORKSPACE
 
-This workspace is the home system that contains Shrimpy agents, channels, sessions, schedules, and long-lived state.
+This workspace is the home system that contains Shrimpy agents, channels, sessions, watches, and long-lived state.
 
 - Agent roots live under `agents/`.
 - Shared profile instructions live under `profile/`.

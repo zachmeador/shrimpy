@@ -415,7 +415,7 @@ describe("cmdAgent lifecycle", () => {
         home: {
           mode: "all",
           senders: ["system"],
-          actorIds: ["system:scheduler"],
+          actorIds: ["system:watch-runner"],
         },
       },
     };
@@ -432,7 +432,7 @@ describe("cmdAgent lifecycle", () => {
         "--sender",
         "system",
         "--actor-id",
-        "system:scheduler",
+        "system:watch-runner",
         "--text",
         "tick",
       ], config as any)
@@ -440,9 +440,9 @@ describe("cmdAgent lifecycle", () => {
 
     assert.equal(result, 0);
     assert.ok(lines.includes("sender: system"));
-    assert.ok(lines.includes("actor_id: system:scheduler"));
+    assert.ok(lines.includes("actor_id: system:watch-runner"));
     assert.ok(lines.includes("effective_senders: system"));
-    assert.ok(lines.includes("effective_actor_ids: system:scheduler"));
+    assert.ok(lines.includes("effective_actor_ids: system:watch-runner"));
   });
 
   test("rejects channel policy set with no fields and clear with no target", async () => {

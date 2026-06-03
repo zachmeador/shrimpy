@@ -10,19 +10,18 @@ profile/SYSTEM.md               Shrimpy + Pi guidance, memory conventions, tool 
 profile/USER.md                 workspace owner identity and preferences
 config/shrimpy.json             main runtime config
 config/channels.json            channel membership
-config/schedules.json           optional workspace-level scheduler definitions
 vault/                          shared saved files and collections
 projects/                       shared code, apps, and experiment work
 agents/                         per-agent workspaces
 state/pi/auth.json              provider credentials
 state/pi/models.json            model registry
 state/users.json                identity links (transport→userId) + workspace owner
-state/scheduler.json            persisted scheduler next-run timestamps
-state/one-time-schedules.json   runtime one-time scheduled channel messages
+state/watch-clock.json            persisted watch next-run timestamps
 state/telegram/                 Telegram polling offsets
 runtime/cursors/channels.json   gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
 runtime/context/                generated turn-context state
+runtime/watches/                watch active-run state and run history
 channels/                       append-only channel logs
 media/                          downloaded media
 runtime/logs/gateway.log        gateway runtime log
@@ -37,7 +36,7 @@ SOUL.md                         identity and voice
 context/                        agent memory and prompt files
 vault/                          agent saved files and reports
 projects/                       agent code, apps, and work folders, created when needed
-schedules.json                  agent-owned recurring work
+watches.json                    agent-owned background attention rules
 skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
 ```
@@ -65,7 +64,7 @@ not put reports in `context/`. Put a reference in `context/` only if the agent
 should load it every run.
 
 Do not put channel logs, runtime state, sessions, auth, model metadata, or
-watch/scheduler state under `vault/` or `projects/`.
+watch clock state under `vault/` or `projects/`.
 
 `shrimpy setup init` creates shared `vault/` and `projects/`, plus the default
 agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent
@@ -89,9 +88,9 @@ Durable machine state lives under `state/`. Disposable runtime state lives under
 ## State And Logs
 
 - Channel logs are append-only JSONL files under `channels/`. See [channels.md](channels.md).
-- Agent memory is plain Markdown under `agents/<id>/context/`; agents update it through normal file edits during scheduled upkeep. See [memory.md](memory.md).
+- Agent memory is plain Markdown under `agents/<id>/context/`; agents update it through normal file edits during upkeep watch turns. See [memory.md](memory.md).
 - Identity links live in `state/users.json`. The optional `owner` field names the canonical workspace user; CLI publishing routes through that identity when set. Manage with `shrimpy users list|get-owner|set-owner`.
 - Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries. See [sessions.md](sessions.md).
 - Gateway logs live at `runtime/logs/gateway.log`, readable through `shrimpy gateway logs`.
-- Surface cursors and generated turn-context state live under `runtime/`. Scheduler state and one-time schedule records live under `state/`.
+- Surface cursors, generated turn-context state, and watch run history live under `runtime/`. Watch next-run state lives under `state/watch-clock.json`.
 - Auth and models live under `state/pi/`, isolating Shrimpy from a user's stock Pi config.

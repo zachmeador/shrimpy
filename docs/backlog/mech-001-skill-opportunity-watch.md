@@ -62,7 +62,7 @@ highest-signal recommendations.
 - This is a concrete recurring watch/check-in loop for [APP-001](app-001.md).
 - It should probably ship after the bundled mechanic exists in
   [ADMIN-001](admin-001.md).
-- [SCHED-001](sched-001-scheduler-job-runner.md) should give the mechanic a
+- [WATCH-001](watch-001-agent-owned-watches.md) should give the mechanic a
   safer way to inspect its own watch recurrence, run history, and next run.
 - [channels.md](../reference/channels.md) owns the channel wake contract for any
   mechanic assessment emitted into a channel.

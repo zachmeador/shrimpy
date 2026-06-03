@@ -35,18 +35,18 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Channels & Agent Policy
 
-- Added richer channel inspection with `shrimpy channels show` message counts, recent request-like messages, traceable source records, and `shrimpy channels search` filters for kind, sender, transport, actor, content type, addressing, schedule, and source kind.
+- Added richer channel inspection with `shrimpy channels show` message counts, recent request-like messages, traceable source records, and `shrimpy channels search` filters for kind, sender, transport, actor, content type, addressing, watch, and source kind.
 - Changed channel wake behavior from channel-owned attention to agent-owned `channelPolicy`, including base and per-channel modes, sender/actor/user filters, membership visibility checks, and inspectable wake/ignore explanations.
 - Renamed the agent attention config and CLI surface to `channelPolicy` and `shrimpy agent channel-policy`, with `--channel-policy` on `agent add` and `agent set`.
 
-### Schedules
+### Watches
 
-- Added `shrimpy schedules` and `shrimpy schedules show` for workspace-wide schedule inspection, including agent-owned and workspace-level schedules, target channels, membership, expected channel-policy wake decisions, scheduler state, recent emitted message ids, and diagnostics.
-- Added CLI-managed one-time scheduled channel messages with `shrimpy schedules once --at/--in`, `shrimpy schedules cancel`, `shrimpy schedules list --one-time`, durable `state/one-time-schedules.json` records, gateway firing through ordinary scheduler-authored channel messages, and post-fire inspection.
-- Added TUI `/status schedules` backed by the same schedule-inspection service.
-- Changed agent-owned schedules to emit unaddressed scheduler-authored channel messages routed by channel membership and agent channel policy instead of `origin.addressedAgentId`.
-- Added schedule provenance to scheduler-origin channel messages and turn context, including owner/local ids, target channel, trigger metadata, run ids, and inspect commands.
-- Improved agent-facing breadcrumbs and CLI output for schedule routing, channel membership, and effective channel-policy filters.
+- Replaced the scheduler/schedules surface with agent-owned watches in `agents/<id>/watches.json`; recurring work now uses one watch config concept instead of separate schedule, reminder, and scheduler state shapes.
+- Added `shrimpy watches list|show|add|history|run` for inspecting, creating, and manually running watches, including target channels, expected channel-policy wake decisions, clock state, active runs, run history, diagnostics, and inspect commands.
+- Added time-based message watches for the simple wake-an-agent case and command watches with `emit.policy` for observation-driven channel output.
+- Added TUI `/status watches`, gateway/status watch summaries, watch-origin channel provenance, and turn-context breadcrumbs back to `shrimpy watches show` and `shrimpy watches history`.
+- Changed fresh setup to seed focused `memory-management`, `journal-daily`, and `journal-compact` watches on the `maintenance` channel instead of a broad catch-all upkeep entry.
+- Removed legacy scheduler modules, schedule commands, one-time schedule/reminder state, scheduler/reminder channel provenance, and the old heartbeat-specific compaction/status handling.
 
 ### Sessions & Models
 
@@ -57,14 +57,14 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Added skills and tool-model reference documentation plus Pi skill-handling research.
 - Added channel, session, security, turn-context, and workspace storage reference documentation.
-- Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, schedule follow-ups, model policy, workspace storage defaults, setup/model bootstrap, and chat operation/status surfaces.
+- Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, agent-owned watches, model policy, workspace storage defaults, setup/model bootstrap, and chat operation/status surfaces.
 - Added research notes for web search API providers and in-OS agent sandboxing plus development guidance for Bash automation.
 - Removed completed skill/context/schedule/channel/session/workspace backlog notes and the vision reconciliation tracker.
 - Added Shrimpy emoji guidance to the default initialized `SOUL.md` template.
 
 ### Tests
 
-- Expanded regression coverage for skill commands, turn context defaults, prompt-cache-stable routed sessions, direct/gateway delivery guidance, internal agent DM messaging, visible model-switch records, CLI catalog/completion, channel inspection/search, agent channel policy, one-time schedules, and workspace setup defaults.
+- Expanded regression coverage for skill commands, turn context defaults, prompt-cache-stable routed sessions, direct/gateway delivery guidance, internal agent DM messaging, visible model-switch records, CLI catalog/completion, channel inspection/search, agent channel policy, watches, and workspace setup defaults.
 
 ## 0.2.0 - Lanterns in the Current - 2026-05-30
 

@@ -23,17 +23,16 @@ import { timeSince } from "../channels/format.js";
 import { formatModelSelection } from "../config/model.js";
 import {
   collectGatewayActivity,
-  loadGatewaySchedulerSummary,
+  loadGatewayWatchClockSummary,
   type ChannelMessageSnapshot,
 } from "../gateway/status.js";
-import { loadGatewayScheduleIds } from "../gateway/scheduler-service.js";
+import { loadGatewayWatchIds } from "../gateway/watch-service.js";
 import {
-  inspectOneTimeSchedules,
-  inspectSchedules,
-  type OneTimeScheduleInspection,
-  type ScheduleInspection,
-} from "../scheduler/index.js";
+  inspectWatches,
+  type WatchInspection,
+} from "../watches/index.js";
 import { inspectSkills } from "../skills/index.js";
+import { formatFutureOrPast } from "../util/time-format.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;
 type ShowSelectorFactory = (done: () => void) => {
@@ -77,7 +76,7 @@ export interface ShrimpyCommandSurfaceOptions {
 const HELP_LINES = [
   "Shrimpy commands",
   "",
-  "/status [section]  Show Shrimpy workspace, gateway, schedule, agent, channel, context, skill, model, or diagnostic status",
+  "/status [section]  Show Shrimpy workspace, gateway, watch, agent, channel, context, skill, model, or diagnostic status",
   "/settings          Open unified Shrimpy and Pi settings",
   "/model             Select the session model",
   "/thinking          Open session thinking menu",
@@ -91,7 +90,7 @@ const STATUS_SECTIONS = [
   "overview",
   "workspace",
   "gateway",
-  "schedules",
+  "watches",
   "agents",
   "channels",
   "context",
@@ -105,8 +104,8 @@ type StatusSection = (typeof STATUS_SECTIONS)[number];
 const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
   overview: "Workspace, active agent, model, and available status sections",
   workspace: "Workspace paths and config",
-  gateway: "Gateway service, scheduled runs, scheduler, and interaction status",
-  schedules: "Schedule inventory, next runs, recent runs, and expected wake opportunities",
+  gateway: "Gateway service, watch runs, watch clock, and interaction status",
+  watches: "Watch inventory, next runs, recent runs, and expected wake opportunities",
   agents: "Active agent and configured agents",
   channels: "Channel log overview",
   context: "Context files and source inspection",
@@ -233,8 +232,8 @@ function buildStatusText(
       return workspaceStatusText(options);
     case "gateway":
       return gatewayStatusText(options);
-    case "schedules":
-      return schedulesStatusText(options);
+    case "watches":
+      return watchesStatusText(options);
     case "agents":
       return agentsStatusText(options);
     case "channels":
@@ -292,16 +291,16 @@ function workspaceStatusText(options: ShrimpyCommandSurfaceOptions): string {
 
 function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   const runtime = options.runtime;
-  const scheduleIds = loadGatewayScheduleIds(runtime);
+  const watchIds = loadGatewayWatchIds(runtime);
   const activity = collectGatewayActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
-    scheduleIds,
+    watchIds,
   );
-  const scheduler = loadGatewaySchedulerSummary(
-    runtime.paths.schedulerStatePath,
+  const watchClock = loadGatewayWatchClockSummary(
+    runtime.paths.watchClockStatePath,
     runtime.resolved.status,
-    scheduleIds,
+    watchIds,
   );
   const lines = [
     theme.bold("Gateway"),
@@ -311,8 +310,8 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
     label("Tracked channels", String(activity.channelCount)),
   ];
 
-  lines.push(label("Last scheduled run", activity.lastScheduledRun
-    ? when(activity.lastScheduledRun.message.timestamp)
+  lines.push(label("Last watch run", activity.lastWatchRun
+    ? when(activity.lastWatchRun.message.timestamp)
     : dimText("(none)")));
 
   lines.push(label("Last user interaction", activity.lastUserInteraction
@@ -328,9 +327,9 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
     );
   }
 
-  lines.push(label("Next scheduled run due", scheduler.nextScheduledRun === undefined
+  lines.push(label("Next watch run due", watchClock.nextWatchRun === undefined
     ? dimText("(unknown)")
-    : `${formatFutureOrPast(scheduler.nextScheduledRun.nextRunAtMs)} ${dimText(`(${new Date(scheduler.nextScheduledRun.nextRunAtMs).toLocaleString()})`)}`));
+    : `${formatFutureOrPast(watchClock.nextWatchRun.nextRunAtMs)} ${dimText(`(${new Date(watchClock.nextWatchRun.nextRunAtMs).toLocaleString()})`)}`));
 
   lines.push(
     "",
@@ -341,56 +340,34 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   return lines.join("\n");
 }
 
-function schedulesStatusText(options: ShrimpyCommandSurfaceOptions): string {
-  const schedules = inspectSchedules(options.runtime);
-  const oneTimeSchedules = inspectOneTimeSchedules(options.runtime);
-  const activeAgentSchedules = schedules.filter((schedule) =>
-    schedule.ownerAgentId === options.agentId
+function watchesStatusText(options: ShrimpyCommandSurfaceOptions): string {
+  const watches = inspectWatches(options.runtime);
+  const activeAgentWatches = watches.filter((watch) =>
+    watch.ownerAgentId === options.agentId
   );
-  const activeAgentOneTimeSchedules = oneTimeSchedules.filter((schedule) =>
-    schedule.ownerAgentId === options.agentId
-  );
-  const next = schedules
-    .filter((schedule) => schedule.nextRunAtMs !== undefined)
+  const next = watches
+    .filter((watch) => watch.nextRunAtMs !== undefined)
     .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0))[0];
-  const nextOneTime = oneTimeSchedules
-    .filter((schedule) => schedule.status === "pending")
-    .sort((a, b) => a.dueAtMs - b.dueAtMs)[0];
-  const recent = schedules
-    .filter((schedule) => schedule.lastObservedRun)
+  const recent = watches
+    .filter((watch) => watch.lastRun)
     .sort((a, b) =>
-      (b.lastObservedRun?.timestamp ?? 0) - (a.lastObservedRun?.timestamp ?? 0)
-    )[0];
-  const recentOneTime = oneTimeSchedules
-    .filter((schedule) => schedule.status !== "pending")
-    .sort((a, b) =>
-      latestOneTimeTimestamp(b) - latestOneTimeTimestamp(a)
+      (b.lastRun?.finishedAtMs ?? 0) - (a.lastRun?.finishedAtMs ?? 0)
     )[0];
   const ordered = [
-    ...activeAgentSchedules,
-    ...schedules.filter((schedule) => schedule.ownerAgentId !== options.agentId),
+    ...activeAgentWatches,
+    ...watches.filter((watch) => watch.ownerAgentId !== options.agentId),
   ];
-  const oneTimeCounts = countOneTimeStatuses(oneTimeSchedules);
 
   const lines = [
-    theme.bold("Schedules"),
+    theme.bold("Watches"),
     "",
-    label("Configured", String(schedules.length)),
-    label(`Agent ${options.agentId}`, String(activeAgentSchedules.length)),
-    label("One-time pending", String(oneTimeCounts.pending)),
-    label("One-time fired", String(oneTimeCounts.fired)),
-    label(`Agent ${options.agentId} one-time`, String(activeAgentOneTimeSchedules.length)),
+    label("Configured", String(watches.length)),
+    label(`Agent ${options.agentId}`, String(activeAgentWatches.length)),
     label("Next due", next?.nextRunAtMs === undefined
       ? dimText("(unknown)")
       : `${next.id} ${formatFutureOrPast(next.nextRunAtMs)}`),
-    label("Next one-time", nextOneTime
-      ? `${nextOneTime.id} ${formatFutureOrPast(nextOneTime.dueAtMs)}`
-      : dimText("(none)")),
-    label("Last run", recent?.lastObservedRun
-      ? `${recent.id} ${when(recent.lastObservedRun.timestamp)}`
-      : dimText("(none)")),
-    label("Last one-time", recentOneTime
-      ? `${recentOneTime.id} ${recentOneTime.status} ${when(latestOneTimeTimestamp(recentOneTime))}`
+    label("Last run", recent?.lastRun
+      ? `${recent.id} ${recent.lastRun.status} ${when(recent.lastRun.finishedAtMs)}`
       : dimText("(none)")),
     "",
     theme.bold("Inventory"),
@@ -399,33 +376,22 @@ function schedulesStatusText(options: ShrimpyCommandSurfaceOptions): string {
   if (ordered.length === 0) {
     lines.push("(none)");
   } else {
-    for (const schedule of ordered.slice(0, 10)) {
-      lines.push(formatScheduleSummaryLine(schedule, options.agentId));
+    for (const watch of ordered.slice(0, 10)) {
+      lines.push(formatWatchSummaryLine(watch, options.agentId));
     }
     if (ordered.length > 10) {
       lines.push(`... ${ordered.length - 10} more`);
     }
   }
 
-  if (oneTimeSchedules.length > 0) {
-    lines.push("", theme.bold("One-Time"));
-    for (const schedule of oneTimeSchedules.slice(0, 6)) {
-      lines.push(formatOneTimeScheduleSummaryLine(schedule, options.agentId));
-    }
-    if (oneTimeSchedules.length > 6) {
-      lines.push(`... ${oneTimeSchedules.length - 6} more`);
-    }
-  }
-
   lines.push(
     "",
     theme.bold("Inspect"),
-    "shrimpy schedules",
-    `shrimpy schedules --agent ${options.agentId}`,
-    "shrimpy schedules list --one-time",
-    `shrimpy schedules once --in 20m --channel ${options.channel} --text "..."`,
-    "shrimpy schedules cancel <schedule-id>",
-    "shrimpy schedules show <schedule-id>",
+    "shrimpy watches",
+    `shrimpy watches --agent ${options.agentId}`,
+    "shrimpy watches show <agent-id>/<watch-id>",
+    "shrimpy watches history <agent-id>/<watch-id>",
+    "shrimpy watches run <agent-id>/<watch-id>",
   );
   return lines.join("\n");
 }
@@ -450,54 +416,21 @@ function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
   return lines.join("\n");
 }
 
-function formatScheduleSummaryLine(
-  schedule: ScheduleInspection,
+function formatWatchSummaryLine(
+  watch: WatchInspection,
   activeAgentId: string,
 ): string {
-  const marker = schedule.ownerAgentId === activeAgentId ? "*" : "-";
-  const status = schedule.enabled ? "enabled" : "disabled";
-  const turns = schedule.expectedTurnAgentIds.join(",") || "(none)";
-  const next = schedule.nextRunAtMs === undefined
+  const marker = watch.ownerAgentId === activeAgentId ? "*" : "-";
+  const status = watch.enabled ? "enabled" : "disabled";
+  const turns = watch.expectedTurnAgentIds.join(",") || "(none)";
+  const target = watch.targetChannels.join(",") || "(none)";
+  const next = watch.nextRunAtMs === undefined
     ? "next=unknown"
-    : `next=${formatFutureOrPast(schedule.nextRunAtMs)}`;
-  const diagnostic = schedule.diagnostics.length > 0
-    ? ` warnings=${schedule.diagnostics.length}`
+    : `next=${formatFutureOrPast(watch.nextRunAtMs)}`;
+  const diagnostic = watch.diagnostics.length > 0
+    ? ` warnings=${watch.diagnostics.length}`
     : "";
-  return `${marker} ${schedule.id} ${status} ${schedule.triggerText} -> ${schedule.targetChannel} turns=${turns} ${next}${diagnostic}`;
-}
-
-function formatOneTimeScheduleSummaryLine(
-  schedule: OneTimeScheduleInspection,
-  activeAgentId: string,
-): string {
-  const marker = schedule.ownerAgentId === activeAgentId ? "*" : "-";
-  const turns = schedule.expectedTurnAgentIds.join(",") || "(none)";
-  const due = schedule.status === "pending"
-    ? `due=${formatFutureOrPast(schedule.dueAtMs)}`
-    : `due=${when(schedule.dueAtMs)}`;
-  const diagnostic = schedule.diagnostics.length > 0
-    ? ` warnings=${schedule.diagnostics.length}`
-    : "";
-  return `${marker} ${schedule.id} ${schedule.status} -> ${schedule.targetChannel} turns=${turns} ${due}${diagnostic}`;
-}
-
-function countOneTimeStatuses(
-  schedules: OneTimeScheduleInspection[],
-): Record<OneTimeScheduleInspection["status"], number> {
-  return {
-    pending: schedules.filter((schedule) => schedule.status === "pending").length,
-    fired: schedules.filter((schedule) => schedule.status === "fired").length,
-    cancelled: schedules.filter((schedule) => schedule.status === "cancelled").length,
-    failed: schedules.filter((schedule) => schedule.status === "failed").length,
-    expired: schedules.filter((schedule) => schedule.status === "expired").length,
-  };
-}
-
-function latestOneTimeTimestamp(schedule: OneTimeScheduleInspection): number {
-  return schedule.firedAtMs ??
-    schedule.cancelledAtMs ??
-    schedule.failedAtMs ??
-    schedule.createdAtMs;
+  return `${marker} ${watch.id} ${status} ${watch.triggerText} action=${watch.actionKind} -> ${target} turns=${turns} ${next}${diagnostic}`;
 }
 
 function channelsStatusText(options: ShrimpyCommandSurfaceOptions): string {
@@ -638,21 +571,6 @@ function formatInteractionSource(snapshot: ChannelMessageSnapshot): string {
     ? `${snapshot.message.sender.kind}:${snapshot.message.sender.displayName}`
     : `${snapshot.message.sender.kind}:${snapshot.message.sender.actorId}`;
   return `${snapshot.channel} ${dimText(`(${sender})`)}`;
-}
-
-function formatFutureOrPast(targetMs: number): string {
-  const diffSeconds = Math.floor((targetMs - Date.now()) / 1000);
-  const absSeconds = Math.abs(diffSeconds);
-
-  const amount = absSeconds < 60
-    ? `${absSeconds}s`
-    : absSeconds < 3_600
-      ? `${Math.floor(absSeconds / 60)}m`
-      : absSeconds < 86_400
-        ? `${Math.floor(absSeconds / 3_600)}h`
-        : `${Math.floor(absSeconds / 86_400)}d`;
-
-  return diffSeconds >= 0 ? `in ${amount}` : `${amount} ago`;
 }
 
 function when(ms: number): string {

@@ -6,13 +6,13 @@ import { cmdContext } from "./context.js";
 import { cmdGateway } from "./gateway.js";
 import { cmdModels } from "./models.js";
 import { cmdRun } from "./run.js";
-import { cmdSchedules } from "./schedules.js";
 import { cmdSessions } from "./sessions.js";
 import { cmdSetup } from "./setup.js";
 import { cmdSkills } from "./skills.js";
 import { cmdStatus } from "./status.js";
 import { cmdSurface } from "./surface.js";
 import { cmdUsers } from "./users.js";
+import { cmdWatches } from "./watches.js";
 import type { CommandHandler } from "./framework.js";
 
 export interface RegisteredCommand {
@@ -27,7 +27,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   agent: { handler: cmdAgent, requiresConfig: true },
   surface: { handler: cmdSurface, requiresConfig: true },
   sessions: { handler: cmdSessions, requiresConfig: true },
-  schedules: { handler: cmdSchedules, requiresConfig: true },
+  watches: { handler: cmdWatches, requiresConfig: true },
   models: { handler: cmdModels, requiresConfig: true },
   skills: { handler: cmdSkills, requiresConfig: true },
   setup: { handler: cmdSetup, requiresConfig: true },

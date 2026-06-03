@@ -142,14 +142,14 @@ export class PendingByThread<T extends { timer: ReturnType<typeof setTimeout> }>
     return value;
   }
 
-  reschedule(
+  restartTimer(
     threadId: string,
-    schedule: () => ReturnType<typeof setTimeout>,
+    startTimer: () => ReturnType<typeof setTimeout>,
   ): T | undefined {
     const value = this.entries.get(threadId);
     if (!value) return undefined;
     clearTimeout(value.timer);
-    value.timer = schedule();
+    value.timer = startTimer();
     return value;
   }
 }

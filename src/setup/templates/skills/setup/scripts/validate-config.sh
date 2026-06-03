@@ -6,13 +6,13 @@ WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 
 CONFIG_PATH="${WORKSPACE_ROOT}/config/shrimpy.json"
 CHANNELS_PATH="${WORKSPACE_ROOT}/config/channels.json"
-SCHEDULES_PATH="${WORKSPACE_ROOT}/agents/shrimpy/schedules.json"
+WATCHES_PATH="${WORKSPACE_ROOT}/agents/shrimpy/watches.json"
 
-node - "${WORKSPACE_ROOT}" "${CONFIG_PATH}" "${CHANNELS_PATH}" "${SCHEDULES_PATH}" <<'NODE'
+node - "${WORKSPACE_ROOT}" "${CONFIG_PATH}" "${CHANNELS_PATH}" "${WATCHES_PATH}" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [workspaceRoot, configPath, channelsPath, schedulesPath] = process.argv.slice(2);
+const [workspaceRoot, configPath, channelsPath, watchesPath] = process.argv.slice(2);
 const errors = [];
 
 function readJson(filePath, label) {
@@ -44,7 +44,7 @@ function requireDir(dirPath, label) {
 
 const config = readJson(configPath, "config/shrimpy.json");
 const channels = readJson(channelsPath, "config/channels.json");
-const schedules = readJson(schedulesPath, "agents/shrimpy/schedules.json");
+const watches = readJson(watchesPath, "agents/shrimpy/watches.json");
 
 requireFile(path.join(workspaceRoot, "profile", "WORKSPACE.md"), "profile/WORKSPACE.md");
 requireFile(path.join(workspaceRoot, "profile", "USER.md"), "profile/USER.md");
@@ -54,6 +54,7 @@ requireDir(path.join(workspaceRoot, "projects"), "projects");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "context"), "agents/shrimpy/context");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "skills", "setup", "SKILL.md"), "agents/shrimpy/skills/setup/SKILL.md");
+requireFile(path.join(workspaceRoot, "skills", "add-agent", "SKILL.md"), "skills/add-agent/SKILL.md");
 requireFile(path.join(workspaceRoot, "skills", "memory-management", "SKILL.md"), "skills/memory-management/SKILL.md");
 requireFile(path.join(workspaceRoot, "skills", "journal-daily", "SKILL.md"), "skills/journal-daily/SKILL.md");
 requireFile(path.join(workspaceRoot, "skills", "journal-compact", "SKILL.md"), "skills/journal-compact/SKILL.md");
@@ -87,8 +88,8 @@ if (config) {
     }
   }
 
-  if (!config.scheduler || typeof config.scheduler.tickIntervalMs !== "number") {
-    errors.push("config/shrimpy.json must define scheduler.tickIntervalMs");
+  if (!config.watchClock || typeof config.watchClock.tickIntervalMs !== "number") {
+    errors.push("config/shrimpy.json must define watchClock.tickIntervalMs");
   }
 }
 
@@ -99,18 +100,22 @@ if (channels) {
   }
 }
 
-if (schedules) {
-  if (!Array.isArray(schedules) || schedules.length === 0) {
-    errors.push("agents/shrimpy/schedules.json must define at least one schedule");
+if (watches) {
+  if (!Array.isArray(watches) || watches.length === 0) {
+    errors.push("agents/shrimpy/watches.json must define at least one watch");
   } else {
     for (const required of [
-      "heartbeat",
       "memory-management",
       "journal-daily",
       "journal-compact",
     ]) {
-      if (!schedules.some((schedule) => schedule && schedule.id === required)) {
-        errors.push(`agents/shrimpy/schedules.json must include ${required}`);
+      if (!watches.some((watch) => watch && watch.id === required)) {
+        errors.push(`agents/shrimpy/watches.json must include ${required}`);
+      }
+    }
+    for (const watch of watches) {
+      if (watch?.trigger?.kind !== "time") {
+        errors.push(`watch ${watch?.id || "(unknown)"} must use trigger.kind = "time"`);
       }
     }
   }

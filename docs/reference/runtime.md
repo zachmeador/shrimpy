@@ -22,10 +22,10 @@ The gateway runs three jobs:
 
 1. Run configured surfaces such as Telegram.
 2. Watch channel logs and offer new messages to channel-member agent sessions.
-3. Run the scheduler and emit scheduled messages into channels.
+3. Run the watch clock and advance configured agent-owned watches.
 
 ```text
-surface / CLI channel post / scheduler
+surface / CLI channel post / watch
   -> ChannelBus
   -> ChannelStore
   -> workspace/channels/*.jsonl
@@ -80,30 +80,23 @@ gateway channel sessions. See [sessions.md](sessions.md).
 
 ## Background Work
 
-- The heartbeat is a setup-seeded scheduled task that emits into a normal channel/session pair.
-- Agent schedules live in each agent workspace at `agents/<id>/schedules.json`;
-  optional workspace-level schedules live in `config/schedules.json`.
-- Agent schedules emit scheduler-authored channel messages with plain text
-  instructions. The owning agent must be a member of the target channel and have
-  channelPolicy configured to wake for those messages.
-- One-time schedules live in runtime state at `state/one-time-schedules.json`.
-  Create them with `shrimpy schedules once --at <time>` or
-  `shrimpy schedules once --in <duration>`. Agents use the same CLI surface;
-  there is no separate scheduling daemon tool.
-- The gateway scheduler tick drains pending one-time records and emits the due
-  text as ordinary scheduler-authored channel messages.
-- Scheduler-origin messages carry schedule provenance in `origin.schedule`, and
-  turn context points back to `shrimpy schedules show <schedule-id>`.
-- Fresh setup also seeds ordinary memory upkeep schedules for `memory-management`, `journal-daily`, and `journal-compact`.
+- Agent-owned watches live in each agent workspace at `agents/<id>/watches.json`.
+- A watch is a background attention rule. Its `trigger` says what to watch; time is one trigger kind.
+- A watch also has a concurrency policy and either a message action or a command action.
+- Message watches emit watch-authored channel messages with plain text instructions. The owning agent must be a member of the target channel and have `channelPolicy` configured to wake for those messages.
+- Command watches run a shell command and can emit to a channel based on `emit.policy` (`never`, `always`, `on_output`, `on_change`, or `on_failure`).
+- Watch-origin messages carry provenance in `origin.watch`, and turn context points back to `shrimpy watches show <watch-id>` and `shrimpy watches history <watch-id>`.
+- Active watch state and run history live under `runtime/watches/<agent-id>/`.
+- Fresh setup seeds focused upkeep watches for `memory-management`, `journal-daily`, and `journal-compact`; it does not seed a broad catch-all upkeep watch.
 - The `run_child` tool opens a fresh child `run` session for bounded work and returns the result to the parent session.
 - Child runs reuse the same auth and model registry while keeping separate session persistence. See [sessions.md](sessions.md#session-kinds).
 
 ## Observability
 
 - `shrimpy status` summarizes workspace and gateway activity.
-- `shrimpy gateway status` reports gateway service, scheduled-run, and scheduler status.
-- `shrimpy schedules` reports source paths, target channels, expected wake,
-  next runs, and recent emitted scheduler messages.
+- `shrimpy gateway status` reports gateway service, watch-run, and watch clock status.
+- `shrimpy watches` reports source paths, target channels, expected wake,
+  next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` renders the assembled session prompt and can preview
   per-turn context separately from the user message.

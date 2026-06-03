@@ -224,9 +224,9 @@ export class TelegramChannelBridge {
     const existing = this.pendingTextBursts.get(chatId);
     if (existing) {
       existing.texts.push(text);
-      this.pendingTextBursts.reschedule(
+      this.pendingTextBursts.restartTimer(
         chatId,
-        () => this.scheduleTextBurstFlush(chatId),
+        () => this.startTextBurstFlushTimer(chatId),
       );
       return;
     }
@@ -236,11 +236,11 @@ export class TelegramChannelBridge {
       messageBase,
       addressedAgentId,
       texts: [text],
-      timer: this.scheduleTextBurstFlush(chatId),
+      timer: this.startTextBurstFlushTimer(chatId),
     });
   }
 
-  private scheduleTextBurstFlush(
+  private startTextBurstFlushTimer(
     chatId: string,
   ): ReturnType<typeof setTimeout> {
     return setTimeout(() => {
@@ -262,7 +262,7 @@ export class TelegramChannelBridge {
     );
   }
 
-  private schedulePhotoGroupFlush(
+  private startPhotoGroupFlushTimer(
     chatId: string,
   ): ReturnType<typeof setTimeout> {
     return setTimeout(() => {
@@ -298,9 +298,9 @@ export class TelegramChannelBridge {
       if (!current.caption && msg.caption) {
         current.caption = msg.caption;
       }
-      this.pendingPhotoGroups.reschedule(
+      this.pendingPhotoGroups.restartTimer(
         chatId,
-        () => this.schedulePhotoGroupFlush(chatId),
+        () => this.startPhotoGroupFlushTimer(chatId),
       );
       return;
     }
@@ -315,7 +315,7 @@ export class TelegramChannelBridge {
         messageId: msg.message_id,
         fileId: photo.file_id,
       }],
-      timer: this.schedulePhotoGroupFlush(chatId),
+      timer: this.startPhotoGroupFlushTimer(chatId),
     });
   }
 

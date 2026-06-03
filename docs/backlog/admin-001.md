@@ -26,7 +26,7 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 - Depends on [MODEL-001](model-001-user-configurable-model-policy.md): mechanic should point at a user-owned coding/maintenance policy instead of carrying a hardcoded model default.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
 - Early mechanic skill pack ideas: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
-- Related follow-up: [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md)
+- Related follow-up: [MECH-001](mech-001-skill-opportunity-watch.md)
   covers an opt-in mechanic-owned watch that reviews real Shrimpy usage, writes
   a Markdown assessment, and messages the user with concrete skill/app ideas
   only when useful.

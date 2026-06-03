@@ -89,7 +89,7 @@ function parseSearchArgs(args: string[]): {
       transport: { type: "string", multiple: true },
       "content-type": { type: "string", multiple: true },
       addressed: { type: "string", multiple: true },
-      schedule: { type: "string", multiple: true },
+      watch: { type: "string", multiple: true },
       "source-kind": { type: "string", multiple: true },
       limit: { type: "string" },
     },
@@ -113,7 +113,7 @@ function parseSearchArgs(args: string[]): {
       transports: asStringList(parsed.values.transport),
       contentTypes: asStringList(parsed.values["content-type"]),
       addressedAgentIds: asStringList(parsed.values.addressed),
-      scheduleIds: asStringList(parsed.values.schedule),
+      watchIds: asStringList(parsed.values.watch),
       sourceKinds: asStringList(parsed.values["source-kind"]).map((value) =>
         value.toLowerCase().replace(/-/g, "_")
       ),

@@ -7,8 +7,7 @@ Shrimpy's workspace config is file-backed and inspectable.
 ```text
 config/shrimpy.json         runtime configuration
 config/channels.json        explicit channel membership
-config/schedules.json       optional workspace-level scheduler definitions
-agents/<id>/schedules.json  agent-owned scheduler definitions
+agents/<id>/watches.json    agent-owned watch definitions
 ```
 
 The workspace itself is selected by `~/.shrimpy-workspace.json`:
@@ -28,8 +27,8 @@ Sections:
 - `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
 - `context` / `contextDefaults` — stable prompt sources, turn-context settings, command sources, env fields, channel overrides, agent-scoped context views.
 - `telegram` — configured Telegram surface instances with token, channel prefix, allowlist, stable user mappings, default agent, reliability policy.
-- `scheduler` — scheduler tick behavior.
-- `status` — optional targeted schedule watches for diagnostics.
+- `watchClock` — watch clock tick behavior.
+- `status` — optional targeted watch diagnostics.
 - `adapters` — extra channel-prefix to surface routes. Telegram routes are derived from configured Telegram instances.
 
 ## Runtime Defaults
@@ -42,7 +41,6 @@ Sections:
 - Shrimpy owns the system prompt passed into Pi.
 - Compaction defaults are tuned for chat-style continuity: `reserveTokens: 32768`, `keepRecentTokens: 30000`.
 - Compaction can be overridden globally, by agent id, by channel pattern, or by session label. `thresholdTokens` is translated to Pi's `reserveTokens` for the selected model.
-- The built-in `heartbeat` compaction override compacts after roughly `100000` model-visible tokens and keeps roughly `30000` recent tokens.
 - Inspect the resolved policy and selected model metadata with `shrimpy sessions compaction <channel> [--agent <id>] [--json]`. The command also shows whether the active session file recorded older policy or model/inference settings; running gateway sessions need to be reset/reopened or the gateway restarted before changed settings take effect.
 - Runtime behavior, summary shape, provider request handling, and failure debugging are covered in [compaction.md](compaction.md).
 
@@ -58,10 +56,10 @@ Sections:
         }
       },
       "channels": {
-        "heartbeat": {
+        "maintenance": {
           "thresholdTokens": 100000,
           "keepRecentTokens": 30000,
-          "instructions": "Preserve unresolved follow-ups and active-session pointers. Collapse repetitive no-op turns."
+          "instructions": "Preserve unresolved follow-ups and active-session pointers."
         }
       }
     }
@@ -77,7 +75,7 @@ Compaction precedence is:
 4. matching `runtime.compaction.channels.<pattern>`
 5. `runtime.compaction.sessions.<sessionLabel>`
 
-Use `sessions.<sessionType>` for a broad class such as `gateway` or `tui`. Use `sessions.<sessionLabel>` for a concrete session directory label such as `heartbeat`.
+Use `sessions.<sessionType>` for a broad class such as `gateway` or `tui`. Use `sessions.<sessionLabel>` for a concrete session directory label such as `maintenance`.
 
 ## Turn Context
 
@@ -246,7 +244,7 @@ Channel policy can be narrowed by sender (`system`, `human`, `agent`), stable
     "mode": "mentions",
     "channels": {
       "home": { "mode": "all", "senders": ["human", "system"] },
-      "heartbeat": { "mode": "all", "senders": ["system"] }
+      "maintenance": { "mode": "all", "senders": ["system"] }
     }
   }
 }
@@ -264,11 +262,11 @@ Edit fields directly instead of hand-writing the JSON. `set`/`clear` target the 
 ```bash
 # Narrow the base rule to humans, then add a per-channel override.
 shrimpy agent channel-policy set shrimpy --senders human
-shrimpy agent channel-policy set shrimpy --channel heartbeat --mode all --senders system
+shrimpy agent channel-policy set shrimpy --channel maintenance --mode all --senders system
 
 # Clear one field, or drop a whole channel override.
 shrimpy agent channel-policy clear shrimpy --senders
-shrimpy agent channel-policy clear shrimpy --channel heartbeat
+shrimpy agent channel-policy clear shrimpy --channel maintenance
 ```
 
 `set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `channelPolicy` block, falling back to the default `all` policy. Channel membership is unaffected; policy only decides whether a visible member wakes. See [channels.md](channels.md) for the delivery model.
@@ -297,72 +295,108 @@ shrimpy agent channel-policy clear shrimpy --channel heartbeat
 See [channels.md](channels.md) for protocol, addressing, delivery, and egress
 semantics.
 
-## Schedules
+## Watches
 
-Schedules live in `agents/<id>/schedules.json` for agent-owned schedules and
-`config/schedules.json` for optional workspace-level schedules. The gateway
-compiles them into scheduler-authored channel messages. Channel membership and
-agent channel policy decide whether the scheduled message becomes a turn.
+Background attention rules live in `agents/<id>/watches.json`.
 
-Triggers:
+A watch is owned by one agent. Its `trigger` says what the system keeps an eye
+on; time is one trigger kind. There is no second public config file for
+recurring work.
 
-- `every_ms`
-- `cron`
+To wake an agent on a clock, add a watch with `trigger.kind = "time"` and a
+message action. When the trigger fires, the gateway posts the watch text into
+the configured channel. If the owning agent is a member of that channel and its
+policy accepts the message, it gets a normal turn.
 
-Schedule entry shape:
+For the common case, use the CLI:
+
+```sh
+shrimpy watches add morning-check \
+  --agent shrimpy \
+  --every 1h \
+  --channel maintenance \
+  --message "Check the house."
+```
+
+Command watches are optional. Use them when the watch should check something
+deterministic first and only post when the result is worth saying.
+
+Current trigger kinds:
+
+- `time` with `cron`
+- `time` with `everyMs`
+
+Message watch shape:
 
 ```json
 {
-  "id": "heartbeat",
-  "trigger": { "type": "every_ms", "everyMs": 900000 },
-  "channel": "heartbeat",
-  "instructions": "Review recent activity and decide whether anything needs attention."
+  "id": "memory-management",
+  "trigger": { "kind": "time", "cron": "0 3 * * *" },
+  "concurrencyPolicy": "forbid",
+  "action": {
+    "kind": "message",
+    "channel": "maintenance",
+    "text": "Use the `memory-management` skill."
+  }
 }
 ```
 
-Fresh setup seeds four ordinary schedules for the default `shrimpy` agent:
+Command watch shape:
 
-- `heartbeat` — every 15 minutes, reviews recent activity and decides whether anything needs attention.
+```json
+{
+  "id": "disk-space",
+  "trigger": { "kind": "time", "everyMs": 3600000 },
+  "action": { "kind": "command", "command": "df -h /" },
+  "emit": {
+    "policy": "on_output",
+    "channel": "maintenance",
+    "template": "Disk check:\n{{stdout}}"
+  }
+}
+```
+
+Fresh setup seeds three focused watches for the default `shrimpy` agent:
+
 - `memory-management` — daily at 03:00, runs the memory upkeep skill.
 - `journal-daily` — daily at 22:30, writes a same-day journal note only if activity warrants it.
 - `journal-compact` — Sundays at 04:00, compacts old journal notes.
 
-Channel membership stays in `config/channels.json`. Agent schedules choose a
-channel to log through; setup seeds the default `heartbeat` channel with the
+Channel membership stays in `config/channels.json`. Message watches choose a
+channel to log through; setup seeds the default `maintenance` channel with the
 default `shrimpy` agent as a member.
 
-Inspect schedules with `shrimpy schedules [--agent <id>] [--json]` or
-`shrimpy schedules show <resolved-schedule-id>`. The inspection surface reports
-source paths, owner/local ids, target channel, channel membership, expected
-wake behavior, next run from scheduler state, and recent emitted channel
-message ids from channel logs.
+Inspect watches with `shrimpy watches [--agent <id>] [--json]`,
+`shrimpy watches show <agent-id>/<watch-id>`, or
+`shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports
+source paths, owner/local ids, target channels, expected wake behavior, next
+run from clock state, active runs, diagnostics, and recent run history.
 
-## Scheduler Status
+## Watch Status
 
-`shrimpy status`, `shrimpy gateway status`, `shrimpy schedules`, TUI
-`/status schedules`, and turn context summarize scheduled runs across all
-configured agent and workspace schedules. This aggregate status is not tied to
-the default heartbeat schedule.
+`shrimpy status`, `shrimpy gateway status`, `shrimpy watches`, TUI
+`/status watches`, and turn context summarize watch runs across configured
+agent-owned watches. This aggregate status is not tied to any reserved channel.
 
-`status.watchedSchedules` is optional targeted diagnostic config for callers that need to track a specific schedule/channel pair:
+`status.watchedWatches` is optional targeted diagnostic config for callers that need to track a specific watch/channel pair:
 
 ```json
 {
   "status": {
-    "watchedSchedules": [
+    "watchedWatches": [
       {
-        "label": "heartbeat",
-        "channel": "heartbeat",
-        "scheduleId": "shrimpy/heartbeat"
+        "label": "memory",
+        "channel": "maintenance",
+        "watchId": "shrimpy/memory-management"
       }
     ]
   }
 }
 ```
 
-- `label` is the diagnostic name. If omitted, Shrimpy uses `scheduleId`.
-- `channel` is the channel log where the scheduler writes the scheduled message.
-- `scheduleId` is the resolved scheduler id, for example `agent-id/local-schedule-id` for agent-owned schedules.
+- `label` is the diagnostic name. If omitted, Shrimpy uses `watchId`.
+- `channel` is the channel log where the watch writes emitted messages.
+- `watchId` is the resolved watch id, for example `agent-id/local-watch-id`.
 
 ## Context
 
@@ -381,7 +415,7 @@ the default heartbeat schedule.
         "type": "command",
         "id": "finance_alerts",
         "command": "finance-shrimpy alerts context",
-        "channels": ["heartbeat", "finance"],
+        "channels": ["maintenance", "finance"],
         "freshForMs": 60000
       }
     ]

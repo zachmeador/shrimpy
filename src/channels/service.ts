@@ -14,7 +14,7 @@ import {
 export const CHANNEL_MESSAGE_KINDS = [
   "user_text",
   "agent_text",
-  "scheduler",
+  "watch",
   "worker",
   "system",
   "media",
@@ -50,7 +50,7 @@ export interface ChannelMessageInspection extends ChannelMessagePreview {
 }
 
 export interface ChannelSourceRecordSummary {
-  kind: "scheduler" | "worker";
+  kind: "watch" | "worker";
   id: string;
   runId?: string;
   targetChannel?: string;
@@ -85,7 +85,7 @@ export interface ChannelSearchFilters {
   transports?: string[];
   contentTypes?: string[];
   addressedAgentIds?: string[];
-  scheduleIds?: string[];
+  watchIds?: string[];
   sourceKinds?: string[];
   limit?: number;
 }
@@ -302,7 +302,7 @@ function summarizeChannelActivity(
 }
 
 function classifyChannelMessage(message: ChannelMessage): ChannelMessageKind {
-  if (isSchedulerMessage(message)) return "scheduler";
+  if (isWatchMessage(message)) return "watch";
   if (isWorkerMessage(message)) return "worker";
   if (message.sender.kind === "human" && message.content.type === "text") {
     return "user_text";
@@ -324,11 +324,11 @@ function classifyChannelMessage(message: ChannelMessage): ChannelMessageKind {
   return "other";
 }
 
-function isSchedulerMessage(message: ChannelMessage): boolean {
-  return message.origin.transport === "scheduler" ||
-    Boolean(message.origin.scheduleId) ||
-    Boolean(message.origin.schedule) ||
-    message.sender.actorId === "system:scheduler";
+function isWatchMessage(message: ChannelMessage): boolean {
+  return message.origin.transport === "watch" ||
+    Boolean(message.origin.watchId) ||
+    Boolean(message.origin.watch) ||
+    message.sender.actorId === "system:watch-runner";
 }
 
 function isWorkerMessage(message: ChannelMessage): boolean {
@@ -349,7 +349,7 @@ function sourceRecordId(
   kind: ChannelMessageKind,
 ): string | undefined {
   const origin = message.origin as ChannelMessage["origin"] & Record<string, unknown>;
-  if (kind === "scheduler") return message.origin.scheduleId;
+  if (kind === "watch") return message.origin.watchId;
   if (kind === "worker") {
     return stringValue(origin.workerId) ?? stringValue(origin.sourceId);
   }
@@ -357,7 +357,7 @@ function sourceRecordId(
 }
 
 function sourceTargetChannel(message: ChannelMessage): string | undefined {
-  return message.origin.schedule?.targetChannel ??
+  return message.origin.watch?.targetChannel ??
     stringValue(originRecord(message).targetChannel);
 }
 
@@ -368,12 +368,12 @@ function inspectCommandsForMessage(
   const origin = message.origin as ChannelMessage["origin"] & Record<string, unknown>;
   const explicit = [
     ...arrayOfStrings(origin.inspect),
-    ...arrayOfStrings(message.origin.schedule?.inspect),
+    ...arrayOfStrings(message.origin.watch?.inspect),
   ];
   if (explicit.length > 0) return uniqueStrings(explicit);
 
   const id = sourceRecordId(message, kind);
-  if (kind === "scheduler" && id) return [`shrimpy schedules show ${id}`];
+  if (kind === "watch" && id) return [`shrimpy watches show ${id}`];
   if (kind === "worker" && id) return [`shrimpy worker status ${id}`];
   return [];
 }
@@ -393,7 +393,7 @@ function matchesChannelSearch(
   if (!matchesAny(message.origin.addressedAgentId ?? "none", filters.addressedAgentIds)) {
     return false;
   }
-  if (!matchesAny(message.origin.scheduleId ?? "none", filters.scheduleIds)) {
+  if (!matchesAny(message.origin.watchId ?? "none", filters.watchIds)) {
     return false;
   }
   if (
@@ -423,7 +423,7 @@ function searchableText(message: ChannelMessageInspection): string {
     message.origin.transportUserId,
     message.origin.transportChatId,
     message.origin.addressedAgentId,
-    message.origin.scheduleId,
+    message.origin.watchId,
     message.origin.runId,
     message.source.id,
     message.source.runId,
@@ -439,7 +439,6 @@ function searchableText(message: ChannelMessageInspection): string {
 
 function isRequestLikeMessage(message: ChannelMessageInspection): boolean {
   return message.kind === "user_text" ||
-    message.kind === "scheduler" ||
     message.kind === "worker";
 }
 
@@ -451,7 +450,10 @@ function recentSourceRecords(
   const seen = new Set<string>();
 
   for (const message of [...messages].reverse()) {
-    if (message.kind !== "scheduler" && message.kind !== "worker") continue;
+    if (
+      message.kind !== "watch" &&
+      message.kind !== "worker"
+    ) continue;
     const id = message.source.id;
     if (!id) continue;
     const key = `${message.kind}:${id}:${message.source.runId ?? ""}`;

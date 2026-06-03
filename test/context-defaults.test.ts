@@ -232,12 +232,12 @@ describe("resolveContextConfig", () => {
       () =>
         resolveContextConfig({
           channels: {
-            heartbeat: {
+            maintenance: {
               env: ["not_a_real_env_key"],
             },
           },
         }),
-      /unknown env key in context\.channels\["heartbeat"\]\.env/,
+      /unknown env key in context\.channels\["maintenance"\]\.env/,
     );
   });
 });
@@ -270,7 +270,7 @@ describe("assembleContextViewSections", () => {
       const ctx = resolveContextConfig({
         env: ["workspace_path", "channel", "model_id"],
         channels: {
-          heartbeat: {
+          maintenance: {
             sources: ["agent:MAINTENANCE.md"],
             env: ["workspace_path", "channel"],
           },
@@ -281,12 +281,12 @@ describe("assembleContextViewSections", () => {
         agentRoot,
         workspace,
         ctx,
-        "heartbeat",
+        "maintenance",
       ));
 
       assert.match(rendered, /# MAINTENANCE/);
       assert.doesNotMatch(rendered, /\*\*workspace_path\*\*/);
-      assert.deepEqual(resolveContextEnvKeys(ctx, "heartbeat"), [
+      assert.deepEqual(resolveContextEnvKeys(ctx, "maintenance"), [
         "workspace_path",
         "channel",
       ]);
@@ -310,12 +310,12 @@ describe("assembleContextViewSections", () => {
         workspace,
         resolveContextConfig({
           channels: {
-            heartbeat: {
+            maintenance: {
               sources: ["workspace:NOTICE.md", "agent:MAINTENANCE.md"],
             },
           },
         }),
-        "heartbeat",
+        "maintenance",
       );
 
       assert.equal(sections.length, 2);
@@ -327,7 +327,7 @@ describe("assembleContextViewSections", () => {
         "identity",
         "identity",
       ]);
-      assert.match(sections[0].reason, /heartbeat/);
+      assert.match(sections[0].reason, /maintenance/);
       assert.match(sections[0].content, /workspace/);
       assert.match(sections[1].content, /steady/);
     } finally {

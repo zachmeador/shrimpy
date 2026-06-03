@@ -19,7 +19,7 @@ Architecture simplicity is a product feature.
 ## Product Boundary
 
 Shrimpy is a persistent home workspace with durable agents, channels, sessions,
-memory, schedules, and skills.
+memory, watches, and skills.
 
 It is CLI-first, file-backed, inspectable, and built on Pi until Pi is the
 constraint.

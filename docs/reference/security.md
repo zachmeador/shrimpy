@@ -38,7 +38,7 @@ When the relevant tools or surfaces are available:
 - web/search/browser-like tools add external content to session input;
 - channel surfaces can turn remote messages into agent turns when membership
   gives an agent visibility and that agent's channel policy accepts them;
-- schedules can repeat work without a human watching every run;
+- watches can repeat work without a human watching every run;
 - generated apps and scripts can remain part of the user's local environment
   after Shrimpy has built or modified them.
 
@@ -50,12 +50,12 @@ Use these current commands when inspecting workspace config:
 shrimpy agent inspect <id>
 shrimpy agent channel-policy <id> --channel <channel>
 shrimpy channels members <channel>
-shrimpy schedules
-shrimpy schedules show <schedule-id>
+shrimpy watches
+shrimpy watches show <agent-id>/<watch-id>
 shrimpy context --agent <id> --sections
 shrimpy skills list --agent <id>
 shrimpy skills validate --agent <id>
 ```
 
-These commands expose configuration, routing, prompt material, schedules, and
+These commands expose configuration, routing, prompt material, watches, and
 the active tool list.

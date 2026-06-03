@@ -3,9 +3,9 @@ import { promisify } from "node:util";
 import type { ChannelMessage } from "../../channels/index.js";
 import {
   collectGatewayActivity,
-  loadGatewaySchedulerSummary,
+  loadGatewayWatchClockSummary,
 } from "../../gateway/status.js";
-import { loadGatewayScheduleIds } from "../../gateway/scheduler-service.js";
+import { loadGatewayWatchIds } from "../../gateway/watch-service.js";
 import { buildMemoryContext } from "../../memory/index.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import {
@@ -75,30 +75,30 @@ export async function buildTurnContext(
 }
 
 function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
-  const scheduleIds = loadGatewayScheduleIds(input.runtime);
+  const watchIds = loadGatewayWatchIds(input.runtime);
   const activity = collectGatewayActivity(
     input.runtime.paths.channelsDir,
     input.runtime.resolved.status,
-    scheduleIds,
+    watchIds,
   );
-  const scheduler = loadGatewaySchedulerSummary(
-    input.runtime.paths.schedulerStatePath,
+  const watchClock = loadGatewayWatchClockSummary(
+    input.runtime.paths.watchClockStatePath,
     input.runtime.resolved.status,
-    scheduleIds,
+    watchIds,
   );
   const pieces: string[] = [];
 
-  if (activity.lastScheduledRun) {
+  if (activity.lastWatchRun) {
     pieces.push(
-      `last scheduled run ${formatAge(Date.now() - activity.lastScheduledRun.message.timestamp)} ago`,
+      `last watch run ${formatAge(Date.now() - activity.lastWatchRun.message.timestamp)} ago`,
     );
   }
-  if (scheduler.nextScheduledRun) {
-    const delta = scheduler.nextScheduledRun.nextRunAtMs - Date.now();
+  if (watchClock.nextWatchRun) {
+    const delta = watchClock.nextWatchRun.nextRunAtMs - Date.now();
     pieces.push(
       delta >= 0
-        ? `next scheduled run in ${formatAge(delta)}`
-        : `next scheduled run overdue by ${formatAge(Math.abs(delta))}`,
+        ? `next watch run in ${formatAge(delta)}`
+        : `next watch run overdue by ${formatAge(Math.abs(delta))}`,
     );
   }
   if (activity.lastUserInteraction) {

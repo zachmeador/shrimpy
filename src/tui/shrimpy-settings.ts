@@ -219,7 +219,7 @@ class ShrimpySettingsSubmenu extends Container {
       {
         id: "agent-root",
         label: "Agent root",
-        description: "Agent-owned memory, sessions, skills, schedules, and vault directory.",
+        description: "Agent-owned memory, sessions, skills, watches, and vault directory.",
         currentValue: agentPaths.root,
       },
       {

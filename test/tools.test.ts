@@ -159,7 +159,7 @@ describe("send_message", () => {
     const tools = createDaemonTools({
       channelBus,
       bootstrap: createBootstrap(),
-      sendMessageActorId: "agent:heartbeat",
+      sendMessageActorId: "agent:maintenance",
     });
     const sendMessage = findTool("send_message", tools);
 
@@ -173,7 +173,7 @@ describe("send_message", () => {
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
     assert.equal(messages.length, 1);
-    assert.equal(messages[0].sender.actorId, "agent:heartbeat");
+    assert.equal(messages[0].sender.actorId, "agent:maintenance");
   });
 
   test("registerTelegramRoute supports custom route prefixes", async () => {
@@ -261,7 +261,7 @@ describe("active publication tools", () => {
     await notify.execute(
       "call-1",
       {
-        text: "Schedule updated.",
+        text: "Plan updated.",
         urgency: "low",
         quiet: true,
         batchable: true,

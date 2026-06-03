@@ -6,7 +6,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
-| [SCHED-001](sched-001-scheduler-job-runner.md) | draft | P1 | Watches | none | Agent-owned watches |
+| [WATCH-001](watch-001-agent-owned-watches.md) | review | P1 | Watches | none | Agent-owned watches |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [MODEL-001](model-001-user-configurable-model-policy.md) | draft | P1 | Models | none | User-configurable model policy |
@@ -16,7 +16,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [MODEL-001](model-001-user-configurable-model-policy.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | [MODEL-001](model-001-user-configurable-model-policy.md) | Bundled admin agent |
-| [MECH-001](mech-001-scheduled-skill-opportunity-assessments.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [APP-001](app-001.md) | Mechanic skill opportunity watch |
+| [MECH-001](mech-001-skill-opportunity-watch.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [APP-001](app-001.md) | Mechanic skill opportunity watch |
 | [MECH-002](mech-002-direct-mechanic-tui-command.md) | todo | P1 | Mechanic | [ADMIN-001](admin-001.md), [MODEL-001](model-001-user-configurable-model-policy.md) | Direct mechanic TUI command |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
