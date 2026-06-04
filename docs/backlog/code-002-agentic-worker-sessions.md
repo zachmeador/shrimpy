@@ -3,7 +3,7 @@
 Status: draft
 Priority: P1
 Area: Coding Agents
-Depends On: [CODE-001](code-001.md), [MODEL-001](model-001-user-configurable-model-policy.md)
+Depends On: [CODE-001](code-001.md)
 
 ## Why
 

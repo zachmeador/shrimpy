@@ -3,7 +3,7 @@
 Status: todo
 Priority: P1
 Area: Mechanic
-Depends On: [ADMIN-001](admin-001.md), [MODEL-001](model-001-user-configurable-model-policy.md)
+Depends On: [ADMIN-001](admin-001.md)
 
 ## Why
 
@@ -36,7 +36,7 @@ This keeps the product model simple: if a user wants to change or repair the hom
 ## Notes
 
 - [ADMIN-001](admin-001.md) establishes the bundled mechanic agent and default workspace shape.
-- [SETUP-002](setup-002-provider-model-policy-bootstrap.md) should make the `coding` policy resolvable before first mechanic-led onboarding.
+- Setup should leave the `coding` policy resolvable before first mechanic-led onboarding.
 - Repair and diagnostics can still be mechanic-led workflows or status subcommands, but the durable conversational front door is `shrimpy mechanic`.
 
 ## Done

@@ -3,26 +3,26 @@
 Status: todo
 Priority: P3
 Area: Memory
-Depends On: [MODEL-001](../model-001-user-configurable-model-policy.md), [TUI-004](../tui-004-agent-session-navigator.md)
+Depends On: [TUI-004](../tui-004-agent-session-navigator.md)
 
 ## Why
 
 Long-running Shrimpy sessions are hard to recognize from channel/session labels alone. Shrimpy should maintain a compact generated title for each session so agents and humans can identify prior work quickly from the CLI and future session navigation surfaces.
 
-This is low priority. It should wait until the upstream model-policy and session-inventory shapes are clearer.
+This is low priority. It should wait until session-inventory shapes are clearer.
 
 ## Current State
 
 - `shrimpy sessions list [channel] --agent <id> --json` lists active sessions and recent archives for one agent, but it does not include generated titles.
 - Session metadata records runtime/model/compaction facts and lifecycle state; there is no `shrimpy_session_title` custom entry or sidecar title index.
-- Model-policy support for choosing a cheap summarization model does not exist yet.
+- Model-policy support exists for normal sessions, but there is no dedicated low-cost title/summarization policy yet.
 
 ## Build
 
 - Add an efficient session-title summarizer that produces a title of 140 characters or less.
 - Strip tool results before summarization. Keep only the minimum useful shape: roles, user-visible text, assistant-visible text, tool names, timestamps when relevant, and short error/status hints.
 - Avoid re-summarizing unchanged sessions. Track a digest, message count, or newest entry id so title refreshes only when the summarized input changed meaningfully.
-- Use the same provider path and inference handling as Shrimpy compaction, but resolve a cheap/fast summarization model through model policy once that exists.
+- Use the same provider path and inference handling as Shrimpy compaction, but resolve a cheap/fast summarization model through an explicit title or summarization policy.
 - Persist the title as Shrimpy-owned session metadata, for example a `shrimpy_session_title` custom session entry or an equivalent inspectable sidecar index. The record should include title, source digest/newest entry, generated timestamp, and model metadata.
 - Expose titles through existing CLI inspection:
   - `shrimpy sessions list [channel] [--agent <id>] [--json]` includes title when present.
@@ -42,7 +42,7 @@ This is low priority. It should wait until the upstream model-policy and session
 
 - [TUI-004](../tui-004-agent-session-navigator.md): the navigator wants richer session metadata and should display these titles when available.
 - [CODE-002](../code-002-agentic-worker-sessions.md): worker sessions already need compact summaries; this title generator should share token-stripping and cheap summarization helpers where useful, while keeping worker Markdown summaries separate from 140-character session titles.
-- [MODEL-001](../model-001-user-configurable-model-policy.md): title generation should use an explicit low-cost summarization/model-policy intent instead of silently spending the active session's main model.
+- Model policy: title generation should use an explicit low-cost summarization intent instead of silently spending the active session's main model.
 - [Compaction](../../reference/compaction.md): title summarization should reuse provider/request plumbing where practical, but it is not compaction and should not affect working context.
 - [Memory](../../reference/memory.md): titles help locate session evidence for memory upkeep, but they are not durable memory files.
 

@@ -30,7 +30,6 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 
 ## Notes
 - Likely files: `src/setup/init.ts`, setup templates, `src/agents/workspace-manager.ts`, and skills/resources under setup templates.
-- Depends on [MODEL-001](model-001-user-configurable-model-policy.md): mechanic should point at the user-owned `coding` policy instead of carrying a hardcoded model default.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
 - Early mechanic skill pack ideas live in `src/skills/shrimpy-mechanic-ideas/`: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
 - Related follow-up: [MECH-001](mech-001-skill-opportunity-watch.md) covers an opt-in mechanic-owned watch that reviews real Shrimpy usage, writes a Markdown assessment, and messages the user with concrete skill/app ideas only when useful.
