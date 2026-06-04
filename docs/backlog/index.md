@@ -33,6 +33,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
 | [SURFACE-005](surface-005-chat-surface-delivery-semantics.md) | draft | P2 | Surfaces | [SURFACE-002](surface-002-chat-delivery-attribution.md), [SURFACE-003](surface-003-chat-operation-status.md) | Chat surface delivery semantics |
+| [SURFACE-006](surface-006-chat-command-parity.md) | todo | P2 | Surfaces | [SURFACE-005](surface-005-chat-surface-delivery-semantics.md) | Chat command parity |
 
 ## Later
 
