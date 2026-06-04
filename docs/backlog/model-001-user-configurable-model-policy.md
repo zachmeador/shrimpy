@@ -122,6 +122,9 @@ normal home sessions should fail with an actionable message.
   model, resolve the policy again.
 - Update `/model` and Shrimpy's model selector guard so an interactive session
   shows policy-allowed candidates by default and makes policy changes explicit.
+- Extend the TUI `/model` menu so a user can add the current or selected model
+  to a named model policy, remove a candidate from a policy, and reorder policy
+  candidates to change fallback order.
 - Record model policy metadata in session files: effective policy name, selected
   provider/model, candidate that won, and unresolved/skipped candidate reasons
   when available.
@@ -152,6 +155,9 @@ normal home sessions should fail with an actionable message.
 - Do not make model policy a hidden agent decision. Agents may request a session
   or worker intent through normal Shrimpy controls, but the framework resolves
   models from explicit user config.
+- Do not make `/model` policy edits implicit side effects of switching the
+  active session model. Policy membership and fallback-order changes should be
+  deliberate menu actions.
 - Do not infer "local" from provider names for enforcement in the first slice.
   Local-only behavior comes from what the user lists in the policy.
 - Do not create a second model registry. Policies point at Pi-visible
@@ -198,6 +204,8 @@ normal home sessions should fail with an actionable message.
   coding candidate, while explicit local-only or unresolved `home` policies fail
   clearly until a usable home candidate exists.
 - Saved TUI session models cannot bypass the effective policy.
+- The TUI `/model` menu can assign selected models to named policies, remove
+  policy candidates, and reorder fallback candidates deliberately.
 - CLI inspection explains policy resolution and unresolved candidates in human
   and JSON forms.
 - Worker/coding, mechanic/setup/repair, and normal home sessions use distinct intents.
