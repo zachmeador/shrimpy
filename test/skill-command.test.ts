@@ -199,6 +199,33 @@ describe("skill context inspection", () => {
     ));
   });
 
+  test("context sources run renders file and directory sources through prompt sections", async () => {
+    await setupInit(workspace);
+
+    const fileRun = await captureLogs(() =>
+      cmdContext(
+        ["sources", "run", "file:workspace:profile/WORKSPACE.md"],
+        { workspace } as any,
+      )
+    );
+    const dirRun = await captureLogs(() =>
+      cmdContext(
+        ["sources", "run", "directory:agent:context/"],
+        { workspace } as any,
+      )
+    );
+
+    const fileOutput = fileRun.lines.join("\n");
+    const dirOutput = dirRun.lines.join("\n");
+    assert.equal(fileRun.result, 0);
+    assert.equal(dirRun.result, 0);
+    assert.match(fileOutput, /^\[context base:profile\/WORKSPACE\.md identity\]/);
+    assert.match(dirOutput, /\[context base:context\/habits\.md memory\]/);
+    assert.match(dirOutput, /\[context base:context\/identity\.md memory\]/);
+    assert.doesNotMatch(fileOutput, /^## profile\/WORKSPACE\.md/m);
+    assert.doesNotMatch(dirOutput, /^## context\//m);
+  });
+
   test("context sources run executes command sources", async () => {
     await setupInit(workspace);
     const configPath = join(workspace, "config", "shrimpy.json");

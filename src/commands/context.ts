@@ -1,34 +1,19 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import {
-  assembleSessionPrompt,
-  createGatewaySessionDescriptor,
-  createStoredSessionDescriptor,
-} from "../sessions/index.js";
 import { createAppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import {
-  makeMessage,
-  textContent,
-} from "../channels/index.js";
-import {
-  buildTurnContext,
-  commandMatchesChannel,
-  expandDirectoryResource,
-  formatChannelMessage,
-  findContextViewOverrides,
-  isCommandSource,
-  isDirectoryResource,
-  parseContextResource,
-  resolveContextSource,
-  renderTurnContext,
   renderPromptSectionManifest,
-  runContextSourceCommand,
   summarizePromptSection,
-  type ContextSourceConfig,
-  type ResolvedContextCommandSource,
-  type TurnContextItem,
 } from "../context/index.js";
+import {
+  buildContextTurnPreview,
+  buildSessionContextPreview,
+  collectContextSources,
+  runContextSource,
+  type ContextSourceRunResult,
+  type ContextSourceView,
+} from "../context/preview.js";
 import {
   parseCommandArgs,
   type CommandHandler,
@@ -72,94 +57,35 @@ export const cmdContext: CommandHandler = async (argv, config) => {
   });
 
   const runtime = createAppRuntime(config);
-  const agent = runtime.getAgent(values.agent);
-  const agentPaths = runtime.getAgentPaths(agent.id);
-
   // --config: just dump the resolved config
   if (values.config) {
     console.log(JSON.stringify(runtime.resolved.context, null, 2));
     return 0;
   }
 
-  const cwd = process.cwd();
-  const bootstrap = await runtime.createBootstrap({
-    agentId: agent.id,
-    cwd,
-  });
-  const sessionType = values["session-type"]
-    ?? (values.channel ? "gateway" : "preview");
-  const descriptor = values.channel
-    ? {
-      ...createGatewaySessionDescriptor({
-        workspacePath: agentPaths.root,
-        agentId: agent.id,
-        channel: values.channel,
-        cwd,
-      }),
-      kind: sessionType,
-    }
-    : createStoredSessionDescriptor({
-      workspacePath: agentPaths.root,
-      agentId: agent.id,
-      sessionName: join("context-preview", agent.id),
-      kind: sessionType,
-      cwd,
-    });
-  const plan = {
-    descriptor,
-    model: runtime.resolveModel(
-      bootstrap,
-      values.provider,
-      values.model,
-      agent.model,
-      { allowMissingDefault: true },
-    ),
-    defaultThinking: agent.thinking,
-    prompt: {
-      skills: values.skill ? [values.skill] : undefined,
-    },
-  };
-
-  const assembly = assembleSessionPrompt(bootstrap, plan);
-  const systemPromptPreview = assembly.systemPrompt;
   const prompt = positionals.join(" ").trim();
-  const previewMessage = values.channel
-    ? makeMessage({
-      sender: {
-        kind: "human",
-        actorId: "human:preview",
-        displayName: "(user)",
-      },
-      origin: {
-        transport: "cli",
-        sourceChannel: values.channel,
-      },
-      content: textContent(prompt),
-    })
-    : undefined;
-  const userMessage = previewMessage && values.channel
-    ? formatChannelMessage(values.channel, previewMessage)
-    : prompt;
-  const turnContext = (prompt || values.turn)
-    ? await buildTurnContext({
-      runtime,
-      descriptor,
-      currentMessage: previewMessage,
-      preview: true,
-    })
-    : undefined;
-  const turnContextText = turnContext ? renderTurnContext(turnContext) : undefined;
-  const userMessagePreview = prompt ? userMessage : undefined;
+  const preview = await buildSessionContextPreview(runtime, {
+    agentId: values.agent,
+    channel: values.channel,
+    sessionType: values["session-type"],
+    provider: values.provider,
+    model: values.model,
+    skill: values.skill,
+    prompt,
+    includeTurn: Boolean(prompt || values.turn),
+  });
 
   if (values.json) {
     console.log(
       JSON.stringify(
         {
-          systemPrompt: systemPromptPreview,
-          shrimpySystemPrompt: assembly.baseSystemPrompt,
-          promptSections: assembly.sections.map(summarizePromptSection),
-          turnContext: turnContext ? { ...turnContext, text: turnContextText } : undefined,
-          userMessage: userMessagePreview,
+          systemPrompt: preview.assembly.systemPrompt,
+          shrimpySystemPrompt: preview.assembly.baseSystemPrompt,
+          promptSections: preview.assembly.sections.map(summarizePromptSection),
+          turnContext: preview.turnContext
+            ? { ...preview.turnContext, text: preview.turnContextText }
+            : undefined,
+          userMessage: preview.userMessage,
         },
         null,
         2,
@@ -169,23 +95,23 @@ export const cmdContext: CommandHandler = async (argv, config) => {
   }
 
   if (values.sections || values.turn) {
-    console.log(renderPromptSectionManifest(assembly.sections));
-    if (turnContextText) console.log(`\n${turnContextText}`);
+    console.log(renderPromptSectionManifest(preview.assembly.sections));
+    if (preview.turnContextText) console.log(`\n${preview.turnContextText}`);
     if (!values.turn) return 0;
     console.log("\n=== System Prompt ===\n");
   }
 
-  console.log(systemPromptPreview);
+  console.log(preview.assembly.systemPrompt);
 
-  if (prompt && turnContextText && !values.turn) {
+  if (prompt && preview.turnContextText && !values.turn) {
     console.log(
-      `\n=== Turn Context ===\n\n${turnContextText}`,
+      `\n=== Turn Context ===\n\n${preview.turnContextText}`,
     );
   }
 
-  if (prompt) {
+  if (preview.userMessage) {
     console.log(
-      `\n=== User Message ===\n\n${userMessage}`,
+      `\n=== User Message ===\n\n${preview.userMessage}`,
     );
   }
 
@@ -207,71 +133,20 @@ async function cmdContextTurn(argv: string[], config: ShrimpyConfig): Promise<nu
   });
 
   const runtime = createAppRuntime(config);
-  const agent = runtime.getAgent(values.agent);
-  const agentPaths = runtime.getAgentPaths(agent.id);
-  const cwd = process.cwd();
   const prompt = positionals.join(" ").trim();
-  const sessionType = values["session-type"]
-    ?? (values.channel ? "gateway" : "preview");
-  const descriptor = values.channel
-    ? {
-      ...createGatewaySessionDescriptor({
-        workspacePath: agentPaths.root,
-        agentId: agent.id,
-        channel: values.channel,
-        cwd,
-      }),
-      kind: sessionType,
-    }
-    : createStoredSessionDescriptor({
-      workspacePath: agentPaths.root,
-      agentId: agent.id,
-      sessionName: join("context-preview", agent.id),
-      kind: sessionType,
-      cwd,
-    });
-  const previewMessage = values.channel
-    ? makeMessage({
-      sender: {
-        kind: "human",
-        actorId: "human:preview",
-        displayName: "(user)",
-      },
-      origin: {
-        transport: "cli",
-        sourceChannel: values.channel,
-      },
-      content: textContent(prompt),
-    })
-    : undefined;
-  const turnContext = await buildTurnContext({
-    runtime,
-    descriptor,
-    currentMessage: previewMessage,
-    preview: true,
+  const preview = await buildContextTurnPreview(runtime, {
+    agentId: values.agent,
+    channel: values.channel,
+    sessionType: values["session-type"],
+    prompt,
   });
-  const text = renderTurnContext(turnContext);
 
   if (values.json) {
-    console.log(JSON.stringify({ ...turnContext, text }, null, 2));
+    console.log(JSON.stringify({ ...preview.turnContext, text: preview.text }, null, 2));
   } else {
-    console.log(text);
+    console.log(preview.text);
   }
   return 0;
-}
-
-type SourceKind = "file" | "directory" | "command" | "runtime";
-
-interface SourceView {
-  id: string;
-  type: SourceKind;
-  scope: "session" | "turn";
-  origin: string;
-  summary: string;
-  source?: ContextSourceConfig;
-  path?: string;
-  rootPath?: string;
-  command?: ResolvedContextCommandSource;
 }
 
 async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise<number> {
@@ -298,12 +173,9 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
   });
 
   const runtime = createAppRuntime(config);
-  const agent = runtime.getAgent(values.agent);
-  const sessionType = values["session-type"]
-    ?? (values.channel ? "gateway" : "preview");
   const sources = collectContextSources({
     runtime,
-    agentId: agent.id,
+    agentId: values.agent,
     channel: values.channel,
   });
 
@@ -332,9 +204,9 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
   const result = await runContextSource({
     source,
     runtime,
-    agentId: agent.id,
+    agentId: values.agent,
     channel: values.channel,
-    sessionType,
+    sessionType: values["session-type"],
   });
   if (values.json) {
     console.log(JSON.stringify({
@@ -353,100 +225,7 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
   return result.error ? 1 : 0;
 }
 
-function collectContextSources(input: {
-  runtime: ReturnType<typeof createAppRuntime>;
-  agentId: string;
-  channel?: string;
-}): SourceView[] {
-  const agentPaths = input.runtime.getAgentPaths(input.agentId);
-  const out: SourceView[] = [];
-
-  const addConfigured = (
-    source: ContextSourceConfig,
-    origin: string,
-    index: number,
-  ): void => {
-    out.push(createSourceView({
-      source,
-      origin,
-      index,
-      agentRootPath: agentPaths.root,
-      workspacePath: input.runtime.paths.workspace,
-    }));
-  };
-
-  input.runtime.resolved.context.sources.forEach((source, index) =>
-    addConfigured(source, "base", index)
-  );
-
-  const overrides = findContextViewOverrides(input.runtime.resolved.context, {
-    agentId: input.agentId,
-    channel: input.channel,
-  });
-  overrides.forEach((override, overrideIndex) => {
-    override.sources?.forEach((source, sourceIndex) =>
-      addConfigured(source, `view:${overrideIndex}`, sourceIndex)
-    );
-  });
-
-  out.push({
-    id: "runtime:turn-context",
-    type: "runtime",
-    scope: "turn",
-    origin: "runtime",
-    summary: "built-in turn context producers",
-  });
-
-  return dedupeSourceIds(out);
-}
-
-function createSourceView(input: {
-  source: ContextSourceConfig;
-  origin: string;
-  index: number;
-  agentRootPath: string;
-  workspacePath: string;
-}): SourceView {
-  const resolved = resolveContextSource(input.source);
-  if (isCommandSource(resolved)) {
-    return {
-      id: resolved.id,
-      type: "command",
-      scope: "turn",
-      origin: input.origin,
-      summary: `${resolved.command} channels=${resolved.channels.join(",")}`,
-      source: input.source,
-      command: resolved,
-    };
-  }
-
-  const parsed = parseContextResource(resolved);
-  const rootPath = parsed.scope === "agent" ? input.agentRootPath : input.workspacePath;
-  const type = isDirectoryResource(input.source) ? "directory" : "file";
-  return {
-    id: `${type}:${parsed.scope}:${parsed.path}`,
-    type,
-    scope: "session",
-    origin: input.origin,
-    summary: resolved,
-    source: input.source,
-    path: parsed.path,
-    rootPath,
-  };
-}
-
-function dedupeSourceIds(sources: SourceView[]): SourceView[] {
-  const seen = new Map<string, number>();
-  return sources.map((source) => {
-    const count = seen.get(source.id) ?? 0;
-    seen.set(source.id, count + 1);
-    return count === 0
-      ? source
-      : { ...source, id: `${source.id}#${count + 1}` };
-  });
-}
-
-function sourceToJson(source: SourceView): Record<string, unknown> {
+function sourceToJson(source: ContextSourceView): Record<string, unknown> {
   return {
     id: source.id,
     type: source.type,
@@ -465,121 +244,13 @@ function sourceToJson(source: SourceView): Record<string, unknown> {
   };
 }
 
-interface SourceRunResult {
-  output: string;
-  items?: TurnContextItem[];
-  error?: string;
-}
-
-async function runContextSource(input: {
-  source: SourceView;
-  runtime: ReturnType<typeof createAppRuntime>;
-  agentId: string;
-  channel?: string;
-  sessionType: string;
-}): Promise<SourceRunResult> {
-  if (input.source.command) {
-    return runCommandContextSource(input.source.command, input);
-  }
-  if (input.source.type === "runtime") {
-    return { output: await renderRuntimeTurnContext(input) };
-  }
-  if (!input.source.rootPath || !input.source.path) {
-    return { output: "" };
-  }
-  if (input.source.type === "directory") {
-    const refs = expandDirectoryResource(input.source.rootPath, input.source.path);
-    if (refs.length === 0) return { output: "" };
-    return { output: refs.map((ref) => {
-      const path = join(ref.rootPath, ref.resourcePath);
-      return `## ${ref.resourcePath}\n\n${readFileSync(path, "utf-8")}`;
-    }).join("\n\n---\n\n") };
-  }
-  const path = join(input.source.rootPath, input.source.path);
-  if (!existsSync(path)) return { output: "" };
-  return { output: readFileSync(path, "utf-8") };
-}
-
-async function runCommandContextSource(
-  command: ResolvedContextCommandSource,
-  input: {
-    runtime: ReturnType<typeof createAppRuntime>;
-    agentId: string;
-    channel?: string;
-    sessionType: string;
-  },
-): Promise<SourceRunResult> {
-  if (!commandMatchesChannel(command, input.channel)) {
-    return { output: "" };
-  }
-  const result = await runContextSourceCommand(command, {
-    runtime: input.runtime,
-    agentId: input.agentId,
-    channel: input.channel,
-    sessionType: input.sessionType,
-  });
-  return {
-    output: result.raw,
-    items: result.items,
-    error: result.error,
-  };
-}
-
-function renderContextSourceError(result: SourceRunResult): string {
+function renderContextSourceError(result: ContextSourceRunResult): string {
   if (!result.items || result.items.length === 0) {
     return result.error ?? "context source failed";
   }
   return result.items.map((item) =>
     item.inspect ? `${item.summary}\n  inspect: ${item.inspect}` : item.summary
   ).join("\n");
-}
-
-async function renderRuntimeTurnContext(input: {
-  runtime: ReturnType<typeof createAppRuntime>;
-  agentId: string;
-  channel?: string;
-  sessionType: string;
-}): Promise<string> {
-  const agentPaths = input.runtime.getAgentPaths(input.agentId);
-  const cwd = process.cwd();
-  const descriptor = input.channel
-    ? {
-      ...createGatewaySessionDescriptor({
-        workspacePath: agentPaths.root,
-        agentId: input.agentId,
-        channel: input.channel,
-        cwd,
-      }),
-      kind: input.sessionType,
-    }
-    : createStoredSessionDescriptor({
-      workspacePath: agentPaths.root,
-      agentId: input.agentId,
-      sessionName: join("context-preview", input.agentId),
-      kind: input.sessionType,
-      cwd,
-    });
-  const previewMessage = input.channel
-    ? makeMessage({
-      sender: {
-        kind: "human",
-        actorId: "human:preview",
-        displayName: "(user)",
-      },
-      origin: {
-        transport: "cli",
-        sourceChannel: input.channel,
-      },
-      content: textContent(""),
-    })
-    : undefined;
-  const context = await buildTurnContext({
-    runtime: input.runtime,
-    descriptor,
-    currentMessage: previewMessage,
-    preview: true,
-  });
-  return renderTurnContext(context);
 }
 
 async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<number> {
