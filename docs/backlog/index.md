@@ -8,7 +8,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
-| [WORKSPACE-001](workspace-001-git-checkpoints.md) | todo | P2 | Workspace | none | Workspace git checkpoints |
+| [WORKSPACE-001](workspace-001-git-checkpoints.md) | todo | P2 | Workspace | none | Simple workspace git checkpoints |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [MODEL-001](model-001-user-configurable-model-policy.md) | review | P1 | Models | none | User-configurable model policy |
@@ -44,3 +44,4 @@ Deferred notes that are intentionally outside the active backlog.
 | [CTX-008](later/ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](later/ctx-009-context-trace-debug-view.md) | todo | P2 | Context | [CTX-008](later/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [MODEL-001](model-001-user-configurable-model-policy.md), [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
+| [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | [WORKSPACE-001](workspace-001-git-checkpoints.md) | Tiered workspace checkpoint retention |
