@@ -10,6 +10,7 @@ closed out.
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
+| [WORKSPACE-001](workspace-001-git-checkpoints.md) | todo | P2 | Workspace | none | Workspace git checkpoints |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [MODEL-001](model-001-user-configurable-model-policy.md) | review | P1 | Models | none | User-configurable model policy |
