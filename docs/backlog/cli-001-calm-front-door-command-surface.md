@@ -14,6 +14,16 @@ lifecycle commands stay available without dominating default help.
 The CLI should organize around user intentions first and implementation areas
 second.
 
+## Current State
+
+- Command metadata now lives in `src/commands/catalog.ts`; top-level help,
+  group usage, reference docs, and shell completion are generated from it.
+- Default `--help` still shows the full implemented surface because every
+  catalog entry is marked for top-level help. There are no visibility tiers or
+  `help all` path yet.
+- There is no `shrimpy chat` command. Bare `shrimpy`,
+  `shrimpy agent tui <id>`, and `shrimpy run` remain the session front doors.
+
 ## Build
 
 - Add `shrimpy chat [agent]` as the primary TUI front door.

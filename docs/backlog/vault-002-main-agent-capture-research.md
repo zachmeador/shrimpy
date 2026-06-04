@@ -17,6 +17,15 @@ of the shared vault convention: capture the thing, preserve source metadata,
 name the folder well, add enough notes to find it later, and return with saved
 paths plus next actions.
 
+## Current State
+
+- Only the broad shared-vault convention exists today. There is no starter
+  guidance for capture, catalog, inbox, research packets, or vault indexes.
+- Worker sessions do not exist yet. The current fallback is `run_child` for
+  blocking child work and the `coding-delegation` skill for coding handoff
+  packets.
+- No helper code or tests exist for research packet path generation.
+
 ## Build
 
 - Add starter guidance for the main `shrimpy` agent covering capture, catalog,

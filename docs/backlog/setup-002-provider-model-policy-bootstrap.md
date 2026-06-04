@@ -15,6 +15,21 @@ in workspace config.
 This is not the conversational onboarding flow. It is the boring bootstrap layer
 that makes the first guided session possible.
 
+## Current State
+
+- `shrimpy setup` now inspects Pi-visible available models through
+  `state/pi/auth.json` and `state/pi/models.json`.
+- If no working models are found and a TTY is available, setup can launch a Pi
+  provider-bootstrap session as `shrimpy` with missing models allowed and asks
+  the user to use Pi's `/login` and `/model`.
+- After any model is available, setup launches the existing setup skill session
+  as `shrimpy` with registry fallback allowed.
+- No `modelPolicies` schema, coding/home policy writing, policy smoke test, or
+  mechanic handoff exists yet. This item should replace the current
+  availability-based bootstrap once [MODEL-001](model-001-user-configurable-model-policy.md)
+  lands.
+- Tests cover the interim provider-bootstrap and setup-session handoff path.
+
 ## Build
 
 - Extend `shrimpy setup` so it inspects Pi-visible provider auth, available

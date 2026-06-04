@@ -15,6 +15,15 @@ session navigation surfaces.
 This is low priority. It should wait until the upstream model-policy and
 session-inventory shapes are clearer.
 
+## Current State
+
+- `shrimpy sessions list [channel] --agent <id> --json` lists active sessions
+  and recent archives for one agent, but it does not include generated titles.
+- Session metadata records runtime/model/compaction facts and lifecycle state;
+  there is no `shrimpy_session_title` custom entry or sidecar title index.
+- Model-policy support for choosing a cheap summarization model does not exist
+  yet.
+
 ## Build
 
 - Add an efficient session-title summarizer that produces a title of 140

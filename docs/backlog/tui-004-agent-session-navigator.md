@@ -13,6 +13,18 @@ remember exact session labels.
 
 Now that Shrimpy has more control over the Pi TUI instance, `/agent` can become an interactive path for moving between agents and their sessions. This should feel like normal Shrimpy navigation, not a second control plane over sessions.
 
+## Current State
+
+- CLI session inventory exists through `shrimpy sessions list [channel]
+  --agent <id> --json`, including active sessions and recent archives for one
+  agent at a time.
+- Session lifecycle state is represented by `shrimpy_lifecycle` custom entries,
+  and local/gateway reset, restore, and thinking commands exist.
+- The TUI command surface has Shrimpy-owned `/status`, `/settings`, `/model`,
+  `/thinking`, and `/changelog` hooks, but no `/agent` navigator.
+- There is no workspace-wide all-agent session inventory service, no
+  cross-agent runtime reopening path, and no gateway-session selection safety UI.
+
 ## Build
 
 - Add `/agent` as an interactive TUI command.

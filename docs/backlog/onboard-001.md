@@ -5,7 +5,25 @@ Priority: P2
 Area: Onboarding
 
 ## Why
-First-run users currently land in `shrimpy setup init`, which produces baseline files but does not get them to a working agent. The onboarding flow should be a normal guided session run by the bundled `mechanic` agent ([ADMIN-001](admin-001.md)) that walks the user through model policy wiring, initial agent shaping, and starter doc persistence.
+First-run users no longer have only `shrimpy setup init`: `shrimpy setup`
+initializes the workspace, can launch a Pi provider-bootstrap TUI when no
+models are available, and then starts a setup-skill TUI as `shrimpy`. That is
+an interim setup flow, not the intended mechanic-led onboarding flow.
+
+The onboarding flow should be a normal guided session run by the bundled
+`mechanic` agent ([ADMIN-001](admin-001.md)) that walks the user through model
+policy wiring, initial agent shaping, and starter doc persistence.
+
+## Current State
+
+- `shrimpy setup init` remains the minimal baseline file creation path.
+- `shrimpy setup` now runs `runSetupEntry`: it initializes files, checks
+  Pi-visible models, optionally launches a provider bootstrap session using
+  Pi's `/login` and `/model`, and launches the setup skill when a model is
+  available.
+- The setup skill lives under `agents/shrimpy/skills/setup/` and includes a
+  validator script. It is not mechanic-owned yet.
+- There is no model-policy bootstrap or bundled mechanic handoff yet.
 
 ## Build
 - Add an onboarding entry point that launches a guided TUI session as the `mechanic` agent through the coding/maintenance model policy.

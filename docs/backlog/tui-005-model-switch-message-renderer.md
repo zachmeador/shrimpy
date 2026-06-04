@@ -15,6 +15,16 @@ drops transient status rows. The fix should make the model switch notice part
 of Pi's normal persisted message rendering path instead of preserving loose
 status UI rows after a rebuild.
 
+## Current State
+
+- `src/sessions/open.ts` already appends visible `shrimpy_model_switch` custom
+  messages with previous/current model details when `setModel` or `cycleModel`
+  changes the model.
+- Tests cover custom-message persistence and details, but not TUI rendering.
+- `installShrimpyToolRendering` rebuilds chat on `Ctrl+O` and preserves live
+  tool/streaming rows. There is still no registered custom renderer for
+  `shrimpy_model_switch`.
+
 ## Build
 
 - Register a Shrimpy renderer for the `shrimpy_model_switch` custom message type.

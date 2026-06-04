@@ -15,6 +15,15 @@ be `shrimpy mechanic`, not `shrimpy doctor`.
 This keeps the product model simple: if a user wants to change or repair the
 home, they open the mechanic and talk to it.
 
+## Current State
+
+- `shrimpy agent tui <id> [prompt]` already opens a direct TUI session for any
+  configured agent and is the likely implementation substrate.
+- `shrimpy agent tui` supports provider/model and thinking overrides. It does
+  not currently support root TUI skill selection.
+- There is no top-level `shrimpy mechanic`, no default `mechanic` agent, and no
+  coding/maintenance model-policy resolution.
+
 ## Build
 
 - Add `shrimpy mechanic [prompt]` as a top-level command that opens a TUI chat

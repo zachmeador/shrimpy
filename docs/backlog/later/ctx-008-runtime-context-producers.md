@@ -16,6 +16,15 @@ provenance becomes a recurring debugging problem, or when continuation, watch,
 and worker-status facts expand enough that `runtime:turn-context` is no longer
 inspectable enough.
 
+## Current State
+
+- `shrimpy context sources list` exposes `runtime:turn-context` as a runtime
+  source, and `shrimpy context sources run runtime:turn-context` renders the
+  whole current turn context preview.
+- `shrimpy context turn` also renders the combined turn-context envelope.
+- Individual runtime producers such as channel unread, session status, source
+  message facts, and watch provenance are not separately addressable from CLI.
+
 ## Build
 
 - Define explicit inputs for rendering built-in runtime context producers.

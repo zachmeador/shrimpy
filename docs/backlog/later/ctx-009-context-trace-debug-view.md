@@ -30,6 +30,16 @@ and worker-status context expands enough that the existing
 `shrimpy context --sections`, `shrimpy context turn`, and
 `shrimpy context sources list/run` surfaces are no longer sufficient.
 
+## Current State
+
+- `ContextBlock`, `PromptSection`, and `TurnContextItem` are still separate
+  shapes.
+- Existing CLI inspection covers section manifests, turn-context rendering, and
+  source list/run output, including the aggregate `runtime:turn-context` source.
+- There is no normalized trace/plan model that links source config, produced
+  blocks, rendered prompt sections, turn-context items, and provider-facing
+  injected context in one JSON view.
+
 ## Build
 
 - Add a normalized `ContextTrace` or `ContextPlan` layer for a resolved session

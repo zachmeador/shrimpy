@@ -31,6 +31,19 @@ different behavior:
 This should be user-owned policy, not hardcoded provider preference and not an
 agent prompt convention.
 
+## Current State
+
+- Config still supports concrete `agents[].model` defaults, not
+  `modelPolicies` or `agents[].modelPolicy`.
+- `shrimpy models` and `shrimpy models resolve` inspect current concrete model
+  availability and precedence in human and JSON forms.
+- Direct local sessions restore a saved session model when no CLI override is
+  supplied. Gateway sessions use the agent default for the gateway process.
+- Saved-session model restore is not constrained by a policy because policy
+  resolution does not exist yet.
+- Model switches are recorded as visible `shrimpy_model_switch` custom
+  messages, but session metadata does not include model-policy facts.
+
 ## Concept
 
 Add named model policies that map a session intent to an ordered set of concrete

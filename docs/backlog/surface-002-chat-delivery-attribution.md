@@ -5,9 +5,13 @@ Priority: P2
 Area: Surfaces
 
 ## Why
-Chat surfaces often expose one visible Shrimpy account even when multiple internal agents can deliver into the same user-facing channel. For example, an app-agent watch can write a poem into a Telegram session, but Telegram shows the message as coming from the Shrimpy bot account. The channel log already records the real `sender`, but adapter delivery currently receives only `(channel, text)`, so the surface cannot lightly distinguish "Shrimpy replied" from "Ole Scrappy dropped by."
+Chat surfaces often expose one visible Shrimpy account even when multiple internal agents can deliver into the same user-facing channel. For example, an app-agent watch can write a poem into a Telegram session, but Telegram shows the message as coming from the Shrimpy bot account. The channel log records the real `sender`, and egress now passes that typed message to adapters, but surfaces still do not decorate outbound messages when attribution would help.
 
 Shrimpy should preserve the one-visible-account pattern while making cross-agent deliveries legible at the surface edge.
+
+Current source has already fixed the first plumbing gap: egress delivery now
+receives a typed `ChannelMessage` and publication intent metadata. The remaining
+problem is choosing and applying a surface decoration policy.
 
 ## Build
 - Pass enough message metadata through channel egress for adapters to inspect `sender`, `origin`, and text content during delivery.

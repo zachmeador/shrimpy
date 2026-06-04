@@ -7,6 +7,16 @@ Area: Mechanic Agent
 ## Why
 Workspace setup, repair, configuration changes, and larger Shrimpy modifications need a normal agent with richer default context. Every initialized Shrimpy environment should include a bundled `mechanic` agent alongside the default `shrimpy` agent, using existing Shrimpy primitives instead of a separate control plane.
 
+## Current State
+- Fresh setup still seeds only the default `shrimpy` agent, with `home` and
+  `maintenance` channel membership for that agent.
+- Generic agent primitives now exist: `shrimpy agent add|set|tui|run`,
+  channel membership/policy commands, and the workspace `add-agent` skill.
+  Mechanic should be seeded through those ordinary primitives.
+- `shrimpy setup` currently launches a setup skill as `shrimpy`, not
+  `mechanic`.
+- There is no top-level `shrimpy mechanic` command or `modelPolicy` config yet.
+
 ## Build
 - Ship a bundled ordinary `mechanic` agent.
 - Treat `shrimpy` and `mechanic` as the two default agents in every new environment.

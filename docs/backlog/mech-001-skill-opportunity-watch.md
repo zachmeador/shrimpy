@@ -19,6 +19,16 @@ without silently changing the workspace. The mechanic should write an
 inspectable Markdown assessment and send the user a short message with the
 highest-signal recommendations.
 
+## Current State
+
+- The bundled `mechanic` agent does not exist yet.
+- Fresh setup seeds `memory-management`, `journal-daily`, and
+  `journal-compact` watches on `shrimpy`; there is no usage-assessment watch.
+- Watch primitives needed by this item now exist: `shrimpy watches add`,
+  `show`, `history`, `run`, active-run state, and persisted run history.
+- The workspace reference docs now define report locations such as
+  `agents/<id>/vault/<kind>/`, including `agents/mechanic/vault/assessments/`.
+
 ## Build
 
 - Add an opt-in mechanic-owned watch for recurring usage assessment.

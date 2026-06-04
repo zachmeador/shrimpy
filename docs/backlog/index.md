@@ -25,7 +25,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [ONBOARD-001](onboard-001.md) | todo | P2 | Onboarding | [ADMIN-001](admin-001.md), [MODEL-001](model-001-user-configurable-model-policy.md), [SETUP-002](setup-002-provider-model-policy-bootstrap.md), [MECH-002](mech-002-direct-mechanic-tui-command.md) | Guided new user onboarding session |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | [SETUP-001](setup-001-macos-friendly-install-docs.md) | Local agent sandboxing |
 | [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
-| [SURFACE-001](surface-001-telegram-typing-activity.md) | todo | P2 | Surfaces | none | Telegram typing activity |
+| [SURFACE-001](surface-001-telegram-typing-activity.md) | draft | P2 | Surfaces | none | Telegram typing activity |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |

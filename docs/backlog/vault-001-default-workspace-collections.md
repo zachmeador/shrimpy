@@ -18,6 +18,19 @@ portions`, the agent should have enough starter context to store a normalized
 Markdown recipe under `[workspace]/vault/recipes/` unless the user has told it
 to use a different place.
 
+## Current State
+
+- Fresh setup now creates shared `vault/` and `projects/` directories with
+  `.gitkeep`, plus `agents/shrimpy/vault/`.
+- Starter `WORKSPACE.md`, `SYSTEM.md`, and `docs/reference/workspace.md`
+  describe shared `vault/`, shared `projects/`, per-agent `vault/`, and
+  per-agent `projects/`.
+- Setup tests cover the seeded shared-vault/shared-projects paths and the
+  per-agent vault path.
+- The remaining work is the collection-specific guidance: vault git repo,
+  strict text-first `.gitignore`, recipe example, and commit guidance for kept
+  vault changes.
+
 ## Build
 
 - Add a short workspace-collections convention to the starter context.
