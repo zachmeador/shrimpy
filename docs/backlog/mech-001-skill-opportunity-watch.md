@@ -10,14 +10,16 @@ Depends On: [ADMIN-001](admin-001.md), [APP-001](app-001.md)
 Shrimpy should be able to look at how the user is actually using the workspace
 and occasionally surface implementation ideas worth considering. This is not
 generic "tips" content. The useful behavior is an opt-in mechanic assessment
-  that reads recent channel activity, watches, context files, skills, and
-  workspace artifacts, then suggests concrete Shrimpy skills, agents, watches,
-  or small app patterns that match the user's real habits.
+that reads recent channel activity, watches, static workspace and agent context
+files, skills, and workspace artifacts, then suggests concrete Shrimpy skills,
+agents, watches, or small app patterns that match the user's real habits.
 
 The product shape is a framework that can search autonomously for good ideas
 without silently changing the workspace. The mechanic should write an
 inspectable Markdown assessment and send the user a short message with the
-highest-signal recommendations.
+highest-signal recommendations. Context hygiene findings are report material
+by default; the mechanic should not rewrite or prune context unless the user
+asks for that work.
 
 ## Current State
 
@@ -40,7 +42,13 @@ highest-signal recommendations.
 - Implement the assessment as a mechanic skill/resource, not a special runtime
   control plane.
 - Inspect recent channel activity, configured watches, installed skills,
-  agent prompts/context, and vault/project files when available.
+  workspace profile files, every agent's `SOUL.md`, every agent's context
+  files, configured static file/directory context sources, and vault/project
+  files when available.
+- Check static context files for bloat, stale duplication, overly broad
+  prompts, and filing-cabinet drift. Include concrete path-level findings in
+  the report, with suggested pruning or consolidation steps, but leave the
+  files unchanged unless the user explicitly asks for edits.
 - Produce a timestamped Markdown report under the mechanic's vault, following
   the agent-report convention in
   [workspace.md](../reference/workspace.md):
@@ -66,6 +74,9 @@ highest-signal recommendations.
   recommendation exists.
 - Do not duplicate memory-management or journaling. This assessment is about
   implementation opportunities, not durable autobiographical memory.
+- Do not treat context-bloat findings as permission to mutate prompt or memory
+  files. The normal assessment only reports; cleanup is a separate user-approved
+  task.
 
 ## Notes
 
@@ -88,6 +99,9 @@ highest-signal recommendations.
 - Watch runs are inspectable even when they emit no channel message.
 - Each assessment writes a timestamped Markdown report in an inspectable
   workspace path.
+- Each assessment includes a static-context hygiene section covering all
+  workspace profile files, every agent's `SOUL.md`, and every agent's context
+  files, even when the result is "no notable bloat found."
 - Each non-empty assessment sends the user a concise message with concrete
   implementation skill ideas and a report path.
 - Tests cover default watch/template seeding if recurrence is seeded by

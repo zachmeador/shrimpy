@@ -17,7 +17,7 @@ Status `draft` means the maintainer is not sure about the item yet.
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md), [MODEL-001](model-001-user-configurable-model-policy.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [ADMIN-001](admin-001.md) | todo | P2 | Admin Agent | [MODEL-001](model-001-user-configurable-model-policy.md) | Bundled admin agent |
-| [MECH-001](mech-001-skill-opportunity-watch.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [APP-001](app-001.md) | Mechanic skill opportunity watch |
+| [MECH-001](mech-001-skill-opportunity-watch.md) | todo | P2 | Mechanic | [ADMIN-001](admin-001.md), [APP-001](app-001.md) | Mechanic usage and context hygiene assessment watch |
 | [MECH-002](mech-002-direct-mechanic-tui-command.md) | todo | P1 | Mechanic | [ADMIN-001](admin-001.md), [MODEL-001](model-001-user-configurable-model-policy.md) | Direct mechanic TUI command |
 | [APP-001](app-001.md) | todo | P2 | Apps | [ONBOARD-001](onboard-001.md) | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
