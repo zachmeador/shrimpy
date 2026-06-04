@@ -71,6 +71,9 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Docs & Project Hygiene
 
+- Added `npm run dev:setup*` helpers for repeatedly testing first-run setup in
+  isolated `/tmp` homes/workspaces, with an opt-in Pi auth/model state copy for
+  faster setup-skill iteration.
 - Added skills and tool-model reference documentation plus Pi skill-handling research.
 - Added channel, session, security, turn-context, and workspace storage reference documentation.
 - Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, agent-owned watches, model policy, workspace storage defaults, setup/model setup, and chat operation/status surfaces.

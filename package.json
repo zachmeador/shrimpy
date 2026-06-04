@@ -20,6 +20,11 @@
     "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",
     "test:coverage": "npm run build && c8 --all --src src --reporter=text-summary --reporter=lcov node --test --experimental-strip-types test/*.test.ts",
     "dev": "npm run build && node dist/cli.js",
+    "dev:setup": "node scripts/dev-setup.mjs",
+    "dev:setup:clean": "node scripts/dev-setup.mjs clean",
+    "dev:setup:init": "node scripts/dev-setup.mjs init",
+    "dev:setup:shell": "node scripts/dev-setup.mjs shell",
+    "dev:setup:status": "node scripts/dev-setup.mjs status",
     "gateway": "npm run build && node dist/gateway.js",
     "web": "npm run build && node dist/web/server.js",
     "web:dev": "node scripts/web-dev.mjs"

@@ -40,6 +40,29 @@ node dist/cli.js context --config
 node dist/cli.js gateway logs --path
 ```
 
+Setup walkthrough loop:
+
+```bash
+npm run dev:setup
+npm run dev:setup:init
+npm run dev:setup:status
+npm run dev:setup:shell
+npm run dev:setup:clean
+```
+
+`npm run dev:setup` rebuilds, resets an isolated `/tmp` home/workspace pair,
+writes a temporary `.shrimpy-workspace.json`, and runs `shrimpy setup`. It is
+fresh by default so edits under `src/setup/templates/` are copied into the test
+workspace each run. Use `npm run dev:setup -- --reuse --no-build` to rerun
+against the same temp workspace, or `npm run dev:setup -- --name tui` to keep a
+separate named sandbox.
+
+To skip repeated provider login/model selection while testing the setup skill,
+use `npm run dev:setup -- --copy-pi-state`. This copies `state/pi/auth.json`
+and `state/pi/models.json` from the workspace selected by your real
+`~/.shrimpy-workspace.json` into the temp workspace. Use
+`npm run dev:setup:clean` when done because the sandbox may contain credentials.
+
 Interactive zsh launches automatically install and refresh Shrimpy's cached shell
 completion in `~/.zshrc`. Set `SHRIMPY_NO_AUTO_COMPLETION=1` to disable that
 setup step while developing.
