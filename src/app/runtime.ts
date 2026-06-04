@@ -137,10 +137,10 @@ export class AppRuntime {
     bootstrap: SessionBootstrap,
     provider?: string,
     model?: string,
-    defaultModel?: ResolvedAgentConfig["model"],
+    defaultModelPolicy?: ResolvedAgentConfig["modelPolicy"],
     opts?: Parameters<typeof resolveSessionModel>[4],
   ) {
-    return resolveSessionModel(bootstrap, provider, model, defaultModel, opts);
+    return resolveSessionModel(bootstrap, provider, model, defaultModelPolicy, opts);
   }
 
   createEgressRegistry(): EgressRegistry {

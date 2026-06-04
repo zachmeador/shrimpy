@@ -14,6 +14,7 @@ import {
   DEFAULT_CONTEXT_ENV,
   DEFAULT_CONTEXT_SOURCES,
 } from "../context/index.js";
+import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { brand, dim, heading } from "../util/style.js";
 import {
@@ -32,6 +33,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       {
         id: "shrimpy",
         root: "agents/shrimpy",
+        modelPolicy: DEFAULT_MODEL_POLICY,
         tools: [
           "reply",
           "ask",

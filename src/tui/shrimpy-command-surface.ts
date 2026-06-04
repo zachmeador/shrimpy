@@ -20,7 +20,7 @@ import { formatVersionLabel } from "../app/metadata.js";
 import type { AppRuntime } from "../app/runtime.js";
 import { projectRoot } from "../app/project-root.js";
 import { timeSince } from "../channels/format.js";
-import { formatModelSelection } from "../config/model.js";
+import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import {
   collectGatewayActivity,
   loadGatewayWatchClockSummary,
@@ -429,8 +429,8 @@ function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
     const marker = agent.id === options.agentId ? "*" : "-";
     const tools = agent.tools?.join(",") ?? "default";
     const thinking = agent.thinking ?? "inherit";
-    const model = agent.model ? formatModelSelection(agent.model) : "missing";
-    lines.push(`${marker} ${agent.id} root=${agent.root} tools=${tools} thinking=${thinking} model=${model}`);
+    const modelPolicy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
+    lines.push(`${marker} ${agent.id} root=${agent.root} tools=${tools} thinking=${thinking} model_policy=${modelPolicy}`);
   }
 
   lines.push("", theme.bold("Inspect"), "shrimpy agent list", `shrimpy agent show ${options.agentId}`);
@@ -524,12 +524,14 @@ function modelStatusText(
     theme.bold("Model"),
     "",
     label("Active", formatSessionModel(mode.session.model)),
+    label("Agent policy", options.runtime.getAgent(options.agentId).modelPolicy ?? DEFAULT_MODEL_POLICY),
     label("Auth state", runtime.paths.authPath),
     label("Model state", runtime.paths.modelsPath),
     "",
     theme.bold("Inspect"),
     "Use Pi /model for live selection",
     "Use Pi /login for provider auth",
+    "shrimpy models resolve --session tui",
   ].join("\n");
 }
 

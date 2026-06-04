@@ -51,13 +51,14 @@ followed by that body. See [context-assembly.md](context-assembly.md) and
 ## Model And Thinking
 
 Direct local sessions restore the model saved inside the existing session when
-no CLI `--provider` or `--model` override is supplied. If there is no saved
-session model, Shrimpy uses the selected agent's `agents[].model`.
+no CLI `--provider`, `--model`, or `--model-policy` override is supplied. If
+there is no saved session model, Shrimpy uses the selected agent's
+`modelPolicy`, falling back to the workspace `coding` policy.
 
-Gateway channel sessions open from the agent default model for that gateway
-process. Existing channel session files record model metadata for inspection,
-but a gateway restart does not use a previously recorded channel-session model
-as the restart default.
+Gateway channel sessions open from the agent's resolved model policy for that
+gateway process. Existing channel session files record model metadata for
+inspection, but a gateway restart does not use a previously recorded
+channel-session model as the restart default.
 
 When the model changes inside a session, Shrimpy appends a visible
 `shrimpy_model_switch` custom message so later turns can see that earlier
@@ -106,7 +107,7 @@ When a session opens, Shrimpy appends inspection metadata to the active JSONL:
 
 - `shrimpy_system_prompt` — resolved Shrimpy system prompt
 - `shrimpy_tools` — tools registered for the session
-- `shrimpy_session_metadata` — agent, channel, env, model, inference, compaction, and tool policy
+- `shrimpy_session_metadata` — agent, channel, env, model, model-policy resolution, inference, compaction, and tool policy
 - `shrimpy_compaction_policy` — effective compaction policy at open time
 - `shrimpy_lifecycle` — active or archived state
 - `shrimpy_model_switch` — visible model-change note when the model changes

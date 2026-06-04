@@ -24,6 +24,10 @@ import {
   type ToolRuntimeConfig,
 } from "./tools.js";
 import { readJsonFileStrict } from "../util/json-file.js";
+import {
+  type ModelPoliciesConfig,
+  validateModelPoliciesConfig,
+} from "./model.js";
 
 export interface ShrimpyConfig {
   workspace: string;
@@ -33,6 +37,7 @@ export interface ShrimpyConfig {
   context?: ContextConfig;
   contextDefaults?: ContextDefaultsConfig;
   agents?: AgentConfig[];
+  modelPolicies?: ModelPoliciesConfig;
   tools?: ToolRuntimeConfig;
   runtime?: RuntimeConfig;
   status?: GatewayStatusConfig;
@@ -62,7 +67,7 @@ function resolveWorkspace(): string {
 function validateRawConfig(raw: Record<string, unknown>) {
   if (raw.model !== undefined) {
     throw new Error(
-      "config.model is not supported. Move that provider/id object to agents[].model and remove the top-level model field.",
+      "config.model is not supported. Move provider/id candidates to modelPolicies and set agents[].modelPolicy.",
     );
   }
   const removedTurnContextKey = "brief" + "ing";
@@ -76,6 +81,7 @@ function validateRawConfig(raw: Record<string, unknown>) {
     resolveContextDefaultsConfig(raw.contextDefaults);
   }
   if (raw.agents !== undefined) validateAgentsConfig(raw.agents);
+  if (raw.modelPolicies !== undefined) validateModelPoliciesConfig(raw.modelPolicies);
   if (raw.tools !== undefined) resolveToolRuntimeConfig(raw.tools);
   if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
   if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);

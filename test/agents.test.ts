@@ -17,10 +17,7 @@ describe("resolveAgentsConfig", () => {
     const agents = resolveAgentsConfig([
       {
         id: "primary",
-        model: {
-          provider: "local",
-          id: "qwen.gguf",
-        },
+        modelPolicy: "coding",
         tools: ["send_message", "send_message", "read_channel"],
         disabledTools: ["bash", "bash"],
         thinking: "high",
@@ -29,10 +26,7 @@ describe("resolveAgentsConfig", () => {
 
     assert.equal(agents.length, 1);
     assert.equal(agents[0].root, "agents/primary");
-    assert.deepEqual(agents[0].model, {
-      provider: "local",
-      id: "qwen.gguf",
-    });
+    assert.equal(agents[0].modelPolicy, "coding");
     assert.deepEqual(agents[0].tools, ["send_message", "read_channel"]);
     assert.deepEqual(agents[0].disabledTools, ["bash"]);
     assert.equal(agents[0].thinking, "high");

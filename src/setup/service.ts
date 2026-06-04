@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { existsSync } from "node:fs";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import { createAppRuntime, createWorkspacePaths } from "../app/index.js";
 import {
@@ -7,10 +8,15 @@ import {
   loadConfigForWorkspace,
   type ShrimpyConfig,
 } from "../config/index.js";
+import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import {
   runInteractiveAgentSession,
   runPiInteractiveAgentSession,
 } from "../sessions/index.js";
+import {
+  readJsonFileStrict,
+  writeJsonFileAtomic,
+} from "../util/json-file.js";
 import {
   ensureWorkspaceInitialized,
   type SetupInitResult,
@@ -163,6 +169,7 @@ export async function runSetupEntry(
   log(
     `Found ${models.length} available model${models.length === 1 ? "" : "s"}${preview ? `: ${preview}` : ""}.`,
   );
+  ensureCodingModelPolicy(workspace, models, log);
   log("Launching interactive setup session...");
 
   const config = loadConfigForWorkspace(workspace);
@@ -184,6 +191,55 @@ function canLaunchProviderBootstrap(): boolean {
 
 function formatModelLabel(model: SetupModelView): string {
   return `${model.provider}/${model.id}`;
+}
+
+function ensureCodingModelPolicy(
+  workspace: string,
+  models: SetupModelView[],
+  log: (line: string) => void,
+): void {
+  const paths = createWorkspacePaths(workspace);
+  if (!existsSync(paths.primaryConfigPath) || models.length === 0) return;
+
+  const raw = readJsonFileStrict(
+    paths.primaryConfigPath,
+    (parsed) => parsed as Record<string, unknown>,
+  );
+  const policies = isRecord(raw.modelPolicies)
+    ? { ...raw.modelPolicies }
+    : {};
+  const first = models[0];
+  if (!first) return;
+  let changed = false;
+
+  if (!isRecord(policies[DEFAULT_MODEL_POLICY])) {
+    policies[DEFAULT_MODEL_POLICY] = {
+      candidates: [{ provider: first.provider, id: first.id }],
+    };
+    raw.modelPolicies = policies;
+    changed = true;
+    log(`Created ${DEFAULT_MODEL_POLICY} model policy from ${formatModelLabel(first)}.`);
+  }
+
+  if (Array.isArray(raw.agents)) {
+    const agents = raw.agents.map((entry) => {
+      if (!isRecord(entry) || entry.id !== "shrimpy" || entry.modelPolicy !== undefined) {
+        return entry;
+      }
+      changed = true;
+      return {
+        ...entry,
+        modelPolicy: DEFAULT_MODEL_POLICY,
+      };
+    });
+    raw.agents = agents;
+  }
+
+  if (changed) writeJsonFileAtomic(paths.primaryConfigPath, raw);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function confirmExistingConfig(

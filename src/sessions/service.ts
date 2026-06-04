@@ -146,7 +146,7 @@ export async function inspectSessionCompactionPolicy(
     bootstrap,
     undefined,
     undefined,
-    agent.model,
+    agent.modelPolicy,
     { allowMissingDefault: true },
   );
   const inference = resolveModelVariantInference({

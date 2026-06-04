@@ -22,7 +22,8 @@ The workspace itself is selected by `~/.shrimpy-workspace.json`:
 
 Sections:
 
-- `agents` — agent ids, root paths, optional default model, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, and agent-owned channel policy.
+- `modelPolicies` — named model policies with ordered provider/model candidates.
+- `agents` — agent ids, root paths, optional default model policy, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, and agent-owned channel policy.
 - `runtime` — Pi loader/runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, compaction.
 - `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
 - `context` / `contextDefaults` — stable prompt sources, turn-context settings, command sources, env fields, channel overrides, agent-scoped context views.
@@ -128,19 +129,59 @@ That produces channel messages from `actorId: "human:alice"` and `userId: "alice
 
 `state/users.json` accepts an optional top-level `owner` field naming the canonical workspace user by `userId`. When set, `shrimpy channels post` (and other CLI publishers) stamp messages with that owner's actorId / userId / displayName. Manage with `shrimpy users list|get-owner|set-owner`.
 
+## Model Policies
+
+`modelPolicies` maps user-owned policy names to ordered concrete model
+candidates. A working workspace should define the `coding` policy with at
+least one candidate. If `modelPolicies` is present, config validation requires
+`coding`.
+
+```json
+{
+  "modelPolicies": {
+    "coding": {
+      "candidates": [
+        { "provider": "openai", "id": "gpt-5" }
+      ]
+    },
+    "local": {
+      "candidates": [
+        { "provider": "local", "id": "qwen-coder" }
+      ]
+    }
+  }
+}
+```
+
+Policies are resolved against Pi-visible models and configured auth. Shrimpy
+uses the first usable candidate. Inspect and edit policies with:
+
+```bash
+shrimpy models
+shrimpy models policies
+shrimpy models policies show coding
+shrimpy models policies set coding --candidate openai/gpt-5
+shrimpy models policies add-candidate coding anthropic/claude-opus --index 1
+shrimpy models policies move-candidate coding anthropic/claude-opus --index 0
+shrimpy models policies remove-candidate coding openai/gpt-5
+```
+
+Concrete provider/model ids still live in Pi's `state/pi/models.json`.
+Policies point at those ids; they do not create a second model registry.
+
 ## Agents
 
 Each agent config entry has:
 
 - `id` — stable agent id.
 - `root` — workspace-relative or absolute path to that agent's root.
-- `model` — default model for sessions opened as that agent, written as `{ "provider": "...", "id": "..." }`.
+- `modelPolicy` — default model policy for fresh sessions opened as that agent. If omitted, Shrimpy uses `coding`.
 - `tools` — allowed Shrimpy daemon tools such as `reply`, `ask`, `notify`, `report`, `send_message`, `read_channel`, and `run_child`.
 - `disabledTools` — effective tool names to exclude from Pi sessions. Use this to disable Pi built-ins such as `bash`; names are passed to Pi as `excludeTools`, so extension/custom tool names can be listed too.
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `channelPolicy` — when visible channel messages become turns for this agent.
 
-Agent identity, model defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
+Agent identity, model policy defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
 Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.

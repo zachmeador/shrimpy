@@ -2,7 +2,9 @@
 
 Active engineering notes for `shrimpy`. Completed work belongs in git history and stable docs.
 
-Status `draft` means the maintainer is not sure about the item yet.
+Status `draft` means the maintainer is not sure about the item yet. Status
+`review` means an implementation is ready for maintainer review but not yet
+closed out.
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
@@ -10,7 +12,7 @@ Status `draft` means the maintainer is not sure about the item yet.
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
-| [MODEL-001](model-001-user-configurable-model-policy.md) | draft | P1 | Models | none | User-configurable model policy |
+| [MODEL-001](model-001-user-configurable-model-policy.md) | review | P1 | Models | none | User-configurable model policy |
 | [CLI-001](cli-001-calm-front-door-command-surface.md) | todo | P2 | CLI | none | Calm front-door command surface |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |

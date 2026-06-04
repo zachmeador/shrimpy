@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdSetup } from "../dist/commands/setup.js";
@@ -94,7 +94,15 @@ describe("setup entry", () => {
     assert.equal(result.kind, "setup_started");
     assert.equal(launched, true);
     assert.match(lines.join("\n"), /Found 1 available model: openai\/gpt-5\./);
+    assert.match(lines.join("\n"), /Created coding model policy from openai\/gpt-5\./);
     assert.match(lines.join("\n"), /Launching interactive setup session\.\.\./);
+    const config = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    );
+    assert.deepEqual(config.modelPolicies.coding.candidates, [{
+      provider: "openai",
+      id: "gpt-5",
+    }]);
   });
 
   test("runSetupEntry asks before rerunning when config already exists", async () => {

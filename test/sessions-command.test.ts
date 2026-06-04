@@ -190,13 +190,18 @@ describe("cmdSessions", () => {
     await setupInit(workspace);
     const config = {
       workspace,
+      modelPolicies: {
+        coding: {
+          candidates: [{
+            provider: "configured_provider",
+            id: "chosen-model",
+          }],
+        },
+      },
       agents: [{
         id: "shrimpy",
         root: "agents/shrimpy",
-        model: {
-          provider: "configured_provider",
-          id: "chosen-model",
-        },
+        modelPolicy: "coding",
       }],
     };
     writeModelConfig(config);
@@ -247,13 +252,18 @@ describe("cmdSessions", () => {
     await setupInit(workspace);
     const config = {
       workspace,
+      modelPolicies: {
+        coding: {
+          candidates: [{
+            provider: "configured_provider",
+            id: "chosen-model",
+          }],
+        },
+      },
       agents: [{
         id: "shrimpy",
         root: "agents/shrimpy",
-        model: {
-          provider: "configured_provider",
-          id: "chosen-model",
-        },
+        modelPolicy: "coding",
       }],
     };
     writeModelConfig(config);

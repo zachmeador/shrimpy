@@ -27,7 +27,7 @@ describe("AgentChannelRuntime", () => {
       getAgent(agentId: string) {
         return {
           id: agentId,
-          model: { provider: "local", id: "qwen" },
+          modelPolicy: "coding",
           thinking: "high",
           tools: [],
           channelPolicy: resolveAgentChannelPolicy(),
@@ -56,6 +56,13 @@ describe("AgentChannelRuntime", () => {
       runtime,
       bootstrap: {
         agentRootPath: agentRoot,
+        config: {
+          modelPolicies: {
+            coding: {
+              candidates: [{ provider: "local", id: "qwen" }],
+            },
+          },
+        },
         modelRegistry: {
           find(provider: string, id: string) {
             return provider === "local" && id === "qwen"

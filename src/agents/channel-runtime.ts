@@ -16,8 +16,8 @@ import {
 } from "./channel-policy.js";
 import {
   createGatewaySessionDescriptor,
-  formatMissingAgentModelMessage,
-  resolveModel,
+  formatMissingAgentModelPolicyMessage,
+  resolveModelDetailed,
   SessionRegistry,
   type SessionBootstrap,
 } from "../sessions/index.js";
@@ -41,15 +41,16 @@ export class AgentChannelRuntime {
     this.channelBus = opts.channelBus;
     const toolPolicy = resolveAgentToolPolicy(this.agent);
     const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
-    const model = resolveModel(
+    const modelResolution = resolveModelDetailed(
       opts.bootstrap,
       undefined,
       undefined,
-      this.agent.model,
+      this.agent.modelPolicy,
       {
-        missingMessage: formatMissingAgentModelMessage(this.agent.id),
+        missingMessage: formatMissingAgentModelPolicyMessage(this.agent.id),
       },
     );
+    const model = modelResolution.model;
     const inference = resolveModelVariantInference({
       modelsPath: opts.bootstrap.modelsPath,
       model,
@@ -74,6 +75,7 @@ export class AgentChannelRuntime {
             channel,
           }),
           model,
+          modelResolution,
           inference,
           defaultThinking: this.agent.thinking,
           tools,

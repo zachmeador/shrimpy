@@ -172,7 +172,7 @@ export async function buildSessionContextPreview(
       bootstrap,
       input.provider,
       input.model,
-      agent.model,
+      agent.modelPolicy,
       { allowMissingDefault: true },
     ),
     defaultThinking: agent.thinking,

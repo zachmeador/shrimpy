@@ -25,10 +25,16 @@ and the direct-vs-gateway behavior behind these commands.
 | `shrimpy sessions restore <channel>` | Restore an archived session. |
 | `shrimpy sessions thinking <channel> <level>` | Change reasoning effort for a session. |
 | `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model/inference metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
-| `shrimpy models [--json]` | Inspect agent default models and Pi-visible provider models. |
-| `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--json]` | Explain model precedence for a CLI override, local session, channel session, or agent default. |
+| `shrimpy models [--json]` | Inspect model policies, agent defaults, and Pi-visible provider models. |
+| `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]` | Explain model precedence for a CLI override, explicit policy, local session, channel session, or agent default. |
+| `shrimpy models policies [list] [--json]` | List configured model policies and candidate resolution. |
+| `shrimpy models policies show <name> [--json]` | Inspect one model policy. |
+| `shrimpy models policies set <name> --candidate <provider>/<model> ... [--json]` | Replace a policy's ordered candidates. |
+| `shrimpy models policies add-candidate <name> <provider>/<model> [--index <n>] [--json]` | Add or reposition one policy candidate. |
+| `shrimpy models policies remove-candidate <name> <provider>/<model> [--json]` | Remove one policy candidate. |
+| `shrimpy models policies move-candidate <name> <provider>/<model> --index <n> [--json]` | Move one policy candidate. |
 
-Common flags: `--agent`, `--provider`, `--model`, `--thinking`, `--skill`, `--json` where supported.
+Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, `--thinking`, `--skill`, `--json` where supported.
 
 ## Workspace And Runtime
 
@@ -84,8 +90,8 @@ agent channel policy, and egress behavior behind these commands.
 | `shrimpy agent list` | List configured agents. |
 | `shrimpy agent show <id>` | Show resolved agent config and paths. |
 | `shrimpy agent inspect <id>` | Show the effective tool capability view, including Pi built-ins, Shrimpy daemon tools, active tools, and excluded tools. See [tools.md](tools.md). |
-| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--provider`, `--model`, `--tools`, `--disable-tools`, `--thinking`, and `--channel-policy <all|mentions|addressed|none>`. |
-| `shrimpy agent set <id>` | Update root, model default, Shrimpy daemon tools, disabled tools, thinking default, or base channel policy mode. |
+| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--model-policy`, `--tools`, `--disable-tools`, `--thinking`, and `--channel-policy <all|mentions|addressed|none>`. |
+| `shrimpy agent set <id>` | Update root, model policy default, Shrimpy daemon tools, disabled tools, thinking default, or base channel policy mode. |
 | `shrimpy agent channel-policy <id> [--channel <name>]` | Inspect base and effective agent-owned channel policy. |
 | `shrimpy agent channel-policy set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel policy fields without rewriting the rest of the policy. |
 | `shrimpy agent channel-policy clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel policy fields; `--channel` with no fields removes the whole override. |

@@ -110,17 +110,15 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.thinking, "low");
   });
 
-  test("stores an agent model default when provided", async () => {
+  test("stores an agent model policy default when provided", async () => {
     await setupInit(workspace);
 
     const code = await withMutedConsole(() =>
       cmdAgent([
         "add",
         "planner",
-        "--provider",
+        "--model-policy",
         "local",
-        "--model",
-        "qwen-27b",
       ], { workspace } as any)
     );
 
@@ -130,10 +128,7 @@ describe("cmdAgent lifecycle", () => {
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
     const agent = config.agents.find((entry: any) => entry.id === "planner");
-    assert.deepEqual(agent.model, {
-      provider: "local",
-      id: "qwen-27b",
-    });
+    assert.equal(agent.modelPolicy, "local");
   });
 
   test("stores an agent channel policy mode when provided", async () => {
@@ -667,10 +662,8 @@ describe("cmdAgent lifecycle", () => {
         "helper",
         "--root",
         "agent-roots/helper",
-        "--provider",
+        "--model-policy",
         "local",
-        "--model",
-        "qwen-27b",
         "--tools",
         "send_message,read_channel",
         "--disable-tools",
@@ -689,10 +682,7 @@ describe("cmdAgent lifecycle", () => {
     );
     const agent = config.agents.find((entry: any) => entry.id === "helper");
     assert.equal(agent.root, "agent-roots/helper");
-    assert.deepEqual(agent.model, {
-      provider: "local",
-      id: "qwen-27b",
-    });
+    assert.equal(agent.modelPolicy, "local");
     assert.equal(agent.channels, undefined);
     assert.equal(agent.triggers, undefined);
     assert.deepEqual(agent.tools, ["send_message", "read_channel"]);
@@ -716,7 +706,7 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(messages.at(-1)?.content.data, {
       kind: "agent_updated",
       agentId: "helper",
-      updatedFields: ["root", "model", "tools", "disabledTools", "thinking", "channelPolicy"],
+      updatedFields: ["root", "modelPolicy", "tools", "disabledTools", "thinking", "channelPolicy"],
     });
   });
 

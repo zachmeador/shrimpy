@@ -9,10 +9,6 @@ import {
   type ThinkingLevel,
 } from "../inference/thinking.js";
 import { channelMatches } from "../util/channel-pattern.js";
-import {
-  modelSelectionSchema,
-  type ModelSelectionConfig,
-} from "./model.js";
 
 export type AgentChannelPolicyMode = "all" | "mentions" | "addressed" | "none";
 
@@ -67,7 +63,7 @@ const agentSchema = Type.Object(
   {
     id: Type.String({ pattern: "^[a-zA-Z0-9._-]+$", minLength: 1 }),
     root: Type.Optional(Type.String({ minLength: 1 })),
-    model: Type.Optional(modelSelectionSchema),
+    modelPolicy: Type.Optional(Type.String({ minLength: 1 })),
     tools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     disabledTools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     thinking: Type.Optional(thinkingLevelSchema),
@@ -80,7 +76,7 @@ export type AgentConfig = Static<typeof agentSchema>;
 export type ResolvedAgentConfig = {
   id: string;
   root: string;
-  model?: ModelSelectionConfig;
+  modelPolicy?: string;
   tools?: DaemonToolName[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
@@ -200,7 +196,7 @@ export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
     return {
       id: agent.id,
       root: agent.root ?? `agents/${agent.id}`,
-      model: agent.model,
+      modelPolicy: agent.modelPolicy,
       tools: agent.tools?.length
         ? ([...new Set(agent.tools)] as DaemonToolName[])
         : undefined,

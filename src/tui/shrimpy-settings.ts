@@ -25,7 +25,7 @@ import {
 } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { RuntimeConfig } from "../config/index.js";
-import { formatModelSelection } from "../config/model.js";
+import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import {
   readJsonFileStrict,
   writeJsonFileAtomic,
@@ -191,7 +191,7 @@ class ShrimpySettingsSubmenu extends Container {
     const runtime = this.options.runtime;
     const agent = runtime.getAgent(this.options.agentId);
     const agentPaths = runtime.getAgentPaths(agent.id);
-    const configuredModel = agent.model;
+    const configuredModelPolicy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
     const activeTools = this.mode.session.getActiveToolNames();
     const allTools = this.mode.session.getAllTools();
     const compaction = runtime.resolved.runtime.compaction;
@@ -238,9 +238,7 @@ class ShrimpySettingsSubmenu extends Container {
         id: "model",
         label: "Model",
         description:
-          configuredModel === undefined
-            ? "Current Pi session model. This agent has no default model configured."
-            : `Current Pi session model. Agent default: ${formatModelSelection(configuredModel)}.`,
+          `Current Pi session model. Agent policy: ${configuredModelPolicy}.`,
         currentValue: formatSessionModel(this.mode.session.model),
       },
       {

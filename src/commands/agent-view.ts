@@ -4,7 +4,7 @@ import {
 } from "../agents/service.js";
 import { createAppRuntime } from "../app/index.js";
 import {
-  formatModelSelection,
+  DEFAULT_MODEL_POLICY,
   type ShrimpyConfig,
 } from "../config/index.js";
 import { accent, dim } from "../util/style.js";
@@ -31,11 +31,11 @@ export async function cmdAgentList(
       .join(",");
     const disabledTools = agent.toolPolicy.disabledToolNames.join(",") || "none";
     const thinking = agent.thinking ?? "inherit";
-    const model = agent.model ? formatModelSelection(agent.model) : "missing";
+    const modelPolicy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
     console.log(
       `${accent(agent.id)}  ${
         dim(
-          `root=${agent.root}  daemon_tools=${daemonTools}  pi_active=${piActiveTools}  disabled=${disabledTools}  thinking=${thinking}  model=${model}`,
+          `root=${agent.root}  daemon_tools=${daemonTools}  pi_active=${piActiveTools}  disabled=${disabledTools}  thinking=${thinking}  model_policy=${modelPolicy}`,
         )
       }`,
     );
@@ -73,7 +73,7 @@ export async function cmdAgentInspect(
   }
 
   const thinking = view.thinking ?? "inherit";
-  const model = view.model ? formatModelSelection(view.model) : "missing";
+  const modelPolicy = view.modelPolicy ?? DEFAULT_MODEL_POLICY;
   const active = view.toolPolicy.capabilities.filter((tool) => tool.active);
   const registeredInactive = view.toolPolicy.capabilities.filter((tool) =>
     tool.registered && !tool.active && !tool.excluded
@@ -82,7 +82,7 @@ export async function cmdAgentInspect(
 
   console.log(accent(view.id));
   console.log(`root: ${view.root}`);
-  console.log(`model: ${model}`);
+  console.log(`model_policy: ${modelPolicy}`);
   console.log(`thinking: ${thinking}`);
   console.log("tools:");
   console.log(`  active: ${formatToolList(active)}`);

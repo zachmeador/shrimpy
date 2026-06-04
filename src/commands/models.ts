@@ -1,18 +1,32 @@
+import { existsSync } from "node:fs";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { createAppRuntime } from "../app/index.js";
 import {
+  DEFAULT_MODEL_POLICY,
+  primaryConfigPath,
+  validateModelPoliciesConfig,
+  type ModelPoliciesConfig,
+  type ModelPolicyConfig,
   type ModelSelectionConfig,
   type ShrimpyConfig,
 } from "../config/index.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
   createGatewaySessionDescriptor,
   createLocalSessionDescriptor,
-  formatMissingAgentModelMessage,
+  resolveModelDetailed,
+  resolveModelPolicy,
+  type ModelPolicyResolution,
+  type ModelResolution,
 } from "../sessions/index.js";
 import {
+  createSessionManager,
   findActiveSessionFile,
 } from "../sessions/storage.js";
+import {
+  readJsonFileStrict,
+  writeJsonFileAtomic,
+} from "../util/json-file.js";
 import {
   parseCommandArgs,
   printError,
@@ -35,19 +49,27 @@ interface ResolvedSessionRef {
   restoreSavedModel: boolean;
 }
 
+interface ModelPolicyView {
+  name: string;
+  candidates: ModelSelectionConfig[];
+  resolution: ModelPolicyResolution;
+}
+
 interface ModelResolveView {
   agentId: string;
   configuredDefault: {
-    source: "agent";
-    model: ModelRef;
-    usable: boolean;
-  } | null;
+    source: "agent" | "default";
+    policy: string;
+    resolution: ModelPolicyResolution;
+  };
+  requestedPolicy?: string;
   session: (ResolvedSessionRef & {
     recordedModel?: ModelRef;
     recordedModelUsable?: boolean;
   }) | null;
   effective: {
-    source: "cli" | "session" | "agent" | "missing";
+    source: ModelResolution["source"];
+    policy?: string;
     model?: ModelRef;
   };
   problems: string[];
@@ -57,6 +79,9 @@ export const cmdModels: CommandHandler = async (argv, config) => {
   const sub = argv[0];
   if (sub === "resolve") {
     return cmdModelsResolve(argv.slice(1), config);
+  }
+  if (sub === "policies") {
+    return cmdModelPolicies(argv.slice(1), config);
   }
   if (sub && sub !== "--json") {
     console.error(`unknown models subcommand: ${sub}\n\n${USAGE}`);
@@ -79,22 +104,33 @@ async function cmdModelsList(argv: string[], config: ShrimpyConfig): Promise<num
   const runtime = createAppRuntime(config);
   const bootstrap = await runtime.createBootstrap();
   const available = bootstrap.modelRegistry.getAvailable();
+  const policies = listPolicyViews(config, bootstrap);
   const agentDefaults = runtime.resolved.agents.map((agent) => {
-    const model = agent.model ? toModelRef(agent.model) : undefined;
+    const policy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
+    const resolution = resolveModelPolicy(
+      bootstrap,
+      policy,
+      agent.modelPolicy ? "agent" : "default",
+    );
     return {
       id: agent.id,
-      model,
-      usable: model ? Boolean(bootstrap.modelRegistry.find(model.provider, model.id)) : false,
+      policy,
+      source: agent.modelPolicy ? "agent" : "default",
+      selected: resolution.selected,
+      usable: Boolean(resolution.selected),
+      problems: resolution.problems,
     };
   });
-  const problems = agentDefaults
-    .filter((agent) => !agent.model)
-    .map((agent) => formatMissingAgentModelMessage(agent.id));
+  const problems = [
+    ...policies.flatMap((policy) => policy.resolution.problems),
+    ...agentDefaults.flatMap((agent) => agent.problems),
+  ];
 
   const view = {
+    modelPolicies: policies,
     agentDefaults,
     providers: groupModelsByProvider(available),
-    problems,
+    problems: [...new Set(problems)],
   };
 
   if (values.json) {
@@ -104,38 +140,215 @@ async function cmdModelsList(argv: string[], config: ShrimpyConfig): Promise<num
 
   console.log("Models");
   console.log("");
+  printPolicyViews(policies);
+  console.log("");
   console.log("Agent defaults");
   for (const agent of agentDefaults) {
-    console.log(`  ${agent.id}: ${agent.model ? formatModelRef(agent.model) : "missing"}`);
+    const selected = agent.selected ? ` -> ${formatModelRef(agent.selected)}` : "";
+    console.log(`  ${agent.id}: ${agent.policy}${selected}`);
   }
   console.log("");
-  console.log("Available models");
-  const providers = groupModelsByProvider(available);
-  if (providers.length === 0) {
-    console.log("  (none)");
-  } else {
-    for (const provider of providers) {
-      console.log(`  ${provider.provider}`);
-      for (const model of provider.models) {
-        const usedBy = agentDefaults
-          .filter((agent) =>
-            agent.model?.provider === provider.provider && agent.model.id === model.id
-          )
-          .map((agent) => agent.id);
-        console.log(`    - ${model.id}${usedBy.length ? `  used by: ${usedBy.join(", ")}` : ""}`);
-      }
-    }
-  }
-  if (problems.length > 0) {
+  printAvailableModels(groupModelsByProvider(available), agentDefaults);
+  if (view.problems.length > 0) {
     console.log("");
     console.log("Problems");
-    for (const problem of problems) console.log(`  ${problem}`);
+    for (const problem of view.problems) console.log(`  ${problem}`);
   }
   console.log("");
   console.log("Inspect");
+  console.log("  shrimpy models policies");
   console.log("  shrimpy models resolve --agent <id> --session tui");
   console.log("  shrimpy models resolve --agent <id> --channel <name>");
   return 0;
+}
+
+async function cmdModelPolicies(argv: string[], config: ShrimpyConfig): Promise<number> {
+  const sub = argv[0];
+  if (!sub || sub === "list" || sub === "--json") {
+    return cmdModelPoliciesList(sub === "--json" ? argv : argv.slice(1), config);
+  }
+  if (sub === "show") return cmdModelPoliciesShow(argv.slice(1), config);
+  if (sub === "set") return cmdModelPoliciesSet(argv.slice(1), config);
+  if (sub === "add-candidate") return cmdModelPoliciesAddCandidate(argv.slice(1), config);
+  if (sub === "remove-candidate") return cmdModelPoliciesRemoveCandidate(argv.slice(1), config);
+  if (sub === "move-candidate") return cmdModelPoliciesMoveCandidate(argv.slice(1), config);
+
+  return printError(`unknown models policies subcommand: ${sub}`);
+}
+
+async function cmdModelPoliciesList(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: false,
+    strict: true,
+    usage: USAGE,
+  });
+  const runtime = createAppRuntime(config);
+  const bootstrap = await runtime.createBootstrap();
+  const policies = listPolicyViews(config, bootstrap);
+
+  if (values.json) {
+    console.log(JSON.stringify({ modelPolicies: policies }, null, 2));
+    return 0;
+  }
+
+  console.log("Model Policies");
+  printPolicyViews(policies);
+  return 0;
+}
+
+async function cmdModelPoliciesShow(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+  const name = requirePosition(positionals[0], "policy name required");
+  const runtime = createAppRuntime(config);
+  const bootstrap = await runtime.createBootstrap();
+  const policy = config.modelPolicies?.[name];
+  const view: ModelPolicyView = {
+    name,
+    candidates: policy?.candidates ?? [],
+    resolution: resolveModelPolicy(bootstrap, name, "default"),
+  };
+
+  if (values.json) {
+    console.log(JSON.stringify(view, null, 2));
+    return view.resolution.selected ? 0 : 1;
+  }
+
+  console.log(`Model Policy: ${name}`);
+  printPolicyView(view);
+  return view.resolution.selected ? 0 : 1;
+}
+
+async function cmdModelPoliciesSet(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      candidate: { type: "string", multiple: true },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+  const name = requirePosition(positionals[0], "policy name required");
+  const candidates = (values.candidate ?? []).map(parseModelRef);
+  if (candidates.length === 0) {
+    return printError("models policies set requires at least one --candidate <provider>/<model>");
+  }
+
+  const result = editPolicies(config.workspace, (policies) => {
+    policies[name] = { candidates: uniqueCandidates(candidates) };
+  });
+  return printPolicyMutation("set", name, result, values.json);
+}
+
+async function cmdModelPoliciesAddCandidate(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      index: { type: "string" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+  const name = requirePosition(positionals[0], "policy name required");
+  const candidate = parseModelRef(requirePosition(positionals[1], "candidate required"));
+  const result = editPolicies(config.workspace, (policies) => {
+    const policy = requirePolicy(policies, name);
+    const candidates = uniqueCandidates([
+      ...policy.candidates.filter((existing) => !sameModelRef(existing, candidate)),
+    ]);
+    const index = values.index === undefined
+      ? candidates.length
+      : parseIndex(values.index, candidates.length);
+    candidates.splice(index, 0, candidate);
+    policies[name] = { candidates };
+  });
+  return printPolicyMutation("add-candidate", name, result, values.json);
+}
+
+async function cmdModelPoliciesRemoveCandidate(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+  const name = requirePosition(positionals[0], "policy name required");
+  const candidate = parseModelRef(requirePosition(positionals[1], "candidate required"));
+  const result = editPolicies(config.workspace, (policies) => {
+    const policy = requirePolicy(policies, name);
+    const candidates = policy.candidates.filter((existing) => !sameModelRef(existing, candidate));
+    if (candidates.length === policy.candidates.length) {
+      throw new Error(`candidate not found in ${name}: ${formatModelRef(candidate)}`);
+    }
+    policies[name] = { candidates };
+  });
+  return printPolicyMutation("remove-candidate", name, result, values.json);
+}
+
+async function cmdModelPoliciesMoveCandidate(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      index: { type: "string" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+  const name = requirePosition(positionals[0], "policy name required");
+  const candidate = parseModelRef(requirePosition(positionals[1], "candidate required"));
+  if (values.index === undefined) return printError("move-candidate requires --index <n>");
+  const result = editPolicies(config.workspace, (policies) => {
+    const policy = requirePolicy(policies, name);
+    const currentIndex = policy.candidates.findIndex((existing) => sameModelRef(existing, candidate));
+    if (currentIndex < 0) {
+      throw new Error(`candidate not found in ${name}: ${formatModelRef(candidate)}`);
+    }
+    const candidates = [...policy.candidates];
+    const [removed] = candidates.splice(currentIndex, 1);
+    if (!removed) throw new Error(`candidate not found in ${name}: ${formatModelRef(candidate)}`);
+    const nextIndex = parseIndex(values.index!, candidates.length);
+    candidates.splice(nextIndex, 0, removed);
+    policies[name] = { candidates };
+  });
+  return printPolicyMutation("move-candidate", name, result, values.json);
 }
 
 async function cmdModelsResolve(
@@ -150,6 +363,7 @@ async function cmdModelsResolve(
       channel: { type: "string", short: "c" },
       provider: { type: "string", short: "p" },
       model: { type: "string", short: "m" },
+      policy: { type: "string" },
       json: { type: "boolean", default: false },
     },
     allowPositionals: false,
@@ -181,54 +395,61 @@ async function cmdModelsResolve(
       ? resolveSessionRef(agentPaths.root, agent.id, values.session)
       : null;
 
-  const configuredDefault = agent.model
-    ? {
-      source: "agent" as const,
-      model: toModelRef(agent.model),
-      usable: Boolean(bootstrap.modelRegistry.find(agent.model.provider, agent.model.id)),
-    }
-    : null;
+  const defaultPolicyName = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
+  const configuredDefault = {
+    source: agent.modelPolicy ? "agent" as const : "default" as const,
+    policy: defaultPolicyName,
+    resolution: resolveModelPolicy(
+      bootstrap,
+      defaultPolicyName,
+      agent.modelPolicy ? "agent" : "default",
+    ),
+  };
   const problems: string[] = [];
-  if (!configuredDefault) {
-    problems.push(formatMissingAgentModelMessage(agent.id));
-  } else if (!configuredDefault.usable) {
-    problems.push(`agent ${agent.id} default model not found: ${formatModelRef(configuredDefault.model)}`);
-  }
 
-  const sessionRecord = session && !values.provider && !values.model
+  const sessionRecord = session && !values.provider && !values.model && !values.policy
     ? readRecordedSessionModel(session.dir, process.cwd())
     : undefined;
   const recordedModelUsable = sessionRecord
-    ? Boolean(bootstrap.modelRegistry.find(sessionRecord.provider, sessionRecord.id))
+    ? Boolean(findUsableModel(bootstrap.modelRegistry, sessionRecord))
     : undefined;
   if (sessionRecord && recordedModelUsable === false) {
-    problems.push(`session recorded model not found: ${formatModelRef(sessionRecord)}`);
+    problems.push(`session recorded model not usable: ${formatModelRef(sessionRecord)}`);
   }
 
-  let effective: ModelResolveView["effective"] = { source: "missing" };
+  let resolution: ModelResolution = {
+    source: "missing",
+    problems: [],
+  };
   try {
-    if (values.provider || values.model) {
-      const model = runtime.resolveModel(
+    if (sessionRecord && recordedModelUsable && session?.restoreSavedModel) {
+      resolution = {
+        source: "saved-session",
+        modelRef: sessionRecord,
+        model: findUsableModel(bootstrap.modelRegistry, sessionRecord),
+        problems: [],
+      };
+    } else {
+      resolution = resolveModelDetailed(
         bootstrap,
         values.provider,
         values.model,
-        undefined,
+        values.policy ? undefined : agent.modelPolicy,
+        {
+          modelPolicy: values.policy,
+          allowMissingDefault: true,
+        },
       );
-      effective = model
-        ? { source: "cli", model: toModelRef(model) }
-        : { source: "missing" };
-    } else if (sessionRecord && recordedModelUsable && session?.restoreSavedModel) {
-      effective = { source: "session", model: sessionRecord };
-    } else if (agent.model && configuredDefault?.usable) {
-      effective = { source: "agent", model: toModelRef(agent.model) };
     }
   } catch (err) {
     problems.push(err instanceof Error ? err.message : String(err));
   }
+  problems.push(...resolution.problems);
 
   const view: ModelResolveView = {
     agentId: agent.id,
     configuredDefault,
+    ...(values.policy ? { requestedPolicy: values.policy } : {}),
     session: session
       ? {
         ...session,
@@ -236,8 +457,12 @@ async function cmdModelsResolve(
         ...(recordedModelUsable !== undefined ? { recordedModelUsable } : {}),
       }
       : null,
-    effective,
-    problems,
+    effective: {
+      source: resolution.source,
+      ...(resolution.policy ? { policy: resolution.policy.name } : {}),
+      ...(resolution.modelRef ? { model: resolution.modelRef } : {}),
+    },
+    problems: [...new Set(problems)],
   };
 
   if (values.json) {
@@ -248,7 +473,8 @@ async function cmdModelsResolve(
   console.log("Model Resolution");
   console.log("");
   console.log(`agent: ${view.agentId}`);
-  console.log(`configured default: ${view.configuredDefault ? formatModelRef(view.configuredDefault.model) : "missing"}`);
+  console.log(`configured policy: ${view.configuredDefault.policy} (${view.configuredDefault.source})`);
+  if (view.requestedPolicy) console.log(`requested policy: ${view.requestedPolicy}`);
   if (view.session) {
     console.log(`session: ${view.session.kind}:${view.session.label}`);
     console.log(`session dir: ${view.session.dir}`);
@@ -258,10 +484,11 @@ async function cmdModelsResolve(
     }
   }
   console.log(`effective: ${view.effective.model ? `${formatModelRef(view.effective.model)} (${view.effective.source})` : "missing"}`);
-  if (problems.length > 0) {
+  if (view.effective.policy) console.log(`effective policy: ${view.effective.policy}`);
+  if (view.problems.length > 0) {
     console.log("");
     console.log("Problems");
-    for (const problem of problems) console.log(`  ${problem}`);
+    for (const problem of view.problems) console.log(`  ${problem}`);
   }
 
   return view.effective.model ? 0 : 1;
@@ -300,16 +527,18 @@ function resolveSessionRef(
     kind: raw,
     channel: raw,
     dir: descriptor.sessionDir,
-    restoreSavedModel: raw === "tui" || raw === "run",
+    restoreSavedModel: true,
   };
 }
 
-function readRecordedSessionModel(sessionDir: string, cwd: string): ModelRef | undefined {
-  const active = findActiveSessionFile(sessionDir);
-  if (!active) return undefined;
-
+function readRecordedSessionModel(
+  sessionDir: string,
+  cwd: string,
+): ModelRef | undefined {
+  const file = findActiveSessionFile(sessionDir);
+  if (!file) return undefined;
+  const manager = createSessionManager(cwd, sessionDir);
   try {
-    const manager = SessionManager.open(active, sessionDir, cwd);
     const model = manager.buildSessionContext().model;
     return model
       ? { provider: model.provider, id: model.modelId }
@@ -317,6 +546,19 @@ function readRecordedSessionModel(sessionDir: string, cwd: string): ModelRef | u
   } catch {
     return undefined;
   }
+}
+
+function listPolicyViews(
+  config: ShrimpyConfig,
+  bootstrap: SessionBootstrap,
+): ModelPolicyView[] {
+  return Object.entries(config.modelPolicies ?? {})
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, policy]) => ({
+      name,
+      candidates: policy.candidates,
+      resolution: resolveModelPolicy(bootstrap, name, "default"),
+    }));
 }
 
 function groupModelsByProvider(models: Array<Model<Api>>): Array<{
@@ -337,13 +579,187 @@ function groupModelsByProvider(models: Array<Model<Api>>): Array<{
     }));
 }
 
-function toModelRef(model: ModelSelectionConfig | Model<Api>): ModelRef {
+function printPolicyViews(policies: ModelPolicyView[]): void {
+  console.log("Model policies");
+  if (policies.length === 0) {
+    console.log("  (none)");
+    return;
+  }
+  for (const policy of policies) printPolicyView(policy);
+}
+
+function printPolicyView(policy: ModelPolicyView): void {
+  const selected = policy.resolution.selected
+    ? ` -> ${formatModelRef(policy.resolution.selected)}`
+    : "";
+  console.log(`  ${policy.name}${selected}`);
+  for (const candidate of policy.resolution.candidates) {
+    const marker = candidate.selected ? "*" : "-";
+    const reason = candidate.reason ? ` (${candidate.reason})` : "";
+    console.log(`    ${marker} ${formatModelRef(candidate)}${reason}`);
+  }
+  for (const problem of policy.resolution.problems) {
+    console.log(`    problem: ${problem}`);
+  }
+}
+
+function printAvailableModels(
+  providers: Array<{ provider: string; models: ModelRef[] }>,
+  agentDefaults: Array<{ id: string; selected?: ModelRef }>,
+): void {
+  console.log("Available models");
+  if (providers.length === 0) {
+    console.log("  (none)");
+  } else {
+    for (const provider of providers) {
+      console.log(`  ${provider.provider}`);
+      for (const model of provider.models) {
+        const usedBy = agentDefaults
+          .filter((agent) =>
+            agent.selected?.provider === provider.provider && agent.selected.id === model.id
+          )
+          .map((agent) => agent.id);
+        console.log(`    - ${model.id}${usedBy.length ? `  used by: ${usedBy.join(", ")}` : ""}`);
+      }
+    }
+  }
+}
+
+function editPolicies(
+  workspace: string,
+  edit: (policies: ModelPoliciesConfig) => void,
+): {
+  configPath: string;
+  policies: ModelPoliciesConfig;
+} {
+  const configPath = primaryConfigPath(workspace);
+  if (!existsSync(configPath)) {
+    throw new Error(`config not found: ${configPath}. Run "shrimpy setup init" first.`);
+  }
+  const raw = readJsonFileStrict(
+    configPath,
+    (parsed) => parsed as Record<string, unknown>,
+  );
+  const policies = clonePolicies(raw.modelPolicies);
+  edit(policies);
+  validateModelPoliciesConfig(policies);
+  raw.modelPolicies = policies;
+  writeJsonFileAtomic(configPath, raw);
+  return { configPath, policies };
+}
+
+function clonePolicies(raw: unknown): ModelPoliciesConfig {
+  if (!isRecord(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw).map(([name, value]) => {
+      const policy = value as Partial<ModelPolicyConfig>;
+      return [
+        name,
+        {
+          candidates: Array.isArray(policy.candidates)
+            ? policy.candidates.map((candidate) => ({ ...candidate }))
+            : [],
+        },
+      ];
+    }),
+  ) as ModelPoliciesConfig;
+}
+
+function requirePolicy(policies: ModelPoliciesConfig, name: string): ModelPolicyConfig {
+  const policy = policies[name];
+  if (!policy) throw new Error(`model policy not found: ${name}`);
+  return policy;
+}
+
+function printPolicyMutation(
+  action: string,
+  name: string,
+  result: {
+    configPath: string;
+    policies: ModelPoliciesConfig;
+  },
+  json: boolean,
+): number {
+  const body = {
+    action,
+    policy: name,
+    configPath: result.configPath,
+    modelPolicy: result.policies[name],
+  };
+  if (json) {
+    console.log(JSON.stringify(body, null, 2));
+  } else {
+    console.log(`${action} model policy ${name}`);
+    console.log(`config: ${result.configPath}`);
+    console.log(`candidates: ${body.modelPolicy?.candidates.map(formatModelRef).join(", ") ?? "(missing)"}`);
+  }
+  return 0;
+}
+
+function parseModelRef(raw: string): ModelSelectionConfig {
+  const slash = raw.indexOf("/");
+  if (slash <= 0 || slash === raw.length - 1) {
+    throw new Error(`model candidate must be <provider>/<model>: ${raw}`);
+  }
+  return {
+    provider: raw.slice(0, slash),
+    id: raw.slice(slash + 1),
+  };
+}
+
+function parseIndex(raw: string, maxInclusive: number): number {
+  const index = Number(raw);
+  if (!Number.isInteger(index) || index < 0 || index > maxInclusive) {
+    throw new Error(`index must be an integer from 0 to ${maxInclusive}`);
+  }
+  return index;
+}
+
+function uniqueCandidates(candidates: ModelSelectionConfig[]): ModelSelectionConfig[] {
+  const seen = new Set<string>();
+  const unique: ModelSelectionConfig[] = [];
+  for (const candidate of candidates) {
+    const id = formatModelRef(candidate);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    unique.push(candidate);
+  }
+  return unique;
+}
+
+function findUsableModel(
+  modelRegistry: { find(provider: string, id: string): Model<Api> | undefined },
+  ref: ModelRef,
+): Model<Api> | undefined {
+  const model = modelRegistry.find(ref.provider, ref.id);
+  if (!model) return undefined;
+  const registry = modelRegistry as {
+    hasConfiguredAuth?: (candidate: Model<Api>) => boolean;
+  };
+  if (registry.hasConfiguredAuth && !registry.hasConfiguredAuth(model)) return undefined;
+  return model;
+}
+
+function toModelRef(model: Model<Api>): ModelRef {
   return {
     provider: model.provider,
     id: model.id,
   };
 }
 
+function sameModelRef(left: ModelRef, right: ModelRef): boolean {
+  return left.provider === right.provider && left.id === right.id;
+}
+
 function formatModelRef(model: ModelRef): string {
   return `${model.provider}/${model.id}`;
+}
+
+function requirePosition(value: string | undefined, message: string): string {
+  if (!value) throw new Error(message);
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

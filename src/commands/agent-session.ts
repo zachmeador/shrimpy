@@ -27,6 +27,7 @@ export async function cmdAgentTui(
     options: {
       provider: { type: "string", short: "p" },
       model: { type: "string", short: "m" },
+      "model-policy": { type: "string" },
       thinking: { type: "string" },
     },
     allowPositionals: true,
@@ -44,6 +45,7 @@ export async function cmdAgentTui(
     sessionType: "tui",
     provider: values.provider,
     model: values.model,
+    modelPolicy: values["model-policy"],
     thinking: parseThinking(values.thinking),
     initialMessage: prompt,
     cwd: process.cwd(),

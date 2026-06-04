@@ -26,6 +26,7 @@ import { createInlineSettingsManager } from "./inline-settings.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 import { assembleSessionPrompt } from "./prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
+import type { ModelResolution } from "./models.js";
 import { createSessionManager } from "./storage.js";
 import {
   createSessionTurnContextController,
@@ -55,6 +56,26 @@ interface SessionMetadata {
   toolPolicy?: {
     excludedToolNames?: string[];
   };
+  modelResolution?: SessionModelResolutionMetadata;
+}
+
+interface SessionModelResolutionMetadata {
+  source: ModelResolution["source"];
+  model?: ModelRef;
+  policy?: {
+    name: string;
+    source: string;
+    candidates: Array<{
+      provider: string;
+      id: string;
+      usable: boolean;
+      selected?: boolean;
+      reason?: string;
+    }>;
+    selected?: ModelRef;
+    problems: string[];
+  };
+  problems: string[];
 }
 
 interface ModelSwitchMessageDetails {
@@ -152,9 +173,13 @@ async function openSessionWithRuntimeDeps(
     sessionManager,
   });
   if (!modelPlan.model && !modelPlan.allowMissingModel) {
+    const reason = modelPlan.modelResolution?.problems[0];
     throw new Error(
-      `session ${modelPlan.descriptor.channel ?? modelPlan.descriptor.kind} has no model. `
-      + `Set a default for agent ${modelPlan.descriptor.agentId ?? bootstrap.agentId}.`,
+      reason ??
+        (
+          `session ${modelPlan.descriptor.channel ?? modelPlan.descriptor.kind} has no model. `
+          + `Configure a model policy for agent ${modelPlan.descriptor.agentId ?? bootstrap.agentId}.`
+        ),
     );
   }
   const assembly = assembleSessionPrompt(bootstrap, modelPlan);
@@ -259,6 +284,7 @@ function resolveSessionModelPlan(input: {
   return {
     ...input.plan,
     model: restoredModel,
+    modelResolution: createStoredSessionModelResolution(restoredModel),
     inference: resolveModelVariantInference({
       modelsPath: input.bootstrap.modelsPath,
       model: restoredModel,
@@ -367,6 +393,7 @@ function appendSessionMetadata(input: {
   env: Record<string, string>;
   compaction: EffectiveCompactionPolicy;
   model?: Model<Api>;
+  modelResolution?: ModelResolution;
 }): void {
   const { sessionManager, bootstrap, plan, model } = input;
   const inference = resolveSessionInference({ bootstrap, plan, model });
@@ -389,6 +416,7 @@ function appendSessionMetadata(input: {
     compaction: input.compaction,
     inference,
     toolPolicy: plan.toolPolicy,
+    modelResolution: serializeModelResolution(input.modelResolution ?? plan.modelResolution),
   };
   sessionManager.appendCustomEntry("shrimpy_session_metadata", metadata);
 }
@@ -410,6 +438,7 @@ function wrapModelMetadataRecording(input: {
     appendSessionMetadata({
       ...input,
       model: session.model,
+      modelResolution: createSessionSwitchModelResolution(session.model),
     });
     await appendModelSwitchMessage({
       ...input,
@@ -427,6 +456,7 @@ function wrapModelMetadataRecording(input: {
       appendSessionMetadata({
         ...input,
         model: session.model,
+        modelResolution: createSessionSwitchModelResolution(session.model),
       });
       await appendModelSwitchMessage({
         ...input,
@@ -514,6 +544,76 @@ function toModelRef(model: Model<Api> | undefined): ModelRef | undefined {
   return {
     provider: model.provider,
     id: model.id,
+  };
+}
+
+function createStoredSessionModelResolution(model: Model<Api>): ModelResolution {
+  return {
+    source: "saved-session",
+    model,
+    modelRef: toModelRef(model),
+    policy: {
+      name: "saved-session",
+      source: "default",
+      candidates: [{
+        provider: model.provider,
+        id: model.id,
+        usable: true,
+        selected: true,
+      }],
+      selected: {
+        provider: model.provider,
+        id: model.id,
+      },
+      problems: [],
+    },
+    problems: [],
+  };
+}
+
+function createSessionSwitchModelResolution(model: Model<Api> | undefined): ModelResolution {
+  return {
+    source: model ? "session-switch" : "missing",
+    model,
+    modelRef: toModelRef(model),
+    policy: model
+      ? {
+        name: "session-switch",
+        source: "default",
+        candidates: [{
+          provider: model.provider,
+          id: model.id,
+          usable: true,
+          selected: true,
+        }],
+        selected: {
+          provider: model.provider,
+          id: model.id,
+        },
+        problems: [],
+      }
+      : undefined,
+    problems: model ? [] : ["session has no active model"],
+  };
+}
+
+function serializeModelResolution(
+  resolution: ModelResolution | undefined,
+): SessionModelResolutionMetadata | undefined {
+  if (!resolution) return undefined;
+  return {
+    source: resolution.source,
+    model: resolution.modelRef,
+    policy: resolution.policy
+      ? {
+        name: resolution.policy.name,
+        source: resolution.policy.source,
+        candidates: resolution.policy.candidates,
+        selected: resolution.policy.selected,
+        problems: resolution.policy.problems,
+      }
+      : undefined,
+    problems: resolution.problems,
   };
 }
 

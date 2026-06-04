@@ -5,6 +5,7 @@ import type { PromptResourceRef } from "../context/index.js";
 import type { ModelVariantInference } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import type { SessionToolPolicy } from "../tools/policy.js";
+import type { ModelResolution } from "./models.js";
 import type { PrepareSessionTurnContext } from "./turn-context.js";
 
 export interface SessionDescriptor {
@@ -18,6 +19,7 @@ export interface SessionDescriptor {
 export interface SessionOpenPlan {
   descriptor: SessionDescriptor;
   model?: Model<Api>;
+  modelResolution?: ModelResolution;
   inference?: ModelVariantInference;
   restoreModelFromSession?: boolean;
   allowMissingModel?: boolean;

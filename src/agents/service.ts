@@ -80,7 +80,7 @@ export function updateAgent(
     agentId: input.agentId,
     updatedFields: [
       ...(input.root !== undefined ? ["root"] : []),
-      ...(input.model !== undefined ? ["model"] : []),
+      ...(input.modelPolicy !== undefined ? ["modelPolicy"] : []),
       ...(input.tools !== undefined ? ["tools"] : []),
       ...(input.disabledTools !== undefined ? ["disabledTools"] : []),
       ...(input.thinking !== undefined ? ["thinking"] : []),

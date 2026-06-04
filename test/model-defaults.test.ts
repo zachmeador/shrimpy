@@ -13,8 +13,15 @@ const twentySevenB = {
   name: "Qwen 3.6 27B Q6_K (local)",
 };
 
-function bootstrap() {
+function bootstrap(config?: Record<string, unknown>) {
   return {
+    config: config ?? {
+      modelPolicies: {
+        coding: {
+          candidates: [{ provider: "local_qwen_moe", id: "Qwen3.6-35B-A3B-UD-Q6_K.gguf" }],
+        },
+      },
+    },
     modelRegistry: {
       find(provider: string, id: string) {
         return [a3b, twentySevenB].find((model) =>
@@ -29,12 +36,9 @@ function bootstrap() {
 }
 
 describe("resolveModel", () => {
-  test("uses the agent default model when no CLI model is provided", () => {
+  test("uses the agent default model policy when no CLI model is provided", () => {
     assert.equal(
-      resolveModel(bootstrap(), undefined, undefined, {
-        provider: "local_qwen_moe",
-        id: "Qwen3.6-35B-A3B-UD-Q6_K.gguf",
-      }),
+      resolveModel(bootstrap(), undefined, undefined, "coding"),
       a3b,
     );
   });
@@ -45,23 +49,20 @@ describe("resolveModel", () => {
         bootstrap(),
         "local_qwen",
         "Qwen3.6-27B-Q6_K.gguf",
-        {
-          provider: "local_qwen_moe",
-          id: "Qwen3.6-35B-A3B-UD-Q6_K.gguf",
-        },
+        "coding",
       ),
       twentySevenB,
     );
   });
 
-  test("requires an agent default unless missing defaults are explicitly allowed", () => {
+  test("requires a coding policy unless missing defaults are explicitly allowed", () => {
     assert.throws(
-      () => resolveModel(bootstrap(), undefined, undefined, undefined),
-      /agent has no default model/,
+      () => resolveModel(bootstrap({}), undefined, undefined, undefined),
+      /model policy coding is not configured/,
     );
 
     assert.equal(
-      resolveModel(bootstrap(), undefined, undefined, undefined, {
+      resolveModel(bootstrap({}), undefined, undefined, undefined, {
         allowMissingDefault: true,
       }),
       undefined,
@@ -70,7 +71,7 @@ describe("resolveModel", () => {
 
   test("uses registry fallback only for explicit bootstrap flows", () => {
     assert.equal(
-      resolveModel(bootstrap(), undefined, undefined, undefined, {
+      resolveModel(bootstrap({}), undefined, undefined, undefined, {
         allowRegistryFallback: true,
       }),
       a3b,

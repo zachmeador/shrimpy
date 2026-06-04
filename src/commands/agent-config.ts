@@ -26,8 +26,7 @@ export async function cmdAgentAdd(
     args,
     options: {
       root: { type: "string" },
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
+      "model-policy": { type: "string" },
       tools: { type: "string" },
       "disable-tools": { type: "string" },
       thinking: { type: "string" },
@@ -39,22 +38,13 @@ export async function cmdAgentAdd(
   });
 
   const agentId = requireArg(positionals[0], usage, "agent id");
-  if (values.provider !== undefined && values.model === undefined) {
-    return printError("agent add --provider requires --model");
-  }
-  if (values.model !== undefined && values.provider === undefined) {
-    return printError("agent add --model requires --provider");
-  }
-  const requestedModel = values.provider !== undefined && values.model !== undefined
-    ? { provider: values.provider, id: values.model }
-    : undefined;
 
   const runtime = createAppRuntime(config);
   const defaultAgent = runtime.resolved.agents[0];
   const result = addAgent(runtime, {
     agentId,
     root: values.root,
-    ...(requestedModel ? { model: requestedModel } : {}),
+    ...(values["model-policy"] !== undefined ? { modelPolicy: values["model-policy"] } : {}),
     tools: parseCsv(values.tools) ?? [...(defaultAgent.tools ?? DEFAULT_AGENT_TOOLS)],
     disabledTools: parseCsv(values["disable-tools"]) ?? [...(defaultAgent.disabledTools ?? [])],
     thinking: parseThinking(values.thinking),
@@ -89,8 +79,7 @@ export async function cmdAgentSet(
     args,
     options: {
       root: { type: "string" },
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
+      "model-policy": { type: "string" },
       tools: { type: "string" },
       "disable-tools": { type: "string" },
       thinking: { type: "string" },
@@ -102,19 +91,10 @@ export async function cmdAgentSet(
   });
 
   const agentId = requireArg(positionals[0], usage, "agent id");
-  if (values.provider !== undefined && values.model === undefined) {
-    return printError("agent set --provider requires --model");
-  }
-  if (values.model !== undefined && values.provider === undefined) {
-    return printError("agent set --model requires --provider");
-  }
-  const requestedModel = values.provider !== undefined && values.model !== undefined
-    ? { provider: values.provider, id: values.model }
-    : undefined;
 
   if (
     values.root === undefined
-    && values.model === undefined
+    && values["model-policy"] === undefined
     && values.tools === undefined
     && values["disable-tools"] === undefined
     && values.thinking === undefined
@@ -127,7 +107,7 @@ export async function cmdAgentSet(
   const result = updateAgent(runtime, {
     agentId,
     ...(values.root !== undefined ? { root: values.root } : {}),
-    ...(requestedModel ? { model: requestedModel } : {}),
+    ...(values["model-policy"] !== undefined ? { modelPolicy: values["model-policy"] } : {}),
     ...(values.tools !== undefined ? { tools: parseCsv(values.tools) ?? [] } : {}),
     ...(values["disable-tools"] !== undefined
       ? { disabledTools: parseCsv(values["disable-tools"]) ?? [] }

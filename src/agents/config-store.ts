@@ -4,7 +4,6 @@ import {
   type AgentConfig,
   validateAgentsConfig,
 } from "../config/agents.js";
-import type { ModelSelectionConfig } from "../config/model.js";
 import { primaryConfigPath } from "../config/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import {
@@ -21,7 +20,7 @@ export interface AgentWorkspaceConfig {
 export interface AgentConfigDraft {
   agentId: string;
   root?: string;
-  model?: ModelSelectionConfig;
+  modelPolicy?: string;
   tools: string[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
@@ -30,7 +29,7 @@ export interface AgentConfigDraft {
 
 export interface AgentConfigPatch {
   root?: string;
-  model?: ModelSelectionConfig;
+  modelPolicy?: string;
   tools?: string[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
@@ -62,7 +61,7 @@ export function createAgentConfig(input: AgentConfigDraft): AgentConfig {
   const agent: AgentConfig = {
     id: input.agentId,
     root: input.root ?? `agents/${input.agentId}`,
-    ...(input.model !== undefined ? { model: input.model } : {}),
+    ...(input.modelPolicy !== undefined ? { modelPolicy: input.modelPolicy } : {}),
     tools: [...new Set(input.tools)],
     ...(input.disabledTools?.length
       ? { disabledTools: [...new Set(input.disabledTools)] }
@@ -96,7 +95,7 @@ export function patchStoredAgentConfig(
   const next: AgentConfig = {
     ...agent,
     ...(patch.root !== undefined ? { root: patch.root } : {}),
-    ...(patch.model !== undefined ? { model: patch.model } : {}),
+    ...(patch.modelPolicy !== undefined ? { modelPolicy: patch.modelPolicy } : {}),
     ...(patch.tools !== undefined ? { tools: [...new Set(patch.tools)] } : {}),
   };
   if (patch.disabledTools !== undefined) {

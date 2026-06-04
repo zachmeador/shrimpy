@@ -1,6 +1,6 @@
 # MODEL-001: User-Configurable Model Policy
 
-Status: draft
+Status: review
 Priority: P1
 Area: Models
 
@@ -36,16 +36,20 @@ agent prompt convention.
 
 ## Current State
 
-- Config still supports concrete `agents[].model` defaults, not
-  `modelPolicies` or `agents[].modelPolicy`.
-- `shrimpy models` and `shrimpy models resolve` inspect current concrete model
-  availability and precedence in human and JSON forms.
-- Direct local sessions restore a saved session model when no CLI override is
-  supplied. Gateway sessions use the agent default for the gateway process.
-- Saved-session model restore is not constrained by a policy because policy
-  resolution does not exist yet.
-- Model switches are recorded as visible `shrimpy_model_switch` custom
-  messages, but session metadata does not include model-policy facts.
+- Config supports top-level `modelPolicies` and per-agent `modelPolicy`. If
+  `modelPolicies` is present, it must include `coding` and every policy must
+  contain at least one candidate.
+- Concrete `agents[].model` defaults are removed from current config. Agent
+  add/set commands use `--model-policy <name>`.
+- `shrimpy models`, `shrimpy models resolve`, and `shrimpy models policies ...`
+  inspect and mutate policy state in human and JSON forms.
+- Direct local sessions restore a saved concrete session model when no concrete
+  model or policy override is supplied. Gateway sessions resolve from the
+  agent's model policy for the gateway process.
+- Session metadata records model-policy resolution facts, and model switches
+  remain visible `shrimpy_model_switch` custom messages.
+- TUI model switching is session-local. Policy editing is CLI-first in this
+  slice; richer TUI policy editing remains a later convenience wrapper.
 
 ## Concept
 
@@ -235,30 +239,33 @@ available model without adding that model to `local`.
 ## Done
 
 - Workspace config supports named model policies with ordered provider/model
-  candidates.
-- Workspace config requires `modelPolicies.coding.candidates` to contain at
-  least one model candidate, and setup validates that at least one candidate is
-  currently usable before mechanic/setup/coding work is available.
-- Agents can name a default model policy instead of a single default model.
+  candidates and requires `coding` whenever `modelPolicies` is present.
+- Agents can name a default `modelPolicy` instead of a single concrete model.
 - Session-opening commands and gateway sessions resolve models through explicit
-  CLI model overrides, explicit policy overrides, saved direct local session
-  models, agent defaults, and the required `coding` fallback in that order.
-- Setup defaults the main Shrimpy agent to `coding`, while explicit local-only
-  or unresolved agent policies fail clearly until a usable candidate exists.
+  CLI concrete model overrides, explicit policy overrides, saved direct local
+  session models, agent defaults, and the `coding` fallback in that order.
+- Setup defaults the main Shrimpy agent to `coding` and creates a `coding`
+  policy from the first discovered model when setup has a model candidate and
+  no policy exists yet.
+- Explicit local-only or unresolved agent policies fail clearly until a usable
+  candidate exists.
 - Saved TUI session model switches resume without requiring the saved model to
   be listed in the agent's default policy.
 - CLI commands can inspect and mutate model policies and assign an agent
   `modelPolicy`.
-- The TUI `/model` menu can switch the active session model without mutating
-  policies, and can deliberately assign selected models to named policies,
-  remove policy candidates, and reorder fallback candidates.
 - CLI inspection explains policy resolution and unresolved candidates in human
   and JSON forms.
-- Worker/coding and mechanic/setup/repair sessions use `coding`. Normal
-  agent/channel/watch sessions use the agent's default policy or `coding`
-  fallback.
-- Docs explain the required `coding` policy, optional user policies such as
-  `local`, and session-local concrete model switching without hardcoded provider
-  assumptions.
-- Tests cover policy validation, precedence, unresolved explicit policy
-  behavior, saved-session restore, CLI policy mutation, and CLI output.
+- Normal agent/channel/watch sessions use the agent's default policy or
+  `coding` fallback.
+- Reference docs and generated add-agent guidance describe `coding`, optional
+  user policies such as `local`, and session-local concrete model switching
+  without hardcoded provider assumptions.
+- Tests cover policy validation, precedence, missing policy behavior,
+  saved-session restore, CLI policy mutation, setup seeding, and CLI output.
+
+## Later Follow-Up
+
+- TUI policy editing can wrap the same CLI mutation behavior later: assign the
+  selected model to a named policy, remove candidates, and reorder candidates.
+- SETUP-002 still owns guided provider selection, policy smoke testing, and the
+  richer first-run choice between `coding` and optional local/private policies.

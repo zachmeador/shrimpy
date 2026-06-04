@@ -100,6 +100,7 @@ describe("setupInit", () => {
     assert.equal(config.watchClock.tickIntervalMs, 1000);
     assert.deepEqual(config.status, {});
     assert.equal(config.agents[0].root, "agents/shrimpy");
+    assert.equal(config.agents[0].modelPolicy, "coding");
     assert.deepEqual(config.agents[0].tools, [
       "reply",
       "ask",

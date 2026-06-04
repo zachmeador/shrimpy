@@ -351,9 +351,13 @@ describe("targeting helpers", () => {
 
 function testAgents() {
   return resolveAgentsConfig([
-    { id: "shrimpy", model: { provider: "test", id: "shrimpy-model" } },
-    { id: "career", model: { provider: "test", id: "career-model" } },
+    { id: "shrimpy", modelPolicy: "shrimpy" },
+    { id: "career", modelPolicy: "career" },
   ]);
+}
+
+function testModelId(agentId: string): string {
+  return agentId === "ole_scrappy" ? "scrappy-model" : `${agentId}-model`;
 }
 
 function testBootstraps(agents: ReturnType<typeof resolveAgentsConfig>) {
@@ -364,6 +368,16 @@ function testBootstraps(agents: ReturnType<typeof resolveAgentsConfig>) {
         workspacePath: workspace,
         agentRootPath: join(workspace, "agents", agent.id),
         modelsPath: join(workspace, "state", "pi", "models.json"),
+        config: {
+          modelPolicies: {
+            coding: {
+              candidates: [{ provider: "test", id: testModelId(agent.id) }],
+            },
+            [agent.modelPolicy ?? agent.id]: {
+              candidates: [{ provider: "test", id: testModelId(agent.id) }],
+            },
+          },
+        },
         modelRegistry: {
           find(provider: string, id: string) {
             return provider === "test"
@@ -373,7 +387,7 @@ function testBootstraps(agents: ReturnType<typeof resolveAgentsConfig>) {
           getAvailable() {
             return agents.map((agent) => ({
               provider: "test",
-              id: agent.model?.id ?? `${agent.id}-model`,
+              id: testModelId(agent.id),
               contextWindow: 1000,
             }));
           },
@@ -514,12 +528,12 @@ describe("ChannelDeliveryLoop routing", () => {
     const agents = resolveAgentsConfig([
       {
         id: "shrimpy",
-        model: { provider: "test", id: "shrimpy-model" },
+        modelPolicy: "shrimpy",
         channelPolicy: { mode: "all", senders: ["human"] },
       },
       {
         id: "ole_scrappy",
-        model: { provider: "test", id: "scrappy-model" },
+        modelPolicy: "ole_scrappy",
         channelPolicy: {
           mode: "none",
           channels: {

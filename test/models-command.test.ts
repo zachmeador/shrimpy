@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdModels } from "../dist/commands/models.js";
@@ -36,7 +36,7 @@ async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines:
 }
 
 describe("cmdModels", () => {
-  test("lists agent defaults and available provider models", async () => {
+  test("lists model policies, agent defaults, and available provider models", async () => {
     await setupInit(workspace);
     writeModelsJson({
       providers: {
@@ -44,7 +44,7 @@ describe("cmdModels", () => {
         other_provider: modelProvider(["other-model"]),
       },
     });
-    const config = configWithAgentModel("configured_provider", "configured-model");
+    const config = configWithModelPolicy("configured_provider", "configured-model");
 
     const { result, lines } = await captureLogs(() =>
       cmdModels(["--json"], config as any)
@@ -52,14 +52,18 @@ describe("cmdModels", () => {
 
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
-    assert.deepEqual(summary.agentDefaults, [{
-      id: "shrimpy",
-      model: {
-        provider: "configured_provider",
-        id: "configured-model",
-      },
-      usable: true,
-    }]);
+    assert.equal(summary.modelPolicies[0].name, "coding");
+    assert.deepEqual(summary.modelPolicies[0].resolution.selected, {
+      provider: "configured_provider",
+      id: "configured-model",
+    });
+    assert.equal(summary.agentDefaults[0].id, "shrimpy");
+    assert.equal(summary.agentDefaults[0].policy, "coding");
+    assert.deepEqual(summary.agentDefaults[0].selected, {
+      provider: "configured_provider",
+      id: "configured-model",
+    });
+    assert.equal(summary.agentDefaults[0].usable, true);
     assert.deepEqual(
       summary.providers.map((provider: any) => provider.provider),
       ["configured_provider", "other_provider"],
@@ -76,7 +80,7 @@ describe("cmdModels", () => {
       },
     });
     writeLocalSessionModel("tui", "selected_provider", "selected-model");
-    const config = configWithAgentModel("configured_provider", "configured-model");
+    const config = configWithModelPolicy("configured_provider", "configured-model");
 
     const { result, lines } = await captureLogs(() =>
       cmdModels(["resolve", "--agent", "shrimpy", "--session", "tui", "--json"], config as any)
@@ -90,7 +94,7 @@ describe("cmdModels", () => {
       id: "selected-model",
     });
     assert.deepEqual(summary.effective, {
-      source: "session",
+      source: "saved-session",
       model: {
         provider: "selected_provider",
         id: "selected-model",
@@ -107,7 +111,7 @@ describe("cmdModels", () => {
       },
     });
     writeGatewaySessionModel("home", "selected_provider", "selected-model");
-    const config = configWithAgentModel("configured_provider", "configured-model");
+    const config = configWithModelPolicy("configured_provider", "configured-model");
 
     const { result, lines } = await captureLogs(() =>
       cmdModels(["resolve", "--agent", "shrimpy", "--channel", "home", "--json"], config as any)
@@ -121,22 +125,88 @@ describe("cmdModels", () => {
       id: "selected-model",
     });
     assert.deepEqual(summary.effective, {
-      source: "agent",
+      source: "policy",
+      policy: "coding",
       model: {
         provider: "configured_provider",
         id: "configured-model",
       },
     });
   });
+
+  test("mutates model policies through CLI commands", async () => {
+    await setupInit(workspace);
+
+    let captured = await captureLogs(() =>
+      cmdModels([
+        "policies",
+        "set",
+        "coding",
+        "--candidate",
+        "openai/gpt5.5",
+        "--json",
+      ], { workspace } as any)
+    );
+    assert.equal(captured.result, 0);
+    assert.equal(JSON.parse(captured.lines.join("\n")).modelPolicy.candidates.length, 1);
+
+    captured = await captureLogs(() =>
+      cmdModels([
+        "policies",
+        "add-candidate",
+        "coding",
+        "anthropic/claudeopus",
+        "--index",
+        "0",
+        "--json",
+      ], { workspace } as any)
+    );
+    assert.equal(captured.result, 0);
+
+    captured = await captureLogs(() =>
+      cmdModels([
+        "policies",
+        "move-candidate",
+        "coding",
+        "openai/gpt5.5",
+        "--index",
+        "0",
+      ], { workspace } as any)
+    );
+    assert.equal(captured.result, 0);
+
+    captured = await captureLogs(() =>
+      cmdModels([
+        "policies",
+        "remove-candidate",
+        "coding",
+        "anthropic/claudeopus",
+      ], { workspace } as any)
+    );
+    assert.equal(captured.result, 0);
+
+    const config = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    );
+    assert.deepEqual(config.modelPolicies.coding.candidates, [{
+      provider: "openai",
+      id: "gpt5.5",
+    }]);
+  });
 });
 
-function configWithAgentModel(provider: string, id: string): Record<string, unknown> {
+function configWithModelPolicy(provider: string, id: string): Record<string, unknown> {
   return {
     workspace,
+    modelPolicies: {
+      coding: {
+        candidates: [{ provider, id }],
+      },
+    },
     agents: [{
       id: "shrimpy",
       root: "agents/shrimpy",
-      model: { provider, id },
+      modelPolicy: "coding",
     }],
   };
 }

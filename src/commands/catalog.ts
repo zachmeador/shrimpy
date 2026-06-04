@@ -26,6 +26,7 @@ const jsonOption = { name: "--json" };
 const agentOption = { name: "--agent", short: "-a", takesValue: true };
 const providerOption = { name: "--provider", short: "-p", takesValue: true };
 const modelOption = { name: "--model", short: "-m", takesValue: true };
+const modelPolicyOption = { name: "--model-policy", takesValue: true };
 const thinkingOption = { name: "--thinking", takesValue: true };
 const skillOption = { name: "--skill", short: "-k", takesValue: true };
 
@@ -42,8 +43,8 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
 export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry([], undefined, "Open the default agent's TUI session.", "Session Commands"),
   entry([], "\"prompt\"", "Open the TUI session with an initial prompt.", "Session Commands"),
-  entry(["run"], "[--agent <id>] [--skill <id>] <prompt> [--provider <p>] [--model <m>] [--thinking <level>]", "Run a one-shot prompt and print the response.", "Session Commands", [agentOption, skillOption, providerOption, modelOption, thinkingOption]),
-  entry(["agent", "tui"], "<id> [prompt] [--provider <p>] [--model <m>] [--thinking <level>]", "Open a TUI session as a specific agent.", "Session Commands", [providerOption, modelOption, thinkingOption]),
+  entry(["run"], "[--agent <id>] [--skill <id>] <prompt> [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Run a one-shot prompt and print the response.", "Session Commands", [agentOption, skillOption, providerOption, modelOption, modelPolicyOption, thinkingOption]),
+  entry(["agent", "tui"], "<id> [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Open a TUI session as a specific agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption]),
   entry(["agent", "run"], "<id> <prompt>", "Run a one-shot prompt as a specific agent.", "Session Commands"),
   entry(["sessions", "new"], "<channel> [--agent <id>]", "Archive/reset a session.", "Session Commands", [agentOption]),
   entry(["sessions", "clear"], "<channel> [--agent <id>]", "Alias for session reset.", "Session Commands", [agentOption]),
@@ -51,8 +52,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["sessions", "thinking"], "<channel> <level> [--agent <id>]", "Change reasoning effort for a session.", "Session Commands", [agentOption]),
   entry(["sessions", "list"], "[channel] [--agent <id>] [--json]", "Inspect active and archived sessions.", "Session Commands", [agentOption, jsonOption]),
   entry(["sessions", "compaction"], "<channel> [--agent <id>] [--session-type <type>] [--json]", "Inspect effective compaction policy and recorded session settings.", "Session Commands", [agentOption, { name: "--session-type", takesValue: true }, jsonOption]),
-  entry(["models"], "[--json]", "Inspect agent default models and Pi-visible provider models.", "Session Commands", [jsonOption]),
-  entry(["models", "resolve"], "[--agent <id>] [--session <name>|--channel <name>] [--provider <p>] [--model <m>] [--json]", "Explain model precedence for CLI, session, channel, or agent defaults.", "Session Commands", [agentOption, { name: "--session", short: "-s", takesValue: true }, { name: "--channel", short: "-c", takesValue: true }, providerOption, modelOption, jsonOption]),
+  entry(["models"], "[--json]", "Inspect model policies, agent defaults, and Pi-visible provider models.", "Session Commands", [jsonOption]),
+  entry(["models", "resolve"], "[--agent <id>] [--session <name>|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]", "Explain model precedence for CLI, session, channel, policy, or agent defaults.", "Session Commands", [agentOption, { name: "--session", short: "-s", takesValue: true }, { name: "--channel", short: "-c", takesValue: true }, providerOption, modelOption, { name: "--policy", takesValue: true }, jsonOption]),
 
   entry(["setup"], undefined, "Initialize and launch setup flow.", "Workspace And Runtime"),
   entry(["setup", "init"], undefined, "Create baseline workspace files.", "Workspace And Runtime"),
@@ -94,8 +95,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["agent", "list"], "[--json]", "List configured agents.", "Agents, Skills, Users", [jsonOption]),
   entry(["agent", "show"], "<id>", "Show resolved agent config and paths.", "Agents, Skills, Users"),
   entry(["agent", "inspect"], "<id> [--json]", "Show effective tool capability view.", "Agents, Skills, Users", [jsonOption]),
-  entry(["agent", "add"], "<id> [--root <path>] [--provider <p>] [--model <m>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Add an agent and scaffold docs.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, providerOption, modelOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
-  entry(["agent", "set"], "<id> [--root <path>] [--provider <p>] [--model <m>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Update agent root, model defaults, tools, thinking, or base channel policy.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, providerOption, modelOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
+  entry(["agent", "add"], "<id> [--root <path>] [--model-policy <name>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Add an agent and scaffold docs.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, modelPolicyOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
+  entry(["agent", "set"], "<id> [--root <path>] [--model-policy <name>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Update agent root, model policy, tools, thinking, or base channel policy.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, modelPolicyOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
   entry(["agent", "channel-policy"], "<id> [--channel <name>] [--json]", "Inspect an agent-owned channel policy.", "Agents, Skills, Users", [{ name: "--channel", takesValue: true }, jsonOption]),
   entry(["agent", "channel-policy", "set"], "<id> [--channel <pattern>] [--mode <all|mentions|addressed|none>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b] [--json]", "Set base or per-channel policy fields.", "Agents, Skills, Users", [{ name: "--channel", takesValue: true }, { name: "--mode", takesValue: true }, { name: "--senders", takesValue: true }, { name: "--actor-ids", takesValue: true }, { name: "--user-ids", takesValue: true }, jsonOption]),
   entry(["agent", "channel-policy", "clear"], "<id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids] [--json]", "Clear base or per-channel policy fields.", "Agents, Skills, Users", [{ name: "--channel", takesValue: true }, { name: "--mode" }, { name: "--senders" }, { name: "--actor-ids" }, { name: "--user-ids" }, jsonOption]),

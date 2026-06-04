@@ -30,7 +30,7 @@ Decide only what is needed now:
 
 - `id`: stable public handle, also the default root `agents/<id>`.
 - `SOUL.md`: the agent's role and operating style.
-- `model`: omit `--provider/--model` unless this agent needs a specific default.
+- `modelPolicy`: omit `--model-policy` unless this agent should use a policy other than `coding`.
 - `tools`: inherit default tools unless the user needs a restricted surface.
 - `disabledTools`: use for Pi built-ins or extension tools that should be excluded.
 - `channelPolicy`: prefer `addressed` or `mentions` for shared human channels; use
@@ -45,11 +45,11 @@ Create through the CLI first:
 shrimpy agent add <id> --channel-policy addressed --json
 ```
 
-Add model, tools, or thinking only when chosen:
+Add model policy, tools, or thinking only when chosen:
 
 ```bash
 shrimpy agent add <id> \
-  --provider <provider> --model <model> \
+  --model-policy <policy> \
   --tools reply,ask,notify,report,send_message,read_channel,run_child \
   --thinking medium \
   --channel-policy addressed \

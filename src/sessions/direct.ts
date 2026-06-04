@@ -19,10 +19,10 @@ import { installShrimpyToolRendering } from "../tui/shrimpy-tool-rendering.js";
 import { installShrimpyModelSelectionGuard } from "../tui/shrimpy-model-selection.js";
 import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
 import {
-  formatMissingAgentModelMessage,
+  formatMissingAgentModelPolicyMessage,
   openSession,
   openSessionRuntime,
-  resolveModel,
+  resolveModelDetailed,
 } from "./factory.js";
 import { createLocalSessionDescriptor } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
@@ -35,6 +35,7 @@ export interface OpenDirectSessionInput {
   cwd?: string;
   provider?: string;
   model?: string;
+  modelPolicy?: string;
   thinking?: ThinkingLevel;
   appendSystemPrompt?: string;
   skills?: string[];
@@ -68,18 +69,22 @@ export async function openDirectAgentSession(
     cwd,
     basePromptResources: input.basePromptResources,
   });
-  const restoreModelFromSession = input.provider === undefined && input.model === undefined;
-  const model = resolveModel(
+  const restoreModelFromSession = input.provider === undefined &&
+    input.model === undefined &&
+    input.modelPolicy === undefined;
+  const modelResolution = resolveModelDetailed(
     bootstrap,
     input.provider,
     input.model,
-    agent.model,
+    agent.modelPolicy,
     {
+      modelPolicy: input.modelPolicy,
       allowMissingDefault: restoreModelFromSession || input.allowMissingModel,
       allowRegistryFallback: input.allowRegistryFallbackModel,
-      missingMessage: formatMissingAgentModelMessage(agent.id),
+      missingMessage: formatMissingAgentModelPolicyMessage(agent.id),
     },
   );
+  const model = modelResolution.model;
   const inference = resolveModelVariantInference({
     modelsPath: bootstrap.modelsPath,
     model,
@@ -124,6 +129,7 @@ export async function openDirectAgentSession(
       return renderTurnContext(turnContext);
     },
     model,
+    modelResolution,
     toolPolicy: sessionToolPolicy,
     tools,
   });
@@ -175,18 +181,22 @@ async function runAgentTuiSession(
     cwd,
     basePromptResources: input.basePromptResources,
   });
-  const restoreModelFromSession = input.provider === undefined && input.model === undefined;
-  const model = resolveModel(
+  const restoreModelFromSession = input.provider === undefined &&
+    input.model === undefined &&
+    input.modelPolicy === undefined;
+  const modelResolution = resolveModelDetailed(
     bootstrap,
     input.provider,
     input.model,
-    agent.model,
+    agent.modelPolicy,
     {
+      modelPolicy: input.modelPolicy,
       allowMissingDefault: restoreModelFromSession || input.allowMissingModel,
       allowRegistryFallback: input.allowRegistryFallbackModel,
-      missingMessage: formatMissingAgentModelMessage(agent.id),
+      missingMessage: formatMissingAgentModelPolicyMessage(agent.id),
     },
   );
+  const model = modelResolution.model;
   const inference = resolveModelVariantInference({
     modelsPath: bootstrap.modelsPath,
     model,
@@ -231,6 +241,7 @@ async function runAgentTuiSession(
       return renderTurnContext(turnContext);
     },
     model,
+    modelResolution,
     toolPolicy: sessionToolPolicy,
     tools,
   });

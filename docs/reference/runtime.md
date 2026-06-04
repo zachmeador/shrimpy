@@ -8,8 +8,8 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
 - `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.
-- `--provider`, `--model`, and `--thinking <off|low|medium|high>` override one session.
-- Without a CLI override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `agents[].model`. Fresh sessions without an agent default fail with a setup hint.
+- `--provider`, `--model`, `--model-policy`, and `--thinking <off|low|medium|high>` override one session.
+- Without a model override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
 - `--skill <id>` loads full skill context into the session. The normal
   workspace/agent skill list is also passed to Pi so `/skill:<name>`,
   autocomplete, and available-skill prompt advertising see the same skill set.
@@ -49,7 +49,7 @@ channel.
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
 
-Gateway channel sessions are opened from the agent default model for that gateway process. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default. See [sessions.md](sessions.md).
+Gateway channel sessions are opened from the agent's resolved model policy for that gateway process. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default. See [sessions.md](sessions.md).
 
 ## Prompt Context
 
