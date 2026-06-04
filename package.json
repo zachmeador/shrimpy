@@ -13,7 +13,8 @@
     "shrimpy-web": "./dist/web/server.js"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc && npm run build:web && chmod +x dist/cli.js dist/gateway.js dist/web/server.js",
+    "build": "rm -rf dist && tsc && npm run build:web && chmod +x dist/cli.js dist/gateway.js dist/web/server.js && npm run build:skills",
+    "build:skills": "node dist/skills/project-sync.js",
     "build:web": "vite build --config web/vite.config.ts",
     "lint": "eslint src test web/src --ext .ts",
     "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",

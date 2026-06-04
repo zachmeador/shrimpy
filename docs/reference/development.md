@@ -18,11 +18,17 @@
 - Repository developer skills: `src/skills/<id>/SKILL.md`. These are
   source-tree skill prompts for Shrimpy development work, separate from the
   workspace and agent skill bundles described in [skills.md](skills.md).
+  `npm run build` mirrors them into `.claude/skills/` and `.agents/skills/`
+  with `DIRECTORY_MANAGED_BY_SHRIMPY_BUILD` marker files; edit `src/skills/`,
+  not the generated mirrors.
+- `CLAUDE.md` is generated from `AGENTS.md` by the same build tooling and
+  carries a short origin note at the top.
 
 ## Commands
 
 ```bash
 npm run build
+npm run build:skills
 npm test
 ```
 
