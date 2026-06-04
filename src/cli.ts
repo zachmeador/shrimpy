@@ -56,6 +56,30 @@ try {
     process.exit(0);
   }
 
+  const isBareShrimpy = positionals.length === 0 &&
+    values.agent === undefined &&
+    values.provider === undefined &&
+    values.model === undefined &&
+    values["model-policy"] === undefined &&
+    values.thinking === undefined &&
+    values.skill === undefined;
+
+  if (isBareShrimpy) {
+    const { resolveWorkspacePath } = await import("./config/index.js");
+    const { shouldRunSetupBootstrapForRootShrimpy } = await import("./commands/root.js");
+    const workspace = resolveWorkspacePath();
+    if (await shouldRunSetupBootstrapForRootShrimpy(workspace)) {
+      if (!process.stdin.isTTY || !process.stdout.isTTY) {
+        console.error("Shrimpy needs a usable coding model policy before opening the TUI. Run: shrimpy setup");
+        process.exit(1);
+      }
+
+      const { runSetupEntry } = await import("./setup/service.js");
+      const result = await runSetupEntry(workspace, { cwd: process.cwd() });
+      process.exit(result.kind === "setup_started" ? 0 : 1);
+    }
+  }
+
   const { bootstrapInteractiveCompletion } = await import("./commands/completion-runtime.js");
   await bootstrapInteractiveCompletion();
 

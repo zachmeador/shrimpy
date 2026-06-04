@@ -24,6 +24,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Workspace & Setup
 
 - Added shared and per-agent `vault/` and `projects/` workspace defaults plus setup-template guidance for saved files, reports, and project work folders.
+- Changed `shrimpy setup` to set up missing model policy and context, while leaving configured workspaces unchanged.
 
 ### Agents, Skills & Tools
 
@@ -70,7 +71,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Added skills and tool-model reference documentation plus Pi skill-handling research.
 - Added channel, session, security, turn-context, and workspace storage reference documentation.
-- Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, agent-owned watches, model policy, workspace storage defaults, setup/model bootstrap, and chat operation/status surfaces.
+- Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, agent-owned watches, model policy, workspace storage defaults, setup/model setup, and chat operation/status surfaces.
 - Added research notes for web search API providers and in-OS agent sandboxing plus development guidance for Bash automation.
 - Removed completed skill/context/schedule/channel/session/workspace backlog notes and the vision reconciliation tracker.
 - Added Shrimpy emoji guidance to the default initialized `SOUL.md` template.

@@ -216,7 +216,7 @@ available model without adding that model to `local`.
   working model path, then default the main Shrimpy agent to `coding` unless the
   user explicitly chooses a separate local/private policy.
 - Related: [SETUP-002](setup-002-provider-model-policy-bootstrap.md) should own
-  the deterministic provider auth, policy writing, and smoke-test step before
+  deterministic provider auth, policy writing, and the smoke-test step before
   mechanic-led onboarding starts.
 - Related: [MECH-002](mech-002-direct-mechanic-tui-command.md) should launch
   mechanic through `coding` so setup, repair, and extension work has enough

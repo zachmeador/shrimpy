@@ -41,7 +41,7 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
 ];
 
 export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
-  entry([], undefined, "Open the default agent's TUI session.", "Session Commands"),
+  entry([], undefined, "Open Shrimpy, setting up a minimal environment when needed.", "Session Commands"),
   entry([], "\"prompt\"", "Open the TUI session with an initial prompt.", "Session Commands"),
   entry(["run"], "[--agent <id>] [--skill <id>] <prompt> [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Run a one-shot prompt and print the response.", "Session Commands", [agentOption, skillOption, providerOption, modelOption, modelPolicyOption, thinkingOption]),
   entry(["agent", "tui"], "<id> [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Open a TUI session as a specific agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption]),
@@ -55,7 +55,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["models"], "[--json]", "Inspect model policies, agent defaults, and Pi-visible provider models.", "Session Commands", [jsonOption]),
   entry(["models", "resolve"], "[--agent <id>] [--session <name>|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]", "Explain model precedence for CLI, session, channel, policy, or agent defaults.", "Session Commands", [agentOption, { name: "--session", short: "-s", takesValue: true }, { name: "--channel", short: "-c", takesValue: true }, providerOption, modelOption, { name: "--policy", takesValue: true }, jsonOption]),
 
-  entry(["setup"], undefined, "Initialize and launch setup flow.", "Workspace And Runtime"),
+  entry(["setup"], undefined, "Set up a minimal working Shrimpy environment when needed.", "Workspace And Runtime"),
   entry(["setup", "init"], undefined, "Create baseline workspace files.", "Workspace And Runtime"),
   entry(["setup", "telegram"], undefined, "Run guided Telegram bot setup.", "Workspace And Runtime"),
   entry(["status"], undefined, "Show workspace, gateway, channel, watch, and Telegram status.", "Workspace And Runtime"),
@@ -81,7 +81,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["channels", "read"], "<name> [--limit N] [--json]", "Read recent channel messages.", "Channels And Surfaces", [{ name: "--limit", takesValue: true }, jsonOption]),
   entry(["channels", "search"], "<name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]", "Search and filter channel messages.", "Channels And Surfaces", [{ name: "--text", takesValue: true }, { name: "--kind", takesValue: true }, { name: "--sender", takesValue: true }, { name: "--actor-id", takesValue: true }, { name: "--transport", takesValue: true }, { name: "--content-type", takesValue: true }, { name: "--addressed", takesValue: true }, { name: "--watch", takesValue: true }, { name: "--source-kind", takesValue: true }, { name: "--limit", takesValue: true }, jsonOption]),
   entry(["channels", "tail"], "<name>", "Watch a channel log.", "Channels And Surfaces"),
-  entry(["channels", "create"], "<name> [--json]", "Create or bootstrap channel membership.", "Channels And Surfaces", [jsonOption]),
+  entry(["channels", "create"], "<name> [--json]", "Create or initialize channel membership.", "Channels And Surfaces", [jsonOption]),
   entry(["channels", "post"], "<name> [--agent <id>] <text> [--json]", "Post a CLI human message into a channel log.", "Channels And Surfaces", [agentOption, jsonOption]),
   entry(["channels", "dm"], "<agent-a> <agent-b> [--json]", "Create a deterministic agent DM channel.", "Channels And Surfaces", [jsonOption]),
   entry(["channels", "members"], "<name> [--json]", "Show channel members.", "Channels And Surfaces", [jsonOption]),

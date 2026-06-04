@@ -75,7 +75,7 @@ agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent
 Stable prompt material loaded into an agent session before per-turn context arrives:
 
 - `profile/WORKSPACE.md` defines shared system/home context.
-- `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and inspection breadcrumbs. It does not contain the compact immutable instructions prepended during bootstrap.
+- `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and inspection breadcrumbs. It does not contain the compact immutable instructions prepended during session setup.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
 - `SOUL.md` defines who an agent is.
 - `context/*.md` is the agent's long-lived prompt context: identity notes, habits, active references, and other memory the agent should load.

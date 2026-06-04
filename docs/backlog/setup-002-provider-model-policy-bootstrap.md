@@ -1,6 +1,6 @@
-# 🦐 SETUP-002: Provider and Model Policy Bootstrap
+# 🦐 SETUP-002: Provider and Model Policy Setup
 
-Status: todo
+Status: review
 Priority: P1
 Area: Setup
 Depends On: [MODEL-001](model-001-user-configurable-model-policy.md)
@@ -12,23 +12,36 @@ agent-led onboarding. Before Shrimpy can hand the user to mechanic, setup should
 get the required `coding` model policy authenticated, reachable, and recorded in
 workspace config.
 
-This is not the conversational onboarding flow. It is the boring bootstrap layer
+This is not the conversational onboarding flow. It is the boring setup layer
 that makes the first guided session possible.
 
 ## Current State
 
-- `shrimpy setup` now inspects Pi-visible available models through
-  `state/pi/auth.json` and `state/pi/models.json`.
+- `shrimpy setup` inspects Pi-visible authenticated models through
+  `state/pi/auth.json` and `state/pi/models.json` only when setup work is
+  still needed.
+- If the workspace already has a `modelPolicies.coding` candidate and the main
+  agent's `context/` directory exists, setup exits without inspecting models,
+  asking questions, changing config, or launching guided setup.
 - If no working models are found and a TTY is available, setup can launch a Pi
-  provider-bootstrap session as `shrimpy` with missing models allowed and asks
+  model setup session as `shrimpy` with missing models allowed and asks
   the user to use Pi's `/login` and `/model`.
-- After any model is available, setup launches the existing setup skill session
-  as `shrimpy` with registry fallback allowed.
-- No `modelPolicies` schema, `coding` policy writing, policy smoke test, or
-  mechanic handoff exists yet. This item should replace the current
-  availability-based bootstrap once [MODEL-001](model-001-user-configurable-model-policy.md)
-  lands.
-- Tests cover the interim provider-bootstrap and setup-session handoff path.
+- Setup creates a missing `modelPolicies.coding` entry from the selected
+  available model, defaults an unset main `shrimpy` agent to
+  `modelPolicy: "coding"`, and preserves existing policy entries.
+- During setup, setup smoke-tests `coding` before guided setup. If `coding`
+  exists but does not resolve, setup reports the failed candidates and only
+  replaces it after explicit confirmation.
+- Bare interactive `shrimpy` enters setup instead of opening the
+  normal TUI when the workspace config is missing or no `coding` candidate is
+  configured. Non-interactive bare `shrimpy` prints a `shrimpy setup` hint.
+- After model policy setup succeeds, setup launches the existing setup skill
+  session as `shrimpy` through `coding`. Mechanic handoff remains blocked on
+  [ADMIN-001](admin-001.md), [MECH-002](mech-002-direct-mechanic-tui-command.md),
+  and [ONBOARD-001](onboard-001.md).
+- Tests cover bare root command detection, fresh setup,
+  model setup continuation, setup no-op behavior, existing-policy
+  preservation, confirmed replacement, and unresolved diagnostics.
 
 ## Build
 
@@ -44,7 +57,7 @@ that makes the first guided session possible.
 - Smoke-test policy resolution before launching any guided setup session:
   `coding` must resolve; any explicitly selected separate policy should resolve
   or fail with a clear diagnostic.
-- Once policy bootstrap succeeds, hand off to [ONBOARD-001](onboard-001.md) when
+- Once model policy setup succeeds, hand off to [ONBOARD-001](onboard-001.md) when
   the mechanic onboarding flow is available, or launch the direct
   [MECH-002](mech-002-direct-mechanic-tui-command.md) command path for ordinary
   mechanic chat.
@@ -67,13 +80,13 @@ that makes the first guided session possible.
 ## Notes
 
 - Related: [MODEL-001](model-001-user-configurable-model-policy.md) defines the
-  policy schema, resolution order, and inspection commands this bootstrap uses.
-- Related: [ONBOARD-001](onboard-001.md) should start after this bootstrap has
+  policy schema, resolution order, and inspection commands this setup uses.
+- Related: [ONBOARD-001](onboard-001.md) should start after this setup has
   produced a resolvable `coding` path.
 - Related: [MECH-002](mech-002-direct-mechanic-tui-command.md) is the direct TUI
-  chat command this bootstrap can hand the user to after policy setup.
+  chat command this flow can hand the user to after policy setup.
 - Related: [SETUP-001](setup-001-macos-friendly-install-docs.md) covers
-  platform-specific install/docs polish; this item covers the model bootstrap
+  platform-specific install/docs polish; this item covers the model setup
   behavior itself.
 - Likely files: `src/setup/service.ts`, `src/setup/init.ts`, `src/commands/setup.ts`,
   `src/commands/models.ts`, setup templates, and model-policy config helpers.
@@ -88,5 +101,5 @@ that makes the first guided session possible.
 - Setup explains unresolved policy failures clearly and points to
   `shrimpy models` inspection commands.
 - Existing model policies are preserved unless the user confirms replacement.
-- Tests cover fresh bootstrap, existing-policy preservation, unresolved policy
-  diagnostics, and handoff selection.
+- Tests cover fresh setup, setup no-op behavior, existing-policy
+  preservation, unresolved policy diagnostics, and handoff selection.

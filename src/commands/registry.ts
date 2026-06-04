@@ -1,8 +1,11 @@
 import type { ShrimpyConfig } from "../config/index.js";
+import { resolveWorkspacePath } from "../config/index.js";
 import type { CommandHandler } from "./framework.js";
 
+export type ConfigRequirement = boolean | "workspace";
+
 export interface RegisteredCommand {
-  requiresConfig: boolean;
+  requiresConfig: ConfigRequirement;
   load: () => Promise<CommandHandler>;
 }
 
@@ -16,7 +19,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   watches: { requiresConfig: true, load: async () => (await import("./watches.js")).cmdWatches },
   models: { requiresConfig: true, load: async () => (await import("./models.js")).cmdModels },
   skills: { requiresConfig: true, load: async () => (await import("./skills.js")).cmdSkills },
-  setup: { requiresConfig: true, load: async () => (await import("./setup.js")).cmdSetup },
+  setup: { requiresConfig: "workspace", load: async () => (await import("./setup.js")).cmdSetup },
   run: { requiresConfig: true, load: async () => (await import("./run.js")).cmdRun },
   context: { requiresConfig: true, load: async () => (await import("./context.js")).cmdContext },
   users: { requiresConfig: true, load: async () => (await import("./users.js")).cmdUsers },
@@ -27,5 +30,9 @@ export function configForRegisteredCommand(
   registration: RegisteredCommand,
   loadConfig: () => ShrimpyConfig,
 ): ShrimpyConfig {
-  return registration.requiresConfig ? loadConfig() : { workspace: process.cwd() };
+  if (registration.requiresConfig === true) return loadConfig();
+  if (registration.requiresConfig === "workspace") {
+    return { workspace: resolveWorkspacePath() };
+  }
+  return { workspace: process.cwd() };
 }

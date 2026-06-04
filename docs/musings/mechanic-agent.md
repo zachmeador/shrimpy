@@ -169,7 +169,7 @@ If this direction is right, Shrimpy should expose it explicitly in the CLI.
 
 Possible shape:
 
-- `shrimpy setup` launches provider bootstrap if needed, then opens a mechanic-guided setup session
+- `shrimpy setup` launches model setup if needed, then opens a mechanic-guided setup session
 - `shrimpy mechanic` opens a direct TUI session with `mechanic`
 - repair-oriented work returns to the same `shrimpy mechanic` front door instead of adding a separate top-level doctor product
 

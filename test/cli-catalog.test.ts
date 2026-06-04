@@ -99,6 +99,17 @@ describe("CLI catalog", () => {
     }), { workspace: process.cwd() });
   });
 
+  test("setup command resolves only the workspace path before loading", () => {
+    const registration = COMMAND_REGISTRY.setup;
+
+    assert.equal(registration.requiresConfig, "workspace");
+    const config = configForRegisteredCommand(registration, () => {
+      throw new Error("should not load full config");
+    });
+    assert.equal(typeof config.workspace, "string");
+    assert.equal(config.workspace.length > 0, true);
+  });
+
   test("reference docs mention the generated completion commands", () => {
     const docs = readFileSync("docs/reference/cli.md", "utf-8");
 

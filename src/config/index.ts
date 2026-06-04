@@ -52,7 +52,7 @@ export interface ShrimpyConfig {
   [surfaceKey: string]: unknown;
 }
 
-function resolveWorkspace(): string {
+export function resolveWorkspacePath(): string {
   const pointerPath = join(homedir(), ".shrimpy-workspace.json");
   if (existsSync(pointerPath)) {
     const raw = readJsonFileStrict(
@@ -104,7 +104,7 @@ export function loadConfigForWorkspace(workspace: string): ShrimpyConfig {
 }
 
 export function loadConfig(): ShrimpyConfig {
-  return loadConfigForWorkspace(resolveWorkspace());
+  return loadConfigForWorkspace(resolveWorkspacePath());
 }
 
 export * from "./adapter-routing.js";

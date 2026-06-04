@@ -42,7 +42,7 @@ node dist/cli.js gateway logs --path
 
 Interactive zsh launches automatically install and refresh Shrimpy's cached shell
 completion in `~/.zshrc`. Set `SHRIMPY_NO_AUTO_COMPLETION=1` to disable that
-bootstrap while developing.
+setup step while developing.
 
 ## Releases
 

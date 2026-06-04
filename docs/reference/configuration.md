@@ -169,6 +169,16 @@ shrimpy models policies remove-candidate coding openai/gpt-5
 Concrete provider/model ids still live in Pi's `state/pi/models.json`.
 Policies point at those ids; they do not create a second model registry.
 
+`shrimpy setup` sets up the minimal working shape. If the workspace
+already has a `modelPolicies.coding` candidate and the main agent's `context/`
+directory exists, it exits without inspecting models, asking questions, or
+launching guided setup. Otherwise it inspects Pi-visible authenticated models,
+creates `modelPolicies.coding` from the selected candidate when the policy is
+missing, defaults an unset `shrimpy` agent to `modelPolicy: "coding"`, and
+smoke-tests `coding` through the normal resolver. If `coding` exists but does
+not resolve during setup, it reports the candidate problems and keeps
+the existing policy unless replacement is confirmed.
+
 ## Agents
 
 Each agent config entry has:

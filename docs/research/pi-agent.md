@@ -130,7 +130,7 @@ JSON theme files live in `~/.pi/agent/themes/` or `.pi/themes/` and can be selec
 
 Interactive mode has a built-in slash command registry for `/settings`, `/model`, `/scoped-models`, `/export`, `/import`, `/share`, `/copy`, `/name`, `/session`, `/changelog`, `/hotkeys`, `/fork`, `/clone`, `/tree`, `/login`, `/logout`, `/new`, `/compact`, `/resume`, `/reload`, and `/quit`. Extensions add commands with `pi.registerCommand()`, and they appear in autocomplete unless they conflict with built-ins.
 
-Current Shrimpy direction: the normal Shrimpy TUI uses Pi's stock `InteractiveMode` so autocomplete, selectors, editor behavior, hotkeys, and built-in commands stay aligned with Pi. Shrimpy patches the instance-level `/settings` selector to present a unified menu with Shrimpy workspace/runtime settings and Pi interactive settings. Provider bootstrap still uses unmodified Pi interactive mode.
+Current Shrimpy direction: the normal Shrimpy TUI uses Pi's stock `InteractiveMode` so autocomplete, selectors, editor behavior, hotkeys, and built-in commands stay aligned with Pi. Shrimpy patches the instance-level `/settings` selector to present a unified menu with Shrimpy workspace/runtime settings and Pi interactive settings. During first setup, Shrimpy can hand the user to Pi's built-in `/login` and `/model` flow to add credentials and pick a model.
 
 ## Packaging
 

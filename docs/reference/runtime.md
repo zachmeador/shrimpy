@@ -4,7 +4,7 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 
 ## Direct CLI Sessions
 
-- `shrimpy` opens a long-lived TUI session for the selected agent on the `tui` session label. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
+- `shrimpy` opens a long-lived TUI session for the selected agent on the `tui` session label. When the bare interactive command sees missing setup or no `coding` model candidate, it runs setup first. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
 - `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.

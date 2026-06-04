@@ -15,7 +15,7 @@ and the direct-vs-gateway behavior behind these commands.
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy` | Open the default agent's TUI session. |
+| `shrimpy` | Open Shrimpy, setting up a minimal environment when needed. |
 | `shrimpy "prompt"` | Open the TUI session with an initial prompt. |
 | `shrimpy run "prompt"` | Run a one-shot prompt and print the response. |
 | `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. |
@@ -40,7 +40,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy setup` | Initialize and launch setup flow. |
+| `shrimpy setup` | Set up a minimal working Shrimpy environment when needed. |
 | `shrimpy setup init` | Create baseline workspace files. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy status` | Show workspace, gateway, channels, watch-run, and Telegram offset status. |
@@ -71,7 +71,7 @@ agent channel policy, and egress behavior behind these commands.
 | `shrimpy channels read <name>` | Read recent channel messages. |
 | `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]` | Search and filter channel messages. `--kind` accepts `user_text`, `agent_text`, `watch`, `worker`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--watch`, and `--source-kind`. |
 | `shrimpy channels tail <name>` | Watch a channel log. |
-| `shrimpy channels create <name>` | Create/bootstrap channel membership. |
+| `shrimpy channels create <name>` | Create or initialize channel membership. |
 | `shrimpy channels post <name> <text>` | Post a CLI human message into a channel log. |
 | `shrimpy channels post <name> --agent <id> <text>` | Post a CLI human message addressed to one agent. |
 | `shrimpy channels dm <a> <b>` | Create a deterministic agent DM channel. |

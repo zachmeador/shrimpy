@@ -115,7 +115,7 @@ Interpretation:
   - get at least one model/provider working
   - guide the user through shaping the initial agent
   - persist the resulting starter docs cleanly
-- This is part of a larger pattern: Shrimpy should be able to launch guided interactive sessions that help users power up quickly, bootstrap good defaults for their specific needs, and leave the resulting decisions in normal workspace files.
+- This is part of a larger pattern: Shrimpy should be able to launch guided interactive sessions that help users power up quickly, set up good defaults for their specific needs, and leave the resulting decisions in normal workspace files.
 
 ## Browser Automation
 
