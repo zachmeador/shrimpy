@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("AgentChannelRuntime", () => {
-  test("does not infer skill resources from channel names", () => {
+  test("does not infer skill resources from channel names", async () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
 
     const runtime = {
@@ -38,7 +38,7 @@ describe("AgentChannelRuntime", () => {
           root: agentRoot,
         };
       },
-      buildRuntimeTools() {
+      async buildRuntimeTools() {
         return [];
       },
       resolveAgentToolPolicy() {
@@ -68,7 +68,7 @@ describe("AgentChannelRuntime", () => {
       agentId: "shrimpy",
     }) as any;
 
-    const plan = agentRuntime.registry.planForChannel("skill~jobs~weather-check");
+    const plan = await agentRuntime.registry.planForChannel("skill~jobs~weather-check");
     assert.equal(plan.descriptor.kind, "gateway");
     assert.deepEqual(plan.model, { provider: "local", id: "qwen", contextWindow: 1000 });
     assert.equal(plan.defaultThinking, "high");

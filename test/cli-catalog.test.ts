@@ -78,10 +78,22 @@ describe("CLI catalog", () => {
     }
   });
 
-  test("completion command does not require workspace config", () => {
+  test("command registry keeps command handlers lazy", async () => {
+    const registry = readFileSync("dist/commands/registry.js", "utf-8");
+
+    assert.doesNotMatch(registry, /from "\.\/channels\.js"/);
+    assert.match(registry, /import\("\.\/channels\.js"\)/);
+    assert.equal("handler" in COMMAND_REGISTRY.channels, false);
+    assert.equal(typeof COMMAND_REGISTRY.channels.load, "function");
+    assert.equal((await COMMAND_REGISTRY.channels.load()).name, "cmdChannels");
+  });
+
+  test("completion command does not require workspace config", async () => {
     const registration = COMMAND_REGISTRY.completion;
+    const handler = await registration.load();
 
     assert.equal(registration.requiresConfig, false);
+    assert.equal(typeof handler, "function");
     assert.deepEqual(configForRegisteredCommand(registration, () => {
       throw new Error("should not load config");
     }), { workspace: process.cwd() });

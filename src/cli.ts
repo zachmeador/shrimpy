@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import { loadConfig } from "./config/index.js";
-import { createAppRuntime } from "./app/index.js";
 import { formatVersionLabel } from "./app/metadata.js";
 import {
   parseCommandArgs,
@@ -12,22 +10,22 @@ import {
   COMMAND_REGISTRY,
   configForRegisteredCommand,
 } from "./commands/registry.js";
-import { bootstrapInteractiveCompletion } from "./commands/completion-runtime.js";
-import {
-  formatThinkingInputs,
-  parseThinkingLevel,
-} from "./inference/thinking.js";
-import { runInteractiveAgentSession } from "./sessions/index.js";
 import { brand } from "./util/style.js";
 
 try {
-  await bootstrapInteractiveCompletion();
-
   const sub = process.argv[2];
   const registration = sub ? COMMAND_REGISTRY[sub] : undefined;
   if (registration) {
-    const config = configForRegisteredCommand(registration, loadConfig);
-    const code = await runCommand(registration.handler, process.argv.slice(3), config);
+    const handler = await registration.load();
+    const config = registration.requiresConfig
+      ? configForRegisteredCommand(
+        registration,
+        (await import("./config/index.js")).loadConfig,
+      )
+      : configForRegisteredCommand(registration, () => {
+        throw new Error("command does not require config");
+      });
+    const code = await runCommand(handler, process.argv.slice(3), config);
     process.exit(code);
   }
 
@@ -56,6 +54,17 @@ try {
     console.log(brand(formatVersionLabel()));
     process.exit(0);
   }
+
+  const { bootstrapInteractiveCompletion } = await import("./commands/completion-runtime.js");
+  await bootstrapInteractiveCompletion();
+
+  const { loadConfig } = await import("./config/index.js");
+  const { createAppRuntime } = await import("./app/index.js");
+  const {
+    formatThinkingInputs,
+    parseThinkingLevel,
+  } = await import("./inference/thinking.js");
+  const { runInteractiveAgentSession } = await import("./sessions/index.js");
 
   const prompt = positionals.length > 0 ? positionals.join(" ") : undefined;
   const thinking = values.thinking === undefined

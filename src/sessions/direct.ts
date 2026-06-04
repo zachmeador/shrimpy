@@ -98,6 +98,13 @@ export async function openDirectAgentSession(
     channel: input.channel,
     cwd,
   });
+  const tools = await input.runtime.buildRuntimeTools({
+    bootstrap,
+    channelBus,
+    agentId: agent.id,
+    toolNames: toolPolicy.daemonToolNames,
+    toolPolicy: sessionToolPolicy,
+  });
   const session = await openSession(bootstrap, {
     descriptor,
     restoreModelFromSession,
@@ -118,13 +125,7 @@ export async function openDirectAgentSession(
     },
     model,
     toolPolicy: sessionToolPolicy,
-    tools: input.runtime.buildRuntimeTools({
-      bootstrap,
-      channelBus,
-      agentId: agent.id,
-      toolNames: toolPolicy.daemonToolNames,
-      toolPolicy: sessionToolPolicy,
-    }),
+    tools,
   });
 
   return {
@@ -204,6 +205,13 @@ async function runAgentTuiSession(
     channel: input.channel,
     cwd,
   });
+  const tools = await input.runtime.buildRuntimeTools({
+    bootstrap,
+    channelBus,
+    agentId: agent.id,
+    toolNames: toolPolicy.daemonToolNames,
+    toolPolicy: sessionToolPolicy,
+  });
   const runtime = await openSessionRuntime(bootstrap, {
     descriptor,
     restoreModelFromSession,
@@ -224,13 +232,7 @@ async function runAgentTuiSession(
     },
     model,
     toolPolicy: sessionToolPolicy,
-    tools: input.runtime.buildRuntimeTools({
-      bootstrap,
-      channelBus,
-      agentId: agent.id,
-      toolNames: toolPolicy.daemonToolNames,
-      toolPolicy: sessionToolPolicy,
-    }),
+    tools,
   });
 
   try {

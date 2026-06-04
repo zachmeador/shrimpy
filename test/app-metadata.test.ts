@@ -35,25 +35,36 @@ test("app metadata is sourced from package.json", () => {
   assert.equal(formatVersionLabel(metadata), expectedVersionLabel());
 });
 
-test("CLI help and version advertise the package version tagline", () => {
-  const help = runCli("--help");
+test("CLI help and version advertise the package version tagline quickly", () => {
+  const help = timedRunCli("--help");
+  assert.ok(
+    help.elapsedMs < CLI_COLD_START_BUDGET_MS,
+    `expected --help under ${CLI_COLD_START_BUDGET_MS}ms, got ${help.elapsedMs.toFixed(1)}ms`,
+  );
   assert.match(
-    help,
+    help.output,
     new RegExp(
       `^${escapeRegExp(expectedVersionLabel())} - ${escapeRegExp(packageJson.description)}`,
     ),
   );
 
-  const version = runCli("--version");
-  assert.equal(version.trim(), expectedVersionLabel());
+  const version = timedRunCli("--version");
+  assert.ok(
+    version.elapsedMs < CLI_COLD_START_BUDGET_MS,
+    `expected --version under ${CLI_COLD_START_BUDGET_MS}ms, got ${version.elapsedMs.toFixed(1)}ms`,
+  );
+  assert.equal(version.output.trim(), expectedVersionLabel());
 });
 
 test("boot env uses the package version", () => {
   assert.equal(resolveBootEnv(repoRoot).shrimpy_version, packageJson.version);
 });
 
-function runCli(arg: string): string {
-  return execFileSync(process.execPath, [join(repoRoot, "dist", "cli.js"), arg], {
+const CLI_COLD_START_BUDGET_MS = 1_000;
+
+function timedRunCli(arg: string): { output: string; elapsedMs: number } {
+  const started = process.hrtime.bigint();
+  const output = execFileSync(process.execPath, [join(repoRoot, "dist", "cli.js"), arg], {
     cwd: repoRoot,
     encoding: "utf-8",
     env: {
@@ -61,6 +72,8 @@ function runCli(arg: string): string {
       NO_COLOR: "1",
     },
   });
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+  return { output, elapsedMs };
 }
 
 function expectedVersionLabel(): string {

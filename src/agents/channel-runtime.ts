@@ -56,8 +56,8 @@ export class AgentChannelRuntime {
     });
 
     this.registry = new SessionRegistry(opts.bootstrap, {
-      planForChannel: (channel) => {
-        const tools = opts.runtime.buildRuntimeTools({
+      planForChannel: async (channel) => {
+        const tools = await opts.runtime.buildRuntimeTools({
           bootstrap: opts.bootstrap,
           channelBus: opts.channelBus,
           toolNames: toolPolicy.daemonToolNames,

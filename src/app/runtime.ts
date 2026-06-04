@@ -4,26 +4,32 @@ import { EgressRegistry } from "../channels/egress.js";
 import { ChannelMembershipStore } from "../channels/membership.js";
 import {
   type ResolvedAdapterRoutingConfig,
-  type ResolvedAgentConfig,
-  type ResolvedGatewayStatusConfig,
-  type RuntimeConfig,
-  type ShrimpyConfig,
   resolveAdapterRoutingConfig,
+} from "../config/adapter-routing.js";
+import {
+  type ResolvedAgentConfig,
   resolveAgentsConfig,
-  resolveGatewayStatusConfig,
+} from "../config/agents.js";
+import {
+  type RuntimeConfig,
   resolveRuntimeConfig,
+} from "../config/runtime.js";
+import {
+  type ResolvedGatewayStatusConfig,
+  resolveGatewayStatusConfig,
+} from "../config/gateway-status.js";
+import type { ShrimpyConfig } from "../config/index.js";
+import {
+  type ResolvedToolRuntimeConfig,
   resolveToolRuntimeConfig,
-} from "../config/index.js";
+} from "../config/tools.js";
 import {
   type ResolvedContextConfig,
-  type PromptResourceRef,
   resolveContextConfig,
-} from "../context/index.js";
-import {
-  createBootstrap,
-  resolveModel as resolveSessionModel,
-  type SessionBootstrap,
-} from "../sessions/index.js";
+} from "../context/spec.js";
+import type { PromptResourceRef } from "../context/resources.js";
+import { resolveModel as resolveSessionModel } from "../sessions/models.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
   createConfiguredSurfaceEgresses,
   registerSurfaceRoutes,
@@ -32,7 +38,7 @@ import {
   SurfaceThreadStateStore,
 } from "../surfaces/index.js";
 import type { SurfaceModuleResolved } from "../surfaces/index.js";
-import { buildRuntimeTools, type DaemonToolName } from "../tools/index.js";
+import type { DaemonToolName } from "../tools/names.js";
 import {
   resolveAgentToolPolicy as resolveAgentToolPolicyForConfig,
   type AgentToolPolicy,
@@ -52,7 +58,7 @@ export interface ResolvedAppConfig {
   runtime: Required<RuntimeConfig>;
   status: ResolvedGatewayStatusConfig;
   surfaces: Record<string, SurfaceModuleResolved>;
-  tools: ReturnType<typeof resolveToolRuntimeConfig>;
+  tools: ResolvedToolRuntimeConfig;
 }
 
 export interface AppRuntimeBuildToolsOpts {
@@ -111,6 +117,7 @@ export class AppRuntime {
     cwd?: string;
   }): Promise<SessionBootstrap> {
     const agent = this.getAgent(opts?.agentId);
+    const { createBootstrap } = await import("../sessions/bootstrap.js");
     return createBootstrap(
       {
         config: this.config,
@@ -171,7 +178,8 @@ export class AppRuntime {
     return new SurfaceThreadStateStore(this.paths.surfaceStatePath);
   }
 
-  buildRuntimeTools(opts: AppRuntimeBuildToolsOpts): ToolDefinition[] {
+  async buildRuntimeTools(opts: AppRuntimeBuildToolsOpts): Promise<ToolDefinition[]> {
+    const { buildRuntimeTools } = await import("../tools/factory.js");
     return buildRuntimeTools({
       bootstrap: opts.bootstrap,
       channelBus: opts.channelBus,

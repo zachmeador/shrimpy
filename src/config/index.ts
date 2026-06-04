@@ -6,7 +6,7 @@ import {
   type ContextDefaultsConfig,
   resolveContextDefaultsConfig,
   validateContextConfig,
-} from "../context/index.js";
+} from "../context/spec.js";
 import type { AgentConfig } from "./agents.js";
 import { validateAgentsConfig } from "./agents.js";
 import {
@@ -19,7 +19,6 @@ import {
 } from "./gateway-status.js";
 import { primaryConfigPath } from "./paths.js";
 import { resolveRuntimeConfig, type RuntimeConfig } from "./runtime.js";
-import { surfaceModules } from "../surfaces/index.js";
 import {
   resolveToolRuntimeConfig,
   type ToolRuntimeConfig,
@@ -81,11 +80,6 @@ function validateRawConfig(raw: Record<string, unknown>) {
   if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
   if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);
   if (raw.adapters !== undefined) resolveAdapterRoutingConfig(raw.adapters);
-  for (const surface of surfaceModules) {
-    if (raw[surface.name] !== undefined) {
-      surface.validateConfig(raw[surface.name]);
-    }
-  }
 }
 
 export function loadConfigForWorkspace(workspace: string): ShrimpyConfig {

@@ -45,7 +45,7 @@ export interface SessionThinkingLevelResult {
 
 interface SessionRegistryOpts {
   sessionFactory?: typeof openSession;
-  planForChannel?: (channel: string) => SessionOpenPlan;
+  planForChannel?: (channel: string) => SessionOpenPlan | Promise<SessionOpenPlan>;
   tools?: ToolDefinition[];
   turnContextForMessage?: (
     channel: string,
@@ -62,7 +62,7 @@ export class SessionRegistry {
   private pending = new Map<string, Promise<AgentSession>>();
   private readonly bootstrap: SessionBootstrap;
   private readonly sessionFactory: typeof openSession;
-  private readonly planForChannel: (channel: string) => SessionOpenPlan;
+  private readonly planForChannel: (channel: string) => SessionOpenPlan | Promise<SessionOpenPlan>;
   private readonly tools: ToolDefinition[];
   private readonly turnContextForMessage?: (
     channel: string,
@@ -119,7 +119,7 @@ export class SessionRegistry {
 
     const plan = this.planWithPendingTurnContext(
       managed,
-      this.planForChannel(managed.channel),
+      await this.planForChannel(managed.channel),
     );
     const creating = this.sessionFactory(this.bootstrap, {
       ...plan,
@@ -271,7 +271,7 @@ export class SessionRegistry {
   private async resetManaged(
     managed: ManagedSession,
   ): Promise<SessionResetResult> {
-    const plan = this.planForChannel(managed.channel);
+    const plan = await this.planForChannel(managed.channel);
     const sessionDir = plan.descriptor.sessionDir;
     const hadSession = managed.session !== null || existsSync(sessionDir);
 
@@ -299,7 +299,7 @@ export class SessionRegistry {
     managed: ManagedSession,
     archiveName?: string,
   ): Promise<SessionRestoreResult> {
-    const plan = this.planForChannel(managed.channel);
+    const plan = await this.planForChannel(managed.channel);
     const sessionDir = plan.descriptor.sessionDir;
 
     if (managed.session) {
@@ -335,7 +335,7 @@ export class SessionRegistry {
     managed: ManagedSession,
     level: ThinkingLevel,
   ): Promise<SessionThinkingLevelResult> {
-    const plan = this.planForChannel(managed.channel);
+    const plan = await this.planForChannel(managed.channel);
     const session = await this.ensureSession(managed);
     session.setThinkingLevel(level);
 

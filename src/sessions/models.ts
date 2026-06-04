@@ -3,7 +3,7 @@ import type { SessionBootstrap } from "./bootstrap.js";
 import {
   formatModelSelection,
   type ModelSelectionConfig,
-} from "../config/index.js";
+} from "../config/model.js";
 
 interface ModelCandidate {
   id?: string;

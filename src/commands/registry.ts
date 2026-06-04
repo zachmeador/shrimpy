@@ -1,40 +1,26 @@
 import type { ShrimpyConfig } from "../config/index.js";
-import { cmdAgent } from "./agent.js";
-import { cmdChannels } from "./channels.js";
-import { cmdCompletion } from "./completion.js";
-import { cmdContext } from "./context.js";
-import { cmdGateway } from "./gateway.js";
-import { cmdModels } from "./models.js";
-import { cmdRun } from "./run.js";
-import { cmdSessions } from "./sessions.js";
-import { cmdSetup } from "./setup.js";
-import { cmdSkills } from "./skills.js";
-import { cmdStatus } from "./status.js";
-import { cmdSurface } from "./surface.js";
-import { cmdUsers } from "./users.js";
-import { cmdWatches } from "./watches.js";
 import type { CommandHandler } from "./framework.js";
 
 export interface RegisteredCommand {
-  handler: CommandHandler;
   requiresConfig: boolean;
+  load: () => Promise<CommandHandler>;
 }
 
 export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
-  gateway: { handler: cmdGateway, requiresConfig: true },
-  status: { handler: cmdStatus, requiresConfig: true },
-  channels: { handler: cmdChannels, requiresConfig: true },
-  agent: { handler: cmdAgent, requiresConfig: true },
-  surface: { handler: cmdSurface, requiresConfig: true },
-  sessions: { handler: cmdSessions, requiresConfig: true },
-  watches: { handler: cmdWatches, requiresConfig: true },
-  models: { handler: cmdModels, requiresConfig: true },
-  skills: { handler: cmdSkills, requiresConfig: true },
-  setup: { handler: cmdSetup, requiresConfig: true },
-  run: { handler: cmdRun, requiresConfig: true },
-  context: { handler: cmdContext, requiresConfig: true },
-  users: { handler: cmdUsers, requiresConfig: true },
-  completion: { handler: cmdCompletion, requiresConfig: false },
+  gateway: { requiresConfig: true, load: async () => (await import("./gateway.js")).cmdGateway },
+  status: { requiresConfig: true, load: async () => (await import("./status.js")).cmdStatus },
+  channels: { requiresConfig: true, load: async () => (await import("./channels.js")).cmdChannels },
+  agent: { requiresConfig: true, load: async () => (await import("./agent.js")).cmdAgent },
+  surface: { requiresConfig: true, load: async () => (await import("./surface.js")).cmdSurface },
+  sessions: { requiresConfig: true, load: async () => (await import("./sessions.js")).cmdSessions },
+  watches: { requiresConfig: true, load: async () => (await import("./watches.js")).cmdWatches },
+  models: { requiresConfig: true, load: async () => (await import("./models.js")).cmdModels },
+  skills: { requiresConfig: true, load: async () => (await import("./skills.js")).cmdSkills },
+  setup: { requiresConfig: true, load: async () => (await import("./setup.js")).cmdSetup },
+  run: { requiresConfig: true, load: async () => (await import("./run.js")).cmdRun },
+  context: { requiresConfig: true, load: async () => (await import("./context.js")).cmdContext },
+  users: { requiresConfig: true, load: async () => (await import("./users.js")).cmdUsers },
+  completion: { requiresConfig: false, load: async () => (await import("./completion.js")).cmdCompletion },
 };
 
 export function configForRegisteredCommand(
