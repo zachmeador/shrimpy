@@ -22,7 +22,7 @@ home, they open the mechanic and talk to it.
 - `shrimpy agent tui` supports provider/model and thinking overrides. It does
   not currently support root TUI skill selection.
 - There is no top-level `shrimpy mechanic`, no default `mechanic` agent, and no
-  coding/maintenance model-policy resolution.
+  `coding` model-policy resolution.
 
 ## Build
 
@@ -30,8 +30,8 @@ home, they open the mechanic and talk to it.
   with agent id `mechanic`.
 - Use the normal session runtime, model policy resolution, context assembly,
   session storage, skills, and TUI. Mechanic is not a special runtime species.
-- Launch through the coding/maintenance policy so setup, repair, and extension
-  work uses the same capable path as other heavy work.
+- Launch through the `coding` policy so setup, repair, and extension work uses
+  the same capable path as other heavy work.
 - Mirror useful root TUI overrides where appropriate, such as model policy,
   provider/model escape hatch, thinking level, skill selection, and initial
   prompt.
@@ -56,7 +56,7 @@ home, they open the mechanic and talk to it.
 - [ADMIN-001](admin-001.md) establishes the bundled mechanic agent and default
   workspace shape.
 - [SETUP-002](setup-002-provider-model-policy-bootstrap.md) should make the
-  coding/maintenance policy resolvable before first mechanic-led onboarding.
+  `coding` policy resolvable before first mechanic-led onboarding.
 - Repair and diagnostics can still be mechanic-led workflows or status
   subcommands, but the durable conversational front door is `shrimpy mechanic`.
 
@@ -65,7 +65,7 @@ home, they open the mechanic and talk to it.
 - `shrimpy mechanic` opens a direct TUI session with agent `mechanic`.
 - Freshly initialized environments contain both default agents: `shrimpy` and
   `mechanic`.
-- The command uses the coding/maintenance model policy by default.
+- The command uses the `coding` model policy by default.
 - CLI help, completion, and docs show `shrimpy mechanic` as the maintenance
   entry point.
 - Tests cover command wiring, default agent selection, missing-mechanic failure
