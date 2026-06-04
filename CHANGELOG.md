@@ -40,7 +40,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Replaced briefing terminology with turn context across config, docs, CLI output, environment variables, and memory naming.
 - Added `shrimpy context turn` plus `context.turn` settings for max size, unread channel context, and session recency status.
-- Changed direct and gateway sessions to inject live turn context through Pi's context hook before the current prompt instead of baking it into stable session resources or persisted user messages.
+- Changed direct, TUI, gateway, and child-session turns to prefix live `<context>` envelopes onto the persisted user message, so session JSONL matches the model-facing input instead of hiding turn context in provider-only injection.
 - Unified command-source execution for turn context previews and runtime turns, including inspectable items, error reporting, freshness state, and `--session-type` support for `shrimpy context sources run`.
 
 ### Channels, Surfaces & Agent Policy
