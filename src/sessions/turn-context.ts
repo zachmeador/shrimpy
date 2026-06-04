@@ -2,8 +2,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type {
   ExtensionFactory,
 } from "@earendil-works/pi-coding-agent";
-import type { ImageContent } from "@earendil-works/pi-ai";
-import { formatEphemeralTurnContext } from "../context/index.js";
+import type { ImageContent, UserMessage } from "@earendil-works/pi-ai";
+import { formatPromptWithTurnContext } from "../context/index.js";
 
 export interface ActiveSessionTurnContext {
   prompt: string;
@@ -13,6 +13,7 @@ export interface ActiveSessionTurnContext {
 export interface SessionTurnContextController {
   prepareForPrompt(prompt: string, images?: ImageContent[]): Promise<void>;
   clear(): void;
+  rewriteMessage(message: AgentMessage): AgentMessage | undefined;
   transform(messages: AgentMessage[]): AgentMessage[];
 }
 
@@ -43,8 +44,15 @@ export function createSessionTurnContextController(opts?: {
       active = undefined;
     },
 
+    rewriteMessage(message) {
+      if (!active) return undefined;
+      const replacement = rewritePromptMessage(message, active);
+      if (replacement) active = undefined;
+      return replacement;
+    },
+
     transform(messages) {
-      return active ? injectTurnContext(messages, active) : messages;
+      return messages;
     },
   };
 }
@@ -57,9 +65,10 @@ export function createTurnContextExtensionFactory(
       await controller.prepareForPrompt(event.prompt, event.images);
     });
 
-    pi.on("context", (event) => ({
-      messages: controller.transform(event.messages),
-    }));
+    pi.on("message_end", (event) => {
+      const message = controller.rewriteMessage(event.message);
+      return message ? { message } : undefined;
+    });
 
     pi.on("agent_end", () => {
       controller.clear();
@@ -67,38 +76,30 @@ export function createTurnContextExtensionFactory(
   };
 }
 
-function injectTurnContext(
-  messages: AgentMessage[],
+function rewritePromptMessage(
+  message: AgentMessage,
   active: ActiveSessionTurnContext,
-): AgentMessage[] {
-  const promptIndex = findLatestUserPromptIndex(messages, active.prompt);
-  if (promptIndex < 0) return messages;
+): AgentMessage | undefined {
+  if (message.role !== "user" || userMessageText(message) !== active.prompt) {
+    return undefined;
+  }
 
-  return [
-    ...messages.slice(0, promptIndex),
-    {
-      role: "user",
-      content: [{
-        type: "text",
-        text: formatEphemeralTurnContext(active.text),
-      }],
-      timestamp: Date.now(),
-    },
-    ...messages.slice(promptIndex),
-  ];
+  return {
+    ...message,
+    content: rewriteUserContent(message.content, active),
+  } as AgentMessage;
 }
 
-function findLatestUserPromptIndex(
-  messages: AgentMessage[],
-  prompt: string,
-): number {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index];
-    if (message.role === "user" && userMessageText(message) === prompt) {
-      return index;
-    }
-  }
-  return -1;
+function rewriteUserContent(
+  content: UserMessage["content"],
+  active: ActiveSessionTurnContext,
+): UserMessage["content"] {
+  const text = formatPromptWithTurnContext(active.prompt, active.text);
+  if (typeof content === "string") return text;
+  return [
+    { type: "text", text },
+    ...content.filter((block) => block.type !== "text"),
+  ];
 }
 
 function userMessageText(message: AgentMessage): string {

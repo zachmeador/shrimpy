@@ -108,6 +108,10 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function countMatches(value: string, pattern: string): number {
+  return value.split(pattern).length - 1;
+}
+
 function createMockSession(opts?: {
   turnDurationMs?: number;
   systemPrompt?: string;
@@ -119,6 +123,7 @@ function createMockSession(opts?: {
   const systemPromptSnapshots: string[] = [];
   const thinkingChanges: string[] = [];
   let beforePrompt: ((text: string) => Promise<void>) | undefined;
+  let rewriteMessage: ((message: any) => any | undefined) | undefined;
 
   const session = {
     prompts,
@@ -139,6 +144,9 @@ function createMockSession(opts?: {
     setBeforePrompt(fn: (text: string) => Promise<void>): void {
       beforePrompt = fn;
     },
+    setRewriteMessage(fn: (message: any) => any | undefined): void {
+      rewriteMessage = fn;
+    },
     subscribe(listener: Listener): () => void {
       listeners.push(listener);
       return () => {
@@ -147,14 +155,15 @@ function createMockSession(opts?: {
       };
     },
     async prompt(text: string): Promise<void> {
-      prompts.push(text);
       systemPromptSnapshots.push(session.systemPrompt);
       await beforePrompt?.(text);
-      const message = {
+      let message = {
         role: "user",
         content: [{ type: "text", text }],
         timestamp: Date.now(),
       };
+      message = rewriteMessage?.(message) ?? message;
+      prompts.push(messageText(message));
       const modelMessages = session.agent.transformContext
         ? await session.agent.transformContext([
           ...session.agent.state.messages,
@@ -257,6 +266,7 @@ function createSessionFactory(opts?: {
       prepare: (createOpts as any)?.prepareTurnContext,
     });
     session.setBeforePrompt((text) => controller.prepareForPrompt(text));
+    session.setRewriteMessage((message) => controller.rewriteMessage(message));
     session.agent.transformContext = async (messages) => controller.transform(messages);
     sessions.push(session);
     return session as any;
@@ -504,7 +514,7 @@ describe("turn context Pi extension", () => {
     }
   });
 
-  test("injects ephemeral turn context through Pi's real context hook without persisting it", async () => {
+  test("persists turn context through Pi's real user message path", async () => {
     const root = mkdtempSync(join(tmpdir(), "shrimpy-pi-context-"));
     const cwd = join(root, "cwd");
     const agentDir = join(root, "agent");
@@ -576,13 +586,13 @@ describe("turn context Pi extension", () => {
       assert.equal(capturedContexts.length, 1);
       const providerText = capturedContexts[0].messages.map(messageText).join("\n");
       assert.match(providerText, /<context>\nprepared by Pi before_agent_start/);
-      assert.match(providerText, /Use this ephemeral context for the immediately following message/);
+      assert.match(providerText, /The context above is background for the user message below/);
       assert.match(providerText, /hello from pi/);
 
       const persistedText = (session as any).messages.map(messageText).join("\n");
       assert.match(persistedText, /hello from pi/);
+      assert.match(persistedText, /<context>\nprepared by Pi before_agent_start/);
       assert.match(persistedText, /ok/);
-      assert.doesNotMatch(persistedText, /prepared by Pi before_agent_start|<context>/);
     } finally {
       session.dispose();
       modelRegistry.unregisterProvider(model.provider);
@@ -627,7 +637,7 @@ describe("SessionRegistry", () => {
     ]);
   });
 
-  test("injects turn context into model context without persisting it in the prompt", async () => {
+  test("persists turn context in the prompt sent to the model", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const registry = createRegistry(sessionFactory, undefined, {
       turnContextForMessage: () => ({
@@ -648,24 +658,24 @@ describe("SessionRegistry", () => {
     await registry.dispatch("telegram~shrimpy~1", message);
 
     assert.equal(sessionFactory.sessions[0].prompts.length, 1);
-    assert.equal(
+    assert.match(
       sessionFactory.sessions[0].prompts[0],
-      "[channel: telegram~shrimpy~1, sender: human:alice]\nhello",
+      /^<context>\n\[turn-context\][\s\S]*prior thing happened[\s\S]*<\/context>/,
+    );
+    assert.match(
+      sessionFactory.sessions[0].prompts[0],
+      /\[channel: telegram~shrimpy~1, sender: human:alice\]\nhello$/,
     );
     const modelBatch = sessionFactory.sessions[0].llmPromptBatches[0];
-    assert.equal(modelBatch.length, 2);
+    assert.equal(modelBatch.length, 1);
     assert.match(
       modelBatch[0],
       /^<context>\n\[turn-context\][\s\S]*prior thing happened[\s\S]*<\/context>/,
     );
-    assert.equal(
-      modelBatch[1],
-      "[channel: telegram~shrimpy~1, sender: human:alice]\nhello",
-    );
     assert.doesNotMatch(modelBatch.join("\n"), /\[incoming\]/);
   });
 
-  test("injects prepared session context through the same model context path", async () => {
+  test("persists prepared session context through the same user message path", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const bootstrap = createFakeBootstrap();
     const registry = new SessionRegistry(bootstrap, {
@@ -683,17 +693,13 @@ describe("SessionRegistry", () => {
     await registry.dispatch("local", message);
 
     const session = sessionFactory.sessions[0];
-    assert.equal(
+    assert.match(
       session.prompts[0],
-      "[channel: local, sender: human:alice]\nhello",
+      /^<context>\nprepared direct\/TUI-style context[\s\S]*<\/context>/,
     );
     assert.match(
       session.llmPromptBatches[0][0],
-      /^<context>\nprepared direct\/TUI-style context[\s\S]*<\/context>/,
-    );
-    assert.equal(
-      session.llmPromptBatches[0][1],
-      "[channel: local, sender: human:alice]\nhello",
+      /\[channel: local, sender: human:alice\]\nhello$/,
     );
   });
 
@@ -736,13 +742,13 @@ describe("SessionRegistry", () => {
       session.systemPrompt,
       /<context>|\[turn-context\]|first live turn context|second live turn context/,
     );
-    assert.equal(
+    assert.match(
       session.prompts[0],
-      "[channel: telegram~shrimpy~1, sender: human:alice]\nfirst",
+      /first live turn context[\s\S]*\[channel: telegram~shrimpy~1, sender: human:alice\]\nfirst$/,
     );
-    assert.equal(
+    assert.match(
       session.prompts[1],
-      "[channel: telegram~shrimpy~1, sender: human:alice]\nsecond",
+      /second live turn context[\s\S]*\[channel: telegram~shrimpy~1, sender: human:alice\]\nsecond$/,
     );
     assert.match(
       session.llmPromptBatches[0].join("\n"),
@@ -754,7 +760,7 @@ describe("SessionRegistry", () => {
     );
   });
 
-  test("does not leak routed turn context into later turns", async () => {
+  test("does not add new routed turn context to later context-less turns", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const registry = createRegistry(sessionFactory, undefined, {
       turnContextForMessage: (_channel, message) => {
@@ -786,14 +792,14 @@ describe("SessionRegistry", () => {
       session.llmPromptBatches[0].join("\n"),
       /first-only live turn context/,
     );
-    assert.doesNotMatch(
-      session.llmPromptBatches[1].join("\n"),
-      /first-only live turn context|<context>|\[turn-context\]/,
-    );
-    assert.deepEqual(session.llmPromptBatches[1], [
-      formatChannelMessage("telegram~shrimpy~1", first),
+    assert.equal(
+      session.prompts[1],
       formatChannelMessage("telegram~shrimpy~1", second),
-    ]);
+    );
+    assert.equal(
+      countMatches(session.llmPromptBatches[1].join("\n"), "first-only live turn context"),
+      1,
+    );
   });
 
   test("renders turn context text from structured data", () => {

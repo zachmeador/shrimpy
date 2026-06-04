@@ -5,11 +5,10 @@ section has a `kind`, content, and provenance. The assembler orders file-backed
 and generated sections, then renders the contained system prompt at session
 open.
 
-Per-turn context is separate. At turn time Shrimpy renders live state into a
-`<context>...</context>` envelope and injects it through Pi's provider-bound
-context hook immediately before the current user message. The durable user
-message is not rewritten, and the envelope is not persisted in the Pi session
-file.
+Per-turn context is separate from the stable system prompt. At turn time Shrimpy
+renders live state into a `<context>...</context>` envelope and prefixes the
+current user message before Pi persists and sends it. The session file therefore
+records the same user turn the model saw.
 
 ## Sections
 
@@ -123,10 +122,10 @@ project notes from agents/shrimpy/context/channels/home.md
 working notes from agents/shrimpy/context/people/human:alice.md
 ```
 
-`formatEphemeralTurnContext` wraps that rendered text in `<context>` tags with
-a short instruction. Shrimpy's Pi extension uses `before_agent_start`,
-`context`, and `agent_end` hooks to insert that wrapped context as an ephemeral
-provider-facing user message immediately before the durable user prompt:
+`formatPromptWithTurnContext` wraps that rendered text in `<context>` tags with
+a short instruction, then appends the current user prompt body. Shrimpy's Pi
+extension uses `before_agent_start`, `message_end`, and `agent_end` hooks to
+rewrite the finalized user message before Pi persists and sends it:
 
 ```text
 <context>
@@ -134,16 +133,16 @@ provider-facing user message immediately before the durable user prompt:
 ...
 </context>
 
-Use this ephemeral context for the immediately following message. Do not answer
-the context itself.
+The context above is background for the user message below. Answer the user
+message below using this context when relevant.
 
 [channel: home, sender: human:alice]
 ...
 ```
 
-The final channel/user prompt remains the persisted message. This keeps direct
-TUI, direct `run`, gateway channel, and child-session behavior aligned while
-keeping channel-origin facts out of durable user text.
+The context envelope and final channel/user prompt body are persisted together.
+This keeps direct TUI, direct `run`, gateway channel, and child-session behavior
+aligned while keeping the stable system prompt cacheable.
 
 The memory context block is built by `buildMemoryContext` (`src/memory/context.ts`). It reads path-indexed files for the active turn:
 

@@ -12,7 +12,7 @@ Current behavior of Shrimpy.
 - [sessions.md](sessions.md) — session kinds, files, lifecycle, model metadata, and inspection.
 - [tools.md](tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
 - [security.md](security.md) — tool policy and inspection commands.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and provider-bound turn-context injection.
+- [context-assembly.md](context-assembly.md) — prompt section assembly and persisted turn-context envelopes.
 - [memory.md](memory.md) — memory model, upkeep, and context loading.
 - [skills.md](skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
 - [turn-context.md](turn-context.md) — per-turn context generation and config.

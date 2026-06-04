@@ -28,7 +28,7 @@ When a session opens, Shrimpy builds a Pi session plan:
 - default and requested thinking level
 - Shrimpy daemon tools plus disabled-tool policy
 - stable system prompt resources and approved skills
-- provider-bound turn-context hook
+- persisted turn-context envelope
 - compaction settings
 
 Pi owns the session runtime, transcript format, model calls, tool execution,
@@ -38,13 +38,14 @@ publication tools, turn-context assembly, and inspection metadata.
 ## Prompt And Turn Context
 
 Shrimpy passes Pi one stable system prompt at session open. Per-turn live facts
-are not prepended to the durable user message. Instead, Shrimpy injects a
-`<context>...</context>` envelope through Pi's provider-bound context hook
-immediately before the current user prompt.
+are rendered as a `<context>...</context>` envelope and prefixed to the current
+user message before Pi persists and sends it. This keeps the session JSONL an
+exact representation of the model-facing user turn.
 
-For direct `tui` and `run` sessions, the persisted user prompt is the local
-prompt text. For gateway sessions, the persisted user prompt is the formatted
-channel message. See [context-assembly.md](context-assembly.md) and
+For direct `tui` and `run` sessions, the user prompt body is the local prompt
+text. For gateway sessions, the body is the formatted channel message. When
+turn context exists, the persisted user message contains the context envelope
+followed by that body. See [context-assembly.md](context-assembly.md) and
 [turn-context.md](turn-context.md).
 
 ## Model And Thinking
