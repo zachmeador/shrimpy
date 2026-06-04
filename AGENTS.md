@@ -51,6 +51,8 @@ Prefer strengthening boundaries over threading new behavior through whatever cod
 
 When creating agent instructions, skills, and anything that's intended to be fed to an LLM, **always** write briefly but succinctly.
 
+Do not hard-wrap prose in Markdown docs, agent instructions, skills, backlog notes, musings, or research notes. Let paragraphs occupy normal long lines so the editor/viewer handles wrapping. Use manual line breaks only when Markdown structure requires them, such as tables, code blocks, lists whose readability depends on separate items, or deliberately formatted examples.
+
 ## Legacy support policy
 
 Do not add backward-compatibility or migration code unless explicitly requested by the user.

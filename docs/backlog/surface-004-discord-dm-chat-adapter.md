@@ -28,9 +28,7 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 - Do not silently accept DMs from unconfigured Discord users.
 - Do not add name-based authorization. Discord user ids are the authorization key.
 - Do not create a second chat/session system. Discord DMs become normal Shrimpy channels and gateway sessions.
-- Do not add Discord-specific session semantics. Once a DM is normalized into a
-  Shrimpy channel message, the normal gateway session and Pi turn-context hook
-  path should carry origin/delivery facts.
+- Do not add Discord-specific session semantics. Once a DM is normalized into a Shrimpy channel message, the normal gateway session and Pi turn-context hook path should carry origin/delivery facts.
 - Do not add legacy shims, deprecated config aliases, or migration paths.
 
 ## Shape
@@ -52,9 +50,7 @@ Prefer a proven Discord gateway library for the first implementation unless bund
 - Discord message content is available in DMs with the app even without broad guild message-content access, but this adapter should avoid guild paths entirely.
 - If the channel suffix uses Discord's DM channel id, support only conversations that have been initiated or observed. A later proactive `user:<id>` resolver can use Discord's Create DM endpoint when there is a user action and a clear product need.
 - Hermes is useful for practical filters: ignore self/bots, enforce allowlists before processing, suppress risky mentions, batch split text, and cache attachment media at the edge.
-- OpenClaw is useful for policy shape: direct-message policy before channel
-  publication, group-DM disabled by default, user-id based conversation identity,
-  and high coverage around unauthorized senders.
+- OpenClaw is useful for policy shape: direct-message policy before channel publication, group-DM disabled by default, user-id based conversation identity, and high coverage around unauthorized senders.
 
 ## Done
 - A configured Discord bot can receive a direct message from an authorized Discord user and publish it into a `discord~<instance>~...` Shrimpy channel.

@@ -6,7 +6,7 @@
 
 Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent).
 
-*Home agent:* an OpenClaw-like personal workspace runtime: multiple persisting agents reachable through multiple surfaces, with shared memory, local tools, and background work. 
+*Home agent:* an OpenClaw-like personal workspace runtime: multiple persisting agents reachable through multiple surfaces, with shared memory, local tools, and background work.
 
 > *keep it shrimple* 🦐
 
@@ -30,9 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/ins
 shrimpy setup init
 ```
 
-The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under
-`~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and
-`shrimpy-web` into `~/.local/bin`; add that directory to `PATH` if needed.
+The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`; add that directory to `PATH` if needed.
 
 To install a specific tag, branch, or commit:
 
@@ -49,12 +47,9 @@ npm link
 shrimpy setup init
 ```
 
-The installer only installs the CLI. Workspace creation and configuration stay
-explicit through `shrimpy setup init`.
+The installer only installs the CLI. Workspace creation and configuration stay explicit through `shrimpy setup init`.
 
-For zsh users, the installer and interactive launches automatically install and
-refresh cached shell completion. Completion scripts are generated from the same
-CLI metadata as `shrimpy --help`:
+For zsh users, the installer and interactive launches automatically install and refresh cached shell completion. Completion scripts are generated from the same CLI metadata as `shrimpy --help`:
 
 ```bash
 shrimpy completion bash

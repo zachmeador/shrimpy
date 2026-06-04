@@ -9,21 +9,13 @@ Depends On: none
 
 Shrimpy records model switches as visible `shrimpy_model_switch` custom messages so the model can see when the active session model changed. The TUI also gets a transient Pi `showStatus()` row such as `Model: Qwen3.6-27B-UD-Q6_K_XL`.
 
-Today Shrimpy's tool-rendering wrapper rebuilds Pi's chat when `Ctrl+O`
-toggles expansion. That rebuild preserves persisted custom messages, but it
-drops transient status rows. The fix should make the model switch notice part
-of Pi's normal persisted message rendering path instead of preserving loose
-status UI rows after a rebuild.
+Today Shrimpy's tool-rendering wrapper rebuilds Pi's chat when `Ctrl+O` toggles expansion. That rebuild preserves persisted custom messages, but it drops transient status rows. The fix should make the model switch notice part of Pi's normal persisted message rendering path instead of preserving loose status UI rows after a rebuild.
 
 ## Current State
 
-- `src/sessions/open.ts` already appends visible `shrimpy_model_switch` custom
-  messages with previous/current model details when `setModel` or `cycleModel`
-  changes the model.
+- `src/sessions/open.ts` already appends visible `shrimpy_model_switch` custom messages with previous/current model details when `setModel` or `cycleModel` changes the model.
 - Tests cover custom-message persistence and details, but not TUI rendering.
-- `installShrimpyToolRendering` rebuilds chat on `Ctrl+O` and preserves live
-  tool/streaming rows. There is still no registered custom renderer for
-  `shrimpy_model_switch`.
+- `installShrimpyToolRendering` rebuilds chat on `Ctrl+O` and preserves live tool/streaming rows. There is still no registered custom renderer for `shrimpy_model_switch`.
 
 ## Build
 
@@ -56,8 +48,7 @@ status UI rows after a rebuild.
 
 ## Implementation Notes
 
-- Likely files: `src/tui/`, `src/sessions/direct.ts`, and tests near
-  `test/tui-tool-rendering.test.ts` or a new TUI renderer test.
+- Likely files: `src/tui/`, `src/sessions/direct.ts`, and tests near `test/tui-tool-rendering.test.ts` or a new TUI renderer test.
 - Pi's `CustomMessageComponent` already calls registered message renderers with `{ expanded }`; Shrimpy should use that extension path.
 - Current model-switch messages are created in `src/sessions/open.ts` by `appendModelSwitchMessage()`.
 - The bug being addressed is a symptom of transient `showStatus()` rows being outside the session render path while Shrimpy rebuilds chat on expansion changes.
@@ -68,5 +59,4 @@ status UI rows after a rebuild.
 - The same row renders the full `shrimpy_model_switch` runtime message when `Ctrl+O` is expanded.
 - Toggling `Ctrl+O` does not make the model switch notice disappear.
 - The expanded text still matches the content stored in the custom message and visible to the model.
-- Tests cover collapsed rendering, expanded rendering, and survival across
-  Shrimpy's tool-rendering expansion rebuild.
+- Tests cover collapsed rendering, expanded rendering, and survival across Shrimpy's tool-rendering expansion rebuild.

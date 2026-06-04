@@ -2,9 +2,7 @@
 
 Active engineering notes for `shrimpy`. Completed work belongs in git history and stable docs.
 
-Status `draft` means the maintainer is not sure about the item yet. Status
-`review` means an implementation is ready for maintainer review but not yet
-closed out.
+Status `draft` means the maintainer is not sure about the item yet. Status `review` means an implementation is ready for maintainer review but not yet closed out.
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|

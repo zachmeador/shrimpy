@@ -1,14 +1,8 @@
 # 🦐 Prompt Context
 
-Shrimpy assembles stable session prompt text from `PromptSection`s. Each
-section has a `kind`, content, and provenance. The assembler orders file-backed
-and generated sections, then renders the contained system prompt at session
-open.
+Shrimpy assembles stable session prompt text from `PromptSection`s. Each section has a `kind`, content, and provenance. The assembler orders file-backed and generated sections, then renders the contained system prompt at session open.
 
-Per-turn context is separate from the stable system prompt. At turn time Shrimpy
-renders live state into a `<context>...</context>` envelope and prefixes the
-current user message before Pi persists and sends it. The session file therefore
-records the same user turn the model saw.
+Per-turn context is separate from the stable system prompt. At turn time Shrimpy renders live state into a `<context>...</context>` envelope and prefixes the current user message before Pi persists and sends it. The session file therefore records the same user turn the model saw.
 
 ## Sections
 
@@ -28,18 +22,7 @@ Rendered sections start with a lightweight marker:
 
 The completed stable prompt ends with `[end context]`.
 
-Shrimpy prepends one compact immutable system-instruction section before
-resource-backed sections load from disk via `assemblePromptResourceSections`.
-Workspace files cannot edit or delete it. This is the only immutable
-instruction slot Shrimpy adds; other model-facing guidance comes from normal
-context assembly for files, skills, runtime sections, and turn context.
-Generated Shrimpy session sections such as runtime environment and delivery
-hints are built by context services. Available skills still use Pi's
-`<available_skills>` formatter, but Shrimpy places that block as a generated
-section in the contained system prompt renderer. Pi-style date and cwd facts are also generated
-as a runtime section. Turn-scoped command sources are inspected through
-the same context configuration, but they render into the per-turn envelope
-instead of the stable system prompt.
+Shrimpy prepends one compact immutable system-instruction section before resource-backed sections load from disk via `assemblePromptResourceSections`. Workspace files cannot edit or delete it. This is the only immutable instruction slot Shrimpy adds; other model-facing guidance comes from normal context assembly for files, skills, runtime sections, and turn context. Generated Shrimpy session sections such as runtime environment and delivery hints are built by context services. Available skills still use Pi's `<available_skills>` formatter, but Shrimpy places that block as a generated section in the contained system prompt renderer. Pi-style date and cwd facts are also generated as a runtime section. Turn-scoped command sources are inspected through the same context configuration, but they render into the per-turn envelope instead of the stable system prompt.
 
 ## Source Configuration
 
@@ -91,17 +74,11 @@ Sections are sorted by kind at assembly time. The order (`PROMPT_SECTION_KIND_OR
 6. `activity` — stable activity sections when present
 7. `evidence` — inspectable evidence sections
 
-Stable runtime facts land near the end of the Shrimpy base prompt. The
-contained system prompt renderer then appends generated skill and Pi runtime-fact sections. Shrimpy's
-Pi resource loader passes the base prompt to Pi, and a Shrimpy
-`before_agent_start` hook replaces Pi's built prompt with the contained
-system prompt before model calls. `shrimpy context` uses the same renderer
-for preview.
+Stable runtime facts land near the end of the Shrimpy base prompt. The contained system prompt renderer then appends generated skill and Pi runtime-fact sections. Shrimpy's Pi resource loader passes the base prompt to Pi, and a Shrimpy `before_agent_start` hook replaces Pi's built prompt with the contained system prompt before model calls. `shrimpy context` uses the same renderer for preview.
 
 ## Turn Context Injection
 
-Per turn, `buildTurnContext` (`src/context/turn/service.ts`) gathers live
-facts and `renderTurnContext` renders the body:
+Per turn, `buildTurnContext` (`src/context/turn/service.ts`) gathers live facts and `renderTurnContext` renders the body:
 
 ```text
 [turn-context]
@@ -122,10 +99,7 @@ project notes from agents/shrimpy/context/channels/home.md
 working notes from agents/shrimpy/context/people/human:alice.md
 ```
 
-`formatPromptWithTurnContext` wraps that rendered text in `<context>` tags with
-a short instruction, then appends the current user prompt body. Shrimpy's Pi
-extension uses `before_agent_start`, `message_end`, and `agent_end` hooks to
-rewrite the finalized user message before Pi persists and sends it:
+`formatPromptWithTurnContext` wraps that rendered text in `<context>` tags with a short instruction, then appends the current user prompt body. Shrimpy's Pi extension uses `before_agent_start`, `message_end`, and `agent_end` hooks to rewrite the finalized user message before Pi persists and sends it:
 
 ```text
 <context>
@@ -140,9 +114,7 @@ message below using this context when relevant.
 ...
 ```
 
-The context envelope and final channel/user prompt body are persisted together.
-This keeps direct TUI, direct `run`, gateway channel, and child-session behavior
-aligned while keeping the stable system prompt cacheable.
+The context envelope and final channel/user prompt body are persisted together. This keeps direct TUI, direct `run`, gateway channel, and child-session behavior aligned while keeping the stable system prompt cacheable.
 
 The memory context block is built by `buildMemoryContext` (`src/memory/context.ts`). It reads path-indexed files for the active turn:
 
@@ -166,5 +138,4 @@ shrimpy context sources list --agent shrimpy --channel home --json
 shrimpy context sources run runtime:turn-context --agent shrimpy --channel home
 ```
 
-`--sections --json` returns each section's id, kind, source, reason, and length.
-`--turn --json` includes `turnContext` and `userMessage` as separate fields.
+`--sections --json` returns each section's id, kind, source, reason, and length. `--turn --json` includes `turnContext` and `userMessage` as separate fields.

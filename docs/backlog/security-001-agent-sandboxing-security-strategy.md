@@ -5,26 +5,19 @@ Priority: P2
 Area: Security
 
 ## Why
-Some agents should get a project folder, not the whole machine. Shrimpy needs a
-local sandbox story for macOS and Linux that normal people can live with.
+Some agents should get a project folder, not the whole machine. Shrimpy needs a local sandbox story for macOS and Linux that normal people can live with.
 
 ## Explore
-- Prefer in-OS sandboxing first. Study macOS App Sandbox, Seatbelt/SBPL, XPC,
-  bookmarks, Linux namespaces, `bubblewrap`, seccomp, Landlock, systemd
-  sandboxing, and separate users.
-- Define the small policy shape Shrimpy needs: reads, writes, network, git,
-  secrets, browser, devices, and promotion back to the real workspace.
-- Decide how git works: in-place edits, `.git` access, scratch patches,
-  worktrees, commits, and pushes.
+- Prefer in-OS sandboxing first. Study macOS App Sandbox, Seatbelt/SBPL, XPC, bookmarks, Linux namespaces, `bubblewrap`, seccomp, Landlock, systemd sandboxing, and separate users.
+- Define the small policy shape Shrimpy needs: reads, writes, network, git, secrets, browser, devices, and promotion back to the real workspace.
+- Decide how git works: in-place edits, `.git` access, scratch patches, worktrees, commits, and pushes.
 - Design `shrimpy` inspection output that shows the active sandbox profile.
-- Keep audit-agent work in
-  [SECURITY-002](security-002-default-security-audit-agent.md).
+- Keep audit-agent work in [SECURITY-002](security-002-default-security-audit-agent.md).
 
 ## Do Not
 - Do not implement native sandbox runners as part of this strategy item.
 - Do not grant broad home-directory access as the convenient default.
-- Do not present prompt rules, command allowlists, disabled tools, wake
-  policy, remote execution, or separate nodes as sandboxing.
+- Do not present prompt rules, command allowlists, disabled tools, wake policy, remote execution, or separate nodes as sandboxing.
 - Do not block the simpler macOS setup/install work on this item.
 
 ## Notes
@@ -32,13 +25,11 @@ local sandbox story for macOS and Linux that normal people can live with.
 - Builds on `docs/research/macos-seatbelt-helper.md`.
 - Builds on `docs/research/in-os-agent-sandboxing-and-git.md`.
 - Related product direction: `docs/musings/desktop-spotlight-surface.md`.
-- Likely future files: sandbox policy docs, session launch code, gateway
-  lifecycle code, service definitions, and platform-specific helpers or runners.
+- Likely future files: sandbox policy docs, session launch code, gateway lifecycle code, service definitions, and platform-specific helpers or runners.
 
 ## Done
 - Recommend first macOS and Linux paths.
-- Define named sandbox profiles and their reads, writes, network, browser,
-  device, secret, and git behavior.
+- Define named sandbox profiles and their reads, writes, network, browser, device, secret, and git behavior.
 - Define how sandboxed changes move into the real workspace.
 - Define the `shrimpy` inspection surface.
 - Split implementation work into follow-up backlog items.

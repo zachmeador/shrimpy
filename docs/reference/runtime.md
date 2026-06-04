@@ -10,9 +10,7 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.
 - `--provider`, `--model`, `--model-policy`, and `--thinking <off|low|medium|high>` override one session.
 - Without a model override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
-- `--skill <id>` loads full skill context into the session. The normal
-  workspace/agent skill list is also passed to Pi so `/skill:<name>`,
-  autocomplete, and available-skill prompt advertising see the same skill set.
+- `--skill <id>` loads full skill context into the session. The normal workspace/agent skill list is also passed to Pi so `/skill:<name>`, autocomplete, and available-skill prompt advertising see the same skill set.
 
 Direct `tui` and `run` sessions are local execution labels. They do not first write user prompts to a channel log.
 
@@ -42,10 +40,7 @@ surface / CLI channel post / watch
 
 Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.
 
-Direct local sessions do not have an active publication channel, so `reply`,
-`ask`, `notify`, and `report` are not registered there. Local sessions answer
-with ordinary assistant text unless explicitly asked to send or read a Shrimpy
-channel.
+Direct local sessions do not have an active publication channel, so `reply`, `ask`, `notify`, and `report` are not registered there. Local sessions answer with ordinary assistant text unless explicitly asked to send or read a Shrimpy channel.
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
 
@@ -53,30 +48,15 @@ Gateway channel sessions are opened from the agent's resolved model policy for t
 
 ## Prompt Context
 
-Shrimpy passes Pi one explicit system prompt. Pi's cwd-discovered `AGENTS.md`,
-append-system prompts, and ambient skill roots are suppressed so session context
-is inspectable and controlled by Shrimpy.
+Shrimpy passes Pi one explicit system prompt. Pi's cwd-discovered `AGENTS.md`, append-system prompts, and ambient skill roots are suppressed so session context is inspectable and controlled by Shrimpy.
 
-The Shrimpy-owned base system prompt is assembled from typed `PromptSection`s
-ordered by kind: identity, memory, and instructions first; capability next;
-runtime, activity, and evidence last. Pi then appends its own
-`<available_skills>` block for the Shrimpy-approved skill paths. See
-[context-assembly.md](context-assembly.md) and [skills.md](skills.md).
+The Shrimpy-owned base system prompt is assembled from typed `PromptSection`s ordered by kind: identity, memory, and instructions first; capability next; runtime, activity, and evidence last. Pi then appends its own `<available_skills>` block for the Shrimpy-approved skill paths. See [context-assembly.md](context-assembly.md) and [skills.md](skills.md).
 
-At turn time, Shrimpy prepares a `<context>...</context>` envelope with current
-time/session facts, channel-unread pointers, path-indexed memory slices,
-command-source output, and inspect commands. Shrimpy prefixes the current user
-message with that envelope before Pi persists and sends the turn, so the session
-file matches what the model saw. The context is intended for that immediately
-following message.
+At turn time, Shrimpy prepares a `<context>...</context>` envelope with current time/session facts, channel-unread pointers, path-indexed memory slices, command-source output, and inspect commands. Shrimpy prefixes the current user message with that envelope before Pi persists and sends the turn, so the session file matches what the model saw. The context is intended for that immediately following message.
 
 ## Session Lifecycle
 
-Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy
-custom entries for metadata and lifecycle state. `SessionRegistry` serializes
-turns per gateway channel session. `shrimpy sessions new|clear|restore` mutate
-local `tui`/`run` session files directly and publish control messages for
-gateway channel sessions. See [sessions.md](sessions.md).
+Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy custom entries for metadata and lifecycle state. `SessionRegistry` serializes turns per gateway channel session. `shrimpy sessions new|clear|restore` mutate local `tui`/`run` session files directly and publish control messages for gateway channel sessions. See [sessions.md](sessions.md).
 
 ## Background Work
 
@@ -95,8 +75,6 @@ gateway channel sessions. See [sessions.md](sessions.md).
 
 - `shrimpy status` summarizes workspace and gateway activity.
 - `shrimpy gateway status` reports gateway service, watch-run, and watch clock status.
-- `shrimpy watches` reports source paths, target channels, expected wake,
-  next runs, active runs, and recent run history.
+- `shrimpy watches` reports source paths, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
-- `shrimpy context` renders the assembled session prompt and can preview
-  per-turn context and the user message body.
+- `shrimpy context` renders the assembled session prompt and can preview per-turn context and the user message body.

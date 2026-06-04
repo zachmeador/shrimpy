@@ -15,14 +15,8 @@
 - Watch clock: `src/watches/`
 - Tools: `src/tools/`
 - Setup templates: `src/setup/templates/`
-- Repository developer skills: `src/skills/<id>/SKILL.md`. These are
-  source-tree skill prompts for Shrimpy development work, separate from the
-  workspace and agent skill bundles described in [skills.md](skills.md).
-  `npm run build` mirrors them into `.claude/skills/` and `.agents/skills/`
-  with `DIRECTORY_MANAGED_BY_SHRIMPY_BUILD` marker files; edit `src/skills/`,
-  not the generated mirrors.
-- `CLAUDE.md` is generated from `AGENTS.md` by the same build tooling and
-  carries a short origin note at the top.
+- Repository developer skills: `src/skills/<id>/SKILL.md`. These are source-tree skill prompts for Shrimpy development work, separate from the workspace and agent skill bundles described in [skills.md](skills.md). `npm run build` mirrors them into `.claude/skills/` and `.agents/skills/` with `DIRECTORY_MANAGED_BY_SHRIMPY_BUILD` marker files; edit `src/skills/`, not the generated mirrors.
+- `CLAUDE.md` is generated from `AGENTS.md` by the same build tooling and carries a short origin note at the top.
 
 ## Commands
 
@@ -50,22 +44,11 @@ npm run dev:setup:shell
 npm run dev:setup:clean
 ```
 
-`npm run dev:setup` rebuilds, resets an isolated `/tmp` home/workspace pair,
-writes a temporary `.shrimpy-workspace.json`, and runs `shrimpy setup`. It is
-fresh by default so edits under `src/setup/templates/` are copied into the test
-workspace each run. Use `npm run dev:setup -- --reuse --no-build` to rerun
-against the same temp workspace, or `npm run dev:setup -- --name tui` to keep a
-separate named sandbox.
+`npm run dev:setup` rebuilds, resets an isolated `/tmp` home/workspace pair, writes a temporary `.shrimpy-workspace.json`, and runs `shrimpy setup`. It is fresh by default so edits under `src/setup/templates/` are copied into the test workspace each run. Use `npm run dev:setup -- --reuse --no-build` to rerun against the same temp workspace, or `npm run dev:setup -- --name tui` to keep a separate named sandbox.
 
-To skip repeated provider login/model selection while testing the setup skill,
-use `npm run dev:setup -- --copy-pi-state`. This copies `state/pi/auth.json`
-and `state/pi/models.json` from the workspace selected by your real
-`~/.shrimpy-workspace.json` into the temp workspace. Use
-`npm run dev:setup:clean` when done because the sandbox may contain credentials.
+To skip repeated provider login/model selection while testing the setup skill, use `npm run dev:setup -- --copy-pi-state`. This copies `state/pi/auth.json` and `state/pi/models.json` from the workspace selected by your real `~/.shrimpy-workspace.json` into the temp workspace. Use `npm run dev:setup:clean` when done because the sandbox may contain credentials.
 
-Interactive zsh launches automatically install and refresh Shrimpy's cached shell
-completion in `~/.zshrc`. Set `SHRIMPY_NO_AUTO_COMPLETION=1` to disable that
-setup step while developing.
+Interactive zsh launches automatically install and refresh Shrimpy's cached shell completion in `~/.zshrc`. Set `SHRIMPY_NO_AUTO_COMPLETION=1` to disable that setup step while developing.
 
 ## Releases
 

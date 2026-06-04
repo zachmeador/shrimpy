@@ -41,34 +41,23 @@ skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
 ```
 
-Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under
-`agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same
-id. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI
-management.
+Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same id. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI management.
 
 ## Storage
 
-Use `vault/` for saved files and collections. Use `projects/` for code, apps,
-experiments, or a focused work folder. These are normal directories.
+Use `vault/` for saved files and collections. Use `projects/` for code, apps, experiments, or a focused work folder. These are normal directories.
 
 Inside an agent root:
 
 - `agents/<id>/context/` is memory and prompt files.
 - `agents/<id>/vault/` is saved files and reports for that agent.
-- `agents/<id>/projects/` is code, apps, or work folders for that agent. Create
-  it when needed.
+- `agents/<id>/projects/` is code, apps, or work folders for that agent. Create it when needed.
 
-Reports should go under `agents/<id>/vault/<kind>/`, for example
-`agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do
-not put reports in `context/`. Put a reference in `context/` only if the agent
-should load it every run.
+Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do not put reports in `context/`. Put a reference in `context/` only if the agent should load it every run.
 
-Do not put channel logs, runtime state, sessions, auth, model metadata, or
-watch clock state under `vault/` or `projects/`.
+Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under `vault/` or `projects/`.
 
-`shrimpy setup init` creates shared `vault/` and `projects/`, plus the default
-agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent
-`projects/` directories are created when needed.
+`shrimpy setup init` creates shared `vault/` and `projects/`, plus the default agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent `projects/` directories are created when needed.
 
 ## Context Resources
 

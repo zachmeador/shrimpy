@@ -36,9 +36,7 @@ Sections:
 
 - Pi prompt-template discovery is disabled.
 - Pi-discovered `AGENTS.md` and append-system prompts are suppressed.
-- Pi ambient skill discovery is suppressed. When `runtime.noSkills` is false,
-  Shrimpy passes the active agent's resolved workspace/agent skill entrypoints
-  to Pi explicitly.
+- Pi ambient skill discovery is suppressed. When `runtime.noSkills` is false, Shrimpy passes the active agent's resolved workspace/agent skill entrypoints to Pi explicitly.
 - Shrimpy owns the system prompt passed into Pi.
 - Compaction defaults are tuned for chat-style continuity: `reserveTokens: 32768`, `keepRecentTokens: 30000`.
 - Compaction can be overridden globally, by agent id, by channel pattern, or by session label. `thresholdTokens` is translated to Pi's `reserveTokens` for the selected model.
@@ -131,10 +129,7 @@ That produces channel messages from `actorId: "human:alice"` and `userId: "alice
 
 ## Model Policies
 
-`modelPolicies` maps user-owned policy names to ordered concrete model
-candidates. A working workspace should define the `coding` policy with at
-least one candidate. If `modelPolicies` is present, config validation requires
-`coding`.
+`modelPolicies` maps user-owned policy names to ordered concrete model candidates. A working workspace should define the `coding` policy with at least one candidate. If `modelPolicies` is present, config validation requires `coding`.
 
 ```json
 {
@@ -153,8 +148,7 @@ least one candidate. If `modelPolicies` is present, config validation requires
 }
 ```
 
-Policies are resolved against Pi-visible models and configured auth. Shrimpy
-uses the first usable candidate. Inspect and edit policies with:
+Policies are resolved against Pi-visible models and configured auth. Shrimpy uses the first usable candidate. Inspect and edit policies with:
 
 ```bash
 shrimpy models
@@ -166,22 +160,9 @@ shrimpy models policies move-candidate coding anthropic/claude-opus --index 0
 shrimpy models policies remove-candidate coding openai/gpt-5
 ```
 
-Concrete provider/model ids still live in Pi's `state/pi/models.json`.
-Policies point at those ids; they do not create a second model registry.
+Concrete provider/model ids still live in Pi's `state/pi/models.json`. Policies point at those ids; they do not create a second model registry.
 
-`shrimpy setup` sets up the minimal working shape. If the workspace
-already has a `modelPolicies.coding` candidate and the main agent's `context/`
-directory exists, it exits without inspecting models, asking questions, or
-launching guided setup. Otherwise it inspects Pi-visible authenticated models,
-creates `modelPolicies.coding` from the selected candidate when the policy is
-missing, defaults an unset `shrimpy` agent to `modelPolicy: "coding"`, and
-smoke-tests `coding` through the normal resolver. If `coding` exists but does
-not resolve during setup, it reports the candidate problems and keeps
-the existing policy unless replacement is confirmed. After the policy setup
-passes, the guided setup session opens as the default `shrimpy` agent with the
-`setup` skill and an explicit `modelPolicy: "coding"` session override.
-Additional explicit agent policies are preserved, but they do not block this
-first setup session.
+`shrimpy setup` sets up the minimal working shape. If the workspace already has a `modelPolicies.coding` candidate and the main agent's `context/` directory exists, it exits without inspecting models, asking questions, or launching guided setup. Otherwise it inspects Pi-visible authenticated models, creates `modelPolicies.coding` from the selected candidate when the policy is missing, defaults an unset `shrimpy` agent to `modelPolicy: "coding"`, and smoke-tests `coding` through the normal resolver. If `coding` exists but does not resolve during setup, it reports the candidate problems and keeps the existing policy unless replacement is confirmed. After the policy setup passes, the guided setup session opens as the default `shrimpy` agent with the `setup` skill and an explicit `modelPolicy: "coding"` session override. Additional explicit agent policies are preserved, but they do not block this first setup session.
 
 ## Agents
 
@@ -195,8 +176,7 @@ Each agent config entry has:
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `channelPolicy` — when visible channel messages become turns for this agent.
 
-Agent identity, model policy defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
-Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
+Agent identity, model policy defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`. Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.
 
@@ -285,12 +265,9 @@ Modes:
 - `addressed` wakes only for messages addressed to this agent.
 - `none` ignores visible channel messages.
 
-Addressing and mentions are inputs to the agent's own policy. They do not route
-around channel visibility, and they do not override `mode: "none"`. An agent is
-not re-offered its own channel messages.
+Addressing and mentions are inputs to the agent's own policy. They do not route around channel visibility, and they do not override `mode: "none"`. An agent is not re-offered its own channel messages.
 
-Channel policy can be narrowed by sender (`system`, `human`, `agent`), stable
-`actorIds`, or stable `userIds`, and overridden by channel pattern:
+Channel policy can be narrowed by sender (`system`, `human`, `agent`), stable `actorIds`, or stable `userIds`, and overridden by channel pattern:
 
 ```json
 {
@@ -347,21 +324,15 @@ shrimpy agent channel-policy clear shrimpy --channel maintenance
 - `shrimpy channels join <name> --agent <id>` adds membership; the agent's own `channelPolicy` decides what becomes a turn.
 - Surfaces may stamp a message with `addressedAgentId`; visible agents evaluate that fact through their own channel policy.
 
-See [channels.md](channels.md) for protocol, addressing, delivery, and egress
-semantics.
+See [channels.md](channels.md) for protocol, addressing, delivery, and egress semantics.
 
 ## Watches
 
 Background attention rules live in `agents/<id>/watches.json`.
 
-A watch is owned by one agent. Its `trigger` says what the system keeps an eye
-on; time is one trigger kind. There is no second public config file for
-recurring work.
+A watch is owned by one agent. Its `trigger` says what the system keeps an eye on; time is one trigger kind. There is no second public config file for recurring work.
 
-To wake an agent on a clock, add a watch with `trigger.kind = "time"` and a
-message action. When the trigger fires, the gateway posts the watch text into
-the configured channel. If the owning agent is a member of that channel and its
-policy accepts the message, it gets a normal turn.
+To wake an agent on a clock, add a watch with `trigger.kind = "time"` and a message action. When the trigger fires, the gateway posts the watch text into the configured channel. If the owning agent is a member of that channel and its policy accepts the message, it gets a normal turn.
 
 For the common case, use the CLI:
 
@@ -373,8 +344,7 @@ shrimpy watches add morning-check \
   --message "Check the house."
 ```
 
-Command watches are optional. Use them when the watch should check something
-deterministic first and only post when the result is worth saying.
+Command watches are optional. Use them when the watch should check something deterministic first and only post when the result is worth saying.
 
 Current trigger kinds:
 
@@ -417,21 +387,13 @@ Fresh setup seeds three focused watches for the default `shrimpy` agent:
 - `journal-daily` — daily at 22:30, writes a same-day journal note only if activity warrants it.
 - `journal-compact` — Sundays at 04:00, compacts old journal notes.
 
-Channel membership stays in `config/channels.json`. Message watches choose a
-channel to log through; setup seeds the default `maintenance` channel with the
-default `shrimpy` agent as a member.
+Channel membership stays in `config/channels.json`. Message watches choose a channel to log through; setup seeds the default `maintenance` channel with the default `shrimpy` agent as a member.
 
-Inspect watches with `shrimpy watches [--agent <id>] [--json]`,
-`shrimpy watches show <agent-id>/<watch-id>`, or
-`shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports
-source paths, owner/local ids, target channels, expected wake behavior, next
-run from clock state, active runs, diagnostics, and recent run history.
+Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches show <agent-id>/<watch-id>`, or `shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports source paths, owner/local ids, target channels, expected wake behavior, next run from clock state, active runs, diagnostics, and recent run history.
 
 ## Watch Status
 
-`shrimpy status`, `shrimpy gateway status`, `shrimpy watches`, TUI
-`/status watches`, and turn context summarize watch runs across configured
-agent-owned watches. This aggregate status is not tied to any reserved channel.
+`shrimpy status`, `shrimpy gateway status`, `shrimpy watches`, TUI `/status watches`, and turn context summarize watch runs across configured agent-owned watches. This aggregate status is not tied to any reserved channel.
 
 `status.watchedWatches` is optional targeted diagnostic config for callers that need to track a specific watch/channel pair:
 

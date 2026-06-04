@@ -57,8 +57,7 @@ This is partly about developer ergonomics, but more importantly it affects how l
 >
 > hermes-agent... idk it doesn't seem to do anything like this, or it doesn't work.
 >
-> 1: this system should be based entirely on real-world model budgets. this determines a quota of tokens per day, whatever.
-> 2: there is something called a heartbeat but it isn't like openclaw's. heartbeat rates vary based off of if a user has been talking to shrimpy much.
+> 1: this system should be based entirely on real-world model budgets. this determines a quota of tokens per day, whatever. 2: there is something called a heartbeat but it isn't like openclaw's. heartbeat rates vary based off of if a user has been talking to shrimpy much.
 > 3. the view of the heartbeat agent is focused on timestamps and changes of the context (but only at the summary level)
 > 4. heartbeat agent can see and watch shrimpy sessions in real time. example: i'm sending stuff to shrimpy and a heartbeat fires at some semi-fixed time. in heartbeat's context it sees 1 line indicating a recent/current chat session
 > 5. the context construction size of heartbeat and other agents in shrimpy-framework is dependent on budget. could depend on other things too, later scope

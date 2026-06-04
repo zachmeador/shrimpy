@@ -9,9 +9,7 @@ Chat surfaces often expose one visible Shrimpy account even when multiple intern
 
 Shrimpy should preserve the one-visible-account pattern while making cross-agent deliveries legible at the surface edge.
 
-Current source has already fixed the first plumbing gap: egress delivery now
-receives a typed `ChannelMessage` and publication intent metadata. The remaining
-problem is choosing and applying a surface decoration policy.
+Current source has already fixed the first plumbing gap: egress delivery now receives a typed `ChannelMessage` and publication intent metadata. The remaining problem is choosing and applying a surface decoration policy.
 
 ## Build
 - Pass enough message metadata through channel egress for adapters to inspect `sender`, `origin`, and text content during delivery.
@@ -31,11 +29,7 @@ problem is choosing and applying a surface decoration policy.
 ## Shape
 `ChannelBus.sendAgentText` should publish the typed channel message, then pass that published message to egress instead of only passing raw text. `EgressRegistry` can dispatch an outbound delivery object like `{ channel, message }` to the surface adapter. The adapter decides whether the transport needs decoration.
 
-Telegram can compare the message sender against the channel/session's default
-visible agent and publication intent metadata. If the delivered sender is a
-different internal agent, it prepends a compact attribution label using
-`sender.displayName` when available, otherwise a friendly form of `agent:<id>`.
-Unknown senders fall back to the existing plain delivery behavior.
+Telegram can compare the message sender against the channel/session's default visible agent and publication intent metadata. If the delivered sender is a different internal agent, it prepends a compact attribution label using `sender.displayName` when available, otherwise a friendly form of `agent:<id>`. Unknown senders fall back to the existing plain delivery behavior.
 
 ## Progress
 - The egress metadata plumbing is already in place: `ChannelBus.sendAgentText` publishes once, then passes a delivery object with the typed `ChannelMessage` and publication intent metadata to egress.
@@ -47,9 +41,7 @@ Unknown senders fall back to the existing plain delivery behavior.
 - Build on `src/channels/bus.ts`, where `sendAgentText` already publishes once and delivers the resulting message.
 - Update Telegram egress in `src/surfaces/telegram/surface.ts` to decorate only when sender attribution is needed.
 - Consider a small shared helper under `src/surfaces/shared/` for choosing attribution labels so future chat adapters can reuse the policy.
-- Related: [channels.md](../reference/channels.md) keeps channel-emitting
-  app-agent work inspectable; this item keeps later cross-agent chat deliveries
-  legible at the surface.
+- Related: [channels.md](../reference/channels.md) keeps channel-emitting app-agent work inspectable; this item keeps later cross-agent chat deliveries legible at the surface.
 - Add tests for plain default-agent delivery, decorated non-default agent delivery, and preservation of the stored channel text.
 
 ## Done

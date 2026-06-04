@@ -100,23 +100,17 @@ Nothing in that flow should be unique to fiction. The same structure should also
 
 ## Morning Letter Pattern
 
-A smaller character-agent pattern is a single resident character that writes the
-user a letter every morning.
+A smaller character-agent pattern is a single resident character that writes the user a letter every morning.
 
 The workspace shape can stay ordinary:
 
-- one character agent with a strong personality, voice, lore, and relationship to
-  the user
+- one character agent with a strong personality, voice, lore, and relationship to the user
 - one watch-origin message that asks the agent to write a morning letter
 - one user-facing channel where the letter is delivered
-- character memory that preserves important user facts, fictional continuity,
-  recurring motifs, and new lore
-- normal memory-management watches that maintain and refine that state over
-  time
+- character memory that preserves important user facts, fictional continuity, recurring motifs, and new lore
+- normal memory-management watches that maintain and refine that state over time
 
-The interesting part is that the agent is encouraged to build its lore, then the
-Shrimpy memory system keeps that lore alive as normal workspace state. This makes
-the pattern playful without needing special runtime machinery.
+The interesting part is that the agent is encouraged to build its lore, then the Shrimpy memory system keeps that lore alive as normal workspace state. This makes the pattern playful without needing special runtime machinery.
 
 ## What This Protects
 

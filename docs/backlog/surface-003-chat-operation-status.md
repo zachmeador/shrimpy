@@ -11,8 +11,7 @@ Telegram and future chat adapters should be able to show small operational statu
 This should grow into a general operations status mechanism for chat surfaces, not a Telegram-only compaction special case.
 
 ## Build
-- Add a generic chat operation status path for accepted gateway channel
-  sessions.
+- Add a generic chat operation status path for accepted gateway channel sessions.
 - Start with compaction lifecycle statuses:
   - compaction started
   - compaction finished
@@ -29,8 +28,7 @@ This should grow into a general operations status mechanism for chat surfaces, n
 - Do not expose private session summary content, model prompts, token counts, or provider internals in user-facing status text by default.
 - Do not make every internal event a chat message. Only surface events that explain visible delay, changed working context, or actionable failure.
 - Do not replace ephemeral activity indicators such as typing status; this is a visible status/update path, not a keepalive.
-- Do not hardwire Telegram into session or compaction code. Deliver through the
-  shared channel/surface boundary.
+- Do not hardwire Telegram into session or compaction code. Deliver through the shared channel/surface boundary.
 - Do not add legacy shims or migration paths.
 
 ## Shape
@@ -49,17 +47,13 @@ Exact wording should be adapter-neutral in shared code and adapter-specific at t
 ## Implementation Notes
 - Build on the current compaction event subscription in `src/sessions/open.ts`.
 - Thread a scoped operation-status publisher into gateway session opening, likely from `SessionRegistry` or `AgentChannelRuntime`, so direct `tui` and `run` sessions do not publish chat statuses.
-- Keep operation-status emission tied to accepted gateway/session lifecycle
-  events, not to turn-context preparation or Pi's provider-bound context hook.
-  Status is surface-facing runtime telemetry; turn context is model-facing
-  ephemeral context.
+- Keep operation-status emission tied to accepted gateway/session lifecycle events, not to turn-context preparation or Pi's provider-bound context hook. Status is surface-facing runtime telemetry; turn context is model-facing ephemeral context.
 - Extend `src/channels/egress.ts` and `src/channels/bus.ts` with a non-message or clearly typed status delivery path.
 - Keep this parallel to, but distinct from, the ephemeral surface activity route used for typing.
 - If statuses are appended to channel logs, store them as typed system/status messages, not as fake agent replies. If they are not logged, make that explicit and inspectable through gateway logs.
 - Add Telegram formatting in `src/surfaces/telegram/surface.ts` or a nearby outbound helper.
 - Consider dependencies and overlap with [SURFACE-001](surface-001-telegram-typing-activity.md): typing is ephemeral while a turn is running; operation status is a visible chat update for important lifecycle events.
-- Add tests for compaction start/end dispatch, Telegram formatting, disabled
-  status policy, and no status emission for direct local sessions.
+- Add tests for compaction start/end dispatch, Telegram formatting, disabled status policy, and no status emission for direct local sessions.
 
 ## Done
 - A Telegram-backed gateway session can visibly report compaction start, success, and failure when enabled.

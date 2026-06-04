@@ -40,25 +40,16 @@ Good examples:
 
 ## Optional Weird Patterns
 
-The collection should have a clearly labeled bundle of more experimental Shrimpy
-configs. These are not first-run defaults, but they are useful because they show
-how far the ordinary primitives can stretch.
+The collection should have a clearly labeled bundle of more experimental Shrimpy configs. These are not first-run defaults, but they are useful because they show how far the ordinary primitives can stretch.
 
 One example is a Scrappy-style character agent:
 
-- a persistent agent has a strong personality, voice, lore, and relationship to
-  the user
-- a watch-origin morning message logs into an ordinary channel, and the character
-  becomes eligible for that turn through channel membership plus its attention
-  config
-- memory upkeep preserves important facts, recurring motifs, and new bits of
-  lore as ordinary agent memory
-- the character is encouraged to elaborate its own world over time, while still
-  leaving inspectable files, watches, channels, and session logs behind
+- a persistent agent has a strong personality, voice, lore, and relationship to the user
+- a watch-origin morning message logs into an ordinary channel, and the character becomes eligible for that turn through channel membership plus its attention config
+- memory upkeep preserves important facts, recurring motifs, and new bits of lore as ordinary agent memory
+- the character is encouraged to elaborate its own world over time, while still leaving inspectable files, watches, channels, and session logs behind
 
-This is not especially practical, but it is a good product/design example. It
-shows that Shrimpy can support playful, durable agent habitats without adding a
-special character runtime.
+This is not especially practical, but it is a good product/design example. It shows that Shrimpy can support playful, durable agent habitats without adding a special character runtime.
 
 Weak examples:
 

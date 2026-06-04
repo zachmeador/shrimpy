@@ -41,8 +41,7 @@ The trick is:
 - Treat **sessions** as private minds attached to channels.
 - Prefer **roles** over hard-coded runtime species.
 - Make background work produce **inspectable artifacts**, not invisible magic.
-- Make every wake have a **reason**, an **owner**, and an inspectable
-  **channel/message path**.
+- Make every wake have a **reason**, an **owner**, and an inspectable **channel/message path**.
 - Let **budget** shape cadence, context size, and model choice.
 - Treat heartbeat as a **maintenance sweep**, not the whole architecture.
 
@@ -297,9 +296,7 @@ Represent asynchronous prompts as ordinary channel messages with fields like:
 - urgency
 - budget class
 
-Channel membership and agent attention decide whether a given agent handles the
-message. That makes wake behavior an effect of normal routing instead of a
-separate runtime path.
+Channel membership and agent attention decide whether a given agent handles the message. That makes wake behavior an effect of normal routing instead of a separate runtime path.
 
 ### 3. Child Session Contract
 

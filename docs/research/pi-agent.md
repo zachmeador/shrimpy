@@ -174,9 +174,7 @@ Constructor overrides allow Shrimpy to intercept or replace layers without subcl
 
 Shrimpy currently uses the `systemPrompt` replacement path for its assembled context, strips Pi-discovered AGENTS/append-prompt/skill layers, and loads a curated extension list. This means Shrimpy owns the stable prompt body while Pi still owns provider-native tool definitions and interactive command handling.
 
-Focused follow-up: [pi-skill-handling.md](pi-skill-handling.md) covers Pi skill
-discovery, `additionalSkillPaths`, slash command expansion, and the Shrimpy
-integration gap in more detail.
+Focused follow-up: [pi-skill-handling.md](pi-skill-handling.md) covers Pi skill discovery, `additionalSkillPaths`, slash command expansion, and the Shrimpy integration gap in more detail.
 
 ## pi-mom
 
@@ -187,8 +185,7 @@ Architecture:
 - Slack Socket Mode receives messages, logs them to per-channel `log.jsonl`, and queues them for sequential processing.
 - Per-channel state includes `log.jsonl`, `context.jsonl`, and `MEMORY.md`.
 - `ChannelQueue` handles one-message-at-a-time processing per channel.
-- Event trigger files can trigger channel processing immediately, once at a
-  scheduled time, or periodically.
+- Event trigger files can trigger channel processing immediately, once at a scheduled time, or periodically.
 
 Relevance to Shrimpy: prior art for channel-to-agent routing. Key differences from Shrimpy's design are that mom responds via Slack API directly, handles only Slack, and runs one agent per channel.
 

@@ -4,13 +4,9 @@ Surfaces translate outside interaction into Shrimpy channels and translate Shrim
 
 ## Addressing
 
-Surfaces may set `origin.addressedAgentId` on a message. Addressing is a
-surface/user-facing affordance and an input to each visible agent's channel
-policy; it does not route around channel membership. Watch-origin messages use
-ordinary channel membership and agent channel policy too.
+Surfaces may set `origin.addressedAgentId` on a message. Addressing is a surface/user-facing affordance and an input to each visible agent's channel policy; it does not route around channel membership. Watch-origin messages use ordinary channel membership and agent channel policy too.
 
-Surface users can be mapped to stable Shrimpy user ids so peer cards and agent
-channel policy do not depend on transport-specific ids.
+Surface users can be mapped to stable Shrimpy user ids so peer cards and agent channel policy do not depend on transport-specific ids.
 
 This supports a one-visible-account pattern:
 

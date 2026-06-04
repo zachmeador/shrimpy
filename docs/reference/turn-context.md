@@ -1,12 +1,8 @@
 # 🦐 Turn Context
 
-Turn context is generated live state for one model turn. Shrimpy renders it as
-a `<context>...</context>` envelope and prefixes the current user message before
-Pi persists and sends it.
+Turn context is generated live state for one model turn. Shrimpy renders it as a `<context>...</context>` envelope and prefixes the current user message before Pi persists and sends it.
 
-The session transcript intentionally records that envelope, so replay and
-session search show what the model saw. The runtime labels the rendered header
-`[turn-context]`, and the public API is `shrimpy context`.
+The session transcript intentionally records that envelope, so replay and session search show what the model saw. The runtime labels the rendered header `[turn-context]`, and the public API is `shrimpy context`.
 
 ## Shape
 
@@ -35,15 +31,9 @@ Command output is compact text. Use evidence or inspect commands inside that tex
 
 ## Runtime Path
 
-Direct TUI, direct `run`, gateway channel sessions, and child sessions all use
-the same session-open hook shape. A session plan provides
-`prepareTurnContext`; Shrimpy's Pi extension prepares context in
-`before_agent_start`, rewrites the finalized user message in `message_end`, and
-clears prepared context on `agent_end`.
+Direct TUI, direct `run`, gateway channel sessions, and child sessions all use the same session-open hook shape. A session plan provides `prepareTurnContext`; Shrimpy's Pi extension prepares context in `before_agent_start`, rewrites the finalized user message in `message_end`, and clears prepared context on `agent_end`.
 
-Gateway sessions bind the pending context to the exact formatted channel
-message being handled, so queued channel turns cannot leak context into one
-another.
+Gateway sessions bind the pending context to the exact formatted channel message being handled, so queued channel turns cannot leak context into one another.
 
 ## Config
 

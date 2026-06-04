@@ -10,8 +10,7 @@ Canonical resource groups currently keep the implemented names: singular `agent`
 
 ## Session Commands
 
-See [sessions.md](sessions.md) for session files, lifecycle, model metadata,
-and the direct-vs-gateway behavior behind these commands.
+See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and the direct-vs-gateway behavior behind these commands.
 
 | Command | Purpose |
 | --- | --- |
@@ -61,8 +60,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 
 ## Channels And Surfaces
 
-See [channels.md](channels.md) for the channel protocol, membership, addressing,
-agent channel policy, and egress behavior behind these commands.
+See [channels.md](channels.md) for the channel protocol, membership, addressing, agent channel policy, and egress behavior behind these commands.
 
 | Command | Purpose |
 | --- | --- |

@@ -5,13 +5,9 @@ Status: Draft
 
 ## Purpose
 
-Capture the skunkworks direction where a Shrimpy "app" is not just code the
-agent writes, but a living habitat that can contain code, specs, channels,
-state, skills, and resident agents that operate and maintain it.
+Capture the skunkworks direction where a Shrimpy "app" is not just code the agent writes, but a living habitat that can contain code, specs, channels, state, skills, and resident agents that operate and maintain it.
 
-The concrete motivating example is `shrimpy-career`: a personal career bot/app
-that can help prepare resumes and job-application material, remember the user's
-preferences, react to requests, and keep improving the workflow over time.
+The concrete motivating example is `shrimpy-career`: a personal career bot/app that can help prepare resumes and job-application material, remember the user's preferences, react to requests, and keep improving the workflow over time.
 
 ## Core Claim
 
@@ -31,8 +27,7 @@ Shrimpy already has most of the raw material:
 - watches can write typed messages into channels
 - tools let agents edit files, call CLIs, and run scripts
 
-The missing piece is a first-class convention for grouping those primitives
-around a user-facing app.
+The missing piece is a first-class convention for grouping those primitives around a user-facing app.
 
 ## What An App Is
 
@@ -48,8 +43,7 @@ It may contain:
 - channels for requests, work logs, and maintenance
 - one or more resident agents that own operation and maintenance
 
-In this framing, the code is not the whole artifact. The living artifact is the
-code plus the agents and communication loops that keep it useful.
+In this framing, the code is not the whole artifact. The living artifact is the code plus the agents and communication loops that keep it useful.
 
 ## Current Shrimpy Fit
 
@@ -125,9 +119,7 @@ agents/
     skills/
 ```
 
-The second shape is probably easier to add first because it leaves current
-agent/session paths alone. The app becomes a grouping layer, not a replacement
-for agents.
+The second shape is probably easier to add first because it leaves current agent/session paths alone. The app becomes a grouping layer, not a replacement for agents.
 
 ## Mechanical Difference Between Apps And Agents
 
@@ -153,8 +145,7 @@ An app adds:
 
 So the framework should resist making apps a separate execution model.
 
-An app is a durable container and ownership boundary around ordinary Shrimpy
-pieces.
+An app is a durable container and ownership boundary around ordinary Shrimpy pieces.
 
 ## Channels As The Backbone
 
@@ -170,8 +161,7 @@ An app should be able to have channels like:
 
 The important part is that these are still normal channels.
 
-The app layer should provide naming, membership, and inspection conventions,
-not a second message bus.
+The app layer should provide naming, membership, and inspection conventions, not a second message bus.
 
 ## Self-Maintaining Loops
 
@@ -185,8 +175,7 @@ A Shrimpy app should eventually be able to own loops such as:
 - draft generation
 - app-specific watches
 
-Today this can be approximated with watch messages into channels. The
-missing piece is ownership:
+Today this can be approximated with watch messages into channels. The missing piece is ownership:
 
 - which app owns this watch?
 - which agent is responsible?
@@ -224,37 +213,21 @@ Graduation should be a normal mechanic/librarian workflow:
 
 This direction likely needs these changes, in order:
 
-1. **App workspace convention**
-   Define `apps/<id>/APP.md` plus optional `REQUIREMENTS.md`, `src/`,
-   `scripts/`, `data/`, and `skills/`.
+1. **App workspace convention** Define `apps/<id>/APP.md` plus optional `REQUIREMENTS.md`, `src/`, `scripts/`, `data/`, and `skills/`.
 
-2. **App config shape**
-   Add a small `apps` config section that maps app ids to agent ids, channel
-   names, and app root paths.
+2. **App config shape** Add a small `apps` config section that maps app ids to agent ids, channel names, and app root paths.
 
-3. **CLI inspection**
-   Add `shrimpy apps list`, `shrimpy apps show <id>`, and
-   `shrimpy apps channels <id>` before adding heavier creation flows.
+3. **CLI inspection** Add `shrimpy apps list`, `shrimpy apps show <id>`, and `shrimpy apps channels <id>` before adding heavier creation flows.
 
-4. **Channel membership helpers**
-   Let app creation seed app channels and memberships without making channel
-   dispatch app-specific.
+4. **Channel membership helpers** Let app creation seed app channels and memberships without making channel dispatch app-specific.
 
-5. **App-local skills**
-   Extend skill resolution to include app-local skills when a session is opened
-   in an app context.
+5. **App-local skills** Extend skill resolution to include app-local skills when a session is opened in an app context.
 
-6. **App-aware watches**
-   Let watches carry optional app metadata while still writing ordinary
-   messages into ordinary channels.
+6. **App-aware watches** Let watches carry optional app metadata while still writing ordinary messages into ordinary channels.
 
-7. **Promotion workflow skill**
-   Add a system skill that knows how to turn a useful skill or repeated workflow
-   into an app habitat.
+7. **Promotion workflow skill** Add a system skill that knows how to turn a useful skill or repeated workflow into an app habitat.
 
-8. **Mechanic/app-builder agent**
-   Let the mechanic or a future app-builder agent own app creation, repair, and
-   promotion workflows.
+8. **Mechanic/app-builder agent** Let the mechanic or a future app-builder agent own app creation, repair, and promotion workflows.
 
 ## Things To Avoid
 
@@ -262,8 +235,7 @@ This direction likely needs these changes, in order:
 - Do not create a second channel system for apps.
 - Do not make every skill an app.
 - Do not require users to understand app internals before asking for a thing.
-- Do not build OpenClaw-style permission/gating machinery unless a real local
-  need appears.
+- Do not build OpenClaw-style permission/gating machinery unless a real local need appears.
 - Do not hide loops. Every loop should leave normal channel/session/file traces.
 
 ## Product Feeling
@@ -281,8 +253,6 @@ Shrimpy grows the smallest useful form:
 - then a resident app-agent
 - then maintenance loops
 
-The user should not have to know which stage it is in. They should be able to
-inspect it, steer it, and ask Shrimpy to improve it.
+The user should not have to know which stage it is in. They should be able to inspect it, steer it, and ask Shrimpy to improve it.
 
-That is the deeper promise: software that can become more alive without becoming
-less legible.
+That is the deeper promise: software that can become more alive without becoming less legible.

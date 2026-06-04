@@ -1,8 +1,6 @@
 # 🦐 Shrimpy Docs
 
-These docs are the project map for Shrimpy. Current behavior lives in
-`reference/`. Active work, background thinking, and source research live in
-separate directories so they do not blur into the reference surface.
+These docs are the project map for Shrimpy. Current behavior lives in `reference/`. Active work, background thinking, and source research live in separate directories so they do not blur into the reference surface.
 
 ## Reference
 

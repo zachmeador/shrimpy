@@ -6,24 +6,16 @@ Area: TUI
 
 ## Why
 
-Shrimpy agents each own prompt resources, memory, skills, watches, and Pi
-session transcripts under `agents/<id>/`. The TUI should make that environment
-navigable without requiring the user to quit, relaunch with `--agent`, or
-remember exact session labels.
+Shrimpy agents each own prompt resources, memory, skills, watches, and Pi session transcripts under `agents/<id>/`. The TUI should make that environment navigable without requiring the user to quit, relaunch with `--agent`, or remember exact session labels.
 
 Now that Shrimpy has more control over the Pi TUI instance, `/agent` can become an interactive path for moving between agents and their sessions. This should feel like normal Shrimpy navigation, not a second control plane over sessions.
 
 ## Current State
 
-- CLI session inventory exists through `shrimpy sessions list [channel]
-  --agent <id> --json`, including active sessions and recent archives for one
-  agent at a time.
-- Session lifecycle state is represented by `shrimpy_lifecycle` custom entries,
-  and local/gateway reset, restore, and thinking commands exist.
-- The TUI command surface has Shrimpy-owned `/status`, `/settings`, `/model`,
-  `/thinking`, and `/changelog` hooks, but no `/agent` navigator.
-- There is no workspace-wide all-agent session inventory service, no
-  cross-agent runtime reopening path, and no gateway-session selection safety UI.
+- CLI session inventory exists through `shrimpy sessions list [channel] --agent <id> --json`, including active sessions and recent archives for one agent at a time.
+- Session lifecycle state is represented by `shrimpy_lifecycle` custom entries, and local/gateway reset, restore, and thinking commands exist.
+- The TUI command surface has Shrimpy-owned `/status`, `/settings`, `/model`, `/thinking`, and `/changelog` hooks, but no `/agent` navigator.
+- There is no workspace-wide all-agent session inventory service, no cross-agent runtime reopening path, and no gateway-session selection safety UI.
 
 ## Build
 
@@ -48,11 +40,7 @@ Pi already exposes a selector replacement surface and session switching inside t
 
 The selected session path must not just call Pi's existing `switchSession()` against the old runtime factory if the target belongs to another agent. It must resolve the target agent first, then open a runtime with that agent's root and policy.
 
-The reopened runtime should use the normal Shrimpy session-open path, including
-the Pi turn-context hook described in
-[turn-context.md](../reference/turn-context.md). The navigator should not
-rebuild prompt preparation or reintroduce wrappers that rewrite user prompts
-before they reach `session.prompt()`.
+The reopened runtime should use the normal Shrimpy session-open path, including the Pi turn-context hook described in [turn-context.md](../reference/turn-context.md). The navigator should not rebuild prompt preparation or reintroduce wrappers that rewrite user prompts before they reach `session.prompt()`.
 
 ## Slices
 
@@ -77,9 +65,7 @@ before they reach `session.prompt()`.
 - Current session summaries are per-agent and mostly active/archive paths. The navigator needs richer per-file metadata and should reuse Shrimpy custom metadata entries where present.
 - Pi's own `/resume` remains a Pi session selector for the current runtime/session directory. `/agent` should be the Shrimpy workspace-level navigator.
 - Related: the completed Shrimpy command-surface work for TUI coherence and the completed command-output polish work for selector/output patterns.
-- Related: direct TUI, direct `run`, and gateway turns are aligned through Pi's
-  context hook; the navigator should preserve that boundary when switching
-  targets.
+- Related: direct TUI, direct `run`, and gateway turns are aligned through Pi's context hook; the navigator should preserve that boundary when switching targets.
 
 ## Done
 

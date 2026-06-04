@@ -5,21 +5,15 @@ Status: Draft musing
 
 ## Prompt
 
-The hunch: a breakthrough in useful personal-agent RL may involve something
-like an agent currency system.
+The hunch: a breakthrough in useful personal-agent RL may involve something like an agent currency system.
 
-That currency would give agents quantifiable high-impact goals to anchor on,
-and would offset the need for a human to manually tune every decision for token
-efficiency, compute efficiency, context size, model choice, wake cadence, and
-delegation.
+That currency would give agents quantifiable high-impact goals to anchor on, and would offset the need for a human to manually tune every decision for token efficiency, compute efficiency, context size, model choice, wake cadence, and delegation.
 
 ## Core Claim
 
 Budget is a constraint. Currency is a feedback system.
 
-Shrimpy already talks about budget-aware agents: budget shapes cadence, context
-size, and model choice. That is necessary, but it is mostly defensive. It tells
-an agent what it cannot spend.
+Shrimpy already talks about budget-aware agents: budget shapes cadence, context size, and model choice. That is necessary, but it is mostly defensive. It tells an agent what it cannot spend.
 
 An agent currency would add a positive optimization target:
 
@@ -28,26 +22,19 @@ An agent currency would add a positive optimization target:
 - preserve enough exploration to avoid local optima
 - leave evidence that the value was real
 
-In RL terms, this is interesting because the hard part is not only training. The
-hard part is defining reward signals that are local, private, inspectable, and
-connected to what the user actually cares about.
+In RL terms, this is interesting because the hard part is not only training. The hard part is defining reward signals that are local, private, inspectable, and connected to what the user actually cares about.
 
 ## Budget, Currency, Reward
 
 These should stay separate:
 
-- **Budget:** a quota or cap, such as tokens per day, tool calls per wake, max
-  model class, or quiet-hours limits.
-- **Currency:** an accounting unit that records costs, credits, transfers, and
-  evidence across agents, sessions, tools, and outcomes.
-- **Reward:** a training or eval signal derived from ledger entries under a
-  versioned formula.
+- **Budget:** a quota or cap, such as tokens per day, tool calls per wake, max model class, or quiet-hours limits.
+- **Currency:** an accounting unit that records costs, credits, transfers, and evidence across agents, sessions, tools, and outcomes.
+- **Reward:** a training or eval signal derived from ledger entries under a versioned formula.
 
-Budget prevents runaway behavior. Currency makes tradeoffs visible. Reward is
-what a trainer or eval harness may eventually consume.
+Budget prevents runaway behavior. Currency makes tradeoffs visible. Reward is what a trainer or eval harness may eventually consume.
 
-The important move is not inventing a perfect economy. It is making agent work
-quantifiable enough that policy can improve without turning into hidden magic.
+The important move is not inventing a perfect economy. It is making agent work quantifiable enough that policy can improve without turning into hidden magic.
 
 ## What Could Be Priced
 
@@ -78,14 +65,11 @@ Credits:
 - time-based follow-up completed
 - prevented regression or caught a real issue
 
-The ledger should store the evidence, not just the number. A score without the
-session, command result, diff, user signal, or judge output behind it is too easy
-to game.
+The ledger should store the evidence, not just the number. A score without the session, command result, diff, user signal, or judge output behind it is too easy to game.
 
 ## Why This Could Matter For RL
 
-Most personal-agent behavior has weak, delayed, messy feedback. The user usually
-does not want to label trajectories. The system still needs to learn:
+Most personal-agent behavior has weak, delayed, messy feedback. The user usually does not want to label trajectories. The system still needs to learn:
 
 - which work deserved an expensive model
 - when a cheap triage pass was enough
@@ -95,8 +79,7 @@ does not want to label trajectories. The system still needs to learn:
 - when to ask the user instead of continuing
 - which plans tend to finish cleanly
 
-An agent currency can become the intermediate reward scaffold. It does not need
-to be the final RL algorithm. It can first drive normal runtime policy:
+An agent currency can become the intermediate reward scaffold. It does not need to be the final RL algorithm. It can first drive normal runtime policy:
 
 - context budgets
 - model routing
@@ -106,13 +89,11 @@ to be the final RL algorithm. It can first drive normal runtime policy:
 - session summarization depth
 - task prioritization
 
-Later, the same ledger can export reward data or preference data into a trainer.
-That makes the currency useful before Shrimpy has a real RL stack.
+Later, the same ledger can export reward data or preference data into a trainer. That makes the currency useful before Shrimpy has a real RL stack.
 
 ## The Efficiency Angle
 
-The human should not have to say "use 1,200 tokens here, wake every 4 hours,
-use cheap model X unless confidence drops below Y, and only delegate when Z."
+The human should not have to say "use 1,200 tokens here, wake every 4 hours, use cheap model X unless confidence drops below Y, and only delegate when Z."
 
 That kind of tuning is brittle and tedious.
 
@@ -130,8 +111,7 @@ Then agents can discover some of the efficiency policy themselves:
 - use deterministic checks before judge models
 - stop doing background work that never produces accepted value
 
-This turns token efficiency and compute efficiency from hand-authored rules into
-measurable pressure.
+This turns token efficiency and compute efficiency from hand-authored rules into measurable pressure.
 
 ## Failure Modes
 
@@ -169,19 +149,15 @@ Useful constraints:
 - Never silently mutate prompts or policies based only on currency.
 - Require A/B eval and rollback before trained adapters become defaults.
 
-This matches Shrimpy's broader doctrine: files, logs, commands, and sessions beat
-hidden framework state.
+This matches Shrimpy's broader doctrine: files, logs, commands, and sessions beat hidden framework state.
 
 ## Small Shrimpy Version
 
 The first implementation should be boring:
 
-1. Capture session costs: tokens, model, tool calls, duration, retries, wake
-   reason, owner, and channel/message path.
-2. Capture outcome signals: accepted, corrected, abandoned, test result,
-   command result, schema validity, user edit delta, or explicit rating.
-3. Normalize those into an inspectable `impact_ledger` record with evidence
-   pointers.
+1. Capture session costs: tokens, model, tool calls, duration, retries, wake reason, owner, and channel/message path.
+2. Capture outcome signals: accepted, corrected, abandoned, test result, command result, schema validity, user edit delta, or explicit rating.
+3. Normalize those into an inspectable `impact_ledger` record with evidence pointers.
 4. Add CLI commands to list, explain, correct, and export ledger entries.
 5. Use the ledger only for reports at first.
 6. Let scheduling, context size, and model choice read aggregate reports later.
@@ -191,8 +167,7 @@ This keeps the currency useful even if RL training is deferred.
 
 ## Relationship To The RL Eval Watchlist
 
-The current RL/eval note argues that Shrimpy should build capture, replay,
-tasksets, and reward/rubric infrastructure before adopting a trainer.
+The current RL/eval note argues that Shrimpy should build capture, replay, tasksets, and reward/rubric infrastructure before adopting a trainer.
 
 Agent currency is a sharper version of the same claim:
 
@@ -205,9 +180,7 @@ private interaction stream
   -> trainer export when the ecosystem is ready
 ```
 
-The likely product insight is that the currency/control plane may matter more
-than the trainer. Trainers can change. The private ledger of what was worth
-doing is the durable asset.
+The likely product insight is that the currency/control plane may matter more than the trainer. Trainers can change. The private ledger of what was worth doing is the durable asset.
 
 ## Open Questions
 
