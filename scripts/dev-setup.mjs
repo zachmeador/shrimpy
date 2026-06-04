@@ -216,6 +216,7 @@ function usage(code) {
   console.error(`Usage:
   npm run dev:setup [-- --name NAME] [-- --reuse] [-- --no-build]
   npm run dev:setup -- --copy-pi-state
+  npm run dev:setup:tui
   npm run dev:setup:init
   npm run dev:setup:status
   npm run dev:setup:shell
@@ -231,6 +232,7 @@ Commands:
   clean   Remove the temp env.
 
 Examples:
+  npm run dev:setup:tui
   npm run dev:setup
   npm run dev:setup -- --name tui
   npm run dev:setup -- --copy-pi-state

@@ -25,6 +25,7 @@
     "dev:setup:init": "node scripts/dev-setup.mjs init",
     "dev:setup:shell": "node scripts/dev-setup.mjs shell",
     "dev:setup:status": "node scripts/dev-setup.mjs status",
+    "dev:setup:tui": "node scripts/dev-setup.mjs setup --copy-pi-state",
     "gateway": "npm run build && node dist/gateway.js",
     "web": "npm run build && node dist/web/server.js",
     "web:dev": "node scripts/web-dev.mjs"
