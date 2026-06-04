@@ -47,7 +47,7 @@ policy wiring, initial agent shaping, and starter doc persistence.
 - Depends on [MODEL-001](model-001-user-configurable-model-policy.md): onboarding should create or validate the coding/maintenance policy first, then normally create `home` from the same hosted candidate unless the user chooses a separate policy.
 - Depends on [SETUP-002](setup-002-provider-model-policy-bootstrap.md): deterministic provider auth and model policy bootstrap should complete before the mechanic-guided conversation starts.
 - Depends on [MECH-002](mech-002-direct-mechanic-tui-command.md): `shrimpy mechanic` is the direct TUI front door for setup, repair, extension work, and later return visits after onboarding.
-- Likely files: `src/cli.ts`, `src/setup.ts`, `src/setup/templates*`, `src/sessions/direct.ts`, and onboarding-specific prompt/skill resources under setup templates.
+- Likely files: `src/cli.ts`, `src/setup/init.ts`, `src/setup/service.ts`, `src/setup/templates*`, `src/sessions/direct.ts`, and onboarding-specific prompt/skill resources under setup templates.
 - Source musing: `docs/musings/framework-design.md` "Init Experience" section.
 - Related musing: `docs/musings/app-habitats.md` covers the agents-as-apps/app-agent graduation idea that onboarding should explain in plain terms.
 

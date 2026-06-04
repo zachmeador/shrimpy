@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import {
   setupInit,
   setupSkillValidatorPath,
-} from "../dist/setup.js";
+} from "../dist/setup/init.js";
 import { projectRoot } from "../dist/app/index.js";
 
 let workspace: string;

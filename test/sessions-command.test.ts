@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdSessions } from "../dist/commands/sessions.js";
 import { createGatewaySessionDescriptor } from "../dist/sessions/spec.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 
 let workspace: string;
 

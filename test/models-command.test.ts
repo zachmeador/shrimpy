@@ -8,7 +8,7 @@ import {
   createGatewaySessionDescriptor,
   createLocalSessionDescriptor,
 } from "../dist/sessions/spec.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 
 let workspace: string;
 

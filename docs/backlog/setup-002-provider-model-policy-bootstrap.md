@@ -76,7 +76,7 @@ that makes the first guided session possible.
 - Related: [SETUP-001](setup-001-macos-friendly-install-docs.md) covers
   platform-specific install/docs polish; this item covers the model bootstrap
   behavior itself.
-- Likely files: `src/setup/service.ts`, `src/setup.ts`, `src/commands/setup.ts`,
+- Likely files: `src/setup/service.ts`, `src/setup/init.ts`, `src/commands/setup.ts`,
   `src/commands/models.ts`, setup templates, and model-policy config helpers.
 
 ## Done

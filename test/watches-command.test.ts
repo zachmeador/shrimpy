@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createAppRuntime } from "../dist/app/index.js";
 import { cmdWatches } from "../dist/commands/watches.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 import {
   inspectWatchHistory,
   inspectWatches,

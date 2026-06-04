@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdSurface } from "../dist/commands/surface.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 
 let workspace: string;
 

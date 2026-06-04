@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { SurfaceThreadStateStore } from "../dist/surfaces/shared/thread-state-store.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 
 let workspace: string;
 

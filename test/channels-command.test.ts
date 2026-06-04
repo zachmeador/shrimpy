@@ -7,7 +7,7 @@ import { ChannelBus } from "../dist/channels/bus.js";
 import { systemContent, textContent } from "../dist/channels/index.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { cmdChannels } from "../dist/commands/channels.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 
 let workspace: string;
 

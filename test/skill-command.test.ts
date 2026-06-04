@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdContext } from "../dist/commands/context.js";
 import { cmdSkills } from "../dist/commands/skills.js";
-import { setupInit } from "../dist/setup.js";
+import { setupInit } from "../dist/setup/init.js";
 import {
   createAppRuntime,
 } from "../dist/app/index.js";

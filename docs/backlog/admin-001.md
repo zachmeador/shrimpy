@@ -32,7 +32,7 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 - Do not hardwire agent decision-making that belongs in prompts, skills, or normal logs.
 
 ## Notes
-- Likely files: `src/setup.ts`, setup templates, `src/agents/workspace-manager.ts`, and skills/resources under setup templates.
+- Likely files: `src/setup/init.ts`, setup templates, `src/agents/workspace-manager.ts`, and skills/resources under setup templates.
 - Depends on [MODEL-001](model-001-user-configurable-model-policy.md): mechanic should point at a user-owned coding/maintenance policy instead of carrying a hardcoded model default.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
 - Early mechanic skill pack ideas: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.

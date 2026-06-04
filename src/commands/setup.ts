@@ -16,12 +16,12 @@ export const cmdSetup: CommandHandler = createCommandGroup({
   },
   commands: {
     init: async ({ config }) => {
-      const { setupInit } = await import("../setup.js");
+      const { setupInit } = await import("../setup/init.js");
       await setupInit(config.workspace);
       return 0;
     },
     telegram: async ({ config }) => {
-      const { setupTelegram } = await import("../setup.js");
+      const { setupTelegram } = await import("../setup/telegram.js");
       await setupTelegram(config.workspace);
       return 0;
     },

@@ -14,7 +14,7 @@ import {
 import {
   ensureWorkspaceInitialized,
   type SetupInitResult,
-} from "../setup.js";
+} from "./init.js";
 
 export interface SetupModelView {
   provider: string;
