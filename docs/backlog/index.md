@@ -2,6 +2,8 @@
 
 Active engineering notes for `shrimpy`. Completed work belongs in git history and stable docs.
 
+Status `draft` means the maintainer is not sure about the item yet.
+
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
@@ -29,6 +31,7 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
+| [SURFACE-005](surface-005-chat-surface-delivery-semantics.md) | draft | P2 | Surfaces | [SURFACE-002](surface-002-chat-delivery-attribution.md), [SURFACE-003](surface-003-chat-operation-status.md) | Chat surface delivery semantics |
 
 ## Later
 
