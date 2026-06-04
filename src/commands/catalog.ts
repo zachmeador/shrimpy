@@ -27,6 +27,9 @@ const agentOption = { name: "--agent", short: "-a", takesValue: true };
 const providerOption = { name: "--provider", short: "-p", takesValue: true };
 const modelOption = { name: "--model", short: "-m", takesValue: true };
 const modelPolicyOption = { name: "--model-policy", takesValue: true };
+const policyOption = { name: "--policy", takesValue: true };
+const candidateOption = { name: "--candidate", takesValue: true };
+const indexOption = { name: "--index", takesValue: true };
 const thinkingOption = { name: "--thinking", takesValue: true };
 const skillOption = { name: "--skill", short: "-k", takesValue: true };
 
@@ -53,7 +56,14 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["sessions", "list"], "[channel] [--agent <id>] [--json]", "Inspect active and archived sessions.", "Session Commands", [agentOption, jsonOption]),
   entry(["sessions", "compaction"], "<channel> [--agent <id>] [--session-type <type>] [--json]", "Inspect effective compaction policy and recorded session settings.", "Session Commands", [agentOption, { name: "--session-type", takesValue: true }, jsonOption]),
   entry(["models"], "[--json]", "Inspect model policies, agent defaults, and Pi-visible provider models.", "Session Commands", [jsonOption]),
-  entry(["models", "resolve"], "[--agent <id>] [--session <name>|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]", "Explain model precedence for CLI, session, channel, policy, or agent defaults.", "Session Commands", [agentOption, { name: "--session", short: "-s", takesValue: true }, { name: "--channel", short: "-c", takesValue: true }, providerOption, modelOption, { name: "--policy", takesValue: true }, jsonOption]),
+  entry(["models", "resolve"], "[--agent <id>] [--session <name>|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]", "Explain model precedence for CLI, session, channel, policy, or agent defaults.", "Session Commands", [agentOption, { name: "--session", short: "-s", takesValue: true }, { name: "--channel", short: "-c", takesValue: true }, providerOption, modelOption, policyOption, jsonOption]),
+  entry(["models", "policies"], "[list] [--json]", "List configured model policies and candidate resolution.", "Session Commands", [jsonOption]),
+  entry(["models", "policies", "list"], "[--json]", "List configured model policies and candidate resolution.", "Session Commands", [jsonOption]),
+  entry(["models", "policies", "show"], "<name> [--json]", "Inspect one model policy.", "Session Commands", [jsonOption]),
+  entry(["models", "policies", "set"], "<name> --candidate <provider>/<model> ... [--json]", "Replace a policy's ordered candidates.", "Session Commands", [candidateOption, jsonOption]),
+  entry(["models", "policies", "add-candidate"], "<name> <provider>/<model> [--index <n>] [--json]", "Add or reposition one policy candidate.", "Session Commands", [indexOption, jsonOption]),
+  entry(["models", "policies", "remove-candidate"], "<name> <provider>/<model> [--json]", "Remove one policy candidate.", "Session Commands", [jsonOption]),
+  entry(["models", "policies", "move-candidate"], "<name> <provider>/<model> --index <n> [--json]", "Move one policy candidate.", "Session Commands", [indexOption, jsonOption]),
 
   entry(["setup"], undefined, "Set up a minimal working Shrimpy environment when needed.", "Workspace And Runtime"),
   entry(["setup", "init"], undefined, "Create baseline workspace files.", "Workspace And Runtime"),

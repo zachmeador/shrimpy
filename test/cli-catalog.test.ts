@@ -28,6 +28,17 @@ describe("CLI catalog", () => {
     assert.match(usage, /shrimpy channels leave <name> --agent <id> \[--json\]/);
   });
 
+  test("catalogs model policy management commands", () => {
+    const usage = renderGroupUsage("models");
+
+    assert.match(usage, /shrimpy models policies \[list\] \[--json\]/);
+    assert.match(usage, /shrimpy models policies show <name> \[--json\]/);
+    assert.match(usage, /shrimpy models policies set <name> --candidate <provider>\/<model> \.\.\. \[--json\]/);
+    assert.match(usage, /shrimpy models policies add-candidate <name> <provider>\/<model> \[--index <n>\] \[--json\]/);
+    assert.match(usage, /shrimpy models policies remove-candidate <name> <provider>\/<model> \[--json\]/);
+    assert.match(usage, /shrimpy models policies move-candidate <name> <provider>\/<model> --index <n> \[--json\]/);
+  });
+
   test("generates top-level help from the catalog", () => {
     const help = renderCliHelp();
     const longestLine = Math.max(...stripAnsi(help).split("\n").map((line) => line.length));
@@ -49,11 +60,15 @@ describe("CLI catalog", () => {
     assert.match(bash, /skip_next=1; continue/);
     assert.match(bash, /"agent"\) suggestions="[^"]*channel-policy[^"]*list[^"]*run/);
     assert.match(bash, /"channels"\) suggestions="[^"]*join[^"]*leave[^"]*read/);
+    assert.match(bash, /"models"\) suggestions="[^"]*policies[^"]*resolve/);
+    assert.match(bash, /"models policies"\) suggestions="[^"]*add-candidate[^"]*list[^"]*move-candidate[^"]*remove-candidate[^"]*set[^"]*show/);
+    assert.match(bash, /"models policies set"\) suggestions="[^"]*--candidate[^"]*--json/);
     assert.match(zsh, /#compdef shrimpy/);
     assert.match(zsh, /compdef _shrimpy shrimpy/);
     assert.doesNotMatch(zsh, /\n_shrimpy "\$@"$/);
     assert.match(zsh, /skip_next=1/);
     assert.match(zsh, /"context sources"\) suggestions="list run"/);
+    assert.match(zsh, /"models policies"\) suggestions="[^"]*add-candidate[^"]*list[^"]*move-candidate[^"]*remove-candidate[^"]*set[^"]*show/);
   });
 
   test("completion install writes a cached zsh source block idempotently", async () => {
