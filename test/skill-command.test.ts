@@ -67,7 +67,7 @@ describe("skill context inspection", () => {
     );
 
     assert.equal(result, 0);
-    assert.match(lines.join("\n"), /Shrimpy Setup Skill/);
+    assert.match(lines.join("\n"), /Shrimpy Setup/);
   });
 
   test("context command renders separate turn context and user message previews", async () => {
@@ -512,7 +512,7 @@ describe("skill service", () => {
     const skill = getSkillView(runtime, "setup");
     assert.match(skill.entryPath, /agents\/shrimpy\/skills\/setup\/SKILL\.md$/);
     assert.equal(skill.loaded, true);
-    assert.match(loadSkillPrompt(runtime, "setup"), /first usable Shrimpy config/);
+    assert.match(loadSkillPrompt(runtime, "setup"), /first usable Shrimpy workspace/);
     assert.deepEqual(getSkillPromptResources(runtime, "setup"), [{
       rootPath: join(workspace, "agents", "shrimpy"),
       resourcePath: "skills/setup",

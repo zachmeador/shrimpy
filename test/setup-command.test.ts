@@ -11,7 +11,10 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdSetup } from "../dist/commands/setup.js";
-import { runSetupEntry } from "../dist/setup/service.js";
+import {
+  createSetupInteractiveSessionSpec,
+  runSetupEntry,
+} from "../dist/setup/service.js";
 
 let workspace: string;
 
@@ -39,6 +42,24 @@ async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines:
 }
 
 describe("setup entry", () => {
+  test("setup session runs as default shrimpy agent with setup skill through coding", () => {
+    assert.deepEqual(
+      createSetupInteractiveSessionSpec({
+        config: { workspace } as any,
+        cwd: workspace,
+      }),
+      {
+        agentId: "shrimpy",
+        channel: "setup",
+        sessionType: "tui",
+        initialMessage: "Begin setup.",
+        skills: ["setup"],
+        modelPolicy: "coding",
+        cwd: workspace,
+      },
+    );
+  });
+
   test("cmdSetup with no target initializes the workspace and stops when no models exist", async () => {
     const { result, lines } = await captureLogs(() =>
       cmdSetup([], { workspace } as any)
@@ -285,6 +306,57 @@ describe("setup entry", () => {
       provider: "openai",
       id: "gpt-5",
     }]);
+  });
+
+  test("runSetupEntry does not block setup on a separate agent policy", async () => {
+    await runSetupEntry(workspace, {
+      listModels: () => [],
+      log: () => {},
+    });
+    writeModelsJson({
+      providers: {
+        openai: modelProvider(["gpt-5"]),
+      },
+    });
+    writeConfig((config) => {
+      config.modelPolicies = {
+        coding: {
+          candidates: [{ provider: "openai", id: "gpt-5" }],
+        },
+        local: {
+          candidates: [{ provider: "missing", id: "nope" }],
+        },
+      };
+      config.agents[0].modelPolicy = "local";
+    });
+    rmSync(join(workspace, "agents", "shrimpy", "context"), {
+      recursive: true,
+      force: true,
+    });
+
+    let launched = false;
+    const lines: string[] = [];
+    const result = await runSetupEntry(workspace, {
+      listModels: () => [{ provider: "openai", id: "gpt-5" }],
+      confirmExistingConfig: async () => true,
+      launchSetupSession: async () => {
+        launched = true;
+      },
+      log: (line) => {
+        lines.push(line);
+      },
+    });
+
+    assert.equal(result.kind, "setup_started");
+    assert.equal(launched, true);
+    assert.match(lines.join("\n"), /Smoke-tested coding: openai\/gpt-5\./);
+    assert.doesNotMatch(lines.join("\n"), /missing\/nope/);
+    const config = readConfig();
+    assert.deepEqual(config.modelPolicies.local.candidates, [{
+      provider: "missing",
+      id: "nope",
+    }]);
+    assert.equal(config.agents[0].modelPolicy, "local");
   });
 
   test("runSetupEntry does not inspect separate policies once setup is already configured", async () => {

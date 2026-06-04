@@ -15,6 +15,9 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
   Mechanic should be seeded through those ordinary primitives.
 - `shrimpy setup` currently launches a setup skill as `shrimpy`, not
   `mechanic`.
+- A draft mechanic source skill already exists at
+  `src/skills/shrimpy-mechanic-ideas/`, including a pattern-inventory
+  reference for owner choices.
 - There is no top-level `shrimpy mechanic` command or `modelPolicy` config yet.
 
 ## Build
@@ -26,7 +29,10 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
   reasoning when available. The normal setup path may point both mechanic and
   the main `shrimpy` agent at `coding`; a separate local/private policy remains
   an advanced preference.
-- Seed a default mechanic skill pack for setup, repair, configuration changes, and app/agent guidance. `admin` can remain a historical/backlog label or alias if useful, but `mechanic` is the preferred user-facing name.
+- Seed a default mechanic skill pack for setup, repair, configuration changes,
+  and app/agent guidance, starting from the existing
+  `shrimpy-mechanic-ideas` draft. `admin` can remain a historical/backlog label
+  or alias if useful, but `mechanic` is the preferred user-facing name.
 - Polished setup should launch an interactive mechanic session that uses setup skills/resources internally.
 - The top-level maintenance chat entry point is `shrimpy mechanic`; do not add a competing `shrimpy doctor` front door.
 
@@ -40,7 +46,11 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
   should point at the user-owned `coding` policy instead of carrying a hardcoded
   model default.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
-- Early mechanic skill pack ideas: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
+- Early mechanic skill pack ideas live in `src/skills/shrimpy-mechanic-ideas/`:
+  guided surface setup, workspace repair, skill installation/shaping,
+  app-agent creation guidance, usage assessments for implementation
+  opportunities, and reusable explainers for how Shrimpy's primitives fit
+  together.
 - Related follow-up: [MECH-001](mech-001-skill-opportunity-watch.md)
   covers an opt-in mechanic-owned watch that reviews real Shrimpy usage, writes
   a Markdown assessment, and messages the user with concrete skill/app ideas

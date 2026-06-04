@@ -43,6 +43,16 @@ export interface SetupSessionLaunchInput {
   cwd?: string;
 }
 
+export interface SetupInteractiveSessionSpec {
+  agentId: "shrimpy";
+  channel: "setup";
+  sessionType: "tui";
+  initialMessage: string;
+  skills: ["setup"];
+  modelPolicy: typeof DEFAULT_MODEL_POLICY;
+  cwd?: string;
+}
+
 export interface RunSetupEntryDeps {
   cwd?: string;
   canLaunchProviderBootstrap?: () => boolean;
@@ -133,6 +143,14 @@ export async function launchSetupSession(
   const runtime = createAppRuntime(input.config);
   await runInteractiveAgentSession({
     runtime,
+    ...createSetupInteractiveSessionSpec(input),
+  });
+}
+
+export function createSetupInteractiveSessionSpec(
+  input: SetupSessionLaunchInput,
+): SetupInteractiveSessionSpec {
+  return {
     agentId: "shrimpy",
     channel: "setup",
     sessionType: "tui",
@@ -140,7 +158,7 @@ export async function launchSetupSession(
     skills: ["setup"],
     modelPolicy: DEFAULT_MODEL_POLICY,
     cwd: input.cwd,
-  });
+  };
 }
 
 export async function launchProviderBootstrapSession(
@@ -603,18 +621,6 @@ async function smokeTestSetupPolicies(
         policy: "agent:shrimpy",
         problems: ["config agents must include the shrimpy agent"],
       });
-    } else if (mainAgent.modelPolicy && mainAgent.modelPolicy !== DEFAULT_MODEL_POLICY) {
-      const separate = resolveModelPolicy(bootstrap, mainAgent.modelPolicy, "agent");
-      if (!separate.selected) {
-        problems.push({
-          policy: mainAgent.modelPolicy,
-          problems: separate.problems,
-        });
-      } else {
-        log(
-          `Smoke-tested shrimpy agent policy ${mainAgent.modelPolicy}: ${formatModelSelection(separate.selected)}.`,
-        );
-      }
     }
   } catch (err) {
     problems.push({

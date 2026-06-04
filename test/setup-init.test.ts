@@ -208,6 +208,13 @@ describe("setupInit", () => {
     const setupSkill = readFileSync(setupSkillPath, "utf-8");
     assert.match(setupSkill, /Shrimpy setup skill inside Pi's interactive TUI/i);
     assert.match(setupSkill, /Start by inspecting the current workspace state/);
+    assert.match(setupSkill, /ask exactly one next setup\s+decision/i);
+    assert.match(setupSkill, /official Shrimpy workspace paths/);
+    assert.match(setupSkill, /crawl other\s+accessible folders on this machine/);
+    assert.match(setupSkill, /scheduled background tasks enabled/);
+    assert.match(setupSkill, /enabled: false/);
+    assert.match(setupSkill, /modelPolicy: "coding"/);
+    assert.match(setupSkill, /Do not create mechanic\/admin agent machinery here/);
     assert.match(setupSkill, /validate-config\.sh/);
 
     const validationOutput = execFileSync(

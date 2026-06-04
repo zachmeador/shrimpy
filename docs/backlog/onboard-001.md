@@ -1,18 +1,23 @@
 # 🦐 ONBOARD-001: New User Onboarding Session
 
-Status: todo
+Status: review
 Priority: P2
 Area: Onboarding
+Depends On: [MODEL-001](model-001-user-configurable-model-policy.md), [SETUP-002](setup-002-provider-model-policy-bootstrap.md)
 
 ## Why
+
 First-run users should be able to install Shrimpy, run bare `shrimpy`, enter
 provider auth/API-key details and choose a model, then land in a guided setup
-TUI. `shrimpy setup` now owns the deterministic setup pieces, but that is
-not the full mechanic-led onboarding experience.
+TUI.
 
-The onboarding flow should be a normal guided session run by the bundled
-`mechanic` agent ([ADMIN-001](admin-001.md)) that walks the user through model
-policy wiring, initial agent shaping, and starter doc persistence.
+For now, keep onboarding shrimple: after provider/model bootstrap, launch the
+default `shrimpy` agent in a `setup` session with the `setup` skill. That
+session must explicitly use `modelPolicy: "coding"` so first setup does not
+depend on any future specialist-agent behavior.
+
+Mechanic/admin agent work can come later as normal agent packaging. It is not a
+prerequisite for the current onboarding flow.
 
 ## Current State
 
@@ -23,67 +28,72 @@ policy wiring, initial agent shaping, and starter doc persistence.
   `modelPolicies.coding`, can launch a Pi model setup TUI for `/login`
   and `/model`, and no-ops once a `coding` candidate and agent `context/`
   exist.
+- After model policy setup succeeds, setup launches an interactive session as
+  `shrimpy` with `channel: "setup"`, `sessionType: "tui"`,
+  `skills: ["setup"]`, and `modelPolicy: "coding"`.
 - The setup skill lives under `agents/shrimpy/skills/setup/` and includes a
-  validator script. It is not mechanic-owned yet.
-- There is no bundled mechanic handoff yet.
+  validator script.
+- There is no bundled mechanic handoff in this flow.
 
 ## Build
-- Add an onboarding entry point that launches a guided TUI session as the
-  `mechanic` agent through the `coding` model policy.
-- Make bare `shrimpy` the first-run front door: missing setup should collect
+
+- Keep bare `shrimpy` the first-run front door: missing setup should collect
   auth/API-key details and a model first, then launch the guided setup session.
-- Cover at minimum: getting `coding` authenticated and reachable first, deciding
-  whether the main Shrimpy agent should use `coding` or a separate local/private
-  policy, walking the user through their initial agent's identity and prompt,
-  and persisting the resulting starter docs to the workspace.
-- Start by asking for Pi-visible auth for a capable hosted model when no
-  `coding` policy is configured. The normal path should use `coding` for both
-  mechanic/setup work and everyday Shrimpy; a separate local/private policy is
-  an advanced preference, not the expected first-run path.
-- Launch a special setup skill after model setup. The skill should ask the
-  file-changing questions and use the mechanic agent's setup resources to
-  initialize the user's environment.
+- Require the setup session to run as the default `shrimpy` agent through the
+  `coding` model policy.
+- Drive the user-facing flow from the setup skill rather than embedding the
+  full onboarding questionnaire in TypeScript.
 - Ask only a small number of file-changing questions during first setup: what to
-  call the user, what the default Shrimpy agent should be like, whether to use
-  `coding` or a separate local/private policy for everyday Shrimpy, whether to
-  add a chat surface now, and whether Shrimpy may proactively message the user.
+  call the user, what the default Shrimpy agent should be like, whether to add a
+  chat surface now, whether Shrimpy may inspect paths outside the official
+  workspace, and whether to leave scheduled background tasks enabled or pause
+  them.
 - Ask whether the user wants a chat surface at all, and if so which platform
   they prefer. Telegram is the first implemented option, but the flow should be
   shaped to add more surfaces later without rewriting the setup conversation.
 - Include a short, consultative explainer for when to create a new agent or
   app-agent instead of using the default agent, a skill, an agent-owned watch, or
   a channel.
-- Drive the flow from mechanic's setup skills/resources rather than embedding flow logic in code.
-- Surface clear next steps when onboarding ends (where files landed, how to launch the agent normally).
+- Surface clear next steps when onboarding ends: where files landed and how to
+  launch the agent normally.
+- Leave mechanic/admin agent onboarding to future backlog work.
 
 ## Boundaries
-- Do not create a separate onboarding runtime or privileged agent species; the
-  session is just mechanic in setup mode.
+
+- Do not create a separate onboarding runtime or privileged agent species.
+- Do not require a bundled `mechanic` agent or `shrimpy mechanic` command for
+  first setup.
 - Do not silently overwrite user-edited config or starter docs; mutations happen
   through explicit user actions.
-- Keep `shrimpy setup init` as the minimal non-interactive baseline; the guided session is additive.
+- Keep `shrimpy setup init` as the minimal non-interactive baseline; the guided
+  session is additive.
 
 ## Notes
-- Depends on [ADMIN-001](admin-001.md): the mechanic agent and its setup
-  skills/resources are the substrate this session runs on.
+
 - Depends on [MODEL-001](model-001-user-configurable-model-policy.md):
-  onboarding should create or validate `coding` first, then default the main
-  Shrimpy agent to `coding` unless the user chooses a separate policy.
+  onboarding should create or validate `coding` first.
 - Depends on [SETUP-002](setup-002-provider-model-policy-bootstrap.md):
-  deterministic provider auth and model policy setup complete before the
-  mechanic-guided conversation starts.
-- Depends on [MECH-002](mech-002-direct-mechanic-tui-command.md):
-  `shrimpy mechanic` is the direct TUI front door for setup, repair, extension
-  work, and later return visits after onboarding.
-- Likely files: `src/cli.ts`, `src/setup/init.ts`, `src/setup/service.ts`, `src/setup/templates*`, `src/sessions/direct.ts`, and onboarding-specific prompt/skill resources under setup templates.
+  deterministic provider auth and model policy setup complete before the guided
+  setup conversation starts.
+- Future mechanic work can reuse or wrap the same setup skill through ordinary
+  agent primitives, using the draft `shrimpy-mechanic-ideas` source skill as
+  input, when [ADMIN-001](admin-001.md) and
+  [MECH-002](mech-002-direct-mechanic-tui-command.md) are ready.
+- Likely files: `src/cli.ts`, `src/setup/init.ts`, `src/setup/service.ts`,
+  `src/setup/templates*`, `src/sessions/direct.ts`, and setup skill resources
+  under setup templates.
 - Source musing: `docs/musings/framework-design.md` "Init Experience" section.
-- Related musing: `docs/musings/app-habitats.md` covers the agents-as-apps/app-agent graduation idea that onboarding should explain in plain terms.
+- Related musing: `docs/musings/app-habitats.md` covers the
+  agents-as-apps/app-agent graduation idea that onboarding should explain in
+  plain terms.
 
 ## Done
-- A first-run user can reach a working agent through one guided session.
+
+- A first-run user can reach a working agent through one guided setup skill
+  session.
 - A fresh install followed by bare `shrimpy` collects auth/model details and
   launches the setup TUI without requiring the user to know subcommands.
-- The first working model path is `coding`, and the main Shrimpy agent uses
-  `coding` unless the user explicitly chooses a separate local/private policy.
+- The first working model path is `coding`, and the setup session explicitly
+  requires `modelPolicy: "coding"`.
 - The session leaves a coherent set of starter docs and config behind.
-- Tests cover command wiring and prompt/resource selection.
+- Tests cover command wiring and setup session config selection.

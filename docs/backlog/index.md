@@ -26,7 +26,7 @@ closed out.
 | [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |
 | [SETUP-001](setup-001-macos-friendly-install-docs.md) | todo | P2 | Setup | none | macOS-friendly setup and install docs |
 | [SETUP-002](setup-002-provider-model-policy-bootstrap.md) | review | P1 | Setup | [MODEL-001](model-001-user-configurable-model-policy.md) | Provider and model policy setup |
-| [ONBOARD-001](onboard-001.md) | todo | P2 | Onboarding | [ADMIN-001](admin-001.md), [MODEL-001](model-001-user-configurable-model-policy.md), [SETUP-002](setup-002-provider-model-policy-bootstrap.md), [MECH-002](mech-002-direct-mechanic-tui-command.md) | Guided new user onboarding session |
+| [ONBOARD-001](onboard-001.md) | review | P2 | Onboarding | [MODEL-001](model-001-user-configurable-model-policy.md), [SETUP-002](setup-002-provider-model-policy-bootstrap.md) | Guided new user onboarding session |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | [SETUP-001](setup-001-macos-friendly-install-docs.md) | Local agent sandboxing |
 | [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | draft | P2 | Surfaces | none | Telegram typing activity |

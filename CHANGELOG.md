@@ -25,6 +25,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Added shared and per-agent `vault/` and `projects/` workspace defaults plus setup-template guidance for saved files, reports, and project work folders.
 - Changed `shrimpy setup` to set up missing model policy and context, while leaving configured workspaces unchanged.
+- Changed first-run onboarding to launch the default `shrimpy` agent with the `setup` skill through the required `coding` model policy, preserving other agent policies without letting them block setup.
+- Improved the generated `setup` skill so first-run guidance has a concrete inspect, ask, edit, validate, and handoff flow, including explicit consent before crawling outside official workspace paths.
 
 ### Agents, Skills & Tools
 

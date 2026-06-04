@@ -7,9 +7,9 @@ Depends On: [MODEL-001](model-001-user-configurable-model-policy.md)
 
 ## Why
 
-The first launch path needs a deterministic step between workspace init and
-agent-led onboarding. Before Shrimpy can hand the user to mechanic, setup should
-get the required `coding` model policy authenticated, reachable, and recorded in
+The first launch path needs a deterministic step between workspace init and the
+guided setup skill. Before Shrimpy can open that setup session, setup should get
+the required `coding` model policy authenticated, reachable, and recorded in
 workspace config.
 
 This is not the conversational onboarding flow. It is the boring setup layer
@@ -36,9 +36,8 @@ that makes the first guided session possible.
   normal TUI when the workspace config is missing or no `coding` candidate is
   configured. Non-interactive bare `shrimpy` prints a `shrimpy setup` hint.
 - After model policy setup succeeds, setup launches the existing setup skill
-  session as `shrimpy` through `coding`. Mechanic handoff remains blocked on
-  [ADMIN-001](admin-001.md), [MECH-002](mech-002-direct-mechanic-tui-command.md),
-  and [ONBOARD-001](onboard-001.md).
+  session as `shrimpy` through `coding`. Mechanic handoff remains future work
+  outside the current onboarding path.
 - Tests cover bare root command detection, fresh setup,
   model setup continuation, setup no-op behavior, existing-policy
   preservation, confirmed replacement, and unresolved diagnostics.
@@ -52,15 +51,14 @@ that makes the first guided session possible.
 - Create or update `modelPolicies.coding` from the selected model candidate.
 - Default the main `shrimpy` agent to `modelPolicy: "coding"` so normal users
   get a working Shrimpy agent immediately.
-- Let users explicitly choose a separate policy such as `local`, including
-  local/private candidates, but frame that as an advanced preference.
-- Smoke-test policy resolution before launching any guided setup session:
-  `coding` must resolve; any explicitly selected separate policy should resolve
-  or fail with a clear diagnostic.
-- Once model policy setup succeeds, hand off to [ONBOARD-001](onboard-001.md) when
-  the mechanic onboarding flow is available, or launch the direct
-  [MECH-002](mech-002-direct-mechanic-tui-command.md) command path for ordinary
-  mechanic chat.
+- Do not add a first-run separate local/private policy chooser in this item.
+  Users can inspect or edit additional policies later with `shrimpy models`.
+- Smoke-test `coding` before launching any guided setup session. Preserve any
+  explicit separate agent policy in config, but do not let it block the setup
+  skill session because that session explicitly runs through `coding`.
+- Once model policy setup succeeds, hand off to [ONBOARD-001](onboard-001.md) by
+  launching the default `shrimpy` agent with the setup skill and an explicit
+  `coding` model policy.
 - Keep all written config inspectable and preserve existing user-edited policy
   entries unless the user explicitly asks to replace them.
 
@@ -83,8 +81,11 @@ that makes the first guided session possible.
   policy schema, resolution order, and inspection commands this setup uses.
 - Related: [ONBOARD-001](onboard-001.md) should start after this setup has
   produced a resolvable `coding` path.
-- Related: [MECH-002](mech-002-direct-mechanic-tui-command.md) is the direct TUI
-  chat command this flow can hand the user to after policy setup.
+- Future mechanic work can reuse the setup skill after
+  [ADMIN-001](admin-001.md) and
+  [MECH-002](mech-002-direct-mechanic-tui-command.md) exist. The existing
+  `src/skills/shrimpy-mechanic-ideas/` source skill is the draft mechanic
+  guidance to draw from later.
 - Related: [SETUP-001](setup-001-macos-friendly-install-docs.md) covers
   platform-specific install/docs polish; this item covers the model setup
   behavior itself.
@@ -96,8 +97,8 @@ that makes the first guided session possible.
 - A fresh user can run `shrimpy setup`, authenticate/select one capable hosted
   model, get a resolvable `coding` policy, and have the main `shrimpy` agent
   default to it.
-- A user who wants local/private everyday Shrimpy can choose a separate policy
-  without blocking `coding` setup.
+- Existing separate agent policies are preserved, but first setup only requires
+  the `coding` policy.
 - Setup explains unresolved policy failures clearly and points to
   `shrimpy models` inspection commands.
 - Existing model policies are preserved unless the user confirms replacement.

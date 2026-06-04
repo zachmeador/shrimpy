@@ -177,7 +177,11 @@ creates `modelPolicies.coding` from the selected candidate when the policy is
 missing, defaults an unset `shrimpy` agent to `modelPolicy: "coding"`, and
 smoke-tests `coding` through the normal resolver. If `coding` exists but does
 not resolve during setup, it reports the candidate problems and keeps
-the existing policy unless replacement is confirmed.
+the existing policy unless replacement is confirmed. After the policy setup
+passes, the guided setup session opens as the default `shrimpy` agent with the
+`setup` skill and an explicit `modelPolicy: "coding"` session override.
+Additional explicit agent policies are preserved, but they do not block this
+first setup session.
 
 ## Agents
 
