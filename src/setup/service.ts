@@ -56,6 +56,7 @@ export interface SetupInteractiveSessionSpec {
 
 export interface RunSetupEntryDeps {
   cwd?: string;
+  requireRootTuiModel?: boolean;
   canLaunchProviderBootstrap?: () => boolean;
   confirmExistingConfig?: (configPath: string) => Promise<boolean>;
   confirmReplaceModelPolicy?: (input: ConfirmReplaceModelPolicyInput) => Promise<boolean>;
@@ -182,7 +183,9 @@ export async function runSetupEntry(
 ): Promise<SetupEntryResult> {
   const log = deps?.log ?? ((line: string) => console.log(line));
   const cwd = deps?.cwd ?? workspace;
-  if (isSetupAlreadyConfigured(workspace)) {
+  if (isSetupAlreadyConfigured(workspace, {
+    requireRootTuiModel: deps?.requireRootTuiModel ?? false,
+  })) {
     log("");
     log("shrimpy setup");
     log("");
@@ -292,7 +295,10 @@ function formatModelLabel(model: SetupModelView): string {
   return `${model.provider}/${model.id}`;
 }
 
-function isSetupAlreadyConfigured(workspace: string): boolean {
+function isSetupAlreadyConfigured(
+  workspace: string,
+  opts?: { requireRootTuiModel?: boolean },
+): boolean {
   const paths = createWorkspacePaths(workspace);
   if (!existsSync(paths.primaryConfigPath)) return false;
 
@@ -309,11 +315,34 @@ function isSetupAlreadyConfigured(workspace: string): boolean {
   if (readPolicyState(raw.modelPolicies, DEFAULT_MODEL_POLICY).kind !== "configured") {
     return false;
   }
+  if (!resolvePolicyAgainstRawConfig(workspace, raw, DEFAULT_MODEL_POLICY).selected) {
+    return false;
+  }
+  if (
+    opts?.requireRootTuiModel &&
+    !resolvePolicyAgainstRawConfig(
+      workspace,
+      raw,
+      findDefaultAgentModelPolicy(raw.agents),
+    ).selected
+  ) {
+    return false;
+  }
 
   const shrimpyRoot = findAgentRoot(raw.agents, "shrimpy");
   const mechanicRoot = findAgentRoot(raw.agents, MECHANIC_AGENT_ID);
   return existsSync(createAgentPaths(workspace, shrimpyRoot).contextDir) &&
     existsSync(createAgentPaths(workspace, mechanicRoot).contextDir);
+}
+
+function findDefaultAgentModelPolicy(rawAgents: unknown): string {
+  if (Array.isArray(rawAgents)) {
+    const first = rawAgents.find(isRecord);
+    if (isRecord(first) && typeof first.modelPolicy === "string" && first.modelPolicy) {
+      return first.modelPolicy;
+    }
+  }
+  return DEFAULT_MODEL_POLICY;
 }
 
 function findAgentRoot(rawAgents: unknown, agentId: string): string {

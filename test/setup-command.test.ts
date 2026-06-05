@@ -183,10 +183,15 @@ describe("setup entry", () => {
       listModels: () => [],
       log: () => {},
     });
+    writeModelsJson({
+      providers: {
+        openai: modelProvider(["gpt-5"]),
+      },
+    });
     writeConfig((config) => {
       config.modelPolicies = {
         coding: {
-          candidates: [{ provider: "missing", id: "nope" }],
+          candidates: [{ provider: "openai", id: "gpt-5" }],
         },
       };
     });
@@ -213,8 +218,8 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Nothing to do\./);
     const config = readConfig();
     assert.deepEqual(config.modelPolicies.coding.candidates, [{
-      provider: "missing",
-      id: "nope",
+      provider: "openai",
+      id: "gpt-5",
     }]);
   });
 
@@ -234,10 +239,6 @@ describe("setup entry", () => {
           candidates: [{ provider: "missing", id: "nope" }],
         },
       };
-    });
-    rmSync(join(workspace, "agents", "shrimpy", "context"), {
-      recursive: true,
-      force: true,
     });
 
     let launched = false;
@@ -400,6 +401,43 @@ describe("setup entry", () => {
     assert.equal(result.kind, "already_configured");
     assert.equal(launched, false);
     assert.match(lines.join("\n"), /Nothing to do\./);
+  });
+
+  test("runSetupEntry can require the root TUI agent policy for bare shrimpy", async () => {
+    await runSetupEntry(workspace, {
+      listModels: () => [],
+      log: () => {},
+    });
+    writeModelsJson({
+      providers: {
+        openai: modelProvider(["gpt-5"]),
+      },
+    });
+    writeConfig((config) => {
+      config.modelPolicies = {
+        coding: {
+          candidates: [{ provider: "openai", id: "gpt-5" }],
+        },
+        local: {
+          candidates: [{ provider: "missing", id: "nope" }],
+        },
+      };
+      config.agents[0].modelPolicy = "local";
+    });
+
+    let launched = false;
+    const result = await runSetupEntry(workspace, {
+      requireRootTuiModel: true,
+      listModels: () => [{ provider: "openai", id: "gpt-5" }],
+      confirmExistingConfig: async () => true,
+      launchSetupSession: async () => {
+        launched = true;
+      },
+      log: () => {},
+    });
+
+    assert.equal(result.kind, "setup_started");
+    assert.equal(launched, true);
   });
 });
 

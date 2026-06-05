@@ -36,7 +36,10 @@ export interface ChatCommandDeps {
     request: ChatSessionRequest,
   ) => Promise<void>;
   shouldRunSetup?: (workspace: string) => Promise<boolean>;
-  runSetup?: (workspace: string, opts: { cwd: string }) => Promise<SetupEntryResult>;
+  runSetup?: (
+    workspace: string,
+    opts: { cwd: string; requireRootTuiModel?: boolean },
+  ) => Promise<SetupEntryResult>;
   bootstrapCompletion?: () => Promise<unknown>;
   cwd?: string;
 }
@@ -60,7 +63,10 @@ export async function cmdChat(
         );
       }
 
-      const result = await (deps.runSetup ?? runSetupEntry)(config.workspace, { cwd });
+      const result = await (deps.runSetup ?? runSetupEntry)(config.workspace, {
+        cwd,
+        requireRootTuiModel: true,
+      });
       return result.kind === "setup_started" ? 0 : 1;
     }
   }

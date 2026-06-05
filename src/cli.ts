@@ -91,7 +91,10 @@ try {
       }
 
       const { runSetupEntry } = await import("./setup/service.js");
-      const result = await runSetupEntry(workspace, { cwd: process.cwd() });
+      const result = await runSetupEntry(workspace, {
+        cwd: process.cwd(),
+        requireRootTuiModel: true,
+      });
       process.exit(result.kind === "setup_started" ? 0 : 1);
     }
   }

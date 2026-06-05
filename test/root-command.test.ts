@@ -64,7 +64,7 @@ describe("root shrimpy command setup path", () => {
     assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), true);
   });
 
-  test("opens normal TUI path when coding policy has a candidate", async () => {
+  test("runs setup when coding policy candidate is unusable", async () => {
     ensureWorkspaceInitialized(workspace);
     writeModelsJson({
       providers: {
@@ -79,7 +79,7 @@ describe("root shrimpy command setup path", () => {
       };
     });
 
-    assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), false);
+    assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), true);
   });
 
   test("opens normal TUI when coding policy resolves", async () => {
@@ -98,6 +98,28 @@ describe("root shrimpy command setup path", () => {
     });
 
     assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), false);
+  });
+
+  test("checks the default agent policy instead of only coding", async () => {
+    ensureWorkspaceInitialized(workspace);
+    writeModelsJson({
+      providers: {
+        openai: modelProvider(["gpt-5"]),
+      },
+    });
+    writeConfig((config) => {
+      config.modelPolicies = {
+        coding: {
+          candidates: [{ provider: "openai", id: "gpt-5" }],
+        },
+        local: {
+          candidates: [{ provider: "missing", id: "nope" }],
+        },
+      };
+      config.agents[0].modelPolicy = "local";
+    });
+
+    assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), true);
   });
 });
 
