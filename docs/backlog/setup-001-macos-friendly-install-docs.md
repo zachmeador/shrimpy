@@ -1,6 +1,6 @@
 # 🦐 SETUP-001: macOS-Friendly Setup and Install Docs
 
-Status: todo
+Status: review
 Priority: P2
 Area: Setup
 

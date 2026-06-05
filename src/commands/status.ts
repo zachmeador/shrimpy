@@ -1,10 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
 import { collectGatewayActivity } from "../gateway/status.js";
 import { loadGatewayWatchIds } from "../gateway/watch-service.js";
+import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway-ctl.js";
 import {
   loadTelegramOffset,
   telegramStatePath,
@@ -15,26 +15,14 @@ import { accent, dim, label } from "../util/style.js";
 import { printWorkspaceCheckpointStatus } from "./workspace.js";
 import type { CommandHandler } from "./framework.js";
 
-function activeStatus(serviceName: string): string | null {
-  try {
-    return execFileSync(
-      "systemctl",
-      ["--user", "is-active", serviceName],
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
-    ).trim();
-  } catch {
-    return null;
-  }
-}
-
 export const cmdStatus: CommandHandler = async (_argv, config) => {
   const runtime = createAppRuntime(config);
   const channelBus = runtime.createChannelBus();
   const ws = runtime.paths.workspace;
   console.log(`${label("workspace:")} ${ws}`);
 
-  const gatewayStatus = activeStatus("shrimpy-gateway") ?? "inactive";
-  console.log(`${label("gateway:")} ${gatewayStatus}`);
+  const gatewayStatus = readGatewayServiceStatus();
+  console.log(`${label("gateway:")} ${formatGatewayServiceSummary(gatewayStatus)}`);
 
   printWorkspaceCheckpointStatus(inspectWorkspaceCheckpointStatus(ws));
 

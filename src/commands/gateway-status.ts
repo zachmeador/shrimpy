@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
 import {
@@ -6,12 +5,14 @@ import {
   loadGatewayWatchClockSummary,
 } from "../gateway/status.js";
 import { loadGatewayWatchIds } from "../gateway/watch-service.js";
+import { readGatewayServiceStatus, type GatewayServiceStatus } from "../gateway-ctl.js";
 import { dim, label } from "../util/style.js";
 import { formatFutureOrPast } from "../util/time-format.js";
 
-const SERVICE_NAME = "shrimpy-gateway";
-
-export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0]): void {
+export function printGatewayStatus(
+  config: Parameters<typeof createAppRuntime>[0],
+  service: GatewayServiceStatus = readGatewayServiceStatus(),
+): void {
   const runtime = createAppRuntime(config);
   const watchIds = loadGatewayWatchIds(runtime);
   const activity = collectGatewayActivity(
@@ -26,8 +27,16 @@ export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0
   );
 
   console.log(`${label("workspace:")} ${runtime.paths.workspace}`);
-  console.log(`${label("gateway service:")} ${systemctlStatus("is-active")}`);
-  console.log(`${label("gateway enabled:")} ${systemctlStatus("is-enabled")}`);
+  console.log(`${label("gateway manager:")} ${service.manager}`);
+  console.log(`${label("gateway service:")} ${service.active}`);
+  console.log(`${label("gateway enabled:")} ${service.enabled}`);
+  if (service.definitionPath) {
+    console.log(`${label("gateway service file:")} ${service.definitionPath}`);
+  }
+  console.log(`${label("gateway log:")} ${runtime.paths.gatewayLogPath}`);
+  if (service.serviceLogPath) {
+    console.log(`${label("gateway service log:")} ${service.serviceLogPath}`);
+  }
   console.log(`${label("tracked channels:")} ${activity.channelCount}`);
 
   if (activity.lastWatchRun) {
@@ -59,19 +68,6 @@ export function printGatewayStatus(config: Parameters<typeof createAppRuntime>[0
   } else {
     console.log(`${label("next watch run due:")} ${dim("(unknown)")}`);
   }
-}
-
-function systemctlStatus(kind: "is-active" | "is-enabled"): string {
-  const result = spawnSync("systemctl", ["--user", kind, SERVICE_NAME], {
-    encoding: "utf-8",
-  });
-
-  if (result.error) return "unknown";
-
-  const stdout = result.stdout.trim();
-  if (stdout) return stdout;
-
-  return "unknown";
 }
 
 function when(ms: number): string {

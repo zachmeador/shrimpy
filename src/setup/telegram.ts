@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
@@ -7,6 +6,7 @@ import {
   telegramChannelDisplayExample,
   validateTelegramInstanceId,
 } from "../surfaces/telegram/index.js";
+import { readGatewayServiceStatus } from "../gateway-ctl.js";
 import {
   readJsonFileStrict,
   writeJsonFileAtomic,
@@ -65,21 +65,8 @@ function parseChatIds(input: string): number[] | null {
   return ids;
 }
 
-function isServiceActive(serviceName: string): boolean {
-  try {
-    const out = execFileSync(
-      "systemctl",
-      ["--user", "is-active", serviceName],
-      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
-    ).trim();
-    return out === "active";
-  } catch {
-    return false;
-  }
-}
-
 function checkGatewayStatus(): "active" | "inactive" {
-  if (isServiceActive("shrimpy-gateway")) return "active";
+  if (readGatewayServiceStatus().active === "active") return "active";
   return "inactive";
 }
 

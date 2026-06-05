@@ -9,6 +9,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdGateway } from "../dist/commands/gateway.js";
+import { printGatewayStatus } from "../dist/commands/gateway-status.js";
 
 let workspace: string;
 
@@ -79,5 +80,30 @@ describe("cmdGateway", () => {
     assert.equal(result, 1);
     assert.deepEqual(stdout, []);
     assert.match(stderr.join("\n"), /gateway log not found:/);
+  });
+
+  test("prints platform service details in gateway status", async () => {
+    const service = {
+      manager: "launchd" as const,
+      serviceName: "io.github.zachmeador.shrimpy.gateway",
+      active: "active",
+      enabled: "installed",
+      definitionPath: "/Users/alice/Library/LaunchAgents/io.github.zachmeador.shrimpy.gateway.plist",
+      serviceLogPath: "/Users/alice/Library/Logs/Shrimpy/gateway.launchd.log",
+    };
+
+    const { stdout, stderr } = await captureConsole(async () => {
+      printGatewayStatus({ workspace } as any, service);
+      return 0;
+    });
+
+    const output = stdout.join("\n");
+    assert.deepEqual(stderr, []);
+    assert.match(output, /gateway manager:.*launchd/);
+    assert.match(output, /gateway service:.*active/);
+    assert.match(output, /gateway enabled:.*installed/);
+    assert.match(output, /gateway service file:.*io\.github\.zachmeador\.shrimpy\.gateway\.plist/);
+    assert.match(output, /gateway log:.*runtime\/logs\/gateway\.log/);
+    assert.match(output, /gateway service log:.*gateway\.launchd\.log/);
   });
 });

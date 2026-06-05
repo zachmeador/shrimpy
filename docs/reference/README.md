@@ -6,6 +6,7 @@ Current behavior of Shrimpy.
 
 - [overview.md](overview.md) — orientation and current shape.
 - [design.md](design.md) — current design principles and constraints.
+- [setup.md](setup.md) — install and gateway service lifecycle.
 - [architecture.md](architecture.md) — primitives, layering, and the boundaries that hold today.
 - [runtime.md](runtime.md) — direct runs, gateway dispatch, watch runs, child runs.
 - [channels.md](channels.md) — message protocol, membership, addressing, policy, inspection, and egress.

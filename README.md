@@ -15,6 +15,7 @@ Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree
 - [docs/README.md](docs/README.md) — the docs map.
 - [docs/reference/overview.md](docs/reference/overview.md) — core model and invariants.
 - [docs/reference/design.md](docs/reference/design.md) — philosophy, settled decisions, and active reconsiderations.
+- [docs/reference/setup.md](docs/reference/setup.md) — install and gateway service lifecycle.
 - [docs/reference/runtime.md](docs/reference/runtime.md) — CLI, gateway, sessions, adapters, and scheduler flow.
 - [docs/reference/memory.md](docs/reference/memory.md) — memory model, upkeep, and continuity aspiration.
 - [docs/reference/configuration.md](docs/reference/configuration.md) — workspace config files and day-to-day knobs.
@@ -49,6 +50,8 @@ shrimpy setup init
 
 The installer only installs the CLI. Workspace creation and configuration stay explicit through `shrimpy setup init`.
 
+See [docs/reference/setup.md](docs/reference/setup.md) for macOS gateway behavior and the full setup checklist.
+
 For zsh users, the installer and interactive launches automatically install and refresh cached shell completion. Completion scripts are generated from the same CLI metadata as `shrimpy --help`:
 
 ```bash
@@ -73,7 +76,7 @@ shrimpy-web                     # run the web inspector
 
 ## 🦐 Config
 
-Config lives at `workspace/config/shrimpy.json`. The workspace path is set in `~/.shrimpy-workspace.json`; when unset, Shrimpy uses `.shrimpy/` under the project root.
+Config lives at `workspace/config/shrimpy.json`. The workspace path is set in `~/.shrimpy-workspace.json`; when unset, Shrimpy uses `.shrimpy/` under the current working directory.
 
 See [docs/reference/configuration.md](docs/reference/configuration.md) for the current config shape.
 
@@ -83,11 +86,11 @@ The workspace directory holds runtime state:
 
 ```text
 config/          JSON config files
-framework/       shared framework prompt resources
+docs/framework/ shared framework prompt resources
 agents/          per-agent resources, skills, memory, and sessions
 channels/        append-only JSONL message logs
 media/           downloaded media
-logs/            gateway logs
+runtime/logs/    gateway logs
 state/           scheduler state, one-time schedules, provider auth, and model registry
 ```
 
@@ -112,7 +115,7 @@ src/
   app/                    AppRuntime, workspace paths, project-root helpers
   cli.ts                  CLI dispatcher and interactive mode entry
   gateway.ts              Gateway entry point
-  gateway-ctl.ts          systemd user service controls
+  gateway-ctl.ts          platform service controls for the gateway
   commands/               Non-interactive CLI subcommands
   config/                 Config loading and schema resolution
   channels/               JSONL pub/sub primitives and typed channel protocol

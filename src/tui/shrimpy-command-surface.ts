@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
@@ -27,6 +26,7 @@ import {
   type ChannelMessageSnapshot,
 } from "../gateway/status.js";
 import { loadGatewayWatchIds } from "../gateway/watch-service.js";
+import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway-ctl.js";
 import {
   inspectWatches,
   type WatchInspection,
@@ -275,12 +275,13 @@ function overviewStatusText(
   options: ShrimpyCommandSurfaceOptions,
 ): string {
   const runtime = options.runtime;
+  const service = readGatewayServiceStatus();
   return [
     theme.bold("Shrimpy Status"),
     "",
     label("Version", formatVersionLabel()),
     label("Agent", options.agentId),
-    label("Gateway", gatewayServiceStatus("is-active")),
+    label("Gateway", formatGatewayServiceSummary(service)),
     label("Workspace", runtime.paths.workspace),
     label("CWD", options.cwd),
     label("Model", formatSessionModel(mode.session.model)),
@@ -312,6 +313,7 @@ function workspaceStatusText(options: ShrimpyCommandSurfaceOptions): string {
 
 function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   const runtime = options.runtime;
+  const service = readGatewayServiceStatus();
   const watchIds = loadGatewayWatchIds(runtime);
   const activity = collectGatewayActivity(
     runtime.paths.channelsDir,
@@ -326,8 +328,12 @@ function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   const lines = [
     theme.bold("Gateway"),
     "",
-    label("Gateway service", gatewayServiceStatus("is-active")),
-    label("Gateway enabled", gatewayServiceStatus("is-enabled")),
+    label("Gateway manager", service.manager),
+    label("Gateway service", service.active),
+    label("Gateway enabled", service.enabled),
+    ...(service.definitionPath ? [label("Gateway service file", service.definitionPath)] : []),
+    label("Gateway log", runtime.paths.gatewayLogPath),
+    ...(service.serviceLogPath ? [label("Gateway service log", service.serviceLogPath)] : []),
     label("Tracked channels", String(activity.channelCount)),
   ];
 
@@ -574,19 +580,6 @@ function label(name: string, value: string): string {
 
 function dimText(text: string): string {
   return theme.fg("dim", text);
-}
-
-function gatewayServiceStatus(kind: "is-active" | "is-enabled"): string {
-  const result = spawnSync("systemctl", ["--user", kind, "shrimpy-gateway"], {
-    encoding: "utf-8",
-  });
-
-  if (result.error) return "unknown";
-
-  const stdout = result.stdout.trim();
-  if (stdout) return stdout;
-
-  return "unknown";
 }
 
 function formatInteractionSource(snapshot: ChannelMessageSnapshot): string {

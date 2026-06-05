@@ -7,6 +7,7 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 - [reference/README.md](reference/README.md) — stable docs index.
 - [reference/overview.md](reference/overview.md) — short orientation and current project shape.
 - [reference/design.md](reference/design.md) — current design principles and constraints.
+- [reference/setup.md](reference/setup.md) — install and gateway service lifecycle.
 - [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
 - [reference/runtime.md](reference/runtime.md) — how direct runs, gateway dispatch, scheduler runs, and child runs execute.
 - [reference/channels.md](reference/channels.md) — channel protocol, membership, addressing, wake policy, inspection, and egress.

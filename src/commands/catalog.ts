@@ -158,8 +158,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
 
   entry(["gateway", "status"], undefined, "Show gateway activity and watch clock status.", "Gateway"),
   entry(["gateway", "logs"], "[--lines N|--tail N] [--follow] [--path]", "Print or follow recent workspace gateway log lines.", "Gateway", [{ name: "--lines", takesValue: true }, { name: "--tail", takesValue: true }, { name: "--follow" }, { name: "--path" }]),
-  entry(["gateway", "install"], undefined, "Install the systemd user service.", "Gateway"),
-  entry(["gateway", "uninstall"], undefined, "Uninstall the systemd user service.", "Gateway"),
+  entry(["gateway", "install"], undefined, "Install the per-user gateway service.", "Gateway"),
+  entry(["gateway", "uninstall"], undefined, "Uninstall the per-user gateway service.", "Gateway"),
   entry(["gateway", "start"], undefined, "Start the gateway service.", "Gateway"),
   entry(["gateway", "stop"], undefined, "Stop the gateway service.", "Gateway"),
   entry(["gateway", "restart"], undefined, "Restart the gateway service.", "Gateway"),

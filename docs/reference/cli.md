@@ -121,7 +121,7 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy gateway logs --lines 200` | Print a specific number of log lines. |
 | `shrimpy gateway logs --follow` | Follow the workspace gateway log. |
 | `shrimpy gateway logs --path` | Print the resolved gateway log path. |
-| `shrimpy gateway install/start/stop/restart/uninstall` | Manage the systemd user service. |
+| `shrimpy gateway install/start/stop/restart/uninstall` | Manage the per-user gateway service. |
 
 ## Plumbing
 

@@ -15,6 +15,7 @@ import {
   DEFAULT_CONTEXT_SOURCES,
 } from "../context/index.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
+import { gatewayServiceManager, gatewayServicePaths } from "../gateway-ctl.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { brand, dim, heading } from "../util/style.js";
@@ -229,12 +230,41 @@ export async function setupInit(workspace: string): Promise<void> {
   for (const path of existing) {
     console.log(`${dim("exists: ")} ${path}`);
   }
+  for (const line of setupNextStepLines(workspace)) {
+    console.log(line);
+  }
   console.log();
 }
 
 export interface SetupInitResult {
   created: string[];
   existing: string[];
+}
+
+export function setupNextStepLines(workspace: string): string[] {
+  const paths = createWorkspacePaths(workspace);
+  const servicePaths = gatewayServicePaths();
+  const manager = gatewayServiceManager();
+  const serviceFile = manager === "systemd"
+    ? servicePaths.unitPath
+    : manager === "launchd"
+      ? servicePaths.launchAgentPath
+      : undefined;
+
+  return [
+    "",
+    heading("Next:"),
+    "  shrimpy setup             choose a model and finish guided setup",
+    "  shrimpy gateway install   install the per-user gateway service",
+    "  shrimpy gateway start     start the gateway",
+    "  shrimpy status            inspect workspace and gateway status",
+    "",
+    heading("Paths:"),
+    `  workspace: ${paths.workspace}`,
+    `  config:    ${paths.primaryConfigPath}`,
+    `  log:       ${paths.gatewayLogPath}`,
+    ...(serviceFile ? [`  service:   ${serviceFile}`] : []),
+  ];
 }
 
 export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
