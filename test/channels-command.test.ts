@@ -67,6 +67,7 @@ describe("cmdChannels", () => {
     assert.equal(summary.messageCount, 1);
     assert.deepEqual(summary.membership.agents, {
       shrimpy: {},
+      mechanic: {},
     });
     assert.equal(summary.lastMessage.preview, "hello home");
   });
@@ -83,6 +84,7 @@ describe("cmdChannels", () => {
     assert.equal(membership.channel, "home");
     assert.deepEqual(membership.agents, {
       shrimpy: {},
+      mechanic: {},
     });
   });
 

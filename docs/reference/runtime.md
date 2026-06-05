@@ -7,8 +7,9 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy` opens a long-lived TUI session for the selected agent on the `tui` session label. When the bare interactive command sees missing setup or no `coding` model candidate, it runs setup first. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
+- `shrimpy mechanic` opens a direct TUI session as the `mechanic` maintenance agent.
 - `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.
-- `--provider`, `--model`, `--model-policy`, and `--thinking <off|low|medium|high>` override one session.
+- `--provider`, `--model`, `--model-policy`, `--thinking <off|low|medium|high>`, and `--skill <id>` override one direct session where supported.
 - Without a model override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
 - `--skill <id>` loads full skill context into the session. The normal workspace/agent skill list is also passed to Pi so `/skill:<name>`, autocomplete, and available-skill prompt advertising see the same skill set.
 

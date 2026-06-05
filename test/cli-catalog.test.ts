@@ -39,6 +39,14 @@ describe("CLI catalog", () => {
     assert.match(usage, /shrimpy models policies move-candidate <name> <provider>\/<model> --index <n> \[--json\]/);
   });
 
+  test("catalogs the direct mechanic command", () => {
+    const usage = renderCommandUsage(["mechanic"]);
+
+    assert.match(usage, /shrimpy mechanic \[prompt\]/);
+    assert.match(usage, /\[--model-policy <name>\]/);
+    assert.match(usage, /\[--skill <id>\]/);
+  });
+
   test("generates top-level help from the catalog", () => {
     const help = renderCliHelp();
     const longestLine = Math.max(...stripAnsi(help).split("\n").map((line) => line.length));
@@ -60,6 +68,8 @@ describe("CLI catalog", () => {
     assert.match(bash, /skip_next=1; continue/);
     assert.match(bash, /"agent"\) suggestions="[^"]*channel-policy[^"]*list[^"]*run/);
     assert.match(bash, /"channels"\) suggestions="[^"]*join[^"]*leave[^"]*read/);
+    assert.match(bash, /suggestions="[^"]*mechanic[^"]*setup/);
+    assert.match(bash, /"mechanic"\) suggestions="[^"]*--model-policy[^"]*--skill/);
     assert.match(bash, /"models"\) suggestions="[^"]*policies[^"]*resolve/);
     assert.match(bash, /"models policies"\) suggestions="[^"]*add-candidate[^"]*list[^"]*move-candidate[^"]*remove-candidate[^"]*set[^"]*show/);
     assert.match(bash, /"models policies set"\) suggestions="[^"]*--candidate[^"]*--json/);
@@ -128,6 +138,7 @@ describe("CLI catalog", () => {
   test("reference docs mention the generated completion commands", () => {
     const docs = readFileSync("docs/reference/cli.md", "utf-8");
 
+    assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["mechanic"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "bash"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "zsh"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, /`shrimpy completion install \[bash\\\|zsh\]`/);

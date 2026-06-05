@@ -16,8 +16,9 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | --- | --- |
 | `shrimpy` | Open Shrimpy, setting up a minimal environment when needed. |
 | `shrimpy "prompt"` | Open the TUI session with an initial prompt. |
+| `shrimpy mechanic [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open the maintenance TUI as the mechanic agent. |
 | `shrimpy run "prompt"` | Run a one-shot prompt and print the response. |
-| `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. |
+| `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. Supports `--provider`, `--model`, `--model-policy`, `--thinking`, and `--skill`. |
 | `shrimpy agent run <id> "prompt"` | Run a one-shot prompt as a specific agent. |
 | `shrimpy sessions list [channel]` | Inspect active and archived sessions. |
 | `shrimpy sessions new <channel>` | Archive/reset a session. |

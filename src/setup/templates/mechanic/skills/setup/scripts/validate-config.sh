@@ -53,8 +53,14 @@ requireDir(path.join(workspaceRoot, "vault"), "vault");
 requireDir(path.join(workspaceRoot, "projects"), "projects");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "context"), "agents/shrimpy/context");
-requireFile(path.join(workspaceRoot, "agents", "shrimpy", "skills", "setup", "SKILL.md"), "agents/shrimpy/skills/setup/SKILL.md");
-requireFile(path.join(workspaceRoot, "skills", "add-agent", "SKILL.md"), "skills/add-agent/SKILL.md");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "SOUL.md"), "agents/mechanic/SOUL.md");
+requireDir(path.join(workspaceRoot, "agents", "mechanic", "context"), "agents/mechanic/context");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "setup", "SKILL.md"), "agents/mechanic/skills/setup/SKILL.md");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "mechanic", "SKILL.md"), "agents/mechanic/skills/mechanic/SKILL.md");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "add-agent", "SKILL.md"), "agents/mechanic/skills/add-agent/SKILL.md");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "channel-routing", "SKILL.md"), "agents/mechanic/skills/channel-routing/SKILL.md");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "schedules", "SKILL.md"), "agents/mechanic/skills/schedules/SKILL.md");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "shrimpy-mechanic-ideas", "SKILL.md"), "agents/mechanic/skills/shrimpy-mechanic-ideas/SKILL.md");
 requireFile(path.join(workspaceRoot, "skills", "memory-management", "SKILL.md"), "skills/memory-management/SKILL.md");
 requireFile(path.join(workspaceRoot, "skills", "journal-daily", "SKILL.md"), "skills/journal-daily/SKILL.md");
 requireFile(path.join(workspaceRoot, "skills", "journal-compact", "SKILL.md"), "skills/journal-compact/SKILL.md");
@@ -63,8 +69,13 @@ requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrim
 if (config) {
   if (!Array.isArray(config.agents) || config.agents.length === 0) {
     errors.push("config/shrimpy.json must define at least one agent");
-  } else if (!config.agents.some((agent) => agent && agent.id === "shrimpy")) {
-    errors.push("config/shrimpy.json must include the shrimpy agent");
+  } else {
+    if (!config.agents.some((agent) => agent && agent.id === "shrimpy")) {
+      errors.push("config/shrimpy.json must include the shrimpy agent");
+    }
+    if (!config.agents.some((agent) => agent && agent.id === "mechanic")) {
+      errors.push("config/shrimpy.json must include the mechanic agent");
+    }
   }
   for (const agent of config.agents ?? []) {
     if (Array.isArray(agent?.tools) && agent.tools.includes("memory")) {
@@ -95,8 +106,12 @@ if (config) {
 
 if (channels) {
   const homeAgents = channels.channels?.home?.agents;
-  if (!homeAgents || typeof homeAgents !== "object" || Array.isArray(homeAgents) || !homeAgents.shrimpy) {
-    errors.push("config/channels.json must keep shrimpy in home");
+  if (!homeAgents || typeof homeAgents !== "object" || Array.isArray(homeAgents) || !homeAgents.shrimpy || !homeAgents.mechanic) {
+    errors.push("config/channels.json must keep shrimpy and mechanic in home");
+  }
+  const maintenanceAgents = channels.channels?.maintenance?.agents;
+  if (!maintenanceAgents || typeof maintenanceAgents !== "object" || Array.isArray(maintenanceAgents) || !maintenanceAgents.shrimpy || !maintenanceAgents.mechanic) {
+    errors.push("config/channels.json must keep shrimpy and mechanic in maintenance");
   }
 }
 

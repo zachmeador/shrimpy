@@ -1,6 +1,6 @@
 # 🦐 ADMIN-001: Bundled Mechanic Agent
 
-Status: todo
+Status: review
 Priority: P2
 Area: Mechanic Agent
 
@@ -9,9 +9,9 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 
 ## Current State
 - Fresh setup still seeds only the default `shrimpy` agent, with `home` and `maintenance` channel membership for that agent.
-- Generic agent primitives now exist: `shrimpy agent add|set|tui|run`, channel membership/policy commands, and the workspace `add-agent` skill. Mechanic should be seeded through those ordinary primitives.
+- Generic agent primitives now exist: `shrimpy agent add|set|tui|run`, channel membership/policy commands, and mechanic-owned setup skills. Mechanic should be seeded through those ordinary primitives.
 - `shrimpy setup` currently launches a setup skill as `shrimpy`, not `mechanic`.
-- A draft mechanic source skill already exists at `src/skills/shrimpy-mechanic-ideas/`, including a pattern-inventory reference for owner choices.
+- The mechanic skill pack now lives in setup templates under `src/setup/templates/mechanic/skills/`, including `shrimpy-mechanic-ideas` and its pattern-inventory reference for owner choices.
 - There is no top-level `shrimpy mechanic` command or `modelPolicy` config yet.
 
 ## Build
@@ -31,7 +31,7 @@ Workspace setup, repair, configuration changes, and larger Shrimpy modifications
 ## Notes
 - Likely files: `src/setup/init.ts`, setup templates, `src/agents/workspace-manager.ts`, and skills/resources under setup templates.
 - Preserve CLI-first workflows for any configuration changes mechanic performs.
-- Early mechanic skill pack ideas live in `src/skills/shrimpy-mechanic-ideas/`: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
+- Early mechanic skill pack ideas live under `src/setup/templates/mechanic/skills/`: guided surface setup, workspace repair, skill installation/shaping, app-agent creation guidance, usage assessments for implementation opportunities, and reusable explainers for how Shrimpy's primitives fit together.
 - Related follow-up: [MECH-001](mech-001-skill-opportunity-watch.md) covers an opt-in mechanic-owned watch that reviews real Shrimpy usage, writes a Markdown assessment, and messages the user with concrete skill/app ideas only when useful.
 
 ## Done

@@ -63,7 +63,7 @@ describe("skill context inspection", () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdContext(["--skill", "setup"], { workspace } as any)
+      cmdContext(["--agent", "mechanic", "--skill", "setup"], readWorkspaceConfig())
     );
 
     assert.equal(result, 0);
@@ -91,7 +91,7 @@ describe("skill context inspection", () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdContext(["--channel", "home", "--json", "hello"], { workspace } as any)
+      cmdContext(["--agent", "mechanic", "--channel", "home", "--json", "hello"], readWorkspaceConfig())
     );
 
     assert.equal(result, 0);
@@ -115,6 +115,8 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /\[context pi:available_skills capability\]/);
     assert.match(parsed.systemPrompt, /<available_skills>/);
     assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>mechanic<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>schedules<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current date: \d{4}-\d{2}-\d{2}/);
@@ -360,18 +362,41 @@ describe("skill context inspection", () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdSkills(["list"], { workspace } as any)
+      cmdSkills(["list", "--agent", "mechanic"], readWorkspaceConfig())
     );
 
     assert.equal(result, 0);
     assert.match(lines.join("\n"), /setup \[agent\]/);
-    assert.match(lines.join("\n"), /add-agent \[workspace\]/);
+    assert.match(lines.join("\n"), /mechanic \[agent\]/);
+    assert.match(lines.join("\n"), /add-agent \[agent\]/);
+    assert.match(lines.join("\n"), /channel-routing \[agent\]/);
+    assert.match(lines.join("\n"), /schedules \[agent\]/);
+    assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[agent\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[workspace\]/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[workspace\]/);
     assert.match(lines.join("\n"), /journal-compact \[workspace\]/);
     assert.doesNotMatch(lines.join("\n"), /activity-summary/);
+  });
+
+  test("maintenance skills are not visible to the default shrimpy agent", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdSkills(["list", "--agent", "shrimpy"], readWorkspaceConfig())
+    );
+
+    const output = lines.join("\n");
+    assert.equal(result, 0);
+    assert.match(output, /memory-management \[workspace\]/);
+    assert.match(output, /journal-daily \[workspace\]/);
+    assert.match(output, /journal-compact \[workspace\]/);
+    assert.doesNotMatch(output, /add-agent/);
+    assert.doesNotMatch(output, /mechanic \[agent\]/);
+    assert.doesNotMatch(output, /channel-routing/);
+    assert.doesNotMatch(output, /schedules/);
+    assert.doesNotMatch(output, /shrimpy-mechanic-ideas/);
   });
 
   test("skills command can scaffold and validate a workspace skill", async () => {
@@ -498,24 +523,39 @@ describe("skill context inspection", () => {
 describe("skill service", () => {
   test("discovers and loads skills from agent and workspace scopes", async () => {
     await setupInit(workspace);
-    const runtime = createAppRuntime({ workspace });
+    const runtime = createAppRuntime(readWorkspaceConfig());
 
-    const skills = listSkillViews(runtime);
+    const skills = listSkillViews(runtime, "mechanic");
     assert.deepEqual(skills.map((skill) => `${skill.id}:${skill.scope}`), [
-      "add-agent:workspace",
+      "add-agent:agent",
+      "channel-routing:agent",
+      "journal-compact:workspace",
+      "journal-daily:workspace",
+      "mechanic:agent",
+      "memory-management:workspace",
+      "schedules:agent",
+      "setup:agent",
+      "shrimpy-mechanic-ideas:agent",
+    ]);
+
+    const shrimpySkills = listSkillViews(runtime, "shrimpy");
+    assert.deepEqual(shrimpySkills.map((skill) => `${skill.id}:${skill.scope}`), [
       "journal-compact:workspace",
       "journal-daily:workspace",
       "memory-management:workspace",
-      "setup:agent",
     ]);
 
-    const skill = getSkillView(runtime, "setup");
-    assert.match(skill.entryPath, /agents\/shrimpy\/skills\/setup\/SKILL\.md$/);
+    const skill = getSkillView(runtime, "setup", "mechanic");
+    assert.match(skill.entryPath, /agents\/mechanic\/skills\/setup\/SKILL\.md$/);
     assert.equal(skill.loaded, true);
-    assert.match(loadSkillPrompt(runtime, "setup"), /first usable Shrimpy workspace/);
-    assert.deepEqual(getSkillPromptResources(runtime, "setup"), [{
-      rootPath: join(workspace, "agents", "shrimpy"),
+    assert.match(loadSkillPrompt(runtime, "setup", "mechanic"), /first usable Shrimpy workspace/);
+    assert.deepEqual(getSkillPromptResources(runtime, "setup", "mechanic"), [{
+      rootPath: join(workspace, "agents", "mechanic"),
       resourcePath: "skills/setup",
+    }]);
+    assert.deepEqual(getSkillPromptResources(runtime, "add-agent", "mechanic"), [{
+      rootPath: join(workspace, "agents", "mechanic"),
+      resourcePath: "skills/add-agent",
     }]);
     assert.deepEqual(getSkillPromptResources(runtime, "memory-management"), [{
       rootPath: workspace,
@@ -525,7 +565,7 @@ describe("skill service", () => {
 
   test("rejects invalid skill ids", async () => {
     await setupInit(workspace);
-    const runtime = createAppRuntime({ workspace });
+    const runtime = createAppRuntime(readWorkspaceConfig());
 
     assert.throws(() => getSkillView(runtime, "bad~name"), /invalid skill id/);
   });
@@ -548,8 +588,9 @@ describe("skill service", () => {
       "utf-8",
     );
 
-    const runtime = createAppRuntime({ workspace });
+    const runtime = createAppRuntime(readWorkspaceConfig());
     const bootstrap = await runtime.createBootstrap({
+      agentId: "mechanic",
       cwd: workspace,
     });
     const piSkillNames = bootstrap.resourceLoader.getSkills().skills
@@ -558,11 +599,24 @@ describe("skill service", () => {
 
     assert.deepEqual(piSkillNames, [
       "add-agent",
+      "channel-routing",
       "journal-compact",
       "journal-daily",
+      "mechanic",
       "memory-management",
+      "schedules",
       "setup",
+      "shrimpy-mechanic-ideas",
     ]);
-    assert.deepEqual(inspectSkills(runtime).warnings, []);
+    assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);
   });
 });
+
+function readWorkspaceConfig(): any {
+  return {
+    ...JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ),
+    workspace,
+  };
+}

@@ -36,18 +36,18 @@ describe("setupInit", () => {
     const userPath = join(workspace, "profile", "USER.md");
     const systemPath = join(workspace, "profile", "SYSTEM.md");
     const agentRoot = join(workspace, "agents", "shrimpy");
+    const mechanicRoot = join(workspace, "agents", "mechanic");
     const watchesPath = join(agentRoot, "watches.json");
     const soulPath = join(agentRoot, "SOUL.md");
+    const mechanicSoulPath = join(mechanicRoot, "SOUL.md");
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
     const contextHabitsPath = join(agentRoot, "context", "habits.md");
+    const mechanicContextIdentityPath = join(mechanicRoot, "context", "identity.md");
+    const mechanicContextHabitsPath = join(mechanicRoot, "context", "habits.md");
+    const mechanicContextScopePath = join(mechanicRoot, "context", "scope.md");
     const sharedVaultPath = join(workspace, "vault");
     const sharedProjectsPath = join(workspace, "projects");
-    const addAgentSkillPath = join(
-      workspace,
-      "skills",
-      "add-agent",
-      "SKILL.md",
-    );
+    const sharedAddAgentSkillPath = join(workspace, "skills", "add-agent", "SKILL.md");
     const memoryManagementSkillPath = join(
       workspace,
       "skills",
@@ -67,12 +67,50 @@ describe("setupInit", () => {
       "SKILL.md",
     );
     const setupSkillPath = join(
-      agentRoot,
+      mechanicRoot,
       "skills",
       "setup",
       "SKILL.md",
     );
+    const mechanicSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "mechanic",
+      "SKILL.md",
+    );
+    const addAgentSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "add-agent",
+      "SKILL.md",
+    );
+    const channelRoutingSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "channel-routing",
+      "SKILL.md",
+    );
+    const schedulesSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "schedules",
+      "SKILL.md",
+    );
+    const mechanicIdeasSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "shrimpy-mechanic-ideas",
+      "SKILL.md",
+    );
+    const mechanicIdeasReferencePath = join(
+      mechanicRoot,
+      "skills",
+      "shrimpy-mechanic-ideas",
+      "references",
+      "pattern-inventory.md",
+    );
     const agentVaultPath = join(agentRoot, "vault");
+    const mechanicVaultPath = join(mechanicRoot, "vault");
     const agentProjectsPath = join(agentRoot, "projects");
     const setupValidatorPath = setupSkillValidatorPath(workspace);
 
@@ -83,16 +121,27 @@ describe("setupInit", () => {
     assert.equal(existsSync(userPath), true);
     assert.equal(existsSync(systemPath), true);
     assert.equal(existsSync(soulPath), true);
+    assert.equal(existsSync(mechanicSoulPath), true);
     assert.equal(existsSync(contextIdentityPath), true);
     assert.equal(existsSync(contextHabitsPath), true);
+    assert.equal(existsSync(mechanicContextIdentityPath), true);
+    assert.equal(existsSync(mechanicContextHabitsPath), true);
+    assert.equal(existsSync(mechanicContextScopePath), true);
     assert.equal(existsSync(sharedVaultPath), true);
     assert.equal(existsSync(sharedProjectsPath), true);
-    assert.equal(existsSync(addAgentSkillPath), true);
+    assert.equal(existsSync(sharedAddAgentSkillPath), false);
     assert.equal(existsSync(memoryManagementSkillPath), true);
     assert.equal(existsSync(journalDailySkillPath), true);
     assert.equal(existsSync(journalCompactSkillPath), true);
     assert.equal(existsSync(setupSkillPath), true);
+    assert.equal(existsSync(mechanicSkillPath), true);
+    assert.equal(existsSync(addAgentSkillPath), true);
+    assert.equal(existsSync(channelRoutingSkillPath), true);
+    assert.equal(existsSync(schedulesSkillPath), true);
+    assert.equal(existsSync(mechanicIdeasSkillPath), true);
+    assert.equal(existsSync(mechanicIdeasReferencePath), true);
     assert.equal(existsSync(agentVaultPath), true);
+    assert.equal(existsSync(mechanicVaultPath), true);
     assert.equal(existsSync(agentProjectsPath), false);
     assert.equal(existsSync(setupValidatorPath), true);
 
@@ -111,6 +160,20 @@ describe("setupInit", () => {
       "run_child",
     ]);
     assert.deepEqual(config.agents[0].channelPolicy, { mode: "all" });
+    assert.equal(config.agents[1].id, "mechanic");
+    assert.equal(config.agents[1].root, "agents/mechanic");
+    assert.equal(config.agents[1].modelPolicy, "coding");
+    assert.equal(config.agents[1].thinking, "high");
+    assert.deepEqual(config.agents[1].tools, [
+      "reply",
+      "ask",
+      "notify",
+      "report",
+      "send_message",
+      "read_channel",
+      "run_child",
+    ]);
+    assert.deepEqual(config.agents[1].channelPolicy, { mode: "addressed" });
     assert.deepEqual(config.context.sources, [
       "workspace:profile/WORKSPACE.md",
       "workspace:profile/SYSTEM.md",
@@ -153,9 +216,11 @@ describe("setupInit", () => {
     const channelMemberships = JSON.parse(readFileSync(channelsConfigPath, "utf-8"));
     assert.deepEqual(channelMemberships.channels.home.agents, {
       shrimpy: {},
+      mechanic: {},
     });
     assert.deepEqual(channelMemberships.channels.maintenance.agents, {
       shrimpy: {},
+      mechanic: {},
     });
 
     const system = readFileSync(systemPath, "utf-8");
@@ -178,6 +243,10 @@ describe("setupInit", () => {
     const soul = readFileSync(soulPath, "utf-8");
     // very important
     assert.match(soul, /Enjoys adding the shrimpy emoji to responses\. 🦐/u);
+    const mechanicSoul = readFileSync(mechanicSoulPath, "utf-8");
+    assert.match(mechanicSoul, /You are Mechanic/);
+    assert.match(mechanicSoul, /setup, repair, configuration/);
+    assert.match(mechanicSoul, /Do not treat yourself as the user's normal `shrimpy` agent/);
 
     const workspaceDoc = readFileSync(workspaceDocPath, "utf-8");
     assert.match(workspaceDoc, /This workspace is the home system/);
@@ -190,11 +259,23 @@ describe("setupInit", () => {
     assert.match(identity, /Notes I keep about myself/);
     const habits = readFileSync(contextHabitsPath, "utf-8");
     assert.match(habits, /How I tend to work/);
+    const mechanicIdentity = readFileSync(mechanicContextIdentityPath, "utf-8");
+    assert.match(mechanicIdentity, /Shrimpy mechanic/);
+    assert.match(mechanicIdentity, /short durable notes/);
+    assert.match(mechanicIdentity, /task playbooks in skills/);
+    assert.doesNotMatch(mechanicIdentity, /not the default `shrimpy` agent/);
+    const mechanicScope = readFileSync(mechanicContextScopePath, "utf-8");
+    assert.match(mechanicScope, /workspace-specific maintenance boundaries/);
+    assert.match(mechanicScope, /No extra workspace-specific scope/);
+    assert.doesNotMatch(mechanicScope, /Start from evidence/);
 
     const addAgent = readFileSync(addAgentSkillPath, "utf-8");
     assert.match(addAgent, /name: add-agent/);
     assert.match(addAgent, /shrimpy agent add/);
     assert.match(addAgent, /channel-policy explain/);
+    assert.match(addAgent, /Do not create adapter-shaped names/);
+    assert.match(addAgent, /telegram~<instance-id>~<chat-id>/);
+    assert.match(addAgent, /telegram~fitness/);
     const memoryManagement = readFileSync(memoryManagementSkillPath, "utf-8");
     assert.match(memoryManagement, /name: memory-management/);
     assert.match(memoryManagement, /No special memory tool/);
@@ -206,7 +287,7 @@ describe("setupInit", () => {
     assert.match(journalCompact, /context files list/);
 
     const setupSkill = readFileSync(setupSkillPath, "utf-8");
-    assert.match(setupSkill, /Shrimpy setup skill inside Pi's interactive TUI/i);
+    assert.match(setupSkill, /This setup session runs as the `mechanic` agent/);
     assert.match(setupSkill, /Start by inspecting the current workspace state/);
     assert.match(setupSkill, /ask exactly one next setup\s+decision/i);
     assert.match(setupSkill, /official Shrimpy workspace paths/);
@@ -214,8 +295,49 @@ describe("setupInit", () => {
     assert.match(setupSkill, /scheduled background tasks enabled/);
     assert.match(setupSkill, /enabled: false/);
     assert.match(setupSkill, /modelPolicy: "coding"/);
-    assert.match(setupSkill, /Do not create mechanic\/admin agent machinery here/);
+    assert.match(setupSkill, /This setup session runs as the `mechanic` agent/);
+    assert.match(setupSkill, /first normal agent/);
+    assert.match(setupSkill, /shrimpy setup telegram/);
+    assert.match(setupSkill, /Do not create adapter-shaped channel names by hand/);
+    assert.match(setupSkill, /agents\/mechanic\/skills\/setup\/scripts\/validate-config\.sh/);
+    assert.match(setupSkill, /agents\/<id>\//);
+    assert.doesNotMatch(setupSkill, /as the\s+default `shrimpy` agent/i);
     assert.match(setupSkill, /validate-config\.sh/);
+
+    const mechanicSkill = readFileSync(mechanicSkillPath, "utf-8");
+    assert.match(mechanicSkill, /name: mechanic/);
+    assert.match(mechanicSkill, /caretaker of the Shrimpy environment/);
+    assert.match(mechanicSkill, /Maintain `shrimpy` and any future agents/);
+    assert.match(mechanicSkill, /Start from evidence/);
+    assert.match(mechanicSkill, /Keep agent ownership explicit/);
+    assert.match(mechanicSkill, /triage skill/);
+    assert.match(mechanicSkill, /Use the `add-agent` skill/);
+    assert.match(mechanicSkill, /Use the `channel-routing` skill/);
+    assert.match(mechanicSkill, /Use the `schedules` skill/);
+    assert.match(mechanicSkill, /Use the `shrimpy-mechanic-ideas` skill/);
+    assert.doesNotMatch(mechanicSkill, /telegram~fitness/);
+    assert.doesNotMatch(mechanicSkill, /You are not the default `shrimpy` agent/);
+    const channelRoutingSkill = readFileSync(channelRoutingSkillPath, "utf-8");
+    assert.match(channelRoutingSkill, /name: channel-routing/);
+    assert.match(channelRoutingSkill, /channels, channel policies, chat surfaces, Telegram/);
+    assert.match(channelRoutingSkill, /telegram~<instance-id>~<chat-id>/);
+    assert.match(channelRoutingSkill, /telegram~fitness/);
+    assert.match(channelRoutingSkill, /shrimpy surface set-agent/);
+    const schedulesSkill = readFileSync(schedulesSkillPath, "utf-8");
+    assert.match(schedulesSkill, /name: schedules/);
+    assert.match(schedulesSkill, /creating, changing, inspecting, or debugging Shrimpy schedules and watches/);
+    assert.match(schedulesSkill, /reference\/configuration\.md/);
+    assert.match(schedulesSkill, /reference\/runtime\.md/);
+    assert.match(schedulesSkill, /shrimpy watches add/);
+    assert.match(schedulesSkill, /shrimpy watches show <agent-id>\/<watch-id> --json/);
+    assert.match(schedulesSkill, /Do not assume a posted watch message wakes the owner agent/);
+    assert.match(schedulesSkill, /Do not use adapter-shaped channel names/);
+    const mechanicIdeasSkill = readFileSync(mechanicIdeasSkillPath, "utf-8");
+    assert.match(mechanicIdeasSkill, /name: shrimpy-mechanic-ideas/);
+    assert.match(mechanicIdeasSkill, /recommending new skills, agents, watches, reports, apps/);
+    assert.match(mechanicIdeasSkill, /Do not create skills, agents, watches, or routes unless the user asks/);
+    const mechanicIdeasReference = readFileSync(mechanicIdeasReferencePath, "utf-8");
+    assert.match(mechanicIdeasReference, /Mechanic Owner Menu/);
 
     const validationOutput = execFileSync(
       "bash",

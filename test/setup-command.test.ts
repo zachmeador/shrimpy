@@ -42,14 +42,14 @@ async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines:
 }
 
 describe("setup entry", () => {
-  test("setup session runs as default shrimpy agent with setup skill through coding", () => {
+  test("setup session runs as mechanic with setup skill through coding", () => {
     assert.deepEqual(
       createSetupInteractiveSessionSpec({
         config: { workspace } as any,
         cwd: workspace,
       }),
       {
-        agentId: "shrimpy",
+        agentId: "mechanic",
         channel: "setup",
         sessionType: "tui",
         initialMessage: "Begin setup.",
@@ -141,6 +141,8 @@ describe("setup entry", () => {
       provider: "openai",
       id: "gpt-5",
     }]);
+    assert.equal(config.agents.find((agent: any) => agent.id === "shrimpy")?.modelPolicy, "coding");
+    assert.equal(config.agents.find((agent: any) => agent.id === "mechanic")?.modelPolicy, "coding");
   });
 
   test("runSetupEntry asks before rerunning when config already exists", async () => {

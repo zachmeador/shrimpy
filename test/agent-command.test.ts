@@ -65,6 +65,7 @@ describe("cmdAgent lifecycle", () => {
     );
     assert.deepEqual(memberships.channels.home.agents, {
       shrimpy: {},
+      mechanic: {},
     });
 
     const homeBus = new ChannelBus(join(workspace, "channels"));
@@ -170,7 +171,7 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(policy.agentId, "shrimpy");
     assert.equal(policy.policyOwner, "agent");
     assert.equal(policy.visible, true);
-    assert.deepEqual(policy.memberAgentIds, ["shrimpy"]);
+    assert.deepEqual(policy.memberAgentIds, ["mechanic", "shrimpy"]);
     assert.deepEqual(policy.matchedChannelOverrides, ["home"]);
     assert.deepEqual(policy.effectiveChannelPolicy, {
       mode: "all",
@@ -510,6 +511,7 @@ describe("cmdAgent lifecycle", () => {
     );
     assert.deepEqual(memberships.channels.home.agents, {
       shrimpy: {},
+      mechanic: {},
     });
     assert.deepEqual(surfaceState.list(), []);
 
@@ -568,7 +570,7 @@ describe("cmdAgent lifecycle", () => {
     const memberships = JSON.parse(
       readFileSync(join(workspace, "config", "channels.json"), "utf-8"),
     );
-    assert.deepEqual(Object.keys(memberships.channels.home.agents).sort(), ["jobs", "shrimpy"]);
+    assert.deepEqual(Object.keys(memberships.channels.home.agents).sort(), ["jobs", "mechanic", "shrimpy"]);
     assert.deepEqual(memberships.channels.home.agents.jobs, {});
     assert.deepEqual(surfaceState.list(), [
       { surface: "telegram", threadId: "4242", addressedAgentId: "jobs" },
@@ -603,7 +605,7 @@ describe("cmdAgent lifecycle", () => {
 
     assert.equal(result, 0);
     const agents = JSON.parse(lines.join("\n"));
-    assert.deepEqual(agents.map((entry: any) => entry.id).sort(), ["career", "shrimpy"]);
+    assert.deepEqual(agents.map((entry: any) => entry.id).sort(), ["career", "mechanic", "shrimpy"]);
     const career = agents.find((entry: any) => entry.id === "career");
     assert.equal(career.paths.root, join(workspace, "agent-roots", "career"));
     assert.equal(career.root, "agent-roots/career");
@@ -695,6 +697,7 @@ describe("cmdAgent lifecycle", () => {
     );
     assert.deepEqual(memberships.channels.home.agents, {
       shrimpy: {},
+      mechanic: {},
     });
     assert.equal(memberships.channels.ops, undefined);
     assert.equal(existsSync(join(workspace, "agents", "helper")), false);

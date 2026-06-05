@@ -3,11 +3,11 @@
 Status: todo
 Priority: P3
 Area: Workspace
-Depends On: [WORKSPACE-001](../workspace-001-git-checkpoints.md)
+Depends On: workspace checkpoint tracking
 
 ## Why
 
-[WORKSPACE-001](../workspace-001-git-checkpoints.md) intentionally keeps checkpointing simple: periodic branch commits and no pruning. That is enough to get recovery value without building a miniature backup system.
+Workspace checkpoint tracking intentionally keeps the first implementation simple: periodic branch commits and no pruning. That is enough to get recovery value without building a miniature backup system.
 
 Long-running Shrimpy environments may eventually accumulate too many automatic checkpoint commits. If that becomes a real problem, automatic checkpoints can move to a separate git ref layout with recent, hourly, daily, and monthly tiers so old automatic history can be pruned without rewriting normal branch history or deleting manual checkpoints.
 

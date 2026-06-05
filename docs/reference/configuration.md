@@ -162,7 +162,7 @@ shrimpy models policies remove-candidate coding openai/gpt-5
 
 Concrete provider/model ids still live in Pi's `state/pi/models.json`. Policies point at those ids; they do not create a second model registry.
 
-`shrimpy setup` sets up the minimal working shape. If the workspace already has a `modelPolicies.coding` candidate and the main agent's `context/` directory exists, it exits without inspecting models, asking questions, or launching guided setup. Otherwise it inspects Pi-visible authenticated models, creates `modelPolicies.coding` from the selected candidate when the policy is missing, defaults an unset `shrimpy` agent to `modelPolicy: "coding"`, and smoke-tests `coding` through the normal resolver. If `coding` exists but does not resolve during setup, it reports the candidate problems and keeps the existing policy unless replacement is confirmed. After the policy setup passes, the guided setup session opens as the default `shrimpy` agent with the `setup` skill and an explicit `modelPolicy: "coding"` session override. Additional explicit agent policies are preserved, but they do not block this first setup session.
+`shrimpy setup` sets up the minimal working shape. If the workspace already has a `modelPolicies.coding` candidate and both default agent `context/` directories exist, it exits without inspecting models, asking questions, or launching guided setup. Otherwise it inspects Pi-visible authenticated models, creates `modelPolicies.coding` from the selected candidate when the policy is missing, defaults unset `shrimpy` and `mechanic` agents to `modelPolicy: "coding"`, and smoke-tests `coding` through the normal resolver. If `coding` exists but does not resolve during setup, it reports the candidate problems and keeps the existing policy unless replacement is confirmed. After the policy setup passes, the guided setup session opens as the `mechanic` agent with the `setup` skill and an explicit `modelPolicy: "coding"` session override. Additional explicit agent policies are preserved, but they do not block this first setup session.
 
 ## Agents
 
@@ -387,7 +387,7 @@ Fresh setup seeds three focused watches for the default `shrimpy` agent:
 - `journal-daily` — daily at 22:30, writes a same-day journal note only if activity warrants it.
 - `journal-compact` — Sundays at 04:00, compacts old journal notes.
 
-Channel membership stays in `config/channels.json`. Message watches choose a channel to log through; setup seeds the default `maintenance` channel with the default `shrimpy` agent as a member.
+Channel membership stays in `config/channels.json`. Message watches choose a channel to log through; setup seeds the default `home` and `maintenance` channels with both default agents, `shrimpy` and `mechanic`, as members.
 
 Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches show <agent-id>/<watch-id>`, or `shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports source paths, owner/local ids, target channels, expected wake behavior, next run from clock state, active runs, diagnostics, and recent run history.
 

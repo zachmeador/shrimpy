@@ -41,7 +41,7 @@ skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
 ```
 
-Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same id. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI management.
+Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same id. Fresh setup keeps mechanic-only skills under `agents/mechanic/skills/` so the normal `shrimpy` agent does not inherit maintenance guidance by default. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI management.
 
 ## Storage
 
@@ -57,7 +57,7 @@ Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/securit
 
 Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under `vault/` or `projects/`.
 
-`shrimpy setup init` creates shared `vault/` and `projects/`, plus the default agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent `projects/` directories are created when needed.
+`shrimpy setup init` creates shared `vault/` and `projects/`, plus the default agents' `agents/shrimpy/context/`, `agents/shrimpy/vault/`, `agents/mechanic/context/`, and `agents/mechanic/vault/`. Per-agent `projects/` directories are created when needed.
 
 ## Checkpoints
 

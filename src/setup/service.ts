@@ -29,6 +29,7 @@ import {
 } from "../util/json-file.js";
 import {
   ensureWorkspaceInitialized,
+  MECHANIC_AGENT_ID,
   type SetupInitResult,
 } from "./init.js";
 
@@ -44,7 +45,7 @@ export interface SetupSessionLaunchInput {
 }
 
 export interface SetupInteractiveSessionSpec {
-  agentId: "shrimpy";
+  agentId: typeof MECHANIC_AGENT_ID;
   channel: "setup";
   sessionType: "tui";
   initialMessage: string;
@@ -151,7 +152,7 @@ export function createSetupInteractiveSessionSpec(
   input: SetupSessionLaunchInput,
 ): SetupInteractiveSessionSpec {
   return {
-    agentId: "shrimpy",
+    agentId: MECHANIC_AGENT_ID,
     channel: "setup",
     sessionType: "tui",
     initialMessage: "Begin setup.",
@@ -309,18 +310,20 @@ function isSetupAlreadyConfigured(workspace: string): boolean {
     return false;
   }
 
-  const agentRoot = findShrimpyAgentRoot(raw.agents);
-  return existsSync(createAgentPaths(workspace, agentRoot).contextDir);
+  const shrimpyRoot = findAgentRoot(raw.agents, "shrimpy");
+  const mechanicRoot = findAgentRoot(raw.agents, MECHANIC_AGENT_ID);
+  return existsSync(createAgentPaths(workspace, shrimpyRoot).contextDir) &&
+    existsSync(createAgentPaths(workspace, mechanicRoot).contextDir);
 }
 
-function findShrimpyAgentRoot(rawAgents: unknown): string {
+function findAgentRoot(rawAgents: unknown, agentId: string): string {
   if (Array.isArray(rawAgents)) {
-    const found = rawAgents.find((entry) => isRecord(entry) && entry.id === "shrimpy");
+    const found = rawAgents.find((entry) => isRecord(entry) && entry.id === agentId);
     if (isRecord(found) && typeof found.root === "string" && found.root) {
       return found.root;
     }
   }
-  return "agents/shrimpy";
+  return `agents/${agentId}`;
 }
 
 async function ensureSetupModelPolicies(
@@ -432,7 +435,7 @@ async function ensureSetupModelPolicies(
     }
   }
 
-  changed = ensureMainAgentDefaultModelPolicy(raw, log) || changed;
+  changed = ensureDefaultAgentModelPolicies(raw, log) || changed;
 
   if (changed) writeJsonFileAtomic(paths.primaryConfigPath, raw);
 
@@ -601,7 +604,8 @@ async function smokeTestSetupPolicies(
     const config = loadConfigForWorkspace(workspace);
     const runtime = createAppRuntime(config);
     const mainAgent = runtime.resolved.agents.find((agent) => agent.id === "shrimpy");
-    const bootstrapAgent = mainAgent ?? runtime.getAgent();
+    const mechanicAgent = runtime.resolved.agents.find((agent) => agent.id === MECHANIC_AGENT_ID);
+    const bootstrapAgent = mechanicAgent ?? mainAgent ?? runtime.getAgent();
     const bootstrap = await runtime.createBootstrap({ agentId: bootstrapAgent.id });
     const coding = resolveModelPolicy(bootstrap, DEFAULT_MODEL_POLICY, "default");
 
@@ -620,6 +624,12 @@ async function smokeTestSetupPolicies(
       problems.push({
         policy: "agent:shrimpy",
         problems: ["config agents must include the shrimpy agent"],
+      });
+    }
+    if (!mechanicAgent) {
+      problems.push({
+        policy: `agent:${MECHANIC_AGENT_ID}`,
+        problems: [`config agents must include the ${MECHANIC_AGENT_ID} agent`],
       });
     }
   } catch (err) {
@@ -653,7 +663,7 @@ function setModelPolicy(
   raw.modelPolicies = policies;
 }
 
-function ensureMainAgentDefaultModelPolicy(
+function ensureDefaultAgentModelPolicies(
   raw: Record<string, unknown>,
   log: (line: string) => void,
 ): boolean {
@@ -661,7 +671,11 @@ function ensureMainAgentDefaultModelPolicy(
 
   let changed = false;
   const agents = raw.agents.map((entry) => {
-    if (!isRecord(entry) || entry.id !== "shrimpy" || entry.modelPolicy !== undefined) {
+    if (
+      !isRecord(entry) ||
+      (entry.id !== "shrimpy" && entry.id !== MECHANIC_AGENT_ID) ||
+      entry.modelPolicy !== undefined
+    ) {
       return entry;
     }
     changed = true;
@@ -673,7 +687,7 @@ function ensureMainAgentDefaultModelPolicy(
 
   if (changed) {
     raw.agents = agents;
-    log(`Defaulted shrimpy agent to model policy ${DEFAULT_MODEL_POLICY}.`);
+    log(`Defaulted setup agents to model policy ${DEFAULT_MODEL_POLICY}.`);
   }
   return changed;
 }

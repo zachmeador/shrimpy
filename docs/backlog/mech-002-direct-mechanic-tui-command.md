@@ -1,6 +1,6 @@
 # 🦐 MECH-002: Direct Mechanic TUI Command
 
-Status: todo
+Status: review
 Priority: P1
 Area: Mechanic
 Depends On: [ADMIN-001](admin-001.md)

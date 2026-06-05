@@ -37,6 +37,7 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
   agentOption,
   providerOption,
   modelOption,
+  modelPolicyOption,
   thinkingOption,
   skillOption,
   { name: "--help", short: "-h" },
@@ -46,8 +47,9 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
 export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry([], undefined, "Open Shrimpy, setting up a minimal environment when needed.", "Session Commands"),
   entry([], "\"prompt\"", "Open the TUI session with an initial prompt.", "Session Commands"),
+  entry(["mechanic"], "[prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open the maintenance TUI as the mechanic agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
   entry(["run"], "[--agent <id>] [--skill <id>] <prompt> [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Run a one-shot prompt and print the response.", "Session Commands", [agentOption, skillOption, providerOption, modelOption, modelPolicyOption, thinkingOption]),
-  entry(["agent", "tui"], "<id> [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Open a TUI session as a specific agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption]),
+  entry(["agent", "tui"], "<id> [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open a TUI session as a specific agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
   entry(["agent", "run"], "<id> <prompt>", "Run a one-shot prompt as a specific agent.", "Session Commands"),
   entry(["sessions", "new"], "<channel> [--agent <id>]", "Archive/reset a session.", "Session Commands", [agentOption]),
   entry(["sessions", "clear"], "<channel> [--agent <id>]", "Alias for session reset.", "Session Commands", [agentOption]),

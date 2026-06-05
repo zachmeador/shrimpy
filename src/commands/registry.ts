@@ -22,6 +22,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   skills: { requiresConfig: true, load: async () => (await import("./skills.js")).cmdSkills },
   setup: { requiresConfig: "workspace", load: async () => (await import("./setup.js")).cmdSetup },
   run: { requiresConfig: true, load: async () => (await import("./run.js")).cmdRun },
+  mechanic: { requiresConfig: true, load: async () => (await import("./mechanic.js")).cmdMechanic },
   context: { requiresConfig: true, load: async () => (await import("./context.js")).cmdContext },
   users: { requiresConfig: true, load: async () => (await import("./users.js")).cmdUsers },
   completion: { requiresConfig: false, load: async () => (await import("./completion.js")).cmdCompletion },

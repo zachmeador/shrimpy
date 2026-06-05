@@ -57,7 +57,8 @@ Channel membership lives in `config/channels.json`:
   "channels": {
     "home": {
       "agents": {
-        "shrimpy": {}
+        "shrimpy": {},
+        "mechanic": {}
       }
     }
   }
@@ -68,7 +69,7 @@ Membership means an agent can see the channel. It does not decide whether the ag
 
 Default membership is resolved at runtime for a few channel classes:
 
-- `home` includes the default agent, or the first configured agent.
+- `home` includes the configured default agents from setup; when a channel is created without stored membership, Shrimpy falls back to the default agent or first configured agent.
 - `dm~agent-a~agent-b` includes those two agents when they exist.
 - surface channels may inherit a surface default agent from surface config.
 
