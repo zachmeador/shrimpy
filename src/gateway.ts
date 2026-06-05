@@ -7,6 +7,7 @@
  * 1. Channel adapters (Telegram polling → channel files)
  * 2. Channel watcher → SessionRegistry dispatch
  * 3. Watch clock (runs time-based agent-owned watches)
+ * 4. Workspace checkpoint clock (optional local git checkpoints)
  */
 
 import { loadConfig } from "./config/index.js";
@@ -29,6 +30,7 @@ import {
   startGatewayWatchClock,
 } from "./gateway/watch-service.js";
 import { saveWatchClockState } from "./watches/index.js";
+import { createWorkspaceCheckpointService } from "./workspace-checkpoints/index.js";
 import { ChannelDeliveryLoop } from "./delivery/channel-delivery-loop.js";
 import {
   createConfiguredGatewaySurfaces,
@@ -78,6 +80,8 @@ async function run() {
 
   ensureGatewayWatchFiles(runtime);
   const watchClock = startGatewayWatchClock(runtime, channelBus);
+  const workspaceCheckpointService = createWorkspaceCheckpointService(runtime);
+  workspaceCheckpointService.start();
 
   let shuttingDown = false;
   async function shutdown(signal: string) {
@@ -86,6 +90,7 @@ async function run() {
     console.log(`\n[gateway] ${signal} received, shutting down...`);
 
     watchClock.stop();
+    workspaceCheckpointService.stop();
     saveWatchClockState(runtime.paths.watchClockStatePath, watchClock.getState());
     await Promise.allSettled(surfaces.map((surface) => surface.stop()));
     await deliveryLoop.stop();

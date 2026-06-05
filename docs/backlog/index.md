@@ -8,7 +8,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
-| [WORKSPACE-001](workspace-001-git-checkpoints.md) | todo | P2 | Workspace | none | Simple workspace git checkpoints |
+| [WORKSPACE-001](workspace-001-git-checkpoints.md) | review | P2 | Workspace | none | Simple workspace git checkpoints |
 | [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [CLI-001](cli-001-calm-front-door-command-surface.md) | todo | P2 | CLI | none | Calm front-door command surface |

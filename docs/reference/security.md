@@ -45,9 +45,12 @@ shrimpy agent channel-policy <id> --channel <channel>
 shrimpy channels members <channel>
 shrimpy watches
 shrimpy watches show <agent-id>/<watch-id>
+shrimpy workspace track status --json
 shrimpy context --agent <id> --sections
 shrimpy skills list --agent <id>
 shrimpy skills validate --agent <id>
 ```
 
 These commands expose configuration, routing, prompt material, watches, and the active tool list.
+
+Workspace checkpoint tracking is local and opt-in. Its default whitelist excludes `state/`, `runtime/`, `channels/`, `media/`, `agents/*/sessions/`, `vault/`, and `projects/`; inspect the generated workspace `.gitignore` before relying on checkpoints for sensitive work.

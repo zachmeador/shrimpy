@@ -59,6 +59,14 @@ Do not put channel logs, runtime state, sessions, auth, model metadata, or watch
 
 `shrimpy setup init` creates shared `vault/` and `projects/`, plus the default agent's `agents/shrimpy/context/` and `agents/shrimpy/vault/`. Per-agent `projects/` directories are created when needed.
 
+## Checkpoints
+
+Workspace git checkpoint tracking is opt-in. `shrimpy workspace track init` initializes a local git repo at the workspace root, writes a strict whitelist `.gitignore`, and creates an initial checkpoint commit. It does not configure a remote. If the workspace already has a git repo without the Shrimpy checkpoint whitelist, init refuses to adopt it.
+
+The default whitelist tracks `.gitignore`, `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/*/SOUL.md`, `agents/*/watches.json`, `agents/*/skills/**`, and `skills/**`. It ignores runtime state, channel logs, sessions, auth, model metadata, media, `vault/`, and `projects/`.
+
+Use `shrimpy workspace track status --json` to inspect whether tracking is disabled, clean, dirty, or misconfigured. Use `shrimpy workspace track checkpoint --message <text>` to create a manual checkpoint. When the gateway is running and tracking is enabled, Shrimpy checks about every 15 minutes and creates an automatic checkpoint commit only when checkpointable files changed.
+
 ## Context Resources
 
 Stable prompt material loaded into an agent session before per-turn context arrives:

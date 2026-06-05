@@ -10,7 +10,9 @@ import {
   telegramStatePath,
   type ResolvedTelegramRuntimeConfig,
 } from "../surfaces/telegram/index.js";
+import { inspectWorkspaceCheckpointStatus } from "../workspace-checkpoints/index.js";
 import { accent, dim, label } from "../util/style.js";
+import { printWorkspaceCheckpointStatus } from "./workspace.js";
 import type { CommandHandler } from "./framework.js";
 
 function activeStatus(serviceName: string): string | null {
@@ -33,6 +35,8 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
 
   const gatewayStatus = activeStatus("shrimpy-gateway") ?? "inactive";
   console.log(`${label("gateway:")} ${gatewayStatus}`);
+
+  printWorkspaceCheckpointStatus(inspectWorkspaceCheckpointStatus(ws));
 
   const channelsDir = runtime.paths.channelsDir;
   if (existsSync(channelsDir)) {

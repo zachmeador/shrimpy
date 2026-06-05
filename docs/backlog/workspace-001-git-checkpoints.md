@@ -1,6 +1,6 @@
 # 🦐 WORKSPACE-001: Simple Workspace Git Checkpoints
 
-Status: todo
+Status: review
 Priority: P2
 Area: Workspace
 
@@ -12,10 +12,13 @@ The goal is not to version the whole workspace. The goal is to checkpoint the in
 
 ## Current State
 
-- Workspace files are ordinary files under the configured workspace path.
-- `shrimpy setup init` seeds profile files, config files, shared `vault/` and `projects/`, the default agent `SOUL.md`, context, and vault directories.
-- Runtime state, channel logs, sessions, credentials, model metadata, media, and watch state live beside the editable workspace surface.
-- There is no workspace-level git initialization, ignore whitelist, checkpoint command, or periodic checkpoint behavior.
+- `shrimpy workspace track init` initializes a local git repo at the workspace root, writes the strict whitelist `.gitignore`, and creates an initial checkpoint commit.
+- `shrimpy workspace track status [--json]` reports disabled, clean, dirty, or diagnostic checkpoint state.
+- `shrimpy workspace track checkpoint --message <text> [--json]` creates a manual checkpoint commit and skips clean states.
+- The gateway starts a periodic checkpoint loop. Every 15 minutes, it checks the workspace repo and creates an automatic checkpoint commit when checkpointable files changed.
+- `shrimpy status` includes workspace checkpoint tracking status.
+- Reference docs describe the command surface and the whitelist security boundary.
+- Tests cover parent-repo isolation, whitelist behavior, CLI init/status/manual checkpoints, clean no-op checkpointing, and the periodic service tick.
 - [VAULT-001](vault-001-default-workspace-collections.md) separately proposes a shared-vault git convention for durable user collections.
 
 ## Build
@@ -23,7 +26,7 @@ The goal is not to version the whole workspace. The goal is to checkpoint the in
 - Add minimal opt-in CLI commands for local workspace tracking:
   - `shrimpy workspace track init`
   - `shrimpy workspace track status --json`
-  - `shrimpy workspace checkpoint --message <text>`
+  - `shrimpy workspace track checkpoint --message <text>`
 - Initialize a local git repo at the workspace root only after explicit user action. Do not configure remotes or push behavior.
 - Write a strict `.gitignore` that ignores everything by default and whitelists only the intended editable surface:
   - `.gitignore`
