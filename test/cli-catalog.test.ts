@@ -60,12 +60,24 @@ describe("CLI catalog", () => {
     const longestLine = Math.max(...stripAnsi(help).split("\n").map((line) => line.length));
 
     assert.match(help, /Session Commands:/);
+    assert.match(help, /shrimpy chat \[agent\]/);
     assert.match(help, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
-    assert.match(help, /shrimpy completion zsh/);
+    assert.match(help, /shrimpy help all/);
+    assert.doesNotMatch(help, /shrimpy completion zsh/);
+    assert.doesNotMatch(help, /shrimpy context sources run/);
+    assert.doesNotMatch(help, /shrimpy gateway logs/);
     assert.ok(
       longestLine <= 80,
       `expected top-level help lines to stay within 80 columns, got ${longestLine}`,
     );
+  });
+
+  test("generates full help from the catalog", () => {
+    const help = renderCliHelp({ full: true });
+
+    assert.match(help, /shrimpy completion zsh/);
+    assert.match(help, /shrimpy context sources run/);
+    assert.match(help, /shrimpy gateway logs/);
   });
 
   test("generates shell completion from the command tree", () => {
@@ -76,7 +88,8 @@ describe("CLI catalog", () => {
     assert.match(bash, /skip_next=1; continue/);
     assert.match(bash, /"agent"\) suggestions="[^"]*channel-policy[^"]*list[^"]*run/);
     assert.match(bash, /"channels"\) suggestions="[^"]*join[^"]*leave[^"]*read/);
-    assert.match(bash, /suggestions="[^"]*chat[^"]*mechanic[^"]*setup/);
+    assert.match(bash, /suggestions="[^"]*chat[^"]*help[^"]*mechanic[^"]*setup/);
+    assert.match(bash, /"help"\) suggestions="all/);
     assert.match(bash, /"chat"\) suggestions="[^"]*--model-policy[^"]*--skill/);
     assert.match(bash, /"mechanic"\) suggestions="[^"]*--model-policy[^"]*--skill/);
     assert.match(bash, /"models"\) suggestions="[^"]*policies[^"]*resolve/);
@@ -122,13 +135,20 @@ describe("CLI catalog", () => {
     assert.equal((await COMMAND_REGISTRY.channels.load()).name, "cmdChannels");
   });
 
-  test("completion command does not require workspace config", async () => {
-    const registration = COMMAND_REGISTRY.completion;
-    const handler = await registration.load();
+  test("help and completion commands do not require workspace config", async () => {
+    const helpRegistration = COMMAND_REGISTRY.help;
+    const completionRegistration = COMMAND_REGISTRY.completion;
+    const helpHandler = await helpRegistration.load();
+    const completionHandler = await completionRegistration.load();
 
-    assert.equal(registration.requiresConfig, false);
-    assert.equal(typeof handler, "function");
-    assert.deepEqual(configForRegisteredCommand(registration, () => {
+    assert.equal(helpRegistration.requiresConfig, false);
+    assert.equal(completionRegistration.requiresConfig, false);
+    assert.equal(typeof helpHandler, "function");
+    assert.equal(typeof completionHandler, "function");
+    assert.deepEqual(configForRegisteredCommand(helpRegistration, () => {
+      throw new Error("should not load config");
+    }), { workspace: process.cwd() });
+    assert.deepEqual(configForRegisteredCommand(completionRegistration, () => {
       throw new Error("should not load config");
     }), { workspace: process.cwd() });
   });
@@ -149,6 +169,8 @@ describe("CLI catalog", () => {
 
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["chat"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["mechanic"]).replace(/^usage: /, "")}\``)));
+    assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["help"]).replace(/^usage: /, "")}\``)));
+    assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["help", "all"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "bash"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "zsh"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, /`shrimpy completion install \[bash\\\|zsh\]`/);

@@ -1,5 +1,10 @@
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import type { ShrimpyConfig } from "../config/index.js";
+import {
+  isHelpFlag,
+  renderCommandPathHelp,
+  resolveCliHelpPath,
+} from "./help.js";
 
 export type CommandHandler = (
   argv: string[],
@@ -44,6 +49,10 @@ export function createCommandGroup(group: CommandGroup): CommandHandler {
   return async (argv, config) => {
     const action = argv[0];
 
+    if (isHelpFlag(action)) {
+      return showUsage(renderCommandPathHelp([group.name]));
+    }
+
     if (!action) {
       if (group.default) {
         return group.default({
@@ -58,6 +67,12 @@ export function createCommandGroup(group: CommandGroup): CommandHandler {
     const command = group.commands[action];
     if (!command) {
       usage(group.usage, `unknown subcommand: ${action}`);
+    }
+
+    const helpPath = resolveCliHelpPath([group.name, ...argv]);
+    if (helpPath !== null) {
+      const path = helpPath.length > 0 ? helpPath : [group.name, action];
+      return showUsage(renderCommandPathHelp(path));
     }
 
     return command({

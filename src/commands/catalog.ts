@@ -6,6 +6,8 @@ export type CliCommandCategory =
   | "Gateway"
   | "Plumbing";
 
+export type CliHelpVisibility = "default" | "full";
+
 export interface CliOptionSpec {
   name: string;
   short?: string;
@@ -19,7 +21,7 @@ export interface CliCommandEntry {
   category: CliCommandCategory;
   options?: readonly CliOptionSpec[];
   reference?: boolean;
-  topLevelHelp?: boolean;
+  visibility: CliHelpVisibility;
 }
 
 const jsonOption = { name: "--json" };
@@ -43,6 +45,32 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
   { name: "--help", short: "-h" },
   { name: "--version", short: "-v" },
 ];
+
+const DEFAULT_HELP_PATHS = new Set([
+  "",
+  "chat",
+  "mechanic",
+  "run",
+  "setup",
+  "setup init",
+  "setup telegram",
+  "status",
+  "watches",
+  "models",
+  "channels",
+  "channels show",
+  "channels read",
+  "channels create",
+  "channels post",
+  "agent list",
+  "agent show",
+  "agent add",
+  "skills list",
+  "skills show",
+  "gateway status",
+  "help",
+  "help all",
+]);
 
 export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry([], undefined, "Open Shrimpy, setting up a minimal environment when needed.", "Session Commands"),
@@ -136,6 +164,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["gateway", "stop"], undefined, "Stop the gateway service.", "Gateway"),
   entry(["gateway", "restart"], undefined, "Restart the gateway service.", "Gateway"),
 
+  entry(["help"], "[command...]", "Show default help or help for one command path.", "Plumbing"),
+  entry(["help", "all"], undefined, "Show the complete command catalog.", "Plumbing"),
   entry(["completion", "bash"], undefined, "Print Bash completion generated from the CLI catalog.", "Plumbing"),
   entry(["completion", "zsh"], undefined, "Print Zsh completion generated from the CLI catalog.", "Plumbing"),
   entry(["completion", "install"], "[bash|zsh]", "Install cached shell completion into the current shell profile.", "Plumbing"),
@@ -233,7 +263,7 @@ function entry(
     category,
     options,
     reference,
-    topLevelHelp: true,
+    visibility: DEFAULT_HELP_PATHS.has(path.join(" ")) ? "default" : "full",
   };
 }
 

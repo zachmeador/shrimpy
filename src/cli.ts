@@ -5,7 +5,11 @@ import {
   parseCommandArgs,
   runCommand,
 } from "./commands/framework.js";
-import { renderCliHelp } from "./commands/help.js";
+import {
+  renderCliHelp,
+  renderCommandPathHelp,
+  resolveCliHelpPath,
+} from "./commands/help.js";
 import {
   COMMAND_REGISTRY,
   configForRegisteredCommand,
@@ -13,7 +17,14 @@ import {
 import { brand } from "./util/style.js";
 
 try {
-  const sub = process.argv[2];
+  const rawArgs = process.argv.slice(2);
+  const helpPath = resolveCliHelpPath(rawArgs);
+  if (helpPath !== null) {
+    console.log(renderCommandPathHelp(helpPath));
+    process.exit(0);
+  }
+
+  const sub = rawArgs[0];
   const registration = sub ? COMMAND_REGISTRY[sub] : undefined;
   if (registration) {
     const handler = await registration.load();
@@ -25,12 +36,12 @@ try {
       : configForRegisteredCommand(registration, () => {
         throw new Error("command does not require config");
       });
-    const code = await runCommand(handler, process.argv.slice(3), config);
+    const code = await runCommand(handler, rawArgs.slice(1), config);
     process.exit(code);
   }
 
   const { values, positionals } = parseCommandArgs({
-    args: process.argv.slice(2),
+    args: rawArgs,
     options: {
       agent: { type: "string", short: "a" },
       help: { type: "boolean", short: "h", default: false },

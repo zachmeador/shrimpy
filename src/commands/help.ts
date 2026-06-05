@@ -3,13 +3,18 @@ import { brand, dim, heading } from "../util/style.js";
 import {
   CLI_CATEGORIES,
   CLI_COMMAND_CATALOG,
+  completionPaths,
   formatCommandUsage,
 } from "./catalog.js";
 
-export function renderCliHelp(): string {
+export interface CliHelpRenderOptions {
+  full?: boolean;
+}
+
+export function renderCliHelp(options: CliHelpRenderOptions = {}): string {
   const metadata = readAppMetadata();
   const rows = CLI_COMMAND_CATALOG
-    .filter((command) => command.topLevelHelp)
+    .filter((command) => options.full || command.visibility === "default")
     .map((command) => ({
       category: command.category,
       usage: formatCommandUsage(command),
@@ -27,6 +32,40 @@ export function renderCliHelp(): string {
     .filter(Boolean)
     .join("\n\n");
   return `${brand(formatVersionLabel(metadata))} - ${dim(metadata.description)}\n\n${heading("usage:")}\n${body}`;
+}
+
+export function renderCommandPathHelp(path: readonly string[]): string {
+  if (path.length === 0) return renderCliHelp();
+
+  const entries = CLI_COMMAND_CATALOG.filter((command) => pathIsPrefix(path, command.path));
+  if (entries.length === 0) {
+    return `${heading("usage:")}\n${["shrimpy", ...path].join(" ")}`;
+  }
+
+  return [
+    heading("usage:"),
+    ...entries.map((command) => styleHelpRow(formatCommandUsage(command), command.summary)),
+  ].join("\n");
+}
+
+export function resolveCliHelpPath(argv: readonly string[]): string[] | null {
+  const endOfOptionsIndex = argv.indexOf("--");
+  const searchableArgs = endOfOptionsIndex === -1 ? argv : argv.slice(0, endOfOptionsIndex);
+  const helpIndex = searchableArgs.findIndex(isHelpFlag);
+  if (helpIndex === -1) return null;
+
+  const argsBeforeHelp = searchableArgs.slice(0, helpIndex);
+  let best: string[] = [];
+  for (const path of completionPaths()) {
+    if (path.length === 0 || path.length > argsBeforeHelp.length) continue;
+    if (!path.every((part, index) => argsBeforeHelp[index] === part)) continue;
+    if (path.length > best.length) best = path;
+  }
+  return best;
+}
+
+export function isHelpFlag(value: string | undefined): boolean {
+  return value === "--help" || value === "-h";
 }
 
 const HELP_WIDTH = 80;
@@ -89,4 +128,8 @@ function wrapWords(
 
   if (line) lines.push(line);
   return lines.length > 0 ? lines : [""];
+}
+
+function pathIsPrefix(prefix: readonly string[], path: readonly string[]): boolean {
+  return prefix.every((part, index) => path[index] === part);
 }

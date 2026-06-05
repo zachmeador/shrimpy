@@ -26,6 +26,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   mechanic: { requiresConfig: true, load: async () => (await import("./mechanic.js")).cmdMechanic },
   context: { requiresConfig: true, load: async () => (await import("./context.js")).cmdContext },
   users: { requiresConfig: true, load: async () => (await import("./users.js")).cmdUsers },
+  help: { requiresConfig: false, load: async () => (await import("./help-command.js")).cmdHelp },
   completion: { requiresConfig: false, load: async () => (await import("./completion.js")).cmdCompletion },
 };
 

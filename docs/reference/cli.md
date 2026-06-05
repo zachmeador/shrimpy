@@ -4,9 +4,11 @@ Every Shrimpy feature is reachable through a `shrimpy <command>` subcommand. Com
 
 ## Command Structure
 
-Command metadata lives in `src/commands/catalog.ts`. Top-level `shrimpy --help`, group usage text, and shell completion are generated from that catalog so command names, options, and docs have one source to compare against.
+Command metadata lives in `src/commands/catalog.ts`. Top-level `shrimpy --help` shows the calm default surface, while `shrimpy help all` prints the complete catalog. Path help such as `shrimpy channels --help`, nested namespace help such as `shrimpy models policies --help`, leaf help such as `shrimpy channels read --help`, group usage text, and shell completion are generated from the same catalog so command names, options, and docs have one source to compare against. `-h` is accepted as the short form of `--help`.
 
 Canonical resource groups currently keep the implemented names: singular `agent` and `surface`, plural `channels`, `sessions`, `watches`, `skills`, `models`, and `users`. Prefer standard verbs for new commands: `list`, `show`, `read`, `create`/`add`, `set`, `remove`, `tail`, `run`, and `status`. Inspection commands intended for agents should expose `--json`.
+
+Default help is for common human actions. Full help, path help, reference docs, and shell completion remain the discovery surfaces for advanced diagnostics, admin commands, and agent-oriented JSON inspection. New top-level commands should be user-intention names or durable resource names; keep resource-owned diagnostics under the resource group unless a cross-cutting `inspect` or `debug` namespace would be clearer than the existing owner.
 
 ## Session Commands
 
@@ -125,6 +127,8 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 
 | Command | Purpose |
 | --- | --- |
+| `shrimpy help [command...]` | Show default help or help for one command path. |
+| `shrimpy help all` | Show the complete command catalog. |
 | `shrimpy completion bash` | Print Bash completion generated from the CLI catalog. |
 | `shrimpy completion zsh` | Print Zsh completion generated from the CLI catalog. |
 | `shrimpy completion install [bash\|zsh]` | Install cached shell completion into the current shell profile. |

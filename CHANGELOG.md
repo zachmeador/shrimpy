@@ -19,7 +19,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### CLI & Plumbing
 
 - Added `shrimpy chat [agent]` as the plain TUI chat entrypoint for the default or selected agent.
-- Added a shared command catalog for top-level help, group usage, and shell completion so command metadata has one source of truth.
+- Added a shared command catalog and `shrimpy help all` so default help can stay focused while full help, group usage, and shell completion still expose the complete command surface.
+- Added catalog-backed `--help` / `-h` output for command groups, nested namespaces, and leaf commands without loading workspace config.
 - Cleaned up CLI help output across command groups and added `shrimpy completion bash|zsh|install|write-state|status`.
 
 ### Workspace & Setup
