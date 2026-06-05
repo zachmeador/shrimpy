@@ -18,6 +18,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### CLI & Plumbing
 
+- Added `shrimpy chat [agent]` as the plain TUI chat entrypoint for the default or selected agent.
 - Added a shared command catalog for top-level help, group usage, and shell completion so command metadata has one source of truth.
 - Cleaned up CLI help output across command groups and added `shrimpy completion bash|zsh|install|write-state|status`.
 
@@ -68,6 +69,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Improved session metadata recording after model switches so resumed sessions and inspection output reflect the active model.
 - Added contained system prompt rendering so Pi skill inventory and runtime facts are represented as Shrimpy prompt sections with an explicit context boundary.
 - Changed TUI `/new` handling to archive the previous TUI session file after Pi opens a fresh session, keeping session listing and restore behavior consistent.
+- Fixed TUI startup so the configured Shrimpy theme is registered before Pi builds interactive components.
+- Restored Shrimpy TUI turn-context display so persisted context envelopes are hidden by default and shown when `ctrl+o` expands tool output.
 
 ### Docs & Project Hygiene
 

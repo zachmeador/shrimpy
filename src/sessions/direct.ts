@@ -2,6 +2,10 @@ import {
   InteractiveMode,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
+import {
+  initTheme,
+  setRegisteredThemes,
+} from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import type { AppRuntime } from "../app/runtime.js";
 import { buildTurnContext } from "../context/index.js";
 import {
@@ -15,6 +19,7 @@ import type { ThinkingLevel } from "../inference/thinking.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
 import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
 import { installShrimpyCommandSurface } from "../tui/shrimpy-command-surface.js";
+import { installShrimpyContextRendering } from "../tui/shrimpy-context-rendering.js";
 import { installShrimpyToolRendering } from "../tui/shrimpy-tool-rendering.js";
 import { installShrimpyModelSelectionGuard } from "../tui/shrimpy-model-selection.js";
 import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
@@ -168,6 +173,13 @@ export async function runPiInteractiveAgentSession(
   return runAgentTuiSession(input, "pi");
 }
 
+export function primeInteractiveThemeForSession(
+  session: Pick<AgentSession, "resourceLoader" | "settingsManager">,
+): void {
+  setRegisteredThemes(session.resourceLoader.getThemes().themes);
+  initTheme(session.settingsManager.getTheme(), false);
+}
+
 async function runAgentTuiSession(
   input: RunInteractiveSessionInput,
   mode: "pi" | "shrimpy",
@@ -247,6 +259,7 @@ async function runAgentTuiSession(
   });
 
   try {
+    primeInteractiveThemeForSession(runtime.session);
     const interactive = new InteractiveMode(runtime, {
       initialMessage: input.initialMessage,
     });
@@ -259,6 +272,7 @@ async function runAgentTuiSession(
         sessionType: input.sessionType,
         cwd,
       });
+      installShrimpyContextRendering(interactive);
       installShrimpyToolRendering(interactive);
       installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
       installShrimpySettingsSelector(interactive, {

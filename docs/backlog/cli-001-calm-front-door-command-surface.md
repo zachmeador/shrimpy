@@ -14,7 +14,7 @@ The CLI should organize around user intentions first and implementation areas se
 
 - Command metadata now lives in `src/commands/catalog.ts`; top-level help, group usage, reference docs, and shell completion are generated from it.
 - Default `--help` still shows the full implemented surface because every catalog entry is marked for top-level help. There are no visibility tiers or `help all` path yet.
-- There is no `shrimpy chat` command. Bare `shrimpy`, `shrimpy agent tui <id>`, and `shrimpy run` remain the session front doors.
+- `shrimpy chat [agent]` is now available as the plain TUI front door. Bare `shrimpy`, `shrimpy agent tui <id>`, and `shrimpy run` remain available session entrypoints.
 
 ## Build
 
@@ -150,7 +150,7 @@ This tree is a product-shape sketch, not a migration plan. Exact arguments, alia
 
 ## Slices
 
-- CLI-001A: Add `shrimpy chat [agent]` and document it as the preferred TUI entrypoint.
+- CLI-001A: Done. Add `shrimpy chat [agent]` and document it as the preferred TUI entrypoint.
 - CLI-001B: Draft a short CLI constitution covering top-level command rules, resource naming, JSON expectations, and help visibility.
 - CLI-001C: Add command visibility tiers so default help can show common commands while completion and full help still expose the complete surface.
 - CLI-001D: Move diagnostic commands under an `inspect` or `debug` namespace where that improves human discoverability.

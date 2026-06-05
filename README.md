@@ -61,6 +61,8 @@ shrimpy completion install zsh
 
 ```bash
 shrimpy                         # launch interactive mode
+shrimpy chat                    # launch chat with the default agent
+shrimpy chat career             # launch chat with a specific agent
 shrimpy "list files"            # launch with an initial prompt
 shrimpy run "summarize status"  # one-shot prompt, print result, exit
 shrimpy status                  # inspect workspace and gateway status

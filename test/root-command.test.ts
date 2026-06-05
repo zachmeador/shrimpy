@@ -39,6 +39,21 @@ describe("root shrimpy command setup path", () => {
     assert.match(result.stderr, /Run: shrimpy setup/);
   });
 
+  test("blank chat non-interactive CLI prints a setup hint when setup is needed", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "chat"],
+      {
+        cwd: workspace,
+        env: { ...process.env, HOME: workspace },
+        encoding: "utf-8",
+      },
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Run: shrimpy setup/);
+  });
+
   test("runs setup when the workspace config is missing", async () => {
     assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), true);
   });
