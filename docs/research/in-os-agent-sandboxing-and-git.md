@@ -5,11 +5,12 @@ Status: Research
 
 ## Question
 
-Can Shrimpy use built-in macOS/Linux sandboxing for local agents?
+Can Shrimpy use built-in macOS/Linux sandboxing for local agents, and when should it use a VM-backed sandbox instead?
 
 The open questions are:
 
 - which Mac/Linux tools can limit files, network, and subprocesses;
+- whether a VM-backed runner such as Gondolin should be part of the sandbox backend set;
 - whether Shrimpy should choose a default yet;
 - how git works from inside a sandbox;
 - how sandboxed changes move back into the real workspace.
@@ -20,6 +21,7 @@ Do not choose the default yet. First define the policy words and the inspection 
 
 - macOS: App Sandbox for a host app, Seatbelt/SBPL or equivalent runner policy for short-lived execution, XPC/bookmark brokers for dynamic host access;
 - Linux: `bubblewrap`/namespaces plus seccomp as the most practical first runner shape, with Landlock worth studying for unprivileged filesystem and TCP restrictions;
+- VM-backed: evaluate [Gondolin](https://github.com/earendil-works/gondolin) as a TypeScript-controlled local Linux micro-VM backend for higher-risk agent turns, especially when Shrimpy wants host-mediated network/secrets/filesystem policy rather than direct host writes;
 - systemd sandboxing for a long-running gateway service on Linux;
 - separate users as a blunt but understandable fallback.
 
@@ -65,6 +67,23 @@ Linux is a toolkit rather than one sandbox:
 - AppArmor/SELinux and systemd sandboxing can be strong but depend on distro, packaging, and service management. They may fit gateway/service deployment better than per-turn local CLI runs.
 
 The likely Linux first experiment is `bubblewrap` for the execution view, seccomp for syscall reduction, and possibly Landlock as an additional layer where the kernel supports the needed ABI.
+
+### VM-backed: Gondolin
+
+[Gondolin](https://github.com/earendil-works/gondolin) is a local Linux micro-VM sandbox with a TypeScript/Node control plane. It runs untrusted code inside a QEMU VM by default, with an experimental `krun` backend, and keeps key I/O decisions in host-side JavaScript.
+
+The interesting fit for Shrimpy is not just compute isolation. Gondolin also exposes policy hooks Shrimpy already wants to model:
+
+- host-mediated HTTP/TLS egress with allowlists and request/response hooks;
+- secret placeholders inside the guest, with real secret substitution only for allowed destinations;
+- programmable VFS mounts, so `/workspace` can be backed by memory, a host directory, or a policy wrapper;
+- attachable shells, SSH, ingress for guest HTTP services, and disk checkpoints.
+
+That makes Gondolin a serious candidate for a `sandbox.backend = "gondolin"` style runner for high-risk tasks, package-install experiments, or scratch/patch workflows. It maps especially well to "scratch workspace plus patch promotion" and "git worktree per run": mount a narrow `/workspace`, keep `.git` and credentials out unless explicitly brokered, run tools inside the VM, then promote a diff or branch through a trusted Shrimpy step.
+
+It should not replace the in-OS research. A micro-VM runner has different tradeoffs: the guest is Linux even on macOS, default images are Alpine-based, extra packages may require custom images, mediated networking does not cover every protocol class, and VM assets/backends add operational weight. Native Seatbelt/App Sandbox/XPC remains the likely answer for Mac app distribution, bookmarks, TCC-adjacent access, and local browser/profile integration.
+
+Shrimpy implication: keep the policy vocabulary backend-neutral. `readRoots`, `writeRoots`, `network`, `git`, `secrets`, `browser`, and `promotion` should describe intent; backends such as `seatbelt`, `bubblewrap`, `gondolin`, and `none` translate that intent into their own enforcement mechanisms.
 
 ## Git And Workspace Models
 
@@ -154,6 +173,7 @@ Before choosing a backend, Shrimpy should model what it wants to enforce:
 ```ts
 type SandboxPolicy = {
   profile: "none" | "workspace-read" | "workspace-write" | "scratch-patch" | "gateway" | "browser";
+  backend: "none" | "seatbelt" | "bubblewrap" | "gondolin";
   readRoots: string[];
   writeRoots: string[];
   network: "blocked" | "proxy" | "client" | "host";
@@ -171,9 +191,10 @@ The value is not the TypeScript shape itself; it is the discipline of asking the
 1. **Inspection only.** Add a CLI command or diagnostic check that says "no native sandbox active" and shows intended policy once configured.
 2. **Linux command runner prototype.** Use `bubblewrap` to run a benign command with a read-only project mount and writable scratch, then inspect whether writes, network, and `.git` behave as expected.
 3. **Mac command runner prototype.** Build or borrow a tiny Seatbelt runner that launches a command before Node initializes, with a narrow path profile.
-4. **Git policy tests.** Create fixtures for `.git` read-only, brokered commit, patch promotion, and worktree-per-run.
-5. **Violation diagnostics.** Capture denied filesystem/network/syscall events where the platform exposes them and translate them into user-facing recommendations.
-6. **Security-agent audit awareness.** Have the planned `security` agent report effective sandbox state and unmanaged broad-access paths, but not remediate.
+4. **Gondolin runner spike.** Run a benign command in a Gondolin VM with a narrow `/workspace` VFS mount, host-mediated network disabled or allowlisted, and no raw credential mounts; compare startup cost, package availability, diff extraction, and diagnostics against the in-OS prototypes.
+5. **Git policy tests.** Create fixtures for `.git` read-only, brokered commit, patch promotion, and worktree-per-run.
+6. **Violation diagnostics.** Capture denied filesystem/network/syscall events where the platform exposes them and translate them into user-facing recommendations.
+7. **Security-agent audit awareness.** Have the planned `security` agent report effective sandbox state and unmanaged broad-access paths, but not remediate.
 
 ## Open Questions
 
@@ -183,11 +204,13 @@ The value is not the TypeScript shape itself; it is the discipline of asking the
 - Is Landlock mature enough across target Linux distributions to be more than an optional hardening layer?
 - Can a local patch-promotion mode handle renames, deletes, symlinks, binary files, and executable bits well enough for normal coding work?
 - Should package installation happen in scratch by default, even when source edits happen in-place?
+- Should high-risk coding runs default to a Gondolin VM while trusted local runs use lighter in-OS sandboxing?
 - How does browser automation fit: dedicated profile per agent, separate OS sandbox, both, or only remote/browser-service workflows?
 
 ## Sources
 
 - Existing Shrimpy research: [macos-seatbelt-helper.md](macos-seatbelt-helper.md).
+- Gondolin: [GitHub repository](https://github.com/earendil-works/gondolin), [documentation](https://earendil-works.github.io/gondolin/), [architecture overview](https://earendil-works.github.io/gondolin/architecture/), [security design](https://earendil-works.github.io/gondolin/security/), [limitations](https://earendil-works.github.io/gondolin/limitations/).
 - OpenAI Codex docs: [Sandbox](https://developers.openai.com/codex/concepts/sandboxing), [Agent approvals & security](https://developers.openai.com/codex/agent-approvals-security), [Shell tool](https://developers.openai.com/api/docs/guides/tools-shell).
 - Anthropic Claude Code docs: [Security](https://code.claude.com/docs/en/security), [Permissions](https://code.claude.com/docs/en/permissions), [Sandboxed Bash tool](https://code.claude.com/docs/en/sandboxing), [Sandbox environments](https://code.claude.com/docs/en/sandbox-environments).
 - Linux kernel docs: [Landlock](https://www.kernel.org/doc/html/latest/userspace-api/landlock.html), [Seccomp BPF](https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html).
