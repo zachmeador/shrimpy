@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Mechanic
-Depends On: [ADMIN-001](admin-001.md), [APP-001](app-001.md)
+Depends On: [APP-001](app-001.md)
 
 ## Why
 
@@ -13,7 +13,7 @@ The product shape is a framework that can search autonomously for good ideas wit
 
 ## Current State
 
-- The bundled `mechanic` agent does not exist yet.
+- The bundled `mechanic` agent exists and is the right owner for setup, repair, and usage-assessment skills.
 - Fresh setup seeds `memory-management`, `journal-daily`, and `journal-compact` watches on `shrimpy`; there is no usage-assessment watch.
 - Watch primitives needed by this item now exist: `shrimpy watches add`, `show`, `history`, `run`, active-run state, and persisted run history.
 - The workspace reference docs now define report locations such as `agents/<id>/vault/<kind>/`, including `agents/mechanic/vault/assessments/`.
@@ -47,7 +47,7 @@ The product shape is a framework that can search autonomously for good ideas wit
 ## Notes
 
 - This is a concrete recurring watch/check-in loop for [APP-001](app-001.md).
-- It should probably ship after the bundled mechanic exists in [ADMIN-001](admin-001.md).
+- It should build on the existing bundled mechanic agent instead of adding a separate assessment runtime.
 - The stable watch inspection surface gives the mechanic a way to inspect its own watch recurrence, run history, and next run.
 - [channels.md](../reference/channels.md) owns the channel wake contract for any mechanic assessment emitted into a channel.
 - Good candidate recommendations: turn repeated manual requests into a skill, add a small recurring watch, split a focused app-agent out of the main agent, add a vault collection/index, or create a channel convention.
