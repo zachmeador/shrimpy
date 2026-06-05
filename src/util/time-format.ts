@@ -12,6 +12,48 @@ export function formatFutureOrPast(targetMs: number, nowMs = Date.now()): string
   return diffSeconds >= 0 ? `in ${amount}` : `${amount} ago`;
 }
 
+export function resolveLocalTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
+export function formatAgentCurrentTime(
+  value: number | Date = new Date(),
+  opts: {
+    timeZone?: string;
+  } = {},
+): string {
+  const date = value instanceof Date ? value : new Date(value);
+  const timeZone = opts.timeZone ?? resolveLocalTimezone();
+  const local = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZoneName: "short",
+  }).format(date);
+  return `${local} (${timeZone}, ${formatUtcOffset(date, timeZone)}); UTC: ${date.toISOString()}`;
+}
+
+function formatUtcOffset(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+  }).formatToParts(date);
+  const raw = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT";
+  const match = raw.match(/^GMT(?:(?<sign>[+-])(?<hours>\d{1,2})(?::(?<minutes>\d{2}))?)?$/);
+  if (!match?.groups) return raw.replace(/^GMT/, "UTC");
+
+  const sign = match.groups.sign ?? "+";
+  const hours = String(Number(match.groups.hours ?? "0")).padStart(2, "0");
+  const minutes = match.groups.minutes ?? "00";
+  return `UTC${sign}${hours}:${minutes}`;
+}
+
 export function parseDurationMs(input: string): number {
   const source = input.trim();
   if (!source) throw new Error("duration must not be empty");

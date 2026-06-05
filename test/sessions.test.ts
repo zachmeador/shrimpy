@@ -502,11 +502,12 @@ describe("turn context Pi extension", () => {
       assert.match(prompt, /\[context pi:available_skills capability\]/);
       assert.match(prompt, /<name>sample-skill<\/name>/);
       assert.match(prompt, /\[context pi:runtime_facts runtime\]/);
-      assert.match(prompt, /Current date: \d{4}-\d{2}-\d{2}/);
+      assert.match(prompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
+      assert.match(prompt, new RegExp(`\\(${Intl.DateTimeFormat().resolvedOptions().timeZone}, UTC[+-]\\d{2}:\\d{2}\\)`));
       assert.match(prompt, new RegExp(`Current working directory: ${escapeRegExp(cwd)}`));
       assert.match(prompt, /\[end context\]$/);
       assert.equal((prompt.match(/<available_skills>/g) ?? []).length, 1);
-      assert.equal((prompt.match(/Current date:/g) ?? []).length, 1);
+      assert.equal((prompt.match(/Current time:/g) ?? []).length, 1);
     } finally {
       session.dispose();
       modelRegistry.unregisterProvider(model.provider);
@@ -644,7 +645,7 @@ describe("SessionRegistry", () => {
         agentId: "shrimpy",
         channel: "telegram~shrimpy~1",
         sessionType: "gateway",
-        capturedAt: "Wed, 04/29/2026, 12:00 AM EDT",
+        capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
         maxChars: 2000,
         items: [{
           id: "test",
@@ -714,7 +715,7 @@ describe("SessionRegistry", () => {
           agentId: "shrimpy",
           channel: "telegram~shrimpy~1",
           sessionType: "gateway",
-          capturedAt: "Wed, 04/29/2026, 12:00 AM EDT",
+          capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
           maxChars: 2000,
           items: [{
             id: `turn:${text}`,
@@ -772,7 +773,7 @@ describe("SessionRegistry", () => {
           agentId: "shrimpy",
           channel: "telegram~shrimpy~1",
           sessionType: "gateway",
-          capturedAt: "Wed, 04/29/2026, 12:00 AM EDT",
+          capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
           maxChars: 2000,
           items: [{
             id: "turn:first",
@@ -807,7 +808,7 @@ describe("SessionRegistry", () => {
       agentId: "shrimpy",
       channel: "telegram~shrimpy~1",
       sessionType: "gateway",
-      capturedAt: "Wed, 04/29/2026, 12:00 AM EDT",
+      capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
       maxChars: 2000,
       items: [{
         id: "test",
@@ -818,7 +819,7 @@ describe("SessionRegistry", () => {
 
     assert.equal(text, [
       "[turn-context]",
-      "time: Wed, 04/29/2026, 12:00 AM EDT",
+      "time: Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
       "agent: shrimpy",
       "session: gateway channel: telegram~shrimpy~1",
       "- prior thing happened",

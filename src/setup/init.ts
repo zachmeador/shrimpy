@@ -16,6 +16,7 @@ import {
 } from "../context/index.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
+import { resolveLocalTimezone } from "../util/time-format.js";
 import { brand, dim, heading } from "../util/style.js";
 import {
   createDefaultShrimpyWatches,
@@ -94,6 +95,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
     },
     watchClock: {
       tickIntervalMs: 1000,
+      defaultTimezone: resolveLocalTimezone(),
     },
     status: createDefaultStatusConfig(),
   };

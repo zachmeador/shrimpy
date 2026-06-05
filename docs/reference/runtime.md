@@ -68,6 +68,7 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 - Message watches emit watch-authored channel messages with plain text instructions. The owning agent must be a member of the target channel and have `channelPolicy` configured to wake for those messages.
 - Command watches run a shell command and can emit to a channel based on `emit.policy` (`never`, `always`, `on_output`, `on_change`, or `on_failure`).
 - Watch-origin messages carry provenance in `origin.watch`, and turn context points back to `shrimpy watches show <watch-id>` and `shrimpy watches history <watch-id>`.
+- The gateway watches agent `watches.json` files and reloads watch definitions when they change, preserving existing clock state for unchanged watches.
 - Active watch state and run history live under `runtime/watches/<agent-id>/`.
 - Fresh setup seeds focused upkeep watches for `memory-management`, `journal-daily`, and `journal-compact`; it does not seed a broad catch-all upkeep watch.
 - The `run_child` tool opens a fresh child `run` session for bounded work and returns the result to the parent session.

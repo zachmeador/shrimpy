@@ -102,6 +102,9 @@ if (config) {
   if (!config.watchClock || typeof config.watchClock.tickIntervalMs !== "number") {
     errors.push("config/shrimpy.json must define watchClock.tickIntervalMs");
   }
+  if (!config.watchClock || typeof config.watchClock.defaultTimezone !== "string") {
+    errors.push("config/shrimpy.json must define watchClock.defaultTimezone");
+  }
 }
 
 if (channels) {

@@ -147,6 +147,7 @@ describe("setupInit", () => {
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     assert.equal(config.watchClock.tickIntervalMs, 1000);
+    assert.equal(config.watchClock.defaultTimezone, Intl.DateTimeFormat().resolvedOptions().timeZone);
     assert.deepEqual(config.status, {});
     assert.equal(config.agents[0].root, "agents/shrimpy");
     assert.equal(config.agents[0].modelPolicy, "coding");

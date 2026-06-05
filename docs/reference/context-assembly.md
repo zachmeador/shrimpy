@@ -82,7 +82,7 @@ Per turn, `buildTurnContext` (`src/context/turn/service.ts`) gathers live facts 
 
 ```text
 [turn-context]
-time: 2026-04-29T12:00:00Z
+time: Wed, 04/29/2026, 08:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T12:00:00.000Z
 agent: shrimpy
 session: gateway channel: home
 - gateway status: last watch run 5m ago; next watch run in 10m

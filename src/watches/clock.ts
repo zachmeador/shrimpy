@@ -28,6 +28,7 @@ export type WatchClockStateSnapshot = Record<string, WatchClockStateEntry>;
 export interface WatchClock {
   start(): void;
   stop(): void;
+  setWatches(watches: ResolvedAgentWatchDefinition[], nowMs?: number): void;
   tick(nowMs?: number): Promise<WatchRunDue[]>;
   getState(): WatchClockStateSnapshot;
 }
@@ -42,6 +43,25 @@ function everyMsOf(watch: ResolvedAgentWatchDefinition): number | undefined {
 
 function cronOf(watch: ResolvedAgentWatchDefinition): string | undefined {
   return "cron" in watch.trigger ? watch.trigger.cron : undefined;
+}
+
+export function computeNextWatchRunAtMs(
+  watch: ResolvedAgentWatchDefinition,
+  currentNowMs: number,
+  defaultTimezone?: string,
+): number | undefined {
+  const everyMs = everyMsOf(watch);
+  if (everyMs !== undefined) {
+    return everyMs > 0 ? currentNowMs + everyMs : undefined;
+  }
+
+  const expression = cronOf(watch);
+  if (!expression) return undefined;
+  const interval = CronExpressionParser.parse(expression, {
+    currentDate: new Date(currentNowMs),
+    tz: watch.trigger.timezone ?? watch.timezone ?? defaultTimezone,
+  });
+  return interval.next().getTime();
 }
 
 function toRunDue(
@@ -61,7 +81,6 @@ function toRunDue(
 
 export function createWatchClock(config: WatchClockConfig): WatchClock {
   const {
-    watches,
     onRunDue,
     tickIntervalMs = DEFAULT_TICK_INTERVAL_MS,
     defaultTimezone,
@@ -71,6 +90,7 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
     logger = console,
   } = config;
 
+  let watches = [...config.watches];
   const state = new Map<string, WatchClockRuntimeState>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let lastSnapshotKey = "";
@@ -122,11 +142,19 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
       return { runtime: current, initialized };
     }
     if (everyMs !== undefined && !current.nextRunAtMs) {
-      current.nextRunAtMs = currentNowMs + everyMs;
+      current.nextRunAtMs = computeNextWatchRunAtMs(
+        watch,
+        currentNowMs,
+        defaultTimezone,
+      );
       initialized = true;
     }
     if (cronOf(watch) && !current.nextRunAtMs) {
-      current.nextRunAtMs = nextCronRunAtMs(watch, currentNowMs);
+      current.nextRunAtMs = computeNextWatchRunAtMs(
+        watch,
+        currentNowMs,
+        defaultTimezone,
+      );
       initialized = true;
     }
     if (everyMs === undefined && !cronOf(watch)) {
@@ -147,15 +175,15 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
       const { runtime: watchState, initialized } = ensureState(watch, nowMs);
       if (initialized) changed = true;
 
-      const everyMs = everyMsOf(watch);
-
       const nextRunAtMs = watchState.nextRunAtMs;
       if (nextRunAtMs === undefined || nextRunAtMs > nowMs) continue;
 
       dueRuns.push(toRunDue(watch, nextRunAtMs));
-      watchState.nextRunAtMs = everyMs !== undefined
-        ? nowMs + everyMs
-        : nextCronRunAtMs(watch, nowMs);
+      watchState.nextRunAtMs = computeNextWatchRunAtMs(
+        watch,
+        nowMs,
+        defaultTimezone,
+      );
       changed = true;
     }
 
@@ -177,6 +205,7 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
   return {
     start() {
       if (timer) return;
+      void tick();
       timer = setInterval(() => {
         void tick();
       }, tickIntervalMs);
@@ -195,22 +224,39 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
       logger.log("[watch-clock] stopped");
     },
 
+    setWatches(nextWatches, nowMs = now()) {
+      const activeWatchIds = new Set(
+        nextWatches
+          .filter((watch) => watch.enabled !== false)
+          .map((watch) => watch.id),
+      );
+      const nextState = new Map(state);
+      let changed = false;
+      for (const watchId of [...nextState.keys()]) {
+        if (activeWatchIds.has(watchId)) continue;
+        nextState.delete(watchId);
+        changed = true;
+      }
+      for (const watch of nextWatches) {
+        if (watch.enabled === false) continue;
+        const current = nextState.get(watch.id) ?? {};
+        if (current.nextRunAtMs === undefined) {
+          current.nextRunAtMs = computeNextWatchRunAtMs(
+            watch,
+            nowMs,
+            defaultTimezone,
+          );
+          nextState.set(watch.id, current);
+          changed = true;
+        }
+      }
+      watches = [...nextWatches];
+      state.clear();
+      for (const [watchId, runtime] of nextState) state.set(watchId, runtime);
+      if (changed) notifyStateChanged();
+    },
+
     tick,
     getState,
   };
-
-  function nextCronRunAtMs(
-    watch: ResolvedAgentWatchDefinition,
-    currentNowMs: number,
-  ): number {
-    const expression = cronOf(watch);
-    if (!expression) {
-      throw new Error(`watch ${watch.id} does not have a cron trigger`);
-    }
-    const interval = CronExpressionParser.parse(expression, {
-      currentDate: new Date(currentNowMs),
-      tz: watch.trigger.timezone ?? watch.timezone ?? defaultTimezone,
-    });
-    return interval.next().getTime();
-  }
 }

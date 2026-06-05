@@ -148,7 +148,7 @@ export function buildSystemEnvSections(opts: {
     if (!isPromptRuntimeEnvKey(key)) continue;
     const value = opts.env[key];
     if (value !== undefined && value !== "") {
-      envRows.push(`- **${key}**: ${value}`);
+      envRows.push(`- **${promptRuntimeEnvLabel(key)}**: ${value}`);
     }
   }
   if (envRows.length > 0) {
@@ -202,6 +202,11 @@ export function buildSystemEnvSections(opts: {
   }
 
   return sections;
+}
+
+function promptRuntimeEnvLabel(key: string): string {
+  if (key === "booted_at_iso") return "session_booted_at_utc";
+  return key;
 }
 
 export function resolveContextEnvKeys(

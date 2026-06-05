@@ -119,7 +119,8 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>schedules<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
-    assert.match(parsed.systemPrompt, /Current date: \d{4}-\d{2}-\d{2}/);
+    assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
+    assert.match(parsed.systemPrompt, new RegExp(`\\(${Intl.DateTimeFormat().resolvedOptions().timeZone}, UTC[+-]\\d{2}:\\d{2}\\)`));
     assert.match(parsed.systemPrompt, /Current working directory:/);
     assert.match(parsed.systemPrompt, /\[end context\]$/);
     assert.match(parsed.shrimpySystemPrompt, /# SOUL/);

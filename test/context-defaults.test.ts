@@ -122,6 +122,20 @@ describe("resolveContextDefaultsConfig", () => {
     assert.doesNotMatch(sections[0]!.content, /\*\*provider\*\*/);
   });
 
+  test("renders boot timestamp as session boot time", () => {
+    const sections = buildSystemEnvSections({
+      sessionType: "preview",
+      envKeys: ["booted_at_iso"],
+      env: {
+        booted_at_iso: "2026-05-20T04:02:19.469Z",
+      },
+    });
+
+    assert.equal(sections.length, 1);
+    assert.match(sections[0]!.content, /\*\*session_booted_at_utc\*\*: 2026-05-20T04:02:19\.469Z/);
+    assert.doesNotMatch(sections[0]!.content, /booted_at_iso/);
+  });
+
   test("adds direct-session delivery guidance for TUI sessions", () => {
     const sections = buildSystemEnvSections({
       sessionType: "tui",

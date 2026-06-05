@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  computeNextWatchRunAtMs,
   createWatchClock,
   loadWatchClockState,
   saveWatchClockState,
@@ -178,6 +179,66 @@ describe("createWatchClock", () => {
     await clock.tick();
     assert.equal(runs.length, 1);
     assert.equal(runs[0].fireTimeMs, Date.parse("2026-04-08T13:00:00.000Z"));
+  });
+
+  test("computes fallback next runs with timezone support", () => {
+    const watch = resolvedWatch({
+      id: "shrimpy/test.compute",
+      localId: "test.compute",
+      trigger: {
+        kind: "time",
+        cron: "0 9 * * *",
+      },
+      timezone: "America/New_York",
+    });
+
+    assert.equal(
+      computeNextWatchRunAtMs(
+        watch,
+        Date.parse("2026-04-08T12:59:00.000Z"),
+      ),
+      Date.parse("2026-04-08T13:00:00.000Z"),
+    );
+  });
+
+  test("reloads watch definitions while preserving and pruning clock state", () => {
+    const snapshots: WatchClockStateSnapshot[] = [];
+    const kept = resolvedWatch({
+      id: "shrimpy/kept",
+      localId: "kept",
+    });
+    const removed = resolvedWatch({
+      id: "shrimpy/removed",
+      localId: "removed",
+    });
+    const added = resolvedWatch({
+      id: "shrimpy/added",
+      localId: "added",
+      trigger: { kind: "time", everyMs: 2_000 },
+    });
+    const disabled = resolvedWatch({
+      id: "shrimpy/disabled",
+      localId: "disabled",
+      enabled: false,
+    });
+    const clock = createWatchClock({
+      watches: [kept, removed],
+      now: () => 0,
+      initialState: {
+        [kept.id]: { nextRunAtMs: 5_000 },
+        [removed.id]: { nextRunAtMs: 6_000 },
+      },
+      onRunDue: async () => {},
+      onStateChange: (snapshot) => snapshots.push(snapshot),
+    });
+
+    clock.setWatches([kept, added, disabled], 1_000);
+
+    assert.deepEqual(clock.getState(), {
+      [kept.id]: { nextRunAtMs: 5_000 },
+      [added.id]: { nextRunAtMs: 3_000 },
+    });
+    assert.deepEqual(snapshots.at(-1), clock.getState());
   });
 
 });

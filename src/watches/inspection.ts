@@ -12,6 +12,9 @@ import type {
 } from "../config/agents.js";
 import { createGatewaySessionDescriptor } from "../sessions/spec.js";
 import {
+  computeNextWatchRunAtMs,
+} from "./clock.js";
+import {
   loadWatchClockState,
 } from "./clock-state-store.js";
 import {
@@ -23,6 +26,7 @@ import {
 import {
   loadAgentWatchDefinitions,
   resolveAgentWatchDefinition,
+  watchDefinitionDiagnostics,
   watchTriggerText,
   type ResolvedAgentWatchDefinition,
   type WatchEmitPolicy,
@@ -60,6 +64,7 @@ export interface WatchInspection {
   expectedWake: WatchWakeExpectation[];
   expectedTurnAgentIds: string[];
   nextRunAtMs?: number;
+  nextRunSource?: "clock_state" | "computed";
   activeRun?: ActiveWatchRunRecord;
   lastRun?: WatchRunRecord;
   inspectCommands: {
@@ -114,7 +119,16 @@ export function inspectWatches(
       watchId: watch.id,
       limit: 1,
     })[0];
-    const nextRunAtMs = watchClockState[watch.id]?.nextRunAtMs;
+    const persistedNextRunAtMs = watchClockState[watch.id]?.nextRunAtMs;
+    const computedNextRunAtMs = persistedNextRunAtMs === undefined && watch.enabled !== false
+      ? computeFallbackNextRunAtMs(runtime, watch)
+      : undefined;
+    const nextRunAtMs = persistedNextRunAtMs ?? computedNextRunAtMs;
+    const nextRunSource = persistedNextRunAtMs !== undefined
+      ? "clock_state"
+      : computedNextRunAtMs !== undefined
+        ? "computed"
+        : undefined;
 
     return {
       id: watch.id,
@@ -136,6 +150,7 @@ export function inspectWatches(
       expectedWake,
       expectedTurnAgentIds,
       ...(nextRunAtMs !== undefined ? { nextRunAtMs } : {}),
+      ...(nextRunSource ? { nextRunSource } : {}),
       ...(activeRun ? { activeRun } : {}),
       ...(lastRun ? { lastRun } : {}),
       inspectCommands: {
@@ -149,12 +164,28 @@ export function inspectWatches(
         watch,
         targetChannels,
         expectedTurnAgentIds,
-        nextRunAtMs: watchClockState[watch.id],
+        nextRunSource,
+        nextRunComputed: computedNextRunAtMs !== undefined,
         lastRun,
       }),
       watch,
     };
   });
+}
+
+function computeFallbackNextRunAtMs(
+  runtime: AppRuntime,
+  watch: ResolvedAgentWatchDefinition,
+): number | undefined {
+  try {
+    return computeNextWatchRunAtMs(
+      watch,
+      Date.now(),
+      runtime.config.watchClock?.defaultTimezone,
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 export function inspectWatch(
@@ -294,18 +325,21 @@ function watchDiagnostics(input: {
   watch: ResolvedAgentWatchDefinition;
   targetChannels: string[];
   expectedTurnAgentIds: string[];
-  nextRunAtMs?: { nextRunAtMs?: number };
+  nextRunSource?: "clock_state" | "computed";
+  nextRunComputed: boolean;
   lastRun?: WatchRunRecord;
 }): string[] {
-  const diagnostics: string[] = [];
+  const diagnostics: string[] = watchDefinitionDiagnostics(input.watch);
   if (input.watch.enabled === false) {
     diagnostics.push("watch is disabled");
   }
   if (input.targetChannels.length === 0) {
     diagnostics.push("watch records run history without emitting channel messages");
   }
-  if (input.watch.enabled !== false && input.nextRunAtMs?.nextRunAtMs === undefined) {
-    diagnostics.push("watch clock has no next run recorded yet");
+  if (input.watch.enabled !== false && input.nextRunSource !== "clock_state") {
+    diagnostics.push(input.nextRunComputed
+      ? "watch clock has no next run recorded yet; computed fallback shown"
+      : "watch clock has no next run recorded yet");
   }
   if (input.targetChannels.length > 0 && input.expectedTurnAgentIds.length === 0) {
     diagnostics.push("no configured agent is expected to take a turn from emitted watch messages");

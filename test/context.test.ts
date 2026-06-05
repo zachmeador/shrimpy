@@ -215,7 +215,7 @@ describe("buildTurnContext", () => {
 
     assert.match(text, /routed via watch; from system:system:watch-runner; in channel home/);
     assert.match(text, /watch message; daily-check; owner shrimpy; local daily-check; target home; action message; run run-1; fired .*(Sat|Saturday).*\d{1,2}:\d{2}/);
-    assert.doesNotMatch(text, /2026-05-02T12:00:00\.000Z/);
+    assert.match(text, /fired .*; UTC: 2026-05-02T12:00:00\.000Z/);
     assert.match(text, /inspect: shrimpy watches show daily-check/);
   });
 

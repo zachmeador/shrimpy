@@ -73,6 +73,7 @@ describe("watch inspection surfaces", () => {
     assert.deepEqual(inspected.targetChannels, ["maintenance"]);
     assert.deepEqual(inspected.expectedTurnAgentIds, ["shrimpy"]);
     assert.equal(inspected.nextRunAtMs, future);
+    assert.equal(inspected.nextRunSource, "clock_state");
     assert.equal(inspected.lastRun?.status, "success");
     assert.equal(inspected.lastRun?.emittedChannelMessageIds.length, 1);
     assert.match(inspected.expectedWake[0]?.sessionPath ?? "", /agents\/shrimpy\/sessions\/maintenance$/);
@@ -124,6 +125,8 @@ describe("watch inspection surfaces", () => {
       kind: "time",
       cron: "0 3 * * *",
     });
+    assert.equal(payload.watches[0].nextRunSource, "computed");
+    assert.equal(typeof payload.watches[0].nextRunAtMs, "number");
   });
 
   test("shows one resolved watch", async () => {
@@ -151,6 +154,10 @@ describe("watch inspection surfaces", () => {
         "shrimpy",
         "--every",
         "5m",
+        "--name",
+        "Morning note",
+        "--concurrency-policy",
+        "allow",
         "--channel",
         "maintenance",
         "--message",
@@ -162,19 +169,130 @@ describe("watch inspection surfaces", () => {
     assert.equal(result, 0);
     const watch = JSON.parse(lines.join("\n"));
     assert.equal(watch.id, "shrimpy/morning-note");
-    assert.deepEqual(watch.trigger, { kind: "time", everyMs: 300_000 });
+    assert.equal(watch.name, "Morning note");
+    assert.equal(watch.concurrencyPolicy, "allow");
+    assert.deepEqual(watch.trigger, {
+      kind: "time",
+      everyMs: 300_000,
+    });
     assert.deepEqual(watch.targetChannels, ["maintenance"]);
+    assert.equal(watch.nextRunSource, "computed");
 
     const raw = JSON.parse(
       readFileSync(join(workspace, "agents", "shrimpy", "watches.json"), "utf-8"),
     );
     const stored = raw.find((entry: any) => entry.id === "morning-note");
+    assert.equal(stored.name, "Morning note");
+    assert.equal(stored.timezone, undefined);
+    assert.equal(stored.concurrencyPolicy, "allow");
     assert.deepEqual(stored.trigger, { kind: "time", everyMs: 300_000 });
     assert.deepEqual(stored.action, {
       kind: "message",
       channel: "maintenance",
       text: "Check the house.",
     });
+  });
+
+  test("rejects invalid watch add values", async () => {
+    await setupInit(workspace);
+
+    await assert.rejects(
+      () =>
+        cmdWatches([
+          "add",
+          "memory-management",
+          "--agent",
+          "shrimpy",
+          "--every",
+          "5m",
+          "--channel",
+          "maintenance",
+          "--message",
+          "Check in.",
+        ], { workspace } as any),
+      /watch already exists: shrimpy\/memory-management/,
+    );
+
+    await assert.rejects(
+      () =>
+        cmdWatches([
+          "add",
+          "bad-policy",
+          "--agent",
+          "shrimpy",
+          "--every",
+          "5m",
+          "--concurrency-policy",
+          "queue",
+          "--channel",
+          "maintenance",
+          "--message",
+          "Check in.",
+        ], { workspace } as any),
+      /--concurrency-policy must be forbid or allow/,
+    );
+
+    await assert.rejects(
+      () =>
+        cmdWatches([
+          "add",
+          "timezone-flag",
+          "--agent",
+          "shrimpy",
+          "--every",
+          "5m",
+          "--timezone",
+          "America/New_York",
+          "--channel",
+          "maintenance",
+          "--message",
+          "Check in.",
+        ], { workspace } as any),
+      /Unknown option '--timezone'/,
+    );
+
+    await assert.rejects(
+      () =>
+        cmdWatches([
+          "add",
+          "bad\u0007id",
+          "--agent",
+          "shrimpy",
+          "--every",
+          "5m",
+          "--channel",
+          "maintenance",
+          "--message",
+          "Check in.",
+        ], { workspace } as any),
+      /watch id must not contain control or invisible characters/,
+    );
+  });
+
+  test("surfaces human-facing text diagnostics", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdWatches([
+        "add",
+        "escaped-text",
+        "--agent",
+        "shrimpy",
+        "--every",
+        "5m",
+        "--channel",
+        "maintenance",
+        "--message",
+        "Don\\'t forget.",
+        "--json",
+      ], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const watch = JSON.parse(lines.join("\n"));
+    assert.ok(watch.diagnostics.some((diagnostic: string) =>
+      diagnostic.includes("literal escaped apostrophe")
+    ));
   });
 
   test("adds a command watch with output emission through the CLI", async () => {

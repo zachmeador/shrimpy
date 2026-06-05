@@ -8,6 +8,7 @@ import {
   renderPromptSections,
   type PromptSection,
 } from "../context/index.js";
+import { formatAgentCurrentTime } from "../util/time-format.js";
 
 const CONTEXT_END_MARKER = "[end context]";
 
@@ -94,14 +95,7 @@ function renderSkillsForSelectedTools(
 
 function renderPiRuntimeFacts(cwd: string, now = new Date()): string {
   return [
-    `Current date: ${formatPiPromptDate(now)}`,
+    `Current time: ${formatAgentCurrentTime(now)}`,
     `Current working directory: ${cwd.replace(/\\/g, "/")}`,
   ].join("\n");
-}
-
-function formatPiPromptDate(now: Date): string {
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }

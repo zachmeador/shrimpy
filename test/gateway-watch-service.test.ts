@@ -11,10 +11,13 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createAppRuntime } from "../dist/app/index.js";
+import { setupInit } from "../dist/setup/init.js";
 import {
   ensureGatewayWatchFiles,
   loadGatewayAgentWatches,
+  startGatewayWatchClock,
 } from "../dist/gateway/watch-service.js";
+import type { WatchClock } from "../dist/watches/index.js";
 
 let testDir: string;
 
@@ -110,4 +113,86 @@ describe("gateway watch service", () => {
     ]);
     assert.deepEqual(opsWatches, []);
   });
+
+  test("reloads added and disabled watches without dropping kept clock state", async () => {
+    await setupInit(testDir);
+    const watchesPath = join(testDir, "agents", "shrimpy", "watches.json");
+    writeWatches(watchesPath, [
+      {
+        id: "kept",
+        trigger: { kind: "time", everyMs: 60_000 },
+        action: {
+          kind: "message",
+          channel: "maintenance",
+          text: "Keep going.",
+        },
+      },
+    ]);
+    const runtime = createAppRuntime({ workspace: testDir });
+    const clock: WatchClock = startGatewayWatchClock(
+      runtime,
+      runtime.createChannelBus(),
+    );
+
+    try {
+      await waitForState(clock, (state) => state["shrimpy/kept"] !== undefined);
+      const keptNextRunAtMs = clock.getState()["shrimpy/kept"]?.nextRunAtMs;
+      assert.equal(typeof keptNextRunAtMs, "number");
+
+      writeWatches(watchesPath, [
+        {
+          id: "kept",
+          trigger: { kind: "time", everyMs: 60_000 },
+          action: {
+            kind: "message",
+            channel: "maintenance",
+            text: "Keep going.",
+          },
+        },
+        {
+          id: "added",
+          trigger: { kind: "time", everyMs: 120_000 },
+          action: {
+            kind: "message",
+            channel: "maintenance",
+            text: "Added.",
+          },
+        },
+        {
+          id: "disabled",
+          enabled: false,
+          trigger: { kind: "time", everyMs: 120_000 },
+          action: {
+            kind: "message",
+            channel: "maintenance",
+            text: "Disabled.",
+          },
+        },
+      ]);
+
+      await waitForState(clock, (state) => state["shrimpy/added"] !== undefined);
+      const reloadedState = clock.getState();
+      assert.equal(reloadedState["shrimpy/kept"]?.nextRunAtMs, keptNextRunAtMs);
+      assert.equal(typeof reloadedState["shrimpy/added"]?.nextRunAtMs, "number");
+      assert.equal(reloadedState["shrimpy/disabled"], undefined);
+    } finally {
+      clock.stop();
+    }
+  });
 });
+
+function writeWatches(path: string, watches: unknown[]): void {
+  writeFileSync(path, `${JSON.stringify(watches, null, 2)}\n`, "utf-8");
+}
+
+async function waitForState(
+  clock: WatchClock,
+  predicate: (state: ReturnType<WatchClock["getState"]>) => boolean,
+): Promise<void> {
+  const deadline = Date.now() + 1_500;
+  while (Date.now() < deadline) {
+    if (predicate(clock.getState())) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.fail(`clock state did not match before timeout: ${JSON.stringify(clock.getState())}`);
+}

@@ -10,6 +10,7 @@ import {
   runWatchNow,
   watchTriggerMetadata,
   type WatchDefinition,
+  type WatchConcurrencyPolicy,
   type WatchInspection,
   type WatchRunRecord,
   type WatchWakeExpectation,
@@ -121,7 +122,6 @@ async function cmdWatchesAdd(
       cron: { type: "string" },
       every: { type: "string" },
       "every-ms": { type: "string" },
-      timezone: { type: "string" },
       channel: { type: "string" },
       message: { type: "string" },
       addressed: { type: "string" },
@@ -131,6 +131,7 @@ async function cmdWatchesAdd(
       "emit-policy": { type: "string" },
       "emit-channel": { type: "string" },
       "emit-template": { type: "string" },
+      "concurrency-policy": { type: "string" },
       disabled: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
     },
@@ -139,6 +140,10 @@ async function cmdWatchesAdd(
     usage,
   });
   const localId = requireArg(positionals[0], usage, "watch id");
+  assertCliStructuralString(localId, "watch id");
+  if (typeof values.agent === "string") {
+    assertCliStructuralString(values.agent, "--agent");
+  }
   if (localId.includes("/")) {
     throw new Error("watch id must be local to the agent and must not contain '/'");
   }
@@ -167,6 +172,9 @@ async function cmdWatchesAdd(
   console.log(`trigger: ${created.triggerText}`);
   console.log(`action: ${created.actionKind}`);
   console.log(`target_channels: ${created.targetChannels.join(",") || "(none)"}`);
+  for (const diagnostic of created.diagnostics) {
+    console.log(`warning: ${diagnostic}`);
+  }
   return 0;
 }
 
@@ -366,14 +374,15 @@ function buildWatchFromAddArgs(
   const trigger = buildTrigger(values);
   const action = buildAction(values);
   const emit = buildEmit(values);
+  const concurrencyPolicy = buildConcurrencyPolicy(values);
   return {
     id,
     ...(typeof values.name === "string" ? { name: values.name } : {}),
     ...(values.disabled === true ? { enabled: false } : {}),
-    ...(typeof values.timezone === "string" ? { timezone: values.timezone } : {}),
     trigger,
     action,
     ...(emit ? { emit } : {}),
+    ...(concurrencyPolicy ? { concurrencyPolicy } : {}),
   };
 }
 
@@ -449,8 +458,31 @@ function buildEmit(values: Record<string, unknown>): WatchDefinition["emit"] {
   };
 }
 
+function buildConcurrencyPolicy(
+  values: Record<string, unknown>,
+): WatchConcurrencyPolicy | undefined {
+  const policy = stringValue(values["concurrency-policy"]);
+  if (!policy) return undefined;
+  if (!isWatchConcurrencyPolicy(policy)) {
+    throw new Error("--concurrency-policy must be forbid or allow");
+  }
+  return policy;
+}
+
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+const STRUCTURAL_INVISIBLE_PATTERN = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
+
+function assertCliStructuralString(value: string, label: string): void {
+  if (STRUCTURAL_INVISIBLE_PATTERN.test(value)) {
+    throw new Error(`${label} must not contain control or invisible characters`);
+  }
+}
+
+function isWatchConcurrencyPolicy(value: string): value is WatchConcurrencyPolicy {
+  return value === "forbid" || value === "allow";
 }
 
 function isWatchEmitPolicy(value: string): value is WatchEmitPolicy {

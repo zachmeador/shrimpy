@@ -100,6 +100,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const STRUCTURAL_INVISIBLE_PATTERN = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
+const UNSAFE_FREEFORM_CONTROL_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
+const FREEFORM_INVISIBLE_PATTERN = /[\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
+
 function assertString(
   value: unknown,
   label: string,
@@ -110,15 +114,65 @@ function assertString(
   return value;
 }
 
+function assertStructuralString(
+  value: unknown,
+  label: string,
+): string {
+  const text = assertString(value, label);
+  if (STRUCTURAL_INVISIBLE_PATTERN.test(text)) {
+    throw new Error(`${label} must not contain control or invisible characters`);
+  }
+  return text;
+}
+
+function assertOptionalStructuralString(
+  value: unknown,
+  label: string,
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw new Error(`${label} must be a string`);
+  }
+  if (value.length === 0) return undefined;
+  return assertStructuralString(value, label);
+}
+
+function assertFreeformText(
+  value: unknown,
+  label: string,
+): string {
+  const text = assertString(value, label);
+  if (UNSAFE_FREEFORM_CONTROL_PATTERN.test(text)) {
+    throw new Error(`${label} must not contain unsafe control characters`);
+  }
+  return text;
+}
+
+function freeformTextDiagnostics(
+  value: string | undefined,
+  label: string,
+): string[] {
+  if (!value) return [];
+  const diagnostics: string[] = [];
+  if (FREEFORM_INVISIBLE_PATTERN.test(value)) {
+    diagnostics.push(`${label} contains invisible formatting characters`);
+  }
+  if (value.includes("\\'")) {
+    diagnostics.push(`${label} contains a literal escaped apostrophe (\\')`);
+  }
+  return diagnostics;
+}
+
 function parseTrigger(raw: unknown, index: number): WatchTrigger {
   if (!isRecord(raw) || typeof raw.kind !== "string") {
     throw new Error(`watches[${index}].trigger must be an object`);
   }
 
   if (raw.kind === "time") {
-    if (raw.timezone !== undefined && typeof raw.timezone !== "string") {
-      throw new Error(`watches[${index}].trigger.timezone must be a string`);
-    }
+    const timezone = assertOptionalStructuralString(
+      raw.timezone,
+      `watches[${index}].trigger.timezone`,
+    );
 
     if (raw.cron !== undefined) {
       if (raw.everyMs !== undefined) {
@@ -133,7 +187,7 @@ function parseTrigger(raw: unknown, index: number): WatchTrigger {
       return {
         kind: "time",
         cron: expression,
-        ...(raw.timezone ? { timezone: raw.timezone } : {}),
+        ...(timezone ? { timezone } : {}),
       };
     }
 
@@ -144,7 +198,7 @@ function parseTrigger(raw: unknown, index: number): WatchTrigger {
       return {
         kind: "time",
         everyMs: raw.everyMs,
-        ...(raw.timezone ? { timezone: raw.timezone } : {}),
+        ...(timezone ? { timezone } : {}),
       };
     }
 
@@ -176,9 +230,10 @@ function parseAction(raw: unknown, index: number): WatchAction {
 
   if (raw.kind === "command") {
     const command = assertString(raw.command, `watches[${index}].action.command`);
-    if (raw.cwd !== undefined && typeof raw.cwd !== "string") {
-      throw new Error(`watches[${index}].action.cwd must be a string`);
-    }
+    const cwd = assertOptionalStructuralString(
+      raw.cwd,
+      `watches[${index}].action.cwd`,
+    );
     if (
       raw.timeoutMs !== undefined &&
       (typeof raw.timeoutMs !== "number" || !(raw.timeoutMs > 0))
@@ -188,39 +243,43 @@ function parseAction(raw: unknown, index: number): WatchAction {
     return {
       kind: "command",
       command,
-      ...(raw.cwd ? { cwd: raw.cwd } : {}),
+      ...(cwd ? { cwd } : {}),
       ...(typeof raw.timeoutMs === "number" ? { timeoutMs: raw.timeoutMs } : {}),
     };
   }
 
   if (raw.kind === "message") {
-    const channel = assertString(raw.channel, `watches[${index}].action.channel`);
-    const text = assertString(raw.text, `watches[${index}].action.text`);
+    const channel = assertStructuralString(raw.channel, `watches[${index}].action.channel`);
+    const text = assertFreeformText(raw.text, `watches[${index}].action.text`);
     const senderKind = parseSenderKind(
       raw.senderKind,
       `watches[${index}].action.senderKind`,
     );
-    if (
-      raw.addressedAgentId !== undefined &&
-      typeof raw.addressedAgentId !== "string"
-    ) {
-      throw new Error(
-        `watches[${index}].action.addressedAgentId must be a string`,
-      );
-    }
+    const addressedAgentId = assertOptionalStructuralString(
+      raw.addressedAgentId,
+      `watches[${index}].action.addressedAgentId`,
+    );
+    const senderActorId = assertOptionalStructuralString(
+      raw.senderActorId,
+      `watches[${index}].action.senderActorId`,
+    );
+    const senderUserId = assertOptionalStructuralString(
+      raw.senderUserId,
+      `watches[${index}].action.senderUserId`,
+    );
+    const senderDisplayName = assertOptionalStructuralString(
+      raw.senderDisplayName,
+      `watches[${index}].action.senderDisplayName`,
+    );
     return {
       kind: "message",
       channel,
       text,
-      ...(raw.addressedAgentId ? { addressedAgentId: raw.addressedAgentId } : {}),
+      ...(addressedAgentId ? { addressedAgentId } : {}),
       ...(senderKind ? { senderKind } : {}),
-      ...(typeof raw.senderActorId === "string"
-        ? { senderActorId: raw.senderActorId }
-        : {}),
-      ...(typeof raw.senderUserId === "string" ? { senderUserId: raw.senderUserId } : {}),
-      ...(typeof raw.senderDisplayName === "string"
-        ? { senderDisplayName: raw.senderDisplayName }
-        : {}),
+      ...(senderActorId ? { senderActorId } : {}),
+      ...(senderUserId ? { senderUserId } : {}),
+      ...(senderDisplayName ? { senderDisplayName } : {}),
     };
   }
 
@@ -237,33 +296,39 @@ function parseEmit(raw: unknown, index: number): WatchEmitConfig | undefined {
       `watches[${index}].emit.policy must be never, always, on_output, on_change, or on_failure`,
     );
   }
-  if (raw.channel !== undefined && typeof raw.channel !== "string") {
-    throw new Error(`watches[${index}].emit.channel must be a string`);
-  }
-  if (raw.template !== undefined && typeof raw.template !== "string") {
-    throw new Error(`watches[${index}].emit.template must be a string`);
-  }
-  if (
-    raw.addressedAgentId !== undefined &&
-    typeof raw.addressedAgentId !== "string"
-  ) {
-    throw new Error(`watches[${index}].emit.addressedAgentId must be a string`);
-  }
+  const channel = assertOptionalStructuralString(raw.channel, `watches[${index}].emit.channel`);
+  const template = raw.template === undefined
+    ? undefined
+    : assertFreeformText(raw.template, `watches[${index}].emit.template`);
+  const addressedAgentId = assertOptionalStructuralString(
+    raw.addressedAgentId,
+    `watches[${index}].emit.addressedAgentId`,
+  );
   const senderKind = parseSenderKind(
     raw.senderKind,
     `watches[${index}].emit.senderKind`,
   );
+  const senderActorId = assertOptionalStructuralString(
+    raw.senderActorId,
+    `watches[${index}].emit.senderActorId`,
+  );
+  const senderUserId = assertOptionalStructuralString(
+    raw.senderUserId,
+    `watches[${index}].emit.senderUserId`,
+  );
+  const senderDisplayName = assertOptionalStructuralString(
+    raw.senderDisplayName,
+    `watches[${index}].emit.senderDisplayName`,
+  );
   return {
     policy: raw.policy as WatchEmitPolicy,
-    ...(raw.channel ? { channel: raw.channel } : {}),
-    ...(raw.template ? { template: raw.template } : {}),
-    ...(raw.addressedAgentId ? { addressedAgentId: raw.addressedAgentId } : {}),
+    ...(channel ? { channel } : {}),
+    ...(template ? { template } : {}),
+    ...(addressedAgentId ? { addressedAgentId } : {}),
     ...(senderKind ? { senderKind } : {}),
-    ...(typeof raw.senderActorId === "string" ? { senderActorId: raw.senderActorId } : {}),
-    ...(typeof raw.senderUserId === "string" ? { senderUserId: raw.senderUserId } : {}),
-    ...(typeof raw.senderDisplayName === "string"
-      ? { senderDisplayName: raw.senderDisplayName }
-      : {}),
+    ...(senderActorId ? { senderActorId } : {}),
+    ...(senderUserId ? { senderUserId } : {}),
+    ...(senderDisplayName ? { senderDisplayName } : {}),
   };
 }
 
@@ -275,19 +340,15 @@ function parseWatchDefinition(
     throw new Error(`watches[${index}] must be an object`);
   }
 
-  const id = assertString(raw.id, `watches[${index}].id`);
+  const id = assertStructuralString(raw.id, `watches[${index}].id`);
   if (id.includes("/")) {
     throw new Error(`watches[${index}].id must not contain "/"`);
   }
-  if (raw.name !== undefined && typeof raw.name !== "string") {
-    throw new Error(`watches[${index}].name must be a string`);
-  }
+  const name = assertOptionalStructuralString(raw.name, `watches[${index}].name`);
   if (raw.enabled !== undefined && typeof raw.enabled !== "boolean") {
     throw new Error(`watches[${index}].enabled must be a boolean`);
   }
-  if (raw.timezone !== undefined && typeof raw.timezone !== "string") {
-    throw new Error(`watches[${index}].timezone must be a string`);
-  }
+  const timezone = assertOptionalStructuralString(raw.timezone, `watches[${index}].timezone`);
   if (
     raw.concurrencyPolicy !== undefined &&
     !CONCURRENCY_POLICIES.has(raw.concurrencyPolicy as WatchConcurrencyPolicy)
@@ -315,9 +376,9 @@ function parseWatchDefinition(
 
   return {
     id,
-    ...(raw.name ? { name: raw.name } : {}),
+    ...(name ? { name } : {}),
     ...(typeof raw.enabled === "boolean" ? { enabled: raw.enabled } : {}),
-    ...(raw.timezone ? { timezone: raw.timezone } : {}),
+    ...(timezone ? { timezone } : {}),
     trigger: parseTrigger(raw.trigger, index),
     action,
     ...(emit ? { emit } : {}),
@@ -340,6 +401,21 @@ export function parseWatchDefinitions(raw: unknown): WatchDefinition[] {
     ids.add(watch.id);
   }
   return watches;
+}
+
+export function watchDefinitionDiagnostics(
+  watch: WatchDefinition | ResolvedAgentWatchDefinition,
+): string[] {
+  return [
+    ...freeformTextDiagnostics(
+      watch.action.kind === "message" ? watch.action.text : undefined,
+      `watch ${watch.id} message text`,
+    ),
+    ...freeformTextDiagnostics(
+      watch.emit?.template,
+      `watch ${watch.id} emit template`,
+    ),
+  ];
 }
 
 export function loadAgentWatchDefinitions(path: string): WatchDefinition[] {

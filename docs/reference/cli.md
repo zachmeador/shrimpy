@@ -49,7 +49,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy workspace track checkpoint --message <text> [--json]` | Create a manual workspace checkpoint commit. |
 | `shrimpy status` | Show workspace, gateway, channels, watch-run, and Telegram offset status. |
 | `shrimpy watches [--agent <id>] [--json]` | Inspect configured agent-owned watches, including source paths, target channels, expected wake decisions, next runs, active runs, and recent history. |
-| `shrimpy watches add <id> --agent <id> (--cron <expr>\|--every <dur>) --channel <name> --message <text>` | Add a simple agent-owned time watch. |
+| `shrimpy watches add <id> [--agent <id>] [--name <text>] [--concurrency-policy <forbid\|allow>] (--cron <expr>\|--every <dur>\|--every-ms <n>) (--channel <name> --message <text>\|--command <cmd>) [--json]` | Add an agent-owned time watch. Command watches also support `--cwd`, `--timeout-ms`, `--emit-policy`, `--emit-channel`, and `--emit-template`. |
 | `shrimpy watches show <agent-id>/<watch-id> [--json]` | Show one resolved watch with diagnostics and inspect commands. |
 | `shrimpy watches history <agent-id>/<watch-id> [--limit N] [--json]` | Show recent run records for one watch. |
 | `shrimpy watches run <agent-id>/<watch-id> [--json]` | Run one watch immediately and record it in watch history. |

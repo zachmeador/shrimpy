@@ -339,12 +339,16 @@ For the common case, use the CLI:
 ```sh
 shrimpy watches add morning-check \
   --agent shrimpy \
+  --name "Morning check" \
   --every 1h \
+  --concurrency-policy forbid \
   --channel maintenance \
   --message "Check the house."
 ```
 
 Command watches are optional. Use them when the watch should check something deterministic first and only post when the result is worth saying.
+
+Fresh setup records `watchClock.defaultTimezone`, which cron watches use for the workspace. Per-watch JSON can set root-level `timezone` or `trigger.timezone` for a rare explicit override. `--concurrency-policy` accepts `forbid` or `allow`; omitted watches default to `forbid`.
 
 Current trigger kinds:
 
@@ -389,7 +393,7 @@ Fresh setup seeds three focused watches for the default `shrimpy` agent:
 
 Channel membership stays in `config/channels.json`. Message watches choose a channel to log through; setup seeds the default `home` and `maintenance` channels with both default agents, `shrimpy` and `mechanic`, as members.
 
-Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches show <agent-id>/<watch-id>`, or `shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports source paths, owner/local ids, target channels, expected wake behavior, next run from clock state, active runs, diagnostics, and recent run history.
+Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches show <agent-id>/<watch-id>`, or `shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports source paths, owner/local ids, target channels, expected wake behavior, next run, active runs, diagnostics, and recent run history. JSON includes `nextRunSource`; `clock_state` means the gateway clock recorded the timestamp, while `computed` means inspection calculated a fallback because clock state has not recorded that watch yet.
 
 ## Watch Status
 
