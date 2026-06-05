@@ -37,5 +37,6 @@ Deferred notes that are intentionally outside the active backlog.
 |---|---|---|---|---|---|
 | [CTX-008](later/ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](later/ctx-009-context-trace-debug-view.md) | todo | P2 | Context | [CTX-008](later/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
+| [AGENT-001](later/agent-001-nested-agents.md) | todo | P3 | Agents | [APP-001](app-001.md), [CTX-008](later/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
 | [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |
