@@ -55,11 +55,13 @@ export function resolveCliHelpPath(argv: readonly string[]): string[] | null {
   if (helpIndex === -1) return null;
 
   const argsBeforeHelp = searchableArgs.slice(0, helpIndex);
-  let best: string[] = [];
+  if (argsBeforeHelp.length === 0) return [];
+
+  let best: string[] | null = null;
   for (const path of completionPaths()) {
     if (path.length === 0 || path.length > argsBeforeHelp.length) continue;
     if (!path.every((part, index) => argsBeforeHelp[index] === part)) continue;
-    if (path.length > best.length) best = path;
+    if (best === null || path.length > best.length) best = path;
   }
   return best;
 }

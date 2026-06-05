@@ -58,6 +58,11 @@ try {
   });
 
   if (values.help) {
+    if (positionals.length > 0) {
+      console.error(`unknown command or help topic: ${positionals.join(" ")}`);
+      console.error(`Run "shrimpy --help" for default help, "shrimpy help all" for all commands, or use "--" before a prompt that should include help-like text.`);
+      process.exit(1);
+    }
     console.log(renderCliHelp());
     process.exit(0);
   }

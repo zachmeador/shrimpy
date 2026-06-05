@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -70,6 +70,17 @@ test("help flags after -- stay positional", () => {
   assert.equal(resolveCliHelpPath(["channels", "post", "general", "--", "--help"]), null);
 });
 
+test("unknown command --help does not fall back to root help", () => {
+  assert.equal(resolveCliHelpPath(["slkdfjs", "--help"]), null);
+
+  const result = runCliResult("slkdfjs", "--help");
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /unknown command or help topic: slkdfjs/);
+  assert.match(result.stderr, /shrimpy help all/);
+});
+
 function runCli(...args: string[]): string {
   return execFileSync(process.execPath, [cliPath, ...args], {
     cwd: repoRoot,
@@ -79,4 +90,20 @@ function runCli(...args: string[]): string {
       NO_COLOR: "1",
     },
   });
+}
+
+function runCliResult(...args: string[]): { status: number | null; stdout: string; stderr: string } {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: repoRoot,
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      NO_COLOR: "1",
+    },
+  });
+  return {
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
