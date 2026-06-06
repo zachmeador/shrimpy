@@ -15,6 +15,10 @@ import {
   createSetupInteractiveSessionSpec,
   runSetupOnboarding,
 } from "../dist/setup/onboarding.js";
+import {
+  launchModelAccessOnboarding,
+  listAvailableSetupModels,
+} from "../dist/setup/model-access.js";
 
 let workspace: string;
 
@@ -60,7 +64,7 @@ describe("setup entry", () => {
     );
   });
 
-  test("cmdSetup with no target initializes the workspace and reports interactive model onboarding when non-interactive", async () => {
+  test("cmdSetup with no target initializes the workspace and reports interactive model access setup when non-interactive", async () => {
     const { result, lines } = await captureLogs(() =>
       cmdSetup([], { workspace } as any)
     );
@@ -83,7 +87,7 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Run `shrimpy setup` in an interactive terminal/);
   });
 
-  test("runSetupOnboarding can launch model onboarding and continue into mechanic setup", async () => {
+  test("runSetupOnboarding can launch model access setup and continue into mechanic setup", async () => {
     let modelOnboardingLaunched = false;
     let setupLaunched = false;
     let models: Array<{ provider: string; id: string }> = [];
@@ -92,9 +96,9 @@ describe("setup entry", () => {
     const result = await runSetupOnboarding(workspace, {
       listModels: () => models,
       canRunInteractiveModelOnboarding: () => true,
-      launchModelAccessOnboarding: async ({ config, cwd }) => {
+      launchModelAccessOnboarding: async ({ workspace: inputWorkspace, cwd }) => {
         modelOnboardingLaunched = true;
-        assert.equal(config.workspace, workspace);
+        assert.equal(inputWorkspace, workspace);
         assert.equal(cwd, workspace);
         models = [{ provider: "openai", id: "gpt-5" }];
         writeModelsJson({
@@ -116,9 +120,38 @@ describe("setup entry", () => {
     assert.equal(modelOnboardingLaunched, true);
     assert.equal(setupLaunched, true);
     assert.match(lines.join("\n"), /No working models found yet\./);
-    assert.match(lines.join("\n"), /Launching model onboarding\.\.\./);
+    assert.match(lines.join("\n"), /Starting model access setup\.\.\./);
     assert.match(lines.join("\n"), /Created coding model policy from openai\/gpt-5\./);
     assert.match(lines.join("\n"), /Launching mechanic setup session\.\.\./);
+  });
+
+  test("model access wizard stores API-key auth and makes provider models available", async () => {
+    const lines: string[] = [];
+    const answers = ["1", "1"];
+    await launchModelAccessOnboarding({
+      workspace,
+      cwd: workspace,
+    }, {
+      question: async () => answers.shift() ?? "",
+      secret: async () => "sk-ant-test",
+      log: (line) => {
+        lines.push(line);
+      },
+    });
+
+    const auth = JSON.parse(
+      readFileSync(join(workspace, "state", "pi", "auth.json"), "utf-8"),
+    );
+    assert.deepEqual(auth.anthropic, {
+      type: "api_key",
+      key: "sk-ant-test",
+    });
+    assert.equal(
+      listAvailableSetupModels(workspace).some((model) => model.provider === "anthropic"),
+      true,
+    );
+    assert.match(lines.join("\n"), /Model access setup/);
+    assert.match(lines.join("\n"), /Saved API key for Anthropic\./);
   });
 
   test("runSetupOnboarding launches the setup session when a model is available", async () => {

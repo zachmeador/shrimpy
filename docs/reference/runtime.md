@@ -16,7 +16,7 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 
 Direct `tui` and `run` sessions are local execution labels. They do not first write user prompts to a channel log.
 
-The only interactive model-less TUI path is setup model access onboarding. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
+Setup model access uses a plain CLI wizard backed by Pi auth and model registry APIs. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
 
 ## Gateway Sessions
 

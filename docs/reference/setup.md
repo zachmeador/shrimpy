@@ -44,7 +44,7 @@ shrimpy setup init
 
 Setup creates missing workspace files, checks model access, writes or repairs `modelPolicies.coding`, and opens the mechanic setup TUI. A bare interactive `shrimpy` follows the same setup gate when the workspace is not ready.
 
-Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth and the setup agent context exists. If no usable model is available in an interactive terminal, setup launches model access onboarding first. If no usable model is available in a non-interactive shell, setup prints the auth/model state paths and exits without opening a TUI.
+Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth and the setup agent context exists. If no usable model is available in an interactive terminal, setup runs a plain model access wizard first: choose API key or subscription login, authenticate through Pi's auth layer, then select the `coding` policy model. If no usable model is available in a non-interactive shell, setup prints the auth/model state paths and exits without opening a TUI.
 
 Normal TUI launchers are blocked until setup is complete: `shrimpy`, `shrimpy "prompt"`, `shrimpy chat`, `shrimpy mechanic`, and `shrimpy agent tui <id>`. The durable workspace layout is owned by [workspace.md](workspace.md).
 

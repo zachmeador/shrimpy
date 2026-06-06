@@ -31,7 +31,6 @@ import {
   canRunInteractiveModelOnboarding,
   launchModelAccessOnboarding,
   listAvailableSetupModels,
-  loadConfigForModelAccessOnboarding,
   type ModelAccessOnboardingInput,
   type SetupModelView,
 } from "./model-access.js";
@@ -157,11 +156,10 @@ export async function runSetupOnboarding(
     }
 
     log("No working models found yet.");
-    log("Launching model onboarding...");
+    log("Starting model access setup...");
 
-    const config = loadConfigForModelAccessOnboarding(workspace, log);
     await (deps.launchModelAccessOnboarding ?? launchModelAccessOnboarding)({
-      config,
+      workspace,
       cwd,
     });
 
