@@ -1,9 +1,9 @@
 ---
-name: schedules
-description: Use when creating, changing, inspecting, or debugging Shrimpy schedules and watches.
+name: watches
+description: Use when creating, changing, inspecting, or debugging Shrimpy watches, reminders, recurring work, and background checks.
 ---
 
-# Schedules And Watches
+# Watches
 
 Use this skill when the user wants recurring work, reminders, periodic audits, or background checks.
 
@@ -16,7 +16,7 @@ Reference docs:
 
 ## How To Work
 
-1. Identify the owner agent, schedule, target channel, and expected user-visible outcome.
+1. Identify the owner agent, cadence, target channel, and expected user-visible outcome.
 2. Inspect existing state before adding anything: `shrimpy watches --agent <id> --json`, `shrimpy channels members <channel> --json`, and `shrimpy agent channel-policy <id> --channel <channel> --json`.
 3. Prefer `shrimpy watches add` for new watches. Use `--name` and `--concurrency-policy` when they matter. The workspace timezone is the default; edit `agents/<id>/watches.json` directly only for rare per-watch timezone overrides or shapes the CLI cannot express, and preserve existing entries.
 4. For recurring agent work, prefer a message watch that posts a concise instruction into a real channel. Include any skill name the agent should use in the message text.
@@ -29,6 +29,6 @@ Reference docs:
 - Do not add recurring watches unless the user asked for recurring work.
 - Do not create broad catch-all upkeep watches when a focused watch or manual command is enough.
 - Do not assume a posted watch message wakes the owner agent; channel membership and agent channel policy both have to allow it.
-- Do not use adapter-shaped channel names for schedules. Use real channels such as `maintenance`, `home`, or a semantic work channel.
+- Do not use adapter-shaped channel names for watches. Use real channels such as `maintenance`, `home`, or a semantic work channel.
 - Keep watch messages short and actionable. The watch should say what to do, where to inspect, and which skill to use if relevant.
 - Before changing an existing watch, inspect its history and explain any change that affects cadence, target channel, command execution, or user-visible messages.

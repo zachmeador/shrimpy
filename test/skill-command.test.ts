@@ -116,7 +116,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<available_skills>/);
     assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
     assert.match(parsed.systemPrompt, /<name>mechanic<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>schedules<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>watches<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
@@ -371,7 +371,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /mechanic \[agent\]/);
     assert.match(lines.join("\n"), /add-agent \[agent\]/);
     assert.match(lines.join("\n"), /channel-routing \[agent\]/);
-    assert.match(lines.join("\n"), /schedules \[agent\]/);
+    assert.match(lines.join("\n"), /watches \[agent\]/);
     assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[agent\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[workspace\]/);
@@ -396,7 +396,7 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /add-agent/);
     assert.doesNotMatch(output, /mechanic \[agent\]/);
     assert.doesNotMatch(output, /channel-routing/);
-    assert.doesNotMatch(output, /schedules/);
+    assert.doesNotMatch(output, /watches/);
     assert.doesNotMatch(output, /shrimpy-mechanic-ideas/);
   });
 
@@ -534,9 +534,9 @@ describe("skill service", () => {
       "journal-daily:workspace",
       "mechanic:agent",
       "memory-management:workspace",
-      "schedules:agent",
       "setup:agent",
       "shrimpy-mechanic-ideas:agent",
+      "watches:agent",
     ]);
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
@@ -605,9 +605,9 @@ describe("skill service", () => {
       "journal-daily",
       "mechanic",
       "memory-management",
-      "schedules",
       "setup",
       "shrimpy-mechanic-ideas",
+      "watches",
     ]);
     assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);
   });

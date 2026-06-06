@@ -9,7 +9,7 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 - [reference/design.md](reference/design.md) — current design principles and constraints.
 - [reference/setup.md](reference/setup.md) — install and gateway service lifecycle.
 - [reference/architecture.md](reference/architecture.md) — core primitives, boundaries, and design rules.
-- [reference/runtime.md](reference/runtime.md) — how direct runs, gateway dispatch, scheduler runs, and child runs execute.
+- [reference/runtime.md](reference/runtime.md) — how direct runs, gateway dispatch, watch runs, and child runs execute.
 - [reference/channels.md](reference/channels.md) — channel protocol, membership, addressing, wake policy, inspection, and egress.
 - [reference/sessions.md](reference/sessions.md) — session kinds, files, lifecycle, model metadata, and inspection.
 - [reference/tools.md](reference/tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.

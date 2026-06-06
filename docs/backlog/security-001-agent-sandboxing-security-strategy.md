@@ -22,7 +22,7 @@ Some agents should get a project folder, not the whole machine. Shrimpy needs a 
 - Do not block the simpler macOS setup/install work on this item.
 
 ## Notes
-- Later-scope follow-up to [SETUP-001](setup-001-macos-friendly-install-docs.md).
+- Later-scope follow-up to the macOS setup/install work completed for the `0.3.0` release.
 - Builds on `docs/research/macos-seatbelt-helper.md`.
 - Builds on `docs/research/in-os-agent-sandboxing-and-git.md`.
 - Include a Gondolin comparison in the strategy: where VM-backed execution is preferable, where native in-OS sandboxing is still required, and how the same Shrimpy policy shape maps to both.

@@ -15,7 +15,7 @@ agents/<agent-id>/skills/<id>/SKILL.md  agent skill
 
 Agent skills win over workspace skills with the same Shrimpy id. Nested ids are allowed, for example `skills/web/fetch/SKILL.md`, but ids are normalized and must not contain absolute paths, `..`, backslashes, `~`, `:`, or empty segments.
 
-Default setup keeps broad habits such as memory and journaling in workspace skills, while maintenance capabilities such as `mechanic`, `add-agent`, `channel-routing`, `schedules`, `setup`, and `shrimpy-mechanic-ideas` are seeded as mechanic agent skills. That means the normal `shrimpy` agent does not see mechanic-only guidance unless a user deliberately installs or copies it into a shared scope.
+Default setup keeps broad habits such as memory and journaling in workspace skills, while maintenance capabilities such as `mechanic`, `add-agent`, `channel-routing`, `watches`, `setup`, and `shrimpy-mechanic-ideas` are seeded as mechanic agent skills. That means the normal `shrimpy` agent does not see mechanic-only guidance unless a user deliberately installs or copies it into a shared scope.
 
 ## Bundle Shape
 

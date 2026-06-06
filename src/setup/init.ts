@@ -199,8 +199,8 @@ function mechanicSkillBundleFiles(
       content: loadSetupTemplate("mechanic/skills/channel-routing/SKILL.md", docsPath),
     },
     {
-      path: agentSkillPath(workspace, mechanicRoot, "schedules"),
-      content: loadSetupTemplate("mechanic/skills/schedules/SKILL.md", docsPath),
+      path: agentSkillPath(workspace, mechanicRoot, "watches"),
+      content: loadSetupTemplate("mechanic/skills/watches/SKILL.md", docsPath),
     },
     {
       path: agentSkillPath(workspace, mechanicRoot, "shrimpy-mechanic-ideas"),

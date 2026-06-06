@@ -1,6 +1,6 @@
 {
   "name": "shrimpy",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "a home agent",
   "license": "MIT",
   "type": "module",
@@ -45,7 +45,7 @@
     "configDir": ".shrimpy"
   },
   "shrimpy": {
-    "releaseName": "Lanterns in the Current"
+    "releaseName": "A Window in the Reef"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

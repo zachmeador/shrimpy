@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.3.0 - A Window in the Reef - Unreleased
+## 🦐 0.3.0 - A Window in the Reef - 2026-06-06
 
 ### Breaking Changes
 
@@ -29,6 +29,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added shared and per-agent `vault/` and `projects/` workspace defaults plus setup-template guidance for saved files, reports, and project work folders.
 - Changed `shrimpy setup` to set up missing model policy and context, while leaving configured workspaces unchanged.
 - Changed first-run onboarding to launch the default `shrimpy` agent with the `setup` skill through the required `coding` model policy, preserving other agent policies without letting them block setup.
+- Changed the seeded mechanic recurring-work skill from `schedules` to `watches`, matching the agent-owned watch CLI and docs.
 - Improved the generated `setup` skill so first-run guidance has a concrete inspect, ask, edit, validate, and handoff flow, including explicit consent before crawling outside official workspace paths.
 
 ### Agents, Skills & Tools
@@ -41,6 +42,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added a `shrimpy-dev-reference-docs` source skill for using source/reference diffs to keep `docs/reference/` aligned with current behavior.
 - Added a `shrimpy-dev-changelog` source skill for keeping `CHANGELOG.md` organized around release impact, categories, and user-facing wording.
 - Added a `shrimpy-dev-pi-upgrade` source skill for assessing Pi dependency upgrades from a local Pi clone and writing a root-level upgrade plan.
+- Added a `shrimpy-dev-release` source skill for release preparation, version metadata checks, validation, tagging, and GitHub prerelease creation.
 
 ### Turn Context
 
@@ -74,6 +76,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Fixed TUI startup so the configured Shrimpy theme is registered before Pi builds interactive components.
 - Restored Shrimpy TUI turn-context display so persisted context envelopes are hidden by default and shown when `ctrl+o` expands tool output.
 
+### Release & Dependencies
+
+- Updated production transitive `protobufjs`, `@protobufjs/utf8`, and `ws` lockfile entries to resolve npm audit advisories.
+
 ### Docs & Project Hygiene
 
 - Added `npm run dev:setup*` helpers for repeatedly testing first-run setup in isolated `/tmp` homes/workspaces, with an opt-in Pi auth/model state copy for faster setup-skill iteration.
@@ -81,7 +87,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added channel, session, security, turn-context, and workspace storage reference documentation.
 - Added backlog notes for cleaner CLI command structure, CLI autocomplete requirements, channel event routing, web search provider wrapping, agent-owned watches, model policy, workspace storage defaults, setup/model setup, and chat operation/status surfaces.
 - Added research notes for web search API providers and in-OS agent sandboxing plus development guidance for Bash automation.
-- Removed completed skill/context/schedule/channel/session/workspace backlog notes and the vision reconciliation tracker.
+- Removed completed skill/context/schedule/channel/session/workspace backlog notes, the macOS setup backlog note, and the vision reconciliation tracker.
 - Added Shrimpy emoji guidance to the default initialized `SOUL.md` template.
 
 ### Tests

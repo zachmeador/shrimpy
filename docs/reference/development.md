@@ -53,9 +53,18 @@ Interactive zsh launches automatically install and refresh Shrimpy's cached shel
 
 ## Releases
 
+- Use the `shrimpy-dev-release` source skill for release prep and cutting workflow.
+- Confirm the working tree is clean and `main` is pushed before cutting a release.
 - Public versions use semantic version tags with a `v` prefix, for example `v0.1.0`.
 - Every public release at `0.1.0` or later gets a short lyrical aquatic release name/tagline. Keep it poetic but concrete, and include it in the release title or notes.
 - `v0.1.0` release name: **First Light in the Tidepool**.
+- For alpha releases, use GitHub prereleases:
+
+```bash
+gh release create <tag> --target main --title "<tag> alpha - <release name>" --notes "<summary>" --prerelease
+```
+
+- GitHub automatically provides source archives; attach release assets only when there is a deliberate packaged build.
 
 ## Docs Layout
 

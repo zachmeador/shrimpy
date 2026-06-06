@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/ins
 Install a specific tag, branch, or commit:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.2.0 bash
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.3.0 bash
 ```
 
 The installer writes the app to `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`. Add `~/.local/bin` to `PATH` if your shell does not already include it.
