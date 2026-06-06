@@ -34,16 +34,14 @@ try {
   const sub = rawArgs[0];
   const registration = sub ? COMMAND_REGISTRY[sub] : undefined;
   if (registration) {
+    const commandArgs = rawArgs.slice(1);
     const handler = await registration.load();
-    const config = registration.requiresConfig
-      ? configForRegisteredCommand(
-        registration,
-        (await import("./config/index.js")).loadConfig,
-      )
-      : configForRegisteredCommand(registration, () => {
-        throw new Error("command does not require config");
-      });
-    const code = await runCommand(handler, rawArgs.slice(1), config);
+    const config = configForRegisteredCommand(
+      registration,
+      (await import("./config/index.js")).loadConfig,
+      commandArgs,
+    );
+    const code = await runCommand(handler, commandArgs, config);
     process.exit(code);
   }
 

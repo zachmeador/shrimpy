@@ -8,8 +8,9 @@ import {
   parseThinkingLevel,
 } from "../inference/thinking.js";
 import {
-  hasUsableCodingModelPolicyForWorkspace,
-} from "../setup/readiness.js";
+  isSetupReady,
+  resolveSetupState,
+} from "../setup/state.js";
 import { formatVersionLabel } from "../app/metadata.js";
 import { brand } from "../util/style.js";
 import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
@@ -87,5 +88,5 @@ export async function shouldRunSetupBootstrapForRootShrimpy(
   const configPath = primaryConfigPath(workspace);
   if (!existsSync(configPath)) return true;
 
-  return !(await hasUsableCodingModelPolicyForWorkspace(workspace));
+  return !isSetupReady(await resolveSetupState(workspace));
 }

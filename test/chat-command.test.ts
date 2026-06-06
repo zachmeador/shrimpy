@@ -115,7 +115,7 @@ describe("cmdChat", () => {
         { workspace } as any,
         {
           cwd: workspace,
-          isSetupReady: async () => true,
+          resolveSetupState: async () => ({ kind: "ready", models: [] }),
           bootstrapCompletion: async () => undefined,
           loadConfig: (path) => {
             loadedWorkspace = path;
@@ -145,7 +145,7 @@ describe("cmdChat", () => {
   });
 
   test("opens an explicit agent through the shared TUI setup gate", async () => {
-    let setupChecked = false;
+    let setupStateResolved = false;
     let captured: ChatSessionRequest | undefined;
 
     const code = await resolveCommandResult(
@@ -154,9 +154,9 @@ describe("cmdChat", () => {
         { workspace } as any,
         {
           cwd: workspace,
-          isSetupReady: async () => {
-            setupChecked = true;
-            return true;
+          resolveSetupState: async () => {
+            setupStateResolved = true;
+            return { kind: "ready", models: [] };
           },
           bootstrapCompletion: async () => undefined,
           loadConfig: (path) => ({
@@ -172,7 +172,7 @@ describe("cmdChat", () => {
     );
 
     assert.equal(code, 0);
-    assert.equal(setupChecked, true);
+    assert.equal(setupStateResolved, true);
     assert.deepEqual(captured, {
       agentId: "career",
       channel: "tui",
@@ -188,7 +188,7 @@ describe("cmdChat", () => {
 
   test("blocks explicit-agent chat when setup is not ready", async () => {
     let launched = false;
-    let setupChecked = false;
+    let setupStateResolved = false;
 
     const { result, errors } = await captureErrors(async () =>
       resolveCommandResult(
@@ -197,9 +197,9 @@ describe("cmdChat", () => {
           { workspace } as any,
           {
             cwd: workspace,
-            isSetupReady: async () => {
-              setupChecked = true;
-              return false;
+            resolveSetupState: async () => {
+              setupStateResolved = true;
+              return { kind: "needs_coding_policy", models: [] };
             },
             launchChatSession: async () => {
               launched = true;
@@ -211,7 +211,7 @@ describe("cmdChat", () => {
     );
 
     assert.equal(result, 1);
-    assert.equal(setupChecked, true);
+    assert.equal(setupStateResolved, true);
     assert.equal(launched, false);
     assert.match(errors.join("\n"), /Run: shrimpy setup/);
   });

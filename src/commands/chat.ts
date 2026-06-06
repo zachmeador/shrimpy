@@ -1,7 +1,8 @@
 import type { AppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
-import { runSetupEntry, type SetupEntryResult } from "../setup/service.js";
+import type { SetupOnboardingResult } from "../setup/onboarding.js";
+import type { SetupState } from "../setup/state.js";
 import { parseThinking } from "./agent-helpers.js";
 import { renderCommandUsage } from "./catalog.js";
 import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
@@ -33,11 +34,11 @@ export interface ChatCommandDeps {
     runtime: AppRuntime,
     request: ChatSessionRequest,
   ) => Promise<void>;
-  isSetupReady?: (workspace: string) => Promise<boolean>;
-  runSetup?: (
+  resolveSetupState?: (workspace: string) => Promise<SetupState>;
+  runOnboarding?: (
     workspace: string,
     opts: { cwd: string },
-  ) => Promise<SetupEntryResult>;
+  ) => Promise<SetupOnboardingResult>;
   bootstrapCompletion?: () => Promise<unknown>;
   cwd?: string;
 }
@@ -60,8 +61,8 @@ export async function cmdChat(
         await deps.launchChatSession?.(runtime, request as ChatSessionRequest);
       }
       : undefined,
-    isSetupReady: deps.isSetupReady,
-    runSetup: deps.runSetup ?? runSetupEntry,
+    resolveSetupState: deps.resolveSetupState,
+    runOnboarding: deps.runOnboarding,
     beforeLaunch: deps.bootstrapCompletion ?? bootstrapInteractiveCompletion,
   });
 }

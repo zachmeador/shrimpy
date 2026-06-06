@@ -54,6 +54,36 @@ describe("root shrimpy command setup path", () => {
     assert.match(result.stderr, /Run: shrimpy setup/);
   });
 
+  test("mechanic non-interactive CLI reaches the setup gate before loading config", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "mechanic"],
+      {
+        cwd: workspace,
+        env: { ...process.env, HOME: workspace },
+        encoding: "utf-8",
+      },
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Run: shrimpy setup/);
+  });
+
+  test("agent tui non-interactive CLI reaches the setup gate before loading config", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "agent", "tui", "career"],
+      {
+        cwd: workspace,
+        env: { ...process.env, HOME: workspace },
+        encoding: "utf-8",
+      },
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Run: shrimpy setup/);
+  });
+
   test("runs setup when the workspace config is missing", async () => {
     assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), true);
   });

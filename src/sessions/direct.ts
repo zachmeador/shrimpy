@@ -16,7 +16,7 @@ import {
   resolveModelVariantInference,
 } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
-import { assertUsableCodingModelPolicyForTui } from "../setup/readiness.js";
+import { assertSetupReadyForNormalTui } from "../setup/readiness.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
 import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
 import { installShrimpyCommandSurface } from "../tui/shrimpy-command-surface.js";
@@ -165,7 +165,7 @@ export async function runDirectAgentPrompt(
 export async function runInteractiveAgentSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
-  await assertUsableCodingModelPolicyForTui(input.runtime);
+  await assertSetupReadyForNormalTui(input.runtime);
   return runAgentTuiSession(input, "shrimpy");
 }
 

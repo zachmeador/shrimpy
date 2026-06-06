@@ -1,10 +1,8 @@
 import type { AppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import { MECHANIC_AGENT_ID } from "../setup/init.js";
-import {
-  runSetupEntry,
-  type SetupEntryResult,
-} from "../setup/service.js";
+import type { SetupOnboardingResult } from "../setup/onboarding.js";
+import type { SetupState } from "../setup/state.js";
 import { parseThinking } from "./agent-helpers.js";
 import {
   type CommandResult,
@@ -32,11 +30,11 @@ export interface MechanicCommandDeps {
     runtime: AppRuntime,
     request: MechanicSessionRequest,
   ) => Promise<void>;
-  isSetupReady?: (workspace: string) => Promise<boolean>;
-  runSetup?: (
+  resolveSetupState?: (workspace: string) => Promise<SetupState>;
+  runOnboarding?: (
     workspace: string,
     opts: { cwd: string },
-  ) => Promise<SetupEntryResult>;
+  ) => Promise<SetupOnboardingResult>;
   cwd?: string;
 }
 
@@ -65,8 +63,8 @@ export async function cmdMechanic(
       id: MECHANIC_AGENT_ID,
       missingMessage: `mechanic agent not found. Run "shrimpy setup init" in a fresh workspace or add agent "${MECHANIC_AGENT_ID}" before using this command.`,
     },
-    isSetupReady: deps.isSetupReady,
-    runSetup: deps.runSetup ?? runSetupEntry,
+    resolveSetupState: deps.resolveSetupState,
+    runOnboarding: deps.runOnboarding,
   });
 }
 

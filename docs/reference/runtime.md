@@ -4,17 +4,19 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 
 ## Direct CLI Sessions
 
-- `shrimpy` opens a long-lived TUI session for the selected agent on the `tui` session label. When the bare interactive command sees missing setup or no `coding` model candidate, it runs setup first. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
+- `shrimpy` opens a long-lived TUI session for the selected agent on the `tui` session label. The shared TUI launcher runs setup onboarding first when `modelPolicies.coding` does not resolve or setup agent context is missing. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy chat [agent]` opens the same TUI chat path for the default or selected agent without treating positionals as an initial prompt.
 - `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
 - `shrimpy mechanic` opens a direct TUI session as the `mechanic` maintenance agent.
-- `shrimpy agent tui <id>` and `shrimpy agent run <id>` select an explicit agent.
+- `shrimpy agent tui <id>` opens the same gated TUI launcher for an explicit agent. `shrimpy agent run <id>` runs a one-shot prompt as an explicit agent.
 - `--provider`, `--model`, `--model-policy`, `--thinking <off|low|medium|high>`, and `--skill <id>` override one direct session where supported.
 - Without a model override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
 - `--skill <id>` loads full skill context into the session. The normal workspace/agent skill list is also passed to Pi so `/skill:<name>`, autocomplete, and available-skill prompt advertising see the same skill set.
 
 Direct `tui` and `run` sessions are local execution labels. They do not first write user prompts to a channel log.
+
+The only interactive model-less TUI path is setup model access onboarding. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
 
 ## Gateway Sessions
 

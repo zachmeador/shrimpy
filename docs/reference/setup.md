@@ -28,21 +28,25 @@ npm run build
 npm link
 ```
 
-## Initialize
+## Setup
 
-Create baseline workspace files:
-
-```bash
-shrimpy setup init
-```
-
-Finish model/provider setup:
+Run first-run setup onboarding:
 
 ```bash
 shrimpy setup
 ```
 
-Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth. If no usable model is available, `shrimpy setup` initializes the workspace, reports the auth/model state paths, and stops before opening any TUI. The durable workspace layout is owned by [workspace.md](workspace.md).
+The explicit init form uses the same onboarding entrypoint:
+
+```bash
+shrimpy setup init
+```
+
+Setup creates missing workspace files, checks model access, writes or repairs `modelPolicies.coding`, and opens the mechanic setup TUI. A bare interactive `shrimpy` follows the same setup gate when the workspace is not ready.
+
+Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth and the setup agent context exists. If no usable model is available in an interactive terminal, setup launches model access onboarding first. If no usable model is available in a non-interactive shell, setup prints the auth/model state paths and exits without opening a TUI.
+
+Normal TUI launchers are blocked until setup is complete: `shrimpy`, `shrimpy "prompt"`, `shrimpy chat`, `shrimpy mechanic`, and `shrimpy agent tui <id>`. The durable workspace layout is owned by [workspace.md](workspace.md).
 
 ## Gateway
 

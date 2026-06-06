@@ -17,6 +17,7 @@ import { renderCliHelp } from "../dist/commands/help.js";
 import {
   COMMAND_REGISTRY,
   configForRegisteredCommand,
+  resolveConfigRequirement,
 } from "../dist/commands/registry.js";
 
 describe("CLI catalog", () => {
@@ -162,6 +163,23 @@ describe("CLI catalog", () => {
     });
     assert.equal(typeof config.workspace, "string");
     assert.equal(config.workspace.length > 0, true);
+  });
+
+  test("TUI registered commands resolve only the workspace before the setup gate", () => {
+    const mechanicRegistration = COMMAND_REGISTRY.mechanic;
+    const agentRegistration = COMMAND_REGISTRY.agent;
+
+    assert.equal(resolveConfigRequirement(mechanicRegistration, []), "workspace");
+    assert.equal(resolveConfigRequirement(agentRegistration, ["tui", "career"]), "workspace");
+    assert.equal(resolveConfigRequirement(agentRegistration, ["show", "career"]), true);
+    assert.equal(resolveConfigRequirement(agentRegistration, ["run", "career", "hello"]), true);
+
+    assert.equal(configForRegisteredCommand(mechanicRegistration, () => {
+      throw new Error("should not load full config");
+    }).workspace.length > 0, true);
+    assert.equal(configForRegisteredCommand(agentRegistration, () => {
+      throw new Error("should not load full config");
+    }, ["tui", "career"]).workspace.length > 0, true);
   });
 
   test("reference docs mention the generated completion commands", () => {

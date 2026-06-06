@@ -73,7 +73,7 @@ const DEFAULT_HELP_PATHS = new Set([
 ]);
 
 export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
-  entry([], undefined, "Open Shrimpy, setting up a minimal environment when needed.", "Session Commands"),
+  entry([], undefined, "Open Shrimpy, running setup onboarding when needed.", "Session Commands"),
   entry([], "\"prompt\"", "Open the TUI session with an initial prompt.", "Session Commands"),
   entry(["chat"], "[agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open a TUI chat with the default or selected agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
   entry(["mechanic"], "[prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open the maintenance TUI as the mechanic agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
@@ -96,8 +96,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["models", "policies", "remove-candidate"], "<name> <provider>/<model> [--json]", "Remove one policy candidate.", "Session Commands", [jsonOption]),
   entry(["models", "policies", "move-candidate"], "<name> <provider>/<model> --index <n> [--json]", "Move one policy candidate.", "Session Commands", [indexOption, jsonOption]),
 
-  entry(["setup"], undefined, "Set up a minimal working Shrimpy environment when needed.", "Workspace And Runtime"),
-  entry(["setup", "init"], undefined, "Create baseline workspace files.", "Workspace And Runtime"),
+  entry(["setup"], undefined, "Run first-run setup onboarding when needed.", "Workspace And Runtime"),
+  entry(["setup", "init"], undefined, "Run first-run setup onboarding.", "Workspace And Runtime"),
   entry(["setup", "telegram"], undefined, "Run guided Telegram bot setup.", "Workspace And Runtime"),
   entry(["workspace", "track", "init"], "[--json]", "Initialize local workspace git checkpoint tracking.", "Workspace And Runtime", [jsonOption]),
   entry(["workspace", "track", "status"], "[--json]", "Inspect workspace git checkpoint tracking.", "Workspace And Runtime", [jsonOption]),

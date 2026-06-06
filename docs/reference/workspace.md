@@ -57,7 +57,7 @@ Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/securit
 
 Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under `vault/` or `projects/`.
 
-`shrimpy setup init` creates shared `vault/` and `projects/`, plus the default agents' `agents/shrimpy/context/`, `agents/shrimpy/vault/`, `agents/mechanic/context/`, and `agents/mechanic/vault/`. Per-agent `projects/` directories are created when needed.
+Setup onboarding creates shared `vault/` and `projects/`, plus the default agents' `agents/shrimpy/context/`, `agents/shrimpy/vault/`, `agents/mechanic/context/`, and `agents/mechanic/vault/`. Per-agent `projects/` directories are created when needed.
 
 ## Checkpoints
 
@@ -78,7 +78,7 @@ Stable prompt material loaded into an agent session before per-turn context arri
 - `context/*.md` is the agent's long-lived prompt context: identity notes, habits, active references, and other memory the agent should load.
 - `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns.
 
-`shrimpy setup init` creates baseline files from `src/setup/templates/`.
+Setup onboarding creates baseline files from `src/setup/templates/`.
 
 Durable machine state lives under `state/`. Disposable runtime state lives under `runtime/` and surfaces at turn time through the context envelope.
 

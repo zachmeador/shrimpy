@@ -13,8 +13,8 @@ import { tmpdir } from "node:os";
 import { cmdSetup } from "../dist/commands/setup.js";
 import {
   createSetupInteractiveSessionSpec,
-  runSetupEntry,
-} from "../dist/setup/service.js";
+  runSetupOnboarding,
+} from "../dist/setup/onboarding.js";
 
 let workspace: string;
 
@@ -60,7 +60,7 @@ describe("setup entry", () => {
     );
   });
 
-  test("cmdSetup with no target initializes the workspace and stops when no models exist", async () => {
+  test("cmdSetup with no target initializes the workspace and reports interactive model onboarding when non-interactive", async () => {
     const { result, lines } = await captureLogs(() =>
       cmdSetup([], { workspace } as any)
     );
@@ -68,15 +68,41 @@ describe("setup entry", () => {
     assert.equal(result, 0);
     assert.equal(existsSync(join(workspace, "config", "shrimpy.json")), true);
     assert.match(lines.join("\n"), /No working models found yet\./);
+    assert.match(lines.join("\n"), /Run `shrimpy setup` in an interactive terminal/);
     assert.doesNotMatch(lines.join("\n"), /Launching .*TUI/i);
   });
 
-  test("runSetupEntry does not launch a model-less TUI when no models exist", async () => {
+  test("setup init follows the same onboarding entrypoint", async () => {
+    const { result, lines } = await captureLogs(() =>
+      cmdSetup(["init"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    assert.equal(existsSync(join(workspace, "config", "shrimpy.json")), true);
+    assert.match(lines.join("\n"), /No working models found yet\./);
+    assert.match(lines.join("\n"), /Run `shrimpy setup` in an interactive terminal/);
+  });
+
+  test("runSetupOnboarding can launch model onboarding and continue into mechanic setup", async () => {
+    let modelOnboardingLaunched = false;
     let setupLaunched = false;
+    let models: Array<{ provider: string; id: string }> = [];
     const lines: string[] = [];
 
-    const result = await runSetupEntry(workspace, {
-      listModels: () => [],
+    const result = await runSetupOnboarding(workspace, {
+      listModels: () => models,
+      canRunInteractiveModelOnboarding: () => true,
+      launchModelAccessOnboarding: async ({ config, cwd }) => {
+        modelOnboardingLaunched = true;
+        assert.equal(config.workspace, workspace);
+        assert.equal(cwd, workspace);
+        models = [{ provider: "openai", id: "gpt-5" }];
+        writeModelsJson({
+          providers: {
+            openai: modelProvider(["gpt-5"]),
+          },
+        });
+      },
       launchSetupSession: async () => {
         setupLaunched = true;
       },
@@ -86,13 +112,16 @@ describe("setup entry", () => {
       },
     });
 
-    assert.equal(result.kind, "needs_provider");
-    assert.equal(setupLaunched, false);
+    assert.equal(result.kind, "setup_started");
+    assert.equal(modelOnboardingLaunched, true);
+    assert.equal(setupLaunched, true);
     assert.match(lines.join("\n"), /No working models found yet\./);
-    assert.doesNotMatch(lines.join("\n"), /Launching .*TUI/i);
+    assert.match(lines.join("\n"), /Launching model onboarding\.\.\./);
+    assert.match(lines.join("\n"), /Created coding model policy from openai\/gpt-5\./);
+    assert.match(lines.join("\n"), /Launching mechanic setup session\.\.\./);
   });
 
-  test("runSetupEntry launches the setup session when a model is available", async () => {
+  test("runSetupOnboarding launches the setup session when a model is available", async () => {
     let launched = false;
     const lines: string[] = [];
     writeModelsJson({
@@ -101,7 +130,7 @@ describe("setup entry", () => {
       },
     });
 
-    const result = await runSetupEntry(workspace, {
+    const result = await runSetupOnboarding(workspace, {
       listModels: () => [{ provider: "openai", id: "gpt-5" }],
       launchSetupSession: async ({ config, cwd }) => {
         launched = true;
@@ -117,7 +146,7 @@ describe("setup entry", () => {
     assert.equal(launched, true);
     assert.match(lines.join("\n"), /Found 1 available model: openai\/gpt-5\./);
     assert.match(lines.join("\n"), /Created coding model policy from openai\/gpt-5\./);
-    assert.match(lines.join("\n"), /Launching interactive setup session\.\.\./);
+    assert.match(lines.join("\n"), /Launching mechanic setup session\.\.\./);
     const config = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
@@ -129,8 +158,8 @@ describe("setup entry", () => {
     assert.equal(config.agents.find((agent: any) => agent.id === "mechanic")?.modelPolicy, "coding");
   });
 
-  test("runSetupEntry asks before rerunning when config already exists", async () => {
-    await runSetupEntry(workspace, {
+  test("runSetupOnboarding asks before rerunning when config already exists", async () => {
+    await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
     });
@@ -143,7 +172,7 @@ describe("setup entry", () => {
     let launched = false;
     const lines: string[] = [];
 
-    const result = await runSetupEntry(workspace, {
+    const result = await runSetupOnboarding(workspace, {
       listModels: () => [{ provider: "openai", id: "gpt-5" }],
       confirmExistingConfig: async (configPath) => {
         assert.match(configPath, /config\/shrimpy\.json$/);
@@ -162,8 +191,8 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Setup rerun cancelled\./);
   });
 
-  test("runSetupEntry does nothing when coding policy and agent context already exist", async () => {
-    await runSetupEntry(workspace, {
+  test("runSetupOnboarding does nothing when coding policy and agent context already exist", async () => {
+    await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
     });
@@ -182,10 +211,8 @@ describe("setup entry", () => {
 
     let launched = false;
     const lines: string[] = [];
-    const result = await runSetupEntry(workspace, {
-      listModels: () => {
-        throw new Error("setup should not inspect models");
-      },
+    const result = await runSetupOnboarding(workspace, {
+      listModels: () => [{ provider: "openai", id: "gpt-5" }],
       confirmExistingConfig: async () => {
         throw new Error("setup should not ask to rerun");
       },
@@ -207,8 +234,8 @@ describe("setup entry", () => {
     }]);
   });
 
-  test("runSetupEntry reports unresolved coding policy without overwriting it", async () => {
-    await runSetupEntry(workspace, {
+  test("runSetupOnboarding reports unresolved coding policy without overwriting it", async () => {
+    await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
     });
@@ -227,7 +254,7 @@ describe("setup entry", () => {
 
     let launched = false;
     const lines: string[] = [];
-    const result = await runSetupEntry(workspace, {
+    const result = await runSetupOnboarding(workspace, {
       listModels: () => [{ provider: "openai", id: "gpt-5" }],
       confirmReplaceModelPolicy: async () => false,
       launchSetupSession: async () => {
@@ -253,8 +280,8 @@ describe("setup entry", () => {
     }]);
   });
 
-  test("runSetupEntry replaces unresolved coding policy after confirmation", async () => {
-    await runSetupEntry(workspace, {
+  test("runSetupOnboarding replaces unresolved coding policy after confirmation", async () => {
+    await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
     });
@@ -276,7 +303,7 @@ describe("setup entry", () => {
     });
 
     let launched = false;
-    const result = await runSetupEntry(workspace, {
+    const result = await runSetupOnboarding(workspace, {
       listModels: () => [{ provider: "openai", id: "gpt-5" }],
       confirmReplaceModelPolicy: async () => true,
       confirmExistingConfig: async () => true,
@@ -295,8 +322,8 @@ describe("setup entry", () => {
     }]);
   });
 
-  test("runSetupEntry does not block setup on a separate agent policy", async () => {
-    await runSetupEntry(workspace, {
+  test("runSetupOnboarding does not block setup on a separate agent policy", async () => {
+    await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
     });
@@ -323,7 +350,7 @@ describe("setup entry", () => {
 
     let launched = false;
     const lines: string[] = [];
-    const result = await runSetupEntry(workspace, {
+    const result = await runSetupOnboarding(workspace, {
       listModels: () => [{ provider: "openai", id: "gpt-5" }],
       confirmExistingConfig: async () => true,
       launchSetupSession: async () => {
@@ -336,7 +363,6 @@ describe("setup entry", () => {
 
     assert.equal(result.kind, "setup_started");
     assert.equal(launched, true);
-    assert.match(lines.join("\n"), /Smoke-tested coding: openai\/gpt-5\./);
     assert.doesNotMatch(lines.join("\n"), /missing\/nope/);
     const config = readConfig();
     assert.deepEqual(config.modelPolicies.local.candidates, [{
@@ -346,8 +372,8 @@ describe("setup entry", () => {
     assert.equal(config.agents[0].modelPolicy, "local");
   });
 
-  test("runSetupEntry does not inspect separate policies once setup is already configured", async () => {
-    await runSetupEntry(workspace, {
+  test("runSetupOnboarding does not inspect separate policies once setup is already configured", async () => {
+    await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
     });
@@ -370,10 +396,8 @@ describe("setup entry", () => {
 
     let launched = false;
     const lines: string[] = [];
-    const result = await runSetupEntry(workspace, {
-      listModels: () => {
-        throw new Error("setup should not inspect models");
-      },
+    const result = await runSetupOnboarding(workspace, {
+      listModels: () => [{ provider: "openai", id: "gpt-5" }],
       launchSetupSession: async () => {
         launched = true;
       },

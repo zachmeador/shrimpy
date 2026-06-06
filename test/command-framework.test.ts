@@ -64,7 +64,7 @@ describe("command framework", () => {
           sessionType: "tui",
           cwd: "/tmp/shrimpy-command-framework-test",
         }, {
-          isSetupReady: async () => true,
+          resolveSetupState: async () => ({ kind: "ready", models: [] }),
           loadConfig: (workspace) => {
             loadedWorkspace = workspace;
             return { workspace } as any;

@@ -16,7 +16,7 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy` | Open Shrimpy, setting up a minimal environment when needed. |
+| `shrimpy` | Open Shrimpy, running setup onboarding when needed. |
 | `shrimpy "prompt"` | Open the TUI session with an initial prompt. |
 | `shrimpy chat [agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open a TUI chat with the default or selected agent. |
 | `shrimpy mechanic [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open the maintenance TUI as the mechanic agent. |
@@ -43,8 +43,8 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy setup` | Set up a minimal working Shrimpy environment when needed. |
-| `shrimpy setup init` | Create baseline workspace files. |
+| `shrimpy setup` | Run first-run setup onboarding when needed. |
+| `shrimpy setup init` | Run first-run setup onboarding. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy workspace track init [--json]` | Initialize opt-in local workspace git checkpoint tracking. |
 | `shrimpy workspace track status [--json]` | Inspect workspace checkpoint tracking status and changed checkpointable paths. |

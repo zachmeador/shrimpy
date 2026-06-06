@@ -7,13 +7,17 @@ import {
   type ShrimpyConfig,
 } from "../config/index.js";
 import {
-  hasUsableCodingModelPolicyForWorkspace,
   TUI_SETUP_REQUIRED_MESSAGE,
 } from "../setup/readiness.js";
 import {
-  runSetupEntry,
-  type SetupEntryResult,
-} from "../setup/service.js";
+  runSetupOnboarding,
+  type SetupOnboardingResult,
+} from "../setup/onboarding.js";
+import {
+  isSetupReady,
+  resolveSetupState,
+  type SetupState,
+} from "../setup/state.js";
 import {
   runInteractiveAgentSession,
   type RunInteractiveSessionInput,
@@ -28,11 +32,11 @@ export interface ShrimpyTuiCommandDeps {
     runtime: AppRuntime,
     request: ShrimpyTuiSessionRequest,
   ) => Promise<void>;
-  isSetupReady?: (workspace: string) => Promise<boolean>;
-  runSetup?: (
+  resolveSetupState?: (workspace: string) => Promise<SetupState>;
+  runOnboarding?: (
     workspace: string,
     opts: { cwd: string },
-  ) => Promise<SetupEntryResult>;
+  ) => Promise<SetupOnboardingResult>;
   requiredAgent?: {
     id: string;
     missingMessage: string;
@@ -62,17 +66,19 @@ export async function runShrimpyTuiCommandSession(
   request: ShrimpyTuiSessionRequest,
   deps: ShrimpyTuiCommandDeps = {},
 ): Promise<number> {
-  const isSetupReady =
-    deps.isSetupReady ?? hasUsableCodingModelPolicyForWorkspace;
+  const setupState = await (deps.resolveSetupState ?? resolveSetupState)(
+    config.workspace,
+  );
 
-  if (!(await isSetupReady(config.workspace))) {
+  if (!isSetupReady(setupState)) {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
       return printError(TUI_SETUP_REQUIRED_MESSAGE);
     }
 
-    const result = await (deps.runSetup ?? runSetupEntry)(config.workspace, {
-      cwd: request.cwd ?? process.cwd(),
-    });
+    const result = await (deps.runOnboarding ?? runSetupOnboarding)(
+      config.workspace,
+      { cwd: request.cwd ?? process.cwd() },
+    );
     return result.kind === "setup_started" ? 0 : 1;
   }
 
