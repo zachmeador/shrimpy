@@ -1,20 +1,17 @@
-import { createAppRuntime, type AppRuntime } from "../app/index.js";
-import {
-  loadConfigForWorkspace,
-  type ShrimpyConfig,
-} from "../config/index.js";
+import type { AppRuntime } from "../app/index.js";
+import type { ShrimpyConfig } from "../config/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import { runSetupEntry, type SetupEntryResult } from "../setup/service.js";
-import { runInteractiveAgentSession } from "../sessions/index.js";
 import { parseThinking } from "./agent-helpers.js";
 import { renderCommandUsage } from "./catalog.js";
 import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
 import {
   parseCommandArgs,
-  printError,
   usage,
 } from "./framework.js";
-import { shouldRunSetupBootstrapForRootShrimpy } from "./root.js";
+import {
+  runShrimpyTuiCommandSession,
+} from "./tui.js";
 
 export interface ChatSessionRequest {
   agentId?: string;
@@ -35,10 +32,10 @@ export interface ChatCommandDeps {
     runtime: AppRuntime,
     request: ChatSessionRequest,
   ) => Promise<void>;
-  shouldRunSetup?: (workspace: string) => Promise<boolean>;
+  isSetupReady?: (workspace: string) => Promise<boolean>;
   runSetup?: (
     workspace: string,
-    opts: { cwd: string; requireRootTuiModel?: boolean },
+    opts: { cwd: string },
   ) => Promise<SetupEntryResult>;
   bootstrapCompletion?: () => Promise<unknown>;
   cwd?: string;
@@ -54,29 +51,18 @@ export async function cmdChat(
   const cwd = deps.cwd ?? process.cwd();
   const request = createChatSessionRequest(args, CHAT_USAGE, cwd);
 
-  if (!request.agentId) {
-    const shouldRunSetup = deps.shouldRunSetup ?? shouldRunSetupBootstrapForRootShrimpy;
-    if (await shouldRunSetup(config.workspace)) {
-      if (!process.stdin.isTTY || !process.stdout.isTTY) {
-        return printError(
-          "Shrimpy needs a usable coding model policy before opening the TUI. Run: shrimpy setup",
-        );
+  return runShrimpyTuiCommandSession(config, request, {
+    createRuntime: deps.createRuntime,
+    loadConfig: deps.loadConfig,
+    launchSession: deps.launchChatSession
+      ? async (runtime, request) => {
+        await deps.launchChatSession?.(runtime, request as ChatSessionRequest);
       }
-
-      const result = await (deps.runSetup ?? runSetupEntry)(config.workspace, {
-        cwd,
-        requireRootTuiModel: true,
-      });
-      return result.kind === "setup_started" ? 0 : 1;
-    }
-  }
-
-  await (deps.bootstrapCompletion ?? bootstrapInteractiveCompletion)();
-
-  const loadedConfig = (deps.loadConfig ?? loadConfigForWorkspace)(config.workspace);
-  const runtime = (deps.createRuntime ?? createAppRuntime)(loadedConfig);
-  await (deps.launchChatSession ?? launchChatSession)(runtime, request);
-  return 0;
+      : undefined,
+    isSetupReady: deps.isSetupReady,
+    runSetup: deps.runSetup ?? runSetupEntry,
+    beforeLaunch: deps.bootstrapCompletion ?? bootstrapInteractiveCompletion,
+  });
 }
 
 export function createChatSessionRequest(
@@ -113,14 +99,4 @@ export function createChatSessionRequest(
     skills: values.skill,
     cwd,
   };
-}
-
-async function launchChatSession(
-  runtime: AppRuntime,
-  request: ChatSessionRequest,
-): Promise<void> {
-  await runInteractiveAgentSession({
-    runtime,
-    ...request,
-  });
 }

@@ -20,7 +20,6 @@ import {
 import {
   resolveModelPolicy,
   runInteractiveAgentSession,
-  runPiInteractiveAgentSession,
   type ModelPolicyResolution,
 } from "../sessions/index.js";
 import {
@@ -56,11 +55,8 @@ export interface SetupInteractiveSessionSpec {
 
 export interface RunSetupEntryDeps {
   cwd?: string;
-  requireRootTuiModel?: boolean;
-  canLaunchProviderBootstrap?: () => boolean;
   confirmExistingConfig?: (configPath: string) => Promise<boolean>;
   confirmReplaceModelPolicy?: (input: ConfirmReplaceModelPolicyInput) => Promise<boolean>;
-  launchProviderBootstrapSession?: (input: SetupSessionLaunchInput) => Promise<void>;
   launchSetupSession?: (input: SetupSessionLaunchInput) => Promise<void>;
   listModels?: (workspace: string) => SetupModelView[];
   selectCodingModel?: (input: SelectSetupModelInput) => Promise<SetupModelView | undefined>;
@@ -163,29 +159,13 @@ export function createSetupInteractiveSessionSpec(
   };
 }
 
-export async function launchProviderBootstrapSession(
-  input: SetupSessionLaunchInput,
-): Promise<void> {
-  const runtime = createAppRuntime(input.config);
-  await runPiInteractiveAgentSession({
-    runtime,
-    agentId: "shrimpy",
-    channel: "setup-provider",
-    sessionType: "tui",
-    allowMissingModel: true,
-    cwd: input.cwd,
-  });
-}
-
 export async function runSetupEntry(
   workspace: string,
   deps?: RunSetupEntryDeps,
 ): Promise<SetupEntryResult> {
   const log = deps?.log ?? ((line: string) => console.log(line));
   const cwd = deps?.cwd ?? workspace;
-  if (isSetupAlreadyConfigured(workspace, {
-    requireRootTuiModel: deps?.requireRootTuiModel ?? false,
-  })) {
+  if (isSetupAlreadyConfigured(workspace)) {
     log("");
     log("shrimpy setup");
     log("");
@@ -213,32 +193,16 @@ export async function runSetupEntry(
   }
 
   if (models.length === 0) {
-    if ((deps?.canLaunchProviderBootstrap ?? canLaunchProviderBootstrap)()) {
-      log("No working models found yet.");
-      log("Launching model setup session...");
-      log("Use Pi's /login and /model commands to get one working model.");
-
-      const config = loadConfigForProviderBootstrap(workspace, log);
-      await (deps?.launchProviderBootstrapSession ?? launchProviderBootstrapSession)({
-        config,
-        cwd,
-      });
-
-      models = listModels(workspace);
-    }
-
-    if (models.length === 0) {
-      const paths = createWorkspacePaths(workspace);
-      log("No working models found yet.");
-      log(
-        `Configure at least one provider/model in ${paths.authPath} and ${paths.modelsPath}, or rerun \`shrimpy setup\` and use /login then /model in the model setup session.`,
-      );
-      return {
-        kind: "needs_provider",
-        init,
-        models,
-      };
-    }
+    const paths = createWorkspacePaths(workspace);
+    log("No working models found yet.");
+    log(
+      `Configure at least one provider/model in ${paths.authPath} and ${paths.modelsPath}, then rerun \`shrimpy setup\`.`,
+    );
+    return {
+      kind: "needs_provider",
+      init,
+      models,
+    };
   }
 
   const preview = models.slice(0, 2).map(formatModelLabel).join(", ");
@@ -287,18 +251,11 @@ export async function runSetupEntry(
   };
 }
 
-function canLaunchProviderBootstrap(): boolean {
-  return stdin.isTTY && stdout.isTTY;
-}
-
 function formatModelLabel(model: SetupModelView): string {
   return `${model.provider}/${model.id}`;
 }
 
-function isSetupAlreadyConfigured(
-  workspace: string,
-  opts?: { requireRootTuiModel?: boolean },
-): boolean {
+function isSetupAlreadyConfigured(workspace: string): boolean {
   const paths = createWorkspacePaths(workspace);
   if (!existsSync(paths.primaryConfigPath)) return false;
 
@@ -318,31 +275,11 @@ function isSetupAlreadyConfigured(
   if (!resolvePolicyAgainstRawConfig(workspace, raw, DEFAULT_MODEL_POLICY).selected) {
     return false;
   }
-  if (
-    opts?.requireRootTuiModel &&
-    !resolvePolicyAgainstRawConfig(
-      workspace,
-      raw,
-      findDefaultAgentModelPolicy(raw.agents),
-    ).selected
-  ) {
-    return false;
-  }
 
   const shrimpyRoot = findAgentRoot(raw.agents, "shrimpy");
   const mechanicRoot = findAgentRoot(raw.agents, MECHANIC_AGENT_ID);
   return existsSync(createAgentPaths(workspace, shrimpyRoot).contextDir) &&
     existsSync(createAgentPaths(workspace, mechanicRoot).contextDir);
-}
-
-function findDefaultAgentModelPolicy(rawAgents: unknown): string {
-  if (Array.isArray(rawAgents)) {
-    const first = rawAgents.find(isRecord);
-    if (isRecord(first) && typeof first.modelPolicy === "string" && first.modelPolicy) {
-      return first.modelPolicy;
-    }
-  }
-  return DEFAULT_MODEL_POLICY;
 }
 
 function findAgentRoot(rawAgents: unknown, agentId: string): string {
@@ -469,30 +406,6 @@ async function ensureSetupModelPolicies(
   if (changed) writeJsonFileAtomic(paths.primaryConfigPath, raw);
 
   return smokeTestSetupPolicies(workspace, log);
-}
-
-function loadConfigForProviderBootstrap(
-  workspace: string,
-  log: (line: string) => void,
-): ShrimpyConfig {
-  try {
-    return loadConfigForWorkspace(workspace);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const paths = createWorkspacePaths(workspace);
-    const raw = readJsonFileStrict(
-      paths.primaryConfigPath,
-      (parsed) => parsed as Record<string, unknown>,
-    );
-    if (raw.modelPolicies === undefined) throw err;
-    const { modelPolicies: _modelPolicies, ...withoutModelPolicies } = raw;
-    log(`Model policy config is not valid yet: ${message}`);
-    log("Starting model setup without model policy resolution.");
-    return {
-      ...withoutModelPolicies,
-      workspace,
-    } as ShrimpyConfig;
-  }
 }
 
 async function selectCodingModelCandidate(

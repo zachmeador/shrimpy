@@ -72,43 +72,13 @@ try {
     process.exit(0);
   }
 
-  const isBareShrimpy = positionals.length === 0 &&
-    values.agent === undefined &&
-    values.provider === undefined &&
-    values.model === undefined &&
-    values["model-policy"] === undefined &&
-    values.thinking === undefined &&
-    values.skill === undefined;
-
-  if (isBareShrimpy) {
-    const { resolveWorkspacePath } = await import("./config/index.js");
-    const { shouldRunSetupBootstrapForRootShrimpy } = await import("./commands/root.js");
-    const workspace = resolveWorkspacePath();
-    if (await shouldRunSetupBootstrapForRootShrimpy(workspace)) {
-      if (!process.stdin.isTTY || !process.stdout.isTTY) {
-        console.error("Shrimpy needs a usable coding model policy before opening the TUI. Run: shrimpy setup");
-        process.exit(1);
-      }
-
-      const { runSetupEntry } = await import("./setup/service.js");
-      const result = await runSetupEntry(workspace, {
-        cwd: process.cwd(),
-        requireRootTuiModel: true,
-      });
-      process.exit(result.kind === "setup_started" ? 0 : 1);
-    }
-  }
-
-  const { bootstrapInteractiveCompletion } = await import("./commands/completion-runtime.js");
-  await bootstrapInteractiveCompletion();
-
-  const { loadConfig } = await import("./config/index.js");
-  const { createAppRuntime } = await import("./app/index.js");
+  const { resolveWorkspacePath } = await import("./config/index.js");
   const {
     formatThinkingInputs,
     parseThinkingLevel,
   } = await import("./inference/thinking.js");
-  const { runInteractiveAgentSession } = await import("./sessions/index.js");
+  const { bootstrapInteractiveCompletion } = await import("./commands/completion-runtime.js");
+  const { runShrimpyTuiCommandSession } = await import("./commands/tui.js");
 
   const prompt = positionals.length > 0 ? positionals.join(" ") : undefined;
   const thinking = values.thinking === undefined
@@ -118,10 +88,9 @@ try {
     throw new Error(`thinking level must be one of: ${formatThinkingInputs()}`);
   }
 
-  const config = loadConfig();
-  const runtime = createAppRuntime(config);
-  await runInteractiveAgentSession({
-    runtime,
+  const code = await runShrimpyTuiCommandSession({
+    workspace: resolveWorkspacePath(),
+  }, {
     agentId: values.agent,
     channel: "tui",
     sessionType: "tui",
@@ -132,7 +101,10 @@ try {
     skills: values.skill,
     initialMessage: prompt,
     cwd: process.cwd(),
+  }, {
+    beforeLaunch: bootstrapInteractiveCompletion,
   });
+  process.exit(code);
 } catch (err) {
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);

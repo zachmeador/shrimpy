@@ -1,12 +1,11 @@
-import { createAppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
-import { runInteractiveAgentSession } from "../sessions/index.js";
 import { parseThinking } from "./agent-helpers.js";
 import {
   parseCommandArgs,
   requireArg,
 } from "./framework.js";
 import { cmdRun } from "./run.js";
+import { runShrimpyTuiCommandSession } from "./tui.js";
 
 export async function cmdAgentRun(
   config: ShrimpyConfig,
@@ -39,8 +38,7 @@ export async function cmdAgentTui(
   const agentId = requireArg(positionals[0], usage, "agent id");
 
   const prompt = positionals.slice(1).join(" ").trim() || undefined;
-  await runInteractiveAgentSession({
-    runtime: createAppRuntime(config),
+  return runShrimpyTuiCommandSession(config, {
     agentId,
     channel: "tui",
     sessionType: "tui",
@@ -52,5 +50,4 @@ export async function cmdAgentTui(
     initialMessage: prompt,
     cwd: process.cwd(),
   });
-  return 0;
 }

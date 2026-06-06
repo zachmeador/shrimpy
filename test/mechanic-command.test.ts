@@ -104,6 +104,7 @@ describe("cmdMechanic", () => {
       config,
       {
         cwd: workspace,
+        isSetupReady: async () => true,
         launchMechanicSession: async (_runtime, request) => {
           captured = request;
         },
@@ -133,6 +134,7 @@ describe("cmdMechanic", () => {
 
     const { result, errors } = await captureErrors(() =>
       cmdMechanic([], { workspace } as any, {
+        isSetupReady: async () => true,
         createRuntime: () => runtime,
         launchMechanicSession: async () => {
           throw new Error("should not launch");

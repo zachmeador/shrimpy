@@ -42,7 +42,7 @@ Finish model/provider setup:
 shrimpy setup
 ```
 
-If no model is available, `shrimpy setup` opens Pi's provider bootstrap path so you can use `/login` and `/model`. The durable workspace layout is owned by [workspace.md](workspace.md).
+Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth. If no usable model is available, `shrimpy setup` initializes the workspace, reports the auth/model state paths, and stops before opening any TUI. The durable workspace layout is owned by [workspace.md](workspace.md).
 
 ## Gateway
 

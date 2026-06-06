@@ -68,29 +68,15 @@ describe("setup entry", () => {
     assert.equal(result, 0);
     assert.equal(existsSync(join(workspace, "config", "shrimpy.json")), true);
     assert.match(lines.join("\n"), /No working models found yet\./);
-    assert.match(lines.join("\n"), /model setup session/i);
+    assert.doesNotMatch(lines.join("\n"), /Launching .*TUI/i);
   });
 
-  test("runSetupEntry can launch a model setup session and continue into setup", async () => {
-    let modelSetupLaunched = false;
+  test("runSetupEntry does not launch a model-less TUI when no models exist", async () => {
     let setupLaunched = false;
-    let models: Array<{ provider: string; id: string }> = [];
     const lines: string[] = [];
 
     const result = await runSetupEntry(workspace, {
-      listModels: () => models,
-      canLaunchProviderBootstrap: () => true,
-      launchProviderBootstrapSession: async ({ config, cwd }) => {
-        modelSetupLaunched = true;
-        assert.equal(config.workspace, workspace);
-        assert.equal(cwd, workspace);
-        models = [{ provider: "openai", id: "gpt-5" }];
-        writeModelsJson({
-          providers: {
-            openai: modelProvider(["gpt-5"]),
-          },
-        });
-      },
+      listModels: () => [],
       launchSetupSession: async () => {
         setupLaunched = true;
       },
@@ -100,12 +86,10 @@ describe("setup entry", () => {
       },
     });
 
-    assert.equal(result.kind, "setup_started");
-    assert.equal(modelSetupLaunched, true);
-    assert.equal(setupLaunched, true);
-    assert.match(lines.join("\n"), /Launching model setup session\.\.\./);
-    assert.match(lines.join("\n"), /Use Pi's \/login and \/model commands/);
-    assert.match(lines.join("\n"), /Launching interactive setup session\.\.\./);
+    assert.equal(result.kind, "needs_provider");
+    assert.equal(setupLaunched, false);
+    assert.match(lines.join("\n"), /No working models found yet\./);
+    assert.doesNotMatch(lines.join("\n"), /Launching .*TUI/i);
   });
 
   test("runSetupEntry launches the setup session when a model is available", async () => {
@@ -403,42 +387,6 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Nothing to do\./);
   });
 
-  test("runSetupEntry can require the root TUI agent policy for bare shrimpy", async () => {
-    await runSetupEntry(workspace, {
-      listModels: () => [],
-      log: () => {},
-    });
-    writeModelsJson({
-      providers: {
-        openai: modelProvider(["gpt-5"]),
-      },
-    });
-    writeConfig((config) => {
-      config.modelPolicies = {
-        coding: {
-          candidates: [{ provider: "openai", id: "gpt-5" }],
-        },
-        local: {
-          candidates: [{ provider: "missing", id: "nope" }],
-        },
-      };
-      config.agents[0].modelPolicy = "local";
-    });
-
-    let launched = false;
-    const result = await runSetupEntry(workspace, {
-      requireRootTuiModel: true,
-      listModels: () => [{ provider: "openai", id: "gpt-5" }],
-      confirmExistingConfig: async () => true,
-      launchSetupSession: async () => {
-        launched = true;
-      },
-      log: () => {},
-    });
-
-    assert.equal(result.kind, "setup_started");
-    assert.equal(launched, true);
-  });
 });
 
 function readConfig(): any {

@@ -19,6 +19,21 @@ afterEach(() => {
   rmSync(workspace, { recursive: true, force: true });
 });
 
+async function captureErrors<T>(fn: () => Promise<T>): Promise<{ result: T; errors: string[] }> {
+  const originalError = console.error;
+  const errors: string[] = [];
+  console.error = (...args: unknown[]) => {
+    errors.push(args.map((value) => String(value)).join(" "));
+  };
+
+  try {
+    const result = await fn();
+    return { result, errors };
+  } finally {
+    console.error = originalError;
+  }
+}
+
 describe("cmdChat", () => {
   test("builds a default-agent TUI chat request", () => {
     assert.deepEqual(
@@ -98,7 +113,7 @@ describe("cmdChat", () => {
       { workspace } as any,
       {
         cwd: workspace,
-        shouldRunSetup: async () => false,
+        isSetupReady: async () => true,
         bootstrapCompletion: async () => undefined,
         loadConfig: (path) => {
           loadedWorkspace = path;
@@ -125,7 +140,7 @@ describe("cmdChat", () => {
     });
   });
 
-  test("opens an explicit agent without running blank-chat setup bootstrap", async () => {
+  test("opens an explicit agent through the shared TUI setup gate", async () => {
     let setupChecked = false;
     let captured: ChatSessionRequest | undefined;
 
@@ -134,7 +149,7 @@ describe("cmdChat", () => {
       { workspace } as any,
       {
         cwd: workspace,
-        shouldRunSetup: async () => {
+        isSetupReady: async () => {
           setupChecked = true;
           return true;
         },
@@ -150,7 +165,7 @@ describe("cmdChat", () => {
     );
 
     assert.equal(code, 0);
-    assert.equal(setupChecked, false);
+    assert.equal(setupChecked, true);
     assert.deepEqual(captured, {
       agentId: "career",
       channel: "tui",
@@ -162,5 +177,32 @@ describe("cmdChat", () => {
       skills: ["research", "draft"],
       cwd: workspace,
     });
+  });
+
+  test("blocks explicit-agent chat when setup is not ready", async () => {
+    let launched = false;
+    let setupChecked = false;
+
+    const { result, errors } = await captureErrors(() =>
+      cmdChat(
+        ["career"],
+        { workspace } as any,
+        {
+          cwd: workspace,
+          isSetupReady: async () => {
+            setupChecked = true;
+            return false;
+          },
+          launchChatSession: async () => {
+            launched = true;
+          },
+        },
+      )
+    );
+
+    assert.equal(result, 1);
+    assert.equal(setupChecked, true);
+    assert.equal(launched, false);
+    assert.match(errors.join("\n"), /Run: shrimpy setup/);
   });
 });

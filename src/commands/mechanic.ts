@@ -1,12 +1,17 @@
-import { createAppRuntime, type AppRuntime } from "../app/index.js";
+import type { AppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import { MECHANIC_AGENT_ID } from "../setup/init.js";
+import {
+  runSetupEntry,
+  type SetupEntryResult,
+} from "../setup/service.js";
 import { runInteractiveAgentSession } from "../sessions/index.js";
 import { parseThinking } from "./agent-helpers.js";
 import {
   parseCommandArgs,
   printError,
 } from "./framework.js";
+import { runShrimpyTuiCommandSession } from "./tui.js";
 
 export interface MechanicSessionRequest {
   agentId: typeof MECHANIC_AGENT_ID;
@@ -23,12 +28,20 @@ export interface MechanicSessionRequest {
 
 export interface MechanicCommandDeps {
   createRuntime?: (config: ShrimpyConfig) => AppRuntime;
+  loadConfig?: (workspace: string) => ShrimpyConfig;
   launchMechanicSession?: (
     runtime: AppRuntime,
     request: MechanicSessionRequest,
   ) => Promise<void>;
+  isSetupReady?: (workspace: string) => Promise<boolean>;
+  runSetup?: (
+    workspace: string,
+    opts: { cwd: string },
+  ) => Promise<SetupEntryResult>;
   cwd?: string;
 }
+
+class MissingMechanicAgentError extends Error {}
 
 export async function cmdMechanic(
   args: string[],
@@ -40,18 +53,26 @@ export async function cmdMechanic(
     "usage: shrimpy mechanic [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]",
     deps.cwd ?? process.cwd(),
   );
-  const runtime = (deps.createRuntime ?? createAppRuntime)(config);
-
   try {
-    runtime.getAgent(MECHANIC_AGENT_ID);
-  } catch {
+    return await runShrimpyTuiCommandSession(config, request, {
+      createRuntime: deps.createRuntime,
+      loadConfig: deps.loadConfig,
+      launchSession: async (runtime, request) => {
+        requireMechanicAgent(runtime);
+        await (deps.launchMechanicSession ?? launchMechanicSession)(
+          runtime,
+          request as MechanicSessionRequest,
+        );
+      },
+      isSetupReady: deps.isSetupReady,
+      runSetup: deps.runSetup ?? runSetupEntry,
+    });
+  } catch (err) {
+    if (!(err instanceof MissingMechanicAgentError)) throw err;
     return printError(
       `mechanic agent not found. Run "shrimpy setup init" in a fresh workspace or add agent "${MECHANIC_AGENT_ID}" before using this command.`,
     );
   }
-
-  await (deps.launchMechanicSession ?? launchMechanicSession)(runtime, request);
-  return 0;
 }
 
 export function createMechanicSessionRequest(
@@ -93,8 +114,17 @@ async function launchMechanicSession(
   runtime: AppRuntime,
   request: MechanicSessionRequest,
 ): Promise<void> {
+  requireMechanicAgent(runtime);
   await runInteractiveAgentSession({
     runtime,
     ...request,
   });
+}
+
+function requireMechanicAgent(runtime: AppRuntime): void {
+  try {
+    runtime.getAgent(MECHANIC_AGENT_ID);
+  } catch {
+    throw new MissingMechanicAgentError();
+  }
 }

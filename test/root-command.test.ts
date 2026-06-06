@@ -100,7 +100,7 @@ describe("root shrimpy command setup path", () => {
     assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), false);
   });
 
-  test("checks the default agent policy instead of only coding", async () => {
+  test("uses coding policy readiness as the setup boundary", async () => {
     ensureWorkspaceInitialized(workspace);
     writeModelsJson({
       providers: {
@@ -119,7 +119,7 @@ describe("root shrimpy command setup path", () => {
       config.agents[0].modelPolicy = "local";
     });
 
-    assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), true);
+    assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), false);
   });
 });
 
