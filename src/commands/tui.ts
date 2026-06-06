@@ -18,7 +18,6 @@ import {
   runInteractiveAgentSession,
   type RunInteractiveSessionInput,
 } from "../sessions/index.js";
-import { printError } from "./framework.js";
 
 export type ShrimpyTuiSessionRequest = Omit<RunInteractiveSessionInput, "runtime">;
 
@@ -34,7 +33,28 @@ export interface ShrimpyTuiCommandDeps {
     workspace: string,
     opts: { cwd: string },
   ) => Promise<SetupEntryResult>;
+  requiredAgent?: {
+    id: string;
+    missingMessage: string;
+  };
   beforeLaunch?: () => Promise<unknown>;
+}
+
+export interface ShrimpyTuiCommandResult {
+  kind: "shrimpy-tui";
+  request: ShrimpyTuiSessionRequest;
+  deps?: ShrimpyTuiCommandDeps;
+}
+
+export function createShrimpyTuiCommand(
+  request: ShrimpyTuiSessionRequest,
+  deps?: ShrimpyTuiCommandDeps,
+): ShrimpyTuiCommandResult {
+  return {
+    kind: "shrimpy-tui",
+    request,
+    deps,
+  };
 }
 
 export async function runShrimpyTuiCommandSession(
@@ -61,6 +81,13 @@ export async function runShrimpyTuiCommandSession(
   const loadedConfig =
     (deps.loadConfig ?? loadConfigForWorkspace)(config.workspace);
   const runtime = (deps.createRuntime ?? createAppRuntime)(loadedConfig);
+  if (deps.requiredAgent) {
+    try {
+      runtime.getAgent(deps.requiredAgent.id);
+    } catch {
+      return printError(deps.requiredAgent.missingMessage);
+    }
+  }
   await (deps.launchSession ?? launchSession)(runtime, request);
   return 0;
 }
@@ -73,4 +100,9 @@ async function launchSession(
     runtime,
     ...request,
   });
+}
+
+function printError(message: string): number {
+  console.error(message);
+  return 1;
 }

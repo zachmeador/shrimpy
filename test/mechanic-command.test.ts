@@ -9,6 +9,7 @@ import {
   createMechanicSessionRequest,
   type MechanicSessionRequest,
 } from "../dist/commands/mechanic.js";
+import { resolveCommandResult } from "../dist/commands/framework.js";
 import { setupInit } from "../dist/setup/init.js";
 
 let workspace: string;
@@ -99,16 +100,19 @@ describe("cmdMechanic", () => {
     const config = readConfig();
     let captured: MechanicSessionRequest | undefined;
 
-    const code = await cmdMechanic(
-      ["check", "models", "--model-policy", "coding"],
-      config,
-      {
-        cwd: workspace,
-        isSetupReady: async () => true,
-        launchMechanicSession: async (_runtime, request) => {
-          captured = request;
+    const code = await resolveCommandResult(
+      await cmdMechanic(
+        ["check", "models", "--model-policy", "coding"],
+        config,
+        {
+          cwd: workspace,
+          isSetupReady: async () => true,
+          launchMechanicSession: async (_runtime, request) => {
+            captured = request;
+          },
         },
-      },
+      ),
+      config,
     );
 
     assert.equal(code, 0);
@@ -132,14 +136,17 @@ describe("cmdMechanic", () => {
       agents: [{ id: "shrimpy", root: "agents/shrimpy" }],
     } as any);
 
-    const { result, errors } = await captureErrors(() =>
-      cmdMechanic([], { workspace } as any, {
-        isSetupReady: async () => true,
-        createRuntime: () => runtime,
-        launchMechanicSession: async () => {
-          throw new Error("should not launch");
-        },
-      })
+    const { result, errors } = await captureErrors(async () =>
+      resolveCommandResult(
+        await cmdMechanic([], { workspace } as any, {
+          isSetupReady: async () => true,
+          createRuntime: () => runtime,
+          launchMechanicSession: async () => {
+            throw new Error("should not launch");
+          },
+        }),
+        { workspace } as any,
+      )
     );
 
     assert.equal(result, 1);

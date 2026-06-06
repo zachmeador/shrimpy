@@ -6,11 +6,12 @@ import { parseThinking } from "./agent-helpers.js";
 import { renderCommandUsage } from "./catalog.js";
 import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
 import {
+  type CommandResult,
   parseCommandArgs,
   usage,
 } from "./framework.js";
 import {
-  runShrimpyTuiCommandSession,
+  createShrimpyTuiCommand,
 } from "./tui.js";
 
 export interface ChatSessionRequest {
@@ -47,11 +48,11 @@ export async function cmdChat(
   args: string[],
   config: ShrimpyConfig,
   deps: ChatCommandDeps = {},
-): Promise<number> {
+): Promise<CommandResult> {
   const cwd = deps.cwd ?? process.cwd();
   const request = createChatSessionRequest(args, CHAT_USAGE, cwd);
 
-  return runShrimpyTuiCommandSession(config, request, {
+  return createShrimpyTuiCommand(request, {
     createRuntime: deps.createRuntime,
     loadConfig: deps.loadConfig,
     launchSession: deps.launchChatSession

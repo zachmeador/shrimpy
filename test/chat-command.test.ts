@@ -8,6 +8,7 @@ import {
   createChatSessionRequest,
   type ChatSessionRequest,
 } from "../dist/commands/chat.js";
+import { resolveCommandResult } from "../dist/commands/framework.js";
 
 let workspace: string;
 
@@ -108,21 +109,24 @@ describe("cmdChat", () => {
     let loadedWorkspace: string | undefined;
     let captured: ChatSessionRequest | undefined;
 
-    const code = await cmdChat(
-      ["--model-policy", "coding"],
+    const code = await resolveCommandResult(
+      await cmdChat(
+        ["--model-policy", "coding"],
+        { workspace } as any,
+        {
+          cwd: workspace,
+          isSetupReady: async () => true,
+          bootstrapCompletion: async () => undefined,
+          loadConfig: (path) => {
+            loadedWorkspace = path;
+            return { workspace: path } as any;
+          },
+          launchChatSession: async (_runtime, request) => {
+            captured = request;
+          },
+        },
+      ),
       { workspace } as any,
-      {
-        cwd: workspace,
-        isSetupReady: async () => true,
-        bootstrapCompletion: async () => undefined,
-        loadConfig: (path) => {
-          loadedWorkspace = path;
-          return { workspace: path } as any;
-        },
-        launchChatSession: async (_runtime, request) => {
-          captured = request;
-        },
-      },
     );
 
     assert.equal(code, 0);
@@ -144,24 +148,27 @@ describe("cmdChat", () => {
     let setupChecked = false;
     let captured: ChatSessionRequest | undefined;
 
-    const code = await cmdChat(
-      ["career", "--skill", "research", "--skill", "draft"],
+    const code = await resolveCommandResult(
+      await cmdChat(
+        ["career", "--skill", "research", "--skill", "draft"],
+        { workspace } as any,
+        {
+          cwd: workspace,
+          isSetupReady: async () => {
+            setupChecked = true;
+            return true;
+          },
+          bootstrapCompletion: async () => undefined,
+          loadConfig: (path) => ({
+            workspace: path,
+            agents: [{ id: "career", root: "agents/career" }],
+          }) as any,
+          launchChatSession: async (_runtime, request) => {
+            captured = request;
+          },
+        },
+      ),
       { workspace } as any,
-      {
-        cwd: workspace,
-        isSetupReady: async () => {
-          setupChecked = true;
-          return true;
-        },
-        bootstrapCompletion: async () => undefined,
-        loadConfig: (path) => ({
-          workspace: path,
-          agents: [{ id: "career", root: "agents/career" }],
-        }) as any,
-        launchChatSession: async (_runtime, request) => {
-          captured = request;
-        },
-      },
     );
 
     assert.equal(code, 0);
@@ -183,20 +190,23 @@ describe("cmdChat", () => {
     let launched = false;
     let setupChecked = false;
 
-    const { result, errors } = await captureErrors(() =>
-      cmdChat(
-        ["career"],
+    const { result, errors } = await captureErrors(async () =>
+      resolveCommandResult(
+        await cmdChat(
+          ["career"],
+          { workspace } as any,
+          {
+            cwd: workspace,
+            isSetupReady: async () => {
+              setupChecked = true;
+              return false;
+            },
+            launchChatSession: async () => {
+              launched = true;
+            },
+          },
+        ),
         { workspace } as any,
-        {
-          cwd: workspace,
-          isSetupReady: async () => {
-            setupChecked = true;
-            return false;
-          },
-          launchChatSession: async () => {
-            launched = true;
-          },
-        },
       )
     );
 

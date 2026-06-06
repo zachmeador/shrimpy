@@ -1,15 +1,18 @@
 import { parseArgs, type ParseArgsConfig } from "node:util";
 import type { ShrimpyConfig } from "../config/index.js";
+import type { ShrimpyTuiCommandResult } from "./tui.js";
 import {
   isHelpFlag,
   renderCommandPathHelp,
   resolveCliHelpPath,
 } from "./help.js";
 
+export type CommandResult = number | ShrimpyTuiCommandResult;
+
 export type CommandHandler = (
   argv: string[],
   config: ShrimpyConfig,
-) => Promise<number>;
+) => CommandResult | Promise<CommandResult>;
 
 export interface CommandInvocation {
   argv: string[];
@@ -19,7 +22,7 @@ export interface CommandInvocation {
 
 export type CommandAction = (
   invocation: CommandInvocation,
-) => number | Promise<number>;
+) => CommandResult | Promise<CommandResult>;
 
 export interface CommandGroup {
   name: string;
@@ -137,7 +140,7 @@ export async function runCommand(
   config: ShrimpyConfig,
 ): Promise<number> {
   try {
-    return await handler(argv, config);
+    return await resolveCommandResult(await handler(argv, config), config);
   } catch (err) {
     if (err instanceof CommandError) {
       console.error(err.message);
@@ -145,4 +148,16 @@ export async function runCommand(
     }
     throw err;
   }
+}
+
+export async function resolveCommandResult(
+  result: CommandResult,
+  config: ShrimpyConfig,
+): Promise<number> {
+  if (typeof result === "number") return result;
+  if (result.kind === "shrimpy-tui") {
+    const { runShrimpyTuiCommandSession } = await import("./tui.js");
+    return runShrimpyTuiCommandSession(config, result.request, result.deps);
+  }
+  throw new Error("unknown command result");
 }

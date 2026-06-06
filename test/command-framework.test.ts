@@ -5,6 +5,7 @@ import {
   parseCommandArgs,
   runCommand,
 } from "../dist/commands/framework.js";
+import { createShrimpyTuiCommand } from "../dist/commands/tui.js";
 
 describe("command framework", () => {
   test("dispatches subcommands with action-free argv", async () => {
@@ -50,5 +51,35 @@ describe("command framework", () => {
     } finally {
       console.error = originalError;
     }
+  });
+
+  test("resolves TUI command results through the shared launcher", async () => {
+    let loadedWorkspace: string | undefined;
+    let launched = false;
+
+    const code = await runCommand(
+      async () =>
+        createShrimpyTuiCommand({
+          channel: "tui",
+          sessionType: "tui",
+          cwd: "/tmp/shrimpy-command-framework-test",
+        }, {
+          isSetupReady: async () => true,
+          loadConfig: (workspace) => {
+            loadedWorkspace = workspace;
+            return { workspace } as any;
+          },
+          createRuntime: () => ({} as any),
+          launchSession: async () => {
+            launched = true;
+          },
+        }),
+      [],
+      { workspace: "/tmp/shrimpy-command-framework-workspace" } as any,
+    );
+
+    assert.equal(code, 0);
+    assert.equal(loadedWorkspace, "/tmp/shrimpy-command-framework-workspace");
+    assert.equal(launched, true);
   });
 });
