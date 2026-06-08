@@ -6,7 +6,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 
 - The main binary is `shrimpy`, backed by `src/cli.ts`.
 - The long-running process is `shrimpy-gateway`, backed by `src/gateway.ts`.
-- The workspace path comes from `~/.shrimpy-workspace.json`; when unset, it defaults to `~/.shrimpy/`.
+- The workspace path comes from `~/.shrimpy/.shrimpy-workspace.json`, with `~/.shrimpy-workspace.json` as a fallback; when unset, it defaults to `~/.shrimpy/`.
 - Runtime config lives in `workspace/config/shrimpy.json`.
 - Channels are append-only JSONL logs under `workspace/channels/`; see [channels.md](channels.md).
 - Agents live under `workspace/agents/<id>/` with their own prompt resources, memory, skills, and sessions.

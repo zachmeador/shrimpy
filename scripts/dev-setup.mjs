@@ -104,7 +104,7 @@ if (build === undefined) build = command === "setup" || command === "init" || co
 const root = join(tmpdir(), `shrimpy-dev-setup-${name}`);
 const home = join(root, "home");
 const workspace = join(root, "workspace");
-const pointerPath = join(home, ".shrimpy-workspace.json");
+const pointerPath = join(home, ".shrimpy", ".shrimpy-workspace.json");
 const existedBefore = existsSync(root);
 
 if (command === "clean") {
@@ -116,6 +116,7 @@ if (command === "clean") {
 if (fresh) rmSync(root, { force: true, recursive: true });
 mkdirSync(home, { recursive: true });
 mkdirSync(workspace, { recursive: true });
+mkdirSync(dirname(pointerPath), { recursive: true });
 writeFileSync(pointerPath, `${JSON.stringify({ workspace })}\n`, "utf-8");
 
 if (piStateSource !== undefined) {
@@ -244,15 +245,19 @@ Examples:
 }
 
 function resolveWorkspaceFromHome(homeDir) {
-  const livePointerPath = join(homeDir, ".shrimpy-workspace.json");
-  if (!existsSync(livePointerPath)) {
-    fail(`cannot copy Pi state: ${livePointerPath} does not exist`);
+  const pointerPaths = [
+    join(homeDir, ".shrimpy", ".shrimpy-workspace.json"),
+    join(homeDir, ".shrimpy-workspace.json"),
+  ];
+  for (const livePointerPath of pointerPaths) {
+    if (!existsSync(livePointerPath)) continue;
+    const raw = JSON.parse(readFileSync(livePointerPath, "utf-8"));
+    if (!raw || typeof raw.workspace !== "string" || raw.workspace.length === 0) {
+      fail(`cannot copy Pi state: ${livePointerPath} has no workspace field`);
+    }
+    return raw.workspace;
   }
-  const raw = JSON.parse(readFileSync(livePointerPath, "utf-8"));
-  if (!raw || typeof raw.workspace !== "string" || raw.workspace.length === 0) {
-    fail(`cannot copy Pi state: ${livePointerPath} has no workspace field`);
-  }
-  return raw.workspace;
+  fail(`cannot copy Pi state: no workspace pointer found at ${pointerPaths.join(" or ")}`);
 }
 
 function copyPiState(sourceWorkspace, targetWorkspace) {

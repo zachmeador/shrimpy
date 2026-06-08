@@ -1,6 +1,6 @@
 # 🦐 Workspace
 
-The workspace is Shrimpy's persistent home directory. By default it is `~/.shrimpy/`; the path can be overridden with `~/.shrimpy-workspace.json`.
+The workspace is Shrimpy's persistent home directory. By default it is `~/.shrimpy/`; the path can be overridden with `~/.shrimpy/.shrimpy-workspace.json`. Shrimpy also checks `~/.shrimpy-workspace.json` as a fallback.
 
 ## Layout
 

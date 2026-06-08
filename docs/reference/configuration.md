@@ -10,7 +10,7 @@ config/channels.json        explicit channel membership
 agents/<id>/watches.json    agent-owned watch definitions
 ```
 
-The workspace itself is selected by `~/.shrimpy-workspace.json`:
+The workspace itself is selected by a pointer file. Shrimpy checks `~/.shrimpy/.shrimpy-workspace.json` first, then `~/.shrimpy-workspace.json`:
 
 ```json
 {
@@ -18,7 +18,7 @@ The workspace itself is selected by `~/.shrimpy-workspace.json`:
 }
 ```
 
-When that pointer file is absent, Shrimpy uses `~/.shrimpy/`.
+When neither pointer selects a workspace, Shrimpy uses `~/.shrimpy/`.
 
 ## `config/shrimpy.json`
 
