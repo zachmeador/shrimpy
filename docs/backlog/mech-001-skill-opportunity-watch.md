@@ -11,6 +11,8 @@ Shrimpy should be able to look at how the user is actually using the workspace a
 
 The product shape is a framework that can search autonomously for good ideas without silently changing the workspace. The mechanic should write an inspectable Markdown assessment and send the user a short message with the highest-signal recommendations. Context hygiene findings are report material by default; the mechanic should not rewrite or prune context unless the user asks for that work.
 
+The assessment should have a mechanic-owned "notorious anti-patterns" skill or reference catalog for Shrimpy/OpenClaw-like home-agent setups. The catalog gives the mechanic a sharper checklist to call from scheduled workspace-improvement reports instead of relying on generic prompt-hygiene instincts.
+
 ## Current State
 
 - The bundled `mechanic` agent exists and is the right owner for setup, repair, and usage-assessment skills.
@@ -24,8 +26,11 @@ The product shape is a framework that can search autonomously for good ideas wit
 - Record each watch run in mechanic-owned run history. Emit a user-facing channel message only when the assessment has useful recommendations or an actionable failure.
 - Let the user trigger the same assessment manually from a normal mechanic session before enabling recurrence.
 - Implement the assessment as a mechanic skill/resource, not a special runtime control plane.
+- Add or reuse a mechanic-owned anti-pattern catalog skill/resource and have the assessment invoke it when writing the Markdown report.
 - Inspect recent channel activity, configured watches, installed skills, workspace profile files, every agent's `SOUL.md`, every agent's context files, configured static file/directory context sources, and vault/project files when available.
 - Check static context files for bloat, stale duplication, overly broad prompts, and filing-cabinet drift. Include concrete path-level findings in the report, with suggested pruning or consolidation steps, but leave the files unchanged unless the user explicitly asks for edits.
+- Include anti-pattern checks for static prompt files that carry detailed material better owned by vault notes, project docs, skills, reports, watch history, or linked reference files. Static context should state the most important durable facts briefly and point to inspectable detail, because agents can quickly use normal read/search tools when detail is needed.
+- Include anti-pattern checks for mixed ownership, such as another agent's personality or memory living in shared profile files, mechanic-only setup guidance leaking into the normal agent, app/project implementation notes living in context, model/tool policy hidden in prompts, and recurring maintenance that mutates workspace files without an inspectable report and explicit user approval.
 - Produce a timestamped Markdown report under the mechanic's vault, following the agent-report convention in [workspace.md](../reference/workspace.md): `agents/mechanic/vault/assessments/`.
 - Send the user a concise message after each assessment with:
   - the report path;
@@ -43,6 +48,7 @@ The product shape is a framework that can search autonomously for good ideas wit
 - Do not spam the user. Prefer a quiet no-op or a terse note when no strong recommendation exists.
 - Do not duplicate memory-management or journaling. This assessment is about implementation opportunities, not durable autobiographical memory.
 - Do not treat context-bloat findings as permission to mutate prompt or memory files. The normal assessment only reports; cleanup is a separate user-approved task.
+- Do not turn the anti-pattern catalog into a rigid linter. It should explain likely risks and point to better owners, not block unusual but intentional workspace design.
 
 ## Notes
 
@@ -51,6 +57,7 @@ The product shape is a framework that can search autonomously for good ideas wit
 - The stable watch inspection surface gives the mechanic a way to inspect its own watch recurrence, run history, and next run.
 - [channels.md](../reference/channels.md) owns the channel wake contract for any mechanic assessment emitted into a channel.
 - Good candidate recommendations: turn repeated manual requests into a skill, add a small recurring watch, split a focused app-agent out of the main agent, add a vault collection/index, or create a channel convention.
+- Good anti-pattern findings: bloated static context, copied reports in context, stale duplicated summaries, cross-agent identity leakage, global prompts for scoped workflows, hidden model/tool policy, uninspectable automation, and raw logs treated as durable prompt material.
 
 ## Done
 
@@ -58,6 +65,6 @@ The product shape is a framework that can search autonomously for good ideas wit
 - The mechanic can optionally run the same assessment through a recurring mechanic-owned watch.
 - Watch runs are inspectable even when they emit no channel message.
 - Each assessment writes a timestamped Markdown report in an inspectable workspace path.
-- Each assessment includes a static-context hygiene section covering all workspace profile files, every agent's `SOUL.md`, and every agent's context files, even when the result is "no notable bloat found."
+- Each assessment includes a static-context hygiene and anti-pattern section covering all workspace profile files, every agent's `SOUL.md`, every agent's context files, configured static context sources, and the anti-pattern catalog, even when the result is "no notable bloat found."
 - Each non-empty assessment sends the user a concise message with concrete implementation skill ideas and a report path.
 - Tests cover default watch/template seeding if recurrence is seeded by setup.
