@@ -1,6 +1,4 @@
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import {
   type ContextConfig,
   type ContextDefaultsConfig,
@@ -28,6 +26,7 @@ import {
   type ModelPoliciesConfig,
   validateModelPoliciesConfig,
 } from "./model.js";
+import { resolveWorkspacePath } from "./workspace.js";
 
 export interface ShrimpyConfig {
   workspace: string;
@@ -50,18 +49,6 @@ export interface ShrimpyConfig {
     preferredChannels?: string[];
   };
   [surfaceKey: string]: unknown;
-}
-
-export function resolveWorkspacePath(): string {
-  const pointerPath = join(homedir(), ".shrimpy-workspace.json");
-  if (existsSync(pointerPath)) {
-    const raw = readJsonFileStrict(
-      pointerPath,
-      (parsed) => parsed as Record<string, unknown>,
-    );
-    if (typeof raw.workspace === "string" && raw.workspace) return raw.workspace;
-  }
-  return join(process.cwd(), ".shrimpy");
 }
 
 function validateRawConfig(raw: Record<string, unknown>) {
@@ -114,3 +101,4 @@ export * from "./model.js";
 export * from "./paths.js";
 export * from "./runtime.js";
 export * from "./tools.js";
+export * from "./workspace.js";

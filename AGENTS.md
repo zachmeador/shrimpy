@@ -7,7 +7,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 ## Key paths
 
 - **Entry point:** `src/cli.ts`
-- **Workspace:** `~/.shrimpy-workspace.json` → `workspace` field (default: `projectRoot/.shrimpy`). Config at `workspace/config/shrimpy.json`.
+- **Workspace:** `~/.shrimpy-workspace.json` → `workspace` field (default: `~/.shrimpy`). Config at `workspace/config/shrimpy.json`.
 - **Workspace contents:** `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/<id>/SOUL.md`, `agents/<id>/context/`, `agents/<id>/vault/`, `agents/<id>/watches.json`, `agents/<id>/sessions/`, `agents/<id>/skills/`, `skills/`, `state/pi/auth.json`, `state/pi/models.json`, `state/users.json`, `state/watch-clock.json`, `runtime/cursors/`, `runtime/context/`, `runtime/watches/`, `runtime/logs/`, `channels/`, `media/`
 - **Binary:** `~/.local/bin/shrimpy` → `dist/cli.js`
 - **Local build caveat:** the local `shrimpy` binary points at this repo's generated `dist/cli.js`, and `dist/` is gitignored. Running `npm run build` or `npm test` rewrites that file and can change the live local CLI behavior even when the source change seems unrelated.

@@ -18,6 +18,8 @@ The workspace itself is selected by `~/.shrimpy-workspace.json`:
 }
 ```
 
+When that pointer file is absent, Shrimpy uses `~/.shrimpy/`.
+
 ## `config/shrimpy.json`
 
 Sections:

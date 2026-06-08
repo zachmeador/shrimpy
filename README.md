@@ -76,7 +76,7 @@ shrimpy-web                     # run the web inspector
 
 ## 🦐 Config
 
-Config lives at `workspace/config/shrimpy.json`. The workspace path is set in `~/.shrimpy-workspace.json`; when unset, Shrimpy uses `.shrimpy/` under the current working directory.
+Config lives at `workspace/config/shrimpy.json`. The workspace path is set in `~/.shrimpy-workspace.json`; when unset, Shrimpy uses `~/.shrimpy/`.
 
 See [docs/reference/configuration.md](docs/reference/configuration.md) for the current config shape.
 

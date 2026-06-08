@@ -2,6 +2,12 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 Unreleased
+
+### Workspace & Setup
+
+- Changed fresh installs without `~/.shrimpy-workspace.json` to default the workspace to `~/.shrimpy/` instead of the launch directory.
+
 ## 🦐 0.3.0 - A Window in the Reef - 2026-06-06
 
 ### Breaking Changes

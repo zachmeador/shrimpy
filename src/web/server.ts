@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { homedir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveWorkspacePath } from "../config/workspace.js";
 import { buildTree, classifyWorkspaceFile } from "./tree.js";
 import { readJsonl, readText } from "./read.js";
 
@@ -16,12 +16,7 @@ interface Args {
 
 function resolveWorkspace(override?: string): string {
   if (override) return resolve(override);
-  const pointerPath = join(homedir(), ".shrimpy-workspace.json");
-  if (existsSync(pointerPath)) {
-    const raw = JSON.parse(readFileSync(pointerPath, "utf-8"));
-    if (raw.workspace) return raw.workspace;
-  }
-  return join(process.cwd(), ".shrimpy");
+  return resolveWorkspacePath();
 }
 
 function parseArgs(argv: string[]): Args {
