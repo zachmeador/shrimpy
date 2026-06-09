@@ -27,7 +27,7 @@ Baseline (verified 2026-06-09, line refs from that snapshot): src/ = 31,690 LOC 
 - Delete five dead one-liners: `formatEphemeralTurnContext` (context/turn/envelope.ts), `formatInferenceParams` (inference/params.ts), `isFileOrDirectorySource` (context/source.ts), `listAllDefaultSkillDefinitions` (skills/defaults.ts).
 - Delete `AddAgentInput` empty-extends alias (agents/workspace-manager.ts:27); use `AgentConfigDraft` directly. Ban alias-by-empty-extends as a pattern.
 - Rename src/web/read.ts `ReadResult` → `JsonlReadResult` (collides with the unrelated channels/store.ts `ReadResult`).
-- [in-flux] `unbindSkillPackage` and `loadSkillPromptFromPaths` (skills/service.ts) are dead today — decide inside SKILL-000 whether unbind gains a CLI caller or both get deleted.
+- `unbindSkillPackage` now has a CLI caller. Recheck `loadSkillPromptFromPaths` before deleting; it may still be a dead helper.
 
 ## Wave 1 — missing primitives (~350 LOC, the feel-good consolidation)
 
@@ -56,7 +56,7 @@ Decision gate first: tsconfig has `"declaration": true`, which forces `export` o
 - src/context: `ResolvedContextCommandSource` ≡ `Required<ContextCommandSourceConfig>`, `ContextDefaultsConfig` ≡ `Pick<ContextConfig, "sources" | "env">` — express as derived aliases so they can't drift. Inline `ParsedContextResource`, `ContextResourceScope`, and preview.ts's three zero-consumer return DTOs (`SessionContextPreview`, `ContextPreviewTarget`, `ContextSourceKind`).
 - src/watches: inline never-referenced union members (`WatchMessageAction`, `WatchEveryMsTrigger`, `WatchCronTrigger`, `InspectWatchesOptions`); keep the schema core (real config format). Optionally slim `WatchInspection`'s 9 fields that restate `watch.*` — touches `watches show --json`, same wire caution.
 - src/sessions: registry.ts and service.ts maintain parallel result vocabularies for the same lifecycle events (both sets have zero external refs). Pick one owner; embed registry results in the service unions.
-- src/skills/project-sync.ts: 9 exported DTOs for an internal build script, zero external type consumers, Options/Result mirror pairs ×3 → collapse to ~3 via `Required<>`/inference. [in-flux-adjacent — sequence after SKILL-000]
+- src/skills/project-sync.ts: 9 exported DTOs for an internal build script, zero external type consumers, Options/Result mirror pairs ×3 → collapse to ~3 via `Required<>`/inference.
 - Explicit keeps (cite when wielding the census): Telegram wire types mirror the Bot API (external contract); channels/messages.ts union + constructors + guards is the message protocol; the Config→Resolved pairing is the one sanctioned two-types-per-thing idiom — enforce it via `Required<>`/`Pick<>` where shapes are exact derivations.
 
 ## Wave 4 — structure moves (net ~200 LOC, −2 dirs, clean seams)
