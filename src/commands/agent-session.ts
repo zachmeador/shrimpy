@@ -1,5 +1,8 @@
 import type { ShrimpyConfig } from "../config/index.js";
-import { parseThinking } from "./agent-helpers.js";
+import {
+  MODEL_SESSION_OPTIONS,
+  readModelSessionValues,
+} from "./agent-helpers.js";
 import {
   type CommandResult,
   parseCommandArgs,
@@ -25,11 +28,7 @@ export async function cmdAgentTui(
   const { values, positionals } = parseCommandArgs({
     args,
     options: {
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
-      "model-policy": { type: "string" },
-      thinking: { type: "string" },
-      skill: { type: "string", short: "k", multiple: true },
+      ...MODEL_SESSION_OPTIONS,
     },
     allowPositionals: true,
     strict: true,
@@ -39,15 +38,16 @@ export async function cmdAgentTui(
   const agentId = requireArg(positionals[0], usage, "agent id");
 
   const prompt = positionals.slice(1).join(" ").trim() || undefined;
+  const sessionValues = readModelSessionValues(values);
   return createShrimpyTuiCommand({
     agentId,
     channel: "tui",
     sessionType: "tui",
-    provider: values.provider,
-    model: values.model,
-    modelPolicy: values["model-policy"],
-    thinking: parseThinking(values.thinking),
-    skills: values.skill,
+    provider: sessionValues.provider,
+    model: sessionValues.model,
+    modelPolicy: sessionValues.modelPolicy,
+    thinking: sessionValues.thinking,
+    skills: sessionValues.skills,
     initialMessage: prompt,
     cwd: process.cwd(),
   });

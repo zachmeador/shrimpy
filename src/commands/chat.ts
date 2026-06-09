@@ -3,7 +3,10 @@ import type { ShrimpyConfig } from "../config/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import type { SetupOnboardingResult } from "../setup/onboarding.js";
 import type { SetupState } from "../setup/state.js";
-import { parseThinking } from "./agent-helpers.js";
+import {
+  MODEL_SESSION_OPTIONS,
+  readModelSessionValues,
+} from "./agent-helpers.js";
 import { renderCommandUsage } from "./catalog.js";
 import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
 import {
@@ -75,11 +78,7 @@ export function createChatSessionRequest(
   const { values, positionals } = parseCommandArgs({
     args,
     options: {
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
-      "model-policy": { type: "string" },
-      thinking: { type: "string" },
-      skill: { type: "string", short: "k", multiple: true },
+      ...MODEL_SESSION_OPTIONS,
     },
     allowPositionals: true,
     strict: true,
@@ -89,16 +88,17 @@ export function createChatSessionRequest(
   if (positionals.length > 1) {
     usage(usageText, "chat accepts at most one agent id");
   }
+  const sessionValues = readModelSessionValues(values);
 
   return {
     agentId: positionals[0],
     channel: "tui",
     sessionType: "tui",
-    provider: values.provider,
-    model: values.model,
-    modelPolicy: values["model-policy"],
-    thinking: parseThinking(values.thinking),
-    skills: values.skill,
+    provider: sessionValues.provider,
+    model: sessionValues.model,
+    modelPolicy: sessionValues.modelPolicy,
+    thinking: sessionValues.thinking,
+    skills: sessionValues.skills,
     cwd,
   };
 }

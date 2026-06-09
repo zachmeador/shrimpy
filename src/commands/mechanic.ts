@@ -3,7 +3,11 @@ import type { ShrimpyConfig } from "../config/index.js";
 import { MECHANIC_AGENT_ID } from "../setup/init.js";
 import type { SetupOnboardingResult } from "../setup/onboarding.js";
 import type { SetupState } from "../setup/state.js";
-import { parseThinking } from "./agent-helpers.js";
+import type { ThinkingLevel } from "../inference/thinking.js";
+import {
+  MODEL_SESSION_OPTIONS,
+  readModelSessionValues,
+} from "./agent-helpers.js";
 import {
   type CommandResult,
   parseCommandArgs,
@@ -17,7 +21,7 @@ export interface MechanicSessionRequest {
   provider?: string;
   model?: string;
   modelPolicy?: string;
-  thinking?: ReturnType<typeof parseThinking>;
+  thinking?: ThinkingLevel;
   skills?: string[];
   initialMessage?: string;
   cwd: string;
@@ -76,11 +80,7 @@ export function createMechanicSessionRequest(
   const { values, positionals } = parseCommandArgs({
     args,
     options: {
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
-      "model-policy": { type: "string" },
-      thinking: { type: "string" },
-      skill: { type: "string", short: "k", multiple: true },
+      ...MODEL_SESSION_OPTIONS,
     },
     allowPositionals: true,
     strict: true,
@@ -88,15 +88,16 @@ export function createMechanicSessionRequest(
   });
 
   const prompt = positionals.join(" ").trim() || undefined;
-  const skills = [...new Set(["mechanic", ...(values.skill ?? [])])];
+  const sessionValues = readModelSessionValues(values);
+  const skills = [...new Set(["mechanic", ...(sessionValues.skills ?? [])])];
   return {
     agentId: MECHANIC_AGENT_ID,
     channel: "tui",
     sessionType: "tui",
-    provider: values.provider,
-    model: values.model,
-    modelPolicy: values["model-policy"],
-    thinking: parseThinking(values.thinking),
+    provider: sessionValues.provider,
+    model: sessionValues.model,
+    modelPolicy: sessionValues.modelPolicy,
+    thinking: sessionValues.thinking,
     skills,
     initialMessage: prompt,
     cwd,

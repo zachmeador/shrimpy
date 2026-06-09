@@ -4,10 +4,6 @@ import {
   type ShrimpyConfig,
 } from "../config/index.js";
 import {
-  formatThinkingInputs,
-  parseThinkingLevel,
-} from "../inference/thinking.js";
-import {
   isSetupReady,
   resolveSetupState,
 } from "../setup/state.js";
@@ -22,6 +18,10 @@ import {
 } from "./framework.js";
 import { renderCliHelp } from "./help.js";
 import { createShrimpyTuiCommand } from "./tui.js";
+import {
+  MODEL_SESSION_OPTIONS,
+  readModelSessionValues,
+} from "./agent-helpers.js";
 
 export const cmdRootTui: CommandHandler = async (
   rawArgs: string[],
@@ -33,11 +33,7 @@ export const cmdRootTui: CommandHandler = async (
       agent: { type: "string", short: "a" },
       help: { type: "boolean", short: "h", default: false },
       version: { type: "boolean", short: "v", default: false },
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
-      "model-policy": { type: "string" },
-      thinking: { type: "string" },
-      skill: { type: "string", short: "k", multiple: true },
+      ...MODEL_SESSION_OPTIONS,
     },
     allowPositionals: true,
     strict: true,
@@ -59,22 +55,17 @@ export const cmdRootTui: CommandHandler = async (
   }
 
   const prompt = positionals.length > 0 ? positionals.join(" ") : undefined;
-  const thinking = values.thinking === undefined
-    ? undefined
-    : parseThinkingLevel(values.thinking);
-  if (values.thinking !== undefined && thinking === undefined) {
-    throw new Error(`thinking level must be one of: ${formatThinkingInputs()}`);
-  }
+  const sessionValues = readModelSessionValues(values);
 
   return createShrimpyTuiCommand({
     agentId: values.agent,
     channel: "tui",
     sessionType: "tui",
-    provider: values.provider,
-    model: values.model,
-    modelPolicy: values["model-policy"],
-    thinking,
-    skills: values.skill,
+    provider: sessionValues.provider,
+    model: sessionValues.model,
+    modelPolicy: sessionValues.modelPolicy,
+    thinking: sessionValues.thinking,
+    skills: sessionValues.skills,
     initialMessage: prompt,
     cwd: process.cwd(),
   }, {

@@ -1,9 +1,9 @@
 import { createAppRuntime } from "../app/index.js";
-import {
-  formatThinkingInputs,
-  parseThinkingLevel,
-} from "../inference/thinking.js";
 import { runDirectAgentPrompt } from "../sessions/index.js";
+import {
+  MODEL_SESSION_OPTIONS,
+  readModelSessionValues,
+} from "./agent-helpers.js";
 import {
   parseCommandArgs,
   usage,
@@ -18,11 +18,7 @@ export const cmdRun: CommandHandler = async (argv, config) => {
     args: argv,
     options: {
       agent: { type: "string", short: "a" },
-      provider: { type: "string", short: "p" },
-      model: { type: "string", short: "m" },
-      "model-policy": { type: "string" },
-      thinking: { type: "string" },
-      skill: { type: "string", short: "k", multiple: true },
+      ...MODEL_SESSION_OPTIONS,
     },
     allowPositionals: true,
     strict: true,
@@ -30,15 +26,10 @@ export const cmdRun: CommandHandler = async (argv, config) => {
   });
 
   const prompt = positionals.join(" ").trim();
-  const thinking = values.thinking === undefined
-    ? undefined
-    : parseThinkingLevel(values.thinking);
   if (!prompt) {
     usage(USAGE, "prompt required");
   }
-  if (values.thinking !== undefined && thinking === undefined) {
-    throw new Error(`thinking level must be one of: ${formatThinkingInputs()}`);
-  }
+  const sessionValues = readModelSessionValues(values);
 
   const runtime = createAppRuntime(config);
   const { output } = await runDirectAgentPrompt({
@@ -46,11 +37,11 @@ export const cmdRun: CommandHandler = async (argv, config) => {
     agentId: values.agent,
     channel: "run",
     sessionType: "run",
-    provider: values.provider,
-    model: values.model,
-    modelPolicy: values["model-policy"],
-    thinking,
-    skills: values.skill,
+    provider: sessionValues.provider,
+    model: sessionValues.model,
+    modelPolicy: sessionValues.modelPolicy,
+    thinking: sessionValues.thinking,
+    skills: sessionValues.skills,
     prompt,
     cwd: process.cwd(),
   });

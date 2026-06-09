@@ -15,6 +15,42 @@ export const DEFAULT_AGENT_TOOLS = [
   "run_child",
 ];
 
+export const MODEL_SESSION_OPTIONS = {
+  provider: { type: "string", short: "p" },
+  model: { type: "string", short: "m" },
+  "model-policy": { type: "string" },
+  thinking: { type: "string" },
+  skill: { type: "string", short: "k", multiple: true },
+} as const;
+
+export interface ModelSessionArgValues {
+  provider?: string;
+  model?: string;
+  "model-policy"?: string;
+  thinking?: string;
+  skill?: string[];
+}
+
+export interface ModelSessionValues {
+  provider?: string;
+  model?: string;
+  modelPolicy?: string;
+  thinking?: ThinkingLevel;
+  skills?: string[];
+}
+
+export function readModelSessionValues(
+  values: ModelSessionArgValues,
+): ModelSessionValues {
+  return {
+    provider: values.provider,
+    model: values.model,
+    modelPolicy: values["model-policy"],
+    thinking: parseThinking(values.thinking),
+    skills: values.skill,
+  };
+}
+
 export function parseCsv(value?: string): string[] | undefined {
   if (!value) return undefined;
   const items = value.split(",").map((entry) => entry.trim()).filter(Boolean);
