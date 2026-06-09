@@ -239,8 +239,8 @@ describe("setupInit", () => {
     });
 
     const system = readFileSync(systemPath, "utf-8");
-    assert.match(system, /editable workspace-level Shrimpy framework context/);
-    assert.match(system, /Compact immutable system instructions are prepended separately/);
+    assert.match(system, /all Shrimpy agents shared workspace context/);
+    assert.match(system, /Edit it when the workspace's baseline guidance should change/);
     assert.match(system, /Install-managed Shrimpy app checkout lives under/);
     assert.match(system, /Framework Map/);
     assert.match(system, /reference\/context-assembly\.md/);
