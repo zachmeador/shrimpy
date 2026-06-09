@@ -105,9 +105,9 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy agent remove <id>` | Remove an agent from config/state. |
 | `shrimpy skills list [--agent <id>] [--json]` | List the effective Pi-loaded agent and workspace skill view, including warnings. |
 | `shrimpy skills show <id> [--agent <id>]` | Print a skill's `SKILL.md`. |
-| `shrimpy skills add <id> [--agent <id>\|--workspace] [--description <text>] [--force]` | Scaffold a valid workspace or agent skill bundle. |
-| `shrimpy skills install <source> [--agent <id>\|--workspace] [--id <id>] [--force]` | Copy a local skill bundle or Markdown entrypoint into the workspace. |
-| `shrimpy skills validate [id] [--agent <id>] [--json]` | Validate skill frontmatter, Pi loading, path layout, shadowing, and large effective skill sets. |
+| `shrimpy skills add <source> [--agent <id>\|--workspace] [--id <id>] [--force]` | Fetch or copy a skill package, record provenance, and bind it to an agent or workspace. |
+| `shrimpy skills new <id> [--agent <id>\|--workspace] [--description <text>] [--force]` | Scaffold a local workspace or agent-authored skill bundle. |
+| `shrimpy skills validate [id] [--agent <id>] [--json]` | Validate skill frontmatter, Pi loading, path layout, shadowing, tool compatibility, and large effective skill sets. |
 | `shrimpy users list` | List identity links and the resolved owner. |
 | `shrimpy users get-owner` | Print the resolved owner identity. |
 | `shrimpy users set-owner <userId>` | Set the workspace owner; CLI publishing routes through the owner's actorId when set. |

@@ -75,7 +75,7 @@ export function defaultClaudeInstructionTargetPath(): string {
 }
 
 export function defaultProjectSkillSourceDir(): string {
-  return join(projectRoot, "src", "skills");
+  return join(projectRoot, "skills");
 }
 
 export function defaultProjectSkillSyncTargets(): ProjectSkillSyncTarget[] {
@@ -195,7 +195,7 @@ function prepareManagedTarget(rootPath: string): string {
 function markerText(): string {
   return [
     "This directory is managed by Shrimpy's build.",
-    "Edit repository skills under src/skills/ instead.",
+    "Edit repository skills under skills/ instead.",
     "",
   ].join("\n");
 }

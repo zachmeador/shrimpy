@@ -111,7 +111,7 @@ const STATUS_SECTION_DESCRIPTIONS: Record<StatusSection, string> = {
   agents: "Active agent and configured agents",
   channels: "Channel log overview",
   context: "Context files and source inspection",
-  skills: "Workspace and agent skills",
+  skills: "Source, workspace, agent, and package skills",
   model: "Active model and model state paths",
   doctor: "Diagnostic command pointers",
 };

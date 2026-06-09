@@ -15,6 +15,7 @@ import { cmdSkills } from "../dist/commands/skills.js";
 import { setupInit } from "../dist/setup/init.js";
 import {
   createAppRuntime,
+  projectRoot,
 } from "../dist/app/index.js";
 import {
   textContent,
@@ -368,18 +369,18 @@ describe("skill context inspection", () => {
     );
 
     assert.equal(result, 0);
-    assert.match(lines.join("\n"), /setup \[agent\]/);
-    assert.match(lines.join("\n"), /mechanic \[agent\]/);
-    assert.match(lines.join("\n"), /add-agent \[agent\]/);
-    assert.match(lines.join("\n"), /channel-routing \[agent\]/);
-    assert.match(lines.join("\n"), /watches \[agent\]/);
-    assert.match(lines.join("\n"), /workspace-migration \[agent\]/);
-    assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[agent\]/);
+    assert.match(lines.join("\n"), /setup \[default\]/);
+    assert.match(lines.join("\n"), /mechanic \[default\]/);
+    assert.match(lines.join("\n"), /add-agent \[default\]/);
+    assert.match(lines.join("\n"), /channel-routing \[default\]/);
+    assert.match(lines.join("\n"), /watches \[default\]/);
+    assert.match(lines.join("\n"), /workspace-migration \[default\]/);
+    assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[default\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
-    assert.match(lines.join("\n"), /memory-management \[workspace\]/);
+    assert.match(lines.join("\n"), /memory-management \[default\]/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
-    assert.match(lines.join("\n"), /journal-daily \[workspace\]/);
-    assert.match(lines.join("\n"), /journal-compact \[workspace\]/);
+    assert.match(lines.join("\n"), /journal-daily \[default\]/);
+    assert.match(lines.join("\n"), /journal-compact \[default\]/);
     assert.doesNotMatch(lines.join("\n"), /activity-summary/);
   });
 
@@ -392,9 +393,9 @@ describe("skill context inspection", () => {
 
     const output = lines.join("\n");
     assert.equal(result, 0);
-    assert.match(output, /memory-management \[workspace\]/);
-    assert.match(output, /journal-daily \[workspace\]/);
-    assert.match(output, /journal-compact \[workspace\]/);
+    assert.match(output, /memory-management \[default\]/);
+    assert.match(output, /journal-daily \[default\]/);
+    assert.match(output, /journal-compact \[default\]/);
     assert.doesNotMatch(output, /add-agent/);
     assert.doesNotMatch(output, /mechanic \[agent\]/);
     assert.doesNotMatch(output, /channel-routing/);
@@ -408,7 +409,7 @@ describe("skill context inspection", () => {
 
     const add = await captureLogs(() =>
       cmdSkills(
-        ["add", "meal-plan", "--description", "Plan weekly meals."],
+        ["new", "meal-plan", "--description", "Plan weekly meals."],
         { workspace } as any,
       )
     );
@@ -424,7 +425,7 @@ describe("skill context inspection", () => {
     assert.match(validate.lines.join("\n"), /skills validation passed/);
   });
 
-  test("skills command installs local bundles without overwriting by default", async () => {
+  test("skills command adds local packages without overwriting by default", async () => {
     await setupInit(workspace);
     const source = mkdtempSync(join(tmpdir(), "shrimpy-skill-source-"));
     const invalidSource = mkdtempSync(join(tmpdir(), "shrimpy-invalid-skill-source-"));
@@ -445,25 +446,52 @@ describe("skill context inspection", () => {
 
     try {
       await assert.rejects(
-        () => cmdSkills(["install", invalidSource, "--id", "invalid-source"], { workspace } as any),
+        () => cmdSkills(["add", invalidSource, "--id", "invalid-source", "--agent", "shrimpy"], { workspace } as any),
         /missing SKILL\.md/,
       );
-      assert.equal(existsSync(join(workspace, "skills", "invalid-source")), false);
+      assert.equal(existsSync(join(workspace, "state", "skills", "packages", "invalid-source")), false);
 
       const install = await captureLogs(() =>
         cmdSkills(
-          ["install", source, "--id", "source-skill"],
+          ["add", source, "--id", "source-skill", "--agent", "shrimpy"],
           { workspace } as any,
         )
       );
       assert.equal(install.result, 0);
-      const installedPath = join(workspace, "skills", "source-skill", "SKILL.md");
+      const installedPath = join(workspace, "state", "skills", "packages", "source-skill", "SKILL.md");
       assert.equal(existsSync(installedPath), true);
+      const packages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(packages.packages["source-skill"].source, source);
+      const bindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
+      assert.deepEqual(bindings.agents.shrimpy, ["source-skill"]);
 
       await assert.rejects(
-        () => cmdSkills(["install", source, "--id", "source-skill"], { workspace } as any),
-        /skill already exists/,
+        () => cmdSkills(["add", source, "--id", "source-skill", "--agent", "shrimpy"], { workspace } as any),
+        /skill package already exists/,
       );
+
+      const originalInstalledContent = readFileSync(installedPath, "utf-8");
+      writeFileSync(
+        join(invalidSource, "SKILL.md"),
+        [
+          "---",
+          "name: wrong-source-skill",
+          "description: Mismatched skill for force replacement tests.",
+          "---",
+          "",
+          "# Wrong Source Skill",
+          "",
+        ].join("\n"),
+        "utf-8",
+      );
+      await assert.rejects(
+        () => cmdSkills(
+          ["add", invalidSource, "--id", "source-skill", "--agent", "shrimpy", "--force"],
+          { workspace } as any,
+        ),
+        /must match Pi skill name/,
+      );
+      assert.equal(readFileSync(installedPath, "utf-8"), originalInstalledContent);
     } finally {
       rmSync(source, { recursive: true, force: true });
       rmSync(invalidSource, { recursive: true, force: true });
@@ -531,39 +559,39 @@ describe("skill service", () => {
 
     const skills = listSkillViews(runtime, "mechanic");
     assert.deepEqual(skills.map((skill) => `${skill.id}:${skill.scope}`), [
-      "add-agent:agent",
-      "channel-routing:agent",
-      "journal-compact:workspace",
-      "journal-daily:workspace",
-      "mechanic:agent",
-      "memory-management:workspace",
-      "setup:agent",
-      "shrimpy-mechanic-ideas:agent",
-      "watches:agent",
-      "workspace-migration:agent",
+      "add-agent:default",
+      "channel-routing:default",
+      "journal-compact:default",
+      "journal-daily:default",
+      "mechanic:default",
+      "memory-management:default",
+      "setup:default",
+      "shrimpy-mechanic-ideas:default",
+      "watches:default",
+      "workspace-migration:default",
     ]);
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
     assert.deepEqual(shrimpySkills.map((skill) => `${skill.id}:${skill.scope}`), [
-      "journal-compact:workspace",
-      "journal-daily:workspace",
-      "memory-management:workspace",
+      "journal-compact:default",
+      "journal-daily:default",
+      "memory-management:default",
     ]);
 
     const skill = getSkillView(runtime, "setup", "mechanic");
-    assert.match(skill.entryPath, /agents\/mechanic\/skills\/setup\/SKILL\.md$/);
+    assert.match(skill.entryPath, /src\/setup\/templates\/mechanic\/skills\/setup\/SKILL\.md$/);
     assert.equal(skill.loaded, true);
     assert.match(loadSkillPrompt(runtime, "setup", "mechanic"), /first usable Shrimpy workspace/);
     assert.deepEqual(getSkillPromptResources(runtime, "setup", "mechanic"), [{
-      rootPath: join(workspace, "agents", "mechanic"),
+      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
       resourcePath: "skills/setup",
     }]);
     assert.deepEqual(getSkillPromptResources(runtime, "add-agent", "mechanic"), [{
-      rootPath: join(workspace, "agents", "mechanic"),
+      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
       resourcePath: "skills/add-agent",
     }]);
     assert.deepEqual(getSkillPromptResources(runtime, "memory-management"), [{
-      rootPath: workspace,
+      rootPath: join(projectRoot, "src", "setup", "templates"),
       resourcePath: "skills/memory-management",
     }]);
   });
@@ -573,6 +601,65 @@ describe("skill service", () => {
     const runtime = createAppRuntime(readWorkspaceConfig());
 
     assert.throws(() => getSkillView(runtime, "bad~name"), /invalid skill id/);
+  });
+
+  test("keeps manually authored agent skills additive", async () => {
+    await setupInit(workspace);
+    const root = join(workspace, "agents", "shrimpy", "skills", "meal-plan");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(
+      join(root, "SKILL.md"),
+      [
+        "---",
+        "name: meal-plan",
+        "description: Plan meals from pantry context.",
+        "---",
+        "",
+        "# Meal Plan",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const runtime = createAppRuntime(readWorkspaceConfig());
+    const skill = getSkillView(runtime, "meal-plan", "shrimpy");
+    assert.equal(skill.scope, "agent");
+    assert.equal(skill.sourceKind, "local");
+    assert.equal(skill.available, true);
+    assert.match(loadSkillPrompt(runtime, "meal-plan", "shrimpy"), /Meal Plan/);
+  });
+
+  test("tool gating keeps incompatible skills out of Pi", async () => {
+    await setupInit(workspace);
+    const root = join(workspace, "skills", "needs-browser");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(
+      join(root, "SKILL.md"),
+      [
+        "---",
+        "name: needs-browser",
+        "description: Requires browser automation.",
+        "allowed-tools: Browser",
+        "---",
+        "",
+        "# Needs Browser",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const runtime = createAppRuntime(readWorkspaceConfig());
+    const skill = getSkillView(runtime, "needs-browser", "shrimpy");
+    assert.equal(skill.available, false);
+    assert.deepEqual(skill.missingTools, ["browser"]);
+
+    const bootstrap = await runtime.createBootstrap({
+      agentId: "shrimpy",
+      cwd: workspace,
+    });
+    const piSkillNames = bootstrap.resourceLoader.getSkills().skills
+      .map((loadedSkill: any) => loadedSkill.name);
+    assert.equal(piSkillNames.includes("needs-browser"), false);
   });
 
   test("wires Shrimpy skills into Pi while ignoring ambient cwd skills", async () => {

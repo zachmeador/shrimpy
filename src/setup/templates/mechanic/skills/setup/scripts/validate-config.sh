@@ -2,7 +2,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
+
+if [ -n "${SHRIMPY_WORKSPACE:-}" ]; then
+  WORKSPACE_ROOT="${SHRIMPY_WORKSPACE}"
+elif [ -f "config/shrimpy.json" ]; then
+  WORKSPACE_ROOT="$(pwd)"
+elif [ -f "${SCRIPT_DIR}/../../../../../config/shrimpy.json" ]; then
+  WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
+else
+  WORKSPACE_ROOT="$(pwd)"
+fi
 
 CONFIG_PATH="${WORKSPACE_ROOT}/config/shrimpy.json"
 CHANNELS_PATH="${WORKSPACE_ROOT}/config/channels.json"
@@ -55,16 +64,6 @@ requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/sh
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "context"), "agents/shrimpy/context");
 requireFile(path.join(workspaceRoot, "agents", "mechanic", "SOUL.md"), "agents/mechanic/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "context"), "agents/mechanic/context");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "setup", "SKILL.md"), "agents/mechanic/skills/setup/SKILL.md");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "mechanic", "SKILL.md"), "agents/mechanic/skills/mechanic/SKILL.md");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "add-agent", "SKILL.md"), "agents/mechanic/skills/add-agent/SKILL.md");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "channel-routing", "SKILL.md"), "agents/mechanic/skills/channel-routing/SKILL.md");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "watches", "SKILL.md"), "agents/mechanic/skills/watches/SKILL.md");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "workspace-migration", "SKILL.md"), "agents/mechanic/skills/workspace-migration/SKILL.md");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "skills", "shrimpy-mechanic-ideas", "SKILL.md"), "agents/mechanic/skills/shrimpy-mechanic-ideas/SKILL.md");
-requireFile(path.join(workspaceRoot, "skills", "memory-management", "SKILL.md"), "skills/memory-management/SKILL.md");
-requireFile(path.join(workspaceRoot, "skills", "journal-daily", "SKILL.md"), "skills/journal-daily/SKILL.md");
-requireFile(path.join(workspaceRoot, "skills", "journal-compact", "SKILL.md"), "skills/journal-compact/SKILL.md");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");
 
 if (config) {

@@ -40,7 +40,7 @@ Update:
 - Any stable docs that still describe removed or renamed release surfaces.
 - Completed backlog notes: remove them from `docs/backlog/index.md` and delete the completed note unless the user asks to preserve it elsewhere.
 
-If a new source skill was added under `src/skills/`, run `npm run build:skills` or a full build so `.agents/skills`, `.claude/skills`, and `CLAUDE.md` are regenerated.
+If a new source skill was added under `skills/`, run `npm run build:skills` or a full build so `.agents/skills`, `.claude/skills`, and `CLAUDE.md` are regenerated.
 
 ## Verification
 

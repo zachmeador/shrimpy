@@ -7,12 +7,12 @@ description: Use when creating, changing, inspecting, or debugging Shrimpy watch
 
 Use this skill when the user wants recurring work, reminders, periodic audits, or background checks.
 
-Reference docs:
+Reference docs, under the Shrimpy docs path listed in workspace context:
 
-- `{{DOCS_PATH}}/reference/configuration.md` — watch configuration, message watches, command watches, status config.
-- `{{DOCS_PATH}}/reference/runtime.md` — gateway dispatch, watch runs, run history.
-- `{{DOCS_PATH}}/reference/channels.md` — channel membership, wake policy, watch-origin messages.
-- `{{DOCS_PATH}}/reference/cli.md` — current `shrimpy watches` commands.
+- `reference/configuration.md` — watch configuration, message watches, command watches, status config.
+- `reference/runtime.md` — gateway dispatch, watch runs, run history.
+- `reference/channels.md` — channel membership, wake policy, watch-origin messages.
+- `reference/cli.md` — current `shrimpy watches` commands.
 
 ## How To Work
 

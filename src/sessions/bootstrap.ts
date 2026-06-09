@@ -18,8 +18,10 @@ import {
   type PromptSection,
 } from "../context/index.js";
 import type { RuntimeConfig, ShrimpyConfig } from "../config/index.js";
+import { resolveAgentsConfig } from "../config/index.js";
 import { listEffectiveSkillEntryPathsFromPaths } from "../skills/index.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
+import { resolveAgentToolPolicy } from "../tools/policy.js";
 
 export interface SessionBootstrap {
   settingsManager: SettingsManager;
@@ -69,12 +71,18 @@ export async function createBootstrap(
   } = source;
   const cwd = opts?.cwd ?? agentRootPath;
   const bootEnv = resolveBootEnv(workspacePath);
+  const resolvedAgent = resolveAgentsConfig(config.agents)
+    .find((agent) => agent.id === agentId);
+  const activeToolNames = resolvedAgent
+    ? resolveAgentToolPolicy(resolvedAgent).activeToolNames
+    : undefined;
   const skillEntryPaths = source.runtimeConfig.noSkills
     ? []
     : listEffectiveSkillEntryPathsFromPaths({
       agentId,
       agentRootPath,
       workspacePath,
+      activeToolNames,
     });
   const baseSections = assembleBasePromptSections(
     agentRootPath,

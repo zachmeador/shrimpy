@@ -60,10 +60,10 @@ Keep replies short and practical. Do not explain Shrimpy's whole architecture un
 
 ## Validate
 
-Before saying setup is done, run:
+Before saying setup is done, run this skill's bundled validator:
 
 ```bash
-bash agents/mechanic/skills/setup/scripts/validate-config.sh
+bash scripts/validate-config.sh
 ```
 
 If validation fails, inspect the error, fix the workspace, and run it again. Only claim success once validation passes.

@@ -106,7 +106,7 @@ export function createPromptSection(
 
 export function promptResourceKind(resourcePath: string): PromptSectionKind {
   if (resourcePath.startsWith("context/") || resourcePath === "context") return "memory";
-  if (resourcePath.startsWith("skills/")) return "capability";
+  if (resourcePath.startsWith("skills/") || resourcePath.endsWith("SKILL.md")) return "capability";
   return "identity";
 }
 
@@ -114,6 +114,7 @@ export function promptResourceTitle(resourcePath: string): string {
   if (resourcePath.startsWith("skills/")) {
     return `Skill: ${resourcePath.slice("skills/".length)}`;
   }
+  if (resourcePath.endsWith("SKILL.md")) return "Skill";
   return resourcePath;
 }
 

@@ -41,7 +41,7 @@ skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
 ```
 
-Workspace skills live under `skills/<id>/SKILL.md`; agent skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same id. Fresh setup keeps mechanic-only skills under `agents/mechanic/skills/` so the normal `shrimpy` agent does not inherit maintenance guidance by default. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI management.
+Workspace-authored skills live under `skills/<id>/SKILL.md`; agent-authored skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills, package bindings, and source defaults with the same id. Fresh setup uses source default skills instead of copying unchanged default bundles into the workspace. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI management.
 
 ## Storage
 

@@ -1,20 +1,10 @@
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  rmSync,
-  statSync,
-} from "node:fs";
-import { join, resolve } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import {
-  deriveSkillIdFromSource,
+  addSkillPackage,
   inspectSkills,
   loadSkillPrompt,
-  normalizeSkillId,
   scaffoldSkill,
   validateSkills,
-  type SkillScope,
 } from "../skills/index.js";
 import {
   CommandError,
@@ -53,7 +43,8 @@ async function listSkills({ argv, config, usage }: CommandInvocation): Promise<n
     const summary = skill.description ? ` - ${skill.description}` : "";
     const name = skill.name !== skill.id ? ` name=${skill.name}` : "";
     const loaded = skill.loaded ? "" : " (not loaded by Pi)";
-    console.log(`${skill.id} [${skill.scope}]${name}${loaded}${summary}`);
+    const available = skill.available ? "" : ` (unavailable: ${skill.blockedReasons.join("; ")})`;
+    console.log(`${skill.id} [${skill.scope}]${name}${loaded}${available}${summary}`);
   }
   for (const warning of inventory.warnings) {
     console.log(`warning: ${warning}`);
@@ -83,6 +74,36 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
     options: {
       agent: { type: "string", short: "a" },
       workspace: { type: "boolean", default: false },
+      id: { type: "string" },
+      force: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+  const source = requireArg(positionals[0], usage, "source");
+  const runtime = createAppRuntime(config);
+  const scope = resolvePackageScope(values.workspace, values.agent);
+  const agent = scope === "agent" ? runtime.getAgent(values.agent) : undefined;
+  const skill = await addSkillPackage({
+    runtime,
+    source,
+    scope,
+    agentId: agent?.id,
+    id: values.id,
+    force: values.force,
+  });
+  const target = scope === "agent" ? `agent ${agent!.id}` : "workspace";
+  console.log(`Added ${target} skill package ${skill.id}: ${skill.entryPath}`);
+  return 0;
+}
+
+async function newSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      workspace: { type: "boolean", default: false },
       description: { type: "string", short: "d" },
       force: { type: "boolean", default: false },
     },
@@ -92,7 +113,7 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
   });
   const id = requireArg(positionals[0], usage, "skill id");
   const runtime = createAppRuntime(config);
-  const scope = resolveMutationScope(values.workspace, values.agent);
+  const scope = resolveLocalMutationScope(values.workspace, values.agent);
   const skill = scaffoldSkill({
     runtime,
     id,
@@ -102,57 +123,6 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
     force: values.force,
   });
   console.log(`Created ${skill.scope} skill ${skill.id}: ${skill.entryPath}`);
-  return 0;
-}
-
-async function installSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
-  const { values, positionals } = parseCommandArgs({
-    args: argv,
-    options: {
-      agent: { type: "string", short: "a" },
-      workspace: { type: "boolean", default: false },
-      id: { type: "string" },
-      force: { type: "boolean", default: false },
-    },
-    allowPositionals: true,
-    strict: true,
-    usage,
-  });
-  const sourceArg = requireArg(positionals[0], usage, "source");
-  const sourcePath = resolve(process.cwd(), sourceArg);
-  if (!existsSync(sourcePath)) {
-    throw new CommandError(`skill source does not exist: ${sourcePath}`);
-  }
-  const sourceStats = statSync(sourcePath);
-  const sourceIsDirectory = sourceStats.isDirectory();
-  const sourceIsMarkdownFile = sourceStats.isFile() && sourcePath.endsWith(".md");
-  if (sourceIsDirectory && !existsSync(join(sourcePath, "SKILL.md"))) {
-    throw new CommandError(`skill directory is missing SKILL.md: ${sourcePath}`);
-  }
-  if (!sourceIsDirectory && !sourceIsMarkdownFile) {
-    throw new CommandError(`skill source must be a directory or Markdown file: ${sourcePath}`);
-  }
-
-  const runtime = createAppRuntime(config);
-  const scope = resolveMutationScope(values.workspace, values.agent);
-  const skillId = normalizeSkillId(values.id ?? deriveSkillIdFromSource(sourcePath));
-  const targetRoot = resolveSkillTargetRoot(runtime, scope, values.agent, skillId);
-
-  if (existsSync(targetRoot)) {
-    if (!values.force) {
-      throw new CommandError(`skill already exists: ${targetRoot}`);
-    }
-    rmSync(targetRoot, { recursive: true, force: true });
-  }
-
-  if (sourceIsDirectory) {
-    cpSync(sourcePath, targetRoot, { recursive: true, force: false });
-  } else {
-    mkdirSync(targetRoot, { recursive: true });
-    cpSync(sourcePath, join(targetRoot, "SKILL.md"), { force: false });
-  }
-
-  console.log(`Installed ${scope} skill ${skillId}: ${join(targetRoot, "SKILL.md")}`);
   return 0;
 }
 
@@ -188,24 +158,18 @@ async function validateSkill({ argv, config, usage }: CommandInvocation): Promis
   return hasValidationErrors(result) ? 1 : 0;
 }
 
-function resolveMutationScope(workspace: boolean, agent?: string): SkillScope {
+function resolvePackageScope(workspace: boolean, agent?: string): "agent" | "workspace" {
+  if (workspace && agent) {
+    throw new CommandError("choose either --workspace or --agent, not both");
+  }
+  return workspace ? "workspace" : "agent";
+}
+
+function resolveLocalMutationScope(workspace: boolean, agent?: string): "agent" | "workspace" {
   if (workspace && agent) {
     throw new CommandError("choose either --workspace or --agent, not both");
   }
   return agent ? "agent" : "workspace";
-}
-
-function resolveSkillTargetRoot(
-  runtime: ReturnType<typeof createAppRuntime>,
-  scope: SkillScope,
-  agentId: string | undefined,
-  skillId: string,
-): string {
-  if (scope === "agent") {
-    const agent = runtime.getAgent(agentId);
-    return join(runtime.getAgentPaths(agent.id).skillsDir, ...skillId.split("/"));
-  }
-  return join(runtime.paths.workspace, "skills", ...skillId.split("/"));
 }
 
 function hasValidationErrors(result: ReturnType<typeof validateSkills>): boolean {
@@ -220,7 +184,7 @@ export const cmdSkills: CommandHandler = createCommandGroup({
     list: listSkills,
     show: showSkill,
     add: addSkill,
-    install: installSkill,
+    new: newSkill,
     validate: validateSkill,
   },
 });

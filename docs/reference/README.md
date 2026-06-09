@@ -15,7 +15,7 @@ Current behavior of Shrimpy.
 - [security.md](security.md) — tool policy and inspection commands.
 - [context-assembly.md](context-assembly.md) — prompt section assembly and persisted turn-context envelopes.
 - [memory.md](memory.md) — memory model, upkeep, and context loading.
-- [skills.md](skills.md) — workspace and agent skill bundles, Pi loading, and CLI management.
+- [skills.md](skills.md) — source defaults, local and package skill bundles, Pi loading, and CLI management.
 - [turn-context.md](turn-context.md) — per-turn context generation and config.
 - [compaction.md](compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [cli.md](cli.md) — command surface.

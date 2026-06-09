@@ -13,12 +13,18 @@ import { join } from "node:path";
 import {
   CLAUDE_INSTRUCTIONS_ORIGIN_NOTE,
   PROJECT_SKILL_MANAGED_MARKER,
+  defaultProjectSkillSourceDir,
   listProjectSkillSourceBundles,
   syncClaudeInstructions,
   syncProjectSkills,
 } from "../dist/skills/project-sync.js";
 
 describe("project skill sync", () => {
+  test("uses root skills as the default source directory", () => {
+    assert.equal(defaultProjectSkillSourceDir().endsWith("/skills"), true);
+    assert.equal(defaultProjectSkillSourceDir().endsWith("/src/skills"), false);
+  });
+
   test("copies source skill bundles to managed project targets", () => {
     const root = mkdtempSync(join(tmpdir(), "shrimpy-project-skill-sync-"));
     try {
@@ -41,6 +47,10 @@ describe("project skill sync", () => {
       assert.deepEqual(result.skills, ["alpha", "beta"]);
       for (const target of [claudeTarget, agentsTarget]) {
         assert.equal(existsSync(join(target, PROJECT_SKILL_MANAGED_MARKER)), true);
+        assert.match(
+          readFileSync(join(target, PROJECT_SKILL_MANAGED_MARKER), "utf-8"),
+          /Edit repository skills under skills\/ instead\./,
+        );
         assert.match(
           readFileSync(join(target, "alpha", "SKILL.md"), "utf-8"),
           /Alpha body\./,

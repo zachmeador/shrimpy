@@ -7,11 +7,11 @@ description: Use when configuring or debugging Shrimpy channels, channel policie
 
 Use this mechanic-owned skill when the user asks how a message reaches an agent, when adding a chat surface, or when an agent should participate in a channel.
 
-Reference docs:
+Reference docs, under the Shrimpy docs path listed in workspace context:
 
-- `{{DOCS_PATH}}/reference/channels.md` — channel logs, membership, wake policy, addressed messages.
-- `{{DOCS_PATH}}/reference/surfaces.md` — chat surface adapters, Telegram setup, surface-thread routing.
-- `{{DOCS_PATH}}/reference/cli.md` — current `shrimpy channels`, `shrimpy surface`, and `shrimpy setup telegram` commands.
+- `reference/channels.md` — channel logs, membership, wake policy, addressed messages.
+- `reference/surfaces.md` — chat surface adapters, Telegram setup, surface-thread routing.
+- `reference/cli.md` — current `shrimpy channels`, `shrimpy surface`, and `shrimpy setup telegram` commands.
 
 ## How To Work
 

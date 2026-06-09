@@ -1,6 +1,6 @@
 # 🦐 SKILL-000: Agent Skill Management Redesign
 
-Status: draft
+Status: review
 Priority: P1
 Area: Skills
 Depends On: none
@@ -42,6 +42,14 @@ Shrimpy keeps owner-authored skill roots additive, while treating shared package
 6. custom forks that shadow a bound package for that scope;
 7. per-session explicit skill selections.
 
+The effective skill set for an agent is resolved by precedence:
+
+1. agent-authored skills under `agents/<agent-id>/skills/`;
+2. workspace-authored skills under `skills/`;
+3. fetched package bindings for the agent or workspace;
+4. packaged Shrimpy defaults declared in source;
+5. per-session explicit skill selections resolved through the same view.
+
 Pi receives only the final compatible `SKILL.md` paths for that session.
 
 Manual skill drops are allowed inside the owner's scope. If an agent writes `agents/<agent-id>/skills/new-thing/SKILL.md`, that is an agent-local skill and should become effective after normal validation and tool compatibility checks. If a workspace owner writes `skills/new-thing/SKILL.md`, that is a workspace skill. This preserves the useful "just edit files" workflow while still letting Shrimpy keep fetched/shared packages deduplicated.
@@ -62,14 +70,14 @@ Default source skills should not be copied into every workspace during setup unl
 
 ## User-Installed Skills
 
-Add one agent-friendly acquisition command that accepts a local path, direct `SKILL.md` URL, archive URL, repository URL, or well-known Agent Skills index URL:
+Add one agent-friendly acquisition command. The first implementation accepts a local skill directory, local Markdown `SKILL.md` file, or direct `http(s)` `SKILL.md` URL:
 
 ```bash
 shrimpy skills add <source> --agent <id>
 shrimpy skills add <source> --workspace
 ```
 
-Default behavior should require an agent id from the acting agent/session and bind only to that agent. `--workspace` is explicit because workspace installs affect every agent.
+Default behavior binds only to one agent, using `--agent <id>` when supplied or the configured default agent otherwise. `--workspace` is explicit because workspace installs affect every agent.
 
 The command should:
 
@@ -85,7 +93,6 @@ Useful companion commands:
 
 ```bash
 shrimpy skills list [--agent <id>] [--json]
-shrimpy skills inspect <id> [--agent <id>] [--json]
 shrimpy skills show <id> [--agent <id>]
 shrimpy skills update <id> [--agent <id>|--workspace]
 shrimpy skills bind <id> --agent <id>|--workspace
@@ -101,10 +108,10 @@ Use `add` for acquisition and binding. Move local authoring to a clearer command
 Keep enabled visibility separate from package content. Exact filenames can change during implementation, but the shape should preserve these boundaries:
 
 ```text
-skills/packages/<id>/SKILL.md              canonical user-installed package
-skills/packages/<id>/scripts/...
-skills/packages/<id>/references/...
-skills/packages/<id>/assets/...
+state/skills/packages/<id>/SKILL.md        canonical user-installed package
+state/skills/packages/<id>/scripts/...
+state/skills/packages/<id>/references/...
+state/skills/packages/<id>/assets/...
 state/skills/packages.json                 origin, fetchedAt, hash, etag/ref/version, source kind
 state/skills/bindings.json                 workspace bindings and agent bindings
 skills/custom/<id>/SKILL.md                optional workspace customization for a managed package
@@ -140,24 +147,17 @@ This is the main agent experience improvement: agents should not see skills they
 - Do not invent a Shrimpy-only skill package format.
 - Do not add backward-compatibility shims or migration behavior in this item unless the user explicitly asks for an existing-workspace migration plan.
 
-## Implementation Slices
+## Implemented Scope
 
 1. Add a resolver for effective skills from source defaults, local skill roots, package bindings, and compatibility gates while still passing final paths to Pi.
 2. Add source default skill manifest support and stop copying unchanged defaults into new workspaces.
-3. Add canonical package storage plus provenance metadata for local path installs.
-4. Extend acquisition to direct URLs and simple well-known Agent Skills discovery.
-5. Add tool compatibility gating and expose blocked reasons in skill and agent inspection.
-6. Add update/unbind/fork flows and tests for replacement safety.
-7. Refresh stable docs once behavior exists.
+3. Add canonical package storage plus provenance metadata for local path, local file, and direct `SKILL.md` URL installs.
+4. Add `shrimpy skills add` for fetched package acquisition/binding and `shrimpy skills new` for local authoring.
+5. Add tool compatibility gating from `allowed-tools`, expose blocked reasons in `skills list`/`validate`, and omit incompatible skills from Pi.
+6. Refresh stable docs and tests for default resolution, local additive roots, package acquisition, provenance, scoped bindings, shadowing, and tool compatibility.
 
-## Done
+## Remaining Follow-Ups
 
-- New workspaces get sparse Shrimpy defaults without repeating default package content in workspace storage.
-- Agents can install a URL skill for themselves through a CLI path and see its summary in their available skills context.
-- Workspace-wide skill installation requires explicit workspace scope.
-- One canonical user-installed package can be bound to multiple agents without duplicate copies.
-- Customizing a skill creates a deliberate scoped fork.
-- Origin, last fetched time, and content hash are inspectable.
-- Skills with missing required/declared tools are visible in inspection output but are not advertised as available to incompatible agents.
-- Pi remains the runtime loader for the final effective skill paths.
-- Tests cover default resolution, local skill root discovery, URL/local acquisition, non-overwrite behavior, provenance recording, scoped bindings, custom fork precedence, and tool compatibility gating.
+- Add CLI bind, unbind, update, and fork flows on top of the package/binding state.
+- Extend acquisition beyond direct `SKILL.md` URLs to archives, repository URLs, or well-known skill indexes if those become worth supporting.
+- Surface missing skill tools in `shrimpy agent inspect` as well as the skill commands.

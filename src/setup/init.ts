@@ -102,128 +102,6 @@ function defaultShrimpyConfig(): Record<string, unknown> {
   };
 }
 
-export function setupSkillPath(workspace: string): string {
-  return join(setupSkillRootPath(workspace), "SKILL.md");
-}
-
-export function setupSkillRootPath(workspace: string): string {
-  return agentSkillRootPath(workspace, `agents/${MECHANIC_AGENT_ID}`, "setup");
-}
-
-export function setupSkillValidatorPath(workspace: string): string {
-  return join(
-    setupSkillRootPath(workspace),
-    "scripts",
-    "validate-config.sh",
-  );
-}
-
-export function workspaceSkillPath(
-  workspace: string,
-  skillName: string,
-): string {
-  return join(workspace, "skills", skillName, "SKILL.md");
-}
-
-export function agentSkillRootPath(
-  workspace: string,
-  agentRoot: string,
-  skillName: string,
-): string {
-  return join(createAgentPaths(workspace, agentRoot).skillsDir, skillName);
-}
-
-export function agentSkillPath(
-  workspace: string,
-  agentRoot: string,
-  skillName: string,
-): string {
-  return join(agentSkillRootPath(workspace, agentRoot, skillName), "SKILL.md");
-}
-
-function workspaceSkillBundleFiles(
-  workspace: string,
-  docsPath: string,
-): Array<{ path: string; content: string }> {
-  return [
-    {
-      path: workspaceSkillPath(workspace, "memory-management"),
-      content: loadSetupTemplate("skills/memory-management/SKILL.md", docsPath),
-    },
-    {
-      path: workspaceSkillPath(workspace, "journal-daily"),
-      content: loadSetupTemplate("skills/journal-daily/SKILL.md", docsPath),
-    },
-    {
-      path: workspaceSkillPath(workspace, "journal-compact"),
-      content: loadSetupTemplate("skills/journal-compact/SKILL.md", docsPath),
-    },
-  ];
-}
-
-function setupSkillBundleFiles(
-  workspace: string,
-  docsPath: string,
-): Array<{ path: string; content: string }> {
-  return [
-    {
-      path: setupSkillPath(workspace),
-      content: loadSetupTemplate("mechanic/skills/setup/SKILL.md", docsPath),
-    },
-    {
-      path: setupSkillValidatorPath(workspace),
-      content: loadSetupTemplate(
-        "mechanic/skills/setup/scripts/validate-config.sh",
-        docsPath,
-      ),
-    },
-  ];
-}
-
-function mechanicSkillBundleFiles(
-  workspace: string,
-  docsPath: string,
-): Array<{ path: string; content: string }> {
-  const mechanicRoot = `agents/${MECHANIC_AGENT_ID}`;
-  return [
-    {
-      path: agentSkillPath(workspace, mechanicRoot, "mechanic"),
-      content: loadSetupTemplate("mechanic/skills/mechanic/SKILL.md", docsPath),
-    },
-    {
-      path: agentSkillPath(workspace, mechanicRoot, "add-agent"),
-      content: loadSetupTemplate("mechanic/skills/add-agent/SKILL.md", docsPath),
-    },
-    {
-      path: agentSkillPath(workspace, mechanicRoot, "channel-routing"),
-      content: loadSetupTemplate("mechanic/skills/channel-routing/SKILL.md", docsPath),
-    },
-    {
-      path: agentSkillPath(workspace, mechanicRoot, "watches"),
-      content: loadSetupTemplate("mechanic/skills/watches/SKILL.md", docsPath),
-    },
-    {
-      path: agentSkillPath(workspace, mechanicRoot, "workspace-migration"),
-      content: loadSetupTemplate("mechanic/skills/workspace-migration/SKILL.md", docsPath),
-    },
-    {
-      path: agentSkillPath(workspace, mechanicRoot, "shrimpy-mechanic-ideas"),
-      content: loadSetupTemplate("mechanic/skills/shrimpy-mechanic-ideas/SKILL.md", docsPath),
-    },
-    {
-      path: join(
-        agentSkillRootPath(workspace, mechanicRoot, "shrimpy-mechanic-ideas"),
-        "references",
-        "pattern-inventory.md",
-      ),
-      content: loadSetupTemplate(
-        "mechanic/skills/shrimpy-mechanic-ideas/references/pattern-inventory.md",
-        docsPath,
-      ),
-    },
-  ];
-}
-
 export async function setupInit(workspace: string): Promise<void> {
   const { created, existing } = ensureWorkspaceInitialized(workspace);
 
@@ -378,9 +256,6 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
       path: join(mechanicPaths.contextDir, "scope.md"),
       content: loadSetupTemplate("mechanic/context/scope.md", docsPath),
     },
-    ...setupSkillBundleFiles(workspace, docsPath),
-    ...mechanicSkillBundleFiles(workspace, docsPath),
-    ...workspaceSkillBundleFiles(workspace, docsPath),
   ];
 
   for (const file of workspaceFiles) {

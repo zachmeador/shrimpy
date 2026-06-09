@@ -49,7 +49,7 @@ Before trusting a bullet, verify the concrete surface:
 - Session behavior: `src/sessions/`, TUI code, session tests.
 - Channel/wake behavior: `src/channels/`, `src/agents/channel-policy*`, delivery-loop tests.
 - Watches/gateway behavior: `src/watches/`, `src/gateway/`, watch tests.
-- Skills: `src/skills/`, `src/setup/templates/skills/`, skill command tests.
+- Skills: `skills/`, `src/setup/templates/skills/`, skill command tests.
 
 If the old changelog says a feature exists, still check the diff. Correct wrong verbs, removed command names, outdated config keys, and claims based on plans rather than shipped code.
 
@@ -124,7 +124,7 @@ For public releases at `0.1.0` or later, keep the version, aquatic release name,
 For changelog-only edits, run lightweight checks:
 
 ```bash
-git diff -- CHANGELOG.md src/skills
+git diff -- CHANGELOG.md skills
 rg "various|misc|stuff" CHANGELOG.md
 ```
 
