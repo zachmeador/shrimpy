@@ -1,31 +1,25 @@
-import { existsSync } from "node:fs";
 import {
   type ContextConfig,
   type ContextDefaultsConfig,
-  resolveContextDefaultsConfig,
-  validateContextConfig,
 } from "../context/spec.js";
 import type { AgentConfig } from "./agents.js";
-import { validateAgentsConfig } from "./agents.js";
 import {
-  resolveAdapterRoutingConfig,
   type AdapterRoutingConfig,
 } from "./adapter-routing.js";
 import {
-  resolveGatewayStatusConfig,
   type GatewayStatusConfig,
 } from "./gateway-status.js";
-import { primaryConfigPath } from "./paths.js";
-import { resolveRuntimeConfig, type RuntimeConfig } from "./runtime.js";
+import { type RuntimeConfig } from "./runtime.js";
 import {
-  resolveToolRuntimeConfig,
   type ToolRuntimeConfig,
 } from "./tools.js";
-import { readJsonFileStrict } from "../util/json-file.js";
 import {
   type ModelPoliciesConfig,
-  validateModelPoliciesConfig,
 } from "./model.js";
+import {
+  readConfigFile,
+  validateRawConfig,
+} from "./store.js";
 import { resolveWorkspacePath } from "./workspace.js";
 
 export interface ShrimpyConfig {
@@ -51,27 +45,10 @@ export interface ShrimpyConfig {
   [surfaceKey: string]: unknown;
 }
 
-function validateRawConfig(raw: Record<string, unknown>) {
-  if (raw.context) validateContextConfig(raw.context);
-  if (raw.contextDefaults !== undefined) {
-    resolveContextDefaultsConfig(raw.contextDefaults);
-  }
-  if (raw.agents !== undefined) validateAgentsConfig(raw.agents);
-  if (raw.modelPolicies !== undefined) validateModelPoliciesConfig(raw.modelPolicies);
-  if (raw.tools !== undefined) resolveToolRuntimeConfig(raw.tools);
-  if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
-  if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);
-  if (raw.adapters !== undefined) resolveAdapterRoutingConfig(raw.adapters);
-}
-
 export function loadConfigForWorkspace(workspace: string): ShrimpyConfig {
-  const configPath = primaryConfigPath(workspace);
+  const { raw } = readConfigFile(workspace);
 
-  if (existsSync(configPath)) {
-    const raw = readJsonFileStrict(
-      configPath,
-      (parsed) => parsed as Record<string, unknown>,
-    );
+  if (Object.keys(raw).length > 0) {
     validateRawConfig(raw);
     return { ...raw, workspace };
   }
@@ -89,5 +66,6 @@ export * from "./gateway-status.js";
 export * from "./model.js";
 export * from "./paths.js";
 export * from "./runtime.js";
+export * from "./store.js";
 export * from "./tools.js";
 export * from "./workspace.js";

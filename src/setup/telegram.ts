@@ -1,16 +1,15 @@
-import { existsSync } from "node:fs";
 import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { createWorkspacePaths } from "../app/index.js";
 import {
+  editConfigFile,
+  readConfigFile,
+} from "../config/store.js";
+import {
   telegramChannelDisplayExample,
   validateTelegramInstanceId,
 } from "../surfaces/telegram/index.js";
-import { readGatewayServiceStatus } from "../gateway-ctl.js";
-import {
-  readJsonFileStrict,
-  writeJsonFileAtomic,
-} from "../util/json-file.js";
+import { readGatewayServiceStatus } from "../gateway/service-ctl.js";
 import { brand, heading } from "../util/style.js";
 
 function createPrompter() {
@@ -71,20 +70,22 @@ function checkGatewayStatus(): "active" | "inactive" {
 }
 
 function readRawConfig(workspace: string): Record<string, unknown> | null {
-  const p = createWorkspacePaths(workspace).primaryConfigPath;
-  if (!existsSync(p)) return {};
   try {
-    return readJsonFileStrict(
-      p,
-      (parsed) => parsed as Record<string, unknown>,
-    );
+    return readConfigFile(workspace).raw;
   } catch {
     return null;
   }
 }
 
-function writeRawConfig(workspace: string, raw: Record<string, unknown>): void {
-  writeJsonFileAtomic(createWorkspacePaths(workspace).primaryConfigPath, raw);
+function writeRawConfig(
+  workspace: string,
+  nextRaw: Record<string, unknown>,
+  opts?: { overwriteInvalid?: boolean },
+): void {
+  editConfigFile(workspace, (raw) => {
+    for (const key of Object.keys(raw)) delete raw[key];
+    Object.assign(raw, nextRaw);
+  }, opts?.overwriteInvalid ? { baseRaw: {} } : {});
 }
 
 export async function setupTelegram(workspace: string): Promise<void> {
@@ -98,6 +99,7 @@ export async function setupTelegram(workspace: string): Promise<void> {
     console.log("  3. Copy the bot token (looks like 123456:ABC-DEF...)");
     console.log();
 
+    let overwriteInvalid = false;
     let raw = readRawConfig(workspace);
     if (raw === null) {
       console.log(
@@ -105,6 +107,7 @@ export async function setupTelegram(workspace: string): Promise<void> {
       );
       if (await confirm("Overwrite it?", false)) {
         raw = {};
+        overwriteInvalid = true;
       } else {
         console.log("Aborted.");
         return;
@@ -266,7 +269,7 @@ export async function setupTelegram(workspace: string): Promise<void> {
         [instanceId]: telegramInstanceConfig,
       },
     };
-    writeRawConfig(workspace, raw);
+    writeRawConfig(workspace, raw, { overwriteInvalid });
     console.log(
       `Config written to ${createWorkspacePaths(workspace).primaryConfigPath}`,
     );

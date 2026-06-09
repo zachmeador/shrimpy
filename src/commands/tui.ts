@@ -21,7 +21,7 @@ import {
 import {
   runInteractiveAgentSession,
   type RunInteractiveSessionInput,
-} from "../sessions/index.js";
+} from "../tui/interactive.js";
 
 type ShrimpyTuiSessionRequest = Omit<RunInteractiveSessionInput, "runtime">;
 

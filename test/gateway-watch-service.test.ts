@@ -14,10 +14,12 @@ import { createAppRuntime } from "../dist/app/index.js";
 import { setupInit } from "../dist/setup/init.js";
 import {
   ensureGatewayWatchFiles,
-  loadGatewayAgentWatches,
   startGatewayWatchClock,
 } from "../dist/gateway/watch-service.js";
-import type { WatchClock } from "../dist/watches/index.js";
+import {
+  loadRuntimeAgentWatches,
+  type WatchClock,
+} from "../dist/watches/index.js";
 
 let testDir: string;
 
@@ -72,7 +74,7 @@ describe("gateway watch service", () => {
       "utf-8",
     );
 
-    const watches = loadGatewayAgentWatches(runtime);
+    const watches = loadRuntimeAgentWatches(runtime);
     assert.deepEqual(
       watches.map((watch) => watch.id),
       ["shrimpy/memory-management", "ops/pulse"],

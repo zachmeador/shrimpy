@@ -9,12 +9,10 @@ import type { ChannelBus } from "../channels/bus.js";
 import {
   createWatchClock,
   loadWatchClockState,
-  loadAgentWatchDefinitions,
-  resolveAgentWatchDefinition,
+  loadRuntimeAgentWatches,
   runWatchDue,
   saveWatchClockState,
   type WatchClock,
-  type ResolvedAgentWatchDefinition,
 } from "../watches/index.js";
 import { createDefaultShrimpyWatches } from "../setup/defaults.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
@@ -32,38 +30,11 @@ export function ensureGatewayWatchFiles(runtime: AppRuntime): void {
   }
 }
 
-export function loadGatewayAgentWatches(
-  runtime: AppRuntime,
-): ResolvedAgentWatchDefinition[] {
-  const watches: ResolvedAgentWatchDefinition[] = [];
-  const seen = new Set<string>();
-
-  for (const agent of runtime.resolved.agents) {
-    const path = runtime.getAgentPaths(agent.id).watchesPath;
-    const agentWatches = loadAgentWatchDefinitions(path);
-    for (const watch of agentWatches) {
-      const resolved = resolveAgentWatchDefinition(agent.id, watch);
-      if (seen.has(resolved.id)) {
-        throw new Error(`duplicate resolved watch id: ${resolved.id}`);
-      }
-      seen.add(resolved.id);
-      watches.push(resolved);
-    }
-  }
-
-  return watches;
-}
-
-export function loadGatewayWatchIds(runtime: AppRuntime): string[] {
-  const agentWatches = loadGatewayAgentWatches(runtime);
-  return agentWatches.map((watch) => watch.id);
-}
-
 export function startGatewayWatchClock(
   runtime: AppRuntime,
   channelBus: ChannelBus,
 ): WatchClock {
-  const agentWatches = loadGatewayAgentWatches(runtime);
+  const agentWatches = loadRuntimeAgentWatches(runtime);
   console.log(
     `[gateway] loaded ${agentWatches.length} agent watch(es)`,
   );
@@ -87,7 +58,7 @@ export function startGatewayWatchClock(
   });
   const stopWatching = watchAgentWatchFiles(runtime, () => {
     try {
-      const nextWatches = loadGatewayAgentWatches(runtime);
+      const nextWatches = loadRuntimeAgentWatches(runtime);
       clock.setWatches(nextWatches);
       console.log(
         `[gateway] reloaded ${nextWatches.length} agent watch(es)`,

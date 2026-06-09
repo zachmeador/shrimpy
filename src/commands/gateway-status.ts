@@ -1,11 +1,11 @@
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
 import {
-  collectGatewayActivity,
-  loadGatewayWatchClockSummary,
-} from "../gateway/status.js";
-import { loadGatewayWatchIds } from "../gateway/watch-service.js";
-import { readGatewayServiceStatus, type GatewayServiceStatus } from "../gateway-ctl.js";
+  collectChannelActivity,
+  loadChannelWatchClockSummary,
+} from "../channels/activity.js";
+import { loadRuntimeWatchIds } from "../watches/index.js";
+import { readGatewayServiceStatus, type GatewayServiceStatus } from "../gateway/service-ctl.js";
 import { dim, label } from "../util/style.js";
 import { formatFutureOrPast } from "../util/time-format.js";
 
@@ -14,13 +14,13 @@ export function printGatewayStatus(
   service: GatewayServiceStatus = readGatewayServiceStatus(),
 ): void {
   const runtime = createAppRuntime(config);
-  const watchIds = loadGatewayWatchIds(runtime);
-  const activity = collectGatewayActivity(
+  const watchIds = loadRuntimeWatchIds(runtime);
+  const activity = collectChannelActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
     watchIds,
   );
-  const watchClock = loadGatewayWatchClockSummary(
+  const watchClock = loadChannelWatchClockSummary(
     runtime.paths.watchClockStatePath,
     runtime.resolved.status,
     watchIds,

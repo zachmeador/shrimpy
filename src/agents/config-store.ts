@@ -1,17 +1,16 @@
-import { existsSync } from "node:fs";
 import {
   type AgentChannelPolicyConfig,
   type AgentConfig,
   validateAgentsConfig,
 } from "../config/agents.js";
-import { primaryConfigPath } from "../config/index.js";
-import type { ThinkingLevel } from "../inference/thinking.js";
 import {
-  readJsonFileStrict,
-  writeJsonFileAtomic,
-} from "../util/json-file.js";
+  editConfigFile,
+  readConfigFile,
+} from "../config/store.js";
+import type { ThinkingLevel } from "../inference/thinking.js";
 
 export interface AgentWorkspaceConfig {
+  workspace: string;
   configPath: string;
   raw: Record<string, unknown>;
   agents: AgentConfig[];
@@ -37,24 +36,18 @@ export interface AgentConfigPatch {
 }
 
 export function readAgentWorkspaceConfig(workspace: string): AgentWorkspaceConfig {
-  const configPath = primaryConfigPath(workspace);
-  if (!existsSync(configPath)) {
-    throw new Error(`config not found: ${configPath}. Run "shrimpy setup init" first.`);
-  }
-
-  const raw = readJsonFileStrict(
-    configPath,
-    (parsed) => parsed as Record<string, unknown>,
-  );
+  const { configPath, raw } = readConfigFile(workspace, { missing: "error" });
   const agents = raw.agents === undefined ? [] : validateAgentsConfig(raw.agents);
-  return { configPath, raw, agents };
+  return { workspace, configPath, raw, agents };
 }
 
 export function writeAgentWorkspaceConfig(
-  configPath: string,
-  raw: Record<string, unknown>,
+  editable: AgentWorkspaceConfig,
 ): void {
-  writeJsonFileAtomic(configPath, raw);
+  editConfigFile(editable.workspace, (raw) => {
+    for (const key of Object.keys(raw)) delete raw[key];
+    Object.assign(raw, editable.raw);
+  }, { missing: "error" });
 }
 
 export function createAgentConfig(input: AgentConfigDraft): AgentConfig {

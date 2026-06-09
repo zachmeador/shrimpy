@@ -2,9 +2,9 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
-import { collectGatewayActivity } from "../gateway/status.js";
-import { loadGatewayWatchIds } from "../gateway/watch-service.js";
-import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway-ctl.js";
+import { collectChannelActivity } from "../channels/activity.js";
+import { loadRuntimeWatchIds } from "../watches/index.js";
+import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway/service-ctl.js";
 import {
   loadTelegramOffset,
   telegramStatePath,
@@ -46,10 +46,10 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
     console.log(`${label("channels:")} ${dim("(none)")}`);
   }
 
-  const activity = collectGatewayActivity(
+  const activity = collectChannelActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
-    loadGatewayWatchIds(runtime),
+    loadRuntimeWatchIds(runtime),
   );
   if (activity.lastWatchRun) {
     console.log(

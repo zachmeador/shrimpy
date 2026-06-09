@@ -16,7 +16,7 @@ import { homedir } from "node:os";
 import {
   findRunningGatewayPid,
   terminateGateway,
-} from "./gateway/pid-file.js";
+} from "./pid-file.js";
 
 const SERVICE_NAME = "shrimpy-gateway";
 const UNIT_FILE = `${SERVICE_NAME}.service`;
@@ -130,7 +130,7 @@ function nodePath(): string {
 }
 
 function gatewayScript(): string {
-  return join(import.meta.dirname, "gateway.js");
+  return join(import.meta.dirname, "..", "gateway.js");
 }
 
 export function generateSystemdUnit(opts?: {

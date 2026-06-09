@@ -1,5 +1,7 @@
 export * from "./compaction-policy.js";
+export * from "./compaction-inspect.js";
 export * from "./compaction-runner.js";
+export * from "./direct-channels.js";
 export * from "./direct.js";
 export * from "./factory.js";
 export * from "./contained-system-prompt.js";

@@ -16,7 +16,7 @@ import {
   gatewayServicePaths,
   generateLaunchAgentPlist,
   readGatewayServiceStatus,
-} from "../dist/gateway-ctl.js";
+} from "../dist/gateway/service-ctl.js";
 
 let testDir: string;
 

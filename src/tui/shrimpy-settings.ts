@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import {
   type AgentSession,
   DynamicBorder,
@@ -18,21 +17,16 @@ import {
 import {
   configureHttpDispatcher,
   formatHttpIdleTimeoutMs,
-} from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/http-dispatcher.js";
-import {
   getAvailableThemes,
   setTheme,
-} from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
+} from "../app/pi-internals.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { RuntimeConfig } from "../config/index.js";
+import { editConfigFile } from "../config/store.js";
 import {
   DEFAULT_MODEL_POLICY,
   formatModelRef,
 } from "../config/model.js";
-import {
-  readJsonFileStrict,
-  writeJsonFileAtomic,
-} from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 
 type ShowSelectorFactory = (done: () => void) => {
@@ -528,25 +522,24 @@ function persistRuntimeConfig(
   runtime: AppRuntime,
   patch: RuntimeConfigPatch,
 ): void {
-  const configPath = runtime.paths.primaryConfigPath;
-  const raw = existsSync(configPath) ? readRawConfig(configPath) : {};
-  const runtimeRaw = asRecord(raw.runtime);
-  const nextRuntime: Record<string, unknown> = { ...runtimeRaw };
+  editConfigFile(runtime.paths.workspace, (raw) => {
+    const runtimeRaw = asRecord(raw.runtime);
+    const nextRuntime: Record<string, unknown> = { ...runtimeRaw };
 
-  for (const [key, value] of Object.entries(patch)) {
-    if (key === "compaction") continue;
-    nextRuntime[key] = value;
-  }
+    for (const [key, value] of Object.entries(patch)) {
+      if (key === "compaction") continue;
+      nextRuntime[key] = value;
+    }
 
-  if (patch.compaction !== undefined) {
-    nextRuntime.compaction = {
-      ...asRecord(runtimeRaw.compaction),
-      ...patch.compaction,
-    };
-  }
+    if (patch.compaction !== undefined) {
+      nextRuntime.compaction = {
+        ...asRecord(runtimeRaw.compaction),
+        ...patch.compaction,
+      };
+    }
 
-  raw.runtime = nextRuntime;
-  writeJsonFileAtomic(configPath, raw);
+    raw.runtime = nextRuntime;
+  });
   applyRuntimePatch(runtime, patch);
 }
 
@@ -576,17 +569,6 @@ function applyRuntimePatch(
   }
 
   runtime.config.runtime = configRuntime as RuntimeConfig;
-}
-
-function readRawConfig(path: string): Record<string, unknown> {
-  const raw = readJsonFileStrict(
-    path,
-    (parsed) => parsed as unknown,
-  );
-  if (!isRecord(raw)) {
-    throw new Error(`config must be a JSON object: ${path}`);
-  }
-  return raw;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

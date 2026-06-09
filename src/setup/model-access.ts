@@ -9,7 +9,7 @@ import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import {
   createWorkspacePaths,
 } from "../app/index.js";
-import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/provider-display-names.js";
+import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../app/pi-internals.js";
 
 export interface SetupModelView {
   provider: string;

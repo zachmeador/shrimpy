@@ -6,8 +6,8 @@ import {
   initTheme,
   loadThemeFromPath,
   theme,
-} from "../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
-import { primeInteractiveThemeForSession } from "../dist/sessions/direct.js";
+} from "../dist/app/pi-internals.js";
+import { primeInteractiveThemeForSession } from "../dist/tui/interactive.js";
 
 test("TUI sessions prime the configured theme before Pi builds interactive components", () => {
   const shrimpyTheme = loadThemeFromPath(

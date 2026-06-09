@@ -1,5 +1,5 @@
 import { createAppRuntime } from "../app/index.js";
-import { gatewayCtl } from "../gateway-ctl.js";
+import { gatewayCtl } from "../gateway/service-ctl.js";
 import { printGatewayLogs } from "./gateway-logs.js";
 import { printGatewayStatus } from "./gateway-status.js";
 import { renderGroupUsage } from "./catalog.js";

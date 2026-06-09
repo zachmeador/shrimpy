@@ -31,7 +31,7 @@ import {
 } from "./gateway/watch-service.js";
 import { saveWatchClockState } from "./watches/index.js";
 import { createWorkspaceCheckpointService } from "./workspace-checkpoints/index.js";
-import { ChannelDeliveryLoop } from "./delivery/channel-delivery-loop.js";
+import { ChannelDeliveryLoop } from "./gateway/channel-delivery-loop.js";
 import {
   createConfiguredGatewaySurfaces,
   registerSurfaceRoutes,

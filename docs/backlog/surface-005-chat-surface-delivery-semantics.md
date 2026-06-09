@@ -51,7 +51,7 @@ The TUI keeps its current role: local direct session transcript plus Shrimpy con
 - Extend `src/channels/egress.ts` and `src/channels/bus.ts` with typed delivery dispatch.
 - Add a shared chat presentation helper under `src/surfaces/shared/`.
 - Update Telegram egress in `src/surfaces/telegram/surface.ts`.
-- Replace session-control `deliverText` confirmations in `src/delivery/session-control-runtime.ts`.
+- Replace session-control `deliverText` confirmations in `src/gateway/session-control-runtime.ts`.
 - Bridge gateway compaction events from `src/sessions/open.ts` only for gateway channel sessions.
 - Update docs for channels, surfaces, and sessions.
 

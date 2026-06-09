@@ -14,7 +14,7 @@ import {
   loadWatchRunHistory,
   saveWatchClockState,
 } from "../dist/watches/index.js";
-import { loadGatewayWatchIds } from "../dist/gateway/watch-service.js";
+import { loadRuntimeWatchIds } from "../dist/watches/index.js";
 import {
   captureLogs,
   makeTempWorkspace,
@@ -371,7 +371,7 @@ describe("watch inspection surfaces", () => {
     assert.equal(run.emittedChannelMessageIds.length, 1);
 
     const runtime = createAppRuntime({ workspace });
-    assert.equal(loadGatewayWatchIds(runtime).includes("shrimpy/command-test"), true);
+    assert.equal(loadRuntimeWatchIds(runtime).includes("shrimpy/command-test"), true);
     assert.equal(loadWatchRunHistory(runtime.paths.runtimeWatchesDir, "shrimpy").length, 1);
 
     const history = inspectWatchHistory(runtime, "shrimpy/command-test");

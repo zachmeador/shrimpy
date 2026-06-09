@@ -1,4 +1,4 @@
-import { renderMemoryContext } from "../../memory/context.js";
+import { renderMemoryContext } from "./memory.js";
 import type { TurnContext } from "./types.js";
 
 export function renderTurnContext(

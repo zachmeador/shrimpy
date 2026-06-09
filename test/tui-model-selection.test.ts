@@ -7,7 +7,7 @@ import type {
   AutocompleteProvider,
   AutocompleteSuggestions,
 } from "@earendil-works/pi-tui";
-import { initTheme } from "../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
+import { initTheme } from "../dist/app/pi-internals.js";
 import {
   filterScopedModelsAutocompleteSuggestions,
   hideScopedModelsAutocomplete,
@@ -233,7 +233,7 @@ test("Shrimpy model selector space toggles a persisted favorite", () => {
     },
   };
   const runtime = {
-    paths: { primaryConfigPath: configPath },
+    paths: { workspace: root, primaryConfigPath: configPath },
     config: { tui: { modelFavorites: ["openai/gpt-4o"] } },
   };
 

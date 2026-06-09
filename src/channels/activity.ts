@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { readMessages, type ChannelMessage } from "../channels/index.js";
+import { readMessages, type ChannelMessage } from "./index.js";
 import {
   resolveGatewayStatusConfig,
   type GatewayStatusConfig,
@@ -13,31 +13,31 @@ export interface ChannelMessageSnapshot {
   message: ChannelMessage;
 }
 
-interface GatewayActivitySummary {
+interface ChannelActivitySummary {
   channelCount: number;
   lastWatchRun?: ChannelMessageSnapshot;
-  watchedWatches: Record<string, GatewayWatchedWatchActivity>;
+  watchedWatches: Record<string, WatchedWatchActivity>;
   lastUserInteraction?: ChannelMessageSnapshot;
 }
 
-interface GatewayWatchClockSummary {
-  nextWatchRun?: GatewayWatchRunClockStatus;
-  watchedWatches: Record<string, GatewayWatchedWatchClockStatus>;
+interface ChannelWatchClockSummary {
+  nextWatchRun?: WatchRunClockStatus;
+  watchedWatches: Record<string, WatchedWatchClockStatus>;
 }
 
-interface GatewayWatchRunClockStatus {
+interface WatchRunClockStatus {
   watchId: string;
   nextRunAtMs: number;
 }
 
-interface GatewayWatchedWatchActivity {
+interface WatchedWatchActivity {
   label: string;
   channel: string;
   watchId: string;
   lastRun?: ChannelMessageSnapshot;
 }
 
-interface GatewayWatchedWatchClockStatus {
+interface WatchedWatchClockStatus {
   label: string;
   channel: string;
   watchId: string;
@@ -55,7 +55,7 @@ function latest(
 
 function createWatchedWatchActivity(
   watchedWatches: ResolvedWatchedWatchStatusConfig[],
-): Record<string, GatewayWatchedWatchActivity> {
+): Record<string, WatchedWatchActivity> {
   return Object.fromEntries(
     watchedWatches.map((watch) => [
       watch.label,
@@ -89,16 +89,16 @@ function isUserInteraction(
   return message.sender.kind === "human";
 }
 
-export function collectGatewayActivity(
+export function collectChannelActivity(
   channelsDir: string,
   statusConfig?: GatewayStatusConfig,
   activeWatchIds?: Iterable<string>,
-): GatewayActivitySummary {
+): ChannelActivitySummary {
   const resolvedStatusConfig = resolveGatewayStatusConfig(statusConfig);
   const watchIds = activeWatchIds
     ? new Set(activeWatchIds)
     : undefined;
-  const summary: GatewayActivitySummary = {
+  const summary: ChannelActivitySummary = {
     channelCount: 0,
     watchedWatches: createWatchedWatchActivity(
       resolvedStatusConfig.watchedWatches,
@@ -142,11 +142,11 @@ export function collectGatewayActivity(
   return summary;
 }
 
-export function loadGatewayWatchClockSummary(
+export function loadChannelWatchClockSummary(
   watchClockStatePath: string,
   statusConfig?: GatewayStatusConfig,
   activeWatchIds?: Iterable<string>,
-): GatewayWatchClockSummary {
+): ChannelWatchClockSummary {
   const resolvedStatusConfig = resolveGatewayStatusConfig(statusConfig);
   const state = loadWatchClockState(watchClockStatePath);
   const watchIds = activeWatchIds ? new Set(activeWatchIds) : undefined;

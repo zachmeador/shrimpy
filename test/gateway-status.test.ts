@@ -11,9 +11,9 @@ import {
   type MessageContent,
 } from "../dist/channels/index.js";
 import {
-  collectGatewayActivity,
-  loadGatewayWatchClockSummary,
-} from "../dist/gateway/status.js";
+  collectChannelActivity,
+  loadChannelWatchClockSummary,
+} from "../dist/channels/activity.js";
 import { saveWatchClockState } from "../dist/watches/index.js";
 
 let testDir: string;
@@ -55,7 +55,7 @@ function appendAt(
   });
 }
 
-describe("collectGatewayActivity", () => {
+describe("collectChannelActivity", () => {
   test("tracks watched watch text messages and last user interaction", () => {
     const channelsDir = join(testDir, "channels");
     mkdirSync(channelsDir, { recursive: true });
@@ -112,7 +112,7 @@ describe("collectGatewayActivity", () => {
       timestamp: 5_000,
     });
 
-    const summary = collectGatewayActivity(channelsDir, {
+    const summary = collectChannelActivity(channelsDir, {
       watchedWatches: [{
         label: "memory",
         channel: "maintenance",
@@ -130,7 +130,7 @@ describe("collectGatewayActivity", () => {
   });
 
   test("returns empty summary when channels directory is missing", () => {
-    const summary = collectGatewayActivity(join(testDir, "missing-channels"));
+    const summary = collectChannelActivity(join(testDir, "missing-channels"));
     assert.equal(summary.channelCount, 0);
     assert.deepEqual(summary.watchedWatches, {});
     assert.equal(summary.lastUserInteraction, undefined);
@@ -162,7 +162,7 @@ describe("collectGatewayActivity", () => {
       timestamp: 2_000,
     });
 
-    const summary = collectGatewayActivity(channelsDir, {
+    const summary = collectChannelActivity(channelsDir, {
       watchedWatches: [{
         label: "pulse",
         channel: "pulse",
@@ -197,7 +197,7 @@ describe("collectGatewayActivity", () => {
       timestamp: 3_000,
     });
 
-    const summary = collectGatewayActivity(
+    const summary = collectChannelActivity(
       channelsDir,
       undefined,
       ["shrimpy/memory-management", "ops/pulse"],
@@ -208,7 +208,7 @@ describe("collectGatewayActivity", () => {
   });
 });
 
-describe("loadGatewayWatchClockSummary", () => {
+describe("loadChannelWatchClockSummary", () => {
   test("reads next watched watch from watch clock state", () => {
     const workspace = join(testDir, "workspace");
     mkdirSync(workspace, { recursive: true });
@@ -218,7 +218,7 @@ describe("loadGatewayWatchClockSummary", () => {
       "custom.watch": { nextRunAtMs: 99_999 },
     });
 
-    const summary = loadGatewayWatchClockSummary(
+    const summary = loadChannelWatchClockSummary(
       statePath,
       {
         watchedWatches: [{
@@ -235,7 +235,7 @@ describe("loadGatewayWatchClockSummary", () => {
   });
 
   test("returns undefined next run when watch clock state does not exist", () => {
-    const summary = loadGatewayWatchClockSummary(
+    const summary = loadChannelWatchClockSummary(
       join(testDir, "workspace", "watch-clock.json"),
       {
         watchedWatches: [{
@@ -259,7 +259,7 @@ describe("loadGatewayWatchClockSummary", () => {
       "shrimpy/memory-management": { nextRunAtMs: 12_345 },
     });
 
-    const summary = loadGatewayWatchClockSummary(
+    const summary = loadChannelWatchClockSummary(
       statePath,
       {
         watchedWatches: [{
@@ -284,7 +284,7 @@ describe("loadGatewayWatchClockSummary", () => {
       "shrimpy/memory-management": { nextRunAtMs: 12_345 },
     });
 
-    const summary = loadGatewayWatchClockSummary(
+    const summary = loadChannelWatchClockSummary(
       statePath,
       undefined,
       ["shrimpy/memory-management", "ops/pulse"],

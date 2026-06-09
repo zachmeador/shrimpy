@@ -1,11 +1,4 @@
-import {
-  InteractiveMode,
-  type AgentSession,
-} from "@earendil-works/pi-coding-agent";
-import {
-  initTheme,
-  setRegisteredThemes,
-} from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
+import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
 import { buildTurnContext } from "../context/index.js";
 import {
@@ -16,24 +9,20 @@ import {
   resolveModelVariantInference,
 } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
-import { assertSetupReadyForNormalTui } from "../setup/readiness.js";
 import { createSessionToolPolicy } from "../tools/policy.js";
-import { installShrimpyActivityIndicator } from "../tui/shrimpy-activity-indicator.js";
-import { installShrimpyCommandSurface } from "../tui/shrimpy-command-surface.js";
-import { installShrimpyContextRendering } from "../tui/shrimpy-context-rendering.js";
-import { installShrimpyToolRendering } from "../tui/shrimpy-tool-rendering.js";
-import { installShrimpyModelSelectionGuard } from "../tui/shrimpy-model-selection.js";
-import { installShrimpySettingsSelector } from "../tui/shrimpy-settings.js";
+import type { SessionBootstrap } from "./bootstrap.js";
 import {
   formatMissingAgentModelPolicyMessage,
   openSession,
-  openSessionRuntime,
   resolveModelDetailed,
 } from "./factory.js";
-import { createLocalSessionDescriptor } from "./spec.js";
+import {
+  createLocalSessionDescriptor,
+  type SessionOpenPlan,
+} from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
 
-interface OpenDirectSessionInput {
+export interface OpenDirectSessionInput {
   runtime: AppRuntime;
   agentId?: string;
   channel: string;
@@ -50,7 +39,7 @@ interface OpenDirectSessionInput {
   allowRegistryFallbackModel?: boolean;
 }
 
-interface OpenDirectSessionResult {
+export interface OpenDirectSessionResult {
   agentId: string;
   session: AgentSession;
 }
@@ -59,13 +48,16 @@ interface RunDirectPromptInput extends OpenDirectSessionInput {
   prompt: string;
 }
 
-export interface RunInteractiveSessionInput extends OpenDirectSessionInput {
-  initialMessage?: string;
+export interface PreparedDirectSessionOpen {
+  agentId: string;
+  cwd: string;
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
 }
 
-export async function openDirectAgentSession(
+export async function prepareDirectSessionOpen(
   input: OpenDirectSessionInput,
-): Promise<OpenDirectSessionResult> {
+): Promise<PreparedDirectSessionOpen> {
   const cwd = input.cwd ?? process.cwd();
   const agent = input.runtime.getAgent(input.agentId);
   const egressRegistry = input.runtime.createCliEgressRegistry();
@@ -116,32 +108,45 @@ export async function openDirectAgentSession(
     toolNames: toolPolicy.daemonToolNames,
     toolPolicy: sessionToolPolicy,
   });
-  const session = await openSession(bootstrap, {
-    descriptor,
-    restoreModelFromSession,
-    allowMissingModel: input.allowMissingModel,
-    thinking: input.thinking,
-    inference,
-    defaultThinking,
-    prompt: {
-      appendSystemPrompt: input.appendSystemPrompt,
-      skills: input.skills,
-    },
-    prepareTurnContext: async () => {
-      const turnContext = await buildTurnContext({
-        runtime: input.runtime,
-        descriptor,
-      });
-      return renderTurnContext(turnContext);
-    },
-    model,
-    modelResolution,
-    toolPolicy: sessionToolPolicy,
-    tools,
-  });
 
   return {
     agentId: agent.id,
+    cwd,
+    bootstrap,
+    plan: {
+      descriptor,
+      restoreModelFromSession,
+      allowMissingModel: input.allowMissingModel,
+      thinking: input.thinking,
+      inference,
+      defaultThinking,
+      prompt: {
+        appendSystemPrompt: input.appendSystemPrompt,
+        skills: input.skills,
+      },
+      prepareTurnContext: async () => {
+        const turnContext = await buildTurnContext({
+          runtime: input.runtime,
+          descriptor,
+        });
+        return renderTurnContext(turnContext);
+      },
+      model,
+      modelResolution,
+      toolPolicy: sessionToolPolicy,
+      tools,
+    },
+  };
+}
+
+export async function openDirectAgentSession(
+  input: OpenDirectSessionInput,
+): Promise<OpenDirectSessionResult> {
+  const prepared = await prepareDirectSessionOpen(input);
+  const session = await openSession(prepared.bootstrap, prepared.plan);
+
+  return {
+    agentId: prepared.agentId,
     session,
   };
 }
@@ -159,126 +164,5 @@ export async function runDirectAgentPrompt(
     return { agentId, output };
   } finally {
     session.dispose();
-  }
-}
-
-export async function runInteractiveAgentSession(
-  input: RunInteractiveSessionInput,
-): Promise<{ agentId: string }> {
-  await assertSetupReadyForNormalTui(input.runtime);
-  return runAgentTuiSession(input);
-}
-
-export function primeInteractiveThemeForSession(
-  session: Pick<AgentSession, "resourceLoader" | "settingsManager">,
-): void {
-  setRegisteredThemes(session.resourceLoader.getThemes().themes);
-  initTheme(session.settingsManager.getTheme(), false);
-}
-
-async function runAgentTuiSession(
-  input: RunInteractiveSessionInput,
-): Promise<{ agentId: string }> {
-  const cwd = input.cwd ?? process.cwd();
-  const agent = input.runtime.getAgent(input.agentId);
-  const egressRegistry = input.runtime.createCliEgressRegistry();
-  const channelBus = input.runtime.createChannelBus({ egressRegistry });
-  const bootstrap = await input.runtime.createBootstrap({
-    agentId: agent.id,
-    cwd,
-    basePromptResources: input.basePromptResources,
-  });
-  const restoreModelFromSession = input.provider === undefined &&
-    input.model === undefined &&
-    input.modelPolicy === undefined;
-  const modelResolution = resolveModelDetailed(
-    bootstrap,
-    input.provider,
-    input.model,
-    agent.modelPolicy,
-    {
-      modelPolicy: input.modelPolicy,
-      allowMissingDefault: restoreModelFromSession || input.allowMissingModel,
-      allowRegistryFallback: input.allowRegistryFallbackModel,
-      missingMessage: formatMissingAgentModelPolicyMessage(agent.id),
-    },
-  );
-  const model = modelResolution.model;
-  const inference = resolveModelVariantInference({
-    modelsPath: bootstrap.modelsPath,
-    model,
-  });
-  const defaultThinking = agent.thinking;
-  const toolPolicy = input.runtime.resolveAgentToolPolicy(agent.id);
-  const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
-
-  process.env.PI_SKIP_VERSION_CHECK = "1";
-
-  const descriptor = createLocalSessionDescriptor({
-    workspacePath: input.runtime.getAgentPaths(agent.id).root,
-    agentId: agent.id,
-    label: input.channel,
-    kind: input.sessionType,
-    channel: input.channel,
-    cwd,
-  });
-  const tools = await input.runtime.buildRuntimeTools({
-    bootstrap,
-    channelBus,
-    agentId: agent.id,
-    toolNames: toolPolicy.daemonToolNames,
-    toolPolicy: sessionToolPolicy,
-  });
-  const runtime = await openSessionRuntime(bootstrap, {
-    descriptor,
-    restoreModelFromSession,
-    allowMissingModel: input.allowMissingModel,
-    thinking: input.thinking,
-    inference,
-    defaultThinking,
-    prompt: {
-      appendSystemPrompt: input.appendSystemPrompt,
-      skills: input.skills,
-    },
-    prepareTurnContext: async () => {
-      const turnContext = await buildTurnContext({
-        runtime: input.runtime,
-        descriptor,
-      });
-      return renderTurnContext(turnContext);
-    },
-    model,
-    modelResolution,
-    toolPolicy: sessionToolPolicy,
-    tools,
-  });
-
-  try {
-    primeInteractiveThemeForSession(runtime.session);
-    const interactive = new InteractiveMode(runtime, {
-      initialMessage: input.initialMessage,
-    });
-    installShrimpyActivityIndicator(interactive);
-    installShrimpyCommandSurface(interactive, {
-      runtime: input.runtime,
-      agentId: agent.id,
-      channel: input.channel,
-      sessionType: input.sessionType,
-      cwd,
-    });
-    installShrimpyContextRendering(interactive);
-    installShrimpyToolRendering(interactive);
-    installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
-    installShrimpySettingsSelector(interactive, {
-      runtime: input.runtime,
-      agentId: agent.id,
-      channel: input.channel,
-      sessionType: input.sessionType,
-      cwd,
-    });
-    await interactive.run();
-    return { agentId: agent.id };
-  } finally {
-    await runtime.dispose();
   }
 }

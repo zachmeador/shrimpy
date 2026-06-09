@@ -304,5 +304,5 @@ function persistAgentConfigs(
 ): void {
   validateAgentsConfig(nextAgents);
   editable.raw.agents = nextAgents;
-  writeAgentWorkspaceConfig(editable.configPath, editable.raw);
+  writeAgentWorkspaceConfig(editable);
 }

@@ -11,7 +11,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AppRuntime } from "../app/runtime.js";
+import type { AppRuntime } from "../../app/runtime.js";
 
 interface MemoryContextInput {
   runtime: AppRuntime;

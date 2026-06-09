@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAppRuntime } from "../app/index.js";
 import {
@@ -6,7 +5,6 @@ import {
   formatModelRef,
   hasConfiguredAuth,
   parseModelRef,
-  primaryConfigPath,
   sameModelRef,
   toModelRef,
   validateModelPoliciesConfig,
@@ -16,6 +14,7 @@ import {
   type ModelSelectionConfig,
   type ShrimpyConfig,
 } from "../config/index.js";
+import { editConfigFile } from "../config/store.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
   createGatewaySessionDescriptor,
@@ -29,10 +28,6 @@ import {
   createSessionManager,
   findActiveSessionFile,
 } from "../sessions/storage.js";
-import {
-  readJsonFileStrict,
-  writeJsonFileAtomic,
-} from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 import {
   createCommandGroup,
@@ -632,19 +627,13 @@ function editPolicies(
   configPath: string;
   policies: ModelPoliciesConfig;
 } {
-  const configPath = primaryConfigPath(workspace);
-  if (!existsSync(configPath)) {
-    throw new Error(`config not found: ${configPath}. Run "shrimpy setup init" first.`);
-  }
-  const raw = readJsonFileStrict(
-    configPath,
-    (parsed) => parsed as Record<string, unknown>,
-  );
-  const policies = clonePolicies(raw.modelPolicies);
-  edit(policies);
-  validateModelPoliciesConfig(policies);
-  raw.modelPolicies = policies;
-  writeJsonFileAtomic(configPath, raw);
+  let policies: ModelPoliciesConfig = {};
+  const { configPath } = editConfigFile(workspace, (raw) => {
+    policies = clonePolicies(raw.modelPolicies);
+    edit(policies);
+    validateModelPoliciesConfig(policies);
+    raw.modelPolicies = policies;
+  }, { missing: "error" });
   return { configPath, policies };
 }
 

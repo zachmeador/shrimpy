@@ -12,6 +12,10 @@ import {
   type ShrimpyConfig,
 } from "../config/index.js";
 import {
+  editConfigFile,
+  readConfigFile,
+} from "../config/store.js";
+import {
   DEFAULT_MODEL_POLICY,
   formatModelRef,
   formatModelSelection,
@@ -22,10 +26,6 @@ import {
   resolveModelPolicy,
   type ModelPolicyResolution,
 } from "../sessions/models.js";
-import {
-  readJsonFileStrict,
-  writeJsonFileAtomic,
-} from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 import { MECHANIC_AGENT_ID } from "./init.js";
 import type { SetupModelView } from "./model-access.js";
@@ -186,16 +186,18 @@ export async function ensureCodingModelPolicy(
 
   changed = ensureDefaultAgentModelPolicies(raw, log) || changed;
 
-  if (changed) writeJsonFileAtomic(paths.primaryConfigPath, raw);
+  if (changed) {
+    editConfigFile(workspace, (nextRaw) => {
+      for (const key of Object.keys(nextRaw)) delete nextRaw[key];
+      Object.assign(nextRaw, raw);
+    }, { missing: "error" });
+  }
 
   return smokeTestSetupPolicies(workspace, log);
 }
 
 export function loadRawSetupConfig(workspace: string): Record<string, unknown> {
-  return readJsonFileStrict(
-    createWorkspacePaths(workspace).primaryConfigPath,
-    (parsed) => parsed as Record<string, unknown>,
-  );
+  return readConfigFile(workspace, { missing: "error" }).raw;
 }
 
 export function readPolicyState(rawPolicies: unknown, name: string): PolicyState {

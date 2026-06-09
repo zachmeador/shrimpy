@@ -116,7 +116,7 @@ message below using this context when relevant.
 
 The context envelope and final channel/user prompt body are persisted together. This keeps direct TUI, direct `run`, gateway channel, and child-session behavior aligned while keeping the stable system prompt cacheable.
 
-The memory context block is built by `buildMemoryContext` (`src/memory/context.ts`). It reads path-indexed files for the active turn:
+The memory context block is built by `buildMemoryContext` (`src/context/turn/memory.ts`). It reads path-indexed files for the active turn:
 
 - `context/people/<sender>.md`
 - `context/channels/<channel>.md`

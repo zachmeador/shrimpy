@@ -1,10 +1,10 @@
 import type { ChannelMessage } from "../../channels/index.js";
 import {
-  collectGatewayActivity,
-  loadGatewayWatchClockSummary,
-} from "../../gateway/status.js";
-import { loadGatewayWatchIds } from "../../gateway/watch-service.js";
-import { buildMemoryContext } from "../../memory/index.js";
+  collectChannelActivity,
+  loadChannelWatchClockSummary,
+} from "../../channels/activity.js";
+import { loadRuntimeWatchIds } from "../../watches/index.js";
+import { buildMemoryContext } from "./memory.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import { formatAgeShort } from "../../util/time-format.js";
 import {
@@ -72,13 +72,13 @@ export async function buildTurnContext(
 }
 
 function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
-  const watchIds = loadGatewayWatchIds(input.runtime);
-  const activity = collectGatewayActivity(
+  const watchIds = loadRuntimeWatchIds(input.runtime);
+  const activity = collectChannelActivity(
     input.runtime.paths.channelsDir,
     input.runtime.resolved.status,
     watchIds,
   );
-  const watchClock = loadGatewayWatchClockSummary(
+  const watchClock = loadChannelWatchClockSummary(
     input.runtime.paths.watchClockStatePath,
     input.runtime.resolved.status,
     watchIds,

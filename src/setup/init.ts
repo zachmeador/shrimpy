@@ -10,12 +10,13 @@ import {
   configDir,
   hasPrimaryConfig,
 } from "../config/index.js";
+import { editConfigFile } from "../config/store.js";
 import {
   DEFAULT_CONTEXT_ENV,
   DEFAULT_CONTEXT_SOURCES,
 } from "../context/index.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
-import { gatewayServiceManager, gatewayServicePaths } from "../gateway-ctl.js";
+import { gatewayServiceManager, gatewayServicePaths } from "../gateway/service-ctl.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { brand, dim, heading } from "../util/style.js";
@@ -36,10 +37,6 @@ const DEFAULT_AGENT_TOOLS = [
   "read_channel",
   "run_child",
 ];
-
-function writeRawConfig(workspace: string, raw: Record<string, unknown>): void {
-  writeJsonFileAtomic(createWorkspacePaths(workspace).primaryConfigPath, raw);
-}
 
 function defaultShrimpyConfig(): Record<string, unknown> {
   return {
@@ -162,7 +159,9 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
 
   const configTargetPath = paths.primaryConfigPath;
   if (!hasPrimaryConfig(workspace)) {
-    writeRawConfig(workspace, defaultShrimpyConfig());
+    editConfigFile(workspace, (raw) => {
+      Object.assign(raw, defaultShrimpyConfig());
+    });
     created.push(configTargetPath);
   } else {
     existing.push(configTargetPath);

@@ -13,20 +13,22 @@ import {
   type MarkdownTheme,
 } from "@earendil-works/pi-tui";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { ThinkingSelectorComponent } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/thinking-selector.js";
-import { theme } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import { formatVersionLabel } from "../app/metadata.js";
+import {
+  ThinkingSelectorComponent,
+  theme,
+} from "../app/pi-internals.js";
 import type { AppRuntime } from "../app/runtime.js";
 import { projectRoot } from "../app/project-root.js";
 import { timeSince } from "../channels/format.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import {
-  collectGatewayActivity,
-  loadGatewayWatchClockSummary,
+  collectChannelActivity,
+  loadChannelWatchClockSummary,
   type ChannelMessageSnapshot,
-} from "../gateway/status.js";
-import { loadGatewayWatchIds } from "../gateway/watch-service.js";
-import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway-ctl.js";
+} from "../channels/activity.js";
+import { loadRuntimeWatchIds } from "../watches/index.js";
+import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway/service-ctl.js";
 import {
   inspectWatches,
   type WatchInspection,
@@ -314,13 +316,13 @@ function workspaceStatusText(options: ShrimpyCommandSurfaceOptions): string {
 function gatewayStatusText(options: ShrimpyCommandSurfaceOptions): string {
   const runtime = options.runtime;
   const service = readGatewayServiceStatus();
-  const watchIds = loadGatewayWatchIds(runtime);
-  const activity = collectGatewayActivity(
+  const watchIds = loadRuntimeWatchIds(runtime);
+  const activity = collectChannelActivity(
     runtime.paths.channelsDir,
     runtime.resolved.status,
     watchIds,
   );
-  const watchClock = loadGatewayWatchClockSummary(
+  const watchClock = loadChannelWatchClockSummary(
     runtime.paths.watchClockStatePath,
     runtime.resolved.status,
     watchIds,

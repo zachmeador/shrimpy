@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import { modelsAreEqual, type Api, type Model } from "@earendil-works/pi-ai";
 import type { InteractiveMode } from "@earendil-works/pi-coding-agent";
 import {
@@ -11,16 +10,13 @@ import {
   Spacer,
   Text,
 } from "@earendil-works/pi-tui";
-import { theme } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
+import { theme } from "../app/pi-internals.js";
 import type { AppRuntime } from "../app/runtime.js";
 import {
   formatModelRef,
   type ModelRef,
 } from "../config/model.js";
-import {
-  readJsonFileStrict,
-  writeJsonFileAtomic,
-} from "../util/json-file.js";
+import { editConfigFile } from "../config/store.js";
 import { isRecord } from "../util/record.js";
 
 const HIDDEN_SLASH_COMMANDS = new Set(["scoped-models", "share"]);
@@ -500,29 +496,17 @@ function persistModelFavoriteIds(
   if (!runtime) return;
 
   const ids = normalizeModelFavoriteIds(favoriteIds);
-  const configPath = runtime.paths.primaryConfigPath;
-  const raw = existsSync(configPath) ? readRawConfig(configPath) : {};
-  raw.tui = {
-    ...asRecord(raw.tui),
-    [MODEL_FAVORITES_TUI_KEY]: ids,
-  };
-  writeJsonFileAtomic(configPath, raw);
+  editConfigFile(runtime.paths.workspace, (raw) => {
+    raw.tui = {
+      ...asRecord(raw.tui),
+      [MODEL_FAVORITES_TUI_KEY]: ids,
+    };
+  });
 
   runtime.config.tui = {
     ...asRecord(runtime.config.tui),
     [MODEL_FAVORITES_TUI_KEY]: ids,
   };
-}
-
-function readRawConfig(path: string): Record<string, unknown> {
-  const raw = readJsonFileStrict(
-    path,
-    (parsed) => parsed as unknown,
-  );
-  if (!isRecord(raw)) {
-    throw new Error(`config must be a JSON object: ${path}`);
-  }
-  return raw;
 }
 
 function isPromiseLike(value: unknown): value is Promise<void> {

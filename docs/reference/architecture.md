@@ -59,7 +59,7 @@ Where each concept lives:
 - Channel persistence, typed message construction, egress (including the prefix→send registry), and membership: `src/channels/`. Protocol and policy semantics are in [channels.md](channels.md).
 - Each surface vertical: third-party client, real-time listener, channel translation, outbound formatting, command dispatch, config schema, lifecycle. Shared chat primitives and the surface module contract: `src/surfaces/shared/`.
 - Session context, turn context, metadata, and Pi bootstrap: `src/sessions/` and `src/context/`.
-- Path-indexed memory turn slices: `src/memory/context.ts`.
+- Path-indexed memory turn slices: `src/context/turn/memory.ts`.
 - Agent lifecycle: `src/agents/`.
 
 ## Direction

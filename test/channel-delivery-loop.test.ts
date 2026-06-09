@@ -16,8 +16,8 @@ import { ChannelMembershipStore } from "../dist/channels/membership.js";
 import {
   ChannelDeliveryLoop,
   shouldDispatchBacklogMessage,
-} from "../dist/delivery/channel-delivery-loop.js";
-import { SessionControlRuntime } from "../dist/delivery/session-control-runtime.js";
+} from "../dist/gateway/channel-delivery-loop.js";
+import { SessionControlRuntime } from "../dist/gateway/session-control-runtime.js";
 
 let workspace: string;
 

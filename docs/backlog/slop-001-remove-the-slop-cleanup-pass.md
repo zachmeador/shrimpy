@@ -56,12 +56,14 @@ Decision gate outcome: declaration output was dropped because shrimpy is a bin-o
 - src/skills/project-sync.ts: 9 exported DTOs for an internal build script, zero external type consumers, Options/Result mirror pairs ×3 → collapse to ~3 via `Required<>`/inference.
 - Explicit keeps (cite when wielding the census): Telegram wire types mirror the Bot API (external contract); channels/messages.ts union + constructors + guards is the message protocol; the Config→Resolved pairing is the one sanctioned two-types-per-thing idiom — enforce it via `Required<>`/`Pick<>` where shapes are exact derivations.
 
-## Wave 4 — structure moves (net ~200 LOC, −2 dirs, clean seams)
+## Wave 4 — structure moves (net ~200 LOC, −2 dirs, clean seams) — done 2026-06-09
+
+Structure pass complete with behavior held steady: the sessions↔tui cycle is gone, context no longer imports gateway, workspace config writes route through `config/store.ts`, Pi deep imports are isolated in `app/pi-internals.ts`, session recording and compaction inspection have named homes, and `src/` now has exactly the two package bin roots (`cli.ts`, `gateway.ts`) plus 18 top-level dirs. `npm run lint`, `npx tsc --noEmit`, and `npm test` (479 pass) are green. Manual live-surface smoke remains intentionally constrained to non-mutating checks unless a run explicitly opts into touching the local gateway service and Telegram credentials.
 
 - sessions/direct.ts: `openDirectAgentSession` and `runAgentTuiSession` are ~75-line near-verbatim twins (model resolution already drift-risk). Extract `prepareDirectSessionOpen` shared preamble; move the TUI runner + installer block into tui/ (e.g. tui/interactive.ts). This breaks the only directory cycle (sessions↔tui). Needs a manual TUI smoke test.
 - Workspace-config mutation has no choke point: 6 independent read-patch-write sites (commands/models.ts, tui/shrimpy-settings.ts, tui/shrimpy-model-selection.ts, agents/config-store.ts, setup/telegram.ts + init.ts + coding-policy.ts), with `readRawConfig` duplicated verbatim in the two tui files — and this is the user-data file the Live Workspace Safety rule is about. Add `config/store.ts` `editConfigFile(workspace, mutate)` (read → mutate → validate → atomic write); route all writers through it; tui becomes pure UI.
-- src/gateway-ctl.ts (547 LOC) is a library misfiled as a root entry (no shebang, imported by 6 modules) → move to src/gateway/service-ctl.ts; only code change is `gatewayScript()`'s `import.meta.dirname` join gaining a `".."`. src root becomes exactly the two package.json bins.
-- Fold delivery/ (314 LOC, sole importer src/gateway.ts) into gateway/; fold memory/ (88 LOC + 1-line barrel, sole consumers context/turn/*) into context/turn/memory.ts — re-extract if it ever gains a second consumer. 22 dirs → 20. Other small dirs (util, inference, app, workspace-checkpoints) earn their keep via fan-in.
+- src/gateway-ctl.ts (547 LOC) is a library misfiled as a root entry (no shebang, imported by 6 modules) → moved to src/gateway/service-ctl.ts; only code change is `gatewayScript()`'s `import.meta.dirname` join gaining a `".."`. src root is exactly the two package.json bins.
+- Fold delivery/ (314 LOC, sole importer src/gateway.ts) into gateway/; fold memory/ (88 LOC + 1-line barrel, sole consumers context/turn/*) into context/turn/memory.ts — re-extract if it ever gains a second consumer. 22 dirs → 18 after this pass and earlier removals. Other small dirs (util, inference, app, workspace-checkpoints) earn their keep via fan-in.
 - Move gateway/status.ts → channels/activity.ts (it reads channel logs and watch state, nothing daemon-related); severs the context→gateway edge.
 - sessions/open.ts: lines ~353-623 are a second job (session JSONL metadata recording + model-switch re-recording) → extract sessions/session-record.ts; pairs with wave 1's `findLastCustomEntry` so the record format has one named home. sessions/service.ts: compaction inspection (~300 LOC) → sessions/compaction-inspect.ts; service keeps lifecycle + listing.
 - Seven deep imports into Pi's `dist/` internals across 5 files (theme, ThinkingSelectorComponent, configureHttpDispatcher, initTheme/setRegisteredThemes, BUILT_IN_PROVIDER_DISPLAY_NAMES) → one shim module (suggest src/app/pi-internals.ts; exact home is taste) so Pi upgrades break one file.
@@ -80,7 +82,7 @@ Per wave: `npm run lint`, `tsc --noEmit`, full `npm test` (note: build/test rewr
 
 ## Done
 
-- src root contains exactly cli.ts and gateway.ts; 20 top-level dirs.
+- src root contains exactly cli.ts and gateway.ts; 18 top-level dirs.
 - `isRecord`, model-ref helpers, age ladder, duration parser, positive-int parser, inference parser each exist exactly once.
 - Zero removed-key tombstones; zero dead exports from waves 0 findings.
 - Exported interface/type count ≤ 285 (from 353); ts-prune/knip runs near-clean with documented exceptions.

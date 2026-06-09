@@ -14,7 +14,7 @@ import {
 } from "../config/model.js";
 import {
   runInteractiveAgentSession,
-} from "../sessions/index.js";
+} from "../tui/interactive.js";
 import {
   ensureWorkspaceInitialized,
   MECHANIC_AGENT_ID,
