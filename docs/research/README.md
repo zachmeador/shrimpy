@@ -14,9 +14,11 @@ This directory holds source notes and comparison research that may inform future
 - [macos-seatbelt-helper.md](macos-seatbelt-helper.md) — high-level Seatbelt/App Sandbox notes and a small Mac helper shape for hosting Shrimpy with native per-agent sandboxing.
 - [pi-agent.md](pi-agent.md) — notes from Pi's coding-agent architecture.
 - [pi-skill-handling.md](pi-skill-handling.md) — focused notes on Pi skill discovery, loading, slash commands, and the Shrimpy integration gap.
+- [pufferlib-personal-rl.md](pufferlib-personal-rl.md) — research on how PufferLib/PufferPPO could inform a Shrimpy personal RL framework, especially environment design, trajectory capture, small policy training, and trainer export boundaries.
 - [qwen35-thinking-control.md](qwen35-thinking-control.md) — thinking-control research for Qwen 3.5 style models.
 - [ralph-loops.md](ralph-loops.md) — loop and runtime behavior notes from Ralph-style agents.
 - [rl-eval-framework.md](rl-eval-framework.md) — watchlist and eventual architecture notes for a Shrimpy personal RL/eval framework.
+- [skillfish-skill-crud.md](skillfish-skill-crud.md) — review of knoxgraeme/skillfish's skill manager model, dependency fit, license/dependency concerns, and lessons for Shrimpy's prototyping skill CRUD.
 - [web-search-providers.md](web-search-providers.md) — survey of web search API providers for SEARCH-001 (Tavily, Brave, Serper, SearXNG, Exa, Linkup, You.com, Kagi, Jina) and why answer engines like xAI/Perplexity are a different shape.
 
 ## Promotion Rule
