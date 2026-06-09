@@ -34,16 +34,14 @@ export class ChatSurfacePublisher {
     ).addressedAgentId ?? this.config.defaultAgentId;
   }
 
-  publishText(input: {
+  private baseFields(input: {
     channel: string;
     messageBase: ChatHumanMessageBase;
-    text: string;
     addressedAgentId?: string;
-  }): void {
+  }) {
     const { messageBase } = input;
-    this.config.channelBus.publishHumanText({
+    return {
       channel: input.channel,
-      text: input.text,
       actorId: messageBase.sender.actorId,
       userId: messageBase.sender.userId,
       displayName: messageBase.sender.displayName,
@@ -52,6 +50,18 @@ export class ChatSurfacePublisher {
       transportChatId: messageBase.origin.transportChatId,
       addressedAgentId: input.addressedAgentId
         ?? this.resolveAddressedAgentId(messageBase.origin.transportChatId),
+    };
+  }
+
+  publishText(input: {
+    channel: string;
+    messageBase: ChatHumanMessageBase;
+    text: string;
+    addressedAgentId?: string;
+  }): void {
+    this.config.channelBus.publishHumanText({
+      ...this.baseFields(input),
+      text: input.text,
     });
   }
 
@@ -61,18 +71,9 @@ export class ChatSurfacePublisher {
     media: UnsupportedSurfaceMessage;
     addressedAgentId?: string;
   }): void {
-    const { messageBase } = input;
     this.config.channelBus.publishHumanUnsupportedMedia({
-      channel: input.channel,
+      ...this.baseFields(input),
       media: input.media,
-      actorId: messageBase.sender.actorId,
-      userId: messageBase.sender.userId,
-      displayName: messageBase.sender.displayName,
-      transport: messageBase.origin.transport,
-      transportUserId: messageBase.origin.transportUserId,
-      transportChatId: messageBase.origin.transportChatId,
-      addressedAgentId: input.addressedAgentId
-        ?? this.resolveAddressedAgentId(messageBase.origin.transportChatId),
     });
   }
 
@@ -83,37 +84,21 @@ export class ChatSurfacePublisher {
     caption?: string;
     addressedAgentId?: string;
   }): void {
-    const { messageBase } = input;
-    const addressedAgentId = input.addressedAgentId
-      ?? this.resolveAddressedAgentId(messageBase.origin.transportChatId);
+    const baseFields = this.baseFields(input);
 
     if (input.paths.length === 1) {
       this.config.channelBus.publishHumanImage({
-        channel: input.channel,
+        ...baseFields,
         path: input.paths[0]!,
         caption: input.caption,
-        actorId: messageBase.sender.actorId,
-        userId: messageBase.sender.userId,
-        displayName: messageBase.sender.displayName,
-        transport: messageBase.origin.transport,
-        transportUserId: messageBase.origin.transportUserId,
-        transportChatId: messageBase.origin.transportChatId,
-        addressedAgentId,
       });
       return;
     }
 
     this.config.channelBus.publishHumanImageGroup({
-      channel: input.channel,
+      ...baseFields,
       paths: input.paths,
       caption: input.caption,
-      actorId: messageBase.sender.actorId,
-      userId: messageBase.sender.userId,
-      displayName: messageBase.sender.displayName,
-      transport: messageBase.origin.transport,
-      transportUserId: messageBase.origin.transportUserId,
-      transportChatId: messageBase.origin.transportChatId,
-      addressedAgentId,
     });
   }
 }

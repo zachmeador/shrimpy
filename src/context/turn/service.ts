@@ -6,6 +6,7 @@ import {
 import { loadGatewayWatchIds } from "../../gateway/watch-service.js";
 import { buildMemoryContext } from "../../memory/index.js";
 import { channelMatches } from "../../util/channel-pattern.js";
+import { formatAgeShort } from "../../util/time-format.js";
 import {
   isCommandSource,
   resolveContextSource,
@@ -86,20 +87,20 @@ function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
 
   if (activity.lastWatchRun) {
     pieces.push(
-      `last watch run ${formatAge(Date.now() - activity.lastWatchRun.message.timestamp)} ago`,
+      `last watch run ${formatAgeShort(Date.now() - activity.lastWatchRun.message.timestamp)} ago`,
     );
   }
   if (watchClock.nextWatchRun) {
     const delta = watchClock.nextWatchRun.nextRunAtMs - Date.now();
     pieces.push(
       delta >= 0
-        ? `next watch run in ${formatAge(delta)}`
-        : `next watch run overdue by ${formatAge(Math.abs(delta))}`,
+        ? `next watch run in ${formatAgeShort(delta)}`
+        : `next watch run overdue by ${formatAgeShort(Math.abs(delta))}`,
     );
   }
   if (activity.lastUserInteraction) {
     pieces.push(
-      `last user interaction in ${activity.lastUserInteraction.channel} ${formatAge(Date.now() - activity.lastUserInteraction.message.timestamp)} ago`,
+      `last user interaction in ${activity.lastUserInteraction.channel} ${formatAgeShort(Date.now() - activity.lastUserInteraction.message.timestamp)} ago`,
     );
   }
 
@@ -139,7 +140,7 @@ function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
 
   const latest = unseen.at(-1);
   const latestPreview = latest && config.includeLatest
-    ? `; latest ${senderLabel(latest)} ${formatAge(Date.now() - latest.timestamp)} ago: ${summarizeMessage(latest)}`
+    ? `; latest ${senderLabel(latest)} ${formatAgeShort(Date.now() - latest.timestamp)} ago: ${summarizeMessage(latest)}`
     : "";
   const after = lastSeenId ? ` --after ${lastSeenId}` : "";
 
@@ -227,14 +228,4 @@ function summarizeMessage(message: ChannelMessage): string {
 function clipOneLine(text: string, max: number): string {
   const oneLine = text.replaceAll(/\s+/g, " ").trim();
   return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 3)}...`;
-}
-
-function formatAge(ms: number): string {
-  const sec = Math.max(0, Math.floor(ms / 1000));
-  if (sec < 60) return `${sec}s`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
-  return `${Math.floor(hr / 24)}d`;
 }

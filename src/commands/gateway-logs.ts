@@ -7,6 +7,7 @@ import {
   watchFile,
 } from "node:fs";
 import { createAppRuntime } from "../app/index.js";
+import { parsePositiveInt } from "../util/parse.js";
 import { renderCommandUsage } from "./catalog.js";
 import {
   parseCommandArgs,
@@ -74,15 +75,6 @@ export function printGatewayLogs(
     };
     process.on("SIGINT", stop);
   });
-}
-
-function parsePositiveInt(value: string | undefined, label: string): number | undefined {
-  if (value === undefined) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive integer`);
-  }
-  return parsed;
 }
 
 function tailLines(text: string, lineCount: number): string {

@@ -12,6 +12,16 @@ export function formatFutureOrPast(targetMs: number, nowMs = Date.now()): string
   return diffSeconds >= 0 ? `in ${amount}` : `${amount} ago`;
 }
 
+export function formatAgeShort(ms: number): string {
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  return `${Math.floor(hr / 24)}d`;
+}
+
 export function resolveLocalTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
@@ -55,10 +65,10 @@ function formatUtcOffset(date: Date, timeZone: string): string {
 }
 
 export function parseDurationMs(input: string): number {
-  const source = input.trim();
+  const source = input.trim().toLowerCase();
   if (!source) throw new Error("duration must not be empty");
 
-  const pattern = /(\d+(?:\.\d+)?)(ms|s|m|h|d)/g;
+  const pattern = /(\d+(?:\.\d+)?)(ms|s|m|h|d|w)/g;
   let total = 0;
   let cursor = 0;
   for (const match of source.matchAll(pattern)) {
@@ -76,7 +86,9 @@ export function parseDurationMs(input: string): number {
           ? 60_000
           : unit === "h"
             ? 3_600_000
-            : 86_400_000;
+            : unit === "d"
+              ? 86_400_000
+              : 7 * 86_400_000;
     total += amount * multiplier;
   }
 
@@ -84,4 +96,13 @@ export function parseDurationMs(input: string): number {
     throw new Error(`invalid duration: ${input}`);
   }
   return Math.round(total);
+}
+
+export function tryParseDurationMs(input: string | undefined): number | undefined {
+  if (!input) return undefined;
+  try {
+    return parseDurationMs(input);
+  } catch {
+    return undefined;
+  }
 }

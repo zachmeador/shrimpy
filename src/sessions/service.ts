@@ -9,10 +9,11 @@ import {
 } from "../channels/index.js";
 import {
   INFERENCE_PARAM_NAMES,
+  parseModelVariantInference,
   resolveModelVariantInference,
-  type InferenceParamName,
   type ModelVariantInference,
 } from "../inference/params.js";
+import { isRecord } from "../util/record.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import {
   resolveSessionCompactionPolicy,
@@ -23,6 +24,7 @@ import { createGatewaySessionDescriptor } from "./spec.js";
 import {
   archiveSessionDir,
   findActiveSessionFile,
+  findLastCustomEntry,
   listArchivedSessionDirs,
   resolveArchivedSessionDir,
   restoreArchivedSessionDir,
@@ -443,44 +445,23 @@ function summarizeActiveSessionPath(sessionDir: string): SessionPathSummary {
 
 function readRecordedCompactionPolicy(path: string): EffectiveCompactionPolicy | undefined {
   const lines = readFileSync(path, "utf-8").split(/\r?\n/).filter(Boolean);
-  for (let index = lines.length - 1; index >= 0; index--) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(lines[index]);
-    } catch {
-      continue;
-    }
-    if (!isRecord(parsed)) continue;
-    if (parsed.type !== "custom") continue;
-    if (parsed.customType !== "shrimpy_compaction_policy") continue;
-    return isEffectiveCompactionPolicy(parsed.data) ? parsed.data : undefined;
-  }
-  return undefined;
+  const entry = findLastCustomEntry(lines, "shrimpy_compaction_policy");
+  return isEffectiveCompactionPolicy(entry?.data) ? entry.data : undefined;
 }
 
 function readRecordedSessionRuntime(path: string): SessionCompactionPolicySummary["recordedSession"] {
   const lines = readFileSync(path, "utf-8").split(/\r?\n/).filter(Boolean);
-  for (let index = lines.length - 1; index >= 0; index--) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(lines[index]);
-    } catch {
-      continue;
-    }
-    if (!isRecord(parsed)) continue;
-    if (parsed.type !== "custom") continue;
-    if (parsed.customType !== "shrimpy_session_metadata") continue;
-    if (!isRecord(parsed.data)) return {};
+  const entry = findLastCustomEntry(lines, "shrimpy_session_metadata");
+  if (!entry) return undefined;
+  if (!isRecord(entry.data)) return {};
 
-    const env = isRecord(parsed.data.env) ? parsed.data.env : {};
-    return {
-      provider: typeof env.provider === "string" ? env.provider : undefined,
-      id: typeof env.model_id === "string" ? env.model_id : undefined,
-      bootedAt: typeof env.booted_at_iso === "string" ? env.booted_at_iso : undefined,
-      inference: parseRecordedInference(parsed.data.inference),
-    };
-  }
-  return undefined;
+  const env = isRecord(entry.data.env) ? entry.data.env : {};
+  return {
+    provider: typeof env.provider === "string" ? env.provider : undefined,
+    id: typeof env.model_id === "string" ? env.model_id : undefined,
+    bootedAt: typeof env.booted_at_iso === "string" ? env.booted_at_iso : undefined,
+    inference: parseModelVariantInference(entry.data.inference),
+  };
 }
 
 function compactionRestartReasons(input: {
@@ -561,33 +542,6 @@ function sameInference(
   return true;
 }
 
-function parseRecordedInference(value: unknown): ModelVariantInference | undefined {
-  if (!isRecord(value)) return undefined;
-
-  const baseModel = value.baseModel;
-  const enableThinking = value.enableThinking;
-  const params = value.params;
-  if (baseModel !== undefined && typeof baseModel !== "string") return undefined;
-  if (enableThinking !== undefined && typeof enableThinking !== "boolean") return undefined;
-  if (params !== undefined && !isRecord(params)) return undefined;
-
-  const parsedParams: Partial<Record<InferenceParamName, number>> = {};
-  if (isRecord(params)) {
-    for (const name of INFERENCE_PARAM_NAMES) {
-      const param = params[name];
-      if (param === undefined) continue;
-      if (typeof param !== "number" || !Number.isFinite(param)) return undefined;
-      parsedParams[name] = param;
-    }
-  }
-
-  return {
-    baseModel,
-    enableThinking,
-    params: parsedParams,
-  };
-}
-
 function isEffectiveCompactionPolicy(value: unknown): value is EffectiveCompactionPolicy {
   if (!isRecord(value)) return false;
   return typeof value.enabled === "boolean" &&
@@ -597,10 +551,6 @@ function isEffectiveCompactionPolicy(value: unknown): value is EffectiveCompacti
     value.matched.every((entry) => typeof entry === "string") &&
     (value.thresholdTokens === undefined || typeof value.thresholdTokens === "number") &&
     (value.instructions === undefined || typeof value.instructions === "string");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function cliSender() {

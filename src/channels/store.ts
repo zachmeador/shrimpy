@@ -18,6 +18,7 @@ import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 import {
   isChannelMessage,
   type ChannelMessage,
@@ -40,10 +41,6 @@ export type ChannelCallback = (
 export interface ChannelWatcher {
   stop(): void;
   getCursors(): Record<string, ChannelCursor>;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function appendMessage(

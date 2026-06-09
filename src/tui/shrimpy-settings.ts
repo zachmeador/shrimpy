@@ -25,11 +25,15 @@ import {
 } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { RuntimeConfig } from "../config/index.js";
-import { DEFAULT_MODEL_POLICY } from "../config/model.js";
+import {
+  DEFAULT_MODEL_POLICY,
+  formatModelRef,
+} from "../config/model.js";
 import {
   readJsonFileStrict,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 
 type ShowSelectorFactory = (done: () => void) => {
   component: Component;
@@ -585,10 +589,6 @@ function readRawConfig(path: string): Record<string, unknown> {
   return raw;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
@@ -607,7 +607,7 @@ function callIfPresent<T>(
 
 function formatSessionModel(model: AgentSession["model"]): string {
   if (!model) return "unset";
-  return [model.provider, model.id].filter(Boolean).join("/") || "set";
+  return formatModelRef(model, "set");
 }
 
 function formatChannelPolicy(mode: string): string {

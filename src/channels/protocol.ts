@@ -1,4 +1,5 @@
 import type { ThinkingLevel } from "../inference/thinking.js";
+import { isRecord } from "../util/record.js";
 import {
   imageContent,
   imageGroupContent,
@@ -78,9 +79,8 @@ export interface PublishChannelMessageInput {
   id?: string;
 }
 
-export interface PublishHumanTextInput {
+export interface PublishHumanBaseInput {
   channel: string;
-  text: string;
   actorId: string;
   userId?: string;
   displayName?: string;
@@ -89,6 +89,10 @@ export interface PublishHumanTextInput {
   sourceChannel?: string;
   transportUserId?: string;
   transportChatId?: string;
+}
+
+export interface PublishHumanTextInput extends PublishHumanBaseInput {
+  text: string;
 }
 
 export interface PublishAgentTextInput {
@@ -99,45 +103,18 @@ export interface PublishAgentTextInput {
   publication?: PublicationIntent;
 }
 
-export interface PublishHumanImageInput {
-  channel: string;
+export interface PublishHumanImageInput extends PublishHumanBaseInput {
   path: string;
-  actorId: string;
-  userId?: string;
-  displayName?: string;
-  transport: string;
   caption?: string;
-  addressedAgentId?: string;
-  sourceChannel?: string;
-  transportUserId?: string;
-  transportChatId?: string;
 }
 
-export interface PublishHumanImageGroupInput {
-  channel: string;
+export interface PublishHumanImageGroupInput extends PublishHumanBaseInput {
   paths: string[];
-  actorId: string;
-  userId?: string;
-  displayName?: string;
-  transport: string;
   caption?: string;
-  addressedAgentId?: string;
-  sourceChannel?: string;
-  transportUserId?: string;
-  transportChatId?: string;
 }
 
-export interface PublishHumanUnsupportedMediaInput {
-  channel: string;
+export interface PublishHumanUnsupportedMediaInput extends PublishHumanBaseInput {
   media: UnsupportedSurfaceMessage;
-  actorId: string;
-  userId?: string;
-  displayName?: string;
-  transport: string;
-  addressedAgentId?: string;
-  sourceChannel?: string;
-  transportUserId?: string;
-  transportChatId?: string;
 }
 
 export interface PublishSessionResetInput {
@@ -187,10 +164,6 @@ export interface PublishSystemInput {
   id?: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 export function isChannelMessage(value: unknown): value is ChannelMessage {
   if (!isRecord(value)) return false;
   if (typeof value.id !== "string") return false;
@@ -232,23 +205,7 @@ export function makeMessage(
 export function humanTextMessageInput(
   input: PublishHumanTextInput,
 ): PublishChannelMessageInput {
-  return {
-    channel: input.channel,
-    sender: {
-      kind: "human",
-      actorId: input.actorId,
-      userId: input.userId,
-      displayName: input.displayName,
-    },
-    origin: {
-      transport: input.transport,
-      sourceChannel: input.sourceChannel ?? input.channel,
-      transportUserId: input.transportUserId,
-      transportChatId: input.transportChatId,
-      addressedAgentId: input.addressedAgentId,
-    },
-    content: textContent(input.text),
-  };
+  return humanMessageInput(input, textContent(input.text));
 }
 
 export function agentTextMessageInput(
@@ -271,49 +228,24 @@ export function agentTextMessageInput(
 export function humanImageMessageInput(
   input: PublishHumanImageInput,
 ): PublishChannelMessageInput {
-  return {
-    channel: input.channel,
-    sender: {
-      kind: "human",
-      actorId: input.actorId,
-      userId: input.userId,
-      displayName: input.displayName,
-    },
-    origin: {
-      transport: input.transport,
-      sourceChannel: input.sourceChannel ?? input.channel,
-      transportUserId: input.transportUserId,
-      transportChatId: input.transportChatId,
-      addressedAgentId: input.addressedAgentId,
-    },
-    content: imageContent(input.path, input.caption),
-  };
+  return humanMessageInput(input, imageContent(input.path, input.caption));
 }
 
 export function humanImageGroupMessageInput(
   input: PublishHumanImageGroupInput,
 ): PublishChannelMessageInput {
-  return {
-    channel: input.channel,
-    sender: {
-      kind: "human",
-      actorId: input.actorId,
-      userId: input.userId,
-      displayName: input.displayName,
-    },
-    origin: {
-      transport: input.transport,
-      sourceChannel: input.sourceChannel ?? input.channel,
-      transportUserId: input.transportUserId,
-      transportChatId: input.transportChatId,
-      addressedAgentId: input.addressedAgentId,
-    },
-    content: imageGroupContent(input.paths, input.caption),
-  };
+  return humanMessageInput(input, imageGroupContent(input.paths, input.caption));
 }
 
 export function humanUnsupportedMediaMessageInput(
   input: PublishHumanUnsupportedMediaInput,
+): PublishChannelMessageInput {
+  return humanMessageInput(input, unsupportedMediaContent(input.media));
+}
+
+function humanMessageInput(
+  input: PublishHumanBaseInput,
+  content: MessageContent,
 ): PublishChannelMessageInput {
   return {
     channel: input.channel,
@@ -330,7 +262,7 @@ export function humanUnsupportedMediaMessageInput(
       transportChatId: input.transportChatId,
       addressedAgentId: input.addressedAgentId,
     },
-    content: unsupportedMediaContent(input.media),
+    content,
   };
 }
 

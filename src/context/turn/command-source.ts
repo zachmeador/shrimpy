@@ -1,6 +1,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { AppRuntime } from "../../app/runtime.js";
+import { isRecord } from "../../util/record.js";
 import type { ResolvedContextCommandSource } from "../source.js";
 import { clipContextWithMarker } from "./render.js";
 import type { TurnContextItem } from "./types.js";
@@ -104,8 +105,4 @@ function parseCommandItem(
     summary,
     inspect: typeof item.inspect === "string" ? item.inspect : undefined,
   }];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

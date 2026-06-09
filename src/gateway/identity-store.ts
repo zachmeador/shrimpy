@@ -2,6 +2,7 @@ import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 
 interface IdentityLink {
   userId: string;
@@ -29,10 +30,6 @@ function linkKey(transport: string, transportUserId: string): string {
 
 function defaultData(): IdentityData {
   return { version: 1, links: {} };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseData(raw: unknown): IdentityData {

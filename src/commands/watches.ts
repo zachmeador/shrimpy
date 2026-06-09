@@ -4,6 +4,7 @@ import { timeSince } from "../channels/format.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import {
   parseWatchDefinitions,
+  assertNoStructuralInvisibleCharacters,
   inspectWatch,
   inspectWatchHistory,
   inspectWatches,
@@ -17,6 +18,7 @@ import {
   type WatchEmitPolicy,
 } from "../watches/index.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
+import { parsePositiveInt } from "../util/parse.js";
 import {
   formatFutureOrPast,
   parseDurationMs,
@@ -140,9 +142,9 @@ async function cmdWatchesAdd(
     usage,
   });
   const localId = requireArg(positionals[0], usage, "watch id");
-  assertCliStructuralString(localId, "watch id");
+  assertNoStructuralInvisibleCharacters(localId, "watch id");
   if (typeof values.agent === "string") {
-    assertCliStructuralString(values.agent, "--agent");
+    assertNoStructuralInvisibleCharacters(values.agent, "--agent");
   }
   if (localId.includes("/")) {
     throw new Error("watch id must be local to the agent and must not contain '/'");
@@ -194,7 +196,7 @@ async function cmdWatchesHistory(
     usage,
   });
   const watchId = requireArg(positionals[0], usage, "watch id");
-  const limit = parsePositiveInteger(String(values.limit), "--limit");
+  const limit = parsePositiveInt(String(values.limit), "--limit");
   const runtime = createAppRuntime(config);
   const runs = inspectWatchHistory(runtime, watchId, {
     limit,
@@ -352,14 +354,6 @@ function formatWakeExpectation(
   return `${expectation.agentId}: ${status} in ${expectation.channel} (${member}) ${expectation.reason} policy_owner=${expectation.policyOwner} session=${expectation.sessionPath}`;
 }
 
-function parsePositiveInteger(value: string, label: string): number {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive integer`);
-  }
-  return parsed;
-}
-
 function loadAgentWatchFile(path: string): WatchDefinition[] {
   if (!existsSync(path)) return [];
   const raw = JSON.parse(readFileSync(path, "utf-8"));
@@ -404,7 +398,7 @@ function buildTrigger(values: Record<string, unknown>): WatchDefinition["trigger
 
   const parsedEveryMs = every
     ? parseDurationMs(every)
-    : parsePositiveInteger(everyMs!, "--every-ms");
+    : parsePositiveInt(everyMs!, "--every-ms");
   return {
     kind: "time",
     everyMs: parsedEveryMs,
@@ -425,7 +419,7 @@ function buildAction(values: Record<string, unknown>): WatchDefinition["action"]
       command,
       ...(typeof values.cwd === "string" ? { cwd: values.cwd } : {}),
       ...(typeof values["timeout-ms"] === "string"
-        ? { timeoutMs: parsePositiveInteger(values["timeout-ms"], "--timeout-ms") }
+        ? { timeoutMs: parsePositiveInt(values["timeout-ms"], "--timeout-ms") }
         : {}),
     };
   }
@@ -471,14 +465,6 @@ function buildConcurrencyPolicy(
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-const STRUCTURAL_INVISIBLE_PATTERN = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
-
-function assertCliStructuralString(value: string, label: string): void {
-  if (STRUCTURAL_INVISIBLE_PATTERN.test(value)) {
-    throw new Error(`${label} must not contain control or invisible characters`);
-  }
 }
 
 function isWatchConcurrencyPolicy(value: string): value is WatchConcurrencyPolicy {

@@ -3,17 +3,14 @@ import type { SessionBootstrap } from "./bootstrap.js";
 import {
   DEFAULT_MODEL_POLICY,
   formatModelSelection,
-  type ModelSelectionConfig,
+  hasConfiguredAuth,
+  toModelRef,
+  type ModelRef,
 } from "../config/model.js";
 
 interface ModelCandidate {
   id?: string;
   name?: string;
-}
-
-export interface ModelRef {
-  provider: string;
-  id: string;
 }
 
 export interface ModelPolicyCandidateResolution extends ModelRef {
@@ -226,21 +223,4 @@ export function formatMissingAgentModelPolicyMessage(agentId: string): string {
 
 export function formatMissingModelPolicyMessage(policyName: string): string {
   return `model policy ${policyName} is not configured. Configure it with: shrimpy models policies set ${policyName} --candidate <provider>/<model>`;
-}
-
-function toModelRef(model: ModelSelectionConfig | Model<Api>): ModelRef {
-  return {
-    provider: model.provider,
-    id: model.id,
-  };
-}
-
-function hasConfiguredAuth(
-  modelRegistry: SessionBootstrap["modelRegistry"],
-  model: Model<Api>,
-): boolean {
-  const registry = modelRegistry as {
-    hasConfiguredAuth?: (candidate: Model<Api>) => boolean;
-  };
-  return registry.hasConfiguredAuth ? registry.hasConfiguredAuth(model) : true;
 }

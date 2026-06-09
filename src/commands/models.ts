@@ -3,8 +3,14 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import { createAppRuntime } from "../app/index.js";
 import {
   DEFAULT_MODEL_POLICY,
+  formatModelRef,
+  hasConfiguredAuth,
+  parseModelRef,
   primaryConfigPath,
+  sameModelRef,
+  toModelRef,
   validateModelPoliciesConfig,
+  type ModelRef,
   type ModelPoliciesConfig,
   type ModelPolicyConfig,
   type ModelSelectionConfig,
@@ -27,6 +33,7 @@ import {
   readJsonFileStrict,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 import {
   parseCommandArgs,
   printError,
@@ -35,11 +42,6 @@ import {
 import { renderGroupUsage } from "./catalog.js";
 
 const USAGE = renderGroupUsage("models");
-
-interface ModelRef {
-  provider: string;
-  id: string;
-}
 
 interface ResolvedSessionRef {
   label: string;
@@ -251,7 +253,7 @@ async function cmdModelPoliciesSet(
     usage: USAGE,
   });
   const name = requirePosition(positionals[0], "policy name required");
-  const candidates = (values.candidate ?? []).map(parseModelRef);
+  const candidates = (values.candidate ?? []).map((candidate) => parseModelRef(candidate));
   if (candidates.length === 0) {
     return printError("models policies set requires at least one --candidate <provider>/<model>");
   }
@@ -691,20 +693,9 @@ function printPolicyMutation(
   } else {
     console.log(`${action} model policy ${name}`);
     console.log(`config: ${result.configPath}`);
-    console.log(`candidates: ${body.modelPolicy?.candidates.map(formatModelRef).join(", ") ?? "(missing)"}`);
+    console.log(`candidates: ${body.modelPolicy?.candidates.map((candidate) => formatModelRef(candidate)).join(", ") ?? "(missing)"}`);
   }
   return 0;
-}
-
-function parseModelRef(raw: string): ModelSelectionConfig {
-  const slash = raw.indexOf("/");
-  if (slash <= 0 || slash === raw.length - 1) {
-    throw new Error(`model candidate must be <provider>/<model>: ${raw}`);
-  }
-  return {
-    provider: raw.slice(0, slash),
-    id: raw.slice(slash + 1),
-  };
 }
 
 function parseIndex(raw: string, maxInclusive: number): number {
@@ -736,30 +727,11 @@ function findUsableModel(
   const registry = modelRegistry as {
     hasConfiguredAuth?: (candidate: Model<Api>) => boolean;
   };
-  if (registry.hasConfiguredAuth && !registry.hasConfiguredAuth(model)) return undefined;
+  if (!hasConfiguredAuth(registry, model)) return undefined;
   return model;
-}
-
-function toModelRef(model: Model<Api>): ModelRef {
-  return {
-    provider: model.provider,
-    id: model.id,
-  };
-}
-
-function sameModelRef(left: ModelRef, right: ModelRef): boolean {
-  return left.provider === right.provider && left.id === right.id;
-}
-
-function formatModelRef(model: ModelRef): string {
-  return `${model.provider}/${model.id}`;
 }
 
 function requirePosition(value: string | undefined, message: string): string {
   if (!value) throw new Error(message);
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -2,6 +2,7 @@ import {
   isThinkingLevel,
   type ThinkingLevel,
 } from "../inference/thinking.js";
+import { isRecord } from "../util/record.js";
 
 export type SessionResetContentData = Record<string, unknown> & {
   kind: "session_reset";
@@ -99,10 +100,6 @@ export type MessageContent =
   | ImageGroupMessageContent
   | UnsupportedMediaMessageContent
   | SystemMessageContent;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function textContent(
   text: string,

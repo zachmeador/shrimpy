@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { Api, Model } from "@earendil-works/pi-ai";
+import { isRecord } from "../util/record.js";
 
 export const INFERENCE_PARAM_NAMES = [
   "temperature",
@@ -120,6 +121,33 @@ export function applyModelVariantInferenceToPayload(
   return next;
 }
 
+export function parseModelVariantInference(value: unknown): ModelVariantInference | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const baseModel = value.baseModel;
+  const enableThinking = value.enableThinking;
+  const params = value.params;
+  if (baseModel !== undefined && typeof baseModel !== "string") return undefined;
+  if (enableThinking !== undefined && typeof enableThinking !== "boolean") return undefined;
+  if (params !== undefined && !isRecord(params)) return undefined;
+
+  const parsedParams: Partial<Record<InferenceParamName, number>> = {};
+  if (isRecord(params)) {
+    for (const name of INFERENCE_PARAM_NAMES) {
+      const param = params[name];
+      if (param === undefined) continue;
+      if (typeof param !== "number" || !Number.isFinite(param)) return undefined;
+      parsedParams[name] = param;
+    }
+  }
+
+  return {
+    baseModel,
+    enableThinking,
+    params: parsedParams,
+  };
+}
+
 function readModelVariantInference(
   modelEntry: Record<string, unknown>,
   label: string,
@@ -175,8 +203,4 @@ function applyEnableThinking(
     return { ...payload, enable_thinking: enableThinking };
   }
   return payload;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

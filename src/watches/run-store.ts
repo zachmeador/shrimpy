@@ -6,6 +6,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { readJsonFile, writeJsonFileAtomic } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 import type {
   WatchAction,
   WatchConcurrencyPolicy,
@@ -57,10 +58,6 @@ const HISTORY_LIMIT = 200;
 
 function iso(ms: number): string {
   return new Date(ms).toISOString();
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function activeStorePath(root: string, ownerAgentId: string): string {

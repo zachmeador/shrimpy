@@ -13,6 +13,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
 import {
+  formatModelRef,
+  sameModelRef,
+  toModelRef,
+  type ModelRef,
+} from "../config/model.js";
+import {
   resolveModelVariantInference,
   type ModelVariantInference,
 } from "../inference/params.js";
@@ -84,11 +90,6 @@ interface ModelSwitchMessageDetails {
   current?: ModelRef;
   thinkingLevel?: string;
   inference?: ModelVariantInference;
-}
-
-interface ModelRef {
-  provider: string;
-  id: string;
 }
 
 const MODEL_SWITCH_CUSTOM_TYPE = "shrimpy_model_switch";
@@ -309,7 +310,7 @@ function resolveEffectiveInference(input: {
   originalPlan: SessionOpenPlan;
   model?: Model<Api>;
 }): ModelVariantInference | undefined {
-  if (sameModelIdentity(input.originalPlan.model, input.model)) {
+  if (sameModelRef(input.originalPlan.model, input.model)) {
     return input.originalPlan.inference ??
       resolveModelVariantInference({
         modelsPath: input.bootstrap.modelsPath,
@@ -321,14 +322,6 @@ function resolveEffectiveInference(input: {
     modelsPath: input.bootstrap.modelsPath,
     model: input.model,
   });
-}
-
-function sameModelIdentity(
-  left: Model<Api> | undefined,
-  right: Model<Api> | undefined,
-): boolean {
-  if (!left || !right) return left === right;
-  return left.provider === right.provider && left.id === right.id;
 }
 
 async function resolveSessionResourceLoader(
@@ -474,7 +467,7 @@ function resolveSessionInference(input: {
   plan: SessionOpenPlan;
   model?: Model<Api>;
 }): ModelVariantInference | undefined {
-  return sameModelIdentity(input.plan.model, input.model)
+  return sameModelRef(input.plan.model, input.model)
     ? input.plan.inference ?? resolveModelVariantInference({
       modelsPath: input.bootstrap.modelsPath,
       model: input.model,
@@ -493,7 +486,7 @@ async function appendModelSwitchMessage(input: {
   currentModel?: Model<Api>;
   source: ModelSwitchMessageDetails["source"];
 }): Promise<void> {
-  if (sameModelIdentity(input.previousModel, input.currentModel)) return;
+  if (sameModelRef(input.previousModel, input.currentModel)) return;
 
   const inference = resolveSessionInference({
     bootstrap: input.bootstrap,
@@ -537,14 +530,6 @@ function formatModelSwitchMessage(input: {
     : "";
   return `[session runtime] Model switched: ${previous} -> ${current}.`
     + `${thinking} Earlier assistant messages may be from ${previous}.`;
-}
-
-function toModelRef(model: Model<Api> | undefined): ModelRef | undefined {
-  if (!model) return undefined;
-  return {
-    provider: model.provider,
-    id: model.id,
-  };
 }
 
 function createStoredSessionModelResolution(model: Model<Api>): ModelResolution {
@@ -615,11 +600,6 @@ function serializeModelResolution(
       : undefined,
     problems: resolution.problems,
   };
-}
-
-function formatModelRef(model: Model<Api> | undefined): string {
-  if (!model) return "unset";
-  return `${model.provider}/${model.id}`;
 }
 
 function subscribeToCompactionLogs(

@@ -2,6 +2,7 @@ import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../../util/json-file.js";
+import { isRecord } from "../../util/record.js";
 
 interface SurfaceThreadState {
   addressedAgentId?: string;
@@ -35,10 +36,6 @@ function parseThreadKey(key: string): { surface: string; threadId: string } {
 
 function defaultData(): SurfaceThreadStateData {
   return { version: 1, threads: {} };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseData(raw: unknown): SurfaceThreadStateData {

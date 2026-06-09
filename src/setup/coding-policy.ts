@@ -13,7 +13,9 @@ import {
 } from "../config/index.js";
 import {
   DEFAULT_MODEL_POLICY,
+  formatModelRef,
   formatModelSelection,
+  sameModelRef,
   type ModelSelectionConfig,
 } from "../config/model.js";
 import {
@@ -24,6 +26,7 @@ import {
   readJsonFileStrict,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 import { MECHANIC_AGENT_ID } from "./init.js";
 import type { SetupModelView } from "./model-access.js";
 
@@ -72,7 +75,7 @@ export type PolicyState =
   };
 
 export function formatModelLabel(model: SetupModelView): string {
-  return `${model.provider}/${model.id}`;
+  return formatModelRef(model);
 }
 
 export async function ensureCodingModelPolicy(
@@ -460,9 +463,5 @@ function logPolicyProblems(
 }
 
 function sameSetupModel(left: SetupModelView, right: SetupModelView): boolean {
-  return left.provider === right.provider && left.id === right.id;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return sameModelRef(left, right);
 }

@@ -77,51 +77,37 @@ export async function runWatchDue(
       runStoreRoot: opts.runStoreRoot,
     });
     const finishedAtMs = now();
-    const record: WatchRunRecord = {
-      ownerAgentId: watch.ownerAgentId,
-      localId: watch.localId,
-      watchId: watch.id,
-      runId: opts.run.runId,
-      trigger: watch.trigger,
-      actionKind: watch.action.kind,
+    const record = finishedRecord({
+      watch,
+      run: opts.run,
       startedAtMs,
-      startedAtIso: new Date(startedAtMs).toISOString(),
       finishedAtMs,
-      finishedAtIso: new Date(finishedAtMs).toISOString(),
       status: result.ok ? "success" : "failure",
-      attempts: 1,
       concurrencyPolicy,
       observation: result.observation,
-      emittedChannelMessageIds: result.emittedMessages.map((message) => message.id),
-      ...(result.error ? { error: result.error } : {}),
-    };
+      emittedMessages: result.emittedMessages,
+      error: result.error,
+    });
     appendWatchRunRecord(opts.runStoreRoot, record);
     return record;
   } catch (err) {
     const finishedAtMs = now();
     const error = err instanceof Error ? err.message : String(err);
     opts.logger?.error(`[watch] ${watch.id} failed:`, err);
-    const record: WatchRunRecord = {
-      ownerAgentId: watch.ownerAgentId,
-      localId: watch.localId,
-      watchId: watch.id,
-      runId: opts.run.runId,
-      trigger: watch.trigger,
-      actionKind: watch.action.kind,
+    const record = finishedRecord({
+      watch,
+      run: opts.run,
       startedAtMs,
-      startedAtIso: new Date(startedAtMs).toISOString(),
       finishedAtMs,
-      finishedAtIso: new Date(finishedAtMs).toISOString(),
       status: "failure",
-      attempts: 1,
       concurrencyPolicy,
       observation: {
         kind: "failed",
         summary: error,
       },
-      emittedChannelMessageIds: [],
+      emittedMessages: [],
       error,
-    };
+    });
     appendWatchRunRecord(opts.runStoreRoot, record);
     return record;
   } finally {
@@ -132,6 +118,37 @@ export async function runWatchDue(
       opts.run.runId,
     );
   }
+}
+
+function finishedRecord(input: {
+  watch: ResolvedAgentWatchDefinition;
+  run: WatchRunDue;
+  startedAtMs: number;
+  finishedAtMs: number;
+  status: "success" | "failure";
+  concurrencyPolicy: NonNullable<ResolvedAgentWatchDefinition["concurrencyPolicy"]>;
+  observation: WatchRunObservation;
+  emittedMessages: ChannelMessage[];
+  error?: string;
+}): WatchRunRecord {
+  return {
+    ownerAgentId: input.watch.ownerAgentId,
+    localId: input.watch.localId,
+    watchId: input.watch.id,
+    runId: input.run.runId,
+    trigger: input.watch.trigger,
+    actionKind: input.watch.action.kind,
+    startedAtMs: input.startedAtMs,
+    startedAtIso: new Date(input.startedAtMs).toISOString(),
+    finishedAtMs: input.finishedAtMs,
+    finishedAtIso: new Date(input.finishedAtMs).toISOString(),
+    status: input.status,
+    attempts: 1,
+    concurrencyPolicy: input.concurrencyPolicy,
+    observation: input.observation,
+    emittedChannelMessageIds: input.emittedMessages.map((message) => message.id),
+    ...(input.error ? { error: input.error } : {}),
+  };
 }
 
 async function runWatchAction(input: {

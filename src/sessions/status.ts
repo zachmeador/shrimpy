@@ -1,4 +1,5 @@
 import type { AppRuntime } from "../app/runtime.js";
+import { formatAgeShort } from "../util/time-format.js";
 import {
   summarizeAgentSessions,
   type SessionPathSummary,
@@ -67,13 +68,7 @@ export function summarizeSessionStatus(
 }
 
 export function formatSessionAge(ms: number): string {
-  const sec = Math.max(0, Math.floor(ms / 1000));
-  if (sec < 60) return `${sec}s`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
-  return `${Math.floor(hr / 24)}d`;
+  return formatAgeShort(ms);
 }
 
 function sessionStatusEntry(

@@ -24,7 +24,9 @@ Pure deletion, −112 LOC net across 14 files; `tsc --noEmit`, `eslint`, and tes
 
 Two plan corrections found while executing, relevant to later waves: (1) the surfaces/telegram barrel re-exports are *not* all dead — `setup/telegram.ts`, `commands/status.ts`, and `test/tools.test.ts` consume them through the barrel, so only the dead type re-exports (`ResolvedTelegramInstanceConfig`, `TelegramRuntimeConfig`) were removed; the value exports stay. (2) `unbindSkillPackage` was kept — it gained a CLI caller since the plan was written.
 
-## Wave 1 — missing primitives (~350 LOC, the feel-good consolidation)
+## Wave 1 — missing primitives — done 2026-06-09
+
+Shared primitive pass, −210 LOC net across 31 files; `tsc --noEmit`, `npm run lint`, and `npm test` green. Behavior stayed intentionally boring: shared helpers now own record guards, model refs, short age formatting, duration parsing, positive integers, session custom-entry lookup, recorded inference parsing, human message envelopes, compaction request bases, and watch run records. One deliberate tightening: command positive-integer parsing now rejects malformed strings like `5abc` instead of accepting the parsed prefix.
 
 The util layer that exists is adopted (util/json-file.ts has 15 importers); the duplication is utils that were never created:
 

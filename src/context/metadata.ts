@@ -5,6 +5,8 @@ import {
   statSync,
 } from "node:fs";
 import { join } from "node:path";
+import { findLastCustomEntry } from "../sessions/storage.js";
+import { isRecord } from "../util/record.js";
 
 export interface ShrimpySessionMetadata {
   workspacePath: string;
@@ -21,17 +23,8 @@ export function readSessionMetadata(
   const sessionFile = findNewestSessionFile(sessionDir);
   if (!sessionFile) return undefined;
 
-  const lines = readFileSync(sessionFile, "utf-8").trim().split("\n").reverse();
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const parsed = parseJsonLine(line);
-    if (!isRecord(parsed)) continue;
-    if (parsed.type !== "custom") continue;
-    if (parsed.customType !== "shrimpy_session_metadata") continue;
-    return parseMetadata(parsed.data);
-  }
-
-  return undefined;
+  const lines = readFileSync(sessionFile, "utf-8").split(/\r?\n/).filter(Boolean);
+  return parseMetadata(findLastCustomEntry(lines, "shrimpy_session_metadata")?.data);
 }
 
 function findNewestSessionFile(sessionDir: string): string | undefined {
@@ -67,16 +60,4 @@ function readStringRecord(value: unknown): Record<string, string> {
       typeof entry[1] === "string"
     ),
   );
-}
-
-function parseJsonLine(line: string): unknown {
-  try {
-    return JSON.parse(line) as unknown;
-  } catch {
-    return undefined;
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

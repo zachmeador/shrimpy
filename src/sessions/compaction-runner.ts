@@ -22,10 +22,10 @@ import {
   COMPACTION_UPDATE_SUMMARY_PROMPT,
 } from "../context/system/compaction.js";
 import {
-  INFERENCE_PARAM_NAMES,
-  type InferenceParamName,
+  parseModelVariantInference,
   type ModelVariantInference,
 } from "../inference/params.js";
+import { findLastCustomEntry } from "./storage.js";
 
 export type CompactionPayloadTransform = (
   payload: unknown,
@@ -77,6 +77,17 @@ export interface ShrimpyCompactionOptions {
 
 interface SerializedChunk {
   text: string;
+}
+
+interface SummaryRequestBase {
+  model: Model<Api>;
+  apiKey: string;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+  sessionSystemPrompt?: string;
+  onPayload?: CompactionPayloadTransform;
+  onResponse?: CompactionResponseHandler;
+  complete: CompactionComplete;
 }
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
@@ -171,15 +182,11 @@ export async function compactWithProviderRequestHooks(
 export function readShrimpySessionInference(
   branchEntries: unknown[],
 ): ModelVariantInference | undefined {
-  for (let index = branchEntries.length - 1; index >= 0; index--) {
-    const entry = branchEntries[index];
-    if (!isRecord(entry)) continue;
-    if (entry.type !== "custom") continue;
-    if (entry.customType !== "shrimpy_session_metadata") continue;
-    if (!isRecord(entry.data)) continue;
-    return parseModelVariantInference(entry.data.inference);
-  }
-  return undefined;
+  const entry = findLastCustomEntry<{ inference?: unknown }>(
+    branchEntries,
+    "shrimpy_session_metadata",
+  );
+  return parseModelVariantInference(entry?.data?.inference);
 }
 
 async function generateSummaryWithHooks(input: {
@@ -215,16 +222,9 @@ async function generateSummaryWithHooks(input: {
   }
 
   return completeSummaryRequest({
-    model: input.model,
+    ...summaryRequestBase(input),
     promptText,
     maxTokens: resolveCompactionMaxTokens(input.model, Math.floor(0.8 * input.reserveTokens)),
-    apiKey: input.apiKey,
-    headers: input.headers,
-    signal: input.signal,
-    sessionSystemPrompt: input.sessionSystemPrompt,
-    onPayload: input.onPayload,
-    onResponse: input.onResponse,
-    complete: input.complete,
     errorPrefix: "Summarization failed",
   });
 }
@@ -264,16 +264,9 @@ async function generateChunkedSummaryWithHooks(input: {
       input.customInstructions,
     );
     chunkSummaries.push(await completeSummaryRequest({
-      model: input.model,
+      ...summaryRequestBase(input),
       promptText,
       maxTokens: resolveChunkSummaryMaxTokens(input.model, input.reserveTokens),
-      apiKey: input.apiKey,
-      headers: input.headers,
-      signal: input.signal,
-      sessionSystemPrompt: input.sessionSystemPrompt,
-      onPayload: input.onPayload,
-      onResponse: input.onResponse,
-      complete: input.complete,
       errorPrefix: "Summarization failed",
     }));
   }
@@ -312,19 +305,12 @@ async function mergeChunkSummariesWithHooks(input: {
     || input.chunkSummaries.length <= 1
   ) {
     return completeSummaryRequest({
-      model: input.model,
+      ...summaryRequestBase(input),
       promptText,
       maxTokens: resolveCompactionMaxTokens(
         input.model,
         Math.floor(0.8 * input.reserveTokens),
       ),
-      apiKey: input.apiKey,
-      headers: input.headers,
-      signal: input.signal,
-      sessionSystemPrompt: input.sessionSystemPrompt,
-      onPayload: input.onPayload,
-      onResponse: input.onResponse,
-      complete: input.complete,
       errorPrefix: "Summarization failed",
     });
   }
@@ -342,20 +328,13 @@ async function mergeChunkSummariesWithHooks(input: {
   const intermediateSummaries: string[] = [];
   for (let index = 0; index < intermediateChunks.length; index++) {
     intermediateSummaries.push(await completeSummaryRequest({
-      model: input.model,
+      ...summaryRequestBase(input),
       promptText: buildIntermediateSummaryPrompt(
         intermediateChunks[index].text,
         index + 1,
         intermediateChunks.length,
       ),
       maxTokens: resolveChunkSummaryMaxTokens(input.model, input.reserveTokens),
-      apiKey: input.apiKey,
-      headers: input.headers,
-      signal: input.signal,
-      sessionSystemPrompt: input.sessionSystemPrompt,
-      onPayload: input.onPayload,
-      onResponse: input.onResponse,
-      complete: input.complete,
       errorPrefix: "Summarization failed",
     }));
   }
@@ -599,9 +578,16 @@ function generateTurnPrefixSummaryWithHooks(input: {
     `<conversation>\n${conversationText}\n</conversation>\n\n${COMPACTION_TURN_PREFIX_SUMMARY_PROMPT}`;
 
   return completeSummaryRequest({
-    model: input.model,
+    ...summaryRequestBase(input),
     promptText,
     maxTokens: resolveCompactionMaxTokens(input.model, Math.floor(0.5 * input.reserveTokens)),
+    errorPrefix: "Turn prefix summarization failed",
+  });
+}
+
+function summaryRequestBase(input: SummaryRequestBase): SummaryRequestBase {
+  return {
+    model: input.model,
     apiKey: input.apiKey,
     headers: input.headers,
     signal: input.signal,
@@ -609,8 +595,7 @@ function generateTurnPrefixSummaryWithHooks(input: {
     onPayload: input.onPayload,
     onResponse: input.onResponse,
     complete: input.complete,
-    errorPrefix: "Turn prefix summarization failed",
-  });
+  };
 }
 
 async function completeSummaryRequest(input: {
@@ -711,35 +696,4 @@ function formatFileOperations(readFiles: string[], modifiedFiles: string[]): str
     sections.push(`<modified-files>\n${modifiedFiles.join("\n")}\n</modified-files>`);
   }
   return sections.length > 0 ? `\n\n${sections.join("\n\n")}` : "";
-}
-
-function parseModelVariantInference(value: unknown): ModelVariantInference | undefined {
-  if (!isRecord(value)) return undefined;
-
-  const baseModel = value.baseModel;
-  const enableThinking = value.enableThinking;
-  const params = value.params;
-  if (baseModel !== undefined && typeof baseModel !== "string") return undefined;
-  if (enableThinking !== undefined && typeof enableThinking !== "boolean") return undefined;
-  if (params !== undefined && !isRecord(params)) return undefined;
-
-  const parsedParams: Partial<Record<InferenceParamName, number>> = {};
-  if (isRecord(params)) {
-    for (const name of INFERENCE_PARAM_NAMES) {
-      const param = params[name];
-      if (param === undefined) continue;
-      if (typeof param !== "number" || !Number.isFinite(param)) return undefined;
-      parsedParams[name] = param;
-    }
-  }
-
-  return {
-    baseModel,
-    enableThinking,
-    params: parsedParams,
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

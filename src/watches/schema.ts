@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import type { MessageSenderKind } from "../channels/index.js";
 import { readJsonFileStrict } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 
 export type WatchConcurrencyPolicy = "forbid" | "allow";
 
@@ -96,13 +97,18 @@ const EMIT_POLICIES = new Set<WatchEmitPolicy>([
   "on_failure",
 ]);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 const STRUCTURAL_INVISIBLE_PATTERN = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
 const UNSAFE_FREEFORM_CONTROL_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
 const FREEFORM_INVISIBLE_PATTERN = /[\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/;
+
+export function assertNoStructuralInvisibleCharacters(
+  value: string,
+  label: string,
+): void {
+  if (STRUCTURAL_INVISIBLE_PATTERN.test(value)) {
+    throw new Error(`${label} must not contain control or invisible characters`);
+  }
+}
 
 function assertString(
   value: unknown,
@@ -119,9 +125,7 @@ function assertStructuralString(
   label: string,
 ): string {
   const text = assertString(value, label);
-  if (STRUCTURAL_INVISIBLE_PATTERN.test(text)) {
-    throw new Error(`${label} must not contain control or invisible characters`);
-  }
+  assertNoStructuralInvisibleCharacters(text, label);
   return text;
 }
 

@@ -13,6 +13,7 @@ import {
   type ChannelMessageKind,
   type ChannelSearchFilters,
 } from "../channels/service.js";
+import { parsePositiveInt } from "../util/parse.js";
 import { accent, dim, label } from "../util/style.js";
 import { renderCommandUsage } from "./catalog.js";
 import {
@@ -35,21 +36,12 @@ function parseLimit(argv: string[]): number {
     usage(READ_USAGE, "--limit value required");
   }
 
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`invalid --limit value: ${raw}`);
-  }
-
-  return parsed;
+  return parsePositiveInt(raw, "--limit");
 }
 
 function parseSearchLimit(raw: string | undefined): number {
   if (!raw) return 50;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`invalid --limit value: ${raw}`);
-  }
-  return parsed;
+  return parsePositiveInt(raw, "--limit");
 }
 
 function asStringList(value: string | string[] | undefined): string[] {

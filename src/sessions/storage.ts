@@ -8,6 +8,7 @@ import {
   type FileEntry,
   type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
+import { isRecord } from "../util/record.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
 
@@ -92,6 +93,21 @@ export function findActiveSessionFile(sessionDir: string): string | undefined {
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]?.path;
 }
 
+export function findLastCustomEntry<T = unknown>(
+  source: readonly unknown[],
+  customType: string,
+): CustomEntry<T> | undefined {
+  for (let index = source.length - 1; index >= 0; index--) {
+    const entry = typeof source[index] === "string"
+      ? parseJsonLine(source[index] as string)
+      : source[index];
+    if (!isRecord(entry)) continue;
+    if (entry.type !== "custom" || entry.customType !== customType) continue;
+    return entry as unknown as CustomEntry<T>;
+  }
+  return undefined;
+}
+
 function listStoredSessions(sessionDir: string): StoredSessionSummary[] {
   if (!existsSync(sessionDir)) return [];
 
@@ -121,6 +137,14 @@ function readSessionEntries(path: string): FileEntry[] {
     return parseSessionEntries(readFileSync(path, "utf-8"));
   } catch {
     return [];
+  }
+}
+
+function parseJsonLine(line: string): unknown {
+  try {
+    return JSON.parse(line) as unknown;
+  } catch {
+    return undefined;
   }
 }
 

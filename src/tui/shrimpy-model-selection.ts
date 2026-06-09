@@ -14,9 +14,14 @@ import {
 import { theme } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import type { AppRuntime } from "../app/runtime.js";
 import {
+  formatModelRef,
+  type ModelRef,
+} from "../config/model.js";
+import {
   readJsonFileStrict,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 
 const HIDDEN_SLASH_COMMANDS = new Set(["scoped-models", "share"]);
 const MODEL_SELECTION_HINT = "Use /model to change models in Shrimpy.";
@@ -166,13 +171,10 @@ interface FavoriteModelSelectorHooks {
   showError?(message: string): void;
 }
 
-export interface ModelFavoriteRef {
-  provider: string;
-  id: string;
-}
+export type ModelFavoriteRef = ModelRef;
 
 export function modelFavoriteId(model: ModelFavoriteRef): string {
-  return `${model.provider}/${model.id}`;
+  return formatModelRef(model);
 }
 
 export function toggleModelFavoriteId(
@@ -525,10 +527,6 @@ function readRawConfig(path: string): Record<string, unknown> {
 
 function isPromiseLike(value: unknown): value is Promise<void> {
   return isRecord(value) && typeof value.then === "function";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

@@ -14,6 +14,7 @@ import {
   type ContextSourceRunResult,
   type ContextSourceView,
 } from "../context/preview.js";
+import { tryParseDurationMs } from "../util/time-format.js";
 import {
   parseCommandArgs,
   type CommandHandler,
@@ -281,7 +282,7 @@ async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<n
   const contextDir = agentPaths.contextDir;
 
   if (sub === "list") {
-    const olderThanMs = parseDuration(values["older-than"]);
+    const olderThanMs = tryParseDurationMs(values["older-than"]);
     const cutoff = olderThanMs !== undefined ? Date.now() - olderThanMs : undefined;
     const files = walkContextFiles(contextDir).filter((file) => {
       if (cutoff === undefined) return true;
@@ -342,24 +343,4 @@ function walkContextFiles(root: string): Array<{
   };
   walk(root);
   return out;
-}
-
-/**
- * Parse simple durations: "30d", "2w", "6h", "45m". Returns milliseconds, or
- * undefined for unparseable input. Empty/undefined input returns undefined.
- */
-function parseDuration(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const match = raw.match(/^(\d+)([smhdw])$/i);
-  if (!match) return undefined;
-  const n = Number(match[1]);
-  const unit = match[2]!.toLowerCase();
-  const multipliers: Record<string, number> = {
-    s: 1000,
-    m: 60_000,
-    h: 3_600_000,
-    d: 86_400_000,
-    w: 7 * 86_400_000,
-  };
-  return n * (multipliers[unit] ?? 0);
 }
