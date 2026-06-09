@@ -82,6 +82,23 @@ So Shrimpy should treat "personal evals" as the center. Some evals will later be
 
 ---
 
+## What LLM Fine-Tuning Actually Trains
+
+When people fine-tune small Qwen models, they are usually training the language model's token policy, not a separate "RL policy layer" inside the model. In RL terms, the LLM itself is the policy: prompt/context goes in, a next-token distribution comes out, and each generated token is an action. SFT trains that policy from input/output examples. DPO trains it from preferred/rejected answer pairs. PPO, GRPO, and similar RL methods sample completions, score them with a reward/verifier/judge, and update the model or LoRA adapter so higher-reward completions become more likely.
+
+LoRA and QLoRA do not change that policy framing. They usually freeze the base model weights and train small adapter weights inserted into transformer layers. People still say they "fine-tuned Qwen" because the deployed model-plus-adapter behaves differently, even if most base weights did not move.
+
+That is different from a Shrimpy runtime policy. A runtime policy might see task state, available skills, repo context, and recent tool outcomes, then choose a compact action such as `load_skill`, `run_tests`, `ask_user`, `delegate_worker`, or `include_context_chunk`. That policy can be a small model trained with environment-style RL, and PufferLib-style tooling is a better fit there because the observation/action/reward loop is compact.
+
+Shrimpy may eventually use both kinds of training:
+
+- LLM adapters for how the assistant writes, reasons, follows project conventions, and handles user-specific communication preferences.
+- Runtime policies for how Shrimpy chooses context, tools, skills, delegation, routing, verification, and promotion/rollback decisions.
+
+The practical design implication is that Shrimpy should collect trajectories and evals that can feed both targets. Some exports become SFT/DPO/GRPO data for Qwen-style adapters. Others become environment rollouts for small runtime policies. The same private eval layer should gate both.
+
+---
+
 ## Landscape
 
 ### OpenClaw-RL
@@ -492,7 +509,7 @@ If personal local AI is the future, Shrimpy's durable advantage is not owning th
 
 ## Sources
 
-Landscape checked against public project docs/repos on 2026-05-20.
+Landscape checked against public project docs/repos on 2026-05-20. LLM fine-tuning framing and Qwen/LoRA/GRPO sources added on 2026-06-09.
 
 - [OpenClaw-RL](https://github.com/Gen-Verse/OpenClaw-RL)
 - [OpenPipe ART](https://github.com/openpipe/art) and [ART docs](https://art.openpipe.ai/getting-started/about)
@@ -503,8 +520,11 @@ Landscape checked against public project docs/repos on 2026-05-20.
 - [NVIDIA NeMo Gym](https://github.com/NVIDIA-NeMo/Gym)
 - [Nous Atropos](https://github.com/nousresearch/atropos)
 - [Unsloth docs](https://unsloth.ai/docs)
+- [Unsloth fine-tuning guide](https://unsloth.ai/docs/get-started/fine-tuning-llms-guide)
+- [Qwen SFT example](https://qwen.readthedocs.io/en/v1.5/training/SFT/example.html)
 - [Thinking Machines Tinker](https://thinkingmachines.ai/tinker/)
 - [TRL](https://huggingface.co/docs/trl/index)
+- [TRL GRPO trainer](https://huggingface.co/docs/trl/en/grpo_trainer)
 - [verl](https://github.com/verl-project/verl)
 - [OpenRLHF](https://github.com/OpenRLHF/OpenRLHF)
 - [SkyRL](https://docs.skyrl.ai/docs)

@@ -52,7 +52,10 @@ Shrimpy's current skill CRUD shape already covers the core model from SKILL-000:
 
 - `shrimpy skills list [--agent <id>] [--json]`
 - `shrimpy skills show <id> [--agent <id>]`
-- `shrimpy skills add <source> [--agent <id>|--workspace] [--id <id>] [--force]`
+- `shrimpy skills add <source> [--agent <id>|--workspace] [--id <id>] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]`
+- `shrimpy skills update <id> [--dry-run] [--json]`
+- `shrimpy skills bind <id> [--agent <id>|--workspace] [--json]`
+- `shrimpy skills unbind <id> [--agent <id>|--workspace] [--json]`
 - `shrimpy skills new <id> [--agent <id>|--workspace] [--description <text>] [--force]`
 - `shrimpy skills validate [id] [--agent <id>] [--json]`
 
@@ -60,7 +63,7 @@ The resolver scans agent-owned `agents/<id>/skills/<id>/SKILL.md`, workspace-own
 
 The biggest difference from Skillfish is storage philosophy. Skillfish installs duplicated copies into each target agent's native directory and stores a manifest inside each installed skill directory. Shrimpy stores fetched/shared content once under `state/skills/packages/<id>/` and controls visibility through workspace or agent bindings. That package/binding split is better for Shrimpy because it keeps user-installed package content deduplicated and makes visibility explicit.
 
-Shrimpy is still missing the next layer of lifecycle commands: `bind`, `unbind`, `update`, and `fork`. Skillfish is most useful as a reference for those follow-ups.
+Shrimpy is still missing the customization lifecycle command: `fork`. Skillfish is most useful as a reference for that follow-up and for any later manifest sync surface.
 
 ## Worth Borrowing
 
@@ -75,21 +78,21 @@ owner/repo/path/to/skill
 owner/repo@main/skills/my-skill
 ```
 
-Shrimpy's current `skills add` accepts local directories, local Markdown files, and direct `http(s)` `SKILL.md` URLs. The next acquisition increment should add GitHub repository specs with explicit ref support. Do this in Shrimpy's own parser, not by adopting Skillfish's package. Preserve Shrimpy's default of agent-local binding unless `--workspace` is explicit.
+Shrimpy's current `skills add` accepts local directories, local Markdown files, direct `http(s)` `SKILL.md` URLs, and GitHub repository specs with explicit `--ref` and `--path` support. This was added in Shrimpy's own parser rather than by adopting Skillfish's package, and Shrimpy preserves the default of agent-local binding unless `--workspace` is explicit.
 
 One caveat from Skillfish's parser: `owner/repo@ref/path` cannot represent branch names with slashes and a path at the same time, because the first slash after `@` separates ref from path. Shrimpy should either document that limitation, prefer explicit `--ref` and `--path` flags for ambiguous cases, or use a URL-like syntax rather than overloading one string too far.
 
 ### GitHub Discovery
 
-Skillfish discovers skills by fetching the repo default branch, then the recursive Git tree, then every path ending in `SKILL.md`. It fetches each candidate raw `SKILL.md` to read `name` and `description` for selection. This is a good shape for Shrimpy when adding repository URLs: discover many bundles in a repo, fail clearly when multiple candidates exist in non-interactive mode unless `--all`, `--path`, or a name is supplied, and keep JSON output agent-friendly.
+Skillfish discovers skills by fetching the repo default branch, then the recursive Git tree, then every path ending in `SKILL.md`. It fetches each candidate raw `SKILL.md` to read `name` and `description` for selection. This is the shape Shrimpy now uses for GitHub repository URLs: discover many bundles in a repo, fail clearly when multiple candidates exist in non-interactive mode unless `--all` or `--path` is supplied, and keep JSON output agent-friendly.
 
 Shrimpy should still validate selected entries through Pi after download, because Pi is Shrimpy's runtime parser.
 
 ### Provenance And Update Tracking
 
-Skillfish's `.skillfish.json` stores enough provenance to explain and update a package: owner, repo, path, branch, SHA, optional pinned ref, installed name, and whether the skill came from manual add or a manifest. Shrimpy's `state/skills/packages.json` currently records source, source kind, fetched timestamp, and content hash. That is enough for local/direct-URL installs, but not enough for clean update behavior from GitHub repos.
+Skillfish's `.skillfish.json` stores enough provenance to explain and update a package: owner, repo, path, branch, SHA, optional pinned ref, installed name, and whether the skill came from manual add or a manifest. Shrimpy's `state/skills/packages.json` records source, source kind, fetched timestamp, content hash, source revision, and GitHub owner/repo/path/ref/commit metadata for GitHub-backed packages.
 
-Borrow the fields, but keep them in Shrimpy package state rather than package-local `.skillfish.json` files:
+The useful extraction is to keep those fields in Shrimpy package state rather than package-local `.skillfish.json` files:
 
 ```json
 {
@@ -98,12 +101,12 @@ Borrow the fields, but keep them in Shrimpy package state rather than package-lo
   "repo": "repo",
   "path": "skills/foo",
   "ref": "v1.0.0",
-  "resolvedBranch": "main",
+  "resolvedRef": "main",
   "resolvedSha": "..."
 }
 ```
 
-Skillfish's most useful detail is directory-level change detection. For a subdirectory skill, it stores the tree SHA for that directory; for a root skill, it stores the `SKILL.md` blob SHA. That reduces false update notifications when unrelated files in the repo change. Shrimpy should do the same for GitHub-backed packages.
+Skillfish's most useful detail is directory-level change detection. For a subdirectory skill, it stores the tree SHA for that directory; for a root skill, it stores the `SKILL.md` blob SHA. That reduces false update notifications when unrelated files in the repo change. Shrimpy now does the same for GitHub-backed packages.
 
 ### Manifest Sync
 
@@ -128,7 +131,7 @@ Skillfish consistently supports `--json`, non-interactive behavior, confirmation
 
 - machine-readable JSON for every lifecycle command;
 - targeted exit codes or stable error codes once agents start composing skill commands;
-- dry-run support for future `skills update` and manifest sync;
+- dry-run support for `skills add`, `skills update`, and any future manifest sync;
 - clear distinction between local authored skills and external package skills.
 
 ## Not Worth Borrowing
@@ -145,15 +148,14 @@ Do not borrow Skillfish's frontmatter parsing. It uses regex helpers for `name` 
 
 ## Recommended Shrimpy Follow-Ups
 
-1. Add GitHub repo acquisition to `shrimpy skills add`: parse `owner/repo`, optional `--ref`, optional `--path`, discover `SKILL.md` candidates through GitHub tree APIs, fetch/download only the selected bundle, validate with Pi, then store once under `state/skills/packages/<id>/` and bind.
-2. Extend package provenance for GitHub-backed packages with owner, repo, path, requested ref, resolved branch, resolved SHA, and maybe ETag when raw URLs are used.
-3. Add `shrimpy skills update <id>` using the stored source kind. For GitHub packages, compare directory/tree or blob SHA before downloading. For direct URLs, compare ETag/Last-Modified if recorded, otherwise fetch and hash.
-4. Add `shrimpy skills bind`, `shrimpy skills unbind`, and `shrimpy skills fork` before building any broad sync/import flow.
-5. Harden local package copy by skipping symlinks and reporting skipped entries as warnings.
-6. Consider a later optional `skillfish.json` import/export for interoperability, but do not make that file Shrimpy's source of truth.
+1. Add `shrimpy skills fork` before building any broad sync/import flow.
+2. Consider ETag/Last-Modified tracking for direct URL updates; the current path can still fetch and hash direct `SKILL.md` sources.
+3. Report skipped local package entries as warnings when symlinks, hidden entries, or `node_modules` are ignored.
+4. Consider stable error codes once agents start composing skill commands heavily.
+5. Consider a later optional `skillfish.json` import/export for interoperability, but do not make that file Shrimpy's source of truth.
 
 ## Final Take
 
 Skillfish is clean enough to learn from as a CLI, but not clean enough to embed as a Shrimpy dependency. The AGPL license alone makes it a bad fit for a permissively licensed Shrimpy runtime. The package shape confirms that: it is a CLI with prompts, updater, telemetry, registry hooks, and global agent filesystem assumptions, not a narrow library for skill package acquisition.
 
-For Shrimpy, the best extraction is conceptual: GitHub repo specs, per-package provenance, directory-level SHA update checks, manifest-style sync semantics, dry-run/update ergonomics, and symlink-safe copying. Keep Shrimpy's own package/binding state and Pi-backed validation as the center.
+For Shrimpy, the best extraction is conceptual: GitHub repo specs, per-package provenance, directory-level SHA update checks, manifest-style sync semantics, dry-run/update ergonomics, and symlink-safe copying. The first set is now in Shrimpy while Shrimpy's own package/binding state and Pi-backed validation remain the center.
