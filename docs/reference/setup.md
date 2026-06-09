@@ -4,7 +4,7 @@ Shrimpy supports Linux and macOS as local hosts. The same CLI commands work on b
 
 ## Install
 
-Shrimpy requires Node `>=22.19.0` and `npm`. On macOS, install Node through a normal user-owned toolchain such as the official installer, Homebrew, fnm, mise, or nvm, then confirm `node --version` and `npm --version` in the shell that will run Shrimpy.
+Shrimpy requires Git, Node `>=22.19.0`, and `npm`. On macOS, install Node through a normal user-owned toolchain such as the official installer, Homebrew, fnm, mise, or nvm, then confirm `git --version`, `node --version`, and `npm --version` in the shell that will run Shrimpy.
 
 Install the current `main` build:
 
@@ -18,7 +18,7 @@ Install a specific tag, branch, or commit:
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.3.0 bash
 ```
 
-The installer writes the app to `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`. Add `~/.local/bin` to `PATH` if your shell does not already include it.
+The installer creates an install-managed git checkout at `~/.local/share/shrimpy/app`, checks out the selected ref, installs dependencies, builds Shrimpy, prunes development dependencies, and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`. Branch refs such as `main` are installed as local tracking branches; tag and commit refs are checked out detached. Add `~/.local/bin` to `PATH` if your shell does not already include it. If an existing git-backed app checkout has local changes, the installer refuses to replace it unless `SHRIMPY_FORCE=1` is set.
 
 For source checkout development:
 

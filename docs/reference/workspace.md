@@ -80,6 +80,8 @@ Stable prompt material loaded into an agent session before per-turn context arri
 
 Setup onboarding creates baseline files from `src/setup/templates/`.
 
+Setup writes absolute breadcrumbs for the install-managed Shrimpy app checkout, its `src/` directory, and its `docs/` directory into the shared workspace prompt files. In the default install, the app checkout is `~/.local/share/shrimpy/app`.
+
 Durable machine state lives under `state/`. Disposable runtime state lives under `runtime/` and surfaces at turn time through the context envelope.
 
 ## State And Logs

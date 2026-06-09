@@ -227,6 +227,7 @@ describe("setupInit", () => {
     const system = readFileSync(systemPath, "utf-8");
     assert.match(system, /editable workspace-level Shrimpy framework context/);
     assert.match(system, /Compact immutable system instructions are prepended separately/);
+    assert.match(system, /Install-managed Shrimpy app checkout lives under/);
     assert.match(system, /Framework Map/);
     assert.match(system, /reference\/context-assembly\.md/);
     assert.match(system, /Coding Work/);
@@ -238,6 +239,8 @@ describe("setupInit", () => {
     assert.match(system, /shrimpy channels read <name>/);
     assert.match(system, /Storage Breadcrumbs/);
     assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
+    assert.equal(system.includes(projectRoot), true);
+    assert.equal(system.includes(join(projectRoot, "src")), true);
     assert.equal(system.includes(join(projectRoot, "docs")), true);
     assert.equal(system.includes(workspace), false);
 
@@ -253,7 +256,10 @@ describe("setupInit", () => {
     assert.match(workspaceDoc, /This workspace is the home system/);
     assert.match(workspaceDoc, /Shared saved files and collections live under `vault\/`/);
     assert.match(workspaceDoc, /Shared code, apps, experiments, and focused work folders live under `projects\/`/);
+    assert.match(workspaceDoc, /Install-managed Shrimpy app checkout lives under/);
     assert.match(workspaceDoc, /Do not put reports in `context\/`/);
+    assert.equal(workspaceDoc.includes(projectRoot), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
 
     const identity = readFileSync(contextIdentityPath, "utf-8");

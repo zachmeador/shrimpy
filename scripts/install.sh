@@ -11,10 +11,11 @@ usage() {
 Install Shrimpy from GitHub.
 
 Environment:
-  SHRIMPY_REPO         GitHub owner/repo to install from (default: zachmeador/shrimpy)
+  SHRIMPY_REPO         GitHub owner/repo or git clone URL to install from (default: zachmeador/shrimpy)
   SHRIMPY_REF          Branch, tag, or commit to install (default: main)
   SHRIMPY_INSTALL_DIR  App install directory (default: ~/.local/share/shrimpy/app)
   SHRIMPY_BIN_DIR      Directory for command symlinks (default: ~/.local/bin)
+  SHRIMPY_FORCE        Set to 1 to replace a git-backed install with local changes
   SHRIMPY_NO_AUTO_COMPLETION
                        Set to 1 to skip automatic zsh completion install
 
@@ -45,8 +46,7 @@ need() {
 }
 
 need bash
-need curl
-need tar
+need git
 need node
 need npm
 
@@ -73,16 +73,66 @@ esac
 install_parent="$(dirname "$install_dir")"
 mkdir -p "$install_parent"
 
-tmp="$(mktemp -d "${TMPDIR:-/tmp}/shrimpy-install.XXXXXXXXXX")"
 stage="$(mktemp -d "$install_parent/.shrimpy-stage.XXXXXXXXXX")"
-trap 'rm -rf "$tmp" "$stage"' EXIT
+trap 'rm -rf "$stage"' EXIT
 
-echo "Downloading Shrimpy from github.com/$repo@$ref"
-curl -fsSL "https://github.com/$repo/archive/$ref.tar.gz" |
-  tar -xz --strip-components=1 -C "$tmp"
+clone_url="$repo"
+case "$repo" in
+  http://*|https://*|ssh://*|git://*|file://*|git@*) ;;
+  *) clone_url="https://github.com/$repo.git" ;;
+esac
+
+has_git_changes() {
+  local dir="$1"
+  if ! git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "error: install directory has a .git directory but is not a readable git worktree: $dir" >&2
+    exit 1
+  fi
+  if ! git -C "$dir" diff --quiet --ignore-submodules --; then
+    return 0
+  fi
+  if ! git -C "$dir" diff --cached --quiet --ignore-submodules --; then
+    return 0
+  fi
+  [[ -n "$(git -C "$dir" ls-files --others --exclude-standard)" ]]
+}
+
+checkout_ref() {
+  local ref="$1"
+  local target=""
+  if git rev-parse --verify --quiet "origin/$ref^{commit}" >/dev/null; then
+    git checkout -B "$ref" "origin/$ref"
+    git branch --set-upstream-to="origin/$ref" "$ref" >/dev/null
+    return
+  elif git rev-parse --verify --quiet "refs/tags/$ref^{commit}" >/dev/null; then
+    target="refs/tags/$ref"
+  elif git rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
+    target="$ref"
+  else
+    echo "error: unable to resolve Shrimpy ref: $ref" >&2
+    exit 1
+  fi
+  git checkout --detach "$target"
+}
+
+if [[ -d "$install_dir/.git" && "${SHRIMPY_FORCE:-}" != "1" ]] && has_git_changes "$install_dir"; then
+  echo "error: install directory has local git changes: $install_dir" >&2
+  echo "Commit or move those changes, or set SHRIMPY_FORCE=1 to replace the install-managed checkout." >&2
+  exit 1
+fi
+
+echo "Cloning Shrimpy from $clone_url"
+git clone "$clone_url" "$stage"
+
+cd "$stage"
+echo "Fetching refs"
+git fetch --tags origin "+refs/heads/*:refs/remotes/origin/*"
+
+echo "Checking out $ref"
+checkout_ref "$ref"
+echo "Checked out $(git rev-parse --short HEAD)"
 
 echo "Installing dependencies"
-cd "$tmp"
 npm ci
 
 echo "Building Shrimpy"
@@ -92,7 +142,6 @@ echo "Pruning development dependencies"
 npm prune --omit=dev
 
 echo "Installing app to $install_dir"
-cp -R "$tmp"/. "$stage"
 rm -rf "$install_dir"
 mv "$stage" "$install_dir"
 

@@ -11,7 +11,7 @@ This workspace is the home system that contains Shrimpy agents, channels, sessio
 - Durable machine state lives under `state/`.
 - Disposable runtime state lives under `runtime/`.
 - Provider auth and model registry live under `state/pi/`.
-- Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md` there.
+- Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source lives under `{{SOURCE_PATH}}`; stable project docs live under `{{DOCS_PATH}}`.
 
 Use `vault/` for saved files and collections. Use `projects/` for code, apps, experiments, or focused work folders. Do not put channel logs, runtime state, sessions, provider auth, or generated workspace state in either directory.
 

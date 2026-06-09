@@ -2,7 +2,7 @@
 
 This file is editable workspace-level Shrimpy framework context. Compact immutable system instructions are prepended separately before file-backed context.
 
-Stable project docs live under `{{DOCS_PATH}}`. Start with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
+Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source is under `{{SOURCE_PATH}}`; stable project docs live under `{{DOCS_PATH}}`. Start with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
 
 ## Framework Map
 
