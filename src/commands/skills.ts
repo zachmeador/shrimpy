@@ -1,9 +1,12 @@
 import { createAppRuntime } from "../app/index.js";
 import {
   addSkillPackage,
+  bindInstalledSkillPackage,
   inspectSkills,
   loadSkillPrompt,
   scaffoldSkill,
+  unbindInstalledSkillPackage,
+  updateSkillPackage,
   validateSkills,
 } from "../skills/index.js";
 import {
@@ -75,7 +78,12 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
       agent: { type: "string", short: "a" },
       workspace: { type: "boolean", default: false },
       id: { type: "string" },
+      path: { type: "string" },
+      ref: { type: "string" },
+      all: { type: "boolean", default: false },
       force: { type: "boolean", default: false },
+      "dry-run": { type: "boolean", default: false },
+      json: { type: "boolean", default: false },
     },
     allowPositionals: true,
     strict: true,
@@ -85,16 +93,130 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
   const runtime = createAppRuntime(config);
   const scope = resolvePackageScope(values.workspace, values.agent);
   const agent = scope === "agent" ? runtime.getAgent(values.agent) : undefined;
-  const skill = await addSkillPackage({
+  const result = await addSkillPackage({
     runtime,
     source,
     scope,
     agentId: agent?.id,
     id: values.id,
+    path: values.path,
+    ref: values.ref,
+    all: values.all,
     force: values.force,
+    dryRun: values["dry-run"],
   });
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+  if (result.dryRun) {
+    printAddDryRun(result);
+    return 0;
+  }
   const target = scope === "agent" ? `agent ${agent!.id}` : "workspace";
-  console.log(`Added ${target} skill package ${skill.id}: ${skill.entryPath}`);
+  if (result.packages.length === 1) {
+    const skill = result.packages[0]!;
+    console.log(`Added ${target} skill package ${skill.id}: ${skill.entryPath}`);
+  } else {
+    console.log(`Added ${target} skill packages:`);
+    for (const skill of result.packages) {
+      console.log(`- ${skill.id}: ${skill.entryPath}`);
+    }
+  }
+  return 0;
+}
+
+async function updateSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      "dry-run": { type: "boolean", default: false },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+  const id = requireArg(positionals[0], usage, "skill id");
+  const runtime = createAppRuntime(config);
+  const result = await updateSkillPackage({
+    runtime,
+    id,
+    dryRun: values["dry-run"],
+  });
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+  if (result.updateAvailable) {
+    if (result.dryRun) {
+      console.log(`Update available for ${result.id}: ${result.current.sourceRevision ?? result.current.hash} -> ${result.latest?.sourceRevision ?? "unknown"}`);
+    } else {
+      console.log(`Updated skill package ${result.id}: ${result.packageInfo?.entryPath}`);
+    }
+  } else {
+    console.log(`Skill package ${result.id} is up to date.`);
+  }
+  return 0;
+}
+
+async function bindSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      workspace: { type: "boolean", default: false },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+  const id = requireArg(positionals[0], usage, "skill id");
+  const runtime = createAppRuntime(config);
+  const scope = resolvePackageScope(values.workspace, values.agent);
+  const result = bindInstalledSkillPackage({
+    runtime,
+    id,
+    scope,
+    agentId: values.agent,
+  });
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+  const target = result.scope === "agent" ? `agent ${result.agentId}` : "workspace";
+  console.log(`Bound skill package ${result.id} to ${target}.`);
+  return 0;
+}
+
+async function unbindSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      workspace: { type: "boolean", default: false },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+  const id = requireArg(positionals[0], usage, "skill id");
+  const runtime = createAppRuntime(config);
+  const scope = resolvePackageScope(values.workspace, values.agent);
+  const result = unbindInstalledSkillPackage({
+    runtime,
+    id,
+    scope,
+    agentId: values.agent,
+  });
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+  const target = result.scope === "agent" ? `agent ${result.agentId}` : "workspace";
+  console.log(`Unbound skill package ${result.id} from ${target}.`);
   return 0;
 }
 
@@ -184,7 +306,30 @@ export const cmdSkills: CommandHandler = createCommandGroup({
     list: listSkills,
     show: showSkill,
     add: addSkill,
+    update: updateSkill,
+    bind: bindSkill,
+    unbind: unbindSkill,
     new: newSkill,
     validate: validateSkill,
   },
 });
+
+function printAddDryRun(result: Awaited<ReturnType<typeof addSkillPackage>>): void {
+  const candidates = result.candidates;
+  if (candidates.length === 0) {
+    console.log("No skill packages found.");
+    return;
+  }
+  console.log(`Found ${candidates.length} skill package${candidates.length === 1 ? "" : "s"} in ${result.source}:`);
+  for (const candidate of candidates) {
+    const revision = candidate.sourceRevision ? ` @ ${candidate.sourceRevision}` : "";
+    console.log(`- ${candidate.id} (${candidate.path || "."})${revision}${candidate.description ? ` - ${candidate.description}` : ""}`);
+  }
+  if (result.selectedCandidates.length > 0) {
+    console.log("Selected:");
+    for (const candidate of result.selectedCandidates) {
+      console.log(`- ${candidate.id} (${candidate.path || "."})`);
+    }
+  }
+  console.log("No changes made.");
+}

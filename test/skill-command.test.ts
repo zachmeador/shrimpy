@@ -498,6 +498,180 @@ describe("skill context inspection", () => {
     }
   });
 
+  test("skills command discovers and updates GitHub packages", async () => {
+    await setupInit(workspace);
+    const github = mockGitHubRepo({
+      owner: "octo",
+      repo: "skills",
+      branch: "main",
+      commitSha: "commit-one",
+      skills: {
+        "skills/alpha": {
+          treeSha: "tree-alpha-v1",
+          blobSha: "blob-alpha-v1",
+          content: [
+            "---",
+            "name: alpha",
+            "description: Alpha GitHub skill.",
+            "---",
+            "",
+            "# Alpha",
+            "",
+          ].join("\n"),
+          files: {
+            "assets/pixel.bin": Buffer.from([0, 255, 1, 2]),
+          },
+        },
+        "skills/beta": {
+          treeSha: "tree-beta-v1",
+          blobSha: "blob-beta-v1",
+          content: [
+            "---",
+            "name: beta",
+            "description: Beta GitHub skill.",
+            "---",
+            "",
+            "# Beta",
+            "",
+          ].join("\n"),
+        },
+      },
+    });
+
+    try {
+      await assert.rejects(
+        () => cmdSkills(["add", "octo/skills", "--agent", "shrimpy"], { workspace } as any),
+        /multiple skills found/,
+      );
+
+      const dryRun = await captureLogs(() =>
+        cmdSkills(["add", "octo/skills", "--dry-run", "--json"], { workspace } as any)
+      );
+      assert.equal(dryRun.result, 0);
+      const dryRunJson = JSON.parse(dryRun.lines.join("\n"));
+      assert.equal(dryRunJson.dryRun, true);
+      assert.deepEqual(
+        dryRunJson.candidates.map((candidate: any) => [candidate.id, candidate.path, candidate.sourceRevision]),
+        [
+          ["alpha", "skills/alpha", "tree-alpha-v1"],
+          ["beta", "skills/beta", "tree-beta-v1"],
+        ],
+      );
+      assert.equal(existsSync(join(workspace, "state", "skills", "packages.json")), false);
+
+      const dryRunAll = await captureLogs(() =>
+        cmdSkills(["add", "octo/skills", "--dry-run", "--all", "--json"], { workspace } as any)
+      );
+      assert.equal(dryRunAll.result, 0);
+      const dryRunAllJson = JSON.parse(dryRunAll.lines.join("\n"));
+      assert.deepEqual(
+        dryRunAllJson.selectedCandidates.map((candidate: any) => candidate.id),
+        ["alpha", "beta"],
+      );
+      assert.equal(existsSync(join(workspace, "state", "skills", "packages.json")), false);
+
+      const install = await captureLogs(() =>
+        cmdSkills(["add", "octo/skills", "--path", "skills/alpha", "--agent", "shrimpy"], { workspace } as any)
+      );
+      assert.equal(install.result, 0);
+      const installedPath = join(workspace, "state", "skills", "packages", "alpha", "SKILL.md");
+      assert.equal(existsSync(installedPath), true);
+      assert.match(readFileSync(installedPath, "utf-8"), /# Alpha/);
+      assert.deepEqual(
+        readFileSync(join(workspace, "state", "skills", "packages", "alpha", "assets", "pixel.bin")),
+        Buffer.from([0, 255, 1, 2]),
+      );
+      const packages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(packages.packages.alpha.sourceKind, "github");
+      assert.equal(packages.packages.alpha.sourceRevision, "tree-alpha-v1");
+      assert.equal(packages.packages.alpha.github.owner, "octo");
+      assert.equal(packages.packages.alpha.github.repo, "skills");
+      assert.equal(packages.packages.alpha.github.path, "skills/alpha");
+      const bindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
+      assert.deepEqual(bindings.agents.shrimpy, ["alpha"]);
+
+      const bindAgent = await captureLogs(() =>
+        cmdSkills(["bind", "alpha", "--agent", "mechanic", "--json"], readWorkspaceConfig())
+      );
+      assert.equal(bindAgent.result, 0);
+      const bindAgentJson = JSON.parse(bindAgent.lines.join("\n"));
+      assert.equal(bindAgentJson.id, "alpha");
+      assert.equal(bindAgentJson.scope, "agent");
+      assert.equal(bindAgentJson.agentId, "mechanic");
+      assert.deepEqual(bindAgentJson.bindings.agents.mechanic, ["alpha"]);
+      const mechanicRuntime = createAppRuntime(readWorkspaceConfig());
+      assert.equal(getSkillView(mechanicRuntime, "alpha", "mechanic").scope, "package");
+
+      const bindWorkspace = await captureLogs(() =>
+        cmdSkills(["bind", "alpha", "--workspace"], { workspace } as any)
+      );
+      assert.equal(bindWorkspace.result, 0);
+      assert.match(bindWorkspace.lines.join("\n"), /Bound skill package alpha to workspace/);
+      const workspaceBindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
+      assert.deepEqual(workspaceBindings.workspace, ["alpha"]);
+
+      const unbindShrimpy = await captureLogs(() =>
+        cmdSkills(["unbind", "alpha", "--agent", "shrimpy"], { workspace } as any)
+      );
+      assert.equal(unbindShrimpy.result, 0);
+      assert.match(unbindShrimpy.lines.join("\n"), /Unbound skill package alpha from agent shrimpy/);
+      const unbindMechanic = await captureLogs(() =>
+        cmdSkills(["unbind", "alpha", "--agent", "mechanic"], readWorkspaceConfig())
+      );
+      assert.equal(unbindMechanic.result, 0);
+      const unbindWorkspace = await captureLogs(() =>
+        cmdSkills(["unbind", "alpha", "--workspace", "--json"], { workspace } as any)
+      );
+      assert.equal(unbindWorkspace.result, 0);
+      const unbindWorkspaceJson = JSON.parse(unbindWorkspace.lines.join("\n"));
+      assert.deepEqual(unbindWorkspaceJson.bindings.workspace, []);
+      assert.equal(existsSync(installedPath), true);
+      const clearedBindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
+      assert.deepEqual(clearedBindings.agents.shrimpy, []);
+      assert.deepEqual(clearedBindings.agents.mechanic, []);
+      assert.deepEqual(clearedBindings.workspace, []);
+
+      github.updateSkill("skills/alpha", {
+        treeSha: "tree-alpha-v2",
+        blobSha: "blob-alpha-v2",
+        content: [
+          "---",
+          "name: alpha",
+          "description: Alpha GitHub skill v2.",
+          "---",
+          "",
+          "# Alpha V2",
+          "",
+        ].join("\n"),
+      });
+      const updateDryRun = await captureLogs(() =>
+        cmdSkills(["update", "alpha", "--dry-run", "--json"], { workspace } as any)
+      );
+      assert.equal(updateDryRun.result, 0);
+      const updateDryRunJson = JSON.parse(updateDryRun.lines.join("\n"));
+      assert.equal(updateDryRunJson.updateAvailable, true);
+      assert.equal(updateDryRunJson.current.sourceRevision, "tree-alpha-v1");
+      assert.equal(updateDryRunJson.latest.sourceRevision, "tree-alpha-v2");
+      assert.match(readFileSync(installedPath, "utf-8"), /# Alpha/);
+      assert.doesNotMatch(readFileSync(installedPath, "utf-8"), /# Alpha V2/);
+
+      const update = await captureLogs(() =>
+        cmdSkills(["update", "alpha"], { workspace } as any)
+      );
+      assert.equal(update.result, 0);
+      assert.match(update.lines.join("\n"), /Updated skill package alpha/);
+      assert.match(readFileSync(installedPath, "utf-8"), /# Alpha V2/);
+      const updatedPackages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(updatedPackages.packages.alpha.sourceRevision, "tree-alpha-v2");
+      const updatedBindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
+      assert.deepEqual(updatedBindings.agents.shrimpy, []);
+      assert.deepEqual(updatedBindings.agents.mechanic, []);
+      assert.deepEqual(updatedBindings.workspace, []);
+    } finally {
+      github.restore();
+    }
+  });
+
   test("skills validation fails when directory id and Pi name differ", async () => {
     await setupInit(workspace);
     const root = join(workspace, "skills", "public-name");
@@ -712,4 +886,132 @@ function readWorkspaceConfig(): any {
     ),
     workspace,
   };
+}
+
+function mockGitHubRepo(opts: {
+  owner: string;
+  repo: string;
+  branch: string;
+  commitSha: string;
+  skills: Record<string, MockGitHubSkill>;
+}): {
+  updateSkill: (path: string, skill: MockGitHubSkill) => void;
+  restore: () => void;
+} {
+  const originalFetch = globalThis.fetch;
+  const skills = new Map(Object.entries(opts.skills));
+  globalThis.fetch = async (input: string | URL | Request) => {
+    const url = String(input);
+    const base = `https://api.github.com/repos/${opts.owner}/${opts.repo}`;
+    if (url === base) {
+      return jsonResponse({ default_branch: opts.branch });
+    }
+    if (url === `${base}/commits/${opts.branch}`) {
+      return jsonResponse({ sha: opts.commitSha });
+    }
+    if (url === `${base}/git/trees/${opts.commitSha}?recursive=1`) {
+      return jsonResponse({
+        sha: "root-tree",
+        truncated: false,
+        tree: gitHubTreeEntries(skills),
+      });
+    }
+    const blobPrefix = `${base}/git/blobs/`;
+    if (url.startsWith(blobPrefix)) {
+      const sha = url.slice(blobPrefix.length);
+      for (const [path, skill] of skills) {
+        if (skill.blobSha === sha) {
+          return jsonResponse({
+            encoding: "base64",
+            content: Buffer.from(skill.content, "utf-8").toString("base64"),
+          });
+        }
+        for (const [relativePath, content] of Object.entries(skill.files ?? {})) {
+          if (mockGitHubExtraBlobSha(path, relativePath) === sha) {
+            return jsonResponse({
+              encoding: "base64",
+              content: Buffer.isBuffer(content)
+                ? content.toString("base64")
+                : Buffer.from(content, "utf-8").toString("base64"),
+            });
+          }
+        }
+      }
+    }
+    return new Response(JSON.stringify({ message: "not found" }), {
+      status: 404,
+      statusText: "Not Found",
+      headers: { "content-type": "application/json" },
+    });
+  };
+  return {
+    updateSkill(path, skill) {
+      skills.set(path, skill);
+    },
+    restore() {
+      globalThis.fetch = originalFetch;
+    },
+  };
+}
+
+interface MockGitHubSkill {
+  treeSha: string;
+  blobSha: string;
+  content: string;
+  files?: Record<string, string | Buffer>;
+}
+
+function gitHubTreeEntries(
+  skills: Map<string, MockGitHubSkill>,
+): Array<{ path: string; mode: string; type: "blob" | "tree"; sha: string }> {
+  const directories = new Map<string, string>();
+  const blobs: Array<{ path: string; mode: string; type: "blob"; sha: string }> = [];
+  for (const [path, skill] of skills) {
+    const segments = path.split("/");
+    for (let index = 1; index <= segments.length; index += 1) {
+      const directory = segments.slice(0, index).join("/");
+      directories.set(directory, index === segments.length ? skill.treeSha : `tree-${directory}`);
+    }
+    blobs.push({
+      path: `${path}/SKILL.md`,
+      mode: "100644",
+      type: "blob",
+      sha: skill.blobSha,
+    });
+    for (const relativePath of Object.keys(skill.files ?? {})) {
+      const relativeSegments = relativePath.split("/").filter(Boolean);
+      for (let index = 1; index < relativeSegments.length; index += 1) {
+        const directory = `${path}/${relativeSegments.slice(0, index).join("/")}`;
+        if (!directories.has(directory)) {
+          directories.set(directory, `tree-${directory}`);
+        }
+      }
+      blobs.push({
+        path: `${path}/${relativePath}`,
+        mode: "100644",
+        type: "blob",
+        sha: mockGitHubExtraBlobSha(path, relativePath),
+      });
+    }
+  }
+  return [
+    ...[...directories.entries()].map(([path, sha]) => ({
+      path,
+      mode: "040000",
+      type: "tree" as const,
+      sha,
+    })),
+    ...blobs,
+  ].sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function mockGitHubExtraBlobSha(path: string, relativePath: string): string {
+  return `blob-extra-${path}-${relativePath}`.replace(/[^A-Za-z0-9_.-]/g, "-");
+}
+
+function jsonResponse(value: unknown): Response {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 }

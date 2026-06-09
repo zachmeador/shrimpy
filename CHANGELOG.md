@@ -8,6 +8,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Changed fresh installs without `~/.shrimpy-workspace.json` to default the workspace to `~/.shrimpy/` instead of the launch directory.
 
+### Agents, Skills & Tools
+
+- Added GitHub-backed skill package discovery, provenance, dry-run add/update checks, and package binding commands for enabling or disabling installed skills per agent or workspace.
+
 ## 🦐 0.3.0 - A Window in the Reef - 2026-06-06
 
 ### Breaking Changes
@@ -41,7 +45,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Agents, Skills & Tools
 
 - Changed session startup to pass Shrimpy-selected skill entrypoints to Pi while keeping Pi's ambient skill discovery disabled.
-- Added Pi-backed workspace and agent skill management, including `shrimpy skills list`, `show`, `add`, `install`, and `validate`.
+- Added Pi-backed workspace and agent skill management, including `shrimpy skills list`, `show`, `add`, `new`, and `validate`.
 - Added skill inspection and validation for agent-over-workspace shadowing, Pi loader diagnostics, id/name mismatches, unsafe layouts, and large visible skill sets.
 - Added an `add-agent` setup skill for CLI-first agent creation, channel wiring, model/tool selection, and wake-policy verification.
 - Added a built-in `coding-delegation` skill for preparing, dispatching, and supervising coding-agent handoffs.

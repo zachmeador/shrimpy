@@ -17,6 +17,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-000](skill-000-agent-skill-management-redesign.md) | review | P1 | Skills | none | Agent skill management redesign |
+| [SLOP-001](slop-001-remove-the-slop-cleanup-pass.md) | todo | P1 | Hygiene | [SKILL-000](skill-000-agent-skill-management-redesign.md) | Remove-the-slop cleanup pass |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | draft | P2 | Surfaces | none | Telegram typing activity |

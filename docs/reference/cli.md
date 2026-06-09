@@ -105,7 +105,10 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy agent remove <id>` | Remove an agent from config/state. |
 | `shrimpy skills list [--agent <id>] [--json]` | List the effective Pi-loaded agent and workspace skill view, including warnings. |
 | `shrimpy skills show <id> [--agent <id>]` | Print a skill's `SKILL.md`. |
-| `shrimpy skills add <source> [--agent <id>\|--workspace] [--id <id>] [--force]` | Fetch or copy a skill package, record provenance, and bind it to an agent or workspace. |
+| `shrimpy skills add <source> [--agent <id>\|--workspace] [--id <id>] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]` | Discover, fetch, or copy a skill package, record provenance, and bind it to an agent or workspace. |
+| `shrimpy skills update <id> [--dry-run] [--json]` | Check a managed package's recorded source and replace it when the source revision changed. |
+| `shrimpy skills bind <id> [--agent <id>\|--workspace] [--json]` | Enable an installed skill package for an agent or the workspace. |
+| `shrimpy skills unbind <id> [--agent <id>\|--workspace] [--json]` | Disable an installed skill package for an agent or the workspace without deleting it. |
 | `shrimpy skills new <id> [--agent <id>\|--workspace] [--description <text>] [--force]` | Scaffold a local workspace or agent-authored skill bundle. |
 | `shrimpy skills validate [id] [--agent <id>] [--json]` | Validate skill frontmatter, Pi loading, path layout, shadowing, tool compatibility, and large effective skill sets. |
 | `shrimpy users list` | List identity links and the resolved owner. |

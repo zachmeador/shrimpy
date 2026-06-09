@@ -70,11 +70,11 @@ Default source skills should not be copied into every workspace during setup unl
 
 ## User-Installed Skills
 
-Add one agent-friendly acquisition command. The first implementation accepts a local skill directory, local Markdown `SKILL.md` file, or direct `http(s)` `SKILL.md` URL:
+Add one agent-friendly acquisition command. The current implementation accepts a local skill directory, local Markdown `SKILL.md` file, direct `http(s)` `SKILL.md` URL, or GitHub repository spec:
 
 ```bash
-shrimpy skills add <source> --agent <id>
-shrimpy skills add <source> --workspace
+shrimpy skills add <source> --agent <id> [--path <path>|--all] [--dry-run]
+shrimpy skills add <source> --workspace [--path <path>|--all] [--dry-run]
 ```
 
 Default behavior binds only to one agent, using `--agent <id>` when supplied or the configured default agent otherwise. `--workspace` is explicit because workspace installs affect every agent.
@@ -85,7 +85,7 @@ The command should:
 - validate the `SKILL.md` shape through Pi or the same parser Pi uses;
 - derive the id from frontmatter `name` unless `--id` is provided;
 - store one canonical package copy;
-- record origin URL/path, fetched timestamp, content hash, optional ETag/commit/ref/version, and source kind;
+- record origin URL/path, fetched timestamp, content hash, source revision, GitHub owner/repo/path/ref/commit metadata when relevant, and source kind;
 - create the requested binding only after validation succeeds;
 - refuse replacement, origin changes, or workspace promotion unless explicitly forced by the user.
 
@@ -94,9 +94,9 @@ Useful companion commands:
 ```bash
 shrimpy skills list [--agent <id>] [--json]
 shrimpy skills show <id> [--agent <id>]
-shrimpy skills update <id> [--agent <id>|--workspace]
-shrimpy skills bind <id> --agent <id>|--workspace
-shrimpy skills unbind <id> --agent <id>|--workspace
+shrimpy skills update <id> [--dry-run] [--json]
+shrimpy skills bind <id> [--agent <id>|--workspace] [--json]
+shrimpy skills unbind <id> [--agent <id>|--workspace] [--json]
 shrimpy skills fork <id> --agent <id>|--workspace
 shrimpy skills validate [id] [--agent <id>] [--json]
 ```
@@ -151,13 +151,15 @@ This is the main agent experience improvement: agents should not see skills they
 
 1. Add a resolver for effective skills from source defaults, local skill roots, package bindings, and compatibility gates while still passing final paths to Pi.
 2. Add source default skill manifest support and stop copying unchanged defaults into new workspaces.
-3. Add canonical package storage plus provenance metadata for local path, local file, and direct `SKILL.md` URL installs.
+3. Add canonical package storage plus provenance metadata for local path, local file, direct `SKILL.md` URL, and GitHub-backed installs.
 4. Add `shrimpy skills add` for fetched package acquisition/binding and `shrimpy skills new` for local authoring.
 5. Add tool compatibility gating from `allowed-tools`, expose blocked reasons in `skills list`/`validate`, and omit incompatible skills from Pi.
-6. Refresh stable docs and tests for default resolution, local additive roots, package acquisition, provenance, scoped bindings, shadowing, and tool compatibility.
+6. Add GitHub repository spec parsing, multi-`SKILL.md` discovery, `--path`/`--all` selection, dry-run add output, GitHub provenance, directory/blob SHA update checks, and `shrimpy skills update`.
+7. Add `shrimpy skills bind` and `shrimpy skills unbind` to change managed package visibility without refetching or duplicating package content.
+8. Refresh stable docs and tests for default resolution, local additive roots, package acquisition, provenance, scoped bindings, shadowing, update checks, dry runs, and tool compatibility.
 
 ## Remaining Follow-Ups
 
-- Add CLI bind, unbind, update, and fork flows on top of the package/binding state.
-- Extend acquisition beyond direct `SKILL.md` URLs to archives, repository URLs, or well-known skill indexes if those become worth supporting.
+- Add `shrimpy skills fork` for intentional agent or workspace customization of managed packages.
+- Extend acquisition beyond local/direct URL/GitHub sources to archives or well-known skill indexes if those become worth supporting.
 - Surface missing skill tools in `shrimpy agent inspect` as well as the skill commands.

@@ -1,6 +1,6 @@
 # SYSTEM
 
-This file is editable workspace-level Shrimpy framework context. Compact immutable system instructions are prepended separately before file-backed context.
+This file gives all Shrimpy agents shared workspace context. Edit it when the workspace's baseline guidance should change.
 
 Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source is under `{{SOURCE_PATH}}`; stable project docs live under `{{DOCS_PATH}}`. Start with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
 
@@ -33,6 +33,12 @@ When the `bash` tool is available, useful inspection paths include:
 - Sessions: `shrimpy sessions list [channel]`, `shrimpy sessions compaction <channel>`
 - Watches/gateway: `shrimpy watches`, `shrimpy watches show <agent-id>/<watch-id>`, `shrimpy gateway status`, `shrimpy gateway logs`
 - Skills/models/users: `shrimpy skills list`, `shrimpy models`, `shrimpy users list`
+
+## Skills
+
+When asked to add a skill from a URL, GitHub repo, or local path, default to the current agent: `shrimpy skills add <source> --agent <id>`. Use `--workspace` only when the user explicitly asks to make the skill available to all agents.
+
+Use `shrimpy skills bind` and `shrimpy skills unbind` to change visibility for an already installed package. Agent-owned local skills under `agents/<id>/skills/` are allowed; run `shrimpy skills validate --agent <id>` after changing skills.
 
 ## Storage Breadcrumbs
 

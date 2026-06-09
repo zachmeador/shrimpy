@@ -65,9 +65,18 @@ If more than 20 visible compatible skills are effective for an agent, Shrimpy re
 ```bash
 shrimpy skills list [--agent <id>] [--json]
 shrimpy skills show <id> [--agent <id>]
-shrimpy skills add <source> [--agent <id>|--workspace] [--id <id>] [--force]
+shrimpy skills add <source> [--agent <id>|--workspace] [--id <id>] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]
+shrimpy skills update <id> [--dry-run] [--json]
+shrimpy skills bind <id> [--agent <id>|--workspace] [--json]
+shrimpy skills unbind <id> [--agent <id>|--workspace] [--json]
 shrimpy skills new <id> [--agent <id>|--workspace] [--description <text>] [--force]
 shrimpy skills validate [id] [--agent <id>] [--json]
 ```
 
-`add` fetches or copies a skill package into `state/skills/packages/`, records provenance in `state/skills/packages.json`, and creates an agent or workspace binding in `state/skills/bindings.json`. Local paths and direct `http(s)` `SKILL.md` URLs are supported. `new` scaffolds a local bundle under `skills/` or `agents/<id>/skills/`. Both commands refuse replacement unless `--force` is present.
+`add` fetches or copies a skill package into `state/skills/packages/`, records provenance in `state/skills/packages.json`, and creates an agent or workspace binding in `state/skills/bindings.json`. It accepts local directories, local `SKILL.md` files, direct `http(s)` `SKILL.md` URLs, and GitHub specs such as `owner/repo`, `owner/repo@main`, `owner/repo/path/to/skill`, `owner/repo@v1.0.0/path/to/skill`, and `https://github.com/owner/repo/tree/main/skills/foo`. If a GitHub repository contains multiple `SKILL.md` bundles, non-interactive add fails unless `--path` selects one or `--all` selects every discovered bundle. `--dry-run` reports candidates and selected candidates without writing package state or bindings.
+
+GitHub-backed packages record owner, repo, path, requested ref, resolved ref, resolved commit SHA, source revision, and source revision kind. For subdirectory skills, the source revision is the Git tree SHA for that directory. For root-level skills, it is the `SKILL.md` blob SHA. Local and direct-URL packages use a package content hash. `shrimpy skills update <id>` rechecks the recorded source, reports update availability with `--dry-run`, and replaces only the managed package copy when an update is applied; existing bindings stay in place.
+
+`bind` and `unbind` change only package visibility. They require an existing managed package and then add or remove an agent or workspace binding without fetching, copying, updating, or deleting package content. Omit `--workspace` to target `--agent <id>` or the default agent.
+
+Managed package install/update never executes bundled scripts. Local directory package copies skip symlinks, hidden entries, and `node_modules`. `new` scaffolds a local bundle under `skills/` or `agents/<id>/skills/`; manually placed bundles in those roots remain additive and are not converted into managed packages unless the user explicitly installs a package. `add` and `new` refuse replacement unless `--force` is present.
