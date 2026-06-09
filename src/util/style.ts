@@ -18,7 +18,7 @@ const SHRIMP_FG = fgAnsi(SHRIMP_HEX);
 const BOLD = `${ESC}1m`;
 const DIM = `${ESC}2m`;
 
-export interface StyleEnv {
+interface StyleEnv {
   isTTY: boolean;
   noColor: boolean;
   forceColor: boolean;

@@ -33,7 +33,7 @@ import {
 import { createLocalSessionDescriptor } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
 
-export interface OpenDirectSessionInput {
+interface OpenDirectSessionInput {
   runtime: AppRuntime;
   agentId?: string;
   channel: string;
@@ -50,12 +50,12 @@ export interface OpenDirectSessionInput {
   allowRegistryFallbackModel?: boolean;
 }
 
-export interface OpenDirectSessionResult {
+interface OpenDirectSessionResult {
   agentId: string;
   session: AgentSession;
 }
 
-export interface RunDirectPromptInput extends OpenDirectSessionInput {
+interface RunDirectPromptInput extends OpenDirectSessionInput {
   prompt: string;
 }
 

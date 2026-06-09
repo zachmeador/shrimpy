@@ -8,7 +8,7 @@ import {
 } from "../util/json-file.js";
 import { resolveAgentDmMembers } from "./dm.js";
 
-export interface ChannelMembershipsFile {
+interface ChannelMembershipsFile {
   channels: Record<string, ChannelMembership>;
 }
 
@@ -16,9 +16,9 @@ export interface ChannelMembership {
   agents: Record<string, ChannelAgentMembership>;
 }
 
-export type ChannelAgentMembership = Record<string, never>;
+type ChannelAgentMembership = Record<string, never>;
 
-export interface ChannelMembershipStoreOptions {
+interface ChannelMembershipStoreOptions {
   defaultAgentIdsForChannel?: (channel: string) => string[];
 }
 

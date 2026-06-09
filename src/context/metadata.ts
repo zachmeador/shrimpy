@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { findLastCustomEntry } from "../sessions/storage.js";
 import { isRecord } from "../util/record.js";
 
-export interface ShrimpySessionMetadata {
+interface ShrimpySessionMetadata {
   workspacePath: string;
   agentId: string;
   sessionType: string;

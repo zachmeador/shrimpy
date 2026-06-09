@@ -22,21 +22,21 @@ interface ManagedSession {
   };
 }
 
-export interface SessionResetResult {
+interface SessionResetResult {
   channel: string;
   sessionDir: string;
   hadSession: boolean;
   archivedTo?: string;
 }
 
-export interface SessionRestoreResult {
+interface SessionRestoreResult {
   channel: string;
   sessionDir: string;
   restoredFrom: string;
   archivedPreviousTo?: string;
 }
 
-export interface SessionThinkingLevelResult {
+interface SessionThinkingLevelResult {
   channel: string;
   sessionDir: string;
   requestedLevel: ThinkingLevel;

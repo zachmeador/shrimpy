@@ -47,17 +47,17 @@ export interface SetupPolicyProblem {
   problems: string[];
 }
 
-export interface CodingPolicyDeps {
+interface CodingPolicyDeps {
   confirmReplaceModelPolicy?: (input: ConfirmReplaceModelPolicyInput) => Promise<boolean>;
   selectCodingModel?: (input: SelectSetupModelInput) => Promise<SetupModelView | undefined>;
 }
 
-export interface CodingPolicyResult {
+interface CodingPolicyResult {
   ok: boolean;
   problems: SetupPolicyProblem[];
 }
 
-export type PolicyState =
+type PolicyState =
   | {
     kind: "missing";
     candidates: ModelSelectionConfig[];

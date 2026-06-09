@@ -23,7 +23,7 @@ import {
   type ReadResult,
 } from "./store.js";
 
-export interface ChannelBusDeps {
+interface ChannelBusDeps {
   store?: ChannelStore;
   publisher?: ChannelPublisher;
   egress?: ChannelEgress;

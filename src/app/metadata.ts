@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-export interface AppMetadata {
+interface AppMetadata {
   name: string;
   version: string;
   description: string;

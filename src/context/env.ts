@@ -10,7 +10,7 @@ export interface BootEnv {
   booted_at_iso: string;
 }
 
-export interface SessionEnv {
+interface SessionEnv {
   session_type: string;
   channel: string;
   session_dir: string;

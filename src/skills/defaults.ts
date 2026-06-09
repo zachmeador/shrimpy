@@ -1,11 +1,11 @@
 import { dirname, join } from "node:path";
 import { projectRoot } from "../app/project-root.js";
 
-export type DefaultSkillTarget =
+type DefaultSkillTarget =
   | { kind: "all" }
   | { kind: "agents"; agentIds: string[] };
 
-export interface DefaultSkillDefinition {
+interface DefaultSkillDefinition {
   id: string;
   rootPath: string;
   entryPath: string;

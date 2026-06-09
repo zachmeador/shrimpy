@@ -13,14 +13,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AppRuntime } from "../app/runtime.js";
 
-export interface MemoryContextInput {
+interface MemoryContextInput {
   runtime: AppRuntime;
   agentId: string;
   channel?: string;
   peerIds?: string[];
 }
 
-export interface MemoryTurnContextItem {
+interface MemoryTurnContextItem {
   source: "people" | "channel";
   key: string;
   path: string;

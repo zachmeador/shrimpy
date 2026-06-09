@@ -27,17 +27,17 @@ import {
 } from "../inference/params.js";
 import { findLastCustomEntry } from "./storage.js";
 
-export type CompactionPayloadTransform = (
+type CompactionPayloadTransform = (
   payload: unknown,
   model: Model<Api>,
 ) => unknown | undefined | Promise<unknown | undefined>;
 
-export type CompactionResponseHandler = (
+type CompactionResponseHandler = (
   response: ProviderResponse,
   model: Model<Api>,
 ) => void | Promise<void>;
 
-export type CompactionComplete = (
+type CompactionComplete = (
   model: Model<Api>,
   context: Context,
   options: {
@@ -51,7 +51,7 @@ export type CompactionComplete = (
   },
 ) => Promise<AssistantMessage>;
 
-export interface ShrimpyCompactionPreparation {
+interface ShrimpyCompactionPreparation {
   firstKeptEntryId: string;
   messagesToSummarize: AgentMessage[];
   turnPrefixMessages: AgentMessage[];
@@ -64,7 +64,7 @@ export interface ShrimpyCompactionPreparation {
   };
 }
 
-export interface ShrimpyCompactionOptions {
+interface ShrimpyCompactionOptions {
   apiKey: string;
   headers?: Record<string, string>;
   customInstructions?: string;

@@ -6,7 +6,7 @@ import {
 } from "../../util/json-file.js";
 import type { TurnContextItem } from "./types.js";
 
-export interface ContextState {
+interface ContextState {
   channels: Record<string, { lastSeenMessageId?: string }>;
   commands: Record<string, {
     lastRunAt?: number;

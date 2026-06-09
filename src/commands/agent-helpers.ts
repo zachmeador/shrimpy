@@ -23,7 +23,7 @@ export const MODEL_SESSION_OPTIONS = {
   skill: { type: "string", short: "k", multiple: true },
 } as const;
 
-export interface ModelSessionArgValues {
+interface ModelSessionArgValues {
   provider?: string;
   model?: string;
   "model-policy"?: string;
@@ -31,7 +31,7 @@ export interface ModelSessionArgValues {
   skill?: string[];
 }
 
-export interface ModelSessionValues {
+interface ModelSessionValues {
   provider?: string;
   model?: string;
   modelPolicy?: string;

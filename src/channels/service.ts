@@ -24,46 +24,24 @@ export const CHANNEL_MESSAGE_KINDS = [
 
 export type ChannelMessageKind = typeof CHANNEL_MESSAGE_KINDS[number];
 
-export interface ChannelMessagePreview {
+export interface ChannelMessageInspection {
   id: string;
+  channel: string;
   timestamp: number;
   sender: ChannelMessage["sender"];
   origin: ChannelMessage["origin"];
   contentType: ChannelMessage["content"]["type"];
   preview: string;
-}
-
-export interface ChannelMessageSourceInspection {
   kind: ChannelMessageKind;
-  transport: string;
-  id?: string;
-  runId?: string;
+  sourceId?: string;
   targetChannel?: string;
-  sourceChannel?: string;
   inspectCommands: string[];
 }
 
-export interface ChannelMessageInspection extends ChannelMessagePreview {
-  channel: string;
-  kind: ChannelMessageKind;
-  source: ChannelMessageSourceInspection;
-}
-
-export interface ChannelSourceRecordSummary {
-  kind: "watch" | "worker";
-  id: string;
-  runId?: string;
-  targetChannel?: string;
-  messageId: string;
-  timestamp: number;
-  preview: string;
-  inspectCommands: string[];
-}
-
-export interface ChannelActivitySummary {
+interface ChannelActivitySummary {
   kindCounts: Record<ChannelMessageKind, number>;
   recentRequests: ChannelMessageInspection[];
-  sourceRecords: ChannelSourceRecordSummary[];
+  sourceRecords: ChannelMessageInspection[];
   inspectCommands: string[];
 }
 
@@ -73,8 +51,8 @@ export interface ChannelSummary {
   exists: boolean;
   messageCount: number;
   membership: ChannelMembership;
-  lastMessage: ChannelMessagePreview | null;
-  activity: ChannelActivitySummary;
+  lastMessage: ChannelMessageInspection | null;
+  activity?: ChannelActivitySummary;
 }
 
 export interface ChannelSearchFilters {
@@ -100,15 +78,19 @@ export interface ChannelSearchResult {
   messages: ChannelMessageInspection[];
 }
 
-export function listChannelSummaries(runtime: AppRuntime): ChannelSummary[] {
+export function listChannelSummaries(
+  runtime: AppRuntime,
+  opts: { includeActivity?: boolean } = {},
+): ChannelSummary[] {
   const memberships = runtime.createChannelMembershipStore();
   const names = listChannelNames(runtime.paths.channelsDir, memberships.listChannels());
-  return names.map((channel) => summarizeChannel(runtime, channel));
+  return names.map((channel) => summarizeChannel(runtime, channel, opts));
 }
 
 export function summarizeChannel(
   runtime: AppRuntime,
   channel: string,
+  opts: { includeActivity?: boolean } = {},
 ): ChannelSummary {
   const channelBus = runtime.createChannelBus();
   const memberships = runtime.createChannelMembershipStore();
@@ -125,8 +107,12 @@ export function summarizeChannel(
     exists,
     messageCount: messages.length,
     membership,
-    lastMessage: messages.length > 0 ? summarizeChannelMessage(messages[messages.length - 1]!) : null,
-    activity: summarizeChannelActivity(channel, messages),
+    lastMessage: messages.length > 0
+      ? inspectChannelMessage(channel, messages[messages.length - 1]!)
+      : null,
+    ...(opts.includeActivity === false
+      ? {}
+      : { activity: summarizeChannelActivity(channel, messages) }),
   };
 }
 
@@ -240,9 +226,14 @@ function clipText(text: string, max = 120): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-export function summarizeChannelMessage(message: ChannelMessage): ChannelMessagePreview {
+export function inspectChannelMessage(
+  channel: string,
+  message: ChannelMessage,
+): ChannelMessageInspection {
+  const kind = classifyChannelMessage(message);
   return {
     id: message.id,
+    channel,
     timestamp: message.timestamp,
     sender: message.sender,
     origin: message.origin,
@@ -250,28 +241,10 @@ export function summarizeChannelMessage(message: ChannelMessage): ChannelMessage
     preview: message.content.type === "text"
       ? clipText(message.content.data.text)
       : JSON.stringify(message.content.data),
-  };
-}
-
-export function inspectChannelMessage(
-  channel: string,
-  message: ChannelMessage,
-): ChannelMessageInspection {
-  const preview = summarizeChannelMessage(message);
-  const kind = classifyChannelMessage(message);
-  return {
-    ...preview,
-    channel,
     kind,
-    source: {
-      kind,
-      transport: message.origin.transport,
-      id: sourceRecordId(message, kind),
-      runId: message.origin.runId,
-      targetChannel: sourceTargetChannel(message),
-      sourceChannel: message.origin.sourceChannel,
-      inspectCommands: inspectCommandsForMessage(message, kind),
-    },
+    sourceId: sourceRecordId(message, kind),
+    targetChannel: sourceTargetChannel(message),
+    inspectCommands: inspectCommandsForMessage(message, kind),
   };
 }
 
@@ -399,7 +372,7 @@ function matchesChannelSearch(
   if (
     filters.sourceKinds &&
     filters.sourceKinds.length > 0 &&
-    !matchesAny(message.source.kind, filters.sourceKinds) &&
+    !matchesAny(message.kind, filters.sourceKinds) &&
     !matchesAny(
       stringValue(originRecord(message).sourceKind),
       filters.sourceKinds,
@@ -425,11 +398,9 @@ function searchableText(message: ChannelMessageInspection): string {
     message.origin.addressedAgentId,
     message.origin.watchId,
     message.origin.runId,
-    message.source.id,
-    message.source.runId,
-    message.source.targetChannel,
-    message.source.sourceChannel,
-    message.source.inspectCommands.join(" "),
+    message.sourceId,
+    message.targetChannel,
+    message.inspectCommands.join(" "),
     message.preview,
   ]
     .filter((part): part is string => typeof part === "string")
@@ -445,8 +416,8 @@ function isRequestLikeMessage(message: ChannelMessageInspection): boolean {
 function recentSourceRecords(
   messages: ChannelMessageInspection[],
   limit: number,
-): ChannelSourceRecordSummary[] {
-  const records: ChannelSourceRecordSummary[] = [];
+): ChannelMessageInspection[] {
+  const records: ChannelMessageInspection[] = [];
   const seen = new Set<string>();
 
   for (const message of [...messages].reverse()) {
@@ -454,21 +425,12 @@ function recentSourceRecords(
       message.kind !== "watch" &&
       message.kind !== "worker"
     ) continue;
-    const id = message.source.id;
+    const id = message.sourceId;
     if (!id) continue;
-    const key = `${message.kind}:${id}:${message.source.runId ?? ""}`;
+    const key = `${message.kind}:${id}:${message.origin.runId ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    records.push({
-      kind: message.kind,
-      id,
-      runId: message.source.runId,
-      targetChannel: message.source.targetChannel,
-      messageId: message.id,
-      timestamp: message.timestamp,
-      preview: message.preview,
-      inspectCommands: message.source.inspectCommands,
-    });
+    records.push(message);
     if (records.length >= limit) break;
   }
 
@@ -495,7 +457,7 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function originRecord(message: Pick<ChannelMessagePreview, "origin">): Record<string, unknown> {
+function originRecord(message: Pick<ChannelMessageInspection, "origin">): Record<string, unknown> {
   return message.origin as unknown as Record<string, unknown>;
 }
 

@@ -1,7 +1,7 @@
 import { existsSync, promises as fs } from "node:fs";
 import { basename, extname, join, sep } from "node:path";
 
-export type FileKind =
+type FileKind =
   | "channel"
   | "session"
   | "jsonl"

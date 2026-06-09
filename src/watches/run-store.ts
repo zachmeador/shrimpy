@@ -13,7 +13,7 @@ import type {
   WatchTrigger,
 } from "./schema.js";
 
-export type WatchRunStatus = "success" | "failure" | "skipped";
+type WatchRunStatus = "success" | "failure" | "skipped";
 
 export interface WatchRunObservation {
   kind: "no_output" | "output" | "changed" | "unchanged" | "message" | "failed" | "skipped";
@@ -52,7 +52,7 @@ export interface ActiveWatchRunRecord {
   startedAtIso: string;
 }
 
-export type ActiveWatchRunStore = Record<string, ActiveWatchRunRecord>;
+type ActiveWatchRunStore = Record<string, ActiveWatchRunRecord>;
 
 const HISTORY_LIMIT = 200;
 

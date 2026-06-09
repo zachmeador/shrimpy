@@ -41,7 +41,7 @@ export type SetupState =
     models: SetupModelView[];
   };
 
-export interface ResolveSetupStateDeps {
+interface ResolveSetupStateDeps {
   listModels?: (workspace: string) => SetupModelView[];
 }
 

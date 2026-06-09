@@ -8,14 +8,14 @@ import type { TurnContextItem } from "./types.js";
 
 const execAsync = promisify(exec);
 
-export interface ContextSourceCommandRunContext {
+interface ContextSourceCommandRunContext {
   runtime: AppRuntime;
   agentId: string;
   channel?: string;
   sessionType: string;
 }
 
-export interface ContextSourceCommandRunResult {
+interface ContextSourceCommandRunResult {
   raw: string;
   items: TurnContextItem[];
   error?: string;

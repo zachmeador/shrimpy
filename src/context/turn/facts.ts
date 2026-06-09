@@ -9,7 +9,7 @@ import type { SessionDescriptor } from "../../sessions/spec.js";
 import { formatAgentDateTime } from "./time.js";
 import type { TurnContextItem } from "./types.js";
 
-export interface TurnFactInput {
+interface TurnFactInput {
   runtime: AppRuntime;
   descriptor: SessionDescriptor;
   agentId: string;

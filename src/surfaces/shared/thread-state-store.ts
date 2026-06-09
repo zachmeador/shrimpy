@@ -13,7 +13,7 @@ interface SurfaceThreadStateData {
   threads: Record<string, SurfaceThreadState>;
 }
 
-export interface SurfaceThreadStateEntry {
+interface SurfaceThreadStateEntry {
   surface: string;
   threadId: string;
   addressedAgentId?: string;

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-export type PromptSectionKind =
+type PromptSectionKind =
   | "identity"
   | "memory"
   | "capability"
@@ -24,7 +24,7 @@ export interface PromptResourceRef {
   resourcePath: string;
 }
 
-export interface PromptSectionSummary {
+interface PromptSectionSummary {
   id: string;
   title: string;
   kind: PromptSectionKind;

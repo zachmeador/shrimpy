@@ -13,14 +13,14 @@ interface ModelCandidate {
   name?: string;
 }
 
-export interface ModelPolicyCandidateResolution extends ModelRef {
+interface ModelPolicyCandidateResolution extends ModelRef {
   usable: boolean;
   selected?: boolean;
   reason?: string;
 }
 
-export type ModelPolicySource = "cli-policy" | "agent" | "default";
-export type ModelResolutionSource =
+type ModelPolicySource = "cli-policy" | "agent" | "default";
+type ModelResolutionSource =
   | "cli"
   | "policy"
   | "registry-fallback"
@@ -44,7 +44,7 @@ export interface ModelResolution {
   problems: string[];
 }
 
-export interface ResolveModelOptions {
+interface ResolveModelOptions {
   modelPolicy?: string;
   allowMissingDefault?: boolean;
   allowRegistryFallback?: boolean;

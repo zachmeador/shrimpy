@@ -6,12 +6,12 @@ import {
   type ContextSourceConfig,
 } from "./source.js";
 
-export interface ContextChannelOverride {
+interface ContextChannelOverride {
   sources?: ContextSourceConfig[];
   env?: string[];
 }
 
-export interface ContextAgentOverride {
+interface ContextAgentOverride {
   sources?: ContextSourceConfig[];
   env?: string[];
   channels?: Record<string, ContextChannelOverride>;
@@ -55,9 +55,9 @@ export interface ResolvedContextConfig {
   turn: ResolvedContextTurnConfig;
 }
 
-export type ContextResourceScope = "workspace" | "agent";
+type ContextResourceScope = "workspace" | "agent";
 
-export interface ParsedContextResource {
+interface ParsedContextResource {
   scope: ContextResourceScope;
   path: string;
 }
@@ -70,10 +70,7 @@ export interface ContextConfig {
   turn?: ContextTurnConfig;
 }
 
-export interface ContextDefaultsConfig {
-  sources?: ContextSourceConfig[];
-  env?: string[];
-}
+export type ContextDefaultsConfig = Pick<ContextConfig, "sources" | "env">;
 
 export const DEFAULT_CONTEXT_SOURCES: ContextSourceConfig[] = [
   "workspace:profile/WORKSPACE.md",

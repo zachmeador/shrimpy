@@ -30,7 +30,7 @@ export interface ChatSessionRequest {
   cwd: string;
 }
 
-export interface ChatCommandDeps {
+interface ChatCommandDeps {
   createRuntime?: (config: ShrimpyConfig) => AppRuntime;
   loadConfig?: (workspace: string) => ShrimpyConfig;
   launchChatSession?: (

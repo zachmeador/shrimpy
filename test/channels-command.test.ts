@@ -186,7 +186,7 @@ describe("cmdChannels", () => {
     assert.equal(payload.matchedCount, 1);
     assert.equal(payload.messages[0].id, "human-request");
     assert.equal(payload.messages[0].kind, "user_text");
-    assert.equal(payload.messages[0].source.transport, "cli");
+    assert.equal(payload.messages[0].origin.transport, "cli");
   });
 
   test("search traces watch and system messages", async () => {
@@ -238,9 +238,9 @@ describe("cmdChannels", () => {
     const watchPayload = JSON.parse(watchLines.join("\n"));
     assert.equal(watchPayload.matchedCount, 1);
     assert.equal(watchPayload.messages[0].id, "watch-message");
-    assert.equal(watchPayload.messages[0].source.id, "shrimpy/maintenance");
-    assert.equal(watchPayload.messages[0].source.runId, "run-1");
-    assert.deepEqual(watchPayload.messages[0].source.inspectCommands, [
+    assert.equal(watchPayload.messages[0].sourceId, "shrimpy/maintenance");
+    assert.equal(watchPayload.messages[0].origin.runId, "run-1");
+    assert.deepEqual(watchPayload.messages[0].inspectCommands, [
       "shrimpy watches show shrimpy/maintenance",
     ]);
 
@@ -310,7 +310,7 @@ describe("cmdChannels", () => {
       (record: any) => record.kind === "watch",
     );
     assert.ok(watchRecord);
-    assert.equal(watchRecord.id, "shrimpy/maintenance");
+    assert.equal(watchRecord.sourceId, "shrimpy/maintenance");
     assert.deepEqual(summary.activity.inspectCommands, [
       "shrimpy watches show shrimpy/maintenance",
     ]);

@@ -147,7 +147,7 @@ function renderExpandedResult(result: ToolResultLike, theme: ToolRenderTheme): T
   return new Text(theme.fg("toolOutput", content?.text ?? ""), 0, 0);
 }
 
-export interface DaemonToolDeps {
+interface DaemonToolDeps {
   channelBus: ChannelBus;
   bootstrap: SessionBootstrap;
   toolConfig?: ResolvedToolRuntimeConfig;

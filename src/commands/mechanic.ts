@@ -27,7 +27,7 @@ export interface MechanicSessionRequest {
   cwd: string;
 }
 
-export interface MechanicCommandDeps {
+interface MechanicCommandDeps {
   createRuntime?: (config: ShrimpyConfig) => AppRuntime;
   loadConfig?: (workspace: string) => ShrimpyConfig;
   launchMechanicSession?: (

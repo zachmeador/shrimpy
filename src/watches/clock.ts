@@ -19,7 +19,7 @@ interface WatchClockRuntimeState {
   nextRunAtMs?: number;
 }
 
-export interface WatchClockStateEntry {
+interface WatchClockStateEntry {
   nextRunAtMs?: number;
 }
 

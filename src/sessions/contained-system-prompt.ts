@@ -12,7 +12,7 @@ import { formatAgentCurrentTime } from "../util/time-format.js";
 
 const CONTEXT_END_MARKER = "[end context]";
 
-export interface ContainedSystemPromptInput {
+interface ContainedSystemPromptInput {
   basePrompt: string;
   cwd: string;
   skills?: Skill[];
@@ -20,7 +20,7 @@ export interface ContainedSystemPromptInput {
   now?: Date;
 }
 
-export interface ContainedSystemPrompt {
+interface ContainedSystemPrompt {
   systemPrompt: string;
   sections: PromptSection[];
 }

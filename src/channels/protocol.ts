@@ -79,7 +79,7 @@ export interface PublishChannelMessageInput {
   id?: string;
 }
 
-export interface PublishHumanBaseInput {
+interface PublishHumanBaseInput {
   channel: string;
   actorId: string;
   userId?: string;
@@ -117,7 +117,7 @@ export interface PublishHumanUnsupportedMediaInput extends PublishHumanBaseInput
   media: UnsupportedSurfaceMessage;
 }
 
-export interface PublishSessionResetInput {
+interface PublishSessionControlInput {
   channel: string;
   targetAgentId: string;
   sender: MessageSender;
@@ -127,26 +127,14 @@ export interface PublishSessionResetInput {
   id?: string;
 }
 
-export interface PublishSessionRestoreInput {
-  channel: string;
-  targetAgentId: string;
+type PublishSessionResetInput = PublishSessionControlInput;
+
+interface PublishSessionRestoreInput extends PublishSessionControlInput {
   archiveName?: string;
-  sender: MessageSender;
-  origin: MessageOrigin;
-  command?: string;
-  timestamp?: number;
-  id?: string;
 }
 
-export interface PublishSessionThinkingLevelInput {
-  channel: string;
-  targetAgentId: string;
+interface PublishSessionThinkingLevelInput extends PublishSessionControlInput {
   level: ThinkingLevel;
-  sender: MessageSender;
-  origin: MessageOrigin;
-  command?: string;
-  timestamp?: number;
-  id?: string;
 }
 
 export interface PublishSystemInput {

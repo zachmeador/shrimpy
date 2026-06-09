@@ -22,15 +22,7 @@ export interface ContextCommandSourceConfig {
   freshForMs?: number;
 }
 
-export interface ResolvedContextCommandSource {
-  type: "command";
-  id: string;
-  command: string;
-  channels: string[];
-  timeoutMs: number;
-  maxChars: number;
-  freshForMs: number;
-}
+export type ResolvedContextCommandSource = Required<ContextCommandSourceConfig>;
 
 /**
  * Resolved source spec — defaults applied, ready to be consumed by producers.

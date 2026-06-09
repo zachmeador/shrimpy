@@ -5,9 +5,9 @@ import {
   type SessionPathSummary,
 } from "./service.js";
 
-export type SessionRecencyStatus = "recent" | "stale";
+type SessionRecencyStatus = "recent" | "stale";
 
-export interface SessionStatusEntry {
+interface SessionStatusEntry {
   channel: string;
   name: string;
   path: string;

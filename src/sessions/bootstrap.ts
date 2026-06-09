@@ -42,7 +42,7 @@ export interface SessionBootstrap {
   skillEntryPaths: string[];
 }
 
-export interface SessionBootstrapSource {
+interface SessionBootstrapSource {
   config: ShrimpyConfig;
   agentId: string;
   agentRootPath: string;

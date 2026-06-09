@@ -32,7 +32,7 @@ import {
 
 const LOCAL_DIRECT_CHANNELS = new Set(["tui", "run"]);
 
-export type SessionLifecycleAction = "new" | "clear" | "restore";
+type SessionLifecycleAction = "new" | "clear" | "restore";
 
 export interface SessionPathSummary {
   name: string;
@@ -78,7 +78,7 @@ export interface SessionCompactionPolicySummary {
   note: string;
 }
 
-export type SessionLifecycleResult =
+type SessionLifecycleResult =
   | {
     kind: "local_reset";
     agentId: string;
@@ -106,7 +106,7 @@ export type SessionLifecycleResult =
     requestedArchive?: string;
   };
 
-export type SessionThinkingResult =
+type SessionThinkingResult =
   | {
     kind: "local_thinking";
     agentId: string;

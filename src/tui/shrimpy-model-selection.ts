@@ -48,7 +48,7 @@ interface InteractiveModeModelSelectionInternals {
   };
 }
 
-export interface ShrimpyModelSelectionGuardOptions {
+interface ShrimpyModelSelectionGuardOptions {
   runtime?: AppRuntime;
 }
 
@@ -171,7 +171,7 @@ interface FavoriteModelSelectorHooks {
   showError?(message: string): void;
 }
 
-export type ModelFavoriteRef = ModelRef;
+type ModelFavoriteRef = ModelRef;
 
 export function modelFavoriteId(model: ModelFavoriteRef): string {
   return formatModelRef(model);

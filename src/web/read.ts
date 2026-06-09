@@ -1,12 +1,12 @@
 import { createReadStream, promises as fs } from "node:fs";
 import { createInterface } from "node:readline";
 
-export interface ParseError {
+interface ParseError {
   line: number;
   error: string;
 }
 
-export interface JsonlReadResult {
+interface JsonlReadResult {
   events: unknown[];
   parseErrors: ParseError[];
   truncated: boolean;
@@ -51,7 +51,7 @@ export async function readJsonl(path: string): Promise<JsonlReadResult> {
   return { events, parseErrors, truncated, totalSize: st.size };
 }
 
-export interface TextReadResult {
+interface TextReadResult {
   text: string;
   truncated: boolean;
   totalSize: number;

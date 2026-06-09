@@ -7,7 +7,7 @@ export type ConfigRequirementSpec =
   | ConfigRequirement
   | ((argv: string[]) => ConfigRequirement);
 
-export interface RegisteredCommand {
+interface RegisteredCommand {
   requiresConfig: ConfigRequirementSpec;
   load: () => Promise<CommandHandler>;
 }

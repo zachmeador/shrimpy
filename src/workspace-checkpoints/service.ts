@@ -7,7 +7,7 @@ import {
 
 export const DEFAULT_WORKSPACE_CHECKPOINT_INTERVAL_MS = 15 * 60 * 1000;
 
-export interface WorkspaceCheckpointService {
+interface WorkspaceCheckpointService {
   start(): void;
   stop(): void;
   tick(now?: Date): WorkspaceCheckpointResult | null;

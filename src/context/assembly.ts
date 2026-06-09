@@ -15,12 +15,12 @@ import {
 import type { ContextSourceConfig } from "./source.js";
 import { isPromptRuntimeEnvKey } from "./env.js";
 
-export interface PromptContextAssembly {
+interface PromptContextAssembly {
   sections: PromptSection[];
   systemPrompt: string;
 }
 
-export type PromptSectionInput =
+type PromptSectionInput =
   | PromptSection
   | PromptSection[]
   | undefined

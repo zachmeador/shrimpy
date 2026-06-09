@@ -7,7 +7,7 @@ import {
   formatCommandUsage,
 } from "./catalog.js";
 
-export interface CliHelpRenderOptions {
+interface CliHelpRenderOptions {
   full?: boolean;
 }
 

@@ -170,6 +170,8 @@ shrimpy channels tail <name>
 
 `channels search` can filter by message kind, sender kind, transport, actor id, content type, addressed agent, watch id, and source kind. `channels show` summarizes membership, message kind counts, recent request-like messages, and traceable source records.
 
+With `--json`, inspected messages in search results, `lastMessage`, `activity.recentRequests`, and `activity.sourceRecords` use one shape. Transport, run id, and source channel live on `origin`; trace-specific fields are `sourceId`, `targetChannel`, and `inspectCommands`.
+
 ## Publication And Egress
 
 Gateway channel sessions do not automatically publish assistant text to a channel. Agent-visible responses use active-channel helpers:

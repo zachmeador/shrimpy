@@ -22,7 +22,7 @@ export interface ModelAccessOnboardingInput {
   cwd?: string;
 }
 
-export interface ModelAccessOnboardingDeps {
+interface ModelAccessOnboardingDeps {
   log?: (line: string) => void;
   question?: (prompt: string) => Promise<string>;
   secret?: (prompt: string) => Promise<string>;

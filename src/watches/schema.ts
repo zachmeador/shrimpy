@@ -19,7 +19,7 @@ export interface WatchCommandAction {
   timeoutMs?: number;
 }
 
-export interface WatchMessageAction {
+interface WatchMessageAction {
   kind: "message";
   channel: string;
   text: string;
@@ -32,14 +32,14 @@ export interface WatchMessageAction {
 
 export type WatchAction = WatchCommandAction | WatchMessageAction;
 
-export interface WatchEveryMsTrigger {
+interface WatchEveryMsTrigger {
   kind: "time";
   everyMs: number;
   cron?: never;
   timezone?: string;
 }
 
-export interface WatchCronTrigger {
+interface WatchCronTrigger {
   kind: "time";
   cron: string;
   everyMs?: never;

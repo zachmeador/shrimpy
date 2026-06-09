@@ -18,52 +18,23 @@ export const CLAUDE_INSTRUCTIONS_ORIGIN_NOTE =
   "Generated from AGENTS.md by Shrimpy's build.";
 export const PROJECT_SKILL_MANAGED_MARKER = "DIRECTORY_MANAGED_BY_SHRIMPY_BUILD";
 
-export interface ClaudeInstructionSyncOptions {
+interface ClaudeInstructionSyncOptions {
   sourcePath?: string;
   targetPath?: string;
 }
 
-export interface ClaudeInstructionSyncResult {
-  sourcePath: string;
-  targetPath: string;
-}
-
-export interface ProjectSkillSourceBundle {
-  id: string;
-  rootPath: string;
-  entryPath: string;
-}
-
-export interface ProjectSkillSyncTarget {
+interface ProjectSkillSyncTarget {
   name: string;
   rootPath: string;
 }
 
-export interface ProjectSkillSyncOptions {
+interface ProjectSkillSyncOptions {
   sourceDir?: string;
   targets?: ProjectSkillSyncTarget[];
 }
 
-export interface ProjectSkillSyncTargetResult {
-  name: string;
-  rootPath: string;
-  markerPath: string;
-  skills: string[];
-}
-
-export interface ProjectSkillSyncResult {
-  sourceDir: string;
-  skills: string[];
-  targets: ProjectSkillSyncTargetResult[];
-}
-
-export interface ProjectBuildArtifactSyncOptions extends ProjectSkillSyncOptions {
+interface ProjectBuildArtifactSyncOptions extends ProjectSkillSyncOptions {
   claudeInstructions?: ClaudeInstructionSyncOptions | false;
-}
-
-export interface ProjectBuildArtifactSyncResult {
-  skills: ProjectSkillSyncResult;
-  claudeInstructions?: ClaudeInstructionSyncResult;
 }
 
 export function defaultClaudeInstructionSourcePath(): string {
@@ -87,7 +58,7 @@ export function defaultProjectSkillSyncTargets(): ProjectSkillSyncTarget[] {
 
 export function syncClaudeInstructions(
   opts: ClaudeInstructionSyncOptions = {},
-): ClaudeInstructionSyncResult {
+) {
   const sourcePath = resolve(opts.sourcePath ?? defaultClaudeInstructionSourcePath());
   const targetPath = resolve(opts.targetPath ?? defaultClaudeInstructionTargetPath());
   const source = readFileSync(sourcePath, "utf-8").trimEnd();
@@ -101,7 +72,7 @@ export function syncClaudeInstructions(
 
 export function listProjectSkillSourceBundles(
   sourceDir = defaultProjectSkillSourceDir(),
-): ProjectSkillSourceBundle[] {
+) {
   const resolvedSourceDir = resolve(sourceDir);
   if (!existsSync(resolvedSourceDir)) {
     throw new Error(`project skills source directory does not exist: ${resolvedSourceDir}`);
@@ -126,12 +97,15 @@ export function listProjectSkillSourceBundles(
 
 export function syncProjectSkills(
   opts: ProjectSkillSyncOptions = {},
-): ProjectSkillSyncResult {
+) {
   const sourceDir = resolve(opts.sourceDir ?? defaultProjectSkillSourceDir());
   const targets = opts.targets ?? defaultProjectSkillSyncTargets();
   const bundles = listProjectSkillSourceBundles(sourceDir);
   const skills = bundles.map((bundle) => bundle.id);
-  const targetResults: ProjectSkillSyncTargetResult[] = [];
+  const targetResults: Array<ProjectSkillSyncTarget & {
+    markerPath: string;
+    skills: string[];
+  }> = [];
 
   for (const target of targets) {
     const rootPath = resolve(target.rootPath);
@@ -159,7 +133,7 @@ export function syncProjectSkills(
 
 export function syncProjectBuildArtifacts(
   opts: ProjectBuildArtifactSyncOptions = {},
-): ProjectBuildArtifactSyncResult {
+) {
   const skills = syncProjectSkills(opts);
   const claudeInstructions = opts.claudeInstructions === false
     ? undefined

@@ -40,12 +40,12 @@ import {
   type SetupState,
 } from "./state.js";
 
-export interface SetupSessionLaunchInput {
+interface SetupSessionLaunchInput {
   config: ShrimpyConfig;
   cwd?: string;
 }
 
-export interface SetupInteractiveSessionSpec {
+interface SetupInteractiveSessionSpec {
   agentId: typeof MECHANIC_AGENT_ID;
   channel: "setup";
   sessionType: "tui";
@@ -55,7 +55,7 @@ export interface SetupInteractiveSessionSpec {
   cwd?: string;
 }
 
-export interface RunSetupOnboardingDeps {
+interface RunSetupOnboardingDeps {
   cwd?: string;
   confirmExistingConfig?: (configPath: string) => Promise<boolean>;
   confirmReplaceModelPolicy?: (input: ConfirmReplaceModelPolicyInput) => Promise<boolean>;

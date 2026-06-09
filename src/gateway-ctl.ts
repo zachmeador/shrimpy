@@ -23,7 +23,7 @@ const UNIT_FILE = `${SERVICE_NAME}.service`;
 const LAUNCHD_LABEL = "io.github.zachmeador.shrimpy.gateway";
 const LAUNCHD_PLIST = `${LAUNCHD_LABEL}.plist`;
 
-export interface GatewayCtlOptions {
+interface GatewayCtlOptions {
   pidPath: string;
   deps?: GatewayServiceDeps;
 }
@@ -45,7 +45,7 @@ type SpawnSyncLike = (
   stderr?: string | Buffer;
 };
 
-export interface GatewayServiceDeps {
+interface GatewayServiceDeps {
   platform?: string;
   homeDir?: string;
   uid?: number;
@@ -71,9 +71,9 @@ interface ResolvedGatewayServiceDeps {
   writeFileSync: (path: string, content: string, encoding: BufferEncoding) => void;
 }
 
-export type GatewayServiceManager = "systemd" | "launchd" | "manual";
+type GatewayServiceManager = "systemd" | "launchd" | "manual";
 
-export interface GatewayServicePaths {
+interface GatewayServicePaths {
   unitDir: string;
   unitPath: string;
   launchAgentDir: string;

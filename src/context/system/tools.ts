@@ -1,4 +1,4 @@
-export type ToolProseId =
+type ToolProseId =
   | "reply"
   | "ask"
   | "notify"
@@ -7,7 +7,7 @@ export type ToolProseId =
   | "read_channel"
   | "run_child";
 
-export interface ToolProse {
+interface ToolProse {
   description: string;
   promptSnippet: string;
 }

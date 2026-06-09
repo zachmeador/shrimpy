@@ -11,8 +11,8 @@ export const INFERENCE_PARAM_NAMES = [
   "repeat_penalty",
 ] as const;
 
-export type InferenceParamName = (typeof INFERENCE_PARAM_NAMES)[number];
-export type InferenceParams = Partial<Record<InferenceParamName, number>>;
+type InferenceParamName = (typeof INFERENCE_PARAM_NAMES)[number];
+type InferenceParams = Partial<Record<InferenceParamName, number>>;
 
 export interface ModelVariantInference {
   baseModel?: string;

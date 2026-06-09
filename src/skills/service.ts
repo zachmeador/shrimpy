@@ -59,12 +59,12 @@ export {
   SKILL_PROMPT_WARNING_THRESHOLD,
 } from "./shared.js";
 
-export type SkillScope = "agent" | "workspace" | "default" | "package";
-export type SkillSourceKind = "local" | "default" | "package";
+type SkillScope = "agent" | "workspace" | "default" | "package";
+type SkillSourceKind = "local" | "default" | "package";
 
-export type SkillValidationLevel = "error" | "warning";
+type SkillValidationLevel = "error" | "warning";
 
-export interface SkillView {
+interface SkillView {
   id: string;
   name: string;
   description: string;
@@ -87,7 +87,7 @@ export interface SkillView {
   packageInfo?: SkillPackageInfo;
 }
 
-export interface ShadowedSkillView {
+interface ShadowedSkillView {
   id: string;
   scope: SkillScope;
   sourceKind: SkillSourceKind;
@@ -101,7 +101,7 @@ export interface ShadowedSkillView {
   };
 }
 
-export interface SkillInventory {
+interface SkillInventory {
   agentId: string;
   skills: SkillView[];
   shadowedSkills: ShadowedSkillView[];
@@ -110,7 +110,7 @@ export interface SkillInventory {
   promptWarningThreshold: number;
 }
 
-export interface SkillValidationIssue {
+interface SkillValidationIssue {
   level: SkillValidationLevel;
   code: string;
   message: string;
@@ -118,7 +118,7 @@ export interface SkillValidationIssue {
   path?: string;
 }
 
-export interface SkillValidationResult {
+interface SkillValidationResult {
   agentId: string;
   issues: SkillValidationIssue[];
 }

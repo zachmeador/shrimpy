@@ -1,4 +1,4 @@
-export type CliCommandCategory =
+type CliCommandCategory =
   | "Session Commands"
   | "Workspace And Runtime"
   | "Channels And Surfaces"
@@ -6,15 +6,15 @@ export type CliCommandCategory =
   | "Gateway"
   | "Plumbing";
 
-export type CliHelpVisibility = "default" | "full";
+type CliHelpVisibility = "default" | "full";
 
-export interface CliOptionSpec {
+interface CliOptionSpec {
   name: string;
   short?: string;
   takesValue?: boolean;
 }
 
-export interface CliCommandEntry {
+interface CliCommandEntry {
   path: readonly string[];
   args?: string;
   summary: string;

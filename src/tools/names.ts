@@ -17,7 +17,7 @@ export const ACTIVE_PUBLICATION_TOOL_NAMES = [
   "report",
 ] as const;
 
-export type ActivePublicationToolName =
+type ActivePublicationToolName =
   (typeof ACTIVE_PUBLICATION_TOOL_NAMES)[number];
 
 export function isActivePublicationToolName(

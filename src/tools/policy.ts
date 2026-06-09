@@ -21,14 +21,14 @@ export const PI_DEFAULT_ACTIVE_TOOL_NAMES = [
   "write",
 ] as const;
 
-export type PiBuiltinToolName = typeof PI_BUILTIN_TOOL_NAMES[number];
+type PiBuiltinToolName = typeof PI_BUILTIN_TOOL_NAMES[number];
 
-export type ToolCapabilityOrigin =
+type ToolCapabilityOrigin =
   | "pi_builtin"
   | "shrimpy_daemon"
   | "unknown";
 
-export type ToolCapabilityStatus =
+type ToolCapabilityStatus =
   | "active"
   | "registered"
   | "excluded";

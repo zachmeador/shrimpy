@@ -117,8 +117,8 @@ function parseSearchArgs(args: string[]): {
 function formatInspectionLine(message: ChannelMessageInspection): string {
   const ts = new Date(message.timestamp).toISOString();
   const senderName = message.sender.displayName ?? message.sender.actorId;
-  const sourceId = message.source.id ? ` id=${message.source.id}` : "";
-  const runId = message.source.runId ? ` run=${message.source.runId}` : "";
+  const sourceId = message.sourceId ? ` id=${message.sourceId}` : "";
+  const runId = message.origin.runId ? ` run=${message.origin.runId}` : "";
   const addressed = message.origin.addressedAgentId
     ? ` addressed=${message.origin.addressedAgentId}`
     : "";
@@ -127,14 +127,14 @@ function formatInspectionLine(message: ChannelMessageInspection): string {
 
 function printInspectionDetails(message: ChannelMessageInspection): void {
   const sourceParts = [
-    `transport=${message.source.transport}`,
-    message.source.sourceChannel ? `channel=${message.source.sourceChannel}` : undefined,
-    message.source.targetChannel ? `target=${message.source.targetChannel}` : undefined,
+    `transport=${message.origin.transport}`,
+    message.origin.sourceChannel ? `channel=${message.origin.sourceChannel}` : undefined,
+    message.targetChannel ? `target=${message.targetChannel}` : undefined,
   ].filter((part): part is string => Boolean(part));
   if (sourceParts.length > 0) {
     console.log(`  ${label("source:")} ${sourceParts.join(" ")}`);
   }
-  for (const command of message.source.inspectCommands) {
+  for (const command of message.inspectCommands) {
     console.log(`  ${label("inspect:")} ${command}`);
   }
 }
@@ -143,7 +143,7 @@ export async function cmdChannelsList(
   runtime: AppRuntime,
   json: boolean,
 ): Promise<number> {
-  const summaries = listChannelSummaries(runtime);
+  const summaries = listChannelSummaries(runtime, { includeActivity: json });
   if (summaries.length === 0) {
     console.log(dim("(no channels)"));
     return 0;
@@ -188,10 +188,13 @@ export async function cmdChannelsShow(
   console.log(`${label("messages:")} ${summary.messageCount}`);
   const agentList = formatChannelAgentIds(summary.membership).join(", ");
   console.log(`${label("agents:")} ${agentList || dim("(none)")}`);
-  const kindCounts = Object.entries(summary.activity.kindCounts)
-    .filter(([, count]) => count > 0)
-    .map(([kind, count]) => `${kind}=${count}`)
-    .join(" ");
+  const activity = summary.activity;
+  const kindCounts = activity
+    ? Object.entries(activity.kindCounts)
+      .filter(([, count]) => count > 0)
+      .map(([kind, count]) => `${kind}=${count}`)
+      .join(" ")
+    : "";
   console.log(`${label("message_kinds:")} ${kindCounts || dim("(none)")}`);
   if (summary.lastMessage) {
     console.log(`${label("last_message_at:")} ${new Date(summary.lastMessage.timestamp).toISOString()}`);
@@ -201,20 +204,20 @@ export async function cmdChannelsShow(
   } else {
     console.log(`${label("last_message:")} ${dim("(none)")}`);
   }
-  if (summary.activity.recentRequests.length > 0) {
+  if (activity && activity.recentRequests.length > 0) {
     console.log(`${label("recent_requests:")}`);
-    for (const message of summary.activity.recentRequests) {
+    for (const message of activity.recentRequests) {
       console.log(`  ${formatInspectionLine(message)}`);
     }
   } else {
     console.log(`${label("recent_requests:")} ${dim("(none)")}`);
   }
-  if (summary.activity.sourceRecords.length > 0) {
+  if (activity && activity.sourceRecords.length > 0) {
     console.log(`${label("source_records:")}`);
-    for (const record of summary.activity.sourceRecords) {
-      const run = record.runId ? ` run=${record.runId}` : "";
+    for (const record of activity.sourceRecords) {
+      const run = record.origin.runId ? ` run=${record.origin.runId}` : "";
       const target = record.targetChannel ? ` target=${record.targetChannel}` : "";
-      console.log(`  ${record.kind} id=${record.id}${run}${target} message=${record.messageId}`);
+      console.log(`  ${record.kind} id=${record.sourceId}${run}${target} message=${record.id}`);
       for (const command of record.inspectCommands) {
         console.log(`    ${label("inspect:")} ${command}`);
       }

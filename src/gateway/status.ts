@@ -13,31 +13,31 @@ export interface ChannelMessageSnapshot {
   message: ChannelMessage;
 }
 
-export interface GatewayActivitySummary {
+interface GatewayActivitySummary {
   channelCount: number;
   lastWatchRun?: ChannelMessageSnapshot;
   watchedWatches: Record<string, GatewayWatchedWatchActivity>;
   lastUserInteraction?: ChannelMessageSnapshot;
 }
 
-export interface GatewayWatchClockSummary {
+interface GatewayWatchClockSummary {
   nextWatchRun?: GatewayWatchRunClockStatus;
   watchedWatches: Record<string, GatewayWatchedWatchClockStatus>;
 }
 
-export interface GatewayWatchRunClockStatus {
+interface GatewayWatchRunClockStatus {
   watchId: string;
   nextRunAtMs: number;
 }
 
-export interface GatewayWatchedWatchActivity {
+interface GatewayWatchedWatchActivity {
   label: string;
   channel: string;
   watchId: string;
   lastRun?: ChannelMessageSnapshot;
 }
 
-export interface GatewayWatchedWatchClockStatus {
+interface GatewayWatchedWatchClockStatus {
   label: string;
   channel: string;
   watchId: string;

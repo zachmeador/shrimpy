@@ -39,7 +39,7 @@ export interface WorkspaceCheckpointResult {
   message: string;
 }
 
-export interface WorkspaceCheckpointInitResult {
+interface WorkspaceCheckpointInitResult {
   repositoryCreated: boolean;
   gitignoreWritten: boolean;
   checkpoint: WorkspaceCheckpointResult;

@@ -6,7 +6,7 @@ import { renderShellCompletion, type CompletionShell } from "./completion-script
 
 const COMPLETION_HEADER = "# Shrimpy Completion";
 
-export interface CompletionBootstrapResult {
+interface CompletionBootstrapResult {
   status: "installed" | "refreshed" | "skipped" | "failed";
   reason?: string;
   shell?: CompletionShell;

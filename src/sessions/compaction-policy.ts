@@ -4,7 +4,7 @@ import type { RuntimeConfig } from "../config/index.js";
 import { channelMatches } from "../util/channel-pattern.js";
 import type { SessionDescriptor } from "./spec.js";
 
-export interface CompactionPolicyOverride {
+interface CompactionPolicyOverride {
   enabled?: boolean;
   reserveTokens?: number;
   thresholdTokens?: number;

@@ -23,9 +23,9 @@ import {
   type RunInteractiveSessionInput,
 } from "../sessions/index.js";
 
-export type ShrimpyTuiSessionRequest = Omit<RunInteractiveSessionInput, "runtime">;
+type ShrimpyTuiSessionRequest = Omit<RunInteractiveSessionInput, "runtime">;
 
-export interface ShrimpyTuiCommandDeps {
+interface ShrimpyTuiCommandDeps {
   createRuntime?: (config: ShrimpyConfig) => AppRuntime;
   loadConfig?: (workspace: string) => ShrimpyConfig;
   launchSession?: (

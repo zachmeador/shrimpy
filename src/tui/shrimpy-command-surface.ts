@@ -67,7 +67,7 @@ interface InteractiveModeCommandSurfaceInternals {
   updateEditorBorderColor(): void;
 }
 
-export interface ShrimpyCommandSurfaceOptions {
+interface ShrimpyCommandSurfaceOptions {
   runtime: AppRuntime;
   agentId: string;
   channel: string;

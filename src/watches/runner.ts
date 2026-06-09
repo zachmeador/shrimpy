@@ -28,7 +28,7 @@ import type {
 } from "./schema.js";
 import { watchTriggerMetadata } from "./schema.js";
 
-export interface RunWatchDueOptions {
+interface RunWatchDueOptions {
   run: WatchRunDue;
   channelBus: ChannelBus;
   runStoreRoot: string;

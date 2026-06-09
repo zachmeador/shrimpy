@@ -48,16 +48,16 @@ import type {
   TurnContextItem,
 } from "./turn/types.js";
 
-export type ContextSourceKind = "file" | "directory" | "command" | "runtime";
+type ContextSourceKind = "file" | "directory" | "command" | "runtime";
 
-export interface ContextPreviewTarget {
+interface ContextPreviewTarget {
   agentId: string;
   descriptor: SessionDescriptor;
   sessionType: string;
   cwd: string;
 }
 
-export interface SessionContextPreview {
+interface SessionContextPreview {
   target: ContextPreviewTarget;
   assembly: SessionPromptAssembly;
   turnContext?: TurnContext;

@@ -5,7 +5,7 @@ import type {
 import type { ImageContent, UserMessage } from "@earendil-works/pi-ai";
 import { formatPromptWithTurnContext } from "../context/index.js";
 
-export interface ActiveSessionTurnContext {
+interface ActiveSessionTurnContext {
   prompt: string;
   text: string;
 }

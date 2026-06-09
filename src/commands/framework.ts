@@ -20,11 +20,11 @@ export interface CommandInvocation {
   usage: string;
 }
 
-export type CommandAction = (
+type CommandAction = (
   invocation: CommandInvocation,
 ) => CommandResult | Promise<CommandResult>;
 
-export interface CommandGroup {
+interface CommandGroup {
   name: string;
   path?: readonly string[];
   usage: string;

@@ -61,7 +61,7 @@ export interface ResolvedAppConfig {
   tools: ResolvedToolRuntimeConfig;
 }
 
-export interface AppRuntimeBuildToolsOpts {
+interface AppRuntimeBuildToolsOpts {
   bootstrap: SessionBootstrap;
   channelBus: ChannelBus;
   agentId?: string;

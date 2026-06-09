@@ -8,7 +8,7 @@ export interface ChannelDelivery {
   publication?: PublicationIntent;
 }
 
-export type EgressSendFn = (delivery: ChannelDelivery) => Promise<void>;
+type EgressSendFn = (delivery: ChannelDelivery) => Promise<void>;
 
 /**
  * Channel-prefix → outbound send function. Surfaces register a route

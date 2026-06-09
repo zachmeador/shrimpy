@@ -5,9 +5,9 @@ import {
   type ResolvedAgentConfig,
 } from "../config/agents.js";
 
-export type AgentChannelPolicyAction = "wake" | "ignore";
+type AgentChannelPolicyAction = "wake" | "ignore";
 
-export interface AgentChannelPolicyDecision {
+interface AgentChannelPolicyDecision {
   agentId: string;
   channel: string;
   visible: boolean;

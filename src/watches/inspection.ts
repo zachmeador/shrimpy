@@ -78,7 +78,7 @@ export interface WatchInspection {
   watch: ResolvedAgentWatchDefinition;
 }
 
-export interface InspectWatchesOptions {
+interface InspectWatchesOptions {
   agentId?: string;
 }
 
