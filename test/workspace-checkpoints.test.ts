@@ -17,6 +17,11 @@ import {
   initializeWorkspaceCheckpointTracking,
   inspectWorkspaceCheckpointStatus,
 } from "../dist/workspace-checkpoints/index.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
@@ -30,11 +35,11 @@ const hasGit = (() => {
 })();
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-workspace-checkpoints-test-"));
+  workspace = makeTempWorkspace("shrimpy-workspace-checkpoints-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
 
 function git(args: string[], cwd = workspace): string {
@@ -43,21 +48,6 @@ function git(args: string[], cwd = workspace): string {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
-}
-
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[] }> {
-  const originalLog = console.log;
-  const lines: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines };
-  } finally {
-    console.log = originalLog;
-  }
 }
 
 describe("workspace checkpoints", () => {

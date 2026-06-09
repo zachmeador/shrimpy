@@ -1,41 +1,49 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { cmdModels } from "../dist/commands/models.js";
+import { runCommand } from "../dist/commands/framework.js";
 import {
   createGatewaySessionDescriptor,
   createLocalSessionDescriptor,
 } from "../dist/sessions/spec.js";
 import { setupInit } from "../dist/setup/init.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-models-command-test-"));
+  workspace = makeTempWorkspace("shrimpy-models-command-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
 
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[] }> {
-  const originalLog = console.log;
-  const lines: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines };
-  } finally {
-    console.log = originalLog;
-  }
-}
-
 describe("cmdModels", () => {
+  test("uses shared usage errors for unknown subcommands", async () => {
+    const topLevel = await captureLogs(() =>
+      runCommand(cmdModels, ["bogus"], { workspace } as any)
+    );
+
+    assert.equal(topLevel.result, 1);
+    assert.match(topLevel.errors.join("\n"), /unknown subcommand: bogus/);
+    assert.match(topLevel.errors.join("\n"), /shrimpy models resolve/);
+
+    const nested = await captureLogs(() =>
+      runCommand(cmdModels, ["policies", "bogus"], { workspace } as any)
+    );
+
+    assert.equal(nested.result, 1);
+    assert.match(nested.errors.join("\n"), /unknown subcommand: bogus/);
+    assert.match(nested.errors.join("\n"), /shrimpy models policies show/);
+  });
+
   test("lists model policies, agent defaults, and available provider models", async () => {
     await setupInit(workspace);
     writeModelsJson({

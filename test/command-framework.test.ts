@@ -23,6 +23,35 @@ describe("command framework", () => {
     assert.equal(await command(["show", "thing"], {} as any), 0);
   });
 
+  test("routes flag-first argv to a default command", async () => {
+    const command = createCommandGroup({
+      name: "demo",
+      usage: "usage: demo [list]",
+      default: ({ argv }) => {
+        assert.deepEqual(argv, ["--json"]);
+        return 0;
+      },
+      commands: {},
+    });
+
+    assert.equal(await command(["--json"], {} as any), 0);
+  });
+
+  test("can route positional argv to a default command when requested", async () => {
+    const command = createCommandGroup({
+      name: "demo",
+      usage: "usage: demo [prompt]",
+      defaultWhen: () => true,
+      default: ({ argv }) => {
+        assert.deepEqual(argv, ["hello"]);
+        return 0;
+      },
+      commands: {},
+    });
+
+    assert.equal(await command(["hello"], {} as any), 0);
+  });
+
   test("maps usage errors to stderr and exit code", async () => {
     const originalError = console.error;
     const lines: string[] = [];

@@ -1,38 +1,27 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { systemContent, textContent } from "../dist/channels/index.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { cmdChannels } from "../dist/commands/channels.js";
 import { setupInit } from "../dist/setup/init.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-channels-command-test-"));
+  workspace = makeTempWorkspace("shrimpy-channels-command-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
-
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[] }> {
-  const originalLog = console.log;
-  const lines: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines };
-  } finally {
-    console.log = originalLog;
-  }
-}
 
 async function withMutedConsole<T>(fn: () => Promise<T>): Promise<T> {
   const originalLog = console.log;

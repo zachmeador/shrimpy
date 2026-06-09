@@ -16,7 +16,10 @@ import {
 } from "../context/preview.js";
 import { tryParseDurationMs } from "../util/time-format.js";
 import {
+  createCommandGroup,
   parseCommandArgs,
+  requireArg,
+  usage as printUsage,
   type CommandHandler,
 } from "./framework.js";
 import {
@@ -25,19 +28,50 @@ import {
 } from "./catalog.js";
 
 const USAGE = renderGroupUsage("context");
+const CONTEXT_FILES_USAGE = [
+  renderCommandUsage(["context", "files", "list"]),
+  renderCommandUsage(["context", "files", "show"]),
+].join("\n");
+const CONTEXT_SOURCES_USAGE = [
+  renderCommandUsage(["context", "sources", "list"]),
+  renderCommandUsage(["context", "sources", "run"]),
+].join("\n");
 
-export const cmdContext: CommandHandler = async (argv, config) => {
-  // files subcommand splits off early — no session bootstrap needed
-  if (argv[0] === "files") {
-    return cmdContextFiles(argv.slice(1), config);
-  }
-  if (argv[0] === "sources") {
-    return cmdContextSources(argv.slice(1), config);
-  }
-  if (argv[0] === "turn") {
-    return cmdContextTurn(argv.slice(1), config);
-  }
+const cmdContextFiles: CommandHandler = createCommandGroup({
+  name: "files",
+  path: ["context", "files"],
+  usage: CONTEXT_FILES_USAGE,
+  default: ({ usage }) => printUsage(usage, "files subcommand required"),
+  commands: {
+    list: ({ argv, config }) => cmdContextFilesList(argv, config),
+    show: ({ argv, config }) => cmdContextFilesShow(argv, config),
+  },
+});
 
+const cmdContextSources: CommandHandler = createCommandGroup({
+  name: "sources",
+  path: ["context", "sources"],
+  usage: CONTEXT_SOURCES_USAGE,
+  default: ({ usage }) => printUsage(usage, "sources subcommand required"),
+  commands: {
+    list: ({ argv, config }) => cmdContextSourcesList(argv, config),
+    run: ({ argv, config }) => cmdContextSourcesRun(argv, config),
+  },
+});
+
+export const cmdContext: CommandHandler = createCommandGroup({
+  name: "context",
+  usage: USAGE,
+  default: ({ argv, config }) => cmdContextPreview(argv, config),
+  defaultWhen: () => true,
+  commands: {
+    files: ({ argv, config }) => cmdContextFiles(argv, config),
+    sources: ({ argv, config }) => cmdContextSources(argv, config),
+    turn: ({ argv, config }) => cmdContextTurn(argv, config),
+  },
+});
+
+async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise<number> {
   const { values, positionals } = parseCommandArgs({
     args: argv,
     options: {
@@ -117,7 +151,7 @@ export const cmdContext: CommandHandler = async (argv, config) => {
   }
 
   return 0;
-};
+}
 
 async function cmdContextTurn(argv: string[], config: ShrimpyConfig): Promise<number> {
   const { values, positionals } = parseCommandArgs({
@@ -150,18 +184,9 @@ async function cmdContextTurn(argv: string[], config: ShrimpyConfig): Promise<nu
   return 0;
 }
 
-async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise<number> {
-  const sub = argv[0];
-  if (sub !== "list" && sub !== "run") {
-    console.error([
-      renderCommandUsage(["context", "sources", "list"]),
-      renderCommandUsage(["context", "sources", "run"]),
-    ].join("\n"));
-    return 2;
-  }
-
-  const { values, positionals } = parseCommandArgs({
-    args: argv.slice(1),
+async function cmdContextSourcesList(argv: string[], config: ShrimpyConfig): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
     options: {
       agent: { type: "string", short: "a" },
       channel: { type: "string", short: "c" },
@@ -170,7 +195,7 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
     },
     allowPositionals: true,
     strict: true,
-    usage: USAGE,
+    usage: CONTEXT_SOURCES_USAGE,
   });
 
   const runtime = createAppRuntime(config);
@@ -180,22 +205,41 @@ async function cmdContextSources(argv: string[], config: ShrimpyConfig): Promise
     channel: values.channel,
   });
 
-  if (sub === "list") {
-    if (values.json) {
-      console.log(JSON.stringify(sources.map(sourceToJson), null, 2));
-      return 0;
-    }
-    for (const source of sources) {
-      console.log(`${source.id}  [${source.type}/${source.scope}]  ${source.summary}`);
-    }
+  if (values.json) {
+    console.log(JSON.stringify(sources.map(sourceToJson), null, 2));
     return 0;
   }
-
-  const id = positionals[0];
-  if (!id) {
-    console.error(renderCommandUsage(["context", "sources", "run"]));
-    return 2;
+  for (const source of sources) {
+    console.log(`${source.id}  [${source.type}/${source.scope}]  ${source.summary}`);
   }
+  return 0;
+}
+
+async function cmdContextSourcesRun(argv: string[], config: ShrimpyConfig): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      channel: { type: "string", short: "c" },
+      "session-type": { type: "string", short: "s" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: renderCommandUsage(["context", "sources", "run"]),
+  });
+
+  const runtime = createAppRuntime(config);
+  const sources = collectContextSources({
+    runtime,
+    agentId: values.agent,
+    channel: values.channel,
+  });
+  const id = requireArg(
+    positionals[0],
+    renderCommandUsage(["context", "sources", "run"]),
+    "context source id",
+  );
   const source = sources.find((candidate) => candidate.id === id);
   if (!source) {
     console.error(`unknown context source: ${id}`);
@@ -254,18 +298,9 @@ function renderContextSourceError(result: ContextSourceRunResult): string {
   ).join("\n");
 }
 
-async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<number> {
-  const sub = argv[0];
-  if (sub !== "list" && sub !== "show") {
-    console.error([
-      renderCommandUsage(["context", "files", "list"]),
-      renderCommandUsage(["context", "files", "show"]),
-    ].join("\n"));
-    return 2;
-  }
-
-  const { values, positionals } = parseCommandArgs({
-    args: argv.slice(1),
+async function cmdContextFilesList(argv: string[], config: ShrimpyConfig): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
     options: {
       agent: { type: "string", short: "a" },
       "older-than": { type: "string" },
@@ -273,7 +308,7 @@ async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<n
     },
     allowPositionals: true,
     strict: true,
-    usage: USAGE,
+    usage: CONTEXT_FILES_USAGE,
   });
 
   const runtime = createAppRuntime(config);
@@ -281,39 +316,53 @@ async function cmdContextFiles(argv: string[], config: ShrimpyConfig): Promise<n
   const agentPaths = runtime.getAgentPaths(agent.id);
   const contextDir = agentPaths.contextDir;
 
-  if (sub === "list") {
-    const olderThanMs = tryParseDurationMs(values["older-than"]);
-    const cutoff = olderThanMs !== undefined ? Date.now() - olderThanMs : undefined;
-    const files = walkContextFiles(contextDir).filter((file) => {
-      if (cutoff === undefined) return true;
-      return file.mtime <= cutoff;
-    });
+  const olderThanMs = tryParseDurationMs(values["older-than"]);
+  const cutoff = olderThanMs !== undefined ? Date.now() - olderThanMs : undefined;
+  const files = walkContextFiles(contextDir).filter((file) => {
+    if (cutoff === undefined) return true;
+    return file.mtime <= cutoff;
+  });
 
-    if (values.json) {
-      console.log(JSON.stringify(files.map((file) => ({
-        path: relative(agentPaths.root, file.path),
-        bytes: file.bytes,
-        mtime: new Date(file.mtime).toISOString(),
-      })), null, 2));
-      return 0;
-    }
-
-    if (files.length === 0) {
-      console.log("(no context files)");
-      return 0;
-    }
-    for (const file of files) {
-      console.log(`  ${relative(agentPaths.root, file.path)}  ${file.bytes}b  ${new Date(file.mtime).toISOString()}`);
-    }
+  if (values.json) {
+    console.log(JSON.stringify(files.map((file) => ({
+      path: relative(agentPaths.root, file.path),
+      bytes: file.bytes,
+      mtime: new Date(file.mtime).toISOString(),
+    })), null, 2));
     return 0;
   }
 
-  // show
-  const target = positionals[0];
-  if (!target) {
-    console.error(renderCommandUsage(["context", "files", "show"]));
-    return 2;
+  if (files.length === 0) {
+    console.log("(no context files)");
+    return 0;
   }
+  for (const file of files) {
+    console.log(`  ${relative(agentPaths.root, file.path)}  ${file.bytes}b  ${new Date(file.mtime).toISOString()}`);
+  }
+  return 0;
+}
+
+async function cmdContextFilesShow(argv: string[], config: ShrimpyConfig): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      "older-than": { type: "string" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: renderCommandUsage(["context", "files", "show"]),
+  });
+
+  const runtime = createAppRuntime(config);
+  const agent = runtime.getAgent(values.agent);
+  const agentPaths = runtime.getAgentPaths(agent.id);
+  const target = requireArg(
+    positionals[0],
+    renderCommandUsage(["context", "files", "show"]),
+    "context file path",
+  );
   const fullPath = join(agentPaths.root, target);
   if (!existsSync(fullPath)) {
     console.error(`not found: ${target}`);

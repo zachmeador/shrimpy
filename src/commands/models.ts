@@ -35,8 +35,10 @@ import {
 } from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 import {
+  createCommandGroup,
   parseCommandArgs,
   printError,
+  requireArg,
   type CommandHandler,
 } from "./framework.js";
 import { renderGroupUsage } from "./catalog.js";
@@ -77,20 +79,30 @@ interface ModelResolveView {
   problems: string[];
 }
 
-export const cmdModels: CommandHandler = async (argv, config) => {
-  const sub = argv[0];
-  if (sub === "resolve") {
-    return cmdModelsResolve(argv.slice(1), config);
-  }
-  if (sub === "policies") {
-    return cmdModelPolicies(argv.slice(1), config);
-  }
-  if (sub && sub !== "--json") {
-    console.error(`unknown models subcommand: ${sub}\n\n${USAGE}`);
-    return 2;
-  }
-  return cmdModelsList(argv, config);
-};
+const cmdModelPolicies: CommandHandler = createCommandGroup({
+  name: "policies",
+  path: ["models", "policies"],
+  usage: USAGE,
+  default: ({ argv, config }) => cmdModelPoliciesList(argv, config),
+  commands: {
+    list: ({ argv, config }) => cmdModelPoliciesList(argv, config),
+    show: ({ argv, config }) => cmdModelPoliciesShow(argv, config),
+    set: ({ argv, config }) => cmdModelPoliciesSet(argv, config),
+    "add-candidate": ({ argv, config }) => cmdModelPoliciesAddCandidate(argv, config),
+    "remove-candidate": ({ argv, config }) => cmdModelPoliciesRemoveCandidate(argv, config),
+    "move-candidate": ({ argv, config }) => cmdModelPoliciesMoveCandidate(argv, config),
+  },
+});
+
+export const cmdModels: CommandHandler = createCommandGroup({
+  name: "models",
+  usage: USAGE,
+  default: ({ argv, config }) => cmdModelsList(argv, config),
+  commands: {
+    resolve: ({ argv, config }) => cmdModelsResolve(argv, config),
+    policies: ({ argv, config }) => cmdModelPolicies(argv, config),
+  },
+});
 
 async function cmdModelsList(argv: string[], config: ShrimpyConfig): Promise<number> {
   const { values } = parseCommandArgs({
@@ -164,20 +176,6 @@ async function cmdModelsList(argv: string[], config: ShrimpyConfig): Promise<num
   return 0;
 }
 
-async function cmdModelPolicies(argv: string[], config: ShrimpyConfig): Promise<number> {
-  const sub = argv[0];
-  if (!sub || sub === "list" || sub === "--json") {
-    return cmdModelPoliciesList(sub === "--json" ? argv : argv.slice(1), config);
-  }
-  if (sub === "show") return cmdModelPoliciesShow(argv.slice(1), config);
-  if (sub === "set") return cmdModelPoliciesSet(argv.slice(1), config);
-  if (sub === "add-candidate") return cmdModelPoliciesAddCandidate(argv.slice(1), config);
-  if (sub === "remove-candidate") return cmdModelPoliciesRemoveCandidate(argv.slice(1), config);
-  if (sub === "move-candidate") return cmdModelPoliciesMoveCandidate(argv.slice(1), config);
-
-  return printError(`unknown models policies subcommand: ${sub}`);
-}
-
 async function cmdModelPoliciesList(
   argv: string[],
   config: ShrimpyConfig,
@@ -218,7 +216,7 @@ async function cmdModelPoliciesShow(
     strict: true,
     usage: USAGE,
   });
-  const name = requirePosition(positionals[0], "policy name required");
+  const name = requireArg(positionals[0], USAGE, "policy name");
   const runtime = createAppRuntime(config);
   const bootstrap = await runtime.createBootstrap();
   const policy = config.modelPolicies?.[name];
@@ -252,7 +250,7 @@ async function cmdModelPoliciesSet(
     strict: true,
     usage: USAGE,
   });
-  const name = requirePosition(positionals[0], "policy name required");
+  const name = requireArg(positionals[0], USAGE, "policy name");
   const candidates = (values.candidate ?? []).map((candidate) => parseModelRef(candidate));
   if (candidates.length === 0) {
     return printError("models policies set requires at least one --candidate <provider>/<model>");
@@ -278,8 +276,8 @@ async function cmdModelPoliciesAddCandidate(
     strict: true,
     usage: USAGE,
   });
-  const name = requirePosition(positionals[0], "policy name required");
-  const candidate = parseModelRef(requirePosition(positionals[1], "candidate required"));
+  const name = requireArg(positionals[0], USAGE, "policy name");
+  const candidate = parseModelRef(requireArg(positionals[1], USAGE, "candidate"));
   const result = editPolicies(config.workspace, (policies) => {
     const policy = requirePolicy(policies, name);
     const candidates = uniqueCandidates([
@@ -307,8 +305,8 @@ async function cmdModelPoliciesRemoveCandidate(
     strict: true,
     usage: USAGE,
   });
-  const name = requirePosition(positionals[0], "policy name required");
-  const candidate = parseModelRef(requirePosition(positionals[1], "candidate required"));
+  const name = requireArg(positionals[0], USAGE, "policy name");
+  const candidate = parseModelRef(requireArg(positionals[1], USAGE, "candidate"));
   const result = editPolicies(config.workspace, (policies) => {
     const policy = requirePolicy(policies, name);
     const candidates = policy.candidates.filter((existing) => !sameModelRef(existing, candidate));
@@ -334,8 +332,8 @@ async function cmdModelPoliciesMoveCandidate(
     strict: true,
     usage: USAGE,
   });
-  const name = requirePosition(positionals[0], "policy name required");
-  const candidate = parseModelRef(requirePosition(positionals[1], "candidate required"));
+  const name = requireArg(positionals[0], USAGE, "policy name");
+  const candidate = parseModelRef(requireArg(positionals[1], USAGE, "candidate"));
   if (values.index === undefined) return printError("move-candidate requires --index <n>");
   const result = editPolicies(config.workspace, (policies) => {
     const policy = requirePolicy(policies, name);
@@ -729,9 +727,4 @@ function findUsableModel(
   };
   if (!hasConfiguredAuth(registry, model)) return undefined;
   return model;
-}
-
-function requirePosition(value: string | undefined, message: string): string {
-  if (!value) throw new Error(message);
-  return value;
 }

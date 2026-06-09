@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  mkdtempSync,
   readFileSync,
-  rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { createAppRuntime } from "../dist/app/index.js";
 import { cmdWatches } from "../dist/commands/watches.js";
 import { setupInit } from "../dist/setup/init.js";
@@ -18,31 +15,21 @@ import {
   saveWatchClockState,
 } from "../dist/watches/index.js";
 import { loadGatewayWatchIds } from "../dist/gateway/watch-service.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-watches-command-test-"));
+  workspace = makeTempWorkspace("shrimpy-watches-command-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
-
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[] }> {
-  const originalLog = console.log;
-  const lines: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines };
-  } finally {
-    console.log = originalLog;
-  }
-}
 
 describe("watch inspection surfaces", () => {
   test("inspects setup-seeded watches with state, run history, and wake policy", async () => {

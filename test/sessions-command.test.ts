@@ -1,37 +1,26 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdSessions } from "../dist/commands/sessions.js";
 import { createGatewaySessionDescriptor } from "../dist/sessions/spec.js";
 import { setupInit } from "../dist/setup/init.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-sessions-command-test-"));
+  workspace = makeTempWorkspace("shrimpy-sessions-command-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
-
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[] }> {
-  const originalLog = console.log;
-  const lines: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines };
-  } finally {
-    console.log = originalLog;
-  }
-}
 
 describe("cmdSessions", () => {
   test("lists one channel session as JSON", async () => {

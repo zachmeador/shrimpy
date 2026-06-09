@@ -38,11 +38,9 @@ The util layer that exists is adopted (util/json-file.ts has 15 importers); the 
 - Within-file clones: compaction-runner.ts repeats an 11-field summary-request spread 4× (build `requestBase` once); watches/runner.ts builds near-identical success/failure `WatchRunRecord` literals (one `finishedRecord` helper).
 - Six hand-rolled positive-int parsers (commands/watches.ts, commands/models.ts, channels-inspect.ts ×2, gateway-logs.ts; telegram client's clamping variants stay — different semantics) → one `parsePositiveInt(raw, label)` in util/. Export the structural-invisible-character guard from watches/schema.ts instead of the copy in commands/watches.ts.
 
-## Wave 2 — command-layer and test convergence (~250 LOC, mostly test)
+## Wave 2 — command-layer and test convergence — done 2026-06-09
 
-- Done 2026-06-09: The model/session CLI option block (`provider/model/model-policy/thinking/skill`) is declared 5× (root.ts, run.ts, chat.ts, mechanic.ts, agent-session.ts) and three sites re-inline the thinking parse that agent-helpers.ts `parseThinking` already does. Added `MODEL_SESSION_OPTIONS` + `readModelSessionValues` to agent-helpers.ts; `tsc --noEmit`, `npm run lint`, and focused command tests are green.
-- Two subcommand-dispatch dialects: watches.ts, models.ts, context.ts, workspace.ts hand-roll if-chain dispatch and drift behaviorally (models.ts exits 2 on unknown subcommand vs UsageError exit 1 elsewhere; `requirePosition` throws bare Error vs `requireArg`). Migrate all four to `createCommandGroup`; converge on the per-action `json` option convention (lower churn than group-level stripFlag). Check models-command.test.ts for exit-code assertions first.
-- test/ has zero shared infrastructure: `captureLogs` is pasted byte-identically in 9 files, temp-workspace mkdtemp/rm boilerplate in ~40. Create `test/helpers.ts` (safe: the `test/*.test.ts` glob won't collect it) with `captureLogs` (the stderr-capturing superset from skill-command.test.ts) and `makeTempWorkspace`; migrate the 9 command tests, rest opportunistically.
+Command/test convergence pass: the model/session CLI option block (`provider/model/model-policy/thinking/skill`) now lives in `commands/agent-helpers.ts` as `MODEL_SESSION_OPTIONS` + `readModelSessionValues`; watches/models/context/workspace dispatch through `createCommandGroup`, including path-aware nested groups and the deliberate models unknown-subcommand convergence onto UsageError exit 1; and `test/helpers.ts` owns the stderr-capturing `captureLogs`, `makeTempWorkspace`, and `removeTempWorkspace` helpers used by the 9 command tests that had local log capture copies. `--json` stays per-action.
 
 ## Wave 3 — type-surface collapse (353 → ~285 exported types, ~300 LOC)
 

@@ -24,37 +24,27 @@ import {
   parseDurationMs,
 } from "../util/time-format.js";
 import {
+  createCommandGroup,
   parseCommandArgs,
   requireArg,
-  usage as printUsage,
   type CommandHandler,
 } from "./framework.js";
 import { renderGroupUsage } from "./catalog.js";
 
 const USAGE = renderGroupUsage("watches");
 
-export const cmdWatches: CommandHandler = async (argv, config) => {
-  const action = argv[0];
-  if (!action || action.startsWith("-")) {
-    return cmdWatchesList(argv, config, USAGE);
-  }
-  if (action === "list") {
-    return cmdWatchesList(argv.slice(1), config, USAGE);
-  }
-  if (action === "show") {
-    return cmdWatchesShow(argv.slice(1), config, USAGE);
-  }
-  if (action === "add") {
-    return cmdWatchesAdd(argv.slice(1), config, USAGE);
-  }
-  if (action === "history") {
-    return cmdWatchesHistory(argv.slice(1), config, USAGE);
-  }
-  if (action === "run") {
-    return cmdWatchesRun(argv.slice(1), config, USAGE);
-  }
-  printUsage(USAGE, `unknown subcommand: ${action}`);
-};
+export const cmdWatches: CommandHandler = createCommandGroup({
+  name: "watches",
+  usage: USAGE,
+  default: ({ argv, config, usage }) => cmdWatchesList(argv, config, usage),
+  commands: {
+    list: ({ argv, config, usage }) => cmdWatchesList(argv, config, usage),
+    show: ({ argv, config, usage }) => cmdWatchesShow(argv, config, usage),
+    add: ({ argv, config, usage }) => cmdWatchesAdd(argv, config, usage),
+    history: ({ argv, config, usage }) => cmdWatchesHistory(argv, config, usage),
+    run: ({ argv, config, usage }) => cmdWatchesRun(argv, config, usage),
+  },
+});
 
 async function cmdWatchesList(
   argv: string[],

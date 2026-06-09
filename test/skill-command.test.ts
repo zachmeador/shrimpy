@@ -27,37 +27,21 @@ import {
   listSkillViews,
   loadSkillPrompt,
 } from "../dist/skills/index.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-skill-command-test-"));
+  workspace = makeTempWorkspace("shrimpy-skill-command-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
-
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[]; errors: string[] }> {
-  const originalLog = console.log;
-  const originalError = console.error;
-  const lines: string[] = [];
-  const errors: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-  console.error = (...args: unknown[]) => {
-    errors.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines, errors };
-  } finally {
-    console.log = originalLog;
-    console.error = originalError;
-  }
-}
 
 describe("skill context inspection", () => {
   test("context command can render a skill through the shared context path", async () => {

@@ -8,6 +8,7 @@ import {
 import { dim, label } from "../util/style.js";
 import { renderGroupUsage } from "./catalog.js";
 import {
+  createCommandGroup,
   parseCommandArgs,
   requireArg,
   usage as printUsage,
@@ -16,27 +17,26 @@ import {
 
 const USAGE = renderGroupUsage("workspace");
 
-export const cmdWorkspace: CommandHandler = async (argv, config) => {
-  const action = argv[0];
-  if (action === "track") {
-    return cmdWorkspaceTrack(argv.slice(1), config);
-  }
-  printUsage(USAGE, action ? `unknown subcommand: ${action}` : undefined);
-};
+const cmdWorkspaceTrack: CommandHandler = createCommandGroup({
+  name: "track",
+  path: ["workspace", "track"],
+  usage: USAGE,
+  default: () => printUsage(USAGE, "track subcommand required"),
+  commands: {
+    init: ({ argv, config }) => cmdWorkspaceTrackInit(argv, config),
+    status: ({ argv, config }) => cmdWorkspaceTrackStatus(argv, config),
+    checkpoint: ({ argv, config }) => cmdWorkspaceTrackCheckpoint(argv, config),
+  },
+});
 
-async function cmdWorkspaceTrack(argv: string[], config: Parameters<CommandHandler>[1]): Promise<number> {
-  const action = argv[0];
-  if (action === "init") {
-    return cmdWorkspaceTrackInit(argv.slice(1), config);
-  }
-  if (action === "status") {
-    return cmdWorkspaceTrackStatus(argv.slice(1), config);
-  }
-  if (action === "checkpoint") {
-    return cmdWorkspaceTrackCheckpoint(argv.slice(1), config);
-  }
-  printUsage(USAGE, action ? `unknown track subcommand: ${action}` : "track subcommand required");
-}
+export const cmdWorkspace: CommandHandler = createCommandGroup({
+  name: "workspace",
+  usage: USAGE,
+  default: () => printUsage(USAGE),
+  commands: {
+    track: ({ argv, config }) => cmdWorkspaceTrack(argv, config),
+  },
+});
 
 async function cmdWorkspaceTrackInit(argv: string[], config: Parameters<CommandHandler>[1]): Promise<number> {
   const { values } = parseCommandArgs({

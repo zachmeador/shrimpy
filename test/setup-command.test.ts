@@ -3,13 +3,11 @@ import assert from "node:assert/strict";
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { cmdSetup } from "../dist/commands/setup.js";
 import {
   createSetupInteractiveSessionSpec,
@@ -19,31 +17,21 @@ import {
   launchModelAccessOnboarding,
   listAvailableSetupModels,
 } from "../dist/setup/model-access.js";
+import {
+  captureLogs,
+  makeTempWorkspace,
+  removeTempWorkspace,
+} from "./helpers.ts";
 
 let workspace: string;
 
 beforeEach(() => {
-  workspace = mkdtempSync(join(tmpdir(), "shrimpy-setup-command-test-"));
+  workspace = makeTempWorkspace("shrimpy-setup-command-test-");
 });
 
 afterEach(() => {
-  rmSync(workspace, { recursive: true, force: true });
+  removeTempWorkspace(workspace);
 });
-
-async function captureLogs<T>(fn: () => Promise<T>): Promise<{ result: T; lines: string[] }> {
-  const originalLog = console.log;
-  const lines: string[] = [];
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map((value) => String(value)).join(" "));
-  };
-
-  try {
-    const result = await fn();
-    return { result, lines };
-  } finally {
-    console.log = originalLog;
-  }
-}
 
 describe("setup entry", () => {
   test("setup session runs as mechanic with setup skill through coding", () => {

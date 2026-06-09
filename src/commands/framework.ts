@@ -26,9 +26,11 @@ export type CommandAction = (
 
 export interface CommandGroup {
   name: string;
+  path?: readonly string[];
   usage: string;
   commands: Record<string, CommandAction>;
   default?: CommandAction;
+  defaultWhen?: (argv: readonly string[]) => boolean;
 }
 
 export class CommandError extends Error {
@@ -51,9 +53,10 @@ export class UsageError extends CommandError {
 export function createCommandGroup(group: CommandGroup): CommandHandler {
   return async (argv, config) => {
     const action = argv[0];
+    const path = group.path ?? [group.name];
 
     if (isHelpFlag(action)) {
-      return showUsage(renderCommandPathHelp([group.name]));
+      return showUsage(renderCommandPathHelp(path));
     }
 
     if (!action) {
@@ -69,13 +72,20 @@ export function createCommandGroup(group: CommandGroup): CommandHandler {
 
     const command = group.commands[action];
     if (!command) {
+      if (group.default && (action.startsWith("-") || group.defaultWhen?.(argv))) {
+        return group.default({
+          argv,
+          config,
+          usage: group.usage,
+        });
+      }
       usage(group.usage, `unknown subcommand: ${action}`);
     }
 
-    const helpPath = resolveCliHelpPath([group.name, ...argv]);
+    const helpPath = resolveCliHelpPath([...path, ...argv]);
     if (helpPath !== null) {
-      const path = helpPath.length > 0 ? helpPath : [group.name, action];
-      return showUsage(renderCommandPathHelp(path));
+      const resolvedPath = helpPath.length > 0 ? helpPath : [...path, action];
+      return showUsage(renderCommandPathHelp(resolvedPath));
     }
 
     return command({
