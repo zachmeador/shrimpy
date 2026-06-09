@@ -111,7 +111,7 @@ Tied to SEARCH-001's contract and boundaries:
 - **Shape:** `s.jina.ai/?q=…` returns top ~5 results as JSON with `url`, `title`, `content`, and `timestamp`. It's really search **fused with** page reading (returns content, not just snippets).
 - **Auth:** optional — works keyless (rate-limited); a bearer key raises limits.
 - **Pricing:** free tier with no key; token-based paid plans (~$20/mo+).
-- **Verdict:** uniquely zero-setup (no key path), but the search+read fusion returns heavier payloads than a snippet list and overlaps with SEARCH-001's separation of search vs. fetch. Better fit for the SKILL-001 fetch/read story than the compact search tool.
+- **Verdict:** uniquely zero-setup (no key path), but the search+read fusion returns heavier payloads than a snippet list and overlaps with SEARCH-001's separation of search vs. fetch. Better fit for a future fetch/read workflow than the compact search tool.
 
 ### xAI Live Search — answer/grounding, NOT a SERP endpoint
 - **What it is:** a **tool the Grok chat model invokes**, not a standalone search endpoint. The model decides to search and returns a generated answer; sources come back as `response.citations`. Domain filters exist (`allowed_domains` / `excluded_domains`, ≤5 each) but the docs expose **no result-count or recency/date params** for the search tool itself.

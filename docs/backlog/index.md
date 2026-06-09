@@ -8,7 +8,6 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
-| [BROWSER-001](browser-001-default-browser-tool.md) | todo | P2 | Browser | none | Default browser automation tool |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |
@@ -16,9 +15,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CODE-002](code-002-agentic-worker-sessions.md) | draft | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [MECH-001](mech-001-skill-opportunity-watch.md) | todo | P2 | Mechanic | [APP-001](app-001.md) | Mechanic usage and context hygiene assessment watch |
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
-| [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
-| [SKILL-001](skill-001-web-fetch-action-patterns.md) | todo | P2 | Skills | [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md) | Web fetch action skill patterns |
-| [SKILL-002](skill-002-default-skill-stewardship.md) | draft | P2 | Skills | none | Default skill stewardship behavior |
+| [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
+| [SKILL-000](skill-000-agent-skill-management-redesign.md) | draft | P1 | Skills | none | Agent skill management redesign |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | draft | P2 | Surfaces | none | Telegram typing activity |

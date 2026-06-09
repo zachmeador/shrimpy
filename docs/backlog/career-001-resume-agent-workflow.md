@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Apps
-Depends On: [BROWSER-001](browser-001-default-browser-tool.md), [VAULT-001](vault-001-default-workspace-collections.md)
+Depends On: [VAULT-001](vault-001-default-workspace-collections.md)
 
 ## Why
 
@@ -30,7 +30,7 @@ This should start as a mostly prompt/template-driven agent pattern with a small 
 - Add a generic Markdown document rendering CLI before relying on hidden code, for example `shrimpy docs render <input.md> --pdf <output.pdf> --template resume`.
 - Ship a small resume template and print stylesheet suitable for Markdown to PDF output.
 - Keep the career skill responsible for orchestration: ingest, inspect context, ask for missing guidance when needed, write Markdown, render PDF, and report saved paths.
-- Use [BROWSER-001](browser-001-default-browser-tool.md) for robust URL ingestion once available. Before browser support exists, the workflow can accept pasted posting text or a manually saved posting file.
+- Use whatever URL ingestion capability is available for robust posting capture. Before that exists, the workflow can accept pasted posting text or a manually saved posting file.
 - Add light agent guidance to commit kept career artifacts in the vault repo when the user says they want to preserve a version.
 
 ## Boundaries
