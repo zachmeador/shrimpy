@@ -77,7 +77,3 @@ export function listDefaultSkillDefinitions(
     skill.target.kind === "all" || skill.target.agentIds.includes(agentId)
   );
 }
-
-export function listAllDefaultSkillDefinitions(): DefaultSkillDefinition[] {
-  return [...DEFAULT_SKILLS];
-}

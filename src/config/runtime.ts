@@ -38,7 +38,6 @@ const schema = Type.Object(
 );
 
 export type RuntimeConfig = Static<typeof schema>;
-export type CompactionConfig = Static<typeof compactionSchema>;
 
 export function resolveRuntimeConfig(raw?: unknown): Required<RuntimeConfig> {
   return parseConfig(schema, raw, "runtime") as Required<RuntimeConfig>;

@@ -46,7 +46,5 @@ export {
 export {
   telegramChannelDisplayExample,
   validateTelegramInstanceId,
-  type ResolvedTelegramInstanceConfig,
   type ResolvedTelegramRuntimeConfig,
-  type TelegramRuntimeConfig,
 } from "./config.js";

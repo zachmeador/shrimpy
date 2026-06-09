@@ -166,13 +166,7 @@ export async function runInteractiveAgentSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
   await assertSetupReadyForNormalTui(input.runtime);
-  return runAgentTuiSession(input, "shrimpy");
-}
-
-export async function runPiInteractiveAgentSession(
-  input: RunInteractiveSessionInput,
-): Promise<{ agentId: string }> {
-  return runAgentTuiSession(input, "pi");
+  return runAgentTuiSession(input);
 }
 
 export function primeInteractiveThemeForSession(
@@ -184,7 +178,6 @@ export function primeInteractiveThemeForSession(
 
 async function runAgentTuiSession(
   input: RunInteractiveSessionInput,
-  mode: "pi" | "shrimpy",
 ): Promise<{ agentId: string }> {
   const cwd = input.cwd ?? process.cwd();
   const agent = input.runtime.getAgent(input.agentId);
@@ -265,26 +258,24 @@ async function runAgentTuiSession(
     const interactive = new InteractiveMode(runtime, {
       initialMessage: input.initialMessage,
     });
-    if (mode === "shrimpy") {
-      installShrimpyActivityIndicator(interactive);
-      installShrimpyCommandSurface(interactive, {
-        runtime: input.runtime,
-        agentId: agent.id,
-        channel: input.channel,
-        sessionType: input.sessionType,
-        cwd,
-      });
-      installShrimpyContextRendering(interactive);
-      installShrimpyToolRendering(interactive);
-      installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
-      installShrimpySettingsSelector(interactive, {
-        runtime: input.runtime,
-        agentId: agent.id,
-        channel: input.channel,
-        sessionType: input.sessionType,
-        cwd,
-      });
-    }
+    installShrimpyActivityIndicator(interactive);
+    installShrimpyCommandSurface(interactive, {
+      runtime: input.runtime,
+      agentId: agent.id,
+      channel: input.channel,
+      sessionType: input.sessionType,
+      cwd,
+    });
+    installShrimpyContextRendering(interactive);
+    installShrimpyToolRendering(interactive);
+    installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
+    installShrimpySettingsSelector(interactive, {
+      runtime: input.runtime,
+      agentId: agent.id,
+      channel: input.channel,
+      sessionType: input.sessionType,
+      cwd,
+    });
     await interactive.run();
     return { agentId: agent.id };
   } finally {

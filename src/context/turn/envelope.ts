@@ -35,7 +35,3 @@ export function stripPromptTurnContextForDisplay(text: string): string {
   }
   return promptText;
 }
-
-export function formatEphemeralTurnContext(text: string): string {
-  return formatTurnContextEnvelope(text);
-}

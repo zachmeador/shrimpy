@@ -52,13 +52,6 @@ export function hasInferenceParams(params: InferenceParams | undefined): boolean
   return Object.keys(params ?? {}).length > 0;
 }
 
-export function formatInferenceParams(params: InferenceParams): string {
-  const entries = INFERENCE_PARAM_NAMES
-    .filter((name) => params[name] !== undefined)
-    .map((name) => `${name}=${params[name]}`);
-  return entries.length > 0 ? entries.join(" ") : "none";
-}
-
 export function applyInferenceParamsToPayload(
   payload: unknown,
   params: InferenceParams,

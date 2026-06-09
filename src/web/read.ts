@@ -6,7 +6,7 @@ export interface ParseError {
   error: string;
 }
 
-export interface ReadResult {
+export interface JsonlReadResult {
   events: unknown[];
   parseErrors: ParseError[];
   truncated: boolean;
@@ -16,7 +16,7 @@ export interface ReadResult {
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 
-export async function readJsonl(path: string): Promise<ReadResult> {
+export async function readJsonl(path: string): Promise<JsonlReadResult> {
   const st = await fs.stat(path);
   const truncated = st.size > MAX_BYTES;
 

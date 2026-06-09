@@ -243,16 +243,6 @@ export function loadSkillPrompt(
   return readFileSync(getSkillView(runtime, skillId, agentId).entryPath, "utf-8");
 }
 
-export function loadSkillPromptFromPaths(opts: {
-  agentId: string;
-  agentRootPath: string;
-  workspacePath: string;
-  activeToolNames?: string[];
-  skillId: string;
-}): string {
-  return readFileSync(getSkillViewFromPaths(opts).entryPath, "utf-8");
-}
-
 export function getSkillPromptResources(
   runtime: AppRuntime,
   skillId: string,

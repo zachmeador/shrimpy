@@ -15,10 +15,6 @@ import type { SessionBootstrap } from "./bootstrap.js";
 import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
 
-export interface ResolvedSessionModel {
-  model: Model<Api>;
-}
-
 export interface SessionPromptAssembly {
   systemPrompt: string;
   baseSystemPrompt: string;

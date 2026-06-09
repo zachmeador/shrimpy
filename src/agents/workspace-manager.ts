@@ -24,8 +24,6 @@ import {
   scaffoldAgentFiles,
 } from "./workspace-files.js";
 
-export interface AddAgentInput extends AgentConfigDraft {}
-
 export interface AddAgentResult {
   configPath: string;
   agent: AgentConfig;
@@ -92,7 +90,7 @@ export interface EditAgentChannelPolicyResult {
 
 export function addAgentToWorkspace(
   runtime: AppRuntime,
-  input: AddAgentInput,
+  input: AgentConfigDraft,
 ): AddAgentResult {
   const editable = readAgentWorkspaceConfig(runtime.config.workspace);
 

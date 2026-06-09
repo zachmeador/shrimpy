@@ -52,17 +52,6 @@ export interface ShrimpyConfig {
 }
 
 function validateRawConfig(raw: Record<string, unknown>) {
-  if (raw.model !== undefined) {
-    throw new Error(
-      "config.model is not supported. Move provider/id candidates to modelPolicies and set agents[].modelPolicy.",
-    );
-  }
-  const removedTurnContextKey = "brief" + "ing";
-  if (raw[removedTurnContextKey] !== undefined) {
-    throw new Error(
-      `config.${removedTurnContextKey} is not supported. Move per-turn settings to context.turn and remove that top-level field.`,
-    );
-  }
   if (raw.context) validateContextConfig(raw.context);
   if (raw.contextDefaults !== undefined) {
     resolveContextDefaultsConfig(raw.contextDefaults);

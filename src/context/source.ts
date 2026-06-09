@@ -1,25 +1,12 @@
 /**
- * Unified context source/block model.
+ * Context source specs and their resolution.
  *
- * Context sources produce context blocks. There are four source types:
- *
- *   - `file`     — single Markdown file at a workspace- or agent-relative path
- *   - `directory` — top-level Markdown discovery under a directory
- *   - `command`  — shell command emitting compact text (per-turn)
- *   - `runtime`  — framework-internal producer (not user-configurable)
- *
- * Each source emits zero or more ContextBlocks. Session-scoped sources
- * (file/directory) flow into the base system prompt; turn-scoped sources
- * (command/runtime) flow into the per-turn <context> envelope.
- *
- * File and directory sources use the string shorthand "workspace:..." or
- * "agent:...". Command sources are objects with id/command/timeout/etc.
- * Runtime sources are registered internally and surfaced for inspection.
+ * A source is either a string shorthand ("workspace:foo.md" | "agent:context/")
+ * for a file or directory, or a command source object (id/command/timeout/etc.)
+ * emitting compact per-turn text. `resolveContextSource` applies defaults.
  */
 
 import { channelMatches } from "../util/channel-pattern.js";
-
-export type ContextSourceScope = "session" | "turn";
 
 export type ContextSourceConfig =
   | string  // file or directory: "workspace:foo.md" | "agent:context/"
@@ -51,35 +38,6 @@ export interface ResolvedContextCommandSource {
  */
 export type ResolvedContextSource = string | ResolvedContextCommandSource;
 
-/**
- * One unit of context. Every source emits zero or more of these.
- *
- * For session-scoped blocks: `body` is the full Markdown content; `inspect`
- * is unused. For turn-scoped blocks: `body` is the one-line summary; `inspect`
- * is the CLI command to re-derive the fact.
- */
-export interface ContextBlock {
-  id: string;
-  title?: string;
-  kind: ContextBlockKind;
-  scope: ContextSourceScope;
-  body: string;
-  provenance: string;
-  freshness?: string;
-  inspect?: string;
-}
-
-export type ContextBlockKind =
-  | "identity"
-  | "memory"
-  | "capability"
-  | "runtime"
-  | "activity"
-  | "evidence"
-  | "instruction"
-  | "fact"
-  | "command-output";
-
 export const COMMAND_SOURCE_DEFAULTS = {
   channels: ["*"],
   timeoutMs: 5000,
@@ -104,10 +62,6 @@ export function isCommandSource(
   source: ResolvedContextSource,
 ): source is ResolvedContextCommandSource {
   return typeof source !== "string" && source.type === "command";
-}
-
-export function isFileOrDirectorySource(source: ResolvedContextSource): source is string {
-  return typeof source === "string";
 }
 
 export function commandMatchesChannel(

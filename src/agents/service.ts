@@ -1,7 +1,6 @@
 import type { AppRuntime } from "../app/runtime.js";
 import {
   addAgentToWorkspace,
-  type AddAgentInput,
   type AddAgentResult,
   editAgentChannelPolicyInWorkspace,
   type EditAgentChannelPolicyInput,
@@ -16,6 +15,7 @@ import {
   type UpdateAgentInput,
   type UpdateAgentResult,
 } from "./workspace-manager.js";
+import type { AgentConfigDraft } from "./config-store.js";
 import { resolveAgentToolPolicy } from "../tools/policy.js";
 
 export function listAgentViews(runtime: AppRuntime) {
@@ -35,7 +35,7 @@ export function getAgentView(runtime: AppRuntime, agentId: string) {
   };
 }
 
-export function addAgent(runtime: AppRuntime, input: AddAgentInput): AddAgentResult {
+export function addAgent(runtime: AppRuntime, input: AgentConfigDraft): AddAgentResult {
   const result = addAgentToWorkspace(runtime, input);
   publishLifecycleEvent(runtime, {
     kind: "agent_added",

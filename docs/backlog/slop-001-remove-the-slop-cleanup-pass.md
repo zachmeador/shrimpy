@@ -18,16 +18,11 @@ Baseline (verified 2026-06-09, line refs from that snapshot): src/ = 31,690 LOC 
 - ts-prune output is 97% noise here (star-barrels break it): of 325 candidates, only ~10 symbols are truly dead. Never bulk-delete from tool output.
 - The "55% of exported types have zero external importers" census number is an upper bound, not a kill list — many are union members, fields of exported parents, or forced by `declaration: true`. Realistic collapsible total: 70–100 of 353.
 
-## Wave 0 — confirmed dead code and policy violations (~150 LOC, pure deletion)
+## Wave 0 — confirmed dead code and policy violations — done 2026-06-09
 
-- Delete removed-key tombstones in `validateRawConfig`: the `raw.model` guard and the grep-dodging `"brief" + "ing"` block (src/config/index.ts:55-65). These are error-only compat residue the legacy policy forbids.
-- Delete dead context-pipeline types `ContextBlock`, `ContextBlockKind`, `ContextSourceScope` and the aspirational "unified source/block model" doc comment in src/context/source.ts — nothing implements it; the comment misdirects readers. Also `CompactionConfig` (src/config/runtime.ts) and `ResolvedSessionModel` (src/sessions/prompt.ts).
-- Delete `runPiInteractiveAgentSession` (src/sessions/direct.ts:172), then collapse the now single-valued `mode` parameter and the `mode === "shrimpy"` conditional.
-- Delete dead re-exports in src/surfaces/index.ts (`findSurfaceModule`, the chat-bridge re-export block, dead names) and src/surfaces/telegram/index.ts — consumers import from home modules directly.
-- Delete five dead one-liners: `formatEphemeralTurnContext` (context/turn/envelope.ts), `formatInferenceParams` (inference/params.ts), `isFileOrDirectorySource` (context/source.ts), `listAllDefaultSkillDefinitions` (skills/defaults.ts).
-- Delete `AddAgentInput` empty-extends alias (agents/workspace-manager.ts:27); use `AgentConfigDraft` directly. Ban alias-by-empty-extends as a pattern.
-- Rename src/web/read.ts `ReadResult` → `JsonlReadResult` (collides with the unrelated channels/store.ts `ReadResult`).
-- `unbindSkillPackage` now has a CLI caller. Recheck `loadSkillPromptFromPaths` before deleting; it may still be a dead helper.
+Pure deletion, −112 LOC net across 14 files; `tsc --noEmit`, `eslint`, and tests green (the lone `setup-init` SYSTEM.md assertion failure is pre-existing and unrelated — that text was dropped from the committed template in d62a83c, tracked separately). The diff is the record; see git history.
+
+Two plan corrections found while executing, relevant to later waves: (1) the surfaces/telegram barrel re-exports are *not* all dead — `setup/telegram.ts`, `commands/status.ts`, and `test/tools.test.ts` consume them through the barrel, so only the dead type re-exports (`ResolvedTelegramInstanceConfig`, `TelegramRuntimeConfig`) were removed; the value exports stay. (2) `unbindSkillPackage` was kept — it gained a CLI caller since the plan was written.
 
 ## Wave 1 — missing primitives (~350 LOC, the feel-good consolidation)
 
