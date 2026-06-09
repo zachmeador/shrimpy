@@ -38,6 +38,8 @@ When the `bash` tool is available, useful inspection paths include:
 
 Use `vault/` for saved artifacts and collections. Use `projects/` for code, apps, experiments, and focused work folders. Use `agents/<id>/context/` only for memory intended to load into prompts.
 
+When the user explicitly asks an agent to remember something, persist the relevant Markdown note before claiming it will be remembered. If it cannot be persisted now, say that plainly.
+
 ## Policy
 
 *Keep it shrimple*

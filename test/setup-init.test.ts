@@ -96,6 +96,12 @@ describe("setupInit", () => {
       "watches",
       "SKILL.md",
     );
+    const workspaceMigrationSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "workspace-migration",
+      "SKILL.md",
+    );
     const mechanicIdeasSkillPath = join(
       mechanicRoot,
       "skills",
@@ -138,6 +144,7 @@ describe("setupInit", () => {
     assert.equal(existsSync(addAgentSkillPath), true);
     assert.equal(existsSync(channelRoutingSkillPath), true);
     assert.equal(existsSync(watchesSkillPath), true);
+    assert.equal(existsSync(workspaceMigrationSkillPath), true);
     assert.equal(existsSync(mechanicIdeasSkillPath), true);
     assert.equal(existsSync(mechanicIdeasReferencePath), true);
     assert.equal(existsSync(agentVaultPath), true);
@@ -239,6 +246,7 @@ describe("setupInit", () => {
     assert.match(system, /shrimpy channels read <name>/);
     assert.match(system, /Storage Breadcrumbs/);
     assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
+    assert.match(system, /persist the relevant Markdown note before claiming it will be remembered/);
     assert.equal(system.includes(projectRoot), true);
     assert.equal(system.includes(join(projectRoot, "src")), true);
     assert.equal(system.includes(join(projectRoot, "docs")), true);
@@ -306,6 +314,9 @@ describe("setupInit", () => {
     assert.match(setupSkill, /first normal agent/);
     assert.match(setupSkill, /shrimpy setup telegram/);
     assert.match(setupSkill, /Do not create adapter-shaped channel names by hand/);
+    assert.match(setupSkill, /profile\/SYSTEM\.md/);
+    assert.match(setupSkill, /2-3 useful absolute paths/);
+    assert.match(setupSkill, /active workspace, Shrimpy app\/source checkout, and Shrimpy docs/);
     assert.match(setupSkill, /agents\/mechanic\/skills\/setup\/scripts\/validate-config\.sh/);
     assert.match(setupSkill, /agents\/<id>\//);
     assert.doesNotMatch(setupSkill, /as the\s+default `shrimpy` agent/i);
@@ -321,6 +332,7 @@ describe("setupInit", () => {
     assert.match(mechanicSkill, /Use the `add-agent` skill/);
     assert.match(mechanicSkill, /Use the `channel-routing` skill/);
     assert.match(mechanicSkill, /Use the `watches` skill/);
+    assert.match(mechanicSkill, /Use the `workspace-migration` skill/);
     assert.match(mechanicSkill, /Use the `shrimpy-mechanic-ideas` skill/);
     assert.doesNotMatch(mechanicSkill, /telegram~fitness/);
     assert.doesNotMatch(mechanicSkill, /You are not the default `shrimpy` agent/);
@@ -339,6 +351,13 @@ describe("setupInit", () => {
     assert.match(watchesSkill, /shrimpy watches show <agent-id>\/<watch-id> --json/);
     assert.match(watchesSkill, /Do not assume a posted watch message wakes the owner agent/);
     assert.match(watchesSkill, /Do not use adapter-shaped channel names/);
+    const workspaceMigrationSkill = readFileSync(workspaceMigrationSkillPath, "utf-8");
+    assert.match(workspaceMigrationSkill, /name: workspace-migration/);
+    assert.match(workspaceMigrationSkill, /moving an existing Shrimpy workspace across Shrimpy versions/);
+    assert.match(workspaceMigrationSkill, /shrimpy --version/);
+    assert.match(workspaceMigrationSkill, /git diff --name-status <old>\.\.<new> -- src docs\/reference test/);
+    assert.match(workspaceMigrationSkill, /ask the user to confirm the move/);
+    assert.match(workspaceMigrationSkill, /Do not execute until the user clearly approves/);
     const mechanicIdeasSkill = readFileSync(mechanicIdeasSkillPath, "utf-8");
     assert.match(mechanicIdeasSkill, /name: shrimpy-mechanic-ideas/);
     assert.match(mechanicIdeasSkill, /recommending new skills, agents, watches, reports, apps/);

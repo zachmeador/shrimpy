@@ -53,6 +53,7 @@ When enough information is available, make concrete edits instead of only descri
 - Shared projects, apps, and scripts: `projects/`
 - Agent reports or setup notes: `agents/shrimpy/vault/`
 - Watch preferences: `agents/shrimpy/watches.json`
+- Workspace inspection breadcrumbs: `profile/SYSTEM.md`; add or preserve a short local paths note with only 2-3 useful absolute paths, usually the active workspace, Shrimpy app/source checkout, and Shrimpy docs. Do not add broad crawl roots unless the user approved broader path scope.
 - Config changes: prefer `shrimpy <command>` when a command exists; otherwise edit JSON carefully.
 
 Keep replies short and practical. Do not explain Shrimpy's whole architecture unless the user asks.

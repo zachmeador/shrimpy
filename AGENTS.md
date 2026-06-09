@@ -24,11 +24,25 @@ When adding a new feature, expose it as a CLI subcommand first.
 
 When developing in a running Shrimpy workspace, treat the workspace config and state as user data. Be extra cautious around anything that can destroy, overwrite, reset, or migrate a user's Shrimpy config, including `config/`, `agents/`, `state/`, `runtime/`, `channels/`, `media/`, and the workspace pointer. Prefer inspectable CLI changes, preserve existing files by default, and only run destructive cleanup or reset commands when the user explicitly asks for that exact operation.
 
+## Git workflow
+
+This repo uses a three-tier confidence model.
+
+- **Release tags:** safest known states. Use tagged releases when stability matters or when recovering from a bad development state.
+- **`main`:** experimental but expected to build and run. Work promoted to `main` should be coherent enough that the local `shrimpy` CLI basically works.
+- **`wip`:** freeform working branch for maybe-working states, checkpoint commits, scope drift, experiments, and partial implementation.
+
+Normal development may happen directly on `wip`. Commit freely there. Promote coherent work from `wip` to `main` with cherry-picks, squash commits, or a temporary promotion branch. Avoid merging `wip` wholesale into `main` unless the whole branch state is intentionally ready.
+
+Use feature branches only when they solve a real problem: risky refactors, dependency upgrades, release preparation, long-running experiments, or work that needs to be reviewed or parked separately.
+
+Before landing work on `main`, run the relevant test/build command when practical and note anything skipped.
+
 ## Release process
 
 Use GitHub Releases for public versions. Early versions are alpha-quality unless the user explicitly says otherwise.
 
-- Confirm the working tree is clean and `main` is pushed before cutting a release.
+- Cut releases only from a clean, pushed `main`, never from `wip`.
 - Use semantic version tags with a `v` prefix, for example `v0.1.0`.
 - Every public release at `0.1.0` or later gets a short lyrical aquatic release name/tagline. Keep it poetic but concrete, and include it in the release title or notes.
 - `v0.1.0` release name: **First Light in the Tidepool**.

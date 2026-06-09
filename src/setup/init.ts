@@ -203,6 +203,10 @@ function mechanicSkillBundleFiles(
       content: loadSetupTemplate("mechanic/skills/watches/SKILL.md", docsPath),
     },
     {
+      path: agentSkillPath(workspace, mechanicRoot, "workspace-migration"),
+      content: loadSetupTemplate("mechanic/skills/workspace-migration/SKILL.md", docsPath),
+    },
+    {
       path: agentSkillPath(workspace, mechanicRoot, "shrimpy-mechanic-ideas"),
       content: loadSetupTemplate("mechanic/skills/shrimpy-mechanic-ideas/SKILL.md", docsPath),
     },

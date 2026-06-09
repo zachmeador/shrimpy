@@ -117,6 +117,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
     assert.match(parsed.systemPrompt, /<name>mechanic<\/name>/);
     assert.match(parsed.systemPrompt, /<name>watches<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>workspace-migration<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
@@ -372,6 +373,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /add-agent \[agent\]/);
     assert.match(lines.join("\n"), /channel-routing \[agent\]/);
     assert.match(lines.join("\n"), /watches \[agent\]/);
+    assert.match(lines.join("\n"), /workspace-migration \[agent\]/);
     assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[agent\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[workspace\]/);
@@ -397,6 +399,7 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /mechanic \[agent\]/);
     assert.doesNotMatch(output, /channel-routing/);
     assert.doesNotMatch(output, /watches/);
+    assert.doesNotMatch(output, /workspace-migration/);
     assert.doesNotMatch(output, /shrimpy-mechanic-ideas/);
   });
 
@@ -537,6 +540,7 @@ describe("skill service", () => {
       "setup:agent",
       "shrimpy-mechanic-ideas:agent",
       "watches:agent",
+      "workspace-migration:agent",
     ]);
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
@@ -608,6 +612,7 @@ describe("skill service", () => {
       "setup",
       "shrimpy-mechanic-ideas",
       "watches",
+      "workspace-migration",
     ]);
     assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);
   });

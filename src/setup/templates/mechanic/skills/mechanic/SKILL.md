@@ -19,6 +19,7 @@ The result should be useful, robust, easy to return to, and inspectable through 
 Use the `add-agent` skill when work involves creating, shaping, or wiring a specialized agent.
 Use the `channel-routing` skill when work involves channels, channel policies, chat surfaces, Telegram, or adapter thread routing.
 Use the `watches` skill when work involves recurring work, reminders, background checks, or agent-owned watches.
+Use the `workspace-migration` skill when work involves moving an existing workspace across Shrimpy versions or applying version-driven workspace changes.
 Use the `shrimpy-mechanic-ideas` skill when work involves recommending new skills, agents, watches, reports, apps, or Shrimpy usage patterns.
 
 ## How To Work
