@@ -84,6 +84,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["sessions", "clear"], "<channel> [--agent <id>]", "Alias for session reset.", "Session Commands", [agentOption]),
   entry(["sessions", "restore"], "<channel> [--agent <id>] [--archive <name>]", "Restore an archived session.", "Session Commands", [agentOption, { name: "--archive", takesValue: true }]),
   entry(["sessions", "thinking"], "<channel> <level> [--agent <id>]", "Change reasoning effort for a session.", "Session Commands", [agentOption]),
+  entry(["sessions", "stop"], "<channel> [--agent <id>]", "Stop the running gateway turn for a session.", "Session Commands", [agentOption]),
   entry(["sessions", "list"], "[channel] [--agent <id>] [--json]", "Inspect active and archived sessions.", "Session Commands", [agentOption, jsonOption]),
   entry(["sessions", "compaction"], "<channel> [--agent <id>] [--session-type <type>] [--json]", "Inspect effective compaction policy and recorded session settings.", "Session Commands", [agentOption, { name: "--session-type", takesValue: true }, jsonOption]),
   entry(["models"], "[--json]", "Inspect model policies, agent defaults, and Pi-visible provider models.", "Session Commands", [jsonOption]),

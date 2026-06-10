@@ -26,6 +26,7 @@ export interface WorkspacePaths {
   logsDir: string;
   gatewayLogPath: string;
   gatewayPidPath: string;
+  gatewayStatePath: string;
   usersPath: string;
   cursorsPath: string;
   surfaceStatePath: string;
@@ -74,6 +75,7 @@ export function createWorkspacePaths(
     logsDir: join(workspace, "runtime", "logs"),
     gatewayLogPath: join(workspace, "runtime", "logs", "gateway.log"),
     gatewayPidPath: join(workspace, "runtime", "pids", "gateway.pid"),
+    gatewayStatePath: join(workspace, "runtime", "gateway-state.json"),
     usersPath: join(workspace, "state", "users.json"),
     cursorsPath: join(workspace, "runtime", "cursors", "channels.json"),
     surfaceStatePath: join(workspace, "runtime", "cursors", "surface-threads.json"),

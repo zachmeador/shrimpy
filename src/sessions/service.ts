@@ -4,8 +4,15 @@ import type { AppRuntime } from "../app/runtime.js";
 import {
   sessionResetMessageInput,
   sessionRestoreMessageInput,
+  sessionStopMessageInput,
   sessionThinkingLevelMessageInput,
 } from "../channels/index.js";
+import {
+  flattenGatewayLanes,
+  gatewayRuntimeStatePath,
+  loadGatewayRuntimeState,
+  type GatewayLaneState,
+} from "../gateway/runtime-state.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import { isLocalDirectChannel } from "./direct-channels.js";
 import { openDirectAgentSession } from "./direct.js";
@@ -31,6 +38,7 @@ export interface SingleSessionListingSummary {
   channel: string;
   active: SessionPathSummary;
   archives: SessionPathSummary[];
+  gatewayLanes: GatewayLaneState[];
 }
 
 export interface SessionListingSummary {
@@ -38,6 +46,7 @@ export interface SessionListingSummary {
   sessionsRoot: string;
   active: Array<SessionPathSummary & { channel: string }>;
   recentArchives: Array<SessionPathSummary & { channel: string }>;
+  gatewayLanes: GatewayLaneState[];
 }
 
 type SessionLifecycleResult =
@@ -83,6 +92,18 @@ type SessionThinkingResult =
     level: ThinkingLevel;
   };
 
+type SessionStopResult =
+  | {
+    kind: "local_stop_unavailable";
+    agentId: string;
+    channel: string;
+  }
+  | {
+    kind: "requested_stop";
+    agentId: string;
+    channel: string;
+  };
+
 export function summarizeAgentSessions(
   runtime: AppRuntime,
   opts?: {
@@ -104,6 +125,10 @@ export function summarizeAgentSessions(
       channel: opts.channel,
       active: summarizeActiveSessionPath(sessionDir),
       archives: listArchivedSessionDirs(sessionDir).map(summarizeSessionPath),
+      gatewayLanes: gatewayLanesFor(runtime, {
+        agentId: agent.id,
+        channel: opts.channel,
+      }),
     };
   }
 
@@ -142,6 +167,9 @@ export function summarizeAgentSessions(
     sessionsRoot,
     active,
     recentArchives,
+    gatewayLanes: gatewayLanesFor(runtime, {
+      agentId: agent.id,
+    }),
   };
 }
 
@@ -266,6 +294,38 @@ export async function executeSessionThinkingAction(
   };
 }
 
+export function executeSessionStopAction(
+  runtime: AppRuntime,
+  input: {
+    channel: string;
+    agentId?: string;
+  },
+): SessionStopResult {
+  const agent = runtime.getAgent(input.agentId);
+
+  if (isLocalDirectChannel(input.channel)) {
+    return {
+      kind: "local_stop_unavailable",
+      agentId: agent.id,
+      channel: input.channel,
+    };
+  }
+
+  runtime.createChannelBus().publish(sessionStopMessageInput({
+    channel: input.channel,
+    targetAgentId: agent.id,
+    sender: cliSender(),
+    origin: cliOrigin(input.channel),
+    command: "/stop",
+  }));
+
+  return {
+    kind: "requested_stop",
+    agentId: agent.id,
+    channel: input.channel,
+  };
+}
+
 function executeLocalSessionLifecycle(input: {
   action: SessionLifecycleAction;
   sessionDir: string;
@@ -320,6 +380,17 @@ function summarizeActiveSessionPath(sessionDir: string): SessionPathSummary {
     exists: false,
     updatedAt: null,
   };
+}
+
+function gatewayLanesFor(
+  runtime: AppRuntime,
+  opts: {
+    agentId?: string;
+    channel?: string;
+  },
+): GatewayLaneState[] {
+  const state = loadGatewayRuntimeState(gatewayRuntimeStatePath(runtime.paths));
+  return flattenGatewayLanes(state, opts);
 }
 
 function cliSender() {

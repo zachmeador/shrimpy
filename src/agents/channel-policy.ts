@@ -87,6 +87,24 @@ export function evaluateAgentChannelPolicy(
 
   const addressedToAgent = message.origin.addressedAgentId === agent.id;
   const mentionedAgent = isSingleAgentMention(agent.id.toLowerCase(), mentionedAgentIds);
+  const explicitlyAllowsAgentSender =
+    effectivePolicy.senders.includes("agent") ||
+    effectivePolicy.actorIds.includes(message.sender.actorId);
+
+  if (
+    message.sender.kind === "agent" &&
+    !addressedToAgent &&
+    !mentionedAgent &&
+    !explicitlyAllowsAgentSender
+  ) {
+    return {
+      ...base,
+      action: "ignore",
+      reason: "agent-authored message requires an addressed target, single-agent mention, or explicit agent sender opt-in",
+      effectivePolicy,
+      runtimeGuard: "agent-to-agent wake loop guard",
+    };
+  }
 
   switch (effectivePolicy.mode) {
     case "none":

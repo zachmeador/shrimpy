@@ -117,6 +117,25 @@ describe("cmdSessions", () => {
     });
   });
 
+  test("requests a stop for routed sessions", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdSessions(["stop", "home"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    assert.deepEqual(lines, ["requested stop for shrimpy on home"]);
+
+    const bus = new ChannelBus(join(workspace, "channels"));
+    const { messages } = bus.read("home");
+    assert.deepEqual(messages.at(-1)?.content.data, {
+      kind: "session_stop",
+      targetAgentId: "shrimpy",
+      command: "/stop",
+    });
+  });
+
   test("inspects effective compaction policy as JSON", async () => {
     await setupInit(workspace);
 

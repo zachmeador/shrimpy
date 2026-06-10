@@ -7,6 +7,7 @@ import {
 import {
   readSessionResetContent,
   readSessionRestoreContent,
+  readSessionStopContent,
   readSessionThinkingLevelContent,
   type ChannelMessage,
 } from "../channels/index.js";
@@ -16,7 +17,18 @@ export type DispatchSource = "backlog" | "live";
 export function isSessionControlMessage(message: ChannelMessage): boolean {
   return readSessionResetContent(message.content) !== null
     || readSessionRestoreContent(message.content) !== null
+    || readSessionStopContent(message.content) !== null
     || readSessionThinkingLevelContent(message.content) !== null;
+}
+
+export function getSessionControlTargetAgentId(
+  message: ChannelMessage,
+): string | null {
+  return readSessionResetContent(message.content)?.targetAgentId
+    ?? readSessionRestoreContent(message.content)?.targetAgentId
+    ?? readSessionStopContent(message.content)?.targetAgentId
+    ?? readSessionThinkingLevelContent(message.content)?.targetAgentId
+    ?? null;
 }
 
 export class SessionControlRuntime {
@@ -58,6 +70,12 @@ export class SessionControlRuntime {
       return true;
     }
 
+    const stop = readSessionStopContent(message.content);
+    if (stop) {
+      await this.stopChannelSession(channel, stop.targetAgentId, source);
+      return true;
+    }
+
     return false;
   }
 
@@ -65,7 +83,7 @@ export class SessionControlRuntime {
     channel: string,
     agentId: string,
     source: DispatchSource,
-    action: "reset" | "restore" | "thinking",
+    action: "reset" | "restore" | "thinking" | "stop",
   ): AgentChannelRuntime | null {
     const agentRuntime = this.agentRuntimes.get(agentId);
     if (!agentRuntime) {
@@ -163,6 +181,34 @@ export class SessionControlRuntime {
       await this.channelBus.deliverText(
         channel,
         `Failed to set thinking level for ${agentId}: ${formatDispatchError(err)}`,
+      );
+    }
+  }
+
+  private async stopChannelSession(
+    channel: string,
+    agentId: string,
+    source: DispatchSource,
+  ): Promise<void> {
+    const agentRuntime = this.getAgentRuntime(channel, agentId, source, "stop");
+    if (!agentRuntime) return;
+
+    try {
+      const result = agentRuntime.stop(channel);
+      await this.channelBus.deliverText(
+        channel,
+        result.stopped
+          ? `Stopped the running turn for ${agentId}.`
+          : `No running turn for ${agentId} on ${channel}.`,
+      );
+    } catch (err) {
+      console.error(
+        `[delivery] ${source} session stop error for ${channel} (agent ${agentId}):`,
+        err,
+      );
+      await this.channelBus.deliverText(
+        channel,
+        `Failed to stop the running turn for ${agentId}: ${formatDispatchError(err)}`,
       );
     }
   }

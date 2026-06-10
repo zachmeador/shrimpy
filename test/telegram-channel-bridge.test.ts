@@ -219,6 +219,32 @@ describe("TelegramChannelBridge", () => {
     });
   });
 
+  test("maps /stop into a session stop control message", async () => {
+    const { bridge, channelBus } = createBridge();
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/stop",
+      },
+    });
+
+    const { messages } = channelBus.read("telegram~main~4242");
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0].content, {
+      type: "system",
+      data: {
+        kind: "session_stop",
+        targetAgentId: "shrimpy",
+        command: "/stop",
+      },
+    });
+  });
+
   test("maps /thinking into a session thinking control message", async () => {
     const { bridge, channelBus } = createBridge();
 

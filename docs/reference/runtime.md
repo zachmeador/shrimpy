@@ -60,7 +60,7 @@ At turn time, Shrimpy prepares a `<context>...</context>` envelope with current 
 
 ## Session Lifecycle
 
-Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy custom entries for metadata and lifecycle state. `SessionRegistry` serializes turns per gateway channel session. `shrimpy sessions new|clear|restore` mutate local `tui`/`run` session files directly and publish control messages for gateway channel sessions. See [sessions.md](sessions.md).
+Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy custom entries for metadata and lifecycle state. `SessionRegistry` serializes turns per gateway channel session and exposes lane state for gateway status. `shrimpy sessions new|clear|restore` mutate local `tui`/`run` session files directly and publish control messages for gateway channel sessions; `shrimpy sessions stop` publishes a gateway-only stop control. See [sessions.md](sessions.md).
 
 ## Background Work
 
@@ -79,7 +79,7 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 ## Observability
 
 - `shrimpy status` summarizes workspace and gateway activity.
-- `shrimpy gateway status` reports gateway service, watch-run, and watch clock status.
+- `shrimpy gateway status` reports gateway service, watch-run, watch clock, gateway lane, and loop-guard status.
 - `shrimpy watches` reports source paths, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` renders the assembled session prompt and can preview per-turn context and the user message body.

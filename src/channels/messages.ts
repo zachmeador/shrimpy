@@ -24,6 +24,12 @@ export type SessionThinkingLevelContentData = Record<string, unknown> & {
   command?: string;
 };
 
+export type SessionStopContentData = Record<string, unknown> & {
+  kind: "session_stop";
+  targetAgentId: string;
+  command?: string;
+};
+
 export interface TextMessageContent {
   type: "text";
   data: {
@@ -279,6 +285,18 @@ function isSessionThinkingLevelContentData(
     );
 }
 
+function isSessionStopContentData(
+  value: unknown,
+): value is SessionStopContentData {
+  return isRecord(value)
+    && value.kind === "session_stop"
+    && typeof value.targetAgentId === "string"
+    && (
+      value.command === undefined
+      || typeof value.command === "string"
+    );
+}
+
 export function sessionResetContent(
   targetAgentId: string,
   command?: string,
@@ -316,6 +334,17 @@ export function sessionThinkingLevelContent(
   } as SessionThinkingLevelContentData);
 }
 
+export function sessionStopContent(
+  targetAgentId: string,
+  command?: string,
+): SystemMessageContent<SessionStopContentData> {
+  return systemContent({
+    kind: "session_stop",
+    targetAgentId,
+    ...(command ? { command } : {}),
+  } as SessionStopContentData);
+}
+
 export function readSessionResetContent(
   value: MessageContent,
 ): SessionResetContentData | null {
@@ -335,6 +364,13 @@ export function readSessionThinkingLevelContent(
 ): SessionThinkingLevelContentData | null {
   if (!isSystemMessageContent(value)) return null;
   return isSessionThinkingLevelContentData(value.data) ? value.data : null;
+}
+
+export function readSessionStopContent(
+  value: MessageContent,
+): SessionStopContentData | null {
+  if (!isSystemMessageContent(value)) return null;
+  return isSessionStopContentData(value.data) ? value.data : null;
 }
 
 export function isMessageContent(value: unknown): value is MessageContent {

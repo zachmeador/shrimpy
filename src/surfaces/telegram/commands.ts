@@ -2,6 +2,7 @@ import type { ChannelBus } from "../../channels/bus.js";
 import {
   sessionResetMessageInput,
   sessionRestoreMessageInput,
+  sessionStopMessageInput,
   sessionThinkingLevelMessageInput,
   type MessageOrigin,
   type MessageSender,
@@ -38,6 +39,7 @@ type TelegramCommandName =
   | "new"
   | "clear"
   | "restore"
+  | "stop"
   | "thinking"
   | "agent"
   | "status"
@@ -52,6 +54,7 @@ const TELEGRAM_MENU_COMMANDS: TelegramMenuCommand[] = [
   { command: "new", description: "Start a fresh session for the current agent" },
   { command: "clear", description: "Alias for /new" },
   { command: "restore", description: "Restore the latest archived session" },
+  { command: "stop", description: "Stop the running turn" },
   { command: "thinking", description: "Set session thinking level" },
   { command: "agent", description: "Show or switch the addressed agent" },
   { command: "status", description: "Show Telegram chat status" },
@@ -68,6 +71,7 @@ function parseTelegramCommand(text: string): ParsedTelegramCommand | null {
     name !== "new" &&
     name !== "clear" &&
     name !== "restore" &&
+    name !== "stop" &&
     name !== "thinking" &&
     name !== "agent" &&
     name !== "status" &&
@@ -103,6 +107,7 @@ function buildHelpText(deps: TelegramCommandDeps, chatId: number, channel: strin
     "`/new` start a fresh session for the current agent.",
     "`/clear` alias for `/new`.",
     "`/restore [archive]` restore the latest or a named archived session.",
+    "`/stop` stop the running turn for the current agent.",
     `\`/thinking <level>\` set session thinking: ${formatThinkingInputs()}.`,
     "`/agent` show the current agent and available choices.",
     "`/agent <id>` switch the addressed agent for this chat.",
@@ -178,6 +183,19 @@ export async function handleTelegramCommand(
           sourceChannel: ctx.channel,
         },
         command: "/restore",
+      }));
+      return true;
+
+    case "stop":
+      deps.channelBus.publish(sessionStopMessageInput({
+        channel: ctx.channel,
+        targetAgentId: resolveCurrentAgentId(deps, ctx.chatId),
+        sender: ctx.sender,
+        origin: {
+          ...ctx.origin,
+          sourceChannel: ctx.channel,
+        },
+        command: "/stop",
       }));
       return true;
 

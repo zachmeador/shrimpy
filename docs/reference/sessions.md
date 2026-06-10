@@ -43,6 +43,8 @@ When the model changes inside a session, Shrimpy appends a visible `shrimpy_mode
 
 Thinking level comes from the agent default unless a command or session setting overrides it. `shrimpy sessions thinking tui <level>` mutates the local direct session. `shrimpy sessions thinking <channel> <level>` for gateway channels publishes a control message that the gateway applies to the targeted agent's channel session.
 
+`shrimpy sessions stop <channel> [--agent <id>]` publishes a gateway control message that aborts the running turn for that agent/channel lane. Queued turns stay queued and run afterward. There is no local direct-session stop path for `tui` or `run`.
+
 ## Lifecycle
 
 Session files are Pi `.jsonl` files. Shrimpy marks active and archived files with `shrimpy_lifecycle` custom entries instead of moving or rewriting the transcript.
@@ -54,6 +56,7 @@ shrimpy sessions list [channel] [--agent <id>] [--json]
 shrimpy sessions new <channel> [--agent <id>]
 shrimpy sessions clear <channel> [--agent <id>]
 shrimpy sessions restore <channel> [--agent <id>] [--archive <name>]
+shrimpy sessions stop <channel> [--agent <id>]
 ```
 
 `new` and `clear` archive the active session file. The next turn opens a fresh active file. `restore` marks an archived file active and archives the previous active file if one exists.
@@ -62,7 +65,9 @@ For local labels `tui` and `run`, lifecycle commands mutate the session files di
 
 ## Queuing
 
-One agent has one managed gateway session per channel. `SessionRegistry` serializes work per channel, so only one turn runs in that session at a time. Queued turns, resets, restores, and thinking changes are applied in order for that session. Different agents and different channels have separate sessions.
+One agent has one managed gateway session per channel. `SessionRegistry` serializes work per channel, so only one turn runs in that session at a time. Queued turns, resets, restores, and thinking changes are applied in order for that session. Stop controls abort the running turn out of band, then the lane continues with any queued turns. Different agents and different channels have separate sessions.
+
+`shrimpy sessions list` and `shrimpy gateway status` show gateway lane state when available: running turn age, queue depth, and the last outcome.
 
 ## Recorded Metadata
 

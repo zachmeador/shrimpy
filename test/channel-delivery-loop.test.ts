@@ -18,6 +18,7 @@ import {
   shouldDispatchBacklogMessage,
 } from "../dist/gateway/channel-delivery-loop.js";
 import { SessionControlRuntime } from "../dist/gateway/session-control-runtime.js";
+import { loadGatewayRuntimeState } from "../dist/gateway/runtime-state.js";
 
 let workspace: string;
 
@@ -143,6 +144,26 @@ describe("shouldDispatchBacklogMessage", () => {
       true,
     );
   });
+
+  test("replays session stop control backlog messages", () => {
+    assert.equal(
+      shouldDispatchBacklogMessage({
+        id: "stop",
+        sender: { kind: "system", actorId: "system:cli" },
+        origin: { transport: "cli" },
+        content: {
+          type: "system",
+          data: {
+            kind: "session_stop",
+            targetAgentId: "shrimpy",
+            command: "/stop",
+          },
+        },
+        timestamp: Date.now(),
+      }),
+      true,
+    );
+  });
 });
 
 describe("agent channel policy", () => {
@@ -173,6 +194,35 @@ describe("agent channel policy", () => {
         timestamp: Date.now(),
       }, { visible: true }),
       false,
+    );
+  });
+
+  test("suppresses unaddressed agent-to-agent wakes unless the policy opts in", () => {
+    const message = {
+      id: "agent-2",
+      sender: { kind: "agent" as const, actorId: "agent:shrimpy" },
+      origin: { transport: "internal" },
+      content: { type: "text" as const, data: { text: "note" } },
+      timestamp: Date.now(),
+    };
+
+    const defaultDecision = evaluateAgentChannelPolicy(
+      agent("career"),
+      "home",
+      message,
+      { visible: true },
+    );
+    assert.equal(defaultDecision.action, "ignore");
+    assert.equal(defaultDecision.runtimeGuard, "agent-to-agent wake loop guard");
+
+    assert.equal(
+      shouldAgentWakeForChannelMessage(
+        agent("career", { mode: "all", senders: ["agent"] }),
+        "home",
+        message,
+        { visible: true },
+      ),
+      true,
     );
   });
 
@@ -398,6 +448,28 @@ function testBootstraps(agents: ReturnType<typeof resolveAgentsConfig>) {
 }
 
 describe("ChannelDeliveryLoop routing", () => {
+  function testRuntime(agents: ReturnType<typeof testAgents>, memberships: ChannelMembershipStore) {
+    return {
+      resolved: {
+        agents,
+        sessions: undefined,
+      },
+      createChannelMembershipStore() {
+        return memberships;
+      },
+      getAgent(agentId: string) {
+        return agents.find((agent) => agent.id === agentId) ?? agents[0];
+      },
+      buildRuntimeTools() {
+        return [];
+      },
+      paths: {
+        cursorsPath: join(workspace, "cursors.json"),
+        gatewayStatePath: join(workspace, "gateway-state.json"),
+      },
+    } as any;
+  }
+
   test("fans out human messages to all agent members in the channel", async () => {
     const agents = testAgents();
     const memberships = new ChannelMembershipStore(
@@ -415,24 +487,7 @@ describe("ChannelDeliveryLoop routing", () => {
       },
     });
 
-    const runtime = {
-      resolved: {
-        agents,
-        sessions: undefined,
-      },
-      createChannelMembershipStore() {
-        return memberships;
-      },
-      getAgent(agentId: string) {
-        return agents.find((agent) => agent.id === agentId) ?? agents[0];
-      },
-      buildRuntimeTools() {
-        return [];
-      },
-      paths: {
-        cursorsPath: join(workspace, "cursors.json"),
-      },
-    } as any;
+    const runtime = testRuntime(agents, memberships);
 
     const dispatcher = new ChannelDeliveryLoop({
       runtime,
@@ -463,6 +518,123 @@ describe("ChannelDeliveryLoop routing", () => {
     }, "live");
 
     assert.deepEqual(calls.map((call) => call.agentId), ["career", "shrimpy"]);
+  });
+
+  test("serializes live dispatch in append order per channel", async () => {
+    const agents = testAgents();
+    const memberships = new ChannelMembershipStore(
+      join(workspace, "config", "channels.json"),
+      agents,
+    );
+    memberships.write({
+      channels: {
+        "room-1": {
+          agents: {
+            shrimpy: {},
+          },
+        },
+      },
+    });
+
+    const runtime = testRuntime(agents, memberships);
+    const dispatcher = new ChannelDeliveryLoop({
+      runtime,
+      bootstraps: testBootstraps(agents),
+      channelBus: {} as any,
+    }) as any;
+
+    const calls: string[] = [];
+    dispatcher.agentRuntimes = new Map([
+      ["shrimpy", {
+        handleMessage: async (_channel: string, message: any) => {
+          if (message.id === "first") {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          }
+          calls.push(message.id);
+          dispatcher.stateStore.markHandled("shrimpy", "room-1", message.id);
+        },
+      }],
+    ]);
+
+    await Promise.all([
+      dispatcher.enqueueMessage("room-1", {
+        id: "first",
+        sender: { kind: "human", actorId: "human:alice" },
+        origin: { transport: "telegram" },
+        content: { type: "text", data: { text: "first" } },
+        timestamp: Date.now(),
+      }, "live"),
+      dispatcher.enqueueMessage("room-1", {
+        id: "second",
+        sender: { kind: "human", actorId: "human:alice" },
+        origin: { transport: "telegram" },
+        content: { type: "text", data: { text: "second" } },
+        timestamp: Date.now(),
+      }, "live"),
+    ]);
+
+    assert.deepEqual(calls, ["first", "second"]);
+  });
+
+  test("skips messages already acknowledged in the gateway ledger", async () => {
+    const agents = testAgents();
+    const memberships = new ChannelMembershipStore(
+      join(workspace, "config", "channels.json"),
+      agents,
+    );
+    memberships.write({
+      channels: {
+        "room-1": {
+          agents: {
+            shrimpy: {},
+          },
+        },
+      },
+    });
+
+    const runtime = testRuntime(agents, memberships);
+    const message = {
+      id: "handled-1",
+      sender: { kind: "human" as const, actorId: "human:alice" },
+      origin: { transport: "telegram" },
+      content: { type: "text" as const, data: { text: "hello" } },
+      timestamp: Date.now(),
+    };
+
+    const first = new ChannelDeliveryLoop({
+      runtime,
+      bootstraps: testBootstraps(agents),
+      channelBus: {} as any,
+    }) as any;
+
+    let calls = 0;
+    first.agentRuntimes = new Map([
+      ["shrimpy", {
+        handleMessage: async () => {
+          calls += 1;
+          first.stateStore.markHandled("shrimpy", "room-1", message.id);
+        },
+      }],
+    ]);
+    await first.dispatchMessage("room-1", message, "live");
+
+    const second = new ChannelDeliveryLoop({
+      runtime,
+      bootstraps: testBootstraps(agents),
+      channelBus: {} as any,
+    }) as any;
+    second.agentRuntimes = new Map([
+      ["shrimpy", {
+        handleMessage: async () => {
+          calls += 1;
+        },
+      }],
+    ]);
+    await second.dispatchMessage("room-1", message, "backlog");
+
+    assert.equal(calls, 1);
+    const state = loadGatewayRuntimeState(runtime.paths.gatewayStatePath);
+    assert.ok(state.handled.shrimpy["room-1"][message.id]);
   });
 
   test("offers unaddressed messages to subscribed agents", async () => {
@@ -1022,6 +1194,98 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(delivered, [{
       channel: "room-1",
       text: "Set thinking level for career to off (requested high).",
+    }]);
+  });
+
+  test("intercepts session stop control messages and stops only the target agent", async () => {
+    const agents = testAgents();
+    const memberships = new ChannelMembershipStore(
+      join(workspace, "config", "channels.json"),
+      agents,
+    );
+    memberships.seedChannel("room-1");
+    memberships.addAgent("room-1", "shrimpy");
+    memberships.addAgent("room-1", "career");
+
+    const delivered: Array<{ channel: string; text: string }> = [];
+    const runtime = {
+      resolved: {
+        agents,
+        sessions: undefined,
+      },
+      createChannelMembershipStore() {
+        return memberships;
+      },
+      getAgent(agentId: string) {
+        return agents.find((agent) => agent.id === agentId) ?? agents[0];
+      },
+      buildRuntimeTools() {
+        return [];
+      },
+      paths: {
+        cursorsPath: join(workspace, "cursors.json"),
+        gatewayStatePath: join(workspace, "gateway-state.json"),
+      },
+    } as any;
+
+    const dispatcher = new ChannelDeliveryLoop({
+      runtime,
+      bootstraps: testBootstraps(agents),
+      channelBus: {
+        async deliverText(channel: string, text: string) {
+          delivered.push({ channel, text });
+          return true;
+        },
+      } as any,
+    }) as any;
+
+    const calls: string[] = [];
+    const stops: string[] = [];
+    dispatcher.agentRuntimes = new Map([
+      ["shrimpy", {
+        async handleMessage() {
+          calls.push("shrimpy");
+        },
+        stop(channel: string) {
+          stops.push(`shrimpy:${channel}`);
+          return { stopped: true };
+        },
+      }],
+      ["career", {
+        async handleMessage() {
+          calls.push("career");
+        },
+        stop(channel: string) {
+          stops.push(`career:${channel}`);
+          return { stopped: true, messageId: "running-1" };
+        },
+      }],
+    ]);
+    dispatcher.controlRuntime = new SessionControlRuntime(
+      dispatcher.channelBus,
+      dispatcher.agentRuntimes,
+    );
+
+    await dispatcher.dispatchMessage("room-1", {
+      id: "stop-1",
+      sender: { kind: "human", actorId: "human:alice" },
+      origin: { transport: "telegram" },
+      content: {
+        type: "system",
+        data: {
+          kind: "session_stop",
+          targetAgentId: "career",
+          command: "/stop",
+        },
+      },
+      timestamp: Date.now(),
+    }, "live");
+
+    assert.deepEqual(calls, []);
+    assert.deepEqual(stops, ["career:room-1"]);
+    assert.deepEqual(delivered, [{
+      channel: "room-1",
+      text: "Stopped the running turn for career.",
     }]);
   });
 });

@@ -1,6 +1,6 @@
 # 🦐 GATEWAY-001: Dispatch Hardening — Dedupe, Ordering, Loop Guard
 
-Status: todo
+Status: review
 Priority: P2
 Area: Gateway
 Depends On: none

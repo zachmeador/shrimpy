@@ -51,6 +51,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 500,
+): Promise<void> {
+  const started = Date.now();
+  while (!predicate()) {
+    if (Date.now() - started > timeoutMs) {
+      throw new Error("timed out waiting for condition");
+    }
+    await sleep(5);
+  }
+}
+
 const STABLE_SYSTEM_PROMPT = "# SOUL\n\nStable cacheable identity.";
 
 function createCaptureModel(provider = "shrimpy-context-capture"): Model<Api> {
@@ -636,6 +649,60 @@ describe("SessionRegistry", () => {
       formatChannelMessage("telegram~shrimpy~1", second),
       formatChannelMessage("telegram~shrimpy~1", third),
     ]);
+  });
+
+  test("stops the running turn without waiting for the prompt to finish", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 200 });
+    const registry = createRegistry(sessionFactory);
+    const message = humanText("long turn");
+
+    const dispatch = registry.dispatch("telegram~shrimpy~1", message);
+    await waitFor(() =>
+      registry.getLaneState("telegram~shrimpy~1").currentTurn?.messageId === message.id
+    );
+
+    const stopped = registry.stop("telegram~shrimpy~1");
+    await dispatch;
+
+    const lane = registry.getLaneState("telegram~shrimpy~1");
+    assert.equal(stopped.stopped, true);
+    assert.equal(stopped.messageId, message.id);
+    assert.equal(lane.currentTurn, undefined);
+    assert.equal(lane.queueDepth, 0);
+    assert.equal(lane.lastOutcome?.messageId, message.id);
+    assert.equal(lane.lastOutcome?.outcome, "aborted");
+    assert.equal(sessionFactory.sessions[0].disposed, true);
+  });
+
+  test("keeps queued turns after stopping the running turn", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 80 });
+    const registry = createRegistry(sessionFactory);
+    const first = humanText("first");
+    const second = humanText("second");
+
+    const dispatches = Promise.all([
+      registry.dispatch("telegram~shrimpy~1", first),
+      registry.dispatch("telegram~shrimpy~1", second),
+    ]);
+    await waitFor(() => {
+      const lane = registry.getLaneState("telegram~shrimpy~1");
+      return lane.currentTurn?.messageId === first.id && lane.queueDepth === 1;
+    });
+
+    const stopped = registry.stop("telegram~shrimpy~1");
+    await dispatches;
+
+    assert.equal(stopped.stopped, true);
+    assert.equal(sessionFactory.calls, 2);
+    assert.equal(sessionFactory.sessions[0].disposed, true);
+    assert.deepEqual(sessionFactory.sessions[1].prompts, [
+      formatChannelMessage("telegram~shrimpy~1", second),
+    ]);
+    const lane = registry.getLaneState("telegram~shrimpy~1");
+    assert.equal(lane.queueDepth, 0);
+    assert.equal(lane.currentTurn, undefined);
+    assert.equal(lane.lastOutcome?.messageId, second.id);
+    assert.equal(lane.lastOutcome?.outcome, "completed");
   });
 
   test("persists turn context in the prompt sent to the model", async () => {

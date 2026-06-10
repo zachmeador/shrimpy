@@ -6,6 +6,7 @@ import {
   isMessageContent,
   sessionResetContent,
   sessionRestoreContent,
+  sessionStopContent,
   sessionThinkingLevelContent,
   systemContent,
   textContent,
@@ -136,6 +137,8 @@ interface PublishSessionRestoreInput extends PublishSessionControlInput {
 interface PublishSessionThinkingLevelInput extends PublishSessionControlInput {
   level: ThinkingLevel;
 }
+
+type PublishSessionStopInput = PublishSessionControlInput;
 
 export interface PublishSystemInput {
   channel: string;
@@ -296,6 +299,19 @@ export function sessionThinkingLevelMessageInput(
       input.level,
       input.command,
     ),
+    timestamp: input.timestamp,
+    id: input.id,
+  };
+}
+
+export function sessionStopMessageInput(
+  input: PublishSessionStopInput,
+): PublishChannelMessageInput {
+  return {
+    channel: input.channel,
+    sender: input.sender,
+    origin: input.origin,
+    content: sessionStopContent(input.targetAgentId, input.command),
     timestamp: input.timestamp,
     id: input.id,
   };

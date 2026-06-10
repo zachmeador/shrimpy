@@ -11,11 +11,22 @@ import { openSession, type SessionBootstrap } from "./factory.js";
 import type { SessionOpenPlan } from "./spec.js";
 import { archiveSessionDir, restoreArchivedSessionDir } from "./storage.js";
 import { runSessionTurn } from "./turn-output.js";
+import type {
+  GatewayLaneOutcome,
+  GatewayLaneState,
+} from "../gateway/runtime-state.js";
 
 interface ManagedSession {
   session: AgentSession | null;
   channel: string;
   runChain: Promise<void>;
+  queuedTurns: number;
+  runningTurn?: {
+    messageId: string;
+    startedAt: number;
+    controller: AbortController;
+  };
+  lastOutcome?: GatewayLaneState["lastOutcome"];
   pendingTurnContext?: {
     prompt: string;
     text: string;
@@ -43,6 +54,12 @@ interface SessionThinkingLevelResult {
   effectiveLevel: ThinkingLevel;
 }
 
+interface SessionStopResult {
+  channel: string;
+  stopped: boolean;
+  messageId?: string;
+}
+
 interface SessionRegistryOpts {
   sessionFactory?: typeof openSession;
   planForChannel?: (channel: string) => SessionOpenPlan | Promise<SessionOpenPlan>;
@@ -55,6 +72,7 @@ interface SessionRegistryOpts {
     channel: string,
     message: ChannelMessage,
   ) => void | Promise<void>;
+  onLaneStateChange?: (state: GatewayLaneState) => void;
 }
 
 export class SessionRegistry {
@@ -72,6 +90,7 @@ export class SessionRegistry {
     channel: string,
     message: ChannelMessage,
   ) => void | Promise<void>;
+  private readonly onLaneStateChange?: (state: GatewayLaneState) => void;
 
   constructor(
     bootstrap: SessionBootstrap,
@@ -90,6 +109,7 @@ export class SessionRegistry {
     this.tools = opts?.tools ?? [];
     this.turnContextForMessage = opts?.turnContextForMessage;
     this.markMessageHandled = opts?.markMessageHandled;
+    this.onLaneStateChange = opts?.onLaneStateChange;
   }
 
   getOrCreate(channel: string): ManagedSession {
@@ -100,8 +120,10 @@ export class SessionRegistry {
       session: null,
       channel,
       runChain: Promise.resolve(),
+      queuedTurns: 0,
     };
     this.sessions.set(channel, managed);
+    this.publishLaneState(managed);
     return managed;
   }
 
@@ -142,6 +164,8 @@ export class SessionRegistry {
 
   async dispatch(channel: string, message: ChannelMessage): Promise<void> {
     const managed = this.getOrCreate(channel);
+    managed.queuedTurns += 1;
+    this.publishLaneState(managed);
     managed.runChain = managed.runChain
       .catch((err) => {
         console.error(
@@ -152,6 +176,35 @@ export class SessionRegistry {
       .then(() => this.runTurn(managed, channel, message));
 
     await managed.runChain;
+  }
+
+  stop(channel: string): SessionStopResult {
+    const managed = this.getOrCreate(channel);
+    if (!managed.runningTurn) {
+      return {
+        channel,
+        stopped: false,
+      };
+    }
+
+    const { messageId, controller } = managed.runningTurn;
+    controller.abort(new Error("session turn stopped by user"));
+    this.publishLaneState(managed);
+    return {
+      channel,
+      stopped: true,
+      messageId,
+    };
+  }
+
+  getLaneState(channel: string): GatewayLaneState {
+    return this.snapshotLane(this.getOrCreate(channel));
+  }
+
+  getLaneStates(): GatewayLaneState[] {
+    return [...this.sessions.values()].map((managed) =>
+      this.snapshotLane(managed)
+    );
   }
 
   async reset(channel: string): Promise<SessionResetResult> {
@@ -235,6 +288,15 @@ export class SessionRegistry {
     message: ChannelMessage,
   ): Promise<void> {
     const promptBody = formatChannelMessage(channel, message);
+    managed.queuedTurns = Math.max(0, managed.queuedTurns - 1);
+    const controller = new AbortController();
+    managed.runningTurn = {
+      messageId: message.id,
+      startedAt: Date.now(),
+      controller,
+    };
+    this.publishLaneState(managed);
+
     const turnContext = this.turnContextForMessage
       ? await this.turnContextForMessage(channel, message)
       : undefined;
@@ -245,13 +307,67 @@ export class SessionRegistry {
       : undefined;
 
     try {
-      await runSessionTurn(session, promptBody);
+      await runSessionTurn(session, promptBody, {
+        signal: controller.signal,
+        abortMessage: "session turn stopped by user",
+      });
+      this.recordOutcome(managed, message.id, "completed");
     } catch (err) {
-      console.error(`[session:${managed.channel}] turn error:`, err);
+      const aborted = controller.signal.aborted;
+      this.recordOutcome(
+        managed,
+        message.id,
+        aborted ? "aborted" : "errored",
+        formatError(err),
+      );
+      if (aborted) {
+        this.disposeManagedSession(managed, "stop");
+      } else {
+        console.error(`[session:${managed.channel}] turn error:`, err);
+      }
     } finally {
       managed.pendingTurnContext = undefined;
+      if (managed.runningTurn?.messageId === message.id) {
+        managed.runningTurn = undefined;
+      }
+      this.publishLaneState(managed);
       await this.markMessageHandled?.(channel, message);
     }
+  }
+
+  private recordOutcome(
+    managed: ManagedSession,
+    messageId: string,
+    outcome: GatewayLaneOutcome,
+    error?: string,
+  ): void {
+    managed.lastOutcome = {
+      messageId,
+      outcome,
+      at: Date.now(),
+      ...(error ? { error } : {}),
+    };
+  }
+
+  private snapshotLane(managed: ManagedSession): GatewayLaneState {
+    return {
+      agentId: this.bootstrap.agentId,
+      channel: managed.channel,
+      queueDepth: managed.queuedTurns,
+      ...(managed.runningTurn
+        ? {
+          currentTurn: {
+            messageId: managed.runningTurn.messageId,
+            startedAt: managed.runningTurn.startedAt,
+          },
+        }
+        : {}),
+      ...(managed.lastOutcome ? { lastOutcome: managed.lastOutcome } : {}),
+    };
+  }
+
+  private publishLaneState(managed: ManagedSession): void {
+    this.onLaneStateChange?.(this.snapshotLane(managed));
   }
 
   private planWithPendingTurnContext(
@@ -276,14 +392,7 @@ export class SessionRegistry {
     const hadSession = managed.session !== null || existsSync(sessionDir);
 
     if (managed.session) {
-      try {
-        managed.session.dispose();
-      } catch (err) {
-        console.error(
-          `[session:${managed.channel}] dispose error during reset:`,
-          err,
-        );
-      }
+      this.disposeManagedSession(managed, "reset");
       managed.session = null;
     }
 
@@ -303,14 +412,7 @@ export class SessionRegistry {
     const sessionDir = plan.descriptor.sessionDir;
 
     if (managed.session) {
-      try {
-        managed.session.dispose();
-      } catch (err) {
-        console.error(
-          `[session:${managed.channel}] dispose error during restore:`,
-          err,
-        );
-      }
+      this.disposeManagedSession(managed, "restore");
       managed.session = null;
     }
 
@@ -355,16 +457,30 @@ export class SessionRegistry {
 
     for (const managed of this.sessions.values()) {
       if (!managed.session) continue;
-      try {
-        managed.session.dispose();
-      } catch (err) {
-        console.error(
-          `[session:${managed.channel}] dispose error:`,
-          err,
-        );
-      }
+      this.disposeManagedSession(managed, "dispose");
     }
 
     this.sessions.clear();
   }
+
+  private disposeManagedSession(
+    managed: ManagedSession,
+    reason: "reset" | "restore" | "stop" | "dispose",
+  ): void {
+    if (!managed.session) return;
+    try {
+      managed.session.dispose();
+    } catch (err) {
+      console.error(
+        `[session:${managed.channel}] dispose error during ${reason}:`,
+        err,
+      );
+    }
+    managed.session = null;
+  }
+}
+
+function formatError(err: unknown): string {
+  if (err instanceof Error && err.message.trim()) return err.message.trim();
+  return String(err);
 }

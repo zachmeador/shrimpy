@@ -10,11 +10,16 @@ import {
   type ChannelWatcher,
 } from "../channels/index.js";
 import {
+  getSessionControlTargetAgentId,
   isSessionControlMessage,
   SessionControlRuntime,
   type DispatchSource,
 } from "./session-control-runtime.js";
 import { type SessionBootstrap } from "../sessions/index.js";
+import {
+  GatewayRuntimeStateStore,
+  gatewayRuntimeStatePath,
+} from "./runtime-state.js";
 
 interface ChannelDeliveryLoopOpts {
   runtime: AppRuntime;
@@ -34,6 +39,8 @@ export class ChannelDeliveryLoop {
   private readonly memberships: ChannelMembershipStore;
   private readonly agentRuntimes: Map<string, AgentChannelRuntime>;
   private readonly controlRuntime: SessionControlRuntime;
+  private readonly stateStore: GatewayRuntimeStateStore;
+  private readonly channelChains = new Map<string, Promise<void>>();
   private cursors: Record<string, ChannelCursor> = {};
   private watcher: ChannelWatcher | null = null;
 
@@ -41,6 +48,9 @@ export class ChannelDeliveryLoop {
     this.runtime = opts.runtime;
     this.channelBus = opts.channelBus;
     this.memberships = this.runtime.createChannelMembershipStore();
+    this.stateStore = new GatewayRuntimeStateStore(
+      gatewayRuntimeStatePath(this.runtime.paths),
+    );
 
     this.agentRuntimes = new Map();
     for (const agent of this.runtime.resolved.agents) {
@@ -55,6 +65,17 @@ export class ChannelDeliveryLoop {
           bootstrap,
           channelBus: this.channelBus,
           agentId: agent.id,
+          markMessageHandled: (agentId, channel, message) =>
+            this.stateStore.markHandled(agentId, channel, message.id),
+          onLaneStateChange: (state) =>
+            this.stateStore.recordLane(state),
+          onRuntimeGuardTrip: ({ agentId, channel, message, reason }) =>
+            this.stateStore.recordLoopGuardTrip({
+              agentId,
+              channel,
+              messageId: message.id,
+              reason,
+            }),
         }),
       );
     }
@@ -79,7 +100,7 @@ export class ChannelDeliveryLoop {
     );
 
     for (const entry of backlog) {
-      await this.dispatchMessage(entry.channel, entry.message, "backlog");
+      await this.enqueueMessage(entry.channel, entry.message, "backlog");
     }
 
     saveCursors(this.runtime.paths.cursorsPath, updatedCursors);
@@ -91,7 +112,7 @@ export class ChannelDeliveryLoop {
     this.watcher = this.channelBus.watch(
       (channel, messages) => {
         for (const msg of messages) {
-          void this.dispatchMessage(channel, msg, "live");
+          void this.enqueueMessage(channel, msg, "live");
         }
       },
       this.cursors,
@@ -100,6 +121,7 @@ export class ChannelDeliveryLoop {
 
   async stop(): Promise<void> {
     this.watcher?.stop();
+    await Promise.allSettled(this.channelChains.values());
     await Promise.allSettled(
       Array.from(this.agentRuntimes.values(), (agentRuntime) => agentRuntime.dispose()),
     );
@@ -108,18 +130,57 @@ export class ChannelDeliveryLoop {
     }
   }
 
+  private enqueueMessage(
+    channel: string,
+    message: ChannelMessage,
+    source: DispatchSource,
+  ): Promise<void> {
+    const previous = this.channelChains.get(channel) ?? Promise.resolve();
+    const next = previous
+      .catch((err) => {
+        console.error(`[delivery] channel queue error for ${channel}:`, err);
+      })
+      .then(() => this.dispatchMessage(channel, message, source))
+      .finally(() => {
+        if (this.channelChains.get(channel) === next) {
+          this.channelChains.delete(channel);
+        }
+        if (source === "live") {
+          this.saveLiveCursorsIfIdle();
+        }
+      });
+    this.channelChains.set(channel, next);
+    return next;
+  }
+
+  private saveLiveCursorsIfIdle(): void {
+    if (!this.watcher || this.channelChains.size > 0) return;
+    saveCursors(this.runtime.paths.cursorsPath, this.watcher.getCursors());
+  }
+
   private async dispatchMessage(
     channel: string,
     message: ChannelMessage,
     source: DispatchSource,
   ): Promise<void> {
+    const controlTargetAgentId = getSessionControlTargetAgentId(message);
+    if (
+      controlTargetAgentId &&
+      this.stateStore.hasHandled(controlTargetAgentId, channel, message.id)
+    ) {
+      return;
+    }
     if (await this.controlRuntime.handleMessage(channel, message, source)) {
+      if (controlTargetAgentId) {
+        this.stateStore.markHandled(controlTargetAgentId, channel, message.id);
+      }
       return;
     }
 
     const agentIds = new Set(this.memberships.listAgentIds(channel));
 
     await Promise.all([...agentIds].map(async (agentId) => {
+      if (this.stateStore.hasHandled(agentId, channel, message.id)) return;
       const agentRuntime = this.agentRuntimes.get(agentId);
       if (!agentRuntime) {
         console.error(`[delivery] no agent runtime for agent ${agentId}`);

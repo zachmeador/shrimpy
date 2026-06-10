@@ -1,5 +1,6 @@
 import type {
   executeSessionLifecycleAction,
+  executeSessionStopAction,
   executeSessionThinkingAction,
   SessionCompactionPolicySummary,
   SessionListingSummary,
@@ -9,6 +10,7 @@ import type {
 } from "../sessions/index.js";
 import { formatSessionAge } from "../sessions/index.js";
 import { accent, dim, label } from "../util/style.js";
+import type { GatewayLaneState } from "../gateway/runtime-state.js";
 
 export function printSessionListing(
   summary: SessionListingSummary | SingleSessionListingSummary,
@@ -54,6 +56,8 @@ export function printSessionListing(
       console.log(`  ${archived.name}  ${dim(archived.path)}`);
     }
   }
+
+  printGatewayLanes(summary.gatewayLanes);
 }
 
 export function printSessionLifecycleResult(
@@ -102,6 +106,19 @@ export function printSessionThinkingResult(
       console.log(
         `requested thinking ${result.level} for ${result.agentId} on ${result.channel}`,
       );
+      return;
+  }
+}
+
+export function printSessionStopResult(
+  result: ReturnType<typeof executeSessionStopAction>,
+): void {
+  switch (result.kind) {
+    case "local_stop_unavailable":
+      console.log(`no gateway turn to stop for ${result.agentId} on ${result.channel}`);
+      return;
+    case "requested_stop":
+      console.log(`requested stop for ${result.agentId} on ${result.channel}`);
       return;
   }
 }
@@ -160,6 +177,7 @@ export function printSessionCompactionPolicy(
 function printSingleSessionListing(summary: SingleSessionListingSummary): void {
   console.log(`${label("channel:")} ${accent(summary.channel)}`);
   console.log(`${label("active:")} ${formatSessionPath(summary.active)}`);
+  printGatewayLanes(summary.gatewayLanes);
 
   if (summary.archives.length === 0) {
     console.log(`${label("archives:")} ${dim("(none)")}`);
@@ -169,6 +187,23 @@ function printSingleSessionListing(summary: SingleSessionListingSummary): void {
   console.log(label("archives:"));
   for (const archived of summary.archives) {
     console.log(`  ${archived.name}  ${dim(archived.path)}`);
+  }
+}
+
+function printGatewayLanes(lanes: GatewayLaneState[]): void {
+  if (lanes.length === 0) return;
+
+  console.log(label("gateway lanes:"));
+  for (const lane of lanes) {
+    const running = lane.currentTurn
+      ? `running ${formatSessionAge(Date.now() - lane.currentTurn.startedAt)}`
+      : "idle";
+    const last = lane.lastOutcome
+      ? ` last=${lane.lastOutcome.outcome} ${formatSessionAge(Date.now() - lane.lastOutcome.at)} ago`
+      : "";
+    console.log(
+      `  ${accent(lane.agentId)} ${lane.channel}  ${running} queued=${lane.queueDepth}${dim(last)}`,
+    );
   }
 }
 

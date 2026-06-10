@@ -27,6 +27,7 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | `shrimpy sessions new <channel>` | Archive/reset a session. |
 | `shrimpy sessions restore <channel>` | Restore an archived session. |
 | `shrimpy sessions thinking <channel> <level>` | Change reasoning effort for a session. |
+| `shrimpy sessions stop <channel> [--agent <id>]` | Stop the running gateway turn for a channel session. |
 | `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model/inference metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
 | `shrimpy models [--json]` | Inspect model policies, agent defaults, and Pi-visible provider models. |
 | `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]` | Explain model precedence for a CLI override, explicit policy, local session, channel session, or agent default. |
@@ -119,7 +120,7 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy gateway status` | Show gateway activity and watch clock status. |
+| `shrimpy gateway status` | Show gateway activity, watch clock status, gateway lanes, and recent loop-guard trips. |
 | `shrimpy gateway logs` | Print recent `workspace/runtime/logs/gateway.log` lines. |
 | `shrimpy gateway logs --lines 200` | Print a specific number of log lines. |
 | `shrimpy gateway logs --follow` | Follow the workspace gateway log. |

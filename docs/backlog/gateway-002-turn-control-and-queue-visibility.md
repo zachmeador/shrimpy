@@ -1,6 +1,6 @@
 # 🦐 GATEWAY-002: Turn Stop Control And Queue Visibility
 
-Status: todo
+Status: review
 Priority: P2
 Area: Gateway
 Depends On: none

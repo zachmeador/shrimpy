@@ -36,7 +36,7 @@ A new surface is a `surfaces/<name>/` folder appended to the array in `src/surfa
 
 ## Telegram
 
-Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live in `workspace/state/telegram/`. Downloaded media lives in `workspace/media/`. Routes default from configured `telegram.instances`. Telegram channel names are transport-thread channels in the form `telegram~<instance-id>~<chat-id>`; create normal semantic channels for internal work, and use `shrimpy setup telegram` plus `shrimpy surface set-agent` for Telegram routing instead of inventing adapter-shaped channel names. Commands cover session reset/restore, thinking changes, help, and addressed-agent switching.
+Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live in `workspace/state/telegram/`. Downloaded media lives in `workspace/media/`. Routes default from configured `telegram.instances`. Telegram channel names are transport-thread channels in the form `telegram~<instance-id>~<chat-id>`; create normal semantic channels for internal work, and use `shrimpy setup telegram` plus `shrimpy surface set-agent` for Telegram routing instead of inventing adapter-shaped channel names. Commands cover session reset/restore/stop, thinking changes, help, and addressed-agent switching.
 
 ## Delivery
 

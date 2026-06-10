@@ -1,6 +1,7 @@
 import { createAppRuntime } from "../app/index.js";
 import {
   executeSessionLifecycleAction,
+  executeSessionStopAction,
   executeSessionThinkingAction,
   inspectSessionCompactionPolicy,
   summarizeAgentSessions,
@@ -14,6 +15,7 @@ import {
   printSessionLifecycleResult,
   printSessionListing,
   printSessionCompactionPolicy,
+  printSessionStopResult,
   printSessionThinkingResult,
 } from "./sessions-format.js";
 import { renderGroupUsage } from "./catalog.js";
@@ -121,6 +123,20 @@ function sessionLifecycleAction(action: "new" | "clear" | "restore") {
   };
 }
 
+function stopSession({ argv, config, usage: usageText }: CommandInvocation): number {
+  const { values, positionals } = parseSessionArgs(argv, usageText);
+  const channel = requireArg(positionals[0], usageText, "channel");
+  const runtime = createAppRuntime(config);
+
+  const result = executeSessionStopAction(runtime, {
+    channel,
+    agentId: values.agent,
+  });
+
+  printSessionStopResult(result);
+  return 0;
+}
+
 export const cmdSessions: CommandHandler = createCommandGroup({
   name: "sessions",
   usage: USAGE,
@@ -129,6 +145,7 @@ export const cmdSessions: CommandHandler = createCommandGroup({
     list: listSessions,
     compaction: inspectCompaction,
     thinking: setThinking,
+    stop: stopSession,
     new: sessionLifecycleAction("new"),
     clear: sessionLifecycleAction("clear"),
     restore: sessionLifecycleAction("restore"),

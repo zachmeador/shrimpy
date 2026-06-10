@@ -12,7 +12,7 @@ import {
   resolveAgentToolPolicy,
 } from "../tools/policy.js";
 import {
-  shouldAgentWakeForChannelMessage,
+  evaluateAgentChannelPolicy,
 } from "./channel-policy.js";
 import {
   createGatewaySessionDescriptor,
@@ -21,12 +21,25 @@ import {
   SessionRegistry,
   type SessionBootstrap,
 } from "../sessions/index.js";
+import type { GatewayLaneState } from "../gateway/runtime-state.js";
 
 interface AgentChannelRuntimeOpts {
   runtime: AppRuntime;
   bootstrap: SessionBootstrap;
   channelBus: ChannelBus;
   agentId: string;
+  markMessageHandled?: (
+    agentId: string,
+    channel: string,
+    message: ChannelMessage,
+  ) => void | Promise<void>;
+  onLaneStateChange?: (state: GatewayLaneState) => void;
+  onRuntimeGuardTrip?: (input: {
+    agentId: string;
+    channel: string;
+    message: ChannelMessage;
+    reason: string;
+  }) => void;
 }
 
 export class AgentChannelRuntime {
@@ -34,11 +47,13 @@ export class AgentChannelRuntime {
   private readonly agent: ResolvedAgentConfig;
   private readonly channelBus: ChannelBus;
   private readonly registry: SessionRegistry;
+  private readonly onRuntimeGuardTrip?: AgentChannelRuntimeOpts["onRuntimeGuardTrip"];
 
   constructor(opts: AgentChannelRuntimeOpts) {
     this.agentId = opts.agentId;
     this.agent = opts.runtime.getAgent(opts.agentId);
     this.channelBus = opts.channelBus;
+    this.onRuntimeGuardTrip = opts.onRuntimeGuardTrip;
     const toolPolicy = resolveAgentToolPolicy(this.agent);
     const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
     const modelResolution = resolveModelDetailed(
@@ -93,14 +108,20 @@ export class AgentChannelRuntime {
           currentMessage: message,
         }),
       markMessageHandled: (channel, message) =>
-        markChannelSeen(opts.runtime, this.agent.id, channel, message.id),
+        Promise.resolve(markChannelSeen(opts.runtime, this.agent.id, channel, message.id))
+          .then(() => opts.markMessageHandled?.(this.agent.id, channel, message)),
+      onLaneStateChange: opts.onLaneStateChange,
     });
   }
 
   shouldHandleMessage(channel: string, message: ChannelMessage): boolean {
-    return shouldAgentWakeForChannelMessage(this.agent, channel, message, {
+    const decision = evaluateAgentChannelPolicy(this.agent, channel, message, {
       visible: true,
     });
+    if (decision.action === "ignore" && decision.runtimeGuard) {
+      this.runtimeGuardTrip(channel, message, decision.runtimeGuard);
+    }
+    return decision.action === "wake";
   }
 
   async handleMessage(channel: string, message: ChannelMessage): Promise<void> {
@@ -123,7 +144,30 @@ export class AgentChannelRuntime {
     return this.registry.setThinkingLevel(channel, level);
   }
 
+  stop(channel: string) {
+    return this.registry.stop(channel);
+  }
+
+  getLaneStates(): GatewayLaneState[] {
+    return this.registry.getLaneStates();
+  }
+
   async dispose(): Promise<void> {
     await this.registry.disposeAll();
   }
+
+  private runtimeGuardTrip(
+    channel: string,
+    message: ChannelMessage,
+    reason: string,
+  ): void {
+    this.registry.getLaneState(channel);
+    this.onRuntimeGuardTrip?.({
+      agentId: this.agent.id,
+      channel,
+      message,
+      reason,
+    });
+  }
+
 }
