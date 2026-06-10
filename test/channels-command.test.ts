@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { systemContent, textContent } from "../dist/channels/index.js";
@@ -120,6 +120,19 @@ describe("cmdChannels", () => {
     assert.equal(messages[0]?.content.type === "text" ? messages[0].content.data.text : "", "hello from cli");
   });
 
+  test("rejects invalid channel names in create and post", async () => {
+    await setupInit(workspace);
+
+    await assert.rejects(
+      () => cmdChannels(["create", "../outside"], { workspace } as any),
+      /invalid channel name "\.\.\/outside"/,
+    );
+    await assert.rejects(
+      () => cmdChannels(["post", "../outside", "hello"], { workspace } as any),
+      /invalid channel name "\.\.\/outside"/,
+    );
+  });
+
   test("posts an addressed CLI human message", async () => {
     await setupInit(workspace);
     await withMutedConsole(() => cmdAgent(["add", "career"], { workspace } as any));
@@ -162,7 +175,7 @@ describe("cmdChannels", () => {
     assert.equal(posted.channel, "telegram~main~4242");
 
     const channelBus = new ChannelBus(join(workspace, "channels"));
-    assert.equal(channelBus.read("user:alice").messages.length, 0);
+    assert.equal(existsSync(join(workspace, "channels", "user:alice.jsonl")), false);
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.equal(messages[0]?.content.type, "text");

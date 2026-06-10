@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { EgressRegistry } from "../dist/channels/egress.js";
@@ -44,6 +44,24 @@ describe("ChannelBus", () => {
     assert.equal(messages[0].sender.actorId, "human:user:alice");
     assert.equal(messages[0].origin.sourceChannel, "telegram-42");
     assert.deepEqual(messages[0].content.data, { text: "hello" });
+  });
+
+  test("rejects invalid channel names before writing", () => {
+    const channelBus = createChannelBus();
+
+    assert.throws(
+      () =>
+        channelBus.publishHumanText({
+          channel: "../outside",
+          text: "hello",
+          actorId: "human:user:alice",
+          userId: "user:alice",
+          displayName: "alice",
+          transport: "cli",
+        }),
+      /invalid channel name "\.\.\/outside"/,
+    );
+    assert.equal(existsSync(join(testDir, "outside.jsonl")), false);
   });
 
   test("sendAgentText logs and delivers through the adapter registry", async () => {

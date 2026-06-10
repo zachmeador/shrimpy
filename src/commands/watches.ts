@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
+import { parseChannelName } from "../channels/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import {
   parseWatchDefinitions,
@@ -418,7 +419,7 @@ function buildAction(values: Record<string, unknown>): WatchDefinition["action"]
   if (!channel) throw new Error("--channel is required for message watches");
   return {
     kind: "message",
-    channel,
+    channel: parseChannelName(channel),
     text: message,
     ...(typeof values.addressed === "string"
       ? { addressedAgentId: values.addressed }
@@ -437,7 +438,7 @@ function buildEmit(values: Record<string, unknown>): WatchDefinition["emit"] {
   }
   return {
     policy: emitPolicy,
-    ...(channel ? { channel } : {}),
+    ...(channel ? { channel: parseChannelName(channel) } : {}),
     ...(template ? { template } : {}),
   };
 }

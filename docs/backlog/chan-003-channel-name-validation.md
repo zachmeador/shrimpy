@@ -1,6 +1,6 @@
 # 🦐 CHAN-003: Channel Name Validation At Boundaries
 
-Status: todo
+Status: review
 Priority: P1
 Area: Channels
 Depends On: none

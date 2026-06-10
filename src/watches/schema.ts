@@ -1,5 +1,8 @@
 import { existsSync } from "node:fs";
-import type { MessageSenderKind } from "../channels/index.js";
+import {
+  parseChannelName,
+  type MessageSenderKind,
+} from "../channels/index.js";
 import { readJsonFileStrict } from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 
@@ -141,6 +144,30 @@ function assertOptionalStructuralString(
   return assertStructuralString(value, label);
 }
 
+function assertChannelNameValue(
+  value: unknown,
+  label: string,
+): string {
+  const channel = assertStructuralString(value, label);
+  try {
+    return parseChannelName(channel);
+  } catch (err) {
+    throw new Error(`${label} ${formatValidationError(err)}`);
+  }
+}
+
+function assertOptionalChannelNameValue(
+  value: unknown,
+  label: string,
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw new Error(`${label} must be a string`);
+  }
+  if (value.length === 0) return undefined;
+  return assertChannelNameValue(value, label);
+}
+
 function assertFreeformText(
   value: unknown,
   label: string,
@@ -253,7 +280,7 @@ function parseAction(raw: unknown, index: number): WatchAction {
   }
 
   if (raw.kind === "message") {
-    const channel = assertStructuralString(raw.channel, `watches[${index}].action.channel`);
+    const channel = assertChannelNameValue(raw.channel, `watches[${index}].action.channel`);
     const text = assertFreeformText(raw.text, `watches[${index}].action.text`);
     const senderKind = parseSenderKind(
       raw.senderKind,
@@ -300,7 +327,7 @@ function parseEmit(raw: unknown, index: number): WatchEmitConfig | undefined {
       `watches[${index}].emit.policy must be never, always, on_output, on_change, or on_failure`,
     );
   }
-  const channel = assertOptionalStructuralString(raw.channel, `watches[${index}].emit.channel`);
+  const channel = assertOptionalChannelNameValue(raw.channel, `watches[${index}].emit.channel`);
   const template = raw.template === undefined
     ? undefined
     : assertFreeformText(raw.template, `watches[${index}].emit.template`);
@@ -469,4 +496,8 @@ export function watchTriggerMetadata(
       ? { timezone: trigger.timezone ?? timezone }
       : {}),
   };
+}
+
+function formatValidationError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

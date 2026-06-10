@@ -23,6 +23,7 @@ import {
   isChannelMessage,
   type ChannelMessage,
 } from "./protocol.js";
+import { parseChannelName } from "./names.js";
 
 export interface ChannelCursor {
   byteOffset: number;
@@ -221,7 +222,8 @@ export function drainBacklog(
 }
 
 export function channelPath(channelsDir: string, channel: string): string {
-  return join(channelsDir, `${channel}.jsonl`);
+  const name = parseChannelName(channel);
+  return join(channelsDir, `${name}.jsonl`);
 }
 
 export class ChannelStore {

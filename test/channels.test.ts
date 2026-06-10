@@ -199,6 +199,43 @@ describe("appendMessage + readMessages", () => {
   });
 });
 
+describe("channel names", () => {
+  test("accepts current channel naming conventions", () => {
+    assert.equal(channelPath(testDir, "home"), join(testDir, "home.jsonl"));
+    assert.equal(
+      channelPath(testDir, "telegram~main~123"),
+      join(testDir, "telegram~main~123.jsonl"),
+    );
+    assert.equal(
+      channelPath(testDir, "dm~agent-a~agent_b"),
+      join(testDir, "dm~agent-a~agent_b.jsonl"),
+    );
+    assert.equal(
+      channelPath(testDir, "work.logs_1"),
+      join(testDir, "work.logs_1.jsonl"),
+    );
+  });
+
+  test("rejects traversal and malformed channel names", () => {
+    for (const channel of [
+      "../outside",
+      "..",
+      "home/child",
+      "home\\child",
+      "home child",
+      "Telegram~Main~123",
+      "user:alice",
+      "home\nnext",
+    ]) {
+      assert.throws(
+        () => channelPath(testDir, channel),
+        /invalid channel name/,
+        channel,
+      );
+    }
+  });
+});
+
 describe("cursor persistence", () => {
   test("save and load cursors", () => {
     const cursorsPath = join(testDir, "cursors.json");

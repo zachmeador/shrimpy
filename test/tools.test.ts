@@ -90,6 +90,27 @@ describe("send_message", () => {
     assert.deepEqual(messages[0].content.data, { text: "hello" });
   });
 
+  test("fails clearly for malformed explicit channel names", async () => {
+    const channelBus = createChannelBus();
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+    });
+    const sendMessage = findTool("send_message", tools);
+
+    await assert.rejects(
+      () =>
+        sendMessage.execute(
+          "call-1",
+          { channel: "../../outside", text: "hello" },
+          new AbortController().signal,
+          () => {},
+          {},
+        ),
+      /invalid channel name "\.\.\/\.\.\/outside"/,
+    );
+  });
+
   test("explains that agent DMs do not need an external adapter", async () => {
     const channelBus = createChannelBus();
 
@@ -398,6 +419,27 @@ describe("active publication tools", () => {
 });
 
 describe("read_channel", () => {
+  test("fails clearly for malformed channel names", async () => {
+    const channelBus = createChannelBus();
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+    });
+    const readChannel = findTool("read_channel", tools);
+
+    await assert.rejects(
+      () =>
+        readChannel.execute(
+          "call-1",
+          { channel: "bad/channel" },
+          new AbortController().signal,
+          () => {},
+          {},
+        ),
+      /invalid channel name "bad\/channel"/,
+    );
+  });
+
   test("uses configured default limit when limit is omitted", async () => {
     const channelBus = createChannelBus();
     const channel = "telegram-123";

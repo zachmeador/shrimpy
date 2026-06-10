@@ -7,6 +7,7 @@ import {
   writeJsonFileAtomic,
 } from "../util/json-file.js";
 import { resolveAgentDmMembers } from "./dm.js";
+import { parseChannelName } from "./names.js";
 
 interface ChannelMembershipsFile {
   channels: Record<string, ChannelMembership>;
@@ -154,17 +155,19 @@ export class ChannelMembershipStore {
   }
 
   get(channel: string): ChannelMembership | null {
-    const membership = this.read().channels[channel];
+    const name = parseChannelName(channel);
+    const membership = this.read().channels[name];
     return membership ? { ...membership } : null;
   }
 
   seedChannel(channel: string): ChannelMembership {
+    const name = parseChannelName(channel);
     const memberships = this.read();
-    const existing = memberships.channels[channel];
+    const existing = memberships.channels[name];
     if (existing) return { ...existing };
 
-    const seeded = defaultChannelMembers(channel, this.agents, this.opts);
-    memberships.channels[channel] = seeded;
+    const seeded = defaultChannelMembers(name, this.agents, this.opts);
+    memberships.channels[name] = seeded;
     this.write(memberships);
     return { ...seeded };
   }
@@ -174,27 +177,29 @@ export class ChannelMembershipStore {
   }
 
   addAgent(channel: string, agentId: string): ChannelMembership {
+    const name = parseChannelName(channel);
     const memberships = this.read();
     const membership = normalizeMembership(
-      memberships.channels[channel] ?? EMPTY_MEMBERSHIP,
+      memberships.channels[name] ?? EMPTY_MEMBERSHIP,
     );
     membership.agents[agentId] = membership.agents[agentId] ?? defaultAgentMembership();
-    memberships.channels[channel] = membership;
+    memberships.channels[name] = membership;
     this.write(memberships);
     return { ...membership };
   }
 
   removeAgent(channel: string, agentId: string): ChannelMembership {
-    if (channel === "home" && agentId === DEFAULT_AGENT_ID) {
+    const name = parseChannelName(channel);
+    if (name === "home" && agentId === DEFAULT_AGENT_ID) {
       throw new Error("cannot remove shrimpy from home");
     }
 
     const memberships = this.read();
     const membership = normalizeMembership(
-      memberships.channels[channel] ?? EMPTY_MEMBERSHIP,
+      memberships.channels[name] ?? EMPTY_MEMBERSHIP,
     );
     delete membership.agents[agentId];
-    memberships.channels[channel] = membership;
+    memberships.channels[name] = membership;
     this.write(memberships);
     return { ...membership };
   }

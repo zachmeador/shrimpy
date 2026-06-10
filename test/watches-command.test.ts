@@ -254,6 +254,23 @@ describe("watch inspection surfaces", () => {
         ], { workspace } as any),
       /watch id must not contain control or invisible characters/,
     );
+
+    await assert.rejects(
+      () =>
+        cmdWatches([
+          "add",
+          "bad-channel",
+          "--agent",
+          "shrimpy",
+          "--every",
+          "5m",
+          "--channel",
+          "../outside",
+          "--message",
+          "Check in.",
+        ], { workspace } as any),
+      /invalid channel name "\.\.\/outside"/,
+    );
   });
 
   test("surfaces human-facing text diagnostics", async () => {
