@@ -8,7 +8,6 @@
 
 import type { ChatSurfaceModule } from "../shared/module.js";
 import {
-  buildTelegramAdapterRoutes,
   resolveTelegramDefaultAgentIds,
   resolveTelegramRuntimeConfig,
   validateTelegramRuntimeConfig,
@@ -24,7 +23,6 @@ export const telegramSurface: ChatSurfaceModule<ResolvedTelegramRuntimeConfig> =
   validateConfig: validateTelegramRuntimeConfig,
   resolveConfig: (raw, agentIds) =>
     resolveTelegramRuntimeConfig(raw, agentIds),
-  buildAdapterRoutes: (resolved) => buildTelegramAdapterRoutes(resolved),
   createEgresses: (runtime) => {
     const resolved = runtime.surfaceConfig<ResolvedTelegramRuntimeConfig>("telegram");
     return createTelegramSurfaceEgresses(runtime, resolved);
@@ -40,7 +38,7 @@ export const telegramSurface: ChatSurfaceModule<ResolvedTelegramRuntimeConfig> =
 export {
   loadTelegramOffset,
   telegramStatePath,
-  registerTelegramRoute,
+  registerTelegramEgress,
 } from "./surface.js";
 
 export {

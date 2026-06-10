@@ -20,7 +20,7 @@ Shrimpy is a multi-agent home AI system built on Pi. Shrimpy depends directly on
 3. Each visible agent's channel policy decides whether the message becomes a turn.
 4. Each handling agent runs a private Pi session for that channel.
 5. The agent uses tools as needed.
-6. User-visible agent responses go through active-channel publication helpers such as `reply` or `ask`, which log to the channel and deliver through a surface when one is configured. `send_message` remains available for explicit channel routing.
+6. User-visible agent responses go through active-channel publication helpers such as `reply` or `ask`, which log to the channel; the gateway outbox delivers through a surface when the channel has a transport binding. `send_message` remains available for explicit channel routing.
 
 `shrimpy` and `shrimpy run` open direct local sessions without first writing the prompt into a channel log. In those sessions, normal assistant text is the response path; channel publication helpers are for gateway/channel turns. The interactive TUI uses Pi's `InteractiveMode` so slash autocomplete and default UI behavior stay aligned with Pi, while Shrimpy patches `/settings` to expose both Shrimpy and Pi-owned settings.
 

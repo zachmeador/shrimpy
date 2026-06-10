@@ -1,7 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildTelegramAdapterRoutes,
   resolveTelegramDefaultAgentIds,
   resolveTelegramRuntimeConfig,
 } from "../dist/surfaces/telegram/config.js";
@@ -83,7 +82,7 @@ describe("resolveTelegramRuntimeConfig", () => {
 });
 
 describe("telegram surface helpers", () => {
-  test("builds default adapter routes and surface default-agent matches", () => {
+  test("matches surface thread channels to default agents", () => {
     const config = resolveTelegramRuntimeConfig({
       instances: {
         shrimpy: {
@@ -97,10 +96,6 @@ describe("telegram surface helpers", () => {
       },
     }, ["shrimpy", "helper"]);
 
-    assert.deepEqual(buildTelegramAdapterRoutes(config), [
-      { adapter: "telegram.helper", channelPrefix: "telegram~helper~" },
-      { adapter: "telegram.shrimpy", channelPrefix: "telegram~shrimpy~" },
-    ]);
     assert.deepEqual(
       resolveTelegramDefaultAgentIds(config, "telegram~helper~123"),
       ["helper"],

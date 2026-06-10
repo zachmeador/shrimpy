@@ -73,7 +73,9 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | Command | Purpose |
 | --- | --- |
 | `shrimpy channels` | List channels. |
-| `shrimpy channels show <name>` | Inspect one channel, including membership, recent request-like messages, message kind counts, and traceable source records. |
+| `shrimpy channels show <name>` | Inspect one channel, including manifest binding, delivery receipts, membership, recent request-like messages, message kind counts, and traceable source records. |
+| `shrimpy channels bind <name> <adapter>/<instance>/<thread>` | Bind a channel to an outbound transport. |
+| `shrimpy channels unbind <name>` | Remove a channel transport binding without changing history. |
 | `shrimpy channels read <name>` | Read recent channel messages. |
 | `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]` | Search and filter channel messages. `--kind` accepts `user_text`, `agent_text`, `watch`, `control`, `status`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--watch`, and `--source-kind`. |
 | `shrimpy channels tail <name>` | Watch a channel log. |

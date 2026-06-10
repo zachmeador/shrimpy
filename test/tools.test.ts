@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import {
   EgressRegistry,
 } from "../dist/channels/egress.js";
-import { registerTelegramRoute } from "../dist/surfaces/telegram/index.js";
+import { registerTelegramEgress } from "../dist/surfaces/telegram/index.js";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
 import { createDaemonTools } from "../dist/tools/index.js";
 import { ChannelBus } from "../dist/channels/bus.js";
@@ -81,7 +81,7 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Logged to unknown-1. No external adapter matched for outbound delivery.",
+      "Logged to unknown-1 for outbound delivery.",
     );
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "unknown-1"));
@@ -135,16 +135,8 @@ describe("send_message", () => {
     );
   });
 
-  test("delivers through the adapter and logs", async () => {
-    const delivered: Array<{ channel: string; text: string }> = [];
-    const egress = new EgressRegistry();
-    egress.register("telegram-", async (delivery) => {
-      delivered.push({
-        channel: delivery.channel,
-        text: delivery.text,
-      });
-    });
-    const channelBus = createChannelBus(egress);
+  test("logs without immediate adapter delivery", async () => {
+    const channelBus = createChannelBus();
 
     const tools = createDaemonTools({
       channelBus,
@@ -163,11 +155,8 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Logged to telegram-123 and delivered through an external adapter.",
+      "Logged to telegram-123 for outbound delivery.",
     );
-    assert.deepEqual(delivered, [
-      { channel: "telegram-123", text: "hello" },
-    ]);
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
     assert.equal(messages.length, 1);
@@ -227,50 +216,58 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Logged to telegram~main~4242. No external adapter matched for outbound delivery.",
+      "Logged to telegram~main~4242 for outbound delivery.",
     );
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram~main~4242"));
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content.data, { text: "hello alice" });
   });
 
-  test("registerTelegramRoute supports custom route prefixes", async () => {
+  test("registerTelegramEgress sends by transport binding", async () => {
     const calls: Array<{ chatId: number; text: string }> = [];
     const registry = new EgressRegistry();
-    registerTelegramRoute(
+    registerTelegramEgress(
       registry,
       {
         async sendMessage(chatId: number, text: string) {
           calls.push({ chatId, text });
         },
+        async sendPhoto() {},
       } as any,
-      "tg-chat-",
+      "main",
     );
 
     const delivered = await registry.send({
-      channel: "tg-chat-4242",
-      text: "hi",
+      channel: "home",
+      binding: { adapter: "telegram", instance: "main", thread: "4242" },
+      message: makeMessage({
+        sender: { kind: "agent", actorId: "agent:shrimpy" },
+        origin: { transport: "internal" },
+        content: textContent("hi"),
+      }),
     });
     assert.equal(delivered, true);
     assert.deepEqual(calls, [{ chatId: 4242, text: "hi" }]);
   });
 
-  test("registerTelegramRoute supports typing activity routes", async () => {
+  test("registerTelegramEgress supports typing activity routes", async () => {
     const calls: Array<{ chatId: number; action: string }> = [];
     const registry = new EgressRegistry();
-    registerTelegramRoute(
+    registerTelegramEgress(
       registry,
       {
         async sendMessage() {},
+        async sendPhoto() {},
         async sendChatAction(chatId: number, action: "typing") {
           calls.push({ chatId, action });
         },
       } as any,
-      "tg-chat-",
+      "main",
     );
 
     const handle = await registry.startActivity({
-      channel: "tg-chat-4242",
+      channel: "home",
+      binding: { adapter: "telegram", instance: "main", thread: "4242" },
       kind: "typing",
     });
     assert.ok(handle);
@@ -283,12 +280,7 @@ describe("send_message", () => {
 
 describe("active publication tools", () => {
   test("reply publishes to the active channel with intent metadata", async () => {
-    const delivered: any[] = [];
-    const egress = new EgressRegistry();
-    egress.register("telegram-", async (delivery) => {
-      delivered.push(delivery);
-    });
-    const channelBus = createChannelBus(egress);
+    const channelBus = createChannelBus();
 
     const tools = createDaemonTools({
       channelBus,
@@ -309,13 +301,8 @@ describe("active publication tools", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Published reply to telegram-123 and delivered through an external adapter. Wait until a new message is received.",
+      "Logged reply to telegram-123 for outbound delivery. Wait until a new message is received.",
     );
-    assert.equal(delivered.length, 1);
-    assert.equal(delivered[0].channel, "telegram-123");
-    assert.equal(delivered[0].text, "Done.");
-    assert.deepEqual(delivered[0].publication, { kind: "reply" });
-    assert.equal(delivered[0].message.sender.actorId, "agent:surface");
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
     assert.equal(messages.length, 1);
@@ -327,12 +314,7 @@ describe("active publication tools", () => {
   });
 
   test("notify carries urgency and quiet metadata", async () => {
-    const delivered: any[] = [];
-    const egress = new EgressRegistry();
-    egress.register("telegram-", async (delivery) => {
-      delivered.push(delivery);
-    });
-    const channelBus = createChannelBus(egress);
+    const channelBus = createChannelBus();
 
     const tools = createDaemonTools({
       channelBus,
@@ -353,13 +335,6 @@ describe("active publication tools", () => {
       () => {},
       {},
     );
-
-    assert.deepEqual(delivered[0].publication, {
-      kind: "notify",
-      urgency: "low",
-      quiet: true,
-      batchable: true,
-    });
 
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
     assert.deepEqual(messages[0].content.data.publication, {
@@ -745,30 +720,27 @@ describe("tool context prose", () => {
 
   test("renders daemon tool result text", () => {
     assert.equal(
-      renderSendMessageResult({ channel: "home", delivered: true }),
-      "Logged to home and delivered through an external adapter.",
+      renderSendMessageResult({ channel: "home" }),
+      "Logged to home for outbound delivery.",
     );
     assert.equal(
       renderSendMessageResult({
         channel: "home",
-        delivered: true,
         waitForNewMessage: true,
       }),
-      "Logged to home and delivered through an external adapter. Wait until a new message is received.",
+      "Logged to home for outbound delivery. Wait until a new message is received.",
     );
     assert.equal(
       renderPublicationResult({
         intent: "reply",
         channel: "home",
-        delivered: true,
       }),
-      "Published reply to home and delivered through an external adapter. Wait until a new message is received.",
+      "Logged reply to home for outbound delivery. Wait until a new message is received.",
     );
     assert.equal(
       renderPublicationResult({
         intent: "reply",
         channel: "dm~helper~shrimpy",
-        delivered: false,
       }),
       "Logged reply to agent DM dm~helper~shrimpy. No external adapter is expected; gateway channel routing handles DM members. Wait until a new message is received.",
     );

@@ -34,8 +34,9 @@ import { createWorkspaceCheckpointService } from "./workspace-checkpoints/index.
 import { ChannelDeliveryLoop } from "./gateway/channel-delivery-loop.js";
 import {
   createConfiguredGatewaySurfaces,
-  registerSurfaceRoutes,
+  registerSurfaceEgresses,
 } from "./surfaces/index.js";
+import { ChannelOutbox } from "./channels/outbox.js";
 
 async function run() {
   const config = loadConfig();
@@ -64,7 +65,14 @@ async function run() {
     identityStore,
     surfaceThreadStateStore,
   });
-  registerSurfaceRoutes(egressRegistry, runtime.resolved.adapterRouting, surfaces);
+  registerSurfaceEgresses(egressRegistry, surfaces);
+  const outbox = new ChannelOutbox({
+    channelBus,
+    memberships: runtime.createChannelMembershipStore(),
+    egressRegistry,
+    cursorsPath: runtime.paths.outboxCursorsPath,
+    receiptsPath: runtime.paths.outboundReceiptsPath,
+  });
   const bootstraps = await createGatewayBootstraps(runtime);
   const deliveryLoop = new ChannelDeliveryLoop({
     runtime,
@@ -75,6 +83,8 @@ async function run() {
     surface.start();
   }
 
+  await outbox.drainBacklog();
+  outbox.start();
   await deliveryLoop.drainBacklog();
   deliveryLoop.start();
 
@@ -93,6 +103,7 @@ async function run() {
     workspaceCheckpointService.stop();
     saveWatchClockState(runtime.paths.watchClockStatePath, watchClock.getState());
     await Promise.allSettled(surfaces.map((surface) => surface.stop()));
+    await outbox.stop();
     await deliveryLoop.stop();
 
     if (readPidFile(runtime.paths.gatewayPidPath) === process.pid) {

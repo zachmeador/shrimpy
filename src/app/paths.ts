@@ -30,6 +30,8 @@ export interface WorkspacePaths {
   usersPath: string;
   userPresencePath: string;
   cursorsPath: string;
+  outboxCursorsPath: string;
+  outboundReceiptsPath: string;
   surfaceStatePath: string;
   watchClockStatePath: string;
   workspacePromptPath: string;
@@ -80,6 +82,8 @@ export function createWorkspacePaths(
     usersPath: join(workspace, "state", "users.json"),
     userPresencePath: join(workspace, "state", "user-presence.json"),
     cursorsPath: join(workspace, "runtime", "cursors", "channels.json"),
+    outboxCursorsPath: join(workspace, "runtime", "cursors", "channel-outbox.json"),
+    outboundReceiptsPath: join(workspace, "runtime", "channel-deliveries.json"),
     surfaceStatePath: join(workspace, "runtime", "cursors", "surface-threads.json"),
     watchClockStatePath: join(workspace, "state", "watch-clock.json"),
     workspacePromptPath: join(workspace, "profile", "WORKSPACE.md"),

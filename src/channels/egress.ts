@@ -1,15 +1,15 @@
 import type { ChannelMessage } from "./protocol.js";
-import type { PublicationIntent } from "./messages.js";
+import type { ChannelTransportBinding } from "./manifest.js";
 
 export interface ChannelDelivery {
   channel: string;
-  text: string;
-  message?: ChannelMessage;
-  publication?: PublicationIntent;
+  binding: ChannelTransportBinding;
+  message: ChannelMessage;
 }
 
 export interface ChannelActivity {
   channel: string;
+  binding?: ChannelTransportBinding;
   kind: "typing";
 }
 
@@ -21,47 +21,55 @@ type EgressSendFn = (delivery: ChannelDelivery) => Promise<void>;
 type EgressActivityFn = (activity: ChannelActivity) => Promise<ChannelActivityHandle | null>;
 
 /**
- * Channel-prefix → outbound send function. Surfaces register a route
- * (prefix + send fn); the egress dispatcher consults the registry when
- * delivering text that has been logged to a channel.
+ * Transport binding → outbound send function. Surfaces register an adapter
+ * instance sender; the outbox dispatcher supplies the channel manifest binding.
  */
 export class EgressRegistry {
   private routes = new Map<string, EgressSendFn>();
   private activityRoutes = new Map<string, EgressActivityFn>();
 
-  register(prefix: string, send: EgressSendFn): void {
-    this.routes.set(prefix, send);
+  register(binding: Pick<ChannelTransportBinding, "adapter" | "instance">, send: EgressSendFn): void {
+    this.routes.set(bindingKey(binding), send);
   }
 
-  registerActivity(prefix: string, start: EgressActivityFn): void {
-    this.activityRoutes.set(prefix, start);
+  registerActivity(
+    binding: Pick<ChannelTransportBinding, "adapter" | "instance">,
+    start: EgressActivityFn,
+  ): void {
+    this.activityRoutes.set(bindingKey(binding), start);
   }
 
   async send(delivery: ChannelDelivery): Promise<boolean> {
-    for (const [prefix, send] of this.routes) {
-      if (delivery.channel.startsWith(prefix)) {
-        await send(delivery);
-        return true;
-      }
-    }
-    return false;
+    const send = this.routes.get(bindingKey(delivery.binding));
+    if (!send) return false;
+    await send(delivery);
+    return true;
+  }
+
+  hasRoute(binding: ChannelTransportBinding): boolean {
+    return this.routes.has(bindingKey(binding));
+  }
+
+  hasActivityRoute(binding: ChannelTransportBinding): boolean {
+    return this.activityRoutes.has(bindingKey(binding));
   }
 
   async startActivity(
     activity: ChannelActivity,
   ): Promise<ChannelActivityHandle | null> {
-    for (const [prefix, start] of this.activityRoutes) {
-      if (activity.channel.startsWith(prefix)) {
-        return start(activity);
-      }
-    }
-    return null;
+    if (!activity.binding) return null;
+    const start = this.activityRoutes.get(bindingKey(activity.binding));
+    if (!start) return null;
+    return start(activity);
   }
+}
+
+function bindingKey(binding: Pick<ChannelTransportBinding, "adapter" | "instance">): string {
+  return `${binding.adapter}:${binding.instance}`;
 }
 
 export interface ChannelEgress {
   deliver(delivery: ChannelDelivery): Promise<boolean>;
-  deliverText(channel: string, text: string): Promise<boolean>;
   startActivity(activity: ChannelActivity): Promise<ChannelActivityHandle | null>;
 }
 
@@ -71,10 +79,6 @@ export class EgressRegistryChannelEgress implements ChannelEgress {
   async deliver(delivery: ChannelDelivery): Promise<boolean> {
     if (!this.registry) return false;
     return this.registry.send(delivery);
-  }
-
-  async deliverText(channel: string, text: string): Promise<boolean> {
-    return this.deliver({ channel, text });
   }
 
   async startActivity(

@@ -6,7 +6,6 @@ import {
 } from "../context/spec.js";
 import { readJsonFileStrict, writeJsonFileAtomic } from "../util/json-file.js";
 import { validateAgentsConfig } from "./agents.js";
-import { resolveAdapterRoutingConfig } from "./adapter-routing.js";
 import { resolveGatewayStatusConfig } from "./gateway-status.js";
 import { validateModelPoliciesConfig } from "./model.js";
 import { primaryConfigPath } from "./paths.js";
@@ -33,7 +32,6 @@ export function validateRawConfig(raw: Record<string, unknown>): void {
   if (raw.tools !== undefined) resolveToolRuntimeConfig(raw.tools);
   if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
   if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);
-  if (raw.adapters !== undefined) resolveAdapterRoutingConfig(raw.adapters);
 }
 
 export function readConfigFile(

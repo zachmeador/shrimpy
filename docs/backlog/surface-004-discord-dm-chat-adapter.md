@@ -15,7 +15,7 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 - Add a `discord` chat surface module under `src/surfaces/discord/`, following the current Telegram module shape.
 - Build the shared chat engine by extraction while porting: move inbound gating, identity mapping, burst buffering, and the chat command registry into `src/surfaces/shared/` as Discord needs them, instead of copying Telegram's `bridge.ts`/`commands.ts`. Discord is the forcing function that earns the abstraction; do not abstract ahead of it. See [SURFACE-006](surface-006-chat-command-parity.md) for the command registry shape.
 - Add `discord.instances.<id>` config with bot token, `defaultAgentId`, authorized Discord user ids, stable Shrimpy user mappings, and conservative text-burst/message formatting policy.
-- Register Discord adapter routes as `discord.<instance>` with channel prefix `discord~<instance>~`.
+- Register Discord surface egress for `discord/<instance>` bindings, and have inbound DMs write channel manifests with bindings such as `discord/<instance>/<thread>` while keeping stable generated channel names like `discord~<instance>~<thread>`.
 - Start a gateway listener for configured instances and accept only `MESSAGE_CREATE` events from one-on-one DM channels.
 - Drop guild messages, group DMs, bot-authored messages, self messages, and unauthorized users before publishing anything to Shrimpy channels.
 - Publish inbound DM text through `ChatSurfacePublisher` with `transport: "discord"`, Discord author id as `transportUserId`, the DM channel/conversation id as `transportChatId`, and mapped stable human identity.
@@ -35,7 +35,7 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 ## Shape
 Use the existing chat-surface vertical:
 
-- `config.ts` validates and resolves instances, builds surface ids and channel prefixes, and validates `defaultAgentId`.
+- `config.ts` validates and resolves instances, builds surface ids, and validates `defaultAgentId`.
 - `client.ts` owns Discord REST/gateway calls or wraps the chosen Discord library.
 - `bridge.ts` normalizes inbound Discord messages, checks DM-only authorization, maps identity, and publishes typed channel messages.
 - `outbound.ts` chunks and formats Shrimpy text into Discord-safe messages.
@@ -59,4 +59,4 @@ Prefer a proven Discord gateway library for the first implementation unless bund
 - An agent can reply through `send_message` and the message is delivered back to the same Discord DM.
 - `shrimpy setup discord` creates or updates the Discord instance config without disturbing other config.
 - CLI/status output can show configured Discord instances and enough gateway state to debug setup.
-- Tests cover config resolution, inbound DM authorization, dropped non-DM cases, identity mapping, outbound chunking, mention suppression, and route registration.
+- Tests cover config resolution, inbound DM authorization, dropped non-DM cases, identity mapping, manifest binding, outbound chunking, mention suppression, and egress registration.

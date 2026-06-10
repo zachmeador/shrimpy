@@ -7,10 +7,20 @@ import {
   writeJsonFileAtomic,
 } from "../util/json-file.js";
 import { resolveAgentDmMembers } from "./dm.js";
+import {
+  deriveChannelManifest,
+  normalizeChannelManifest,
+  type ChannelManifest,
+} from "./manifest.js";
 import { parseChannelName } from "./names.js";
 
 interface ChannelMembershipsFile {
-  channels: Record<string, ChannelMembership>;
+  channels: Record<string, ChannelConfigEntry>;
+}
+
+interface ChannelConfigEntry {
+  agents: Record<string, ChannelAgentMembership>;
+  manifest?: ChannelManifest;
 }
 
 export interface ChannelMembership {
@@ -45,6 +55,10 @@ function normalizeAgentMembership(value: unknown): ChannelAgentMembership {
 }
 
 function normalizeMembership(value: unknown): ChannelMembership {
+  return normalizeChannelConfigEntry(value);
+}
+
+function normalizeChannelConfigEntry(value: unknown): ChannelConfigEntry {
   const record = typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
@@ -60,9 +74,15 @@ function normalizeMembership(value: unknown): ChannelMembership {
     )
     : {};
 
+  const manifest = normalizeChannelManifest(record.manifest);
   return {
     agents,
+    ...(manifest ? { manifest } : {}),
   };
+}
+
+function membershipOnly(entry: ChannelConfigEntry): ChannelMembership {
+  return { agents: { ...entry.agents } };
 }
 
 export function readChannelMemberships(path: string): ChannelMembershipsFile {
@@ -77,9 +97,9 @@ export function readChannelMemberships(path: string): ChannelMembershipsFile {
 
     return {
       channels: Object.fromEntries(
-        Object.entries(channels).map(([channel, membership]) => [
+        Object.entries(channels).map(([channel, value]) => [
           channel,
-          normalizeMembership(membership),
+          normalizeChannelConfigEntry(value),
         ]),
       ),
     };
@@ -157,19 +177,72 @@ export class ChannelMembershipStore {
   get(channel: string): ChannelMembership | null {
     const name = parseChannelName(channel);
     const membership = this.read().channels[name];
-    return membership ? { ...membership } : null;
+    return membership ? membershipOnly(membership) : null;
   }
 
   seedChannel(channel: string): ChannelMembership {
     const name = parseChannelName(channel);
     const memberships = this.read();
     const existing = memberships.channels[name];
-    if (existing) return { ...existing };
+    if (existing) {
+      if (!existing.manifest) {
+        existing.manifest = deriveChannelManifest(name);
+        this.write(memberships);
+      }
+      return membershipOnly(existing);
+    }
 
     const seeded = defaultChannelMembers(name, this.agents, this.opts);
-    memberships.channels[name] = seeded;
+    memberships.channels[name] = {
+      ...seeded,
+      manifest: deriveChannelManifest(name),
+    };
     this.write(memberships);
-    return { ...seeded };
+    return membershipOnly(seeded);
+  }
+
+  getManifest(channel: string): ChannelManifest {
+    const name = parseChannelName(channel);
+    const memberships = this.read();
+    const existing = memberships.channels[name];
+    if (existing?.manifest) return { ...existing.manifest };
+
+    const manifest = deriveChannelManifest(name);
+    memberships.channels[name] = {
+      ...(existing ?? normalizeMembership(EMPTY_MEMBERSHIP)),
+      manifest,
+    };
+    this.write(memberships);
+    return { ...manifest };
+  }
+
+  setManifest(channel: string, manifest: ChannelManifest): ChannelManifest {
+    const name = parseChannelName(channel);
+    const memberships = this.read();
+    const existing = memberships.channels[name] ?? normalizeMembership(EMPTY_MEMBERSHIP);
+    memberships.channels[name] = {
+      ...existing,
+      manifest: { ...manifest },
+    };
+    this.write(memberships);
+    return { ...manifest };
+  }
+
+  bindChannel(
+    channel: string,
+    binding: NonNullable<ChannelManifest["binding"]>,
+  ): ChannelManifest {
+    const current = this.getManifest(channel);
+    return this.setManifest(channel, {
+      ...current,
+      binding: { ...binding },
+    });
+  }
+
+  unbindChannel(channel: string): ChannelManifest {
+    const current = this.getManifest(channel);
+    const { binding: _binding, ...rest } = current;
+    return this.setManifest(channel, rest);
   }
 
   listAgentIds(channel: string): string[] {
@@ -183,9 +256,12 @@ export class ChannelMembershipStore {
       memberships.channels[name] ?? EMPTY_MEMBERSHIP,
     );
     membership.agents[agentId] = membership.agents[agentId] ?? defaultAgentMembership();
-    memberships.channels[name] = membership;
+    memberships.channels[name] = {
+      ...membership,
+      manifest: memberships.channels[name]?.manifest ?? deriveChannelManifest(name),
+    };
     this.write(memberships);
-    return { ...membership };
+    return membershipOnly(membership);
   }
 
   removeAgent(channel: string, agentId: string): ChannelMembership {
@@ -199,9 +275,12 @@ export class ChannelMembershipStore {
       memberships.channels[name] ?? EMPTY_MEMBERSHIP,
     );
     delete membership.agents[agentId];
-    memberships.channels[name] = membership;
+    memberships.channels[name] = {
+      ...membership,
+      manifest: memberships.channels[name]?.manifest ?? deriveChannelManifest(name),
+    };
     this.write(memberships);
-    return { ...membership };
+    return membershipOnly(membership);
   }
 
   removeAgentEverywhere(agentId: string): string[] {
@@ -217,7 +296,10 @@ export class ChannelMembershipStore {
       if (!(agentId in membership.agents)) continue;
 
       delete membership.agents[agentId];
-      memberships.channels[channel] = membership;
+      memberships.channels[channel] = {
+        ...membership,
+        manifest: memberships.channels[channel]?.manifest,
+      };
       updatedChannels.push(channel);
     }
 
@@ -243,7 +325,10 @@ export class ChannelMembershipStore {
 
       delete membership.agents[fromAgentId];
       membership.agents[toAgentId] = existing;
-      memberships.channels[channel] = membership;
+      memberships.channels[channel] = {
+        ...membership,
+        manifest: memberships.channels[channel]?.manifest,
+      };
       updatedChannels.push(channel);
     }
 

@@ -33,7 +33,7 @@ The delivery plumbing now belongs to [CHAN-001](chan-001-typed-egress-outbox.md)
 Telegram can compare the message sender against the channel/session's default visible agent and publication intent metadata. If the delivered sender is a different internal agent, it prepends a compact attribution label using `sender.displayName` when available, otherwise a friendly form of `agent:<id>`. Unknown senders fall back to the existing plain delivery behavior.
 
 ## Progress
-- Interim plumbing exists today (`sendAgentText` passes the typed `ChannelMessage` and publication intent to egress); [CHAN-001](chan-001-typed-egress-outbox.md) replaces that path with the outbox and owns the delivery object from here on.
+- [CHAN-001](chan-001-typed-egress-outbox.md) now hands typed `ChannelMessage`s to adapter egress through the outbox; this item owns only attribution decoration.
 - Telegram delivery already consumes publication intent metadata for quiet or low-urgency notifications.
 - Remaining work here is the attribution policy and Telegram decoration behavior for non-default or non-addressed agent senders.
 

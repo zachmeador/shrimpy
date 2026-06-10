@@ -3,10 +3,6 @@ import { ChannelBus } from "../channels/bus.js";
 import { EgressRegistry } from "../channels/egress.js";
 import { ChannelMembershipStore } from "../channels/membership.js";
 import {
-  type ResolvedAdapterRoutingConfig,
-  resolveAdapterRoutingConfig,
-} from "../config/adapter-routing.js";
-import {
   type ResolvedAgentConfig,
   resolveAgentsConfig,
 } from "../config/agents.js";
@@ -32,7 +28,7 @@ import { resolveModel as resolveSessionModel } from "../sessions/models.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
   createConfiguredSurfaceEgresses,
-  registerSurfaceRoutes,
+  registerSurfaceEgresses,
   resolveSurfaceDefaultAgentIds,
   surfaceModules,
   SurfaceThreadStateStore,
@@ -53,7 +49,6 @@ import {
 
 export interface ResolvedAppConfig {
   agents: ResolvedAgentConfig[];
-  adapterRouting: ResolvedAdapterRoutingConfig;
   context: ResolvedContextConfig;
   runtime: Required<RuntimeConfig>;
   status: ResolvedGatewayStatusConfig;
@@ -83,17 +78,14 @@ export class AppRuntime {
     const agentIds = agents.map((agent) => agent.id);
 
     const surfaces: Record<string, SurfaceModuleResolved> = {};
-    const surfaceRoutes = [];
     for (const module of surfaceModules) {
       const raw = (config as Record<string, unknown>)[module.name];
       const resolved = module.resolveConfig(raw, agentIds);
       surfaces[module.name] = resolved;
-      surfaceRoutes.push(...module.buildAdapterRoutes(resolved));
     }
 
     this.resolved = {
       agents,
-      adapterRouting: resolveAdapterRoutingConfig(config.adapters, surfaceRoutes),
       context: resolveContextConfig(config.context, config.contextDefaults),
       runtime: resolveRuntimeConfig(config.runtime),
       status: resolveGatewayStatusConfig(config.status),
@@ -149,9 +141,8 @@ export class AppRuntime {
 
   createCliEgressRegistry(): EgressRegistry {
     const registry = this.createEgressRegistry();
-    registerSurfaceRoutes(
+    registerSurfaceEgresses(
       registry,
-      this.resolved.adapterRouting,
       createConfiguredSurfaceEgresses(this),
     );
     return registry;
@@ -160,7 +151,9 @@ export class AppRuntime {
   createChannelBus(opts?: {
     egressRegistry?: EgressRegistry;
   }): ChannelBus {
-    return new ChannelBus(this.paths.channelsDir, opts?.egressRegistry);
+    return new ChannelBus(this.paths.channelsDir, opts?.egressRegistry, {
+      memberships: this.createChannelMembershipStore(),
+    });
   }
 
   createChannelMembershipStore(): ChannelMembershipStore {

@@ -1,5 +1,4 @@
 import { Type, type Static } from "@sinclair/typebox";
-import type { AdapterRouteConfigEntry } from "../../config/adapter-routing.js";
 import { parseConfig } from "../../config/parse.js";
 import type { ResolvedSurfaceInstance } from "../shared/module.js";
 import {
@@ -190,15 +189,6 @@ function resolveTelegramUsers(
     };
   }
   return resolved;
-}
-
-export function buildTelegramAdapterRoutes(
-  config: ResolvedTelegramRuntimeConfig,
-): AdapterRouteConfigEntry[] {
-  return config.instances.map((instance) => ({
-    adapter: instance.adapter,
-    channelPrefix: instance.channelPrefix,
-  }));
 }
 
 export function resolveTelegramDefaultAgentIds(

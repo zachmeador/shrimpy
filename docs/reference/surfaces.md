@@ -26,17 +26,17 @@ Each surface lives in its own folder under `src/surfaces/<name>/`. The folder ow
 - `bridge.ts` — translates inbound transport messages into the typed channel protocol
 - `outbound.ts` — markdown → surface format + chunking
 - `commands.ts` — surface-specific command parser/dispatcher
-- `config.ts` — config schema, instance resolver, route/default-agent helpers
+- `config.ts` — config schema, instance resolver, and default-agent helpers
 - `surface.ts` — `SurfaceEgress` and `GatewaySurface` lifecycle wiring
 - `index.ts` — exports the `ChatSurfaceModule` registered in `src/surfaces/index.ts`
 
 Shared primitives live in `src/surfaces/shared/`: `ChatSurfacePublisher`, `PendingByThread`, `mergeChatTextBurst`, `SurfaceThreadStateStore`, the `ChatSurfaceModule` interface, and the `SurfaceEgress` / `GatewaySurface` types.
 
-A new surface is a `surfaces/<name>/` folder appended to the array in `src/surfaces/index.ts`. `AppRuntime` iterates the registry to resolve config, build adapter routes, and route channels to default agents.
+A new surface is a `surfaces/<name>/` folder appended to the array in `src/surfaces/index.ts`. `AppRuntime` iterates the registry to resolve config, register egress senders, and route channels to default agents.
 
 ## Telegram
 
-Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live in `workspace/state/telegram/`. Downloaded media lives in `workspace/media/`. Routes default from configured `telegram.instances`. Telegram channel names are transport-thread channels in the form `telegram~<instance-id>~<chat-id>`; create normal semantic channels for internal work, and use `shrimpy setup telegram` plus `shrimpy surface set-agent` for Telegram routing instead of inventing adapter-shaped channel names. Commands cover session reset/restore/stop, thinking changes, help, and addressed-agent switching.
+Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live in `workspace/state/telegram/`. Downloaded media lives in `workspace/media/`. Telegram channel names are transport-thread channels in the form `telegram~<instance-id>~<chat-id>` and carry a manifest binding like `telegram/<instance-id>/<chat-id>` in `config/channels.json`. Create normal semantic channels for internal work, and use `shrimpy channels bind <channel> telegram/<instance-id>/<chat-id>` when a semantic channel should deliver to Telegram. Use `shrimpy setup telegram` plus `shrimpy surface set-agent` for addressed-agent routing instead of inventing adapter-shaped channel names. Commands cover session reset/restore/stop, thinking changes, help, and addressed-agent switching.
 
 Telegram sends best-effort native typing activity while an accepted gateway turn is running. Activity is ephemeral surface state: it is not appended to channel logs, and ignored messages or surface commands do not emit it. `shrimpy surface activity <channel> --kind typing --duration <seconds>` can trigger a short activity window for manual checks.
 
@@ -45,6 +45,8 @@ Inbound Telegram messages from known users update `state/user-presence.json` wit
 ## Delivery
 
 Gateway/channel sessions do not automatically publish assistant text to a channel. Agents call active-channel helpers such as `reply(text)`, `ask(text)`, `notify(text, opts)`, or `report(summary)` to deliver intentional user-facing text.
+
+Those helpers append typed channel messages first. The gateway outbox tails channel logs, sends bound outbound messages through the registered surface instance, and records delivery receipts under `runtime/`. `shrimpy channels show <channel>` reports the manifest binding and undelivered receipt count.
 
 Direct local sessions such as `tui` and `run` are different: ordinary assistant text is already visible in the session transcript, so active-channel publication helpers are not part of that response path.
 

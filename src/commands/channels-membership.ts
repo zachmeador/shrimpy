@@ -1,5 +1,11 @@
 import type { AppRuntime } from "../app/index.js";
 import {
+  formatTransportBinding,
+  parseTransportBindingSpec,
+  type ChannelManifest,
+  type ChannelTransportBinding,
+} from "../channels/manifest.js";
+import {
   ensureChannelMembership,
   ensureDirectMessageChannel,
   formatChannelAgentIds,
@@ -14,6 +20,8 @@ import {
 const CREATE_USAGE = renderCommandUsage(["channels", "create"]);
 const DM_USAGE = renderCommandUsage(["channels", "dm"]);
 const MEMBERS_USAGE = renderCommandUsage(["channels", "members"]);
+const BIND_USAGE = renderCommandUsage(["channels", "bind"]);
+const UNBIND_USAGE = renderCommandUsage(["channels", "unbind"]);
 
 function printMembership(channel: string, agents: string[]): void {
   console.log(`channel: ${channel}`);
@@ -70,6 +78,43 @@ export async function cmdChannelsMembers(
 
   printMembership(name, formatChannelAgentIds(membership));
   return 0;
+}
+
+export async function cmdChannelsBind(
+  runtime: AppRuntime,
+  args: string[],
+  json: boolean,
+): Promise<number> {
+  const channel = requireArg(args[0], BIND_USAGE, "channel");
+  const binding = parseTransportBindingSpec(requireArg(args[1], BIND_USAGE, "binding"));
+  const manifest = runtime.createChannelMembershipStore().bindChannel(channel, binding);
+  printManifest(channel, manifest, json);
+  return 0;
+}
+
+export async function cmdChannelsUnbind(
+  runtime: AppRuntime,
+  args: string[],
+  json: boolean,
+): Promise<number> {
+  const channel = requireArg(args[0], UNBIND_USAGE, "channel");
+  const manifest = runtime.createChannelMembershipStore().unbindChannel(channel);
+  printManifest(channel, manifest, json);
+  return 0;
+}
+
+function printManifest(
+  channel: string,
+  manifest: ChannelManifest,
+  json: boolean,
+): void {
+  if (json) {
+    console.log(JSON.stringify({ channel, manifest }, null, 2));
+    return;
+  }
+  console.log(`channel: ${channel}`);
+  console.log(`kind: ${manifest.kind}`);
+  console.log(`binding: ${formatTransportBinding(manifest.binding as ChannelTransportBinding | undefined)}`);
 }
 
 export async function cmdChannelsJoinOrLeave(

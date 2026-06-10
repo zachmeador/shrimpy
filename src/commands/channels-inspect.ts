@@ -2,6 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import type { AppRuntime } from "../app/index.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { printChannelLogMessage, timeSince } from "../channels/format.js";
+import { formatTransportBinding } from "../channels/manifest.js";
 import {
   CHANNEL_MESSAGE_KINDS,
   formatChannelAgentIds,
@@ -185,7 +186,16 @@ export async function cmdChannelsShow(
   console.log(`${label("channel:")} ${accent(summary.channel)}`);
   console.log(`${label("path:")} ${summary.path}`);
   console.log(`${label("exists:")} ${summary.exists}`);
+  console.log(`${label("kind:")} ${summary.manifest.kind}`);
+  console.log(`${label("binding:")} ${formatTransportBinding(summary.manifest.binding)}`);
   console.log(`${label("messages:")} ${summary.messageCount}`);
+  console.log(`${label("undelivered:")} ${summary.deliveries.undelivered}`);
+  if (summary.deliveries.lastReceipt) {
+    const receipt = summary.deliveries.lastReceipt;
+    console.log(
+      `${label("last_delivery:")} ${receipt.status} attempts=${receipt.attempts}${receipt.error ? ` error=${receipt.error}` : ""}`,
+    );
+  }
   const agentList = formatChannelAgentIds(summary.membership).join(", ");
   console.log(`${label("agents:")} ${agentList || dim("(none)")}`);
   const activity = summary.activity;

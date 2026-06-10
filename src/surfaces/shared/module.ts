@@ -1,6 +1,5 @@
 import type { AppRuntime } from "../../app/runtime.js";
 import type { ChannelBus } from "../../channels/bus.js";
-import type { AdapterRouteConfigEntry } from "../../config/adapter-routing.js";
 import type { IdentityStore } from "../../gateway/identity-store.js";
 import type { GatewaySurface, SurfaceEgress } from "./types.js";
 import type { SurfaceThreadStateStore } from "./thread-state-store.js";
@@ -36,12 +35,6 @@ export interface ChatSurfaceModule<
    * references at config-resolve time.
    */
   resolveConfig(raw: unknown, agentIds: string[]): TResolved;
-
-  /**
-   * Adapter routes that should be merged into the runtime's resolved
-   * adapter routing. One per surface instance.
-   */
-  buildAdapterRoutes(resolved: TResolved): AdapterRouteConfigEntry[];
 
   /** Egress-only factories (CLI sessions, child runs). */
   createEgresses(runtime: AppRuntime): SurfaceEgress[];

@@ -1,6 +1,6 @@
 # 🦐 CHAN-001: Typed Egress Outbox With Delivery Receipts
 
-Status: todo
+Status: review
 Priority: P1
 Area: Channels
 Depends On: CHAN-002
@@ -17,11 +17,11 @@ This item makes delivery a consumer of the channel log instead of a side effect 
 
 ## Build
 - Posting user-visible content means appending it to the channel log. Remove the deliver-without-logging path entirely.
-- Add a gateway outbox worker that tails channels with outbound routes (later: manifest bindings from [CHAN-004](chan-004-channel-manifests-bindings.md)), transmits agent-visible messages through the surface adapter, and records a delivery receipt per message: delivered, failed with error summary, or retrying.
+- Add a gateway outbox worker that tails channels with manifest bindings from [CHAN-004](chan-004-channel-manifests-bindings.md), transmits agent-visible messages through the surface adapter, and records a delivery receipt per message: delivered, failed with error summary, skipped, or retrying.
 - Deliveries carry the typed `ChannelMessage`, not raw text. Adapters render the content types they support: text, image, image_group, and status/control kinds from [CHAN-002](chan-002-message-kind-discriminants.md). Outbound media to Telegram becomes possible.
 - Replace session-control confirmations with typed status messages that are logged and then delivered through the outbox.
 - Retry transient delivery failures with bounded backoff; expose undelivered counts in `shrimpy channels show` and gateway status.
-- Decide CLI-without-gateway behavior: when no gateway is running, post can deliver inline and write the same receipt shape; when a gateway is running, the worker owns delivery so CLI processes never race it.
+- CLI posts append to the channel log only; the gateway outbox owns delivery and receipt writes so short-lived CLI processes never race a running gateway.
 
 ## Boundaries
 - Do not change the agent-facing tool surface. `reply`, `ask`, `notify`, `report`, `send_message`, and `read_channel` keep their names, parameters, and prompt prose. Agents currently use these tools well; this work is runtime plumbing underneath them, and prompt-visible behavior changes are regressions.
@@ -37,10 +37,10 @@ This item makes delivery a consumer of the channel log instead of a side effect 
 Receipts live under `runtime/`, keyed by channel and message id, so `channels show` can report last-delivered position and failures without scanning surface logs. The invariant after this lands: if the user saw it, it is in the channel log; if it is in the log on an outbound-routed channel, it was delivered or its failure is recorded.
 
 ## Implementation Notes
-- Replace `src/channels/egress.ts` and the egress half of `src/channels/bus.ts`; `EgressRegistry` prefix matching goes away in favor of the worker consulting routes/bindings.
-- `registerTelegramRoute` in `src/surfaces/telegram/surface.ts` becomes a typed render-and-send implementation; chat-id parsing from channel names can stay until CHAN-004 replaces it with bindings.
-- Replace `deliverText` calls in `src/gateway/session-control-runtime.ts` with status posts.
-- `reply`/`notify`/`send_message` in `src/tools/daemon.ts` switch from `sendAgentText` to post; tool result text may report logged-plus-delivery-state without changing parameters.
+- Replace `src/channels/egress.ts` and the egress half of `src/channels/bus.ts`; `EgressRegistry` prefix matching goes away in favor of the worker consulting manifest bindings.
+- `registerTelegramEgress` in `src/surfaces/telegram/surface.ts` becomes a typed render-and-send implementation; chat ids come from channel bindings instead of channel-name parsing.
+- Replace `deliverText` calls in `src/gateway/session-control-runtime.ts` with typed status posts.
+- `reply`/`notify`/`send_message` in `src/tools/daemon.ts` switch from `sendAgentText` to post; tool result text reports logged-for-outbound-delivery without changing parameters.
 - Tests: crash between append and transmit recovers on restart; failed Telegram send records a receipt and retries; control confirmations appear in both the channel log and Telegram; no duplicate sends when the worker replays.
 
 ## Done

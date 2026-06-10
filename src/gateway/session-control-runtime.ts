@@ -90,8 +90,11 @@ export class SessionControlRuntime {
 
     try {
       await agentRuntime.reset(channel);
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "reset",
+        true,
         `Started a new session for ${agentId}.`,
       );
     } catch (err) {
@@ -99,8 +102,11 @@ export class SessionControlRuntime {
         `[delivery] ${source} session reset error for ${channel} (agent ${agentId}):`,
         err,
       );
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "reset",
+        false,
         `Failed to start a new session for ${agentId}: ${formatDispatchError(err)}`,
       );
     }
@@ -117,8 +123,11 @@ export class SessionControlRuntime {
 
     try {
       const restored = await agentRuntime.restore(channel, archiveName);
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "restore",
+        true,
         `Restored session for ${agentId} from ${restored.restoredFrom}.`,
       );
     } catch (err) {
@@ -126,8 +135,11 @@ export class SessionControlRuntime {
         `[delivery] ${source} session restore error for ${channel} (agent ${agentId}):`,
         err,
       );
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "restore",
+        false,
         `Failed to restore session for ${agentId}: ${formatDispatchError(err)}`,
       );
     }
@@ -154,8 +166,11 @@ export class SessionControlRuntime {
       const description = result.effectiveLevel === result.requestedLevel
         ? result.effectiveLevel
         : `${result.effectiveLevel} (requested ${result.requestedLevel})`;
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "thinking",
+        true,
         `Set thinking level for ${agentId} to ${description}.`,
       );
     } catch (err) {
@@ -163,8 +178,11 @@ export class SessionControlRuntime {
         `[delivery] ${source} session thinking error for ${channel} (agent ${agentId}):`,
         err,
       );
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "thinking",
+        false,
         `Failed to set thinking level for ${agentId}: ${formatDispatchError(err)}`,
       );
     }
@@ -180,8 +198,11 @@ export class SessionControlRuntime {
 
     try {
       const result = agentRuntime.stop(channel);
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "stop",
+        true,
         result.stopped
           ? `Stopped the running turn for ${agentId}.`
           : `No running turn for ${agentId} on ${channel}.`,
@@ -191,11 +212,36 @@ export class SessionControlRuntime {
         `[delivery] ${source} session stop error for ${channel} (agent ${agentId}):`,
         err,
       );
-      await this.channelBus.deliverText(
+      this.publishOperationStatus(
         channel,
+        agentId,
+        "stop",
+        false,
         `Failed to stop the running turn for ${agentId}: ${formatDispatchError(err)}`,
       );
     }
+  }
+
+  private publishOperationStatus(
+    channel: string,
+    agentId: string,
+    operation: string,
+    ok: boolean,
+    text: string,
+  ): void {
+    this.channelBus.publishStatus({
+      channel,
+      actorId: "system:session-control",
+      transport: "internal",
+      sourceChannel: channel,
+      data: {
+        kind: "operation_status",
+        text,
+        ok,
+        targetAgentId: agentId,
+        operation,
+      },
+    });
   }
 }
 

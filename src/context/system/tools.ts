@@ -73,31 +73,23 @@ export function getToolProse(toolId: ToolProseId): ToolProse {
 
 export function renderSendMessageResult(data: {
   channel: string;
-  delivered: boolean;
   waitForNewMessage?: boolean;
 }): string {
   const suffix = data.waitForNewMessage ? " Wait until a new message is received." : "";
-  if (data.delivered) {
-    return `Logged to ${data.channel} and delivered through an external adapter.${suffix}`;
-  }
   if (isAgentDmChannel(data.channel)) {
     return `Logged to agent DM ${data.channel}. No external adapter is expected; gateway channel routing handles DM members.${suffix}`;
   }
-  return `Logged to ${data.channel}. No external adapter matched for outbound delivery.${suffix}`;
+  return `Logged to ${data.channel} for outbound delivery.${suffix}`;
 }
 
 export function renderPublicationResult(data: {
   intent: "reply" | "ask" | "notify" | "report";
   channel: string;
-  delivered: boolean;
 }): string {
-  if (data.delivered) {
-    return `Published ${data.intent} to ${data.channel} and delivered through an external adapter. Wait until a new message is received.`;
-  }
   if (isAgentDmChannel(data.channel)) {
     return `Logged ${data.intent} to agent DM ${data.channel}. No external adapter is expected; gateway channel routing handles DM members. Wait until a new message is received.`;
   }
-  return `Logged ${data.intent} to ${data.channel}. No external adapter matched for outbound delivery. Wait until a new message is received.`;
+  return `Logged ${data.intent} to ${data.channel} for outbound delivery. Wait until a new message is received.`;
 }
 
 export function renderReadChannelResult(data: { messages: unknown[] }): string {

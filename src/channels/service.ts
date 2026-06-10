@@ -6,10 +6,16 @@ import type {
   MessageSenderKind,
 } from "./index.js";
 import { buildAgentDmChannel } from "./dm.js";
+import type { ChannelManifest } from "./manifest.js";
 import {
   channelAgentIds,
   type ChannelMembership,
 } from "./membership.js";
+import {
+  readDeliveryReceipts,
+  summarizeDeliveryReceipts,
+  type DeliveryReceipt,
+} from "./outbox.js";
 
 export const CHANNEL_MESSAGE_KINDS = [
   "user_text",
@@ -52,6 +58,15 @@ export interface ChannelSummary {
   exists: boolean;
   messageCount: number;
   membership: ChannelMembership;
+  manifest: ChannelManifest;
+  deliveries: {
+    delivered: number;
+    failed: number;
+    retrying: number;
+    skipped: number;
+    undelivered: number;
+    lastReceipt?: DeliveryReceipt;
+  };
   lastMessage: ChannelMessageInspection | null;
   activity?: ChannelActivitySummary;
 }
@@ -101,6 +116,11 @@ export function summarizeChannel(
   const membership = memberships.get(channel) ?? (channel === "home"
     ? memberships.seedChannel(channel)
     : { agents: {} });
+  const manifest = memberships.getManifest(channel);
+  const deliveries = summarizeDeliveryReceipts(
+    readDeliveryReceipts(runtime.paths.outboundReceiptsPath),
+    channel,
+  );
 
   return {
     channel,
@@ -108,6 +128,8 @@ export function summarizeChannel(
     exists,
     messageCount: messages.length,
     membership,
+    manifest,
+    deliveries,
     lastMessage: messages.length > 0
       ? inspectChannelMessage(channel, messages[messages.length - 1]!)
       : null,

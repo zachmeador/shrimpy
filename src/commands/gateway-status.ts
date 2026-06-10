@@ -4,6 +4,10 @@ import {
   collectChannelActivity,
   loadChannelWatchClockSummary,
 } from "../channels/activity.js";
+import {
+  readDeliveryReceipts,
+  summarizeDeliveryReceipts,
+} from "../channels/outbox.js";
 import { loadRuntimeWatchIds } from "../watches/index.js";
 import { readGatewayServiceStatus, type GatewayServiceStatus } from "../gateway/service-ctl.js";
 import {
@@ -35,6 +39,11 @@ export function printGatewayStatus(
     gatewayRuntimeStatePath(runtime.paths),
   );
   const lanes = flattenGatewayLanes(gatewayRuntimeState);
+  const receipts = readDeliveryReceipts(runtime.paths.outboundReceiptsPath);
+  const undelivered = Object.keys(receipts).reduce(
+    (count, channel) => count + summarizeDeliveryReceipts(receipts, channel).undelivered,
+    0,
+  );
 
   console.log(`${label("workspace:")} ${runtime.paths.workspace}`);
   console.log(`${label("gateway manager:")} ${service.manager}`);
@@ -48,6 +57,7 @@ export function printGatewayStatus(
     console.log(`${label("gateway service log:")} ${service.serviceLogPath}`);
   }
   console.log(`${label("tracked channels:")} ${activity.channelCount}`);
+  console.log(`${label("undelivered outbound:")} ${undelivered}`);
 
   if (activity.lastWatchRun) {
     console.log(

@@ -45,4 +45,4 @@ export function resolveSurfaceDefaultAgentIds(
 
 export type { SurfaceModuleResolved } from "./shared/module.js";
 export { SurfaceThreadStateStore } from "./shared/thread-state-store.js";
-export { registerSurfaceRoutes } from "./shared/types.js";
+export { registerSurfaceEgresses } from "./shared/types.js";

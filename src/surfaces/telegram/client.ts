@@ -6,6 +6,9 @@
  * lives in bridge.ts.
  */
 
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
+
 // --- Config ---
 
 export interface TelegramConfig {
@@ -306,6 +309,12 @@ export interface TelegramSendMessageOptions {
   signal?: AbortSignal;
 }
 
+export interface TelegramSendPhotoOptions {
+  caption?: string;
+  disableNotification?: boolean;
+  signal?: AbortSignal;
+}
+
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -406,6 +415,31 @@ export class TelegramBotApiClient {
     }
   }
 
+  async sendPhoto(
+    chatId: number,
+    photo: string,
+    options?: TelegramSendPhotoOptions,
+  ): Promise<void> {
+    const body: Record<string, unknown> = { chat_id: String(chatId) };
+    if (options?.caption) body.caption = options.caption;
+    if (options?.disableNotification) body.disable_notification = "true";
+
+    const resp = isRemoteTelegramFile(photo)
+      ? await this.api("sendPhoto", {
+        chat_id: chatId,
+        photo,
+        ...(options?.caption ? { caption: options.caption } : {}),
+        ...(options?.disableNotification ? { disable_notification: true } : {}),
+      }, options?.signal)
+      : await this.apiMultipart("sendPhoto", body, {
+        photo: photo,
+      }, options?.signal);
+
+    if (!resp.ok) {
+      throw new TelegramApiError("sendPhoto", resp);
+    }
+  }
+
   async sendChatAction(
     chatId: number,
     action: "typing",
@@ -496,4 +530,31 @@ export class TelegramBotApiClient {
 
     return resp.json() as Promise<TelegramApiResponse<T>>;
   }
+
+  private async apiMultipart<T>(
+    method: string,
+    fields: Record<string, unknown>,
+    files: Record<string, string>,
+    signal?: AbortSignal,
+  ): Promise<TelegramApiResponse<T>> {
+    const url = `https://api.telegram.org/bot${this.config.token}/${method}`;
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) {
+      form.set(key, String(value));
+    }
+    for (const [key, path] of Object.entries(files)) {
+      const data = readFileSync(path);
+      form.set(key, new Blob([data]), basename(path));
+    }
+    const resp = await fetch(url, {
+      method: "POST",
+      body: form,
+      signal,
+    });
+    return resp.json() as Promise<TelegramApiResponse<T>>;
+  }
+}
+
+function isRemoteTelegramFile(value: string): boolean {
+  return /^https?:\/\//i.test(value) || !value.includes("/");
 }

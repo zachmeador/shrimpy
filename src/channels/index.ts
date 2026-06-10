@@ -6,3 +6,5 @@ export * from "./membership.js";
 export * from "./egress.js";
 export * from "./publisher.js";
 export * from "./names.js";
+export * from "./manifest.js";
+export * from "./outbox.js";

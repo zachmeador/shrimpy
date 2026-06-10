@@ -6,7 +6,7 @@ Shrimpy's workspace config is file-backed and inspectable.
 
 ```text
 config/shrimpy.json         runtime configuration
-config/channels.json        explicit channel membership
+config/channels.json        channel membership, manifests, and transport bindings
 agents/<id>/watches.json    agent-owned watch definitions
 ```
 
@@ -29,10 +29,9 @@ Sections:
 - `runtime` — Pi loader/runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, compaction.
 - `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
 - `context` / `contextDefaults` — stable prompt sources, turn-context settings, command sources, env fields, channel overrides, agent-scoped context views.
-- `telegram` — configured Telegram surface instances with token, channel prefix, allowlist, stable user mappings, default agent, reliability policy.
+- `telegram` — configured Telegram surface instances with token, allowlist, stable user mappings, default agent, reliability policy.
 - `watchClock` — watch clock tick behavior.
 - `status` — optional targeted watch diagnostics.
-- `adapters` — extra channel-prefix to surface routes. Telegram routes are derived from configured Telegram instances.
 
 ## Runtime Defaults
 

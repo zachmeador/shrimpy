@@ -6,11 +6,11 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 
 - **Workspace** — the persistent home for config, channels, watches, framework docs, agents, auth, models, logs, media, and state.
 - **Agent** — a persistent actor with identity docs, memory, tools, skills, and Pi sessions.
-- **AppRuntime** — the application kernel that resolves paths, config, surface routes, tool config, context config, and session bootstrap inputs.
-- **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage, typed message construction, and outbound delivery to focused channel components. See [channels.md](channels.md).
+- **AppRuntime** — the application kernel that resolves paths, config, surface egresses, tool config, context config, and session bootstrap inputs.
+- **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage and typed message construction to focused channel components. See [channels.md](channels.md).
 - **ChannelStore** — append-only JSONL persistence, reads, watches, backlog draining, and byte-offset cursors.
 - **Typed Channel Protocol** — channel message `content` is one of `text`, `image`, `image_group`, `unsupported_media`, or `system`.
-- **Channel egress** — surface-backed delivery for text already logged to a channel.
+- **Channel outbox** — gateway worker that tails channel logs, sends bound agent/system messages through surface egress, and records delivery receipts.
 - **Channel membership** — the source of truth for which agents participate in a channel.
 - **Agent channel policy** — per-agent policy for which visible channel messages become turns.
 - **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`). See [sessions.md](sessions.md).
@@ -47,7 +47,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 CLI / gateway / surfaces
   -> AppRuntime
   -> ChannelBus facade / config / context / sessions / tools
-  -> ChannelStore / ChannelPublisher / ChannelEgress
+  -> ChannelStore / ChannelPublisher / ChannelManifest / ChannelOutbox
   -> Pi session runtime
   -> model provider + transcript storage
 ```
@@ -56,7 +56,7 @@ Where each concept lives:
 
 - Cross-cutting config parsing: `src/config/`. Each surface's config schema and resolver: `src/surfaces/<name>/config.ts`.
 - Workspace paths: `src/app/paths.ts`.
-- Channel persistence, typed message construction, egress (including the prefix→send registry), and membership: `src/channels/`. Protocol and policy semantics are in [channels.md](channels.md).
+- Channel persistence, typed message construction, manifests, outbox receipts, and membership: `src/channels/`. Protocol and policy semantics are in [channels.md](channels.md).
 - Each surface vertical: third-party client, real-time listener, channel translation, outbound formatting, command dispatch, config schema, lifecycle. Shared chat primitives and the surface module contract: `src/surfaces/shared/`.
 - Session context, turn context, metadata, and Pi bootstrap: `src/sessions/` and `src/context/`.
 - Path-indexed memory turn slices: `src/context/turn/memory.ts`.

@@ -4,9 +4,6 @@ import {
 } from "../context/spec.js";
 import type { AgentConfig } from "./agents.js";
 import {
-  type AdapterRoutingConfig,
-} from "./adapter-routing.js";
-import {
   type GatewayStatusConfig,
 } from "./gateway-status.js";
 import { type RuntimeConfig } from "./runtime.js";
@@ -34,7 +31,6 @@ export interface ShrimpyConfig {
   tools?: ToolRuntimeConfig;
   runtime?: RuntimeConfig;
   status?: GatewayStatusConfig;
-  adapters?: AdapterRoutingConfig;
   watchClock?: {
     tickIntervalMs?: number;
     defaultTimezone?: string;
@@ -60,7 +56,6 @@ export function loadConfig(): ShrimpyConfig {
   return loadConfigForWorkspace(resolveWorkspacePath());
 }
 
-export * from "./adapter-routing.js";
 export * from "./agents.js";
 export * from "./gateway-status.js";
 export * from "./model.js";

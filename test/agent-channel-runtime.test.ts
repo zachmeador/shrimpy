@@ -21,9 +21,6 @@ describe("AgentChannelRuntime", () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
 
     const runtime = {
-      resolved: {
-        adapterRouting: { routes: [] },
-      },
       getAgent(agentId: string) {
         return {
           id: agentId,

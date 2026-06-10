@@ -38,8 +38,9 @@ surface / CLI channel post / watch
   -> Pi session turn
   -> Pi built-ins + Shrimpy daemon tools
   -> ChannelBus
-  -> ChannelEgress
-  -> channel log + optional surface delivery
+  -> channel log
+  -> ChannelOutbox
+  -> optional bound surface delivery + receipt
 ```
 
 Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.

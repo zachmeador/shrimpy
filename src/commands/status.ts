@@ -3,6 +3,10 @@ import { basename, join } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import { timeSince } from "../channels/format.js";
 import { collectChannelActivity } from "../channels/activity.js";
+import {
+  readDeliveryReceipts,
+  summarizeDeliveryReceipts,
+} from "../channels/outbox.js";
 import { loadRuntimeWatchIds } from "../watches/index.js";
 import { formatGatewayServiceSummary, readGatewayServiceStatus } from "../gateway/service-ctl.js";
 import {
@@ -19,10 +23,16 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
   const runtime = createAppRuntime(config);
   const channelBus = runtime.createChannelBus();
   const ws = runtime.paths.workspace;
+  const receipts = readDeliveryReceipts(runtime.paths.outboundReceiptsPath);
+  const undelivered = Object.keys(receipts).reduce(
+    (count, channel) => count + summarizeDeliveryReceipts(receipts, channel).undelivered,
+    0,
+  );
   console.log(`${label("workspace:")} ${ws}`);
 
   const gatewayStatus = readGatewayServiceStatus();
   console.log(`${label("gateway:")} ${formatGatewayServiceSummary(gatewayStatus)}`);
+  console.log(`${label("undelivered outbound:")} ${undelivered}`);
 
   printWorkspaceCheckpointStatus(inspectWorkspaceCheckpointStatus(ws));
 

@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { EgressRegistry } from "../dist/channels/egress.js";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { readMessages } from "../dist/channels/index.js";
 
@@ -17,10 +16,10 @@ afterEach(() => {
   rmSync(testDir, { recursive: true, force: true });
 });
 
-function createChannelBus(egressRegistry = new EgressRegistry()) {
+function createChannelBus() {
   const channelsDir = join(testDir, "channels");
   mkdirSync(channelsDir, { recursive: true });
-  return new ChannelBus(channelsDir, egressRegistry);
+  return new ChannelBus(channelsDir);
 }
 
 describe("ChannelBus", () => {
@@ -64,27 +63,15 @@ describe("ChannelBus", () => {
     assert.equal(existsSync(join(testDir, "outside.jsonl")), false);
   });
 
-  test("sendAgentText logs and delivers through the adapter registry", async () => {
-    const delivered: any[] = [];
-    const registry = new EgressRegistry();
-    registry.register("telegram-", async (delivery) => {
-      delivered.push(delivery);
-    });
-    const channelBus = createChannelBus(registry);
+  test("publishAgentText logs agent messages without delivering", async () => {
+    const channelBus = createChannelBus();
 
-    const result = await channelBus.sendAgentText({
+    channelBus.publishAgentText({
       channel: "telegram-42",
       text: "pong",
       actorId: "agent:shrimpy",
       publication: { kind: "reply" },
     });
-
-    assert.equal(result, true);
-    assert.equal(delivered.length, 1);
-    assert.equal(delivered[0].channel, "telegram-42");
-    assert.equal(delivered[0].text, "pong");
-    assert.deepEqual(delivered[0].publication, { kind: "reply" });
-    assert.deepEqual(delivered[0].message.content.data.publication, { kind: "reply" });
 
     const { messages } = readMessages(channelBus.path("telegram-42"));
     assert.equal(messages.length, 1);

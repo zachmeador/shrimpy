@@ -7,10 +7,12 @@ import {
   cmdChannelsTail,
 } from "./channels-inspect.js";
 import {
+  cmdChannelsBind,
   cmdChannelsCreate,
   cmdChannelsDm,
   cmdChannelsJoinOrLeave,
   cmdChannelsMembers,
+  cmdChannelsUnbind,
 } from "./channels-membership.js";
 import { cmdChannelsPost } from "./channels-post.js";
 import { renderGroupUsage } from "./catalog.js";
@@ -42,6 +44,8 @@ function createChannelsCommand(json: boolean): CommandHandler {
       },
       dm: ({ argv, config }) => cmdChannelsDm(createAppRuntime(config), argv, json),
       members: ({ argv, config }) => cmdChannelsMembers(createAppRuntime(config), argv, json),
+      bind: ({ argv, config }) => cmdChannelsBind(createAppRuntime(config), argv, json),
+      unbind: ({ argv, config }) => cmdChannelsUnbind(createAppRuntime(config), argv, json),
       join: ({ argv, config }) => cmdChannelsJoinOrLeave(createAppRuntime(config), "join", argv, json),
       leave: ({ argv, config }) => cmdChannelsJoinOrLeave(createAppRuntime(config), "leave", argv, json),
     },

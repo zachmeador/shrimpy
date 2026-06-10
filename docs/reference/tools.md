@@ -54,7 +54,7 @@ Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services. The
 
 `reply`, `ask`, `notify`, and `report` require an active publication channel. Gateway channel sessions have one. Direct `tui` and `run` sessions do not, so those publication helpers are not registered there; the agent should answer the local user with ordinary assistant text.
 
-`send_message` is the lower-level routing primitive. It logs to the named channel and delivers externally only when a surface adapter matches that channel. `user:<id>` resolves to that user's last active chat surface at tool execution time, then logs to the concrete channel. Agent DMs are internal channels, so no external adapter is expected.
+`send_message` is the lower-level routing primitive. It logs to the named channel; the gateway outbox delivers externally when the channel has a transport binding. `user:<id>` resolves to that user's last active chat surface at tool execution time, then logs to the concrete channel. Agent DMs are internal channels, so no external adapter is expected unless the channel is deliberately bound.
 
 `read_channel` returns recent channel messages as bounded JSON. The default limit comes from `tools.readChannel.defaultLimit`.
 

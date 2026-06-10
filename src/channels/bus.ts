@@ -2,10 +2,10 @@ import {
   EgressRegistryChannelEgress,
   type ChannelActivity,
   type ChannelActivityHandle,
-  type ChannelDelivery,
   type ChannelEgress,
   type EgressRegistry,
 } from "./egress.js";
+import type { ChannelMembershipStore } from "./membership.js";
 import { ChannelPublisher } from "./publisher.js";
 import {
   type ChannelMessage,
@@ -30,12 +30,14 @@ interface ChannelBusDeps {
   store?: ChannelStore;
   publisher?: ChannelPublisher;
   egress?: ChannelEgress;
+  memberships?: ChannelMembershipStore;
 }
 
 export class ChannelBus {
   private readonly store: ChannelStore;
   private readonly publisher: ChannelPublisher;
   private readonly egress: ChannelEgress;
+  private readonly memberships?: ChannelMembershipStore;
 
   constructor(
     readonly channelsDir: string,
@@ -45,6 +47,7 @@ export class ChannelBus {
     this.store = deps?.store ?? new ChannelStore(channelsDir);
     this.publisher = deps?.publisher ?? new ChannelPublisher(this.store);
     this.egress = deps?.egress ?? new EgressRegistryChannelEgress(egressRegistry);
+    this.memberships = deps?.memberships;
   }
 
   path(channel: string): string {
@@ -107,27 +110,11 @@ export class ChannelBus {
     return this.publisher.publishStatus(input);
   }
 
-  async deliverText(channel: string, text: string): Promise<boolean> {
-    return this.egress.deliverText(channel, text);
-  }
-
-  async deliver(delivery: ChannelDelivery): Promise<boolean> {
-    return this.egress.deliver(delivery);
-  }
-
   async startActivity(
     activity: ChannelActivity,
   ): Promise<ChannelActivityHandle | null> {
-    return this.egress.startActivity(activity);
-  }
-
-  async sendAgentText(input: PublishAgentTextInput): Promise<boolean> {
-    const message = this.publishAgentText(input);
-    return this.deliver({
-      channel: input.channel,
-      text: input.text,
-      message,
-      publication: input.publication,
-    });
+    const binding = activity.binding ??
+      this.memberships?.getManifest(activity.channel).binding;
+    return this.egress.startActivity({ ...activity, binding });
   }
 }

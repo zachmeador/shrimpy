@@ -1,6 +1,6 @@
 # 🦐 CHAN-004: Channel Manifests And Transport Bindings
 
-Status: todo
+Status: review
 Priority: P2
 Area: Channels
 Depends On: [CHAN-003](chan-003-channel-name-validation.md)

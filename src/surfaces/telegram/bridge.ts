@@ -70,6 +70,7 @@ export interface TelegramChannelBridgeConfig {
   mediaDir: string;
   identityStore: IdentityStore;
   surfaceId: string;
+  instanceId: string;
   channelPrefix: string;
   defaultAgentId: string;
   knownAgentIds: string[];
@@ -182,6 +183,11 @@ export class TelegramChannelBridge {
 
     const chatKey = String(chatId);
     const channel = `${this.config.channelPrefix}${chatId}`;
+    this.config.channelMemberships?.bindChannel(channel, {
+      adapter: "telegram",
+      instance: this.config.instanceId,
+      thread: chatKey,
+    });
     const transportUserId = String(msg.from?.id ?? chatId);
     const displayName = msg.from
       ? msg.from.username ?? msg.from.first_name

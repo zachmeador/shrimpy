@@ -1,6 +1,14 @@
 import MarkdownIt from "markdown-it";
-import type { PublicationIntent } from "../../channels/index.js";
-import type { TelegramSendMessageOptions } from "./client.js";
+import {
+  outboundTextForMessage,
+  publicationIntentForMessage,
+  type ChannelMessage,
+  type PublicationIntent,
+} from "../../channels/index.js";
+import type {
+  TelegramSendMessageOptions,
+  TelegramSendPhotoOptions,
+} from "./client.js";
 
 export const TELEGRAM_TEXT_CHUNK_LIMIT = 4000;
 
@@ -20,6 +28,14 @@ type TelegramTextSender = Pick<{
     parseModeOrOptions?: string | TelegramSendMessageOptions,
   ): Promise<void>;
 }, "sendMessage">;
+
+type TelegramMessageSender = TelegramTextSender & Pick<{
+  sendPhoto(
+    chatId: number,
+    photo: string,
+    options?: TelegramSendPhotoOptions,
+  ): Promise<void>;
+}, "sendPhoto">;
 
 type TelegramHtmlTag = {
   name: string;
@@ -680,6 +696,37 @@ export async function sendTelegramPublicationText(
       disableNotification: shouldDisableTelegramNotification(publication),
     },
   );
+}
+
+export async function sendTelegramChannelMessage(
+  telegram: TelegramMessageSender,
+  chatId: number,
+  message: ChannelMessage,
+): Promise<void> {
+  const publication = publicationIntentForMessage(message);
+  const disableNotification = shouldDisableTelegramNotification(publication);
+  switch (message.content.type) {
+    case "image":
+      await telegram.sendPhoto(chatId, message.content.data.path, {
+        caption: message.content.data.caption,
+        disableNotification,
+      });
+      return;
+    case "image_group":
+      for (const [index, path] of message.content.data.paths.entries()) {
+        await telegram.sendPhoto(chatId, path, {
+          caption: index === 0 ? message.content.data.caption : undefined,
+          disableNotification,
+        });
+      }
+      return;
+    default: {
+      const text = outboundTextForMessage(message);
+      if (text) {
+        await sendTelegramPublicationText(telegram, chatId, text, publication);
+      }
+    }
+  }
 }
 
 function shouldDisableTelegramNotification(

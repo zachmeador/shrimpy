@@ -29,7 +29,7 @@ When the `bash` tool is available, useful inspection paths include:
 - Workspace/runtime: `shrimpy status`, `shrimpy context --config`
 - Context: `shrimpy context --sections`, `shrimpy context --turn`, `shrimpy context sources list`
 - Agents: `shrimpy agent list`, `shrimpy agent show <id>`, `shrimpy agent inspect <id>`
-- Channels: `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels read <name>`, `shrimpy channels members <name>`
+- Channels: `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels read <name>`, `shrimpy channels members <name>`, `shrimpy channels bind <name> <adapter>/<instance>/<thread>`
 - Sessions: `shrimpy sessions list [channel]`, `shrimpy sessions compaction <channel>`
 - Watches/gateway: `shrimpy watches`, `shrimpy watches show <agent-id>/<watch-id>`, `shrimpy gateway status`, `shrimpy gateway logs`
 - Skills/models/users: `shrimpy skills list`, `shrimpy models`, `shrimpy users list`

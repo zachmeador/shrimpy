@@ -985,9 +985,8 @@ describe("ChannelDeliveryLoop routing", () => {
       runtime,
       bootstraps: testBootstraps(agents),
       channelBus: {
-        async deliverText(channel: string, text: string) {
-          delivered.push({ channel, text });
-          return true;
+        publishStatus(input: any) {
+          delivered.push({ channel: input.channel, text: input.data.text });
         },
       } as any,
     }) as any;
@@ -1074,9 +1073,8 @@ describe("ChannelDeliveryLoop routing", () => {
       runtime,
       bootstraps: testBootstraps(agents),
       channelBus: {
-        async deliverText(channel: string, text: string) {
-          delivered.push({ channel, text });
-          return true;
+        publishStatus(input: any) {
+          delivered.push({ channel: input.channel, text: input.data.text });
         },
       } as any,
     }) as any;
@@ -1166,9 +1164,8 @@ describe("ChannelDeliveryLoop routing", () => {
       runtime,
       bootstraps: testBootstraps(agents),
       channelBus: {
-        async deliverText(channel: string, text: string) {
-          delivered.push({ channel, text });
-          return true;
+        publishStatus(input: any) {
+          delivered.push({ channel: input.channel, text: input.data.text });
         },
       } as any,
     }) as any;
@@ -1259,9 +1256,8 @@ describe("ChannelDeliveryLoop routing", () => {
       runtime,
       bootstraps: testBootstraps(agents),
       channelBus: {
-        async deliverText(channel: string, text: string) {
-          delivered.push({ channel, text });
-          return true;
+        publishStatus(input: any) {
+          delivered.push({ channel: input.channel, text: input.data.text });
         },
       } as any,
     }) as any;

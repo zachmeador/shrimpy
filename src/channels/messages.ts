@@ -46,7 +46,17 @@ export type SurfaceAddressingStatusContentData = Record<string, unknown> & {
   source: "chat" | "cli";
 };
 
-export type StatusContentData = SurfaceAddressingStatusContentData;
+export type OperationStatusContentData = Record<string, unknown> & {
+  kind: "operation_status";
+  text: string;
+  ok: boolean;
+  targetAgentId?: string;
+  operation?: string;
+};
+
+export type StatusContentData =
+  | SurfaceAddressingStatusContentData
+  | OperationStatusContentData;
 
 export interface TextMessageContent {
   type: "text";
@@ -402,7 +412,25 @@ function isSurfaceAddressingStatusContentData(
 function isStatusContentData(
   value: unknown,
 ): value is StatusContentData {
-  return isSurfaceAddressingStatusContentData(value);
+  return isSurfaceAddressingStatusContentData(value)
+    || isOperationStatusContentData(value);
+}
+
+function isOperationStatusContentData(
+  value: unknown,
+): value is OperationStatusContentData {
+  return isRecord(value)
+    && value.kind === "operation_status"
+    && typeof value.text === "string"
+    && typeof value.ok === "boolean"
+    && (
+      value.targetAgentId === undefined ||
+      typeof value.targetAgentId === "string"
+    )
+    && (
+      value.operation === undefined ||
+      typeof value.operation === "string"
+    );
 }
 
 export function sessionResetContent(
@@ -470,6 +498,21 @@ export function surfaceAddressingStatusContent(input: {
     joinedAgentId: input.joinedAgentId ?? null,
     source: input.source,
   } as SurfaceAddressingStatusContentData);
+}
+
+export function operationStatusContent(input: {
+  text: string;
+  ok: boolean;
+  targetAgentId?: string;
+  operation?: string;
+}): StatusMessageContent<OperationStatusContentData> {
+  return statusContent({
+    kind: "operation_status",
+    text: input.text,
+    ok: input.ok,
+    ...(input.targetAgentId ? { targetAgentId: input.targetAgentId } : {}),
+    ...(input.operation ? { operation: input.operation } : {}),
+  } as OperationStatusContentData);
 }
 
 export function readSessionControlContent(

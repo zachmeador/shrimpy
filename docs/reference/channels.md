@@ -170,7 +170,7 @@ shrimpy channels search <name> [query]
 shrimpy channels tail <name>
 ```
 
-`channels search` can filter by message kind, sender kind, transport, actor id, content type, addressed agent, watch id, and source kind. `channels show` summarizes membership, message kind counts, recent request-like messages, and traceable source records.
+`channels search` can filter by message kind, sender kind, transport, actor id, content type, addressed agent, watch id, and source kind. `channels show` summarizes membership, manifest kind, transport binding, outbound delivery receipts, message kind counts, recent request-like messages, and traceable source records.
 
 With `--json`, inspected messages in search results, `lastMessage`, `activity.recentRequests`, and `activity.sourceRecords` use one shape. Transport, run id, and source channel live on `origin`; trace-specific fields are `sourceId`, `targetChannel`, and `inspectCommands`.
 
@@ -183,9 +183,11 @@ Gateway channel sessions do not automatically publish assistant text to a channe
 - `notify(text, opts)`
 - `report(summary)`
 
-Those helpers log an agent message to the active channel and then deliver externally only when a surface adapter route matches the channel. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
+Those helpers append an agent message to the active channel. The gateway outbox delivers logged agent/system messages externally when the channel manifest has a transport binding. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
 
-`send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless an adapter is deliberately configured for them. `user:<id>` is accepted as a send-time alias for the user's last active chat surface; the message is logged to the resolved concrete channel, not to a `user:<id>` channel file.
+`send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless they are deliberately bound to a transport. `user:<id>` is accepted as a send-time alias for the user's last active chat surface; the message is logged to the resolved concrete channel, not to a `user:<id>` channel file.
+
+Use `shrimpy channels bind <channel> <adapter>/<instance>/<thread>` to attach a semantic channel such as `home` to an external transport. `unbind` removes the transport binding without renaming the channel or changing its history.
 
 `shrimpy channels post user:<id> <text>` uses the same alias resolver for operator-injected human messages. Inspect current alias targets with `shrimpy users presence`.
 
@@ -209,4 +211,4 @@ shrimpy channels search <channel> --kind watch
 - Membership is visibility, not wake policy.
 - Agent channel policy owns wake and response behavior.
 - Addressing is policy input, not a membership bypass.
-- Surface adapters translate external transport messages into typed channel messages and translate published channel messages back out.
+- Surface adapters translate external transport messages into typed channel messages. The gateway outbox translates logged agent/system messages back out through manifest bindings and records delivery receipts.

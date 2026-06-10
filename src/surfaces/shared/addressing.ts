@@ -52,10 +52,10 @@ export function resolveSurfaceThreadChannel(
   surface: string,
   threadId: string,
 ): string | null {
-  const route = runtime.resolved.adapterRouting.routes.find((candidate) =>
-    candidate.adapter === surface
-  );
-  return route ? `${route.channelPrefix}${threadId}` : null;
+  void runtime;
+  const [adapter, instance] = surface.split(".");
+  if (!adapter || !instance || !threadId) return null;
+  return `${adapter}~${instance}~${threadId}`;
 }
 
 export function isSurfaceAddressingStatus(value: unknown): boolean {

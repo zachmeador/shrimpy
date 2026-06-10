@@ -5,7 +5,6 @@ import type {
   ChannelActivityHandle,
   EgressRegistry,
 } from "../../channels/egress.js";
-import type { AdapterRouteConfigEntry } from "../../config/adapter-routing.js";
 import type { IdentityStore } from "../../gateway/identity-store.js";
 import {
   readJsonFile,
@@ -23,7 +22,7 @@ import {
 import { listTelegramMenuCommands } from "./commands.js";
 import type { ResolvedTelegramInstanceConfig } from "./config.js";
 import {
-  sendTelegramPublicationText,
+  sendTelegramChannelMessage,
 } from "./outbound.js";
 import { TelegramPoller } from "./poller.js";
 
@@ -44,36 +43,35 @@ export function telegramStatePath(workspace: string, instanceId: string): string
 class TelegramSurfaceEgress implements SurfaceEgress {
   constructor(
     readonly adapter: string,
+    private readonly instanceId: string,
     protected readonly client: TelegramBotApiClient,
   ) {}
 
-  registerRoute(
+  registerEgress(
     registry: EgressRegistry,
-    route: AdapterRouteConfigEntry,
   ): void {
-    registerTelegramRoute(registry, this.client, route.channelPrefix);
+    registerTelegramEgress(registry, this.client, this.instanceId);
   }
 }
 
-export function registerTelegramRoute(
+export function registerTelegramEgress(
   registry: EgressRegistry,
-  telegram: Pick<TelegramBotApiClient, "sendMessage" | "sendChatAction">,
-  channelPrefix: string,
+  telegram: Pick<TelegramBotApiClient, "sendMessage" | "sendPhoto" | "sendChatAction">,
+  instanceId: string,
 ): void {
-  registry.register(channelPrefix, async (delivery) => {
-    const { channel, text, publication } = delivery;
-    const chatId = parseInt(channel.slice(channelPrefix.length), 10);
+  registry.register({ adapter: "telegram", instance: instanceId }, async (delivery) => {
+    const chatId = parseInt(delivery.binding.thread, 10);
     if (isNaN(chatId)) {
-      console.error(`[telegram] invalid chat ID from channel: ${channel}`);
+      console.error(`[telegram] invalid chat ID from binding: ${delivery.binding.thread}`);
       return;
     }
-    await sendTelegramPublicationText(telegram, chatId, text, publication);
+    await sendTelegramChannelMessage(telegram, chatId, delivery.message);
   });
-  registry.registerActivity(channelPrefix, async (activity) => {
+  registry.registerActivity({ adapter: "telegram", instance: instanceId }, async (activity) => {
     if (activity.kind !== "typing") return null;
-    const chatId = parseInt(activity.channel.slice(channelPrefix.length), 10);
+    const chatId = activity.binding ? parseInt(activity.binding.thread, 10) : NaN;
     if (isNaN(chatId)) {
-      console.error(`[telegram] invalid chat ID from channel: ${activity.channel}`);
+      console.error(`[telegram] invalid chat ID from binding for ${activity.channel}`);
       return null;
     }
     return startTelegramTypingActivity(telegram, chatId);
@@ -143,7 +141,7 @@ class TelegramGatewaySurface
       { token: instance.token },
       { policy: instance.policy },
     );
-    super(instance.adapter, client);
+    super(instance.adapter, instance.id, client);
     this.poller = new TelegramPoller(client, {
       initialOffset: loadTelegramOffset(statePath),
       onUpdateOffset: (offset) => {
@@ -162,6 +160,7 @@ class TelegramGatewaySurface
         mediaDir: runtime.paths.mediaDir,
         identityStore,
         surfaceId: instance.surfaceId,
+        instanceId: instance.id,
         channelPrefix: instance.channelPrefix,
         defaultAgentId: instance.defaultAgentId,
         knownAgentIds: runtime.resolved.agents.map((agent) => agent.id),
@@ -234,6 +233,7 @@ export function createTelegramSurfaceEgresses(
   return resolved.instances.map((instance) =>
     new TelegramSurfaceEgress(
       instance.adapter,
+      instance.id,
       new TelegramBotApiClient({ token: instance.token }, { policy: instance.policy }),
     )
   );
