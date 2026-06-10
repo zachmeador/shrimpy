@@ -20,6 +20,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
+| [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [CHAN-001](chan-001-typed-egress-outbox.md) | todo | P1 | Channels | [CHAN-002](chan-002-message-kind-discriminants.md) | Typed egress outbox with delivery receipts |
 | [CHAN-002](chan-002-message-kind-discriminants.md) | review | P1 | Channels | none | Message kind discriminants in the channel protocol |
 | [CHAN-003](chan-003-channel-name-validation.md) | review | P1 | Channels | none | Channel name validation at boundaries |
