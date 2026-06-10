@@ -241,6 +241,7 @@ function createRegistry(
   workspacePath?: string,
   opts?: {
     turnContextForMessage?: ConstructorParameters<typeof SessionRegistry>[1]["turnContextForMessage"];
+    startActivity?: ConstructorParameters<typeof SessionRegistry>[1]["startActivity"];
   },
 ) {
   const bootstrap = createFakeBootstrap(workspacePath);
@@ -253,6 +254,7 @@ function createRegistry(
       }),
     }),
     turnContextForMessage: opts?.turnContextForMessage,
+    startActivity: opts?.startActivity,
   });
 }
 
@@ -649,6 +651,59 @@ describe("SessionRegistry", () => {
       formatChannelMessage("telegram~shrimpy~1", second),
       formatChannelMessage("telegram~shrimpy~1", third),
     ]);
+  });
+
+  test("starts and stops channel activity around a dispatched turn", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    const events: string[] = [];
+    const registry = createRegistry(sessionFactory, undefined, {
+      startActivity: (channel) => {
+        events.push(`start:${channel}`);
+        return {
+          stop() {
+            events.push(`stop:${channel}`);
+          },
+        };
+      },
+    });
+
+    await registry.dispatch("telegram~shrimpy~1", humanText("hello"));
+
+    assert.deepEqual(events, [
+      "start:telegram~shrimpy~1",
+      "stop:telegram~shrimpy~1",
+    ]);
+  });
+
+  test("continues the turn when channel activity startup fails", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    const errors: string[] = [];
+    const originalError = console.error;
+    const registry = createRegistry(sessionFactory, undefined, {
+      startActivity: () => {
+        throw new Error("activity unavailable");
+      },
+    });
+    const message = humanText("hello");
+
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((value) => String(value)).join(" "));
+    };
+    try {
+      await registry.dispatch("telegram~shrimpy~1", message);
+    } finally {
+      console.error = originalError;
+    }
+
+    assert.equal(sessionFactory.sessions.length, 1);
+    assert.deepEqual(sessionFactory.sessions[0].prompts, [
+      formatChannelMessage("telegram~shrimpy~1", message),
+    ]);
+    assert.match(errors.join("\n"), /activity start error/);
+    assert.equal(
+      registry.getLaneState("telegram~shrimpy~1").lastOutcome?.outcome,
+      "completed",
+    );
   });
 
   test("stops the running turn without waiting for the prompt to finish", async () => {

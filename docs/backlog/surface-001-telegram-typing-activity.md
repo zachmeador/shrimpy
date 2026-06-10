@@ -1,6 +1,6 @@
 # 🦐 SURFACE-001: Telegram Typing Activity
 
-Status: draft
+Status: review
 Priority: P2
 Area: Surfaces
 Related: [SURFACE-003](surface-003-chat-operation-status.md)
@@ -41,3 +41,7 @@ This should be modeled as `runtime activity -> surface activity projection`, not
 - Ignored messages, Telegram commands, and non-handled channel messages do not emit typing.
 - The CLI can trigger a short typing activity for a channel for manual verification.
 - Unit tests cover adapter registry activity routing and session lifecycle cleanup.
+
+## Review Notes
+- Implemented generic channel activity routing with Telegram `sendChatAction("typing")`, refreshed during accepted gateway turns and stopped from the session cleanup path.
+- Added `shrimpy surface activity <channel> --kind typing --duration <seconds>` for manual verification.

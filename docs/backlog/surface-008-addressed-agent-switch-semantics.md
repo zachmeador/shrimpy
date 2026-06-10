@@ -1,6 +1,6 @@
 # 🦐 SURFACE-008: Addressed-Agent Switch Semantics
 
-Status: todo
+Status: review
 Priority: P1
 Area: Surfaces
 Depends On: none
@@ -34,3 +34,7 @@ Depends On: none
 - Every addressed-agent change is a typed, inspectable entry in the channel log, from both chat and CLI.
 - The incoming agent's first turn after a switch has enough context to pick up the thread, verified against a real transcript.
 - Switch-back resumes the prior agent's session with its context intact.
+
+## Review Notes
+- `/agent <id>` and `shrimpy surface set-agent` now auto-join the selected agent to the resolved surface channel when needed and publish a `surface_addressing` system entry.
+- `surface_addressing` status entries are informational and guarded from waking agents under the default channel policy path.

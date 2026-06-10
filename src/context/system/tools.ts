@@ -38,7 +38,7 @@ const TOOL_PROSE: Record<ToolProseId, ToolProse> = {
   },
   send_message: {
     description:
-      "Send a message to an explicit channel. Use this lower-level primitive for unusual routing or agent DMs, not for answering the current TUI/run conversation.",
+      "Send a message to an explicit channel or user:<id> alias. Use this lower-level primitive for unusual routing or agent DMs, not for answering the current TUI/run conversation.",
     promptSnippet: "send_message — send text to an explicit channel",
   },
   read_channel: {
@@ -60,7 +60,7 @@ export const TOOL_PARAMETER_PROSE = {
   activePublicationQuiet: "Whether the surface should avoid interruptive delivery when supported",
   activePublicationBatchable: "Whether this notification can be batched by a surface adapter when supported",
   sendMessageChannel:
-    `Channel name (e.g. telegram~shrimpy~12345). ${AGENT_DM_CHANNEL_DESCRIPTION}`,
+    `Channel name (e.g. telegram~shrimpy~12345) or user:<id> for that user's last active chat surface. ${AGENT_DM_CHANNEL_DESCRIPTION}`,
   sendMessageText: "Message text to send",
   readChannelChannel: `Channel name. ${AGENT_DM_CHANNEL_DESCRIPTION}`,
   readChannelLimit: "Max messages to return (default 20)",

@@ -156,6 +156,8 @@ shrimpy surface set-agent <surface> <thread-id> <agent>
 shrimpy surface clear-agent <surface> <thread-id>
 ```
 
+For routed surface threads, `surface set-agent` joins the selected agent to the concrete channel when needed and logs a `surface_addressing` system entry. `surface clear-agent` logs the clear event too. These entries make handoffs inspectable without waking agents as work.
+
 ## Reading And Search
 
 Channels are inspectable through the CLI:
@@ -183,7 +185,9 @@ Gateway channel sessions do not automatically publish assistant text to a channe
 
 Those helpers log an agent message to the active channel and then deliver externally only when a surface adapter route matches the channel. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
 
-`send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless an adapter is deliberately configured for them.
+`send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless an adapter is deliberately configured for them. `user:<id>` is accepted as a send-time alias for the user's last active chat surface; the message is logged to the resolved concrete channel, not to a `user:<id>` channel file.
+
+`shrimpy channels post user:<id> <text>` uses the same alias resolver for operator-injected human messages. Inspect current alias targets with `shrimpy users presence`.
 
 ## Watches
 

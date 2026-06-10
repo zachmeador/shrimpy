@@ -11,7 +11,10 @@ import { existsSync, mkdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ChannelBus } from "../../channels/bus.js";
-import type { UnsupportedSurfaceMessage } from "../../channels/index.js";
+import type {
+  ChannelMembershipStore,
+  UnsupportedSurfaceMessage,
+} from "../../channels/index.js";
 import type { IdentityStore } from "../../gateway/identity-store.js";
 import {
   ChatSurfacePublisher,
@@ -20,6 +23,7 @@ import {
   type ChatHumanMessageBase,
 } from "../shared/chat-bridge.js";
 import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
+import type { UserPresenceStore } from "../shared/user-presence.js";
 import type {
   TelegramBotApiClient,
   TelegramMessage,
@@ -70,6 +74,8 @@ export interface TelegramChannelBridgeConfig {
   defaultAgentId: string;
   knownAgentIds: string[];
   threadStateStore: SurfaceThreadStateStore;
+  channelMemberships?: ChannelMembershipStore;
+  userPresenceStore?: UserPresenceStore;
   allowedChatIds?: number[];
   users?: Record<string, {
     userId: string;
@@ -187,6 +193,13 @@ export class TelegramChannelBridge {
       userId: configuredUser?.userId,
       actorId: configuredUser?.actorId,
       displayName: configuredUser?.displayName ?? displayName,
+    });
+    this.config.userPresenceStore?.record({
+      userId: identity.userId,
+      channel,
+      surface: this.config.surfaceId,
+      transport: "telegram",
+      transportChatId: chatKey,
     });
 
     return {
@@ -345,6 +358,7 @@ export class TelegramChannelBridge {
         defaultAgentId: this.config.defaultAgentId,
         knownAgentIds: this.config.knownAgentIds,
         threadStateStore: this.config.threadStateStore,
+        memberships: this.config.channelMemberships,
         sendText: async (targetChatId, replyText) => {
           await sendTelegramFormattedText(this.client, targetChatId, replyText);
         },

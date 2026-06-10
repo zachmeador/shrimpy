@@ -7,6 +7,7 @@ import {
   EgressRegistry,
 } from "../dist/channels/egress.js";
 import { registerTelegramRoute } from "../dist/surfaces/telegram/index.js";
+import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
 import { createDaemonTools } from "../dist/tools/index.js";
 import { ChannelBus } from "../dist/channels/bus.js";
 import {
@@ -176,6 +177,42 @@ describe("send_message", () => {
     assert.equal(messages[0].sender.actorId, "agent:maintenance");
   });
 
+  test("resolves user channel aliases from last recorded presence", async () => {
+    const channelBus = createChannelBus();
+    const presencePath = join(testDir, "presence.json");
+    new UserPresenceStore(presencePath).record({
+      userId: "alice",
+      channel: "telegram~main~4242",
+      surface: "telegram.main",
+      transport: "telegram",
+      transportChatId: "4242",
+    });
+
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+      userPresencePath: presencePath,
+    });
+    const sendMessage = findTool("send_message", tools);
+
+    const result = await sendMessage.execute(
+      "call-1",
+      { channel: "user:alice", text: "hello alice" },
+      new AbortController().signal,
+      () => {},
+      {},
+    );
+
+    assert.equal(result.content[0].type, "text");
+    assert.equal(
+      result.content[0].text,
+      "Logged to telegram~main~4242. No external adapter matched for outbound delivery.",
+    );
+    const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram~main~4242"));
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0].content.data, { text: "hello alice" });
+  });
+
   test("registerTelegramRoute supports custom route prefixes", async () => {
     const calls: Array<{ chatId: number; text: string }> = [];
     const registry = new EgressRegistry();
@@ -195,6 +232,31 @@ describe("send_message", () => {
     });
     assert.equal(delivered, true);
     assert.deepEqual(calls, [{ chatId: 4242, text: "hi" }]);
+  });
+
+  test("registerTelegramRoute supports typing activity routes", async () => {
+    const calls: Array<{ chatId: number; action: string }> = [];
+    const registry = new EgressRegistry();
+    registerTelegramRoute(
+      registry,
+      {
+        async sendMessage() {},
+        async sendChatAction(chatId: number, action: "typing") {
+          calls.push({ chatId, action });
+        },
+      } as any,
+      "tg-chat-",
+    );
+
+    const handle = await registry.startActivity({
+      channel: "tg-chat-4242",
+      kind: "typing",
+    });
+    assert.ok(handle);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await handle.stop();
+
+    assert.deepEqual(calls, [{ chatId: 4242, action: "typing" }]);
   });
 });
 

@@ -1,5 +1,7 @@
 import {
   EgressRegistryChannelEgress,
+  type ChannelActivity,
+  type ChannelActivityHandle,
   type ChannelDelivery,
   type ChannelEgress,
   type EgressRegistry,
@@ -106,6 +108,12 @@ export class ChannelBus {
 
   async deliver(delivery: ChannelDelivery): Promise<boolean> {
     return this.egress.deliver(delivery);
+  }
+
+  async startActivity(
+    activity: ChannelActivity,
+  ): Promise<ChannelActivityHandle | null> {
+    return this.egress.startActivity(activity);
   }
 
   async sendAgentText(input: PublishAgentTextInput): Promise<boolean> {

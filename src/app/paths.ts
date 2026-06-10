@@ -28,6 +28,7 @@ export interface WorkspacePaths {
   gatewayPidPath: string;
   gatewayStatePath: string;
   usersPath: string;
+  userPresencePath: string;
   cursorsPath: string;
   surfaceStatePath: string;
   watchClockStatePath: string;
@@ -77,6 +78,7 @@ export function createWorkspacePaths(
     gatewayPidPath: join(workspace, "runtime", "pids", "gateway.pid"),
     gatewayStatePath: join(workspace, "runtime", "gateway-state.json"),
     usersPath: join(workspace, "state", "users.json"),
+    userPresencePath: join(workspace, "state", "user-presence.json"),
     cursorsPath: join(workspace, "runtime", "cursors", "channels.json"),
     surfaceStatePath: join(workspace, "runtime", "cursors", "surface-threads.json"),
     watchClockStatePath: join(workspace, "state", "watch-clock.json"),

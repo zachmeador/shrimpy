@@ -6,6 +6,7 @@ import { ChannelBus } from "../dist/channels/bus.js";
 import { systemContent, textContent } from "../dist/channels/index.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { cmdChannels } from "../dist/commands/channels.js";
+import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
 import { setupInit } from "../dist/setup/init.js";
 import {
   captureLogs,
@@ -139,6 +140,33 @@ describe("cmdChannels", () => {
     assert.equal(posted.channel, "home");
     assert.equal(posted.message.origin.addressedAgentId, "career");
     assert.equal(posted.message.content.data.text, "please handle this");
+  });
+
+  test("posts to a user's last active surface channel by alias", async () => {
+    await setupInit(workspace);
+    new UserPresenceStore(join(workspace, "state", "user-presence.json")).record({
+      userId: "alice",
+      channel: "telegram~main~4242",
+      surface: "telegram.main",
+      transport: "telegram",
+      transportChatId: "4242",
+    });
+
+    const { result, lines } = await captureLogs(() =>
+      cmdChannels(["post", "user:alice", "hello", "alice", "--json"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const posted = JSON.parse(lines.join("\n"));
+    assert.equal(posted.requestedChannel, "user:alice");
+    assert.equal(posted.channel, "telegram~main~4242");
+
+    const channelBus = new ChannelBus(join(workspace, "channels"));
+    assert.equal(channelBus.read("user:alice").messages.length, 0);
+    const { messages } = channelBus.read("telegram~main~4242");
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0]?.content.type, "text");
+    assert.equal(messages[0]?.content.type === "text" ? messages[0].content.data.text : "", "hello alice");
   });
 
   test("searches channel messages with agent-friendly filters", async () => {

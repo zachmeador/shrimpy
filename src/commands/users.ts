@@ -1,5 +1,6 @@
 import { createAppRuntime } from "../app/index.js";
 import { IdentityStore } from "../gateway/identity-store.js";
+import { UserPresenceStore } from "../surfaces/shared/user-presence.js";
 import {
   parseCommandArgs,
   printError,
@@ -46,6 +47,24 @@ export const cmdUsers: CommandHandler = async (argv, config) => {
           `  ${key} -> ${link.actorId} (${link.displayName ?? link.userId})${ownerMark}`,
         );
       }
+    }
+    return 0;
+  }
+
+  if (sub === "presence") {
+    const entries = new UserPresenceStore(runtime.paths.userPresencePath).list();
+    if (json) {
+      console.log(JSON.stringify(entries, null, 2));
+      return 0;
+    }
+    if (entries.length === 0) {
+      console.log("(no user presence)");
+      return 0;
+    }
+    for (const entry of entries) {
+      console.log(
+        `${entry.userId} -> ${entry.channel} (${entry.surface}, ${new Date(entry.at).toLocaleString()})`,
+      );
     }
     return 0;
   }

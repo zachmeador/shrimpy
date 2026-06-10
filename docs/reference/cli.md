@@ -86,8 +86,9 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy channels leave <name> --agent <id>` | Remove an agent from channel membership. Agent `channelPolicy` config decides which visible channel messages become turns. |
 | `shrimpy surface` | List surface thread state. |
 | `shrimpy surface show <surface> <thread-id>` | Show one surface thread state entry. |
-| `shrimpy surface set-agent <surface> <thread-id> <agent>` | Set addressed agent for a surface thread. |
+| `shrimpy surface set-agent <surface> <thread-id> <agent>` | Set addressed agent for a surface thread, joining the agent to the resolved channel when needed. |
 | `shrimpy surface clear-agent <surface> <thread-id>` | Clear addressed agent. |
+| `shrimpy surface activity <channel> [--kind typing] [--duration seconds]` | Trigger a short surface activity signal for manual checks. |
 
 ## Agents, Skills, Context
 
@@ -113,6 +114,7 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy skills new <id> [--agent <id>\|--workspace] [--description <text>] [--force]` | Scaffold a local workspace or agent-authored skill bundle. |
 | `shrimpy skills validate [id] [--agent <id>] [--json]` | Validate skill frontmatter, Pi loading, path layout, shadowing, tool compatibility, and large effective skill sets. |
 | `shrimpy users list` | List identity links and the resolved owner. |
+| `shrimpy users presence` | List each known user's last active chat surface channel. |
 | `shrimpy users get-owner` | Print the resolved owner identity. |
 | `shrimpy users set-owner <userId>` | Set the workspace owner; CLI publishing routes through the owner's actorId when set. |
 

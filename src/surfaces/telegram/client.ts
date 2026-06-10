@@ -406,6 +406,20 @@ export class TelegramBotApiClient {
     }
   }
 
+  async sendChatAction(
+    chatId: number,
+    action: "typing",
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const resp = await this.api("sendChatAction", {
+      chat_id: chatId,
+      action,
+    }, signal);
+    if (!resp.ok) {
+      throw new TelegramApiError("sendChatAction", resp);
+    }
+  }
+
   async getUpdates(
     offset: number,
     timeout: number,

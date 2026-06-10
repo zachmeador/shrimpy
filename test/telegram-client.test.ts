@@ -64,4 +64,25 @@ describe("TelegramBotApiClient", () => {
     );
     assert.equal(calls, 2);
   });
+
+  test("sendChatAction posts typing activity", async () => {
+    let requestUrl = "";
+    let requestBody = "";
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl = String(input);
+      requestBody = String(init?.body ?? "");
+      return new Response(JSON.stringify({ ok: true, result: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const client = new TelegramBotApiClient({ token: "123:test" });
+    await client.sendChatAction(42, "typing");
+
+    assert.match(requestUrl, /\/sendChatAction$/);
+    assert.match(requestBody, /"chat_id":42/);
+    assert.match(requestBody, /"action":"typing"/);
+  });
 });

@@ -1,7 +1,10 @@
 import { join } from "node:path";
 import type { AppRuntime } from "../../app/runtime.js";
 import type { ChannelBus } from "../../channels/bus.js";
-import type { EgressRegistry } from "../../channels/egress.js";
+import type {
+  ChannelActivityHandle,
+  EgressRegistry,
+} from "../../channels/egress.js";
 import type { AdapterRouteConfigEntry } from "../../config/adapter-routing.js";
 import type { IdentityStore } from "../../gateway/identity-store.js";
 import {
@@ -10,8 +13,10 @@ import {
 } from "../../util/json-file.js";
 import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
 import type { GatewaySurface, SurfaceEgress } from "../shared/types.js";
+import { UserPresenceStore } from "../shared/user-presence.js";
 import { TelegramChannelBridge } from "./bridge.js";
 import {
+  TelegramApiError,
   TelegramBotApiClient,
   type TelegramUpdate,
 } from "./client.js";
@@ -52,7 +57,7 @@ class TelegramSurfaceEgress implements SurfaceEgress {
 
 export function registerTelegramRoute(
   registry: EgressRegistry,
-  telegram: Pick<TelegramBotApiClient, "sendMessage">,
+  telegram: Pick<TelegramBotApiClient, "sendMessage" | "sendChatAction">,
   channelPrefix: string,
 ): void {
   registry.register(channelPrefix, async (delivery) => {
@@ -64,6 +69,57 @@ export function registerTelegramRoute(
     }
     await sendTelegramPublicationText(telegram, chatId, text, publication);
   });
+  registry.registerActivity(channelPrefix, async (activity) => {
+    if (activity.kind !== "typing") return null;
+    const chatId = parseInt(activity.channel.slice(channelPrefix.length), 10);
+    if (isNaN(chatId)) {
+      console.error(`[telegram] invalid chat ID from channel: ${activity.channel}`);
+      return null;
+    }
+    return startTelegramTypingActivity(telegram, chatId);
+  });
+}
+
+function startTelegramTypingActivity(
+  telegram: Pick<TelegramBotApiClient, "sendChatAction">,
+  chatId: number,
+): ChannelActivityHandle {
+  let stopped = false;
+  let timer: NodeJS.Timeout | undefined;
+
+  const stopTimer = () => {
+    if (!timer) return;
+    clearInterval(timer);
+    timer = undefined;
+  };
+
+  const send = async () => {
+    if (stopped) return;
+    try {
+      await telegram.sendChatAction(chatId, "typing");
+    } catch (err) {
+      if (
+        err instanceof TelegramApiError &&
+        (err.errorCode === 401 || err.errorCode === 403)
+      ) {
+        stopped = true;
+        stopTimer();
+      }
+      console.error("[telegram] failed to send typing activity:", err);
+    }
+  };
+
+  void send();
+  timer = setInterval(() => {
+    void send();
+  }, 4000);
+
+  return {
+    stop() {
+      stopped = true;
+      stopTimer();
+    },
+  };
 }
 
 class TelegramGatewaySurface
@@ -110,6 +166,8 @@ class TelegramGatewaySurface
         defaultAgentId: instance.defaultAgentId,
         knownAgentIds: runtime.resolved.agents.map((agent) => agent.id),
         threadStateStore: surfaceThreadStateStore,
+        channelMemberships: runtime.createChannelMembershipStore(),
+        userPresenceStore: new UserPresenceStore(runtime.paths.userPresencePath),
         allowedChatIds: instance.allowedChatIds,
         users: instance.users,
         textBurstWindowMs: instance.textBurstWindowMs,

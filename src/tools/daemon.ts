@@ -32,6 +32,7 @@ import {
   type DaemonToolName,
 } from "./names.js";
 import type { SessionToolPolicy } from "./policy.js";
+import { resolveUserChannelAlias } from "../surfaces/shared/user-presence.js";
 
 const SendMessageParams = Type.Object({
   channel: Type.String({
@@ -157,6 +158,7 @@ interface DaemonToolDeps {
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
   activePublicationChannel?: string;
+  userPresencePath?: string;
 }
 
 export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
@@ -170,6 +172,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     toolNames,
     toolPolicy,
     activePublicationChannel,
+    userPresencePath,
   } = deps;
   const toolConfig = rawToolConfig ?? resolveToolRuntimeConfig();
   const resolvedSendMessageActorId =
@@ -328,8 +331,9 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
     },
     async execute(_toolCallId, params) {
+      const resolvedChannel = resolveUserChannelAlias(userPresencePath, params.channel);
       const delivered = await channelBus.sendAgentText({
-        channel: params.channel,
+        channel: resolvedChannel,
         text: params.text,
         actorId: resolvedSendMessageActorId,
       });
@@ -338,7 +342,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
         content: [{
           type: "text" as const,
           text: renderSendMessageResult({
-            channel: params.channel,
+            channel: resolvedChannel,
             delivered,
             waitForNewMessage: Boolean(activePublicationChannel),
           }),

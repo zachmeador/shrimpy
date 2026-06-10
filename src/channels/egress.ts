@@ -8,7 +8,17 @@ export interface ChannelDelivery {
   publication?: PublicationIntent;
 }
 
+export interface ChannelActivity {
+  channel: string;
+  kind: "typing";
+}
+
+export interface ChannelActivityHandle {
+  stop(): void | Promise<void>;
+}
+
 type EgressSendFn = (delivery: ChannelDelivery) => Promise<void>;
+type EgressActivityFn = (activity: ChannelActivity) => Promise<ChannelActivityHandle | null>;
 
 /**
  * Channel-prefix → outbound send function. Surfaces register a route
@@ -17,9 +27,14 @@ type EgressSendFn = (delivery: ChannelDelivery) => Promise<void>;
  */
 export class EgressRegistry {
   private routes = new Map<string, EgressSendFn>();
+  private activityRoutes = new Map<string, EgressActivityFn>();
 
   register(prefix: string, send: EgressSendFn): void {
     this.routes.set(prefix, send);
+  }
+
+  registerActivity(prefix: string, start: EgressActivityFn): void {
+    this.activityRoutes.set(prefix, start);
   }
 
   async send(delivery: ChannelDelivery): Promise<boolean> {
@@ -31,11 +46,23 @@ export class EgressRegistry {
     }
     return false;
   }
+
+  async startActivity(
+    activity: ChannelActivity,
+  ): Promise<ChannelActivityHandle | null> {
+    for (const [prefix, start] of this.activityRoutes) {
+      if (activity.channel.startsWith(prefix)) {
+        return start(activity);
+      }
+    }
+    return null;
+  }
 }
 
 export interface ChannelEgress {
   deliver(delivery: ChannelDelivery): Promise<boolean>;
   deliverText(channel: string, text: string): Promise<boolean>;
+  startActivity(activity: ChannelActivity): Promise<ChannelActivityHandle | null>;
 }
 
 export class EgressRegistryChannelEgress implements ChannelEgress {
@@ -48,5 +75,12 @@ export class EgressRegistryChannelEgress implements ChannelEgress {
 
   async deliverText(channel: string, text: string): Promise<boolean> {
     return this.deliver({ channel, text });
+  }
+
+  async startActivity(
+    activity: ChannelActivity,
+  ): Promise<ChannelActivityHandle | null> {
+    if (!this.registry) return null;
+    return this.registry.startActivity(activity);
   }
 }

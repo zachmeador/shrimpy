@@ -1,6 +1,7 @@
 import type { AppRuntime } from "../app/index.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { IdentityStore } from "../gateway/identity-store.js";
+import { resolveUserChannelAlias } from "../surfaces/shared/user-presence.js";
 import { renderCommandUsage } from "./catalog.js";
 import {
   parseCommandArgs,
@@ -36,8 +37,9 @@ export async function cmdChannelsPost(
   }
 
   const owner = new IdentityStore(runtime.paths.usersPath).getOwnerIdentity();
+  const resolvedChannel = resolveUserChannelAlias(runtime.paths.userPresencePath, name);
   const message = channelBus.publishHumanText({
-    channel: name,
+    channel: resolvedChannel,
     text,
     actorId: owner?.actorId ?? "human:user:cli",
     userId: owner?.userId ?? "user:cli",
@@ -47,12 +49,12 @@ export async function cmdChannelsPost(
   });
 
   if (json) {
-    console.log(JSON.stringify({ channel: name, message }, null, 2));
+    console.log(JSON.stringify({ channel: resolvedChannel, requestedChannel: name, message }, null, 2));
     return 0;
   }
 
   console.log(
-    `posted to ${name}${values.agent ? ` addressed_agent=${values.agent}` : ""}`,
+    `posted to ${resolvedChannel}${name !== resolvedChannel ? ` (${name})` : ""}${values.agent ? ` addressed_agent=${values.agent}` : ""}`,
   );
   return 0;
 }

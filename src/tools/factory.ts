@@ -15,6 +15,7 @@ interface BuildRuntimeToolsOpts {
   toolPolicy?: SessionToolPolicy;
   actorId?: string;
   activePublicationChannel?: string;
+  userPresencePath?: string;
 }
 
 export function buildRuntimeTools(
@@ -27,6 +28,7 @@ export function buildRuntimeTools(
     agentId: opts.agentId,
     sendMessageActorId: opts.actorId,
     activePublicationChannel: opts.activePublicationChannel,
+    userPresencePath: opts.userPresencePath,
     toolNames: opts.toolNames,
     toolPolicy: opts.toolPolicy,
   });

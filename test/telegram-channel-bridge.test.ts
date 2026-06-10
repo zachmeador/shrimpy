@@ -6,8 +6,10 @@ import { tmpdir } from "node:os";
 import { TelegramChannelBridge } from "../dist/surfaces/telegram/bridge.js";
 import { formatChannelMessage } from "../dist/context/index.js";
 import { ChannelBus } from "../dist/channels/bus.js";
+import { ChannelMembershipStore } from "../dist/channels/membership.js";
 import { IdentityStore } from "../dist/gateway/identity-store.js";
 import { SurfaceThreadStateStore } from "../dist/surfaces/shared/thread-state-store.js";
+import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
 
 let testDir: string;
 
@@ -23,6 +25,8 @@ function createBridge(overrides?: {
   defaultAgentId?: string;
   knownAgentIds?: string[];
   threadStateStore?: SurfaceThreadStateStore;
+  channelMemberships?: ChannelMembershipStore;
+  userPresenceStore?: UserPresenceStore;
   sent?: Array<{ chatId: number; text: string; parseMode?: string }>;
   textBurstWindowMs?: number;
   mediaGroupWindowMs?: number;
@@ -47,6 +51,8 @@ function createBridge(overrides?: {
       threadStateStore:
         overrides?.threadStateStore
         ?? new SurfaceThreadStateStore(join(testDir, "surface-state.json")),
+      channelMemberships: overrides?.channelMemberships,
+      userPresenceStore: overrides?.userPresenceStore,
       users: overrides?.users,
       textBurstWindowMs: overrides?.textBurstWindowMs,
       mediaGroupWindowMs: overrides?.mediaGroupWindowMs,
@@ -159,9 +165,96 @@ describe("TelegramChannelBridge", () => {
     }]);
 
     const { messages } = channelBus.read("telegram~main~4242");
+    assert.equal(messages.length, 2);
+    assert.deepEqual(messages[0].content, {
+      type: "system",
+      data: {
+        kind: "surface_addressing",
+        surface: "telegram.main",
+        threadId: "4242",
+        previousAgentId: "shrimpy",
+        addressedAgentId: "career",
+        joinedAgentId: null,
+        source: "chat",
+      },
+    });
+    assert.equal(messages[1].content.type, "text");
+    assert.equal(messages[1].origin.addressedAgentId, "career");
+  });
+
+  test("/agent joins the selected agent to the Telegram channel", async () => {
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "channels.json"),
+      [{ id: "shrimpy" }, { id: "career" }] as any,
+    );
+    memberships.write({
+      channels: {
+        "telegram~main~4242": {
+          agents: {
+            shrimpy: {},
+          },
+        },
+      },
+    });
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const { bridge, channelBus } = createBridge({ channelMemberships: memberships, sent });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/agent career",
+      },
+    });
+
+    assert.deepEqual(memberships.listAgentIds("telegram~main~4242"), [
+      "career",
+      "shrimpy",
+    ]);
+    assert.deepEqual(sent, [{
+      chatId: 4242,
+      text: "Switched this chat to <code>career</code> and joined it to the channel.",
+      parseMode: "HTML",
+    }]);
+    const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
-    assert.equal(messages[0].content.type, "text");
-    assert.equal(messages[0].origin.addressedAgentId, "career");
+    assert.equal(messages[0].content.type, "system");
+    assert.equal((messages[0].content.data as any).joinedAgentId, "career");
+  });
+
+  test("records user presence for inbound Telegram chats", async () => {
+    const presenceStore = new UserPresenceStore(join(testDir, "presence.json"));
+    const { bridge } = createBridge({
+      userPresenceStore: presenceStore,
+      users: {
+        "7": {
+          userId: "alice",
+          actorId: "human:alice",
+          displayName: "Alice",
+        },
+      },
+    });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "hello",
+      },
+    });
+    await bridge.flushPending();
+
+    const entry = presenceStore.get("alice");
+    assert.equal(entry?.channel, "telegram~main~4242");
+    assert.equal(entry?.surface, "telegram.main");
+    assert.equal(entry?.transport, "telegram");
+    assert.equal(entry?.transportChatId, "4242");
   });
 
   test("/new resets the currently addressed agent for that chat", async () => {

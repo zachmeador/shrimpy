@@ -16,6 +16,7 @@ agents/                         per-agent workspaces
 state/pi/auth.json              provider credentials
 state/pi/models.json            model registry
 state/users.json                identity links (transport→userId) + workspace owner
+state/user-presence.json        last active surface channel per known user
 state/watch-clock.json            persisted watch next-run timestamps
 state/telegram/                 Telegram polling offsets
 runtime/cursors/channels.json   gateway channel cursors
@@ -89,6 +90,7 @@ Durable machine state lives under `state/`. Disposable runtime state lives under
 - Channel logs are append-only JSONL files under `channels/`. See [channels.md](channels.md).
 - Agent memory is plain Markdown under `agents/<id>/context/`; agents update it through normal file edits during upkeep watch turns. See [memory.md](memory.md).
 - Identity links live in `state/users.json`. The optional `owner` field names the canonical workspace user; CLI publishing routes through that identity when set. Manage with `shrimpy users list|get-owner|set-owner`.
+- User presence lives in `state/user-presence.json` and records each known user's last active chat surface channel. Inspect with `shrimpy users presence`; `send_message(channel="user:<id>", ...)` and `shrimpy channels post user:<id> ...` resolve through it.
 - Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries. See [sessions.md](sessions.md).
 - Gateway logs live at `runtime/logs/gateway.log`, readable through `shrimpy gateway logs`.
 - Surface cursors, generated turn-context state, and watch run history live under `runtime/`. Watch next-run state lives under `state/watch-clock.json`.

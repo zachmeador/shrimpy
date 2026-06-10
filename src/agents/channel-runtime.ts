@@ -110,6 +110,8 @@ export class AgentChannelRuntime {
       markMessageHandled: (channel, message) =>
         Promise.resolve(markChannelSeen(opts.runtime, this.agent.id, channel, message.id))
           .then(() => opts.markMessageHandled?.(this.agent.id, channel, message)),
+      startActivity: (channel) =>
+        this.channelBus.startActivity({ channel, kind: "typing" }),
       onLaneStateChange: opts.onLaneStateChange,
     });
   }

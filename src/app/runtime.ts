@@ -189,6 +189,7 @@ export class AppRuntime {
       toolPolicy: opts.toolPolicy,
       actorId: opts.actorId,
       activePublicationChannel: opts.activePublicationChannel,
+      userPresencePath: this.paths.userPresencePath,
     });
   }
 

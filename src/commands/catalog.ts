@@ -136,6 +136,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["surface", "show"], "<surface> <thread-id>", "Show one surface thread state entry.", "Channels And Surfaces"),
   entry(["surface", "set-agent"], "<surface> <thread-id> <agent-id> [--json]", "Set addressed agent for a surface thread.", "Channels And Surfaces", [jsonOption]),
   entry(["surface", "clear-agent"], "<surface> <thread-id> [--json]", "Clear addressed agent for a surface thread.", "Channels And Surfaces", [jsonOption]),
+  entry(["surface", "activity"], "<channel> [--kind typing] [--duration seconds] [--json]", "Send a short surface activity signal for a channel.", "Channels And Surfaces", [{ name: "--kind", takesValue: true }, { name: "--duration", takesValue: true }, jsonOption]),
 
   entry(["agent", "list"], "[--json]", "List configured agents.", "Agents, Skills, Users", [jsonOption]),
   entry(["agent", "show"], "<id>", "Show resolved agent config and paths.", "Agents, Skills, Users"),
@@ -157,6 +158,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["skills", "new"], "<id> [--agent <id>|--workspace] [--description <text>] [--force]", "Scaffold a local workspace or agent-authored skill bundle.", "Agents, Skills, Users", [agentOption, { name: "--workspace" }, { name: "--description", short: "-d", takesValue: true }, { name: "--force" }]),
   entry(["skills", "validate"], "[id] [--agent <id>] [--json]", "Validate skill metadata, layout, loading, shadowing, and tool compatibility.", "Agents, Skills, Users", [agentOption, jsonOption]),
   entry(["users", "list"], "[--json]", "List identity links and resolved owner.", "Agents, Skills, Users", [jsonOption]),
+  entry(["users", "presence"], "[--json]", "List each known user's last active chat surface channel.", "Agents, Skills, Users", [jsonOption]),
   entry(["users", "get-owner"], "[--json]", "Print the resolved owner identity.", "Agents, Skills, Users", [jsonOption]),
   entry(["users", "set-owner"], "<userId>", "Set the workspace owner.", "Agents, Skills, Users"),
 

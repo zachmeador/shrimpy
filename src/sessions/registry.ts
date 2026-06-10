@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ChannelActivityHandle } from "../channels/egress.js";
 import type { ChannelMessage } from "../channels/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import {
@@ -72,6 +73,9 @@ interface SessionRegistryOpts {
     channel: string,
     message: ChannelMessage,
   ) => void | Promise<void>;
+  startActivity?: (
+    channel: string,
+  ) => ChannelActivityHandle | null | Promise<ChannelActivityHandle | null>;
   onLaneStateChange?: (state: GatewayLaneState) => void;
 }
 
@@ -90,6 +94,9 @@ export class SessionRegistry {
     channel: string,
     message: ChannelMessage,
   ) => void | Promise<void>;
+  private readonly startActivity?: (
+    channel: string,
+  ) => ChannelActivityHandle | null | Promise<ChannelActivityHandle | null>;
   private readonly onLaneStateChange?: (state: GatewayLaneState) => void;
 
   constructor(
@@ -109,6 +116,7 @@ export class SessionRegistry {
     this.tools = opts?.tools ?? [];
     this.turnContextForMessage = opts?.turnContextForMessage;
     this.markMessageHandled = opts?.markMessageHandled;
+    this.startActivity = opts?.startActivity;
     this.onLaneStateChange = opts?.onLaneStateChange;
   }
 
@@ -305,8 +313,10 @@ export class SessionRegistry {
     managed.pendingTurnContext = turnContextText
       ? { prompt: promptBody, text: turnContextText }
       : undefined;
+    let activity: ChannelActivityHandle | null = null;
 
     try {
+      activity = await startActivity(this.startActivity, channel);
       await runSessionTurn(session, promptBody, {
         signal: controller.signal,
         abortMessage: "session turn stopped by user",
@@ -326,6 +336,7 @@ export class SessionRegistry {
         console.error(`[session:${managed.channel}] turn error:`, err);
       }
     } finally {
+      await stopActivity(activity, managed.channel);
       managed.pendingTurnContext = undefined;
       if (managed.runningTurn?.messageId === message.id) {
         managed.runningTurn = undefined;
@@ -483,4 +494,32 @@ export class SessionRegistry {
 function formatError(err: unknown): string {
   if (err instanceof Error && err.message.trim()) return err.message.trim();
   return String(err);
+}
+
+async function startActivity(
+  start:
+    | ((channel: string) =>
+      ChannelActivityHandle | null | Promise<ChannelActivityHandle | null>)
+    | undefined,
+  channel: string,
+): Promise<ChannelActivityHandle | null> {
+  if (!start) return null;
+  try {
+    return await start(channel);
+  } catch (err) {
+    console.error(`[session:${channel}] activity start error:`, err);
+    return null;
+  }
+}
+
+async function stopActivity(
+  activity: ChannelActivityHandle | null,
+  channel: string,
+): Promise<void> {
+  if (!activity) return;
+  try {
+    await activity.stop();
+  } catch (err) {
+    console.error(`[session:${channel}] activity stop error:`, err);
+  }
 }

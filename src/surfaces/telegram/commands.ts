@@ -11,6 +11,11 @@ import {
   formatThinkingInputs,
   parseThinkingLevel,
 } from "../../inference/thinking.js";
+import type { ChannelMembershipStore } from "../../channels/index.js";
+import {
+  ensureSurfaceChannelMember,
+  publishSurfaceAddressingChange,
+} from "../shared/addressing.js";
 import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
 
 export interface TelegramMenuCommand {
@@ -24,6 +29,7 @@ export interface TelegramCommandDeps {
   defaultAgentId: string;
   knownAgentIds: string[];
   threadStateStore: SurfaceThreadStateStore;
+  memberships?: ChannelMembershipStore;
   sendText(chatId: number, text: string): Promise<void>;
 }
 
@@ -261,14 +267,31 @@ export async function handleTelegramCommand(
         return true;
       }
 
+      const previousAgentId = resolveCurrentAgentId(deps, ctx.chatId);
+      const joined = ensureSurfaceChannelMember({
+        memberships: deps.memberships,
+        channel: ctx.channel,
+        agentId: requested,
+      });
       deps.threadStateStore.setAddressedAgent(
         deps.surfaceId,
         String(ctx.chatId),
         requested,
       );
+      publishSurfaceAddressingChange(deps.channelBus, {
+        surface: deps.surfaceId,
+        threadId: String(ctx.chatId),
+        channel: ctx.channel,
+        previousAgentId,
+        addressedAgentId: requested,
+        joinedAgentId: joined ? requested : undefined,
+        source: "chat",
+      });
       await deps.sendText(
         ctx.chatId,
-        `Switched this chat to \`${requested}\`.`,
+        joined
+          ? `Switched this chat to \`${requested}\` and joined it to the channel.`
+          : `Switched this chat to \`${requested}\`.`,
       );
       return true;
     }

@@ -1,4 +1,5 @@
 import type { ChannelMessage, MessageSenderKind } from "../channels/index.js";
+import { isSurfaceAddressingStatus } from "../surfaces/shared/addressing.js";
 import {
   resolveAgentChannelPolicyForChannel,
   type AgentChannelPolicyRule,
@@ -56,6 +57,18 @@ export function evaluateAgentChannelPolicy(
       action: "ignore",
       reason: "self-authored channel message",
       runtimeGuard: "self-authored agent messages are not re-offered to the same agent",
+    };
+  }
+
+  if (
+    message.content.type === "system" &&
+    isSurfaceAddressingStatus(message.content.data)
+  ) {
+    return {
+      ...base,
+      action: "ignore",
+      reason: "surface addressing status is informational",
+      runtimeGuard: "surface addressing status messages do not wake agents",
     };
   }
 

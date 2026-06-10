@@ -15,7 +15,7 @@ This supports a one-visible-account pattern:
 - plain follow-up messages carry that addressed-agent metadata
 - channel membership stays stable
 
-`shrimpy surface` inspects and edits addressed-agent state.
+`shrimpy surface` inspects and edits addressed-agent state. Switching a surface thread to an agent joins that agent to the resolved surface channel when needed, and writes a `surface_addressing` system entry into the channel log. The status entry is informational; it does not wake agents by itself.
 
 ## Surface verticals
 
@@ -37,6 +37,10 @@ A new surface is a `surfaces/<name>/` folder appended to the array in `src/surfa
 ## Telegram
 
 Telegram is the implemented surface; see `src/surfaces/telegram/`. Offsets live in `workspace/state/telegram/`. Downloaded media lives in `workspace/media/`. Routes default from configured `telegram.instances`. Telegram channel names are transport-thread channels in the form `telegram~<instance-id>~<chat-id>`; create normal semantic channels for internal work, and use `shrimpy setup telegram` plus `shrimpy surface set-agent` for Telegram routing instead of inventing adapter-shaped channel names. Commands cover session reset/restore/stop, thinking changes, help, and addressed-agent switching.
+
+Telegram sends best-effort native typing activity while an accepted gateway turn is running. Activity is ephemeral surface state: it is not appended to channel logs, and ignored messages or surface commands do not emit it. `shrimpy surface activity <channel> --kind typing --duration <seconds>` can trigger a short activity window for manual checks.
+
+Inbound Telegram messages from known users update `state/user-presence.json` with that user's last active surface channel. `send_message(channel="user:<id>", text="...")` and `shrimpy channels post user:<id> ...` resolve the alias to the concrete last-active surface channel at send time.
 
 ## Delivery
 

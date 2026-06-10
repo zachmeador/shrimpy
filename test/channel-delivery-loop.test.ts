@@ -272,6 +272,33 @@ describe("agent channel policy", () => {
     );
   });
 
+  test("ignores surface addressing status messages", () => {
+    const decision = evaluateAgentChannelPolicy(agent("career"), "telegram~main~4242", {
+      id: "surface-addressing-1",
+      sender: { kind: "system", actorId: "system:surface" },
+      origin: { transport: "chat" },
+      content: {
+        type: "system",
+        data: {
+          kind: "surface_addressing",
+          surface: "telegram.main",
+          threadId: "4242",
+          previousAgentId: "shrimpy",
+          addressedAgentId: "career",
+          joinedAgentId: "career",
+          source: "chat",
+        },
+      },
+      timestamp: Date.now(),
+    }, { visible: true });
+
+    assert.equal(decision.action, "ignore");
+    assert.equal(
+      decision.runtimeGuard,
+      "surface addressing status messages do not wake agents",
+    );
+  });
+
   test("lets all-mode channel members handle unaddressed messages", () => {
     assert.equal(
       shouldAgentWakeForChannelMessage(agent("career"), "home", {

@@ -1,6 +1,6 @@
 # 🦐 SURFACE-007: User Reachability Over The Last Active Chat Surface
 
-Status: todo
+Status: review
 Priority: P2
 Area: Surfaces
 Depends On: none
@@ -37,3 +37,7 @@ Resolution happens at the post seam (tool execution / CLI), not inside the chann
 - `shrimpy users presence` shows each known user's last-active surface channel and age.
 - Posting to an unknown/never-seen user fails with a clear, actionable error.
 - No new tool is required unless transcript evidence shows the alias confusing agents.
+
+## Review Notes
+- Telegram inbound handling records the last active channel for each resolved stable `userId` in `state/user-presence.json`.
+- `send_message(channel="user:<id>", ...)` and `shrimpy channels post user:<id> ...` resolve the alias at the post seam, then log to the concrete channel.
