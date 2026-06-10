@@ -24,16 +24,10 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CHAN-002](chan-002-message-kind-discriminants.md) | todo | P1 | Channels | none | Message kind discriminants in the channel protocol |
 | [CHAN-003](chan-003-channel-name-validation.md) | todo | P1 | Channels | none | Channel name validation at boundaries |
 | [CHAN-004](chan-004-channel-manifests-bindings.md) | todo | P2 | Channels | [CHAN-003](chan-003-channel-name-validation.md) | Channel manifests and transport bindings |
-| [SESSION-001](session-001-unified-session-planner.md) | review | P2 | Sessions | none | Unified session planner and turn-as-value dispatch |
-| [GATEWAY-001](gateway-001-dispatch-hardening.md) | review | P2 | Gateway | none | Dispatch hardening: dedupe, ordering, loop guard |
-| [GATEWAY-002](gateway-002-turn-control-and-queue-visibility.md) | review | P2 | Gateway | none | Turn stop control and queue visibility |
-| [SURFACE-001](surface-001-telegram-typing-activity.md) | review | P2 | Surfaces | none | Telegram typing activity |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | [CHAN-001](chan-001-typed-egress-outbox.md) | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | [CHAN-001](chan-001-typed-egress-outbox.md), [CHAN-002](chan-002-message-kind-discriminants.md) | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
 | [SURFACE-006](surface-006-chat-command-parity.md) | todo | P2 | Surfaces | [CHAN-001](chan-001-typed-egress-outbox.md) | Chat command parity |
-| [SURFACE-007](surface-007-user-reachability.md) | review | P2 | Surfaces | none | User reachability over last active chat surface |
-| [SURFACE-008](surface-008-addressed-agent-switch-semantics.md) | review | P1 | Surfaces | none | Addressed-agent switch semantics |
 
 ## Later
 

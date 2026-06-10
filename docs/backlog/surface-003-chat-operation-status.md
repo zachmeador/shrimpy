@@ -34,7 +34,7 @@ This should grow into a general operations status mechanism for chat surfaces, n
 ## Shape
 Operation statuses are typed status messages ([CHAN-002](chan-002-message-kind-discriminants.md)) posted to the channel and delivered through the [CHAN-001](chan-001-typed-egress-outbox.md) outbox like any other typed message; each chat adapter decides how to display them. This item owns which lifecycle events become statuses and how adapters render them, not the delivery path.
 
-This should share the same surface-boundary shape as [SURFACE-001](surface-001-telegram-typing-activity.md), but not the same semantics: activity is ephemeral and refreshed while work is running; operation status is a visible one-shot update for user-relevant lifecycle events.
+This should share the same surface-boundary shape as existing surface activity support, but not the same semantics: activity is ephemeral and refreshed while work is running; operation status is a visible one-shot update for user-relevant lifecycle events.
 
 For compaction, Pi already emits `compaction_start` and `compaction_end` events on the session. Shrimpy should bridge those events for gateway sessions that have an attached channel. Telegram can format these as short system-ish bot messages such as:
 
@@ -51,7 +51,7 @@ Exact wording should be adapter-neutral in shared code and adapter-specific at t
 - Keep this parallel to, but distinct from, the ephemeral surface activity route used for typing.
 - Statuses are always logged as typed status messages in the channel (the CHAN-001 invariant), never as fake agent replies and never as unlogged side-channel text.
 - Add Telegram formatting in `src/surfaces/telegram/surface.ts` or a nearby outbound helper.
-- Consider dependencies and overlap with [SURFACE-001](surface-001-telegram-typing-activity.md): typing is ephemeral while a turn is running; operation status is a visible chat update for important lifecycle events.
+- Consider dependencies and overlap with existing typing activity support: typing is ephemeral while a turn is running; operation status is a visible chat update for important lifecycle events.
 - Add tests for compaction start/end dispatch, Telegram formatting, disabled status policy, and no status emission for direct local sessions.
 
 ## Done

@@ -49,7 +49,7 @@ Prefer a proven Discord gateway library for the first implementation unless bund
 - Keep outbound `allowed_mentions` closed by default so model output cannot ping roles, `@everyone`, or arbitrary users.
 - For the first pass, text DMs are enough. Attachments can publish `unsupported_media` with filename/type metadata, then images/documents can be promoted in a later item.
 - Discord message content is available in DMs with the app even without broad guild message-content access, but this adapter should avoid guild paths entirely.
-- If the channel suffix uses Discord's DM channel id, support only conversations that have been initiated or observed. A later proactive `user:<id>` resolver can use Discord's Create DM endpoint when there is a user action and a clear product need; the transport-neutral half of that is [SURFACE-007](surface-007-user-reachability.md).
+- If the channel suffix uses Discord's DM channel id, support only conversations that have been initiated or observed. A later proactive Discord-side resolver can use Discord's Create DM endpoint when there is a user action and a clear product need; Shrimpy's transport-neutral `user:<id>` alias already resolves through last active chat-surface presence.
 - Hermes is useful for practical filters: ignore self/bots, enforce allowlists before processing, suppress risky mentions, batch split text, and cache attachment media at the edge.
 - OpenClaw is useful for policy shape: direct-message policy before channel publication, group-DM disabled by default, user-id based conversation identity, and high coverage around unauthorized senders.
 
