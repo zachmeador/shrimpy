@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Surfaces
-Depends On: [CHAN-001](chan-001-typed-egress-outbox.md)
+Depends On: none
 
 ## Why
 Chat surfaces should expose roughly the same useful inspection and control affordances as the Shrimpy TUI where the workflow makes sense. Today the TUI `/status` command has rich sections for workspace, gateway, watches, agents, channels, context, skills, model, and diagnostics, while Telegram `/status` only reports routing basics such as current agent, default agent, channel, chat id, and known agents.
@@ -40,7 +40,7 @@ The first implementation should make `/status` and `/status <section>` useful fr
 - Current TUI status sections live in `src/tui/shrimpy-command-surface.ts`.
 - Current Telegram commands live in `src/surfaces/telegram/commands.ts`; Telegram `/status` is intentionally small today and should be replaced by the shared sectioned status path.
 - Prefer extracting status collection/formatting from the TUI command surface instead of importing TUI components into chat code.
-- Keep relationship with [CHAN-001](chan-001-typed-egress-outbox.md): read-only command output remains typed surface-local output — not agent text, and not a logged channel message. State-changing commands act through logged control/status messages.
+- Keep relationship with the channel outbox contract: read-only command output remains typed surface-local output, not agent text, and not a logged channel message. State-changing commands act through logged control/status messages.
 - Tests should cover `/status`, section aliases or usage errors, Telegram formatting, message-size behavior, and parity with the shared status section registry.
 
 ## Done
