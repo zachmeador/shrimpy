@@ -30,6 +30,24 @@ export type SessionStopContentData = Record<string, unknown> & {
   command?: string;
 };
 
+export type SessionControlContentData =
+  | SessionResetContentData
+  | SessionRestoreContentData
+  | SessionThinkingLevelContentData
+  | SessionStopContentData;
+
+export type SurfaceAddressingStatusContentData = Record<string, unknown> & {
+  kind: "surface_addressing";
+  surface: string;
+  threadId: string;
+  previousAgentId: string | null;
+  addressedAgentId: string | null;
+  joinedAgentId: string | null;
+  source: "chat" | "cli";
+};
+
+export type StatusContentData = SurfaceAddressingStatusContentData;
+
 export interface TextMessageContent {
   type: "text";
   data: {
@@ -71,6 +89,20 @@ export interface SystemMessageContent<
   data: T;
 }
 
+export interface ControlMessageContent<
+  T extends SessionControlContentData = SessionControlContentData,
+> {
+  type: "control";
+  data: T;
+}
+
+export interface StatusMessageContent<
+  T extends StatusContentData = StatusContentData,
+> {
+  type: "status";
+  data: T;
+}
+
 export type UnsupportedMediaKind =
   | "document"
   | "voice"
@@ -105,6 +137,8 @@ export type MessageContent =
   | ImageMessageContent
   | ImageGroupMessageContent
   | UnsupportedMediaMessageContent
+  | ControlMessageContent
+  | StatusMessageContent
   | SystemMessageContent;
 
 export function textContent(
@@ -145,6 +179,24 @@ export function systemContent<T extends Record<string, unknown>>(
 ): SystemMessageContent<T> {
   return {
     type: "system",
+    data,
+  };
+}
+
+export function controlContent<T extends SessionControlContentData>(
+  data: T,
+): ControlMessageContent<T> {
+  return {
+    type: "control",
+    data,
+  };
+}
+
+export function statusContent<T extends StatusContentData>(
+  data: T,
+): StatusMessageContent<T> {
+  return {
+    type: "status",
     data,
   };
 }
@@ -235,6 +287,22 @@ export function isSystemMessageContent(
     && isRecord(value.data);
 }
 
+export function isControlMessageContent(
+  value: unknown,
+): value is ControlMessageContent {
+  return isRecord(value)
+    && value.type === "control"
+    && isSessionControlContentData(value.data);
+}
+
+export function isStatusMessageContent(
+  value: unknown,
+): value is StatusMessageContent {
+  return isRecord(value)
+    && value.type === "status"
+    && isStatusContentData(value.data);
+}
+
 export function isUnsupportedMediaMessageContent(
   value: unknown,
 ): value is UnsupportedMediaMessageContent {
@@ -297,11 +365,51 @@ function isSessionStopContentData(
     );
 }
 
+function isSessionControlContentData(
+  value: unknown,
+): value is SessionControlContentData {
+  return isSessionResetContentData(value)
+    || isSessionRestoreContentData(value)
+    || isSessionThinkingLevelContentData(value)
+    || isSessionStopContentData(value);
+}
+
+function isSurfaceAddressingStatusContentData(
+  value: unknown,
+): value is SurfaceAddressingStatusContentData {
+  return isRecord(value)
+    && value.kind === "surface_addressing"
+    && typeof value.surface === "string"
+    && typeof value.threadId === "string"
+    && (
+      value.previousAgentId === null
+      || typeof value.previousAgentId === "string"
+    )
+    && (
+      value.addressedAgentId === null
+      || typeof value.addressedAgentId === "string"
+    )
+    && (
+      value.joinedAgentId === null
+      || typeof value.joinedAgentId === "string"
+    )
+    && (
+      value.source === "chat"
+      || value.source === "cli"
+    );
+}
+
+function isStatusContentData(
+  value: unknown,
+): value is StatusContentData {
+  return isSurfaceAddressingStatusContentData(value);
+}
+
 export function sessionResetContent(
   targetAgentId: string,
   command?: string,
-): SystemMessageContent<SessionResetContentData> {
-  return systemContent({
+): ControlMessageContent<SessionResetContentData> {
+  return controlContent({
     kind: "session_reset",
     targetAgentId,
     ...(command ? { command } : {}),
@@ -312,8 +420,8 @@ export function sessionRestoreContent(
   targetAgentId: string,
   archiveName?: string,
   command?: string,
-): SystemMessageContent<SessionRestoreContentData> {
-  return systemContent({
+): ControlMessageContent<SessionRestoreContentData> {
+  return controlContent({
     kind: "session_restore",
     targetAgentId,
     ...(archiveName ? { archiveName } : {}),
@@ -325,8 +433,8 @@ export function sessionThinkingLevelContent(
   targetAgentId: string,
   level: ThinkingLevel,
   command?: string,
-): SystemMessageContent<SessionThinkingLevelContentData> {
-  return systemContent({
+): ControlMessageContent<SessionThinkingLevelContentData> {
+  return controlContent({
     kind: "session_thinking_level",
     targetAgentId,
     level,
@@ -337,39 +445,64 @@ export function sessionThinkingLevelContent(
 export function sessionStopContent(
   targetAgentId: string,
   command?: string,
-): SystemMessageContent<SessionStopContentData> {
-  return systemContent({
+): ControlMessageContent<SessionStopContentData> {
+  return controlContent({
     kind: "session_stop",
     targetAgentId,
     ...(command ? { command } : {}),
   } as SessionStopContentData);
 }
 
+export function surfaceAddressingStatusContent(input: {
+  surface: string;
+  threadId: string;
+  previousAgentId?: string | null;
+  addressedAgentId?: string | null;
+  joinedAgentId?: string | null;
+  source: "chat" | "cli";
+}): StatusMessageContent<SurfaceAddressingStatusContentData> {
+  return statusContent({
+    kind: "surface_addressing",
+    surface: input.surface,
+    threadId: input.threadId,
+    previousAgentId: input.previousAgentId ?? null,
+    addressedAgentId: input.addressedAgentId ?? null,
+    joinedAgentId: input.joinedAgentId ?? null,
+    source: input.source,
+  } as SurfaceAddressingStatusContentData);
+}
+
+export function readSessionControlContent(
+  value: MessageContent,
+): SessionControlContentData | null {
+  return isControlMessageContent(value) ? value.data : null;
+}
+
 export function readSessionResetContent(
   value: MessageContent,
 ): SessionResetContentData | null {
-  if (!isSystemMessageContent(value)) return null;
+  if (!isControlMessageContent(value)) return null;
   return isSessionResetContentData(value.data) ? value.data : null;
 }
 
 export function readSessionRestoreContent(
   value: MessageContent,
 ): SessionRestoreContentData | null {
-  if (!isSystemMessageContent(value)) return null;
+  if (!isControlMessageContent(value)) return null;
   return isSessionRestoreContentData(value.data) ? value.data : null;
 }
 
 export function readSessionThinkingLevelContent(
   value: MessageContent,
 ): SessionThinkingLevelContentData | null {
-  if (!isSystemMessageContent(value)) return null;
+  if (!isControlMessageContent(value)) return null;
   return isSessionThinkingLevelContentData(value.data) ? value.data : null;
 }
 
 export function readSessionStopContent(
   value: MessageContent,
 ): SessionStopContentData | null {
-  if (!isSystemMessageContent(value)) return null;
+  if (!isControlMessageContent(value)) return null;
   return isSessionStopContentData(value.data) ? value.data : null;
 }
 
@@ -378,5 +511,7 @@ export function isMessageContent(value: unknown): value is MessageContent {
     || isImageMessageContent(value)
     || isImageGroupMessageContent(value)
     || isUnsupportedMediaMessageContent(value)
+    || isControlMessageContent(value)
+    || isStatusMessageContent(value)
     || isSystemMessageContent(value);
 }

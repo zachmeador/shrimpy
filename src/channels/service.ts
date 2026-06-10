@@ -15,7 +15,8 @@ export const CHANNEL_MESSAGE_KINDS = [
   "user_text",
   "agent_text",
   "watch",
-  "worker",
+  "control",
+  "status",
   "system",
   "media",
   "text",
@@ -274,9 +275,10 @@ function summarizeChannelActivity(
   };
 }
 
-function classifyChannelMessage(message: ChannelMessage): ChannelMessageKind {
+export function classifyChannelMessage(message: ChannelMessage): ChannelMessageKind {
+  if (message.content.type === "control") return "control";
+  if (message.content.type === "status") return "status";
   if (isWatchMessage(message)) return "watch";
-  if (isWorkerMessage(message)) return "worker";
   if (message.sender.kind === "human" && message.content.type === "text") {
     return "user_text";
   }
@@ -304,28 +306,12 @@ function isWatchMessage(message: ChannelMessage): boolean {
     message.sender.actorId === "system:watch-runner";
 }
 
-function isWorkerMessage(message: ChannelMessage): boolean {
-  const origin = message.origin as ChannelMessage["origin"] & Record<string, unknown>;
-  const contentData = message.content.data as Record<string, unknown>;
-  return message.origin.transport === "worker" ||
-    origin.sourceKind === "worker" ||
-    typeof origin.workerId === "string" ||
-    message.sender.actorId.startsWith("worker:") ||
-    (
-      typeof contentData.kind === "string" &&
-      contentData.kind.startsWith("worker")
-    );
-}
-
 function sourceRecordId(
   message: ChannelMessage,
   kind: ChannelMessageKind,
 ): string | undefined {
   const origin = message.origin as ChannelMessage["origin"] & Record<string, unknown>;
   if (kind === "watch") return message.origin.watchId;
-  if (kind === "worker") {
-    return stringValue(origin.workerId) ?? stringValue(origin.sourceId);
-  }
   return stringValue(origin.sourceId);
 }
 
@@ -347,7 +333,6 @@ function inspectCommandsForMessage(
 
   const id = sourceRecordId(message, kind);
   if (kind === "watch" && id) return [`shrimpy watches show ${id}`];
-  if (kind === "worker" && id) return [`shrimpy worker status ${id}`];
   return [];
 }
 
@@ -409,8 +394,7 @@ function searchableText(message: ChannelMessageInspection): string {
 }
 
 function isRequestLikeMessage(message: ChannelMessageInspection): boolean {
-  return message.kind === "user_text" ||
-    message.kind === "worker";
+  return message.kind === "user_text";
 }
 
 function recentSourceRecords(
@@ -422,8 +406,7 @@ function recentSourceRecords(
 
   for (const message of [...messages].reverse()) {
     if (
-      message.kind !== "watch" &&
-      message.kind !== "worker"
+      message.kind !== "watch"
     ) continue;
     const id = message.sourceId;
     if (!id) continue;

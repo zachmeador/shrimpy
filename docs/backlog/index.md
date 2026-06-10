@@ -21,7 +21,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
 | [CHAN-001](chan-001-typed-egress-outbox.md) | todo | P1 | Channels | [CHAN-002](chan-002-message-kind-discriminants.md) | Typed egress outbox with delivery receipts |
-| [CHAN-002](chan-002-message-kind-discriminants.md) | todo | P1 | Channels | none | Message kind discriminants in the channel protocol |
+| [CHAN-002](chan-002-message-kind-discriminants.md) | review | P1 | Channels | none | Message kind discriminants in the channel protocol |
 | [CHAN-003](chan-003-channel-name-validation.md) | review | P1 | Channels | none | Channel name validation at boundaries |
 | [CHAN-004](chan-004-channel-manifests-bindings.md) | todo | P2 | Channels | [CHAN-003](chan-003-channel-name-validation.md) | Channel manifests and transport bindings |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | [CHAN-001](chan-001-typed-egress-outbox.md) | Chat delivery attribution |

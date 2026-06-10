@@ -61,7 +61,7 @@ export function evaluateAgentChannelPolicy(
   }
 
   if (
-    message.content.type === "system" &&
+    message.content.type === "status" &&
     isSurfaceAddressingStatus(message.content.data)
   ) {
     return {

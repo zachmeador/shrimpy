@@ -8,11 +8,13 @@ import {
   sessionRestoreContent,
   sessionStopContent,
   sessionThinkingLevelContent,
+  statusContent,
   systemContent,
   textContent,
   unsupportedMediaContent,
   type MessageContent,
   type PublicationIntent,
+  type StatusContentData,
   type UnsupportedSurfaceMessage,
 } from "./messages.js";
 
@@ -145,6 +147,21 @@ export interface PublishSystemInput {
   actorId: string;
   transport: string;
   data: Record<string, unknown>;
+  userId?: string;
+  displayName?: string;
+  sourceChannel?: string;
+  transportUserId?: string;
+  transportChatId?: string;
+  addressedAgentId?: string;
+  timestamp?: number;
+  id?: string;
+}
+
+export interface PublishStatusInput {
+  channel: string;
+  actorId: string;
+  transport: string;
+  data: StatusContentData;
   userId?: string;
   displayName?: string;
   sourceChannel?: string;
@@ -334,6 +351,28 @@ export function systemMessageInput(input: PublishSystemInput): PublishChannelMes
       addressedAgentId: input.addressedAgentId,
     },
     content: systemContent(input.data),
+    timestamp: input.timestamp,
+    id: input.id,
+  };
+}
+
+export function statusMessageInput(input: PublishStatusInput): PublishChannelMessageInput {
+  return {
+    channel: input.channel,
+    sender: {
+      kind: "system",
+      actorId: input.actorId,
+      userId: input.userId,
+      displayName: input.displayName,
+    },
+    origin: {
+      transport: input.transport,
+      sourceChannel: input.sourceChannel ?? input.channel,
+      transportUserId: input.transportUserId,
+      transportChatId: input.transportChatId,
+      addressedAgentId: input.addressedAgentId,
+    },
+    content: statusContent(input.data),
     timestamp: input.timestamp,
     id: input.id,
   };

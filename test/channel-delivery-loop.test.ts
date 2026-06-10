@@ -90,7 +90,7 @@ describe("shouldDispatchBacklogMessage", () => {
         sender: { kind: "system", actorId: "system:cli" },
         origin: { transport: "cli" },
         content: {
-          type: "system",
+          type: "control",
           data: {
             kind: "session_reset",
             targetAgentId: "shrimpy",
@@ -110,7 +110,7 @@ describe("shouldDispatchBacklogMessage", () => {
         sender: { kind: "system", actorId: "system:cli" },
         origin: { transport: "cli" },
         content: {
-          type: "system",
+          type: "control",
           data: {
             kind: "session_restore",
             targetAgentId: "shrimpy",
@@ -131,7 +131,7 @@ describe("shouldDispatchBacklogMessage", () => {
         sender: { kind: "system", actorId: "system:cli" },
         origin: { transport: "cli" },
         content: {
-          type: "system",
+          type: "control",
           data: {
             kind: "session_thinking_level",
             targetAgentId: "shrimpy",
@@ -152,7 +152,7 @@ describe("shouldDispatchBacklogMessage", () => {
         sender: { kind: "system", actorId: "system:cli" },
         origin: { transport: "cli" },
         content: {
-          type: "system",
+          type: "control",
           data: {
             kind: "session_stop",
             targetAgentId: "shrimpy",
@@ -278,7 +278,7 @@ describe("agent channel policy", () => {
       sender: { kind: "system", actorId: "system:surface" },
       origin: { transport: "chat" },
       content: {
-        type: "system",
+        type: "status",
         data: {
           kind: "surface_addressing",
           surface: "telegram.main",
@@ -1022,7 +1022,7 @@ describe("ChannelDeliveryLoop routing", () => {
       sender: { kind: "human", actorId: "human:alice" },
       origin: { transport: "telegram" },
       content: {
-        type: "system",
+        type: "control",
         data: {
           kind: "session_reset",
           targetAgentId: "career",
@@ -1113,7 +1113,7 @@ describe("ChannelDeliveryLoop routing", () => {
       sender: { kind: "human", actorId: "human:alice" },
       origin: { transport: "telegram" },
       content: {
-        type: "system",
+        type: "control",
         data: {
           kind: "session_restore",
           targetAgentId: "career",
@@ -1205,7 +1205,7 @@ describe("ChannelDeliveryLoop routing", () => {
       sender: { kind: "human", actorId: "human:alice" },
       origin: { transport: "telegram" },
       content: {
-        type: "system",
+        type: "control",
         data: {
           kind: "session_thinking_level",
           targetAgentId: "career",
@@ -1298,7 +1298,7 @@ describe("ChannelDeliveryLoop routing", () => {
       sender: { kind: "human", actorId: "human:alice" },
       origin: { transport: "telegram" },
       content: {
-        type: "system",
+        type: "control",
         data: {
           kind: "session_stop",
           targetAgentId: "career",

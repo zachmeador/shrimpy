@@ -15,6 +15,7 @@ import {
   type PublishHumanImageInput,
   type PublishHumanTextInput,
   type PublishHumanUnsupportedMediaInput,
+  type PublishStatusInput,
   type PublishSystemInput,
 } from "./protocol.js";
 import {
@@ -100,6 +101,10 @@ export class ChannelBus {
 
   publishSystem(input: PublishSystemInput): ChannelMessage {
     return this.publisher.publishSystem(input);
+  }
+
+  publishStatus(input: PublishStatusInput): ChannelMessage {
+    return this.publisher.publishStatus(input);
   }
 
   async deliverText(channel: string, text: string): Promise<boolean> {

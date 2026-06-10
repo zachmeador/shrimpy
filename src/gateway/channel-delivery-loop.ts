@@ -9,9 +9,9 @@ import {
   type ChannelMessage,
   type ChannelWatcher,
 } from "../channels/index.js";
+import { classifyChannelMessage } from "../channels/service.js";
 import {
   getSessionControlTargetAgentId,
-  isSessionControlMessage,
   SessionControlRuntime,
   type DispatchSource,
 } from "./session-control-runtime.js";
@@ -28,9 +28,7 @@ interface ChannelDeliveryLoopOpts {
 }
 
 export function shouldDispatchBacklogMessage(message: ChannelMessage): boolean {
-  if (isSessionControlMessage(message)) return true;
-  if (message.sender.kind !== "system") return true;
-  return message.origin.transport !== "watch";
+  return classifyChannelMessage(message) !== "watch";
 }
 
 export class ChannelDeliveryLoop {

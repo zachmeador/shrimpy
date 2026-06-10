@@ -40,6 +40,12 @@ export function formatChannelMessage(
     case "unsupported_media":
       return `${header}\n${renderUnsupportedSurfaceMessage(msg.content.data)}`;
 
+    case "control":
+      return `${header}\n[Control: ${JSON.stringify(msg.content.data)}]`;
+
+    case "status":
+      return `${header}\n[Status: ${JSON.stringify(msg.content.data)}]`;
+
     case "system":
       return `${header}\n[System: ${JSON.stringify(msg.content.data)}]`;
   }

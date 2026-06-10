@@ -23,6 +23,10 @@ export function formatChannelLogMessage(
     ? msg.content.data.text
     : reset
     ? `[session reset for ${reset.targetAgentId}]`
+    : msg.content.type === "control"
+    ? `[control: ${msg.content.data.kind}] ${JSON.stringify(msg.content.data)}`
+    : msg.content.type === "status"
+    ? `[status: ${msg.content.data.kind}] ${JSON.stringify(msg.content.data)}`
     : `[${msg.content.type}] ${JSON.stringify(msg.content.data)}`;
   const senderName = msg.sender.displayName ?? msg.sender.actorId;
   const sender = `${dim(`${msg.sender.kind}:`)}${accent(senderName)}`;

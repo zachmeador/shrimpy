@@ -110,7 +110,7 @@ describe("cmdSurface", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "status",
       data: {
         kind: "surface_addressing",
         surface: "telegram.main",

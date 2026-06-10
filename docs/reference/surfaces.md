@@ -15,7 +15,7 @@ This supports a one-visible-account pattern:
 - plain follow-up messages carry that addressed-agent metadata
 - channel membership stays stable
 
-`shrimpy surface` inspects and edits addressed-agent state. Switching a surface thread to an agent joins that agent to the resolved surface channel when needed, and writes a `surface_addressing` system entry into the channel log. The status entry is informational; it does not wake agents by itself.
+`shrimpy surface` inspects and edits addressed-agent state. Switching a surface thread to an agent joins that agent to the resolved surface channel when needed, and writes a `surface_addressing` status entry into the channel log. The status entry is informational; it does not wake agents by itself.
 
 ## Surface verticals
 

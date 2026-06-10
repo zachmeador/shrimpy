@@ -213,15 +213,27 @@ function senderLabel(message: ChannelMessage): string {
 }
 
 function summarizeMessage(message: ChannelMessage): string {
-  const text = message.content.type === "text"
-    ? message.content.data.text
-    : message.content.type === "system"
-      ? JSON.stringify(message.content.data)
-      : message.content.type === "image"
-        ? message.content.data.caption ?? "[image]"
-        : message.content.type === "image_group"
-          ? message.content.data.caption ?? `[image_group: ${message.content.data.paths.length} images]`
-          : renderUnsupportedSurfaceMessage(message.content.data);
+  let text: string;
+  switch (message.content.type) {
+    case "text":
+      text = message.content.data.text;
+      break;
+    case "system":
+    case "control":
+    case "status":
+      text = JSON.stringify(message.content.data);
+      break;
+    case "image":
+      text = message.content.data.caption ?? "[image]";
+      break;
+    case "image_group":
+      text = message.content.data.caption ??
+        `[image_group: ${message.content.data.paths.length} images]`;
+      break;
+    case "unsupported_media":
+      text = renderUnsupportedSurfaceMessage(message.content.data);
+      break;
+  }
   return clipOneLine(text, 120);
 }
 

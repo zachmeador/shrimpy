@@ -5,30 +5,20 @@ import {
   type ThinkingLevel,
 } from "../inference/thinking.js";
 import {
-  readSessionResetContent,
-  readSessionRestoreContent,
-  readSessionStopContent,
-  readSessionThinkingLevelContent,
+  readSessionControlContent,
   type ChannelMessage,
 } from "../channels/index.js";
 
 export type DispatchSource = "backlog" | "live";
 
 export function isSessionControlMessage(message: ChannelMessage): boolean {
-  return readSessionResetContent(message.content) !== null
-    || readSessionRestoreContent(message.content) !== null
-    || readSessionStopContent(message.content) !== null
-    || readSessionThinkingLevelContent(message.content) !== null;
+  return readSessionControlContent(message.content) !== null;
 }
 
 export function getSessionControlTargetAgentId(
   message: ChannelMessage,
 ): string | null {
-  return readSessionResetContent(message.content)?.targetAgentId
-    ?? readSessionRestoreContent(message.content)?.targetAgentId
-    ?? readSessionStopContent(message.content)?.targetAgentId
-    ?? readSessionThinkingLevelContent(message.content)?.targetAgentId
-    ?? null;
+  return readSessionControlContent(message.content)?.targetAgentId ?? null;
 }
 
 export class SessionControlRuntime {
@@ -42,41 +32,36 @@ export class SessionControlRuntime {
     message: ChannelMessage,
     source: DispatchSource,
   ): Promise<boolean> {
-    const reset = readSessionResetContent(message.content);
-    if (reset) {
-      await this.resetChannelSession(channel, reset.targetAgentId, source);
-      return true;
+    const control = readSessionControlContent(message.content);
+    if (!control) return false;
+
+    switch (control.kind) {
+      case "session_reset":
+        await this.resetChannelSession(channel, control.targetAgentId, source);
+        return true;
+      case "session_restore":
+        await this.restoreChannelSession(
+          channel,
+          control.targetAgentId,
+          control.archiveName,
+          source,
+        );
+        return true;
+      case "session_thinking_level":
+        await this.setChannelThinkingLevel(
+          channel,
+          control.targetAgentId,
+          control.level,
+          source,
+        );
+        return true;
+      case "session_stop":
+        await this.stopChannelSession(channel, control.targetAgentId, source);
+        return true;
     }
 
-    const restore = readSessionRestoreContent(message.content);
-    if (restore) {
-      await this.restoreChannelSession(
-        channel,
-        restore.targetAgentId,
-        restore.archiveName,
-        source,
-      );
-      return true;
-    }
-
-    const thinking = readSessionThinkingLevelContent(message.content);
-    if (thinking) {
-      await this.setChannelThinkingLevel(
-        channel,
-        thinking.targetAgentId,
-        thinking.level,
-        source,
-      );
-      return true;
-    }
-
-    const stop = readSessionStopContent(message.content);
-    if (stop) {
-      await this.stopChannelSession(channel, stop.targetAgentId, source);
-      return true;
-    }
-
-    return false;
+    const exhaustive: never = control;
+    return exhaustive;
   }
 
   private getAgentRuntime(

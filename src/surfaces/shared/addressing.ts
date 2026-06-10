@@ -1,6 +1,7 @@
 import type { AppRuntime } from "../../app/runtime.js";
 import type { ChannelBus } from "../../channels/bus.js";
 import type { ChannelMembershipStore } from "../../channels/index.js";
+import { surfaceAddressingStatusContent } from "../../channels/index.js";
 
 export interface SurfaceAddressingChange {
   surface: string;
@@ -16,21 +17,21 @@ export function publishSurfaceAddressingChange(
   channelBus: ChannelBus,
   change: SurfaceAddressingChange,
 ): void {
-  channelBus.publishSystem({
+  const content = surfaceAddressingStatusContent({
+    surface: change.surface,
+    threadId: change.threadId,
+    previousAgentId: change.previousAgentId,
+    addressedAgentId: change.addressedAgentId,
+    joinedAgentId: change.joinedAgentId,
+    source: change.source,
+  });
+  channelBus.publishStatus({
     channel: change.channel,
     actorId: "system:surface",
     transport: change.source,
     sourceChannel: change.channel,
     transportChatId: change.threadId,
-    data: {
-      kind: "surface_addressing",
-      surface: change.surface,
-      threadId: change.threadId,
-      previousAgentId: change.previousAgentId ?? null,
-      addressedAgentId: change.addressedAgentId ?? null,
-      joinedAgentId: change.joinedAgentId ?? null,
-      source: change.source,
-    },
+    data: content.data,
   });
 }
 

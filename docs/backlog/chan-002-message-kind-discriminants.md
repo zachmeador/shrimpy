@@ -1,6 +1,6 @@
 # 🦐 CHAN-002: Message Kind Discriminants
 
-Status: todo
+Status: review
 Priority: P1
 Area: Channels
 Depends On: none
@@ -30,6 +30,7 @@ The protocol in `src/channels/messages.ts` and `src/channels/protocol.ts` gains 
 ## Implementation Notes
 - Touch points: `src/channels/messages.ts`, `src/channels/protocol.ts`, `src/channels/service.ts`, `src/gateway/session-control-runtime.ts`, `src/gateway/channel-delivery-loop.ts` (`shouldDispatchBacklogMessage`).
 - Keep the typed-content constructors (`sessionResetContent` etc.) as the only way to mint control/status content so the union stays closed.
+- This implementation deletes the speculative `worker` classifier. CODE-002 should introduce a real worker protocol/status shape when worker sessions exist.
 - Tests: dispatch switch covers every kind; classifier parity between CLI inspection and gateway dispatch; unknown/legacy system payloads classify as `system` without throwing.
 
 ## Done

@@ -122,7 +122,7 @@ describe("TelegramChannelBridge", () => {
     assert.equal(messages.length, 1);
     assert.equal(messages[0].sender.kind, "human");
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_reset",
         targetAgentId: "shrimpy",
@@ -167,7 +167,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 2);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "status",
       data: {
         kind: "surface_addressing",
         surface: "telegram.main",
@@ -221,7 +221,7 @@ describe("TelegramChannelBridge", () => {
     }]);
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
-    assert.equal(messages[0].content.type, "system");
+    assert.equal(messages[0].content.type, "status");
     assert.equal((messages[0].content.data as any).joinedAgentId, "career");
   });
 
@@ -276,7 +276,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_reset",
         targetAgentId: "career",
@@ -302,7 +302,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_restore",
         targetAgentId: "shrimpy",
@@ -329,7 +329,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_stop",
         targetAgentId: "shrimpy",
@@ -355,7 +355,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_thinking_level",
         targetAgentId: "shrimpy",
@@ -384,7 +384,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_thinking_level",
         targetAgentId: "career",
@@ -411,7 +411,7 @@ describe("TelegramChannelBridge", () => {
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 1);
     assert.deepEqual(messages[0].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_thinking_level",
         targetAgentId: "shrimpy",
@@ -531,7 +531,7 @@ describe("TelegramChannelBridge", () => {
     assert.equal(messages[0].content.type, "text");
     assert.equal(messages[0].content.data.text, "queued text");
     assert.deepEqual(messages[1].content, {
-      type: "system",
+      type: "control",
       data: {
         kind: "session_reset",
         targetAgentId: "shrimpy",

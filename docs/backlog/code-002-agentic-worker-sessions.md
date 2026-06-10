@@ -15,7 +15,7 @@ Shrimpy agents should be able to start managed worker sessions backed by Codex, 
 
 - `run_child` is still the only worker-like daemon tool. It opens a fresh child `run` session, blocks until the turn finishes, returns final assistant text, and disposes the child session.
 - `skills/coding-delegation/SKILL.md` now defines the prompt-side handoff packet and explicitly tells agents not to pretend worker/session controls exist when they do not.
-- Channel inspection already recognizes worker-shaped provenance (`origin.workerId`, `sourceKind: "worker"`, and `worker:` actor ids) and can point at `shrimpy worker status <id>`, but no `shrimpy worker` command, worker store, runner, or daemon tools exist yet.
+- Channel inspection no longer guesses at worker-shaped provenance. CODE-002 needs to introduce a first-class worker protocol/status shape instead of relying on `origin.workerId`, `sourceKind: "worker"`, or `worker:` actor ids.
 - Session status and turn-context plumbing exist for normal sessions, but do not yet include worker summaries.
 
 ## Build

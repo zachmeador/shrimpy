@@ -6,6 +6,7 @@ import {
   humanTextMessageInput,
   humanUnsupportedMediaMessageInput,
   makeMessage,
+  statusMessageInput,
   systemMessageInput,
   type ChannelMessage,
   type PublishAgentTextInput,
@@ -14,6 +15,7 @@ import {
   type PublishHumanImageInput,
   type PublishHumanTextInput,
   type PublishHumanUnsupportedMediaInput,
+  type PublishStatusInput,
   type PublishSystemInput,
 } from "./protocol.js";
 
@@ -56,5 +58,9 @@ export class ChannelPublisher {
 
   publishSystem(input: PublishSystemInput): ChannelMessage {
     return this.publish(systemMessageInput(input));
+  }
+
+  publishStatus(input: PublishStatusInput): ChannelMessage {
+    return this.publish(statusMessageInput(input));
   }
 }

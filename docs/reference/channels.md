@@ -156,7 +156,7 @@ shrimpy surface set-agent <surface> <thread-id> <agent>
 shrimpy surface clear-agent <surface> <thread-id>
 ```
 
-For routed surface threads, `surface set-agent` joins the selected agent to the concrete channel when needed and logs a `surface_addressing` system entry. `surface clear-agent` logs the clear event too. These entries make handoffs inspectable without waking agents as work.
+For routed surface threads, `surface set-agent` joins the selected agent to the concrete channel when needed and logs a `surface_addressing` status entry. `surface clear-agent` logs the clear event too. These entries make handoffs inspectable without waking agents as work.
 
 ## Reading And Search
 

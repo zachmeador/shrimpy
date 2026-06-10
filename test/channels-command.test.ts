@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
-import { systemContent, textContent } from "../dist/channels/index.js";
+import {
+  sessionResetContent,
+  surfaceAddressingStatusContent,
+  systemContent,
+  textContent,
+} from "../dist/channels/index.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { cmdChannels } from "../dist/commands/channels.js";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
@@ -294,6 +299,66 @@ describe("cmdChannels", () => {
     assert.equal(systemPayload.matchedCount, 1);
     assert.equal(systemPayload.messages[0].id, "maintenance-message");
     assert.equal(systemPayload.messages[0].kind, "system");
+  });
+
+  test("search filters typed control and status messages", async () => {
+    await setupInit(workspace);
+    const channelBus = new ChannelBus(join(workspace, "channels"));
+    channelBus.publish({
+      channel: "home",
+      id: "reset-control",
+      timestamp: Date.parse("2026-05-01T10:00:00.000Z"),
+      sender: {
+        kind: "human",
+        actorId: "human:user:alice",
+      },
+      origin: {
+        transport: "cli",
+        sourceChannel: "home",
+      },
+      content: sessionResetContent("shrimpy", "/new"),
+    });
+    channelBus.publish({
+      channel: "home",
+      id: "addressing-status",
+      timestamp: Date.parse("2026-05-01T10:01:00.000Z"),
+      sender: {
+        kind: "system",
+        actorId: "system:surface",
+      },
+      origin: {
+        transport: "internal",
+        sourceChannel: "home",
+      },
+      content: surfaceAddressingStatusContent({
+        surface: "telegram.main",
+        threadId: "4242",
+        previousAgentId: null,
+        addressedAgentId: "shrimpy",
+        joinedAgentId: null,
+        source: "cli",
+      }),
+    });
+
+    const { result: controlResult, lines: controlLines } = await captureLogs(() =>
+      cmdChannels(["search", "home", "--kind", "control", "--json"], { workspace } as any)
+    );
+    assert.equal(controlResult, 0);
+    const controlPayload = JSON.parse(controlLines.join("\n"));
+    assert.equal(controlPayload.matchedCount, 1);
+    assert.equal(controlPayload.messages[0].id, "reset-control");
+    assert.equal(controlPayload.messages[0].kind, "control");
+    assert.equal(controlPayload.messages[0].contentType, "control");
+
+    const { result: statusResult, lines: statusLines } = await captureLogs(() =>
+      cmdChannels(["search", "home", "--kind", "status", "--json"], { workspace } as any)
+    );
+    assert.equal(statusResult, 0);
+    const statusPayload = JSON.parse(statusLines.join("\n"));
+    assert.equal(statusPayload.matchedCount, 1);
+    assert.equal(statusPayload.messages[0].id, "addressing-status");
+    assert.equal(statusPayload.messages[0].kind, "status");
+    assert.equal(statusPayload.messages[0].contentType, "status");
   });
 
   test("show includes channel activity summaries", async () => {
