@@ -816,6 +816,7 @@ describe("SessionRegistry", () => {
     await registry.dispatch("local", message);
 
     const session = sessionFactory.sessions[0];
+    assert.equal(sessionFactory.createSessionOpts[0].prepareTurnContext, undefined);
     assert.match(
       session.prompts[0],
       /^<context>\nprepared direct\/TUI-style context[\s\S]*<\/context>/,
@@ -923,6 +924,38 @@ describe("SessionRegistry", () => {
       countMatches(session.llmPromptBatches[1].join("\n"), "first-only live turn context"),
       1,
     );
+  });
+
+  test("keeps per-message turn context for identical queued prompts", async () => {
+    const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    const registry = createRegistry(sessionFactory, undefined, {
+      turnContextForMessage: (_channel, message) => ({
+        agentId: "shrimpy",
+        channel: "telegram~shrimpy~1",
+        sessionType: "gateway",
+        capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
+        maxChars: 2000,
+        items: [{
+          id: `turn:${message.id}`,
+          summary: `context for ${message.id}`,
+        }],
+      }),
+    });
+    const first = humanText("same prompt");
+    const second = humanText("same prompt");
+
+    await Promise.all([
+      registry.dispatch("telegram~shrimpy~1", first),
+      registry.dispatch("telegram~shrimpy~1", second),
+    ]);
+
+    const session = sessionFactory.sessions[0];
+    assert.equal(session.prompts.length, 2);
+    assert.equal(session.prompts[0].includes(`context for ${first.id}`), true);
+    assert.equal(session.prompts[0].includes(`context for ${second.id}`), false);
+    assert.equal(session.prompts[1].includes(`context for ${second.id}`), true);
+    assert.equal(session.prompts[1].includes(`context for ${first.id}`), false);
+    assert.equal(sessionFactory.createSessionOpts[0].prepareTurnContext, undefined);
   });
 
   test("renders turn context text from structured data", () => {

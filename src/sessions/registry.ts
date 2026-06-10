@@ -19,6 +19,7 @@ import type {
 
 interface ManagedSession {
   session: AgentSession | null;
+  plan?: SessionOpenPlan;
   channel: string;
   runChain: Promise<void>;
   queuedTurns: number;
@@ -28,10 +29,12 @@ interface ManagedSession {
     controller: AbortController;
   };
   lastOutcome?: GatewayLaneState["lastOutcome"];
-  pendingTurnContext?: {
-    prompt: string;
-    text: string;
-  };
+}
+
+interface SessionTurn {
+  message: ChannelMessage;
+  promptBody: string;
+  turnContextText?: string;
 }
 
 interface SessionResetResult {
@@ -147,18 +150,11 @@ export class SessionRegistry {
       return session;
     }
 
-    const plan = this.planWithPendingTurnContext(
-      managed,
-      await this.planForChannel(managed.channel),
+    const plan = await this.ensurePlan(managed);
+    const creating = this.sessionFactory(
+      this.bootstrap,
+      planForExplicitRegistryTurns(plan),
     );
-    const creating = this.sessionFactory(this.bootstrap, {
-      ...plan,
-      tools: plan.tools ?? this.tools,
-      descriptor: {
-        ...plan.descriptor,
-        channel: plan.descriptor.channel ?? managed.channel,
-      },
-    });
     this.pending.set(managed.channel, creating);
 
     try {
@@ -295,7 +291,6 @@ export class SessionRegistry {
     channel: string,
     message: ChannelMessage,
   ): Promise<void> {
-    const promptBody = formatChannelMessage(channel, message);
     managed.queuedTurns = Math.max(0, managed.queuedTurns - 1);
     const controller = new AbortController();
     managed.runningTurn = {
@@ -305,28 +300,23 @@ export class SessionRegistry {
     };
     this.publishLaneState(managed);
 
-    const turnContext = this.turnContextForMessage
-      ? await this.turnContextForMessage(channel, message)
-      : undefined;
+    const turn = await this.prepareTurn(managed, channel, message);
     const session = await this.ensureSession(managed);
-    const turnContextText = turnContext ? renderTurnContext(turnContext) : undefined;
-    managed.pendingTurnContext = turnContextText
-      ? { prompt: promptBody, text: turnContextText }
-      : undefined;
     let activity: ChannelActivityHandle | null = null;
 
     try {
       activity = await startActivity(this.startActivity, channel);
-      await runSessionTurn(session, promptBody, {
+      await runSessionTurn(session, turn.promptBody, {
         signal: controller.signal,
         abortMessage: "session turn stopped by user",
+        turnContextText: turn.turnContextText,
       });
-      this.recordOutcome(managed, message.id, "completed");
+      this.recordOutcome(managed, turn.message.id, "completed");
     } catch (err) {
       const aborted = controller.signal.aborted;
       this.recordOutcome(
         managed,
-        message.id,
+        turn.message.id,
         aborted ? "aborted" : "errored",
         formatError(err),
       );
@@ -337,12 +327,11 @@ export class SessionRegistry {
       }
     } finally {
       await stopActivity(activity, managed.channel);
-      managed.pendingTurnContext = undefined;
-      if (managed.runningTurn?.messageId === message.id) {
+      if (managed.runningTurn?.messageId === turn.message.id) {
         managed.runningTurn = undefined;
       }
       this.publishLaneState(managed);
-      await this.markMessageHandled?.(channel, message);
+      await this.markMessageHandled?.(channel, turn.message);
     }
   }
 
@@ -381,24 +370,61 @@ export class SessionRegistry {
     this.onLaneStateChange?.(this.snapshotLane(managed));
   }
 
-  private planWithPendingTurnContext(
+  private async ensurePlan(managed: ManagedSession): Promise<SessionOpenPlan> {
+    if (managed.plan) return managed.plan;
+
+    managed.plan = normalizeRegistryPlan(
+      await this.planForChannel(managed.channel),
+      managed.channel,
+      this.tools,
+    );
+    return managed.plan;
+  }
+
+  private async prepareTurn(
     managed: ManagedSession,
-    plan: SessionOpenPlan,
-  ): SessionOpenPlan {
+    channel: string,
+    message: ChannelMessage,
+  ): Promise<SessionTurn> {
+    const promptBody = formatChannelMessage(channel, message);
+    const plan = await this.ensurePlan(managed);
+    const turnContextText = await this.prepareTurnContextText(
+      plan,
+      channel,
+      message,
+      promptBody,
+    );
+
     return {
-      ...plan,
-      prepareTurnContext: async (prompt, images) => {
-        const pending = managed.pendingTurnContext;
-        if (pending && pending.prompt === prompt) return pending.text;
-        return plan.prepareTurnContext?.(prompt, images);
-      },
+      message,
+      promptBody,
+      ...(turnContextText ? { turnContextText } : {}),
     };
+  }
+
+  private async prepareTurnContextText(
+    plan: SessionOpenPlan,
+    channel: string,
+    message: ChannelMessage,
+    promptBody: string,
+  ): Promise<string | undefined> {
+    const turnContext = this.turnContextForMessage
+      ? await this.turnContextForMessage(channel, message)
+      : undefined;
+    const rendered = normalizeTurnContextText(
+      turnContext ? renderTurnContext(turnContext) : undefined,
+    );
+    if (rendered) return rendered;
+    if (promptBody.startsWith("/")) return undefined;
+    return normalizeTurnContextText(
+      await plan.prepareTurnContext?.(promptBody),
+    );
   }
 
   private async resetManaged(
     managed: ManagedSession,
   ): Promise<SessionResetResult> {
-    const plan = await this.planForChannel(managed.channel);
+    const plan = await this.ensurePlan(managed);
     const sessionDir = plan.descriptor.sessionDir;
     const hadSession = managed.session !== null || existsSync(sessionDir);
 
@@ -406,6 +432,7 @@ export class SessionRegistry {
       this.disposeManagedSession(managed, "reset");
       managed.session = null;
     }
+    managed.plan = undefined;
 
     return {
       channel: managed.channel,
@@ -419,13 +446,14 @@ export class SessionRegistry {
     managed: ManagedSession,
     archiveName?: string,
   ): Promise<SessionRestoreResult> {
-    const plan = await this.planForChannel(managed.channel);
+    const plan = await this.ensurePlan(managed);
     const sessionDir = plan.descriptor.sessionDir;
 
     if (managed.session) {
       this.disposeManagedSession(managed, "restore");
       managed.session = null;
     }
+    managed.plan = undefined;
 
     const restored = restoreArchivedSessionDir(sessionDir, archiveName);
     if (!restored) {
@@ -448,7 +476,7 @@ export class SessionRegistry {
     managed: ManagedSession,
     level: ThinkingLevel,
   ): Promise<SessionThinkingLevelResult> {
-    const plan = await this.planForChannel(managed.channel);
+    const plan = await this.ensurePlan(managed);
     const session = await this.ensureSession(managed);
     session.setThinkingLevel(level);
 
@@ -489,6 +517,34 @@ export class SessionRegistry {
     }
     managed.session = null;
   }
+}
+
+function normalizeRegistryPlan(
+  plan: SessionOpenPlan,
+  channel: string,
+  fallbackTools: ToolDefinition[],
+): SessionOpenPlan {
+  return {
+    ...plan,
+    tools: plan.tools ?? fallbackTools,
+    descriptor: {
+      ...plan.descriptor,
+      channel: plan.descriptor.channel ?? channel,
+    },
+  };
+}
+
+function planForExplicitRegistryTurns(plan: SessionOpenPlan): SessionOpenPlan {
+  const openPlan: SessionOpenPlan = { ...plan };
+  delete openPlan.prepareTurnContext;
+  return openPlan;
+}
+
+function normalizeTurnContextText(
+  text: string | undefined,
+): string | undefined {
+  const trimmed = text?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function formatError(err: unknown): string {

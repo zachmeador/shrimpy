@@ -6,20 +6,13 @@ import {
   markChannelSeen,
 } from "../context/index.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
-import { resolveModelVariantInference } from "../inference/params.js";
-import {
-  createSessionToolPolicy,
-  resolveAgentToolPolicy,
-} from "../tools/policy.js";
 import {
   evaluateAgentChannelPolicy,
 } from "./channel-policy.js";
 import {
-  createGatewaySessionDescriptor,
-  formatMissingAgentModelPolicyMessage,
-  resolveModelDetailed,
   SessionRegistry,
   type SessionBootstrap,
+  SessionPlanner,
 } from "../sessions/index.js";
 import type { GatewayLaneState } from "../gateway/runtime-state.js";
 
@@ -54,57 +47,19 @@ export class AgentChannelRuntime {
     this.agent = opts.runtime.getAgent(opts.agentId);
     this.channelBus = opts.channelBus;
     this.onRuntimeGuardTrip = opts.onRuntimeGuardTrip;
-    const toolPolicy = resolveAgentToolPolicy(this.agent);
-    const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
-    const modelResolution = resolveModelDetailed(
-      opts.bootstrap,
-      undefined,
-      undefined,
-      this.agent.modelPolicy,
-      {
-        missingMessage: formatMissingAgentModelPolicyMessage(this.agent.id),
-      },
-    );
-    const model = modelResolution.model;
-    const inference = resolveModelVariantInference({
-      modelsPath: opts.bootstrap.modelsPath,
-      model,
+    const planner = new SessionPlanner({
+      runtime: opts.runtime,
+      bootstrap: opts.bootstrap,
+      channelBus: opts.channelBus,
+      agentId: this.agent.id,
     });
 
     this.registry = new SessionRegistry(opts.bootstrap, {
-      planForChannel: async (channel) => {
-        const tools = await opts.runtime.buildRuntimeTools({
-          bootstrap: opts.bootstrap,
-          channelBus: opts.channelBus,
-          toolNames: toolPolicy.daemonToolNames,
-          toolPolicy: sessionToolPolicy,
-          agentId: this.agent.id,
-          actorId: `agent:${this.agent.id}`,
-          activePublicationChannel: channel,
-        });
-
-        return {
-          descriptor: createGatewaySessionDescriptor({
-            workspacePath: opts.bootstrap.agentRootPath,
-            agentId: this.agent.id,
-            channel,
-          }),
-          model,
-          modelResolution,
-          inference,
-          defaultThinking: this.agent.thinking,
-          tools,
-          toolPolicy: sessionToolPolicy,
-        };
-      },
+      planForChannel: (channel) => planner.planChannel(channel),
       turnContextForMessage: (channel, message) =>
         buildTurnContext({
           runtime: opts.runtime,
-          descriptor: createGatewaySessionDescriptor({
-            workspacePath: opts.bootstrap.agentRootPath,
-            agentId: this.agent.id,
-            channel,
-          }),
+          descriptor: planner.createGatewayDescriptor(channel),
           currentMessage: message,
         }),
       markMessageHandled: (channel, message) =>

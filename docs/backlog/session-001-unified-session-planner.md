@@ -1,6 +1,6 @@
 # 🦐 SESSION-001: Unified Session Planner And Turn-As-Value Dispatch
 
-Status: todo
+Status: review
 Priority: P2
 Area: Sessions
 Depends On: none
@@ -34,3 +34,8 @@ Sharp: the turn-context handoff in `src/sessions/registry.ts` reunites two halve
 - `pendingTurnContext` and prompt-string matching are gone.
 - Queued identical prompts receive their correct per-message turn contexts.
 - The direct-vs-gateway policy differences are stated in one module and covered by tests.
+
+## Review Notes
+- Added `SessionPlanner` as the shared direct/gateway session-plan builder. Direct sessions retain saved-session model restore when no model override is provided; gateway sessions retain per-agent startup model resolution until runtime restart.
+- Changed gateway dispatch to build an explicit turn value and pass rendered turn context into `runSessionTurn`, removing the registry pending-context stash.
+- Kept direct Pi sessions on the session-open `prepareTurnContext` hook, but removed prompt-string matching from the controller by rewriting the next prepared user message.

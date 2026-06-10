@@ -1,25 +1,11 @@
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
-import { buildTurnContext } from "../context/index.js";
-import {
-  renderTurnContext,
-  type PromptResourceRef,
-} from "../context/index.js";
-import {
-  resolveModelVariantInference,
-} from "../inference/params.js";
+import type { PromptResourceRef } from "../context/index.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
-import { createSessionToolPolicy } from "../tools/policy.js";
 import type { SessionBootstrap } from "./bootstrap.js";
-import {
-  formatMissingAgentModelPolicyMessage,
-  openSession,
-  resolveModelDetailed,
-} from "./factory.js";
-import {
-  createLocalSessionDescriptor,
-  type SessionOpenPlan,
-} from "./spec.js";
+import { openSession } from "./factory.js";
+import { SessionPlanner, type DirectSessionPlanOverrides } from "./planner.js";
+import type { SessionOpenPlan } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
 
 export interface OpenDirectSessionInput {
@@ -67,75 +53,33 @@ export async function prepareDirectSessionOpen(
     cwd,
     basePromptResources: input.basePromptResources,
   });
-  const restoreModelFromSession = input.provider === undefined &&
-    input.model === undefined &&
-    input.modelPolicy === undefined;
-  const modelResolution = resolveModelDetailed(
-    bootstrap,
-    input.provider,
-    input.model,
-    agent.modelPolicy,
-    {
-      modelPolicy: input.modelPolicy,
-      allowMissingDefault: restoreModelFromSession || input.allowMissingModel,
-      allowRegistryFallback: input.allowRegistryFallbackModel,
-      missingMessage: formatMissingAgentModelPolicyMessage(agent.id),
-    },
-  );
-  const model = modelResolution.model;
-  const inference = resolveModelVariantInference({
-    modelsPath: bootstrap.modelsPath,
-    model,
-  });
-  const defaultThinking = agent.thinking;
-  const toolPolicy = input.runtime.resolveAgentToolPolicy(agent.id);
-  const sessionToolPolicy = createSessionToolPolicy(toolPolicy);
-
-  process.env.PI_SKIP_VERSION_CHECK = "1";
-
-  const descriptor = createLocalSessionDescriptor({
-    workspacePath: input.runtime.getAgentPaths(agent.id).root,
-    agentId: agent.id,
-    label: input.channel,
-    kind: input.sessionType,
-    channel: input.channel,
-    cwd,
-  });
-  const tools = await input.runtime.buildRuntimeTools({
+  const planner = new SessionPlanner({
+    runtime: input.runtime,
     bootstrap,
     channelBus,
     agentId: agent.id,
-    toolNames: toolPolicy.daemonToolNames,
-    toolPolicy: sessionToolPolicy,
   });
+  const overrides: DirectSessionPlanOverrides = {
+    label: input.channel,
+    channel: input.channel,
+    sessionType: input.sessionType,
+    cwd,
+    provider: input.provider,
+    model: input.model,
+    modelPolicy: input.modelPolicy,
+    thinking: input.thinking,
+    appendSystemPrompt: input.appendSystemPrompt,
+    skills: input.skills,
+    allowMissingModel: input.allowMissingModel,
+    allowRegistryFallbackModel: input.allowRegistryFallbackModel,
+  };
+  const plan = await planner.planDirect(overrides);
 
   return {
     agentId: agent.id,
     cwd,
     bootstrap,
-    plan: {
-      descriptor,
-      restoreModelFromSession,
-      allowMissingModel: input.allowMissingModel,
-      thinking: input.thinking,
-      inference,
-      defaultThinking,
-      prompt: {
-        appendSystemPrompt: input.appendSystemPrompt,
-        skills: input.skills,
-      },
-      prepareTurnContext: async () => {
-        const turnContext = await buildTurnContext({
-          runtime: input.runtime,
-          descriptor,
-        });
-        return renderTurnContext(turnContext);
-      },
-      model,
-      modelResolution,
-      toolPolicy: sessionToolPolicy,
-      tools,
-    },
+    plan,
   };
 }
 

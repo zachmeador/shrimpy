@@ -5,6 +5,7 @@ export * from "./direct-channels.js";
 export * from "./direct.js";
 export * from "./factory.js";
 export * from "./contained-system-prompt.js";
+export * from "./planner.js";
 export * from "./registry.js";
 export * from "./service.js";
 export * from "./spec.js";

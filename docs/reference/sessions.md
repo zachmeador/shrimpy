@@ -22,10 +22,10 @@ When a session opens, Shrimpy builds a Pi session plan:
 - default and requested thinking level
 - Shrimpy daemon tools plus disabled-tool policy
 - stable system prompt resources and approved skills
-- persisted turn-context envelope
+- turn-context preparation for direct sessions and explicit turn-context dispatch for gateway turns
 - compaction settings
 
-Pi owns the session runtime, transcript format, model calls, tool execution, and TUI mechanics. Shrimpy owns the session plan, workspace paths, channel publication tools, turn-context assembly, and inspection metadata.
+Pi owns the session runtime, transcript format, model calls, tool execution, and TUI mechanics. Shrimpy owns the shared session planner, workspace paths, channel publication tools, turn-context assembly, and inspection metadata.
 
 ## Prompt And Turn Context
 

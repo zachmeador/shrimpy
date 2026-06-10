@@ -28,7 +28,7 @@ This is lowest-priority observability work. Build it only when runtime context p
 ## Boundaries
 
 - Do not create a second prompt assembly path.
-- Do not introduce prompt-prefix preview/rendering paths. The provider-facing context hook remains the runtime path for turn context.
+- Do not introduce separate prompt preview/rendering paths. Debug output should match the direct session hook path and the gateway explicit turn-value path.
 - Keep output compact, deterministic, and inspectable.
 - Do not add migration or compatibility code unless a concrete workspace-facing break requires it.
 

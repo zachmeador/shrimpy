@@ -24,7 +24,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CHAN-002](chan-002-message-kind-discriminants.md) | todo | P1 | Channels | none | Message kind discriminants in the channel protocol |
 | [CHAN-003](chan-003-channel-name-validation.md) | todo | P1 | Channels | none | Channel name validation at boundaries |
 | [CHAN-004](chan-004-channel-manifests-bindings.md) | todo | P2 | Channels | [CHAN-003](chan-003-channel-name-validation.md) | Channel manifests and transport bindings |
-| [SESSION-001](session-001-unified-session-planner.md) | todo | P2 | Sessions | none | Unified session planner and turn-as-value dispatch |
+| [SESSION-001](session-001-unified-session-planner.md) | review | P2 | Sessions | none | Unified session planner and turn-as-value dispatch |
 | [GATEWAY-001](gateway-001-dispatch-hardening.md) | review | P2 | Gateway | none | Dispatch hardening: dedupe, ordering, loop guard |
 | [GATEWAY-002](gateway-002-turn-control-and-queue-visibility.md) | review | P2 | Gateway | none | Turn stop control and queue visibility |
 | [SURFACE-001](surface-001-telegram-typing-activity.md) | review | P2 | Surfaces | none | Telegram typing activity |

@@ -31,9 +31,9 @@ Command output is compact text. Use evidence or inspect commands inside that tex
 
 ## Runtime Path
 
-Direct TUI, direct `run`, gateway channel sessions, and child sessions all use the same session-open hook shape. A session plan provides `prepareTurnContext`; Shrimpy's Pi extension prepares context in `before_agent_start`, rewrites the finalized user message in `message_end`, and clears prepared context on `agent_end`.
+Direct TUI, direct `run`, and other direct Pi sessions open with a `prepareTurnContext` hook. Shrimpy's Pi extension prepares context in `before_agent_start`, rewrites the next finalized user message in `message_end`, and clears prepared context on `agent_end`.
 
-Gateway sessions bind the pending context to the exact formatted channel message being handled, so queued channel turns cannot leak context into one another.
+Gateway channel dispatch builds an explicit turn value containing the channel message, formatted prompt body, and rendered turn context. `runSessionTurn` prefixes that rendered context to the prompt body before handing Pi one durable user message. The registry does not keep a pending context stash or compare prompt strings, so queued channel turns cannot leak context into one another.
 
 ## Config
 

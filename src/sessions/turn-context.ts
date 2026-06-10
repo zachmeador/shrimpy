@@ -6,7 +6,6 @@ import type { ImageContent, UserMessage } from "@earendil-works/pi-ai";
 import { formatPromptWithTurnContext } from "../context/index.js";
 
 interface ActiveSessionTurnContext {
-  prompt: string;
   text: string;
 }
 
@@ -37,7 +36,7 @@ export function createSessionTurnContextController(opts?: {
 
       const prepared = await opts.prepare(prompt, images);
       const text = prepared?.trim();
-      active = text ? { prompt, text } : undefined;
+      active = text ? { text } : undefined;
     },
 
     clear() {
@@ -80,9 +79,7 @@ function rewritePromptMessage(
   message: AgentMessage,
   active: ActiveSessionTurnContext,
 ): AgentMessage | undefined {
-  if (message.role !== "user" || userMessageText(message) !== active.prompt) {
-    return undefined;
-  }
+  if (message.role !== "user") return undefined;
 
   return {
     ...message,
@@ -94,7 +91,7 @@ function rewriteUserContent(
   content: UserMessage["content"],
   active: ActiveSessionTurnContext,
 ): UserMessage["content"] {
-  const text = formatPromptWithTurnContext(active.prompt, active.text);
+  const text = formatPromptWithTurnContext(userContentText(content), active.text);
   if (typeof content === "string") return text;
   return [
     { type: "text", text },
@@ -102,9 +99,7 @@ function rewriteUserContent(
   ];
 }
 
-function userMessageText(message: AgentMessage): string {
-  if (message.role !== "user") return "";
-  const content = message.content;
+function userContentText(content: UserMessage["content"]): string {
   if (typeof content === "string") return content;
   return content
     .filter((block) => block.type === "text")
