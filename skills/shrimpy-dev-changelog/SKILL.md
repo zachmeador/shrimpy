@@ -54,6 +54,20 @@ Before trusting a bullet, verify the concrete surface:
 
 When writing or reviewing the active `Unreleased` section, verify claimed features against the diff. Correct wrong verbs, removed command names, outdated config keys, and claims based on plans rather than shipped code only inside the active unreleased entry. Historical release entries describe the commit state they were released with; do not rewrite them as current truth.
 
+## Changelog Threshold
+
+Include a change when a user, operator, maintainer, or agent would act differently because of it.
+
+Worth including:
+
+- New, removed, or renamed CLI commands, flags, config keys, workspace files, or public command output.
+- Setup, install, upgrade, release, or data-safety changes that affect whether Shrimpy runs or how users recover.
+- Agent, session, channel, watch, TUI, surface, tool, or model behavior changes visible in normal use.
+- Pi upgrades or dependency changes with compatibility, runtime, packaging, or security impact.
+- Docs, source skills, setup templates, or agent references that change how humans or agents should operate.
+
+Skip changes that are only tests, refactors, code movement, wording cleanup, dependency churn without user-visible effect, or implementation detail better left in commits.
+
 ## Style
 
 Use the helpful parts of Home Assistant-style release notes without turning Shrimpy's changelog into a blog post:
