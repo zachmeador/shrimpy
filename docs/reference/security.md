@@ -1,7 +1,5 @@
 # 🦐 Security
 
-This page describes how Shrimpy works right now.
-
 ## Current Model
 
 tldr: If you don't know what you're doing, you can get totally Rekt. Same with Openclaw, Hermes-agent, whatever. Shrimpy's goal is to not *mislead you* about this.
