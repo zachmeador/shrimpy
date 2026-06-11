@@ -1,21 +1,35 @@
 # 🦐 Pi Coding Agent
 
-Date: 2026-05-29
+Date: 2026-06-11
 Status: Research
 
 `earendil-works/pi/packages/coding-agent` - TypeScript, MIT, npm: `@earendil-works/pi-coding-agent`
 
-Shrimpy pins registry-published `@earendil-works/*` Pi packages. The latest upstream version checked for this note is `0.77.0`.
+Shrimpy pins registry-published `@earendil-works/*` Pi packages. The latest upstream version checked for this note is `0.79.1`.
 
 ## Current Shrimpy Impact
 
 - Shrimpy pins `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` directly.
+- Shrimpy currently pins all four packages at `0.77.0`; npm `latest` is `0.79.1`.
 - Shrimpy requires Node `>=22.19.0`, matching Pi `0.75.0+` runtime constraints.
 - The public dependency path is upstream npm registry packages, not a local path dependency, unpacked package, checked-in tarball, or active Pi fork.
-- No local Pi patch is currently required. If a future missing upstream hook forces one, keep it in a separate Pi checkout and branch, install it into Shrimpy only for private testing, and track the base version, patch reason, touched files, and upstreaming status before considering it part of Shrimpy.
+- No local Pi patch is currently required. A probe upgrade to `0.79.1` failed first on Shrimpy's settings adapter because Pi's `SettingsConfig` now requires `defaultProjectTrust` and `SettingsCallbacks` now requires `onDefaultProjectTrustChange`. Adding those two Shrimpy adapter fields allowed `npm run build` to pass in a disposable worktree.
 - Tool schemas now use `typebox` 1.x types. Shrimpy's Pi-facing tool definitions should import `Type` from `typebox`; Shrimpy-owned config schemas can keep using `@sinclair/typebox` where they do not flow into Pi `ToolDefinition`.
 - Normal `npm test` does not typecheck `extensions/*.ts`. The Pi bump should include an explicit extension typecheck because extension imports and root exports changed.
-- `ToolRenderContext` still exists internally, but it is not exported from the package root in `0.77.0`. Shrimpy compact-tool renderers should use local structural typing or a deeper supported export if Pi adds one.
+- `ToolRenderContext` still exists internally, but it is not exported from the package root in `0.79.1`. Shrimpy compact-tool renderers should use local structural typing or a deeper supported export if Pi adds one.
+
+## Latest Version Gap
+
+`0.77.0 -> 0.79.1` crosses `v0.78.0`, `v0.78.1`, `v0.79.0`, and `v0.79.1`. The upstream source diff is large: 219 files changed, with most changes in Pi AI provider/model metadata, coding-agent settings/trust/extensions, and TUI input/rendering.
+
+Upgrade-relevant highlights:
+
+- `0.78.0`: adds named startup sessions, clickable file tool paths, exported `parseArgs`, custom Bedrock request headers, early-input buffering, and several OpenRouter/OpenCode provider fixes. `@earendil-works/pi-ai` changed direct provider stream functions to require explicit `options.apiKey`; top-level helpers still resolve built-in environment auth.
+- `0.78.1`: adds Ant Ling, NVIDIA NIM, MiniMax-M3, extension `ctx.mode`, and `ctx.getSystemPromptOptions()`. It also hardens temporary extension installs, git package source handling, HTML export URL sanitization, SDK embedding without adjacent package metadata, HTTP timeout handling across providers, large session-file loading, tab width accounting, and overlay focus restoration.
+- `0.79.0`: adds project trust gating for project-local settings/resources/instructions/packages, extension-controlled project-trust decisions, cache-hit footer display, RPC extension UI exports, and package asset path helpers. It also neutralizes compaction summary wording for non-coding agents and changes trust behavior around reload and project `.pi` creation.
+- `0.79.1`: adds prompt-template default positional arguments, global `defaultProjectTrust`, `ctx.isProjectTrusted()`, experimental feature guard, extension autocomplete trigger characters, and Claude Fable 5 metadata. It fixes Azure/OpenAI metadata, provider thinking-off payloads, prompt history restoration, mixed CJK wrapping, extension OAuth prompt stability, `/reload` queue-mode updates, invalid `models.json` migration handling, CLI help/version output, and ephemeral `/new` behavior.
+
+Shrimpy upgrade action: bump all four package pins together, add `defaultProjectTrust: mode.settingsManager.getDefaultProjectTrust()` to the Pi settings config, add `onDefaultProjectTrustChange` calling `mode.settingsManager.setDefaultProjectTrust(...)`, then run `npm run build` and the TUI/settings tests.
 
 ## Local Patch Contingency
 
@@ -150,7 +164,7 @@ Model-level `thinkingLevelMap` maps Pi thinking levels (`off`, `minimal`, `low`,
 
 A tool is `{ name, description, parameters }` with a `typebox` schema. Pi passes active tool schemas as native tool definitions to the provider. The model calls them, Pi validates args, runs `execute()`, and returns the result. Tool calls can run in parallel within a turn. Output should be truncated (default 50KB / 2000 lines).
 
-Custom renderers receive a `ToolRenderContext` with args, cwd, tool call id, render state, invalidation, partial/error/expanded flags, and image visibility. This type is internal in `0.77.0`; extension code that imports from the package root should not assume it is exported.
+Custom renderers receive a `ToolRenderContext` with args, cwd, tool call id, render state, invalidation, partial/error/expanded flags, and image visibility. This type is internal in `0.79.1`; extension code that imports from the package root should not assume it is exported.
 
 In the system prompt, tools can opt into an "Available tools" one-liner via `promptSnippet` and add guidelines via `promptGuidelines`. The prompt also includes cwd, date, AGENTS.md context files, skills, and `appendSystemPrompt` content. Extensions can modify the prompt per turn via `before_agent_start`, or mutate messages in `context`.
 
