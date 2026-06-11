@@ -101,4 +101,4 @@ shrimpy context --turn --channel home --agent shrimpy
 - Gateway assistant text is not automatically published to a channel. Agents use `reply`, `ask`, `notify`, or `report` for user-visible output.
 - Resetting or restoring a session does not mutate channel history.
 - Session compaction is working-context maintenance, not long-term memory.
-- Skills, memory, and turn context provide prompt material; they are not a second channel dispatch or wake-policy control plane.
+- Skills, memory, and turn context provide prompt material. Channel dispatch and wake policy stay in channels, watches, and agent config.

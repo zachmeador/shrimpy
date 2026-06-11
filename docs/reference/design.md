@@ -26,8 +26,8 @@ Shrimpy assumes high common sense from the user, not deep technical expertise. I
 2. Every real feature has a `shrimpy <command>` path.
 3. Files, logs, commands, and sessions beat hidden framework state.
 4. Channels route and record. Sessions think.
-5. Skills are resources, not a control plane.
-6. Memory must not pollute context or storage; it should remember what the user cares about and what the agent needs to do its job.
+5. Skills are Markdown instruction bundles advertised to agents as context trails.
+6. Memory stays small and focused on what the user cares about and what the agent needs to do its job.
 7. Background work needs a reason, owner, channel/message path, and artifact.
 8. Capability claims must match real boundaries and assume user judgment.
 9. Cheap models must be able to understand the system.

@@ -74,7 +74,7 @@ This reinforces the CLI-first architecture instead of bypassing it. The app is a
 
 - Do not start with a full desktop dashboard.
 - Do not build a heavy chat client first.
-- Do not add a second control plane for skills, sessions, or channels.
+- Keep workflow behavior in visible skills, sessions, channels, watches, tools, and CLI commands.
 - Do not make this cross-platform until the macOS shape feels right.
 
 The first useful version can be almost comically small: summon, type, see the right nearby Shrimpy state, execute, vanish.

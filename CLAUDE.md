@@ -60,13 +60,15 @@ Prefer strengthening boundaries over threading new behavior through whatever cod
 - Prefer small composition helpers over large files that both wire systems together and implement policy.
 - Default to wrapping Pi cleanly instead of rebuilding runtime concepts above it. Shrimpy should lean on Pi until Pi is the real constraint, then extend it at the specific pressure point rather than speculatively.
 - Channels are for routing and logs. Sessions carry instructions.
-- Skills are Pi-style capability bundles under workspace or agent skill directories. Treat them as prompts/resources for sessions, not a second control plane.
+- Skills are Markdown instruction bundles. Shrimpy adds trails for the visible skills to the agent's context, and Pi can load the selected skill text from those trails. Workflow execution, action choice, and scheduling live in sessions, tools, watches, and CLI commands.
 - Shrimpy should provide clean guardrails and comms patterns, not hardwire agent decision-making that can live in prompts, skills, or normal session logs.
 - Coverage is diagnostic, not a gate. Add tests for major seams, lifecycle behavior, and regressions; do not chase percentages with low-signal tests.
 
 ## Writing
 
 When creating agent instructions, skills, and anything that's intended to be fed to an LLM, **always** write briefly but succinctly.
+
+Describe the current design directly. Avoid defensive "not X" contrasts unless X is an active user-facing alternative the reader is likely to choose; prefer naming where the behavior actually lives.
 
 Do not hard-wrap prose in Markdown docs, agent instructions, skills, backlog notes, musings, or research notes. Let paragraphs occupy normal long lines so the editor/viewer handles wrapping. Use manual line breaks only when Markdown structure requires them, such as tables, code blocks, lists whose readability depends on separate items, or deliberately formatted examples.
 

@@ -118,7 +118,7 @@ Using this as a design test helps protect a few important Shrimpy values:
 
 - channels stay generic instead of collapsing into one-agent inboxes
 - sessions stay the place where instructions actually live
-- skills remain session resources, not a second control plane
+- skills stay as session prompts
 - weird art projects do not pollute boring reliable agents with special runtime behavior
 - multi-agent behavior grows from simple primitives instead of hidden orchestration magic
 

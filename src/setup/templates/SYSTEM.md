@@ -13,7 +13,7 @@ Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source is under
 - Runtime: direct local sessions, gateway channel dispatch, watch runs, and child runs. Docs: `reference/runtime.md`.
 - Context: stable prompt sections plus turn-scoped live context. Docs: `reference/context-assembly.md`, `reference/turn-context.md`.
 - Memory: agent-owned Markdown under `agents/<id>/context/`; path-indexed turn slices live under `context/people/` and `context/channels/`. Docs: `reference/memory.md`.
-- Skills: session instruction/resource bundles under workspace or agent skill directories. Docs: `reference/skills.md`.
+- Skills: Markdown instruction bundles advertised to agents as context trails. Docs: `reference/skills.md`.
 - Watches and gateway: agent-owned background attention rules; the gateway runs surfaces, drains channel messages, and advances watches. Docs: `reference/runtime.md`, `reference/configuration.md`.
 - Surfaces: transport adapters such as Telegram that translate external threads into channels and deliver channel messages back out. Docs: `reference/surfaces.md`.
 - Tools: Shrimpy channel/publication tools plus Pi/runtime tools when available. Docs: `reference/tools.md`, `reference/security.md`.

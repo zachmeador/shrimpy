@@ -109,7 +109,7 @@ The clean version is still plain Shrimpy architecture:
 - agents are persistent identities with instructions and memory
 - channels are routing and logs
 - sessions are where the actual instructions run
-- skills are prompt/resource bundles for ordinary sessions
+- skills are prompt bundles for ordinary sessions
 
 The mechanic is just a better default app-agent for self-modification.
 

@@ -23,7 +23,7 @@ Shrimpy already has most of the raw material:
 
 - agents are persistent identities with memory and sessions
 - channels are durable comms/logs
-- skills are prompt/resource bundles for ordinary sessions
+- skills are prompt bundles for ordinary sessions
 - watches can write typed messages into channels
 - tools let agents edit files, call CLIs, and run scripts
 

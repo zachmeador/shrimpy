@@ -104,6 +104,6 @@ Shrimpy passes Pi an explicit assembled system prompt. With that custom prompt, 
 
 Use `shrimpy context --agent <id>` to inspect prompt text, and use `shrimpy agent inspect <id>` to inspect the effective provider-side tool set.
 
-## Skills Are Not Tools
+## Skill Context
 
-Skills are Pi-style prompt/resource bundles, not executable daemon tools. Shrimpy chooses which workspace and agent skill files Pi can see, while Pi owns skill parsing, `/skill:<name>` expansion, autocomplete, and the `<available_skills>` prompt block. See [skills.md](skills.md).
+Skills are Markdown instruction bundles. Shrimpy adds trails for the visible workspace and agent skills to context, while Pi owns skill parsing, `/skill:<name>` expansion, autocomplete, and the `<available_skills>` prompt block. Executable behavior lives in tools, watches, and CLI commands. See [skills.md](skills.md).

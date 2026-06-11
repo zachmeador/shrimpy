@@ -33,7 +33,7 @@ Fresh setup seeds ordinary watches for memory work:
 - `journal-daily` writes a same-day journal note only if activity warrants it.
 - `journal-compact` summarizes old daily and weekly journal notes into longer horizon files.
 
-These are normal watch-origin agent turns. They use skills and CLI/file inspection; they are not a separate memory control plane.
+These are normal watch-origin agent turns. They use skills, CLI commands, and file inspection.
 
 ## Context Assembly
 

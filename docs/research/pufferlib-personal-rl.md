@@ -142,7 +142,7 @@ Action: no skill, one skill, or a small ordered skill set.
 
 Reward: positive for matching an oracle or accepted final behavior, negative for loading irrelevant skills, missing required skills, bloating context, or causing a failed task.
 
-Why first: Shrimpy already treats skills as prompt/resource bundles, and skill choice is discrete enough for a small policy.
+Why first: Shrimpy already treats skills as prompt bundles, and skill choice is discrete enough for a small policy.
 
 ### Context Packing Environment
 

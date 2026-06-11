@@ -52,7 +52,8 @@ Prefer one authoritative explanation per behavior. Other docs may carry a one-li
 - Keep examples small and canonical; do not repeat large config blocks across docs.
 - Do not add legacy-support or migration language unless explicitly requested.
 - Do not promote exploratory notes into reference docs unless source code or an explicit user decision makes them settled.
-- Keep Shrimpy's architecture guidance intact: every feature should have a CLI path, channels are for routing/logs, sessions carry instructions, and skills are prompt/resource bundles.
+- Describe the current design directly. Avoid defensive "not X" contrasts unless X is an active user-facing alternative the reader is likely to choose; prefer naming where the behavior actually lives.
+- Keep Shrimpy's architecture guidance intact: every feature should have a CLI path, channels are for routing/logs, sessions carry instructions, and visible skills add trails to agent context.
 - Prefer replacing stale text directly over adding caveats around old behavior.
 - Use absolute paths in markdown links if the surrounding doc already does; otherwise match the local doc style.
 - Avoid fixed source-path maps in durable docs unless the path itself is the documented public surface. Mention modules in "Related Code" sections only when useful for maintainers.

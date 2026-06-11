@@ -41,7 +41,7 @@ Replace it with a docs-backed reference skill available to all agents. The patte
 
 ## Boundaries
 
-- Not a second control plane or decision tree. Each reference is defaults plus snippets, boring on purpose; unusual but intentional setups stay legal.
+- Each reference is defaults plus snippets, boring on purpose; unusual but intentional setups stay legal.
 - Do not implement the security agent, the assessment watch, or vault git tracking here. Those remain [SECURITY-002](security-002-default-security-audit-agent.md), [MECH-001](mech-001-skill-opportunity-watch.md), and [VAULT-001](vault-001-default-workspace-collections.md).
 - No snippets for unshipped mechanisms (worker sessions are [CODE-002](code-002-agentic-worker-sessions.md)); patterns reference only what exists today.
 - Keep the category list small. Resist growing this into a comprehensive catalog; new categories must earn their slot.
