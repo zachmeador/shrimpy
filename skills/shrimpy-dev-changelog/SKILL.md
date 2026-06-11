@@ -22,7 +22,7 @@ Implementation and tests are the authority. Existing changelog entries, backlog 
 
 ## Workflow
 
-1. Confirm the Shrimpy project root and read `AGENTS.md` plus `AGENTS-PRIVATE.md` if present.
+1. Confirm the Shrimpy project root and read `AGENTS.md`.
 2. Inspect local state before editing:
    - `git status --short`
    - `git diff -- CHANGELOG.md`
@@ -38,6 +38,7 @@ Use the latest semver release tag when one exists. For a normal unreleased updat
 4. Update the active `Unreleased` section unless the user is cutting a release.
 5. For release prep, change the heading from `Unreleased` to the release date only when the user has asked to prepare or cut that release.
 6. Edit only changelog entries that are needed for the current work. Preserve unrelated release notes and user edits.
+7. Do not modify dated or previously released changelog sections during normal unreleased updates. If a historical release note looks wrong, add a correction or clarification under `Unreleased` instead of rewriting the old release entry, unless the user explicitly asks for historical changelog cleanup.
 
 ## Evidence Checks
 
@@ -51,7 +52,7 @@ Before trusting a bullet, verify the concrete surface:
 - Watches/gateway behavior: `src/watches/`, `src/gateway/`, watch tests.
 - Skills: `skills/`, `src/setup/templates/skills/`, skill command tests.
 
-If the old changelog says a feature exists, still check the diff. Correct wrong verbs, removed command names, outdated config keys, and claims based on plans rather than shipped code.
+When writing or reviewing the active `Unreleased` section, verify claimed features against the diff. Correct wrong verbs, removed command names, outdated config keys, and claims based on plans rather than shipped code only inside the active unreleased entry. Historical release entries describe the commit state they were released with; do not rewrite them as current truth.
 
 ## Style
 
@@ -86,14 +87,14 @@ Reuse existing section names when they fit. Good Shrimpy sections include:
 - `Workspace & Setup`
 - `Agents, Skills & Tools`
 - `Turn Context`
-- `Channels, Surfaces & Agent Policy`
+- `Channels & Agent Policy`
 - `Watches & Gateway`
 - `Sessions, Models & TUI`
+- `Pi Upgrades`
+- `Docs & Agent References`
 - `Release & Dependencies`
-- `Docs & Project Hygiene`
-- `Tests`
 
-Do not create every section for every release. Include only sections with meaningful entries.
+These are suggested labels, not required buckets. Do not create a section just to fit an implementation change; include only sections with meaningful user-facing release value.
 
 Use `Breaking Changes` when config keys, workspace file names, command names, or routing behavior changed in a way an existing workspace or workflow may notice. Mention the old and new names plainly.
 
@@ -105,7 +106,7 @@ When choosing bullet order inside a section, prefer:
 2. Setup, install, and upgrade changes that affect whether Shrimpy runs.
 3. User-visible commands, TUI behavior, channel behavior, and agent workflows.
 4. New inspection/debugging surfaces that make behavior observable.
-5. Maintainer-facing source skills, reference docs, tests, and project hygiene.
+5. Maintainer-facing docs, source skills, or agent references only when they affect install, upgrade, operator workflows, or agent behavior.
 
 Let concrete impact win over chronology. Do not reorder old release sections unless the user asks for cleanup.
 
