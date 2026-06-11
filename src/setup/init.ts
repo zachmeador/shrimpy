@@ -200,19 +200,19 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
 
   const workspaceFiles = [
     {
-      path: join(paths.vaultDir, ".gitkeep"),
-      content: "",
-    },
-    {
-      path: join(paths.projectsDir, ".gitkeep"),
-      content: "",
-    },
-    {
       path: join(agentPaths.vaultDir, ".gitkeep"),
       content: "",
     },
     {
+      path: join(agentPaths.projectsDir, ".gitkeep"),
+      content: "",
+    },
+    {
       path: join(mechanicPaths.vaultDir, ".gitkeep"),
+      content: "",
+    },
+    {
+      path: join(mechanicPaths.projectsDir, ".gitkeep"),
       content: "",
     },
     {

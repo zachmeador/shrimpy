@@ -58,13 +58,14 @@ const watches = readJson(watchesPath, "agents/shrimpy/watches.json");
 requireFile(path.join(workspaceRoot, "profile", "WORKSPACE.md"), "profile/WORKSPACE.md");
 requireFile(path.join(workspaceRoot, "profile", "USER.md"), "profile/USER.md");
 requireFile(path.join(workspaceRoot, "profile", "SYSTEM.md"), "profile/SYSTEM.md");
-requireDir(path.join(workspaceRoot, "vault"), "vault");
-requireDir(path.join(workspaceRoot, "projects"), "projects");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "context"), "agents/shrimpy/context");
+requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");
+requireDir(path.join(workspaceRoot, "agents", "shrimpy", "projects"), "agents/shrimpy/projects");
 requireFile(path.join(workspaceRoot, "agents", "mechanic", "SOUL.md"), "agents/mechanic/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "context"), "agents/mechanic/context");
-requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");
+requireDir(path.join(workspaceRoot, "agents", "mechanic", "vault"), "agents/mechanic/vault");
+requireDir(path.join(workspaceRoot, "agents", "mechanic", "projects"), "agents/mechanic/projects");
 
 if (config) {
   if (!Array.isArray(config.agents) || config.agents.length === 0) {

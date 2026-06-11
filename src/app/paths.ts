@@ -8,8 +8,6 @@ export interface WorkspacePaths {
   channelMembershipsPath: string;
   agentsDir: string;
   profileDir: string;
-  vaultDir: string;
-  projectsDir: string;
   docsDir: string;
   frameworkDir: string;
   stateDir: string;
@@ -60,8 +58,6 @@ export function createWorkspacePaths(
     channelMembershipsPath: join(workspace, "config", "channels.json"),
     agentsDir: join(workspace, "agents"),
     profileDir: join(workspace, "profile"),
-    vaultDir: join(workspace, "vault"),
-    projectsDir: join(workspace, "projects"),
     docsDir: join(workspace, "docs"),
     frameworkDir: join(workspace, "docs", "framework"),
     stateDir: join(workspace, "state"),

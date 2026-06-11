@@ -44,8 +44,6 @@ describe("setupInit", () => {
     const mechanicContextIdentityPath = join(mechanicRoot, "context", "identity.md");
     const mechanicContextHabitsPath = join(mechanicRoot, "context", "habits.md");
     const mechanicContextScopePath = join(mechanicRoot, "context", "scope.md");
-    const sharedVaultPath = join(workspace, "vault");
-    const sharedProjectsPath = join(workspace, "projects");
     const memoryManagementSkillPath = join(
       workspace,
       "skills",
@@ -116,6 +114,7 @@ describe("setupInit", () => {
     const agentVaultPath = join(agentRoot, "vault");
     const mechanicVaultPath = join(mechanicRoot, "vault");
     const agentProjectsPath = join(agentRoot, "projects");
+    const mechanicProjectsPath = join(mechanicRoot, "projects");
     const sourceSetupValidatorPath = join(
       projectRoot,
       "src",
@@ -141,8 +140,8 @@ describe("setupInit", () => {
     assert.equal(existsSync(mechanicContextIdentityPath), false);
     assert.equal(existsSync(mechanicContextHabitsPath), true);
     assert.equal(existsSync(mechanicContextScopePath), true);
-    assert.equal(existsSync(sharedVaultPath), true);
-    assert.equal(existsSync(sharedProjectsPath), true);
+    assert.equal(existsSync(join(workspace, "vault")), false);
+    assert.equal(existsSync(join(workspace, "projects")), false);
     assert.equal(existsSync(memoryManagementSkillPath), false);
     assert.equal(existsSync(journalDailySkillPath), false);
     assert.equal(existsSync(journalCompactSkillPath), false);
@@ -156,7 +155,8 @@ describe("setupInit", () => {
     assert.equal(existsSync(mechanicIdeasReferencePath), false);
     assert.equal(existsSync(agentVaultPath), true);
     assert.equal(existsSync(mechanicVaultPath), true);
-    assert.equal(existsSync(agentProjectsPath), false);
+    assert.equal(existsSync(agentProjectsPath), true);
+    assert.equal(existsSync(mechanicProjectsPath), true);
     assert.equal(existsSync(sourceSetupValidatorPath), true);
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
@@ -269,8 +269,8 @@ describe("setupInit", () => {
 
     const workspaceDoc = readFileSync(workspaceDocPath, "utf-8");
     assert.match(workspaceDoc, /This workspace is the home system/);
-    assert.match(workspaceDoc, /Shared saved files and collections live under `vault\/`/);
-    assert.match(workspaceDoc, /Shared code, apps, experiments, and focused work folders live under `projects\/`/);
+    assert.match(workspaceDoc, /Each agent keeps saved files and collections under `agents\/<id>\/vault\/`/);
+    assert.match(workspaceDoc, /Each agent keeps code, apps, experiments, and focused work folders under `agents\/<id>\/projects\/`/);
     assert.match(workspaceDoc, /Install-managed Shrimpy app checkout lives under/);
     assert.match(workspaceDoc, /Do not put reports in `context\/`/);
     assert.equal(workspaceDoc.includes(projectRoot), true);

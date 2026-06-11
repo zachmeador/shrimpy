@@ -49,9 +49,8 @@ When enough information is available, make concrete edits instead of only descri
 - User facts and preferences: `profile/USER.md`
 - Shrimpy identity and style: `agents/shrimpy/SOUL.md`
 - Durable agent memory: `agents/shrimpy/context/*.md`
-- Shared saved material: `vault/`
-- Shared projects, apps, and scripts: `projects/`
-- Agent reports or setup notes: `agents/shrimpy/vault/`
+- Saved material and setup notes for the main agent: `agents/shrimpy/vault/`
+- Projects, apps, and scripts for the main agent: `agents/shrimpy/projects/`
 - Watch preferences: `agents/shrimpy/watches.json`
 - Workspace inspection breadcrumbs: `profile/SYSTEM.md`; add or preserve a short local paths note with only 2-3 useful absolute paths, usually the active workspace, Shrimpy app/source checkout, and Shrimpy docs. Do not add broad crawl roots unless the user approved broader path scope.
 - Config changes: prefer `shrimpy <command>` when a command exists; otherwise edit JSON carefully.

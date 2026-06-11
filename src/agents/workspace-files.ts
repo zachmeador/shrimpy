@@ -25,6 +25,14 @@ export function scaffoldAgentFiles(
       path: join(paths.contextDir, "habits.md"),
       content: loadSetupTemplate("context/habits.md", ""),
     },
+    {
+      path: join(paths.vaultDir, ".gitkeep"),
+      content: "",
+    },
+    {
+      path: join(paths.projectsDir, ".gitkeep"),
+      content: "",
+    },
   ];
 
   for (const file of files) {

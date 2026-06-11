@@ -39,7 +39,7 @@ Likely shape:
 - `agents/career/context/` for career memory and preferences.
 - `agents/career/projects/resume-workflow/` for templates, scripts, and renderers.
 - a resume-tailoring skill.
-- `vault/career/applications/<date>-<company>-<role>/` for saved postings, notes, resumes, and PDFs.
+- `agents/career/vault/applications/<date>-<company>-<role>/` for saved postings, notes, resumes, and PDFs.
 - optional `career` and `career-log` channels later.
 
 Boundaries: do not invent credentials, dates, degrees, employers, projects, or metrics. Do not auto-apply.

@@ -6,8 +6,8 @@ Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source is under
 
 ## Framework Map
 
-- Workspace: the persistent home for `profile/`, `config/`, `agents/`, `state/`, `runtime/`, `channels/`, `media/`, `vault/`, `projects/`, and `skills/`. Docs: `reference/workspace.md`, `reference/configuration.md`.
-- Agents: persistent actors with identity, memory, skills, watches, sessions, and their own vault/projects space. Docs: `reference/architecture.md`, `reference/workspace.md`.
+- Workspace: the persistent home for `profile/`, `config/`, `agents/`, `state/`, `runtime/`, `channels/`, `media/`, and `skills/`. Docs: `reference/workspace.md`, `reference/configuration.md`.
+- Agents: persistent actors with identity, memory, skills, watches, sessions, and their own `vault/` and `projects/` directories. Docs: `reference/architecture.md`, `reference/workspace.md`.
 - Channels: append-only message logs and the shared comms layer. Membership controls which agents can see a channel. Docs: `reference/channels.md`.
 - Sessions: resumable private working contexts for one agent in a local session or channel. Docs: `reference/sessions.md`, `reference/compaction.md`.
 - Runtime: direct local sessions, gateway channel dispatch, watch runs, and child runs. Docs: `reference/runtime.md`.
@@ -42,7 +42,7 @@ Use `shrimpy skills bind` and `shrimpy skills unbind` to change visibility for a
 
 ## Storage Breadcrumbs
 
-Use `vault/` for saved artifacts and collections. Use `projects/` for code, apps, experiments, and focused work folders. Use `agents/<id>/context/` only for memory intended to load into prompts.
+Use `agents/<id>/vault/` for that agent's saved artifacts and collections. Use `agents/<id>/projects/` for that agent's code, apps, experiments, and focused work folders. Use `agents/<id>/context/` only for memory intended to load into prompts.
 
 When the user explicitly asks an agent to remember something, persist the relevant Markdown note before claiming it will be remembered. If it cannot be persisted now, say that plainly.
 

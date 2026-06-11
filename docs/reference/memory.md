@@ -23,7 +23,7 @@ Workspace-wide facts belong in `profile/*.md`, especially `profile/USER.md`, `pr
 
 When the user explicitly asks an agent to remember something, the agent should persist the relevant Markdown note before claiming it will be remembered. If it cannot persist the note immediately, it should say that plainly.
 
-Do not use `context/` as a filing cabinet. Put shared notes, reports, and other saved files in `vault/`. Put shared code or app work in `projects/`. For one agent's files, use `agents/<id>/vault/` or create `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
+Do not use `context/` as a filing cabinet. Put saved notes, reports, and other files in `agents/<id>/vault/`. Put code or app work in `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
 
 ## Upkeep
 

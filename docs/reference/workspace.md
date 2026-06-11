@@ -10,8 +10,6 @@ profile/SYSTEM.md               workspace-level Shrimpy framework map and breadc
 profile/USER.md                 workspace owner identity and preferences
 config/shrimpy.json             main runtime config
 config/channels.json            channel membership
-vault/                          shared saved files and collections
-projects/                       shared code, apps, and experiment work
 agents/                         per-agent workspaces
 state/pi/auth.json              provider credentials
 state/pi/models.json            model registry
@@ -27,7 +25,6 @@ channels/                       append-only channel logs
 media/                          downloaded media
 runtime/logs/gateway.log        gateway runtime log
 skills/                         workspace-level shared skills
-docs/framework/                 framework reference material
 ```
 
 Each agent workspace under `agents/<id>/` contains:
@@ -36,7 +33,7 @@ Each agent workspace under `agents/<id>/` contains:
 SOUL.md                         identity and voice
 context/                        agent memory and prompt files
 vault/                          agent saved files and reports
-projects/                       agent code, apps, and work folders, created when needed
+projects/                       agent code, apps, and work folders
 watches.json                    agent-owned background attention rules
 skills/                         agent-level skill bundles
 sessions/                       Pi session persistence
@@ -46,25 +43,25 @@ Workspace-authored skills live under `skills/<id>/SKILL.md`; agent-authored skil
 
 ## Storage
 
-Use `vault/` for saved files and collections. Use `projects/` for code, apps, experiments, or a focused work folder. These are normal directories.
+Use per-agent storage for saved files and project work. These are normal directories.
 
 Inside an agent root:
 
 - `agents/<id>/context/` is memory and prompt files.
 - `agents/<id>/vault/` is saved files and reports for that agent.
-- `agents/<id>/projects/` is code, apps, or work folders for that agent. Create it when needed.
+- `agents/<id>/projects/` is code, apps, or work folders for that agent.
 
 Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do not put reports in `context/`. Put a reference in `context/` only if the agent should load it every run.
 
-Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under `vault/` or `projects/`.
+Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under agent `vault/` or `projects/`.
 
-Setup onboarding creates shared `vault/` and `projects/`, plus the default agents' `agents/shrimpy/context/`, `agents/shrimpy/vault/`, `agents/mechanic/context/`, and `agents/mechanic/vault/`. Per-agent `projects/` directories are created when needed.
+Setup onboarding creates the default agents' `context/`, `vault/`, and `projects/` directories under `agents/shrimpy/` and `agents/mechanic/`. `shrimpy agent add` scaffolds the same per-agent directories for new agents.
 
 ## Checkpoints
 
 Workspace git checkpoint tracking is opt-in. `shrimpy workspace track init` initializes a local git repo at the workspace root, writes a strict whitelist `.gitignore`, and creates an initial checkpoint commit. It does not configure a remote. If the workspace already has a git repo without the Shrimpy checkpoint whitelist, init refuses to adopt it.
 
-The default whitelist tracks `.gitignore`, `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/*/SOUL.md`, `agents/*/watches.json`, `agents/*/skills/**`, and `skills/**`. It ignores runtime state, channel logs, sessions, auth, model metadata, media, `vault/`, and `projects/`.
+The default whitelist tracks `.gitignore`, `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/*/SOUL.md`, `agents/*/watches.json`, `agents/*/skills/**`, and `skills/**`. It ignores runtime state, channel logs, sessions, auth, model metadata, media, and agent `vault/` and `projects/` directories.
 
 Use `shrimpy workspace track status --json` to inspect whether tracking is disabled, clean, dirty, or misconfigured. Use `shrimpy workspace track checkpoint --message <text>` to create a manual checkpoint. When the gateway is running and tracking is enabled, Shrimpy checks about every 15 minutes and creates an automatic checkpoint commit only when checkpointable files changed.
 

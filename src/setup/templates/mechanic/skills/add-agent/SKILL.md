@@ -55,7 +55,7 @@ Then edit the scaffolded files under `agents/<id>/`:
 - `context/habits.md`: working preferences and recurring practices.
 - other `context/*.md` files: durable memory and active references the agent should always load.
 
-Keep reports in `agents/<id>/vault/` and code/work folders in `agents/<id>/projects/` when those directories are actually needed.
+Keep reports in `agents/<id>/vault/` and code/work folders in `agents/<id>/projects/`.
 
 ## Wire Channels
 

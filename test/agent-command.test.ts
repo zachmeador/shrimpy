@@ -48,6 +48,8 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.channels, undefined);
 
     assert.equal(existsSync(join(workspace, "agent-roots", "career", "SOUL.md")), true);
+    assert.equal(existsSync(join(workspace, "agent-roots", "career", "vault")), true);
+    assert.equal(existsSync(join(workspace, "agent-roots", "career", "projects")), true);
 
     const memberships = JSON.parse(
       readFileSync(join(workspace, "config", "channels.json"), "utf-8"),
