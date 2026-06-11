@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
@@ -10,6 +10,7 @@ import {
   ChannelOutbox,
   readDeliveryReceipts,
 } from "../dist/channels/outbox.js";
+import { saveCursors } from "../dist/channels/store.js";
 
 let testDir: string;
 
@@ -39,7 +40,48 @@ function createOutbox(registry: EgressRegistry, memberships: ChannelMembershipSt
   });
 }
 
+function seedOutboxCursor(cursors: Record<string, { byteOffset: number }> = {}) {
+  saveCursors(join(testDir, "runtime", "cursors", "outbox.json"), cursors);
+}
+
 describe("ChannelOutbox", () => {
+  test("bootstraps a missing outbox cursor without delivering historical messages", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("telegram~main~4242", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: any[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      sent.push(delivery);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+
+    bus.publishAgentText({
+      channel: "telegram~main~4242",
+      text: "historical reply",
+      actorId: "agent:shrimpy",
+    });
+
+    await outbox.drainBacklog();
+
+    assert.equal(sent.length, 0);
+    const cursorsPath = join(testDir, "runtime", "cursors", "outbox.json");
+    assert.equal(existsSync(cursorsPath), true);
+    const cursors = JSON.parse(readFileSync(cursorsPath, "utf-8"));
+    assert.equal(
+      cursors["telegram~main~4242"].byteOffset,
+      statSync(bus.path("telegram~main~4242")).size,
+    );
+  });
+
   test("delivers bound agent messages and records receipts", async () => {
     const bus = new ChannelBus(join(testDir, "channels"));
     const memberships = new ChannelMembershipStore(
@@ -58,6 +100,7 @@ describe("ChannelOutbox", () => {
       sent.push(delivery);
     });
     const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
 
     const human = bus.publishHumanText({
       channel: "home",
@@ -107,6 +150,7 @@ describe("ChannelOutbox", () => {
       throw new Error("send failed");
     });
     const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
     const message = bus.publishAgentText({
       channel: "home",
       text: "hi",

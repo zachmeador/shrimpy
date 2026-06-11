@@ -1,4 +1,7 @@
 import {
+  existsSync,
+} from "node:fs";
+import {
   loadCursors,
   saveCursors,
   type ChannelCursor,
@@ -88,6 +91,14 @@ export class ChannelOutbox {
   }
 
   async drainBacklog(): Promise<void> {
+    if (!existsSync(this.cursorsPath)) {
+      const currentCursors = this.channelBus.currentCursors();
+      saveCursors(this.cursorsPath, currentCursors);
+      this.cursors = currentCursors;
+      this.scheduleNextRetry();
+      return;
+    }
+
     const cursors = loadCursors(this.cursorsPath);
     const backlog: Array<{ channel: string; message: ChannelMessage }> = [];
     const updatedCursors = this.channelBus.drainBacklog(

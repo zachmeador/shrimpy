@@ -221,6 +221,22 @@ export function drainBacklog(
   return updated;
 }
 
+export function currentChannelCursors(
+  channelsDir: string,
+): Record<string, ChannelCursor> {
+  if (!existsSync(channelsDir)) return {};
+
+  const cursors: Record<string, ChannelCursor> = {};
+  for (const file of readdirSync(channelsDir)) {
+    if (!file.endsWith(".jsonl")) continue;
+    const channel = basename(file, ".jsonl");
+    cursors[channel] = {
+      byteOffset: statSync(join(channelsDir, file)).size,
+    };
+  }
+  return cursors;
+}
+
 export function channelPath(channelsDir: string, channel: string): string {
   const name = parseChannelName(channel);
   return join(channelsDir, `${name}.jsonl`);
@@ -253,5 +269,9 @@ export class ChannelStore {
     callback: ChannelCallback,
   ): Record<string, ChannelCursor> {
     return drainBacklog(this.channelsDir, cursors, callback);
+  }
+
+  currentCursors(): Record<string, ChannelCursor> {
+    return currentChannelCursors(this.channelsDir);
   }
 }

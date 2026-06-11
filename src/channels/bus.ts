@@ -76,6 +76,10 @@ export class ChannelBus {
     return this.store.drainBacklog(cursors, callback);
   }
 
+  currentCursors(): Record<string, ChannelCursor> {
+    return this.store.currentCursors();
+  }
+
   publish(input: PublishChannelMessageInput): ChannelMessage {
     return this.publisher.publish(input);
   }

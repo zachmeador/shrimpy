@@ -24,6 +24,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Added channel manifests and transport bindings so surface-backed channels can declare how outbound messages should be delivered.
 - Added a channel outbox with cursors, delivery receipts, retry state, and skipped/failed delivery records for outbound surface messages.
+- Changed channel outbox startup to seed missing cursors at current channel ends so enabling delivery does not replay historical messages.
 - Added channel-name validation and typed message discriminants at channel boundaries to make routing and inspection stricter.
 - Added surface activity and user reachability plumbing, including `shrimpy users presence`, so surfaces can report where users were last active.
 
