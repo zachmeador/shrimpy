@@ -232,20 +232,12 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
       content: loadSetupTemplate("SOUL.md", docsPath),
     },
     {
-      path: join(agentPaths.contextDir, "identity.md"),
-      content: loadSetupTemplate("context/identity.md", docsPath),
-    },
-    {
       path: join(agentPaths.contextDir, "habits.md"),
       content: loadSetupTemplate("context/habits.md", docsPath),
     },
     {
       path: mechanicPaths.soulPath,
       content: loadSetupTemplate("mechanic/SOUL.md", docsPath),
-    },
-    {
-      path: join(mechanicPaths.contextDir, "identity.md"),
-      content: loadSetupTemplate("mechanic/context/identity.md", docsPath),
     },
     {
       path: join(mechanicPaths.contextDir, "habits.md"),

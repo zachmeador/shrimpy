@@ -210,7 +210,7 @@ describe("skill context inspection", () => {
     assert.equal(dirRun.result, 0);
     assert.match(fileOutput, /^\[context base:profile\/WORKSPACE\.md identity\]/);
     assert.match(dirOutput, /\[context base:context\/habits\.md memory\]/);
-    assert.match(dirOutput, /\[context base:context\/identity\.md memory\]/);
+    assert.doesNotMatch(dirOutput, /\[context base:context\/identity\.md memory\]/);
     assert.doesNotMatch(fileOutput, /^## profile\/WORKSPACE\.md/m);
     assert.doesNotMatch(dirOutput, /^## context\//m);
   });

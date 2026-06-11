@@ -75,8 +75,8 @@ Stable prompt material loaded into an agent session before per-turn context arri
 - `profile/WORKSPACE.md` defines shared system/home context.
 - `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and inspection breadcrumbs. It does not contain the compact immutable instructions prepended during session setup.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
-- `SOUL.md` defines who an agent is.
-- `context/*.md` is the agent's long-lived prompt context: identity notes, habits, active references, and other memory the agent should load.
+- `SOUL.md` defines who an agent is: role, boundaries, and voice.
+- `context/*.md` is the agent's long-lived prompt context: habits, active references, and other durable memory the agent should load.
 - `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns.
 
 Setup onboarding creates baseline files from `src/setup/templates/`.

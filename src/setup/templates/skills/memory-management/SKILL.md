@@ -13,8 +13,9 @@ context files. If nothing's durable, do nothing.
 
 ## What lives where
 
-- `context/identity.md`, `context/habits.md`, etc. — top-level files, always
-  loaded into every session. Stable working knowledge about myself.
+- `context/habits.md` and other top-level `context/*.md` files — always loaded
+  into every session. Stable working knowledge, active references, and durable
+  memory about how I work.
 - `context/people/<actor-id>.md` — per-peer notes, loaded only when that peer
   is the active sender.
 - `context/channels/<name>.md` — per-channel notes, loaded only when that

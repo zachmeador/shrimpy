@@ -136,9 +136,9 @@ describe("setupInit", () => {
     assert.equal(existsSync(systemPath), true);
     assert.equal(existsSync(soulPath), true);
     assert.equal(existsSync(mechanicSoulPath), true);
-    assert.equal(existsSync(contextIdentityPath), true);
+    assert.equal(existsSync(contextIdentityPath), false);
     assert.equal(existsSync(contextHabitsPath), true);
-    assert.equal(existsSync(mechanicContextIdentityPath), true);
+    assert.equal(existsSync(mechanicContextIdentityPath), false);
     assert.equal(existsSync(mechanicContextHabitsPath), true);
     assert.equal(existsSync(mechanicContextScopePath), true);
     assert.equal(existsSync(sharedVaultPath), true);
@@ -277,15 +277,10 @@ describe("setupInit", () => {
     assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
 
-    const identity = readFileSync(contextIdentityPath, "utf-8");
-    assert.match(identity, /Notes I keep about myself/);
     const habits = readFileSync(contextHabitsPath, "utf-8");
     assert.match(habits, /How I tend to work/);
-    const mechanicIdentity = readFileSync(mechanicContextIdentityPath, "utf-8");
-    assert.match(mechanicIdentity, /Shrimpy mechanic/);
-    assert.match(mechanicIdentity, /short durable notes/);
-    assert.match(mechanicIdentity, /task playbooks in skills/);
-    assert.doesNotMatch(mechanicIdentity, /not the default `shrimpy` agent/);
+    const mechanicHabits = readFileSync(mechanicContextHabitsPath, "utf-8");
+    assert.match(mechanicHabits, /How I tend to work/);
     const mechanicScope = readFileSync(mechanicContextScopePath, "utf-8");
     assert.match(mechanicScope, /workspace-specific maintenance boundaries/);
     assert.match(mechanicScope, /No extra workspace-specific scope/);

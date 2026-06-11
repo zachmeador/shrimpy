@@ -22,10 +22,6 @@ export function scaffoldAgentFiles(
       content: renderSoulTemplate(agentId),
     },
     {
-      path: join(paths.contextDir, "identity.md"),
-      content: loadSetupTemplate("context/identity.md", ""),
-    },
-    {
       path: join(paths.contextDir, "habits.md"),
       content: loadSetupTemplate("context/habits.md", ""),
     },
