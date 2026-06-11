@@ -15,7 +15,7 @@ This is low priority and should stay behind practical agent, context, and app-pa
 
 - Agents are configured as a flat workspace-level array and addressed by unique id.
 - Resolved agent roots default to `agents/<id>`, though a root can be set explicitly.
-- Agent-owned files already live under the resolved root, including `SOUL.md`, `context/`, `vault/`, `watches.json`, `sessions/`, and `skills/`.
+- Agent-owned files already live under the resolved root, including `SOUL.md`, `context/`, `vault/`, `projects/`, `watches.json`, `sessions/`, and `skills/`.
 - Channels, channel policies, sessions, watches, skills, and model policy all assume ordinary agent ids. There is no parent/child relationship, delegated ownership model, or child-agent lifecycle command.
 - The character-agent musing describes internal voices as ordinary agents or context producers whose outputs can be selected into a parent character's next-turn context.
 

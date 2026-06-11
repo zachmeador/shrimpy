@@ -12,43 +12,49 @@ Now that Shrimpy has more control over the Pi TUI instance, `/agent` can become 
 
 ## Current State
 
-- CLI session inventory exists through `shrimpy sessions list [channel] --agent <id> --json`, including active sessions and recent archives for one agent at a time.
-- Session lifecycle state is represented by `shrimpy_lifecycle` custom entries, and local/gateway reset, restore, and thinking commands exist.
+- CLI session inventory exists through `shrimpy sessions list [channel] --agent <id> --json`, backed by `summarizeAgentSessions`. It is per-agent only, and already returns active sessions, recent archives, and gateway lane state (`gatewayLanes` with queue depth and current turn).
+- Session files already carry rich Shrimpy metadata: `shrimpy_lifecycle` entries for lifecycle state, and `shrimpy_session_metadata` entries recording agent id, channel, session type, and current model. Model switches append fresh metadata entries via `wrapModelMetadataRecording`, so the last entry reflects the current model.
 - The TUI command surface has Shrimpy-owned `/status`, `/settings`, `/model`, `/thinking`, and `/changelog` hooks, but no `/agent` navigator.
-- There is no workspace-wide all-agent session inventory service, no cross-agent runtime reopening path, and no gateway-session selection safety UI.
+- The Pi footer shows cwd, token stats, context usage, git branch, and extension statuses set via `ctx.ui.setStatus()`; nothing identifies the active agent.
+- The TUI runtime factory in `openSessionRuntime` closes over one agent's `(bootstrap, plan)`, so Pi session replacement always reopens as the launch agent.
+- `installShrimpyCommandSurface` and `installShrimpySettingsSelector` capture `agentId`, `channel`, `sessionType`, and `cwd` at install time.
+- There is no workspace-wide all-agent session inventory service.
 
 ## Build
 
-- Add `/agent` as an interactive TUI command.
-- Show a searchable list of configured agents in the current workspace.
-- Enter on an agent opens that agent's session list.
-- Enter on a session resumes or opens it in the current TUI.
-- Show useful row metadata: agent id, agent root, configured model/thinking, session label, session type/channel when known, active/archive state, updated age, session name, and first prompt preview.
+- Add `/agent` as an interactive TUI command: bare `/agent` opens a searchable list of configured agents, `/agent <id>` jumps straight to that agent's session list.
+- Enter on an agent opens that agent's session list. Enter on a session opens it in the current TUI.
+- Show useful row metadata: agent id, agent root, configured model/thinking, session label, session type/channel when known, active/archive state, updated age, current model, session name when present, and first prompt preview.
+- Mark the session currently open in this TUI; selecting it is a no-op.
+- Show the active agent id in the Pi footer status line so the user always knows which agent they are chatting with, before and after switches.
+- Add `/agent` to the command surface help lines.
 - Keep `/status agents` as a read-only inspection path; `/agent` is the navigable workflow.
-- Preserve CLI coverage first, so the TUI navigator reads the same service surface an agent can inspect from the shell.
+- Preserve CLI coverage first, so the TUI navigator reads the same inventory service an agent can inspect from the shell.
 
 ## Safe MVP
 
 - Directly switch between `tui` sessions for any configured agent.
-- Include archived sessions in the list, with explicit restore/resume behavior.
-- Show gateway/channel sessions as visible records, but do not silently attach to a session that may be owned by the running gateway.
-- If a gateway/channel session is selected, offer a clear fork/open-local path first. A direct attach can come later only with explicit confirmation and a well-defined writer-safety story.
+- Include archived sessions in the list. Selecting an archive restores it to active first, matching `executeSessionLifecycleAction` restore semantics (move the archive back, archive the current active), then opens it.
+- Show gateway/channel sessions as visible records, but do not attach to a session that may be owned by the running gateway. Offer a clear fork/open-local path. A direct attach can come later only with explicit confirmation and a well-defined writer-safety story.
 
 ## Runtime Boundary
 
-Pi already exposes a selector replacement surface and session switching inside the current `AgentSessionRuntime`, but Shrimpy's current TUI runtime is opened for one agent at launch. Cross-agent navigation needs a Shrimpy-owned session target model that can rebuild bootstrap, model defaults, tool policy, prompt prep, and context assembly for the selected agent.
+Pi's `AgentSessionRuntime.switchSession(sessionPath)` already does most of the work: it reuses the runtime factory stored at construction, tears down the current session, builds the next one, and rebinds the TUI. `InteractiveMode.session` is a live getter into the runtime, and InteractiveMode registers `setRebindSession` for UI rebinding after replacement. The blocker is only that Shrimpy's factory in `openSessionRuntime` closes over one agent's `(bootstrap, plan)`.
 
-The selected session path must not just call Pi's existing `switchSession()` against the old runtime factory if the target belongs to another agent. It must resolve the target agent first, then open a runtime with that agent's root and policy.
+The shape: make the factory consult a mutable session target resolver. The navigator resolves the target agent, rebuilds bootstrap and plan through the normal Shrimpy session-open path (including the Pi turn-context hook described in [turn-context.md](../reference/turn-context.md)), sets the target, then calls `switchSession()`. Pi's teardown/rebind plumbing handles the rest; the navigator does not restart the TUI and does not rebuild prompt preparation itself.
 
-The reopened runtime should use the normal Shrimpy session-open path, including the Pi turn-context hook described in [turn-context.md](../reference/turn-context.md). The navigator should not rebuild prompt preparation or reintroduce wrappers that rewrite user prompts before they reach `session.prompt()`.
+Failure semantics matter: Pi tears down the current session before creating the next and propagates creation errors to the caller. Cross-agent opens can fail in ways same-agent resume cannot (no usable model under the target's policy, broken agent files). Pre-flight the target's bootstrap and plan before calling `switchSession()`; a failed open must leave the current session intact.
+
+The Shrimpy TUI surfaces capture agent identity at install time and must instead read the active target live, or `/status` and `/settings` report the old agent after a switch.
 
 ## Slices
 
-- TUI-004A: Add an agent/session inventory service that lists all configured agents and their session files, including lifecycle state and Shrimpy session metadata.
-- TUI-004B: Add CLI coverage, likely `shrimpy agent sessions <id> [--json]` or an expanded `shrimpy sessions list --agent <id> --all --json`.
-- TUI-004C: Refactor TUI session replacement so a selected target can reopen the Pi runtime as a different Shrimpy agent.
-- TUI-004D: Add the `/agent` selector flow in the Shrimpy TUI command surface.
-- TUI-004E: Define and implement gateway/channel-session selection semantics: disabled, fork local, restore archived, or explicitly attach.
+- TUI-004A: Add a workspace-wide agent/session inventory service: all configured agents, session files per channel, lifecycle state, metadata from the last `shrimpy_session_metadata` entry via `findLastCustomEntry`, session name from Pi's `session_info` entry (later MEM-001 generated titles), first-prompt preview, and gateway lane state. First-prompt preview is the only new extraction; the rest reuses existing records.
+- TUI-004B: Extend `shrimpy sessions list` with a workspace-wide all-agents mode (for example `--all`), reading the same inventory service. Keep session inventory on one CLI surface so CLI and TUI listings cannot drift.
+- TUI-004C: Add the session target resolver: the runtime factory consults a mutable target, Shrimpy TUI surfaces read the active target live, and cross-agent opens pre-flight the target and recover to the current session on failure.
+- TUI-004D: Add the `/agent` selector flow in the Shrimpy TUI command surface, including help lines, `/agent <id>` direct jump, and the current-session marker.
+- TUI-004E: Define gateway/channel-session selection semantics: surface gateway lane state (queue depth, current turn) in the selector, define staleness rules for the runtime-state file, and wire the fork/open-local path. Direct attach is a later, explicitly confirmed step.
+- TUI-004F: Footer agent indicator: a Shrimpy extension factory closing over the agent id calls `ctx.ui.setStatus()` on session start. Independent of the other slices and can ship first; under TUI-004C the resource loader is rebuilt per target, so the indicator stays correct across switches.
 
 ## Boundaries
 
@@ -60,17 +66,21 @@ The reopened runtime should use the normal Shrimpy session-open path, including 
 
 ## Implementation Notes
 
-- Likely files: `src/sessions/service.ts`, `src/sessions/storage.ts`, `src/sessions/direct.ts`, `src/sessions/open.ts`, `src/tui/shrimpy-command-surface.ts`, and a new `src/tui/shrimpy-agent-navigator.ts`.
-- Current Shrimpy TUI launch captures the active agent in `runAgentTuiSession`; cross-agent switching needs that capture point to become a target resolver.
-- Current session summaries are per-agent and mostly active/archive paths. The navigator needs richer per-file metadata and should reuse Shrimpy custom metadata entries where present.
-- Pi's own `/resume` remains a Pi session selector for the current runtime/session directory. `/agent` should be the Shrimpy workspace-level navigator.
+- Likely files: `src/sessions/service.ts`, `src/sessions/storage.ts`, `src/sessions/open.ts`, `src/sessions/direct.ts`, `src/tui/interactive.ts`, `src/tui/shrimpy-command-surface.ts`, and a new `src/tui/shrimpy-agent-navigator.ts`.
+- The agent capture point is the factory closure over `(bootstrap, plan)` in `openSessionRuntime` (`src/sessions/open.ts`). `runAgentTuiSession` and the surface installers capture agent identity again for display; both captures become reads of the live target.
+- Footer indicator seam: extension statuses set via `ctx.ui.setStatus(key, text)` land in Pi's `FooterDataProvider` and render on the built-in footer's status line. Shrimpy's extension factories in `src/sessions/pi-resources.ts` already close over per-session state (`createTurnContextExtensionFactory`), so the indicator follows the same pattern with the agent id.
+- Pi's own `/resume` remains a Pi session selector for the current runtime/session directory. `/agent` is the Shrimpy workspace-level navigator.
 - Related: the completed Shrimpy command-surface work for TUI coherence and the completed command-output polish work for selector/output patterns.
-- Related: direct TUI, direct `run`, and gateway turns are aligned through Pi's context hook; the navigator should preserve that boundary when switching targets.
+- Related: direct TUI, direct `run`, and gateway turns are aligned through Pi's context hook; the navigator preserves that boundary when switching targets.
 
 ## Done
 
-- `/agent` lets the user choose a configured agent and then a session from that agent without leaving the TUI.
+- `/agent` lets the user choose a configured agent and then a session from that agent without leaving the TUI; `/agent <id>` jumps to that agent.
 - Cross-agent session selection opens with the selected agent's prompt resources, model defaults, tool policy, context assembly, and session storage.
+- The footer shows the active agent id at all times, and it updates on cross-agent switch.
+- After a switch, `/status` and `/settings` report the new agent.
+- A failed cross-agent open leaves the current session intact.
+- Switching away and back round-trips cleanly, with the previous runtime fully torn down.
 - Gateway/channel sessions are visible but protected from accidental concurrent writes.
-- CLI and TUI session listings agree on agent/session metadata.
-- Focused tests or documented manual verification cover same-agent TUI resume, cross-agent TUI resume, archived-session restore, and gateway-session selection behavior.
+- CLI and TUI session listings read the same inventory service and agree on agent/session metadata.
+- Focused tests or documented manual verification cover same-agent TUI resume, cross-agent TUI resume, archived-session restore, failed-open recovery, and gateway-session selection behavior.

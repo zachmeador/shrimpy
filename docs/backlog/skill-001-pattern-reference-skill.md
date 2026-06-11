@@ -57,7 +57,7 @@ Replace it with a docs-backed reference skill available to all agents. The patte
 - MECH-001's anti-pattern catalog is complementary, not duplicate: that catalog says what tends to go wrong; this skill says what shapes to reach for. Keep them separate.
 - When [VAULT-001](vault-001-default-workspace-collections.md) ships collection conventions, `capture.md` and `trackers.md` should adopt its naming; until then naming stays a loose convention.
 - The category list comes from what OpenClaw/Hermes-class home agents demonstrably get used for, not from Shrimpy's feature list.
-- A possible eighth category — small tools/apps under `projects/`, including local-service glue like talking to Home Assistant over CLI/HTTP — is deliberately deferred. Ship seven and see.
+- A possible eighth category — small tools/apps under `agents/<id>/projects/`, including local-service glue like talking to Home Assistant over CLI/HTTP — is deliberately deferred. Ship seven and see.
 
 ## Done
 

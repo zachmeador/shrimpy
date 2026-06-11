@@ -50,7 +50,7 @@ Today Shrimpy's tool-rendering wrapper rebuilds Pi's chat when `Ctrl+O` toggles 
 
 - Likely files: `src/tui/`, `src/sessions/direct.ts`, and tests near `test/tui-tool-rendering.test.ts` or a new TUI renderer test.
 - Pi's `CustomMessageComponent` already calls registered message renderers with `{ expanded }`; Shrimpy should use that extension path.
-- Current model-switch messages are created in `src/sessions/open.ts` by `appendModelSwitchMessage()`.
+- Current model-switch messages are created in `src/sessions/session-record.ts` by `appendModelSwitchMessage()`, installed from `src/sessions/open.ts` via `wrapModelMetadataRecording()`.
 - The bug being addressed is a symptom of transient `showStatus()` rows being outside the session render path while Shrimpy rebuilds chat on expansion changes.
 
 ## Done
