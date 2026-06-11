@@ -1,6 +1,6 @@
 {
   "name": "shrimpy",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "a home agent",
   "license": "MIT",
   "type": "module",
@@ -45,7 +45,7 @@
     "configDir": ".shrimpy"
   },
   "shrimpy": {
-    "releaseName": "A Window in the Reef"
+    "releaseName": "Tides Pull Both Ways"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

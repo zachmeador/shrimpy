@@ -36,7 +36,7 @@ The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under `~/
 To install a specific tag, branch, or commit:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.3.0 bash
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.4.0 bash
 ```
 
 For source checkout development:

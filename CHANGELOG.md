@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 Unreleased
+## 🦐 0.4.0 - Tides Pull Both Ways - 2026-06-11
 
 ### Installation
 
