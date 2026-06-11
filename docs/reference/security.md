@@ -1,8 +1,8 @@
 # 🦐 Security
 
-## Current Model
+**tldr:** If you don't know what you're doing, you can get totally Rekt. Same with Openclaw, Hermes-agent, whatever. Shrimpy's goal is to not *mislead you* about this.
 
-tldr: If you don't know what you're doing, you can get totally Rekt. Same with Openclaw, Hermes-agent, whatever. Shrimpy's goal is to not *mislead you* about this.
+## Current Model
 
 Shrimpy uses Pi's tool runtime. Active tool schemas are exposed to the model, Pi validates tool arguments, and Pi runs the selected tool implementation. Shrimpy adds its daemon tools for channels, publication, and child runs. See [tools.md](tools.md) and [channels.md](channels.md).
 
@@ -51,4 +51,4 @@ shrimpy skills validate --agent <id>
 
 These commands expose configuration, routing, prompt material, watches, and the active tool list.
 
-Workspace checkpoint tracking is local and opt-in. Its default whitelist excludes `state/`, `runtime/`, `channels/`, `media/`, `agents/*/sessions/`, `vault/`, and `projects/`; inspect the generated workspace `.gitignore` before relying on checkpoints for sensitive work.
+Workspace checkpoint tracking is local and opt-in. Its default whitelist excludes `state/`, `runtime/`, `channels/`, `media/`, `agents/*/sessions/`, and agent `vault/` and `projects/` directories; inspect the generated workspace `.gitignore` before relying on checkpoints for sensitive work.
