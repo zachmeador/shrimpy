@@ -8,6 +8,8 @@ Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree
 
 *Home agent:* an OpenClaw-like personal workspace runtime: multiple persisting agents reachable through multiple surfaces, with shared memory, local tools, and background work.
 
+Current release: **0.4.0 - Tides Pull Both Ways**.
+
 > *keep it shrimple* 🦐
 
 ## 🦐 Read first
