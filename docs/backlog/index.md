@@ -17,14 +17,16 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CTX-010](ctx-010-agent-watch-turn-context.md) | todo | P2 | Context | none | Agent watch inventory in turn context |
 | [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | todo | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
-| [MECH-001](mech-001-skill-opportunity-watch.md) | todo | P2 | Mechanic | [APP-001](app-001.md) | Mechanic usage and context hygiene assessment watch |
+| [MECH-002](mech-002-audit-skills.md) | todo | P1 | Mechanic | none | Mechanic security and hygiene audit skills |
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-pattern-reference-skill.md) | draft | P2 | Skills | none | All-agents pattern reference skill replacing mechanic ideas |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
-| [SECURITY-002](security-002-default-security-audit-agent.md) | todo | P1 | Security | none | Default security audit agent and watch |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
+| [SETUP-001](setup-001-onboarding-completion.md) | todo | P1 | Setup | none | First-run onboarding ends with gateway step, next steps, and status readiness |
+| [SETUP-002](setup-002-setup-entry-seams.md) | todo | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
+| [SETUP-003](setup-003-opt-in-watch-seeding.md) | todo | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |

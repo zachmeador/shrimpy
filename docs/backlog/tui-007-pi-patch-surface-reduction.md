@@ -22,14 +22,14 @@ Shrimpy customizes Pi at three levels: the public session SDK in `src/sessions/`
 - Extension API hooks now available that overlap with patches: `ctx.ui.addAutocompleteProvider()`, `registerMessageRenderer()`, `ctx.ui.setStatus()`, `ctx.ui.setWidget()`/`setFooter()`/`setHeader()`, and `registerCommand` with argument completions.
 - `/status` is defined in two places: `extensions/shrimpy-commands.ts` registers it for discovery/completions with a notice handler, and the command-surface submit patch implements the real rendering.
 - Patch-time guarding is inconsistent: `shrimpy-model-selection.ts` checks members before patching and degrades gracefully; the command surface patches unconditionally.
-- The genuine extension-API gap that keeps the command surface alive: extensions cannot append persistent rich blocks to the chat history (`ctx.ui.notify` is transient, widgets are ephemeral).
+- The genuine extension-API gap that keeps the command surface alive is narrower than "no rich chat output": extensions can already append persistent rendered blocks via `pi.sendMessage()` plus `registerMessageRenderer()`, but Pi's `convertToLlm` converts every custom message into a model-visible user message. `excludeFromContext` exists only for bash-execution messages. Command output like `/status` therefore cannot be persistent-but-display-only through the extension API (verified against pi-mono main, 2026-06-11; no upstream issue or PR covers this).
 
 ## Build
 
 - Migrate slash-command autocomplete filtering (hiding `/scoped-models` and `/share`) from the `createBaseAutocompleteProvider` wrap to `ctx.ui.addAutocompleteProvider()`, then delete the wrap.
 - Add an install-time contract check: a small shared helper each installer uses to assert the private members it is about to patch exist with the expected shape. On mismatch, fail at TUI launch with a diagnostic naming the installer and member, so a Pi upgrade surfaces immediately instead of misbehaving silently.
 - Unify command definitions so one place defines each Shrimpy TUI command. Keep `registerCommand` for discovery and completions; route the implementation from a single definition instead of duplicating `/status` across the extension and the submit patch.
-- Write down the upstream ask to Pi: a sanctioned way for extensions to append persistent rich blocks to chat history. When that hook exists, `/status`, `/shrimpy`, and `/changelog` rendering can become plain extensions.
+- Upstream ask to Pi: `excludeFromContext?: boolean` on `CustomMessage`/`pi.sendMessage()`, mirroring the existing bash-execution flag and skipped in `convertToLlm`. Filed as [earendil-works/pi#5654](https://github.com/earendil-works/pi/issues/5654) (2026-06-11; auto-closed on intake per their CONTRIBUTING flow, awaiting maintainer review). Precedent: pi issue #5039 added the same flag to the bash RPC command. When the flag lands, `/status`, `/shrimpy`, and `/changelog` become plain extensions: `registerCommand` handler + `sendMessage({display: true, excludeFromContext: true})` + `registerMessageRenderer`.
 
 ## Decisions
 
@@ -55,4 +55,4 @@ Shrimpy customizes Pi at three levels: the public session SDK in `src/sessions/`
 - Every remaining installer verifies its patched members at install time and fails with a clear diagnostic when Pi internals change.
 - Each Shrimpy TUI command has exactly one implementation site.
 - The patched-private-member count before and after is recorded in this note, and it went down.
-- The Pi upstream ask (persistent chat blocks from extensions) is recorded where the next Pi upgrade evaluation will see it.
+- The outcome of [pi#5654](https://github.com/earendil-works/pi/issues/5654) (`excludeFromContext` on custom messages) is resolved one way or the other: flag landed and the command-surface migration is unblocked, or the ask was declined and the command surface stays a documented patch.

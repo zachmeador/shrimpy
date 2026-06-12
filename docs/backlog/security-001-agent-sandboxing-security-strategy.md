@@ -5,14 +5,14 @@ Priority: P2
 Area: Security
 
 ## Why
-Some agents should get a project folder, not the whole machine. Shrimpy needs a local sandbox story for macOS and Linux that normal people can live with.
+Some agents should get a workspace folder, not the whole machine. Shrimpy needs a local sandbox story for macOS and Linux that normal people can live with.
 
 ## Explore
 - Prefer in-OS sandboxing first, but evaluate Gondolin as a VM-backed runner for high-risk turns. Study macOS App Sandbox, Seatbelt/SBPL, XPC, bookmarks, Linux namespaces, `bubblewrap`, seccomp, Landlock, systemd sandboxing, separate users, and Gondolin's host-mediated network/secrets/VFS model.
 - Define the small policy shape Shrimpy needs: reads, writes, network, git, secrets, browser, devices, and promotion back to the real workspace.
 - Decide how git works: in-place edits, `.git` access, scratch patches, worktrees, commits, and pushes.
 - Design `shrimpy` inspection output that shows the active sandbox profile.
-- Keep audit-agent work in [SECURITY-002](security-002-default-security-audit-agent.md).
+- Keep audit work in [MECH-002](mech-002-audit-skills.md).
 
 ## Do Not
 - Do not implement native sandbox runners as part of this strategy item.
