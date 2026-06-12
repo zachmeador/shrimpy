@@ -21,6 +21,8 @@ Shrimpy includes:
 
 - current turn metadata in the header
 - gateway status pointers such as watch-run recency, next run time, and latest user interaction
+- owned worker outcomes: current-session workers first, current-channel workers next, then compact counts for other completed, blocked, failed, or cancelled workers that need review
+- generated watch turns include session status and owned worker outcome counts so agents can notice background results without manually listing workers first
 - channel unread summaries for matching channels
 - path-indexed memory slices from `context/people/<sender>.md` and `context/channels/<channel>.md`
 - workspace-configured command sources from `context.sources`
@@ -28,6 +30,8 @@ Shrimpy includes:
 Command sources let workspace-specific agents add their own alerts. For example, a finance agent can expose `finance-shrimpy alerts context` and Shrimpy includes its output for selected channels.
 
 Command output is compact text. Use evidence or inspect commands inside that text when the agent should know how to drill down.
+
+Worker context is intentionally brief. Detailed items include the worker id, status, relevance tier, goal, latest result or blocker, and `shrimpy worker read <id>` as the inspect command. Other owned worker outcomes collapse to a count with `shrimpy worker list --json` as the inspect command. Cross-agent workers are not included in normal turn context.
 
 ## Runtime Path
 

@@ -56,6 +56,16 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy watches show <agent-id>/<watch-id> [--json]` | Show one resolved watch with diagnostics and inspect commands. |
 | `shrimpy watches history <agent-id>/<watch-id> [--limit N] [--json]` | Show recent run records for one watch. |
 | `shrimpy watches run <agent-id>/<watch-id> [--json]` | Run one watch immediately and record it in watch history. |
+| `shrimpy worker backends [--refresh] [--json]` | Inspect or refresh persisted Codex, Claude Code, and Pi worker backend availability. |
+| `shrimpy worker start [--backend <pi\|codex\|claude>] [--agent <id>] [--cwd <path>] [--goal <text>] [--timeout-ms <n>] <spec> [--json]` | Start a detached coding worker turn and persist its record. Codex runs through `codex exec --json`; Pi runs through Shrimpy's direct Pi session path; Claude Code is deferred. `--timeout-ms` cancels the turn if it exceeds the limit. |
+| `shrimpy worker list [--all] [--json]` | List open coding workers. `--all` includes closed workers. |
+| `shrimpy worker status <id> [--json]` | Show one worker's structured status, backend, owner, cwd, and goal. Single-worker JSON includes top-level `latestTurn`, `artifactPaths`, and `commands` shortcuts in addition to the full record. |
+| `shrimpy worker read <id> [--json]` | Read a worker summary and turn logs. The summary includes goal, status, key actions, files touched, blockers, and latest result. Single-worker JSON uses the same shortcut shape as status. |
+| `shrimpy worker send <id> <prompt> [--timeout-ms <n>] [--json]` | Send a contract amendment to an open worker. `--timeout-ms` applies to the amendment turn. |
+| `shrimpy worker tail <id> [--lines <n>] [--follow]` | Print or follow the latest worker turn log. |
+| `shrimpy worker wait <id> [--timeout-ms <n>] [--json]` | Block until a worker is no longer running. |
+| `shrimpy worker cancel <id> [--json]` | Mark a worker cancelled, send `SIGTERM` to the recorded supervisor process group, then escalate to `SIGKILL` if it stays alive past the grace period. |
+| `shrimpy worker close <id> [--json]` | Close a worker after parent review. If the worker is still running, Shrimpy runs the same terminate-then-force-kill cleanup first. |
 | `shrimpy context` | Render assembled session prompt context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |

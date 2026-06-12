@@ -15,6 +15,7 @@ import {
 import { runContextSourceCommand } from "./command-source.js";
 import { buildTurnFactItems } from "./facts.js";
 import { buildSessionStatusItems } from "./session-status.js";
+import { buildWorkerContextItems } from "./workers.js";
 import {
   readContextState,
   writeContextState,
@@ -47,6 +48,7 @@ export async function buildTurnContext(
     }),
     ...buildGatewayStatusItems(input),
     ...buildSessionStatusItems({ turn: input, agentId }),
+    ...buildWorkerContextItems({ turn: input, agentId }),
     ...buildChannelUnreadItems(input),
     ...await buildCommandItems(input),
   ];

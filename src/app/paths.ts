@@ -26,6 +26,9 @@ export interface WorkspacePaths {
   gatewayPidPath: string;
   gatewayStatePath: string;
   usersPath: string;
+  workerBackendsStatePath: string;
+  workersStatePath: string;
+  runtimeWorkersDir: string;
   userPresencePath: string;
   cursorsPath: string;
   outboxCursorsPath: string;
@@ -76,6 +79,9 @@ export function createWorkspacePaths(
     gatewayPidPath: join(workspace, "runtime", "pids", "gateway.pid"),
     gatewayStatePath: join(workspace, "runtime", "gateway-state.json"),
     usersPath: join(workspace, "state", "users.json"),
+    workerBackendsStatePath: join(workspace, "state", "worker-backends.json"),
+    workersStatePath: join(workspace, "state", "workers.json"),
+    runtimeWorkersDir: join(workspace, "runtime", "workers"),
     userPresencePath: join(workspace, "state", "user-presence.json"),
     cursorsPath: join(workspace, "runtime", "cursors", "channels.json"),
     outboxCursorsPath: join(workspace, "runtime", "cursors", "channel-outbox.json"),

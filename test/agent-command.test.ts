@@ -611,7 +611,6 @@ describe("cmdAgent lifecycle", () => {
       "report",
       "send_message",
       "read_channel",
-      "run_child",
     ]);
   });
 

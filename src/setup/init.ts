@@ -21,6 +21,7 @@ import {
   gatewayServicePaths,
 } from "../gateway/service-ctl.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
+import { refreshWorkerBackendAvailability } from "../workers/availability.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { brand, dim, heading } from "../util/style.js";
 import {
@@ -38,7 +39,6 @@ const DEFAULT_AGENT_TOOLS = [
   "report",
   "send_message",
   "read_channel",
-  "run_child",
 ];
 
 function defaultShrimpyConfig(): Record<string, unknown> {
@@ -208,6 +208,15 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
     created.push(channelMembershipsPath);
   } else {
     existing.push(channelMembershipsPath);
+  }
+
+  const workerBackendsStatePath = paths.workerBackendsStatePath;
+  const hadWorkerBackendsState = existsSync(workerBackendsStatePath);
+  refreshWorkerBackendAvailability(workspace);
+  if (hadWorkerBackendsState) {
+    existing.push(workerBackendsStatePath);
+  } else {
+    created.push(workerBackendsStatePath);
   }
 
   const workspaceFiles = [

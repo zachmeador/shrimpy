@@ -3,6 +3,7 @@ import {
   summarizeSessionStatus,
 } from "../../sessions/status.js";
 import type { TurnContextInput, TurnContextItem } from "./types.js";
+import { buildWorkerSessionStatusItems } from "./workers.js";
 
 export function isGeneratedWakeTurn(input: TurnContextInput): boolean {
   return input.currentMessage?.origin.transport === "watch";
@@ -20,7 +21,11 @@ export function buildSessionStatusItems(input: {
     agentId: input.agentId,
     staleAfterMs,
   });
-  if (status.counts.active === 0) return [];
+  const workerItems = buildWorkerSessionStatusItems({
+    runtime: input.turn.runtime,
+    agentId: input.agentId,
+  });
+  if (status.counts.active === 0) return workerItems;
 
   const pieces = [
     `sessions: ${status.counts.active} active across ${formatChannels(
@@ -42,7 +47,7 @@ export function buildSessionStatusItems(input: {
     id: "sessions:status",
     summary: pieces.join("; "),
     inspect: "shrimpy sessions list --json",
-  }];
+  }, ...workerItems];
 }
 
 function formatChannels(channels: string[]): string {

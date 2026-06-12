@@ -15,7 +15,7 @@ Replace it with a docs-backed reference skill available to all agents. The patte
 
 ## Current State
 
-- `src/skills/defaults.ts` ships three all-agents skills (`memory-management`, `journal-daily`, `journal-compact`) and seven mechanic-bound skills.
+- `src/skills/defaults.ts` ships four all-agents skills (`coding-delegation`, `memory-management`, `journal-daily`, `journal-compact`) and seven mechanic-bound skills.
 - `shrimpy-mechanic-ideas` with `references/pattern-inventory.md` is the only pattern catalog. It is bound only to the mechanic, has no CLI snippets, and its examples skew unrepresentative.
 - Shrimpy workspaces always have the app checkout and its docs on disk: the `SYSTEM.md` template advertises the docs path, and the `watches` and `channel-routing` skills already breadcrumb to `reference/` docs by path instead of bundling copies. Docs-as-references is established house style; `shrimpy-mechanic-ideas` is the only default skill carrying its own references corpus.
 - Skill loading is progressive (name and description advertised at session start, body read on demand, documented in [skills.md](../reference/skills.md)), so a thin always-visible index skill costs almost nothing per session.

@@ -1,6 +1,6 @@
 # 🦐 Tools
 
-Shrimpy uses Pi's native tool runtime and adds a small set of Shrimpy daemon tools for channels, publication, and child runs. There is no separate Shrimpy tool-calling protocol.
+Shrimpy uses Pi's native tool runtime and adds a small set of Shrimpy daemon tools for channels and publication. There is no separate Shrimpy tool-calling protocol.
 
 ## Runtime Model
 
@@ -40,7 +40,7 @@ Shrimpy's default sessions leave Pi's default active built-ins available unless 
 
 ## Shrimpy Daemon Tools
 
-Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services. They exist to connect a Pi session to Shrimpy channels, surfaces, and child session execution. See [channels.md](channels.md) for channel publication and egress semantics.
+Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services. They exist to connect a Pi session to Shrimpy channels and surfaces. See [channels.md](channels.md) for channel publication and egress semantics.
 
 | Tool | Purpose |
 | --- | --- |
@@ -50,15 +50,12 @@ Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services. The
 | `report` | Publish a concise completion report or summary to the active gateway/channel turn. |
 | `send_message` | Send text to an explicit Shrimpy channel, `user:<id>` alias, or agent DM. |
 | `read_channel` | Read recent messages from a Shrimpy channel or agent DM. |
-| `run_child` | Open a fresh child `run` session with the same agent, auth, and model registry, then return the child result. |
 
 `reply`, `ask`, `notify`, and `report` require an active publication channel. Gateway channel sessions have one. Direct `tui` and `run` sessions do not, so those publication helpers are not registered there; the agent should answer the local user with ordinary assistant text.
 
 `send_message` is the lower-level routing primitive. It logs to the named channel; the gateway outbox delivers externally when the channel has a transport binding. `user:<id>` resolves to that user's last active chat surface at tool execution time, then logs to the concrete channel. Agent DMs are internal channels, so no external adapter is expected unless the channel is deliberately bound.
 
 `read_channel` returns recent channel messages as bounded JSON. The default limit comes from `tools.readChannel.defaultLimit`.
-
-`run_child` is for bounded delegated work. The child run gets separate session persistence under the agent workspace while reusing Shrimpy's Pi auth and model registry. See [sessions.md](sessions.md#session-kinds).
 
 Background attention rules are configured as agent-owned watches in `agents/<id>/watches.json` and inspected with `shrimpy watches`; there is no separate scheduling daemon tool.
 
@@ -75,8 +72,7 @@ Agent tool policy lives in `agents[]` inside `config/shrimpy.json`.
     "notify",
     "report",
     "send_message",
-    "read_channel",
-    "run_child"
+    "read_channel"
   ],
   "disabledTools": ["bash"]
 }

@@ -1,6 +1,7 @@
 ---
 name: coding-delegation
 description: Prepare, dispatch, or supervise delegated coding work for Codex, Claude Code, Shrimpy/Pi, or another coding agent.
+allowed-tools: Bash
 ---
 
 # Coding Delegation
@@ -49,11 +50,31 @@ Operating contract:
 Work autonomously until the goal is complete or blocked. Preserve unrelated user changes. Do not merge, publish, delete, reset, or make broad rewrites without explicit approval. Report changed files, verification, blockers, and residual risk.
 ```
 
+## Current Shrimpy Worker CLI
+
+When delegating to Codex from Shrimpy, use the worker CLI. Agents can call these commands directly.
+
+```bash
+shrimpy worker backends --refresh
+shrimpy worker start --backend codex --agent <agent-id> --goal "<short goal>" "<handoff packet>"
+shrimpy worker status <id>
+shrimpy worker read <id>
+shrimpy worker send <id> "<amendment>"
+shrimpy worker wait <id>
+shrimpy worker close <id>
+```
+
+If `--cwd` is omitted, workers start in the owner agent's `agents/<id>/projects/` directory. Pass `--cwd <path>` when the target project already exists elsewhere.
+
+Codex workers are detached and inspectable. Shrimpy stores worker records in `state/workers.json`, backend availability in `state/worker-backends.json`, and worker artifacts under `runtime/workers/`.
+
+The Codex worker prompt always includes a small Shrimpy context prelude with the Shrimpy source and docs paths. Codex defaults currently use `approval_policy="on-request"`, `approvals_reviewer="auto_review"`, and `sandbox_mode="danger-full-access"` so the worker can inspect nearby source and rely on automatic review for approvals.
+
 ## Supervision
 
-When worker/session controls exist, keep the worker inspectable. Track status, logs, and a compact summary. Send user feedback back to the same worker session when possible so the coding context survives follow-up.
+Keep the worker inspectable. Track status, logs, and a compact summary. Send user feedback back to the same worker session when possible so the coding context survives follow-up.
 
-When worker/session controls do not exist, do not pretend they do. Prepare the handoff packet, use any available direct command only if it is reliable, and tell the user what was or was not dispatched.
+Do not treat a completed worker as accepted. Review the output, inspect the diff, run relevant verification, and either close the worker or send a focused amendment.
 
 ## Review Loop
 

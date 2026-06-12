@@ -172,7 +172,6 @@ describe("setupInit", () => {
       "report",
       "send_message",
       "read_channel",
-      "run_child",
     ]);
     assert.deepEqual(config.agents[0].channelPolicy, { mode: "all" });
     assert.equal(config.agents[1].id, "mechanic");
@@ -186,7 +185,6 @@ describe("setupInit", () => {
       "report",
       "send_message",
       "read_channel",
-      "run_child",
     ]);
     assert.deepEqual(config.agents[1].channelPolicy, { mode: "addressed" });
     assert.deepEqual(config.context.sources, [

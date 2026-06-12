@@ -172,7 +172,7 @@ Each agent config entry has:
 - `id` — stable agent id.
 - `root` — workspace-relative or absolute path to that agent's root.
 - `modelPolicy` — default model policy for fresh sessions opened as that agent. If omitted, Shrimpy uses `coding`.
-- `tools` — allowed Shrimpy daemon tools such as `reply`, `ask`, `notify`, `report`, `send_message`, `read_channel`, and `run_child`.
+- `tools` — allowed Shrimpy daemon tools such as `reply`, `ask`, `notify`, `report`, `send_message`, and `read_channel`.
 - `disabledTools` — effective tool names to exclude from Pi sessions. Use this to disable Pi built-ins such as `bash`; names are passed to Pi as `excludeTools`, so extension/custom tool names can be listed too.
 - `thinking` — default reasoning effort for sessions opened as that agent.
 - `channelPolicy` — when visible channel messages become turns for this agent.

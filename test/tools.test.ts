@@ -21,7 +21,6 @@ import {
   getToolProse,
   renderPublicationResult,
   renderReadChannelResult,
-  renderRunChildResult,
   renderSendMessageResult,
 } from "../dist/context/index.js";
 import { resolveToolRuntimeConfig } from "../dist/config/tools.js";
@@ -353,7 +352,7 @@ describe("active publication tools", () => {
 
     assert.deepEqual(
       tools.map((tool) => tool.name),
-      ["send_message", "read_channel", "run_child"],
+      ["send_message", "read_channel"],
     );
   });
 
@@ -458,173 +457,6 @@ describe("read_channel", () => {
   });
 });
 
-describe("run_child", () => {
-  test("disposes the child session when prompt execution fails", async () => {
-    let disposed = false;
-    const session = {
-      subscribe() {
-        return () => {};
-      },
-      async prompt() {
-        throw new Error("boom");
-      },
-      dispose() {
-        disposed = true;
-      },
-    };
-
-    const tools = createDaemonTools({
-      channelBus: createChannelBus(),
-      bootstrap: createBootstrap(),
-      sessionFactory: async () => session as any,
-    });
-    const runChild = findTool("run_child", tools);
-
-    await assert.rejects(
-      runChild.execute(
-        "call-1",
-        { prompt: "do the thing" },
-        new AbortController().signal,
-        () => {},
-        {},
-      ),
-      /boom/,
-    );
-
-    assert.equal(disposed, true);
-  });
-
-  test("disposes the child session when aborted", async () => {
-    let disposed = false;
-    const listeners: Array<(event: { type: string }) => void> = [];
-    const session = {
-      subscribe(listener: (event: { type: string }) => void) {
-        listeners.push(listener);
-        return () => {
-          const index = listeners.indexOf(listener);
-          if (index >= 0) listeners.splice(index, 1);
-        };
-      },
-      async prompt() {
-        await new Promise(() => {});
-      },
-      dispose() {
-        disposed = true;
-      },
-    };
-
-    const tools = createDaemonTools({
-      channelBus: createChannelBus(),
-      bootstrap: createBootstrap(),
-      sessionFactory: async () => session as any,
-    });
-    const runChild = findTool("run_child", tools);
-    const controller = new AbortController();
-
-    const result = runChild.execute(
-      "call-1",
-      { prompt: "do the thing" },
-      controller.signal,
-      () => {},
-      {},
-    );
-    controller.abort();
-
-    await assert.rejects(result, /aborted/);
-    assert.equal(disposed, true);
-  });
-
-  test("uses a fresh child session dir for each run", async () => {
-    const sessionPlans: Array<{ descriptor: { sessionDir: string; kind: string; channel?: string } }> = [];
-    const channelBus = createChannelBus();
-    const tools = createDaemonTools({
-      channelBus,
-      bootstrap: createBootstrap(),
-      sessionFactory: async (_bootstrap, opts) => {
-        sessionPlans.push(opts as any);
-        return {
-          subscribe() {
-            return () => {};
-          },
-          async prompt() {
-            throw new Error("boom");
-          },
-          dispose() {},
-        } as any;
-      },
-    });
-    const runChild = findTool("run_child", tools);
-
-    await assert.rejects(
-      runChild.execute(
-        "call-1",
-        { prompt: "one" },
-        new AbortController().signal,
-        () => {},
-        {},
-      ),
-      /boom/,
-    );
-    await assert.rejects(
-      runChild.execute(
-        "call-2",
-        { prompt: "two" },
-        new AbortController().signal,
-        () => {},
-        {},
-      ),
-      /boom/,
-    );
-
-    assert.equal(sessionPlans.length, 2);
-    assert.equal(sessionPlans[0].descriptor.kind, "run");
-    assert.equal(sessionPlans[0].descriptor.channel, "run");
-    assert.equal(sessionPlans[1].descriptor.kind, "run");
-    assert.equal(sessionPlans[1].descriptor.channel, "run");
-    assert.notEqual(sessionPlans[0].descriptor.sessionDir, sessionPlans[1].descriptor.sessionDir);
-    const base = join(testDir, "sessions", "children");
-    assert.ok(sessionPlans[0].descriptor.sessionDir.startsWith(base));
-    assert.ok(sessionPlans[1].descriptor.sessionDir.startsWith(base));
-  });
-
-  test("passes the effective tool policy to child sessions", async () => {
-    const sessionPlans: Array<{ toolPolicy?: { excludedToolNames?: string[] } }> = [];
-    const tools = createDaemonTools({
-      channelBus: createChannelBus(),
-      bootstrap: createBootstrap(),
-      toolPolicy: { excludedToolNames: ["bash"] },
-      sessionFactory: async (_bootstrap, opts) => {
-        sessionPlans.push(opts as any);
-        return {
-          subscribe() {
-            return () => {};
-          },
-          async prompt() {
-            throw new Error("boom");
-          },
-          dispose() {},
-        } as any;
-      },
-    });
-    const runChild = findTool("run_child", tools);
-
-    await assert.rejects(
-      runChild.execute(
-        "call-1",
-        { prompt: "one" },
-        new AbortController().signal,
-        () => {},
-        {},
-      ),
-      /boom/,
-    );
-
-    assert.deepEqual(sessionPlans[0].toolPolicy, {
-      excludedToolNames: ["bash"],
-    });
-  });
-});
-
 describe("tool selection", () => {
   test("returns only explicitly allowed tools", () => {
     const tools = createDaemonTools({
@@ -666,7 +498,6 @@ describe("agent tool policy", () => {
       "report",
       "send_message",
       "read_channel",
-      "run_child",
     ]);
     assert.deepEqual(policy.activeToolNames, [
       "read",
@@ -679,7 +510,6 @@ describe("agent tool policy", () => {
       "report",
       "send_message",
       "read_channel",
-      "run_child",
     ]);
 
     const grep = policy.capabilities.find((tool) => tool.name === "grep");
@@ -747,10 +577,6 @@ describe("tool context prose", () => {
     assert.equal(
       renderReadChannelResult({ messages: [{ id: "1" }] }),
       '[\n  {\n    "id": "1"\n  }\n]',
-    );
-    assert.equal(
-      renderRunChildResult({ assistantText: "" }),
-      "(no response from child session)",
     );
   });
 });

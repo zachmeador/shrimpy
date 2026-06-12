@@ -9,7 +9,7 @@ A Shrimpy session is one private Pi working context for one agent and one sessio
 | TUI | `tui` | `agents/<id>/sessions/tui/` | `shrimpy`, `shrimpy chat [agent]`, `shrimpy mechanic`, `shrimpy agent tui <id>` |
 | Direct run | `run` | `agents/<id>/sessions/run/` | `shrimpy run`, `shrimpy agent run <id>` |
 | Gateway channel | channel name | `agents/<id>/sessions/<channel>/` | gateway delivery after membership plus agent `channelPolicy` wake |
-| Child run | `children/<timestamp-random>` | `agents/<id>/sessions/children/<timestamp-random>/` | `run_child` |
+| Worker | worker id | `agents/<id>/sessions/<worker-id>/` | Pi-backed `shrimpy worker` turns |
 
 Direct and gateway labels are sanitized for filesystem paths by replacing characters outside `a-zA-Z0-9._-` with `_`.
 

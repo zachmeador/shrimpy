@@ -1,14 +1,14 @@
-# 🦐 CODE-001: External Coding-Agent Availability Inspection
+# 🦐 CODE-001: Worker Backend Availability Inspection
 
-Status: todo
+Status: review
 Priority: P2
 Area: Coding Agents
 
 ## Why
-Shrimpy should know whether external coding-agent CLIs such as Claude Code and Codex are available before adding delegation automation. Setup and diagnostics need a simple persisted availability/auth view.
+Shrimpy should know whether worker backends such as Codex and Claude Code are available before adding delegation automation. Setup and diagnostics need a simple persisted availability/auth view.
 
 ## Build
-- Detect external coding-agent CLIs during setup/init.
+- Detect external worker CLIs during setup/init.
 - Persist availability and auth status in workspace state.
 - Expose inspection through a CLI command.
 
@@ -21,6 +21,6 @@ Shrimpy should know whether external coding-agent CLIs such as Claude Code and C
 - Keep detection local and explicit; avoid network checks unless needed for auth status.
 
 ## Done
-- Setup records detected coding-agent availability.
-- CLI can inspect the recorded state.
+- Setup records detected worker backend availability.
+- `shrimpy worker backends` can inspect the recorded state.
 - Tests cover missing and present CLI cases.

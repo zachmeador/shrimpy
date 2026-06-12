@@ -47,6 +47,11 @@ function mechanicSkill(id: string): DefaultSkillDefinition {
 
 const DEFAULT_SKILLS: DefaultSkillDefinition[] = [
   defaultSkill(
+    "coding-delegation",
+    setupTemplatePath("skills", "coding-delegation"),
+    { kind: "all" },
+  ),
+  defaultSkill(
     "memory-management",
     setupTemplatePath("skills", "memory-management"),
     { kind: "all" },

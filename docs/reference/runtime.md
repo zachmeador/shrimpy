@@ -74,8 +74,7 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 - The gateway watches agent `watches.json` files and reloads watch definitions when they change, preserving existing clock state for unchanged watches.
 - Active watch state and run history live under `runtime/watches/<agent-id>/`.
 - Fresh setup seeds focused upkeep watches for `memory-management`, `journal-daily`, and `journal-compact`; it does not seed a broad catch-all upkeep watch.
-- The `run_child` tool opens a fresh child `run` session for bounded work and returns the result to the parent session.
-- Child runs reuse the same auth and model registry while keeping separate session persistence. See [sessions.md](sessions.md#session-kinds).
+- Coding worker delegation is managed through `shrimpy worker ...` commands and worker records, not through a nested session tool.
 
 ## Observability
 

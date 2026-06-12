@@ -4,7 +4,7 @@
 
 ## Current Model
 
-Shrimpy uses Pi's tool runtime. Active tool schemas are exposed to the model, Pi validates tool arguments, and Pi runs the selected tool implementation. Shrimpy adds its daemon tools for channels, publication, and child runs. See [tools.md](tools.md) and [channels.md](channels.md).
+Shrimpy uses Pi's tool runtime. Active tool schemas are exposed to the model, Pi validates tool arguments, and Pi runs the selected tool implementation. Shrimpy adds its daemon tools for channels and publication. See [tools.md](tools.md) and [channels.md](channels.md).
 
 ## Tool Policy
 

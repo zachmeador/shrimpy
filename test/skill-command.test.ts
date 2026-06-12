@@ -103,6 +103,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>mechanic<\/name>/);
     assert.match(parsed.systemPrompt, /<name>watches<\/name>/);
     assert.match(parsed.systemPrompt, /<name>workspace-migration<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>coding-delegation<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
@@ -362,6 +363,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[default\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[default\]/);
+    assert.match(lines.join("\n"), /coding-delegation \[default\]/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[default\]/);
     assert.match(lines.join("\n"), /journal-compact \[default\]/);
@@ -378,6 +380,7 @@ describe("skill context inspection", () => {
     const output = lines.join("\n");
     assert.equal(result, 0);
     assert.match(output, /memory-management \[default\]/);
+    assert.match(output, /coding-delegation \[default\]/);
     assert.match(output, /journal-daily \[default\]/);
     assert.match(output, /journal-compact \[default\]/);
     assert.doesNotMatch(output, /add-agent/);
@@ -719,6 +722,7 @@ describe("skill service", () => {
     assert.deepEqual(skills.map((skill) => `${skill.id}:${skill.scope}`), [
       "add-agent:default",
       "channel-routing:default",
+      "coding-delegation:default",
       "journal-compact:default",
       "journal-daily:default",
       "mechanic:default",
@@ -731,6 +735,7 @@ describe("skill service", () => {
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
     assert.deepEqual(shrimpySkills.map((skill) => `${skill.id}:${skill.scope}`), [
+      "coding-delegation:default",
       "journal-compact:default",
       "journal-daily:default",
       "memory-management:default",
@@ -740,6 +745,9 @@ describe("skill service", () => {
     assert.match(skill.entryPath, /src\/setup\/templates\/mechanic\/skills\/setup\/SKILL\.md$/);
     assert.equal(skill.loaded, true);
     assert.match(loadSkillPrompt(runtime, "setup", "mechanic"), /first usable Shrimpy workspace/);
+    const codingDelegation = getSkillView(runtime, "coding-delegation", "shrimpy");
+    assert.equal(codingDelegation.available, true);
+    assert.deepEqual(codingDelegation.requiredTools, ["bash"]);
     assert.deepEqual(getSkillPromptResources(runtime, "setup", "mechanic"), [{
       rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
       resourcePath: "skills/setup",
@@ -751,6 +759,10 @@ describe("skill service", () => {
     assert.deepEqual(getSkillPromptResources(runtime, "memory-management"), [{
       rootPath: join(projectRoot, "src", "setup", "templates"),
       resourcePath: "skills/memory-management",
+    }]);
+    assert.deepEqual(getSkillPromptResources(runtime, "coding-delegation"), [{
+      rootPath: join(projectRoot, "src", "setup", "templates"),
+      resourcePath: "skills/coding-delegation",
     }]);
   });
 
@@ -850,6 +862,7 @@ describe("skill service", () => {
     assert.deepEqual(piSkillNames, [
       "add-agent",
       "channel-routing",
+      "coding-delegation",
       "journal-compact",
       "journal-daily",
       "mechanic",

@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { Type } from "typebox";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
@@ -8,12 +7,7 @@ import type {
   PublicationUrgency,
 } from "../channels/index.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  createStoredSessionDescriptor,
-  openSession,
-  runSessionTurn,
-  type SessionBootstrap,
-} from "../sessions/index.js";
+import type { SessionBootstrap } from "../sessions/index.js";
 import {
   type ResolvedToolRuntimeConfig,
   resolveToolRuntimeConfig,
@@ -22,7 +16,6 @@ import {
   getToolProse,
   renderPublicationResult,
   renderReadChannelResult,
-  renderRunChildResult,
   renderSendMessageResult,
   TOOL_PARAMETER_PROSE,
 } from "../context/index.js";
@@ -87,12 +80,6 @@ const ReadChannelParams = Type.Object({
   ),
 });
 
-const RunChildParams = Type.Object({
-  prompt: Type.String({
-    description: TOOL_PARAMETER_PROSE.runChildPrompt,
-  }),
-});
-
 const COLLAPSED_LIMIT = 96;
 
 interface ToolRenderTheme {
@@ -154,7 +141,6 @@ interface DaemonToolDeps {
   toolConfig?: ResolvedToolRuntimeConfig;
   agentId?: string;
   sendMessageActorId?: string;
-  sessionFactory?: typeof openSession;
   toolNames?: DaemonToolName[];
   toolPolicy?: SessionToolPolicy;
   activePublicationChannel?: string;
@@ -164,13 +150,12 @@ interface DaemonToolDeps {
 export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
   const {
     channelBus,
-    bootstrap,
+    bootstrap: _bootstrap,
     toolConfig: rawToolConfig,
     agentId: _agentId,
     sendMessageActorId,
-    sessionFactory = openSession,
     toolNames,
-    toolPolicy,
+    toolPolicy: _toolPolicy,
     activePublicationChannel,
     userPresencePath,
   } = deps;
@@ -183,7 +168,6 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
   const notifyProse = getToolProse("notify");
   const reportProse = getToolProse("report");
   const readChannelProse = getToolProse("read_channel");
-  const runChildProse = getToolProse("run_child");
 
   async function publishToActivePublicationChannel(
     intent: PublicationIntent,
@@ -381,58 +365,6 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     },
   };
 
-  const runChildTool: ToolDefinition<typeof RunChildParams> = {
-    name: "run_child",
-    label: "Run Child",
-    description: runChildProse.description,
-    ["promptSnippet"]: runChildProse.promptSnippet,
-    parameters: RunChildParams,
-    renderShell: "self",
-    renderCall(params, theme, context) {
-      return compactToolCall("run_child", clip(params.prompt), theme, context);
-    },
-    renderResult(result, options, theme) {
-      return options.expanded ? renderExpandedResult(result, theme) : emptyToolRender();
-    },
-    async execute(_toolCallId, params, signal) {
-      const session = await sessionFactory(
-        bootstrap,
-        {
-          descriptor: createStoredSessionDescriptor({
-            workspacePath: bootstrap.agentRootPath,
-            agentId: bootstrap.agentId,
-            sessionName: resolveChildRunSessionName(),
-            kind: "run",
-            channel: "run",
-          }),
-          toolPolicy,
-        },
-      );
-
-      try {
-        const result = await runSessionTurn(session, params.prompt, {
-          signal,
-          abortMessage: "run_child aborted",
-        });
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: renderRunChildResult({ assistantText: result.assistantText }),
-            },
-          ],
-          details: undefined,
-        };
-      } finally {
-        try {
-          session.dispose();
-        } catch (err) {
-          console.error("[run_child] child session dispose error:", err);
-        }
-      }
-    },
-  };
-
   const allTools = [
     replyTool,
     askTool,
@@ -440,7 +372,6 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     reportTool,
     sendMessageTool,
     readChannelTool,
-    runChildTool,
   ] as unknown as ToolDefinition[];
   const byName = new Map(allTools.map((tool) => [tool.name, tool]));
   const selectedNames = toolNames?.length
@@ -475,11 +406,4 @@ function publicationIntent(
     ...(opts.quiet !== undefined ? { quiet: opts.quiet } : {}),
     ...(opts.batchable !== undefined ? { batchable: opts.batchable } : {}),
   };
-}
-
-function resolveChildRunSessionName(): string {
-  return join(
-    "children",
-    `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-  );
 }

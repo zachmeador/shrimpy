@@ -15,8 +15,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-006](tui-006-expanded-tool-call-inspection.md) | todo | P2 | TUI | none | Expanded tool call inspection |
 | [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
 | [CTX-010](ctx-010-agent-watch-turn-context.md) | todo | P2 | Context | none | Agent watch inventory in turn context |
-| [CODE-001](code-001.md) | todo | P2 | Coding Agents | none | External coding-agent availability inspection |
-| [CODE-002](code-002-agentic-worker-sessions.md) | todo | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
+| [CODE-001](code-001.md) | review | P2 | Coding Agents | none | Worker backend availability inspection |
+| [CODE-002](code-002-agentic-worker-sessions.md) | review | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [MECH-002](mech-002-audit-skills.md) | todo | P1 | Mechanic | none | Mechanic security and hygiene audit skills |
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
@@ -41,5 +41,7 @@ Deferred notes that are intentionally outside the active backlog.
 | [CTX-008](later/ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](later/ctx-009-context-trace-debug-view.md) | todo | P2 | Context | [CTX-008](later/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
 | [AGENT-001](later/agent-001-nested-agents.md) | todo | P3 | Agents | [APP-001](app-001.md), [CTX-008](later/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
+| [CODE-003](later/code-003-claude-code-worker-adapter.md) | todo | P3 | Coding Agents | [CODE-002](code-002-agentic-worker-sessions.md) | Claude Code worker adapter |
+| [CODE-004](later/code-004-agent-worker-tools.md) | todo | P3 | Coding Agents | [CODE-002](code-002-agentic-worker-sessions.md) | Agent worker tools |
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
 | [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |

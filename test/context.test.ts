@@ -21,6 +21,9 @@ import {
   makeMessage,
   textContent,
 } from "../dist/channels/index.js";
+import {
+  writeWorkers,
+} from "../dist/workers/index.js";
 
 let workspace: string;
 
@@ -38,6 +41,42 @@ function descriptor(agentId: string, kind: string, channel?: string) {
     kind,
     channel,
     sessionDir: join(workspace, "sessions", agentId, channel ?? kind),
+  };
+}
+
+function writeWorkerRecords(records: any[]): void {
+  mkdirSync(join(workspace, "state"), { recursive: true });
+  writeWorkers(join(workspace, "state", "workers.json"), {
+    version: 1,
+    workers: records,
+  });
+}
+
+function workerRecord(overrides: any = {}) {
+  const now = new Date().toISOString();
+  const id = overrides.id ?? "wrk_test";
+  return {
+    id,
+    ownerAgent: "shrimpy",
+    backend: "codex",
+    cwd: workspace,
+    goal: "demo worker",
+    spec: "demo worker",
+    parent: {},
+    status: "complete",
+    createdAt: now,
+    updatedAt: now,
+    turns: [{
+      id: `${id}_turn_1`,
+      kind: "start",
+      prompt: "demo worker",
+      status: "complete",
+      startedAt: now,
+      finishedAt: now,
+      output: "Created `demo/index.html`.",
+    }],
+    summary: "# Worker",
+    ...overrides,
   };
 }
 
@@ -236,6 +275,47 @@ describe("buildTurnContext", () => {
     assert.doesNotMatch(renderTurnContext(turnContext), /sessions: /);
   });
 
+  test("includes relevant worker summaries on ordinary turns", async () => {
+    writeWorkerRecords([
+      workerRecord({
+        id: "wrk_channel",
+        relatedChannel: "home",
+        goal: "build the counter",
+        turns: [{
+          id: "wrk_channel_turn_1",
+          kind: "start",
+          prompt: "build the counter",
+          status: "complete",
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          output: "Created `counter/index.html`.",
+        }],
+      }),
+      workerRecord({
+        id: "wrk_other",
+        goal: "unrelated work",
+      }),
+    ]);
+    const runtime = createAppRuntime({ workspace });
+    const current = runtime.createChannelBus().publish({
+      channel: "home",
+      sender: { kind: "human", actorId: "human:user" },
+      origin: { transport: "cli" },
+      content: textContent("hello"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "home"),
+      currentMessage: current,
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /worker wrk_channel complete \(current channel\).*build the counter/);
+    assert.match(text, /inspect: shrimpy worker read wrk_channel/);
+    assert.match(text, /workers: 1 complete owned worker need review/);
+  });
+
   test("includes recent and stale session status on watch turns", async () => {
     writeActiveSessionFile("ops", 4 * 60 * 1000);
     writeActiveSessionFile("research", 13 * 60 * 60 * 1000);
@@ -257,6 +337,56 @@ describe("buildTurnContext", () => {
     assert.match(text, /most recent ops \d+m ago/);
     assert.match(text, /1 stale >12h/);
     assert.match(text, /inspect: shrimpy sessions list --json/);
+  });
+
+  test("includes worker outcomes in generated session status", async () => {
+    writeWorkerRecords([
+      workerRecord({
+        id: "wrk_blocked",
+        status: "blocked",
+        goal: "blocked build",
+        turns: [{
+          id: "wrk_blocked_turn_1",
+          kind: "start",
+          prompt: "blocked build",
+          status: "blocked",
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          output: "Blocked: missing API token.",
+        }],
+      }),
+      workerRecord({
+        id: "wrk_failed",
+        status: "failed",
+        goal: "failed build",
+        turns: [{
+          id: "wrk_failed_turn_1",
+          kind: "start",
+          prompt: "failed build",
+          status: "failed",
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          error: "test failure",
+        }],
+      }),
+    ]);
+    const runtime = createAppRuntime({ workspace });
+    const current = makeMessage({
+      sender: { kind: "system", actorId: "system:watch-runner" },
+      origin: { transport: "watch", watchId: "daily-check" },
+      content: textContent("watch tick"),
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "maintenance"),
+      currentMessage: current,
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /workers: 1 blocked, 1 failed need review/);
+    assert.match(text, /inspect: shrimpy worker list --json/);
+    assert.doesNotMatch(text, /worker wrk_blocked blocked/);
   });
 
   test("omits session status on ordinary chat turns", async () => {

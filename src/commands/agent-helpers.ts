@@ -12,7 +12,6 @@ export const DEFAULT_AGENT_TOOLS = [
   "report",
   "send_message",
   "read_channel",
-  "run_child",
 ];
 
 export const MODEL_SESSION_OPTIONS = {

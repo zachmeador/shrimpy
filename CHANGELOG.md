@@ -2,6 +2,29 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 0.4.1 - Unreleased
+
+### CLI & Plumbing
+
+- Added `shrimpy worker backends` to inspect and refresh persisted Codex, Claude Code, and Pi worker backend availability.
+- Added `shrimpy worker start|list|status|read|tail|send|wait|cancel|close` for detached, file-backed worker records, with Codex `exec --json` and Shrimpy/Pi direct-session backend paths. Claude Code is recorded as deferred.
+- Added top-level `latestTurn`, `artifactPaths`, and `commands` shortcuts to single-worker JSON output.
+- Improved worker summaries with goal, status, key actions, files touched, blockers, and latest result sections.
+
+### Turn Context
+
+- Added owned worker outcome context with current-session/current-channel relevance tiers and compact counts for other completed, blocked, failed, or cancelled workers.
+- Added worker outcome counts to generated session status so agents notice completed, blocked, failed, and cancelled workers during background wake turns.
+
+### Workspace & Setup
+
+- Added `state/worker-backends.json` during setup so worker backend availability is recorded without making external CLIs required.
+- Added `state/workers.json` and `runtime/workers/` for inspectable coding worker records and captured worker artifacts.
+- Added per-turn worker `--timeout-ms` handling so long-running starts or amendments can be cancelled automatically.
+- Changed worker cancel, close, and stale reconciliation to terminate recorded process groups and escalate to `SIGKILL` when they do not exit after a grace period.
+- Added `coding-delegation` as an all-agent source-default skill gated on Bash, while keeping workspace-local overrides available under `skills/`.
+- Removed the unused `run_child` daemon tool surface.
+
 ## 🦐 0.4.0 - Tides Pull Both Ways - 2026-06-11
 
 ### Installation

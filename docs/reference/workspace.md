@@ -13,6 +13,8 @@ config/channels.json            channel membership
 agents/                         per-agent workspaces
 state/pi/auth.json              provider credentials
 state/pi/models.json            model registry
+state/worker-backends.json      persisted worker backend availability
+state/workers.json              coding worker session records
 state/users.json                identity links (transport→userId) + workspace owner
 state/user-presence.json        last active surface channel per known user
 state/watch-clock.json            persisted watch next-run timestamps
@@ -21,6 +23,7 @@ runtime/cursors/channels.json   gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
 runtime/context/                generated turn-context state
 runtime/watches/                watch active-run state and run history
+runtime/workers/                worker JSONL, stderr, and last-message artifacts
 channels/                       append-only channel logs
 media/                          downloaded media
 runtime/logs/gateway.log        gateway runtime log
@@ -89,6 +92,8 @@ Durable machine state lives under `state/`. Disposable runtime state lives under
 - Identity links live in `state/users.json`. The optional `owner` field names the canonical workspace user; CLI publishing routes through that identity when set. Manage with `shrimpy users list|get-owner|set-owner`.
 - User presence lives in `state/user-presence.json` and records each known user's last active chat surface channel. Inspect with `shrimpy users presence`; `send_message(channel="user:<id>", ...)` and `shrimpy channels post user:<id> ...` resolve through it.
 - Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries. See [sessions.md](sessions.md).
+- Worker backend availability lives in `state/worker-backends.json`. Inspect or refresh it with `shrimpy worker backends`.
+- Coding worker records live in `state/workers.json`; detached worker logs and last-message artifacts live under `runtime/workers/`. Running worker records store the supervisor pid so cancel, close, and stale reconciliation can terminate the recorded process group and escalate to `SIGKILL` if it stays alive. Worker turns may store `timeoutMs` when launched with a max runtime. Manage workers through `shrimpy worker start|list|status|read|tail|send|wait|cancel|close`.
 - Gateway logs live at `runtime/logs/gateway.log`, readable through `shrimpy gateway logs`.
 - Surface cursors, generated turn-context state, and watch run history live under `runtime/`. Watch next-run state lives under `state/watch-clock.json`.
 - Auth and models live under `state/pi/`, isolating Shrimpy from a user's stock Pi config.

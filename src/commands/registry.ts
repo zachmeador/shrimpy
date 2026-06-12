@@ -20,6 +20,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   surface: { requiresConfig: true, load: async () => (await import("./surface.js")).cmdSurface },
   sessions: { requiresConfig: true, load: async () => (await import("./sessions.js")).cmdSessions },
   watches: { requiresConfig: true, load: async () => (await import("./watches.js")).cmdWatches },
+  worker: { requiresConfig: true, load: async () => (await import("./worker.js")).cmdWorker },
   models: { requiresConfig: true, load: async () => (await import("./models.js")).cmdModels },
   workspace: { requiresConfig: true, load: async () => (await import("./workspace.js")).cmdWorkspace },
   skills: { requiresConfig: true, load: async () => (await import("./skills.js")).cmdSkills },

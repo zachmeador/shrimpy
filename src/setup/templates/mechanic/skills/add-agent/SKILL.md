@@ -43,7 +43,7 @@ Add model policy, tools, or thinking only when chosen:
 ```bash
 shrimpy agent add <id> \
   --model-policy <policy> \
-  --tools reply,ask,notify,report,send_message,read_channel,run_child \
+  --tools reply,ask,notify,report,send_message,read_channel \
   --thinking medium \
   --channel-policy addressed \
   --json
