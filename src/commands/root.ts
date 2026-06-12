@@ -70,6 +70,7 @@ export const cmdRootTui: CommandHandler = async (
     cwd: process.cwd(),
   }, {
     beforeLaunch: bootstrapInteractiveCompletion,
+    onboardingMode: "setup",
   });
 };
 

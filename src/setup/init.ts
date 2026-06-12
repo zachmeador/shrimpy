@@ -16,7 +16,10 @@ import {
   DEFAULT_CONTEXT_SOURCES,
 } from "../context/index.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
-import { gatewayServiceManager, gatewayServicePaths } from "../gateway/service-ctl.js";
+import {
+  gatewayServiceManager,
+  gatewayServicePaths,
+} from "../gateway/service-ctl.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { brand, dim, heading } from "../util/style.js";
@@ -120,7 +123,14 @@ export interface SetupInitResult {
   existing: string[];
 }
 
-export function setupNextStepLines(workspace: string): string[] {
+interface SetupNextStepLinesOptions {
+  phase?: "init" | "post-onboarding";
+}
+
+export function setupNextStepLines(
+  workspace: string,
+  options: SetupNextStepLinesOptions = {},
+): string[] {
   const paths = createWorkspacePaths(workspace);
   const servicePaths = gatewayServicePaths();
   const manager = gatewayServiceManager();
@@ -129,14 +139,16 @@ export function setupNextStepLines(workspace: string): string[] {
     : manager === "launchd"
       ? servicePaths.launchAgentPath
       : undefined;
+  const nextLines = options.phase === "post-onboarding"
+    ? ["  shrimpy                  open the main TUI"]
+    : ["  shrimpy setup             choose a model and finish guided setup"];
+
+  nextLines.push("  shrimpy status            inspect setup, workspace, and gateway status");
 
   return [
     "",
     heading("Next:"),
-    "  shrimpy setup             choose a model and finish guided setup",
-    "  shrimpy gateway install   install the per-user gateway service",
-    "  shrimpy gateway start     start the gateway",
-    "  shrimpy status            inspect workspace and gateway status",
+    ...nextLines,
     "",
     heading("Paths:"),
     `  workspace: ${paths.workspace}`,

@@ -18,6 +18,7 @@ import {
 import {
   ensureWorkspaceInitialized,
   MECHANIC_AGENT_ID,
+  setupNextStepLines,
   type SetupInitResult,
 } from "./init.js";
 import {
@@ -119,6 +120,7 @@ export async function runSetupOnboarding(
     log("shrimpy setup");
     log("");
     log("Setup already has a model policy and agent context. Nothing to do.");
+    log("Use `shrimpy mechanic` to shape the workspace, or `shrimpy setup telegram` to add a chat surface.");
     return {
       kind: "already_configured",
       init: { created: [], existing: [] },
@@ -226,6 +228,10 @@ export async function runSetupOnboarding(
     config,
     cwd,
   });
+
+  for (const line of setupNextStepLines(workspace, { phase: "post-onboarding" })) {
+    log(line);
+  }
 
   return {
     kind: "setup_started",

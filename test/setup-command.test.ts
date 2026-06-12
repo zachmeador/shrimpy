@@ -111,6 +111,8 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Starting model access setup\.\.\./);
     assert.match(lines.join("\n"), /Created coding model policy from openai\/gpt-5\./);
     assert.match(lines.join("\n"), /Launching mechanic setup session\.\.\./);
+    assert.match(lines.join("\n"), /shrimpy\s+open the main TUI/);
+    assert.match(lines.join("\n"), /shrimpy status\s+inspect setup, workspace, and gateway status/);
   });
 
   test("model access wizard stores API-key auth and makes provider models available", async () => {
@@ -168,6 +170,8 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Found 1 available model: openai\/gpt-5\./);
     assert.match(lines.join("\n"), /Created coding model policy from openai\/gpt-5\./);
     assert.match(lines.join("\n"), /Launching mechanic setup session\.\.\./);
+    assert.match(lines.join("\n"), /shrimpy\s+open the main TUI/);
+    assert.match(lines.join("\n"), /shrimpy status\s+inspect setup, workspace, and gateway status/);
     const config = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
@@ -248,6 +252,8 @@ describe("setup entry", () => {
     assert.equal(result.kind, "already_configured");
     assert.equal(launched, false);
     assert.match(lines.join("\n"), /Nothing to do\./);
+    assert.match(lines.join("\n"), /shrimpy mechanic/);
+    assert.match(lines.join("\n"), /shrimpy setup telegram/);
     const config = readConfig();
     assert.deepEqual(config.modelPolicies.coding.candidates, [{
       provider: "openai",
@@ -430,6 +436,7 @@ describe("setup entry", () => {
     assert.equal(result.kind, "already_configured");
     assert.equal(launched, false);
     assert.match(lines.join("\n"), /Nothing to do\./);
+    assert.match(lines.join("\n"), /shrimpy mechanic/);
   });
 
 });

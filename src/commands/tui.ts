@@ -37,6 +37,7 @@ interface ShrimpyTuiCommandDeps {
     workspace: string,
     opts: { cwd: string },
   ) => Promise<SetupOnboardingResult>;
+  onboardingMode?: "setup" | "tui";
   requiredAgent?: {
     id: string;
     missingMessage: string;
@@ -71,7 +72,11 @@ export async function runShrimpyTuiCommandSession(
   );
 
   if (!isSetupReady(setupState)) {
-    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    const onboardingMode = deps.onboardingMode ?? "tui";
+    if (
+      onboardingMode !== "setup" &&
+      (!process.stdin.isTTY || !process.stdout.isTTY)
+    ) {
       return printError(TUI_SETUP_REQUIRED_MESSAGE);
     }
 
@@ -79,7 +84,7 @@ export async function runShrimpyTuiCommandSession(
       config.workspace,
       { cwd: request.cwd ?? process.cwd() },
     );
-    return result.kind === "setup_started" ? 0 : 1;
+    return onboardingMode === "setup" || result.kind === "setup_started" ? 0 : 1;
   }
 
   await deps.beforeLaunch?.();

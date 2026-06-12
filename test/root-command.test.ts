@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -24,7 +25,7 @@ afterEach(() => {
 });
 
 describe("root shrimpy command setup path", () => {
-  test("bare non-interactive CLI prints a setup hint when setup is needed", () => {
+  test("bare non-interactive CLI runs setup onboarding when setup is needed", () => {
     const result = spawnSync(
       process.execPath,
       [join(process.cwd(), "dist", "cli.js")],
@@ -35,8 +36,12 @@ describe("root shrimpy command setup path", () => {
       },
     );
 
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /Run: shrimpy setup/);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /shrimpy setup/);
+    assert.match(result.stdout, /No working models found yet\./);
+    assert.match(result.stdout, /Run `shrimpy setup` in an interactive terminal/);
+    assert.equal(existsSync(join(workspace, ".shrimpy", "config", "shrimpy.json")), true);
+    assert.doesNotMatch(result.stderr, /Run: shrimpy setup/);
   });
 
   test("blank chat non-interactive CLI prints a setup hint when setup is needed", () => {

@@ -29,12 +29,15 @@ Prefer the smallest useful setup. Ask one question at a time, usually in this or
 3. Should Shrimpy stay inside official workspace paths, or may it crawl other accessible folders on this machine to learn about projects and preferences?
 4. Should a chat surface be added now? If yes, start with Telegram.
 5. Should Shrimpy leave its background watches enabled, or pause them for now?
+6. Should Shrimpy install and start the gateway service now?
 
 Default path scope: only inspect official Shrimpy workspace paths, meaning the active Shrimpy workspace, agent roots inside it, and paths the user explicitly names. If the user allows broader crawling, summarize the intended roots first and avoid secrets, caches, dependency folders, and generated/runtime state.
 
 If adding a chat surface, use the setup command for that surface, starting with `shrimpy setup telegram`. Do not create adapter-shaped channel names by hand; Telegram channels are created from configured instances and external chat ids.
 
 Default background behavior: setup seeds three watches: `memory-management`, `journal-daily`, and `journal-compact`. They post work into the `maintenance` channel on their configured cadence. If the user wants quiet setup, set those entries in `agents/shrimpy/watches.json` to `enabled: false`; do not delete them.
+
+Default gateway behavior: ask before running `shrimpy gateway install` or `shrimpy gateway start`. If the user declines, include in the closing summary that watches and chat surfaces stay dormant until the gateway runs. If the user accepts, run the gateway commands and then inspect with `shrimpy gateway status`.
 
 Do not add a separate local/private model-policy chooser in first setup. `shrimpy setup` already made the `coding` policy usable, and this setup session runs as the `mechanic` agent through `modelPolicy: "coding"`.
 

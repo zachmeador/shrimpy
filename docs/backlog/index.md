@@ -24,7 +24,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
-| [SETUP-001](setup-001-onboarding-completion.md) | todo | P1 | Setup | none | First-run onboarding ends with gateway step, next steps, and status readiness |
+| [SETUP-001](setup-001-onboarding-completion.md) | review | P1 | Setup | none | First-run onboarding ends with gateway step, next steps, and status readiness |
 | [SETUP-002](setup-002-setup-entry-seams.md) | todo | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
 | [SETUP-003](setup-003-opt-in-watch-seeding.md) | todo | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |

@@ -1,6 +1,6 @@
 # 🦐 SETUP-001: First-Run Onboarding Lands Somewhere
 
-Status: todo
+Status: review
 Priority: P1
 Area: Setup
 Depends On: none

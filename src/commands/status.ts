@@ -14,6 +14,10 @@ import {
   telegramStatePath,
   type ResolvedTelegramRuntimeConfig,
 } from "../surfaces/telegram/index.js";
+import {
+  resolveSetupState,
+  type SetupState,
+} from "../setup/state.js";
 import { inspectWorkspaceCheckpointStatus } from "../workspace-checkpoints/index.js";
 import { accent, dim, label } from "../util/style.js";
 import { printWorkspaceCheckpointStatus } from "./workspace.js";
@@ -29,6 +33,7 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
     0,
   );
   console.log(`${label("workspace:")} ${ws}`);
+  console.log(`${label("setup:")} ${formatSetupStatus(await resolveSetupState(ws))}`);
 
   const gatewayStatus = readGatewayServiceStatus();
   console.log(`${label("gateway:")} ${formatGatewayServiceSummary(gatewayStatus)}`);
@@ -78,3 +83,20 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
 
   return 0;
 };
+
+export function formatSetupStatus(state: SetupState): string {
+  switch (state.kind) {
+    case "uninitialized":
+      return "not initialized - run shrimpy setup";
+    case "needs_model_access":
+      return "needs model access - run shrimpy setup";
+    case "needs_coding_policy":
+      return "needs coding model policy - run shrimpy setup";
+    case "invalid_coding_policy":
+      return "invalid coding model policy - run shrimpy setup";
+    case "needs_mechanic_workspace":
+      return "needs agent context - run shrimpy setup";
+    case "ready":
+      return "ready";
+  }
+}
