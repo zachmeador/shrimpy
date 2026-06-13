@@ -30,6 +30,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added mechanic-only `security-audit` and `hygiene-audit` source-default skills for read-only workspace audit reports under the mechanic vault.
 - Removed the unused `run_child` daemon tool surface.
 
+### Docs & Agent References
+
+- Added the `shrimpy-dev-live-workspace` source skill for read-only production workspace pattern audits that feed source defaults, skills, docs, or backlog updates.
+
 ## 🦐 0.4.0 - Tides Pull Both Ways - 2026-06-11
 
 ### Installation
