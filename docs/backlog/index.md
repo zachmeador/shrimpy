@@ -9,7 +9,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md) | Main agent capture and research workflow |
 | [SEARCH-001](search-001-web-lookup-capability.md) | todo | P2 | Search | none | Optional web lookup capability |
-| [SEARCH-002](search-002-workspace-knowledge-search.md) | todo | P2 | Search | none | Local workspace knowledge search with opt-in embeddings |
+| [SEARCH-002](search-002-workspace-knowledge-search.md) | review | P2 | Search | none | Local workspace knowledge search |
 | [MEM-002](mem-002-session-transcript-search.md) | review | P2 | Memory | none | Session transcript search |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |
@@ -46,4 +46,5 @@ Deferred notes that are intentionally outside the active backlog.
 | [CODE-003](later/code-003-claude-code-worker-adapter.md) | todo | P3 | Coding Agents | none | Claude Code worker adapter |
 | [CODE-004](later/code-004-agent-worker-tools.md) | todo | P3 | Coding Agents | none | Agent worker tools |
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
+| [SEARCH-003](later/search-003-workspace-search-embeddings.md) | todo | P3 | Search | [SEARCH-002](search-002-workspace-knowledge-search.md) | Optional local embeddings for workspace search |
 | [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |
