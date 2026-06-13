@@ -132,7 +132,7 @@ Current shape:
 ## 🦐 0.3.0 - A Window in the Reef - Unreleased
 ```
 
-For public releases at `0.1.0` or later, keep the version, aquatic release name, and date/status in the heading. Use the release process in `AGENTS.md` when the user asks to cut a release.
+For public releases at `0.1.0` or later, keep the version, aquatic release name, and date/status in the heading. Patch releases inherit the aquatic release name from their minor line, so `0.4.1` uses the `0.4.0` name. Choose a new release name only for a new minor line such as `0.5.0`. Use the release process in `AGENTS.md` when the user asks to cut a release.
 
 ## Verification
 

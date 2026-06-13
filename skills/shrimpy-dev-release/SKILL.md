@@ -14,6 +14,8 @@ Use this source skill when the user asks to prepare or cut a Shrimpy release.
 - Aquatic release name.
 - Whether the user wants preparation only, or also wants commit/tag/push/GitHub Release actions.
 
+Patch releases inherit the aquatic release name from their minor line. For example, `0.4.1` keeps the `0.4.0` release name. Choose a new release name only for a new minor line such as `0.5.0`.
+
 ## Preflight
 
 1. Read `AGENTS.md` and `AGENTS-PRIVATE.md` when present.
@@ -34,7 +36,7 @@ Use `shrimpy-dev-changelog` for release-note wording and release-heading rules.
 Update:
 
 - `package.json` and `package-lock.json` version.
-- `package.json` `shrimpy.releaseName`.
+- `package.json` `shrimpy.releaseName`; keep the existing minor-line name for patch releases.
 - `CHANGELOG.md` release heading from `Unreleased` to the release date.
 - README/setup examples that intentionally reference the latest release tag.
 - Any stable docs that still describe removed or renamed release surfaces.
@@ -73,7 +75,7 @@ git commit -m "Release vX.Y.Z"
 git push origin main
 git tag vX.Y.Z
 git push origin vX.Y.Z
-gh release create vX.Y.Z --target main --title "vX.Y.Z alpha - <release name>" --notes "<summary>" --prerelease
+gh release create vX.Y.Z --target main --title "vX.Y.Z alpha - <minor-line release name>" --notes "<summary>" --prerelease
 ```
 
 GitHub automatically provides source archives. Do not attach release assets unless the user deliberately chose packaged artifacts.
