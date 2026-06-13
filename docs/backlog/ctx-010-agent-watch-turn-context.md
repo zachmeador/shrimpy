@@ -28,6 +28,7 @@ Current turn context only gives an aggregate gateway status such as "last watch 
 - `src/watches/inspection.ts` already provides `inspectWatches(runtime, { agentId })`, including source path, owner/local ids, trigger text, target channels, expected wake, next run, active run, last run, diagnostics, and inspect commands.
 - Prefer a focused helper such as `buildAgentWatchItems` beside `buildGatewayStatusItems`, so watch awareness remains a runtime turn-context producer.
 - Related observability work: [CTX-008](later/ctx-008-runtime-context-producers.md) would make individual runtime producers CLI-renderable, and [CTX-009](later/ctx-009-context-trace-debug-view.md) would unify trace/debug views. This item should not wait on either unless the implementation naturally folds into them.
+- [CLI-001](cli-001-bounded-agent-output.md) owns the output-side fix for the same habit: this inventory removes the routine reason for agents to run `shrimpy watches --json` at all.
 
 ## Done
 - An agent's normal turn context includes a compact summary of its configured watches and recent run state.

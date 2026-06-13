@@ -66,6 +66,7 @@ Most search API providers expose the same broad shape: query in, ranked URLs, ti
 
 - Research: [web-search-providers.md](../research/web-search-providers.md) surveys candidate providers and recommends Tavily first, Brave second, with Serper/SearXNG as follow-on adapters; xAI/Perplexity are answer engines, not result APIs.
 - Related: [VAULT-002](vault-002-main-agent-capture-research.md) should define how source metadata and search-backed research notes are captured.
+- Related: [SEARCH-002](search-002-workspace-knowledge-search.md) covers local workspace knowledge search as `shrimpy workspace search`; the `search` group stays scoped to web discovery, and the two help texts should cross-point each other.
 - Related: search/fetch/browser skills should stay scoped and gated by agent tool availability if those skills are later installed.
 - The useful layer split is:
   - provider API: Brave/Tavily/Exa/Kagi/Serp-style/SearXNG/etc.;

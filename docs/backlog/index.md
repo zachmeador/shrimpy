@@ -9,12 +9,15 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
+| [SEARCH-002](search-002-workspace-knowledge-search.md) | todo | P2 | Search | none | Local workspace knowledge search with opt-in embeddings |
 | [MEM-002](mem-002-session-transcript-search.md) | todo | P2 | Memory | none | Session transcript search |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |
 | [TUI-006](tui-006-expanded-tool-call-inspection.md) | todo | P2 | TUI | none | Expanded tool call inspection |
 | [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
 | [CTX-010](ctx-010-agent-watch-turn-context.md) | todo | P2 | Context | none | Agent watch inventory in turn context |
+| [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | [SEARCH-002](search-002-workspace-knowledge-search.md) | Workspace knowledge breadcrumbs in turn context |
+| [CLI-001](cli-001-bounded-agent-output.md) | todo | P2 | CLI | none | Bounded agent-facing CLI output |
 | [CODE-001](code-001.md) | review | P2 | Coding Agents | none | Worker backend availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | review | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
 | [MECH-002](mech-002-audit-skills.md) | todo | P1 | Mechanic | none | Mechanic security and hygiene audit skills |
@@ -24,6 +27,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
+| [GATEWAY-001](gateway-001-service-env-path.md) | todo | P1 | Gateway | none | Gateway service PATH for watch and session child processes |
 | [SETUP-001](setup-001-onboarding-completion.md) | review | P1 | Setup | none | First-run onboarding ends with gateway step, next steps, and status readiness |
 | [SETUP-002](setup-002-setup-entry-seams.md) | todo | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
 | [SETUP-003](setup-003-opt-in-watch-seeding.md) | todo | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
