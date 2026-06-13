@@ -10,27 +10,27 @@ Use this skill when a user asks for web research, current information, source UR
 
 ## Command
 
-Use Codex CLI as the capability provider. Put `--search` before `exec`; `codex exec --search ...` is not valid in current Codex CLI.
+Use the bundled wrapper script as the capability provider. Resolve `scripts/codex-web-search` relative to this `SKILL.md` and pass the user's research question as an argument:
 
 ```bash
-out="$(mktemp /tmp/codex-web-search.XXXXXX.md)"
-jsonl="$(mktemp /tmp/codex-web-search.XXXXXX.jsonl)"
-codex --search exec --json --output-last-message "$out" "<research prompt>" > "$jsonl" </dev/null
+bash scripts/codex-web-search "<research question>"
 ```
 
-Use cached search for non-current background research by omitting `--search`:
+For multiline questions, pipe stdin:
 
 ```bash
-out="$(mktemp /tmp/codex-web-search.XXXXXX.md)"
-jsonl="$(mktemp /tmp/codex-web-search.XXXXXX.jsonl)"
-codex exec --json --output-last-message "$out" "<research prompt>" > "$jsonl" </dev/null
+cat <<'EOF' | bash scripts/codex-web-search --stdin
+<research question>
+EOF
 ```
 
-Read `$out` for the final answer. Inspect `$jsonl` when you need to confirm that Codex used web search or to debug a failed run:
+Use cached search for non-current background research:
 
 ```bash
-rg 'web_search|webSearch' "$jsonl"
+bash scripts/codex-web-search --cached "<research question>"
 ```
+
+The wrapper prints Codex's final answer to stdout and writes debug file paths to stderr. Inspect the JSONL file when you need to confirm that Codex used web search or to debug a failed run.
 
 ## Prompt Contract
 

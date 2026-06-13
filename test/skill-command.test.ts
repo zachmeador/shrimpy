@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -426,6 +428,7 @@ describe("skill context inspection", () => {
     const source = mkdtempSync(join(tmpdir(), "shrimpy-skill-source-"));
     const invalidSource = mkdtempSync(join(tmpdir(), "shrimpy-invalid-skill-source-"));
     mkdirSync(join(source, "scripts"), { recursive: true });
+    writeFileSync(join(source, "scripts", "helper.sh"), "echo helper\n", "utf-8");
     writeFileSync(
       join(source, "SKILL.md"),
       [
@@ -456,6 +459,10 @@ describe("skill context inspection", () => {
       assert.equal(install.result, 0);
       const installedPath = join(workspace, "state", "skills", "packages", "source-skill", "SKILL.md");
       assert.equal(existsSync(installedPath), true);
+      assert.equal(
+        readFileSync(join(workspace, "state", "skills", "packages", "source-skill", "scripts", "helper.sh"), "utf-8"),
+        "echo helper\n",
+      );
       const packages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
       assert.equal(packages.packages["source-skill"].source, source);
       const bindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
@@ -491,6 +498,68 @@ describe("skill context inspection", () => {
     } finally {
       rmSync(source, { recursive: true, force: true });
       rmSync(invalidSource, { recursive: true, force: true });
+    }
+  });
+
+  test("codex web search wrapper hides Codex exec flag order", () => {
+    const root = mkdtempSync(join(tmpdir(), "shrimpy-codex-web-search-wrapper-"));
+    const binDir = join(root, "bin");
+    const argvPath = join(root, "argv.txt");
+    mkdirSync(binDir, { recursive: true });
+    const fakeCodexPath = join(binDir, "codex");
+    writeFileSync(
+      fakeCodexPath,
+      [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        `argv_path=${JSON.stringify(argvPath)}`,
+        "printf '%s\\0' \"$@\" > \"$argv_path\"",
+        "out=''",
+        "while (($#)); do",
+        "  if [[ \"$1\" == '--output-last-message' ]]; then",
+        "    shift",
+        "    out=\"$1\"",
+        "  fi",
+        "  shift || true",
+        "done",
+        "printf '%s\\n' '{\"type\":\"turn.completed\"}'",
+        "printf '%s\\n' 'wrapped answer' > \"$out\"",
+      ].join("\n"),
+      "utf-8",
+    );
+    chmodSync(fakeCodexPath, 0o755);
+
+    try {
+      const scriptPath = join(
+        projectRoot,
+        "src",
+        "setup",
+        "templates",
+        "skills",
+        "codex-web-search",
+        "scripts",
+        "codex-web-search",
+      );
+      const result = spawnSync("bash", [scriptPath, "what is silver doing today?"], {
+        encoding: "utf-8",
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ""}`,
+        },
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, "wrapped answer\n");
+      assert.match(result.stderr, /codex-web-search jsonl:/);
+      const args = readFileSync(argvPath).toString("utf-8").split("\0").filter(Boolean);
+      assert.deepEqual(args.slice(0, 4), ["--search", "--ask-for-approval", "never", "exec"]);
+      assert.ok(args.includes("--skip-git-repo-check"));
+      assert.ok(args.includes("--ephemeral"));
+      assert.deepEqual(args.slice(args.indexOf("-C"), args.indexOf("-C") + 2), ["-C", "/tmp"]);
+      assert.deepEqual(args.slice(args.indexOf("--sandbox"), args.indexOf("--sandbox") + 2), ["--sandbox", "read-only"]);
+      assert.match(args.at(-1) ?? "", /Question:\nwhat is silver doing today\?/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 
