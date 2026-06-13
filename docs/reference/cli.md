@@ -28,6 +28,8 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | `shrimpy sessions restore <channel>` | Restore an archived session. |
 | `shrimpy sessions thinking <channel> <level>` | Change reasoning effort for a session. |
 | `shrimpy sessions stop <channel> [--agent <id>]` | Stop the running gateway turn for a channel session. |
+| `shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]` | Search active and archived session transcripts with bounded snippets. |
+| `shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]` | Read a bounded transcript window around one session entry. |
 | `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model/inference metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
 | `shrimpy models [--json]` | Inspect model policies, agent defaults, and Pi-visible provider models. |
 | `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]` | Explain model precedence for a CLI override, explicit policy, local session, channel session, or agent default. |
@@ -50,6 +52,9 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy workspace track init [--json]` | Initialize opt-in local workspace git checkpoint tracking. |
 | `shrimpy workspace track status [--json]` | Inspect workspace checkpoint tracking status and changed checkpointable paths. |
 | `shrimpy workspace track checkpoint --message <text> [--json]` | Create a manual workspace checkpoint commit. |
+| `shrimpy workspace search <query> [--limit N] [--json]` | Search profile, skill, agent context, and agent vault Markdown with bounded scored results. |
+| `shrimpy workspace index status [--json]` | Inspect workspace search corpus size, scorer, embedding availability, and index staleness. |
+| `shrimpy workspace index rebuild [--json]` | Rebuild the workspace search cache under `runtime/search/`. |
 | `shrimpy status` | Show workspace, gateway, channels, watch-run, and Telegram offset status. |
 | `shrimpy watches [--agent <id>] [--json]` | Inspect configured agent-owned watches, including source paths, target channels, expected wake decisions, next runs, active runs, and recent history. |
 | `shrimpy watches add <id> [--agent <id>] [--name <text>] [--concurrency-policy <forbid\|allow>] (--cron <expr>\|--every <dur>\|--every-ms <n>) (--channel <name> --message <text>\|--command <cmd>) [--json]` | Add an agent-owned time watch. Command watches also support `--cwd`, `--timeout-ms`, `--emit-policy`, `--emit-channel`, and `--emit-template`. |

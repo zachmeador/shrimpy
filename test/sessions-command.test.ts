@@ -23,6 +23,129 @@ afterEach(() => {
 });
 
 describe("cmdSessions", () => {
+  test("searches active and archived transcripts without matching tool result bodies", async () => {
+    await setupInit(workspace);
+    const agentRoot = join(workspace, "agents", "shrimpy");
+    const sessionDir = createGatewaySessionDescriptor({
+      workspacePath: agentRoot,
+      agentId: "shrimpy",
+      channel: "home",
+    }).sessionDir;
+    mkdirSync(sessionDir, { recursive: true });
+    writeActiveSessionFile(
+      join(sessionDir, "home-active.jsonl"),
+      [
+        messageEntry("u1", null, "2026-05-01T10:00:00.000Z", {
+          role: "user",
+          content: "Please inspect the coral plan.",
+        }),
+        messageEntry("a1", "u1", "2026-05-01T10:01:00.000Z", {
+          role: "assistant",
+          content: [
+            { type: "text", text: "I will check the local notes." },
+            { type: "toolCall", id: "tool-1", name: "bash", arguments: { cmd: "rg coral" } },
+          ],
+        }),
+        messageEntry("t1", "a1", "2026-05-01T10:02:00.000Z", {
+          role: "toolResult",
+          toolCallId: "tool-1",
+          toolName: "bash",
+          content: [{ type: "text", text: "secret-tool-output-only" }],
+          isError: false,
+        }),
+      ].join(""),
+    );
+    writeArchivedSessionFile(
+      join(sessionDir, "home-archived.jsonl"),
+      messageEntry("u2", null, "2026-04-30T10:00:00.000Z", {
+        role: "user",
+        content: "Archived coral decision.",
+      }),
+    );
+
+    const coral = await captureLogs(() =>
+      cmdSessions(["search", "coral", "--json"], { workspace } as any)
+    );
+    assert.equal(coral.result, 0);
+    const coralPayload = JSON.parse(coral.lines.join("\n"));
+    assert.equal(coralPayload.matchedCount, 2);
+    assert.deepEqual(
+      coralPayload.matches.map((match: any) => match.lifecycleState).sort(),
+      ["active", "archived"],
+    );
+
+    const toolOutput = await captureLogs(() =>
+      cmdSessions(["search", "secret-tool-output-only", "--json"], { workspace } as any)
+    );
+    assert.equal(toolOutput.result, 0);
+    assert.equal(JSON.parse(toolOutput.lines.join("\n")).matchedCount, 0);
+
+    const toolName = await captureLogs(() =>
+      cmdSessions(["search", "bash", "--json"], { workspace } as any)
+    );
+    assert.equal(toolName.result, 0);
+    const toolPayload = JSON.parse(toolName.lines.join("\n"));
+    assert.equal(toolPayload.matchedCount, 2);
+    assert.deepEqual(
+      toolPayload.matches.map((match: any) => match.matchKind).sort(),
+      ["tool", "tool"],
+    );
+  });
+
+  test("reads a bounded transcript window around a search match", async () => {
+    await setupInit(workspace);
+    const agentRoot = join(workspace, "agents", "shrimpy");
+    const sessionDir = createGatewaySessionDescriptor({
+      workspacePath: agentRoot,
+      agentId: "shrimpy",
+      channel: "home",
+    }).sessionDir;
+    mkdirSync(sessionDir, { recursive: true });
+    writeActiveSessionFile(
+      join(sessionDir, "home-active.jsonl"),
+      [
+        messageEntry("u1", null, "2026-05-01T10:00:00.000Z", {
+          role: "user",
+          content: "Before the target.",
+        }),
+        messageEntry("a1", "u1", "2026-05-01T10:01:00.000Z", {
+          role: "assistant",
+          content: [{ type: "text", text: "Needle answer in the middle." }],
+        }),
+        messageEntry("t1", "a1", "2026-05-01T10:02:00.000Z", {
+          role: "toolResult",
+          toolCallId: "tool-1",
+          toolName: "bash",
+          content: [{ type: "text", text: "verbose body should stay omitted" }],
+          isError: false,
+        }),
+      ].join(""),
+    );
+
+    const search = await captureLogs(() =>
+      cmdSessions(["search", "Needle", "--json"], { workspace } as any)
+    );
+    const match = JSON.parse(search.lines.join("\n")).matches[0];
+    const read = await captureLogs(() =>
+      cmdSessions([
+        "read",
+        match.relativePath,
+        "--around",
+        match.entryId,
+        "--window",
+        "1",
+        "--json",
+      ], { workspace } as any)
+    );
+
+    assert.equal(read.result, 0);
+    const payload = JSON.parse(read.lines.join("\n"));
+    assert.equal(payload.aroundEntryId, "a1");
+    assert.deepEqual(payload.entries.map((entry: any) => entry.id), ["u1", "a1", "t1"]);
+    assert.match(payload.entries[2].snippet, /body omitted/);
+    assert.doesNotMatch(JSON.stringify(payload), /verbose body should stay omitted/);
+  });
+
   test("lists one channel session as JSON", async () => {
     await setupInit(workspace);
     const agentRoot = join(workspace, "agents", "shrimpy");
@@ -348,12 +471,12 @@ function writeActiveSessionFile(path: string, extra = ""): void {
   writeSessionFile(path, "active", extra);
 }
 
-function writeArchivedSessionFile(path: string): void {
+function writeArchivedSessionFile(path: string, extra = ""): void {
   const now = new Date().toISOString();
   writeSessionFile(
     path,
     "archived",
-    `${JSON.stringify({
+    `${extra}${JSON.stringify({
       type: "custom",
       customType: "shrimpy_lifecycle",
       data: { state: "archived" },
@@ -362,6 +485,24 @@ function writeArchivedSessionFile(path: string): void {
       timestamp: now,
     })}\n`,
   );
+}
+
+function messageEntry(
+  id: string,
+  parentId: string | null,
+  timestamp: string,
+  message: Record<string, unknown>,
+): string {
+  return `${JSON.stringify({
+    type: "message",
+    id,
+    parentId,
+    timestamp,
+    message: {
+      timestamp: Date.parse(timestamp),
+      ...message,
+    },
+  })}\n`;
 }
 
 function writeSessionFile(path: string, id: string, extra = ""): void {

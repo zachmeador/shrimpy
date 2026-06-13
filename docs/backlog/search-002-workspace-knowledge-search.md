@@ -13,9 +13,11 @@ This service is also the substrate for [CTX-011](ctx-011-workspace-knowledge-bre
 
 ## Current State
 
-- No knowledge search exists. `shrimpy channels search` covers channel logs, [MEM-002](mem-002-session-transcript-search.md) plans transcript search, and [SEARCH-001](search-001-web-lookup-capability.md) covers optional web lookup capability.
-- Skills reach agents as context trails; vault, profile, and agent context files are reachable only by exact path or manual grep.
-- Runtime dependencies are lean; nothing in `package.json` runs local ML today.
+- `shrimpy workspace search <query> [--limit N] [--json]` exists as a keyword-only local search over `profile/*.md`, workspace skills, agent skills, `agents/<id>/context/`, and `agents/<id>/vault/`.
+- The workspace search index is a rebuildable cache under `runtime/search/`, refreshed lazily by content hash during search. `shrimpy workspace index status` reports scorer identity, corpus size, staleness, and embedding availability; `shrimpy workspace index rebuild` recreates the cache.
+- The keyword scorer chunks Markdown by heading section, returns workspace-relative paths, heading trails, scores, clipped snippets, line numbers, mtime, and content-change time, and preserves content-change time across mtime-only rewrites.
+- Channel logs stay in `shrimpy channels search`, and [MEM-002](mem-002-session-transcript-search.md) now covers deterministic transcript search.
+- No local embedding backend is wired yet. `search.workspace.embeddings.enabled` is recognized only as unavailable status; hybrid ranking, model fetch consent, and gateway warmup remain.
 
 ## Build
 

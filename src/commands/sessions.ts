@@ -4,6 +4,8 @@ import {
   executeSessionStopAction,
   executeSessionThinkingAction,
   inspectSessionCompactionPolicy,
+  readSessionAroundEntry,
+  searchSessionTranscripts,
   summarizeAgentSessions,
   summarizeSessionStatus,
 } from "../sessions/index.js";
@@ -16,8 +18,11 @@ import {
   printSessionListing,
   printSessionCompactionPolicy,
   printSessionStopResult,
+  printSessionReadResult,
+  printSessionSearchResult,
   printSessionThinkingResult,
 } from "./sessions-format.js";
+import { parsePositiveInt } from "../util/parse.js";
 import { renderGroupUsage } from "./catalog.js";
 import {
   createCommandGroup,
@@ -44,6 +49,78 @@ function parseSessionArgs(argv: string[], usageText: string) {
     strict: true,
     usage: usageText,
   });
+}
+
+function parseSessionSearchArgs(argv: string[], usageText: string) {
+  return parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      "all-agents": { type: "boolean", default: false },
+      channel: { type: "string" },
+      limit: { type: "string" },
+      json: { type: "boolean" },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: usageText,
+  });
+}
+
+function parseSessionReadArgs(argv: string[], usageText: string) {
+  return parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      around: { type: "string" },
+      window: { type: "string" },
+      json: { type: "boolean" },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: usageText,
+  });
+}
+
+async function searchSessions({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
+  const { values, positionals } = parseSessionSearchArgs(argv, usageText);
+  const query = positionals.join(" ").trim();
+  requireArg(query, usageText, "query");
+  const runtime = createAppRuntime(config);
+  const result = await searchSessionTranscripts(runtime, {
+    query,
+    agentId: values.agent,
+    channel: values.channel,
+    allAgents: Boolean(values["all-agents"]),
+    limit: values.limit ? parsePositiveInt(values.limit, "--limit") : undefined,
+  });
+
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    printSessionSearchResult(result);
+  }
+  return 0;
+}
+
+async function readSession({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
+  const { values, positionals } = parseSessionReadArgs(argv, usageText);
+  const session = requireArg(positionals[0], usageText, "session");
+  const around = requireArg(values.around, usageText, "--around");
+  const runtime = createAppRuntime(config);
+  const result = await readSessionAroundEntry(runtime, {
+    session,
+    aroundEntryId: around,
+    agentId: values.agent,
+    window: values.window ? parsePositiveInt(values.window, "--window") : undefined,
+  });
+
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    printSessionReadResult(result);
+  }
+  return 0;
 }
 
 async function inspectCompaction({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
@@ -143,6 +220,8 @@ export const cmdSessions: CommandHandler = createCommandGroup({
   default: () => showUsage(USAGE),
   commands: {
     list: listSessions,
+    search: searchSessions,
+    read: readSession,
     compaction: inspectCompaction,
     thinking: setThinking,
     stop: stopSession,

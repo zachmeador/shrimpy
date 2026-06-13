@@ -6,6 +6,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### CLI & Plumbing
 
+- Added `shrimpy sessions search|read` and `shrimpy workspace search|index` for bounded local transcript and workspace-knowledge recall.
 - Added `--full` to `shrimpy channels read` and `shrimpy channels search`, with bounded plain output by default and complete JSON reads preserved for pipes.
 - Changed `shrimpy channels --json` to use the concise channel summary shape while keeping detailed activity on `shrimpy channels show`.
 - Added `shrimpy worker backends` to inspect and refresh persisted Codex, Claude Code, and Pi worker backend availability.

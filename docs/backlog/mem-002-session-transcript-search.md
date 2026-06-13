@@ -1,6 +1,6 @@
 # 🦐 MEM-002: Session Transcript Search
 
-Status: todo
+Status: review
 Priority: P2
 Area: Memory
 Depends On: none
@@ -14,8 +14,10 @@ The Hermes survey ([hermes-memory-survey-2026-05-21.md](../research/hermes-memor
 ## Current State
 
 - Session transcripts are Pi JSONL files under `agents/<id>/sessions/`, with active/archived lifecycle state tracked by `shrimpy_lifecycle` custom entries (`src/sessions/storage.ts`).
-- `shrimpy sessions list [channel] --agent <id> [--json]` summarizes active sessions and recent archives for one agent (`summarizeAgentSessions` in `src/sessions/service.ts`), but there is no first-class transcript search; agents fall back to grepping the JSONL by hand.
-- Channel logs already have content search through `searchChannelMessages` and `shrimpy channels search`; agent session transcripts — where the actual working conversations live — have no equivalent.
+- `shrimpy sessions list [channel] --agent <id> [--json]` summarizes active sessions and recent archives for one agent (`summarizeAgentSessions` in `src/sessions/service.ts`).
+- `shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]` now streams active and archived session JSONL files and returns bounded, source-pointed matches.
+- `shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]` now expands one hit into a bounded transcript window.
+- Channel logs already have content search through `searchChannelMessages` and `shrimpy channels search`; workspace notes now have keyword search through `shrimpy workspace search`.
 - [MEM-001](later/mem-001-session-title-summarizer.md) covers generated session titles and [TUI-004](tui-004-agent-session-navigator.md) plans an all-agent session inventory service. Neither searches content, and this item must not wait on them.
 
 ## Build

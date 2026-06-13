@@ -5,6 +5,8 @@ import type {
   SessionCompactionPolicySummary,
   SessionListingSummary,
   SessionPathSummary,
+  SessionReadResult,
+  SessionSearchResult,
   SessionStatusSummary,
   SingleSessionListingSummary,
 } from "../sessions/index.js";
@@ -172,6 +174,44 @@ export function printSessionCompactionPolicy(
   }
   console.log(`${label("restart_required:")} ${summary.restartRequired}`);
   console.log(`${label("note:")} ${summary.note}`);
+}
+
+export function printSessionSearchResult(result: SessionSearchResult): void {
+  console.log(
+    `${label("sessions:")} ${result.matchedCount}/${result.totalEntries} matches  ${dim(`sessions=${result.totalSessions} showing=${result.returnedCount}`)}`,
+  );
+  if (result.matches.length === 0) {
+    console.log(dim("(no matches)"));
+    for (const hint of result.hints) {
+      console.log(`  ${dim(hint)}`);
+    }
+    return;
+  }
+
+  for (const match of result.matches) {
+    const timestamp = match.entryTimestamp ?? "(unknown)";
+    const tool = match.toolName ? ` tool=${match.toolName}` : "";
+    console.log(
+      `${dim(timestamp)}  ${accent(match.agentId)}:${match.sessionLabel}  ${match.lifecycleState}  ${match.role}/${match.matchKind}${tool}`,
+    );
+    console.log(`  ${match.snippet}`);
+    console.log(
+      `  ${label("read:")} shrimpy sessions read ${match.relativePath} --around ${match.entryId}`,
+    );
+  }
+}
+
+export function printSessionReadResult(result: SessionReadResult): void {
+  console.log(
+    `${label("session:")} ${accent(result.agentId)}:${result.sessionLabel}  ${result.lifecycleState}  ${dim(result.relativePath)}`,
+  );
+  console.log(`${label("around:")} ${result.aroundEntryId}  ${dim(`window=${result.window}`)}`);
+  for (const entry of result.entries) {
+    const timestamp = entry.timestamp ?? "(unknown)";
+    const tool = entry.toolName ? ` tool=${entry.toolName}` : "";
+    console.log(`${dim(timestamp)}  ${entry.id}  ${entry.role}${tool}`);
+    console.log(`  ${entry.snippet}`);
+  }
 }
 
 function printSingleSessionListing(summary: SingleSessionListingSummary): void {

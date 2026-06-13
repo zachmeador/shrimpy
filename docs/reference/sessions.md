@@ -53,6 +53,8 @@ Use:
 
 ```bash
 shrimpy sessions list [channel] [--agent <id>] [--json]
+shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]
+shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]
 shrimpy sessions new <channel> [--agent <id>]
 shrimpy sessions clear <channel> [--agent <id>]
 shrimpy sessions restore <channel> [--agent <id>] [--archive <name>]
@@ -62,6 +64,10 @@ shrimpy sessions stop <channel> [--agent <id>]
 `new` and `clear` archive the active session file. The next turn opens a fresh active file. `restore` marks an archived file active and archives the previous active file if one exists.
 
 For local labels `tui` and `run`, lifecycle commands mutate the session files directly. For gateway channel sessions, lifecycle commands publish session control messages into the channel; the running gateway handles them in order with that channel session.
+
+`shrimpy sessions search` scans active and archived Pi JSONL transcripts for one agent by default, or every configured agent with `--all-agents`. It matches user text, assistant text, assistant tool-call names, tool-result names, and recorded bash commands. Tool-result bodies are not searched or emitted. Results include the agent id, session label, lifecycle state, transcript path, entry id, role, timestamp, and a clipped snippet plus a `sessions read` command.
+
+`shrimpy sessions read <session> --around <entry>` expands one search hit into a bounded transcript window. The session argument can be the workspace-relative path returned by search, and `--window` controls how many neighboring entries are returned on each side.
 
 ## Queuing
 
@@ -87,6 +93,8 @@ Pi ignores inspection-only custom entries when building normal model context. Sh
 ```bash
 shrimpy sessions list --agent shrimpy
 shrimpy sessions list home --agent shrimpy --json
+shrimpy sessions search "deployment notes" --agent shrimpy
+shrimpy sessions read agents/shrimpy/sessions/home/example.jsonl --around a1b2c3d4
 shrimpy sessions compaction home --agent shrimpy --json
 shrimpy models resolve --agent shrimpy --session tui
 shrimpy models resolve --agent shrimpy --channel home

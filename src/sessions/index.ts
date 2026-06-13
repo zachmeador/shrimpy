@@ -7,6 +7,7 @@ export * from "./factory.js";
 export * from "./contained-system-prompt.js";
 export * from "./planner.js";
 export * from "./registry.js";
+export * from "./search.js";
 export * from "./service.js";
 export * from "./spec.js";
 export * from "./status.js";

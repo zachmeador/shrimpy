@@ -22,6 +22,7 @@ state/telegram/                 Telegram polling offsets
 runtime/cursors/channels.json   gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
 runtime/context/                generated turn-context state
+runtime/search/                 rebuildable workspace search cache
 runtime/watches/                watch active-run state and run history
 runtime/workers/                worker JSONL, stderr, and last-message artifacts
 channels/                       append-only channel logs
@@ -68,6 +69,14 @@ The default whitelist tracks `.gitignore`, `profile/WORKSPACE.md`, `profile/SYST
 
 Use `shrimpy workspace track status --json` to inspect whether tracking is disabled, clean, dirty, or misconfigured. Use `shrimpy workspace track checkpoint --message <text>` to create a manual checkpoint. When the gateway is running and tracking is enabled, Shrimpy checks about every 15 minutes and creates an automatic checkpoint commit only when checkpointable files changed.
 
+## Search
+
+`shrimpy workspace search <query> [--limit N] [--json]` searches the written workspace knowledge corpus: `profile/*.md`, workspace skills, agent skills, `agents/<id>/context/`, and `agents/<id>/vault/`. Results are workspace-relative paths with heading trails, line numbers, scores, clipped snippets, last-modified time, and content-change time.
+
+Workspace search chunks Markdown by heading section and uses a local keyword scorer. It refreshes a rebuildable cache under `runtime/search/` lazily during search by content hash. `shrimpy workspace index status [--json]` reports corpus size, scorer identity, embedding availability, and stale/unindexed/removed files. `shrimpy workspace index rebuild [--json]` recreates the cache.
+
+The workspace search corpus excludes channel logs and session transcripts. Use `shrimpy channels search` for channel messages and `shrimpy sessions search` for transcript recall.
+
 ## Context Resources
 
 Stable prompt material loaded into an agent session before per-turn context arrives:
@@ -92,6 +101,7 @@ Durable machine state lives under `state/`. Disposable runtime state lives under
 - Identity links live in `state/users.json`. The optional `owner` field names the canonical workspace user; CLI publishing routes through that identity when set. Manage with `shrimpy users list|get-owner|set-owner`.
 - User presence lives in `state/user-presence.json` and records each known user's last active chat surface channel. Inspect with `shrimpy users presence`; `send_message(channel="user:<id>", ...)` and `shrimpy channels post user:<id> ...` resolve through it.
 - Session transcripts live under each agent's `sessions/` directory. Each channel/session label has one directory containing its Pi `.jsonl` files. Reset and restore state is tracked inside those JSONL files with Shrimpy custom entries. See [sessions.md](sessions.md).
+- Workspace search cache files live under `runtime/search/` and are rebuildable.
 - Worker backend availability lives in `state/worker-backends.json`. Inspect or refresh it with `shrimpy worker backends`.
 - Coding worker records live in `state/workers.json`; detached worker logs and last-message artifacts live under `runtime/workers/`. Running worker records store the supervisor pid so cancel, close, and stale reconciliation can terminate the recorded process group and escalate to `SIGKILL` if it stays alive. Worker turns may store `timeoutMs` when launched with a max runtime. Manage workers through `shrimpy worker start|list|status|read|tail|send|wait|cancel|close`.
 - Gateway logs live at `runtime/logs/gateway.log`, readable through `shrimpy gateway logs`.

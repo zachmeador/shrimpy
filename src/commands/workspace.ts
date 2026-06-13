@@ -5,7 +5,15 @@ import {
   inspectWorkspaceCheckpointStatus,
   type WorkspaceCheckpointStatus,
 } from "../workspace-checkpoints/index.js";
-import { dim, label } from "../util/style.js";
+import {
+  inspectWorkspaceSearchIndex,
+  rebuildWorkspaceSearchIndex,
+  searchWorkspaceKnowledge,
+  type WorkspaceIndexStatus,
+  type WorkspaceSearchResult,
+} from "../search/workspace.js";
+import { parsePositiveInt } from "../util/parse.js";
+import { accent, dim, label } from "../util/style.js";
 import { renderGroupUsage } from "./catalog.js";
 import {
   createCommandGroup,
@@ -29,14 +37,100 @@ const cmdWorkspaceTrack: CommandHandler = createCommandGroup({
   },
 });
 
+const cmdWorkspaceIndex: CommandHandler = createCommandGroup({
+  name: "index",
+  path: ["workspace", "index"],
+  usage: USAGE,
+  default: () => printUsage(USAGE, "index subcommand required"),
+  commands: {
+    status: ({ argv, config }) => cmdWorkspaceIndexStatus(argv, config),
+    rebuild: ({ argv, config }) => cmdWorkspaceIndexRebuild(argv, config),
+  },
+});
+
 export const cmdWorkspace: CommandHandler = createCommandGroup({
   name: "workspace",
   usage: USAGE,
   default: () => printUsage(USAGE),
   commands: {
+    search: ({ argv, config }) => cmdWorkspaceSearch(argv, config),
+    index: ({ argv, config }) => cmdWorkspaceIndex(argv, config),
     track: ({ argv, config }) => cmdWorkspaceTrack(argv, config),
   },
 });
+
+async function cmdWorkspaceSearch(argv: string[], config: Parameters<CommandHandler>[1]): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      limit: { type: "string" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: USAGE,
+  });
+  const query = positionals.join(" ").trim();
+  requireArg(query, USAGE, "query");
+  const runtime = createAppRuntime(config);
+  const result = await searchWorkspaceKnowledge(runtime, {
+    query,
+    limit: values.limit ? parsePositiveInt(values.limit, "--limit") : undefined,
+  });
+
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+
+  printWorkspaceSearchResult(result);
+  return 0;
+}
+
+async function cmdWorkspaceIndexStatus(argv: string[], config: Parameters<CommandHandler>[1]): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+    },
+    strict: true,
+    usage: USAGE,
+  });
+  const runtime = createAppRuntime(config);
+  const status = inspectWorkspaceSearchIndex(runtime);
+
+  if (values.json) {
+    console.log(JSON.stringify(status, null, 2));
+    return 0;
+  }
+
+  printWorkspaceSearchIndexStatus(status);
+  return 0;
+}
+
+async function cmdWorkspaceIndexRebuild(argv: string[], config: Parameters<CommandHandler>[1]): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+    },
+    strict: true,
+    usage: USAGE,
+  });
+  const runtime = createAppRuntime(config);
+  const result = rebuildWorkspaceSearchIndex(runtime);
+
+  if (values.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+
+  console.log(`${label("workspace index:")} rebuilt`);
+  console.log(`${label("path:")} ${result.indexPath}`);
+  console.log(`${label("corpus files:")} ${result.corpusFiles}`);
+  console.log(`${label("indexed chunks:")} ${result.index.files.reduce((count, file) => count + file.chunks.length, 0)}`);
+  return 0;
+}
 
 async function cmdWorkspaceTrackInit(argv: string[], config: Parameters<CommandHandler>[1]): Promise<number> {
   const { values } = parseCommandArgs({
@@ -129,6 +223,49 @@ export function printWorkspaceCheckpointStatus(status: WorkspaceCheckpointStatus
   }
   if (status.changedPaths.length > 10) {
     console.log(`  ... ${status.changedPaths.length - 10} more`);
+  }
+}
+
+export function printWorkspaceSearchResult(result: WorkspaceSearchResult): void {
+  console.log(
+    `${label("workspace:")} ${result.matchedCount}/${result.indexedChunks} matches  ${dim(`files=${result.corpusFiles} showing=${result.returnedCount}`)}`,
+  );
+  if (result.embedding.enabled && !result.embedding.available) {
+    console.log(`${label("embeddings:")} ${dim(result.embedding.note)}`);
+  }
+  if (result.results.length === 0) {
+    console.log(dim("(no matches)"));
+    for (const hint of result.hints) {
+      console.log(`  ${dim(hint)}`);
+    }
+    return;
+  }
+
+  for (const item of result.results) {
+    const heading = item.headingTrail.length > 0
+      ? ` ${dim(item.headingTrail.join(" > "))}`
+      : "";
+    console.log(
+      `${accent(item.path)}:${item.lineStart}  score=${item.score}${heading}`,
+    );
+    console.log(`  ${item.snippet}`);
+  }
+}
+
+export function printWorkspaceSearchIndexStatus(status: WorkspaceIndexStatus): void {
+  const state = status.needsRebuild ? "stale" : "fresh";
+  console.log(`${label("workspace index:")} ${status.exists ? state : "missing"}`);
+  console.log(`${label("path:")} ${status.indexPath}`);
+  console.log(`${label("corpus files:")} ${status.corpusFiles}`);
+  console.log(`${label("indexed files:")} ${status.indexedFiles}`);
+  console.log(`${label("indexed chunks:")} ${status.indexedChunks}`);
+  console.log(`${label("scorer:")} ${status.scorerId} ${dim(`expected=${status.expectedScorerId}`)}`);
+  console.log(`${label("embeddings:")} ${status.embedding.note}`);
+  if (status.generatedAt) console.log(`${label("generated:")} ${status.generatedAt}`);
+  if (status.needsRebuild) {
+    console.log(
+      `${label("stale:")} stale=${status.staleFiles} unindexed=${status.unindexedFiles} removed=${status.removedFiles}`,
+    );
   }
 }
 
