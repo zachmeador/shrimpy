@@ -20,21 +20,21 @@ Fresh setup schedules three recurring watches enabled by default, and the setup 
 - Seed all default watches disabled, so quitting setup early leaves nothing running and non-interactive setup enables nothing.
 - Rework the setup skill's watches question into per-watch opt-in: one or two plain lines each covering what it does, when it runs, and that each run spends tokens on the configured model, then enable only what the user accepts.
 - Add `shrimpy watches enable <agent-id>/<watch-id>` and `shrimpy watches disable <agent-id>/<watch-id>` so the skill and the user flip a watch with one inspectable command instead of editing `watches.json`.
-- Cover every watch setup can offer; once [MECH-002](mech-002-audit-skills.md) ships, offer scheduling its security and hygiene audits in the same step.
+- Cover every watch setup can offer, including scheduling mechanic security and hygiene audits in the same step.
 - Close the step by telling the user how to change their choices later (`shrimpy watches ...` or a mechanic session).
 
 ## Boundaries
 
 - Fresh seeding only; existing workspaces and their `watches.json` files are untouched.
 - The explanations live in the setup skill itself, not behind a docs pointer.
-- Scope is watch opt-in semantics; onboarding completion (gateway step, next steps, status readiness) is [SETUP-001](setup-001-onboarding-completion.md).
+- Scope is watch opt-in semantics; onboarding completion, gateway steps, next steps, and status readiness are already handled elsewhere.
 - Watch definitions stay in `src/setup/defaults.ts`; this changes their seeded `enabled` state and the question, not their content.
 
 ## Notes
 
 - The cost line should say runs use the configured model rather than estimating prices.
-- [SETUP-001](setup-001-onboarding-completion.md) adds a gateway question to the same skill question list; coordinate question order there. Declined-gateway wording already covers dormant watches, which pairs naturally with this step.
-- [MECH-002](mech-002-audit-skills.md) defines the audit skills this step can offer to schedule.
+- Declined-gateway wording already covers dormant watches, which pairs naturally with this step.
+- Mechanic audit skills define the security and hygiene watches this step can offer to schedule.
 
 ## Done
 

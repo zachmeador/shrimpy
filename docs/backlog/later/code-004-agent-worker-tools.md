@@ -3,7 +3,6 @@
 Status: todo
 Priority: P3
 Area: Coding Agents
-Depends On: [CODE-002](../code-002-agentic-worker-sessions.md)
 
 ## Why
 

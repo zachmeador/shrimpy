@@ -21,7 +21,7 @@ Dead code from the previous setup design is still in the tree: `extensions/setup
 - Move `setupInit` out of production source: tests call `ensureWorkspaceInitialized` directly or a test helper wraps it; the unreachable print wrapper goes away.
 
 ## Boundaries
-- No flow or wording redesign of onboarding output; that is SETUP-001.
+- No broad flow or wording redesign of onboarding output.
 - No change to which files `ensureWorkspaceInitialized` creates or to the setup state machine in `src/setup/state.ts`.
 - Installer (`scripts/install.sh`) keeps printing `shrimpy setup init` only until the command collapses; update it in the same change.
 

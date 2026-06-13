@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Workspace
-Depends On: [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md)
+Depends On: [VAULT-001](vault-001-default-workspace-collections.md)
 
 ## Why
 
@@ -14,7 +14,7 @@ This is not a new memory database. It is a small workspace habit layered on top 
 ## Current State
 
 - Only the broad agent-vault convention exists today. There is no starter guidance for capture, catalog, inbox, research packets, or vault indexes.
-- Worker sessions are tracked in [CODE-002](code-002-agentic-worker-sessions.md). The all-agent `coding-delegation` skill defines coding handoff packets.
+- Worker sessions are implemented. The all-agent `coding-delegation` skill defines coding handoff packets.
 - No helper code or tests exist for research packet path generation.
 
 ## Build
@@ -30,8 +30,8 @@ This is not a new memory database. It is a small workspace habit layered on top 
   - `sources.md` for links, citations, and retrieval notes;
   - `notes.md` for findings, uncertainties, and follow-up questions;
   - optional artifacts under a clearly named subfolder.
-- Teach the agent to use worker sessions from [CODE-002](code-002-agentic-worker-sessions.md) for bounded research or implementation work when available, with the vault packet as the handoff material.
-- Before CODE-002 exists, keep the workflow usable with normal direct sessions or manually invoked commands, but do not create a second durable worker abstraction.
+- Teach the agent to use worker sessions for bounded research or implementation work when available, with the vault packet as the handoff material.
+- Keep the workflow usable with normal direct sessions or manually invoked commands, but do not create a second durable worker abstraction.
 - Add light prompt guidance for choosing a folder: recipes go under `agents/shrimpy/vault/recipes/`, career applications under the career agent's vault, broad investigations under `agents/shrimpy/vault/research/`, and unclear items can start in `agents/shrimpy/vault/inbox/`.
 - Add guidance to update indexes only when it helps later retrieval. Do not make every tiny capture pay a heavy cataloging tax.
 - Report saved paths, any spawned worker ids, and unresolved questions back to the user.

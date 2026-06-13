@@ -12,7 +12,7 @@ Some agents should get a workspace folder, not the whole machine. Shrimpy needs 
 - Define the small policy shape Shrimpy needs: reads, writes, network, git, secrets, browser, devices, and promotion back to the real workspace.
 - Decide how git works: in-place edits, `.git` access, scratch patches, worktrees, commits, and pushes.
 - Design `shrimpy` inspection output that shows the active sandbox profile.
-- Keep audit work in [MECH-002](mech-002-audit-skills.md).
+- Keep audit work in the existing mechanic audit skills.
 
 ## Do Not
 - Do not implement native sandbox runners as part of this strategy item.

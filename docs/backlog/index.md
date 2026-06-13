@@ -7,7 +7,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
-| [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md), [CODE-002](code-002-agentic-worker-sessions.md) | Main agent capture and research workflow |
+| [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md) | Main agent capture and research workflow |
 | [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
 | [SEARCH-002](search-002-workspace-knowledge-search.md) | todo | P2 | Search | none | Local workspace knowledge search with opt-in embeddings |
 | [MEM-002](mem-002-session-transcript-search.md) | todo | P2 | Memory | none | Session transcript search |
@@ -19,16 +19,12 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CTX-010](ctx-010-agent-watch-turn-context.md) | todo | P2 | Context | none | Agent watch inventory in turn context |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | [SEARCH-002](search-002-workspace-knowledge-search.md) | Workspace knowledge breadcrumbs in turn context |
 | [CLI-001](cli-001-bounded-agent-output.md) | todo | P2 | CLI | none | Bounded agent-facing CLI output |
-| [CODE-001](code-001.md) | review | P2 | Coding Agents | none | Worker backend availability inspection |
-| [CODE-002](code-002-agentic-worker-sessions.md) | review | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
-| [MECH-002](mech-002-audit-skills.md) | review | P1 | Mechanic | none | Mechanic security and hygiene audit skills |
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-pattern-reference-skill.md) | draft | P2 | Skills | none | All-agents pattern reference skill replacing mechanic ideas |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
-| [SETUP-001](setup-001-onboarding-completion.md) | review | P1 | Setup | none | First-run onboarding ends with gateway step, next steps, and status readiness |
 | [SETUP-002](setup-002-setup-entry-seams.md) | todo | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
 | [SETUP-003](setup-003-opt-in-watch-seeding.md) | todo | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
 | [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
@@ -47,7 +43,7 @@ Deferred notes that are intentionally outside the active backlog.
 | [CTX-008](later/ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](later/ctx-009-context-trace-debug-view.md) | todo | P2 | Context | [CTX-008](later/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
 | [AGENT-001](later/agent-001-nested-agents.md) | todo | P3 | Agents | [APP-001](app-001.md), [CTX-008](later/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
-| [CODE-003](later/code-003-claude-code-worker-adapter.md) | todo | P3 | Coding Agents | [CODE-002](code-002-agentic-worker-sessions.md) | Claude Code worker adapter |
-| [CODE-004](later/code-004-agent-worker-tools.md) | todo | P3 | Coding Agents | [CODE-002](code-002-agentic-worker-sessions.md) | Agent worker tools |
+| [CODE-003](later/code-003-claude-code-worker-adapter.md) | todo | P3 | Coding Agents | none | Claude Code worker adapter |
+| [CODE-004](later/code-004-agent-worker-tools.md) | todo | P3 | Coding Agents | none | Agent worker tools |
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
 | [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |

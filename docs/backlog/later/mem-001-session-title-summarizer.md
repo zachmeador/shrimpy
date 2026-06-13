@@ -41,7 +41,7 @@ This is low priority. It should wait until session-inventory shapes are clearer.
 ## Touches
 
 - [TUI-004](../tui-004-agent-session-navigator.md): the navigator wants richer session metadata and should display these titles when available.
-- [CODE-002](../code-002-agentic-worker-sessions.md): worker sessions already need compact summaries; this title generator should share token-stripping and cheap summarization helpers where useful, while keeping worker Markdown summaries separate from 140-character session titles.
+- Worker sessions already need compact summaries; this title generator should share token-stripping and cheap summarization helpers where useful, while keeping worker Markdown summaries separate from 140-character session titles.
 - Model policy: title generation should use an explicit low-cost summarization intent instead of silently spending the active session's main model.
 - [Compaction](../../reference/compaction.md): title summarization should reuse provider/request plumbing where practical, but it is not compaction and should not affect working context.
 - [Memory](../../reference/memory.md): titles help locate session evidence for memory upkeep, but they are not durable memory files.
