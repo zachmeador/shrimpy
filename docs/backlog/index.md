@@ -30,6 +30,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
 | [SURFACE-006](surface-006-chat-command-parity.md) | todo | P2 | Surfaces | none | Chat command parity |
 | [SURFACE-007](surface-007-react-web-chat.md) | todo | P2 | Surfaces | none | React web chat surface |
+| [SURFACE-008](surface-008-chat-adapter-whitelists.md) | todo | P1 | Surfaces | none | Required inbound whitelists for chat adapters |
 
 ## Later
 

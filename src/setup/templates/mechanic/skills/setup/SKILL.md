@@ -35,6 +35,8 @@ Default path scope: only inspect official Shrimpy workspace paths, meaning the a
 
 If adding a chat surface, use the setup command for that surface, starting with `shrimpy setup telegram`. Do not create adapter-shaped channel names by hand; Telegram channels are created from configured instances and external chat ids.
 
+A chat-surface setup is not complete until the surface has an explicit inbound whitelist. For Telegram, collect and configure the real numeric chat ID in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. If the ID cannot be obtained during setup, leave the surface unconfigured and tell the user the exact next command to run.
+
 Default background behavior: setup seeds three watches: `memory-management`, `journal-daily`, and `journal-compact`. They post work into the `maintenance` channel on their configured cadence. If the user wants quiet setup, set those entries in `agents/shrimpy/watches.json` to `enabled: false`; do not delete them.
 
 Default gateway behavior: ask before running `shrimpy gateway install` or `shrimpy gateway start`. If the user declines, include in the closing summary that watches and chat surfaces stay dormant until the gateway runs. If the user accepts, run the gateway commands and then inspect with `shrimpy gateway status`.

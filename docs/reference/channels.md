@@ -183,7 +183,7 @@ Gateway channel sessions do not automatically publish assistant text to a channe
 - `notify(text, opts)`
 - `report(summary)`
 
-Those helpers append an agent message to the active channel. The gateway outbox delivers logged agent/system messages externally when the channel manifest has a transport binding. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
+Those helpers append an agent message to the active channel. The gateway outbox delivers outbound-eligible agent/system text, images, image groups, and operation-status acknowledgements externally when the channel manifest has a transport binding. Control records, system records, and informational statuses remain channel history for CLI inspection. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
 
 `send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless they are deliberately bound to a transport. `user:<id>` is accepted as a send-time alias for the user's last active chat surface; the message is logged to the resolved concrete channel, not to a `user:<id>` channel file.
 

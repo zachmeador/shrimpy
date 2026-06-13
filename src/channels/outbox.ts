@@ -345,12 +345,12 @@ export function outboundTextForMessage(message: ChannelMessage): string | null {
       if (message.content.data.kind === "operation_status") {
         return message.content.data.text;
       }
-      return JSON.stringify(message.content.data);
+      return null;
     case "control":
     case "system":
-      return JSON.stringify(message.content.data);
+      return null;
     case "unsupported_media":
-      return `[Unsupported ${message.content.data.mediaKind}]`;
+      return null;
     case "image":
     case "image_group":
       return message.content.data.caption ?? null;
@@ -366,7 +366,20 @@ export function publicationIntentForMessage(
 }
 
 function shouldDeliverOutbound(message: ChannelMessage): boolean {
-  return message.sender.kind === "agent" || message.sender.kind === "system";
+  if (message.sender.kind !== "agent" && message.sender.kind !== "system") {
+    return false;
+  }
+
+  switch (message.content.type) {
+    case "text":
+    case "image":
+    case "image_group":
+      return true;
+    case "status":
+      return message.content.data.kind === "operation_status";
+    default:
+      return false;
+  }
 }
 
 function isDeliveryReceiptStatus(value: unknown): value is DeliveryReceiptStatus {

@@ -8,8 +8,10 @@ import { EgressRegistry } from "../dist/channels/egress.js";
 import { ChannelMembershipStore } from "../dist/channels/membership.js";
 import {
   ChannelOutbox,
+  outboundTextForMessage,
   readDeliveryReceipts,
 } from "../dist/channels/outbox.js";
+import { sessionResetMessageInput } from "../dist/channels/protocol.js";
 import { saveCursors } from "../dist/channels/store.js";
 
 let testDir: string;
@@ -131,6 +133,145 @@ describe("ChannelOutbox", () => {
 
     await outbox.drainBacklog();
     assert.equal(sent.length, 1);
+  });
+
+  test("does not deliver surface addressing status messages", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("telegram~main~4242", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: any[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      sent.push(delivery);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
+
+    const message = bus.publishStatus({
+      channel: "telegram~main~4242",
+      actorId: "system:surface",
+      transport: "chat",
+      data: {
+        kind: "surface_addressing",
+        surface: "telegram.main",
+        threadId: "4242",
+        previousAgentId: null,
+        addressedAgentId: "shrimpy",
+        joinedAgentId: "shrimpy",
+        source: "cli",
+      },
+    });
+
+    assert.equal(outboundTextForMessage(message), null);
+
+    await outbox.drainBacklog();
+
+    assert.equal(sent.length, 0);
+    const receipts = readDeliveryReceipts(join(testDir, "runtime", "deliveries.json"));
+    assert.equal(receipts["telegram~main~4242"]?.[message.id], undefined);
+  });
+
+  test("delivers operation status acknowledgements", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("telegram~main~4242", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: string[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      const text = outboundTextForMessage(delivery.message);
+      if (text) sent.push(text);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
+
+    const message = bus.publishStatus({
+      channel: "telegram~main~4242",
+      actorId: "system:session-control",
+      transport: "internal",
+      data: {
+        kind: "operation_status",
+        text: "Started a new session for shrimpy.",
+        ok: true,
+        targetAgentId: "shrimpy",
+        operation: "reset",
+      },
+    });
+
+    await outbox.drainBacklog();
+
+    assert.deepEqual(sent, ["Started a new session for shrimpy."]);
+    const receipts = readDeliveryReceipts(join(testDir, "runtime", "deliveries.json"));
+    assert.equal(receipts["telegram~main~4242"]?.[message.id]?.status, "delivered");
+  });
+
+  test("does not deliver internal system or control records as JSON", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("telegram~main~4242", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: any[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      sent.push(delivery);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
+
+    const systemRecord = bus.publishSystem({
+      channel: "telegram~main~4242",
+      actorId: "system:cli",
+      transport: "cli",
+      data: {
+        kind: "agent_updated",
+        agentId: "shrimpy",
+      },
+    });
+    const controlRecord = bus.publish(sessionResetMessageInput({
+      channel: "telegram~main~4242",
+      targetAgentId: "shrimpy",
+      sender: {
+        kind: "system",
+        actorId: "system:cli",
+      },
+      origin: {
+        transport: "cli",
+        sourceChannel: "telegram~main~4242",
+      },
+      command: "/new",
+    }));
+
+    assert.equal(outboundTextForMessage(systemRecord), null);
+    assert.equal(outboundTextForMessage(controlRecord), null);
+
+    await outbox.drainBacklog();
+
+    assert.equal(sent.length, 0);
+    const receipts = readDeliveryReceipts(join(testDir, "runtime", "deliveries.json"));
+    assert.equal(receipts["telegram~main~4242"]?.[systemRecord.id], undefined);
+    assert.equal(receipts["telegram~main~4242"]?.[controlRecord.id], undefined);
   });
 
   test("records failed receipts when a bound route errors", async () => {

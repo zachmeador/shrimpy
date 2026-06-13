@@ -46,7 +46,7 @@ Inbound Telegram messages from known users update `state/user-presence.json` wit
 
 Gateway/channel sessions do not automatically publish assistant text to a channel. Agents call active-channel helpers such as `reply(text)`, `ask(text)`, `notify(text, opts)`, or `report(summary)` to deliver intentional user-facing text.
 
-Those helpers append typed channel messages first. The gateway outbox tails channel logs, sends bound outbound messages through the registered surface instance, and records delivery receipts under `runtime/`. `shrimpy channels show <channel>` reports the manifest binding and undelivered receipt count.
+Those helpers append typed channel messages first. The gateway outbox tails channel logs, sends outbound-eligible agent/system text, media, and operation-status acknowledgements through the registered surface instance, and records delivery receipts under `runtime/`. Channel control records, system records, and informational statuses stay inspectable in the channel log. `shrimpy channels show <channel>` reports the manifest binding and undelivered receipt count.
 
 Direct local sessions such as `tui` and `run` are different: ordinary assistant text is already visible in the session transcript, so active-channel publication helpers are not part of that response path.
 

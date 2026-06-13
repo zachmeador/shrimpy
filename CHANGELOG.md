@@ -14,6 +14,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added top-level `latestTurn`, `artifactPaths`, and `commands` shortcuts to single-worker JSON output.
 - Improved worker summaries with goal, status, key actions, files touched, blockers, and latest result sections.
 
+### Channels & Surfaces
+
+- Changed channel outbox delivery to keep control, system, and informational status records out of Telegram and other bound surfaces while still delivering operation-status acknowledgements.
+
 ### Turn Context
 
 - Added compact agent-owned watch inventory to normal turn context and `shrimpy context turn`, sourced from the same inspection model as `shrimpy watches --agent <id>`.
