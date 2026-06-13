@@ -491,6 +491,79 @@ describe("skill context inspection", () => {
     }
   });
 
+  test("skills command treats allowed-tools command filters as bash requirements", async () => {
+    await setupInit(workspace);
+    const source = mkdtempSync(join(tmpdir(), "shrimpy-agent-browser-source-"));
+    writeFileSync(
+      join(source, "SKILL.md"),
+      [
+        "---",
+        "name: agent-browser",
+        "description: Drive browser automation through a bash command.",
+        "allowed-tools: Bash(agent-browser:*), Bash(npx agent-browser:*)",
+        "---",
+        "",
+        "# Agent Browser",
+        "",
+      ].join("\n"),
+      "utf-8",
+    );
+
+    try {
+      const install = await captureLogs(() =>
+        cmdSkills(["add", source, "--workspace"], { workspace } as any)
+      );
+      assert.equal(install.result, 0);
+
+      const runtime = createAppRuntime(readWorkspaceConfig());
+      const skill = getSkillView(runtime, "agent-browser", "mechanic");
+      assert.equal(skill.available, true);
+      assert.deepEqual(skill.requiredTools, ["bash"]);
+      assert.deepEqual(skill.missingTools, []);
+
+      const validate = await captureLogs(() =>
+        cmdSkills(["validate", "agent-browser", "--agent", "mechanic", "--json"], readWorkspaceConfig())
+      );
+      assert.equal(validate.result, 0);
+      const validation = JSON.parse(validate.lines.join("\n"));
+      assert.deepEqual(validation.issues, []);
+
+      const list = await captureLogs(() =>
+        cmdSkills(["list", "--agent", "mechanic", "--json"], readWorkspaceConfig())
+      );
+      assert.equal(list.result, 0);
+      const inventory = JSON.parse(list.lines.join("\n"));
+      const listed = inventory.skills.find((item: any) => item.id === "agent-browser");
+      assert.ok(listed);
+      assert.equal(listed.available, true);
+      assert.deepEqual(listed.requiredTools, ["bash"]);
+      assert.deepEqual(listed.missingTools, []);
+
+      const configPath = join(workspace, "config", "shrimpy.json");
+      const config = JSON.parse(readFileSync(configPath, "utf-8"));
+      config.agents = config.agents.map((agent: any) =>
+        agent.id === "mechanic"
+          ? { ...agent, disabledTools: [...(agent.disabledTools ?? []), "bash"] }
+          : agent
+      );
+      writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+      const disabledList = await captureLogs(() =>
+        cmdSkills(["list", "--agent", "mechanic", "--json"], readWorkspaceConfig())
+      );
+      assert.equal(disabledList.result, 0);
+      const disabledInventory = JSON.parse(disabledList.lines.join("\n"));
+      const disabledListed = disabledInventory.skills.find((item: any) => item.id === "agent-browser");
+      assert.ok(disabledListed);
+      assert.equal(disabledListed.available, false);
+      assert.deepEqual(disabledListed.requiredTools, ["bash"]);
+      assert.deepEqual(disabledListed.missingTools, ["bash"]);
+      assert.deepEqual(disabledListed.blockedReasons, ["missing required tools: bash"]);
+    } finally {
+      rmSync(source, { recursive: true, force: true });
+    }
+  });
+
   test("skills command discovers and updates GitHub packages", async () => {
     await setupInit(workspace);
     const github = mockGitHubRepo({

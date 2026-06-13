@@ -755,7 +755,7 @@ function readSkillRequiredTools(entryPath: string): string[] {
   const frontmatter = readYamlFrontmatter(content);
   const rawAllowedTools = frontmatter.get("allowed-tools");
   if (!rawAllowedTools) return [];
-  return uniqueStrings(rawAllowedTools.split(/\s+/).map(normalizeToolToken).filter(Boolean));
+  return uniqueStrings(splitAllowedToolSpecs(rawAllowedTools).map(normalizeToolToken).filter(Boolean));
 }
 
 function missingRequiredTools(
@@ -767,8 +767,35 @@ function missingRequiredTools(
   return requiredTools.filter((tool) => !active.has(tool));
 }
 
+function splitAllowedToolSpecs(rawAllowedTools: string): string[] {
+  const specs: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < rawAllowedTools.length; index += 1) {
+    const char = rawAllowedTools[index]!;
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")" && depth > 0) {
+      depth -= 1;
+      continue;
+    }
+    if (depth === 0 && (char === "," || /\s/.test(char))) {
+      const spec = rawAllowedTools.slice(start, index).trim();
+      if (spec) specs.push(spec);
+      start = index + 1;
+    }
+  }
+
+  const spec = rawAllowedTools.slice(start).trim();
+  if (spec) specs.push(spec);
+  return specs;
+}
+
 function normalizeToolToken(token: string): string {
-  const name = token.trim().replace(/\(.+$/, "");
+  const name = token.trim().replace(/\(.*$/, "");
   const lower = name.toLowerCase();
   if (lower === "read") return "read";
   if (lower === "write") return "write";
