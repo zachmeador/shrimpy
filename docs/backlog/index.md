@@ -16,9 +16,9 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-006](tui-006-expanded-tool-call-inspection.md) | todo | P2 | TUI | none | Expanded tool call inspection |
 | [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
 | [TUI-008](tui-008-resume-preview-context-stripping.md) | todo | P2 | TUI | none | Strip turn-context envelopes from `/resume` previews |
-| [CTX-010](ctx-010-agent-watch-turn-context.md) | todo | P2 | Context | none | Agent watch inventory in turn context |
+| [CTX-010](ctx-010-agent-watch-turn-context.md) | review | P2 | Context | none | Agent watch inventory in turn context |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | [SEARCH-002](search-002-workspace-knowledge-search.md) | Workspace knowledge breadcrumbs in turn context |
-| [CLI-001](cli-001-bounded-agent-output.md) | todo | P2 | CLI | none | Bounded agent-facing CLI output |
+| [CLI-001](cli-001-bounded-agent-output.md) | review | P2 | CLI | none | Bounded agent-facing CLI output |
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-pattern-reference-skill.md) | draft | P2 | Skills | none | All-agents pattern reference skill replacing mechanic ideas |

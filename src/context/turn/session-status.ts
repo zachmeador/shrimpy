@@ -46,7 +46,7 @@ export function buildSessionStatusItems(input: {
   return [{
     id: "sessions:status",
     summary: pieces.join("; "),
-    inspect: "shrimpy sessions list --json",
+    inspect: "shrimpy sessions list",
   }, ...workerItems];
 }
 

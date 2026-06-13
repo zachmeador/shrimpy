@@ -1,6 +1,6 @@
 # CTX-010: Agent Watch Inventory In Turn Context
 
-Status: todo
+Status: review
 Priority: P2
 Area: Context
 Depends On: none

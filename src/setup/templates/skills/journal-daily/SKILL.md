@@ -43,7 +43,7 @@ shrimpy channels --json \
   | jq -r --argjson since "$since_ms" \
       '.[] | select(.lastMessage and .lastMessage.timestamp > $since) | .channel' \
   | while read -r channel; do
-      shrimpy channels read "$channel" --limit 50 --json
+      shrimpy channels read "$channel" --limit 20
     done
 ```
 

@@ -24,6 +24,11 @@ import {
 import {
   writeWorkers,
 } from "../dist/workers/index.js";
+import {
+  appendWatchRunRecord,
+  markWatchRunActive,
+  saveWatchClockState,
+} from "../dist/watches/index.js";
 
 let workspace: string;
 
@@ -98,6 +103,86 @@ describe("resolveContextTurnConfig", () => {
 });
 
 describe("buildTurnContext", () => {
+  test("summarizes when the active agent has no configured watches", async () => {
+    const runtime = createAppRuntime({ workspace });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "preview"),
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /watches: no configured watches for shrimpy/);
+    assert.match(text, /inspect: shrimpy watches --agent shrimpy/);
+  });
+
+  test("summarizes active agent watches with bounded ordering and state", async () => {
+    const now = Date.now();
+    const agentRoot = join(workspace, "agents", "shrimpy");
+    mkdirSync(agentRoot, { recursive: true });
+    writeFileSync(
+      join(agentRoot, "watches.json"),
+      JSON.stringify([
+        messageWatch("active", 60_000),
+        messageWatch("soon", 60_000),
+        messageWatch("recent", 60_000),
+        messageWatch("failed", 60_000),
+        { ...messageWatch("disabled", 60_000), enabled: false },
+        { ...messageWatch("extra-a", 60_000), enabled: false },
+        { ...messageWatch("extra-b", 60_000), enabled: false },
+      ]),
+      "utf-8",
+    );
+    const runtime = createAppRuntime({ workspace });
+    saveWatchClockState(runtime.paths.watchClockStatePath, {
+      "shrimpy/soon": { nextRunAtMs: now + 60_000 },
+      "shrimpy/recent": { nextRunAtMs: now + 3_600_000 },
+      "shrimpy/failed": { nextRunAtMs: now + 7_200_000 },
+    });
+    markWatchRunActive(runtime.paths.runtimeWatchesDir, {
+      ownerAgentId: "shrimpy",
+      localId: "active",
+      watchId: "shrimpy/active",
+      runId: "run-active",
+      startedAtMs: now - 30_000,
+    });
+    appendWatchRunRecord(runtime.paths.runtimeWatchesDir, watchRunRecord({
+      localId: "recent",
+      watchId: "shrimpy/recent",
+      status: "success",
+      finishedAtMs: now - 120_000,
+    }));
+    appendWatchRunRecord(runtime.paths.runtimeWatchesDir, watchRunRecord({
+      localId: "failed",
+      watchId: "shrimpy/failed",
+      status: "failure",
+      error: "network down",
+      finishedAtMs: now - 60_000,
+    }));
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "preview"),
+    });
+    const text = renderTurnContext(turnContext);
+
+    assert.match(text, /watches: 7 configured/);
+    assert.match(text, /shrimpy\/active local=active enabled/);
+    assert.match(text, /active=run-active/);
+    assert.match(text, /shrimpy\/soon local=soon enabled/);
+    assert.match(text, /shrimpy\/recent local=recent enabled/);
+    assert.match(text, /last=success/);
+    assert.match(text, /shrimpy\/failed local=failed enabled/);
+    assert.match(text, /diagnostic=last run failed: network down/);
+    assert.match(text, /shrimpy\/disabled local=disabled disabled/);
+    assert.match(text, /\+2 more/);
+    assert.equal(
+      text.indexOf("shrimpy/active") < text.indexOf("shrimpy/soon"),
+      true,
+    );
+    assert.match(text, /inspect: shrimpy watches --agent shrimpy/);
+  });
+
   test("summarizes channel messages since this agent last handled the channel", async () => {
     const runtime = createAppRuntime({ workspace });
     const channelBus = runtime.createChannelBus();
@@ -336,7 +421,7 @@ describe("buildTurnContext", () => {
     assert.match(text, /sessions: 2 active across #ops,#research/);
     assert.match(text, /most recent ops \d+m ago/);
     assert.match(text, /1 stale >12h/);
-    assert.match(text, /inspect: shrimpy sessions list --json/);
+    assert.match(text, /inspect: shrimpy sessions list/);
   });
 
   test("includes worker outcomes in generated session status", async () => {
@@ -385,7 +470,7 @@ describe("buildTurnContext", () => {
     const text = renderTurnContext(turnContext);
 
     assert.match(text, /workers: 1 blocked, 1 failed need review/);
-    assert.match(text, /inspect: shrimpy worker list --json/);
+    assert.match(text, /inspect: shrimpy worker list/);
     assert.doesNotMatch(text, /worker wrk_blocked blocked/);
   });
 
@@ -615,4 +700,45 @@ function writeActiveSessionFile(channel: string, ageMs: number): void {
   );
   const when = new Date(Date.now() - ageMs);
   utimesSync(path, when, when);
+}
+
+function messageWatch(id: string, everyMs: number) {
+  return {
+    id,
+    trigger: { kind: "time", everyMs },
+    action: {
+      kind: "message",
+      channel: "maintenance",
+      text: `${id} tick`,
+    },
+  };
+}
+
+function watchRunRecord(overrides: any = {}) {
+  const finishedAtMs = overrides.finishedAtMs ?? Date.now();
+  const startedAtMs = overrides.startedAtMs ?? finishedAtMs - 1000;
+  const localId = overrides.localId ?? "recent";
+  const watchId = overrides.watchId ?? `shrimpy/${localId}`;
+  const status = overrides.status ?? "success";
+  return {
+    ownerAgentId: "shrimpy",
+    localId,
+    watchId,
+    runId: overrides.runId ?? `run-${localId}`,
+    trigger: { kind: "time", everyMs: 60_000 },
+    actionKind: "message",
+    startedAtMs,
+    startedAtIso: new Date(startedAtMs).toISOString(),
+    finishedAtMs,
+    finishedAtIso: new Date(finishedAtMs).toISOString(),
+    status,
+    attempts: 1,
+    concurrencyPolicy: "forbid",
+    observation: {
+      kind: status === "failure" ? "failed" : "message",
+      summary: status === "failure" ? "failed" : "sent message",
+    },
+    emittedChannelMessageIds: [],
+    ...(overrides.error ? { error: overrides.error } : {}),
+  };
 }

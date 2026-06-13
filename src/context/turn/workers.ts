@@ -45,7 +45,7 @@ export function buildWorkerContextItems(input: {
     detailed.push({
       id: "workers:owned:actionable",
       summary: `workers: ${formatWorkerOutcomeCounts(summarizeWorkerOutcomes(otherActionable))} owned worker${otherActionable.length === 1 ? "" : "s"} need review`,
-      inspect: "shrimpy worker list --json",
+      inspect: "shrimpy worker list",
     });
   }
 
@@ -62,7 +62,7 @@ export function buildWorkerSessionStatusItems(input: {
   return [{
     id: "workers:status",
     summary: `workers: ${formatWorkerOutcomeCounts(summarizeWorkerOutcomes(actionable))} need review`,
-    inspect: "shrimpy worker list --json",
+    inspect: "shrimpy worker list",
   }];
 }
 

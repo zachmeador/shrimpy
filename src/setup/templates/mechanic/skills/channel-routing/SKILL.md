@@ -19,7 +19,7 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 2. For internal rooms, use normal semantic channel names like `fitness`, `maintenance`, or `home`.
 3. For external chat surfaces, inspect the configured surface and real thread ids before editing bindings.
 4. Join agents to channels with `shrimpy channels join <channel> --agent <id> --json`.
-5. Inspect wake policy with `shrimpy agent channel-policy <id> --channel <channel> --json` and `shrimpy agent channel-policy explain <id> --channel <channel> --sender human --text "..." --json`.
+5. Inspect wake policy with `shrimpy agent channel-policy <id> --channel <channel>` and `shrimpy agent channel-policy explain <id> --channel <channel> --sender human --text "..." --json`.
 6. Assign default addressed agents for surface threads with `shrimpy surface set-agent <surface> <thread-id> <agent> --json`.
 7. Restart the gateway after Telegram config changes.
 
@@ -30,4 +30,4 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 - Semantic channels can deliver externally through `shrimpy channels bind <channel> telegram/<instance-id>/<chat-id>`.
 - Do not invent adapter-shaped names like `telegram~fitness` to mean "a Telegram channel for the fitness agent."
 - Do not hand-edit surface state when a CLI command covers the route.
-- If a route is unclear, inspect before changing it: `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels members <name> --json`, `shrimpy surface`, and `shrimpy surface threads <surface> --json`.
+- If a route is unclear, inspect before changing it: `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels members <name>`, `shrimpy surface`, and `shrimpy surface show <surface> <thread-id>`.

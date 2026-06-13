@@ -1,7 +1,11 @@
 import { existsSync, statSync } from "node:fs";
 import type { AppRuntime } from "../app/index.js";
 import type { ChannelBus } from "../channels/bus.js";
-import { printChannelLogMessage, timeSince } from "../channels/format.js";
+import {
+  DEFAULT_CHANNEL_BODY_PREVIEW_CHARS,
+  printChannelLogMessage,
+  timeSince,
+} from "../channels/format.js";
 import { formatTransportBinding } from "../channels/manifest.js";
 import {
   CHANNEL_MESSAGE_KINDS,
@@ -27,18 +31,6 @@ const READ_USAGE = renderCommandUsage(["channels", "read"]);
 const SEARCH_USAGE = renderCommandUsage(["channels", "search"]);
 const SHOW_USAGE = renderCommandUsage(["channels", "show"]);
 const TAIL_USAGE = renderCommandUsage(["channels", "tail"]);
-
-function parseLimit(argv: string[]): number {
-  const limitIdx = argv.indexOf("--limit");
-  if (limitIdx === -1) return 20;
-
-  const raw = argv[limitIdx + 1];
-  if (!raw) {
-    usage(READ_USAGE, "--limit value required");
-  }
-
-  return parsePositiveInt(raw, "--limit");
-}
 
 function parseSearchLimit(raw: string | undefined): number {
   if (!raw) return 50;
@@ -69,6 +61,7 @@ function normalizeKind(value: string): ChannelMessageKind {
 function parseSearchArgs(args: string[]): {
   channel: string;
   filters: ChannelSearchFilters;
+  full: boolean;
 } {
   const parsed = parseCommandArgs({
     args,
@@ -85,6 +78,7 @@ function parseSearchArgs(args: string[]): {
       watch: { type: "string", multiple: true },
       "source-kind": { type: "string", multiple: true },
       limit: { type: "string" },
+      full: { type: "boolean", default: false },
     },
   });
 
@@ -92,6 +86,7 @@ function parseSearchArgs(args: string[]): {
   const query = parsed.values.text ?? parsed.positionals.slice(1).join(" ").trim();
   return {
     channel,
+    full: Boolean(parsed.values.full),
     filters: {
       ...(query ? { text: query } : {}),
       kinds: asStringList(parsed.values.kind).map(normalizeKind),
@@ -112,6 +107,28 @@ function parseSearchArgs(args: string[]): {
       ),
       limit: parseSearchLimit(parsed.values.limit),
     },
+  };
+}
+
+function parseReadArgs(args: string[]): {
+  channel: string;
+  limit: number;
+  full: boolean;
+} {
+  const parsed = parseCommandArgs({
+    args,
+    allowPositionals: true,
+    strict: true,
+    usage: READ_USAGE,
+    options: {
+      limit: { type: "string", default: "20" },
+      full: { type: "boolean", default: false },
+    },
+  });
+  return {
+    channel: requireArg(parsed.positionals[0], READ_USAGE, "channel"),
+    limit: parsePositiveInt(String(parsed.values.limit), "--limit"),
+    full: Boolean(parsed.values.full),
   };
 }
 
@@ -144,7 +161,7 @@ export async function cmdChannelsList(
   runtime: AppRuntime,
   json: boolean,
 ): Promise<number> {
-  const summaries = listChannelSummaries(runtime, { includeActivity: json });
+  const summaries = listChannelSummaries(runtime, { includeActivity: false });
   if (summaries.length === 0) {
     console.log(dim("(no channels)"));
     return 0;
@@ -243,17 +260,18 @@ export async function cmdChannelsRead(
   args: string[],
   json: boolean,
 ): Promise<number> {
-  const name = requireArg(args[0], READ_USAGE, "channel");
-
-  const limit = parseLimit(args);
-  const recent = readRecentChannelMessages(runtime, name, limit);
+  const { channel, limit, full } = parseReadArgs(args);
+  const recent = readRecentChannelMessages(runtime, channel, limit);
   if (json) {
     console.log(JSON.stringify(recent, null, 2));
     return 0;
   }
 
   for (const msg of recent) {
-    printChannelLogMessage(msg);
+    printChannelLogMessage(msg, {
+      full,
+      maxChars: DEFAULT_CHANNEL_BODY_PREVIEW_CHARS,
+    });
   }
 
   return 0;
@@ -264,8 +282,18 @@ export async function cmdChannelsSearch(
   args: string[],
   json: boolean,
 ): Promise<number> {
-  const { channel, filters } = parseSearchArgs(args);
-  const result = searchChannelMessages(runtime, channel, filters);
+  const { channel, filters, full } = parseSearchArgs(args);
+  const result = searchChannelMessages(
+    runtime,
+    channel,
+    filters,
+    json
+      ? {}
+      : {
+        fullPreview: full,
+        previewChars: DEFAULT_CHANNEL_BODY_PREVIEW_CHARS,
+      },
+  );
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return 0;

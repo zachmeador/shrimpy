@@ -33,7 +33,7 @@ If the previous version or target version is known, compare it to the installed 
 Before proposing changes, inspect the active workspace:
 
 ```bash
-shrimpy workspace track status --json
+shrimpy workspace track status
 find profile agents skills config state -maxdepth 4 -type f | sort | head -240
 ```
 

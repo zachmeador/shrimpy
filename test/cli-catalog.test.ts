@@ -24,7 +24,7 @@ describe("CLI catalog", () => {
   test("generates group usage from shared metadata", () => {
     const usage = renderGroupUsage("channels");
 
-    assert.match(usage, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
+    assert.match(usage, /shrimpy channels read <name> \[--limit N\] \[--full\] \[--json\]/);
     assert.match(usage, /shrimpy channels join <name> --agent <id> \[--json\]/);
     assert.match(usage, /shrimpy channels leave <name> --agent <id> \[--json\]/);
   });
@@ -62,7 +62,7 @@ describe("CLI catalog", () => {
 
     assert.match(help, /Session Commands:/);
     assert.match(help, /shrimpy chat \[agent\]/);
-    assert.match(help, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
+    assert.match(help, /shrimpy channels read <name> \[--limit N\] \[--full\] \[--json\]/);
     assert.match(help, /shrimpy help all/);
     assert.doesNotMatch(help, /shrimpy completion zsh/);
     assert.doesNotMatch(help, /shrimpy context sources run/);

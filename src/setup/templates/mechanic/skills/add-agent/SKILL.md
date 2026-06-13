@@ -12,9 +12,9 @@ Use this mechanic-owned skill when the user wants a new Shrimpy agent or wants a
 Use the workspace as source of truth:
 
 ```bash
-shrimpy agent list --json
+shrimpy agent list
 shrimpy models resolve --agent shrimpy --session tui --json
-shrimpy skills list --agent mechanic --json
+shrimpy skills list --agent mechanic
 ```
 
 If the user has not named the agent, ask for one stable id and one sentence of purpose. Agent ids should be short, lowercase, and durable.
@@ -63,8 +63,8 @@ Channel membership gives visibility; channel policy decides whether a visible me
 
 ```bash
 shrimpy channels join <channel> --agent <id> --json
-shrimpy channels members <channel> --json
-shrimpy agent channel-policy <id> --channel <channel> --json
+shrimpy channels members <channel>
+shrimpy agent channel-policy <id> --channel <channel>
 ```
 
 Use normal semantic channel names like `fitness`, `maintenance`, or `home` for internal rooms/logs. Do not create adapter-shaped names for concepts. Use the `channel-routing` skill when the user asks for a chat-surface workflow or when the route from an external chat to an agent is unclear.

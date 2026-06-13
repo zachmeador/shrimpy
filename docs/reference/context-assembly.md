@@ -87,6 +87,8 @@ agent: shrimpy
 session: gateway channel: home
 - gateway status: last watch run 5m ago; next watch run in 10m
   inspect: shrimpy gateway status
+- watches: 3 configured; shrimpy/memory-management local=memory-management enabled 0 3 * * * channels=maintenance next=in 4h last=success 1d ago
+  inspect: shrimpy watches --agent shrimpy
 - home: 3 new messages since this agent last handled it
   inspect: shrimpy channels read home --after <message-id>
 

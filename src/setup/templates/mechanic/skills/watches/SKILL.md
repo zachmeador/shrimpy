@@ -17,12 +17,12 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 ## How To Work
 
 1. Identify the owner agent, cadence, target channel, and expected user-visible outcome.
-2. Inspect existing state before adding anything: `shrimpy watches --agent <id> --json`, `shrimpy channels members <channel> --json`, and `shrimpy agent channel-policy <id> --channel <channel> --json`.
+2. Inspect existing state before adding anything: `shrimpy watches --agent <id>`, `shrimpy channels members <channel>`, and `shrimpy agent channel-policy <id> --channel <channel>`.
 3. Prefer `shrimpy watches add` for new watches. Use `--name` and `--concurrency-policy` when they matter. The workspace timezone is the default; edit `agents/<id>/watches.json` directly only for rare per-watch timezone overrides or shapes the CLI cannot express, and preserve existing entries.
 4. For recurring agent work, prefer a message watch that posts a concise instruction into a real channel. Include any skill name the agent should use in the message text.
 5. For deterministic observations, use a command watch and choose an emit policy deliberately.
 6. Verify with `shrimpy watches show <agent-id>/<watch-id> --json`; check diagnostics, target channels, next run, and expected wake.
-7. If the gateway is running, use `shrimpy watches run <agent-id>/<watch-id> --json` only when an immediate test run is safe. Then inspect `shrimpy watches history <agent-id>/<watch-id> --json` and `shrimpy channels search <channel> --kind watch --json`.
+7. If the gateway is running, use `shrimpy watches run <agent-id>/<watch-id> --json` only when an immediate test run is safe. Then inspect `shrimpy watches history <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch --limit 10`.
 
 ## Guardrails
 

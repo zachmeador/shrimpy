@@ -6,6 +6,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### CLI & Plumbing
 
+- Added `--full` to `shrimpy channels read` and `shrimpy channels search`, with bounded plain output by default and complete JSON reads preserved for pipes.
+- Changed `shrimpy channels --json` to use the concise channel summary shape while keeping detailed activity on `shrimpy channels show`.
 - Added `shrimpy worker backends` to inspect and refresh persisted Codex, Claude Code, and Pi worker backend availability.
 - Added `shrimpy worker start|list|status|read|tail|send|wait|cancel|close` for detached, file-backed worker records, with Codex `exec --json` and Shrimpy/Pi direct-session backend paths. Claude Code is recorded as deferred.
 - Added top-level `latestTurn`, `artifactPaths`, and `commands` shortcuts to single-worker JSON output.
@@ -13,6 +15,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Turn Context
 
+- Added compact agent-owned watch inventory to normal turn context and `shrimpy context turn`, sourced from the same inspection model as `shrimpy watches --agent <id>`.
 - Added owned worker outcome context with current-session/current-channel relevance tiers and compact counts for other completed, blocked, failed, or cancelled workers.
 - Added worker outcome counts to generated session status so agents notice completed, blocked, failed, and cancelled workers during background wake turns.
 

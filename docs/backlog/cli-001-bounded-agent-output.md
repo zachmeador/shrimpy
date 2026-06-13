@@ -1,6 +1,6 @@
 # 🦐 CLI-001: Bounded Agent-Facing CLI Output
 
-Status: todo
+Status: review
 Priority: P2
 Area: CLI
 Depends On: none

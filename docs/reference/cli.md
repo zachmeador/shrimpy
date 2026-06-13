@@ -6,7 +6,7 @@ Every Shrimpy feature is reachable through a `shrimpy <command>` subcommand. Com
 
 Command metadata lives in `src/commands/catalog.ts`. Top-level `shrimpy --help` shows the calm default surface, while `shrimpy help all` prints the complete catalog. Path help such as `shrimpy channels --help`, nested namespace help such as `shrimpy models policies --help`, leaf help such as `shrimpy channels read --help`, group usage text, and shell completion are generated from the same catalog so command names, options, and docs have one source to compare against. `-h` is accepted as the short form of `--help`.
 
-Canonical resource groups currently keep the implemented names: singular `agent` and `surface`, plural `channels`, `sessions`, `watches`, `skills`, `models`, and `users`. Prefer standard verbs for new commands: `list`, `show`, `read`, `create`/`add`, `set`, `remove`, `tail`, `run`, and `status`. Inspection commands intended for agents should expose `--json`.
+Canonical resource groups currently keep the implemented names: singular `agent` and `surface`, plural `channels`, `sessions`, `watches`, `skills`, `models`, and `users`. Prefer standard verbs for new commands: `list`, `show`, `read`, `create`/`add`, `set`, `remove`, `tail`, `run`, and `status`. Plain output is the agent-facing default for inspection. `--json` is for scripts, pipes, and cases where structured output is explicitly needed.
 
 Default help is for common human actions. Full help, path help, reference docs, and shell completion remain the discovery surfaces for advanced diagnostics, admin commands, and agent-oriented JSON inspection. New top-level commands should be user-intention names or durable resource names; keep resource-owned diagnostics under the resource group unless a cross-cutting `inspect` or `debug` namespace would be clearer than the existing owner.
 
@@ -82,12 +82,12 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy channels` | List channels. |
+| `shrimpy channels` | List channels. JSON output uses the same summary shape and leaves detailed activity to `channels show`. |
 | `shrimpy channels show <name>` | Inspect one channel, including manifest binding, delivery receipts, membership, recent request-like messages, message kind counts, and traceable source records. |
 | `shrimpy channels bind <name> <adapter>/<instance>/<thread>` | Bind a channel to an outbound transport. |
 | `shrimpy channels unbind <name>` | Remove a channel transport binding without changing history. |
-| `shrimpy channels read <name>` | Read recent channel messages. |
-| `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--json]` | Search and filter channel messages. `--kind` accepts `user_text`, `agent_text`, `watch`, `control`, `status`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--watch`, and `--source-kind`. |
+| `shrimpy channels read <name> [--limit N] [--full] [--json]` | Read recent channel messages. Plain output clips long message bodies with a truncation marker; `--full` prints complete bodies. JSON output returns complete messages. |
+| `shrimpy channels search <name> [query] [--kind <kind>] [--sender <kind>] [--transport <name>] [--limit N] [--full] [--json]` | Search and filter channel messages. Plain output clips long previews with a truncation marker; `--full` prints complete previews. `--kind` accepts `user_text`, `agent_text`, `watch`, `control`, `status`, `system`, `media`, `text`, or `other`; dash forms like `user-text` also work. Additional filters include `--actor-id`, `--content-type`, `--addressed`, `--watch`, and `--source-kind`. |
 | `shrimpy channels tail <name>` | Watch a channel log. |
 | `shrimpy channels create <name>` | Create or initialize channel membership. |
 | `shrimpy channels post <name> <text>` | Post a CLI human message into a channel log. |
@@ -153,4 +153,4 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy completion write-state [bash\|zsh]` | Write cached shell completion without changing shell profiles. |
 | `shrimpy completion status [bash\|zsh]` | Print shell completion profile and cache paths. |
 
-Command plumbing lives in `src/commands/framework.ts`: shared group dispatcher, parse wrapper, usage errors, and common flag helpers. Command metadata lives in `src/commands/catalog.ts`. Inspection commands that other agents may consume support `--json`.
+Command plumbing lives in `src/commands/framework.ts`: shared group dispatcher, parse wrapper, usage errors, and common flag helpers. Command metadata lives in `src/commands/catalog.ts`. Inspection commands should keep plain output concise for agents and expose `--json` for structured consumers.

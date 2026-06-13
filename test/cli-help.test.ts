@@ -14,7 +14,7 @@ test("group --help prints catalog-backed command usage", () => {
 
   assert.match(output, /usage:/);
   assert.match(output, /shrimpy channels \[--json\]/);
-  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
+  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--full\] \[--json\]/);
   assert.match(output, /Read recent channel messages/);
 });
 
@@ -38,7 +38,7 @@ test("help all prints the complete command catalog", () => {
 test("help can print one command path", () => {
   const output = runCli("help", "channels", "read");
 
-  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
+  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--full\] \[--json\]/);
   assert.doesNotMatch(output, /shrimpy channels join/);
 });
 
@@ -46,7 +46,7 @@ test("leaf --help prints only that command's usage", () => {
   const output = runCli("channels", "read", "--help");
 
   assert.match(output, /usage:/);
-  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
+  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--full\] \[--json\]/);
   assert.match(output, /Read recent channel messages/);
   assert.doesNotMatch(output, /shrimpy channels join/);
 });
@@ -54,7 +54,7 @@ test("leaf --help prints only that command's usage", () => {
 test("leaf -h is accepted as help", () => {
   const output = runCli("channels", "read", "-h");
 
-  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--json\]/);
+  assert.match(output, /shrimpy channels read <name> \[--limit N\] \[--full\] \[--json\]/);
 });
 
 test("nested namespace --help prints descendant command usage", () => {

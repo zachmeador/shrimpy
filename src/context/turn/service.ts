@@ -14,6 +14,7 @@ import {
 } from "../source.js";
 import { runContextSourceCommand } from "./command-source.js";
 import { buildTurnFactItems } from "./facts.js";
+import { buildAgentWatchItems } from "./agent-watches.js";
 import { buildSessionStatusItems } from "./session-status.js";
 import { buildWorkerContextItems } from "./workers.js";
 import {
@@ -47,6 +48,7 @@ export async function buildTurnContext(
       currentMessage: input.currentMessage,
     }),
     ...buildGatewayStatusItems(input),
+    ...buildAgentWatchItems({ turn: input, agentId }),
     ...buildSessionStatusItems({ turn: input, agentId }),
     ...buildWorkerContextItems({ turn: input, agentId }),
     ...buildChannelUnreadItems(input),

@@ -6,6 +6,10 @@ import type {
   MessageSenderKind,
 } from "./index.js";
 import { buildAgentDmChannel } from "./dm.js";
+import {
+  clipChannelMessageBody,
+  formatChannelMessageBody,
+} from "./format.js";
 import type { ChannelManifest } from "./manifest.js";
 import {
   channelAgentIds,
@@ -84,6 +88,11 @@ export interface ChannelSearchFilters {
   limit?: number;
 }
 
+interface ChannelMessageInspectionOptions {
+  fullPreview?: boolean;
+  previewChars?: number;
+}
+
 export interface ChannelSearchResult {
   channel: string;
   path: string;
@@ -158,6 +167,7 @@ export function searchChannelMessages(
   runtime: AppRuntime,
   channel: string,
   filters: ChannelSearchFilters,
+  opts: ChannelMessageInspectionOptions = {},
 ): ChannelSearchResult {
   const channelBus = runtime.createChannelBus();
   const path = channelBus.path(channel);
@@ -167,9 +177,11 @@ export function searchChannelMessages(
 
   const limit = filters.limit ?? 50;
   const { messages } = channelBus.read(channel);
-  const inspected = messages.map((message) => inspectChannelMessage(channel, message));
-  const matched = inspected.filter((message) =>
-    matchesChannelSearch(message, filters)
+  const inspected = messages.map((message) =>
+    inspectChannelMessage(channel, message, opts)
+  );
+  const matched = inspected.filter((message, index) =>
+    matchesChannelSearch(message, filters, messages[index])
   );
   const returned = matched.slice(-limit);
 
@@ -245,15 +257,13 @@ function listChannelNames(
   return [...names].sort();
 }
 
-function clipText(text: string, max = 120): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
-}
-
 export function inspectChannelMessage(
   channel: string,
   message: ChannelMessage,
+  opts: ChannelMessageInspectionOptions = {},
 ): ChannelMessageInspection {
   const kind = classifyChannelMessage(message);
+  const preview = formatChannelMessagePreview(message, opts);
   return {
     id: message.id,
     channel,
@@ -261,14 +271,22 @@ export function inspectChannelMessage(
     sender: message.sender,
     origin: message.origin,
     contentType: message.content.type,
-    preview: message.content.type === "text"
-      ? clipText(message.content.data.text)
-      : JSON.stringify(message.content.data),
+    preview,
     kind,
     sourceId: sourceRecordId(message, kind),
     targetChannel: sourceTargetChannel(message),
     inspectCommands: inspectCommandsForMessage(message, kind),
   };
+}
+
+function formatChannelMessagePreview(
+  message: ChannelMessage,
+  opts: ChannelMessageInspectionOptions,
+): string {
+  const body = formatChannelMessageBody(message.content);
+  return opts.fullPreview
+    ? body
+    : clipChannelMessageBody(body, opts.previewChars ?? 120);
 }
 
 function summarizeChannelActivity(
@@ -361,8 +379,9 @@ function inspectCommandsForMessage(
 function matchesChannelSearch(
   message: ChannelMessageInspection,
   filters: ChannelSearchFilters,
+  source?: ChannelMessage,
 ): boolean {
-  if (filters.text && !searchableText(message).includes(filters.text.toLowerCase())) {
+  if (filters.text && !searchableText(message, source).includes(filters.text.toLowerCase())) {
     return false;
   }
   if (!matchesAny(message.kind, filters.kinds)) return false;
@@ -390,7 +409,10 @@ function matchesChannelSearch(
   return true;
 }
 
-function searchableText(message: ChannelMessageInspection): string {
+function searchableText(
+  message: ChannelMessageInspection,
+  source?: ChannelMessage,
+): string {
   return [
     message.id,
     message.channel,
@@ -408,7 +430,7 @@ function searchableText(message: ChannelMessageInspection): string {
     message.sourceId,
     message.targetChannel,
     message.inspectCommands.join(" "),
-    message.preview,
+    source ? formatChannelMessageBody(source.content) : message.preview,
   ]
     .filter((part): part is string => typeof part === "string")
     .join("\n")
