@@ -35,7 +35,7 @@ The shrimple path is: a user or workspace provides web lookup when they want it.
 ## Notes
 
 - Research: [web-search-providers.md](../research/web-search-providers.md) surveys candidate providers that may inform optional setup guidance. It is not a plan for a Shrimpy provider wrapper.
-- Related: [SEARCH-002](search-002-workspace-knowledge-search.md) covers local workspace knowledge search as `shrimpy workspace search`. Local search commands are noun-scoped because they query Shrimpy-owned corpora; web lookup is external capability.
+- Related: `shrimpy workspace search` covers local workspace knowledge. Local search commands are noun-scoped because they query Shrimpy-owned corpora; web lookup is external capability.
 - Related: [VAULT-002](vault-002-main-agent-capture-research.md) should define how source metadata and search-backed research notes are captured when web lookup is available.
 - Related: search/fetch/browser skills should stay scoped and gated by available capability if those skills are later installed.
 

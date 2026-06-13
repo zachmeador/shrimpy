@@ -36,7 +36,7 @@ Agents read CLI output straight into working context, and current guidance steer
 ## Notes
 
 - [CTX-010](ctx-010-agent-watch-turn-context.md) attacks the same bloat from the context side: an agent-owned watch inventory in turn context removes the routine reason to run `watches --json` during journaling.
-- [MEM-002](mem-002-session-transcript-search.md) already encodes the same rule for session search output: everything returned is truncated and source-pointed.
+- `shrimpy sessions search` follows the same rule for session search output: everything returned is truncated and source-pointed.
 - Worker inspect hints now exist and may still use `--json`; align those when sweeping turn-context hints.
 
 ## Touches

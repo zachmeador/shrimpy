@@ -3,7 +3,7 @@
 Status: todo
 Priority: P3
 Area: Search
-Depends On: [SEARCH-002](../search-002-workspace-knowledge-search.md)
+Depends On: workspace search
 
 ## Why
 
@@ -11,7 +11,7 @@ Depends On: [SEARCH-002](../search-002-workspace-knowledge-search.md)
 
 ## Current State
 
-- [SEARCH-002](../search-002-workspace-knowledge-search.md) provides keyword-only workspace search, lazy cache refresh under `runtime/search/`, index status, and rebuild commands.
+- `shrimpy workspace search` provides keyword-only workspace search, lazy cache refresh under `runtime/search/`, index status, and rebuild commands.
 - The current service exposes embedding availability in status, but no local embedding backend is wired.
 - The base install has no ML dependency and does not download models.
 
@@ -30,12 +30,12 @@ Depends On: [SEARCH-002](../search-002-workspace-knowledge-search.md)
 
 - No external embedding APIs and no network at query time.
 - No silent multi-megabyte downloads. Config enablement is consent, and status must explain disabled, unavailable, downloading, or ready states.
-- No transcript or channel-log embeddings in this item; corpus remains SEARCH-002's workspace knowledge corpus.
+- No transcript or channel-log embeddings in this item; corpus remains the `shrimpy workspace search` workspace knowledge corpus.
 - No turn-context injection here. [CTX-011](../ctx-011-workspace-knowledge-breadcrumbs.md) decides how search results become breadcrumbs.
 
 ## Done
 
-- With embeddings disabled or unavailable, `shrimpy workspace search` behaves like SEARCH-002 keyword search and status says why.
+- With embeddings disabled or unavailable, `shrimpy workspace search` keeps its keyword behavior and status says why.
 - With embeddings enabled and the local runtime ready, workspace search uses hybrid keyword/vector ranking and remains offline after the explicit model fetch.
 - Index status reports backend, model, dimensions, staleness, and readiness clearly.
 - Tests cover disabled fallback, unavailable runtime fallback, model-change rebuild, hybrid ranking sanity, exact-identifier preservation, and no network at query time.
