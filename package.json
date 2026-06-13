@@ -1,6 +1,6 @@
 {
   "name": "shrimpy",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "a home agent",
   "license": "MIT",
   "type": "module",

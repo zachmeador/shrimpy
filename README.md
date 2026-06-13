@@ -8,7 +8,7 @@ Shrimpy is a home agent* built on [Pi](https://github.com/earendil-works/pi/tree
 
 *Home agent:* an OpenClaw-like personal workspace runtime: multiple persisting agents reachable through multiple surfaces, with shared memory, local tools, and background work.
 
-Current release: **0.4.0 - Tides Pull Both Ways**.
+Current release: **0.4.1 - Tides Pull Both Ways**.
 
 > *keep it shrimple* 🦐
 
@@ -40,7 +40,7 @@ The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under `~/
 To install a specific tag, branch, or commit:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.4.0 bash
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.4.1 bash
 ```
 
 For source checkout development:
