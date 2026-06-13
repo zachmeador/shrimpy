@@ -15,10 +15,7 @@ This should start as a mostly prompt/template-driven agent pattern with a small 
 
 - Add an optional `career` app-agent pattern that can be created or recommended by setup/mechanic guidance.
 - Seed `agents/career/SOUL.md` with a scoped career-agent identity: maintain the career corpus, save source material before analysis, ask for missing facts, preserve artifacts, and keep external actions behind explicit user approval.
-- Seed lightweight agent-owned operating notes under `agents/career/context/`:
-  - `workspace-map.md` for the file layout;
-  - `habits.md` for working rules such as source-first intake, one folder per opportunity, uncertainty handling, and meaningful draft versioning;
-  - `memory.md` for current prototype notes that do not belong in durable user career facts.
+- Seed lightweight agent-owned operating notes under `agents/career/context/` only when there is real context worth always loading. Use `workspace-map.md` for the file layout and `memory.md` for current prototype notes that do not belong in durable user career facts.
 - Seed focused career skills instead of one large workflow skill:
   - `career-profile-maintenance` for maintaining durable user facts and preferences;
   - `application-intake` for job posting capture and opportunity folder creation;

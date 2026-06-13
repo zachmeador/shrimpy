@@ -391,7 +391,7 @@ describe("assembleBasePromptSections", () => {
     try {
       writeFileSync(join(workspace, "profile", "WORKSPACE.md"), "# WORKSPACE\n\nroot\n", "utf-8");
       mkdirSync(join(agentRoot, "context"), { recursive: true });
-      writeFileSync(join(agentRoot, "context", "habits.md"), "# HABITS\n\nagent\n", "utf-8");
+      writeFileSync(join(agentRoot, "context", "memory.md"), "# MEMORY\n\nagent\n", "utf-8");
 
       const sections = assembleBasePromptSections(agentRoot, workspace, resolveContextConfig({
         sources: [
@@ -402,7 +402,7 @@ describe("assembleBasePromptSections", () => {
 
       assert.deepEqual(sections.map((section) => section.id), [
         "base:profile/WORKSPACE.md",
-        "base:context/habits.md",
+        "base:context/memory.md",
       ]);
       assert.deepEqual(sections.map((section) => section.kind), [
         "identity",

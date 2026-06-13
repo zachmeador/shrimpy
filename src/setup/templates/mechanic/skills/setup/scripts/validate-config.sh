@@ -59,11 +59,11 @@ requireFile(path.join(workspaceRoot, "profile", "WORKSPACE.md"), "profile/WORKSP
 requireFile(path.join(workspaceRoot, "profile", "USER.md"), "profile/USER.md");
 requireFile(path.join(workspaceRoot, "profile", "SYSTEM.md"), "profile/SYSTEM.md");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
-requireDir(path.join(workspaceRoot, "agents", "shrimpy", "context"), "agents/shrimpy/context");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "projects"), "agents/shrimpy/projects");
 requireFile(path.join(workspaceRoot, "agents", "mechanic", "SOUL.md"), "agents/mechanic/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "context"), "agents/mechanic/context");
+requireFile(path.join(workspaceRoot, "agents", "mechanic", "context", "scope.md"), "agents/mechanic/context/scope.md");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "vault"), "agents/mechanic/vault");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "projects"), "agents/mechanic/projects");
 

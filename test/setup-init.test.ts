@@ -40,9 +40,7 @@ describe("setupInit", () => {
     const soulPath = join(agentRoot, "SOUL.md");
     const mechanicSoulPath = join(mechanicRoot, "SOUL.md");
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
-    const contextHabitsPath = join(agentRoot, "context", "habits.md");
     const mechanicContextIdentityPath = join(mechanicRoot, "context", "identity.md");
-    const mechanicContextHabitsPath = join(mechanicRoot, "context", "habits.md");
     const mechanicContextScopePath = join(mechanicRoot, "context", "scope.md");
     const memoryManagementSkillPath = join(
       workspace,
@@ -148,9 +146,8 @@ describe("setupInit", () => {
     assert.equal(existsSync(soulPath), true);
     assert.equal(existsSync(mechanicSoulPath), true);
     assert.equal(existsSync(contextIdentityPath), false);
-    assert.equal(existsSync(contextHabitsPath), true);
+    assert.equal(existsSync(join(agentRoot, "context")), false);
     assert.equal(existsSync(mechanicContextIdentityPath), false);
-    assert.equal(existsSync(mechanicContextHabitsPath), true);
     assert.equal(existsSync(mechanicContextScopePath), true);
     assert.equal(existsSync(join(workspace, "vault")), false);
     assert.equal(existsSync(join(workspace, "projects")), false);
@@ -289,10 +286,6 @@ describe("setupInit", () => {
     assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
 
-    const habits = readFileSync(contextHabitsPath, "utf-8");
-    assert.match(habits, /How I tend to work/);
-    const mechanicHabits = readFileSync(mechanicContextHabitsPath, "utf-8");
-    assert.match(mechanicHabits, /How I tend to work/);
     const mechanicScope = readFileSync(mechanicContextScopePath, "utf-8");
     assert.match(mechanicScope, /workspace-specific maintenance boundaries/);
     assert.match(mechanicScope, /No extra workspace-specific scope/);

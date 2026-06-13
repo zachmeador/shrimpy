@@ -30,11 +30,11 @@ runtime/logs/gateway.log        gateway runtime log
 skills/                         workspace-level shared skills
 ```
 
-Each agent workspace under `agents/<id>/` contains:
+Each agent workspace under `agents/<id>/` can contain:
 
 ```text
 SOUL.md                         identity and voice
-context/                        agent memory and prompt files
+context/                        optional agent memory and prompt files
 vault/                          agent saved files and reports
 projects/                       agent code, apps, and work folders
 watches.json                    agent-owned background attention rules
@@ -58,7 +58,7 @@ Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/securit
 
 Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under agent `vault/` or `projects/`.
 
-Setup onboarding creates the default agents' `context/`, `vault/`, and `projects/` directories under `agents/shrimpy/` and `agents/mechanic/`. `shrimpy agent add` scaffolds the same per-agent directories for new agents.
+Setup onboarding creates the default agents' `vault/` and `projects/` directories under `agents/shrimpy/` and `agents/mechanic/`. It creates agent `context/` files only when there is real default context, such as the mechanic's `context/scope.md`. `shrimpy agent add` scaffolds per-agent `vault/` and `projects/` directories; `context/` can be added when the agent has durable memory worth loading.
 
 ## Checkpoints
 
@@ -76,7 +76,7 @@ Stable prompt material loaded into an agent session before per-turn context arri
 - `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and inspection breadcrumbs. It does not contain the compact immutable instructions prepended during session setup.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
 - `SOUL.md` defines who an agent is: role, boundaries, and voice.
-- `context/*.md` is the agent's long-lived prompt context: habits, active references, and other durable memory the agent should load.
+- `context/*.md` is the agent's long-lived prompt context: active references and other durable memory the agent should load.
 - `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns.
 
 Setup onboarding creates baseline files from `src/setup/templates/`.

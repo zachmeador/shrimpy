@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import {
   createAgentPaths,
@@ -265,11 +266,14 @@ export function resolvePolicyAgainstRawConfig(
   );
 }
 
-export function hasSetupAgentContexts(workspace: string, raw: Record<string, unknown>): boolean {
+export function hasSetupAgentWorkspace(workspace: string, raw: Record<string, unknown>): boolean {
   const shrimpyRoot = findAgentRoot(raw.agents, "shrimpy");
   const mechanicRoot = findAgentRoot(raw.agents, MECHANIC_AGENT_ID);
-  return existsSync(createAgentPaths(workspace, shrimpyRoot).contextDir) &&
-    existsSync(createAgentPaths(workspace, mechanicRoot).contextDir);
+  const shrimpyPaths = createAgentPaths(workspace, shrimpyRoot);
+  const mechanicPaths = createAgentPaths(workspace, mechanicRoot);
+  return existsSync(shrimpyPaths.soulPath) &&
+    existsSync(mechanicPaths.soulPath) &&
+    existsSync(join(mechanicPaths.contextDir, "scope.md"));
 }
 
 function findAgentRoot(rawAgents: unknown, agentId: string): string {

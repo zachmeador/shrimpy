@@ -66,12 +66,12 @@ describe("createBootstrap", () => {
 
     const soul = "# SOUL\n\nShrimpy soul.\n";
     const system = "# SYSTEM\n\nShared framework and tools guidance.\n";
-    const habits = "# HABITS\n\nShrimpy habits.\n";
+    const memory = "# MEMORY\n\nShrimpy memory.\n";
 
     writeFileSync(join(agentRoot, "SOUL.md"), soul, "utf-8");
     writeFileSync(join(workspace, "profile", "SYSTEM.md"), system, "utf-8");
     mkdirSync(join(agentRoot, "context"), { recursive: true });
-    writeFileSync(join(agentRoot, "context", "habits.md"), habits, "utf-8");
+    writeFileSync(join(agentRoot, "context", "memory.md"), memory, "utf-8");
 
     writeFileSync(join(agentRoot, "AGENTS.md"), "agent-root instructions\n", "utf-8");
     writeFileSync(join(workspace, "AGENTS.md"), "workspace instructions\n", "utf-8");
@@ -108,7 +108,7 @@ describe("createBootstrap", () => {
       `[context builtin:immutable_system_instructions identity]\n\n${SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS}`,
       `[context base:profile/SYSTEM.md identity]\n\n${system.trimEnd()}`,
       `[context base:SOUL.md identity]\n\n${soul.trimEnd()}`,
-      `[context base:context/habits.md memory]\n\n${habits.trimEnd()}`,
+      `[context base:context/memory.md memory]\n\n${memory.trimEnd()}`,
     ].join("\n\n---\n\n");
 
     assert.equal(bootstrap.baseSystemPrompt, expectedPrompt);

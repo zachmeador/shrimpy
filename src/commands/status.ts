@@ -95,7 +95,7 @@ export function formatSetupStatus(state: SetupState): string {
     case "invalid_coding_policy":
       return "invalid coding model policy - run shrimpy setup";
     case "needs_mechanic_workspace":
-      return "needs agent context - run shrimpy setup";
+      return "needs agent workspace - run shrimpy setup";
     case "ready":
       return "ready";
   }

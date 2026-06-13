@@ -119,7 +119,7 @@ export async function runSetupOnboarding(
     log("");
     log("shrimpy setup");
     log("");
-    log("Setup already has a model policy and agent context. Nothing to do.");
+    log("Setup already has a model policy and agent workspace. Nothing to do.");
     log("Use `shrimpy mechanic` to shape the workspace, or `shrimpy setup telegram` to add a chat surface.");
     return {
       kind: "already_configured",

@@ -4,7 +4,7 @@ import {
 } from "../config/index.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import {
-  hasSetupAgentContexts,
+  hasSetupAgentWorkspace,
   loadRawSetupConfig,
   readPolicyState,
   resolvePolicyAgainstRawConfig,
@@ -96,7 +96,7 @@ export async function resolveSetupState(
     };
   }
 
-  if (!hasSetupAgentContexts(workspace, raw)) {
+  if (!hasSetupAgentWorkspace(workspace, raw)) {
     return {
       kind: "needs_mechanic_workspace",
       models,

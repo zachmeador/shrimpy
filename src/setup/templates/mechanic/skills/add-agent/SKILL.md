@@ -52,8 +52,7 @@ shrimpy agent add <id> \
 Then edit the scaffolded files under `agents/<id>/`:
 
 - `SOUL.md`: concise role, responsibilities, boundaries, voice.
-- `context/habits.md`: working preferences and recurring practices.
-- other `context/*.md` files: durable memory and active references the agent should always load.
+- `context/*.md`: durable memory and active references the agent should always load. Create context files only when there is something real to preserve.
 
 Keep reports in `agents/<id>/vault/` and code/work folders in `agents/<id>/projects/`.
 

@@ -19,7 +19,7 @@ state/skills/packages.json and bindings.json               package provenance an
 
 Agent-authored skills win over workspace-authored skills, package bindings, and source defaults with the same Shrimpy id. Workspace-authored skills win over package bindings and source defaults. Nested ids are allowed, for example `skills/web/fetch/SKILL.md`, but ids are normalized and must not contain absolute paths, `..`, backslashes, `~`, `:`, or empty segments.
 
-Default setup no longer copies unchanged Shrimpy default skills into the workspace. Broad habits such as `memory-management`, `journal-daily`, and `journal-compact` plus coding handoff guidance through `coding-delegation` are source defaults available to all compatible agents. Maintenance capabilities such as `mechanic`, `add-agent`, `channel-routing`, `watches`, `workspace-migration`, `setup`, `security-audit`, `hygiene-audit`, and `shrimpy-mechanic-ideas` are source defaults visible only to the `mechanic` agent. A user or agent can still add local files under `skills/` or `agents/<id>/skills/` to customize or add capabilities.
+Default setup no longer copies unchanged Shrimpy default skills into the workspace. Default upkeep skills such as `memory-management`, `journal-daily`, and `journal-compact` plus coding handoff guidance through `coding-delegation` are source defaults available to all compatible agents. Maintenance capabilities such as `mechanic`, `add-agent`, `channel-routing`, `watches`, `workspace-migration`, `setup`, `security-audit`, `hygiene-audit`, and `shrimpy-mechanic-ideas` are source defaults visible only to the `mechanic` agent. A user or agent can still add local files under `skills/` or `agents/<id>/skills/` to customize or add capabilities.
 
 ## Bundle Shape
 

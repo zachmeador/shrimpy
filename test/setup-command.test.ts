@@ -216,7 +216,7 @@ describe("setup entry", () => {
     assert.match(lines.join("\n"), /Setup rerun cancelled\./);
   });
 
-  test("runSetupOnboarding does nothing when coding policy and agent context already exist", async () => {
+  test("runSetupOnboarding does nothing when coding policy and agent workspace already exist", async () => {
     await runSetupOnboarding(workspace, {
       listModels: () => [],
       log: () => {},
@@ -324,7 +324,7 @@ describe("setup entry", () => {
         },
       };
     });
-    rmSync(join(workspace, "agents", "shrimpy", "context"), {
+    rmSync(join(workspace, "agents", "mechanic", "context", "scope.md"), {
       recursive: true,
       force: true,
     });
@@ -370,7 +370,7 @@ describe("setup entry", () => {
       };
       config.agents[0].modelPolicy = "local";
     });
-    rmSync(join(workspace, "agents", "shrimpy", "context"), {
+    rmSync(join(workspace, "agents", "mechanic", "context", "scope.md"), {
       recursive: true,
       force: true,
     });

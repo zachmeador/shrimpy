@@ -7,7 +7,6 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { createAgentPaths, type AgentPaths } from "../app/paths.js";
-import { loadSetupTemplate } from "../setup/templates.js";
 import { renderSoulTemplate } from "../context/index.js";
 
 export function scaffoldAgentFiles(
@@ -20,10 +19,6 @@ export function scaffoldAgentFiles(
     {
       path: paths.soulPath,
       content: renderSoulTemplate(agentId),
-    },
-    {
-      path: join(paths.contextDir, "habits.md"),
-      content: loadSetupTemplate("context/habits.md", ""),
     },
     {
       path: join(paths.vaultDir, ".gitkeep"),
