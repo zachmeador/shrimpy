@@ -48,7 +48,7 @@ Replace it with a docs-backed reference skill available to all agents. The patte
 - No compatibility shim or stub left behind for `shrimpy-mechanic-ideas`.
 - No parallel content corpus inside the skill bundle. If a pattern page is worth writing, it is a doc; the skill only triggers and indexes.
 - No capability language anywhere in the skill or pattern docs. Bindings control what is advertised in context, not what an agent can do; bash makes everything reachable. Frame agent differences as breadcrumbs, never as permissions.
-- Snippets follow the plain-first output convention from [CLI-001](cli-001-bounded-agent-output.md): plain CLI output for inspection, `--json` only where the snippet pipes it.
+- Snippets follow the plain-first output convention in [cli.md](../reference/cli.md): plain CLI output for inspection, `--json` only where the snippet pipes it.
 
 ## Notes
 
