@@ -1,6 +1,6 @@
 # 🦐 MECH-002: Mechanic Audit Skills
 
-Status: todo
+Status: review
 Priority: P1
 Area: Mechanic
 Depends On: none

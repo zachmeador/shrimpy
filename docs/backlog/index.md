@@ -21,7 +21,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CLI-001](cli-001-bounded-agent-output.md) | todo | P2 | CLI | none | Bounded agent-facing CLI output |
 | [CODE-001](code-001.md) | review | P2 | Coding Agents | none | Worker backend availability inspection |
 | [CODE-002](code-002-agentic-worker-sessions.md) | review | P1 | Coding Agents | [CODE-001](code-001.md) | Agentic worker sessions for inspectable coding-agent delegation |
-| [MECH-002](mech-002-audit-skills.md) | todo | P1 | Mechanic | none | Mechanic security and hygiene audit skills |
+| [MECH-002](mech-002-audit-skills.md) | review | P1 | Mechanic | none | Mechanic security and hygiene audit skills |
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-pattern-reference-skill.md) | draft | P2 | Skills | none | All-agents pattern reference skill replacing mechanic ideas |

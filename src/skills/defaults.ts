@@ -70,7 +70,9 @@ const DEFAULT_SKILLS: DefaultSkillDefinition[] = [
   mechanicSkill("mechanic"),
   mechanicSkill("add-agent"),
   mechanicSkill("channel-routing"),
+  mechanicSkill("hygiene-audit"),
   mechanicSkill("watches"),
+  mechanicSkill("security-audit"),
   mechanicSkill("workspace-migration"),
   mechanicSkill("shrimpy-mechanic-ideas"),
 ];

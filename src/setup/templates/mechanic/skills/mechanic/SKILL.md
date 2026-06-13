@@ -20,6 +20,8 @@ Use the `add-agent` skill when work involves creating, shaping, or wiring a spec
 Use the `channel-routing` skill when work involves channels, channel policies, chat surfaces, Telegram, or adapter thread routing.
 Use the `watches` skill when work involves recurring work, reminders, background checks, or agent-owned watches.
 Use the `workspace-migration` skill when work involves moving an existing workspace across Shrimpy versions or applying version-driven workspace changes.
+Use the `security-audit` skill when work involves read-only security posture review of Shrimpy state, automations, exposed surfaces, dependencies, or managed services.
+Use the `hygiene-audit` skill when work involves read-only workspace hygiene review, stale watches, dead channels, context bloat, skill validity, or uninspectable automation.
 Use the `shrimpy-mechanic-ideas` skill when work involves recommending new skills, agents, watches, reports, apps, or Shrimpy usage patterns.
 
 ## How To Work

@@ -92,6 +92,18 @@ describe("setupInit", () => {
       "watches",
       "SKILL.md",
     );
+    const securityAuditSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "security-audit",
+      "SKILL.md",
+    );
+    const hygieneAuditSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "hygiene-audit",
+      "SKILL.md",
+    );
     const workspaceMigrationSkillPath = join(
       mechanicRoot,
       "skills",
@@ -150,6 +162,8 @@ describe("setupInit", () => {
     assert.equal(existsSync(addAgentSkillPath), false);
     assert.equal(existsSync(channelRoutingSkillPath), false);
     assert.equal(existsSync(watchesSkillPath), false);
+    assert.equal(existsSync(securityAuditSkillPath), false);
+    assert.equal(existsSync(hygieneAuditSkillPath), false);
     assert.equal(existsSync(workspaceMigrationSkillPath), false);
     assert.equal(existsSync(mechanicIdeasSkillPath), false);
     assert.equal(existsSync(mechanicIdeasReferencePath), false);

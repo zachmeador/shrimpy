@@ -103,6 +103,8 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>mechanic<\/name>/);
     assert.match(parsed.systemPrompt, /<name>watches<\/name>/);
     assert.match(parsed.systemPrompt, /<name>workspace-migration<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>security-audit<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>hygiene-audit<\/name>/);
     assert.match(parsed.systemPrompt, /<name>coding-delegation<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
@@ -358,7 +360,9 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /mechanic \[default\]/);
     assert.match(lines.join("\n"), /add-agent \[default\]/);
     assert.match(lines.join("\n"), /channel-routing \[default\]/);
+    assert.match(lines.join("\n"), /hygiene-audit \[default\]/);
     assert.match(lines.join("\n"), /watches \[default\]/);
+    assert.match(lines.join("\n"), /security-audit \[default\]/);
     assert.match(lines.join("\n"), /workspace-migration \[default\]/);
     assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[default\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
@@ -386,7 +390,9 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /add-agent/);
     assert.doesNotMatch(output, /mechanic \[agent\]/);
     assert.doesNotMatch(output, /channel-routing/);
+    assert.doesNotMatch(output, /hygiene-audit/);
     assert.doesNotMatch(output, /watches/);
+    assert.doesNotMatch(output, /security-audit/);
     assert.doesNotMatch(output, /workspace-migration/);
     assert.doesNotMatch(output, /shrimpy-mechanic-ideas/);
   });
@@ -723,10 +729,12 @@ describe("skill service", () => {
       "add-agent:default",
       "channel-routing:default",
       "coding-delegation:default",
+      "hygiene-audit:default",
       "journal-compact:default",
       "journal-daily:default",
       "mechanic:default",
       "memory-management:default",
+      "security-audit:default",
       "setup:default",
       "shrimpy-mechanic-ideas:default",
       "watches:default",
@@ -745,6 +753,12 @@ describe("skill service", () => {
     assert.match(skill.entryPath, /src\/setup\/templates\/mechanic\/skills\/setup\/SKILL\.md$/);
     assert.equal(skill.loaded, true);
     assert.match(loadSkillPrompt(runtime, "setup", "mechanic"), /first usable Shrimpy workspace/);
+    const securityAudit = getSkillView(runtime, "security-audit", "mechanic");
+    assert.equal(securityAudit.loaded, true);
+    assert.match(loadSkillPrompt(runtime, "security-audit", "mechanic"), /agents\/mechanic\/vault\/audits/);
+    const hygieneAudit = getSkillView(runtime, "hygiene-audit", "mechanic");
+    assert.equal(hygieneAudit.loaded, true);
+    assert.match(loadSkillPrompt(runtime, "hygiene-audit", "mechanic"), /checked, found nothing/);
     const codingDelegation = getSkillView(runtime, "coding-delegation", "shrimpy");
     assert.equal(codingDelegation.available, true);
     assert.deepEqual(codingDelegation.requiredTools, ["bash"]);
@@ -755,6 +769,14 @@ describe("skill service", () => {
     assert.deepEqual(getSkillPromptResources(runtime, "add-agent", "mechanic"), [{
       rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
       resourcePath: "skills/add-agent",
+    }]);
+    assert.deepEqual(getSkillPromptResources(runtime, "security-audit", "mechanic"), [{
+      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
+      resourcePath: "skills/security-audit",
+    }]);
+    assert.deepEqual(getSkillPromptResources(runtime, "hygiene-audit", "mechanic"), [{
+      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
+      resourcePath: "skills/hygiene-audit",
     }]);
     assert.deepEqual(getSkillPromptResources(runtime, "memory-management"), [{
       rootPath: join(projectRoot, "src", "setup", "templates"),
@@ -863,10 +885,12 @@ describe("skill service", () => {
       "add-agent",
       "channel-routing",
       "coding-delegation",
+      "hygiene-audit",
       "journal-compact",
       "journal-daily",
       "mechanic",
       "memory-management",
+      "security-audit",
       "setup",
       "shrimpy-mechanic-ideas",
       "watches",
