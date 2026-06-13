@@ -106,6 +106,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>security-audit<\/name>/);
     assert.match(parsed.systemPrompt, /<name>hygiene-audit<\/name>/);
     assert.match(parsed.systemPrompt, /<name>coding-delegation<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>codex-web-search<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
@@ -368,6 +369,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[default\]/);
     assert.match(lines.join("\n"), /coding-delegation \[default\]/);
+    assert.match(lines.join("\n"), /codex-web-search \[default\]/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[default\]/);
     assert.match(lines.join("\n"), /journal-compact \[default\]/);
@@ -385,6 +387,7 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     assert.match(output, /memory-management \[default\]/);
     assert.match(output, /coding-delegation \[default\]/);
+    assert.match(output, /codex-web-search \[default\]/);
     assert.match(output, /journal-daily \[default\]/);
     assert.match(output, /journal-compact \[default\]/);
     assert.doesNotMatch(output, /add-agent/);
@@ -801,6 +804,7 @@ describe("skill service", () => {
     assert.deepEqual(skills.map((skill) => `${skill.id}:${skill.scope}`), [
       "add-agent:default",
       "channel-routing:default",
+      "codex-web-search:default",
       "coding-delegation:default",
       "hygiene-audit:default",
       "journal-compact:default",
@@ -816,6 +820,7 @@ describe("skill service", () => {
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
     assert.deepEqual(shrimpySkills.map((skill) => `${skill.id}:${skill.scope}`), [
+      "codex-web-search:default",
       "coding-delegation:default",
       "journal-compact:default",
       "journal-daily:default",
@@ -957,6 +962,7 @@ describe("skill service", () => {
     assert.deepEqual(piSkillNames, [
       "add-agent",
       "channel-routing",
+      "codex-web-search",
       "coding-delegation",
       "hygiene-audit",
       "journal-compact",

@@ -8,7 +8,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 |---|---|---|---|---|---|
 | [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
 | [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md) | Main agent capture and research workflow |
-| [SEARCH-001](search-001-web-search-provider-wrapper.md) | todo | P2 | Search | none | Web search tool provider wrapper |
+| [SEARCH-001](search-001-web-lookup-capability.md) | todo | P2 | Search | none | Optional web lookup capability |
 | [SEARCH-002](search-002-workspace-knowledge-search.md) | todo | P2 | Search | none | Local workspace knowledge search with opt-in embeddings |
 | [MEM-002](mem-002-session-transcript-search.md) | todo | P2 | Memory | none | Session transcript search |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |

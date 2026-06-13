@@ -3,9 +3,9 @@
 Date: 2026-05-31
 Status: Research
 
-Survey of web search API providers that could back [SEARCH-001](../backlog/search-001-web-search-provider-wrapper.md): a compact "query in → ranked URLs/titles/snippets out" primitive, wrapped behind one Shrimpy provider seam, with thin HTTP adapters (no vendor SDKs in base dependencies) and API keys supplied via `apiKeyEnv` environment variables.
+Survey of web search API providers that can inform optional setup guidance for [SEARCH-001](../backlog/search-001-web-lookup-capability.md): user- or workspace-provided web lookup. This note is background for choosing a simple recommended path, not a plan for a Shrimpy-owned `shrimpy search web` command, provider wrapper, or mandatory tool.
 
-The bias here matches the backlog note: API-native search (not SERP-page scraping, not browser automation), single-key auth that maps to one env var, results that fit Shrimpy's normalized shape, and a free or near-free onboarding tier so a new install can try search without a billing relationship. Cost, longevity, and terms matter as much as raw quality.
+The bias here matches the backlog note: API-native search is better than SERP-page scraping or browser automation for quick lookup when the user wants a search-result style path; auth should map to environment variables or the chosen mechanism's auth path; and any setup recommendation should prefer low-friction onboarding. Cost, longevity, and terms matter as much as raw quality.
 
 Primary sources checked:
 
@@ -26,20 +26,19 @@ Primary sources checked:
 
 ## Short Answer
 
-Two distinct product shapes hide under "web search API," and only one fits SEARCH-001:
+Two distinct product shapes hide under "web search API":
 
-1. **Search-result APIs** — return a ranked list of `{title, url, snippet, date?, score?}`. These map directly onto the SEARCH-001 normalized contract.
-2. **Answer / grounding APIs** — return an LLM-generated answer plus citations. This is what **xAI Live Search** and **Perplexity Sonar** actually are. They are good, but they are a different shape (and a different cost model: per token, plus a per-call search fee) and belong to a future "research/answer" capability, not the compact search primitive.
+1. **Search-result APIs** — return a ranked list of `{title, url, snippet, date?, score?}`. These are the cleanest shape when the user wants explicit web results.
+2. **Answer / grounding APIs** — return an LLM-generated answer plus citations. This is what **xAI Live Search** and **Perplexity Sonar** actually are. They can still satisfy user-provided web lookup, but they are a different shape and cost model from compact search-result APIs.
 
-Recommended adapter rollout for SEARCH-001:
+Recommended setup posture for SEARCH-001:
 
-- **First real adapter: Tavily.** Purpose-built for agents, cleanest contract fit, single bearer key, `time_range` and `include_domains` map 1:1 onto `--recency` / `--site`, and a standing 1,000 free searches/month for onboarding.
-- **Second adapter: Brave Search.** An *independent* (non-Google) index, dead-simple REST with one header key, strong general-web quality. Caveat: Brave removed its free tier in February 2026 (now $5/month of metered credit, card required).
-- **Budget / Google-coverage adapter (later): Serper.dev.** Cheapest credible option, fast, 2,500 free/month, returns Google SERP with rank + date. Caveat: it is Google-SERP-as-a-service — weigh terms and longevity.
-- **Self-host / zero-key adapter (later): SearXNG.** Satisfies the note's "generic custom HTTP provider only if lawful/self-hosted" path; free, private, no API account. Caveat: user must run an instance and enable JSON output.
-- **Always: a `mock` provider** for deterministic tests, per the note.
+- **Hosted default recommendation: Tavily.** Purpose-built for agents, clean contract fit, single bearer key, `time_range` and `include_domains`, and a standing free allowance at the time this note was written.
+- **Independent-index recommendation: Brave Search.** Strong general-web quality and simple REST auth. Caveat: Brave removed its free tier in February 2026 and now requires a card-backed credit path.
+- **Budget / Google-coverage option: Serper.dev.** Cheap, fast, and generous free allowance, but it is Google-SERP-as-a-service, so terms and longevity should be weighed.
+- **Self-host / zero-vendor option: SearXNG.** Free and private if the user runs an instance and enables JSON output.
 
-This keeps the base install SDK-free and key-free, gives a generous free onboarding path (Tavily), an independent index (Brave), a cheap high-volume option (Serper), and a fully self-hosted escape hatch (SearXNG).
+This keeps the base install SDK-free and key-free. Shrimpy can recommend a simple path during setup, but the user provides the actual web access and credentials.
 
 ## Why the classic default is gone
 
@@ -47,10 +46,10 @@ Microsoft **retired the Bing Search APIs on August 11, 2025**; existing instance
 
 ## Evaluation criteria
 
-Tied to SEARCH-001's contract and boundaries:
+Useful criteria for a setup recommendation:
 
 - **Shape fit** — does it return ranked results with title/url/snippet, ideally date + score, vs. an LLM answer?
-- **Auth** — single API key passable as one env var (`apiKeyEnv`), no OAuth dance.
+- **Auth** — simple auth through one env var or the chosen mechanism's auth path, no OAuth dance unless the mechanism already owns it.
 - **Recency control** — a normalized freshness param (`day|week|month|year`).
 - **Site scoping** — domain include/exclude.
 - **Onboarding** — real free tier or monthly credits, so a new install can try it.
@@ -59,14 +58,14 @@ Tied to SEARCH-001's contract and boundaries:
 
 ## Providers
 
-### Tavily — recommended first adapter
+### Tavily — recommended hosted setup default
 - **Shape:** result list; each result has `title`, `url`, `content` (snippet), `score`. `topic: news` and `start_date/end_date` exist; a discrete `published_date` is not in the base schema (derive/fill when present).
-- **Params:** `max_results` (0–20, default 5), `search_depth` (`basic|advanced|fast|ultra-fast`), `include_domains` (≤300) / `exclude_domains` (≤150), `topic` (`general|news|finance`), `time_range` (`day|week|month|year`), `country`. `include_answer` is optional and off by default — we keep it off; SEARCH-001 is discovery, not answers.
+- **Params:** `max_results` (0–20, default 5), `search_depth` (`basic|advanced|fast|ultra-fast`), `include_domains` (≤300) / `exclude_domains` (≤150), `topic` (`general|news|finance`), `time_range` (`day|week|month|year`), `country`. `include_answer` is optional and can stay off when the desired shape is explicit search results.
 - **Auth:** `Authorization: Bearer tvly-…`.
-- **Pricing:** credit-based; basic/fast = 1 credit, advanced = 2. PAYG ≈ $0.008/credit; **1,000 free searches/month**. Watch the Research endpoint — it can burn up to ~250 credits per call; the wrapper should only call `/search`.
-- **Verdict:** best contract fit. `time_range`→`--recency` and `include_domains`→`--site` are essentially free. Built for exactly this use case.
+- **Pricing:** credit-based; basic/fast = 1 credit, advanced = 2. PAYG ≈ $0.008/credit; **1,000 free searches/month**. Watch the Research endpoint — it can burn up to ~250 credits per call; simple lookup guidance should steer users to `/search`.
+- **Verdict:** best contract fit for explicit search results. `time_range` and `include_domains` map cleanly to common recency/site controls.
 
-### Brave Search — recommended second adapter
+### Brave Search — recommended independent-index option
 - **Shape:** web results with human-readable URLs + text snippets; freshness and age metadata available; also news/images/video and an "LLM context" endpoint.
 - **Params:** `q`, `count`/`offset`, `freshness` (`pd|pw|pm|py` ≈ day/week/month/year), `result_filter`, `country`/`search_lang`. Site scoping via the `site:` query operator.
 - **Auth:** `X-Subscription-Token: <key>` header.
@@ -111,21 +110,21 @@ Tied to SEARCH-001's contract and boundaries:
 - **Shape:** `s.jina.ai/?q=…` returns top ~5 results as JSON with `url`, `title`, `content`, and `timestamp`. It's really search **fused with** page reading (returns content, not just snippets).
 - **Auth:** optional — works keyless (rate-limited); a bearer key raises limits.
 - **Pricing:** free tier with no key; token-based paid plans (~$20/mo+).
-- **Verdict:** uniquely zero-setup (no key path), but the search+read fusion returns heavier payloads than a snippet list and overlaps with SEARCH-001's separation of search vs. fetch. Better fit for a future fetch/read workflow than the compact search tool.
+- **Verdict:** uniquely zero-setup (no key path), but the search+read fusion returns heavier payloads than a snippet list. Fine if a user chooses that tradeoff, weaker as a universal default.
 
 ### xAI Live Search — answer/grounding, NOT a SERP endpoint
 - **What it is:** a **tool the Grok chat model invokes**, not a standalone search endpoint. The model decides to search and returns a generated answer; sources come back as `response.citations`. Domain filters exist (`allowed_domains` / `excluded_domains`, ≤5 each) but the docs expose **no result-count or recency/date params** for the search tool itself.
 - **Auth:** `Authorization: Bearer $XAI_API_KEY`.
 - **Pricing:** **$5 per 1,000 search calls _on top of_ Grok token costs** (Grok 4.x ≈ $1.25/$2.50 per 1M in/out); new accounts get promo credits.
-- **Verdict:** genuinely good and well-cited, but it answers a different question than SEARCH-001. It returns *an answer with citations*, billed per token, not *a ranked result list*. If we want this, it belongs to a future "ask the web"/ research capability layered on top of an inference call — not the compact search primitive. (This is the one the user flagged; the takeaway is "great, but wrong shape for this slice.")
+- **Verdict:** genuinely good and well-cited, but it returns *an answer with citations*, billed per token, not *a ranked result list*. This can be a valid user-provided web lookup path; it is just not evidence for building a Shrimpy search-result wrapper.
 
 ### Perplexity Sonar — answer/grounding (same category as xAI)
 - **What it is:** search-grounded chat completions. Every Online/Sonar request runs live retrieval and returns an answer plus citations (Sonar Pro adds titles/snippets/dates). No separate per-search fee — it's in the token price (Sonar ≈ $1/1M; Sonar Pro $3 in / $15 out per 1M).
-- **Verdict:** same story as xAI — an answer engine, not a result API. Note it for the future research/answer capability, not this one.
+- **Verdict:** same story as xAI — an answer engine, not a result API. Valid if a user wants answer-style web lookup; not a reason to build Shrimpy's own result API.
 
 ## Contract-fit matrix
 
-Mapping to the SEARCH-001 normalized result shape (rank, title, url, snippet, source/site, published date, score) and required params:
+Mapping to a compact search-result shape (rank, title, url, snippet, source/site, published date, score) and common params:
 
 | Provider | Family | Result list | Snippet | Date | Score | Recency param | Site scope | Auth (env) | Free onboarding | Index |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -159,23 +158,24 @@ The honest picture, since "free" is the question that decides whether a default 
 
 The trend is **erosion**: Brave removed its 2k/month tier in February 2026 and Bing's API was retired outright in August 2025. Do not design around any single vendor's free tier surviving.
 
-**Design takeaway — architecture beats any free tier:**
+**Design takeaway — user-provided capability beats any bundled default:**
 
-- Base install requires **nothing** and simply reports search unavailable.
-- Make **SearXNG a first-class adapter** — the only durable zero-vendor, zero-cost path, and it satisfies the note's self-hosted-endpoint boundary.
-- Point onboarding docs at **Tavily (~1k/mo)** or **Serper (~2.5k/mo)** as the easiest real free tiers, while treating them as "may shrink."
+- Base install requires **nothing** and simply reports web lookup unavailable unless the workspace provides a mechanism.
+- Setup can point users at **Tavily (~1k/mo)** or **Serper (~2.5k/mo)** as easy hosted paths, while treating free tiers as volatile.
+- Setup can point privacy/no-vendor users at **SearXNG** when they are willing to self-host.
+- Shrimpy should not add a `shrimpy search web` command or provider wrapper to chase a moving vendor landscape.
 
 ## Recommendation for SEARCH-001
 
-1. Build the provider seam + normalized result shape + a `mock` provider first (tests need no network or keys).
-2. Ship **Tavily** as the first real adapter — best contract fit, recency/site map cleanly, standing free tier for onboarding.
-3. Add **Brave** second for an independent index (note the card requirement).
-4. Leave **Serper** (cheap/Google) and **SearXNG** (self-hosted) as documented, easy follow-on adapters — they exercise the seam from both the commercial-cheap and self-hosted-free ends.
-5. Treat **xAI / Perplexity** (answer engines) and **Exa Deep** (research) as a *separate, later* "ask/research the web" capability, not part of this compact search primitive.
+1. Do not build a Shrimpy-owned provider seam, adapter registry, mock provider, or `shrimpy search web` command.
+2. Let users provide web lookup when they want it, whether that is a tool, model/provider-native feature, browser/fetch workflow, hosted search API, or self-hosted endpoint.
+3. Make availability honest through the normal surfaces for the chosen mechanism.
+4. During setup, optionally recommend a simple path: Tavily for hosted agent-native search results, SearXNG for self-hosted no-vendor search, Serper as a cheap Google-results option, or answer-style web lookup if the user chooses that tradeoff.
+5. Treat **xAI / Perplexity** (answer engines) and **Exa Deep** (research) as different capabilities from compact search-result lookup.
 
 ## Caveats
 
-- **Pricing volatility is real.** Brave deleted its free tier (Feb 2026) and Bing was retired outright (Aug 2025). Keep cost/limits out of code; surface them via `shrimpy search status`, not constants.
+- **Pricing volatility is real.** Brave deleted its free tier (Feb 2026) and Bing was retired outright (Aug 2025). Keep cost/limits out of runtime policy; surface them in refreshable setup/docs copy.
 - **SERP-resale vs. owned index.** Serper/SerpAPI resell Google results; that is cheap and familiar but carries terms-of-service and longevity exposure the note's "don't scrape SERP pages" boundary is wary of. Owned indexes (Brave/Tavily/Exa) are safer defaults.
 - **Answer engines aren't search.** Wrapping xAI/Perplexity to fake a result list would discard their value and inflate cost. Keep search (discovery) and answers (synthesis) as separate capabilities.
-- **Secrets discipline.** Every viable provider authenticates with a single key — perfect for `apiKeyEnv`. Keep keys in env only; never echo them in command output, logs, channel messages, or saved notes (already a SEARCH-001 boundary).
+- **Secrets discipline.** Every viable provider authenticates with a single key. Keep keys in env or tool-specific auth storage only; never echo them in command output, logs, channel messages, or saved notes.

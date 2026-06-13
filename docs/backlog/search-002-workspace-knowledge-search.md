@@ -13,7 +13,7 @@ This service is also the substrate for [CTX-011](ctx-011-workspace-knowledge-bre
 
 ## Current State
 
-- No knowledge search exists. `shrimpy channels search` covers channel logs, [MEM-002](mem-002-session-transcript-search.md) plans transcript search, and [SEARCH-001](search-001-web-search-provider-wrapper.md) plans web search as `shrimpy search web` with `search providers` and `search status` diagnostics.
+- No knowledge search exists. `shrimpy channels search` covers channel logs, [MEM-002](mem-002-session-transcript-search.md) plans transcript search, and [SEARCH-001](search-001-web-lookup-capability.md) covers optional web lookup capability.
 - Skills reach agents as context trails; vault, profile, and agent context files are reachable only by exact path or manual grep.
 - Runtime dependencies are lean; nothing in `package.json` runs local ML today.
 
@@ -30,8 +30,8 @@ This service is also the substrate for [CTX-011](ctx-011-workspace-knowledge-bre
 - Enabling embeddings in config (for example `search.workspace.embeddings.enabled`, set directly or during setup) is the consent for the one-time model download; the first indexing run prints what it fetches, and everything runs offline afterward.
 - Degrade cleanly: with embeddings disabled or the runtime absent, search is keyword-only and `workspace index status` says so.
 - The gateway process keeps the embedder and index warm; one-shot CLI invocations pay cold start or fall back to keyword-only.
-- Help text and empty results cross-point the neighboring search layers: `channels search` for messages, `sessions search` for transcripts, `search web` for the web.
-- Daemon tool mirrors the CLI only after CLI behavior is stable, same posture as MEM-002 and SEARCH-001.
+- Help text and empty results cross-point the neighboring search layers: `channels search` for messages, `sessions search` for transcripts, and available web lookup when the workspace provides it.
+- A daemon tool can mirror the CLI after CLI behavior is stable, same posture as MEM-002.
 
 ## Boundaries
 
@@ -45,7 +45,7 @@ This service is also the substrate for [CTX-011](ctx-011-workspace-knowledge-bre
 
 ## Notes
 
-- Naming: bare `shrimpy search <query>` was considered and rejected — SEARCH-001 owns the `search` group (`search web`, `search providers`, `search status`), so a bare positional query would be ambiguous against subcommands and collide on `search status`. Noun-first `workspace search` keeps every local layer noun-scoped: workspace = written down, channels = said, sessions = done, `search web` = external lookup.
+- Naming: noun-first `workspace search` keeps every local layer scoped to its corpus: workspace = written down, channels = said, sessions = done. Web lookup is not a Shrimpy corpus; it comes from whichever capability the user provides.
 - Embeddings are weak on exact identifiers (names, channel ids, model strings), which home workspaces are full of; the keyword side of the fusion is load-bearing, not a fallback nicety.
 - Scale math: hundreds of files → low thousands of chunks → a few MB of float32 vectors; linear cosine is sub-millisecond. This is why no vector infrastructure is justified.
 - The `Embedder` interface keeps the backend swappable: larger ONNX models, an Ollama backend for users already running it, or static embedding models if a zero-native-dep backend is ever wanted.
@@ -57,6 +57,6 @@ This service is also the substrate for [CTX-011](ctx-011-workspace-knowledge-bre
 - `shrimpy workspace search <query>` returns bounded, scored, source-pointed matches across profile, skills, agent context, and vault, fully offline.
 - Keyword-only search works with the embedding runtime absent or disabled; enabling embeddings in config produces hybrid ranking after one explicit model fetch.
 - The index refreshes incrementally by content hash during search; `workspace index status` and `workspace index rebuild` behave as described; a scorer/model change forces a rebuild.
-- Help text and empty results point at `channels search`, `sessions search`, and `search web`.
+- Help text and empty results point at `channels search`, `sessions search`, and available web lookup when the workspace provides it.
 - `--json` output is stable enough for agent/tool use.
 - Tests cover chunking, incremental refresh, keyword-only fallback, hybrid ranking sanity, recency boost behavior (ties break toward fresher content; strong matches beat fresh weak ones), result bounds and truncation, model-change rebuild, and empty-state cross-pointers.

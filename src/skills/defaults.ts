@@ -52,6 +52,11 @@ const DEFAULT_SKILLS: DefaultSkillDefinition[] = [
     { kind: "all" },
   ),
   defaultSkill(
+    "codex-web-search",
+    setupTemplatePath("skills", "codex-web-search"),
+    { kind: "all" },
+  ),
+  defaultSkill(
     "memory-management",
     setupTemplatePath("skills", "memory-management"),
     { kind: "all" },
