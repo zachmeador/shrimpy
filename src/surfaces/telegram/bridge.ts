@@ -77,7 +77,7 @@ export interface TelegramChannelBridgeConfig {
   threadStateStore: SurfaceThreadStateStore;
   channelMemberships?: ChannelMembershipStore;
   userPresenceStore?: UserPresenceStore;
-  allowedChatIds?: number[];
+  allowedChatIds: number[];
   users?: Record<string, {
     userId: string;
     actorId: string;
@@ -100,6 +100,9 @@ export class TelegramChannelBridge {
   ) {
     this.textBurstWindowMs = config.textBurstWindowMs ?? DEFAULT_TEXT_BURST_WINDOW_MS;
     this.mediaGroupWindowMs = config.mediaGroupWindowMs ?? DEFAULT_MEDIA_GROUP_WINDOW_MS;
+    if (config.allowedChatIds.length === 0) {
+      throw new Error("telegram bridge requires at least one allowed chat id");
+    }
     if (!existsSync(config.mediaDir)) {
       mkdirSync(config.mediaDir, { recursive: true });
     }
@@ -174,10 +177,7 @@ export class TelegramChannelBridge {
     msg: TelegramMessage,
   ): TelegramInboundContext | null {
     const chatId = msg.chat.id;
-    if (
-      this.config.allowedChatIds &&
-      !this.config.allowedChatIds.includes(chatId)
-    ) {
+    if (!this.config.allowedChatIds.includes(chatId)) {
       return null;
     }
 

@@ -11,6 +11,7 @@ import { validateModelPoliciesConfig } from "./model.js";
 import { primaryConfigPath } from "./paths.js";
 import { resolveRuntimeConfig } from "./runtime.js";
 import { resolveToolRuntimeConfig } from "./tools.js";
+import { surfaceModules } from "../surfaces/index.js";
 
 interface ConfigFileEditOptions {
   missing?: "empty" | "error";
@@ -32,6 +33,10 @@ export function validateRawConfig(raw: Record<string, unknown>): void {
   if (raw.tools !== undefined) resolveToolRuntimeConfig(raw.tools);
   if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
   if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);
+  for (const module of surfaceModules) {
+    const rawSurfaceConfig = raw[module.name];
+    if (rawSurfaceConfig !== undefined) module.validateConfig(rawSurfaceConfig);
+  }
 }
 
 export function readConfigFile(

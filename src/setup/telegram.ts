@@ -9,6 +9,10 @@ import {
   telegramChannelDisplayExample,
   validateTelegramInstanceId,
 } from "../surfaces/telegram/index.js";
+import {
+  TelegramBotApiClient,
+  type TelegramUpdate,
+} from "../surfaces/telegram/client.js";
 import { readGatewayServiceStatus } from "../gateway/service-ctl.js";
 import { brand, heading } from "../util/style.js";
 
@@ -62,6 +66,136 @@ function parseChatIds(input: string): number[] | null {
     ids.push(n);
   }
   return ids;
+}
+
+interface TelegramChatCandidate {
+  chatId: number;
+  chatType: string;
+  fromUserId?: number;
+  firstName?: string;
+  username?: string;
+}
+
+function extractTelegramChatCandidates(
+  updates: TelegramUpdate[],
+): TelegramChatCandidate[] {
+  const candidates = new Map<number, TelegramChatCandidate>();
+  for (const update of updates) {
+    const msg = update.message;
+    if (!msg) continue;
+    candidates.set(msg.chat.id, {
+      chatId: msg.chat.id,
+      chatType: msg.chat.type,
+      fromUserId: msg.from?.id,
+      firstName: msg.from?.first_name,
+      username: msg.from?.username,
+    });
+  }
+  return [...candidates.values()].sort((left, right) => left.chatId - right.chatId);
+}
+
+function formatTelegramChatCandidate(candidate: TelegramChatCandidate): string {
+  const user = candidate.username
+    ? `@${candidate.username}`
+    : candidate.firstName;
+  return [
+    `${candidate.chatId}`,
+    `chat=${candidate.chatType}`,
+    candidate.fromUserId === undefined ? undefined : `from=${candidate.fromUserId}`,
+    user,
+  ].filter(Boolean).join(" ");
+}
+
+async function pollTelegramChatCandidates(
+  token: string,
+): Promise<TelegramChatCandidate[]> {
+  const client = new TelegramBotApiClient(
+    { token },
+    { policy: { sendMaxRetries: 0, pollTimeoutSec: 5 } },
+  );
+  const deadline = Date.now() + 60_000;
+  let offset = 0;
+
+  while (Date.now() < deadline) {
+    const remainingSec = Math.max(1, Math.min(5, Math.ceil((deadline - Date.now()) / 1000)));
+    const updates = await client.getUpdates(
+      offset,
+      remainingSec,
+      new AbortController().signal,
+    );
+    for (const update of updates) {
+      offset = Math.max(offset, update.update_id + 1);
+    }
+    const candidates = extractTelegramChatCandidates(updates);
+    if (candidates.length > 0) {
+      await client.getUpdates(offset, 0, new AbortController().signal).catch(() => undefined);
+      return candidates;
+    }
+  }
+
+  return [];
+}
+
+async function askForChatIds(
+  ask: (question: string) => Promise<string>,
+  question: string,
+): Promise<number[] | null> {
+  const input = await ask(question);
+  if (!input) return [];
+  const parsed = parseChatIds(input);
+  if (parsed !== null) return [...new Set(parsed)];
+
+  console.log("Invalid input: chat IDs must be numbers.");
+  const retry = await ask("Enter allowed chat IDs (comma-separated), or Enter to abort: ");
+  if (!retry) return [];
+  const retryParsed = parseChatIds(retry);
+  if (retryParsed === null) {
+    console.log("Still invalid.");
+    return null;
+  }
+  return [...new Set(retryParsed)];
+}
+
+async function discoverAllowedChatIds(
+  token: string,
+  ask: (question: string) => Promise<string>,
+  confirm: (question: string, defaultYes?: boolean) => Promise<boolean>,
+): Promise<number[]> {
+  console.log("Send a message to your bot in Telegram now.");
+  console.log("Setup will poll Telegram directly for up to 60 seconds without starting the gateway.");
+  try {
+    const candidates = await pollTelegramChatCandidates(token);
+    if (candidates.length === 0) {
+      console.log("No Telegram messages were seen.");
+      return await askForChatIds(
+        ask,
+        "Enter allowed chat IDs manually, or Enter to abort: ",
+      ) ?? [];
+    }
+
+    console.log("Candidate chat IDs:");
+    for (const candidate of candidates) {
+      console.log(`  ${formatTelegramChatCandidate(candidate)}`);
+    }
+
+    if (
+      candidates.length === 1 &&
+      await confirm(`Use chat ID ${candidates[0].chatId}?`)
+    ) {
+      return [candidates[0].chatId];
+    }
+
+    return await askForChatIds(
+      ask,
+      "Enter allowed chat IDs from the candidates (comma-separated): ",
+    ) ?? [];
+  } catch (err) {
+    console.log(`Telegram polling failed: ${(err as Error).message}`);
+    return await askForChatIds(
+      ask,
+      "Enter allowed chat IDs manually, or Enter to abort: ",
+    ) ?? [];
+  }
 }
 
 function checkGatewayStatus(): "active" | "inactive" {
@@ -212,12 +346,8 @@ export async function setupTelegram(workspace: string): Promise<void> {
 
     let allowedChatIds: number[] = [];
 
-    console.log("Allowed chat IDs restrict who can message the bot.");
-    console.log("To find your chat ID:");
-    console.log("  1. Start the gateway: shrimpy gateway start");
-    console.log("  2. Send a message to your bot in Telegram");
-    console.log("  3. Run: shrimpy channels");
-    console.log(`     The channel name ${telegramChannelDisplayExample(instanceId)} has your chat ID`);
+    console.log("Allowed chat IDs are required. The gateway will ignore every Telegram chat except IDs in allowedChatIds.");
+    console.log(`Telegram surface channels look like ${telegramChannelDisplayExample(instanceId)}.`);
     console.log();
 
     if (existing?.allowedChatIds?.length) {
@@ -227,41 +357,31 @@ export async function setupTelegram(workspace: string): Promise<void> {
       }
     }
 
-    const idsInput = await ask(
-      "Enter allowed chat IDs (comma-separated, or Enter to skip): ",
-    );
-    if (idsInput) {
-      const parsed = parseChatIds(idsInput);
-      if (parsed === null) {
-        console.log("Invalid input — chat IDs must be numbers.");
-        const retry = await ask(
-          "Enter allowed chat IDs (comma-separated, or Enter to skip): ",
-        );
-        if (retry) {
-          const retryParsed = parseChatIds(retry);
-          if (retryParsed === null) {
-            console.log("Still invalid. Skipping chat ID allowlist.");
-          } else {
-            allowedChatIds = [...new Set([...allowedChatIds, ...retryParsed])];
-          }
-        }
-      } else {
-        allowedChatIds = [...new Set([...allowedChatIds, ...parsed])];
-      }
+    if (
+      allowedChatIds.length === 0 ||
+      await confirm("Add another allowed chat ID?", false)
+    ) {
+      const entered = await askForChatIds(
+        ask,
+        "Enter allowed chat IDs (comma-separated), or Enter to discover with Telegram: ",
+      );
+      const discovered = entered?.length === 0
+        ? await discoverAllowedChatIds(token, ask, confirm)
+        : entered ?? [];
+      allowedChatIds = [...new Set([...allowedChatIds, ...discovered])];
     }
 
     if (allowedChatIds.length === 0) {
-      console.log("\nNo allowed chat IDs set — the bot will accept messages from anyone.");
+      console.log("\nNo allowed chat IDs configured. Telegram setup aborted without writing an enabled instance.");
+      return;
     }
     console.log();
 
     const telegramInstanceConfig: Record<string, unknown> = {
       token,
       defaultAgentId,
+      allowedChatIds,
     };
-    if (allowedChatIds.length > 0) {
-      telegramInstanceConfig.allowedChatIds = allowedChatIds;
-    }
     raw.telegram = {
       ...telegramRaw,
       instances: {

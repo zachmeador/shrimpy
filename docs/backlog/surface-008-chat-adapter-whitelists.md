@@ -1,6 +1,6 @@
 # 🦐 SURFACE-008: Chat Adapter Whitelists
 
-Status: todo
+Status: review
 Priority: P1
 Area: Surfaces
 Depends On: none

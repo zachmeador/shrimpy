@@ -4,6 +4,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 🦐 0.4.1 - Unreleased
 
+### Breaking Changes
+
+- Changed Telegram gateway instances without `allowedChatIds` to fail config validation; run `shrimpy setup telegram` to add allowed chat IDs before restarting the gateway.
+
 ### CLI & Plumbing
 
 - Added `shrimpy sessions search|read` and `shrimpy workspace search|index` for bounded local transcript and workspace-knowledge recall.
@@ -16,6 +20,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Channels & Surfaces
 
+- Changed Telegram inbound handling to drop unauthorized updates before channel binding, identity mapping, presence, commands, media downloads, or model wake.
 - Changed channel outbox delivery to keep control, system, and informational status records out of Telegram and other bound surfaces while still delivering operation-status acknowledgements.
 
 ### Turn Context
@@ -26,6 +31,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
+- Changed `shrimpy setup telegram` to require at least one allowed chat ID and poll Telegram directly for discovery instead of asking users to start an open gateway first.
 - Improved gateway service installs and startup PATH handling so watch actions and gateway sessions can resolve `shrimpy` from `~/.local/bin`.
 - Added `state/worker-backends.json` during setup so worker backend availability is recorded without making external CLIs required.
 - Added `state/workers.json` and `runtime/workers/` for inspectable coding worker records and captured worker artifacts.

@@ -28,6 +28,8 @@ function createBridge(overrides?: {
   channelMemberships?: ChannelMembershipStore;
   userPresenceStore?: UserPresenceStore;
   sent?: Array<{ chatId: number; text: string; parseMode?: string }>;
+  downloaded?: string[];
+  allowedChatIds?: number[];
   textBurstWindowMs?: number;
   mediaGroupWindowMs?: number;
   users?: Record<string, { userId: string; actorId: string; displayName?: string }>;
@@ -53,12 +55,14 @@ function createBridge(overrides?: {
         ?? new SurfaceThreadStateStore(join(testDir, "surface-state.json")),
       channelMemberships: overrides?.channelMemberships,
       userPresenceStore: overrides?.userPresenceStore,
+      allowedChatIds: overrides?.allowedChatIds ?? [4242],
       users: overrides?.users,
       textBurstWindowMs: overrides?.textBurstWindowMs,
       mediaGroupWindowMs: overrides?.mediaGroupWindowMs,
     },
     {
       async downloadFileById(fileId: string) {
+        overrides?.downloaded?.push(fileId);
         return {
           filePath: `${fileId}.jpg`,
           data: Buffer.from(fileId),
@@ -74,6 +78,13 @@ function createBridge(overrides?: {
 }
 
 describe("TelegramChannelBridge", () => {
+  test("requires a non-empty inbound allowlist", () => {
+    assert.throws(
+      () => createBridge({ allowedChatIds: [] }),
+      /telegram bridge requires at least one allowed chat id/,
+    );
+  });
+
   test("uses configured stable human identity mappings", async () => {
     const { bridge, channelBus } = createBridge({
       users: {
@@ -255,6 +266,66 @@ describe("TelegramChannelBridge", () => {
     assert.equal(entry?.surface, "telegram.main");
     assert.equal(entry?.transport, "telegram");
     assert.equal(entry?.transportChatId, "4242");
+  });
+
+  test("drops unauthorized chats before side effects", async () => {
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "channels.json"),
+      [{ id: "shrimpy" }] as any,
+    );
+    const presenceStore = new UserPresenceStore(join(testDir, "presence.json"));
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const downloaded: string[] = [];
+    const { bridge, channelBus } = createBridge({
+      allowedChatIds: [1111],
+      channelMemberships: memberships,
+      userPresenceStore: presenceStore,
+      sent,
+      downloaded,
+      users: {
+        "7": {
+          userId: "alice",
+          actorId: "human:alice",
+          displayName: "Alice",
+        },
+      },
+    });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/help",
+      },
+    });
+    await bridge.handleUpdate({
+      update_id: 2,
+      message: {
+        message_id: 11,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        photo: [
+          {
+            file_id: "blocked-photo",
+            file_unique_id: "blocked-photo-uniq",
+            width: 10,
+            height: 10,
+          },
+        ],
+      },
+    });
+    await bridge.flushPending();
+
+    assert.equal(channelBus.read("telegram~main~4242").messages.length, 0);
+    assert.deepEqual(memberships.read().channels, {});
+    assert.equal(presenceStore.get("alice"), undefined);
+    assert.equal(existsSync(join(testDir, "users.json")), false);
+    assert.deepEqual(sent, []);
+    assert.deepEqual(downloaded, []);
   });
 
   test("/new resets the currently addressed agent for that chat", async () => {

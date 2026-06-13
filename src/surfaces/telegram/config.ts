@@ -43,7 +43,7 @@ const instanceSchema = Type.Object(
       pattern: TELEGRAM_INSTANCE_ID_PATTERN,
       minLength: 1,
     }),
-    allowedChatIds: Type.Optional(Type.Array(Type.Integer())),
+    allowedChatIds: Type.Optional(Type.Array(Type.Integer(), { minItems: 1 })),
     users: Type.Optional(Type.Record(
       Type.String({ minLength: 1 }),
       Type.Object(
@@ -82,7 +82,7 @@ export type TelegramRuntimeConfigInstance = Static<typeof instanceSchema>;
 export interface ResolvedTelegramInstanceConfig extends ResolvedSurfaceInstance {
   id: string;
   token: string;
-  allowedChatIds?: number[];
+  allowedChatIds: number[];
   users: Record<string, {
     userId: string;
     actorId: string;
@@ -115,9 +115,20 @@ function validateTelegramWindowMs(
   }
 }
 
+function requireTelegramAllowedChatIds(
+  value: number[] | undefined,
+  key: string,
+): number[] {
+  if (!value || value.length === 0) {
+    throw new Error(`${key}.allowedChatIds must contain at least one Telegram chat id`);
+  }
+  return value;
+}
+
 export function validateTelegramRuntimeConfig(raw: unknown): void {
   const parsed = parseConfig(schema, raw, "telegram");
   for (const [id, instance] of Object.entries(parsed.instances ?? {})) {
+    requireTelegramAllowedChatIds(instance.allowedChatIds, `telegram.instances.${id}`);
     if (instance.policy !== undefined) {
       resolveTelegramPolicy(instance.policy as TelegramPolicyOverrides);
     }
@@ -156,6 +167,10 @@ export function resolveTelegramRuntimeConfig(
         instance.mediaGroupWindowMs,
         `telegram.instances.${id}.mediaGroupWindowMs`,
       );
+      const allowedChatIds = requireTelegramAllowedChatIds(
+        instance.allowedChatIds,
+        `telegram.instances.${id}`,
+      );
       const surfaceId = buildTelegramSurfaceId(id);
       return {
         id,
@@ -164,9 +179,7 @@ export function resolveTelegramRuntimeConfig(
         channelPrefix: buildTelegramChannelPrefix(id),
         token: instance.token,
         defaultAgentId: instance.defaultAgentId,
-        allowedChatIds: instance.allowedChatIds?.length
-          ? [...instance.allowedChatIds]
-          : undefined,
+        allowedChatIds: [...allowedChatIds],
         users: resolveTelegramUsers(instance.users),
         textBurstWindowMs: instance.textBurstWindowMs,
         mediaGroupWindowMs: instance.mediaGroupWindowMs,

@@ -79,6 +79,7 @@ describe("cmdSurface", () => {
           main: {
             token: "test-token",
             defaultAgentId: "shrimpy",
+            allowedChatIds: [4242],
           },
         },
       },

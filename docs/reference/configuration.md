@@ -100,9 +100,11 @@ Use `sessions.<sessionType>` for a broad class such as `gateway` or `tui`. Use `
 
 Command-typed context sources emit compact per-turn text. Shrimpy may cache command output in per-agent turn-context state and reuse it until `freshForMs` expires.
 
-## Telegram User Identity
+## Telegram Authorization And User Identity
 
-Telegram instances map transport user ids to stable Shrimpy user ids:
+Telegram instances require `allowedChatIds`. This is the inbound authorization key for Telegram, and the gateway ignores all other chats before channel binding, identity mapping, presence recording, command dispatch, or media download. Use `shrimpy setup telegram` to poll Telegram directly for candidate chat IDs before the gateway is started.
+
+Telegram instances can also map transport user ids to stable Shrimpy user ids:
 
 ```json
 {
@@ -124,7 +126,7 @@ Telegram instances map transport user ids to stable Shrimpy user ids:
 }
 ```
 
-That produces channel messages from `actorId: "human:alice"` and `userId: "alice"`. Without a mapping, Shrimpy creates a local anonymous user id in `state/users.json`.
+That produces channel messages from `actorId: "human:alice"` and `userId: "alice"`. Without a mapping, Shrimpy creates a local anonymous user id in `state/users.json`. User mappings are identity, not authorization; the same chat still needs to be present in `allowedChatIds`.
 
 `state/users.json` accepts an optional top-level `owner` field naming the canonical workspace user by `userId`. When set, `shrimpy channels post` (and other CLI publishers) stamp messages with that owner's actorId / userId / displayName. Manage with `shrimpy users list|get-owner|set-owner`.
 

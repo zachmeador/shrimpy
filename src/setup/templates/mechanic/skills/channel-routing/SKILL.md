@@ -27,7 +27,7 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 
 - Channels are shared rooms and logs. Sessions carry instructions. Surfaces bridge external chats into channels.
 - Surface-thread channels are transport-bound channels, not agent concepts. Telegram channels look like `telegram~<instance-id>~<chat-id>` where the instance comes from `config/shrimpy.json` and the chat id comes from real Telegram traffic.
-- Chat adapters must have explicit inbound whitelists before gateway use. For Telegram, use numeric chat IDs in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization.
+- Chat adapters must have explicit inbound whitelists before gateway use. For Telegram, use numeric chat IDs in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Use `shrimpy setup telegram` to discover IDs without starting the gateway open.
 - Semantic channels can deliver externally through `shrimpy channels bind <channel> telegram/<instance-id>/<chat-id>`.
 - Do not invent adapter-shaped names like `telegram~fitness` to mean "a Telegram channel for the fitness agent."
 - Do not hand-edit surface state when a CLI command covers the route.

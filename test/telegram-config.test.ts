@@ -12,6 +12,7 @@ describe("resolveTelegramRuntimeConfig", () => {
         shrimpy: {
           token: "123:abc",
           defaultAgentId: "shrimpy",
+          allowedChatIds: [3],
         },
         helper: {
           token: "456:def",
@@ -56,7 +57,7 @@ describe("resolveTelegramRuntimeConfig", () => {
         channelPrefix: "telegram~shrimpy~",
         token: "123:abc",
         defaultAgentId: "shrimpy",
-        allowedChatIds: undefined,
+        allowedChatIds: [3],
         users: {},
         textBurstWindowMs: undefined,
         mediaGroupWindowMs: undefined,
@@ -79,6 +80,34 @@ describe("resolveTelegramRuntimeConfig", () => {
       /unknown agent "missing"/,
     );
   });
+
+  test("requires an explicit inbound allowlist", () => {
+    assert.throws(
+      () =>
+        resolveTelegramRuntimeConfig({
+          instances: {
+            shrimpy: {
+              token: "123:abc",
+              defaultAgentId: "shrimpy",
+            },
+          },
+        }, ["shrimpy"]),
+      /telegram\.instances\.shrimpy\.allowedChatIds must contain at least one Telegram chat id/,
+    );
+    assert.throws(
+      () =>
+        resolveTelegramRuntimeConfig({
+          instances: {
+            shrimpy: {
+              token: "123:abc",
+              defaultAgentId: "shrimpy",
+              allowedChatIds: [],
+            },
+          },
+        }, ["shrimpy"]),
+      /Expected array length to be greater or equal to 1/,
+    );
+  });
 });
 
 describe("telegram surface helpers", () => {
@@ -88,10 +117,12 @@ describe("telegram surface helpers", () => {
         shrimpy: {
           token: "123:abc",
           defaultAgentId: "shrimpy",
+          allowedChatIds: [1],
         },
         helper: {
           token: "456:def",
           defaultAgentId: "helper",
+          allowedChatIds: [123],
         },
       },
     }, ["shrimpy", "helper"]);

@@ -14,10 +14,10 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 ## Build
 - Add a `discord` chat surface module under `src/surfaces/discord/`, following the current Telegram module shape.
 - Build the shared chat engine by extraction while porting: move inbound gating, identity mapping, burst buffering, and the chat command registry into `src/surfaces/shared/` as Discord needs them, instead of copying Telegram's `bridge.ts`/`commands.ts`. Discord is the forcing function that earns the abstraction; do not abstract ahead of it. See [SURFACE-006](surface-006-chat-command-parity.md) for the command registry shape.
-- Add `discord.instances.<id>` config with bot token, `defaultAgentId`, authorized Discord user ids, stable Shrimpy user mappings, and conservative text-burst/message formatting policy.
+- Add `discord.instances.<id>` config with bot token, `defaultAgentId`, required authorized Discord user ids, stable Shrimpy user mappings, and conservative text-burst/message formatting policy.
 - Register Discord surface egress for `discord/<instance>` bindings, and have inbound DMs write channel manifests with bindings such as `discord/<instance>/<thread>` while keeping stable generated channel names like `discord~<instance>~<thread>`.
 - Start a gateway listener for configured instances and accept only `MESSAGE_CREATE` events from one-on-one DM channels.
-- Drop guild messages, group DMs, bot-authored messages, self messages, and unauthorized users before publishing anything to Shrimpy channels.
+- Drop guild messages, group DMs, bot-authored messages, self messages, missing/empty allowlists, and unauthorized users before publishing anything to Shrimpy channels.
 - Publish inbound DM text through `ChatSurfacePublisher` with `transport: "discord"`, Discord author id as `transportUserId`, the DM channel/conversation id as `transportChatId`, and mapped stable human identity.
 - Implement outbound egress for Discord-backed channels with Discord's create-message API, 2000-character chunking, and mention suppression by default.
 - Add `shrimpy setup discord` and status/diagnostic inspection enough to verify token, gateway connection, configured authorized users, and recent channel delivery from the CLI.
@@ -46,6 +46,7 @@ Prefer a proven Discord gateway library for the first implementation unless bund
 
 ## Implementation Notes
 - Use Discord user ids for authorization and stable user mapping. Keep display names cosmetic.
+- Treat the authorized Discord user id list as required config. Setup and gateway startup must fail closed when it is missing or empty.
 - Keep outbound `allowed_mentions` closed by default so model output cannot ping roles, `@everyone`, or arbitrary users.
 - For the first pass, text DMs are enough. Attachments can publish `unsupported_media` with filename/type metadata, then images/documents can be promoted in a later item.
 - Discord message content is available in DMs with the app even without broad guild message-content access, but this adapter should avoid guild paths entirely.
@@ -59,4 +60,4 @@ Prefer a proven Discord gateway library for the first implementation unless bund
 - An agent can reply through `send_message` and the message is delivered back to the same Discord DM.
 - `shrimpy setup discord` creates or updates the Discord instance config without disturbing other config.
 - CLI/status output can show configured Discord instances and enough gateway state to debug setup.
-- Tests cover config resolution, inbound DM authorization, dropped non-DM cases, identity mapping, manifest binding, outbound chunking, mention suppression, and egress registration.
+- Tests cover config resolution, missing/empty authorization config, inbound DM authorization, dropped non-DM cases, identity mapping, manifest binding, outbound chunking, mention suppression, and egress registration.
