@@ -22,7 +22,9 @@ Current release: **0.4.0 - Tides Pull Both Ways**.
 - [docs/reference/memory.md](docs/reference/memory.md) — memory model, upkeep, and continuity aspiration.
 - [docs/reference/configuration.md](docs/reference/configuration.md) — workspace config files and day-to-day knobs.
 - [docs/reference/workspace.md](docs/reference/workspace.md) — workspace layout and agent resources.
+- [CHANGELOG.md](CHANGELOG.md) — release history and unreleased changes.
 - [docs/backlog/index.md](docs/backlog/index.md) — active project work.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — issues, PRs, and house rules.
 
 ## 🦐 Setup
 
