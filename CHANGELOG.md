@@ -37,6 +37,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Docs & Agent References
 
+- Added the `shrimpy-dev-git-commit-all` source skill for light-touch grouping and committing of mixed local worktree changes.
 - Added the `shrimpy-dev-live-workspace` source skill for read-only production workspace pattern audits that feed source defaults, skills, docs, or backlog updates.
 - Added the `shrimpy-dev-backlog-worktree-session` source skill for isolated backlog implementation branches, parallelism triage, user-approved merge handoff, and worktree cleanup.
 

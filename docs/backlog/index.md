@@ -19,6 +19,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [APP-001](app-001.md) | todo | P2 | Apps | none | App and config pattern examples |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
 | [SKILL-001](skill-001-pattern-reference-skill.md) | draft | P2 | Skills | none | All-agents pattern reference skill replacing mechanic ideas |
+| [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | draft | P2 | Skills | none | Shrimpy skill coverage gaps |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |

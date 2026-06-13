@@ -48,6 +48,8 @@ assets/       files, media, templates, or other inputs
 
 Skill instructions should reference those files relative to the skill root. Pi's prompt tells the model to resolve relative paths against the `SKILL.md` directory before using tools.
 
+Shrimpy-authored skills should guide agent behavior and point to durable docs wherever possible. Keep feature facts, command catalogs, schemas, and long examples in the owning reference or pattern docs; keep `SKILL.md` focused on trigger scope, workflow choices, safety boundaries, validation, and the few commands an agent must sequence correctly.
+
 Shrimpy relies on Pi for Agent Skills parsing, validation diagnostics, and runtime behavior. `name`, `description`, and `disable-model-invocation` affect Shrimpy sessions. Shrimpy also reads `allowed-tools` as a compatibility declaration: if a skill names tools the current agent does not have active, the skill remains inspectable but is not advertised to Pi for that agent.
 
 ## Loading Model
