@@ -76,7 +76,7 @@ shrimpy gateway logs --follow
 
 On unsupported platforms, run the gateway manually with `shrimpy-gateway` and inspect the workspace log with `shrimpy gateway logs`.
 
-Platform service files are host-owned, not workspace-owned: Linux writes `~/.config/systemd/user/shrimpy-gateway.service`; macOS writes `~/Library/LaunchAgents/io.github.zachmeador.shrimpy.gateway.plist` and launchd stdout/stderr to `~/Library/Logs/Shrimpy/gateway.launchd.log`.
+Platform service files are host-owned, not workspace-owned: Linux writes `~/.config/systemd/user/shrimpy-gateway.service`; macOS writes `~/Library/LaunchAgents/io.github.zachmeador.shrimpy.gateway.plist` and launchd stdout/stderr to `~/Library/Logs/Shrimpy/gateway.launchd.log`. Installed services capture the install-time `PATH`, and the gateway also adds `~/.local/bin` to its process `PATH` at boot so watch actions and gateway sessions can run bare `shrimpy`.
 
 ## macOS Smoke Checklist
 

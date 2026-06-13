@@ -17,6 +17,7 @@ import {
   findRunningGatewayPid,
   terminateGateway,
 } from "./pid-file.js";
+import { pathWithShrimpyBin } from "./path-env.js";
 
 const SERVICE_NAME = "shrimpy-gateway";
 const UNIT_FILE = `${SERVICE_NAME}.service`;
@@ -136,9 +137,17 @@ function gatewayScript(): string {
 export function generateSystemdUnit(opts?: {
   node?: string;
   script?: string;
+  homeDir?: string;
+  env?: NodeJS.ProcessEnv;
 }): string {
   const node = opts?.node ?? nodePath();
   const script = opts?.script ?? gatewayScript();
+  const homeDir = opts?.homeDir ?? homedir();
+  const pathValue = opts?.env?.PATH;
+  const environment = pathValue !== undefined
+    ? `Environment=${systemdQuote(`PATH=${pathWithShrimpyBin(pathValue, homeDir)}`)}
+`
+    : "";
 
   return `[Unit]
 Description=shrimpy gateway
@@ -146,13 +155,20 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${node} ${script}
+${environment}ExecStart=${node} ${script}
 Restart=on-failure
 RestartSec=5
 
 [Install]
 WantedBy=default.target
 `;
+}
+
+function systemdQuote(value: string): string {
+  return `"${value
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("%", "%%")}"`;
 }
 
 export function generateLaunchAgentPlist(opts?: {
@@ -288,7 +304,7 @@ function installSystemd(deps: ResolvedGatewayServiceDeps): void {
   const paths = gatewayServicePaths(deps);
   if (!deps.existsSync(paths.unitDir)) deps.mkdirSync(paths.unitDir, { recursive: true });
 
-  const unit = generateSystemdUnit();
+  const unit = generateSystemdUnit({ env: deps.env, homeDir: deps.homeDir });
   deps.writeFileSync(paths.unitPath, unit, "utf-8");
   console.log(`wrote ${paths.unitPath}`);
 

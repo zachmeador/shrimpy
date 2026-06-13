@@ -15,8 +15,13 @@ import {
   gatewayServiceManager,
   gatewayServicePaths,
   generateLaunchAgentPlist,
+  generateSystemdUnit,
   readGatewayServiceStatus,
 } from "../dist/gateway/service-ctl.js";
+import {
+  ensureShrimpyBinOnPath,
+  pathWithShrimpyBin,
+} from "../dist/gateway/path-env.js";
 
 let testDir: string;
 
@@ -53,7 +58,35 @@ describe("gateway service manager", () => {
     assert.match(plist, /gateway\.launchd\.log/);
   });
 
-  test("installs the Linux systemd user unit without changing command shape", async () => {
+  test("generates a Linux systemd user unit with PATH", () => {
+    const unit = generateSystemdUnit({
+      node: "/usr/bin/node",
+      script: "/home/alice/shrimpy/dist/gateway.js",
+      homeDir: "/home/alice",
+      env: { PATH: "/usr/bin:/bin" } as NodeJS.ProcessEnv,
+    });
+
+    assert.match(unit, /Environment="PATH=\/usr\/bin:\/bin:\/home\/alice\/\.local\/bin"/);
+    assert.match(unit, /ExecStart=\/usr\/bin\/node \/home\/alice\/shrimpy\/dist\/gateway\.js/);
+  });
+
+  test("generates a Linux systemd user unit without PATH when none is provided", () => {
+    const unit = generateSystemdUnit({ env: {} as NodeJS.ProcessEnv });
+
+    assert.doesNotMatch(unit, /Environment=/);
+    assert.match(unit, /ExecStart=.*gateway\.js/);
+  });
+
+  test("escapes systemd PATH values", () => {
+    const unit = generateSystemdUnit({
+      homeDir: "/home/alice",
+      env: { PATH: '/opt/"node":/tmp/100%:/usr/bin' } as NodeJS.ProcessEnv,
+    });
+
+    assert.match(unit, /Environment="PATH=\/opt\/\\"node\\":\/tmp\/100%%:\/usr\/bin:\/home\/alice\/\.local\/bin"/);
+  });
+
+  test("installs the Linux systemd user unit with the caller PATH", async () => {
     const calls: string[][] = [];
 
     await captureConsole(() =>
@@ -62,6 +95,7 @@ describe("gateway service manager", () => {
         deps: {
           platform: "linux",
           homeDir: testDir,
+          env: { PATH: "/usr/local/bin:/usr/bin" } as NodeJS.ProcessEnv,
           execFileSync: (file, args) => {
             calls.push([file, ...args]);
             return "";
@@ -72,7 +106,10 @@ describe("gateway service manager", () => {
 
     const unitPath = join(testDir, ".config", "systemd", "user", "shrimpy-gateway.service");
     assert.equal(existsSync(unitPath), true);
-    assert.match(readFileSync(unitPath, "utf-8"), /ExecStart=.*gateway\.js/);
+    const unit = readFileSync(unitPath, "utf-8");
+    assert.match(unit, /Environment="PATH=\/usr\/local\/bin:\/usr\/bin:/);
+    assert.equal(unit.includes(`${testDir}/.local/bin`), true);
+    assert.match(unit, /ExecStart=.*gateway\.js/);
     assert.deepEqual(calls, [
       ["systemctl", "--user", "daemon-reload"],
       ["systemctl", "--user", "enable", "shrimpy-gateway"],
@@ -153,6 +190,25 @@ describe("gateway service manager", () => {
     assert.deepEqual(calls, [
       ["launchctl", "print", "gui/501/io.github.zachmeador.shrimpy.gateway"],
     ]);
+  });
+
+  test("adds the Shrimpy bin directory to PATH values once", () => {
+    assert.equal(
+      pathWithShrimpyBin("/usr/bin", "/home/alice"),
+      "/usr/bin:/home/alice/.local/bin",
+    );
+    assert.equal(
+      pathWithShrimpyBin("/usr/bin:/home/alice/.local/bin", "/home/alice"),
+      "/usr/bin:/home/alice/.local/bin",
+    );
+  });
+
+  test("updates gateway process env PATH in place", () => {
+    const env = { PATH: "/usr/bin" } as NodeJS.ProcessEnv;
+
+    ensureShrimpyBinOnPath(env, "/home/alice");
+
+    assert.equal(env.PATH, "/usr/bin:/home/alice/.local/bin");
   });
 });
 

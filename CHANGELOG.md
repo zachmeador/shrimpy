@@ -18,6 +18,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
+- Improved gateway service installs and startup PATH handling so watch actions and gateway sessions can resolve `shrimpy` from `~/.local/bin`.
 - Added `state/worker-backends.json` during setup so worker backend availability is recorded without making external CLIs required.
 - Added `state/workers.json` and `runtime/workers/` for inspectable coding worker records and captured worker artifacts.
 - Added per-turn worker `--timeout-ms` handling so long-running starts or amendments can be cancelled automatically.
