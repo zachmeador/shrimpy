@@ -1,11 +1,13 @@
 ---
 name: shrimpy-dev-backlog-worktree-session
-description: Use when implementing one or more Shrimpy backlog items in an isolated git worktree, deciding whether backlog work can run in parallel across agents, choosing a wip/main landing base, preparing user-approved merge handoff, and cleaning up worktrees and branches after landing or abandon.
+description: Use only when the user or another agent explicitly instructs Codex to use this exact skill, create a backlog implementation worktree, or run a backlog worktree session. Do not infer this skill from ordinary Shrimpy backlog implementation requests.
 ---
 
 # Shrimpy Dev Backlog Worktree Session
 
-Use this source skill when a Shrimpy backlog implementation should happen away from the user's active checkout. The goal is to let multiple agents work without trampling each other, while making the merge point explicit and user-controlled.
+Use this source skill only after an explicit user or agent instruction asks for this skill, a backlog implementation worktree, or a backlog worktree session. Do not use it just because the task names a backlog item.
+
+The goal is to let multiple agents work without trampling each other, while making the merge point explicit and user-controlled.
 
 ## Preflight
 
