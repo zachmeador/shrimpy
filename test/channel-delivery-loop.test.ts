@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -185,16 +185,17 @@ describe("agent channel policy", () => {
   });
 
   test("suppresses self-authored agent messages", () => {
-    assert.equal(
-      shouldAgentWakeForChannelMessage(agent("career"), "home", {
-        id: "agent-1",
-        sender: { kind: "agent", actorId: "agent:career" },
-        origin: { transport: "internal" },
-        content: { type: "text", data: { text: "note" } },
-        timestamp: Date.now(),
-      }, { visible: true }),
-      false,
-    );
+    const decision = evaluateAgentChannelPolicy(agent("career"), "home", {
+      id: "agent-1",
+      sender: { kind: "agent", actorId: "agent:career" },
+      origin: { transport: "internal" },
+      content: { type: "text", data: { text: "note" } },
+      timestamp: Date.now(),
+    }, { visible: true });
+
+    assert.equal(decision.action, "ignore");
+    assert.equal(decision.reason, "self-authored channel message");
+    assert.equal(decision.runtimeGuard, undefined);
   });
 
   test("suppresses unaddressed agent-to-agent wakes unless the policy opts in", () => {
@@ -293,10 +294,7 @@ describe("agent channel policy", () => {
     }, { visible: true });
 
     assert.equal(decision.action, "ignore");
-    assert.equal(
-      decision.runtimeGuard,
-      "surface addressing status messages do not wake agents",
-    );
+    assert.equal(decision.runtimeGuard, undefined);
   });
 
   test("lets all-mode channel members handle unaddressed messages", () => {
@@ -396,6 +394,45 @@ describe("agent channel policy", () => {
       }, { visible: true }),
       false,
     );
+  });
+});
+
+describe("gateway runtime state", () => {
+  test("filters historical expected non-reportable loop guard trips", () => {
+    const statePath = join(workspace, "gateway-state.json");
+    writeFileSync(statePath, JSON.stringify({
+      version: 1,
+      updatedAt: 1,
+      handled: {},
+      lanes: {},
+      loopGuards: [
+        {
+          agentId: "shrimpy",
+          channel: "home",
+          messageId: "self-authored-1",
+          reason: "self-authored agent messages are not re-offered to the same agent",
+          at: 1_000,
+        },
+        {
+          agentId: "career",
+          channel: "home",
+          messageId: "surface-status-1",
+          reason: "surface addressing status messages do not wake agents",
+          at: 2_000,
+        },
+        {
+          agentId: "career",
+          channel: "home",
+          messageId: "agent-loop-1",
+          reason: "agent-to-agent wake loop guard",
+          at: 3_000,
+        },
+      ],
+    }));
+
+    const state = loadGatewayRuntimeState(statePath);
+
+    assert.deepEqual(state.loopGuards.map((trip) => trip.messageId), ["agent-loop-1"]);
   });
 });
 

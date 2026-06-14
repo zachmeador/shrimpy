@@ -51,6 +51,10 @@ interface RuntimePathLike {
 
 const MAX_HANDLED_PER_LANE = 1000;
 const MAX_LOOP_GUARD_TRIPS = 100;
+const EXPECTED_NON_REPORTABLE_GUARD_REASONS = new Set([
+  "self-authored agent messages are not re-offered to the same agent",
+  "surface addressing status messages do not wake agents",
+]);
 
 export function gatewayRuntimeStatePath(paths: RuntimePathLike): string {
   return paths.gatewayStatePath
@@ -250,6 +254,7 @@ function parseLoopGuards(raw: unknown): GatewayLoopGuardTrip[] {
     ) {
       return [];
     }
+    if (EXPECTED_NON_REPORTABLE_GUARD_REASONS.has(value.reason)) return [];
     return [{
       agentId: value.agentId,
       channel: value.channel,

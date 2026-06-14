@@ -56,7 +56,6 @@ export function evaluateAgentChannelPolicy(
       ...base,
       action: "ignore",
       reason: "self-authored channel message",
-      runtimeGuard: "self-authored agent messages are not re-offered to the same agent",
     };
   }
 
@@ -68,7 +67,6 @@ export function evaluateAgentChannelPolicy(
       ...base,
       action: "ignore",
       reason: "surface addressing status is informational",
-      runtimeGuard: "surface addressing status messages do not wake agents",
     };
   }
 
