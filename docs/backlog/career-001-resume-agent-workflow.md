@@ -59,7 +59,7 @@ This should start as a mostly prompt/template-driven agent pattern with a small 
 ## Notes
 
 - Related musing: [../musings/app-habitats.md](../musings/app-habitats.md).
-- This can serve as the first serious app-agent example after [APP-001](app-001.md) documents app/config patterns.
+- This can serve as the first serious app-agent example after [SKILL-001](skill-001-shrimpy-workflows-skill.md) establishes all-agent workflow guidance.
 - Useful channels may include `career` for user requests and `career-log` for background maintenance, but the first slice can work from direct sessions.
 - The renderer should be useful outside career workflows; resume is just the first template.
 - The live local career agent pattern works as an implementation sketch, but the shipped version should avoid embedding user-specific names or career facts in tracked templates.

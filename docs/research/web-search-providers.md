@@ -3,9 +3,9 @@
 Date: 2026-05-31
 Status: Research
 
-Survey of web search API providers that can inform optional setup guidance for [SEARCH-001](../backlog/search-001-web-lookup-capability.md): user- or workspace-provided web lookup. This note is background for choosing a simple recommended path, not a plan for a Shrimpy-owned `shrimpy search web` command, provider wrapper, or mandatory tool.
+Survey of web search API providers that can inform optional user- or workspace-provided web lookup. This note is background research, not a plan for a Shrimpy-owned `shrimpy search web` command, provider wrapper, or mandatory tool.
 
-The bias here matches the backlog note: API-native search is better than SERP-page scraping or browser automation for quick lookup when the user wants a search-result style path; auth should map to environment variables or the chosen mechanism's auth path; and any setup recommendation should prefer low-friction onboarding. Cost, longevity, and terms matter as much as raw quality.
+The bias here is: API-native search is better than SERP-page scraping or browser automation for quick lookup when the user wants a search-result style path; auth should map to environment variables or the chosen mechanism's auth path; and any setup recommendation should prefer low-friction onboarding. Cost, longevity, and terms matter as much as raw quality.
 
 Primary sources checked:
 
@@ -31,7 +31,7 @@ Two distinct product shapes hide under "web search API":
 1. **Search-result APIs** — return a ranked list of `{title, url, snippet, date?, score?}`. These are the cleanest shape when the user wants explicit web results.
 2. **Answer / grounding APIs** — return an LLM-generated answer plus citations. This is what **xAI Live Search** and **Perplexity Sonar** actually are. They can still satisfy user-provided web lookup, but they are a different shape and cost model from compact search-result APIs.
 
-Recommended setup posture for SEARCH-001:
+Relevant conclusions:
 
 - **Hosted default recommendation: Tavily.** Purpose-built for agents, clean contract fit, single bearer key, `time_range` and `include_domains`, and a standing free allowance at the time this note was written.
 - **Independent-index recommendation: Brave Search.** Strong general-web quality and simple REST auth. Caveat: Brave removed its free tier in February 2026 and now requires a card-backed credit path.
@@ -165,7 +165,7 @@ The trend is **erosion**: Brave removed its 2k/month tier in February 2026 and B
 - Setup can point privacy/no-vendor users at **SearXNG** when they are willing to self-host.
 - Shrimpy should not add a `shrimpy search web` command or provider wrapper to chase a moving vendor landscape.
 
-## Recommendation for SEARCH-001
+## Recommendation
 
 1. Do not build a Shrimpy-owned provider seam, adapter registry, mock provider, or `shrimpy search web` command.
 2. Let users provide web lookup when they want it, whether that is a tool, model/provider-native feature, browser/fetch workflow, hosted search API, or self-hosted endpoint.

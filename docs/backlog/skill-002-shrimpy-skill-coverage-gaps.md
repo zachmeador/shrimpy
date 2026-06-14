@@ -27,7 +27,7 @@ Good docs-backed examples:
 
 - `channel-routing` points to [channels.md](../reference/channels.md), [surfaces.md](../reference/surfaces.md), and [cli.md](../reference/cli.md), then focuses on naming, routing, and guardrails.
 - `watches` points to [configuration.md](../reference/configuration.md), [runtime.md](../reference/runtime.md), [channels.md](../reference/channels.md), and [cli.md](../reference/cli.md), then focuses on owner, cadence, wake behavior, and safety.
-- [SKILL-001](skill-001-pattern-reference-skill.md) already captures the all-agents pattern-skill direction: pattern content belongs in docs, while the skill indexes and triggers the right pattern.
+- [SKILL-001](skill-001-shrimpy-workflows-skill.md) captures the all-agent workflow-skill direction: the skill is the routing surface, and short docs carry the details.
 
 ## Gaps
 
@@ -37,7 +37,7 @@ Candidate: `skill-management` for the mechanic, plus a repo developer skill such
 
 This is the highest-confidence gap. Shrimpy has a rich `shrimpy skills` CLI and a reference doc, but no Shrimpy-owned behavior guide for when to create a workspace skill, when to bind an external package, when to make an agent-local override, how to validate, and how to keep skill bodies as doc-backed agent guidance. The mechanic also needs clear rules for not copying whole docs into a skill, not treating skill bindings as a permission boundary, and not editing generated mirrors.
 
-Docs to point at: [skills.md](../reference/skills.md), [cli.md](../reference/cli.md), [development.md](../reference/development.md), and [SKILL-001](skill-001-pattern-reference-skill.md). The repo developer variant should also remind agents to edit root `skills/`, run `npm run build:skills`, and preserve `.agents/skills/` and `.claude/skills/` as generated mirrors.
+Docs to point at: [skills.md](../reference/skills.md), [cli.md](../reference/cli.md), [development.md](../reference/development.md), and [SKILL-001](skill-001-shrimpy-workflows-skill.md). The repo developer variant should also remind agents to edit root `skills/`, run `npm run build:skills`, and preserve `.agents/skills/` and `.claude/skills/` as generated mirrors.
 
 ### Context And Prompt Debugging
 
@@ -73,7 +73,7 @@ Docs to point at: [setup.md](../reference/setup.md), [runtime.md](../reference/r
 
 ### Workspace Knowledge And Capture
 
-Candidate: `workspace-knowledge` or folded into the `patterns` skill from [SKILL-001](skill-001-pattern-reference-skill.md).
+Candidate: `workspace-knowledge` or folded into the workflow skill from [SKILL-001](skill-001-shrimpy-workflows-skill.md).
 
 Shrimpy has workspace search and planned vault collection conventions. Agents need a behavioral wrapper for "capture this", "look into this", "save useful research", and "find what we know" workflows. This should probably wait for [VAULT-001](vault-001-default-workspace-collections.md), [VAULT-002](vault-002-main-agent-capture-research.md), and [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) to settle, then become either a focused all-agents skill or one category inside the patterns skill.
 
@@ -89,7 +89,7 @@ Docs to point at: [surfaces.md](../reference/surfaces.md), [channels.md](../refe
 
 ## Existing Skill Cleanup
 
-- `shrimpy-mechanic-ideas` should be replaced by [SKILL-001](skill-001-pattern-reference-skill.md); keep pattern material in docs and leave the skill as an index.
+- `shrimpy-mechanic-ideas` should be replaced by [SKILL-001](skill-001-shrimpy-workflows-skill.md); keep workflow details in docs and leave the skill as the routing surface.
 - `coding-delegation` is the right owner for worker behavior, but it should point at [cli.md](../reference/cli.md) or a future worker reference doc instead of carrying too much command reference inline.
 - `memory-management`, `journal-daily`, and `journal-compact` are useful watch-target skills, but their command recipes and hard-wrapped prose should be revisited when memory/reference docs or pattern docs can own more of the detail.
 - `add-agent` and `setup` intentionally carry more policy because they touch live workspace state. When they change, prefer linking to docs for command details and keeping skill text focused on decisions, safety, and validation.

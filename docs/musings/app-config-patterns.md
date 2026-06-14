@@ -59,7 +59,7 @@ Weak examples:
 
 ## Backlog
 
-Tracked by `docs/backlog/app-001.md`.
+Tracked by `docs/backlog/skill-001-shrimpy-workflows-skill.md`.
 
 ## human notes:
 
