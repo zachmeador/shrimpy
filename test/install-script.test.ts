@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readlinkSync,
   rmSync,
   writeFileSync,
@@ -81,6 +82,8 @@ function createFakeShrimpyRepo(): string {
 }
 
 function runInstall(repo: string, installDir: string, binDir: string): string {
+  const home = join(root, "home");
+  mkdirSync(home, { recursive: true });
   return execFileSync("bash", [installScript], {
     cwd: root,
     encoding: "utf-8",
@@ -91,6 +94,8 @@ function runInstall(repo: string, installDir: string, binDir: string): string {
       SHRIMPY_INSTALL_DIR: installDir,
       SHRIMPY_BIN_DIR: binDir,
       SHRIMPY_NO_AUTO_COMPLETION: "1",
+      HOME: home,
+      SHELL: "/bin/zsh",
     },
   });
 }
@@ -127,6 +132,8 @@ describe("install.sh", () => {
     assert.equal(readlinkSync(join(binDir, "shrimpy")), join(installDir, "dist", "cli.js"));
     assert.equal(readlinkSync(join(binDir, "shrimpy-gateway")), join(installDir, "dist", "gateway.js"));
     assert.equal(readlinkSync(join(binDir, "shrimpy-web")), join(installDir, "dist", "web", "server.js"));
+    assert.match(output, new RegExp(`${escapeRegExp(binDir)}/shrimpy setup`));
+    assert.match(readFileSync(join(root, "home", ".zshrc"), "utf-8"), new RegExp(escapeRegExp(`export PATH="${binDir}:$PATH"`)));
 
     writeFileSync(join(installDir, "LOCAL.txt"), "local change\n", "utf-8");
     assert.throws(
@@ -135,3 +142,7 @@ describe("install.sh", () => {
     );
   });
 });
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

@@ -151,7 +151,7 @@ describe("cmdMechanic", () => {
 
     assert.equal(result, 1);
     assert.match(errors.join("\n"), /mechanic agent not found/);
-    assert.match(errors.join("\n"), /shrimpy setup init/);
+    assert.match(errors.join("\n"), /shrimpy setup/);
   });
 });
 

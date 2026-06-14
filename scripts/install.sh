@@ -5,6 +5,7 @@ repo="${SHRIMPY_REPO:-zachmeador/shrimpy}"
 ref="${SHRIMPY_REF:-main}"
 install_dir="${SHRIMPY_INSTALL_DIR:-$HOME/.local/share/shrimpy/app}"
 bin_dir="${SHRIMPY_BIN_DIR:-$HOME/.local/bin}"
+path_profile=""
 
 usage() {
   cat <<'USAGE'
@@ -49,6 +50,71 @@ need bash
 need git
 need node
 need npm
+
+shell_profile_path() {
+  local shell_name="${SHELL:-}"
+  shell_name="${shell_name##*/}"
+  case "$shell_name" in
+    zsh)
+      echo "${ZDOTDIR:-$HOME}/.zshrc"
+      ;;
+    bash)
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        echo "$HOME/.bash_profile"
+      else
+        echo "$HOME/.bashrc"
+      fi
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+shell_double_quote() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//\$/\\$}"
+  value="${value//\`/\\\`}"
+  printf '%s\n' "$value"
+}
+
+install_path_profile() {
+  if [[ "${SHRIMPY_NO_PATH_PROFILE:-}" == "1" ]]; then
+    return 1
+  fi
+
+  local profile
+  if ! profile="$(shell_profile_path)"; then
+    return 1
+  fi
+
+  local quoted_bin_dir
+  quoted_bin_dir="$(shell_double_quote "$bin_dir")"
+  local block
+  block="$(cat <<EOF
+# Shrimpy PATH
+if [[ ":\$PATH:" != *":$quoted_bin_dir:"* ]]; then
+  export PATH="$quoted_bin_dir:\$PATH"
+fi
+EOF
+)"
+
+  mkdir -p "$(dirname "$profile")"
+  touch "$profile"
+  if grep -Fq "# Shrimpy PATH" "$profile" || grep -Fq -- "$bin_dir" "$profile"; then
+    path_profile="$profile"
+    return 0
+  fi
+
+  if [[ -s "$profile" ]]; then
+    printf '\n%s\n' "$block" >> "$profile"
+  else
+    printf '%s\n' "$block" > "$profile"
+  fi
+  path_profile="$profile"
+}
 
 node -e '
 const min = [22, 19, 0];
@@ -151,7 +217,13 @@ ln -sfn "$install_dir/dist/cli.js" "$bin_dir/shrimpy"
 ln -sfn "$install_dir/dist/gateway.js" "$bin_dir/shrimpy-gateway"
 ln -sfn "$install_dir/dist/web/server.js" "$bin_dir/shrimpy-web"
 
-if [[ "${SHRIMPY_NO_AUTO_COMPLETION:-}" != "1" && "${SHELL##*/}" == "zsh" ]]; then
+path_missing=0
+if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
+  path_missing=1
+  install_path_profile || true
+fi
+
+if [[ "${SHRIMPY_NO_AUTO_COMPLETION:-}" != "1" && "${SHELL:-}" == */zsh ]]; then
   echo "Installing zsh completion"
   if ! "$bin_dir/shrimpy" completion install zsh; then
     echo "warning: zsh completion install failed; run 'shrimpy completion install zsh' later" >&2
@@ -160,10 +232,21 @@ fi
 
 echo
 echo "Shrimpy installed."
-if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
-  echo "Add $bin_dir to PATH before running shrimpy."
+if [[ "$path_missing" == "1" ]]; then
+  echo "This terminal's PATH does not include $bin_dir yet."
+  if [[ -n "$path_profile" ]]; then
+    echo "Added $bin_dir to $path_profile for new shells."
+  else
+    echo "Add $bin_dir to PATH before running bare shrimpy."
+  fi
+  echo "For this terminal, run: export PATH=\"$bin_dir:\$PATH\""
 fi
 echo
 echo "Next:"
-echo "  shrimpy setup init"
-echo "  shrimpy status"
+if [[ "$path_missing" == "1" ]]; then
+  echo "  $bin_dir/shrimpy setup"
+  echo "  $bin_dir/shrimpy status"
+else
+  echo "  shrimpy setup"
+  echo "  shrimpy status"
+fi

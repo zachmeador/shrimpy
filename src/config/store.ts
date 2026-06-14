@@ -46,7 +46,7 @@ export function readConfigFile(
   const configPath = primaryConfigPath(workspace);
   if (!existsSync(configPath)) {
     if (opts.missing === "error") {
-      throw new Error(`config not found: ${configPath}. Run "shrimpy setup init" first.`);
+      throw new Error(`config not found: ${configPath}. Run "shrimpy setup" first.`);
     }
     return { configPath, raw: {} };
   }

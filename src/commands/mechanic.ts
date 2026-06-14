@@ -65,7 +65,7 @@ export async function cmdMechanic(
       : undefined,
     requiredAgent: {
       id: MECHANIC_AGENT_ID,
-      missingMessage: `mechanic agent not found. Run "shrimpy setup init" in a fresh workspace or add agent "${MECHANIC_AGENT_ID}" before using this command.`,
+      missingMessage: `mechanic agent not found. Run "shrimpy setup" in a fresh workspace or add agent "${MECHANIC_AGENT_ID}" before using this command.`,
     },
     resolveSetupState: deps.resolveSetupState,
     runOnboarding: deps.runOnboarding,

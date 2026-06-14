@@ -32,10 +32,10 @@ Install the current `main` build on Linux or macOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
-shrimpy setup init
+~/.local/bin/shrimpy setup
 ```
 
-The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`; add that directory to `PATH` if needed.
+The installer requires Node `>=22.19.0` and `npm`. It installs Shrimpy under `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`.
 
 To install a specific tag, branch, or commit:
 
@@ -49,10 +49,10 @@ For source checkout development:
 npm install
 npm run build
 npm link
-shrimpy setup init
+shrimpy setup
 ```
 
-The installer only installs the CLI. Workspace creation and configuration stay explicit through `shrimpy setup init`.
+The installer only installs the CLI. Workspace creation and configuration stay explicit through `shrimpy setup`.
 
 See [docs/reference/setup.md](docs/reference/setup.md) for macOS gateway behavior and the full setup checklist.
 
