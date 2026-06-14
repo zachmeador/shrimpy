@@ -7,9 +7,9 @@ Depends On: [TUI-004](tui-004-agent-session-navigator.md), [TUI-005](tui-005-mod
 
 ## Why
 
-The active TUI backlog items are small enough to understand individually but connected enough to collide in one implementation branch. TUI-005, TUI-006, and TUI-008 are narrow display fixes. TUI-007 changes the private Pi patch layer those fixes pass through. TUI-004 and TUI-009 both depend on all-agent session inventory and target selection. This note is the coordination map for closing TUI-004 through TUI-009 without losing the boundaries captured in each note.
+The active TUI backlog items are small enough to understand individually but connected enough to expose larger architectural decisions. TUI-005, TUI-006, and TUI-008 are narrow display fixes. TUI-007 changes the private Pi patch layer those fixes pass through. TUI-004 and TUI-009 both depend on all-agent session inventory and target selection. Together they force decisions about display-only messages, command ownership, session inventory, runtime target switching, and how much Shrimpy should keep patching Pi internals.
 
-The immediate worktree goal is review of this plan. After maintainer review, the same branch may become the coordinated implementation branch, or the narrow display fixes may be split into child worktrees while this note remains the merge map.
+This worktree exists to make those architectural pieces explicit before implementation. The immediate goal is review of this plan. After maintainer review, the same branch becomes the coordinated implementation branch for the full closeout unless a phase is deliberately split into a child branch with this note as the merge map.
 
 ## Current State
 
@@ -19,6 +19,24 @@ The immediate worktree goal is review of this plan. After maintainer review, the
 - TUI-007 reduces and hardens Shrimpy's private Pi TUI patch surface, including command definition unification and install-time contract checks.
 - TUI-008 strips Shrimpy turn-context envelopes from `/resume` previews without changing stored transcripts.
 - TUI-009 changes bare interactive startup so `shrimpy` can resume the most recent active TUI agent instead of always selecting the first configured agent.
+
+## Architectural Smells
+
+- Display messages currently mix different visibility contracts. Some custom messages are part of the model-visible transcript, such as `shrimpy_model_switch`; command output and local status blocks want to be visible in the TUI without entering provider context.
+- Shrimpy command behavior is split between Pi extension registration and private submit-handler patches. That creates duplicate command definitions and makes command output policy harder to reason about.
+- TUI customization relies on private Pi internals without one shared install-time contract check, so Pi upgrades can fail at runtime after tests pass against Shrimpy fakes.
+- Session selection exists per agent, while the desired TUI behavior is workspace-level. TUI-004 and TUI-009 should share an inventory/resolution service instead of adding two ways to scan session storage.
+- Cross-agent session switching needs transactional semantics. A failed target open must leave the current TUI session intact; preflight is necessary but not enough if Pi tears down the current session before replacement.
+- Startup agent choice and in-TUI agent switching are the same product concept at different times: "which agent/session is this TUI attached to?" They should not drift into separate policies.
+
+## Architectural Decisions
+
+- Custom messages need explicit visibility intent at creation and rendering time: model-visible, display-only, or status/control. TUI-005 keeps `shrimpy_model_switch` model-visible. TUI command output should wait for a Pi-supported display-only path before migrating away from the private command-surface patch.
+- Track Pi's `excludeFromContext` work through [earendil-works/pi#5654](https://github.com/earendil-works/pi/issues/5654) and the linked implementation PR. Do not assume the final upstream API shape until the branch used by Shrimpy is confirmed.
+- Define one Shrimpy TUI command registry that separates discovery/completion, execution, rendering, and transcript visibility policy. Avoid a single generic command abstraction that hides those differences.
+- Define one workspace session inventory service before implementing either `/agent` navigation or bare-startup most-recent-agent selection.
+- Define a TUI session target abstraction that can prepare a target agent/session, validate it, and only then hand it to Pi's switch path. If Pi cannot provide atomic replacement, keep the Shrimpy workflow to same-agent opens until the failure semantics are safe.
+- Prefer Pi extension APIs for status/footer/custom rendering. Any remaining private hook must be covered by a shared contract checker from TUI-007.
 
 ## Connection Map
 
@@ -32,13 +50,14 @@ The immediate worktree goal is review of this plan. After maintainer review, the
 
 ## Sequencing
 
-1. Review this plan and confirm the TUI-009 one-shot prompt decision.
+1. Architecture review gate: confirm the visibility policy, command registry shape, session inventory owner, TUI switch failure semantics, and the TUI-009 one-shot prompt decision.
 2. Land low-risk display fixes as independent commits: TUI-005, TUI-006, then TUI-008. These should be easy to cherry-pick or split if the broader branch needs to pause.
-3. Land the TUI-007 patch-surface hardening before adding the broad `/agent` selector, so new command and selector work enters through the cleaned-up seams.
-4. Build the shared session inventory slice from TUI-004A and expose CLI coverage from TUI-004B.
+3. Patch-boundary gate: land the TUI-007 contract checker and command-definition cleanup that can ship without upstream Pi changes. Leave display-only command migration gated on the final Pi `excludeFromContext` or equivalent API.
+4. Inventory gate: build the shared session inventory slice from TUI-004A and expose CLI coverage from TUI-004B.
 5. Use that inventory for TUI-009's bare interactive startup resolver and docs updates.
-6. Finish TUI-004's runtime target resolver, footer indicator, `/agent` selector, and gateway-session guardrails.
-7. Mark each linked backlog note `review` or close it only after its own `Done` section is satisfied; close this meta note last.
+6. Switch-safety gate: prove target preparation and failure recovery before enabling cross-agent session replacement in the TUI.
+7. Finish TUI-004's runtime target resolver, footer indicator, `/agent` selector, and gateway-session guardrails.
+8. Mark each linked backlog note `review` or close it only after its own `Done` section is satisfied; close this meta note last.
 
 ## Collision Risks
 
@@ -46,6 +65,7 @@ The immediate worktree goal is review of this plan. After maintainer review, the
 - `src/sessions/open.ts`, `src/sessions/direct.ts`, `src/sessions/service.ts`, and `src/sessions/storage.ts` are shared by TUI-004 and TUI-009.
 - `extensions/shrimpy-commands.ts` and `src/sessions/pi-resources.ts` are shared by TUI-004F, TUI-005, and TUI-007.
 - TUI tests may need shared fixtures for fake Pi internals; update those fixtures once per branch instead of separately per item.
+- Upstream Pi changes can invalidate the TUI-007 migration shape. Re-check the linked Pi issue/PR before implementing display-only command output through extensions.
 
 ## Boundaries
 
@@ -53,11 +73,13 @@ The immediate worktree goal is review of this plan. After maintainer review, the
 - Do not change model-visible transcript content for display-only fixes.
 - Do not attach a TUI directly to a gateway-owned active session without explicit later design and confirmation.
 - Do not add compatibility shims or legacy command aliases while replacing TUI behavior.
+- Do not treat upstream Pi display-only message support as landed until Shrimpy has pinned or upgraded to a Pi version that carries the confirmed API.
 - Do not bundle unrelated web, chat-surface, setup, or vault work into this branch.
 
 ## Done
 
 - The maintainer has reviewed and accepted or amended this sequencing plan.
+- The architectural decisions for visibility, command ownership, inventory, and switch failure semantics are captured before code changes.
 - The active TUI notes have a single documented implementation order and collision map.
 - The branch can proceed as the coordinated closeout branch for TUI-004 through TUI-009, or split narrow items into child branches with this note as the merge map.
 - After implementation, TUI-004 through TUI-009 are each marked ready for review or closed according to their own `Done` sections, and this note is updated with the final landing summary.
