@@ -6,6 +6,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
+- Improved the curl installer so reruns tolerate installer-generated `package-lock.json` changes and fresh shells get direct `~/.local/bin/shrimpy setup` next steps.
 - Added `vault-capture` as an all-agent source-default skill for recipes, inbox captures, research packets, source metadata, worker handoffs, and explicit versioning of kept vault files.
 
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
@@ -37,7 +38,6 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
-- Improved the curl installer so reruns tolerate installer-generated `package-lock.json` changes and fresh shells get direct `~/.local/bin/shrimpy setup` next steps.
 - Changed `shrimpy setup telegram` to require at least one allowed chat ID and poll Telegram directly for discovery instead of asking users to start an open gateway first.
 - Improved gateway service installs and startup PATH handling so watch actions and gateway sessions can resolve `shrimpy` from `~/.local/bin`.
 - Added `state/worker-backends.json` during setup so worker backend availability is recorded without making external CLIs required.
