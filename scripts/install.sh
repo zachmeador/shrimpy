@@ -148,19 +148,14 @@ case "$repo" in
   *) clone_url="https://github.com/$repo.git" ;;
 esac
 
-has_git_changes() {
+has_user_git_changes() {
   local dir="$1"
   if ! git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "error: install directory has a .git directory but is not a readable git worktree: $dir" >&2
     exit 1
   fi
-  if ! git -C "$dir" diff --quiet --ignore-submodules --; then
-    return 0
-  fi
-  if ! git -C "$dir" diff --cached --quiet --ignore-submodules --; then
-    return 0
-  fi
-  [[ -n "$(git -C "$dir" ls-files --others --exclude-standard)" ]]
+  [[ -n "$(git -C "$dir" status --porcelain --untracked-files=all -- . \
+    ":(exclude)package-lock.json")" ]]
 }
 
 checkout_ref() {
@@ -181,7 +176,7 @@ checkout_ref() {
   git checkout --detach "$target"
 }
 
-if [[ -d "$install_dir/.git" && "${SHRIMPY_FORCE:-}" != "1" ]] && has_git_changes "$install_dir"; then
+if [[ -d "$install_dir/.git" && "${SHRIMPY_FORCE:-}" != "1" ]] && has_user_git_changes "$install_dir"; then
   echo "error: install directory has local git changes: $install_dir" >&2
   echo "Commit or move those changes, or set SHRIMPY_FORCE=1 to replace the install-managed checkout." >&2
   exit 1
@@ -205,7 +200,7 @@ echo "Building Shrimpy"
 npm run build
 
 echo "Pruning development dependencies"
-npm prune --omit=dev
+npm prune --omit=dev --package-lock=false
 
 echo "Installing app to $install_dir"
 rm -rf "$install_dir"

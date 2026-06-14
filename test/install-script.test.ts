@@ -30,6 +30,7 @@ afterEach(() => {
 function createFakeShrimpyRepo(): string {
   const repo = join(root, "repo");
   mkdirSync(join(repo, "src"), { recursive: true });
+  writeFileSync(join(repo, ".gitignore"), "node_modules/\ndist/\n", "utf-8");
   writeFileSync(join(repo, "src", "index.ts"), "export const ok = true;\n", "utf-8");
   writeFileSync(
     join(repo, "build.mjs"),
@@ -134,6 +135,9 @@ describe("install.sh", () => {
     assert.equal(readlinkSync(join(binDir, "shrimpy-web")), join(installDir, "dist", "web", "server.js"));
     assert.match(output, new RegExp(`${escapeRegExp(binDir)}/shrimpy setup`));
     assert.match(readFileSync(join(root, "home", ".zshrc"), "utf-8"), new RegExp(escapeRegExp(`export PATH="${binDir}:$PATH"`)));
+
+    writeFileSync(join(installDir, "package-lock.json"), "installer-generated lockfile change\n", "utf-8");
+    assert.doesNotThrow(() => runInstall(repo, installDir, binDir));
 
     writeFileSync(join(installDir, "LOCAL.txt"), "local change\n", "utf-8");
     assert.throws(
