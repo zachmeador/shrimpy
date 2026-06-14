@@ -16,7 +16,7 @@ The goal is to let multiple agents work without trampling each other, while maki
    - `git status --short --branch`
    - `git worktree list`
    - `git branch --list 'codex/*'`
-3. Identify the intended landing target. Use `wip` by default for experimental backlog work. Use `main` only when the user explicitly wants the work based on `main` or the item is already coherent enough for direct mainline preparation.
+3. Identify the intended landing target and base branch. If the user did not name one, default to the current checkout branch when it is clean and appropriate. Use `main` when the work is ready for direct mainline preparation or the user asks for it. Use another running branch, including `wip`, only when the user names it, the current checkout is already on it, or repo state makes that target clearly relevant. Treat `wip` as an optional running branch for experimental paths, not a required default.
 4. Identify likely touched areas from the backlog note's `Touches`, `Build`, `Done`, and dependency sections. Search source when the note is vague.
 5. Alert the user before starting if the item looks wide-spanning or likely to collide with other agents. Name the likely conflict paths and recommend either single-threaded work or a coordinator branch.
 
@@ -48,9 +48,11 @@ If the branch, path, or worktree already exists, inspect it instead of overwriti
 
 Base branch rule:
 
-- Landing to `wip`: create the worktree branch from `wip`.
+- Landing to a named branch: create the worktree branch from that branch after confirming it exists locally or remotely.
+- Landing to the current branch: create the worktree branch from `HEAD` or the branch name, whichever makes the base clearer in the handoff.
 - Landing to `main`: create the worktree branch from `main`.
-- Unsure: use `wip` and tell the user that direct `main` landing would require a main-based branch or cherry-pick later.
+- Landing to `wip`: create the worktree branch from `wip` only when `wip` is the intended target and exists.
+- Unsure: use the current clean branch as the base and tell the user that a different final target may require a rebase or cherry-pick later.
 
 ## Work In Isolation
 
@@ -64,7 +66,7 @@ Commit completed work on the worktree branch unless the user asked for an uncomm
 
 ## Merge Handoff
 
-Only the user can approve the final merge out of the worktree. The agent may prepare the branch, summarize it, and recommend a landing target, but must not self-approve the merge into `wip` or `main`.
+Only the user can approve the final merge out of the worktree. The agent may prepare the branch, summarize it, and recommend a landing target, but must not self-approve the merge into the target branch.
 
 Before requesting approval, report:
 
@@ -75,7 +77,7 @@ Before requesting approval, report:
 - known merge risks, especially shared files touched by other active worktrees;
 - exact recommended landing shape: merge, squash merge, or cherry-pick.
 
-For `main`, do not merge a branch based on `wip` directly into `main`. Create or use a main-based branch and cherry-pick the relevant commits after the user approves that landing strategy.
+For `main`, do not merge a branch based on another target directly into `main`. Create or use a main-based branch and cherry-pick the relevant commits after the user approves that landing strategy.
 
 ## Cleanup
 
