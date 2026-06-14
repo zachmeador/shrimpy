@@ -1,6 +1,6 @@
 # 🦐 TUI-006: Expanded Tool Call Inspection
 
-Status: todo
+Status: review
 Priority: P2
 Area: TUI
 Depends On: none

@@ -1,6 +1,10 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
-import type { InteractiveMode } from "@earendil-works/pi-coding-agent";
+import {
+  SessionManager,
+  type InteractiveMode,
+  type SessionInfo,
+} from "@earendil-works/pi-coding-agent";
 import { stripPromptTurnContextForDisplay } from "../context/index.js";
 
 interface AddMessageOptions {
@@ -15,9 +19,20 @@ interface InteractiveModeContextInternals {
   addMessageToChat(message: AgentMessage, options?: AddMessageOptions): void;
 }
 
+type SessionManagerWithPreviewPatch = typeof SessionManager & {
+  __shrimpyPreviewContextStrippingInstalled?: boolean;
+};
+type SessionListProgress = (loaded: number, total: number) => void;
+type SessionListAll = (
+  sessionDirOrOnProgress?: string | SessionListProgress,
+  onProgress?: SessionListProgress,
+) => Promise<SessionInfo[]>;
+
 export function installShrimpyContextRendering(
   interactive: InteractiveMode,
 ): void {
+  installSessionPreviewContextStripping();
+
   const mode = interactive as unknown as InteractiveModeContextInternals;
   const originalAddMessageToChat = mode.addMessageToChat.bind(mode);
 
@@ -34,6 +49,38 @@ export function installShrimpyContextRendering(
 
 export function stripLeadingContextBlockForDisplay(text: string): string {
   return stripPromptTurnContextForDisplay(text);
+}
+
+export function stripSessionPreviewContextForDisplay(session: SessionInfo): SessionInfo {
+  if (session.name) return session;
+
+  const firstMessage = stripLeadingContextBlockForDisplay(session.firstMessage);
+  return firstMessage === session.firstMessage
+    ? session
+    : { ...session, firstMessage };
+}
+
+function installSessionPreviewContextStripping(): void {
+  const manager = SessionManager as SessionManagerWithPreviewPatch;
+  if (manager.__shrimpyPreviewContextStrippingInstalled) return;
+
+  const originalList = manager.list.bind(manager);
+  const originalListAll = manager.listAll.bind(manager) as SessionListAll;
+
+  manager.list = async (
+    cwd: string,
+    sessionDir?: string,
+    onProgress?: SessionListProgress,
+  ) => (await originalList(cwd, sessionDir, onProgress))
+    .map(stripSessionPreviewContextForDisplay);
+
+  manager.listAll = (async (
+    sessionDirOrOnProgress?: string | SessionListProgress,
+    onProgress?: SessionListProgress,
+  ) => (await originalListAll(sessionDirOrOnProgress, onProgress))
+    .map(stripSessionPreviewContextForDisplay)) as typeof SessionManager.listAll;
+
+  manager.__shrimpyPreviewContextStrippingInstalled = true;
 }
 
 function collapseUserContextForDisplay(message: AgentMessage): AgentMessage {

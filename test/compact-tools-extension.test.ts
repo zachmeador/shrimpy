@@ -76,6 +76,41 @@ test("compact write rows render written content when expanded", () => {
   assert.doesNotMatch(expanded, /Successfully wrote/);
 });
 
+test("compact bash rows show full command only when expanded", () => {
+  initTheme("dark", false);
+  const bashTool = registerCompactTools().get("bash");
+  assert.ok(bashTool);
+
+  const tail = "visible-expanded-tail-marker";
+  const command = `node -e "console.log('${"x".repeat(120)}-${tail}')"`;
+  const component = new ToolExecutionComponent(
+    "bash",
+    "call-bash",
+    { command },
+    {},
+    bashTool,
+    { requestRender(): void {} } as never,
+    process.cwd(),
+  );
+  component.markExecutionStarted();
+  component.setArgsComplete();
+  component.updateResult({
+    content: [{ type: "text", text: "done" }],
+    details: undefined,
+    isError: false,
+  });
+
+  const collapsed = stripAnsi(component.render(120).join("\n"));
+  assert.match(collapsed, /ok bash /);
+  assert.doesNotMatch(collapsed, new RegExp(tail));
+
+  component.setExpanded(true);
+  const expanded = stripAnsi(component.render(220).join("\n"));
+  assert.match(expanded, /\$ node -e/);
+  assert.match(expanded, new RegExp(tail));
+  assert.match(expanded, /done/);
+});
+
 function registerCompactTools(): Map<string, ToolDefinition> {
   const tools = new Map<string, ToolDefinition>();
   compactToolsExtension({

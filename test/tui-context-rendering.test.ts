@@ -6,6 +6,7 @@ import { formatPromptWithTurnContext } from "../dist/context/index.js";
 import {
   installShrimpyContextRendering,
   stripLeadingContextBlockForDisplay,
+  stripSessionPreviewContextForDisplay,
 } from "../dist/tui/shrimpy-context-rendering.js";
 import { installShrimpyToolRendering } from "../dist/tui/shrimpy-tool-rendering.js";
 
@@ -172,4 +173,28 @@ test("Shrimpy context rendering follows Ctrl+O expansion rebuild state", () => {
     timestamp: 1,
   });
   assert.equal(captured[1], message);
+});
+
+test("session preview context stripping sanitizes unnamed session previews only", () => {
+  const baseSession = {
+    path: "/tmp/session.jsonl",
+    id: "session",
+    cwd: "/tmp",
+    created: new Date("2026-06-14T00:00:00Z"),
+    modified: new Date("2026-06-14T00:00:00Z"),
+    messageCount: 1,
+    firstMessage: formatPromptWithTurnContext("resume this", "private turn context"),
+    allMessagesText: "original transcript text",
+  };
+
+  assert.deepEqual(stripSessionPreviewContextForDisplay(baseSession), {
+    ...baseSession,
+    firstMessage: "resume this",
+  });
+
+  const namedSession = {
+    ...baseSession,
+    name: "Named Session",
+  };
+  assert.equal(stripSessionPreviewContextForDisplay(namedSession), namedSession);
 });

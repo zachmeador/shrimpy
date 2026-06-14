@@ -1,6 +1,6 @@
 # 🦐 TUI-005: Model Switch Message Renderer
 
-Status: todo
+Status: review
 Priority: P2
 Area: TUI
 Depends On: none

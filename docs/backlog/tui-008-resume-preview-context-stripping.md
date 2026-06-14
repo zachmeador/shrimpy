@@ -1,6 +1,6 @@
 # 🦐 TUI-008: Resume Preview Context Stripping
 
-Status: todo
+Status: review
 Priority: P2
 Area: TUI
 Depends On: none

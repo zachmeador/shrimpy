@@ -93,7 +93,9 @@ export default function (pi: ExtensionAPI) {
       return `${clip(args.path)} (${lines} lines)`;
     }, { renderExpandedCallWithOriginal: true }),
     compactBuiltInTool(createEditToolDefinition, (args) => clip(args.path)),
-    compactBuiltInTool(createBashToolDefinition, (args) => clip(args.command)),
+    compactBuiltInTool(createBashToolDefinition, (args) => clip(args.command), {
+      renderExpandedCallWithOriginal: true,
+    }),
     compactBuiltInTool(createGrepToolDefinition, (args) =>
       `${clip(args.pattern)} in ${clip(args.path ?? ".")}`
     ),

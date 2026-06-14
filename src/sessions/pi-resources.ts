@@ -20,6 +20,7 @@ const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "setup.ts"),
   join(projectRoot, "extensions", "compaction-bias.ts"),
   join(projectRoot, "extensions", "compact-tools.ts"),
+  join(projectRoot, "extensions", "model-switch-renderer.ts"),
   join(projectRoot, "extensions", "thinking.ts"),
   join(projectRoot, "extensions", "shrimpy-commands.ts"),
 ];
