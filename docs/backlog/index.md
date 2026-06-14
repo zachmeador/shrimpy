@@ -12,6 +12,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
 | [TUI-008](tui-008-resume-preview-context-stripping.md) | todo | P2 | TUI | none | Strip turn-context envelopes from `/resume` previews |
 | [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | draft | P2 | TUI | none | Bare `shrimpy` resumes the most recent TUI agent |
+| [TUI-010](tui-010-tui-backlog-closeout-plan.md) | draft | P2 | TUI | [TUI-004](tui-004-agent-session-navigator.md), [TUI-005](tui-005-model-switch-message-renderer.md), [TUI-006](tui-006-expanded-tool-call-inspection.md), [TUI-007](tui-007-pi-patch-surface-reduction.md), [TUI-008](tui-008-resume-preview-context-stripping.md), [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | TUI backlog closeout coordination |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
 | [SKILL-001](skill-001-shrimpy-workflows-skill.md) | todo | P2 | Skills | none | All-agent Shrimpy workflows skill |
