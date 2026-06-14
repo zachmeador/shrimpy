@@ -75,7 +75,7 @@ Docs to point at: [setup.md](../reference/setup.md), [runtime.md](../reference/r
 
 Candidate: `workspace-knowledge` or folded into the workflow skill from [SKILL-001](skill-001-shrimpy-workflows-skill.md).
 
-Shrimpy has workspace search and planned vault collection conventions. Agents need a behavioral wrapper for "capture this", "look into this", "save useful research", and "find what we know" workflows. This should probably wait for [VAULT-001](vault-001-default-workspace-collections.md), [VAULT-002](vault-002-main-agent-capture-research.md), and [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) to settle, then become either a focused all-agents skill or one category inside the patterns skill.
+Shrimpy has workspace search and a source-default `vault-capture` skill. Agents need a behavioral wrapper for "find what we know" workflows after [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) settles, either as a focused all-agent skill or one category inside the patterns skill.
 
 Docs to point at: [workspace.md](../reference/workspace.md), [memory.md](../reference/memory.md), [cli.md](../reference/cli.md), and future vault/pattern docs.
 

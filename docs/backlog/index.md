@@ -6,8 +6,6 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [VAULT-001](vault-001-default-workspace-collections.md) | review | P2 | Workspace | none | Default workspace collection conventions |
-| [VAULT-002](vault-002-main-agent-capture-research.md) | review | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md) | Main agent capture and research workflow |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |
 | [TUI-006](tui-006-expanded-tool-call-inspection.md) | todo | P2 | TUI | none | Expanded tool call inspection |
@@ -15,7 +13,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-008](tui-008-resume-preview-context-stripping.md) | todo | P2 | TUI | none | Strip turn-context envelopes from `/resume` previews |
 | [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | draft | P2 | TUI | none | Bare `shrimpy` resumes the most recent TUI agent |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
-| [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | [VAULT-001](vault-001-default-workspace-collections.md) | Career agent resume workflow |
+| [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
 | [SKILL-001](skill-001-shrimpy-workflows-skill.md) | todo | P2 | Skills | none | All-agent Shrimpy workflows skill |
 | [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | draft | P2 | Skills | none | Shrimpy skill coverage gaps |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |

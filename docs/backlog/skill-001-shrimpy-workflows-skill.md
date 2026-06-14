@@ -47,7 +47,7 @@ The current mechanic-only `shrimpy-mechanic-ideas` skill mixes owner choices, ap
 
 - `memory.md` should be about lookup behavior, not long-term memory policy. It should tell agents how to search and inspect existing workspace knowledge before inventing answers.
 - `workers.md` should align with the existing `coding-delegation` skill and worker CLI, while staying useful for non-coding bounded delegation if that path exists.
-- `vault.md` should align with [VAULT-001](vault-001-default-workspace-collections.md) and [VAULT-002](vault-002-main-agent-capture-research.md) without depending on those items being complete.
+- `vault.md` should align with the landed `vault-capture` skill and [workspace.md](../reference/workspace.md).
 - The docs can mention concrete examples such as reminders, briefings, monitors, trackers, career workflows, and character agents, but the durable entry points remain watches, agents, channels, vault, memory, and workers.
 
 ## Done

@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Apps
-Depends On: [VAULT-001](vault-001-default-workspace-collections.md)
+Depends On: none
 
 ## Why
 
