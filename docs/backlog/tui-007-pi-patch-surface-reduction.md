@@ -34,7 +34,7 @@ Shrimpy customizes Pi at three levels: the public session SDK in `src/sessions/`
 ## Decisions
 
 - The model-favorites patch is the deepest reach (duck-typed live patch of a Pi component instance). Either upstream a favorites feature to Pi or keep the patch explicitly marked first-to-delete on breakage. Do not grow it.
-- TUI-005 model-switch rendering uses Pi's `registerMessageRenderer` path, already noted in that item. TUI-004F's footer agent indicator uses `ctx.ui.setStatus()`, already noted in TUI-004.
+- Model-switch rendering now uses Pi's `registerMessageRenderer` path. TUI-004F's footer agent indicator uses `ctx.ui.setStatus()`, already noted in TUI-004.
 - A TUI rebuild on pi-tui primitives is out of scope and not currently justified; the tipping point would be a UI shape `InteractiveMode` cannot express (multi-pane, multiple visible sessions), not more tweaks of the current shape.
 
 ## Boundaries
