@@ -1,6 +1,6 @@
 # 🦐 VAULT-002: Main Agent Capture And Research Workflow
 
-Status: todo
+Status: review
 Priority: P2
 Area: Workspace
 Depends On: [VAULT-001](vault-001-default-workspace-collections.md)
@@ -13,9 +13,9 @@ This is not a new memory database. It is a small workspace habit layered on top 
 
 ## Current State
 
-- Only the broad agent-vault convention exists today. There is no starter guidance for capture, catalog, inbox, research packets, or vault indexes.
+- The source-default `vault-capture` skill covers capture, catalog, inbox, research packets, and vault indexes for the default `shrimpy` agent.
 - Worker sessions are implemented. The all-agent `coding-delegation` skill defines coding handoff packets.
-- No helper code or tests exist for research packet path generation.
+- No helper code was added for research packet path generation; the path shape remains a convention in the skill and reference docs.
 
 ## Build
 

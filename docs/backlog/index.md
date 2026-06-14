@@ -6,8 +6,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [VAULT-001](vault-001-default-workspace-collections.md) | todo | P2 | Workspace | none | Default workspace collection conventions |
-| [VAULT-002](vault-002-main-agent-capture-research.md) | todo | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md) | Main agent capture and research workflow |
+| [VAULT-001](vault-001-default-workspace-collections.md) | review | P2 | Workspace | none | Default workspace collection conventions |
+| [VAULT-002](vault-002-main-agent-capture-research.md) | review | P2 | Workspace | [VAULT-001](vault-001-default-workspace-collections.md) | Main agent capture and research workflow |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-005](tui-005-model-switch-message-renderer.md) | todo | P2 | TUI | none | Native model-switch custom message rendering |
 | [TUI-006](tui-006-expanded-tool-call-inspection.md) | todo | P2 | TUI | none | Expanded tool call inspection |

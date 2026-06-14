@@ -60,6 +60,12 @@ describe("setupInit", () => {
       "journal-compact",
       "SKILL.md",
     );
+    const vaultCaptureSkillPath = join(
+      workspace,
+      "skills",
+      "vault-capture",
+      "SKILL.md",
+    );
     const setupSkillPath = join(
       mechanicRoot,
       "skills",
@@ -154,6 +160,7 @@ describe("setupInit", () => {
     assert.equal(existsSync(memoryManagementSkillPath), false);
     assert.equal(existsSync(journalDailySkillPath), false);
     assert.equal(existsSync(journalCompactSkillPath), false);
+    assert.equal(existsSync(vaultCaptureSkillPath), false);
     assert.equal(existsSync(setupSkillPath), false);
     assert.equal(existsSync(mechanicSkillPath), false);
     assert.equal(existsSync(addAgentSkillPath), false);
@@ -262,6 +269,9 @@ describe("setupInit", () => {
     assert.match(system, /shrimpy channels read <name>/);
     assert.match(system, /Storage Breadcrumbs/);
     assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
+    assert.doesNotMatch(system, /vault-capture/);
+    assert.doesNotMatch(system, /source URL or origin, capture timestamp, the user's request/);
+    assert.doesNotMatch(system, /agents\/shrimpy\/vault\/research\/<YYYY-MM-DD>-<slug>/);
     assert.match(system, /persist the relevant Markdown note before claiming it will be remembered/);
     assert.equal(system.includes(projectRoot), true);
     assert.equal(system.includes(join(projectRoot, "src")), true);
@@ -271,6 +281,7 @@ describe("setupInit", () => {
     const soul = readFileSync(soulPath, "utf-8");
     // very important
     assert.match(soul, /Enjoys adding the shrimpy emoji to responses\. 🦐/u);
+    assert.doesNotMatch(soul, /vault-capture/);
     const mechanicSoul = readFileSync(mechanicSoulPath, "utf-8");
     assert.match(mechanicSoul, /You are Mechanic/);
     assert.match(mechanicSoul, /setup, repair, configuration/);
@@ -280,6 +291,10 @@ describe("setupInit", () => {
     assert.match(workspaceDoc, /This workspace is the home system/);
     assert.match(workspaceDoc, /Each agent keeps saved files and collections under `agents\/<id>\/vault\/`/);
     assert.match(workspaceDoc, /Each agent keeps code, apps, experiments, and focused work folders under `agents\/<id>\/projects\/`/);
+    assert.doesNotMatch(workspaceDoc, /vault-capture/);
+    assert.doesNotMatch(workspaceDoc, /durable user-owned collections such as recipes/);
+    assert.doesNotMatch(workspaceDoc, /agents\/<id>\/vault\/recipes\/<slug>\.md/);
+    assert.equal(workspaceDoc.includes("agents/shrimpy/vault/inbox/"), false);
     assert.match(workspaceDoc, /Install-managed Shrimpy app checkout lives under/);
     assert.match(workspaceDoc, /Do not put reports in `context\/`/);
     assert.equal(workspaceDoc.includes(projectRoot), true);

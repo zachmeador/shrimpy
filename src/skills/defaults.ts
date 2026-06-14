@@ -62,6 +62,11 @@ const DEFAULT_SKILLS: DefaultSkillDefinition[] = [
     { kind: "all" },
   ),
   defaultSkill(
+    "vault-capture",
+    setupTemplatePath("skills", "vault-capture"),
+    { kind: "all" },
+  ),
+  defaultSkill(
     "journal-daily",
     setupTemplatePath("skills", "journal-daily"),
     { kind: "all" },

@@ -110,6 +110,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>coding-delegation<\/name>/);
     assert.match(parsed.systemPrompt, /<name>codex-web-search<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>vault-capture<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
     assert.match(parsed.systemPrompt, new RegExp(`\\(${Intl.DateTimeFormat().resolvedOptions().timeZone}, UTC[+-]\\d{2}:\\d{2}\\)`));
@@ -372,6 +373,8 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /memory-management \[default\]/);
     assert.match(lines.join("\n"), /coding-delegation \[default\]/);
     assert.match(lines.join("\n"), /codex-web-search \[default\]/);
+    assert.match(lines.join("\n"), /vault-capture \[default\]/);
+    assert.match(lines.join("\n"), /Save links, files, notes, recipes/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[default\]/);
     assert.match(lines.join("\n"), /journal-compact \[default\]/);
@@ -390,6 +393,7 @@ describe("skill context inspection", () => {
     assert.match(output, /memory-management \[default\]/);
     assert.match(output, /coding-delegation \[default\]/);
     assert.match(output, /codex-web-search \[default\]/);
+    assert.match(output, /vault-capture \[default\]/);
     assert.match(output, /journal-daily \[default\]/);
     assert.match(output, /journal-compact \[default\]/);
     assert.doesNotMatch(output, /add-agent/);
@@ -883,6 +887,7 @@ describe("skill service", () => {
       "security-audit:default",
       "setup:default",
       "shrimpy-mechanic-ideas:default",
+      "vault-capture:default",
       "watches:default",
       "workspace-migration:default",
     ]);
@@ -894,6 +899,7 @@ describe("skill service", () => {
       "journal-compact:default",
       "journal-daily:default",
       "memory-management:default",
+      "vault-capture:default",
     ]);
 
     const skill = getSkillView(runtime, "setup", "mechanic");
@@ -909,6 +915,9 @@ describe("skill service", () => {
     const codingDelegation = getSkillView(runtime, "coding-delegation", "shrimpy");
     assert.equal(codingDelegation.available, true);
     assert.deepEqual(codingDelegation.requiredTools, ["bash"]);
+    const vaultCapture = getSkillView(runtime, "vault-capture", "shrimpy");
+    assert.equal(vaultCapture.available, true);
+    assert.match(loadSkillPrompt(runtime, "vault-capture", "shrimpy"), /agents\/shrimpy\/vault\/research/);
     assert.deepEqual(getSkillPromptResources(runtime, "setup", "mechanic"), [{
       rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
       resourcePath: "skills/setup",
@@ -932,6 +941,10 @@ describe("skill service", () => {
     assert.deepEqual(getSkillPromptResources(runtime, "coding-delegation"), [{
       rootPath: join(projectRoot, "src", "setup", "templates"),
       resourcePath: "skills/coding-delegation",
+    }]);
+    assert.deepEqual(getSkillPromptResources(runtime, "vault-capture"), [{
+      rootPath: join(projectRoot, "src", "setup", "templates"),
+      resourcePath: "skills/vault-capture",
     }]);
   });
 
@@ -1041,6 +1054,7 @@ describe("skill service", () => {
       "security-audit",
       "setup",
       "shrimpy-mechanic-ideas",
+      "vault-capture",
       "watches",
       "workspace-migration",
     ]);

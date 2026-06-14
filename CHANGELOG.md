@@ -2,6 +2,12 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 0.4.2 - Tides Pull Both Ways - Unreleased
+
+### Workspace & Setup
+
+- Added `vault-capture` as an all-agent source-default skill for recipes, inbox captures, research packets, source metadata, worker handoffs, and explicit versioning of kept vault files.
+
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
 
 ### Breaking Changes

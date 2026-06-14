@@ -1,6 +1,6 @@
 # 🦐 VAULT-001: Default Agent Collection Conventions
 
-Status: todo
+Status: review
 Priority: P2
 Area: Workspace
 
@@ -13,9 +13,9 @@ The default behavior should gently encourage a predictable filesystem shape with
 ## Current State
 
 - Fresh setup creates per-agent `vault/` and `projects/` directories with `.gitkeep` for the default agents.
-- Starter `WORKSPACE.md`, `SYSTEM.md`, and `docs/reference/workspace.md` describe per-agent `vault/` and `projects/`.
-- Setup tests cover the seeded per-agent vault and projects paths.
-- The remaining work is the collection-specific guidance: agent-vault checkpoint guidance, recipe example, and commit guidance for kept vault changes.
+- A source-default `vault-capture` skill carries collection, recipe, and versioning guidance.
+- Starter `WORKSPACE.md`, `SYSTEM.md`, and `docs/reference/workspace.md` describe per-agent `vault/` and `projects/`; workflow guidance stays in the source-default skill and reference docs.
+- Setup and skill tests cover the seeded per-agent vault/projects paths and source-default vault skill visibility.
 
 ## Build
 

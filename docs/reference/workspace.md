@@ -57,6 +57,18 @@ Inside an agent root:
 
 Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do not put reports in `context/`. Put a reference in `context/` only if the agent should load it every run.
 
+Vault collections are loose, user-led folders under the owning agent's `vault/`. Typical collections include recipes, household notes, travel ideas, research links, and purchase comparisons. Agents can create an obvious folder when the request is clear, such as `agents/<id>/vault/recipes/<slug>.md` for an adapted recipe that keeps the source URL, but should ask before introducing a broad taxonomy. The source-default `vault-capture` skill carries the operational workflow for capture, catalog, research packets, worker handoffs, and versioning.
+
+The default `shrimpy` agent uses predictable intake paths for general capture work:
+
+- `agents/shrimpy/vault/inbox/` for quick captures that need later sorting.
+- `agents/shrimpy/vault/research/<YYYY-MM-DD>-<slug>/` for bounded research packets.
+- `agents/shrimpy/vault/catalog.md` or per-collection indexes only when an index helps later retrieval.
+
+A captured item should preserve source URL or origin, capture timestamp, the user's request, saved files, and obvious tags or categories when practical. A research packet can contain `brief.md` for the request and current state, `sources.md` for links and retrieval notes, `notes.md` for findings and uncertainties, and optional artifacts under a clearly named subfolder. Worker sessions can use the packet path as handoff material for bounded research or implementation work.
+
+Agents should report saved vault paths and unresolved questions back to the user. Vault versioning is explicit: default workspace checkpoint tracking leaves `vault/` and `projects/` outside the whitelist, so kept vault material should be committed only when the user asks, using a user-chosen repo or explicit checkpoint setup for selected keeper files.
+
 Do not put channel logs, runtime state, sessions, auth, model metadata, or watch clock state under agent `vault/` or `projects/`.
 
 Setup onboarding creates the default agents' `vault/` and `projects/` directories under `agents/shrimpy/` and `agents/mechanic/`. It creates agent `context/` files only when there is real default context, such as the mechanic's `context/scope.md`. `shrimpy agent add` scaffolds per-agent `vault/` and `projects/` directories; `context/` can be added when the agent has durable memory worth loading.
