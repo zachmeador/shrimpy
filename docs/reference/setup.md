@@ -36,7 +36,7 @@ Run first-run setup onboarding:
 shrimpy setup
 ```
 
-Setup creates missing workspace files, checks model access, writes or repairs `modelPolicies.coding`, and opens the mechanic setup TUI. The setup session asks before installing or starting the gateway service and can run `shrimpy gateway install`, `shrimpy gateway start`, and `shrimpy gateway status` when the user approves. After the mechanic setup session exits, setup prints `shrimpy status` and key workspace paths. A bare `shrimpy` follows the same onboarding entrypoint when the workspace is not ready, including non-interactive setup output.
+Setup creates missing workspace files, writes local path breadcrumbs into `profile/WORKSPACE.md`, checks model access, writes or repairs `modelPolicies.coding`, and opens the mechanic setup TUI. The setup session asks before installing or starting the gateway service and can run `shrimpy gateway install`, `shrimpy gateway start`, and `shrimpy gateway status` when the user approves. After the mechanic setup session exits, setup prints `shrimpy status` and key workspace paths. A bare `shrimpy` follows the same onboarding entrypoint when the workspace is not ready, including non-interactive setup output.
 
 Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth and the setup agent workspace exists. If no usable model is available in an interactive terminal, setup runs a plain model access wizard first: choose API key or subscription login, authenticate through Pi's auth layer, then select the `coding` policy model. If no usable model is available in a non-interactive shell, setup prints the auth/model state paths and exits without opening a TUI.
 

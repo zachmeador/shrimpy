@@ -8,7 +8,13 @@ This workspace is the home system that contains Shrimpy agents, channels, sessio
 - Durable machine state lives under `state/`.
 - Disposable runtime state lives under `runtime/`.
 - Provider auth and model registry live under `state/pi/`.
-- Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source lives under `{{SOURCE_PATH}}`; stable project docs live under `{{DOCS_PATH}}`.
+
+## Local Paths
+
+- Active workspace: `{{WORKSPACE_PATH}}`
+- Shrimpy app checkout: `{{APP_PATH}}`
+- Shrimpy source: `{{SOURCE_PATH}}`
+- Shrimpy docs: `{{DOCS_PATH}}`
 
 Each agent keeps saved files and collections under `agents/<id>/vault/`. Each agent keeps code, apps, experiments, and focused work folders under `agents/<id>/projects/`. Do not put channel logs, runtime state, sessions, provider auth, or generated workspace state in either directory.
 

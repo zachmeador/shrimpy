@@ -238,7 +238,7 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
     },
     {
       path: paths.workspacePromptPath,
-      content: loadSetupTemplate("WORKSPACE.md", docsPath),
+      content: loadSetupTemplate("WORKSPACE.md", docsPath, workspace),
     },
     {
       path: paths.userPromptPath,

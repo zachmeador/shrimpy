@@ -17,7 +17,7 @@ command -v shrimpy
 shrimpy status
 ```
 
-Resolve the install-managed app checkout and source directory from `profile/WORKSPACE.md` or `profile/SYSTEM.md` breadcrumbs when present. If breadcrumbs are missing, trace `command -v shrimpy` through symlinks until the app checkout is clear. In the app checkout, inspect:
+Resolve the active workspace, Shrimpy app checkout, source directory, and docs directory from the `profile/WORKSPACE.md` local path breadcrumbs when present. If breadcrumbs are missing, trace `command -v shrimpy` through symlinks until the app checkout is clear. In the app checkout, inspect:
 
 ```bash
 git status --short

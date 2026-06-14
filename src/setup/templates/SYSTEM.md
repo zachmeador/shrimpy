@@ -2,7 +2,7 @@
 
 This file gives all Shrimpy agents shared workspace context. Edit it when the workspace's baseline guidance should change.
 
-Install-managed Shrimpy app checkout lives under `{{APP_PATH}}`; source is under `{{SOURCE_PATH}}`; stable project docs live under `{{DOCS_PATH}}`. Start with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
+Use the Shrimpy source and docs paths listed in `profile/WORKSPACE.md`. Start docs with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
 
 ## Framework Map
 

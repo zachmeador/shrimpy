@@ -33,7 +33,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - Agent resources (`SOUL.md`, `context/`, skills, sessions, watches) are part of the agent contract.
 - Agent memory is normal Markdown.
 - Shrimpy prepends one compact immutable system-instruction section during session bootstrap. This is the only immutable instruction slot Shrimpy adds.
-- Workspace `profile/SYSTEM.md` carries shared editable framework context and breadcrumbs. Agent-specific system guidance can also load from agent-owned context files or any configured agent resource; configured sources add together.
+- Workspace `profile/SYSTEM.md` carries shared editable framework context and CLI inspection breadcrumbs. Agent-specific system guidance can also load from agent-owned context files or any configured agent resource; configured sources add together.
 - Skills are Markdown instruction bundles advertised to agents as context trails.
 - Shrimpy owns the contained system prompt shape. Pi receives the Shrimpy base prompt for session setup, then Shrimpy replaces Pi's built prompt with the contained system prompt before model calls.
 - Prompt sections are ordered by kind for the base prompt: stable identity/memory/instruction first, capability next, runtime/activity/evidence last. Generated skill and Pi runtime-fact sections are appended by the contained system prompt renderer.

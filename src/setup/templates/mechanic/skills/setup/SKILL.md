@@ -16,6 +16,7 @@ Start by inspecting the current workspace state before asking questions:
 - `pwd`
 - `ls`
 - `test -f config/shrimpy.json && sed -n '1,220p' config/shrimpy.json`
+- `test -f profile/WORKSPACE.md && sed -n '1,180p' profile/WORKSPACE.md`
 - `find agents/shrimpy agents/mechanic profile skills -maxdepth 4 -type f | sort | head -180`
 
 Then give the user a compact state summary and ask exactly one next setup decision.
@@ -52,12 +53,13 @@ When editing agent identity, keep ownership clear. `agents/shrimpy/` is the firs
 When enough information is available, make concrete edits instead of only describing them. Preserve existing user edits.
 
 - User facts and preferences: `profile/USER.md`
+- Workspace layout and local path breadcrumbs: `profile/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, and Shrimpy docs paths. Do not add broad crawl roots unless the user approved broader path scope.
 - Shrimpy identity and style: `agents/shrimpy/SOUL.md`
 - Durable agent memory: `agents/shrimpy/context/*.md`
 - Saved material and setup notes for the main agent: `agents/shrimpy/vault/`
 - Projects, apps, and scripts for the main agent: `agents/shrimpy/projects/`
 - Watch preferences: `agents/shrimpy/watches.json`
-- Workspace inspection breadcrumbs: `profile/SYSTEM.md`; add or preserve a short local paths note with only 2-3 useful absolute paths, usually the active workspace, Shrimpy app/source checkout, and Shrimpy docs. Do not add broad crawl roots unless the user approved broader path scope.
+- Shared framework guidance: `profile/SYSTEM.md`
 - Config changes: prefer `shrimpy <command>` when a command exists; otherwise edit JSON carefully.
 
 Keep replies short and practical. Do not explain Shrimpy's whole architecture unless the user asks.

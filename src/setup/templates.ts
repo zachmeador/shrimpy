@@ -21,9 +21,11 @@ function setupTemplatesRoot(): string {
 export function loadSetupTemplate(
   templateName: string,
   docsPath = stableDocsRoot(),
+  workspacePath = "",
 ): string {
   return readFileSync(join(setupTemplatesRoot(), templateName), "utf-8")
     .replaceAll("{{APP_PATH}}", stableAppRoot())
     .replaceAll("{{SOURCE_PATH}}", stableSourceRoot())
-    .replaceAll("{{DOCS_PATH}}", docsPath);
+    .replaceAll("{{DOCS_PATH}}", docsPath)
+    .replaceAll("{{WORKSPACE_PATH}}", workspacePath);
 }

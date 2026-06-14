@@ -257,7 +257,7 @@ describe("setupInit", () => {
     const system = readFileSync(systemPath, "utf-8");
     assert.match(system, /all Shrimpy agents shared workspace context/);
     assert.match(system, /Edit it when the workspace's baseline guidance should change/);
-    assert.match(system, /Install-managed Shrimpy app checkout lives under/);
+    assert.match(system, /Use the Shrimpy source and docs paths listed in `profile\/WORKSPACE\.md`/);
     assert.match(system, /Framework Map/);
     assert.match(system, /reference\/context-assembly\.md/);
     assert.match(system, /Coding Work/);
@@ -273,9 +273,9 @@ describe("setupInit", () => {
     assert.doesNotMatch(system, /source URL or origin, capture timestamp, the user's request/);
     assert.doesNotMatch(system, /agents\/shrimpy\/vault\/research\/<YYYY-MM-DD>-<slug>/);
     assert.match(system, /persist the relevant Markdown note before claiming it will be remembered/);
-    assert.equal(system.includes(projectRoot), true);
-    assert.equal(system.includes(join(projectRoot, "src")), true);
-    assert.equal(system.includes(join(projectRoot, "docs")), true);
+    assert.equal(system.includes(projectRoot), false);
+    assert.equal(system.includes(join(projectRoot, "src")), false);
+    assert.equal(system.includes(join(projectRoot, "docs")), false);
     assert.equal(system.includes(workspace), false);
 
     const soul = readFileSync(soulPath, "utf-8");
@@ -295,8 +295,13 @@ describe("setupInit", () => {
     assert.doesNotMatch(workspaceDoc, /durable user-owned collections such as recipes/);
     assert.doesNotMatch(workspaceDoc, /agents\/<id>\/vault\/recipes\/<slug>\.md/);
     assert.equal(workspaceDoc.includes("agents/shrimpy/vault/inbox/"), false);
-    assert.match(workspaceDoc, /Install-managed Shrimpy app checkout lives under/);
+    assert.match(workspaceDoc, /Local Paths/);
+    assert.match(workspaceDoc, /Active workspace:/);
+    assert.match(workspaceDoc, /Shrimpy app checkout:/);
+    assert.match(workspaceDoc, /Shrimpy source:/);
+    assert.match(workspaceDoc, /Shrimpy docs:/);
     assert.match(workspaceDoc, /Do not put reports in `context\/`/);
+    assert.equal(workspaceDoc.includes(workspace), true);
     assert.equal(workspaceDoc.includes(projectRoot), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);

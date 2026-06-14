@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="$(cd "${SCRIPT_DIR}/../../../../../../.." && pwd)"
+SOURCE_ROOT="${APP_ROOT}/src"
+DOCS_ROOT="${APP_ROOT}/docs"
 
 if [ -n "${SHRIMPY_WORKSPACE:-}" ]; then
   WORKSPACE_ROOT="${SHRIMPY_WORKSPACE}"
@@ -13,15 +16,16 @@ else
   WORKSPACE_ROOT="$(pwd)"
 fi
 
+WORKSPACE_DOC_PATH="${WORKSPACE_ROOT}/profile/WORKSPACE.md"
 CONFIG_PATH="${WORKSPACE_ROOT}/config/shrimpy.json"
 CHANNELS_PATH="${WORKSPACE_ROOT}/config/channels.json"
 WATCHES_PATH="${WORKSPACE_ROOT}/agents/shrimpy/watches.json"
 
-node - "${WORKSPACE_ROOT}" "${CONFIG_PATH}" "${CHANNELS_PATH}" "${WATCHES_PATH}" <<'NODE'
+node - "${WORKSPACE_ROOT}" "${APP_ROOT}" "${SOURCE_ROOT}" "${DOCS_ROOT}" "${WORKSPACE_DOC_PATH}" "${CONFIG_PATH}" "${CHANNELS_PATH}" "${WATCHES_PATH}" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [workspaceRoot, configPath, channelsPath, watchesPath] = process.argv.slice(2);
+const [workspaceRoot, appRoot, sourceRoot, docsRoot, workspaceDocPath, configPath, channelsPath, watchesPath] = process.argv.slice(2);
 const errors = [];
 
 function readJson(filePath, label) {
@@ -45,6 +49,41 @@ function requireFile(filePath, label) {
   }
 }
 
+function requireFileContains(filePath, label, expected, description) {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const content = fs.readFileSync(filePath, "utf-8");
+  if (!content.includes(expected)) {
+    errors.push(`${label} must include ${description}: ${expected}`);
+  }
+}
+
+function requireFileContainsAny(filePath, label, expectedValues, description) {
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const content = fs.readFileSync(filePath, "utf-8");
+  if (!expectedValues.some((expected) => content.includes(expected))) {
+    errors.push(`${label} must include ${description}: ${expectedValues.join(" or ")}`);
+  }
+}
+
+function pathAliases(filePath) {
+  const aliases = new Set([filePath]);
+  if (filePath.startsWith("/private/")) {
+    aliases.add(filePath.slice("/private".length));
+  } else if (filePath.startsWith("/var/")) {
+    aliases.add(`/private${filePath}`);
+  }
+  try {
+    aliases.add(fs.realpathSync(filePath));
+  } catch {
+    // The normal value is still useful if the path cannot be resolved.
+  }
+  return [...aliases];
+}
+
 function requireDir(dirPath, label) {
   if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
     errors.push(`missing ${label}: ${dirPath}`);
@@ -66,6 +105,11 @@ requireDir(path.join(workspaceRoot, "agents", "mechanic", "context"), "agents/me
 requireFile(path.join(workspaceRoot, "agents", "mechanic", "context", "scope.md"), "agents/mechanic/context/scope.md");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "vault"), "agents/mechanic/vault");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "projects"), "agents/mechanic/projects");
+
+requireFileContainsAny(workspaceDocPath, "profile/WORKSPACE.md", pathAliases(workspaceRoot), "the active workspace path");
+requireFileContains(workspaceDocPath, "profile/WORKSPACE.md", appRoot, "the Shrimpy app checkout path");
+requireFileContains(workspaceDocPath, "profile/WORKSPACE.md", sourceRoot, "the Shrimpy source path");
+requireFileContains(workspaceDocPath, "profile/WORKSPACE.md", docsRoot, "the Shrimpy docs path");
 
 if (config) {
   if (!Array.isArray(config.agents) || config.agents.length === 0) {
