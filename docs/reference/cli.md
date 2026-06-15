@@ -47,7 +47,6 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | Command | Purpose |
 | --- | --- |
 | `shrimpy setup` | Run first-run setup onboarding when needed. |
-| `shrimpy setup init` | Run first-run setup onboarding. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy workspace track init [--json]` | Initialize opt-in local workspace git checkpoint tracking. |
 | `shrimpy workspace track status [--json]` | Inspect workspace checkpoint tracking status and changed checkpointable paths. |
@@ -55,9 +54,12 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy workspace search <query> [--limit N] [--json]` | Search profile, skill, agent context, and agent vault Markdown with bounded scored results. |
 | `shrimpy workspace index status [--json]` | Inspect workspace search corpus size, scorer, embedding availability, and index staleness. |
 | `shrimpy workspace index rebuild [--json]` | Rebuild the workspace search cache under `runtime/search/`. |
+| `shrimpy update [--dry-run] [--json]` | Preflight a safe Shrimpy environment update, including mechanic model access, protected files, gateway state, install target, and migration handoff. |
 | `shrimpy status` | Show workspace, gateway, channels, watch-run, and Telegram offset status. |
 | `shrimpy watches [--agent <id>] [--json]` | Inspect configured agent-owned watches, including source paths, target channels, expected wake decisions, next runs, active runs, and recent history. |
 | `shrimpy watches add <id> [--agent <id>] [--name <text>] [--concurrency-policy <forbid\|allow>] (--cron <expr>\|--every <dur>\|--every-ms <n>) (--channel <name> --message <text>\|--command <cmd>) [--json]` | Add an agent-owned time watch. Command watches also support `--cwd`, `--timeout-ms`, `--emit-policy`, `--emit-channel`, and `--emit-template`. |
+| `shrimpy watches enable <agent-id>/<watch-id> [--json]` | Enable an existing watch. |
+| `shrimpy watches disable <agent-id>/<watch-id> [--json]` | Disable an existing watch. |
 | `shrimpy watches show <agent-id>/<watch-id> [--json]` | Show one resolved watch with diagnostics and inspect commands. |
 | `shrimpy watches history <agent-id>/<watch-id> [--limit N] [--json]` | Show recent run records for one watch. |
 | `shrimpy watches run <agent-id>/<watch-id> [--json]` | Run one watch immediately and record it in watch history. |
@@ -70,7 +72,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy worker tail <id> [--lines <n>] [--follow]` | Print or follow the latest worker turn log. |
 | `shrimpy worker wait <id> [--timeout-ms <n>] [--json]` | Block until a worker is no longer running. |
 | `shrimpy worker cancel <id> [--json]` | Mark a worker cancelled, send `SIGTERM` to the recorded supervisor process group, then escalate to `SIGKILL` if it stays alive past the grace period. |
-| `shrimpy worker close <id> [--json]` | Close a worker after parent review. If the worker is still running, Shrimpy runs the same terminate-then-force-kill cleanup first. |
+| `shrimpy worker close <id> [--json]` | Close a worker after checking the result. If the worker is still running, Shrimpy runs the same terminate-then-force-kill cleanup first. |
 | `shrimpy context` | Render assembled session prompt context. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |

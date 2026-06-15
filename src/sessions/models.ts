@@ -2,6 +2,7 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import type { SessionBootstrap } from "./bootstrap.js";
 import {
   DEFAULT_MODEL_POLICY,
+  formatModelRef,
   formatModelSelection,
   hasConfiguredAuth,
   toModelRef,
@@ -42,6 +43,26 @@ export interface ModelResolution {
   modelRef?: ModelRef;
   policy?: ModelPolicyResolution;
   problems: string[];
+}
+
+export interface SessionModelRequest {
+  provider?: string;
+  model?: string;
+  modelPolicy?: string;
+  defaultModelPolicy?: string;
+  allowMissingModel?: boolean;
+  allowRegistryFallbackModel?: boolean;
+  missingMessage?: string;
+}
+
+export interface ResolveSessionModelInput extends SessionModelRequest {
+  bootstrap: SessionBootstrap;
+  readSavedModel?: () => ModelRef | undefined;
+}
+
+export interface ResolveSavedSessionModelInput {
+  bootstrap: SessionBootstrap;
+  readSavedModel: () => ModelRef | undefined;
 }
 
 interface ResolveModelOptions {
@@ -156,6 +177,74 @@ export function resolveModelDetailed(
   };
 }
 
+export function resolveSessionModel(
+  input: ResolveSessionModelInput,
+): ModelResolution {
+  const restoreSavedModel = shouldRestoreSavedSessionModel(input);
+  const problems: string[] = [];
+
+  if (restoreSavedModel && input.readSavedModel) {
+    const savedResolution = resolveSavedSessionModel({
+      bootstrap: input.bootstrap,
+      readSavedModel: input.readSavedModel,
+    });
+    if (savedResolution?.model) {
+      return savedResolution;
+    }
+    if (savedResolution) {
+      problems.push(...savedResolution.problems);
+    }
+  }
+
+  const resolution = resolveModelDetailed(
+    input.bootstrap,
+    input.provider,
+    input.model,
+    input.modelPolicy ? undefined : input.defaultModelPolicy,
+    {
+      modelPolicy: input.modelPolicy,
+      allowMissingDefault: restoreSavedModel || input.allowMissingModel,
+      allowRegistryFallback: input.allowRegistryFallbackModel,
+      missingMessage: input.missingMessage,
+    },
+  );
+
+  return {
+    ...resolution,
+    problems: [...problems, ...resolution.problems],
+  };
+}
+
+export function shouldRestoreSavedSessionModel(
+  input: Pick<SessionModelRequest, "provider" | "model" | "modelPolicy">,
+): boolean {
+  return input.provider === undefined &&
+    input.model === undefined &&
+    input.modelPolicy === undefined;
+}
+
+export function resolveSavedSessionModel(
+  input: ResolveSavedSessionModelInput,
+): ModelResolution | undefined {
+  const saved = input.readSavedModel();
+  if (!saved) return undefined;
+
+  const savedModel = findUsableRegistryModel(input.bootstrap, saved);
+  if (savedModel) {
+    return {
+      source: "saved-session",
+      model: savedModel,
+      modelRef: toModelRef(savedModel),
+      problems: [],
+    };
+  }
+
+  return {
+    source: "missing",
+    problems: [`session recorded model not usable: ${formatModelRef(saved)}`],
+  };
+}
+
 export function resolveModelPolicy(
   bootstrap: SessionBootstrap,
   policyName: string,
@@ -223,4 +312,13 @@ export function formatMissingAgentModelPolicyMessage(agentId: string): string {
 
 export function formatMissingModelPolicyMessage(policyName: string): string {
   return `model policy ${policyName} is not configured. Configure it with: shrimpy models policies set ${policyName} --candidate <provider>/<model>`;
+}
+
+function findUsableRegistryModel(
+  bootstrap: SessionBootstrap,
+  ref: ModelRef,
+): Model<Api> | undefined {
+  const model = bootstrap.modelRegistry.find(ref.provider, ref.id);
+  if (!model || !bootstrap.modelRegistry.hasConfiguredAuth(model)) return undefined;
+  return model;
 }

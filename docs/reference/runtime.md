@@ -73,7 +73,7 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 - Watch-origin messages carry provenance in `origin.watch`, and turn context points back to `shrimpy watches show <watch-id>` and `shrimpy watches history <watch-id>`.
 - The gateway watches agent `watches.json` files and reloads watch definitions when they change, preserving existing clock state for unchanged watches.
 - Active watch state and run history live under `runtime/watches/<agent-id>/`.
-- Fresh setup seeds focused upkeep watches for `memory-management`, `journal-daily`, and `journal-compact`; it does not seed a broad catch-all upkeep watch.
+- Fresh setup installs focused upkeep and audit watches disabled by default; the setup flow can enable selected watches with user approval. It does not seed a broad catch-all upkeep watch.
 - Coding worker delegation is managed through `shrimpy worker ...` commands and worker records, not through a nested session tool.
 
 ## Observability

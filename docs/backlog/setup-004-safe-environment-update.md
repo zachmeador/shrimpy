@@ -13,7 +13,7 @@ The updater should therefore protect model config validity first, then let the m
 
 ## Current State
 
-- There is no top-level `shrimpy update` command in the command registry or catalog.
+- `shrimpy update --dry-run` now exists as a safe preflight surface in the command registry and catalog. Apply mode is still intentionally unsupported until the update source, snapshot/restore, and gateway lifecycle semantics are implemented.
 - Model policy resolution already has inspectable CLI coverage through `shrimpy models`, `shrimpy models policies show <name>`, and `shrimpy models resolve --policy <name> --json`.
 - The mechanic has a source-default `workspace-migration` skill that inventories installed source, workspace files, risks, and checks before applying user-approved workspace changes.
 - The gateway can be installed as a per-user service and may be running watches or chat delivery while the CLI source and generated `dist/cli.js` change.

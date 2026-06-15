@@ -3,7 +3,6 @@ import { createAppRuntime } from "../app/index.js";
 import {
   DEFAULT_MODEL_POLICY,
   formatModelRef,
-  hasConfiguredAuth,
   parseModelRef,
   sameModelRef,
   toModelRef,
@@ -19,15 +18,14 @@ import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
   createGatewaySessionDescriptor,
   createLocalSessionDescriptor,
-  resolveModelDetailed,
   resolveModelPolicy,
+  resolveSessionModel,
+  shouldRestoreSavedSessionModel,
   type ModelPolicyResolution,
   type ModelResolution,
+  type SessionModelRequest,
 } from "../sessions/index.js";
-import {
-  createSessionManager,
-  findActiveSessionFile,
-} from "../sessions/storage.js";
+import { readSessionRecordedModel } from "../sessions/storage.js";
 import { isRecord } from "../util/record.js";
 import {
   createCommandGroup,
@@ -45,7 +43,7 @@ interface ResolvedSessionRef {
   kind: string;
   channel?: string;
   dir: string;
-  restoreSavedModel: boolean;
+  cwd?: string;
 }
 
 interface ModelPolicyView {
@@ -63,8 +61,8 @@ interface ModelResolveView {
   };
   requestedPolicy?: string;
   session: (ResolvedSessionRef & {
+    restoreSavedModel: boolean;
     recordedModel?: ModelRef;
-    recordedModelUsable?: boolean;
   }) | null;
   effective: {
     source: ModelResolution["source"];
@@ -384,7 +382,6 @@ async function cmdModelsResolve(
         agentId: agent.id,
         channel: values.channel,
       }).sessionDir,
-      restoreSavedModel: false,
     }
     : values.session
       ? resolveSessionRef(agentPaths.root, agent.id, values.session)
@@ -402,40 +399,32 @@ async function cmdModelsResolve(
   };
   const problems: string[] = [];
 
-  const sessionRecord = session && !values.provider && !values.model && !values.policy
-    ? readRecordedSessionModel(session.dir, process.cwd())
+  const modelRequest: SessionModelRequest = {
+    provider: values.provider,
+    model: values.model,
+    modelPolicy: values.policy,
+    defaultModelPolicy: agent.modelPolicy,
+    allowMissingModel: true,
+  };
+  const sessionRestoresSavedModel = session
+    ? sessionCanRestoreSavedModel(session)
+    : false;
+  const sessionRecord = session && shouldRestoreSavedSessionModel(modelRequest)
+    ? readSessionRecordedModel(session.cwd ?? agentPaths.root, session.dir)
     : undefined;
-  const recordedModelUsable = sessionRecord
-    ? Boolean(findUsableModel(bootstrap.modelRegistry, sessionRecord))
-    : undefined;
-  if (sessionRecord && recordedModelUsable === false) {
-    problems.push(`session recorded model not usable: ${formatModelRef(sessionRecord)}`);
-  }
 
   let resolution: ModelResolution = {
     source: "missing",
     problems: [],
   };
   try {
-    if (sessionRecord && recordedModelUsable && session?.restoreSavedModel) {
-      resolution = {
-        source: "saved-session",
-        modelRef: sessionRecord,
-        model: findUsableModel(bootstrap.modelRegistry, sessionRecord),
-        problems: [],
-      };
-    } else {
-      resolution = resolveModelDetailed(
-        bootstrap,
-        values.provider,
-        values.model,
-        values.policy ? undefined : agent.modelPolicy,
-        {
-          modelPolicy: values.policy,
-          allowMissingDefault: true,
-        },
-      );
-    }
+    resolution = resolveSessionModel({
+      bootstrap,
+      ...modelRequest,
+      readSavedModel: sessionRestoresSavedModel
+        ? () => sessionRecord
+        : undefined,
+    });
   } catch (err) {
     problems.push(err instanceof Error ? err.message : String(err));
   }
@@ -448,8 +437,8 @@ async function cmdModelsResolve(
     session: session
       ? {
         ...session,
+        restoreSavedModel: sessionRestoresSavedModel,
         ...(sessionRecord ? { recordedModel: sessionRecord } : {}),
-        ...(recordedModelUsable !== undefined ? { recordedModelUsable } : {}),
       }
       : null,
     effective: {
@@ -506,7 +495,6 @@ function resolveSessionRef(
       kind: "gateway",
       channel,
       dir: descriptor.sessionDir,
-      restoreSavedModel: false,
     };
   }
 
@@ -522,25 +510,11 @@ function resolveSessionRef(
     kind: raw,
     channel: raw,
     dir: descriptor.sessionDir,
-    restoreSavedModel: true,
   };
 }
 
-function readRecordedSessionModel(
-  sessionDir: string,
-  cwd: string,
-): ModelRef | undefined {
-  const file = findActiveSessionFile(sessionDir);
-  if (!file) return undefined;
-  const manager = createSessionManager(cwd, sessionDir);
-  try {
-    const model = manager.buildSessionContext().model;
-    return model
-      ? { provider: model.provider, id: model.modelId }
-      : undefined;
-  } catch {
-    return undefined;
-  }
+function sessionCanRestoreSavedModel(session: ResolvedSessionRef): boolean {
+  return session.kind !== "gateway";
 }
 
 function listPolicyViews(
@@ -703,17 +677,4 @@ function uniqueCandidates(candidates: ModelSelectionConfig[]): ModelSelectionCon
     unique.push(candidate);
   }
   return unique;
-}
-
-function findUsableModel(
-  modelRegistry: { find(provider: string, id: string): Model<Api> | undefined },
-  ref: ModelRef,
-): Model<Api> | undefined {
-  const model = modelRegistry.find(ref.provider, ref.id);
-  if (!model) return undefined;
-  const registry = modelRegistry as {
-    hasConfiguredAuth?: (candidate: Model<Api>) => boolean;
-  };
-  if (!hasConfiguredAuth(registry, model)) return undefined;
-  return model;
 }

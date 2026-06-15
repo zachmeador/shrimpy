@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { runCommand } from "../dist/commands/framework.js";
 import { cmdSetup } from "../dist/commands/setup.js";
 import {
   createSetupInteractiveSessionSpec,
@@ -57,22 +58,21 @@ describe("setup entry", () => {
       cmdSetup([], { workspace } as any)
     );
 
-    assert.equal(result, 0);
+    assert.equal(result, 1);
     assert.equal(existsSync(join(workspace, "config", "shrimpy.json")), true);
     assert.match(lines.join("\n"), /No working models found yet\./);
     assert.match(lines.join("\n"), /Run `shrimpy setup` in an interactive terminal/);
     assert.doesNotMatch(lines.join("\n"), /Launching .*TUI/i);
   });
 
-  test("setup init follows the same onboarding entrypoint", async () => {
-    const { result, lines } = await captureLogs(() =>
-      cmdSetup(["init"], { workspace } as any)
+  test("setup init is not a subcommand", async () => {
+    const { result, errors } = await captureLogs(() =>
+      runCommand(cmdSetup, ["init"], { workspace } as any)
     );
 
-    assert.equal(result, 0);
-    assert.equal(existsSync(join(workspace, "config", "shrimpy.json")), true);
-    assert.match(lines.join("\n"), /No working models found yet\./);
-    assert.match(lines.join("\n"), /Run `shrimpy setup` in an interactive terminal/);
+    assert.equal(result, 1);
+    assert.equal(existsSync(join(workspace, "config", "shrimpy.json")), false);
+    assert.match(errors.join("\n"), /unknown subcommand: init/);
   });
 
   test("runSetupOnboarding can launch model access setup and continue into mechanic setup", async () => {

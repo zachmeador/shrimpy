@@ -7,7 +7,7 @@ import {
 import { join } from "node:path";
 import { createAppRuntime } from "../dist/app/index.js";
 import { cmdWatches } from "../dist/commands/watches.js";
-import { setupInit } from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 import {
   inspectWatchHistory,
   inspectWatches,
@@ -112,8 +112,25 @@ describe("watch inspection surfaces", () => {
       kind: "time",
       cron: "0 3 * * *",
     });
-    assert.equal(payload.watches[0].nextRunSource, "computed");
-    assert.equal(typeof payload.watches[0].nextRunAtMs, "number");
+    assert.equal(payload.watches[0].enabled, false);
+    assert.equal(payload.watches[0].nextRunSource, undefined);
+    assert.equal(payload.watches[0].nextRunAtMs, undefined);
+  });
+
+  test("toggles an existing watch through the CLI", async () => {
+    await setupInit(workspace);
+
+    const enabled = await captureLogs(() =>
+      cmdWatches(["enable", "shrimpy/memory-management", "--json"], { workspace } as any)
+    );
+    assert.equal(enabled.result, 0);
+    assert.equal(JSON.parse(enabled.lines.join("\n")).enabled, true);
+
+    const disabled = await captureLogs(() =>
+      cmdWatches(["disable", "shrimpy/memory-management", "--json"], { workspace } as any)
+    );
+    assert.equal(disabled.result, 0);
+    assert.equal(JSON.parse(disabled.lines.join("\n")).enabled, false);
   });
 
   test("shows one resolved watch", async () => {

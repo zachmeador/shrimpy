@@ -81,6 +81,12 @@ export interface SetupOnboardingResult {
   policyProblems?: SetupPolicyProblem[];
 }
 
+export function setupOnboardingExitCode(result: SetupOnboardingResult): number {
+  return result.kind === "setup_started" || result.kind === "already_configured"
+    ? 0
+    : 1;
+}
+
 export async function launchSetupSession(
   input: SetupSessionLaunchInput,
 ): Promise<void> {

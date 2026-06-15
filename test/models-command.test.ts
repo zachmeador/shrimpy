@@ -8,8 +8,8 @@ import {
   createGatewaySessionDescriptor,
   createLocalSessionDescriptor,
 } from "../dist/sessions/spec.js";
-import { setupInit } from "../dist/setup/init.js";
 import {
+  setupInit,
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,

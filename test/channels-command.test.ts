@@ -12,8 +12,8 @@ import {
 import { cmdAgent } from "../dist/commands/agent.js";
 import { cmdChannels } from "../dist/commands/channels.js";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
-import { setupInit } from "../dist/setup/init.js";
 import {
+  setupInit,
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,

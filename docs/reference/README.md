@@ -24,4 +24,4 @@ Current behavior of Shrimpy.
 - [surfaces.md](surfaces.md) — adapter verticals, Telegram, and surface thread state.
 - [development.md](development.md) — repo layout, build/test commands.
 
-Other directories: [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../research/README.md) for external comparison notes.
+Other directories: [../patterns/README.md](../patterns/README.md) for short workflow patterns, [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../research/README.md) for external comparison notes.

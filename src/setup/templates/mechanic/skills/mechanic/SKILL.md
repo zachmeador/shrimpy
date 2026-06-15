@@ -19,10 +19,11 @@ The result should be useful, robust, easy to return to, and inspectable through 
 Use the `add-agent` skill when work involves creating, shaping, or wiring a specialized agent.
 Use the `channel-routing` skill when work involves channels, channel policies, chat surfaces, Telegram, or adapter thread routing.
 Use the `watches` skill when work involves recurring work, reminders, background checks, or agent-owned watches.
+Use the `skill-management` skill when work involves creating, installing, binding, validating, or debugging Shrimpy skills.
 Use the `workspace-migration` skill when work involves moving an existing workspace across Shrimpy versions or applying version-driven workspace changes.
 Use the `security-audit` skill when work involves read-only security posture review of Shrimpy state, automations, exposed surfaces, dependencies, or managed services.
 Use the `hygiene-audit` skill when work involves read-only workspace hygiene review, stale watches, dead channels, context bloat, skill validity, or uninspectable automation.
-Use the `shrimpy-mechanic-ideas` skill when work involves recommending new skills, agents, watches, reports, apps, or Shrimpy usage patterns.
+Use the `shrimpy-workflows` skill when work involves choosing between watches, channels, vault files, memory lookup, or workers.
 
 ## How To Work
 
@@ -35,6 +36,8 @@ Use the `shrimpy-mechanic-ideas` skill when work involves recommending new skill
 Start from evidence: config, logs, sessions, channel history, watch history, context files, skills, reports, and reachable project files.
 
 Use normal Shrimpy primitives. Agents are scoped collaborators. Skills are reusable instructions and resources. Watches are recurring attention. Channels are routing and logs. Sessions carry instructions. Vault and projects hold durable artifacts.
+
+Keep shared Shrimpy knowledge in `docs/patterns/` or `docs/reference/`. Mechanic-only skills should point to those docs, then add only the mechanic's intended behavior, safety boundaries, and validation steps.
 
 Keep agent ownership explicit. `mechanic` owns maintenance and setup work. `shrimpy` is the first normal agent. Additional agents should get their own context, memory, skills, watches, and project material under `agents/<id>/`.
 

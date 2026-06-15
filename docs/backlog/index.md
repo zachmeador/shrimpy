@@ -12,13 +12,13 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-010](tui-010-tui-backlog-closeout-plan.md) | draft | P2 | TUI | [TUI-004](tui-004-agent-session-navigator.md), [TUI-007](tui-007-pi-patch-surface-reduction.md), [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | TUI backlog closeout coordination |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
-| [SKILL-001](skill-001-shrimpy-workflows-skill.md) | todo | P2 | Skills | none | All-agent Shrimpy workflows skill |
+| [SKILL-001](skill-001-shrimpy-workflows-skill.md) | review | P2 | Skills | none | All-agent Shrimpy workflows skill |
 | [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | draft | P2 | Skills | none | Shrimpy skill coverage gaps |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
-| [SESSION-002](session-002-shared-session-model-resolver.md) | todo | P2 | Sessions | none | Single model resolver behind session open and models resolve |
+| [SESSION-002](session-002-shared-session-model-resolver.md) | review | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
-| [SETUP-002](setup-002-setup-entry-seams.md) | todo | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
-| [SETUP-003](setup-003-opt-in-watch-seeding.md) | todo | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
+| [SETUP-002](setup-002-setup-entry-seams.md) | review | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
+| [SETUP-003](setup-003-opt-in-watch-seeding.md) | review | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
 | [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |

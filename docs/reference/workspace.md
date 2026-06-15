@@ -93,7 +93,7 @@ The workspace search corpus excludes channel logs and session transcripts. Use `
 
 Stable prompt material loaded into an agent session before per-turn context arrives:
 
-- `profile/WORKSPACE.md` defines shared system/home context and local path breadcrumbs for the active workspace, Shrimpy app checkout, source directory, and docs directory.
+- `profile/WORKSPACE.md` defines shared system/home context and local path breadcrumbs for the active workspace, Shrimpy app checkout, source directory, docs directory, pattern docs, reference docs, source skill templates, workspace skills, and agent skill stems.
 - `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and CLI inspection breadcrumbs. It does not contain the compact immutable instructions prepended during session setup.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
 - `SOUL.md` defines who an agent is: role, boundaries, and voice.
@@ -102,7 +102,7 @@ Stable prompt material loaded into an agent session before per-turn context arri
 
 Setup onboarding creates baseline files from `src/setup/templates/`.
 
-Setup writes absolute breadcrumbs for the active workspace, install-managed Shrimpy app checkout, `src/` directory, and `docs/` directory into `profile/WORKSPACE.md`. In the default install, the app checkout is `~/.local/share/shrimpy/app`.
+Setup writes absolute breadcrumbs for the active workspace, install-managed Shrimpy app checkout, `src/` directory, `docs/` directory, `docs/patterns/`, `docs/reference/`, source skill templates, workspace skills, and agent skill stems into `profile/WORKSPACE.md`. In the default install, the app checkout is `~/.local/share/shrimpy/app`.
 
 Durable machine state lives under `state/`. Disposable runtime state lives under `runtime/` and surfaces at turn time through the context envelope.
 

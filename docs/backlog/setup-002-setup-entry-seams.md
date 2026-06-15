@@ -1,6 +1,6 @@
 # 🦐 SETUP-002: Setup Entry Seams And Dead Code
 
-Status: todo
+Status: review
 Priority: P2
 Area: Setup
 Depends On: none

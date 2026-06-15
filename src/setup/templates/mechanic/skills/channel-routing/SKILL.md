@@ -7,7 +7,7 @@ description: Use when configuring or debugging Shrimpy channels, channel policie
 
 Use this mechanic-owned skill when the user asks how a message reaches an agent, when adding a chat surface, or when an agent should participate in a channel.
 
-Reference docs, under the Shrimpy docs path listed in workspace context:
+Use the paths in `profile/WORKSPACE.md`. Read `patterns/channels.md` first. If you need more detail, use:
 
 - `reference/channels.md` — channel logs, membership, wake policy, addressed messages.
 - `reference/surfaces.md` — chat surface adapters, Telegram setup, surface-thread routing.
@@ -16,7 +16,7 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 ## How To Work
 
 1. Decide whether the user wants an internal Shrimpy room/log, an external chat binding, or both.
-2. For internal rooms, use normal semantic channel names like `fitness`, `maintenance`, or `home`.
+2. Follow `patterns/channels.md` for channel shape and naming.
 3. For external chat surfaces, inspect the configured surface and real thread ids before editing bindings.
 4. Join agents to channels with `shrimpy channels join <channel> --agent <id> --json`.
 5. Inspect wake policy with `shrimpy agent channel-policy <id> --channel <channel>` and `shrimpy agent channel-policy explain <id> --channel <channel> --sender human --text "..." --json`.
@@ -26,7 +26,7 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 ## Guardrails
 
 - Channels are shared rooms and logs. Sessions carry instructions. Surfaces bridge external chats into channels.
-- Surface-thread channels are transport-bound channels, not agent concepts. Telegram channels look like `telegram~<instance-id>~<chat-id>` where the instance comes from `config/shrimpy.json` and the chat id comes from real Telegram traffic.
+- Surface-thread channels are transport-bound channels, not agent concepts.
 - Chat adapters must have explicit inbound whitelists before gateway use. For Telegram, use numeric chat IDs in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Use `shrimpy setup telegram` to discover IDs without starting the gateway open.
 - Semantic channels can deliver externally through `shrimpy channels bind <channel> telegram/<instance-id>/<chat-id>`.
 - Do not invent adapter-shaped names like `telegram~fitness` to mean "a Telegram channel for the fitness agent."

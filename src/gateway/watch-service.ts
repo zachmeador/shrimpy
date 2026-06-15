@@ -1,5 +1,5 @@
 import {
-  existsSync,
+  statSync,
   watch,
   type FSWatcher,
 } from "node:fs";
@@ -14,21 +14,6 @@ import {
   saveWatchClockState,
   type WatchClock,
 } from "../watches/index.js";
-import { createDefaultShrimpyWatches } from "../setup/defaults.js";
-import { writeJsonFileAtomic } from "../util/json-file.js";
-
-export function ensureGatewayWatchFiles(runtime: AppRuntime): void {
-  for (const agent of runtime.resolved.agents) {
-    const agentPaths = runtime.getAgentPaths(agent.id);
-    if (existsSync(agentPaths.watchesPath)) continue;
-
-    const watches = agent.id === "shrimpy" ? createDefaultShrimpyWatches() : [];
-    writeJsonFileAtomic(agentPaths.watchesPath, watches);
-    console.log(
-      `[gateway] initialized watches file for ${agent.id} at ${agentPaths.watchesPath}`,
-    );
-  }
-}
 
 export function startGatewayWatchClock(
   runtime: AppRuntime,
@@ -81,7 +66,7 @@ function watchAgentWatchFiles(
   runtime: AppRuntime,
   onChange: () => void,
 ): () => void {
-  const watchers: FSWatcher[] = [];
+  const stops: Array<() => void> = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
   const scheduleReload = () => {
     if (timer) clearTimeout(timer);
@@ -91,8 +76,16 @@ function watchAgentWatchFiles(
 
   for (const agent of runtime.resolved.agents) {
     const watchesPath = runtime.getAgentPaths(agent.id).watchesPath;
+    let watcher: FSWatcher | undefined;
+    let stopPolling: (() => void) | undefined;
+    let stopped = false;
+    const startPolling = (reloadNow = false) => {
+      if (stopped || stopPolling) return;
+      stopPolling = pollWatchFile(watchesPath, scheduleReload);
+      if (reloadNow) scheduleReload();
+    };
     try {
-      const watcher = watch(
+      watcher = watch(
         dirname(watchesPath),
         { persistent: false },
         (_eventType, filename) => {
@@ -102,15 +95,46 @@ function watchAgentWatchFiles(
       );
       watcher.on("error", (err) => {
         console.warn(`[gateway] watch file watcher failed for ${watchesPath}:`, err);
+        watcher?.close();
+        startPolling(true);
       });
-      watchers.push(watcher);
     } catch (err) {
       console.warn(`[gateway] could not watch ${watchesPath}:`, err);
     }
+    startPolling();
+    stops.push(() => {
+      stopped = true;
+      watcher?.close();
+      stopPolling?.();
+    });
   }
 
   return () => {
     if (timer) clearTimeout(timer);
-    for (const watcher of watchers) watcher.close();
+    for (const stop of stops) stop();
   };
+}
+
+function pollWatchFile(
+  path: string,
+  onChange: () => void,
+): () => void {
+  let lastStamp = fileStamp(path);
+  const interval = setInterval(() => {
+    const nextStamp = fileStamp(path);
+    if (nextStamp === lastStamp) return;
+    lastStamp = nextStamp;
+    onChange();
+  }, 250);
+  interval.unref();
+  return () => clearInterval(interval);
+}
+
+function fileStamp(path: string): string {
+  try {
+    const stat = statSync(path);
+    return `${stat.mtimeMs}:${stat.size}`;
+  } catch {
+    return "missing";
+  }
 }

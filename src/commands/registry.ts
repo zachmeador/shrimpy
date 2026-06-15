@@ -23,6 +23,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   worker: { requiresConfig: true, load: async () => (await import("./worker.js")).cmdWorker },
   models: { requiresConfig: true, load: async () => (await import("./models.js")).cmdModels },
   workspace: { requiresConfig: true, load: async () => (await import("./workspace.js")).cmdWorkspace },
+  update: { requiresConfig: true, load: async () => (await import("./update.js")).cmdUpdate },
   skills: { requiresConfig: true, load: async () => (await import("./skills.js")).cmdSkills },
   setup: { requiresConfig: "workspace", load: async () => (await import("./setup.js")).cmdSetup },
   chat: { requiresConfig: "workspace", load: async () => (await import("./chat.js")).cmdChat },

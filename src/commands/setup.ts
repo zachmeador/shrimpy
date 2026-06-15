@@ -10,16 +10,13 @@ export const cmdSetup: CommandHandler = createCommandGroup({
   name: "setup",
   usage: USAGE,
   default: async ({ config }) => {
-    const { runSetupOnboarding } = await import("../setup/onboarding.js");
-    await runSetupOnboarding(config.workspace);
-    return 0;
+    const {
+      runSetupOnboarding,
+      setupOnboardingExitCode,
+    } = await import("../setup/onboarding.js");
+    return setupOnboardingExitCode(await runSetupOnboarding(config.workspace));
   },
   commands: {
-    init: async ({ config }) => {
-      const { runSetupOnboarding } = await import("../setup/onboarding.js");
-      await runSetupOnboarding(config.workspace);
-      return 0;
-    },
     telegram: async ({ config }) => {
       const { setupTelegram } = await import("../setup/telegram.js");
       await setupTelegram(config.workspace);

@@ -388,11 +388,13 @@ Command watch shape:
 }
 ```
 
-Fresh setup seeds three focused watches for the default `shrimpy` agent:
+Fresh setup installs focused watches disabled by default. The default `shrimpy` agent gets:
 
 - `memory-management` — daily at 03:00, runs the memory upkeep skill.
 - `journal-daily` — daily at 22:30, writes a same-day journal note only if activity warrants it.
 - `journal-compact` — Sundays at 04:00, compacts old journal notes.
+
+The `mechanic` agent gets disabled `security-audit` and `hygiene-audit` schedules for read-only maintenance reports. Enable or disable installed schedules with `shrimpy watches enable <agent-id>/<watch-id>` and `shrimpy watches disable <agent-id>/<watch-id>`.
 
 Channel membership stays in `config/channels.json`. Message watches choose a channel to log through; setup seeds the default `home` and `maintenance` channels with both default agents, `shrimpy` and `mechanic`, as members.
 

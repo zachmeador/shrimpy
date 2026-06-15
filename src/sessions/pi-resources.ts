@@ -17,7 +17,6 @@ import { buildContainedSystemPromptFromPiOptions } from "./contained-system-prom
 
 const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "hello.ts"),
-  join(projectRoot, "extensions", "setup.ts"),
   join(projectRoot, "extensions", "compaction-bias.ts"),
   join(projectRoot, "extensions", "compact-tools.ts"),
   join(projectRoot, "extensions", "model-switch-renderer.ts"),

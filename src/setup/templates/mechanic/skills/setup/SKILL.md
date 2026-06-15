@@ -29,7 +29,7 @@ Prefer the smallest useful setup. Ask one question at a time, usually in this or
 2. What should the default `shrimpy` agent be like?
 3. Should Shrimpy stay inside official workspace paths, or may it crawl other accessible folders on this machine to learn about projects and preferences?
 4. Should a chat surface be added now? If yes, start with Telegram.
-5. Should Shrimpy leave its background watches enabled, or pause them for now?
+5. Should Shrimpy enable any background watches now? Offer some/all/none.
 6. Should Shrimpy install and start the gateway service now?
 
 Default path scope: only inspect official Shrimpy workspace paths, meaning the active Shrimpy workspace, agent roots inside it, and paths the user explicitly names. If the user allows broader crawling, summarize the intended roots first and avoid secrets, caches, dependency folders, and generated/runtime state.
@@ -38,7 +38,15 @@ If adding a chat surface, use the setup command for that surface, starting with 
 
 A chat-surface setup is not complete until the surface has an explicit inbound whitelist. For Telegram, collect and configure the real numeric chat ID in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Do not start the gateway to discover a Telegram chat ID before `allowedChatIds` is set; use `shrimpy setup telegram` direct polling or leave the surface unconfigured and tell the user the exact next command to run.
 
-Default background behavior: setup seeds three watches: `memory-management`, `journal-daily`, and `journal-compact`. They post work into the `maintenance` channel on their configured cadence. If the user wants quiet setup, set those entries in `agents/shrimpy/watches.json` to `enabled: false`; do not delete them.
+Default background behavior: setup installs watch schedules disabled. Ask whether the user wants to enable some, all, or none. Offer each watch briefly, noting that runs use the configured model:
+
+- `shrimpy/memory-management`: daily 03:00, reviews recent activity and updates durable memory only when warranted.
+- `shrimpy/journal-daily`: daily 22:30, writes a short day note when there was activity worth keeping.
+- `shrimpy/journal-compact`: Sundays 04:00, compacts older journal notes after summaries exist.
+- `mechanic/security-audit`: Mondays 05:00, writes a read-only security posture report.
+- `mechanic/hygiene-audit`: Fridays 05:00, writes a read-only workspace hygiene report.
+
+Enable accepted watches with `shrimpy watches enable <agent-id>/<watch-id>`. Leave declined watches disabled and discoverable. Tell the user they can change choices later with `shrimpy watches list`, `shrimpy watches enable ...`, and `shrimpy watches disable ...`.
 
 Default gateway behavior: ask before running `shrimpy gateway install` or `shrimpy gateway start`. If the user declines, include in the closing summary that watches and chat surfaces stay dormant until the gateway runs. If the user accepts, run the gateway commands and then inspect with `shrimpy gateway status`.
 
@@ -53,12 +61,12 @@ When editing agent identity, keep ownership clear. `agents/shrimpy/` is the firs
 When enough information is available, make concrete edits instead of only describing them. Preserve existing user edits.
 
 - User facts and preferences: `profile/USER.md`
-- Workspace layout and local path breadcrumbs: `profile/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, and Shrimpy docs paths. Do not add broad crawl roots unless the user approved broader path scope.
+- Workspace layout and local path breadcrumbs: `profile/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, Shrimpy docs, pattern docs, reference docs, source default skills, source mechanic skills, workspace skills, and agent skill path stems. Do not add broad crawl roots unless the user approved broader path scope.
 - Shrimpy identity and style: `agents/shrimpy/SOUL.md`
 - Durable agent memory: `agents/shrimpy/context/*.md`
 - Saved material and setup notes for the main agent: `agents/shrimpy/vault/`
 - Projects, apps, and scripts for the main agent: `agents/shrimpy/projects/`
-- Watch preferences: `agents/shrimpy/watches.json`
+- Watch preferences: `agents/<id>/watches.json`; setup defaults include `agents/shrimpy/watches.json` and `agents/mechanic/watches.json`. Prefer `shrimpy watches enable|disable <agent-id>/<watch-id>` for toggles.
 - Shared framework guidance: `profile/SYSTEM.md`
 - Config changes: prefer `shrimpy <command>` when a command exists; otherwise edit JSON carefully.
 
@@ -66,10 +74,10 @@ Keep replies short and practical. Do not explain Shrimpy's whole architecture un
 
 ## Validate
 
-Before saying setup is done, run this skill's bundled validator:
+Before saying setup is done, run this skill's bundled validator from the `setup` skill directory shown in the skill trail:
 
 ```bash
-bash scripts/validate-config.sh
+SHRIMPY_WORKSPACE="$(pwd)" bash <setup-skill-dir>/scripts/validate-config.sh
 ```
 
 If validation fails, inspect the error, fix the workspace, and run it again. Only claim success once validation passes.

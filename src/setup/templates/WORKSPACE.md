@@ -15,6 +15,12 @@ This workspace is the home system that contains Shrimpy agents, channels, sessio
 - Shrimpy app checkout: `{{APP_PATH}}`
 - Shrimpy source: `{{SOURCE_PATH}}`
 - Shrimpy docs: `{{DOCS_PATH}}`
+- Pattern docs: `{{DOCS_PATH}}/patterns`
+- Reference docs: `{{DOCS_PATH}}/reference`
+- Source default skills: `{{SOURCE_PATH}}/setup/templates/skills`
+- Source mechanic skills: `{{SOURCE_PATH}}/setup/templates/mechanic/skills`
+- Workspace skills: `{{WORKSPACE_PATH}}/skills`
+- Agent skills: `{{WORKSPACE_PATH}}/agents/<id>/skills`
 
 Each agent keeps saved files and collections under `agents/<id>/vault/`. Each agent keeps code, apps, experiments, and focused work folders under `agents/<id>/projects/`. Do not put channel logs, runtime state, sessions, provider auth, or generated workspace state in either directory.
 

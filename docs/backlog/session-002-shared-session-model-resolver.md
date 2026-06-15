@@ -1,6 +1,6 @@
 # 🦐 SESSION-002: Shared Session Model Resolver
 
-Status: todo
+Status: review
 Priority: P2
 Area: Sessions
 Depends On: none

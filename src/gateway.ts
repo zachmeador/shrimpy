@@ -26,7 +26,6 @@ import {
   logGatewayStartup,
 } from "./gateway/runtime-helpers.js";
 import {
-  ensureGatewayWatchFiles,
   startGatewayWatchClock,
 } from "./gateway/watch-service.js";
 import { saveWatchClockState } from "./watches/index.js";
@@ -91,7 +90,6 @@ async function run() {
   await deliveryLoop.drainBacklog();
   deliveryLoop.start();
 
-  ensureGatewayWatchFiles(runtime);
   const watchClock = startGatewayWatchClock(runtime, channelBus);
   const workspaceCheckpointService = createWorkspaceCheckpointService(runtime);
   workspaceCheckpointService.start();

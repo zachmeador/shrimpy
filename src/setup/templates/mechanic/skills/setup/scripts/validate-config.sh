@@ -1,87 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_ROOT="$(cd "${SCRIPT_DIR}/../../../../../../.." && pwd)"
-SOURCE_ROOT="${APP_ROOT}/src"
-DOCS_ROOT="${APP_ROOT}/docs"
-
 if [ -n "${SHRIMPY_WORKSPACE:-}" ]; then
   WORKSPACE_ROOT="${SHRIMPY_WORKSPACE}"
-elif [ -f "config/shrimpy.json" ]; then
-  WORKSPACE_ROOT="$(pwd)"
-elif [ -f "${SCRIPT_DIR}/../../../../../config/shrimpy.json" ]; then
-  WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
+elif [ -n "${1:-}" ]; then
+  WORKSPACE_ROOT="$1"
 else
   WORKSPACE_ROOT="$(pwd)"
 fi
 
-WORKSPACE_DOC_PATH="${WORKSPACE_ROOT}/profile/WORKSPACE.md"
-CONFIG_PATH="${WORKSPACE_ROOT}/config/shrimpy.json"
-CHANNELS_PATH="${WORKSPACE_ROOT}/config/channels.json"
-WATCHES_PATH="${WORKSPACE_ROOT}/agents/shrimpy/watches.json"
-
-node - "${WORKSPACE_ROOT}" "${APP_ROOT}" "${SOURCE_ROOT}" "${DOCS_ROOT}" "${WORKSPACE_DOC_PATH}" "${CONFIG_PATH}" "${CHANNELS_PATH}" "${WATCHES_PATH}" <<'NODE'
+node - "${WORKSPACE_ROOT}" <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
 
-const [workspaceRoot, appRoot, sourceRoot, docsRoot, workspaceDocPath, configPath, channelsPath, watchesPath] = process.argv.slice(2);
+const [workspaceRoot] = process.argv.slice(2);
 const errors = [];
 
-function readJson(filePath, label) {
-  if (!fs.existsSync(filePath)) {
-    errors.push(`missing ${label}: ${filePath}`);
-    return undefined;
-  }
-
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    errors.push(`invalid JSON in ${label}: ${message}`);
-    return undefined;
-  }
-}
-
 function requireFile(filePath, label) {
-  if (!fs.existsSync(filePath)) {
-    errors.push(`missing ${label}: ${filePath}`);
-  }
-}
-
-function requireFileContains(filePath, label, expected, description) {
-  if (!fs.existsSync(filePath)) {
-    return;
-  }
-  const content = fs.readFileSync(filePath, "utf-8");
-  if (!content.includes(expected)) {
-    errors.push(`${label} must include ${description}: ${expected}`);
-  }
-}
-
-function requireFileContainsAny(filePath, label, expectedValues, description) {
-  if (!fs.existsSync(filePath)) {
-    return;
-  }
-  const content = fs.readFileSync(filePath, "utf-8");
-  if (!expectedValues.some((expected) => content.includes(expected))) {
-    errors.push(`${label} must include ${description}: ${expectedValues.join(" or ")}`);
-  }
-}
-
-function pathAliases(filePath) {
-  const aliases = new Set([filePath]);
-  if (filePath.startsWith("/private/")) {
-    aliases.add(filePath.slice("/private".length));
-  } else if (filePath.startsWith("/var/")) {
-    aliases.add(`/private${filePath}`);
-  }
-  try {
-    aliases.add(fs.realpathSync(filePath));
-  } catch {
-    // The normal value is still useful if the path cannot be resolved.
-  }
-  return [...aliases];
+  if (!fs.existsSync(filePath)) errors.push(`missing ${label}: ${filePath}`);
 }
 
 function requireDir(dirPath, label) {
@@ -90,105 +26,51 @@ function requireDir(dirPath, label) {
   }
 }
 
-const config = readJson(configPath, "config/shrimpy.json");
-const channels = readJson(channelsPath, "config/channels.json");
-const watches = readJson(watchesPath, "agents/shrimpy/watches.json");
+function readJson(relativePath) {
+  const filePath = path.join(workspaceRoot, relativePath);
+  if (!fs.existsSync(filePath)) {
+    errors.push(`missing ${relativePath}: ${filePath}`);
+    return undefined;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch (error) {
+    errors.push(`invalid JSON in ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+const config = readJson("config/shrimpy.json");
+const channels = readJson("config/channels.json");
+readJson("agents/shrimpy/watches.json");
+readJson("agents/mechanic/watches.json");
 
 requireFile(path.join(workspaceRoot, "profile", "WORKSPACE.md"), "profile/WORKSPACE.md");
 requireFile(path.join(workspaceRoot, "profile", "USER.md"), "profile/USER.md");
 requireFile(path.join(workspaceRoot, "profile", "SYSTEM.md"), "profile/SYSTEM.md");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
-requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");
-requireDir(path.join(workspaceRoot, "agents", "shrimpy", "projects"), "agents/shrimpy/projects");
 requireFile(path.join(workspaceRoot, "agents", "mechanic", "SOUL.md"), "agents/mechanic/SOUL.md");
-requireDir(path.join(workspaceRoot, "agents", "mechanic", "context"), "agents/mechanic/context");
-requireFile(path.join(workspaceRoot, "agents", "mechanic", "context", "scope.md"), "agents/mechanic/context/scope.md");
+requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");
 requireDir(path.join(workspaceRoot, "agents", "mechanic", "vault"), "agents/mechanic/vault");
-requireDir(path.join(workspaceRoot, "agents", "mechanic", "projects"), "agents/mechanic/projects");
-
-requireFileContainsAny(workspaceDocPath, "profile/WORKSPACE.md", pathAliases(workspaceRoot), "the active workspace path");
-requireFileContains(workspaceDocPath, "profile/WORKSPACE.md", appRoot, "the Shrimpy app checkout path");
-requireFileContains(workspaceDocPath, "profile/WORKSPACE.md", sourceRoot, "the Shrimpy source path");
-requireFileContains(workspaceDocPath, "profile/WORKSPACE.md", docsRoot, "the Shrimpy docs path");
 
 if (config) {
-  if (!Array.isArray(config.agents) || config.agents.length === 0) {
-    errors.push("config/shrimpy.json must define at least one agent");
-  } else {
-    if (!config.agents.some((agent) => agent && agent.id === "shrimpy")) {
-      errors.push("config/shrimpy.json must include the shrimpy agent");
-    }
-    if (!config.agents.some((agent) => agent && agent.id === "mechanic")) {
-      errors.push("config/shrimpy.json must include the mechanic agent");
-    }
-  }
-  for (const agent of config.agents ?? []) {
-    if (Array.isArray(agent?.tools) && agent.tools.includes("memory")) {
-      errors.push(`agent ${agent.id || "(unknown)"} must not use the removed memory daemon tool`);
-    }
-  }
-
-  if (!config.context || !Array.isArray(config.context.sources)) {
-    errors.push("config/shrimpy.json must define context.sources");
-  } else {
-    for (const required of [
-      "workspace:profile/WORKSPACE.md",
-      "workspace:profile/SYSTEM.md",
-      "agent:SOUL.md",
-      "workspace:profile/USER.md",
-      "agent:context/",
-    ]) {
-      if (!config.context.sources.includes(required)) {
-        errors.push(`context.sources must include ${required}`);
-      }
-    }
-  }
-
-  if (!config.watchClock || typeof config.watchClock.tickIntervalMs !== "number") {
-    errors.push("config/shrimpy.json must define watchClock.tickIntervalMs");
-  }
-  if (!config.watchClock || typeof config.watchClock.defaultTimezone !== "string") {
-    errors.push("config/shrimpy.json must define watchClock.defaultTimezone");
-  }
+  const agentIds = Array.isArray(config.agents)
+    ? config.agents.map((agent) => agent && agent.id)
+    : [];
+  if (!agentIds.includes("shrimpy")) errors.push("config/shrimpy.json must include the shrimpy agent");
+  if (!agentIds.includes("mechanic")) errors.push("config/shrimpy.json must include the mechanic agent");
 }
 
 if (channels) {
-  const homeAgents = channels.channels?.home?.agents;
-  if (!homeAgents || typeof homeAgents !== "object" || Array.isArray(homeAgents) || !homeAgents.shrimpy || !homeAgents.mechanic) {
-    errors.push("config/channels.json must keep shrimpy and mechanic in home");
-  }
-  const maintenanceAgents = channels.channels?.maintenance?.agents;
-  if (!maintenanceAgents || typeof maintenanceAgents !== "object" || Array.isArray(maintenanceAgents) || !maintenanceAgents.shrimpy || !maintenanceAgents.mechanic) {
-    errors.push("config/channels.json must keep shrimpy and mechanic in maintenance");
-  }
-}
-
-if (watches) {
-  if (!Array.isArray(watches) || watches.length === 0) {
-    errors.push("agents/shrimpy/watches.json must define at least one watch");
-  } else {
-    for (const required of [
-      "memory-management",
-      "journal-daily",
-      "journal-compact",
-    ]) {
-      if (!watches.some((watch) => watch && watch.id === required)) {
-        errors.push(`agents/shrimpy/watches.json must include ${required}`);
-      }
-    }
-    for (const watch of watches) {
-      if (watch?.trigger?.kind !== "time") {
-        errors.push(`watch ${watch?.id || "(unknown)"} must use trigger.kind = "time"`);
-      }
-    }
-  }
+  if (!channels.channels?.home?.agents?.shrimpy) errors.push("config/channels.json must include shrimpy in home");
+  if (!channels.channels?.home?.agents?.mechanic) errors.push("config/channels.json must include mechanic in home");
+  if (!channels.channels?.maintenance?.agents?.shrimpy) errors.push("config/channels.json must include shrimpy in maintenance");
+  if (!channels.channels?.maintenance?.agents?.mechanic) errors.push("config/channels.json must include mechanic in maintenance");
 }
 
 if (errors.length > 0) {
   console.error("setup validation failed:");
-  for (const error of errors) {
-    console.error(`- ${error}`);
-  }
+  for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 

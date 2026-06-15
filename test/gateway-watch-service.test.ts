@@ -4,16 +4,14 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createAppRuntime } from "../dist/app/index.js";
-import { setupInit } from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 import {
-  ensureGatewayWatchFiles,
   startGatewayWatchClock,
 } from "../dist/gateway/watch-service.js";
 import {
@@ -84,7 +82,7 @@ describe("gateway watch service", () => {
     assert.equal(watches[0].action.addressedAgentId, "shrimpy");
   });
 
-  test("initializes default agent watches without creating channel config", () => {
+  test("does not create agent watch files when starting the watch clock", () => {
     const runtime = createAppRuntime({
       workspace: testDir,
       agents: [
@@ -92,8 +90,14 @@ describe("gateway watch service", () => {
         { id: "ops", root: "agents/ops" },
       ],
     });
+    mkdirSync(join(testDir, "agents", "shrimpy"), { recursive: true });
+    mkdirSync(join(testDir, "agents", "ops"), { recursive: true });
 
-    ensureGatewayWatchFiles(runtime);
+    const clock: WatchClock = startGatewayWatchClock(
+      runtime,
+      runtime.createChannelBus(),
+    );
+    clock.stop();
 
     const shrimpyWatchesPath = join(
       testDir,
@@ -102,18 +106,9 @@ describe("gateway watch service", () => {
       "watches.json",
     );
     const opsWatchesPath = join(testDir, "agents", "ops", "watches.json");
-    assert.equal(existsSync(shrimpyWatchesPath), true);
-    assert.equal(existsSync(opsWatchesPath), true);
+    assert.equal(existsSync(shrimpyWatchesPath), false);
+    assert.equal(existsSync(opsWatchesPath), false);
     assert.equal(existsSync(join(testDir, "config", "channels.json")), false);
-
-    const shrimpyWatches = JSON.parse(readFileSync(shrimpyWatchesPath, "utf-8"));
-    const opsWatches = JSON.parse(readFileSync(opsWatchesPath, "utf-8"));
-    assert.deepEqual(shrimpyWatches.map((watch: any) => watch.id), [
-      "memory-management",
-      "journal-daily",
-      "journal-compact",
-    ]);
-    assert.deepEqual(opsWatches, []);
   });
 
   test("reloads added and disabled watches without dropping kept clock state", async () => {

@@ -23,8 +23,9 @@ import {
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { refreshWorkerBackendAvailability } from "../workers/availability.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
-import { brand, dim, heading } from "../util/style.js";
+import { heading } from "../util/style.js";
 import {
+  createDefaultMechanicWatches,
   createDefaultShrimpyWatches,
   createDefaultStatusConfig,
 } from "./defaults.js";
@@ -102,22 +103,6 @@ function defaultShrimpyConfig(): Record<string, unknown> {
   };
 }
 
-export async function setupInit(workspace: string): Promise<void> {
-  const { created, existing } = ensureWorkspaceInitialized(workspace);
-
-  console.log(`\n${brand()} ${heading("setup: init")}\n`);
-  for (const path of created) {
-    console.log(`${dim("created:")} ${path}`);
-  }
-  for (const path of existing) {
-    console.log(`${dim("exists: ")} ${path}`);
-  }
-  for (const line of setupNextStepLines(workspace)) {
-    console.log(line);
-  }
-  console.log();
-}
-
 export interface SetupInitResult {
   created: string[];
   existing: string[];
@@ -185,6 +170,14 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
     created.push(watchesTargetPath);
   } else {
     existing.push(watchesTargetPath);
+  }
+
+  const mechanicWatchesTargetPath = mechanicPaths.watchesPath;
+  if (!existsSync(mechanicWatchesTargetPath)) {
+    writeJsonFileAtomic(mechanicWatchesTargetPath, createDefaultMechanicWatches());
+    created.push(mechanicWatchesTargetPath);
+  } else {
+    existing.push(mechanicWatchesTargetPath);
   }
 
   const channelMembershipsPath = paths.channelMembershipsPath;

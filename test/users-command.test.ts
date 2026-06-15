@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { cmdUsers } from "../dist/commands/users.js";
-import { setupInit } from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
 import {
   captureLogs,

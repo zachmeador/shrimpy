@@ -7,7 +7,7 @@ description: Use when creating, changing, inspecting, or debugging Shrimpy watch
 
 Use this skill when the user wants recurring work, reminders, periodic audits, or background checks.
 
-Reference docs, under the Shrimpy docs path listed in workspace context:
+Use the paths in `profile/WORKSPACE.md`. Read `patterns/watches.md` first. If you need more detail, use:
 
 - `reference/configuration.md` — watch configuration, message watches, command watches, status config.
 - `reference/runtime.md` — gateway dispatch, watch runs, run history.
@@ -17,8 +17,8 @@ Reference docs, under the Shrimpy docs path listed in workspace context:
 ## How To Work
 
 1. Identify the owner agent, cadence, target channel, and expected user-visible outcome.
-2. Inspect existing state before adding anything: `shrimpy watches --agent <id>`, `shrimpy channels members <channel>`, and `shrimpy agent channel-policy <id> --channel <channel>`.
-3. Prefer `shrimpy watches add` for new watches. Use `--name` and `--concurrency-policy` when they matter. The workspace timezone is the default; edit `agents/<id>/watches.json` directly only for rare per-watch timezone overrides or shapes the CLI cannot express, and preserve existing entries.
+2. Inspect existing state before adding anything, following `patterns/watches.md`.
+3. Prefer `shrimpy watches add` for new watches and `shrimpy watches enable|disable <agent-id>/<watch-id>` for toggles. Use `--name` and `--concurrency-policy` when they matter. The workspace timezone is the default; edit `agents/<id>/watches.json` directly only for rare per-watch timezone overrides or shapes the CLI cannot express, and preserve existing entries.
 4. For recurring agent work, prefer a message watch that posts a concise instruction into a real channel. Include any skill name the agent should use in the message text.
 5. For deterministic observations, use a command watch and choose an emit policy deliberately.
 6. Verify with `shrimpy watches show <agent-id>/<watch-id> --json`; check diagnostics, target channels, next run, and expected wake.

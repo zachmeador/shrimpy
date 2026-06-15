@@ -5,7 +5,6 @@ import {
   createAgentSessionRuntime,
   type AgentSession,
   type AgentSessionRuntime,
-  type ModelRegistry,
   type ResourceLoader,
   type SettingsManager,
   type SessionManager,
@@ -14,7 +13,7 @@ import {
 import { projectRoot } from "../app/project-root.js";
 import {
   sameModelRef,
-  toModelRef,
+  type ModelRef,
 } from "../config/model.js";
 import {
   resolveModelVariantInference,
@@ -27,7 +26,10 @@ import { createInlineSettingsManager } from "./inline-settings.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 import { assembleSessionPrompt } from "./prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
-import type { ModelResolution } from "./models.js";
+import {
+  resolveSavedSessionModel,
+  resolveSessionModel,
+} from "./models.js";
 import {
   recordSessionOpen,
   wrapModelMetadataRecording,
@@ -229,35 +231,52 @@ function resolveSessionModelPlan(input: {
   plan: SessionOpenPlan;
   sessionManager: SessionManager;
 }): SessionOpenPlan {
-  if (!input.plan.restoreModelFromSession) return input.plan;
+  if (!input.plan.modelRequest) {
+    if (!input.plan.restoreModelFromSession) return input.plan;
+    const modelResolution = resolveSavedSessionModel({
+      bootstrap: input.bootstrap,
+      readSavedModel: () => readStoredSessionModel(input.sessionManager),
+    });
+    if (!modelResolution?.model) return input.plan;
+    return {
+      ...input.plan,
+      model: modelResolution.model,
+      modelResolution,
+      inference: resolveModelVariantInference({
+        modelsPath: input.bootstrap.modelsPath,
+        model: modelResolution.model,
+      }),
+    };
+  }
 
-  const restoredModel = resolveStoredSessionModel(
-    input.sessionManager,
-    input.bootstrap.modelRegistry,
-  );
-  if (!restoredModel) return input.plan;
+  const modelResolution = resolveSessionModel({
+    bootstrap: input.bootstrap,
+    ...input.plan.modelRequest,
+    readSavedModel: input.plan.restoreModelFromSession
+      ? () => readStoredSessionModel(input.sessionManager)
+      : undefined,
+  });
 
   return {
     ...input.plan,
-    model: restoredModel,
-    modelResolution: createStoredSessionModelResolution(restoredModel),
+    model: modelResolution.model,
+    modelResolution,
     inference: resolveModelVariantInference({
       modelsPath: input.bootstrap.modelsPath,
-      model: restoredModel,
+      model: modelResolution.model,
     }),
   };
 }
 
-function resolveStoredSessionModel(
+function readStoredSessionModel(
   sessionManager: SessionManager,
-  modelRegistry: ModelRegistry,
-): Model<Api> | undefined {
+): ModelRef | undefined {
   const saved = sessionManager.buildSessionContext().model;
   if (!saved) return undefined;
-
-  const model = modelRegistry.find(saved.provider, saved.modelId);
-  if (!model || !modelRegistry.hasConfiguredAuth(model)) return undefined;
-  return model;
+  return {
+    provider: saved.provider,
+    id: saved.modelId,
+  };
 }
 
 function resolveEffectiveInference(input: {
@@ -296,30 +315,6 @@ async function resolveSessionResourceLoader(
   });
   await resourceLoader.reload();
   return resourceLoader;
-}
-
-function createStoredSessionModelResolution(model: Model<Api>): ModelResolution {
-  return {
-    source: "saved-session",
-    model,
-    modelRef: toModelRef(model),
-    policy: {
-      name: "saved-session",
-      source: "default",
-      candidates: [{
-        provider: model.provider,
-        id: model.id,
-        usable: true,
-        selected: true,
-      }],
-      selected: {
-        provider: model.provider,
-        id: model.id,
-      },
-      problems: [],
-    },
-    problems: [],
-  };
 }
 
 function subscribeToCompactionLogs(

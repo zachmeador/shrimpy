@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdSessions } from "../dist/commands/sessions.js";
 import { createGatewaySessionDescriptor } from "../dist/sessions/spec.js";
-import { setupInit } from "../dist/setup/init.js";
 import {
+  setupInit,
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,

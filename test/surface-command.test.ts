@@ -5,8 +5,8 @@ import { ChannelBus } from "../dist/channels/bus.js";
 import { ChannelMembershipStore } from "../dist/channels/membership.js";
 import { cmdSurface } from "../dist/commands/surface.js";
 import { resolveAgentsConfig } from "../dist/config/agents.js";
-import { setupInit } from "../dist/setup/init.js";
 import {
+  setupInit,
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,

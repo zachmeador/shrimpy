@@ -29,6 +29,10 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 
 - [backlog/index.md](backlog/index.md) — active engineering work.
 
+## Patterns
+
+- [patterns/README.md](patterns/README.md) — short workflow patterns used by agent skills.
+
 ## Background
 
 - [musings/](musings/README.md) — design taste, product direction, and unfinished thinking.

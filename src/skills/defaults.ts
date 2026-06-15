@@ -67,6 +67,11 @@ const DEFAULT_SKILLS: DefaultSkillDefinition[] = [
     { kind: "all" },
   ),
   defaultSkill(
+    "shrimpy-workflows",
+    setupTemplatePath("skills", "shrimpy-workflows"),
+    { kind: "all" },
+  ),
+  defaultSkill(
     "journal-daily",
     setupTemplatePath("skills", "journal-daily"),
     { kind: "all" },
@@ -82,9 +87,9 @@ const DEFAULT_SKILLS: DefaultSkillDefinition[] = [
   mechanicSkill("channel-routing"),
   mechanicSkill("hygiene-audit"),
   mechanicSkill("watches"),
+  mechanicSkill("skill-management"),
   mechanicSkill("security-audit"),
   mechanicSkill("workspace-migration"),
-  mechanicSkill("shrimpy-mechanic-ideas"),
 ];
 
 export function listDefaultSkillDefinitions(

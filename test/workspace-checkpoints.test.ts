@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAppRuntime } from "../dist/app/index.js";
 import { cmdWorkspace } from "../dist/commands/workspace.js";
-import { setupInit } from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 import {
   createWorkspaceCheckpointService,
   initializeWorkspaceCheckpointTracking,

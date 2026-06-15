@@ -11,6 +11,7 @@ import {
 } from "../setup/readiness.js";
 import {
   runSetupOnboarding,
+  setupOnboardingExitCode,
   type SetupOnboardingResult,
 } from "../setup/onboarding.js";
 import {
@@ -82,9 +83,9 @@ export async function runShrimpyTuiCommandSession(
 
     const result = await (deps.runOnboarding ?? runSetupOnboarding)(
       config.workspace,
-      { cwd: request.cwd ?? process.cwd() },
+      { cwd: config.workspace },
     );
-    return onboardingMode === "setup" || result.kind === "setup_started" ? 0 : 1;
+    return setupOnboardingExitCode(result);
   }
 
   await deps.beforeLaunch?.();

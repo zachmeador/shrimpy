@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 
 export const WORKSPACE_CHECKPOINT_GITIGNORE = `# Managed by shrimpy workspace tracking.
@@ -89,7 +95,15 @@ function gitRoot(workspace: string): string | null {
 
 function rootMatchesWorkspace(workspace: string): boolean {
   const root = gitRoot(workspace);
-  return root !== null && resolve(root) === resolve(workspace);
+  return root !== null && normalizePath(root) === normalizePath(workspace);
+}
+
+function normalizePath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
 }
 
 function gitignoreMatches(workspace: string): boolean {

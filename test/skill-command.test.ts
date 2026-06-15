@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { cmdContext } from "../dist/commands/context.js";
 import { cmdSkills } from "../dist/commands/skills.js";
-import { setupInit } from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 import {
   createAppRuntime,
   projectRoot,
@@ -366,9 +366,10 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /channel-routing \[default\]/);
     assert.match(lines.join("\n"), /hygiene-audit \[default\]/);
     assert.match(lines.join("\n"), /watches \[default\]/);
+    assert.match(lines.join("\n"), /skill-management \[default\]/);
     assert.match(lines.join("\n"), /security-audit \[default\]/);
     assert.match(lines.join("\n"), /workspace-migration \[default\]/);
-    assert.match(lines.join("\n"), /shrimpy-mechanic-ideas \[default\]/);
+    assert.match(lines.join("\n"), /shrimpy-workflows \[default\]/);
     assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
     assert.match(lines.join("\n"), /memory-management \[default\]/);
     assert.match(lines.join("\n"), /coding-delegation \[default\]/);
@@ -394,6 +395,7 @@ describe("skill context inspection", () => {
     assert.match(output, /coding-delegation \[default\]/);
     assert.match(output, /codex-web-search \[default\]/);
     assert.match(output, /vault-capture \[default\]/);
+    assert.match(output, /shrimpy-workflows \[default\]/);
     assert.match(output, /journal-daily \[default\]/);
     assert.match(output, /journal-compact \[default\]/);
     assert.doesNotMatch(output, /add-agent/);
@@ -403,7 +405,7 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /watches/);
     assert.doesNotMatch(output, /security-audit/);
     assert.doesNotMatch(output, /workspace-migration/);
-    assert.doesNotMatch(output, /shrimpy-mechanic-ideas/);
+    assert.doesNotMatch(output, /skill-management/);
   });
 
   test("skills command can scaffold and validate a workspace skill", async () => {
@@ -886,7 +888,8 @@ describe("skill service", () => {
       "memory-management:default",
       "security-audit:default",
       "setup:default",
-      "shrimpy-mechanic-ideas:default",
+      "shrimpy-workflows:default",
+      "skill-management:default",
       "vault-capture:default",
       "watches:default",
       "workspace-migration:default",
@@ -899,6 +902,7 @@ describe("skill service", () => {
       "journal-compact:default",
       "journal-daily:default",
       "memory-management:default",
+      "shrimpy-workflows:default",
       "vault-capture:default",
     ]);
 
@@ -1053,7 +1057,8 @@ describe("skill service", () => {
       "memory-management",
       "security-audit",
       "setup",
-      "shrimpy-mechanic-ideas",
+      "shrimpy-workflows",
+      "skill-management",
       "vault-capture",
       "watches",
       "workspace-migration",

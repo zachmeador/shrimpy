@@ -19,9 +19,13 @@ import {
 import type { SessionBootstrap } from "./bootstrap.js";
 import {
   formatMissingAgentModelPolicyMessage,
-  resolveModelDetailed,
+  resolveSessionModel,
+  shouldRestoreSavedSessionModel,
 } from "./models.js";
-import type { ModelResolution } from "./models.js";
+import type {
+  ModelResolution,
+  SessionModelRequest,
+} from "./models.js";
 import {
   createGatewaySessionDescriptor,
   createLocalSessionDescriptor,
@@ -76,15 +80,11 @@ export class SessionPlanner {
     this.sessionToolPolicy = createSessionToolPolicy(this.toolPolicy);
 
     // Gateway sessions reuse this startup resolution until the agent runtime restarts.
-    const modelResolution = resolveModelDetailed(
-      opts.bootstrap,
-      undefined,
-      undefined,
-      this.agent.modelPolicy,
-      {
-        missingMessage: formatMissingAgentModelPolicyMessage(this.agent.id),
-      },
-    );
+    const modelRequest = this.createModelRequest({});
+    const modelResolution = resolveSessionModel({
+      bootstrap: opts.bootstrap,
+      ...modelRequest,
+    });
     this.gatewayStartup = {
       modelResolution,
       inference: resolveModelVariantInference({
@@ -99,27 +99,18 @@ export class SessionPlanner {
   ): Promise<SessionOpenPlan> {
     process.env.PI_SKIP_VERSION_CHECK = "1";
 
-    // Direct/TUI sessions can restore the saved session model unless the caller supplies an override.
-    const restoreModelFromSession = overrides.provider === undefined &&
-      overrides.model === undefined &&
-      overrides.modelPolicy === undefined;
-    const modelResolution = resolveModelDetailed(
-      this.bootstrap,
-      overrides.provider,
-      overrides.model,
-      this.agent.modelPolicy,
-      {
-        modelPolicy: overrides.modelPolicy,
-        allowMissingDefault: restoreModelFromSession ||
-          overrides.allowMissingModel,
-        allowRegistryFallback: overrides.allowRegistryFallbackModel,
-        missingMessage: formatMissingAgentModelPolicyMessage(this.agent.id),
-      },
-    );
     const descriptor = this.createDirectDescriptor(overrides);
+    const modelRequest = this.createModelRequest(overrides);
+    const restoreModelFromSession = shouldRestoreSavedSessionModel(modelRequest);
+    const modelResolution = resolveSessionModel({
+      bootstrap: this.bootstrap,
+      ...modelRequest,
+      allowMissingModel: restoreModelFromSession || overrides.allowMissingModel,
+    });
 
     return {
       descriptor,
+      modelRequest,
       restoreModelFromSession,
       allowMissingModel: overrides.allowMissingModel,
       thinking: overrides.thinking,
@@ -182,6 +173,27 @@ export class SessionPlanner {
       channel: overrides.channel,
       cwd: overrides.cwd,
     });
+  }
+
+  private createModelRequest(
+    input: Pick<
+      DirectSessionPlanOverrides,
+      | "provider"
+      | "model"
+      | "modelPolicy"
+      | "allowMissingModel"
+      | "allowRegistryFallbackModel"
+    >,
+  ): SessionModelRequest {
+    return {
+      provider: input.provider,
+      model: input.model,
+      modelPolicy: input.modelPolicy,
+      defaultModelPolicy: this.agent.modelPolicy,
+      allowMissingModel: input.allowMissingModel,
+      allowRegistryFallbackModel: input.allowRegistryFallbackModel,
+      missingMessage: formatMissingAgentModelPolicyMessage(this.agent.id),
+    };
   }
 
   private async buildTools(opts?: {

@@ -58,6 +58,8 @@ Keep reports in `agents/<id>/vault/` and code/work folders in `agents/<id>/proje
 
 ## Wire Channels
 
+Use `patterns/channels.md` for shared channel and surface naming rules.
+
 Channel membership gives visibility; channel policy decides whether a visible message becomes a turn. Join only the channels the agent should see:
 
 ```bash
@@ -66,9 +68,9 @@ shrimpy channels members <channel>
 shrimpy agent channel-policy <id> --channel <channel>
 ```
 
-Use normal semantic channel names like `fitness`, `maintenance`, or `home` for internal rooms/logs. Do not create adapter-shaped names for concepts. Use the `channel-routing` skill when the user asks for a chat-surface workflow or when the route from an external chat to an agent is unclear.
+Use the `channel-routing` skill when the user asks for a chat-surface workflow or when the route from an external chat to an agent is unclear.
 
-Surface-thread channels belong to chat adapters. Telegram channels look like `telegram~<instance-id>~<chat-id>` where the instance comes from Telegram config and the chat id comes from the external Telegram chat. Do not invent names like `telegram~fitness` for a fitness agent. Configure Telegram with `shrimpy setup telegram`, discover actual channels with `shrimpy channels`, and use `shrimpy surface set-agent <surface> <thread-id> <id>` when an existing surface thread should address the new agent.
+Configure Telegram with `shrimpy setup telegram`, discover actual channels with `shrimpy channels`, and use `shrimpy surface set-agent <surface> <thread-id> <id>` when an existing surface thread should address the new agent.
 
 For shared channels, test the expected wake decision before declaring done:
 

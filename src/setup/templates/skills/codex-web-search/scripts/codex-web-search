@@ -15,6 +15,7 @@ out=""
 jsonl=""
 err=""
 args=()
+tmp_dir=""
 
 while (($#)); do
   case "$1" in
@@ -76,13 +77,23 @@ if [[ -z "${question//[[:space:]]/}" ]]; then
   exit 2
 fi
 
+ensure_tmp_dir() {
+  if [[ -n "$tmp_dir" ]]; then
+    return
+  fi
+  tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/codex-web-search.XXXXXX")"
+}
+
 if [[ -z "$out" ]]; then
-  out="$(mktemp /tmp/codex-web-search.XXXXXX.md)"
+  ensure_tmp_dir
+  out="$tmp_dir/output.md"
 fi
 if [[ -z "$jsonl" ]]; then
-  jsonl="$(mktemp /tmp/codex-web-search.XXXXXX.jsonl)"
+  ensure_tmp_dir
+  jsonl="$tmp_dir/events.jsonl"
 fi
-err="$(mktemp /tmp/codex-web-search.XXXXXX.stderr)"
+ensure_tmp_dir
+err="$tmp_dir/stderr.txt"
 
 if ((raw_prompt)); then
   prompt="$question"

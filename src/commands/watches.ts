@@ -42,6 +42,8 @@ export const cmdWatches: CommandHandler = createCommandGroup({
     list: ({ argv, config, usage }) => cmdWatchesList(argv, config, usage),
     show: ({ argv, config, usage }) => cmdWatchesShow(argv, config, usage),
     add: ({ argv, config, usage }) => cmdWatchesAdd(argv, config, usage),
+    enable: ({ argv, config, usage }) => cmdWatchesSetEnabled(argv, config, usage, true),
+    disable: ({ argv, config, usage }) => cmdWatchesSetEnabled(argv, config, usage, false),
     history: ({ argv, config, usage }) => cmdWatchesHistory(argv, config, usage),
     run: ({ argv, config, usage }) => cmdWatchesRun(argv, config, usage),
   },
@@ -168,6 +170,46 @@ async function cmdWatchesAdd(
   for (const diagnostic of created.diagnostics) {
     console.log(`warning: ${diagnostic}`);
   }
+  return 0;
+}
+
+async function cmdWatchesSetEnabled(
+  argv: string[],
+  config: ShrimpyConfig,
+  usage: string,
+  enabled: boolean,
+): Promise<number> {
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+  const watchId = requireArg(positionals[0], usage, "watch id");
+  const runtime = createAppRuntime(config);
+  const watch = inspectWatch(runtime, watchId);
+  const watches = loadAgentWatchFile(watch.source.path);
+  const index = watches.findIndex((candidate) => candidate.id === watch.localId);
+  if (index < 0) throw new Error(`watch not found in source file: ${watch.id}`);
+
+  watches[index] = {
+    ...watches[index],
+    enabled,
+  };
+  parseWatchDefinitions(watches);
+  writeJsonFileAtomic(watch.source.path, watches);
+
+  const updated = inspectWatch(createAppRuntime(config), watch.id);
+  if (values.json) {
+    console.log(JSON.stringify(publicWatchInspection(updated), null, 2));
+    return 0;
+  }
+
+  console.log(`watch ${enabled ? "enabled" : "disabled"}: ${updated.id}`);
+  console.log(`source: ${updated.source.path}`);
   return 0;
 }
 

@@ -10,9 +10,7 @@ import {
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  setupInit,
-} from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 import { projectRoot } from "../dist/app/index.js";
 
 let workspace: string;
@@ -37,6 +35,7 @@ describe("setupInit", () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
     const mechanicRoot = join(workspace, "agents", "mechanic");
     const watchesPath = join(agentRoot, "watches.json");
+    const mechanicWatchesPath = join(mechanicRoot, "watches.json");
     const soulPath = join(agentRoot, "SOUL.md");
     const mechanicSoulPath = join(mechanicRoot, "SOUL.md");
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
@@ -114,19 +113,6 @@ describe("setupInit", () => {
       "workspace-migration",
       "SKILL.md",
     );
-    const mechanicIdeasSkillPath = join(
-      mechanicRoot,
-      "skills",
-      "shrimpy-mechanic-ideas",
-      "SKILL.md",
-    );
-    const mechanicIdeasReferencePath = join(
-      mechanicRoot,
-      "skills",
-      "shrimpy-mechanic-ideas",
-      "references",
-      "pattern-inventory.md",
-    );
     const agentVaultPath = join(agentRoot, "vault");
     const mechanicVaultPath = join(mechanicRoot, "vault");
     const agentProjectsPath = join(agentRoot, "projects");
@@ -146,6 +132,7 @@ describe("setupInit", () => {
     assert.equal(existsSync(configPath), true);
     assert.equal(existsSync(channelsConfigPath), true);
     assert.equal(existsSync(watchesPath), true);
+    assert.equal(existsSync(mechanicWatchesPath), true);
     assert.equal(existsSync(workspaceDocPath), true);
     assert.equal(existsSync(userPath), true);
     assert.equal(existsSync(systemPath), true);
@@ -169,8 +156,6 @@ describe("setupInit", () => {
     assert.equal(existsSync(securityAuditSkillPath), false);
     assert.equal(existsSync(hygieneAuditSkillPath), false);
     assert.equal(existsSync(workspaceMigrationSkillPath), false);
-    assert.equal(existsSync(mechanicIdeasSkillPath), false);
-    assert.equal(existsSync(mechanicIdeasReferencePath), false);
     assert.equal(existsSync(agentVaultPath), true);
     assert.equal(existsSync(mechanicVaultPath), true);
     assert.equal(existsSync(agentProjectsPath), true);
@@ -243,6 +228,21 @@ describe("setupInit", () => {
     assert.match(watches[0].action.text, /memory-management/);
     assert.match(watches[1].action.text, /journal-daily/);
     assert.match(watches[2].action.text, /journal-compact/);
+    assert.deepEqual(watches.map((watch: any) => watch.enabled), [
+      false,
+      false,
+      false,
+    ]);
+
+    const mechanicWatches = JSON.parse(readFileSync(mechanicWatchesPath, "utf-8"));
+    assert.deepEqual(mechanicWatches.map((watch: any) => watch.id), [
+      "security-audit",
+      "hygiene-audit",
+    ]);
+    assert.deepEqual(mechanicWatches.map((watch: any) => watch.enabled), [
+      false,
+      false,
+    ]);
 
     const channelMemberships = JSON.parse(readFileSync(channelsConfigPath, "utf-8"));
     assert.deepEqual(channelMemberships.channels.home.agents, {
@@ -300,11 +300,23 @@ describe("setupInit", () => {
     assert.match(workspaceDoc, /Shrimpy app checkout:/);
     assert.match(workspaceDoc, /Shrimpy source:/);
     assert.match(workspaceDoc, /Shrimpy docs:/);
+    assert.match(workspaceDoc, /Pattern docs:/);
+    assert.match(workspaceDoc, /Reference docs:/);
+    assert.match(workspaceDoc, /Source default skills:/);
+    assert.match(workspaceDoc, /Source mechanic skills:/);
+    assert.match(workspaceDoc, /Workspace skills:/);
+    assert.match(workspaceDoc, /Agent skills:/);
     assert.match(workspaceDoc, /Do not put reports in `context\/`/);
     assert.equal(workspaceDoc.includes(workspace), true);
     assert.equal(workspaceDoc.includes(projectRoot), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "patterns")), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "reference")), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "src", "setup", "templates", "skills")), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "src", "setup", "templates", "mechanic", "skills")), true);
+    assert.equal(workspaceDoc.includes(join(workspace, "skills")), true);
+    assert.equal(workspaceDoc.includes(join(workspace, "agents", "<id>", "skills")), true);
 
     const mechanicScope = readFileSync(mechanicContextScopePath, "utf-8");
     assert.match(mechanicScope, /workspace-specific maintenance boundaries/);

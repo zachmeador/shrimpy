@@ -2,7 +2,7 @@
 
 This file gives all Shrimpy agents shared workspace context. Edit it when the workspace's baseline guidance should change.
 
-Use the Shrimpy source and docs paths listed in `profile/WORKSPACE.md`. Start docs with `README.md`, then `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
+Use the Shrimpy source and docs paths listed in `profile/WORKSPACE.md`. Start docs with `README.md`; for workflow shape, check `patterns/`; for exact current behavior, check `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
 
 ## Framework Map
 

@@ -53,6 +53,7 @@ describe("createDefaultShrimpyWatches", () => {
       "journal-daily",
       "journal-compact",
     ]);
+    assert.equal(watches.every((watch) => watch.enabled === false), true);
     assert.equal(watches.every((watch) => watch.action.kind === "message"), true);
     assert.equal(watches.every((watch: any) => watch.action.channel === "maintenance"), true);
     assert.deepEqual(watches[0].trigger, { kind: "time", cron: "0 3 * * *" });

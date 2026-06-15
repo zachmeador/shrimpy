@@ -14,7 +14,7 @@ export function createMemoryManagementWatch(opts?: {
   return {
     id: opts?.watchId ?? "memory-management",
     name: "Memory management",
-    enabled: true,
+    enabled: false,
     trigger: {
       kind: "time",
       cron: "0 3 * * *",
@@ -39,7 +39,7 @@ export function createJournalDailyWatch(opts?: {
   return {
     id: opts?.watchId ?? "journal-daily",
     name: "Daily journal",
-    enabled: true,
+    enabled: false,
     trigger: {
       kind: "time",
       cron: "30 22 * * *",
@@ -64,7 +64,7 @@ export function createJournalCompactWatch(opts?: {
   return {
     id: opts?.watchId ?? "journal-compact",
     name: "Journal compaction",
-    enabled: true,
+    enabled: false,
     trigger: {
       kind: "time",
       cron: "0 4 * * 0",
@@ -87,5 +87,62 @@ export function createDefaultShrimpyWatches(): WatchDefinition[] {
     createMemoryManagementWatch(),
     createJournalDailyWatch(),
     createJournalCompactWatch(),
+  ];
+}
+
+export function createSecurityAuditWatch(opts?: {
+  watchId?: string;
+  channel?: string;
+}): WatchDefinition {
+  return {
+    id: opts?.watchId ?? "security-audit",
+    name: "Security audit",
+    enabled: false,
+    trigger: {
+      kind: "time",
+      cron: "0 5 * * 1",
+    },
+    concurrencyPolicy: "forbid",
+    action: {
+      kind: "message",
+      channel: opts?.channel ?? DEFAULT_WATCH_MAINTENANCE_CHANNEL,
+      text: [
+        "Use the `security-audit` skill.",
+        "Run a read-only security posture review and write the report under agents/mechanic/vault/audits/.",
+        "Do not change workspace state.",
+      ].join(" "),
+    },
+  };
+}
+
+export function createHygieneAuditWatch(opts?: {
+  watchId?: string;
+  channel?: string;
+}): WatchDefinition {
+  return {
+    id: opts?.watchId ?? "hygiene-audit",
+    name: "Hygiene audit",
+    enabled: false,
+    trigger: {
+      kind: "time",
+      cron: "0 5 * * 5",
+    },
+    concurrencyPolicy: "forbid",
+    action: {
+      kind: "message",
+      channel: opts?.channel ?? DEFAULT_WATCH_MAINTENANCE_CHANNEL,
+      text: [
+        "Use the `hygiene-audit` skill.",
+        "Run a read-only workspace hygiene review and write the report under agents/mechanic/vault/audits/.",
+        "Do not change workspace state.",
+      ].join(" "),
+    },
+  };
+}
+
+export function createDefaultMechanicWatches(): WatchDefinition[] {
+  return [
+    createSecurityAuditWatch(),
+    createHygieneAuditWatch(),
   ];
 }

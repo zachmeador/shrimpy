@@ -153,7 +153,7 @@ switch (command) {
     result = await run("node", [cliPath, "setup", ...cliArgs], { cwd: projectRoot, env });
     break;
   case "init":
-    result = await run("node", [cliPath, "setup", "init", ...cliArgs], {
+    result = await run("node", [cliPath, "setup", ...cliArgs], {
       cwd: projectRoot,
       env,
     });
@@ -225,7 +225,7 @@ function usage(code) {
 
 Commands:
   setup   Rebuild, reset the temp env, and run "shrimpy setup" (default).
-  init    Rebuild, reset the temp env, and run "shrimpy setup init".
+  init    Rebuild, reset the temp env, and run "shrimpy setup".
   status  Reuse the temp env and run "shrimpy status".
   shell   Reuse the temp env and open a shell with isolated HOME.
   run     Rebuild and run an arbitrary Shrimpy command in the temp env.

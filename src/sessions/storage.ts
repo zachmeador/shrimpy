@@ -8,6 +8,7 @@ import {
   type FileEntry,
   type SessionEntry,
 } from "@earendil-works/pi-coding-agent";
+import type { ModelRef } from "../config/model.js";
 import { isRecord } from "../util/record.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
@@ -85,6 +86,20 @@ export function createSessionManager(cwd: string, sessionDir: string): SessionMa
   return active
     ? SessionManager.open(active, sessionDir, cwd)
     : SessionManager.create(cwd, sessionDir);
+}
+
+export function readSessionRecordedModel(
+  cwd: string,
+  sessionDir: string,
+): ModelRef | undefined {
+  try {
+    const model = createSessionManager(cwd, sessionDir).buildSessionContext().model;
+    return model
+      ? { provider: model.provider, id: model.modelId }
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function findActiveSessionFile(sessionDir: string): string | undefined {

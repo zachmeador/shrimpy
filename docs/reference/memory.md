@@ -27,13 +27,13 @@ Do not use `context/` as a filing cabinet. Put saved notes, reports, and other f
 
 ## Upkeep
 
-Fresh setup seeds ordinary watches for memory work:
+Fresh setup installs ordinary memory watches disabled by default:
 
-- `memory-management` runs daily and asks the agent to review recent activity, update its own context files when durable memory is warranted, and prune stale notes.
-- `journal-daily` writes a same-day journal note only if activity warrants it.
-- `journal-compact` summarizes old daily and weekly journal notes into longer horizon files.
+- `memory-management` can run daily and asks the agent to review recent activity, update its own context files when durable memory is warranted, and prune stale notes.
+- `journal-daily` can write a same-day journal note only if activity warrants it.
+- `journal-compact` can summarize old daily and weekly journal notes into longer horizon files.
 
-These are normal watch-origin agent turns. They use skills, CLI commands, and file inspection.
+When enabled, these are normal watch-origin agent turns. They use skills, CLI commands, and file inspection.
 
 ## Context Assembly
 

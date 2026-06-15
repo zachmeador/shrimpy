@@ -10,7 +10,7 @@ import {
   type MechanicSessionRequest,
 } from "../dist/commands/mechanic.js";
 import { resolveCommandResult } from "../dist/commands/framework.js";
-import { setupInit } from "../dist/setup/init.js";
+import { setupInit } from "./helpers.ts";
 
 let workspace: string;
 

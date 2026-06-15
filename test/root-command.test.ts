@@ -36,7 +36,7 @@ describe("root shrimpy command setup path", () => {
       },
     );
 
-    assert.equal(result.status, 0);
+    assert.equal(result.status, 1);
     assert.match(result.stdout, /shrimpy setup/);
     assert.match(result.stdout, /No working models found yet\./);
     assert.match(result.stdout, /Run `shrimpy setup` in an interactive terminal/);

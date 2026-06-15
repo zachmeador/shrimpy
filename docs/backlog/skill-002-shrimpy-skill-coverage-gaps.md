@@ -7,7 +7,7 @@ Depends On: none
 
 ## Why
 
-Shrimpy has enough agent-facing surfaces now that "add a skill for it" needs a sharper rule. A Shrimpy area should get a skill when an agent needs behavioral guidance: choosing the right owner, sequencing inspectable commands, preserving live workspace safety, deciding when to ask the user, or keeping a recurring workflow from becoming hidden policy. A skill should not become a second reference manual. Durable feature details, command catalogs, examples, and background explanations should live in `docs/reference/`, `docs/patterns/`, or focused project notes, with `SKILL.md` acting as the trigger, decision guide, and breadcrumb.
+Shrimpy has enough agent-facing surfaces now that "add a skill for it" needs a sharper rule. A Shrimpy area should get a skill when an agent needs behavioral guidance: choosing the right owner, sequencing inspectable commands, preserving live workspace safety, deciding when to ask the user, or keeping a recurring workflow from becoming hidden policy. A skill should not become a second reference manual. Shared workflow knowledge should live in `docs/patterns/`; durable feature details, command catalogs, schemas, examples, and background explanations should live in `docs/reference/` or focused project notes. `SKILL.md` is the trigger, intended behavior, safety boundary, and breadcrumb.
 
 The current set covers several important mechanisms, but there are gaps around creating skills, debugging context/session/model state, and operating gateway/runtime surfaces. This note is the coverage assessment, not an implementation of every candidate skill.
 

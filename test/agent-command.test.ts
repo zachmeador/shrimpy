@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdAgent } from "../dist/commands/agent.js";
 import { SurfaceThreadStateStore } from "../dist/surfaces/shared/thread-state-store.js";
-import { setupInit } from "../dist/setup/init.js";
 import {
+  setupInit,
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,

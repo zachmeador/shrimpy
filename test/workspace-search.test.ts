@@ -9,8 +9,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { cmdWorkspace } from "../dist/commands/workspace.js";
-import { setupInit } from "../dist/setup/init.js";
 import {
+  setupInit,
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,
