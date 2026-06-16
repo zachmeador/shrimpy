@@ -17,6 +17,10 @@ import type {
   SkillPackageSourceRevisionKind,
 } from "./package-state.js";
 import {
+  getIncludedSkillDefinition,
+  type IncludedSkillAssignment,
+} from "./included.js";
+import {
   deriveSkillIdFromGitHubPath,
   deriveSkillIdFromSource,
   deriveSkillIdFromUrl,
@@ -28,6 +32,7 @@ import {
 } from "./shared.js";
 
 export type PreparedPackageSource =
+  | PreparedIncludedPackageSource
   | PreparedLocalDirectoryPackageSource
   | PreparedContentPackageSource
   | PreparedGitHubPackageSource;
@@ -45,6 +50,13 @@ interface PreparedLocalDirectoryPackageSource extends PreparedPackageBase {
   kind: "local-directory";
   path: string;
   entryPath: string;
+}
+
+export interface PreparedIncludedPackageSource extends PreparedPackageBase {
+  kind: "included";
+  path: string;
+  entryPath: string;
+  assignment?: IncludedSkillAssignment;
 }
 
 interface PreparedContentPackageSource extends PreparedPackageBase {
@@ -106,6 +118,9 @@ export async function preparePackageSources(
     path?: string;
   } = {},
 ): Promise<PreparedPackageSource[]> {
+  const included = prepareIncludedPackageSource(source);
+  if (included) return [included];
+
   const sourcePath = resolve(process.cwd(), source);
   if (!isHttpUrl(source) && existsSync(sourcePath)) {
     return [prepareLocalPackageSource(source, sourcePath)];
@@ -162,6 +177,7 @@ export async function writePreparedPackageSource(
   targetRoot: string,
 ): Promise<void> {
   switch (source.kind) {
+    case "included":
     case "local-directory":
       copySkillDirectorySafe(source.path, targetRoot);
       return;
@@ -228,6 +244,7 @@ export async function hashPreparedPackageSource(
   source: PreparedPackageSource,
 ): Promise<string> {
   switch (source.kind) {
+    case "included":
     case "local-directory":
       return hashSkillPackage(source.path);
     case "local-file":
@@ -247,6 +264,32 @@ export function hashSkillPackage(rootPath: string): string {
     hash.update("\0");
   }
   return `sha256:${hash.digest("hex")}`;
+}
+
+export function prepareIncludedPackageSource(
+  source: string,
+): PreparedIncludedPackageSource | undefined {
+  const match = /^included:(.+)$/i.exec(source.trim());
+  if (!match) return undefined;
+  const definition = getIncludedSkillDefinition(match[1]!);
+  if (!definition) {
+    throw new Error(`included skill not found: ${match[1]}`);
+  }
+  if (!existsSync(definition.entryPath)) {
+    throw new Error(`included skill is missing ${SKILL_ENTRYPOINT}: ${definition.rootPath}`);
+  }
+  const content = readFileSync(definition.entryPath, "utf-8");
+  return {
+    kind: "included",
+    source: definition.source,
+    path: definition.rootPath,
+    entryPath: definition.entryPath,
+    skillName: readSkillNameFromContent(content) ?? definition.id,
+    description: readSkillDescriptionFromContent(content),
+    sourceRevision: hashSkillPackage(definition.rootPath),
+    sourceRevisionKind: "hash",
+    assignment: definition.assignment,
+  };
 }
 
 function prepareLocalPackageSource(
@@ -578,7 +621,7 @@ function githubPackageInfo(opts: {
   };
 }
 
-function copySkillDirectorySafe(sourceRoot: string, targetRoot: string): void {
+export function copySkillDirectorySafe(sourceRoot: string, targetRoot: string): void {
   mkdirSync(targetRoot, { recursive: true });
   for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) continue;

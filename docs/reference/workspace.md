@@ -39,11 +39,11 @@ context/                        optional agent memory and prompt files
 vault/                          agent saved files and reports
 projects/                       agent code, apps, and work folders
 watches.json                    agent-owned background attention rules
-skills/                         agent-level skill bundles
+skills/                         agent-level skills
 sessions/                       Pi session persistence
 ```
 
-Workspace-authored skills live under `skills/<id>/SKILL.md`; agent-authored skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills, package bindings, and source defaults with the same id. Fresh setup uses source default skills instead of copying unchanged default bundles into the workspace. See [skills.md](skills.md) for bundle shape, Pi loading behavior, and CLI management.
+Workspace-owned skills live under `skills/<id>/SKILL.md`; agent-owned skills live under `agents/<id>/skills/<id>/SKILL.md` and override workspace skills with the same id. Fresh setup and `shrimpy skills add` copy packages into those visible skill roots and track source hash, installed path, and modified status by install target in `state/skills/packages.json`. See [skills.md](skills.md) for skill directory shape, Pi loading behavior, and CLI management.
 
 ## Storage
 
@@ -57,7 +57,7 @@ Inside an agent root:
 
 Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do not put reports in `context/`. Put a reference in `context/` only if the agent should load it every run.
 
-Vault collections are loose, user-led folders under the owning agent's `vault/`. Typical collections include recipes, household notes, travel ideas, research links, and purchase comparisons. Agents can create an obvious folder when the request is clear, such as `agents/<id>/vault/recipes/<slug>.md` for an adapted recipe that keeps the source URL, but should ask before introducing a broad taxonomy. The source-default `vault-capture` skill carries the operational workflow for capture, catalog, research packets, worker handoffs, and versioning.
+Vault collections are loose, user-led folders under the owning agent's `vault/`. Typical collections include recipes, household notes, travel ideas, research links, and purchase comparisons. Agents can create an obvious folder when the request is clear, such as `agents/<id>/vault/recipes/<slug>.md` for an adapted recipe that keeps the source URL, but should ask before introducing a broad taxonomy. The included `vault-capture` skill carries the operational workflow for capture, catalog, research packets, worker handoffs, and versioning.
 
 The default `shrimpy` agent uses predictable intake paths for general capture work:
 
@@ -93,7 +93,7 @@ The workspace search corpus excludes channel logs and session transcripts. Use `
 
 Stable prompt material loaded into an agent session before per-turn context arrives:
 
-- `profile/WORKSPACE.md` defines shared system/home context and local path breadcrumbs for the active workspace, Shrimpy app checkout, source directory, docs directory, pattern docs, reference docs, source skill templates, workspace skills, and agent skill stems.
+- `profile/WORKSPACE.md` defines shared system/home context and local path breadcrumbs for the active workspace, Shrimpy app checkout, source directory, docs directory, reference docs, source skill templates, workspace skills, and agent skill stems.
 - `profile/SYSTEM.md` covers editable workspace-level Shrimpy framework context and CLI inspection breadcrumbs. It does not contain the compact immutable instructions prepended during session setup.
 - `profile/USER.md` declares workspace-owner identity (name, surface handles, hard preferences).
 - `SOUL.md` defines who an agent is: role, boundaries, and voice.
@@ -102,7 +102,7 @@ Stable prompt material loaded into an agent session before per-turn context arri
 
 Setup onboarding creates baseline files from `src/setup/templates/`.
 
-Setup writes absolute breadcrumbs for the active workspace, install-managed Shrimpy app checkout, `src/` directory, `docs/` directory, `docs/patterns/`, `docs/reference/`, source skill templates, workspace skills, and agent skill stems into `profile/WORKSPACE.md`. In the default install, the app checkout is `~/.local/share/shrimpy/app`.
+Setup writes absolute breadcrumbs for the active workspace, install-managed Shrimpy app checkout, `src/` directory, `docs/` directory, `docs/reference/`, source skill templates, workspace skills, and agent skill stems into `profile/WORKSPACE.md`. In the default install, the app checkout is `~/.local/share/shrimpy/app`.
 
 Durable machine state lives under `state/`. Disposable runtime state lives under `runtime/` and surfaces at turn time through the context envelope.
 

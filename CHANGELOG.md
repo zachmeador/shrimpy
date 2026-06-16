@@ -4,9 +4,28 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 🦐 0.4.2 - Tides Pull Both Ways - Unreleased
 
+### Breaking Changes
+
+- Replaced source-default runtime skills and hidden package visibility state with package installs copied into visible workspace or agent `skills/` roots. Existing workspaces that relied on source-served Shrimpy skills should install owned copies with `shrimpy skills add included:<id> --workspace` or `--agent <id>`.
+- Renamed Shrimpy-specific how-to skills to the `shrimpy-*` form, including `shrimpy-setup`, `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, `shrimpy-skills`, `shrimpy-coding-delegation`, and `shrimpy-workspace-migration`; update explicit `--skill` references that used the old names.
+
 ### Workspace & Setup
 
-- Added `vault-capture` as an all-agent source-default skill for recipes, inbox captures, research packets, source metadata, worker handoffs, and explicit versioning of kept vault files.
+- Changed fresh setup to install assigned included skills as real package-backed files under `skills/` and `agents/mechanic/skills/`, with `profile/WORKSPACE.md` pointing agents at the installed roots and `src/skills/included/` source.
+- Added visible included package copies for `shrimpy-coding-delegation`, `memory-management`, `vault-capture`, `shrimpy-workflows`, `journal-daily`, `journal-compact`, shared Shrimpy how-to skills, and mechanic-only maintenance skills.
+- Kept `codex-web-search` as an included package source but unassigned by default.
+
+### Agents, Skills & Tools
+
+- Changed `shrimpy skills add` so included, local, URL, and GitHub packages all install into owned workspace or agent skill directories with target-scoped provenance and drift tracking in `state/skills/packages.json`.
+- Added `shrimpy skills remove <id> [--agent <id>|--workspace]` to remove one managed package copy and its package state record.
+- Changed `shrimpy skills list` and `shrimpy skills validate --json` to report package source, assignment, installed path, and modified status for package-backed skills.
+- Changed `shrimpy mechanic` to stop injecting the removed broad `mechanic` skill by default; use explicit focused skills when a maintenance session needs one.
+
+### Docs & Agent References
+
+- Added `shrimpy-skills` for workspace and agent skill authoring, package choices, validation, and docs-backed skill writing.
+- Updated the Shrimpy workflow skill, developer skills, and reference docs for the included-package model and `shrimpy-*` skill names, with workflow guidance moving into the relevant skills.
 
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
 

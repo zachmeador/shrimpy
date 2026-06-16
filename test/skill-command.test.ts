@@ -50,7 +50,7 @@ describe("skill context inspection", () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdContext(["--agent", "mechanic", "--skill", "setup"], readWorkspaceConfig())
+      cmdContext(["--agent", "mechanic", "--skill", "shrimpy-setup"], readWorkspaceConfig())
     );
 
     assert.equal(result, 0);
@@ -101,16 +101,19 @@ describe("skill context inspection", () => {
     assert.equal(parsed.turnContext.sessionType, "gateway");
     assert.match(parsed.systemPrompt, /\[context pi:available_skills capability\]/);
     assert.match(parsed.systemPrompt, /<available_skills>/);
-    assert.match(parsed.systemPrompt, /<name>setup<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>mechanic<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>watches<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>workspace-migration<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>security-audit<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>hygiene-audit<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>coding-delegation<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>codex-web-search<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-setup<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-channels<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-watches<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-skills<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-workspace-migration<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-security-audit<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-hygiene-audit<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-coding-delegation<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
     assert.match(parsed.systemPrompt, /<name>vault-capture<\/name>/);
+    assert.doesNotMatch(parsed.systemPrompt, /<name>setup<\/name>/);
+    assert.doesNotMatch(parsed.systemPrompt, /<name>mechanic<\/name>/);
+    assert.doesNotMatch(parsed.systemPrompt, /<name>codex-web-search<\/name>/);
     assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
     assert.match(parsed.systemPrompt, new RegExp(`\\(${Intl.DateTimeFormat().resolvedOptions().timeZone}, UTC[+-]\\d{2}:\\d{2}\\)`));
@@ -360,29 +363,32 @@ describe("skill context inspection", () => {
     );
 
     assert.equal(result, 0);
-    assert.match(lines.join("\n"), /setup \[default\]/);
-    assert.match(lines.join("\n"), /mechanic \[default\]/);
-    assert.match(lines.join("\n"), /add-agent \[default\]/);
-    assert.match(lines.join("\n"), /channel-routing \[default\]/);
-    assert.match(lines.join("\n"), /hygiene-audit \[default\]/);
-    assert.match(lines.join("\n"), /watches \[default\]/);
-    assert.match(lines.join("\n"), /skill-management \[default\]/);
-    assert.match(lines.join("\n"), /security-audit \[default\]/);
-    assert.match(lines.join("\n"), /workspace-migration \[default\]/);
-    assert.match(lines.join("\n"), /shrimpy-workflows \[default\]/);
-    assert.match(lines.join("\n"), /Add or configure a Shrimpy agent/);
-    assert.match(lines.join("\n"), /memory-management \[default\]/);
-    assert.match(lines.join("\n"), /coding-delegation \[default\]/);
-    assert.match(lines.join("\n"), /codex-web-search \[default\]/);
-    assert.match(lines.join("\n"), /vault-capture \[default\]/);
+    assert.match(lines.join("\n"), /shrimpy-setup \[agent package\]/);
+    assert.match(lines.join("\n"), /shrimpy-agents \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-channels \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-hygiene-audit \[agent package\]/);
+    assert.match(lines.join("\n"), /shrimpy-watches \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-skills \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-security-audit \[agent package\]/);
+    assert.match(lines.join("\n"), /shrimpy-workspace-migration \[agent package\]/);
+    assert.match(lines.join("\n"), /shrimpy-workflows \[workspace package\]/);
+    assert.match(lines.join("\n"), /Create, inspect, configure, rename, remove, or debug Shrimpy agents/);
+    assert.match(lines.join("\n"), /memory-management \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-coding-delegation \[workspace package\]/);
+    assert.match(lines.join("\n"), /vault-capture \[workspace package\]/);
     assert.match(lines.join("\n"), /Save links, files, notes, recipes/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
-    assert.match(lines.join("\n"), /journal-daily \[default\]/);
-    assert.match(lines.join("\n"), /journal-compact \[default\]/);
+    assert.match(lines.join("\n"), /journal-daily \[workspace package\]/);
+    assert.match(lines.join("\n"), /journal-compact \[workspace package\]/);
+    assert.match(lines.join("\n"), /source: included:shrimpy-setup/);
+    assert.match(lines.join("\n"), /assignment: agent mechanic/);
+    assert.match(lines.join("\n"), /modified: no/);
+    assert.doesNotMatch(lines.join("\n"), /codex-web-search/);
+    assert.doesNotMatch(lines.join("\n"), /mechanic \[/);
     assert.doesNotMatch(lines.join("\n"), /activity-summary/);
   });
 
-  test("maintenance skills are not visible to the default shrimpy agent", async () => {
+  test("mechanic-only skills are not visible to the default shrimpy agent", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -391,21 +397,21 @@ describe("skill context inspection", () => {
 
     const output = lines.join("\n");
     assert.equal(result, 0);
-    assert.match(output, /memory-management \[default\]/);
-    assert.match(output, /coding-delegation \[default\]/);
-    assert.match(output, /codex-web-search \[default\]/);
-    assert.match(output, /vault-capture \[default\]/);
-    assert.match(output, /shrimpy-workflows \[default\]/);
-    assert.match(output, /journal-daily \[default\]/);
-    assert.match(output, /journal-compact \[default\]/);
-    assert.doesNotMatch(output, /add-agent/);
+    assert.match(output, /memory-management \[workspace package\]/);
+    assert.match(output, /shrimpy-agents \[workspace package\]/);
+    assert.match(output, /shrimpy-coding-delegation \[workspace package\]/);
+    assert.match(output, /vault-capture \[workspace package\]/);
+    assert.match(output, /shrimpy-workflows \[workspace package\]/);
+    assert.match(output, /shrimpy-channels \[workspace package\]/);
+    assert.match(output, /shrimpy-watches \[workspace package\]/);
+    assert.match(output, /shrimpy-skills \[workspace package\]/);
+    assert.match(output, /journal-daily \[workspace package\]/);
+    assert.match(output, /journal-compact \[workspace package\]/);
+    assert.doesNotMatch(output, /codex-web-search/);
     assert.doesNotMatch(output, /mechanic \[agent\]/);
-    assert.doesNotMatch(output, /channel-routing/);
-    assert.doesNotMatch(output, /hygiene-audit/);
-    assert.doesNotMatch(output, /watches/);
-    assert.doesNotMatch(output, /security-audit/);
-    assert.doesNotMatch(output, /workspace-migration/);
-    assert.doesNotMatch(output, /skill-management/);
+    assert.doesNotMatch(output, /shrimpy-hygiene-audit/);
+    assert.doesNotMatch(output, /shrimpy-security-audit/);
+    assert.doesNotMatch(output, /shrimpy-workspace-migration/);
   });
 
   test("skills command can scaffold and validate a workspace skill", async () => {
@@ -454,7 +460,7 @@ describe("skill context inspection", () => {
         () => cmdSkills(["add", invalidSource, "--id", "invalid-source", "--agent", "shrimpy"], { workspace } as any),
         /missing SKILL\.md/,
       );
-      assert.equal(existsSync(join(workspace, "state", "skills", "packages", "invalid-source")), false);
+      assert.equal(existsSync(join(workspace, "agents", "shrimpy", "skills", "invalid-source")), false);
 
       const install = await captureLogs(() =>
         cmdSkills(
@@ -463,21 +469,34 @@ describe("skill context inspection", () => {
         )
       );
       assert.equal(install.result, 0);
-      const installedPath = join(workspace, "state", "skills", "packages", "source-skill", "SKILL.md");
+      const installedPath = join(workspace, "agents", "shrimpy", "skills", "source-skill", "SKILL.md");
       assert.equal(existsSync(installedPath), true);
       assert.equal(
-        readFileSync(join(workspace, "state", "skills", "packages", "source-skill", "scripts", "helper.sh"), "utf-8"),
+        readFileSync(join(workspace, "agents", "shrimpy", "skills", "source-skill", "scripts", "helper.sh"), "utf-8"),
         "echo helper\n",
       );
       const packages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
-      assert.equal(packages.packages["source-skill"].source, source);
-      const bindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
-      assert.deepEqual(bindings.agents.shrimpy, ["source-skill"]);
+      assert.equal(packages.packages["agent:shrimpy:source-skill"].installKey, "agent:shrimpy:source-skill");
+      assert.equal(packages.packages["agent:shrimpy:source-skill"].source, source);
+      assert.equal(packages.packages["agent:shrimpy:source-skill"].scope, "agent");
+      assert.equal(packages.packages["agent:shrimpy:source-skill"].agentId, "shrimpy");
+      assert.equal(packages.packages["agent:shrimpy:source-skill"].installedPath, join(workspace, "agents", "shrimpy", "skills", "source-skill"));
+      assert.equal(packages.packages["agent:shrimpy:source-skill"].modified, false);
 
       await assert.rejects(
         () => cmdSkills(["add", source, "--id", "source-skill", "--agent", "shrimpy"], { workspace } as any),
         /skill package already exists/,
       );
+
+      const workspaceInstall = await captureLogs(() =>
+        cmdSkills(["add", source, "--id", "source-skill", "--workspace"], { workspace } as any)
+      );
+      assert.equal(workspaceInstall.result, 0);
+      assert.equal(existsSync(join(workspace, "skills", "source-skill", "SKILL.md")), true);
+      const multiTargetPackages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(multiTargetPackages.packages["workspace:source-skill"].installKey, "workspace:source-skill");
+      assert.equal(multiTargetPackages.packages["workspace:source-skill"].scope, "workspace");
+      assert.equal(multiTargetPackages.packages["agent:shrimpy:source-skill"].scope, "agent");
 
       const originalInstalledContent = readFileSync(installedPath, "utf-8");
       writeFileSync(
@@ -539,9 +558,8 @@ describe("skill context inspection", () => {
       const scriptPath = join(
         projectRoot,
         "src",
-        "setup",
-        "templates",
         "skills",
+        "included",
         "codex-web-search",
         "scripts",
         "codex-web-search",
@@ -605,6 +623,17 @@ describe("skill context inspection", () => {
       assert.equal(validate.result, 0);
       const validation = JSON.parse(validate.lines.join("\n"));
       assert.deepEqual(validation.issues, []);
+      assert.deepEqual(validation.packages.map((entry: any) => ({
+        id: entry.id,
+        sourceKind: entry.sourceKind,
+        assignment: entry.assignment,
+        modified: entry.modified,
+      })), [{
+        id: "agent-browser",
+        sourceKind: "local-directory",
+        assignment: "workspace",
+        modified: false,
+      }]);
 
       const list = await captureLogs(() =>
         cmdSkills(["list", "--agent", "mechanic", "--json"], readWorkspaceConfig())
@@ -701,7 +730,11 @@ describe("skill context inspection", () => {
           ["beta", "skills/beta", "tree-beta-v1"],
         ],
       );
-      assert.equal(existsSync(join(workspace, "state", "skills", "packages.json")), false);
+      const dryRunPackages = JSON.parse(
+        readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"),
+      ).packages;
+      assert.equal(dryRunPackages["agent:shrimpy:alpha"], undefined);
+      assert.equal(dryRunPackages["agent:shrimpy:beta"], undefined);
 
       const dryRunAll = await captureLogs(() =>
         cmdSkills(["add", "octo/skills", "--dry-run", "--all", "--json"], { workspace } as any)
@@ -712,68 +745,52 @@ describe("skill context inspection", () => {
         dryRunAllJson.selectedCandidates.map((candidate: any) => candidate.id),
         ["alpha", "beta"],
       );
-      assert.equal(existsSync(join(workspace, "state", "skills", "packages.json")), false);
+      const dryRunAllPackages = JSON.parse(
+        readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"),
+      ).packages;
+      assert.equal(dryRunAllPackages["agent:shrimpy:alpha"], undefined);
+      assert.equal(dryRunAllPackages["agent:shrimpy:beta"], undefined);
 
       const install = await captureLogs(() =>
         cmdSkills(["add", "octo/skills", "--path", "skills/alpha", "--agent", "shrimpy"], { workspace } as any)
       );
       assert.equal(install.result, 0);
-      const installedPath = join(workspace, "state", "skills", "packages", "alpha", "SKILL.md");
+      const installedPath = join(workspace, "agents", "shrimpy", "skills", "alpha", "SKILL.md");
       assert.equal(existsSync(installedPath), true);
       assert.match(readFileSync(installedPath, "utf-8"), /# Alpha/);
       assert.deepEqual(
-        readFileSync(join(workspace, "state", "skills", "packages", "alpha", "assets", "pixel.bin")),
+        readFileSync(join(workspace, "agents", "shrimpy", "skills", "alpha", "assets", "pixel.bin")),
         Buffer.from([0, 255, 1, 2]),
       );
       const packages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
-      assert.equal(packages.packages.alpha.sourceKind, "github");
-      assert.equal(packages.packages.alpha.sourceRevision, "tree-alpha-v1");
-      assert.equal(packages.packages.alpha.github.owner, "octo");
-      assert.equal(packages.packages.alpha.github.repo, "skills");
-      assert.equal(packages.packages.alpha.github.path, "skills/alpha");
-      const bindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
-      assert.deepEqual(bindings.agents.shrimpy, ["alpha"]);
+      assert.equal(packages.packages["agent:shrimpy:alpha"].installKey, "agent:shrimpy:alpha");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].sourceKind, "github");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].scope, "agent");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].agentId, "shrimpy");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].installedPath, join(workspace, "agents", "shrimpy", "skills", "alpha"));
+      assert.equal(packages.packages["agent:shrimpy:alpha"].modified, false);
+      assert.equal(packages.packages["agent:shrimpy:alpha"].sourceRevision, "tree-alpha-v1");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].github.owner, "octo");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].github.repo, "skills");
+      assert.equal(packages.packages["agent:shrimpy:alpha"].github.path, "skills/alpha");
+      const shrimpyRuntime = createAppRuntime(readWorkspaceConfig());
+      const alphaSkill = getSkillView(shrimpyRuntime, "alpha", "shrimpy");
+      assert.equal(alphaSkill.scope, "agent");
+      assert.equal(alphaSkill.sourceKind, "package");
+      assert.equal(alphaSkill.packageInfo?.sourceKind, "github");
+      assert.throws(() => getSkillView(shrimpyRuntime, "alpha", "mechanic"), /skill not found/);
 
-      const bindAgent = await captureLogs(() =>
-        cmdSkills(["bind", "alpha", "--agent", "mechanic", "--json"], readWorkspaceConfig())
+      const installWorkspace = await captureLogs(() =>
+        cmdSkills(["add", "octo/skills", "--path", "skills/alpha", "--workspace"], { workspace } as any)
       );
-      assert.equal(bindAgent.result, 0);
-      const bindAgentJson = JSON.parse(bindAgent.lines.join("\n"));
-      assert.equal(bindAgentJson.id, "alpha");
-      assert.equal(bindAgentJson.scope, "agent");
-      assert.equal(bindAgentJson.agentId, "mechanic");
-      assert.deepEqual(bindAgentJson.bindings.agents.mechanic, ["alpha"]);
+      assert.equal(installWorkspace.result, 0);
+      const workspaceInstalledPath = join(workspace, "skills", "alpha", "SKILL.md");
+      assert.equal(existsSync(workspaceInstalledPath), true);
+      const multiInstallPackages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(multiInstallPackages.packages["workspace:alpha"].installKey, "workspace:alpha");
+      assert.equal(multiInstallPackages.packages["workspace:alpha"].sourceRevision, "tree-alpha-v1");
       const mechanicRuntime = createAppRuntime(readWorkspaceConfig());
-      assert.equal(getSkillView(mechanicRuntime, "alpha", "mechanic").scope, "package");
-
-      const bindWorkspace = await captureLogs(() =>
-        cmdSkills(["bind", "alpha", "--workspace"], { workspace } as any)
-      );
-      assert.equal(bindWorkspace.result, 0);
-      assert.match(bindWorkspace.lines.join("\n"), /Bound skill package alpha to workspace/);
-      const workspaceBindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
-      assert.deepEqual(workspaceBindings.workspace, ["alpha"]);
-
-      const unbindShrimpy = await captureLogs(() =>
-        cmdSkills(["unbind", "alpha", "--agent", "shrimpy"], { workspace } as any)
-      );
-      assert.equal(unbindShrimpy.result, 0);
-      assert.match(unbindShrimpy.lines.join("\n"), /Unbound skill package alpha from agent shrimpy/);
-      const unbindMechanic = await captureLogs(() =>
-        cmdSkills(["unbind", "alpha", "--agent", "mechanic"], readWorkspaceConfig())
-      );
-      assert.equal(unbindMechanic.result, 0);
-      const unbindWorkspace = await captureLogs(() =>
-        cmdSkills(["unbind", "alpha", "--workspace", "--json"], { workspace } as any)
-      );
-      assert.equal(unbindWorkspace.result, 0);
-      const unbindWorkspaceJson = JSON.parse(unbindWorkspace.lines.join("\n"));
-      assert.deepEqual(unbindWorkspaceJson.bindings.workspace, []);
-      assert.equal(existsSync(installedPath), true);
-      const clearedBindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
-      assert.deepEqual(clearedBindings.agents.shrimpy, []);
-      assert.deepEqual(clearedBindings.agents.mechanic, []);
-      assert.deepEqual(clearedBindings.workspace, []);
+      assert.equal(getSkillView(mechanicRuntime, "alpha", "mechanic").scope, "workspace");
 
       github.updateSkill("skills/alpha", {
         treeSha: "tree-alpha-v2",
@@ -788,8 +805,13 @@ describe("skill context inspection", () => {
           "",
         ].join("\n"),
       });
+      await assert.rejects(
+        () => cmdSkills(["update", "alpha", "--dry-run"], { workspace } as any),
+        /multiple skill package installs found/,
+      );
+
       const updateDryRun = await captureLogs(() =>
-        cmdSkills(["update", "alpha", "--dry-run", "--json"], { workspace } as any)
+        cmdSkills(["update", "alpha", "--agent", "shrimpy", "--dry-run", "--json"], { workspace } as any)
       );
       assert.equal(updateDryRun.result, 0);
       const updateDryRunJson = JSON.parse(updateDryRun.lines.join("\n"));
@@ -800,17 +822,42 @@ describe("skill context inspection", () => {
       assert.doesNotMatch(readFileSync(installedPath, "utf-8"), /# Alpha V2/);
 
       const update = await captureLogs(() =>
-        cmdSkills(["update", "alpha"], { workspace } as any)
+        cmdSkills(["update", "alpha", "--agent", "shrimpy"], { workspace } as any)
       );
       assert.equal(update.result, 0);
       assert.match(update.lines.join("\n"), /Updated skill package alpha/);
       assert.match(readFileSync(installedPath, "utf-8"), /# Alpha V2/);
       const updatedPackages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
-      assert.equal(updatedPackages.packages.alpha.sourceRevision, "tree-alpha-v2");
-      const updatedBindings = JSON.parse(readFileSync(join(workspace, "state", "skills", "bindings.json"), "utf-8"));
-      assert.deepEqual(updatedBindings.agents.shrimpy, []);
-      assert.deepEqual(updatedBindings.agents.mechanic, []);
-      assert.deepEqual(updatedBindings.workspace, []);
+      assert.equal(updatedPackages.packages["agent:shrimpy:alpha"].sourceRevision, "tree-alpha-v2");
+      assert.equal(updatedPackages.packages["agent:shrimpy:alpha"].installedPath, join(workspace, "agents", "shrimpy", "skills", "alpha"));
+      assert.equal(updatedPackages.packages["agent:shrimpy:alpha"].modified, false);
+      assert.equal(updatedPackages.packages["workspace:alpha"].sourceRevision, "tree-alpha-v1");
+
+      await assert.rejects(
+        () => cmdSkills(["remove", "alpha"], { workspace } as any),
+        /multiple skill package installs found/,
+      );
+      const removeAgent = await captureLogs(() =>
+        cmdSkills(["remove", "alpha", "--agent", "shrimpy"], { workspace } as any)
+      );
+      assert.equal(removeAgent.result, 0);
+      assert.match(removeAgent.lines.join("\n"), /Removed agent shrimpy skill package alpha/);
+      assert.equal(existsSync(join(workspace, "agents", "shrimpy", "skills", "alpha")), false);
+      const afterAgentRemovePackages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(afterAgentRemovePackages.packages["agent:shrimpy:alpha"], undefined);
+      assert.ok(afterAgentRemovePackages.packages["workspace:alpha"]);
+      assert.equal(getSkillView(createAppRuntime(readWorkspaceConfig()), "alpha", "shrimpy").scope, "workspace");
+
+      const removeWorkspace = await captureLogs(() =>
+        cmdSkills(["remove", "alpha", "--workspace", "--json"], { workspace } as any)
+      );
+      assert.equal(removeWorkspace.result, 0);
+      const removeWorkspaceJson = JSON.parse(removeWorkspace.lines.join("\n"));
+      assert.equal(removeWorkspaceJson.scope, "workspace");
+      assert.equal(existsSync(join(workspace, "skills", "alpha")), false);
+      const afterWorkspaceRemovePackages = JSON.parse(readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"));
+      assert.equal(afterWorkspaceRemovePackages.packages["workspace:alpha"], undefined);
+      assert.throws(() => getSkillView(createAppRuntime(readWorkspaceConfig()), "alpha", "shrimpy"), /skill not found/);
     } finally {
       github.restore();
     }
@@ -877,77 +924,83 @@ describe("skill service", () => {
 
     const skills = listSkillViews(runtime, "mechanic");
     assert.deepEqual(skills.map((skill) => `${skill.id}:${skill.scope}`), [
-      "add-agent:default",
-      "channel-routing:default",
-      "codex-web-search:default",
-      "coding-delegation:default",
-      "hygiene-audit:default",
-      "journal-compact:default",
-      "journal-daily:default",
-      "mechanic:default",
-      "memory-management:default",
-      "security-audit:default",
-      "setup:default",
-      "shrimpy-workflows:default",
-      "skill-management:default",
-      "vault-capture:default",
-      "watches:default",
-      "workspace-migration:default",
+      "journal-compact:workspace",
+      "journal-daily:workspace",
+      "memory-management:workspace",
+      "shrimpy-agents:workspace",
+      "shrimpy-channels:workspace",
+      "shrimpy-coding-delegation:workspace",
+      "shrimpy-hygiene-audit:agent",
+      "shrimpy-security-audit:agent",
+      "shrimpy-setup:agent",
+      "shrimpy-skills:workspace",
+      "shrimpy-watches:workspace",
+      "shrimpy-workflows:workspace",
+      "shrimpy-workspace-migration:agent",
+      "vault-capture:workspace",
     ]);
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
     assert.deepEqual(shrimpySkills.map((skill) => `${skill.id}:${skill.scope}`), [
-      "codex-web-search:default",
-      "coding-delegation:default",
-      "journal-compact:default",
-      "journal-daily:default",
-      "memory-management:default",
-      "shrimpy-workflows:default",
-      "vault-capture:default",
+      "journal-compact:workspace",
+      "journal-daily:workspace",
+      "memory-management:workspace",
+      "shrimpy-agents:workspace",
+      "shrimpy-channels:workspace",
+      "shrimpy-coding-delegation:workspace",
+      "shrimpy-skills:workspace",
+      "shrimpy-watches:workspace",
+      "shrimpy-workflows:workspace",
+      "vault-capture:workspace",
     ]);
 
-    const skill = getSkillView(runtime, "setup", "mechanic");
-    assert.match(skill.entryPath, /src\/setup\/templates\/mechanic\/skills\/setup\/SKILL\.md$/);
+    const mechanicRoot = join(workspace, "agents", "mechanic");
+    const skill = getSkillView(runtime, "shrimpy-setup", "mechanic");
+    assert.equal(skill.entryPath, join(mechanicRoot, "skills", "shrimpy-setup", "SKILL.md"));
     assert.equal(skill.loaded, true);
-    assert.match(loadSkillPrompt(runtime, "setup", "mechanic"), /first usable Shrimpy workspace/);
-    const securityAudit = getSkillView(runtime, "security-audit", "mechanic");
+    assert.equal(skill.sourceKind, "package");
+    assert.equal(skill.packageInfo?.sourceKind, "included");
+    assert.equal(skill.packageInfo?.modified, false);
+    assert.match(loadSkillPrompt(runtime, "shrimpy-setup", "mechanic"), /first usable Shrimpy workspace/);
+    const securityAudit = getSkillView(runtime, "shrimpy-security-audit", "mechanic");
     assert.equal(securityAudit.loaded, true);
-    assert.match(loadSkillPrompt(runtime, "security-audit", "mechanic"), /agents\/mechanic\/vault\/audits/);
-    const hygieneAudit = getSkillView(runtime, "hygiene-audit", "mechanic");
+    assert.match(loadSkillPrompt(runtime, "shrimpy-security-audit", "mechanic"), /agents\/mechanic\/vault\/audits/);
+    const hygieneAudit = getSkillView(runtime, "shrimpy-hygiene-audit", "mechanic");
     assert.equal(hygieneAudit.loaded, true);
-    assert.match(loadSkillPrompt(runtime, "hygiene-audit", "mechanic"), /checked, found nothing/);
-    const codingDelegation = getSkillView(runtime, "coding-delegation", "shrimpy");
+    assert.match(loadSkillPrompt(runtime, "shrimpy-hygiene-audit", "mechanic"), /checked, found nothing/);
+    const codingDelegation = getSkillView(runtime, "shrimpy-coding-delegation", "shrimpy");
     assert.equal(codingDelegation.available, true);
+    assert.equal(codingDelegation.sourceKind, "package");
     assert.deepEqual(codingDelegation.requiredTools, ["bash"]);
     const vaultCapture = getSkillView(runtime, "vault-capture", "shrimpy");
     assert.equal(vaultCapture.available, true);
     assert.match(loadSkillPrompt(runtime, "vault-capture", "shrimpy"), /agents\/shrimpy\/vault\/research/);
-    assert.deepEqual(getSkillPromptResources(runtime, "setup", "mechanic"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
-      resourcePath: "skills/setup",
+    assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-setup", "mechanic"), [{
+      rootPath: mechanicRoot,
+      resourcePath: "skills/shrimpy-setup",
     }]);
-    assert.deepEqual(getSkillPromptResources(runtime, "add-agent", "mechanic"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
-      resourcePath: "skills/add-agent",
+    assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-agents", "mechanic"), [{
+      rootPath: workspace,
+      resourcePath: "skills/shrimpy-agents",
     }]);
-    assert.deepEqual(getSkillPromptResources(runtime, "security-audit", "mechanic"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
-      resourcePath: "skills/security-audit",
+    assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-security-audit", "mechanic"), [{
+      rootPath: mechanicRoot,
+      resourcePath: "skills/shrimpy-security-audit",
     }]);
-    assert.deepEqual(getSkillPromptResources(runtime, "hygiene-audit", "mechanic"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates", "mechanic"),
-      resourcePath: "skills/hygiene-audit",
+    assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-hygiene-audit", "mechanic"), [{
+      rootPath: mechanicRoot,
+      resourcePath: "skills/shrimpy-hygiene-audit",
     }]);
     assert.deepEqual(getSkillPromptResources(runtime, "memory-management"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates"),
+      rootPath: workspace,
       resourcePath: "skills/memory-management",
     }]);
-    assert.deepEqual(getSkillPromptResources(runtime, "coding-delegation"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates"),
-      resourcePath: "skills/coding-delegation",
+    assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-coding-delegation"), [{
+      rootPath: workspace,
+      resourcePath: "skills/shrimpy-coding-delegation",
     }]);
     assert.deepEqual(getSkillPromptResources(runtime, "vault-capture"), [{
-      rootPath: join(projectRoot, "src", "setup", "templates"),
+      rootPath: workspace,
       resourcePath: "skills/vault-capture",
     }]);
   });
@@ -1046,22 +1099,20 @@ describe("skill service", () => {
       .sort();
 
     assert.deepEqual(piSkillNames, [
-      "add-agent",
-      "channel-routing",
-      "codex-web-search",
-      "coding-delegation",
-      "hygiene-audit",
       "journal-compact",
       "journal-daily",
-      "mechanic",
       "memory-management",
-      "security-audit",
-      "setup",
+      "shrimpy-agents",
+      "shrimpy-channels",
+      "shrimpy-coding-delegation",
+      "shrimpy-hygiene-audit",
+      "shrimpy-security-audit",
+      "shrimpy-setup",
+      "shrimpy-skills",
+      "shrimpy-watches",
       "shrimpy-workflows",
-      "skill-management",
+      "shrimpy-workspace-migration",
       "vault-capture",
-      "watches",
-      "workspace-migration",
     ]);
     assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);
   });

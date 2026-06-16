@@ -416,7 +416,7 @@ describe("assembleBasePromptSections", () => {
   test("supports skill-root resources through the same assembly path", () => {
     const workspace = mkdtempSync(join(tmpdir(), "shrimpy-context-skill-test-"));
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const skillRoot = join(agentRoot, "skills", "setup");
+    const skillRoot = join(agentRoot, "skills", "shrimpy-setup");
     mkdirSync(skillRoot, { recursive: true });
 
     try {
@@ -429,7 +429,7 @@ describe("assembleBasePromptSections", () => {
         {
           extraResources: [{
             rootPath: agentRoot,
-            resourcePath: "skills/setup",
+            resourcePath: "skills/shrimpy-setup",
           }],
         },
       ));

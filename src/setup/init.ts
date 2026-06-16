@@ -24,6 +24,9 @@ import { writeJsonFileAtomic } from "../util/json-file.js";
 import { refreshWorkerBackendAvailability } from "../workers/availability.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { heading } from "../util/style.js";
+import { listAssignedIncludedSkillDefinitions } from "../skills/included.js";
+import { prepareIncludedPackageSource } from "../skills/package-sources.js";
+import { installIncludedSkillPackageCopy } from "../skills/packages.js";
 import {
   createDefaultMechanicWatches,
   createDefaultShrimpyWatches,
@@ -262,6 +265,40 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
       created.push(file.path);
     } else {
       existing.push(file.path);
+    }
+  }
+
+  for (const definition of listAssignedIncludedSkillDefinitions()) {
+    const source = prepareIncludedPackageSource(definition.source);
+    const assignment = definition.assignment;
+    if (!source || !assignment) continue;
+    const targetRootPath = assignment.scope === "workspace"
+      ? join(workspace, "skills", ...definition.id.split("/"))
+      : join(
+        createAgentPaths(workspace, `agents/${assignment.agentId}`).skillsDir,
+        ...definition.id.split("/"),
+      );
+    const validationAgentPaths = assignment.scope === "agent"
+      ? createAgentPaths(workspace, `agents/${assignment.agentId}`)
+      : mechanicPaths;
+    const validationAgentId = assignment.scope === "agent"
+      ? assignment.agentId
+      : MECHANIC_AGENT_ID;
+    const result = installIncludedSkillPackageCopy({
+      workspacePath: workspace,
+      source,
+      skillId: definition.id,
+      scope: assignment.scope,
+      agentId: assignment.scope === "agent" ? assignment.agentId : undefined,
+      targetRootPath,
+      validationAgentId,
+      validationAgentRootPath: validationAgentPaths.root,
+      preserveExisting: true,
+    });
+    if (result.created) {
+      created.push(result.targetRootPath);
+    } else if (result.existing) {
+      existing.push(result.targetRootPath);
     }
   }
 

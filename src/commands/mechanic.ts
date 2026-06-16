@@ -89,7 +89,7 @@ export function createMechanicSessionRequest(
 
   const prompt = positionals.join(" ").trim() || undefined;
   const sessionValues = readModelSessionValues(values);
-  const skills = [...new Set(["mechanic", ...(sessionValues.skills ?? [])])];
+  const skills = [...new Set(sessionValues.skills ?? [])];
   return {
     agentId: MECHANIC_AGENT_ID,
     channel: "tui",

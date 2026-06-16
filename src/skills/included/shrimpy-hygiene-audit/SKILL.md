@@ -1,5 +1,5 @@
 ---
-name: hygiene-audit
+name: shrimpy-hygiene-audit
 description: Use when reviewing Shrimpy workspace hygiene, stale watches, dead channels, context bloat, skill validity, or uninspectable automation without changing anything.
 ---
 

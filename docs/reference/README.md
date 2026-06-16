@@ -15,7 +15,7 @@ Current behavior of Shrimpy.
 - [security.md](security.md) — tool policy and inspection commands.
 - [context-assembly.md](context-assembly.md) — prompt section assembly and persisted turn-context envelopes.
 - [memory.md](memory.md) — memory model, upkeep, and context loading.
-- [skills.md](skills.md) — source defaults, local and package skill bundles, Pi loading, and CLI management.
+- [skills.md](skills.md) — included and external skill packages, local skills, Pi loading, and CLI management.
 - [turn-context.md](turn-context.md) — per-turn context generation and config.
 - [compaction.md](compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [cli.md](cli.md) — command surface.
@@ -24,4 +24,4 @@ Current behavior of Shrimpy.
 - [surfaces.md](surfaces.md) — adapter verticals, Telegram, and surface thread state.
 - [development.md](development.md) — repo layout, build/test commands.
 
-Other directories: [../patterns/README.md](../patterns/README.md) for short workflow patterns, [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../research/README.md) for external comparison notes.
+Other directories: [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../research/README.md) for external comparison notes.

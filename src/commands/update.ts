@@ -122,7 +122,7 @@ async function buildUpdatePreflight(
     protectedPaths,
     mechanicModel,
     gateway,
-    migrationHandoff: `shrimpy mechanic --skill workspace-migration "Review workspace migration after updating from ${versionLabel}."`,
+    migrationHandoff: `shrimpy mechanic --skill shrimpy-workspace-migration "Review workspace migration after updating from ${versionLabel}."`,
     problems: [...new Set(problems)],
   };
 }

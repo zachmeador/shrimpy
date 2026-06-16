@@ -12,7 +12,7 @@ Sessions are resumable private agent conversations with their own working contex
 
 Turn context is temporary side information for understanding and handling the current turn. Treat it as context, not as a message to answer.
 
-Skills are bundles of instructions, code, resources, or some combination of them.
+Skills are instruction sets with optional scripts, references, assets, or other resources.
 
 ## Behavior
 

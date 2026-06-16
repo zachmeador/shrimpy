@@ -1,17 +1,16 @@
 ---
 name: shrimpy-dev-skills
-description: Use when editing Shrimpy source default skills, repository developer skills, or generated skill mirrors.
+description: Use when editing Shrimpy included skill packages, repository developer skills, or generated skill mirrors.
 ---
 
 # Shrimpy Dev Skills
 
 Edit source, not mirrors:
 
-- workspace/default skills: `src/setup/templates/skills/`
-- mechanic defaults: `src/setup/templates/mechanic/skills/`
+- included Shrimpy skill packages: `src/skills/included/`
 - repository developer skills: `skills/`
 
-Keep `SKILL.md` brief: trigger, decisions, safety boundaries, validation, and doc breadcrumbs. Put feature facts and long examples in `docs/reference/` or `docs/patterns/`.
+Keep `SKILL.md` brief: trigger, decisions, safety boundaries, validation, and doc breadcrumbs. Put durable feature facts, schemas, and long examples in `docs/reference/`.
 
 After editing root `skills/`, run:
 
@@ -19,4 +18,4 @@ After editing root `skills/`, run:
 npm run build:skills
 ```
 
-Do not hand-edit `.agents/skills/`, `.claude/skills/`, or `CLAUDE.md`; they are generated mirrors. Validate runtime skills with `shrimpy skills validate` when the change affects setup templates or workspace-visible skills.
+Do not hand-edit `.agents/skills/`, `.claude/skills/`, or `CLAUDE.md`; they are generated mirrors. Validate runtime skills with `shrimpy skills validate` when the change affects included packages or workspace-visible skills.

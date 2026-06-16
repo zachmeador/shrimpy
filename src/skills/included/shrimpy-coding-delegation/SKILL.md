@@ -1,10 +1,10 @@
 ---
-name: coding-delegation
+name: shrimpy-coding-delegation
 description: Prepare, dispatch, or supervise delegated coding work for Codex, Claude Code, Shrimpy/Pi, or another coding agent.
 allowed-tools: Bash
 ---
 
-# Coding Delegation
+# Shrimpy Coding Delegation
 
 Use this skill when a user wants Shrimpy to turn an idea, bug, app request, or code change into delegated coding work. Delegation is optional: if the task is small and Shrimpy has enough context and tools, do the work directly.
 
@@ -57,10 +57,14 @@ When delegating to Codex from Shrimpy, use the worker CLI. Agents can call these
 ```bash
 shrimpy worker backends --refresh
 shrimpy worker start --backend codex --agent <agent-id> --goal "<short goal>" "<handoff packet>"
+shrimpy worker list
+shrimpy worker list --all
 shrimpy worker status <id>
 shrimpy worker read <id>
+shrimpy worker tail <id> --lines 80
 shrimpy worker send <id> "<amendment>"
-shrimpy worker wait <id>
+shrimpy worker wait <id> --timeout-ms 600000
+shrimpy worker cancel <id>
 shrimpy worker close <id>
 ```
 
@@ -74,7 +78,7 @@ The Codex worker prompt always includes a small Shrimpy context prelude with the
 
 Keep the worker inspectable. Track status, logs, and a compact summary. Send user feedback back to the same worker session when possible so the coding context survives follow-up.
 
-Do not treat a completed worker as accepted. Review the output, inspect the diff, run relevant verification, and either close the worker or send a focused amendment.
+Do not delegate vague ownership decisions, destructive cleanup, or work that needs continuous user judgment. Do not treat a completed worker as accepted. Review the output, inspect the diff, run relevant verification, and either close the worker or send a focused amendment.
 
 ## Review Loop
 

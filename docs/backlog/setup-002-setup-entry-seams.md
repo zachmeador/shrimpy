@@ -6,7 +6,7 @@ Area: Setup
 Depends On: none
 
 ## Why
-The setup entry paths disagree on mechanics in ways users can hit. Bare `shrimpy` passes `process.cwd()` into onboarding (`src/commands/root.ts` → `src/commands/tui.ts`), while `shrimpy setup` uses the workspace, so the mechanic setup session's cwd depends on which command launched it. The setup skill's opening recipe (`test -f config/shrimpy.json`, `find agents/shrimpy …`) and its validator invocation (`bash scripts/validate-config.sh`) are workspace-relative, so the bare-`shrimpy` entry drops the agent into a directory where the recipe fails. The validator itself lives in the app checkout (default skills are served from `src/setup/templates/`, not copied into the workspace), and its five-dirs-up fallback assumes a workspace install path that does not exist, so it only resolves the workspace when cwd already is the workspace.
+The setup entry paths disagree on mechanics in ways users can hit. Bare `shrimpy` passes `process.cwd()` into onboarding (`src/commands/root.ts` → `src/commands/tui.ts`), while `shrimpy setup` uses the workspace, so the mechanic setup session's cwd depends on which command launched it. The setup skill's opening recipe (`test -f config/shrimpy.json`, `find agents/shrimpy …`) and its validator invocation (`bash scripts/validate-config.sh`) are workspace-relative, so the bare-`shrimpy` entry drops the agent into a directory where the recipe fails. The validator path also assumed a source-served skill instead of the installed `agents/mechanic/skills/shrimpy-setup/` package copy, so its resolution needed to come from the skill trail or `SHRIMPY_WORKSPACE`.
 
 Exit codes disagree the same way: non-interactive `shrimpy setup` with no models prints the interactive-terminal message and exits 0 (`src/commands/setup.ts` ignores the onboarding result kind), while bare `shrimpy` in the same state exits 1, so `shrimpy setup && shrimpy gateway install` cannot be scripted.
 
@@ -29,6 +29,7 @@ Dead code from the previous setup design is still in the tree: `extensions/setup
 - `setupInit` has ~100 test call sites across `test/*.test.ts`; the migration is mechanical (same signature as `ensureWorkspaceInitialized` plus printing).
 - Per the repo legacy policy, the collapsed `setup init` subcommand is removed, not aliased.
 - Verify the bare-`shrimpy` onboarding path end to end after the cwd change: skill recipe commands and validator both succeed from a session launched outside the workspace.
+- [SKILL-003](skill-003-agent-owned-skill-packages.md) owns included skill package distribution. This item still owns the setup command seam, cwd, exit-code, and dead-code cleanup.
 
 ## Done
 - Bare `shrimpy` and `shrimpy setup` launch the setup session with identical cwd (the workspace), and the skill's recipe commands succeed from both entries.

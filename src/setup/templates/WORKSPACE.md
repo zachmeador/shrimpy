@@ -15,10 +15,8 @@ This workspace is the home system that contains Shrimpy agents, channels, sessio
 - Shrimpy app checkout: `{{APP_PATH}}`
 - Shrimpy source: `{{SOURCE_PATH}}`
 - Shrimpy docs: `{{DOCS_PATH}}`
-- Pattern docs: `{{DOCS_PATH}}/patterns`
 - Reference docs: `{{DOCS_PATH}}/reference`
-- Source default skills: `{{SOURCE_PATH}}/setup/templates/skills`
-- Source mechanic skills: `{{SOURCE_PATH}}/setup/templates/mechanic/skills`
+- Included skill sources: `{{SOURCE_PATH}}/skills/included`
 - Workspace skills: `{{WORKSPACE_PATH}}/skills`
 - Agent skills: `{{WORKSPACE_PATH}}/agents/<id>/skills`
 

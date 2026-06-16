@@ -1,13 +1,13 @@
 import { join } from "node:path";
 import { readJsonFile, writeJsonFileAtomic } from "../util/json-file.js";
-import { normalizeSkillId, uniqueStrings } from "./shared.js";
+import { normalizeSkillId } from "./shared.js";
 
-const SKILL_PACKAGES_DIR = "state/skills/packages";
 const SKILL_PACKAGES_FILE = "state/skills/packages.json";
-const SKILL_BINDINGS_FILE = "state/skills/bindings.json";
 
-export type SkillPackageSourceKind = "local-directory" | "local-file" | "url" | "github";
+export type SkillPackageSourceKind = "included" | "local-directory" | "local-file" | "url" | "github";
 export type SkillPackageSourceRevisionKind = "tree" | "blob" | "hash";
+export type SkillPackageInstallScope = "agent" | "workspace";
+export type SkillPackageInstallKey = string;
 
 export interface GitHubSkillPackageInfo {
   owner: string;
@@ -22,6 +22,7 @@ export interface GitHubSkillPackageInfo {
 }
 
 export interface SkillPackageInfo {
+  installKey: SkillPackageInstallKey;
   id: string;
   rootPath: string;
   entryPath: string;
@@ -29,6 +30,12 @@ export interface SkillPackageInfo {
   sourceKind: SkillPackageSourceKind;
   fetchedAt: string;
   hash: string;
+  scope?: SkillPackageInstallScope;
+  agentId?: string;
+  installedPath?: string;
+  sourceHash?: string;
+  installedHash?: string;
+  modified?: boolean;
   sourceRevision?: string;
   sourceRevisionKind?: SkillPackageSourceRevisionKind;
   github?: GitHubSkillPackageInfo;
@@ -51,13 +58,15 @@ export interface SkillPackagesState {
   packages: Record<string, SkillPackageInfo>;
 }
 
-export interface SkillBindingsState {
-  workspace: string[];
-  agents: Record<string, string[]>;
-}
-
-export function skillPackageRootPath(workspacePath: string, skillId: string): string {
-  return join(workspacePath, SKILL_PACKAGES_DIR, ...skillId.split("/"));
+export function skillPackageInstallKey(opts: {
+  id: string;
+  scope: SkillPackageInstallScope;
+  agentId?: string;
+}): SkillPackageInstallKey {
+  const id = normalizeSkillId(opts.id);
+  if (opts.scope === "workspace") return `workspace:${id}`;
+  if (!opts.agentId) throw new Error("agent id is required for agent skill package install");
+  return `agent:${opts.agentId}:${id}`;
 }
 
 export function readSkillPackagesState(workspacePath: string): SkillPackagesState {
@@ -75,73 +84,8 @@ export function writeSkillPackagesState(
   writeJsonFileAtomic(skillPackagesStatePath(workspacePath), state);
 }
 
-export function readSkillBindingsState(workspacePath: string): SkillBindingsState {
-  return readJsonFile(
-    skillBindingsStatePath(workspacePath),
-    () => ({ workspace: [], agents: {} }),
-    (raw) => parseSkillBindingsState(raw),
-  );
-}
-
-export function writeSkillBindingsState(
-  workspacePath: string,
-  state: SkillBindingsState,
-): void {
-  writeJsonFileAtomic(skillBindingsStatePath(workspacePath), state);
-}
-
-export function bindSkillPackage(
-  workspacePath: string,
-  opts: {
-    id: string;
-    scope: "agent" | "workspace";
-    agentId?: string;
-  },
-): SkillBindingsState {
-  const skillId = normalizeSkillId(opts.id);
-  const bindings = readSkillBindingsState(workspacePath);
-  if (opts.scope === "workspace") {
-    bindings.workspace = uniqueStrings([...bindings.workspace, skillId]);
-  } else {
-    const agentId = opts.agentId;
-    if (!agentId) throw new Error("agent id is required for agent skill binding");
-    bindings.agents[agentId] = uniqueStrings([
-      ...(bindings.agents[agentId] ?? []),
-      skillId,
-    ]);
-  }
-  writeSkillBindingsState(workspacePath, bindings);
-  return bindings;
-}
-
-export function unbindSkillPackage(
-  workspacePath: string,
-  opts: {
-    id: string;
-    scope: "agent" | "workspace";
-    agentId?: string;
-  },
-): SkillBindingsState {
-  const skillId = normalizeSkillId(opts.id);
-  const bindings = readSkillBindingsState(workspacePath);
-  if (opts.scope === "workspace") {
-    bindings.workspace = bindings.workspace.filter((id) => id !== skillId);
-  } else {
-    const agentId = opts.agentId;
-    if (!agentId) throw new Error("agent id is required for agent skill binding");
-    bindings.agents[agentId] = (bindings.agents[agentId] ?? [])
-      .filter((id) => id !== skillId);
-  }
-  writeSkillBindingsState(workspacePath, bindings);
-  return bindings;
-}
-
 function skillPackagesStatePath(workspacePath: string): string {
   return join(workspacePath, SKILL_PACKAGES_FILE);
-}
-
-function skillBindingsStatePath(workspacePath: string): string {
-  return join(workspacePath, SKILL_BINDINGS_FILE);
 }
 
 function parseSkillPackagesState(raw: unknown): SkillPackagesState {
@@ -168,6 +112,25 @@ function parseSkillPackagesState(raw: unknown): SkillPackagesState {
       continue;
     }
     const packageInfo = candidate as unknown as SkillPackageInfo;
+    packageInfo.id = normalizeSkillId(candidate.id);
+    if (candidate.scope === "agent" || candidate.scope === "workspace") {
+      packageInfo.scope = candidate.scope;
+    }
+    if (typeof candidate.agentId === "string") {
+      packageInfo.agentId = candidate.agentId;
+    }
+    if (typeof candidate.installedPath === "string") {
+      packageInfo.installedPath = candidate.installedPath;
+    }
+    if (typeof candidate.sourceHash === "string") {
+      packageInfo.sourceHash = candidate.sourceHash;
+    }
+    if (typeof candidate.installedHash === "string") {
+      packageInfo.installedHash = candidate.installedHash;
+    }
+    if (typeof candidate.modified === "boolean") {
+      packageInfo.modified = candidate.modified;
+    }
     if (typeof candidate.sourceRevision === "string") {
       packageInfo.sourceRevision = candidate.sourceRevision;
     }
@@ -190,28 +153,23 @@ function parseSkillPackagesState(raw: unknown): SkillPackagesState {
         packageInfo.github = github as unknown as GitHubSkillPackageInfo;
       }
     }
-    packages[normalizeSkillId(id)] = packageInfo;
+    packageInfo.installKey = typeof candidate.installKey === "string"
+      ? candidate.installKey
+      : inferSkillPackageInstallKey(id, packageInfo);
+    packages[packageInfo.installKey] = packageInfo;
   }
   return { packages };
 }
 
-function parseSkillBindingsState(raw: unknown): SkillBindingsState {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { workspace: [], agents: {} };
+function inferSkillPackageInstallKey(
+  fallbackKey: string,
+  info: SkillPackageInfo,
+): SkillPackageInstallKey {
+  if (info.scope === "workspace") {
+    return skillPackageInstallKey({ id: info.id, scope: "workspace" });
   }
-  const candidate = raw as { workspace?: unknown; agents?: unknown };
-  const agents: Record<string, string[]> = {};
-  if (candidate.agents && typeof candidate.agents === "object" && !Array.isArray(candidate.agents)) {
-    for (const [agentId, ids] of Object.entries(candidate.agents)) {
-      agents[agentId] = Array.isArray(ids)
-        ? uniqueStrings(ids.filter((id): id is string => typeof id === "string").map(normalizeSkillId))
-        : [];
-    }
+  if (info.scope === "agent" && info.agentId) {
+    return skillPackageInstallKey({ id: info.id, scope: "agent", agentId: info.agentId });
   }
-  return {
-    workspace: Array.isArray(candidate.workspace)
-      ? uniqueStrings(candidate.workspace.filter((id): id is string => typeof id === "string").map(normalizeSkillId))
-      : [],
-    agents,
-  };
+  return fallbackKey;
 }

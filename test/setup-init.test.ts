@@ -41,6 +41,18 @@ describe("setupInit", () => {
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
     const mechanicContextIdentityPath = join(mechanicRoot, "context", "identity.md");
     const mechanicContextScopePath = join(mechanicRoot, "context", "scope.md");
+    const codingDelegationSkillPath = join(
+      workspace,
+      "skills",
+      "shrimpy-coding-delegation",
+      "SKILL.md",
+    );
+    const codexWebSearchSkillPath = join(
+      workspace,
+      "skills",
+      "codex-web-search",
+      "SKILL.md",
+    );
     const memoryManagementSkillPath = join(
       workspace,
       "skills",
@@ -65,52 +77,58 @@ describe("setupInit", () => {
       "vault-capture",
       "SKILL.md",
     );
+    const workflowsSkillPath = join(
+      workspace,
+      "skills",
+      "shrimpy-workflows",
+      "SKILL.md",
+    );
     const setupSkillPath = join(
       mechanicRoot,
       "skills",
-      "setup",
+      "shrimpy-setup",
       "SKILL.md",
     );
-    const mechanicSkillPath = join(
-      mechanicRoot,
+    const agentsSkillPath = join(
+      workspace,
       "skills",
-      "mechanic",
+      "shrimpy-agents",
       "SKILL.md",
     );
-    const addAgentSkillPath = join(
-      mechanicRoot,
+    const channelsSkillPath = join(
+      workspace,
       "skills",
-      "add-agent",
-      "SKILL.md",
-    );
-    const channelRoutingSkillPath = join(
-      mechanicRoot,
-      "skills",
-      "channel-routing",
+      "shrimpy-channels",
       "SKILL.md",
     );
     const watchesSkillPath = join(
-      mechanicRoot,
+      workspace,
       "skills",
-      "watches",
+      "shrimpy-watches",
+      "SKILL.md",
+    );
+    const skillsSkillPath = join(
+      workspace,
+      "skills",
+      "shrimpy-skills",
       "SKILL.md",
     );
     const securityAuditSkillPath = join(
       mechanicRoot,
       "skills",
-      "security-audit",
+      "shrimpy-security-audit",
       "SKILL.md",
     );
     const hygieneAuditSkillPath = join(
       mechanicRoot,
       "skills",
-      "hygiene-audit",
+      "shrimpy-hygiene-audit",
       "SKILL.md",
     );
     const workspaceMigrationSkillPath = join(
       mechanicRoot,
       "skills",
-      "workspace-migration",
+      "shrimpy-workspace-migration",
       "SKILL.md",
     );
     const agentVaultPath = join(agentRoot, "vault");
@@ -120,11 +138,9 @@ describe("setupInit", () => {
     const sourceSetupValidatorPath = join(
       projectRoot,
       "src",
-      "setup",
-      "templates",
-      "mechanic",
       "skills",
-      "setup",
+      "included",
+      "shrimpy-setup",
       "scripts",
       "validate-config.sh",
     );
@@ -144,23 +160,62 @@ describe("setupInit", () => {
     assert.equal(existsSync(mechanicContextScopePath), true);
     assert.equal(existsSync(join(workspace, "vault")), false);
     assert.equal(existsSync(join(workspace, "projects")), false);
-    assert.equal(existsSync(memoryManagementSkillPath), false);
-    assert.equal(existsSync(journalDailySkillPath), false);
-    assert.equal(existsSync(journalCompactSkillPath), false);
-    assert.equal(existsSync(vaultCaptureSkillPath), false);
-    assert.equal(existsSync(setupSkillPath), false);
-    assert.equal(existsSync(mechanicSkillPath), false);
-    assert.equal(existsSync(addAgentSkillPath), false);
-    assert.equal(existsSync(channelRoutingSkillPath), false);
-    assert.equal(existsSync(watchesSkillPath), false);
-    assert.equal(existsSync(securityAuditSkillPath), false);
-    assert.equal(existsSync(hygieneAuditSkillPath), false);
-    assert.equal(existsSync(workspaceMigrationSkillPath), false);
+    assert.equal(existsSync(codingDelegationSkillPath), true);
+    assert.equal(existsSync(codexWebSearchSkillPath), false);
+    assert.equal(existsSync(memoryManagementSkillPath), true);
+    assert.equal(existsSync(journalDailySkillPath), true);
+    assert.equal(existsSync(journalCompactSkillPath), true);
+    assert.equal(existsSync(vaultCaptureSkillPath), true);
+    assert.equal(existsSync(workflowsSkillPath), true);
+    assert.equal(existsSync(setupSkillPath), true);
+    assert.equal(existsSync(agentsSkillPath), true);
+    assert.equal(existsSync(channelsSkillPath), true);
+    assert.equal(existsSync(watchesSkillPath), true);
+    assert.equal(existsSync(skillsSkillPath), true);
+    assert.equal(existsSync(securityAuditSkillPath), true);
+    assert.equal(existsSync(hygieneAuditSkillPath), true);
+    assert.equal(existsSync(workspaceMigrationSkillPath), true);
     assert.equal(existsSync(agentVaultPath), true);
     assert.equal(existsSync(mechanicVaultPath), true);
     assert.equal(existsSync(agentProjectsPath), true);
     assert.equal(existsSync(mechanicProjectsPath), true);
     assert.equal(existsSync(sourceSetupValidatorPath), true);
+
+    const skillPackages = JSON.parse(
+      readFileSync(join(workspace, "state", "skills", "packages.json"), "utf-8"),
+    ).packages;
+    assert.equal(skillPackages["workspace:codex-web-search"], undefined);
+    assert.equal(skillPackages["workspace:memory-management"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:memory-management"].installKey, "workspace:memory-management");
+    assert.equal(skillPackages["workspace:memory-management"].scope, "workspace");
+    assert.equal(skillPackages["workspace:memory-management"].installedPath, join(workspace, "skills", "memory-management"));
+    assert.equal(skillPackages["workspace:memory-management"].modified, false);
+    assert.equal(skillPackages["workspace:shrimpy-coding-delegation"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:shrimpy-coding-delegation"].installKey, "workspace:shrimpy-coding-delegation");
+    assert.equal(skillPackages["workspace:shrimpy-coding-delegation"].scope, "workspace");
+    assert.equal(skillPackages["workspace:shrimpy-coding-delegation"].installedPath, join(workspace, "skills", "shrimpy-coding-delegation"));
+    assert.equal(skillPackages["workspace:shrimpy-agents"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:shrimpy-agents"].installKey, "workspace:shrimpy-agents");
+    assert.equal(skillPackages["workspace:shrimpy-agents"].scope, "workspace");
+    assert.equal(skillPackages["workspace:shrimpy-agents"].installedPath, join(workspace, "skills", "shrimpy-agents"));
+    assert.equal(skillPackages["workspace:shrimpy-channels"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:shrimpy-channels"].installKey, "workspace:shrimpy-channels");
+    assert.equal(skillPackages["workspace:shrimpy-channels"].scope, "workspace");
+    assert.equal(skillPackages["workspace:shrimpy-channels"].installedPath, join(workspace, "skills", "shrimpy-channels"));
+    assert.equal(skillPackages["workspace:shrimpy-watches"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:shrimpy-watches"].installKey, "workspace:shrimpy-watches");
+    assert.equal(skillPackages["workspace:shrimpy-watches"].scope, "workspace");
+    assert.equal(skillPackages["workspace:shrimpy-watches"].installedPath, join(workspace, "skills", "shrimpy-watches"));
+    assert.equal(skillPackages["workspace:shrimpy-skills"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:shrimpy-skills"].installKey, "workspace:shrimpy-skills");
+    assert.equal(skillPackages["workspace:shrimpy-skills"].scope, "workspace");
+    assert.equal(skillPackages["workspace:shrimpy-skills"].installedPath, join(workspace, "skills", "shrimpy-skills"));
+    assert.equal(skillPackages["agent:mechanic:shrimpy-setup"].sourceKind, "included");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-setup"].installKey, "agent:mechanic:shrimpy-setup");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-setup"].scope, "agent");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-setup"].agentId, "mechanic");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-setup"].installedPath, join(mechanicRoot, "skills", "shrimpy-setup"));
+    assert.equal(skillPackages["agent:mechanic:shrimpy-setup"].modified, false);
 
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
     assert.equal(config.watchClock.tickIntervalMs, 1000);
@@ -285,6 +340,7 @@ describe("setupInit", () => {
     const mechanicSoul = readFileSync(mechanicSoulPath, "utf-8");
     assert.match(mechanicSoul, /You are Mechanic/);
     assert.match(mechanicSoul, /setup, repair, configuration/);
+    assert.match(mechanicSoul, /Use assigned Shrimpy skills first/);
     assert.match(mechanicSoul, /Do not treat yourself as the user's normal `shrimpy` agent/);
 
     const workspaceDoc = readFileSync(workspaceDocPath, "utf-8");
@@ -300,10 +356,8 @@ describe("setupInit", () => {
     assert.match(workspaceDoc, /Shrimpy app checkout:/);
     assert.match(workspaceDoc, /Shrimpy source:/);
     assert.match(workspaceDoc, /Shrimpy docs:/);
-    assert.match(workspaceDoc, /Pattern docs:/);
     assert.match(workspaceDoc, /Reference docs:/);
-    assert.match(workspaceDoc, /Source default skills:/);
-    assert.match(workspaceDoc, /Source mechanic skills:/);
+    assert.match(workspaceDoc, /Included skill sources:/);
     assert.match(workspaceDoc, /Workspace skills:/);
     assert.match(workspaceDoc, /Agent skills:/);
     assert.match(workspaceDoc, /Do not put reports in `context\/`/);
@@ -311,10 +365,9 @@ describe("setupInit", () => {
     assert.equal(workspaceDoc.includes(projectRoot), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "patterns")), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "patterns")), false);
     assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "reference")), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "src", "setup", "templates", "skills")), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "src", "setup", "templates", "mechanic", "skills")), true);
+    assert.equal(workspaceDoc.includes(join(projectRoot, "src", "skills", "included")), true);
     assert.equal(workspaceDoc.includes(join(workspace, "skills")), true);
     assert.equal(workspaceDoc.includes(join(workspace, "agents", "<id>", "skills")), true);
 

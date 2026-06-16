@@ -2,7 +2,7 @@
 
 This file gives all Shrimpy agents shared workspace context. Edit it when the workspace's baseline guidance should change.
 
-Use the Shrimpy source and docs paths listed in `profile/WORKSPACE.md`. Start docs with `README.md`; for workflow shape, check `patterns/`; for exact current behavior, check `reference/`. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
+Use the Shrimpy source and docs paths listed in `profile/WORKSPACE.md`. Start docs with `README.md`; use relevant Shrimpy skills for workflow shape and `reference/` for exact current behavior. Treat `musings/` and `research/` as design history unless a reference doc or backlog item points there.
 
 ## Framework Map
 
@@ -38,7 +38,7 @@ When the `bash` tool is available, useful inspection paths include:
 
 When asked to add a skill from a URL, GitHub repo, or local path, default to the current agent: `shrimpy skills add <source> --agent <id>`. Use `--workspace` only when the user explicitly asks to make the skill available to all agents.
 
-Use `shrimpy skills bind` and `shrimpy skills unbind` to change visibility for an already installed package. Agent-owned local skills under `agents/<id>/skills/` are allowed; run `shrimpy skills validate --agent <id>` after changing skills.
+Use `shrimpy skills add <source> --agent <id>` or `--workspace` to install packages as visible skill files. Use `shrimpy skills remove <id> --agent <id>` or `--workspace` for managed package copies. Agent-owned local skills under `agents/<id>/skills/` are allowed; run `shrimpy skills validate --agent <id>` after changing skills.
 
 ## Storage Breadcrumbs
 

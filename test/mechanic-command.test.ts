@@ -53,7 +53,7 @@ describe("cmdMechanic", () => {
           "--thinking",
           "high",
           "--skill",
-          "mechanic",
+          "shrimpy-skills",
         ],
         "usage",
         workspace,
@@ -66,17 +66,17 @@ describe("cmdMechanic", () => {
         model: "gpt-5",
         modelPolicy: "coding",
         thinking: "high",
-        skills: ["mechanic"],
+        skills: ["shrimpy-skills"],
         initialMessage: "repair setup",
         cwd: workspace,
       },
     );
   });
 
-  test("loads the mechanic skill by default and preserves extra requested skills", () => {
+  test("preserves explicitly requested mechanic skills without injecting a default", () => {
     assert.deepEqual(
       createMechanicSessionRequest(
-        ["inspect", "channels", "--skill", "setup", "--skill", "mechanic"],
+        ["inspect", "channels", "--skill", "shrimpy-setup", "--skill", "shrimpy-skills"],
         "usage",
         workspace,
       ),
@@ -88,7 +88,7 @@ describe("cmdMechanic", () => {
         model: undefined,
         modelPolicy: undefined,
         thinking: undefined,
-        skills: ["mechanic", "setup"],
+        skills: ["shrimpy-setup", "shrimpy-skills"],
         initialMessage: "inspect channels",
         cwd: workspace,
       },
@@ -124,7 +124,7 @@ describe("cmdMechanic", () => {
       model: undefined,
       modelPolicy: "coding",
       thinking: undefined,
-      skills: ["mechanic"],
+      skills: [],
       initialMessage: "check models",
       cwd: workspace,
     });

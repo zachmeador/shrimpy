@@ -16,7 +16,7 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 - [reference/security.md](reference/security.md) — tool policy and inspection commands.
 - [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn context envelope.
 - [reference/memory.md](reference/memory.md) — memory model, upkeep, and context loading.
-- [reference/skills.md](reference/skills.md) — source defaults, local and package skill bundles, Pi loading, and CLI management.
+- [reference/skills.md](reference/skills.md) — included and external skill packages, local skills, Pi loading, and CLI management.
 - [reference/turn-context.md](reference/turn-context.md) — compact per-turn alerts and inspect pointers.
 - [reference/compaction.md](reference/compaction.md) — session compaction policy, runtime flow, provider path, and failures.
 - [reference/cli.md](reference/cli.md) — command surface and agent-friendly workflows.
@@ -28,10 +28,6 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 ## Project State
 
 - [backlog/index.md](backlog/index.md) — active engineering work.
-
-## Patterns
-
-- [patterns/README.md](patterns/README.md) — short workflow patterns used by agent skills.
 
 ## Background
 

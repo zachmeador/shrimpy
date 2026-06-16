@@ -40,7 +40,7 @@ describe("cmdUpdate", () => {
     ]);
     assert.equal(payload.mechanicModel.agentId, "mechanic");
     assert.equal(payload.mechanicModel.usable, false);
-    assert.match(payload.migrationHandoff, /workspace-migration/);
+    assert.match(payload.migrationHandoff, /--skill shrimpy-workspace-migration/);
   });
 
   test("reports unsupported apply mode as a JSON problem", async () => {

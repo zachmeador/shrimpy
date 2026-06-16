@@ -14,12 +14,11 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
 import type { PromptResourceRef } from "../context/index.js";
-import { listDefaultSkillDefinitions } from "./defaults.js";
 import {
-  readSkillBindingsState,
   readSkillPackagesState,
   type SkillPackageInfo,
 } from "./package-state.js";
+import { hashSkillPackage } from "./package-sources.js";
 import {
   normalizeSkillId,
   quoteYamlString,
@@ -34,18 +33,15 @@ import {
 
 export {
   addSkillPackage,
-  bindInstalledSkillPackage,
-  bindSkillPackage,
-  unbindInstalledSkillPackage,
-  unbindSkillPackage,
+  removeSkillPackage,
   updateSkillPackage,
   type AddSkillPackageOptions,
   type AddSkillPackageResult,
   type GitHubSkillPackageInfo,
-  type SkillBindingsState,
-  type SkillPackageBindingOptions,
-  type SkillPackageBindingResult,
+  type RemoveSkillPackageOptions,
+  type RemoveSkillPackageResult,
   type SkillPackageCandidate,
+  type SkillPackageInstallKey,
   type SkillPackageInfo,
   type SkillPackagesState,
   type SkillPackageSourceKind,
@@ -59,8 +55,8 @@ export {
   SKILL_PROMPT_WARNING_THRESHOLD,
 } from "./shared.js";
 
-type SkillScope = "agent" | "workspace" | "default" | "package";
-type SkillSourceKind = "local" | "default" | "package";
+type SkillScope = "agent" | "workspace";
+type SkillSourceKind = "local" | "package";
 
 type SkillValidationLevel = "error" | "warning";
 
@@ -118,9 +114,21 @@ interface SkillValidationIssue {
   path?: string;
 }
 
+interface SkillValidationPackageStatus {
+  installKey: string;
+  id: string;
+  scope: SkillScope;
+  source: string;
+  sourceKind: string;
+  assignment?: string;
+  installedPath: string;
+  modified?: boolean;
+}
+
 interface SkillValidationResult {
   agentId: string;
   issues: SkillValidationIssue[];
+  packages: SkillValidationPackageStatus[];
 }
 
 interface ScannedSkillEntry {
@@ -380,6 +388,7 @@ export function validateSkillsFromPaths(opts: {
   return {
     agentId: opts.agentId,
     issues,
+    packages: skillValidationPackageStatuses(skills),
   };
 }
 
@@ -452,40 +461,26 @@ function scanSkillEntries(opts: {
   const seen = new Map<string, ScannedSkillEntry>();
   const entries: ScannedSkillEntry[] = [];
   const shadowedSkills: ShadowedSkillView[] = [];
+  const packagesByRootPath = packageInfoByRootPath(opts.workspacePath);
 
   for (const source of skillSources(opts)) {
     for (const rootPath of walkSkillRoots(source.skillsRoot, source.skillsRoot)) {
       const id = normalizeSkillId(
         relative(source.skillsRoot, rootPath).replaceAll("\\", "/"),
       );
+      const packageInfo = packagesByRootPath.get(resolve(rootPath));
       addScannedEntry({
         id,
         agentId: opts.agentId,
         scope: source.scope,
-        sourceKind: "local",
+        sourceKind: packageInfo ? "package" : "local",
         rootPath,
         entryPath: join(rootPath, SKILL_ENTRYPOINT),
         promptRootPath: source.promptRootPath,
         promptResourcePath: `${SKILLS_DIR}/${id}`,
+        packageInfo,
       }, seen, entries, shadowedSkills);
     }
-  }
-
-  for (const entry of packageBindingEntries(opts)) {
-    addScannedEntry(entry, seen, entries, shadowedSkills);
-  }
-
-  for (const definition of listDefaultSkillDefinitions(opts.agentId)) {
-    addScannedEntry({
-      id: definition.id,
-      agentId: opts.agentId,
-      scope: "default",
-      sourceKind: "default",
-      rootPath: definition.rootPath,
-      entryPath: definition.entryPath,
-      promptRootPath: definition.promptRootPath,
-      promptResourcePath: definition.promptResourcePath,
-    }, seen, entries, shadowedSkills);
   }
 
   return { entries, shadowedSkills };
@@ -518,31 +513,33 @@ function addScannedEntry(
   entries.push(entry);
 }
 
-function packageBindingEntries(opts: {
-  agentId: string;
-  workspacePath: string;
-}): ScannedSkillEntry[] {
-  const packages = readSkillPackagesState(opts.workspacePath).packages;
-  const bindings = readSkillBindingsState(opts.workspacePath);
-  const ids = uniqueStrings([
-    ...(bindings.agents[opts.agentId] ?? []),
-    ...bindings.workspace,
-  ]);
-  return ids.flatMap((id): ScannedSkillEntry[] => {
-    const packageInfo = packages[id];
-    if (!packageInfo) return [];
-    return [{
-      id,
-      agentId: opts.agentId,
-      scope: "package",
-      sourceKind: "package",
-      rootPath: packageInfo.rootPath,
-      entryPath: packageInfo.entryPath,
-      promptRootPath: packageInfo.rootPath,
-      promptResourcePath: SKILL_ENTRYPOINT,
-      packageInfo,
-    }];
-  });
+function packageInfoByRootPath(workspacePath: string): Map<string, SkillPackageInfo> {
+  const packages = readSkillPackagesState(workspacePath).packages;
+  const byRootPath = new Map<string, SkillPackageInfo>();
+  for (const packageInfo of Object.values(packages)) {
+    const currentPackageInfo = packageInfoWithComputedStatus(packageInfo);
+    byRootPath.set(resolve(currentPackageInfo.rootPath), currentPackageInfo);
+  }
+  return byRootPath;
+}
+
+function packageInfoWithComputedStatus(packageInfo: SkillPackageInfo): SkillPackageInfo {
+  const rootPath = packageInfo.installedPath ?? packageInfo.rootPath;
+  const installedHash = existsSync(rootPath)
+    ? hashSkillPackage(rootPath)
+    : packageInfo.installedHash ?? packageInfo.hash;
+  const sourceHash = packageInfo.sourceHash ?? (
+    packageInfo.sourceRevisionKind === "hash" ? packageInfo.sourceRevision : undefined
+  );
+  return {
+    ...packageInfo,
+    rootPath,
+    entryPath: join(rootPath, SKILL_ENTRYPOINT),
+    installedPath: rootPath,
+    sourceHash,
+    installedHash,
+    modified: sourceHash ? installedHash !== sourceHash : packageInfo.modified,
+  };
 }
 
 function createSkillView(opts: {
@@ -726,6 +723,31 @@ function validateSkillPathLayout(
   }
 
   return issues;
+}
+
+function skillValidationPackageStatuses(
+  skills: SkillView[],
+): SkillValidationPackageStatus[] {
+  return skills
+    .filter((skill) => skill.packageInfo)
+    .map((skill) => {
+      const packageInfo = skill.packageInfo!;
+      const assignment = packageInfo.scope
+        ? packageInfo.scope === "agent"
+          ? `agent ${packageInfo.agentId ?? skill.agentId}`
+          : "workspace"
+        : undefined;
+      return {
+        installKey: packageInfo.installKey,
+        id: skill.id,
+        scope: skill.scope,
+        source: packageInfo.source,
+        sourceKind: packageInfo.sourceKind,
+        assignment,
+        installedPath: packageInfo.installedPath ?? packageInfo.rootPath,
+        modified: packageInfo.modified,
+      };
+    });
 }
 
 function isUnderPath(target: string, root: string): boolean {

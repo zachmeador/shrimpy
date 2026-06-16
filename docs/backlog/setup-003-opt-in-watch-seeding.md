@@ -13,7 +13,7 @@ Fresh setup schedules three recurring watches enabled by default, and the setup 
 
 - `ensureWorkspaceInitialized` writes disabled default watches during explicit environment setup: `memory-management`, `journal-daily`, and `journal-compact` for `shrimpy`; `security-audit` and `hygiene-audit` for `mechanic`.
 - Gateway runtime loads agent-owned watch files and treats missing `watches.json` files as empty; it does not seed setup defaults.
-- The setup skill (`src/setup/templates/mechanic/skills/setup/SKILL.md`) asks whether to enable some, all, or none of the installed disabled watches, with a brief purpose and model-cost note for each.
+- The `shrimpy-setup` skill asks whether to enable some, all, or none of the installed disabled watches, with a brief purpose and model-cost note for each.
 - `shrimpy watches enable <agent-id>/<watch-id>` and `shrimpy watches disable <agent-id>/<watch-id>` toggle existing watches.
 
 ## Build

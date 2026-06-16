@@ -13,7 +13,7 @@ The worker lifecycle is CLI-first so agents can already use it through Bash. Ded
 - Add bounded Shrimpy daemon tools for worker start, list/status/read, send amendment, wait, cancel, and close.
 - Return structured, compact outputs suitable for model use.
 - Enforce the same ownership and availability rules as the CLI.
-- Keep `coding-delegation` aligned with the tool names and expected review workflow.
+- Keep `shrimpy-coding-delegation` aligned with the tool names and expected review workflow.
 
 ## Boundaries
 

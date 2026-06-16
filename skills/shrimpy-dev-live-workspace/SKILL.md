@@ -33,8 +33,7 @@ Compare live workspace patterns to source-owned defaults:
 
 - Workspace profile templates: `src/setup/templates/WORKSPACE.md`, `src/setup/templates/SYSTEM.md`, `src/setup/templates/USER.md`.
 - Default agent instructions: `src/setup/templates/SOUL.md`, `src/setup/templates/mechanic/SOUL.md`, and `src/setup/templates/mechanic/context/`.
-- Source default skills for all agents: `src/setup/templates/skills/`.
-- Mechanic-only skills: `src/setup/templates/mechanic/skills/`.
+- Included Shrimpy skill packages: `src/skills/included/`.
 - Repository developer skills: `skills/`.
 - Current behavior docs: `docs/reference/`.
 - Future work: `docs/backlog/`.
@@ -45,7 +44,7 @@ Promote a live pattern when one or more of these is true:
 
 - The same instruction, caveat, workaround, or expectation appears in multiple workspace files, skills, agents, watches, or repeated usage notes.
 - A workspace-authored or agent-authored skill looks like a generally useful default capability.
-- A local instruction corrects confusion caused by source defaults, setup wording, command output, or docs.
+- A local instruction corrects confusion caused by included package assignments, setup wording, command output, or docs.
 - A live watch, channel route, or context file exposes a missing setup default, CLI inspection surface, safety guardrail, or documentation breadcrumb.
 - The user repeatedly relies on a local convention that new workspaces or agents would benefit from by default.
 
@@ -54,7 +53,7 @@ Do not promote a pattern when it is only a private preference, one-off project d
 ## Routing Findings
 
 - Improve `src/setup/templates/**` when the pattern should exist in newly initialized workspaces.
-- Improve `src/setup/templates/skills/**` or `src/setup/templates/mechanic/skills/**` when a runtime agent skill needs clearer triggers, safer commands, or better workflow guidance.
+- Improve `src/skills/included/**` when a shipped runtime agent skill needs clearer triggers, safer commands, or better workflow guidance.
 - Improve repository `skills/**` when the lesson is about maintaining Shrimpy's source tree.
 - Update `docs/reference/**` when the live pattern shows stable behavior is poorly documented.
 - Create or update `docs/backlog/**` when the live pattern needs source work but the implementation is not obvious or not requested yet.
@@ -66,7 +65,7 @@ Use the relevant Shrimpy developer skill before editing changelog, docs, referen
 
 1. Inspect repository state with `git status --short`.
 2. Resolve and inventory the live workspace read-only.
-3. Read the smallest useful set of workspace artifacts and source defaults.
+3. Read the smallest useful set of workspace artifacts, included skill sources, and setup templates.
 4. Write down the pattern, source evidence, live evidence, and why it should or should not become a source change.
 5. Make tightly scoped source edits only after choosing the owning file.
 6. Sync repository developer skills with `npm run build:skills` when editing root `skills/`.

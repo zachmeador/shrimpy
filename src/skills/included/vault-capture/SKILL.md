@@ -38,6 +38,15 @@ When practical, preserve metadata before analysis:
 
 After writing vault files, report the saved path and any useful diff or remaining question.
 
+Useful inspection before creating a new collection:
+
+```bash
+shrimpy agent show <id>
+shrimpy workspace search "<topic>" --limit 10
+shrimpy sessions search "<topic>" --agent <id>
+shrimpy channels search <channel> "<topic>"
+```
+
 ## Main Shrimpy Intake
 
 The default `shrimpy` agent uses predictable intake paths:
@@ -56,6 +65,10 @@ For bounded research, create a folder under `agents/shrimpy/vault/research/<YYYY
 - optional artifacts under a clearly named subfolder.
 
 Use worker sessions only when the task has a clear bounded goal. Give the worker the vault packet path as handoff material, then report saved paths, worker ids, and unresolved questions back to the user.
+
+```bash
+shrimpy worker start --agent <id> --cwd <path> --goal "<review goal>" "Review agents/<id>/vault/<collection>/<slug>/ and summarize next actions."
+```
 
 ## Versioning
 

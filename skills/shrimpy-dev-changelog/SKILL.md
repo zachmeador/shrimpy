@@ -50,7 +50,7 @@ Before trusting a bullet, verify the concrete surface:
 - Session behavior: `src/sessions/`, TUI code, session tests.
 - Channel/wake behavior: `src/channels/`, `src/agents/channel-policy*`, delivery-loop tests.
 - Watches/gateway behavior: `src/watches/`, `src/gateway/`, watch tests.
-- Skills: `skills/`, `src/setup/templates/skills/`, skill command tests.
+- Skills: `skills/`, `src/skills/included/`, skill command tests.
 
 When writing or reviewing the active `Unreleased` section, verify claimed features against the diff. Correct wrong verbs, removed command names, outdated config keys, and claims based on plans rather than shipped code only inside the active unreleased entry. Historical release entries describe the commit state they were released with; do not rewrite them as current truth.
 

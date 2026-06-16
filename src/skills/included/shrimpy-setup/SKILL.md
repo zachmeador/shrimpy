@@ -1,5 +1,5 @@
 ---
-name: setup
+name: shrimpy-setup
 description: Finish the first usable Shrimpy workspace. Use during `shrimpy setup`, first-run onboarding, or when checking/fixing setup state.
 ---
 
@@ -52,7 +52,7 @@ Default gateway behavior: ask before running `shrimpy gateway install` or `shrim
 
 Do not add a separate local/private model-policy chooser in first setup. `shrimpy setup` already made the `coding` policy usable, and this setup session runs as the `mechanic` agent through `modelPolicy: "coding"`.
 
-Use the mechanic skill when setup turns into repair, configuration design, app-agent shaping, or deeper Shrimpy maintenance. Use `add-agent` for new specialized agents, `channel-routing` for chat surfaces or adapter routing, and `watches` for recurring/background work. Keep first setup focused on concrete owner choices and validated workspace state.
+Use `shrimpy-agents` for specialized agents, `shrimpy-channels` for chat surfaces or adapter routing, `shrimpy-watches` for recurring/background work, and `shrimpy-skills` for skill package changes. Keep first setup focused on concrete owner choices and validated workspace state.
 
 When editing agent identity, keep ownership clear. `agents/shrimpy/` is the first normal agent's personality, context, watches, and durable memory. `agents/mechanic/` is your own maintenance identity and maintenance skills. For future agents, use `agents/<id>/` and normal `shrimpy agent ...` commands instead of mixing their personality or memory into `shrimpy` or `mechanic`.
 
@@ -61,7 +61,7 @@ When editing agent identity, keep ownership clear. `agents/shrimpy/` is the firs
 When enough information is available, make concrete edits instead of only describing them. Preserve existing user edits.
 
 - User facts and preferences: `profile/USER.md`
-- Workspace layout and local path breadcrumbs: `profile/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, Shrimpy docs, pattern docs, reference docs, source default skills, source mechanic skills, workspace skills, and agent skill path stems. Do not add broad crawl roots unless the user approved broader path scope.
+- Workspace layout and local path breadcrumbs: `profile/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, Shrimpy docs, reference docs, included skill sources, workspace skills, and agent skill path stems. Do not add broad crawl roots unless the user approved broader path scope.
 - Shrimpy identity and style: `agents/shrimpy/SOUL.md`
 - Durable agent memory: `agents/shrimpy/context/*.md`
 - Saved material and setup notes for the main agent: `agents/shrimpy/vault/`

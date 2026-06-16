@@ -19,7 +19,7 @@ Do not make Skillfish a Shrimpy dependency now.
 
 The license is the blocker. Skillfish is declared and shipped as `AGPL-3.0`. That is a real free software license, but it is a strong copyleft/network-copyleft license and a poor fit for embedding into Shrimpy's MIT-licensed runtime without an explicit license decision. Even ignoring license risk, the package is CLI-shaped rather than SDK-shaped: `dist/index.js` exports nothing, there is no `exports` map, and the reusable functions are only reachable by deep imports into internal modules. Those internals include global agent detection, global/project filesystem writes, update-notifier, registry calls, and opt-out telemetry. That is not the clean dependency shape Shrimpy wants for live-workspace-safe CRUD.
 
-The useful path is to borrow ideas, not code. Skillfish is helpful as a reference for GitHub repository acquisition, declarative manifests, update tracking, safe copy behavior, and user-facing command ergonomics. Shrimpy should keep owning its package/binding model and lean on Pi for Agent Skills parsing.
+The useful path is to borrow ideas, not code. Skillfish is helpful as a reference for GitHub repository acquisition, declarative manifests, update tracking, safe copy behavior, and user-facing command ergonomics. Shrimpy should keep owning its visible-copy package model and lean on Pi for Agent Skills parsing.
 
 ## What Skillfish Is
 
@@ -53,15 +53,14 @@ Shrimpy's current skill CRUD shape already covers the core model from SKILL-000:
 - `shrimpy skills list [--agent <id>] [--json]`
 - `shrimpy skills show <id> [--agent <id>]`
 - `shrimpy skills add <source> [--agent <id>|--workspace] [--id <id>] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]`
-- `shrimpy skills update <id> [--dry-run] [--json]`
-- `shrimpy skills bind <id> [--agent <id>|--workspace] [--json]`
-- `shrimpy skills unbind <id> [--agent <id>|--workspace] [--json]`
+- `shrimpy skills update <id> [--agent <id>|--workspace] [--dry-run] [--json]`
+- `shrimpy skills remove <id> [--agent <id>|--workspace] [--json]`
 - `shrimpy skills new <id> [--agent <id>|--workspace] [--description <text>] [--force]`
 - `shrimpy skills validate [id] [--agent <id>] [--json]`
 
-The resolver scans agent-owned `agents/<id>/skills/<id>/SKILL.md`, workspace-owned `skills/<id>/SKILL.md`, package bindings from `state/skills/packages.json` plus `state/skills/bindings.json`, and source defaults from setup templates. It validates through Pi's `loadSkills`, enforces id/frontmatter name agreement, tracks shadowed skills, gates advertising by declared tool compatibility, and passes only winning compatible `SKILL.md` paths into Pi.
+The resolver scans agent-owned `agents/<id>/skills/<id>/SKILL.md` and workspace-owned `skills/<id>/SKILL.md`, annotates package-backed copies from `state/skills/packages.json`, validates through Pi's `loadSkills`, enforces id/frontmatter name agreement, tracks shadowed skills, gates advertising by declared tool compatibility, and passes only winning compatible `SKILL.md` paths into Pi.
 
-The biggest difference from Skillfish is storage philosophy. Skillfish installs duplicated copies into each target agent's native directory and stores a manifest inside each installed skill directory. Shrimpy stores fetched/shared content once under `state/skills/packages/<id>/` and controls visibility through workspace or agent bindings. That package/binding split is better for Shrimpy because it keeps user-installed package content deduplicated and makes visibility explicit.
+The biggest difference from Skillfish is storage philosophy. Skillfish stores a manifest inside each installed skill directory. Shrimpy stores target-scoped provenance centrally in `state/skills/packages.json`, but still installs package content as visible copies in the target workspace or agent skill root so agents and users can inspect and edit what is actually available.
 
 Shrimpy is still missing the customization lifecycle command: `fork`. Skillfish is most useful as a reference for that follow-up and for any later manifest sync surface.
 
@@ -78,7 +77,7 @@ owner/repo/path/to/skill
 owner/repo@main/skills/my-skill
 ```
 
-Shrimpy's current `skills add` accepts local directories, local Markdown files, direct `http(s)` `SKILL.md` URLs, and GitHub repository specs with explicit `--ref` and `--path` support. This was added in Shrimpy's own parser rather than by adopting Skillfish's package, and Shrimpy preserves the default of agent-local binding unless `--workspace` is explicit.
+Shrimpy's current `skills add` accepts local directories, local Markdown files, direct `http(s)` `SKILL.md` URLs, and GitHub repository specs with explicit `--ref` and `--path` support. This was added in Shrimpy's own parser rather than by adopting Skillfish's package, and Shrimpy preserves the default of agent-local install unless `--workspace` is explicit.
 
 One caveat from Skillfish's parser: `owner/repo@ref/path` cannot represent branch names with slashes and a path at the same time, because the first slash after `@` separates ref from path. Shrimpy should either document that limitation, prefer explicit `--ref` and `--path` flags for ambiguous cases, or use a URL-like syntax rather than overloading one string too far.
 
@@ -117,7 +116,7 @@ shrimpy skills import skillfish.json --agent <id>
 shrimpy skills export --workspace --format skillfish
 ```
 
-That should stay optional. Shrimpy's durable truth should remain `state/skills/packages.json`, `state/skills/bindings.json`, and local authoring roots.
+That should stay optional. Shrimpy's durable truth should remain `state/skills/packages.json` and the visible workspace or agent skill roots.
 
 ### Safe Copy And Rollback
 
@@ -138,7 +137,7 @@ Skillfish consistently supports `--json`, non-interactive behavior, confirmation
 
 Do not borrow global multi-agent detection. Shrimpy should not scan a user's entire home directory for Claude/Cursor/Codex/etc. skill directories. Shrimpy's relevant boundary is the Shrimpy workspace and configured Shrimpy agents.
 
-Do not borrow Skillfish's duplicate-install model. Installing the same external skill into every agent directory makes sense for a cross-agent OS-level tool. Shrimpy's managed package plus binding model is cleaner for a single workspace.
+Do not borrow Skillfish's global duplicate-install model. Installing the same external skill into every detected OS-level agent directory makes sense for a cross-agent tool. Shrimpy's boundary is narrower: copy packages only into the selected Shrimpy workspace or agent skill root, then track provenance centrally.
 
 Do not borrow registry search or submission as a core feature. `skill.fish`/MCP Market integration is a product surface outside Shrimpy's current skill CRUD problem. If Shrimpy eventually supports discovery, make it an optional provider, not a base dependency.
 
@@ -158,4 +157,4 @@ Do not borrow Skillfish's frontmatter parsing. It uses regex helpers for `name` 
 
 Skillfish is clean enough to learn from as a CLI, but not clean enough to embed as a Shrimpy dependency. The AGPL license alone makes it a bad fit for a permissively licensed Shrimpy runtime. The package shape confirms that: it is a CLI with prompts, updater, telemetry, registry hooks, and global agent filesystem assumptions, not a narrow library for skill package acquisition.
 
-For Shrimpy, the best extraction is conceptual: GitHub repo specs, per-package provenance, directory-level SHA update checks, manifest-style sync semantics, dry-run/update ergonomics, and symlink-safe copying. The first set is now in Shrimpy while Shrimpy's own package/binding state and Pi-backed validation remain the center.
+For Shrimpy, the best extraction is conceptual: GitHub repo specs, per-package provenance, directory-level SHA update checks, manifest-style sync semantics, dry-run/update ergonomics, and symlink-safe copying. The first set is now in Shrimpy while Shrimpy's own target-scoped package state and Pi-backed validation remain the center.

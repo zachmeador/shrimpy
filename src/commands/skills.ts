@@ -1,11 +1,10 @@
 import { createAppRuntime } from "../app/index.js";
 import {
   addSkillPackage,
-  bindInstalledSkillPackage,
   inspectSkills,
   loadSkillPrompt,
+  removeSkillPackage,
   scaffoldSkill,
-  unbindInstalledSkillPackage,
   updateSkillPackage,
   validateSkills,
 } from "../skills/index.js";
@@ -47,7 +46,21 @@ async function listSkills({ argv, config, usage }: CommandInvocation): Promise<n
     const name = skill.name !== skill.id ? ` name=${skill.name}` : "";
     const loaded = skill.loaded ? "" : " (not loaded by Pi)";
     const available = skill.available ? "" : ` (unavailable: ${skill.blockedReasons.join("; ")})`;
-    console.log(`${skill.id} [${skill.scope}]${name}${loaded}${available}${summary}`);
+    const scope = skill.sourceKind === "package" ? `${skill.scope} package` : skill.scope;
+    console.log(`${skill.id} [${scope}]${name}${loaded}${available}${summary}`);
+    if (skill.packageInfo) {
+      const assignment = skill.packageInfo.scope
+        ? skill.packageInfo.scope === "agent"
+          ? `agent ${skill.packageInfo.agentId ?? skill.agentId}`
+          : "workspace"
+        : skill.scope;
+      const installedPath = skill.packageInfo.installedPath ?? skill.packageInfo.rootPath;
+      const modified = skill.packageInfo.modified ? " yes" : " no";
+      console.log(`  source: ${skill.packageInfo.source}`);
+      console.log(`  assignment: ${assignment}`);
+      console.log(`  installed: ${installedPath}`);
+      console.log(`  modified:${modified}`);
+    }
   }
   for (const warning of inventory.warnings) {
     console.log(`warning: ${warning}`);
@@ -130,6 +143,8 @@ async function updateSkill({ argv, config, usage }: CommandInvocation): Promise<
   const { values, positionals } = parseCommandArgs({
     args: argv,
     options: {
+      agent: { type: "string", short: "a" },
+      workspace: { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
       json: { type: "boolean", default: false },
     },
@@ -139,9 +154,12 @@ async function updateSkill({ argv, config, usage }: CommandInvocation): Promise<
   });
   const id = requireArg(positionals[0], usage, "skill id");
   const runtime = createAppRuntime(config);
+  const target = resolveOptionalPackageScope(values.workspace, values.agent);
   const result = await updateSkillPackage({
     runtime,
     id,
+    scope: target.scope,
+    agentId: target.agentId,
     dryRun: values["dry-run"],
   });
   if (values.json) {
@@ -155,12 +173,12 @@ async function updateSkill({ argv, config, usage }: CommandInvocation): Promise<
       console.log(`Updated skill package ${result.id}: ${result.packageInfo?.entryPath}`);
     }
   } else {
-    console.log(`Skill package ${result.id} is up to date.`);
+    console.log(`Skill package ${result.id}: ${result.reason ?? "package source is unchanged"}.`);
   }
   return 0;
 }
 
-async function bindSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
+async function removeSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
   const { values, positionals } = parseCommandArgs({
     args: argv,
     options: {
@@ -174,49 +192,19 @@ async function bindSkill({ argv, config, usage }: CommandInvocation): Promise<nu
   });
   const id = requireArg(positionals[0], usage, "skill id");
   const runtime = createAppRuntime(config);
-  const scope = resolvePackageScope(values.workspace, values.agent);
-  const result = bindInstalledSkillPackage({
+  const target = resolveOptionalPackageScope(values.workspace, values.agent);
+  const result = removeSkillPackage({
     runtime,
     id,
-    scope,
-    agentId: values.agent,
+    scope: target.scope,
+    agentId: target.agentId,
   });
   if (values.json) {
     console.log(JSON.stringify(result, null, 2));
     return 0;
   }
-  const target = result.scope === "agent" ? `agent ${result.agentId}` : "workspace";
-  console.log(`Bound skill package ${result.id} to ${target}.`);
-  return 0;
-}
-
-async function unbindSkill({ argv, config, usage }: CommandInvocation): Promise<number> {
-  const { values, positionals } = parseCommandArgs({
-    args: argv,
-    options: {
-      agent: { type: "string", short: "a" },
-      workspace: { type: "boolean", default: false },
-      json: { type: "boolean", default: false },
-    },
-    allowPositionals: true,
-    strict: true,
-    usage,
-  });
-  const id = requireArg(positionals[0], usage, "skill id");
-  const runtime = createAppRuntime(config);
-  const scope = resolvePackageScope(values.workspace, values.agent);
-  const result = unbindInstalledSkillPackage({
-    runtime,
-    id,
-    scope,
-    agentId: values.agent,
-  });
-  if (values.json) {
-    console.log(JSON.stringify(result, null, 2));
-    return 0;
-  }
-  const target = result.scope === "agent" ? `agent ${result.agentId}` : "workspace";
-  console.log(`Unbound skill package ${result.id} from ${target}.`);
+  const label = result.scope === "agent" ? `agent ${result.agentId}` : "workspace";
+  console.log(`Removed ${label} skill package ${result.id}: ${result.removedPath}`);
   return 0;
 }
 
@@ -287,6 +275,18 @@ function resolvePackageScope(workspace: boolean, agent?: string): "agent" | "wor
   return workspace ? "workspace" : "agent";
 }
 
+function resolveOptionalPackageScope(
+  workspace: boolean,
+  agent?: string,
+): { scope?: "agent" | "workspace"; agentId?: string } {
+  if (workspace && agent) {
+    throw new CommandError("choose either --workspace or --agent, not both");
+  }
+  if (workspace) return { scope: "workspace" };
+  if (agent) return { scope: "agent", agentId: agent };
+  return {};
+}
+
 function resolveLocalMutationScope(workspace: boolean, agent?: string): "agent" | "workspace" {
   if (workspace && agent) {
     throw new CommandError("choose either --workspace or --agent, not both");
@@ -307,8 +307,7 @@ export const cmdSkills: CommandHandler = createCommandGroup({
     show: showSkill,
     add: addSkill,
     update: updateSkill,
-    bind: bindSkill,
-    unbind: unbindSkill,
+    remove: removeSkill,
     new: newSkill,
     validate: validateSkill,
   },

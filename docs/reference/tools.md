@@ -102,4 +102,4 @@ Use `shrimpy context --agent <id>` to inspect prompt text, and use `shrimpy agen
 
 ## Skill Context
 
-Skills are Markdown instruction bundles. Shrimpy adds trails for the visible workspace and agent skills to context, while Pi owns skill parsing, `/skill:<name>` expansion, autocomplete, and the `<available_skills>` prompt block. Executable behavior lives in tools, watches, and CLI commands. See [skills.md](skills.md).
+Skills are Markdown instruction sets. Shrimpy adds trails for the visible workspace and agent skills to context, while Pi owns skill parsing, `/skill:<name>` expansion, autocomplete, and the `<available_skills>` prompt block. Executable behavior lives in tools, watches, and CLI commands. See [skills.md](skills.md).

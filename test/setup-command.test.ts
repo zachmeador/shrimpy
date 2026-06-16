@@ -46,7 +46,7 @@ describe("setup entry", () => {
         channel: "setup",
         sessionType: "tui",
         initialMessage: "Begin setup.",
-        skills: ["setup"],
+        skills: ["shrimpy-setup"],
         modelPolicy: "coding",
         cwd: workspace,
       },

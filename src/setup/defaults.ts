@@ -107,7 +107,7 @@ export function createSecurityAuditWatch(opts?: {
       kind: "message",
       channel: opts?.channel ?? DEFAULT_WATCH_MAINTENANCE_CHANNEL,
       text: [
-        "Use the `security-audit` skill.",
+        "Use the `shrimpy-security-audit` skill.",
         "Run a read-only security posture review and write the report under agents/mechanic/vault/audits/.",
         "Do not change workspace state.",
       ].join(" "),
@@ -132,7 +132,7 @@ export function createHygieneAuditWatch(opts?: {
       kind: "message",
       channel: opts?.channel ?? DEFAULT_WATCH_MAINTENANCE_CHANNEL,
       text: [
-        "Use the `hygiene-audit` skill.",
+        "Use the `shrimpy-hygiene-audit` skill.",
         "Run a read-only workspace hygiene review and write the report under agents/mechanic/vault/audits/.",
         "Do not change workspace state.",
       ].join(" "),

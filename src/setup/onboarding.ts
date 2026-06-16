@@ -51,7 +51,7 @@ interface SetupInteractiveSessionSpec {
   channel: "setup";
   sessionType: "tui";
   initialMessage: string;
-  skills: ["setup"];
+  skills: ["shrimpy-setup"];
   modelPolicy: typeof DEFAULT_MODEL_POLICY;
   cwd?: string;
 }
@@ -105,7 +105,7 @@ export function createSetupInteractiveSessionSpec(
     channel: "setup",
     sessionType: "tui",
     initialMessage: "Begin setup.",
-    skills: ["setup"],
+    skills: ["shrimpy-setup"],
     modelPolicy: DEFAULT_MODEL_POLICY,
     cwd: input.cwd,
   };

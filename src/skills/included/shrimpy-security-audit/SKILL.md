@@ -1,5 +1,5 @@
 ---
-name: security-audit
+name: shrimpy-security-audit
 description: Use when reviewing Shrimpy workspace security posture, tool surfaces, automations, dependency risk, or exposed channels without changing anything.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: workspace-migration
+name: shrimpy-workspace-migration
 description: Use when preparing or carrying a Shrimpy workspace across Shrimpy versions, including upgrade checks, migration inventories, and user-approved workspace changes.
 ---
 

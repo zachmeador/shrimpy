@@ -15,7 +15,7 @@
 - Watch clock: `src/watches/`
 - Tools: `src/tools/`
 - Setup templates: `src/setup/templates/`
-- Repository developer skills: repository-root `skills/<id>/SKILL.md`. These are source-tree skill prompts for Shrimpy development work, separate from the workspace and agent skill bundles described in [skills.md](skills.md). `npm run build` mirrors them into `.claude/skills/` and `.agents/skills/` with `DIRECTORY_MANAGED_BY_SHRIMPY_BUILD` marker files; edit `skills/`, not the generated mirrors.
+- Repository developer skills: repository-root `skills/<id>/SKILL.md`. These are source-tree skill prompts for Shrimpy development work, separate from the workspace and agent skills described in [skills.md](skills.md). `npm run build` mirrors them into `.claude/skills/` and `.agents/skills/` with `DIRECTORY_MANAGED_BY_SHRIMPY_BUILD` marker files; edit `skills/`, not the generated mirrors.
 - `CLAUDE.md` is generated from `AGENTS.md` by the same build tooling and carries a short origin note at the top.
 
 ## Commands
