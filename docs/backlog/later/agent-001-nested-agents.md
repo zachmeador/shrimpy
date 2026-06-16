@@ -3,7 +3,7 @@
 Status: todo
 Priority: P3
 Area: Agents
-Depends On: [SKILL-001](../skill-001-shrimpy-workflows-skill.md), [CTX-008](ctx-008-runtime-context-producers.md)
+Depends On: [SKILL-001](../skill-001-shrimpy-search-skill.md), [CTX-008](ctx-008-runtime-context-producers.md)
 
 ## Why
 
@@ -46,7 +46,7 @@ This is low priority and should stay behind practical agent, context, and app-pa
 
 ## Touches
 
-- [SKILL-001](../skill-001-shrimpy-workflows-skill.md): a future agent pattern can include a clearly optional nested character-agent habitat if that shape becomes common enough.
+- [SKILL-001](../skill-001-shrimpy-search-skill.md): nested agents should follow the same search-before-invent behavior before creating or changing child-agent state.
 - [Character agents musing](../../musings/character-agents.md): the main design pressure comes from internal voices and scoped memory for character agents.
 - [CTX-008](ctx-008-runtime-context-producers.md): parent context assembly needs inspectable provenance if child outputs are injected into a turn.
 - [Channels](../../reference/channels.md): child-agent messages should remain attributable and routable through normal channel semantics.

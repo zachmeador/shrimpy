@@ -110,7 +110,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>shrimpy-hygiene-audit<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-coding-delegation<\/name>/);
     assert.match(parsed.systemPrompt, /<name>memory-management<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>vault-capture<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>remember<\/name>/);
     assert.doesNotMatch(parsed.systemPrompt, /<name>setup<\/name>/);
     assert.doesNotMatch(parsed.systemPrompt, /<name>mechanic<\/name>/);
     assert.doesNotMatch(parsed.systemPrompt, /<name>codex-web-search<\/name>/);
@@ -371,11 +371,11 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /shrimpy-skills \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-security-audit \[agent package\]/);
     assert.match(lines.join("\n"), /shrimpy-workspace-migration \[agent package\]/);
-    assert.match(lines.join("\n"), /shrimpy-workflows \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-search \[workspace package\]/);
     assert.match(lines.join("\n"), /Create, inspect, configure, rename, remove, or debug Shrimpy agents/);
     assert.match(lines.join("\n"), /memory-management \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-coding-delegation \[workspace package\]/);
-    assert.match(lines.join("\n"), /vault-capture \[workspace package\]/);
+    assert.match(lines.join("\n"), /remember \[workspace package\]/);
     assert.match(lines.join("\n"), /Save links, files, notes, recipes/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[workspace package\]/);
@@ -400,8 +400,8 @@ describe("skill context inspection", () => {
     assert.match(output, /memory-management \[workspace package\]/);
     assert.match(output, /shrimpy-agents \[workspace package\]/);
     assert.match(output, /shrimpy-coding-delegation \[workspace package\]/);
-    assert.match(output, /vault-capture \[workspace package\]/);
-    assert.match(output, /shrimpy-workflows \[workspace package\]/);
+    assert.match(output, /remember \[workspace package\]/);
+    assert.match(output, /shrimpy-search \[workspace package\]/);
     assert.match(output, /shrimpy-channels \[workspace package\]/);
     assert.match(output, /shrimpy-watches \[workspace package\]/);
     assert.match(output, /shrimpy-skills \[workspace package\]/);
@@ -908,17 +908,17 @@ describe("skill service", () => {
       "journal-compact:workspace",
       "journal-daily:workspace",
       "memory-management:workspace",
+      "remember:workspace",
       "shrimpy-agents:workspace",
       "shrimpy-channels:workspace",
       "shrimpy-coding-delegation:workspace",
       "shrimpy-hygiene-audit:agent",
+      "shrimpy-search:workspace",
       "shrimpy-security-audit:agent",
       "shrimpy-setup:agent",
       "shrimpy-skills:workspace",
       "shrimpy-watches:workspace",
-      "shrimpy-workflows:workspace",
       "shrimpy-workspace-migration:agent",
-      "vault-capture:workspace",
     ]);
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
@@ -926,13 +926,13 @@ describe("skill service", () => {
       "journal-compact:workspace",
       "journal-daily:workspace",
       "memory-management:workspace",
+      "remember:workspace",
       "shrimpy-agents:workspace",
       "shrimpy-channels:workspace",
       "shrimpy-coding-delegation:workspace",
+      "shrimpy-search:workspace",
       "shrimpy-skills:workspace",
       "shrimpy-watches:workspace",
-      "shrimpy-workflows:workspace",
-      "vault-capture:workspace",
     ]);
 
     const mechanicRoot = join(workspace, "agents", "mechanic");
@@ -953,9 +953,9 @@ describe("skill service", () => {
     assert.equal(codingDelegation.available, true);
     assert.equal(codingDelegation.sourceKind, "package");
     assert.deepEqual(codingDelegation.requiredTools, ["bash"]);
-    const vaultCapture = getSkillView(runtime, "vault-capture", "shrimpy");
-    assert.equal(vaultCapture.available, true);
-    assert.match(loadSkillPrompt(runtime, "vault-capture", "shrimpy"), /agents\/shrimpy\/vault\/research/);
+    const remember = getSkillView(runtime, "remember", "shrimpy");
+    assert.equal(remember.available, true);
+    assert.match(loadSkillPrompt(runtime, "remember", "shrimpy"), /agents\/shrimpy\/vault\/research/);
     assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-setup", "mechanic"), [{
       rootPath: mechanicRoot,
       resourcePath: "skills/shrimpy-setup",
@@ -980,9 +980,9 @@ describe("skill service", () => {
       rootPath: workspace,
       resourcePath: "skills/shrimpy-coding-delegation",
     }]);
-    assert.deepEqual(getSkillPromptResources(runtime, "vault-capture"), [{
+    assert.deepEqual(getSkillPromptResources(runtime, "remember"), [{
       rootPath: workspace,
-      resourcePath: "skills/vault-capture",
+      resourcePath: "skills/remember",
     }]);
   });
 
@@ -1083,17 +1083,17 @@ describe("skill service", () => {
       "journal-compact",
       "journal-daily",
       "memory-management",
+      "remember",
       "shrimpy-agents",
       "shrimpy-channels",
       "shrimpy-coding-delegation",
       "shrimpy-hygiene-audit",
+      "shrimpy-search",
       "shrimpy-security-audit",
       "shrimpy-setup",
       "shrimpy-skills",
       "shrimpy-watches",
-      "shrimpy-workflows",
       "shrimpy-workspace-migration",
-      "vault-capture",
     ]);
     assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);
   });

@@ -1,9 +1,9 @@
 ---
-name: vault-capture
+name: remember
 description: Save links, files, notes, recipes, research requests, and "look into this" work into agent vault files with source metadata and predictable paths.
 ---
 
-# Vault Capture
+# Remember
 
 Use this skill when the user asks to save, capture, catalog, archive, remember as a file, collect, research, compare, or "look into this" in a way that should become durable workspace material.
 
@@ -64,11 +64,7 @@ For bounded research, create a folder under `agents/shrimpy/vault/research/<YYYY
 - `notes.md` for findings, uncertainties, and follow-up questions;
 - optional artifacts under a clearly named subfolder.
 
-Use worker sessions only when the task has a clear bounded goal. Give the worker the vault packet path as handoff material, then report saved paths, worker ids, and unresolved questions back to the user.
-
-```bash
-shrimpy worker start --agent <id> --cwd <path> --goal "<review goal>" "Review agents/<id>/vault/<collection>/<slug>/ and summarize next actions."
-```
+Handle normal capture and research in the current session. Start a worker only when the user asks for delegated work; if a worker is used, give it the packet path and report saved paths, the worker id, and unresolved questions.
 
 ## Versioning
 

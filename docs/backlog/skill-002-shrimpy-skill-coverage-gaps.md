@@ -28,7 +28,7 @@ Good docs-backed examples:
 
 - `shrimpy-channels` points to [channels.md](../reference/channels.md), [surfaces.md](../reference/surfaces.md), and [cli.md](../reference/cli.md), then focuses on naming, routing, and guardrails.
 - `shrimpy-watches` points to [configuration.md](../reference/configuration.md), [runtime.md](../reference/runtime.md), [channels.md](../reference/channels.md), and [cli.md](../reference/cli.md), then focuses on owner, cadence, wake behavior, and safety.
-- [SKILL-001](skill-001-shrimpy-workflows-skill.md) captures the all-agent workflow-skill direction: the skill is the routing surface, and short docs carry the details.
+- [SKILL-001](skill-001-shrimpy-search-skill.md) captures the all-agent search-before-invent direction: the skill owns bounded lookup, while focused skills own concrete workflows.
 
 ## Gaps
 
@@ -38,7 +38,7 @@ Implemented: `shrimpy-skills` as an included Shrimpy how-to skill, plus `shrimpy
 
 This was the highest-confidence gap. Shrimpy has a rich `shrimpy skills` CLI and a reference doc, and now has a Shrimpy-owned behavior guide for when to create a workspace skill, install an included or external package, make an agent-local override, validate, and keep skill bodies as doc-backed agent guidance. It uses [SKILL-003](skill-003-agent-owned-skill-packages.md)'s copied included-package model: agent-owned skill files are real workspace state, and modified copies are allowed.
 
-Docs to point at: [skills.md](../reference/skills.md), [cli.md](../reference/cli.md), [development.md](../reference/development.md), and [SKILL-001](skill-001-shrimpy-workflows-skill.md). The repo developer variant should also remind agents to edit root `skills/`, run `npm run build:skills`, and preserve `.agents/skills/` and `.claude/skills/` as generated mirrors.
+Docs to point at: [skills.md](../reference/skills.md), [cli.md](../reference/cli.md), [development.md](../reference/development.md), and [SKILL-001](skill-001-shrimpy-search-skill.md). The repo developer variant should also remind agents to edit root `skills/`, run `npm run build:skills`, and preserve `.agents/skills/` and `.claude/skills/` as generated mirrors.
 
 ### Context And Prompt Debugging
 
@@ -74,9 +74,9 @@ Docs to point at: [setup.md](../reference/setup.md), [runtime.md](../reference/r
 
 ### Workspace Knowledge And Capture
 
-Candidate: fold into the workflow skill from [SKILL-001](skill-001-shrimpy-workflows-skill.md), not a new default skill yet.
+Implemented: `shrimpy-search` from [SKILL-001](skill-001-shrimpy-search-skill.md).
 
-Shrimpy has workspace search and a source-default `vault-capture` skill. Agents need a behavioral wrapper for "find what we know" workflows after [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) settles, either as a focused all-agent skill or one category inside the patterns skill.
+Shrimpy has workspace search, session search, channel search, and turn-context inspection. Agents need a behavioral wrapper for "find what we know" before creating duplicate memories, vault notes, watches, channels, agents, or skills. `shrimpy-search` owns that lookup path and hands off to `remember`, `shrimpy-channels`, `shrimpy-watches`, or `shrimpy-skills` once the relevant corpus is found.
 
 Docs to point at: [workspace.md](../reference/workspace.md), [memory.md](../reference/memory.md), and [cli.md](../reference/cli.md).
 
@@ -90,7 +90,7 @@ Docs to point at: [surfaces.md](../reference/surfaces.md), [channels.md](../refe
 
 ## Existing Skill Cleanup
 
-- `shrimpy-mechanic-ideas` should be replaced by [SKILL-001](skill-001-shrimpy-workflows-skill.md); keep workflow details in docs and leave the skill as the routing surface.
+- `shrimpy-mechanic-ideas` and the broad `shrimpy-workflows` router are replaced by focused skills. Use `shrimpy-search` for lookup and the owning workflow skill for action.
 - `shrimpy-coding-delegation` is the right owner for worker behavior, but it should point at [cli.md](../reference/cli.md) or a future worker reference doc instead of carrying too much command reference inline.
 - `memory-management`, `journal-daily`, and `journal-compact` are useful watch-target skills, but their command recipes and hard-wrapped prose should be revisited when memory/reference docs can own more of the detail.
 - `shrimpy-agents` and `shrimpy-setup` intentionally carry more policy because they touch live workspace state. When they change, prefer linking to docs for command details and keeping skill text focused on decisions, safety, and validation.
@@ -107,7 +107,7 @@ Docs to point at: [surfaces.md](../reference/surfaces.md), [channels.md](../refe
 2. Add a `shrimpy-skills` included skill that points to the skill and CLI docs, guides workspace-vs-agent-vs-package choices, respects copied included-package ownership, and enforces validation.
 3. Add a `shrimpy-dev-skills` source-tree developer skill for editing root `skills/` and included package sources, including `npm run build:skills` when generated mirrors are affected.
 4. Add future skills only when the repeated behavior is clear: likely `shrimpy-model-policy`, `shrimpy-gateway-ops`, and `shrimpy-context-debugging`. Add `shrimpy-session-debugging` only if session reset/search/compaction support keeps producing recurring mechanic work.
-5. Fold workspace knowledge into `shrimpy-workflows` and `vault-capture` instead of creating a separate default skill.
+5. Keep workspace knowledge lookup in `shrimpy-search` and durable capture in `remember`.
 6. When touching existing included skills, reduce inline reference material and add doc breadcrumbs before adding new prose.
 
 ## Boundaries
@@ -123,4 +123,4 @@ Docs to point at: [surfaces.md](../reference/surfaces.md), [channels.md](../refe
 - The current default and repository developer skill set has a documented coverage assessment.
 - Shrimpy's skill reference states the docs-backed behavior-guide rule.
 - `shrimpy-skills` and `shrimpy-dev-skills` cover the first high-confidence authoring/lifecycle gap.
-- Lower-confidence candidates are accepted, deferred, or folded into existing skills with a short reason.
+- Lower-confidence candidates are accepted, deferred, implemented as `shrimpy-search`, or folded into existing skills with a short reason.

@@ -51,12 +51,12 @@ const INCLUDED_SKILLS: IncludedSkillDefinition[] = [
     category: "behavior",
     assignment: WORKSPACE_ASSIGNMENT,
   }),
-  includedSkill("vault-capture", {
+  includedSkill("remember", {
     category: "behavior",
     assignment: WORKSPACE_ASSIGNMENT,
   }),
-  includedSkill("shrimpy-workflows", {
-    category: "behavior",
+  includedSkill("shrimpy-search", {
+    category: "shrimpy-how-to",
     assignment: WORKSPACE_ASSIGNMENT,
   }),
   includedSkill("journal-daily", {

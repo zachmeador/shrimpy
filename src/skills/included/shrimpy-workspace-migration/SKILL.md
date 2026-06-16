@@ -48,6 +48,21 @@ Build a short inventory with:
 
 Prefer normal `shrimpy <command>` paths when they exist. Treat `config/`, `agents/`, `state/`, `runtime/`, `channels/`, and `media/` as user data. Do not delete, reset, rewrite, migrate, or disable anything while building the inventory.
 
+## Skill Migration Is High Risk
+
+Treat `skills/` and `agents/<id>/skills/` as user-authored workspace state. Before changing any skill, inspect package state and modified status:
+
+```bash
+shrimpy skills list --agent <id> --json
+shrimpy skills validate --agent <id> --json
+```
+
+Preserve user-created skills by default. Do not overwrite, rename, delete, or merge custom skills unless the user explicitly approves the exact change.
+
+For managed included package copies, unmodified copies can be refreshed after approval. Modified copies require an explicit keep, replace, or review decision. Default to keep.
+
+Shrimpy-owned `shrimpy-*` skills are product how-to packages. If one has user modifications, stop the migration and ask whether to overwrite it with the Shrimpy package copy or move the modified copy to a backup path before replacing it. Do not continue until the user chooses.
+
 ## Confirm Before Moving
 
 Stop after the inventory and ask the user to confirm the move. Include the exact changes you intend to make and whether you will create a checkpoint or backup first. Do not execute until the user clearly approves.

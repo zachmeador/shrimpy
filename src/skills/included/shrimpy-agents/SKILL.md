@@ -38,6 +38,32 @@ shrimpy agent add <id> \
 
 Use `shrimpy agent set <id>` for model policy, tools, disabled tools, thinking, root, or base channel policy changes. Use `shrimpy agent rename <old> <new>` for durable id changes. Use `shrimpy agent remove <id>` only when the user asked to remove an agent; add `--delete-files` only when they explicitly want files deleted.
 
+## Model Policy Changes
+
+When the user asks an agent to use a specific model going forward, treat it as a persistent model-policy change, not just a current-session model switch.
+
+Inspect first:
+
+```bash
+shrimpy models --json
+shrimpy models policies --json
+shrimpy models resolve --agent <id> --session tui --json
+```
+
+Find the exact Pi-visible `<provider>/<model>` id. If the user's model name is ambiguous or missing from `shrimpy models`, ask before changing anything.
+
+Prefer a named policy for durable defaults:
+
+```bash
+shrimpy models policies set <policy> --candidate <provider>/<model> --json
+shrimpy agent set <id> --model-policy <policy> --json
+shrimpy models resolve --agent <id> --session tui --json
+```
+
+Use an existing policy only when changing every agent that uses it is intended. Otherwise create or update an agent-specific policy name such as `<agent-id>-default`.
+
+Warn about active sessions: local TUI sessions can keep using a model saved inside the existing session until the user switches models, resets/reopens that session, or starts a new one. Gateway channel sessions use the resolved policy for the running gateway process, so a gateway restart may be needed for channel turns.
+
 ## Shape Choices
 
 - `SOUL.md`: concise role, responsibilities, boundaries, and voice.

@@ -3,7 +3,7 @@
 Status: review
 Priority: P2
 Area: Skills
-Depends On: [SKILL-001](skill-001-shrimpy-workflows-skill.md), [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md)
+Depends On: [SKILL-001](skill-001-shrimpy-search-skill.md), [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md)
 
 ## Why
 
@@ -28,7 +28,7 @@ Shrimpy has managed skill package concepts for provenance and updates. The pivot
 4. Keep workspace-level `skills/` and agent-level `agents/<id>/skills/` loading as local authoring surfaces. Assigned packages become real files in those roots; user-created skills keep working.
 5. Replace hidden visibility records with install records keyed by target, such as `workspace:<id>` and `agent:<agent-id>:<id>`, that track package id, package source, assigned scope, installed path, package source hash or revision, installed hash, and last refresh. Compute `modified` by comparing the tracked source hash to the current installed file hash; do not treat local edits as invalid.
 6. Add or extend CLI support so `shrimpy skills list` and `shrimpy skills validate --json` show package source, assignment, installed path, and modified status. Support installing an included package with an inspectable command such as `shrimpy skills add included:<id> --agent <agent-id>`, and remove managed installed copies with `shrimpy skills remove`.
-7. Rename Shrimpy how-to included skills with a `shrimpy-` prefix: `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, `shrimpy-skills`, `shrimpy-coding-delegation`, `shrimpy-setup`, `shrimpy-workspace-migration`, `shrimpy-security-audit`, and `shrimpy-hygiene-audit`. Keep behavior skills unprefixed, including `memory-management`, `journal-daily`, `journal-compact`, and `vault-capture`.
+7. Rename Shrimpy how-to included skills with a `shrimpy-` prefix: `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, `shrimpy-skills`, `shrimpy-coding-delegation`, `shrimpy-setup`, `shrimpy-workspace-migration`, `shrimpy-security-audit`, and `shrimpy-hygiene-audit`. Keep behavior skills unprefixed, including `memory-management`, `journal-daily`, `journal-compact`, and `remember`.
 8. Keep `shrimpy-coding-delegation` as an included system-level package because Shrimpy can create Pi sessions from install. It should not be Codex-specific, though it can mention Codex as a strong worker option when available.
 9. Keep `codex-web-search` as an included but unassigned package. Do not add app-gating in this item; Shrimpy does not yet have a runtime app-gate mechanism.
 10. Replace broad mechanic-only general knowledge with a short mechanic context directive: use assigned Shrimpy skills first, then `profile/WORKSPACE.md` paths, then `docs/reference/`, then source; prefer `shrimpy <command>` inspection; ask before broad or destructive workspace changes.
@@ -46,7 +46,7 @@ Shrimpy has managed skill package concepts for provenance and updates. The pivot
 
 ## Notes
 
-- This pivot supersedes the source-default-only distribution shape from [SKILL-001](skill-001-shrimpy-workflows-skill.md), while keeping its workflow-skill content direction.
+- This pivot supersedes the source-default-only distribution shape from [SKILL-001](skill-001-shrimpy-search-skill.md), while keeping its focused skill content direction.
 - This also narrows [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md): do not add many new skills until ownership, naming, assignment, and modified-copy tracking are settled.
 - Package state solves source provenance and drift checks; assignment is owned installed copies, not hidden visibility bindings.
 

@@ -12,9 +12,9 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-010](tui-010-tui-backlog-closeout-plan.md) | draft | P2 | TUI | [TUI-004](tui-004-agent-session-navigator.md), [TUI-007](tui-007-pi-patch-surface-reduction.md), [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | TUI backlog closeout coordination |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
-| [SKILL-001](skill-001-shrimpy-workflows-skill.md) | review | P2 | Skills | none | All-agent Shrimpy workflows skill |
+| [SKILL-001](skill-001-shrimpy-search-skill.md) | review | P2 | Skills | none | All-agent Shrimpy search skill |
 | [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | review | P2 | Skills | none | Shrimpy skill coverage gaps |
-| [SKILL-003](skill-003-agent-owned-skill-packages.md) | review | P2 | Skills | [SKILL-001](skill-001-shrimpy-workflows-skill.md), [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | Agent-owned skill packages with modified-copy tracking |
+| [SKILL-003](skill-003-agent-owned-skill-packages.md) | review | P2 | Skills | [SKILL-001](skill-001-shrimpy-search-skill.md), [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | Agent-owned skill packages with modified-copy tracking |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | review | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
@@ -35,7 +35,7 @@ Deferred notes that are intentionally outside the active backlog.
 |---|---|---|---|---|---|
 | [CTX-008](later/ctx-008-runtime-context-producers.md) | todo | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](later/ctx-009-context-trace-debug-view.md) | todo | P2 | Context | [CTX-008](later/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
-| [AGENT-001](later/agent-001-nested-agents.md) | todo | P3 | Agents | [SKILL-001](skill-001-shrimpy-workflows-skill.md), [CTX-008](later/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
+| [AGENT-001](later/agent-001-nested-agents.md) | todo | P3 | Agents | [SKILL-001](skill-001-shrimpy-search-skill.md), [CTX-008](later/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
 | [CODE-003](later/code-003-claude-code-worker-adapter.md) | todo | P3 | Coding Agents | none | Claude Code worker adapter |
 | [CODE-004](later/code-004-agent-worker-tools.md) | todo | P3 | Coding Agents | none | Agent worker tools |
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |

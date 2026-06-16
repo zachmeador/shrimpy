@@ -8,11 +8,12 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Replaced source-default runtime skills and hidden package visibility state with package installs copied into visible workspace or agent `skills/` roots. Existing workspaces that relied on source-served Shrimpy skills should install owned copies with `shrimpy skills add included:<id> --workspace` or `--agent <id>`.
 - Renamed Shrimpy-specific how-to skills to the `shrimpy-*` form, including `shrimpy-setup`, `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, `shrimpy-skills`, `shrimpy-coding-delegation`, and `shrimpy-workspace-migration`; update explicit `--skill` references that used the old names.
+- Renamed the `vault-capture` included skill package to `remember`; update explicit `--skill` and `included:<id>` references that used the old name.
 
 ### Workspace & Setup
 
 - Changed fresh setup to install assigned included skills as real package-backed files under `skills/` and `agents/mechanic/skills/`, with `profile/WORKSPACE.md` pointing agents at the installed roots and `src/skills/included/` source.
-- Added visible included package copies for `shrimpy-coding-delegation`, `memory-management`, `vault-capture`, `shrimpy-workflows`, `journal-daily`, `journal-compact`, shared Shrimpy how-to skills, and mechanic-only maintenance skills.
+- Added visible included package copies for `shrimpy-coding-delegation`, `memory-management`, `remember`, `shrimpy-search`, `journal-daily`, `journal-compact`, shared Shrimpy how-to skills, and mechanic-only maintenance skills.
 - Kept `codex-web-search` as an included package source but unassigned by default.
 
 ### Agents, Skills & Tools
@@ -24,8 +25,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Docs & Agent References
 
+- Added `shrimpy-search` for bounded workspace, session, channel, and turn-context lookup before agents invent new state.
 - Added `shrimpy-skills` for workspace and agent skill authoring, package choices, validation, and docs-backed skill writing.
-- Updated the Shrimpy workflow skill, developer skills, and reference docs for the included-package model and `shrimpy-*` skill names, with workflow guidance moving into the relevant skills.
+- Tightened `shrimpy-workspace-migration` around skill migration, preserving custom skills by default and stopping for an explicit overwrite-or-backup decision when edited `shrimpy-*` package copies are found.
+- Removed the broad `shrimpy-workflows` included skill; workflow guidance now lives in focused skills such as `shrimpy-search`, `shrimpy-watches`, `shrimpy-channels`, `remember`, and `shrimpy-coding-delegation`.
 
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
 

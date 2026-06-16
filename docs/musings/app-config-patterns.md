@@ -59,7 +59,7 @@ Weak examples:
 
 ## Backlog
 
-Tracked by `docs/backlog/skill-001-shrimpy-workflows-skill.md`.
+Tracked by `docs/backlog/skill-001-shrimpy-search-skill.md`.
 
 ## human notes:
 

@@ -71,16 +71,16 @@ describe("setupInit", () => {
       "journal-compact",
       "SKILL.md",
     );
-    const vaultCaptureSkillPath = join(
+    const rememberSkillPath = join(
       workspace,
       "skills",
-      "vault-capture",
+      "remember",
       "SKILL.md",
     );
-    const workflowsSkillPath = join(
+    const searchSkillPath = join(
       workspace,
       "skills",
-      "shrimpy-workflows",
+      "shrimpy-search",
       "SKILL.md",
     );
     const setupSkillPath = join(
@@ -165,8 +165,8 @@ describe("setupInit", () => {
     assert.equal(existsSync(memoryManagementSkillPath), true);
     assert.equal(existsSync(journalDailySkillPath), true);
     assert.equal(existsSync(journalCompactSkillPath), true);
-    assert.equal(existsSync(vaultCaptureSkillPath), true);
-    assert.equal(existsSync(workflowsSkillPath), true);
+    assert.equal(existsSync(rememberSkillPath), true);
+    assert.equal(existsSync(searchSkillPath), true);
     assert.equal(existsSync(setupSkillPath), true);
     assert.equal(existsSync(agentsSkillPath), true);
     assert.equal(existsSync(channelsSkillPath), true);
@@ -206,6 +206,10 @@ describe("setupInit", () => {
     assert.equal(skillPackages["workspace:shrimpy-watches"].installKey, "workspace:shrimpy-watches");
     assert.equal(skillPackages["workspace:shrimpy-watches"].scope, "workspace");
     assert.equal(skillPackages["workspace:shrimpy-watches"].installedPath, join(workspace, "skills", "shrimpy-watches"));
+    assert.equal(skillPackages["workspace:shrimpy-search"].sourceKind, "included");
+    assert.equal(skillPackages["workspace:shrimpy-search"].installKey, "workspace:shrimpy-search");
+    assert.equal(skillPackages["workspace:shrimpy-search"].scope, "workspace");
+    assert.equal(skillPackages["workspace:shrimpy-search"].installedPath, join(workspace, "skills", "shrimpy-search"));
     assert.equal(skillPackages["workspace:shrimpy-skills"].sourceKind, "included");
     assert.equal(skillPackages["workspace:shrimpy-skills"].installKey, "workspace:shrimpy-skills");
     assert.equal(skillPackages["workspace:shrimpy-skills"].scope, "workspace");
@@ -324,7 +328,7 @@ describe("setupInit", () => {
     assert.match(system, /shrimpy channels read <name>/);
     assert.match(system, /Storage Breadcrumbs/);
     assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
-    assert.doesNotMatch(system, /vault-capture/);
+    assert.doesNotMatch(system, /skills\/remember|included:remember|# Remember/);
     assert.doesNotMatch(system, /source URL or origin, capture timestamp, the user's request/);
     assert.doesNotMatch(system, /agents\/shrimpy\/vault\/research\/<YYYY-MM-DD>-<slug>/);
     assert.match(system, /persist the relevant Markdown note before claiming it will be remembered/);
@@ -336,7 +340,7 @@ describe("setupInit", () => {
     const soul = readFileSync(soulPath, "utf-8");
     // very important
     assert.match(soul, /Enjoys adding the shrimpy emoji to responses\. 🦐/u);
-    assert.doesNotMatch(soul, /vault-capture/);
+    assert.doesNotMatch(soul, /skills\/remember|included:remember|# Remember/);
     const mechanicSoul = readFileSync(mechanicSoulPath, "utf-8");
     assert.match(mechanicSoul, /You are Mechanic/);
     assert.match(mechanicSoul, /setup, repair, configuration/);
@@ -347,7 +351,7 @@ describe("setupInit", () => {
     assert.match(workspaceDoc, /This workspace is the home system/);
     assert.match(workspaceDoc, /Each agent keeps saved files and collections under `agents\/<id>\/vault\/`/);
     assert.match(workspaceDoc, /Each agent keeps code, apps, experiments, and focused work folders under `agents\/<id>\/projects\/`/);
-    assert.doesNotMatch(workspaceDoc, /vault-capture/);
+    assert.doesNotMatch(workspaceDoc, /skills\/remember|included:remember|# Remember/);
     assert.doesNotMatch(workspaceDoc, /durable user-owned collections such as recipes/);
     assert.doesNotMatch(workspaceDoc, /agents\/<id>\/vault\/recipes\/<slug>\.md/);
     assert.equal(workspaceDoc.includes("agents/shrimpy/vault/inbox/"), false);
