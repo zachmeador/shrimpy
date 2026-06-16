@@ -7,7 +7,7 @@ Question: what should Shrimpy learn from Michael Mateas and Andrew Stern's "Inte
 
 ## Short Answer
 
-Façade is still unusually relevant because it treats interactive drama as an architecture problem, not just a writing problem and not just an AI-character problem. The system works by choosing a tightly bounded dramatic situation, mapping open player behavior into authored social actions, updating explicit story-state variables, sequencing reusable dramatic units, and communicating state through performance instead of visible meters. The lesson for Shrimpy is that Façade-style story agents should probably be ordinary agents with explicit drama/state/context policy around them, not a special runtime species.
+Façade is still unusually relevant because it treats interactive drama as an architecture problem, not just a writing problem and not just an AI-character problem. The system works by choosing a tightly bounded dramatic situation, mapping open player behavior into authored social actions, updating explicit story-state variables, sequencing reusable dramatic units, and communicating state through performance instead of visible meters. 
 
 The useful pattern is:
 
