@@ -90,7 +90,6 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
     options: {
       agent: { type: "string", short: "a" },
       workspace: { type: "boolean", default: false },
-      id: { type: "string" },
       path: { type: "string" },
       ref: { type: "string" },
       all: { type: "boolean", default: false },
@@ -111,7 +110,6 @@ async function addSkill({ argv, config, usage }: CommandInvocation): Promise<num
     source,
     scope,
     agentId: agent?.id,
-    id: values.id,
     path: values.path,
     ref: values.ref,
     all: values.all,

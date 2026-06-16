@@ -199,9 +199,8 @@ export async function writePreparedPackageSource(
 
 export function toSkillPackageCandidate(
   source: PreparedPackageSource,
-  idOverride?: string,
 ): SkillPackageCandidate {
-  const id = normalizeSkillId(idOverride ?? source.skillName);
+  const id = normalizeSkillId(source.skillName);
   return {
     id,
     name: source.skillName,
@@ -218,9 +217,8 @@ export function toSkillPackageCandidate(
 
 export function ensureUniqueSelectedSkillIds(
   sources: PreparedPackageSource[],
-  idOverride?: string,
 ): void {
-  const ids = sources.map((source) => normalizeSkillId(idOverride ?? source.skillName));
+  const ids = sources.map((source) => normalizeSkillId(source.skillName));
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
   if (duplicates.length > 0) {
     throw new Error(`multiple selected skills resolve to the same id: ${uniqueStrings(duplicates).join(", ")}`);

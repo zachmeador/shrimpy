@@ -43,7 +43,6 @@ export interface AddSkillPackageOptions {
   source: string;
   scope: "agent" | "workspace";
   agentId?: string;
-  id?: string;
   force?: boolean;
   ref?: string;
   path?: string;
@@ -125,9 +124,6 @@ export async function addSkillPackage(
   if (packageSources.length === 0) {
     throw new Error(`no skill packages found in source: ${opts.source}`);
   }
-  if (opts.id && (opts.all || packageSources.length > 1)) {
-    throw new Error("--id can only be used when one skill package is selected");
-  }
   if (packageSources.length > 1 && !opts.all) {
     const candidates = packageSources.map((source) => toSkillPackageCandidate(source));
     if (opts.dryRun) {
@@ -144,9 +140,9 @@ export async function addSkillPackage(
   }
 
   const selectedSources = opts.all ? packageSources : [packageSources[0]!];
-  ensureUniqueSelectedSkillIds(selectedSources, opts.id);
+  ensureUniqueSelectedSkillIds(selectedSources);
   const selectedCandidates = selectedSources.map((source) =>
-    toSkillPackageCandidate(source, opts.id)
+    toSkillPackageCandidate(source)
   );
 
   if (opts.dryRun) {
@@ -162,7 +158,7 @@ export async function addSkillPackage(
 
   const packages: SkillPackageInfo[] = [];
   for (const source of selectedSources) {
-    const skillId = normalizeSkillId(opts.id ?? source.skillName);
+    const skillId = normalizeSkillId(source.skillName);
     const target = resolveSkillPackageTarget({
       runtime: opts.runtime,
       scope: opts.scope,
@@ -417,7 +413,7 @@ async function updateInstalledSkillPackage(
   current: SkillPackageInfo,
   latestSource: PreparedPackageSource,
 ): Promise<UpdateSkillPackageResult> {
-  const latestCandidate = toSkillPackageCandidate(latestSource, current.id);
+  const latestCandidate = toSkillPackageCandidate(latestSource);
   const latestSourceHash = await hashPreparedPackageSource(latestSource);
   const latestRevision = latestSource.sourceRevision ?? latestSourceHash;
   const installedPath = current.installedPath ?? current.rootPath;

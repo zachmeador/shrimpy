@@ -126,7 +126,7 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy agent remove <id>` | Remove an agent from config/state. |
 | `shrimpy skills list [--agent <id>] [--json]` | List the effective Pi-loaded agent and workspace skill view, including warnings. |
 | `shrimpy skills show <id> [--agent <id>]` | Print a skill's `SKILL.md`. |
-| `shrimpy skills add <source> [--agent <id>\|--workspace] [--id <id>] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]` | Discover, fetch, or copy a skill package into an agent or workspace skill root. |
+| `shrimpy skills add <source> [--agent <id>\|--workspace] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]` | Discover, fetch, or copy a skill package into an agent or workspace skill root. |
 | `shrimpy skills update <id> [--agent <id>\|--workspace] [--dry-run] [--json]` | Check a managed package's recorded source and replace it when the source revision changed, preserving locally modified installed copies. |
 | `shrimpy skills remove <id> [--agent <id>\|--workspace] [--json]` | Remove one managed skill package copy and its package state record. |
 | `shrimpy skills new <id> [--agent <id>\|--workspace] [--description <text>] [--force]` | Scaffold a local workspace or agent-authored skill. |

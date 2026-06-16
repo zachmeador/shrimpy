@@ -52,7 +52,7 @@ Shrimpy's current skill CRUD shape already covers the core model from SKILL-000:
 
 - `shrimpy skills list [--agent <id>] [--json]`
 - `shrimpy skills show <id> [--agent <id>]`
-- `shrimpy skills add <source> [--agent <id>|--workspace] [--id <id>] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]`
+- `shrimpy skills add <source> [--agent <id>|--workspace] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]`
 - `shrimpy skills update <id> [--agent <id>|--workspace] [--dry-run] [--json]`
 - `shrimpy skills remove <id> [--agent <id>|--workspace] [--json]`
 - `shrimpy skills new <id> [--agent <id>|--workspace] [--description <text>] [--force]`

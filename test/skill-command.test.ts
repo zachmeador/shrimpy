@@ -457,14 +457,18 @@ describe("skill context inspection", () => {
 
     try {
       await assert.rejects(
-        () => cmdSkills(["add", invalidSource, "--id", "invalid-source", "--agent", "shrimpy"], { workspace } as any),
+        () => cmdSkills(["add", invalidSource, "--agent", "shrimpy"], { workspace } as any),
         /missing SKILL\.md/,
       );
       assert.equal(existsSync(join(workspace, "agents", "shrimpy", "skills", "invalid-source")), false);
+      await assert.rejects(
+        () => cmdSkills(["add", source, "--id", "source-skill", "--agent", "shrimpy"], { workspace } as any),
+        /Unknown option '--id'/,
+      );
 
       const install = await captureLogs(() =>
         cmdSkills(
-          ["add", source, "--id", "source-skill", "--agent", "shrimpy"],
+          ["add", source, "--agent", "shrimpy"],
           { workspace } as any,
         )
       );
@@ -484,12 +488,12 @@ describe("skill context inspection", () => {
       assert.equal(packages.packages["agent:shrimpy:source-skill"].modified, false);
 
       await assert.rejects(
-        () => cmdSkills(["add", source, "--id", "source-skill", "--agent", "shrimpy"], { workspace } as any),
+        () => cmdSkills(["add", source, "--agent", "shrimpy"], { workspace } as any),
         /skill package already exists/,
       );
 
       const workspaceInstall = await captureLogs(() =>
-        cmdSkills(["add", source, "--id", "source-skill", "--workspace"], { workspace } as any)
+        cmdSkills(["add", source, "--workspace"], { workspace } as any)
       );
       assert.equal(workspaceInstall.result, 0);
       assert.equal(existsSync(join(workspace, "skills", "source-skill", "SKILL.md")), true);
@@ -497,29 +501,6 @@ describe("skill context inspection", () => {
       assert.equal(multiTargetPackages.packages["workspace:source-skill"].installKey, "workspace:source-skill");
       assert.equal(multiTargetPackages.packages["workspace:source-skill"].scope, "workspace");
       assert.equal(multiTargetPackages.packages["agent:shrimpy:source-skill"].scope, "agent");
-
-      const originalInstalledContent = readFileSync(installedPath, "utf-8");
-      writeFileSync(
-        join(invalidSource, "SKILL.md"),
-        [
-          "---",
-          "name: wrong-source-skill",
-          "description: Mismatched skill for force replacement tests.",
-          "---",
-          "",
-          "# Wrong Source Skill",
-          "",
-        ].join("\n"),
-        "utf-8",
-      );
-      await assert.rejects(
-        () => cmdSkills(
-          ["add", invalidSource, "--id", "source-skill", "--agent", "shrimpy", "--force"],
-          { workspace } as any,
-        ),
-        /must match Pi skill name/,
-      );
-      assert.equal(readFileSync(installedPath, "utf-8"), originalInstalledContent);
     } finally {
       rmSync(source, { recursive: true, force: true });
       rmSync(invalidSource, { recursive: true, force: true });

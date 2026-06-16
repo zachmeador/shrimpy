@@ -17,7 +17,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Agents, Skills & Tools
 
-- Changed `shrimpy skills add` so included, local, URL, and GitHub packages all install into owned workspace or agent skill directories with target-scoped provenance and drift tracking in `state/skills/packages.json`.
+- Changed `shrimpy skills add` so included, local, URL, and GitHub packages all install into owned workspace or agent skill directories with target-scoped provenance and drift tracking in `state/skills/packages.json`; removed `--id` so package ids now come from the package's own skill name.
 - Added `shrimpy skills remove <id> [--agent <id>|--workspace]` to remove one managed package copy and its package state record.
 - Changed `shrimpy skills list` and `shrimpy skills validate --json` to report package source, assignment, installed path, and modified status for package-backed skills.
 - Changed `shrimpy mechanic` to stop injecting the removed broad `mechanic` skill by default; use explicit focused skills when a maintenance session needs one.
