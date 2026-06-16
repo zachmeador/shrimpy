@@ -18,7 +18,8 @@ Current notes worth scanning:
 - `app-config-patterns.md` — simple-to-complex app/config examples for setup skills, guided init, and consultative check-ins
 - `agent-currency-and-rl.md` — agent currency as a cost/value ledger, runtime policy pressure, and possible reward scaffold for personal RL
 - `asynchronous-agents.md` — first principles for async home-agent design, why heartbeat is only one piece, and how one visible agent can be many internal actors
-- `character-agents.md` — story-character agents, inner voices, and this weird art-project shape as an architecture litmus test
+- `character-agents.md` — story-character agents, inner voices, and this weird art-project shape as an architecture litmus test; paired with [`../research/facade-interactive-drama.md`](../research/facade-interactive-drama.md)
+- `story-worlds.md` — the self-running extreme: a matrix-builder world authority, a scene-manager director, and an autonomous character cast, with no human in the dramatic loop
 - `framework-design.md` — broader product direction, preserved quotes, app-agent framing, and onboarding taste
 - `mechanic-agent.md` — why self-modification may want a default `shrimpy-mechanic` specialist instead of leaning on opaque skill discovery
 - `session-model.md` — desired feel of channels, sessions, messaging, surfaces, and `/new`

@@ -73,6 +73,21 @@ One useful mental model is:
 
 That keeps the weirdness contained in an inspectable composition layer instead of spreading special cases across the runtime.
 
+## Façade Lessons
+
+The strongest precedent for this line of thought is Mateas and Stern's Façade; see [`../research/facade-interactive-drama.md`](../research/facade-interactive-drama.md).
+
+The big lesson for Façade-style drama is that the character needs authored structure around it, not just a vivid character prompt. Façade separates visible performance from backstage machinery: player utterances become discourse acts, discourse acts update social/story state, a drama manager sequences beats, and Grace and Trip perform the result. For Shrimpy, the equivalent shape is a normal character agent plus an inspectable story-state and context-policy layer.
+
+Useful pressure points for this musing:
+
+- Treat voice agents like optional beat mix-ins: short, selected pressures that can color or redirect a turn without owning the final response.
+- Track story state explicitly: affinity, tension, motifs, secrets, unresolved promises, current scene pressure, and recent user moves should not live only in transcript vibes.
+- Separate local agency from global agency: a good character should respond meaningfully now, and repeated user behavior should change durable story direction later.
+- Let the protagonist be an agent: the human does not have to be the visitor inside the scene for the Façade mechanics to matter.
+- Use bounded scenes or rituals first when testing Façade-style drama: a single location, daily letter, recurring relationship, or limited dramatic premise keeps the state/action model inspectable.
+- Keep performance and inspection separate: the user can see character behavior while maintainers can inspect selected voices, detected acts, state deltas, and active beats.
+
 ## Litmus-Test Questions
 
 Shrimpy is on the right track if the answer to most of these is yes:
