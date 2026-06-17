@@ -51,6 +51,7 @@ Keep `docs/reference/` from going stale after source changes. Use git history an
 
 - State concrete paths, command names, config keys, file shapes, and lifecycle facts.
 - Keep prose short and declarative.
+- Do not hard-wrap prose, but keep paragraphs readable. Prefer one focused idea per paragraph; most paragraphs should be one to three sentences, and dense lists of commands, config fields, lifecycle steps, or edge cases should become bullets, tables, or separate paragraphs.
 - Avoid release-note language such as "added", "now", "new", "previously", or "recently".
 - Do not document speculative future work; point to `docs/backlog/` only when a reference doc already names active refinement as related context.
 - Keep cross-links local and useful: `[sessions.md](sessions.md)`, not broad prose references to "the docs".
