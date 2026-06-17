@@ -12,6 +12,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
+- Improved the curl installer so reruns tolerate installer-generated `package-lock.json` changes and fresh shells get direct `~/.local/bin/shrimpy setup` next steps.
 - Changed fresh setup to install assigned included skills as real package-backed files under `skills/` and `agents/mechanic/skills/`, with `profile/WORKSPACE.md` pointing agents at the installed roots and `src/skills/included/` source.
 - Added visible included package copies for `shrimpy-coding-delegation`, `memory-management`, `remember`, `shrimpy-search`, `journal-daily`, `journal-compact`, shared Shrimpy how-to skills, and mechanic-only maintenance skills.
 - Kept `codex-web-search` as an included package source but unassigned by default.
@@ -25,6 +26,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Docs & Agent References
 
+- Added `remember` for recipes, inbox captures, research packets, source metadata, worker handoffs, and explicit versioning of kept vault files.
 - Added `shrimpy-search` for bounded workspace, session, channel, and turn-context lookup before agents invent new state.
 - Added `shrimpy-skills` for workspace and agent skill authoring, package choices, validation, and docs-backed skill writing.
 - Tightened `shrimpy-workspace-migration` around skill migration, preserving custom skills by default and stopping for an explicit overwrite-or-backup decision when edited `shrimpy-*` package copies are found.
@@ -59,7 +61,6 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
-- Improved the curl installer so reruns tolerate installer-generated `package-lock.json` changes and fresh shells get direct `~/.local/bin/shrimpy setup` next steps.
 - Changed `shrimpy setup telegram` to require at least one allowed chat ID and poll Telegram directly for discovery instead of asking users to start an open gateway first.
 - Improved gateway service installs and startup PATH handling so watch actions and gateway sessions can resolve `shrimpy` from `~/.local/bin`.
 - Added `state/worker-backends.json` during setup so worker backend availability is recorded without making external CLIs required.

@@ -35,10 +35,14 @@ Implementation and tests are the authority. Existing changelog entries, backlog 
    - `git diff --stat <last-release-tag>..HEAD`
    - `git diff <last-release-tag>..HEAD -- <relevant paths>`
 Use the latest semver release tag when one exists. For a normal unreleased update after a public release, the baseline is usually the latest `v*` tag.
-4. Update the active `Unreleased` section unless the user is cutting a release.
+4. Update the active `Unreleased` section unless the user is cutting a release. If `CHANGELOG.md` has no `Unreleased` section, create one above the newest dated release and put new notes there.
 5. For release prep, change the heading from `Unreleased` to the release date only when the user has asked to prepare or cut that release.
 6. Edit only changelog entries that are needed for the current work. Preserve unrelated release notes and user edits.
-7. Do not modify dated or previously released changelog sections during normal unreleased updates. If a historical release note looks wrong, add a correction or clarification under `Unreleased` instead of rewriting the old release entry, unless the user explicitly asks for historical changelog cleanup.
+7. Do not modify any heading, bullet, or prose beneath a dated or previously released version during normal unreleased updates. If a historical release note looks wrong, add a correction or clarification under `Unreleased` instead of rewriting the old release entry. Only edit released sections when the user explicitly asks for historical changelog cleanup or release-note repair.
+
+## Released Section Lock
+
+Treat dated version sections as immutable history. Do not add, remove, reword, reorder, merge, or "broaden" bullets under released headings such as `## 🦐 0.4.1 - ... - 2026-06-13` while documenting new work. New post-release work belongs under `Unreleased`, even when it amends behavior first mentioned in a released section.
 
 ## Evidence Checks
 
