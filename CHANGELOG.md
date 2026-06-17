@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.5.0 - The Reef Remembers - Unreleased
+## 🦐 0.5.0 - The Reef Remembers - 2026-06-17
 
 ### Breaking Changes
 
@@ -56,6 +56,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added `shrimpy-dev-skills` for maintaining Shrimpy included skills, repository developer skills, and generated skill mirrors.
 - Improved `shrimpy-workspace-migration` so it preserves custom skills and asks before overwriting edited `shrimpy-*` skill copies.
 - Removed the broad `shrimpy-workflows` skill. Workflow guidance now lives in focused skills such as `shrimpy-search`, `shrimpy-watches`, `shrimpy-channels`, `remember`, and `shrimpy-coding-delegation`.
+
+### Release & Dependencies
+
+- Updated `markdown-it` and related lockfile entries from `npm audit fix`; remaining Pi-bundled advisories require a future Pi package upgrade.
 
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
 

@@ -6,7 +6,7 @@
 
 Shrimpy is a home agent built on [Pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent): a personal workspace runtime with persistent agents, shared memory, local tools, background work, and multiple chat surfaces.
 
-Latest tagged release: **0.4.1 - Tides Pull Both Ways**.
+Latest tagged release: **0.5.0 - The Reef Remembers**.
 
 > *keep it shrimple* 🦐
 
@@ -39,7 +39,7 @@ The installer requires Git, Node `>=22.19.0`, and `npm`. It installs Shrimpy und
 To install a specific tag, branch, or commit:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.4.1 bash
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.5.0 bash
 ```
 
 For source checkout development:
