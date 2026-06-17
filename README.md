@@ -4,26 +4,40 @@
   <img src="docs/assets/shrimpy-logo-horizontal.png" alt="Shrimpy logo" width="420">
 </p>
 
-Shrimpy is a home agent built on [Pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent): a personal workspace runtime with persistent agents, shared memory, local tools, background work, and multiple chat surfaces.
+Shrimpy gives agents a home on disk, and the system is designed to stay small. Agents are durable residents of one workspace: identity, memory, skills, saved work, sessions, and schedules all live as normal files. A job-search helper, a fitness tracker, a story character, or a maintenance agent can keep its own history instead of starting over as another disposable chat.
 
-Latest tagged release: **0.5.0 - The Reef Remembers**.
+Shrimpy is small-model friendly by design: few primitives, compact context, normal files, and CLI commands a model can inspect directly. Useful behavior should come from composing those pieces before it becomes another core feature.
+
+The primitives are plain. Channels are shared rooms and logs. Sessions are private working contexts for an agent's turns, tool use, and transcript. Watches run scheduled prompts or command checks, then route anything worth attention through channels. Skills are Markdown instructions. [Pi](https://github.com/earendil-works/pi/tree/main/packages/coding-agent) handles model calls, tools, and session runtime; Shrimpy adds the workspace around it so agents can talk, run background work, and leave evidence you can inspect.
 
 > *keep it shrimple* 🦐
 
-## 🦐 Read First
+## 🦐 Docs
 
-- [docs/README.md](docs/README.md) — docs map.
-- [docs/reference/overview.md](docs/reference/overview.md) — short orientation and current shape.
-- [docs/reference/setup.md](docs/reference/setup.md) — install, setup, and gateway service lifecycle.
-- [docs/reference/cli.md](docs/reference/cli.md) — command surface.
-- [docs/reference/architecture.md](docs/reference/architecture.md) — primitives, boundaries, and source ownership.
-- [docs/reference/runtime.md](docs/reference/runtime.md) — direct runs, gateway dispatch, watches, and worker delegation.
-- [docs/reference/channels.md](docs/reference/channels.md) — channel protocol, membership, addressing, policy, and egress.
-- [docs/reference/sessions.md](docs/reference/sessions.md) — session files, lifecycle, model metadata, and inspection.
-- [docs/reference/workspace.md](docs/reference/workspace.md) — workspace layout, prompt resources, state, and logs.
-- [docs/reference/configuration.md](docs/reference/configuration.md) — config files and day-to-day knobs.
-- [docs/backlog/index.md](docs/backlog/index.md) — active project work.
-- [CHANGELOG.md](CHANGELOG.md) — release history and unreleased changes.
+- [Overview](docs/reference/overview.md) — what Shrimpy is and how it's shaped.
+- [Setup](docs/reference/setup.md) — install and run.
+- [CLI](docs/reference/cli.md) — the command surface.
+- [Full docs map](docs/README.md) — everything else.
+
+## 🦐 What an agent is
+
+An agent is a folder on disk:
+
+- **`SOUL.md`** — who it is and how it behaves.
+- **`context/`** — what it knows: its domain and your situation.
+- **`skills/`** — what it can do, written as Markdown.
+- **`vault/`, `projects/`** — what it keeps: durable notes and work.
+- **`sessions/`, `watches.json`** — its history and its schedules.
+
+It's just files, so you fill them in however you like.
+
+## 🦐 What Shrimpy gives each agent
+
+- **Memory** — notes and a vault that persist and build up across conversations.
+- **Channels** — an agent sees only the channels it's a member of, and chooses which messages to answer.
+- **Surfaces** — chat surfaces an agent is reachable over, each a pluggable module.
+- **Watches** — schedules an agent owns, so it can run on its own and message you.
+- **A CLI** — every feature is a `shrimpy` command, so you and the agents can drive all of it.
 
 ## 🦐 Setup
 
@@ -34,15 +48,21 @@ curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/ins
 ~/.local/bin/shrimpy setup
 ```
 
-The installer requires Git, Node `>=22.19.0`, and `npm`. It installs Shrimpy under `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`.
+Requires Git, Node `>=22.19.0`, and `npm`. Installs under `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`.
 
-To install a specific tag, branch, or commit:
+Setup builds or repairs the workspace and walks you through model access — an API key (Anthropic, OpenAI, OpenRouter, Google, GitHub Copilot, Mistral, DeepSeek) or a subscription login. Then talk to your first agent:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.5.0 bash
+shrimpy chat
 ```
 
-For source checkout development:
+Pin a specific tag, branch, or commit:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=<ref> bash
+```
+
+Or develop from a source checkout:
 
 ```bash
 npm install
@@ -51,107 +71,34 @@ npm link
 shrimpy setup
 ```
 
-Setup creates or repairs the workspace, checks model access, writes path breadcrumbs into `profile/WORKSPACE.md`, and opens the mechanic setup flow. See [docs/reference/setup.md](docs/reference/setup.md) for the full setup checklist and service behavior.
-
-Shell completion is generated from the same CLI catalog as help:
-
-```bash
-shrimpy completion bash
-shrimpy completion zsh
-shrimpy completion install zsh
-```
+See [docs/reference/setup.md](docs/reference/setup.md) for the full checklist and the gateway service lifecycle.
 
 ## 🦐 Usage
 
 ```bash
-shrimpy                                      # launch interactive mode
-shrimpy chat                                 # launch chat with the default agent
-shrimpy chat career                          # launch chat with a specific agent
-shrimpy mechanic                             # launch the maintenance agent
-shrimpy "list files"                         # launch with an initial prompt
-shrimpy run --agent mechanic "summarize status"  # one-shot prompt, print result, exit
-shrimpy status                               # inspect workspace and gateway status
-shrimpy workspace search "model policy"      # search profile, skills, context, and vault notes
-shrimpy channels read home                   # read recent channel messages
-shrimpy watches                              # inspect agent-owned watches
-shrimpy worker list                          # inspect coding worker records
-shrimpy-gateway                              # run surfaces, channel dispatch, and watches
-shrimpy-web                                  # run the web inspector
+shrimpy                          # interactive session with the main shrimpy agent
+shrimpy chat [agent]             # chat with the default or a named agent
+shrimpy run --agent <id> "..."   # one-shot prompt, print result, exit
+shrimpy status                   # workspace, gateway, channel, and watch status
+shrimpy skills ...               # add and manage skills
+shrimpy watches                  # list and add watches
+shrimpy channels read <name>     # read a channel log
+shrimpy workspace search "..."   # search context, skills, notes, and vaults
+shrimpy update                   # update Shrimpy
+shrimpy-gateway                  # run the gateway (delivery, schedules, surfaces)
+shrimpy-web                      # browse channels and files at http://127.0.0.1:5174
 ```
 
-Run `shrimpy --help` for the common surface and `shrimpy help all` for the complete catalog.
+`shrimpy --help` shows the common surface; `shrimpy help all` the full catalog. The gateway is meant to run as a per-user service — install it with `shrimpy gateway install` and `start`, and read logs with `shrimpy gateway logs`.
 
-## 🦐 Config
+## 🦐 How it fits together
 
-Shrimpy resolves the workspace path from `~/.shrimpy/.shrimpy-workspace.json`, then `~/.shrimpy-workspace.json`; both pointer files use a `workspace` field. When no pointer exists, Shrimpy uses `~/.shrimpy/`.
+There are two ways work enters Shrimpy. Local commands like `shrimpy`, `shrimpy chat`, and `shrimpy run` open a session for one agent and write the transcript under that agent's folder. Channel work goes through the gateway: a chat surface, watch, CLI command, or agent writes a message to a channel log; the gateway offers it to member agents; each agent's policy decides whether to run.
 
-Runtime config lives at `workspace/config/shrimpy.json`. Channel membership lives at `workspace/config/channels.json`. See [docs/reference/configuration.md](docs/reference/configuration.md) for the current config shape.
+When an agent runs, Pi handles the model turn and tools inside that agent's private session. Shrimpy handles the surrounding home: which files become context, which skills are visible, and, for channel turns, where any public reply is written. Replies go back into channel logs first, then out to Telegram or another bound surface when one exists.
 
-## 🦐 Workspace
+The workspace is the thing you can inspect and edit. Config says which agents exist and which channels they can see. Agent folders hold identity, memory, skills, watches, saved work, and sessions. Setup starts with **shrimpy** for normal work and **mechanic** for setup, repair, models, agents, skills, channels, watches, and upgrades.
 
-The workspace directory holds prompt resources, agent files, config, and runtime state:
+## 🦐 Status
 
-```text
-profile/        shared WORKSPACE.md, SYSTEM.md, and USER.md prompt resources
-config/         runtime config and channel membership
-agents/         per-agent SOUL.md, context, vault, projects, watches, skills, and sessions
-skills/         workspace-level shared skills
-channels/       append-only JSONL channel logs
-media/          downloaded media
-state/          durable state: Pi auth/models, users, presence, workers, and watch clock
-runtime/        disposable state: cursors, turn context, watches, workers, pids, logs, and search cache
-```
-
-Each agent root under `agents/<id>/` owns its identity, memory, saved files, project work, watches, skills, and Pi session transcripts. See [docs/reference/workspace.md](docs/reference/workspace.md) for the full workspace map.
-
-## 🦐 Architecture
-
-See [docs/reference/architecture.md](docs/reference/architecture.md), [docs/reference/overview.md](docs/reference/overview.md), and [docs/reference/runtime.md](docs/reference/runtime.md) for the stable architecture notes. Key concepts:
-
-- **AppRuntime** — resolves workspace paths, config, surfaces, tool config, context config, and session bootstrap inputs.
-- **Profile resources** — workspace-level prompt resources under `profile/`.
-- **Agents** — persistent actors with `SOUL.md`, memory, tools, skills, watches, sessions, vaults, and projects.
-- **Channels** — append-only JSONL logs for routing and history.
-- **ChannelBus** — facade for typed channel IO, membership-aware reads, and optional outbound egress.
-- **Channel outbox** — gateway loop that delivers bound channel messages to surfaces and records receipts.
-- **Sessions** — Pi sessions persisted per agent and per channel or local session label.
-- **SessionRegistry** — per-session FIFO turn control for gateway channel sessions.
-- **Surfaces** — transport adapters such as Telegram, organized as self-contained verticals.
-- **Gateway** — long-running process for surfaces, channel dispatch, watches, and workspace checkpoint ticks.
-- **Watches** — agent-owned background rules that post channel messages or run commands on a schedule.
-- **Workers** — detached coding worker records and artifacts managed through `shrimpy worker ...`.
-- **Skills** — Markdown instruction bundles advertised to Pi as Shrimpy-selected context trails.
-
-## 🦐 Structure
-
-```text
-src/
-  app/                    AppRuntime, metadata, workspace paths, project-root helpers
-  cli.ts                  CLI dispatcher and interactive mode entry
-  gateway.ts              gateway entry point
-  gateway/                service controls, runtime helpers, delivery loop, logs, pid/state helpers
-  commands/               non-interactive CLI subcommands and command catalog
-  config/                 config loading, validation, and schema resolution
-  agents/                 agent config, workspace files, channel policy, and lifecycle helpers
-  channels/               JSONL store, typed protocol, bus, manifests, membership, outbox, egress
-  context/                context source resolution, prompt sections, and turn-context rendering
-  sessions/               session specs, bootstrap, factory, registry, storage, search, compaction
-  inference/              model parameter and thinking helpers
-  search/                 workspace search indexing and scoring
-  skills/                 source-default skills, package state, package sources, project sync
-  surfaces/               per-surface verticals plus shared chat-surface primitives
-  tools/                  Shrimpy daemon tools and tool policy/factory wiring
-  tui/                    Shrimpy TUI extensions and renderers
-  watches/                watch schema, clock, runner, inspection, actions, and run stores
-  workers/                detached worker records, availability, runner, and supervisor helpers
-  workspace-checkpoints/  opt-in local workspace checkpoint tracking
-  setup/                  setup/onboarding flow and workspace templates
-  web/                    web inspector server and workspace file/tree APIs
-  util/                   shared parsing, JSON, style, channel-pattern, and time helpers
-web/                      Svelte web inspector client
-extensions/               Pi extensions loaded by Shrimpy
-themes/                   Shrimpy theme definitions
-skills/                   Shrimpy development skills mirrored by the build
-test/                     node:test coverage
-docs/                     stable docs, backlog, research notes, and musings
-```
+Alpha — expect rough edges. Release history is in [CHANGELOG.md](CHANGELOG.md). MIT licensed ([LICENSE](LICENSE)); contributions welcome ([CONTRIBUTING.md](CONTRIBUTING.md)).
