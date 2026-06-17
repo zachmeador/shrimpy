@@ -16,6 +16,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | review | P2 | Skills | none | Shrimpy skill coverage gaps |
 | [SKILL-003](skill-003-agent-owned-skill-packages.md) | review | P2 | Skills | [SKILL-001](skill-001-shrimpy-search-skill.md), [SKILL-002](skill-002-shrimpy-skill-coverage-gaps.md) | Agent-owned skill packages with modified-copy tracking |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
+| [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | review | P2 | Sessions | none | Single model resolver behind session open and models resolve |
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
 | [SETUP-002](setup-002-setup-entry-seams.md) | review | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
