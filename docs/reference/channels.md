@@ -183,17 +183,17 @@ Gateway channel sessions do not automatically publish assistant text to a channe
 - `notify(text, opts)`
 - `report(summary)`
 
-Those helpers append an agent message to the active channel. The gateway outbox delivers outbound-eligible agent/system text, images, image groups, and operation-status acknowledgements externally when the channel manifest has a transport binding. Control records, system records, and informational statuses remain channel history for CLI inspection. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
+Those helpers append an agent message to the active channel. The gateway outbox delivers only outbound-eligible channel records externally when the channel manifest has a transport binding: agent text/media, command-watch text emissions, and operation-status acknowledgements. Message-watch instruction text, arbitrary system text, control records, system records, and informational statuses remain channel history for CLI inspection. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
 
 `send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless they are deliberately bound to a transport. `user:<id>` is accepted as a send-time alias for the user's last active chat surface; the message is logged to the resolved concrete channel, not to a `user:<id>` channel file.
 
-Use `shrimpy channels bind <channel> <adapter>/<instance>/<thread>` to attach a semantic channel such as `home` to an external transport. `unbind` removes the transport binding without renaming the channel or changing its history.
+Use `shrimpy channels bind <channel> <adapter>/<instance>/<thread>` to attach a named Shrimpy channel such as `home` or `daily-practice` to an external transport. `unbind` removes the transport binding without renaming the channel or changing its history.
 
 `shrimpy channels post user:<id> <text>` uses the same alias resolver for operator-injected human messages. Inspect current alias targets with `shrimpy users presence`.
 
 ## Watches
 
-Message watches emit ordinary watch-authored channel messages. The target channel records the watch work, and the owner/target agent still needs both channel visibility and an agent channel policy that wakes for the watch message. Command watches can also emit channel messages when their `emit.policy` matches the command observation.
+Message watches emit ordinary watch-authored channel messages. The target channel records the watch work, and the owner/target agent still needs both channel visibility and an agent channel policy that wakes for the watch message. Watch-origin instruction text is internal trigger material; user-facing delivery comes from the agent's later `reply`, `ask`, `notify`, `report`, or explicit `send_message` call. Command watches can emit user-facing text when their `emit.policy` matches the command observation.
 
 Inspect watch delivery with:
 
@@ -211,4 +211,4 @@ shrimpy channels search <channel> --kind watch
 - Membership is visibility, not wake policy.
 - Agent channel policy owns wake and response behavior.
 - Addressing is policy input, not a membership bypass.
-- Surface adapters translate external transport messages into typed channel messages. The gateway outbox translates logged agent/system messages back out through manifest bindings and records delivery receipts.
+- Surface adapters translate external transport messages into typed channel messages. The gateway outbox translates outbound-eligible logged messages back out through manifest bindings and records delivery receipts.

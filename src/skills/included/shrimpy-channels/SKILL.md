@@ -1,33 +1,41 @@
 ---
 name: shrimpy-channels
-description: Use when configuring or debugging Shrimpy channels, channel policies, chat surfaces, Telegram routing, or surface-thread agent assignment.
+description: Use when choosing where Shrimpy messages go, why an agent did or did not see or wake on a channel, or how chat surfaces connect to channels.
 ---
 
 # Shrimpy Channels
 
-Use this skill when the user asks how a message reaches an agent, when adding a chat surface, or when an agent should participate in a channel.
+Use this skill when an agent needs to choose, inspect, or fix message routing. If the user asks for recurring work, use `shrimpy-watches` for the schedule after choosing the destination channel.
 
 Use the paths in `profile/WORKSPACE.md`. For detail, use:
 
 - `reference/channels.md` — channel logs, membership, wake policy, addressed messages.
-- `reference/surfaces.md` — chat surface adapters, Telegram setup, surface-thread routing.
-- `reference/cli.md` — current `shrimpy channels`, `shrimpy surface`, and `shrimpy setup telegram` commands.
+- `reference/surfaces.md` — chat surface adapters and external delivery bindings.
+- `reference/cli.md` — current `shrimpy channels` and `shrimpy surface` commands.
 
-## Correct Channel Use
+## Decide
 
-Channels are shared message logs and routing surfaces. Sessions carry instructions. Channel membership controls which agents can see a channel; each agent's channel policy controls whether a visible message wakes that agent. Surface-thread channels are transport-bound channels, not agent identities.
+- For an immediate answer in the current conversation, use `reply`; do not create or bind a channel.
+- For a scheduled or recurring message, choose the destination channel first, then create a watch that runs the task and sends one final user-facing message there.
+- For agent participation in an existing room or log, join the agent and check channel policy.
+- For external delivery, use an existing bound channel when one fits. Create or bind a channel only when no suitable route exists.
+- For internal trace only, use a simple workflow channel name and leave it unbound unless the user asked for outside delivery.
 
-Use user-facing channels for conversations, `maintenance` or other log channels for background work, and semantic app/workflow channels when a recurring process needs a durable trace. Do not create adapter-shaped channel names by hand. Telegram channels look like `telegram~<instance-id>~<chat-id>` only when they come from real configured surface state.
+## Scheduled Message Pattern
 
-## How To Work
+1. If the user says to message them here or in the same chat, use the request's current channel. If the current channel is unclear, inspect existing channels before choosing.
+2. Confirm the owner agent can receive work on that channel with `shrimpy channels members <channel>` and `shrimpy agent channel-policy <agent> --channel <channel>`.
+3. If the agent is not a member, join it with `shrimpy channels join <channel> --agent <agent> --json`.
+4. Use `shrimpy-watches` to create the schedule. The watch message should tell the agent what to do and to send exactly one final user-facing message to the target channel.
+5. After a safe test run, inspect the channel and watch history before telling the user it is done.
 
-1. Decide whether the user wants an internal Shrimpy room/log, an external chat binding, or both.
-2. Inspect existing channels, members, and policy before changing routing.
-3. For external chat surfaces, inspect the configured surface and real thread ids before editing bindings.
-4. Join agents to channels with `shrimpy channels join <channel> --agent <id> --json`.
-5. Inspect wake policy with `shrimpy agent channel-policy <id> --channel <channel>` and `shrimpy agent channel-policy explain <id> --channel <channel> --sender human --text "..." --json`.
-6. Assign default addressed agents for surface threads with `shrimpy surface set-agent <surface> <thread-id> <agent> --json`.
-7. Restart the gateway after Telegram config changes.
+## Inspect Or Fix
+
+1. Read the channel and manifest before changing it: `shrimpy channels show <channel>` and `shrimpy channels read <channel> --limit 20`.
+2. Check who can see the channel: `shrimpy channels members <channel>`.
+3. Check whether a message would wake the agent: `shrimpy agent channel-policy explain <agent> --channel <channel> --sender human --text "..." --json`.
+4. For outside delivery, inspect configured surfaces and existing bindings before adding a new route.
+5. Use CLI commands for joins, binds, unbinds, and surface assignment. Avoid hand-editing routing state.
 
 ## Commands
 
@@ -50,8 +58,8 @@ shrimpy surface set-agent <surface> <thread-id> <agent> --json
 
 ## Guardrails
 
-- Chat adapters must have explicit inbound whitelists before gateway use. For Telegram, use numeric chat IDs in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Use `shrimpy setup telegram` to discover IDs without starting the gateway open.
-- Semantic channels can deliver externally through `shrimpy channels bind <channel> telegram/<instance-id>/<chat-id>`.
-- Do not invent adapter-shaped names like `telegram~fitness` to mean "a Telegram channel for the fitness agent."
-- Do not hand-edit surface state when a CLI command covers the route.
-- If a route is unclear, inspect before changing it: `shrimpy channels`, `shrimpy channels show <name>`, `shrimpy channels members <name>`, `shrimpy surface`, and `shrimpy surface show <surface> <thread-id>`.
+- Channels route and log messages. Sessions, commands, and watch messages carry task instructions.
+- Do not make up channel names that look like generated chat adapter names. Use the current channel, an existing channel from `shrimpy channels`, or a route created by the surface/channel CLI.
+- Do not bind external delivery just to organize internal work.
+- Do not assume channel membership means the agent wakes; check policy.
+- Do not assume a channel post reaches an outside chat; check that the channel has an external binding and that the message is allowed to send outward.

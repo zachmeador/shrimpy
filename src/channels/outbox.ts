@@ -340,7 +340,9 @@ export function summarizeDeliveryReceipts(
 export function outboundTextForMessage(message: ChannelMessage): string | null {
   switch (message.content.type) {
     case "text":
-      return message.content.data.text;
+      return (message.sender.kind === "agent" || isCommandWatchEmission(message))
+        ? message.content.data.text
+        : null;
     case "status":
       if (message.content.data.kind === "operation_status") {
         return message.content.data.text;
@@ -366,20 +368,24 @@ export function publicationIntentForMessage(
 }
 
 function shouldDeliverOutbound(message: ChannelMessage): boolean {
-  if (message.sender.kind !== "agent" && message.sender.kind !== "system") {
-    return false;
-  }
-
   switch (message.content.type) {
     case "text":
+      return message.sender.kind === "agent" || isCommandWatchEmission(message);
     case "image":
     case "image_group":
-      return true;
+      return message.sender.kind === "agent";
     case "status":
-      return message.content.data.kind === "operation_status";
+      return message.sender.kind === "system" &&
+        message.content.data.kind === "operation_status";
     default:
       return false;
   }
+}
+
+function isCommandWatchEmission(message: ChannelMessage): boolean {
+  if (message.sender.kind !== "system") return false;
+  return message.origin.transport === "watch" &&
+    message.origin.watch?.actionKind === "command";
 }
 
 function isDeliveryReceiptStatus(value: unknown): value is DeliveryReceiptStatus {

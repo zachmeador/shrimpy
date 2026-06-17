@@ -68,7 +68,7 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 - Agent-owned watches live in each agent workspace at `agents/<id>/watches.json`.
 - A watch is a background attention rule. Its `trigger` says what to watch; time is one trigger kind.
 - A watch also has a concurrency policy and either a message action or a command action.
-- Message watches emit watch-authored channel messages with plain text instructions. The owning agent must be a member of the target channel and have `channelPolicy` configured to wake for those messages.
+- Message watches emit watch-authored channel messages with plain text instructions. The owning agent must be a member of the target channel and have `channelPolicy` configured to wake for those messages. The watch instruction stays internal; the agent sends any user-visible chat message with `reply`, `notify`, or `send_message`.
 - Command watches run a shell command and can emit to a channel based on `emit.policy` (`never`, `always`, `on_output`, `on_change`, or `on_failure`).
 - Watch-origin messages carry provenance in `origin.watch`, and turn context points back to `shrimpy watches show <watch-id>` and `shrimpy watches history <watch-id>`.
 - The gateway watches agent `watches.json` files and reloads watch definitions when they change, preserving existing clock state for unchanged watches.

@@ -10,14 +10,14 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage and typed message construction to focused channel components. See [channels.md](channels.md).
 - **ChannelStore** — append-only JSONL persistence, reads, watches, backlog draining, and byte-offset cursors.
 - **Typed Channel Protocol** — channel message `content` is one of `text`, `image`, `image_group`, `unsupported_media`, or `system`.
-- **Channel outbox** — gateway worker that tails channel logs, sends bound agent/system messages through surface egress, and records delivery receipts.
+- **Channel outbox** — gateway worker that tails channel logs, sends outbound-eligible messages through surface egress, and records delivery receipts.
 - **Channel membership** — the source of truth for which agents participate in a channel.
 - **Agent channel policy** — per-agent policy for which visible channel messages become turns.
 - **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`). See [sessions.md](sessions.md).
 - **SessionRegistry** — one active turn at a time per session, with FIFO queuing.
 - **Surface** — a transport-facing interaction layer such as Telegram. Each surface is a self-contained vertical at `src/surfaces/<name>/` and registers via the `ChatSurfaceModule` interface; `AppRuntime` aggregates the registry without knowing surface kinds.
 - **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances agent-owned watches.
-- **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a real channel for that agent.
+- **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a named channel for that agent.
 - **Watch Clock** — the small clock used by watches with time triggers. It does not choose which agent wakes; normal channel membership and agent policy handle delivery.
 - **Skill** — prompt and resource material loaded into a session.
 - **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).

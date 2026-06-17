@@ -11,7 +11,7 @@ import {
   outboundTextForMessage,
   readDeliveryReceipts,
 } from "../dist/channels/outbox.js";
-import { sessionResetMessageInput } from "../dist/channels/protocol.js";
+import { sessionResetMessageInput, textContent } from "../dist/channels/index.js";
 import { saveCursors } from "../dist/channels/store.js";
 
 let testDir: string;
@@ -133,6 +133,148 @@ describe("ChannelOutbox", () => {
 
     await outbox.drainBacklog();
     assert.equal(sent.length, 1);
+  });
+
+  test("does not deliver watch-origin system text to bound transports", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("home", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: any[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      sent.push(delivery);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
+
+    const watchPrompt = bus.publish({
+      channel: "home",
+      sender: { kind: "system", actorId: "system:watch-runner" },
+      origin: {
+        transport: "watch",
+        watchId: "shrimpy/daily-practice",
+        runId: "run-1",
+        sourceChannel: "home",
+        addressedAgentId: "shrimpy",
+        watch: {
+          kind: "recurring",
+          ownerAgentId: "shrimpy",
+          localId: "daily-practice",
+          targetChannel: "home",
+          actionKind: "message",
+        },
+      },
+      content: textContent("Send today's scheduled message. Use reply to publish it."),
+    });
+    const agentReply = bus.publishAgentText({
+      channel: "home",
+      text: "Here is today's scheduled message.",
+      actorId: "agent:shrimpy",
+    });
+
+    assert.equal(outboundTextForMessage(watchPrompt), null);
+
+    await outbox.drainBacklog();
+
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].message.id, agentReply.id);
+    const receipts = readDeliveryReceipts(join(testDir, "runtime", "deliveries.json"));
+    assert.equal(receipts.home?.[watchPrompt.id], undefined);
+    assert.equal(receipts.home?.[agentReply.id]?.status, "delivered");
+  });
+
+  test("delivers command-watch system emissions to bound transports", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("ops", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: string[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      const text = outboundTextForMessage(delivery.message);
+      if (text) sent.push(text);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
+
+    const message = bus.publish({
+      channel: "ops",
+      sender: { kind: "system", actorId: "system:watch-runner" },
+      origin: {
+        transport: "watch",
+        watchId: "shrimpy/disk-space",
+        runId: "run-1",
+        sourceChannel: "ops",
+        watch: {
+          kind: "recurring",
+          ownerAgentId: "shrimpy",
+          localId: "disk-space",
+          targetChannel: "ops",
+          actionKind: "command",
+        },
+      },
+      content: textContent("Disk check changed."),
+    });
+
+    await outbox.drainBacklog();
+
+    assert.deepEqual(sent, ["Disk check changed."]);
+    const receipts = readDeliveryReceipts(join(testDir, "runtime", "deliveries.json"));
+    assert.equal(receipts.ops?.[message.id]?.status, "delivered");
+  });
+
+  test("does not deliver arbitrary system text to bound transports", async () => {
+    const bus = new ChannelBus(join(testDir, "channels"));
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "config", "channels.json"),
+      agents(),
+    );
+    memberships.bindChannel("home", {
+      adapter: "telegram",
+      instance: "main",
+      thread: "4242",
+    });
+
+    const sent: any[] = [];
+    const registry = new EgressRegistry();
+    registry.register({ adapter: "telegram", instance: "main" }, async (delivery) => {
+      sent.push(delivery);
+    });
+    const outbox = createOutbox(registry, memberships, bus);
+    seedOutboxCursor();
+
+    const message = bus.publish({
+      channel: "home",
+      sender: { kind: "system", actorId: "system:maintenance" },
+      origin: {
+        transport: "internal",
+        sourceChannel: "home",
+      },
+      content: textContent("Internal maintenance note."),
+    });
+
+    assert.equal(outboundTextForMessage(message), null);
+
+    await outbox.drainBacklog();
+
+    assert.equal(sent.length, 0);
+    const receipts = readDeliveryReceipts(join(testDir, "runtime", "deliveries.json"));
+    assert.equal(receipts.home?.[message.id], undefined);
   });
 
   test("does not deliver surface addressing status messages", async () => {

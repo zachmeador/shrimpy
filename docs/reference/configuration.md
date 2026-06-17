@@ -335,7 +335,7 @@ Background attention rules live in `agents/<id>/watches.json`.
 
 A watch is owned by one agent. Its `trigger` says what the system keeps an eye on; time is one trigger kind. There is no second public config file for recurring work.
 
-To wake an agent on a clock, add a watch with `trigger.kind = "time"` and a message action. When the trigger fires, the gateway posts the watch text into the configured channel. If the owning agent is a member of that channel and its policy accepts the message, it gets a normal turn.
+To wake an agent on a clock, add a watch with `trigger.kind = "time"` and a message action. When the trigger fires, the gateway posts the watch text into the configured channel. If the owning agent is a member of that channel and its policy accepts the message, it gets a normal turn. The watch text is an internal instruction record, not a chat message to the user. For a reminder requested from a chat surface, use the same channel when the result should go back there, and tell the agent to send one final user-facing message with `reply`.
 
 For the common case, use the CLI:
 
@@ -346,6 +346,7 @@ shrimpy watches add morning-check \
   --every 1h \
   --concurrency-policy forbid \
   --channel maintenance \
+  --addressed shrimpy \
   --message "Check the house."
 ```
 

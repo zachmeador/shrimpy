@@ -16,13 +16,21 @@ Use the paths in `profile/WORKSPACE.md`. For detail, use:
 
 ## How To Work
 
-1. Identify the owner agent, cadence, target channel, and expected user-visible outcome.
-2. Inspect existing watches, channel membership, and wake policy before adding anything.
-3. Prefer `shrimpy watches add` for new watches and `shrimpy watches enable|disable <agent-id>/<watch-id>` for toggles. Use `--name` and `--concurrency-policy` when they matter. The workspace timezone is the default; edit `agents/<id>/watches.json` directly only for rare per-watch timezone overrides or shapes the CLI cannot express, and preserve existing entries.
-4. For recurring agent work, prefer a message watch that posts a concise instruction into a real channel. Include any skill name the agent should use in the message text.
-5. For deterministic observations, use a command watch and choose an emit policy deliberately.
-6. Verify with `shrimpy watches show <agent-id>/<watch-id> --json`; check diagnostics, target channels, next run, and expected wake.
-7. If the gateway is running, use `shrimpy watches run <agent-id>/<watch-id> --json` only when an immediate test run is safe. Then inspect `shrimpy watches history <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch --limit 10`.
+1. Confirm the user asked for recurring or delayed work. Identify the owner agent, cadence, task, destination channel, and expected user-visible result.
+2. Choose the destination channel. If the user wants the result in the same conversation, use the current channel. If the destination is unclear, inspect channels before choosing. For internal-only work, use a simple workflow channel name.
+3. Confirm the owner agent can receive work there with `shrimpy channels members <channel>` and `shrimpy agent channel-policy <agent> --channel <channel>`. Join the agent first if needed.
+4. Add a message watch for agent work. The watch message is an instruction to the agent, not text for the user; tell the agent to send exactly one final user-facing message to the destination channel when it finishes.
+5. Use a command watch only for deterministic shell observations. Choose an emit policy deliberately.
+6. Verify with `shrimpy watches show <agent-id>/<watch-id> --json`; check diagnostics, target channel, next run, and expected wake.
+7. If an immediate test is safe, run `shrimpy watches run <agent-id>/<watch-id> --json`, then inspect `shrimpy watches history <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch --limit 10`.
+
+## Scheduled Message Pattern
+
+1. Pick a short watch id that names the job.
+2. Use `--channel <channel>` for the place the agent should wake.
+3. Use `--addressed <agent>` when the channel has multiple possible agents or the route depends on addressed wake behavior.
+4. Write `--message` as a small runbook: do the requested task, use any needed context, and send one final message with `reply`.
+5. Tell the user the cadence, destination, and owner agent after verification.
 
 ## Commands
 
@@ -32,7 +40,7 @@ shrimpy channels members <channel>
 shrimpy agent channel-policy <id> --channel <channel>
 shrimpy watches show <agent-id>/<watch-id>
 shrimpy watches history <agent-id>/<watch-id>
-shrimpy watches add <id> --agent <id> --cron "<expr>" --channel <channel> --message "<instruction>"
+shrimpy watches add <id> --agent <id> --cron "<expr>" --channel <channel> --addressed <id> --message "<instruction>"
 shrimpy watches add <id> --agent <id> --every 2h --channel <channel> --message "<instruction>"
 shrimpy watches add <id> --agent <id> --every 30m --command "<command>" --emit-policy on_failure --emit-channel <channel>
 shrimpy watches enable <agent-id>/<watch-id>
@@ -45,6 +53,7 @@ shrimpy watches run <agent-id>/<watch-id>
 - Do not add recurring watches unless the user asked for recurring work.
 - Do not create broad catch-all upkeep watches when a focused watch or manual command is enough.
 - Do not assume a posted watch message wakes the owner agent; channel membership and agent channel policy both have to allow it.
-- Do not use adapter-shaped channel names for watches. Use real channels such as `maintenance`, `home`, or a semantic work channel.
+- Do not make up channel names that look like generated chat adapter names. Use the current channel, a channel shown by `shrimpy channels`, or a route created by the surface/channel CLI.
+- Do not write watch text as if the user will read it. Watch-origin text is internal trigger material; the agent should publish the user-facing message once per run.
 - Keep watch messages short and actionable. The watch should say what to do, where to inspect, and which skill to use if relevant.
 - Before changing an existing watch, inspect its history and explain any change that affects cadence, target channel, command execution, or user-visible messages.

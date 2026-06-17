@@ -34,7 +34,7 @@ Prefer the smallest useful setup. Ask one question at a time, usually in this or
 
 Default path scope: only inspect official Shrimpy workspace paths, meaning the active Shrimpy workspace, agent roots inside it, and paths the user explicitly names. If the user allows broader crawling, summarize the intended roots first and avoid secrets, caches, dependency folders, and generated/runtime state.
 
-If adding a chat surface, use the setup command for that surface, starting with `shrimpy setup telegram`. Do not create adapter-shaped channel names by hand; Telegram channels are created from configured instances and external chat ids.
+If adding a chat surface, use the setup command for that surface, starting with `shrimpy setup telegram`. Do not make up generated-looking channel names; chat channels are created from configured instances and external chat ids.
 
 A chat-surface setup is not complete until the surface has an explicit inbound whitelist. For Telegram, collect and configure the real numeric chat ID in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Do not start the gateway to discover a Telegram chat ID before `allowedChatIds` is set; use `shrimpy setup telegram` direct polling or leave the surface unconfigured and tell the user the exact next command to run.
 
