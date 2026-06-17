@@ -201,6 +201,78 @@ describe("cmdModels", () => {
       id: "gpt5.5",
     }]);
   });
+
+  test("adds a local endpoint model and sets coding policy", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdModels([
+        "providers",
+        "add-openai-compatible",
+        "--provider",
+        "local_qwen",
+        "--endpoint",
+        "http://localhost:8090/v1",
+        "--model",
+        "Qwen3.6-27B-UD-Q6_K_XL",
+        "--name",
+        "Qwen 3.6 27B UD Q6_K_XL (local)",
+        "--context-window",
+        "200000",
+        "--max-tokens",
+        "8192",
+        "--base-model",
+        "dense",
+        "--qwen-chat-template",
+        "--disable-thinking",
+        "--set-coding",
+        "--json",
+      ], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const summary = JSON.parse(lines.join("\n"));
+    assert.deepEqual(summary.model, {
+      provider: "local_qwen",
+      id: "Qwen3.6-27B-UD-Q6_K_XL",
+      endpoint: "http://localhost:8090/v1",
+    });
+
+    const models = JSON.parse(
+      readFileSync(join(workspace, "state", "pi", "models.json"), "utf-8"),
+    );
+    assert.deepEqual(models.providers.local_qwen.compat, {
+      supportsDeveloperRole: false,
+      supportsReasoningEffort: false,
+      thinkingFormat: "qwen-chat-template",
+    });
+    assert.deepEqual(models.providers.local_qwen.models[0], {
+      id: "Qwen3.6-27B-UD-Q6_K_XL",
+      name: "Qwen 3.6 27B UD Q6_K_XL (local)",
+      reasoning: false,
+      input: ["text"],
+      cost: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+      },
+      contextWindow: 200000,
+      maxTokens: 8192,
+      baseModel: "dense",
+      inference: {
+        enableThinking: false,
+      },
+    });
+
+    const config = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    );
+    assert.deepEqual(config.modelPolicies.coding.candidates, [{
+      provider: "local_qwen",
+      id: "Qwen3.6-27B-UD-Q6_K_XL",
+    }]);
+  });
 });
 
 function configWithModelPolicy(provider: string, id: string): Record<string, unknown> {

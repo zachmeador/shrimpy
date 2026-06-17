@@ -161,11 +161,18 @@ shrimpy models policies set coding --candidate openai/gpt-5
 shrimpy models policies add-candidate coding anthropic/claude-opus --index 1
 shrimpy models policies move-candidate coding anthropic/claude-opus --index 0
 shrimpy models policies remove-candidate coding openai/gpt-5
+shrimpy models providers add-openai-compatible --provider local_qwen --endpoint http://localhost:8090/v1 --model Qwen3.6-27B-UD-Q6_K_XL --qwen-chat-template --disable-thinking --set-coding
 ```
 
-Concrete provider/model ids still live in Pi's `state/pi/models.json`. Policies point at those ids; they do not create a second model registry.
+Concrete provider/model ids live in Pi's `state/pi/models.json`. Policies store ordered references to those ids.
 
-`shrimpy setup` sets up the minimal working shape. A workspace is setup-ready only when `modelPolicies.coding` resolves to a Pi-visible model with configured auth and the setup agent workspace files exist. If no usable model exists in an interactive terminal, setup runs a plain model access wizard that stores API-key or subscription credentials through Pi's auth layer, refreshes available Pi models, and then resolves `coding`. In a non-interactive shell, setup reports the auth/model state paths and exits without opening a TUI. Setup creates `modelPolicies.coding` from the selected candidate when the policy is missing, defaults unset `shrimpy` and `mechanic` agents to `modelPolicy: "coding"`, and smoke-tests `coding` through the normal resolver. If `coding` exists but does not resolve during setup, it reports the candidate problems and keeps the existing policy unless replacement is confirmed. After the policy setup passes, the guided setup session opens as the `mechanic` agent with the `shrimpy-setup` skill and an explicit `modelPolicy: "coding"` session override. Additional explicit agent policies are preserved, but they do not define whether first setup is complete.
+`shrimpy setup` sets up the minimal working shape. A workspace is setup-ready only when `modelPolicies.coding` resolves to a Pi-visible model with configured auth and the setup agent workspace files exist.
+
+If no usable model exists in an interactive terminal, setup runs a plain model access wizard that can write a local OpenAI-compatible provider to Pi's `models.json`, store API-key or subscription credentials through Pi's auth layer, refresh available Pi models, and then resolve `coding`. In a non-interactive shell, setup reports the auth/model state paths and exits without opening a TUI.
+
+Setup creates `modelPolicies.coding` from the selected candidate when the policy is missing, defaults unset `shrimpy` and `mechanic` agents to `modelPolicy: "coding"`, and smoke-tests `coding` through the normal resolver. If `coding` exists but does not resolve during setup, it reports the candidate problems and keeps the existing policy unless replacement is confirmed.
+
+After the policy setup passes, the guided setup session opens as the `mechanic` agent with the `shrimpy-setup` skill and an explicit `modelPolicy: "coding"` session override. Additional explicit agent policies are preserved, but they do not define whether first setup is complete.
 
 ## Agents
 
@@ -182,6 +189,26 @@ Each agent config entry has:
 Agent identity, model policy defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`. Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
 
 Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.
+
+## OpenAI-Compatible Provider Endpoints
+
+llama.cpp, Ollama, vLLM, LM Studio, private proxies, and similar OpenAI-compatible servers are Pi custom providers in `state/pi/models.json`. `shrimpy models providers add-openai-compatible` writes Pi's provider config shape and can point `modelPolicies.coding` at the configured provider/model.
+
+```bash
+shrimpy models providers add-openai-compatible \
+  --provider local_qwen \
+  --endpoint http://localhost:8090/v1 \
+  --model Qwen3.6-27B-UD-Q6_K_XL \
+  --name "Qwen 3.6 27B UD Q6_K_XL (local)" \
+  --context-window 200000 \
+  --max-tokens 8192 \
+  --base-model dense \
+  --qwen-chat-template \
+  --disable-thinking \
+  --set-coding
+```
+
+The command writes `api: "openai-completions"`, `apiKey: "local"`, `input: ["text"]`, zero cost metadata, and compatibility flags for local OpenAI-compatible servers. `--qwen-chat-template` adds Pi's `compat.thinkingFormat: "qwen-chat-template"`; `--enable-thinking` or `--disable-thinking` writes Shrimpy's model-entry `inference.enableThinking` metadata for Qwen-style chat-template servers.
 
 ## Model Variants
 

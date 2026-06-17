@@ -26,12 +26,16 @@ import {
   type SessionModelRequest,
 } from "../sessions/index.js";
 import { readSessionRecordedModel } from "../sessions/storage.js";
+import {
+  addOpenAICompatibleModel,
+} from "../setup/pi-model-registry.js";
 import { isRecord } from "../util/record.js";
 import {
   createCommandGroup,
   parseCommandArgs,
   printError,
   requireArg,
+  UsageError,
   type CommandHandler,
 } from "./framework.js";
 import { renderGroupUsage } from "./catalog.js";
@@ -87,6 +91,16 @@ const cmdModelPolicies: CommandHandler = createCommandGroup({
   },
 });
 
+const cmdModelProviders: CommandHandler = createCommandGroup({
+  name: "providers",
+  path: ["models", "providers"],
+  usage: USAGE,
+  commands: {
+    "add-openai-compatible": ({ argv, config }) =>
+      cmdModelProvidersAddOpenAICompatible(argv, config),
+  },
+});
+
 export const cmdModels: CommandHandler = createCommandGroup({
   name: "models",
   usage: USAGE,
@@ -94,6 +108,7 @@ export const cmdModels: CommandHandler = createCommandGroup({
   commands: {
     resolve: ({ argv, config }) => cmdModelsResolve(argv, config),
     policies: ({ argv, config }) => cmdModelPolicies(argv, config),
+    providers: ({ argv, config }) => cmdModelProviders(argv, config),
   },
 });
 
@@ -344,6 +359,96 @@ async function cmdModelPoliciesMoveCandidate(
   return printPolicyMutation("move-candidate", name, result, values.json);
 }
 
+async function cmdModelProvidersAddOpenAICompatible(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
+    options: {
+      provider: { type: "string" },
+      endpoint: { type: "string" },
+      model: { type: "string", short: "m" },
+      name: { type: "string" },
+      "context-window": { type: "string" },
+      "max-tokens": { type: "string" },
+      "base-model": { type: "string" },
+      "enable-thinking": { type: "boolean", default: false },
+      "disable-thinking": { type: "boolean", default: false },
+      "thinking-format": { type: "string" },
+      "qwen-chat-template": { type: "boolean", default: false },
+      "set-coding": { type: "boolean", default: false },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: false,
+    strict: true,
+    usage: USAGE,
+  });
+
+  const modelId = requireArg(values.model, USAGE, "--model");
+  const provider = requireArg(values.provider, USAGE, "--provider");
+  if (values["enable-thinking"] && values["disable-thinking"]) {
+    return printError("choose at most one of --enable-thinking or --disable-thinking");
+  }
+  if (values["qwen-chat-template"] && values["thinking-format"]) {
+    return printError("choose at most one of --qwen-chat-template or --thinking-format <format>");
+  }
+
+  const contextWindow = parseOptionalPositiveInteger(
+    values["context-window"],
+    "--context-window",
+  );
+  const maxTokens = parseOptionalPositiveInteger(values["max-tokens"], "--max-tokens");
+  const enableThinking = values["enable-thinking"]
+    ? true
+    : values["disable-thinking"]
+      ? false
+      : undefined;
+  const thinkingFormat = values["qwen-chat-template"]
+    ? "qwen-chat-template"
+    : values["thinking-format"];
+
+  try {
+    const result = addOpenAICompatibleModel({
+      workspace: config.workspace,
+      provider,
+      endpoint: values.endpoint,
+      modelId,
+      name: values.name,
+      contextWindow,
+      maxTokens,
+      baseModel: values["base-model"],
+      enableThinking,
+      thinkingFormat,
+      setCoding: values["set-coding"],
+    });
+
+    if (values.json) {
+      console.log(JSON.stringify({
+        model: {
+          provider: result.provider,
+          id: result.modelId,
+          endpoint: result.endpoint,
+        },
+        modelsPath: result.modelsPath,
+        ...(result.configPath ? { configPath: result.configPath } : {}),
+        setCoding: result.setCoding,
+      }, null, 2));
+      return 0;
+    }
+
+    console.log(`Added provider model ${result.provider}/${result.modelId}.`);
+    console.log(`Endpoint: ${result.endpoint}`);
+    console.log(`Model registry: ${result.modelsPath}`);
+    if (result.configPath) {
+      console.log(`Updated ${DEFAULT_MODEL_POLICY} model policy in ${result.configPath}.`);
+    }
+    return 0;
+  } catch (err) {
+    return printError(err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function cmdModelsResolve(
   argv: string[],
   config: ShrimpyConfig,
@@ -476,6 +581,18 @@ async function cmdModelsResolve(
   }
 
   return view.effective.model ? 0 : 1;
+}
+
+function parseOptionalPositiveInteger(
+  raw: string | undefined,
+  label: string,
+): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new UsageError(`${label} must be a positive integer\n\n${USAGE}`);
+  }
+  return parsed;
 }
 
 function resolveSessionRef(

@@ -39,6 +39,7 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | `shrimpy models policies add-candidate <name> <provider>/<model> [--index <n>] [--json]` | Add or reposition one policy candidate. |
 | `shrimpy models policies remove-candidate <name> <provider>/<model> [--json]` | Remove one policy candidate. |
 | `shrimpy models policies move-candidate <name> <provider>/<model> --index <n> [--json]` | Move one policy candidate. |
+| `shrimpy models providers add-openai-compatible --provider <id> --model <id> [--endpoint <url>] [--set-coding] [--json]` | Add an OpenAI-compatible provider model to Pi's model registry. |
 
 Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, `--thinking`, `--skill`, `--json` where supported.
 

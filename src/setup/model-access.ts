@@ -10,6 +10,14 @@ import {
   createWorkspacePaths,
 } from "../app/index.js";
 import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../app/pi-internals.js";
+import {
+  addOpenAICompatibleModel,
+  DEFAULT_LOCAL_CONTEXT_WINDOW,
+  DEFAULT_LOCAL_ENDPOINT,
+  DEFAULT_LOCAL_MAX_TOKENS,
+  DEFAULT_LOCAL_PROVIDER,
+} from "./pi-model-registry.js";
+import { isRecord } from "../util/record.js";
 
 export interface SetupModelView {
   provider: string;
@@ -86,13 +94,21 @@ export async function launchModelAccessOnboarding(
     log("");
     log("Model access setup");
     log("");
-    await runModelAccessWizard({ authStorage, registry, log, question, secret });
+    await runModelAccessWizard({
+      workspace: input.workspace,
+      authStorage,
+      registry,
+      log,
+      question,
+      secret,
+    });
   } finally {
     rl?.close();
   }
 }
 
 async function runModelAccessWizard(input: {
+  workspace: string;
   authStorage: AuthStorage;
   registry: ModelRegistry;
   log: (line: string) => void;
@@ -105,6 +121,7 @@ async function runModelAccessWizard(input: {
     const action = await promptChoice({
       title: "Choose how to configure model access.",
       options: [
+        { id: "local", name: "Use a local endpoint" },
         { id: "api_key", name: "Enter an API key" },
         { id: "oauth", name: "Use a subscription login" },
         { id: "refresh", name: "I configured auth another way" },
@@ -123,7 +140,9 @@ async function runModelAccessWizard(input: {
       continue;
     }
 
-    if (action.id === "api_key") {
+    if (action.id === "local") {
+      await configureLocalProvider(input);
+    } else if (action.id === "api_key") {
       await configureApiKeyProvider({ ...input, secret });
     } else if (action.id === "oauth") {
       await configureOAuthProvider(input);
@@ -135,6 +154,92 @@ async function runModelAccessWizard(input: {
       log("No available models found yet.");
     }
   }
+}
+
+async function configureLocalProvider(input: {
+  workspace: string;
+  registry: ModelRegistry;
+  log: (line: string) => void;
+  question: (prompt: string) => Promise<string>;
+}): Promise<void> {
+  const { registry, log, question } = input;
+  log("");
+  log("Configure a local OpenAI-compatible endpoint.");
+
+  const endpoint = await promptWithDefault(
+    question,
+    "Endpoint",
+    DEFAULT_LOCAL_ENDPOINT,
+  );
+  const provider = await promptWithDefault(
+    question,
+    "Provider id",
+    DEFAULT_LOCAL_PROVIDER,
+  );
+  const discovered = await discoverOpenAICompatibleModels(endpoint);
+  if (discovered.length > 0) {
+    log(`Found ${discovered.length} endpoint model${discovered.length === 1 ? "" : "s"}.`);
+  }
+
+  const selected = discovered.length > 0
+    ? await promptChoice({
+      title: "Choose a local model.",
+      options: discovered.map((id) => ({ id, name: id })),
+      question,
+      log,
+    })
+    : undefined;
+  const modelId = selected?.id ?? (await question("Model id: ")).trim();
+  if (!modelId) {
+    log("No model id entered.");
+    return;
+  }
+
+  const defaultName = `${modelId} (local)`;
+  const name = await promptOptional(question, `Display name [${defaultName}]: `, defaultName);
+  const contextWindow = await promptIntegerWithDefault(
+    question,
+    "Context window",
+    DEFAULT_LOCAL_CONTEXT_WINDOW,
+  );
+  const maxTokens = await promptIntegerWithDefault(
+    question,
+    "Max output tokens",
+    DEFAULT_LOCAL_MAX_TOKENS,
+  );
+  const baseModel = await promptOptional(question, "Provider model name override, blank to use model id: ");
+  const qwenDefault = /qwen/i.test(modelId);
+  const useQwenChatTemplate = await promptBoolean(
+    question,
+    "Use Qwen chat-template thinking controls?",
+    qwenDefault,
+  );
+  const enableThinking = useQwenChatTemplate
+    ? await promptBoolean(question, "Enable Qwen thinking by default?", false)
+    : undefined;
+
+  const result = addOpenAICompatibleModel({
+    workspace: input.workspace,
+    provider,
+    endpoint,
+    modelId,
+    name,
+    contextWindow,
+    maxTokens,
+    baseModel,
+    enableThinking,
+    thinkingFormat: useQwenChatTemplate ? "qwen-chat-template" : undefined,
+  });
+
+  registry.refresh();
+  const available = registry.getAvailable().filter((model) =>
+    model.provider === result.provider && model.id === result.modelId
+  );
+  if (available.length === 0) {
+    log(`Saved local model ${result.provider}/${result.modelId}, but it is not available yet.`);
+    return;
+  }
+  log(`Saved local model ${result.provider}/${result.modelId}.`);
 }
 
 async function configureApiKeyProvider(input: {
@@ -211,6 +316,72 @@ async function configureOAuthProvider(input: {
     log(`Saved subscription login for ${provider.name}.`);
   } catch (err) {
     log(`Login failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function discoverOpenAICompatibleModels(endpoint: string): Promise<string[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch(`${endpoint.replace(/\/+$/, "")}/models`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) return [];
+    const payload = await response.json() as unknown;
+    if (!isRecord(payload) || !Array.isArray(payload.data)) return [];
+    return payload.data
+      .map((entry) => isRecord(entry) && typeof entry.id === "string" ? entry.id : undefined)
+      .filter((id): id is string => Boolean(id))
+      .sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function promptWithDefault(
+  question: (prompt: string) => Promise<string>,
+  label: string,
+  fallback: string,
+): Promise<string> {
+  const answer = (await question(`${label} [${fallback}]: `)).trim();
+  return answer || fallback;
+}
+
+async function promptOptional(
+  question: (prompt: string) => Promise<string>,
+  prompt: string,
+  fallback?: string,
+): Promise<string | undefined> {
+  const answer = (await question(prompt)).trim();
+  return answer || fallback || undefined;
+}
+
+async function promptIntegerWithDefault(
+  question: (prompt: string) => Promise<string>,
+  label: string,
+  fallback: number,
+): Promise<number> {
+  while (true) {
+    const answer = (await question(`${label} [${fallback}]: `)).trim();
+    if (!answer) return fallback;
+    const parsed = Number(answer);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  }
+}
+
+async function promptBoolean(
+  question: (prompt: string) => Promise<string>,
+  label: string,
+  fallback: boolean,
+): Promise<boolean> {
+  const suffix = fallback ? "Y/n" : "y/N";
+  while (true) {
+    const answer = (await question(`${label} [${suffix}] `)).trim().toLowerCase();
+    if (!answer) return fallback;
+    if (answer === "y" || answer === "yes") return true;
+    if (answer === "n" || answer === "no") return false;
   }
 }
 

@@ -117,7 +117,7 @@ describe("setup entry", () => {
 
   test("model access wizard stores API-key auth and makes provider models available", async () => {
     const lines: string[] = [];
-    const answers = ["1", "1"];
+    const answers = ["2", "1"];
     await launchModelAccessOnboarding({
       workspace,
       cwd: workspace,
@@ -142,6 +142,58 @@ describe("setup entry", () => {
     );
     assert.match(lines.join("\n"), /Model access setup/);
     assert.match(lines.join("\n"), /Saved API key for Anthropic\./);
+  });
+
+  test("model access wizard stores a local no-auth endpoint model", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: false }) as any;
+    const lines: string[] = [];
+    const answers = [
+      "1",
+      "http://localhost:8090/v1",
+      "local_qwen",
+      "Qwen3.6-27B-UD-Q6_K_XL",
+      "Qwen 3.6 27B UD Q6_K_XL (local)",
+      "200000",
+      "8192",
+      "dense",
+      "",
+      "",
+    ];
+
+    try {
+      await launchModelAccessOnboarding({
+        workspace,
+        cwd: workspace,
+      }, {
+        question: async () => answers.shift() ?? "",
+        secret: async () => "unused",
+        log: (line) => {
+          lines.push(line);
+        },
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    const models = JSON.parse(
+      readFileSync(join(workspace, "state", "pi", "models.json"), "utf-8"),
+    );
+    assert.equal(models.providers.local_qwen.baseUrl, "http://localhost:8090/v1");
+    assert.equal(models.providers.local_qwen.apiKey, "local");
+    assert.deepEqual(models.providers.local_qwen.compat, {
+      supportsDeveloperRole: false,
+      supportsReasoningEffort: false,
+      thinkingFormat: "qwen-chat-template",
+    });
+    assert.equal(
+      listAvailableSetupModels(workspace).some((model) =>
+        model.provider === "local_qwen" && model.id === "Qwen3.6-27B-UD-Q6_K_XL"
+      ),
+      true,
+    );
+    assert.match(lines.join("\n"), /Configure a local OpenAI-compatible endpoint\./);
+    assert.match(lines.join("\n"), /Saved local model local_qwen\/Qwen3\.6-27B-UD-Q6_K_XL\./);
   });
 
   test("runSetupOnboarding launches the setup session when a model is available", async () => {

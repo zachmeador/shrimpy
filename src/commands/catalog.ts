@@ -66,6 +66,7 @@ const DEFAULT_HELP_PATHS = new Set([
   "update",
   "watches",
   "models",
+  "models providers add-openai-compatible",
   "channels",
   "channels show",
   "channels read",
@@ -108,6 +109,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["models", "policies", "add-candidate"], "<name> <provider>/<model> [--index <n>] [--json]", "Add or reposition one policy candidate.", "Session Commands", [indexOption, jsonOption]),
   entry(["models", "policies", "remove-candidate"], "<name> <provider>/<model> [--json]", "Remove one policy candidate.", "Session Commands", [jsonOption]),
   entry(["models", "policies", "move-candidate"], "<name> <provider>/<model> --index <n> [--json]", "Move one policy candidate.", "Session Commands", [indexOption, jsonOption]),
+  entry(["models", "providers"], undefined, "Manage Pi-visible custom model providers.", "Session Commands"),
+  entry(["models", "providers", "add-openai-compatible"], "--provider <id> --model <id> [--endpoint <url>] [--name <text>] [--context-window <n>] [--max-tokens <n>] [--base-model <id>] [--qwen-chat-template] [--enable-thinking|--disable-thinking] [--set-coding] [--json]", "Add an OpenAI-compatible provider model to Pi's model registry.", "Session Commands", [providerOption, { name: "--model", short: "-m", takesValue: true }, { name: "--endpoint", takesValue: true }, { name: "--name", takesValue: true }, { name: "--context-window", takesValue: true }, { name: "--max-tokens", takesValue: true }, { name: "--base-model", takesValue: true }, { name: "--thinking-format", takesValue: true }, { name: "--qwen-chat-template" }, { name: "--enable-thinking" }, { name: "--disable-thinking" }, { name: "--set-coding" }, jsonOption]),
 
   entry(["setup"], undefined, "Run first-run setup onboarding when needed.", "Workspace And Runtime"),
   entry(["setup", "telegram"], undefined, "Run guided Telegram bot setup.", "Workspace And Runtime"),
