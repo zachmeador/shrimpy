@@ -328,6 +328,7 @@ describe("setupInit", () => {
     assert.match(system, /shrimpy channels read <name>/);
     assert.match(system, /Storage Breadcrumbs/);
     assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
+    assert.match(system, /Use the `remember` skill when the user asks to save, capture, collect, archive, or remember something for later/);
     assert.doesNotMatch(system, /skills\/remember|included:remember|# Remember/);
     assert.doesNotMatch(system, /source URL or origin, capture timestamp, the user's request/);
     assert.doesNotMatch(system, /agents\/shrimpy\/vault\/research\/<YYYY-MM-DD>-<slug>/);
@@ -351,6 +352,7 @@ describe("setupInit", () => {
     assert.match(workspaceDoc, /This workspace is the home system/);
     assert.match(workspaceDoc, /Each agent keeps saved files and collections under `agents\/<id>\/vault\/`/);
     assert.match(workspaceDoc, /Each agent keeps code, apps, experiments, and focused work folders under `agents\/<id>\/projects\/`/);
+    assert.match(workspaceDoc, /Use the `remember` skill for save, capture, collect, archive, and remember-for-later requests/);
     assert.doesNotMatch(workspaceDoc, /skills\/remember|included:remember|# Remember/);
     assert.doesNotMatch(workspaceDoc, /durable user-owned collections such as recipes/);
     assert.doesNotMatch(workspaceDoc, /agents\/<id>\/vault\/recipes\/<slug>\.md/);

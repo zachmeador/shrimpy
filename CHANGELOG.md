@@ -6,31 +6,31 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Breaking Changes
 
-- Replaced source-default runtime skills and hidden package visibility state with package installs copied into visible workspace or agent `skills/` roots. Existing workspaces that relied on source-served Shrimpy skills should install owned copies with `shrimpy skills add included:<id> --workspace` or `--agent <id>`.
-- Renamed Shrimpy-specific how-to skills to the `shrimpy-*` form, including `shrimpy-setup`, `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, `shrimpy-skills`, `shrimpy-coding-delegation`, and `shrimpy-workspace-migration`; update explicit `--skill` references that used the old names.
-- Renamed the `vault-capture` included skill package to `remember`; update explicit `--skill` and `included:<id>` references that used the old name.
+- Included skills are no longer hidden app defaults. They install as normal files under workspace or agent `skills/` directories. Existing workspaces that used the old built-in copies should install their own with `shrimpy skills add included:<id> --workspace` or `--agent <id>`.
+- Shrimpy how-to skills now use explicit `shrimpy-*` names, such as `shrimpy-setup`, `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, and `shrimpy-skills`. Update saved `--skill` commands that used the old names.
+- Renamed the `vault-capture` skill package to `remember`. Update saved `--skill vault-capture` and `included:vault-capture` references.
 
 ### Workspace & Setup
 
-- Improved the curl installer so reruns tolerate installer-generated `package-lock.json` changes and fresh shells get direct `~/.local/bin/shrimpy setup` next steps.
-- Changed fresh setup to install assigned included skills as real package-backed files under `skills/` and `agents/mechanic/skills/`, with `profile/WORKSPACE.md` pointing agents at the installed roots and `src/skills/included/` source.
-- Added visible included package copies for `shrimpy-coding-delegation`, `memory-management`, `remember`, `shrimpy-search`, `journal-daily`, `journal-compact`, shared Shrimpy how-to skills, and mechanic-only maintenance skills.
-- Kept `codex-web-search` as an included package source but unassigned by default.
+- Improved the curl installer so reruns handle installer-created `package-lock.json` files and new shells get a direct `~/.local/bin/shrimpy setup` next step.
+- Fresh setup now writes the default skills into the workspace and mechanic agent, so users and agents can inspect and edit the actual skill files.
+- New workspaces get visible copies of the coding delegation, memory, journal, `remember`, Shrimpy how-to, search, and mechanic audit skills.
+- `codex-web-search` is still available as `included:codex-web-search`, but setup no longer installs it by default.
 
 ### Agents, Skills & Tools
 
-- Changed `shrimpy skills add` so included, local, URL, and GitHub packages all install into owned workspace or agent skill directories with target-scoped provenance and drift tracking in `state/skills/packages.json`; removed `--id` so package ids now come from the package's own skill name.
-- Added `shrimpy skills remove <id> [--agent <id>|--workspace]` to remove one managed package copy and its package state record.
-- Changed `shrimpy skills list` and `shrimpy skills validate --json` to report package source, assignment, installed path, and modified status for package-backed skills.
-- Changed `shrimpy mechanic` to stop injecting the removed broad `mechanic` skill by default; use explicit focused skills when a maintenance session needs one.
+- Changed `shrimpy skills add` so included, local, URL, and GitHub skills all copy into the selected workspace or agent and track when those files are edited. The old `--id` flag is gone; package ids now come from the skill's own `name`.
+- Added `shrimpy skills remove <id> [--agent <id>|--workspace]` to uninstall one skill from a workspace or agent.
+- Changed `shrimpy skills list` and `shrimpy skills validate --json` to show each managed skill's source, install location, and local edit status.
+- Changed `shrimpy mechanic` to stop loading the removed generic `mechanic` skill. Pick focused skills explicitly when a maintenance session needs them.
 
 ### Docs & Agent References
 
-- Added `remember` for recipes, inbox captures, research packets, source metadata, worker handoffs, and explicit versioning of kept vault files.
-- Added `shrimpy-search` for bounded workspace, session, channel, and turn-context lookup before agents invent new state.
-- Added `shrimpy-skills` for workspace and agent skill authoring, package choices, validation, and docs-backed skill writing.
-- Tightened `shrimpy-workspace-migration` around skill migration, preserving custom skills by default and stopping for an explicit overwrite-or-backup decision when edited `shrimpy-*` package copies are found.
-- Removed the broad `shrimpy-workflows` included skill; workflow guidance now lives in focused skills such as `shrimpy-search`, `shrimpy-watches`, `shrimpy-channels`, `remember`, and `shrimpy-coding-delegation`.
+- Added `remember` for storing things worth keeping in the vault: collections, inbox captures, research packets, source notes, worker handoffs, and versioned files.
+- Added `shrimpy-search` so agents can check workspace notes, sessions, channels, and current turn context before answering from memory.
+- Added `shrimpy-skills` for writing, installing, validating, and maintaining workspace and agent skills.
+- Improved `shrimpy-workspace-migration` so it preserves custom skills and asks before overwriting edited `shrimpy-*` skill copies.
+- Removed the broad `shrimpy-workflows` skill. Workflow guidance now lives in focused skills such as `shrimpy-search`, `shrimpy-watches`, `shrimpy-channels`, `remember`, and `shrimpy-coding-delegation`.
 
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
 

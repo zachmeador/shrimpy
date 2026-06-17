@@ -376,7 +376,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /memory-management \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-coding-delegation \[workspace package\]/);
     assert.match(lines.join("\n"), /remember \[workspace package\]/);
-    assert.match(lines.join("\n"), /Save links, files, notes, recipes/);
+    assert.match(lines.join("\n"), /Save links, files, notes, collections/);
     assert.match(lines.join("\n"), /Periodic upkeep of my own context\/ directory/);
     assert.match(lines.join("\n"), /journal-daily \[workspace package\]/);
     assert.match(lines.join("\n"), /journal-compact \[workspace package\]/);
@@ -955,7 +955,8 @@ describe("skill service", () => {
     assert.deepEqual(codingDelegation.requiredTools, ["bash"]);
     const remember = getSkillView(runtime, "remember", "shrimpy");
     assert.equal(remember.available, true);
-    assert.match(loadSkillPrompt(runtime, "remember", "shrimpy"), /agents\/shrimpy\/vault\/research/);
+    assert.match(loadSkillPrompt(runtime, "remember", "shrimpy"), /owning agent's `vault\/`/);
+    assert.match(loadSkillPrompt(runtime, "remember", "shrimpy"), /Do not create a packet when a single saved note is enough/);
     assert.deepEqual(getSkillPromptResources(runtime, "shrimpy-setup", "mechanic"), [{
       rootPath: mechanicRoot,
       resourcePath: "skills/shrimpy-setup",

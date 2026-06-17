@@ -22,6 +22,8 @@ This workspace is the home system that contains Shrimpy agents, channels, sessio
 
 Each agent keeps saved files and collections under `agents/<id>/vault/`. Each agent keeps code, apps, experiments, and focused work folders under `agents/<id>/projects/`. Do not put channel logs, runtime state, sessions, provider auth, or generated workspace state in either directory.
 
+Use the `remember` skill for save, capture, collect, archive, and remember-for-later requests when that skill is available.
+
 Each agent root can also contain:
 
 - `context/`: memory and prompt files loaded into that agent.

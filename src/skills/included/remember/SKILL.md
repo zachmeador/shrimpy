@@ -1,6 +1,6 @@
 ---
 name: remember
-description: Save links, files, notes, recipes, research requests, and "look into this" work into agent vault files with source metadata and predictable paths.
+description: Save links, files, notes, collections, research requests, and "look into this" work into agent vault files with source metadata and predictable paths.
 ---
 
 # Remember
@@ -18,13 +18,14 @@ Keep vault categories loose and user-led. Create an obvious collection folder wh
 
 ## Simple Collections
 
-For recipes, household notes, travel ideas, research links, purchase comparisons, and similar collections, write plain Markdown with source metadata near the top.
+For user collections such as household notes, travel ideas, craft patterns, recipes, research links, and purchase comparisons, write plain Markdown with source metadata near the top.
 
-Recipe default:
+Collection default:
 
 - Keep the source URL or origin.
-- Write the adapted recipe as Markdown.
-- Save to `agents/<id>/vault/recipes/<slug>.md` unless the user named another place.
+- Write the saved item in the most useful Markdown shape for that material.
+- Save to an obvious `agents/<id>/vault/<collection>/<slug>.md` path when the collection is clear, such as `patterns/`, `recipes/`, or `travel/`.
+- Use `agents/<id>/vault/inbox/<slug>.md` when the collection is unclear.
 
 ## Capture Metadata
 
@@ -47,17 +48,11 @@ shrimpy sessions search "<topic>" --agent <id>
 shrimpy channels search <channel> "<topic>"
 ```
 
-## Main Shrimpy Intake
-
-The default `shrimpy` agent uses predictable intake paths:
-
-- `agents/shrimpy/vault/inbox/` for quick captures that need later sorting.
-- `agents/shrimpy/vault/research/<YYYY-MM-DD>-<slug>/` for bounded research packets.
-- `agents/shrimpy/vault/catalog.md` or per-collection indexes only when an index helps later retrieval.
-
 ## Research Packets
 
-For bounded research, create a folder under `agents/shrimpy/vault/research/<YYYY-MM-DD>-<slug>/` unless another owner is clearer. Include:
+For bounded research, keep the brief, sources, notes, and artifacts together under the owning agent's `vault/`. A dated `research/<YYYY-MM-DD>-<slug>/` folder is a reasonable default when no existing collection fits. Do not create a packet when a single saved note is enough.
+
+Useful packet files:
 
 - `brief.md` for the user request, current state, assumptions, and done criteria;
 - `sources.md` for links, citations, access notes, and retrieval dates;

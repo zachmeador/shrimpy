@@ -57,15 +57,9 @@ Inside an agent root:
 
 Reports should go under `agents/<id>/vault/<kind>/`, for example `agents/security/vault/audits/` or `agents/mechanic/vault/assessments/`. Do not put reports in `context/`. Put a reference in `context/` only if the agent should load it every run.
 
-Vault collections are loose, user-led folders under the owning agent's `vault/`. Typical collections include recipes, household notes, travel ideas, research links, and purchase comparisons. Agents can create an obvious folder when the request is clear, such as `agents/<id>/vault/recipes/<slug>.md` for an adapted recipe that keeps the source URL, but should ask before introducing a broad taxonomy. The included `remember` skill carries the operational workflow for capture, catalog, research packets, and versioning.
+Vault collections are loose, user-led folders under the owning agent's `vault/`. Typical collections include household notes, travel ideas, craft patterns, recipes, research links, and purchase comparisons. Agents can create an obvious folder when the request is clear, such as `agents/<id>/vault/patterns/<slug>.md` for a saved craft pattern or `agents/<id>/vault/recipes/<slug>.md` for an adapted recipe, but should ask before introducing a broad taxonomy. The included `remember` skill carries the operational workflow for capture, catalog, research packets, and versioning.
 
-The default `shrimpy` agent uses predictable intake paths for general capture work:
-
-- `agents/shrimpy/vault/inbox/` for quick captures that need later sorting.
-- `agents/shrimpy/vault/research/<YYYY-MM-DD>-<slug>/` for bounded research packets.
-- `agents/shrimpy/vault/catalog.md` or per-collection indexes only when an index helps later retrieval.
-
-A captured item should preserve source URL or origin, capture timestamp, the user's request, saved files, and obvious tags or categories when practical. A research packet can contain `brief.md` for the request and current state, `sources.md` for links and retrieval notes, `notes.md` for findings and uncertainties, and optional artifacts under a clearly named subfolder. Handle ordinary capture and research in the current session; use workers only when the user asks for delegated work.
+A captured item should preserve source URL or origin, capture timestamp, the user's request, saved files, and obvious tags or categories when practical. For bounded research, keep the brief, sources, notes, and artifacts together under the owning agent's `vault/`; a dated `research/<YYYY-MM-DD>-<slug>/` folder is a reasonable default when no existing collection fits. Do not create a packet when a single saved note is enough. Handle ordinary capture and research in the current session; use workers only when the user asks for delegated work.
 
 Agents should report saved vault paths and unresolved questions back to the user. Vault versioning is explicit: default workspace checkpoint tracking leaves `vault/` and `projects/` outside the whitelist, so kept vault material should be committed only when the user asks, using a user-chosen repo or explicit checkpoint setup for selected keeper files.
 

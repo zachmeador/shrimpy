@@ -44,6 +44,8 @@ Use `shrimpy skills add <source> --agent <id>` or `--workspace` to install packa
 
 Use `agents/<id>/vault/` for that agent's saved artifacts and collections. Use `agents/<id>/projects/` for that agent's code, apps, experiments, and focused work folders. Use `agents/<id>/context/` only for memory intended to load into prompts.
 
+Use the `remember` skill when the user asks to save, capture, collect, archive, or remember something for later.
+
 When the user explicitly asks an agent to remember something, persist the relevant Markdown note before claiming it will be remembered. If it cannot be persisted now, say that plainly.
 
 ## Policy
