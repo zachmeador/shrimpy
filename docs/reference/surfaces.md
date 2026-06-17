@@ -22,7 +22,7 @@ This supports a one-visible-account pattern:
 Each surface lives in its own folder under `src/surfaces/<name>/`. The folder owns:
 
 - `client.ts` — third-party network client
-- `poller.ts` (or equivalent) — real-time listener if the transport needs lifecycle
+- `poller.ts` — surface lifecycle loop and inbound transport listener
 - `bridge.ts` — translates inbound transport messages into the typed channel protocol
 - `outbound.ts` — markdown → surface format + chunking
 - `commands.ts` — surface-specific command parser/dispatcher
