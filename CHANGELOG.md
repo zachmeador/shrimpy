@@ -2,33 +2,58 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.4.2 - Tides Pull Both Ways - Unreleased
+## 🦐 0.5.0 - The Reef Remembers - Unreleased
 
 ### Breaking Changes
 
+- Removed `shrimpy setup init`; use `shrimpy setup` for first-run workspace setup and repair.
+- Removed `shrimpy skills bind` and `shrimpy skills unbind`. Skill package visibility now comes from installed workspace or agent `skills/` files, and `shrimpy skills remove <id> [--agent <id>|--workspace]` deletes one managed copy.
 - Included skills are no longer hidden app defaults. They install as normal files under workspace or agent `skills/` directories. Existing workspaces that used the old built-in copies should install their own with `shrimpy skills add included:<id> --workspace` or `--agent <id>`.
 - Shrimpy how-to skills now use explicit `shrimpy-*` names, such as `shrimpy-setup`, `shrimpy-agents`, `shrimpy-channels`, `shrimpy-watches`, and `shrimpy-skills`. Update saved `--skill` commands that used the old names.
 - Renamed the `vault-capture` skill package to `remember`. Update saved `--skill vault-capture` and `included:vault-capture` references.
 
+### Installation & Update
+
+- Added `shrimpy update [--dry-run] [--json]` to inspect the install checkout, protected workspace paths, gateway service state, mechanic model readiness, and migration handoff before a future update apply path.
+- Improved the curl installer so reruns handle installer-created `package-lock.json` files and new shells get a direct `~/.local/bin/shrimpy setup` next step.
+
 ### Workspace & Setup
 
-- Improved the curl installer so reruns handle installer-created `package-lock.json` files and new shells get a direct `~/.local/bin/shrimpy setup` next step.
 - Fresh setup now writes the default skills into the workspace and mechanic agent, so users and agents can inspect and edit the actual skill files.
 - New workspaces get visible copies of the coding delegation, memory, journal, `remember`, Shrimpy how-to, search, and mechanic audit skills.
+- Changed fresh setup to seed memory, journal, security-audit, and hygiene-audit watches disabled by default, with `shrimpy watches enable|disable <agent-id>/<watch-id>` available for explicit activation.
+- Added interactive model setup and `shrimpy models providers add-openai-compatible` for local or OpenAI-compatible endpoints, including context-window, max-tokens, Qwen thinking-template, and `--set-coding` support.
 - `codex-web-search` is still available as `included:codex-web-search`, but setup no longer installs it by default.
 
 ### Agents, Skills & Tools
 
 - Changed `shrimpy skills add` so included, local, URL, and GitHub skills all copy into the selected workspace or agent and track when those files are edited. The old `--id` flag is gone; package ids now come from the skill's own `name`.
 - Added `shrimpy skills remove <id> [--agent <id>|--workspace]` to uninstall one skill from a workspace or agent.
+- Changed `shrimpy skills update` to accept `--agent` or `--workspace` when multiple installs share a skill id.
 - Changed `shrimpy skills list` and `shrimpy skills validate --json` to show each managed skill's source, install location, and local edit status.
 - Changed `shrimpy mechanic` to stop loading the removed generic `mechanic` skill. Pick focused skills explicitly when a maintenance session needs them.
+
+### Channels & Agent Policy
+
+- Changed bound surface delivery so message-watch instruction text and arbitrary system text stay in channel logs; agent replies, command-watch emissions, media, and operation-status acknowledgements still deliver outward.
+
+### Watches & Gateway
+
+- Added `shrimpy watches enable <agent-id>/<watch-id>` and `shrimpy watches disable <agent-id>/<watch-id>` to toggle existing watches without editing JSON by hand.
+- Changed gateway watch startup to leave missing `agents/<id>/watches.json` files alone; setup and watch commands now own watch file creation.
+
+### Sessions, Models & TUI
+
+- Improved TUI session previews so unnamed session resume rows hide persisted turn-context envelopes.
+- Added a compact TUI renderer for model-switch messages and expanded Bash tool rows so full commands are visible only when expanded.
+- Improved `shrimpy models resolve --session` so saved session model restoration is reported through the same resolver used by TUI and run sessions.
 
 ### Docs & Agent References
 
 - Added `remember` for storing things worth keeping in the vault: collections, inbox captures, research packets, source notes, worker handoffs, and versioned files.
 - Added `shrimpy-search` so agents can check workspace notes, sessions, channels, and current turn context before answering from memory.
 - Added `shrimpy-skills` for writing, installing, validating, and maintaining workspace and agent skills.
+- Added `shrimpy-dev-skills` for maintaining Shrimpy included skills, repository developer skills, and generated skill mirrors.
 - Improved `shrimpy-workspace-migration` so it preserves custom skills and asks before overwriting edited `shrimpy-*` skill copies.
 - Removed the broad `shrimpy-workflows` skill. Workflow guidance now lives in focused skills such as `shrimpy-search`, `shrimpy-watches`, `shrimpy-channels`, `remember`, and `shrimpy-coding-delegation`.
 
