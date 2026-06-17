@@ -18,6 +18,7 @@ This directory holds source notes and comparison research that may inform future
 - [pufferlib-personal-rl.md](pufferlib-personal-rl.md) — research on how PufferLib/PufferPPO could inform a Shrimpy personal RL framework, especially environment design, trajectory capture, small policy training, and trainer export boundaries.
 - [rl-eval-framework.md](rl-eval-framework.md) — watchlist and eventual architecture notes for a Shrimpy personal RL/eval framework.
 - [skillfish-skill-crud.md](skillfish-skill-crud.md) — review of knoxgraeme/skillfish's skill manager model, dependency fit, license/dependency concerns, and lessons for Shrimpy's prototyping skill CRUD.
+- [temporal-awareness-prompting.md](temporal-awareness-prompting.md) — deep dive on prompt/context-side temporal awareness research, with implications for Shrimpy turn context, watches, freshness metadata, and urgency cues.
 - [web-search-providers.md](web-search-providers.md) — survey of web search API providers that can inform optional setup guidance for web lookup capability; also notes why answer engines like xAI/Perplexity are a different shape.
 
 ## Promotion Rule
