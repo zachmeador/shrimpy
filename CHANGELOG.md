@@ -44,6 +44,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Sessions, Models & TUI
 
+- Upgraded Pi packages from `0.77.0` to `0.79.6` and surfaced Pi's `defaultProjectTrust` setting in Shrimpy's unified TUI settings.
 - Improved TUI session previews so unnamed session resume rows hide persisted turn-context envelopes.
 - Added a compact TUI renderer for model-switch messages and expanded Bash tool rows so full commands are visible only when expanded.
 - Improved `shrimpy models resolve --session` so saved session model restoration is reported through the same resolver used by TUI and run sessions.
@@ -56,10 +57,6 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added `shrimpy-dev-skills` for maintaining Shrimpy included skills, repository developer skills, and generated skill mirrors.
 - Improved `shrimpy-workspace-migration` so it preserves custom skills and asks before overwriting edited `shrimpy-*` skill copies.
 - Removed the broad `shrimpy-workflows` skill. Workflow guidance now lives in focused skills such as `shrimpy-search`, `shrimpy-watches`, `shrimpy-channels`, `remember`, and `shrimpy-coding-delegation`.
-
-### Release & Dependencies
-
-- Updated `markdown-it` and related lockfile entries from `npm audit fix`; remaining Pi-bundled advisories require a future Pi package upgrade.
 
 ## 🦐 0.4.1 - Tides Pull Both Ways - 2026-06-13
 

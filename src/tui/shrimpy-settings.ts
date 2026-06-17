@@ -363,6 +363,7 @@ function buildPiSettingsConfig(mode: InteractiveModeInternals): SettingsConfig {
     editorPaddingX: mode.settingsManager.getEditorPaddingX(),
     autocompleteMaxVisible: mode.settingsManager.getAutocompleteMaxVisible(),
     quietStartup: mode.settingsManager.getQuietStartup(),
+    defaultProjectTrust: mode.settingsManager.getDefaultProjectTrust(),
     clearOnShrink: mode.settingsManager.getClearOnShrink(),
     showTerminalProgress: mode.settingsManager.getShowTerminalProgress(),
     warnings: mode.settingsManager.getWarnings(),
@@ -460,6 +461,9 @@ function buildPiSettingsCallbacks(
     onQuietStartupChange: (enabled) => {
       mode.settingsManager.setQuietStartup(enabled);
       persistRuntimeConfigSafely(mode, options.runtime, { quietStartup: enabled });
+    },
+    onDefaultProjectTrustChange: (defaultProjectTrust) => {
+      mode.settingsManager.setDefaultProjectTrust(defaultProjectTrust);
     },
     onDoubleEscapeActionChange: (action) => {
       mode.settingsManager.setDoubleEscapeAction(action);
