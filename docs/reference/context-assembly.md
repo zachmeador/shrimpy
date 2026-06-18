@@ -56,6 +56,8 @@ String sources use resource addresses:
 - `workspace:<path>` — relative to the workspace root
 - `agent:<path>` — relative to the active agent's directory
 
+Use `workspace:context/` for shared workspace context and `agent:context/` for the active agent's own memory. Source overrides decide whether a workspace context file applies to every agent, one agent, one channel pattern, or a specific agent/channel pair.
+
 String sources ending in `/` are directory sources. They load top-level `.md` files in deterministic order. Subdirectories are skipped so `agent:context/` loads `context/*.md` without also loading turn-scoped files under `context/people/`, `context/channels/`, or journal subdirectories.
 
 Command sources are turn-scoped. Their output is clipped by `maxChars`, can be channel-filtered with `channels`, and is inspectable with `shrimpy context sources run <id>`. Pass `--session-type <type>` to preview the same `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose.

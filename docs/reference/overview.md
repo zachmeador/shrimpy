@@ -14,9 +14,10 @@ Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; 
 - Runtime config lives in `workspace/config/shrimpy.json`.
 - Setup starts with two agents: `shrimpy` for normal work and `mechanic` for setup, repair, models, agents, skills, channels, watches, and upgrades.
 - Agents live under `workspace/agents/<id>/` with their own `SOUL.md`, `context/`, `vault/`, `projects/`, `skills/`, `watches.json`, and `sessions/`.
+- Workspace-level prompt context lives under `workspace/context/` and is selected with `workspace:context/` or a more specific configured source.
 - Channels are append-only JSONL logs under `workspace/channels/`. Channel membership controls visibility; each visible agent's `channelPolicy` decides whether a message becomes a turn. See [channels.md](channels.md).
 - Sessions persist under each agent as Pi `.jsonl` transcripts. A session is attached to either a local label such as `tui` or `run`, or to a channel handled by the gateway. See [sessions.md](sessions.md).
-- Agent memory is Markdown under `agents/<id>/context/`. Saved reports and collections belong in `vault/`; code and app work belong in `projects/`. See [memory.md](memory.md) and [workspace.md](workspace.md).
+- Agent memory is Markdown under `agents/<id>/context/` and loads for that agent by default. Saved reports and collections belong in `vault/`; code and app work belong in `projects/`. See [memory.md](memory.md) and [workspace.md](workspace.md).
 - Skills are visible Markdown packages under workspace or agent `skills/` roots. Shrimpy selects the skill paths; Pi loads and invokes them. See [skills.md](skills.md).
 - Prompts are assembled from typed `PromptSection`s into one stable system prompt. Per-turn facts are rendered into a `<context>...</context>` envelope and prefixed to the current user message so the session transcript matches what the model saw. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
 

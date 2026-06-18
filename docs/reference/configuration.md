@@ -1,16 +1,35 @@
 # 🦐 Configuration
 
-Shrimpy's workspace config is file-backed and inspectable.
+Shrimpy config is file-backed and meant to be inspected through normal commands before hand-editing JSON. The workspace config names agents, model policies, tools, context sources, surfaces, watches, and status hints; the detailed behavior for each primitive lives in its owning reference doc.
 
-## Config Files
+## Contents
+
+- [Files](#files)
+- [Inspect First](#inspect-first)
+- [Main Config](#main-config)
+- [Runtime](#runtime)
+- [Models](#models)
+- [OpenAI-Compatible Providers](#openai-compatible-providers)
+- [Agents](#agents)
+- [Channels, Surfaces, And Users](#channels-surfaces-and-users)
+- [Watches And Status](#watches-and-status)
+- [Context](#context)
+
+## Files
 
 ```text
-config/shrimpy.json         runtime configuration
-config/channels.json        channel membership, manifests, and transport bindings
-agents/<id>/watches.json    agent-owned watch definitions
+~/.shrimpy/.shrimpy-workspace.json      primary workspace pointer
+~/.shrimpy-workspace.json               fallback workspace pointer
+config/shrimpy.json                     main workspace runtime config
+config/channels.json                    channel membership, manifests, and transport bindings
+agents/<id>/watches.json                agent-owned watches
+state/pi/auth.json                      Pi provider auth
+state/pi/models.json                    Pi-visible provider/model registry
+state/users.json                        stable user ids and optional workspace owner
+state/user-presence.json                last active chat surface per known user
 ```
 
-The workspace itself is selected by a pointer file. Shrimpy checks `~/.shrimpy/.shrimpy-workspace.json` first, then `~/.shrimpy-workspace.json`:
+The pointer files use:
 
 ```json
 {
@@ -20,29 +39,75 @@ The workspace itself is selected by a pointer file. Shrimpy checks `~/.shrimpy/.
 
 When neither pointer selects a workspace, Shrimpy uses `~/.shrimpy/`.
 
-## `config/shrimpy.json`
+## Inspect First
 
-Sections:
+Use CLI commands for routine inspection and edits. They validate inputs and preserve unrelated fields.
+
+```bash
+shrimpy status
+shrimpy models
+shrimpy models resolve --agent shrimpy --session tui
+shrimpy agent show shrimpy
+shrimpy agent inspect shrimpy
+shrimpy agent channel-policy shrimpy --channel home
+shrimpy channels show home
+shrimpy watches --agent shrimpy
+shrimpy context --config
+shrimpy context sources list --agent shrimpy --channel home
+shrimpy users list
+```
+
+Use `--json` when the output is feeding a script or another agent. Hand-edit JSON only when there is no narrower command for the change.
+
+## Main Config
+
+`config/shrimpy.json` is a JSON object. Recognized sections:
 
 - `modelPolicies` — named model policies with ordered provider/model candidates.
-- `agents` — agent ids, root paths, optional default model policy, Shrimpy daemon tools, disabled effective tools, optional default `thinking`, and agent-owned channel policy.
-- `runtime` — Pi loader/runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, compaction.
-- `tools` — Shrimpy tool defaults such as `send_message` actor id and `read_channel` default limit.
-- `context` / `contextDefaults` — stable prompt sources, turn-context settings, command sources, env fields, channel overrides, agent-scoped context views.
-- `telegram` — configured Telegram surface instances with token, allowlist, stable user mappings, default agent, reliability policy.
-- `watchClock` — watch clock tick behavior.
+- `agents` — agent ids, roots, default model policy, Shrimpy daemon tools, disabled effective tools, default `thinking`, and channel policy.
+- `runtime` — Pi/Shrimpy runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, and compaction policy.
+- `tools` — defaults for Shrimpy daemon tools, such as `send_message` actor id and `read_channel` limit.
+- `context` / `contextDefaults` — stable prompt sources, command sources, turn-context settings, env fields, channel overrides, and agent-scoped context views.
+- `telegram` and other surface keys — configured surface instances, auth, allowlists, user mappings, default agent, and reliability policy.
+- `watchClock` — workspace watch clock tick and default timezone.
 - `status` — optional targeted watch diagnostics.
 
-## Runtime Defaults
+Config validation rejects unknown fields inside validated sections. Surface modules validate their own top-level section.
+
+## Runtime
+
+Shrimpy keeps Pi's ambient discovery quiet by default:
 
 - Pi prompt-template discovery is disabled.
 - Pi-discovered `AGENTS.md` and append-system prompts are suppressed.
-- Pi ambient skill discovery is suppressed. When `runtime.noSkills` is false, Shrimpy passes the active agent's resolved workspace/agent skill entrypoints to Pi explicitly.
-- Shrimpy owns the system prompt passed into Pi.
-- Compaction defaults are tuned for chat-style continuity: `reserveTokens: 32768`, `keepRecentTokens: 30000`.
-- Compaction can be overridden globally, by agent id, by channel pattern, or by session label. `thresholdTokens` is translated to Pi's `reserveTokens` for the selected model.
-- Inspect the resolved policy and selected model metadata with `shrimpy sessions compaction <channel> [--agent <id>] [--json]`. The command also shows whether the active session file recorded older policy or model/inference settings; running gateway sessions need to be reset/reopened or the gateway restarted before changed settings take effect.
-- Runtime behavior, summary shape, provider request handling, and failure debugging are covered in [compaction.md](compaction.md).
+- Pi ambient skill discovery is suppressed; Shrimpy explicitly passes the active agent's resolved workspace and agent skill entrypoints to Pi when skills are enabled.
+- Shrimpy owns the assembled system prompt passed into Pi.
+
+Runtime compaction defaults live under `runtime.compaction`, but the full policy, precedence, provider request path, and failure debugging belong in [compaction.md](compaction.md).
+
+```json
+{
+  "runtime": {
+    "theme": "shrimpy",
+    "quietStartup": true,
+    "noPromptTemplates": true,
+    "noSkills": false,
+    "compaction": {
+      "enabled": true,
+      "reserveTokens": 32768,
+      "keepRecentTokens": 30000
+    }
+  }
+}
+```
+
+Inspect recorded/effective compaction settings with:
+
+```bash
+shrimpy sessions compaction <channel> --agent <id> --json
+```
+
+A useful override shape:
 
 ```json
 {
@@ -61,64 +126,13 @@ Sections:
           "keepRecentTokens": 30000,
           "instructions": "Preserve unresolved follow-ups and active-session pointers."
         }
-      }
-    }
-  }
-}
-```
-
-Compaction precedence is:
-
-1. `runtime.compaction`
-2. `runtime.compaction.agents.<agentId>`
-3. `runtime.compaction.sessions.<sessionType>`
-4. matching `runtime.compaction.channels.<pattern>`
-5. `runtime.compaction.sessions.<sessionLabel>`
-
-Use `sessions.<sessionType>` for a broad class such as `gateway` or `tui`. Use `sessions.<sessionLabel>` for a concrete session directory label such as `maintenance`.
-
-## Turn Context
-
-```json
-{
-  "context": {
-    "turn": {
-      "maxChars": 2000,
-      "channelUnread": {
-        "enabled": true,
-        "channels": ["*"],
-        "includeLatest": true
       },
-      "sessionStatus": {
-        "enabled": true,
-        "staleAfterMinutes": 720
-      }
-    }
-  }
-}
-```
-
-Command-typed context sources emit compact per-turn text. Shrimpy may cache command output in per-agent turn-context state and reuse it until `freshForMs` expires.
-
-## Telegram Authorization And User Identity
-
-Telegram instances require `allowedChatIds`. This is the inbound authorization key for Telegram, and the gateway ignores all other chats before channel binding, identity mapping, presence recording, command dispatch, or media download. Use `shrimpy setup telegram` to poll Telegram directly for candidate chat IDs before the gateway is started.
-
-Telegram instances can also map transport user ids to stable Shrimpy user ids:
-
-```json
-{
-  "telegram": {
-    "instances": {
-      "shrimpy": {
-        "token": "...",
-        "defaultAgentId": "shrimpy",
-        "allowedChatIds": [123456789],
-        "users": {
-          "123456789": {
-            "id": "alice",
-            "displayName": "Alice"
-          }
+      "sessions": {
+        "gateway": {
+          "enabled": true
+        },
+        "maintenance": {
+          "thresholdTokens": 100000
         }
       }
     }
@@ -126,13 +140,26 @@ Telegram instances can also map transport user ids to stable Shrimpy user ids:
 }
 ```
 
-That produces channel messages from `actorId: "human:alice"` and `userId: "alice"`. Without a mapping, Shrimpy creates a local anonymous user id in `state/users.json`. User mappings are identity, not authorization; the same chat still needs to be present in `allowedChatIds`.
+Compaction precedence is global runtime config, then agent override, session type, channel pattern, and concrete session label. `thresholdTokens` is translated to Pi's `reserveTokens` for the selected model.
 
-`state/users.json` accepts an optional top-level `owner` field naming the canonical workspace user by `userId`. When set, `shrimpy channels post` (and other CLI publishers) stamp messages with that owner's actorId / userId / displayName. Manage with `shrimpy users list|get-owner|set-owner`.
+Tool defaults live under `tools`:
 
-## Model Policies
+```json
+{
+  "tools": {
+    "sendMessage": {
+      "defaultActorId": "agent:shrimpy"
+    },
+    "readChannel": {
+      "defaultLimit": 20
+    }
+  }
+}
+```
 
-`modelPolicies` maps user-owned policy names to ordered concrete model candidates. A working workspace should define the `coding` policy with at least one candidate. If `modelPolicies` is present, config validation requires `coding`.
+## Models
+
+`modelPolicies` maps user-owned names to ordered concrete provider/model candidates. A working workspace should have `modelPolicies.coding`; setup creates or repairs it when possible.
 
 ```json
 {
@@ -144,55 +171,29 @@ That produces channel messages from `actorId: "human:alice"` and `userId: "alice
     },
     "local": {
       "candidates": [
-        { "provider": "local", "id": "qwen-coder" }
+        { "provider": "local_qwen", "id": "qwen-coder" }
       ]
     }
   }
 }
 ```
 
-Policies are resolved against Pi-visible models and configured auth. Shrimpy uses the first usable candidate. Inspect and edit policies with:
+Policies resolve against Pi-visible models and configured auth. Shrimpy uses the first usable candidate.
 
 ```bash
 shrimpy models
-shrimpy models policies
 shrimpy models policies show coding
 shrimpy models policies set coding --candidate openai/gpt-5
 shrimpy models policies add-candidate coding anthropic/claude-opus --index 1
-shrimpy models policies move-candidate coding anthropic/claude-opus --index 0
-shrimpy models policies remove-candidate coding openai/gpt-5
-shrimpy models providers add-openai-compatible --provider local_qwen --endpoint http://localhost:8090/v1 --model Qwen3.6-27B-UD-Q6_K_XL --qwen-chat-template --disable-thinking --set-coding
+shrimpy models resolve --agent shrimpy --session tui
+shrimpy models resolve --agent shrimpy --channel home
 ```
 
-Concrete provider/model ids live in Pi's `state/pi/models.json`. Policies store ordered references to those ids.
+Concrete provider/model entries live in `state/pi/models.json`. `shrimpy setup` can write provider auth through Pi, refresh the Pi-visible registry, and create `coding` from the selected candidate. In a non-interactive shell, setup reports auth/model state paths instead of opening the TUI when no usable model exists.
 
-`shrimpy setup` sets up the minimal working shape. A workspace is setup-ready only when `modelPolicies.coding` resolves to a Pi-visible model with configured auth and the setup agent workspace files exist.
+### OpenAI-Compatible Providers
 
-If no usable model exists in an interactive terminal, setup runs a plain model access wizard that can write a local OpenAI-compatible provider to Pi's `models.json`, store API-key or subscription credentials through Pi's auth layer, refresh available Pi models, and then resolve `coding`. In a non-interactive shell, setup reports the auth/model state paths and exits without opening a TUI.
-
-Setup creates `modelPolicies.coding` from the selected candidate when the policy is missing, defaults unset `shrimpy` and `mechanic` agents to `modelPolicy: "coding"`, and smoke-tests `coding` through the normal resolver. If `coding` exists but does not resolve during setup, it reports the candidate problems and keeps the existing policy unless replacement is confirmed.
-
-After the policy setup passes, the guided setup session opens as the `mechanic` agent with the `shrimpy-setup` skill and an explicit `modelPolicy: "coding"` session override. Additional explicit agent policies are preserved, but they do not define whether first setup is complete.
-
-## Agents
-
-Each agent config entry has:
-
-- `id` — stable agent id.
-- `root` — workspace-relative or absolute path to that agent's root.
-- `modelPolicy` — default model policy for fresh sessions opened as that agent. If omitted, Shrimpy uses `coding`.
-- `tools` — allowed Shrimpy daemon tools such as `reply`, `ask`, `notify`, `report`, `send_message`, and `read_channel`.
-- `disabledTools` — effective tool names to exclude from Pi sessions. Use this to disable Pi built-ins such as `bash`; names are passed to Pi as `excludeTools`, so extension/custom tool names can be listed too.
-- `thinking` — default reasoning effort for sessions opened as that agent.
-- `channelPolicy` — when visible channel messages become turns for this agent.
-
-Agent identity, model policy defaults, tool policy, and channel policy live in `agents`. Channel participation lives in `config/channels.json`. See [channels.md](channels.md) for channel delivery semantics and [tools.md](tools.md) for the full distinction between Pi built-ins, Shrimpy daemon tools, and `disabledTools`. Inspect the resolved capability view with `shrimpy agent inspect <id> [--json]`.
-
-Model resolution is inspectable with `shrimpy models resolve --agent <id> --session tui` or `shrimpy models resolve --agent <id> --channel <name>`.
-
-## OpenAI-Compatible Provider Endpoints
-
-llama.cpp, Ollama, vLLM, LM Studio, private proxies, and similar OpenAI-compatible servers are Pi custom providers in `state/pi/models.json`. `shrimpy models providers add-openai-compatible` writes Pi's provider config shape and can point `modelPolicies.coding` at the configured provider/model.
+llama.cpp, Ollama, vLLM, LM Studio, private proxies, and similar servers are Pi custom providers in `state/pi/models.json`. Use the CLI when possible:
 
 ```bash
 shrimpy models providers add-openai-compatible \
@@ -208,19 +209,25 @@ shrimpy models providers add-openai-compatible \
   --set-coding
 ```
 
-The command writes `api: "openai-completions"`, `apiKey: "local"`, `input: ["text"]`, zero cost metadata, and compatibility flags for local OpenAI-compatible servers. `--qwen-chat-template` adds Pi's `compat.thinkingFormat: "qwen-chat-template"`; `--enable-thinking` or `--disable-thinking` writes Shrimpy's model-entry `inference.enableThinking` metadata for Qwen-style chat-template servers.
+The command writes Pi's OpenAI-compatible provider shape, a local dummy `apiKey`, zero cost metadata, optional `baseModel`, and Shrimpy inference metadata for Qwen-style thinking controls.
 
-## Model Variants
+For hand-edited local model variants:
 
-Sampler values live on model entries in `state/pi/models.json`, not in workspace or agent config. Pi parses this file as JSON with `//` comments and trailing commas tolerated, then validates it as `models.json`.
+- put sampler values on the model entry in `state/pi/models.json`, not in workspace or agent config
+- use separate model ids for task-specific recipes
+- use `baseModel` when the provider serves a different backend model name than the user-facing model id
+- use `inference.params` for supported sampler params such as `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`, and `repeat_penalty`
+- use `inference.enableThinking` for Qwen chat-template thinking
+- prefer Pi model-level `thinkingLevelMap` for model-specific reasoning controls
+- set `reasoning: false` for Qwen GGUF variants when Pi should not expose reasoning-effort levels
 
-For GGUF models with task-specific recipes, define each recipe as its own model id and attach Shrimpy metadata to that model object:
+Example `state/pi/models.json` provider with two variants for one loaded GGUF:
 
 ```json
 {
   "providers": {
     "local_qwen_moe": {
-      "baseUrl": "http://your_server:8081/v1",
+      "baseUrl": "http://localhost:8081/v1",
       "apiKey": "local",
       "api": "openai-completions",
       "compat": {
@@ -269,16 +276,37 @@ For GGUF models with task-specific recipes, define each recipe as its own model 
 }
 ```
 
-Pi accepts the extra `baseModel` and `inference` fields but strips them from runtime model objects. Shrimpy re-reads the raw model entry for the selected provider/id and applies that metadata just before the provider request.
+Pi accepts Shrimpy's extra `baseModel` and `inference` fields in `models.json` but strips them from runtime model objects. Shrimpy re-reads the raw selected model entry just before the provider request and applies the metadata.
 
-- `baseModel` rewrites the outgoing OpenAI-compatible `model` field, so a user-facing variant id can target the loaded GGUF name.
-- `inference.params` injects supported sampler params into the provider payload.
-- `inference.enableThinking` controls Qwen-style thinking formats such as `chat_template_kwargs.enable_thinking`.
-- Pi model-level `thinkingLevelMap` maps Shrimpy/Pi thinking levels (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`) to provider values and hides unsupported levels with `null`. Use this instead of older `compat.reasoningEffortMap` shapes when model-specific reasoning controls are needed.
+`apiKey` and custom `headers` support Pi's config value syntax: `"$ENV_VAR"` / `"${ENV_VAR}"` interpolation, `"!command"` command execution, `"$$"` for a literal dollar prefix, and `"$!"` for a literal bang prefix. Command values resolve at request time; wrap slow secret fetches in a caching script.
 
-Use llama.cpp's `repeat_penalty` spelling; `repetition_penalty` is accepted in model metadata and normalized. For Qwen GGUF variants, set `reasoning: false` so Pi does not expose reasoning-effort levels that the model cannot consume; the selected model variant owns whether Qwen thinking is enabled.
+## Agents
 
-`apiKey` and custom `headers` in `state/pi/models.json` support Pi's current config value syntax: `"$ENV_VAR"` / `"${ENV_VAR}"` interpolation, `"!command"` command execution, `"$$"` for a literal dollar prefix, and `"$!"` for a literal bang prefix. Command values are resolved at request time, so slow or flaky secret fetches should be wrapped in a caching script if needed.
+An agent config entry controls the runtime defaults for one agent. The agent's durable files still live under its root.
+
+```json
+{
+  "id": "shrimpy",
+  "root": "agents/shrimpy",
+  "modelPolicy": "coding",
+  "tools": ["reply", "ask", "notify", "report", "send_message", "read_channel"],
+  "disabledTools": [],
+  "thinking": "medium",
+  "channelPolicy": {
+    "mode": "all"
+  }
+}
+```
+
+Fields:
+
+- `id` — stable agent id.
+- `root` — workspace-relative or absolute path to that agent's root.
+- `modelPolicy` — default model policy for fresh sessions opened as that agent; omitted agents fall back to `coding`.
+- `tools` — allowed Shrimpy daemon tools. If omitted or empty, Shrimpy uses all built-in daemon tools.
+- `disabledTools` — effective tool names passed to Pi as `excludeTools`; use this for Pi built-ins such as `bash` or any active custom tool.
+- `thinking` — default reasoning effort for sessions opened as that agent.
+- `channelPolicy` — when visible channel messages become turns for this agent.
 
 Agent-owned channel policy defaults to:
 
@@ -295,9 +323,7 @@ Modes:
 - `addressed` wakes only for messages addressed to this agent.
 - `none` ignores visible channel messages.
 
-Addressing and mentions are inputs to the agent's own policy. They do not route around channel visibility, and they do not override `mode: "none"`. An agent is not re-offered its own channel messages.
-
-Channel policy can be narrowed by sender (`system`, `human`, `agent`), stable `actorIds`, or stable `userIds`, and overridden by channel pattern:
+Policy can be narrowed by sender (`system`, `human`, `agent`), stable `actorIds`, or stable `userIds`, and overridden by channel pattern:
 
 ```json
 {
@@ -305,37 +331,36 @@ Channel policy can be narrowed by sender (`system`, `human`, `agent`), stable `a
   "channelPolicy": {
     "mode": "mentions",
     "channels": {
-      "home": { "mode": "all", "senders": ["human", "system"] },
-      "maintenance": { "mode": "all", "senders": ["system"] }
+      "home": {
+        "mode": "all",
+        "senders": ["human", "system"]
+      },
+      "maintenance": {
+        "mode": "all",
+        "senders": ["system"]
+      }
     }
   }
 }
 ```
 
-Inspect and test the effective policy with:
+Addressing and mentions are inputs to the agent's own policy. They do not route around channel visibility, and they do not override `mode: "none"`. An agent is not re-offered its own channel messages.
+
+Channel participation lives in `config/channels.json`, not in agent config. See [channels.md](channels.md) for membership, addressing, and wake policy. See [tools.md](tools.md) for Pi built-ins, Shrimpy daemon tools, and `disabledTools`.
+
+Prefer command edits:
 
 ```bash
-shrimpy agent channel-policy shrimpy --channel home
-shrimpy agent channel-policy explain shrimpy --channel home --sender human --text "@shrimpy wassup"
+shrimpy agent add <id>
+shrimpy agent set <id> --model-policy coding
+shrimpy agent inspect <id>
+shrimpy agent channel-policy set <id> --channel maintenance --mode all --senders system
+shrimpy agent channel-policy explain <id> --channel home --sender human --text "@shrimpy hello"
 ```
 
-Edit fields directly instead of hand-writing the JSON. `set`/`clear` target the base rule, or a channel override when `--channel <pattern>` is given, and leave the rest of the policy untouched:
+## Channels, Surfaces, And Users
 
-```bash
-# Narrow the base rule to humans, then add a per-channel override.
-shrimpy agent channel-policy set shrimpy --senders human
-shrimpy agent channel-policy set shrimpy --channel maintenance --mode all --senders system
-
-# Clear one field, or drop a whole channel override.
-shrimpy agent channel-policy clear shrimpy --senders
-shrimpy agent channel-policy clear shrimpy --channel maintenance
-```
-
-`set` updates `mode`, `senders`, `actor-ids`, and `user-ids`; `clear` flags name the fields to remove. Clearing the last field removes the `channelPolicy` block, falling back to the default `all` policy. Channel membership is unaffected; policy only decides whether a visible member wakes. See [channels.md](channels.md) for the delivery model.
-
-## Channel Membership
-
-`config/channels.json` shape:
+`config/channels.json` owns channel membership and surface bindings. A minimal channel entry:
 
 ```json
 {
@@ -349,24 +374,52 @@ shrimpy agent channel-policy clear shrimpy --channel maintenance
 }
 ```
 
-- `channels.<name>.agents` is keyed by agent id.
-- Membership means the agent participates in that channel.
-- `shrimpy channels join <name> --agent <id>` adds membership; the agent's own `channelPolicy` decides what becomes a turn.
-- Surfaces may stamp a message with `addressedAgentId`; visible agents evaluate that fact through their own channel policy.
+Membership means visibility. The agent's own `channelPolicy` decides whether a visible message becomes a turn. Use `shrimpy channels join|leave|members|show` instead of hand-editing membership.
 
-See [channels.md](channels.md) for protocol, addressing, delivery, and egress semantics.
+Surfaces may stamp `origin.addressedAgentId`; visible agents evaluate that fact through their own channel policy. Telegram configuration lives under the `telegram` section in `config/shrimpy.json`. Every Telegram instance must configure `allowedChatIds`; unauthorized chats are dropped before channel logs, bindings, identity, presence, commands, media download, or model wake. Use `shrimpy setup telegram` for guided setup and [surfaces.md](surfaces.md) for transport behavior.
 
-## Watches
+Telegram instance shape:
 
-Background attention rules live in `agents/<id>/watches.json`.
+```json
+{
+  "telegram": {
+    "instances": {
+      "shrimpy": {
+        "token": "$TELEGRAM_BOT_TOKEN",
+        "defaultAgentId": "shrimpy",
+        "allowedChatIds": [123456789],
+        "users": {
+          "123456789": {
+            "id": "alice",
+            "displayName": "Alice"
+          }
+        },
+        "policy": {
+          "sendMaxRetries": 3,
+          "backoff": {
+            "initialMs": 500,
+            "maxMs": 10000,
+            "factor": 2,
+            "jitter": 0.2
+          }
+        },
+        "textBurstWindowMs": 1000,
+        "mediaGroupWindowMs": 1200
+      }
+    }
+  }
+}
+```
 
-A watch is owned by one agent. Its `trigger` says what the system keeps an eye on; time is one trigger kind. There is no second public config file for recurring work.
+Stable human ids live in `state/users.json`. Telegram `users` mappings turn transport ids into stable Shrimpy ids such as `human:alice`. The optional top-level `owner` names the canonical workspace user; when set, CLI publishers stamp messages as that owner. Manage with `shrimpy users list|get-owner|set-owner`.
 
-To wake an agent on a clock, add a watch with `trigger.kind = "time"` and a message action. When the trigger fires, the gateway posts the watch text into the configured channel. If the owning agent is a member of that channel and its policy accepts the message, it gets a normal turn. The watch text is an internal instruction record, not a chat message to the user. For a reminder requested from a chat surface, use the same channel when the result should go back there, and tell the agent to send one final user-facing message with `reply`.
+## Watches And Status
 
-For the common case, use the CLI:
+Agent-owned watches live in `agents/<id>/watches.json`. A watch belongs to one agent, has a trigger, and either posts a watch-authored message to a channel or runs a command check that can emit to a channel. Time is the implemented trigger kind.
 
-```sh
+For normal edits:
+
+```bash
 shrimpy watches add morning-check \
   --agent shrimpy \
   --name "Morning check" \
@@ -375,27 +428,32 @@ shrimpy watches add morning-check \
   --channel maintenance \
   --addressed shrimpy \
   --message "Check the house."
+
+shrimpy watches show shrimpy/morning-check
+shrimpy watches history shrimpy/morning-check
+shrimpy watches enable shrimpy/morning-check
+shrimpy watches disable shrimpy/morning-check
 ```
 
-Command watches are optional. Use them when the watch should check something deterministic first and only post when the result is worth saying.
+`watchClock.defaultTimezone` sets the workspace default timezone for cron watches. Per-watch JSON can set root-level `timezone` or `trigger.timezone` for rare explicit overrides. Omitted `concurrencyPolicy` defaults to `forbid`.
 
-Fresh setup records `watchClock.defaultTimezone`, which cron watches use for the workspace. Per-watch JSON can set root-level `timezone` or `trigger.timezone` for a rare explicit override. `--concurrency-policy` accepts `forbid` or `allow`; omitted watches default to `forbid`.
-
-Current trigger kinds:
-
-- `time` with `cron`
-- `time` with `everyMs`
+Current trigger kinds are `time` with `cron` and `time` with `everyMs`. `concurrencyPolicy` is `forbid` or `allow`.
 
 Message watch shape:
 
 ```json
 {
   "id": "memory-management",
-  "trigger": { "kind": "time", "cron": "0 3 * * *" },
+  "enabled": true,
+  "trigger": {
+    "kind": "time",
+    "cron": "0 3 * * *"
+  },
   "concurrencyPolicy": "forbid",
   "action": {
     "kind": "message",
     "channel": "maintenance",
+    "addressedAgentId": "shrimpy",
     "text": "Use the `memory-management` skill."
   }
 }
@@ -406,33 +464,29 @@ Command watch shape:
 ```json
 {
   "id": "disk-space",
-  "trigger": { "kind": "time", "everyMs": 3600000 },
-  "action": { "kind": "command", "command": "df -h /" },
+  "enabled": true,
+  "trigger": {
+    "kind": "time",
+    "everyMs": 3600000
+  },
+  "concurrencyPolicy": "forbid",
+  "action": {
+    "kind": "command",
+    "command": "df -h /",
+    "timeoutMs": 30000
+  },
   "emit": {
     "policy": "on_output",
     "channel": "maintenance",
+    "addressedAgentId": "mechanic",
     "template": "Disk check:\n{{stdout}}"
   }
 }
 ```
 
-Fresh setup installs focused watches disabled by default. The default `shrimpy` agent gets:
+Command watch emit policies are `never`, `always`, `on_output`, `on_change`, and `on_failure`.
 
-- `memory-management` — daily at 03:00, runs the memory upkeep skill.
-- `journal-daily` — daily at 22:30, writes a same-day journal note only if activity warrants it.
-- `journal-compact` — Sundays at 04:00, compacts old journal notes.
-
-The `mechanic` agent gets disabled `security-audit` and `hygiene-audit` schedules for read-only maintenance reports. Enable or disable installed schedules with `shrimpy watches enable <agent-id>/<watch-id>` and `shrimpy watches disable <agent-id>/<watch-id>`.
-
-Channel membership stays in `config/channels.json`. Message watches choose a channel to log through; setup seeds the default `home` and `maintenance` channels with both default agents, `shrimpy` and `mechanic`, as members.
-
-Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches show <agent-id>/<watch-id>`, or `shrimpy watches history <agent-id>/<watch-id>`. The inspection surface reports source paths, owner/local ids, target channels, expected wake behavior, next run, active runs, diagnostics, and recent run history. JSON includes `nextRunSource`; `clock_state` means the gateway clock recorded the timestamp, while `computed` means inspection calculated a fallback because clock state has not recorded that watch yet.
-
-## Watch Status
-
-`shrimpy status`, `shrimpy gateway status`, `shrimpy watches`, TUI `/status watches`, and turn context summarize watch runs across configured agent-owned watches. This aggregate status is not tied to any reserved channel.
-
-`status.watchedWatches` is optional targeted diagnostic config for callers that need to track a specific watch/channel pair:
+`status.watchedWatches` is optional targeted diagnostic config for callers that need to track a specific watch/channel pair. General status commands already summarize watches without this config:
 
 ```json
 {
@@ -448,13 +502,17 @@ Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches
 }
 ```
 
-- `label` is the diagnostic name. If omitted, Shrimpy uses `watchId`.
-- `channel` is the channel log where the watch writes emitted messages.
-- `watchId` is the resolved watch id, for example `agent-id/local-watch-id`.
+```bash
+shrimpy status
+shrimpy gateway status
+shrimpy watches
+```
+
+See [runtime.md](runtime.md) and [channels.md](channels.md) for how watch messages become agent turns.
 
 ## Context
 
-`context.sources` is a single ordered list of file, directory, and command sources. String sources such as `workspace:profile/SYSTEM.md`, `agent:SOUL.md`, and `agent:context/` load session prompt material. Object sources with `{ "type": "command", ... }` run at turn time and emit compact context text.
+`context.sources` is the ordered source list for stable prompt material and turn-scoped command context. The built-in default sources are the profile files, `agent:SOUL.md`, and `agent:context/`. `workspace:context/` is the workspace-level prompt memory source; place it in the default list or a scoped override according to which agents and channels should receive it.
 
 ```json
 {
@@ -464,21 +522,67 @@ Inspect watches with `shrimpy watches [--agent <id>] [--json]`, `shrimpy watches
       "workspace:profile/SYSTEM.md",
       "agent:SOUL.md",
       "workspace:profile/USER.md",
+      "workspace:context/",
       "agent:context/",
       {
         "type": "command",
         "id": "finance_alerts",
         "command": "finance-shrimpy alerts context",
         "channels": ["maintenance", "finance"],
+        "timeoutMs": 5000,
+        "maxChars": 1200,
         "freshForMs": 60000
       }
-    ]
+    ],
+    "agents": {
+      "mechanic": {
+        "sources": [
+          "workspace:profile/WORKSPACE.md",
+          "workspace:profile/SYSTEM.md",
+          "agent:SOUL.md",
+          "workspace:context/maintenance.md",
+          "agent:context/"
+        ],
+        "channels": {
+          "maintenance": {
+            "sources": [
+              "workspace:profile/WORKSPACE.md",
+              "workspace:profile/SYSTEM.md",
+              "agent:SOUL.md",
+              "workspace:context/maintenance.md",
+              "agent:context/",
+              "agent:context/channels/maintenance.md"
+            ]
+          }
+        }
+      }
+    },
+    "turn": {
+      "maxChars": 2000,
+      "channelUnread": {
+        "enabled": true,
+        "channels": ["*"],
+        "includeLatest": true
+      },
+      "sessionStatus": {
+        "enabled": true,
+        "staleAfterMinutes": 720
+      }
+    }
   }
 }
 ```
 
-`context.agents.<id>` adds sources/env for one agent, and `context.agents.<id>.channels.<pattern>` specializes that agent's view for a channel pattern.
+String sources such as `workspace:profile/SYSTEM.md`, `workspace:context/`, `agent:SOUL.md`, and `agent:context/` load stable session prompt material. `workspace:<path>` resolves from the workspace root; `agent:<path>` resolves from the active agent root. Directory sources load top-level Markdown files in deterministic order. Command sources run at turn time and emit compact text. `context.agents.<id>` adds sources/env for one agent, and `context.agents.<id>.channels.<pattern>` specializes that agent's view for a channel pattern.
 
-The runtime environment prompt includes workspace and session routing facts. Current model/provider identity is recorded in session metadata for inspection rather than rendered into the agent prompt, because model selection can change inside a running session.
+Inspect context with:
 
-Live state lands in [turn context](turn-context.md) rather than static prompt resources. See [context-assembly.md](context-assembly.md) for how sections are assembled.
+```bash
+shrimpy context --config
+shrimpy context --agent shrimpy --sections
+shrimpy context --turn --channel home --agent shrimpy
+shrimpy context sources list --agent shrimpy --channel home
+shrimpy context sources run <id> --agent shrimpy --channel home
+```
+
+See [context-assembly.md](context-assembly.md) for stable prompt assembly and [turn-context.md](turn-context.md) for live per-turn context.

@@ -6,7 +6,7 @@ Shrimpy keeps memory in ordinary files so continuity stays legible and recoverab
 
 ## Current Shape
 
-Memory is agent-owned Markdown under `agents/<id>/context/`.
+Agent memory is Markdown under `agents/<id>/context/`.
 
 - Top-level `context/*.md` files are loaded as session context for that agent.
 - `context/people/<actor-id>.md` is loaded only for turns from that actor.
@@ -19,11 +19,11 @@ The path is the routing index. Shrimpy does not parse headings to decide what me
 
 Agents write memory in their own voice as notes to their future selves. The framework provides context-loading primitives, CLI inspection, skills, and watches; the owning agent decides what is worth preserving during normal upkeep. The user can also edit memory files directly.
 
-Workspace-wide facts belong in `profile/*.md`, especially `profile/USER.md`, `profile/WORKSPACE.md`, and `profile/SYSTEM.md`, because those files are shared truth rather than one agent's working model.
+Workspace-wide baseline facts belong in `profile/*.md`, especially `profile/USER.md`, `profile/WORKSPACE.md`, and `profile/SYSTEM.md`, because those files are shared identity and setup truth. Shared model-visible working context belongs under workspace `context/` and is selected with `workspace:context/` sources for all agents, selected agents, selected channels, or an agent/channel pair.
 
 When the user explicitly asks an agent to remember something, the agent should persist the relevant Markdown note before claiming it will be remembered. If it cannot persist the note immediately, it should say that plainly.
 
-Do not use `context/` as a filing cabinet. Put saved notes, reports, and other files in `agents/<id>/vault/`. Put code or app work in `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
+Do not use model-visible `context/` directories as filing cabinets. Put saved notes, reports, and other files in `agents/<id>/vault/`. Put code or app work in `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
 
 ## Upkeep
 

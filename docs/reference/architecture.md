@@ -4,7 +4,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 
 ## Primitives
 
-- **Workspace** — the persistent home for config, channels, watches, framework docs, agents, auth, models, logs, media, and state.
+- **Workspace** — the persistent home for config, model-visible context, channels, watches, framework docs, agents, auth, models, logs, media, and state.
 - **Agent** — a persistent actor with identity docs, memory, tools, skills, and Pi sessions.
 - **AppRuntime** — the application kernel that resolves paths, config, surface egresses, tool config, context config, and session bootstrap inputs.
 - **ChannelBus** — the facade runtime callers use for channel IO. It delegates storage and typed message construction to focused channel components. See [channels.md](channels.md).
@@ -20,7 +20,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a named channel for that agent.
 - **Watch Clock** — the small clock used by watches with time triggers. It does not choose which agent wakes; normal channel membership and agent policy handle delivery.
 - **Skill** — prompt and resource material loaded into a session.
-- **Memory** — agent-owned Markdown under `agents/<id>/context/`. Top-level files are session context; `context/people/<actor-id>.md` and `context/channels/<name>.md` are loaded only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md).
+- **Prompt context** — configured files, directories, command sources, and generated runtime sections that go to agents. `workspace:context/` shares workspace context across all or selected views; `agent:context/` loads the active agent's top-level memory; `context/people/<actor-id>.md` and `context/channels/<name>.md` load only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md) and [context-assembly.md](context-assembly.md).
 - **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last), adds generated skill/runtime sections, and renders the contained system prompt.
 - **Turn context** — renders runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices for one turn, then prefixes the current user message so the persisted session transcript matches the model-facing turn.
 
@@ -31,7 +31,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - Sessions carry instructions and private working context. Channels carry routing and logs.
 - Channel membership, not agent config, determines channel participation. Agent config owns wake policy.
 - Agent resources (`SOUL.md`, `context/`, skills, sessions, watches) are part of the agent contract.
-- Agent memory is normal Markdown.
+- Workspace and agent context are normal Markdown selected through context sources.
 - Shrimpy prepends one compact immutable system-instruction section during session bootstrap. This is the only immutable instruction slot Shrimpy adds.
 - Workspace `profile/SYSTEM.md` carries shared editable framework context and CLI inspection breadcrumbs. Agent-specific system guidance can also load from agent-owned context files or any configured agent resource; configured sources add together.
 - Skills are Markdown instruction sets advertised to agents as context trails.

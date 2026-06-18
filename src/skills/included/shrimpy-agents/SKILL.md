@@ -76,6 +76,20 @@ Warn about active sessions: local TUI sessions can keep using a model saved insi
 
 Create context files only when there is something real to preserve. Keep bulky evidence in `vault/`, not `context/`.
 
+## App-Agent Context
+
+For app-like agents, consider whether live app state should arrive through turn context instead of memory or a watch. Command context sources in `config/shrimpy.json` can run a small workspace command on relevant turns and emit compact summaries with optional inspect commands. Good uses include queue status, external-data alerts, dashboards, app health, or domain state the agent should see automatically.
+
+Inspect before changing context wiring:
+
+```bash
+shrimpy context sources list --agent <id> --channel <channel> --json
+shrimpy context sources run <source-id> --agent <id> --channel <channel> --json
+shrimpy context turn --agent <id> --channel <channel>
+```
+
+Prefer existing CLI/config helpers. If a command source needs hand-edited config, read `docs/reference/configuration.md` and `docs/reference/turn-context.md` first, keep the command output bounded, and test with `shrimpy context sources run` before declaring the app-agent wired.
+
 ## Wire Channels
 
 Channel membership gives visibility; channel policy decides whether a visible message becomes a turn. Join only the channels the agent should see:
