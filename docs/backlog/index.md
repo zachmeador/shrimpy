@@ -22,6 +22,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SETUP-002](setup-002-setup-entry-seams.md) | review | P2 | Setup | none | Setup entry cwd/exit-code consistency and dead setup code removal |
 | [SETUP-003](setup-003-opt-in-watch-seeding.md) | review | P2 | Setup | none | Opt-in watch seeding with per-watch explanations |
 | [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
+| [SETUP-005](setup-005-workspace-runtime-profiles.md) | draft | P1 | Setup | none | Workspace runtime profiles bind PATH, CLI, gateway, and workspace |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
