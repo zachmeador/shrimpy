@@ -59,7 +59,7 @@ Weak examples:
 
 ## Backlog
 
-Tracked by `docs/backlog/skill-001-shrimpy-search-skill.md`.
+Implemented by the included `shrimpy-search` skill and the skill package model in `docs/reference/skills.md`.
 
 ## human notes:
 

@@ -15,7 +15,7 @@ The updater should therefore protect model config validity first, then let the m
 
 - `shrimpy update --dry-run` now exists as a safe preflight surface in the command registry and catalog. Apply mode is still intentionally unsupported until the update source, snapshot/restore, and gateway lifecycle semantics are implemented.
 - Model policy resolution already has inspectable CLI coverage through `shrimpy models`, `shrimpy models policies show <name>`, and `shrimpy models resolve --policy <name> --json`.
-- The mechanic has a `workspace-migration` skill that inventories installed source, workspace files, risks, and checks before applying user-approved workspace changes. [SKILL-003](skill-003-agent-owned-skill-packages.md) will move this from source-default visibility to an assigned included package copy such as `shrimpy-workspace-migration`.
+- The mechanic has a `shrimpy-workspace-migration` assigned included skill package that inventories installed source, workspace files, risks, and checks before applying user-approved workspace changes.
 - The gateway can be installed as a per-user service and may be running watches or chat delivery while the CLI source and generated `dist/cli.js` change.
 - The local binary points at this checkout's generated `dist/cli.js`, so changing source and rebuilding can immediately alter the live CLI for this machine.
 
@@ -27,7 +27,7 @@ The updater should therefore protect model config validity first, then let the m
 - Snapshot the model-critical files before update: `config/shrimpy.json`, `state/pi/auth.json`, `state/pi/models.json`, and any agent config that selects the mechanic model policy. The snapshot can be a workspace checkpoint when tracking is enabled, plus an explicit update-local backup for files outside tracked scope.
 - If the gateway is running, stop or pause it before replacing the live CLI/build output so it cannot run mixed old/new code during the update. Record whether it was running so the command can restore that runtime state after validation.
 - Apply the app update through the installation mechanism that owns this checkout, then rebuild or relink the live CLI only after the source update succeeds.
-- Inventory assigned package copies and modified status from [SKILL-003](skill-003-agent-owned-skill-packages.md). Unmodified included package copies can be refreshed through the update path; modified copies require an explicit keep, replace, or review decision before overwrite.
+- Inventory assigned package copies and modified status from `state/skills/packages.json`. Unmodified included package copies can be refreshed through the update path; modified copies require an explicit keep, replace, or review decision before overwrite.
 - After update, run the same model-policy checks again. If the mechanic cannot resolve a usable model, restore the model-critical files from the snapshot and report the exact failing policy/candidate/auth reason. Do not continue into workspace migration while the mechanic model path is broken.
 - Restart the gateway only after the post-update model check passes. If restart fails, leave the gateway stopped, report the exact command/log path to inspect, and still provide the mechanic migration handoff if the mechanic model path is valid.
 - When model checks pass, launch or print an exact next command for the mechanic with `--skill shrimpy-workspace-migration`, including the previous and new version/commit when known, so the mechanic can inventory workspace changes and ask for approval before applying them.
