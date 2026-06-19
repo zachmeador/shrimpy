@@ -2,6 +2,13 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 0.5.1 - The Reef Remembers - Unreleased
+
+### Breaking Changes
+
+- Removed Shrimpy-owned local model variant fields and request rewriting for OpenAI-compatible providers. `baseModel`, `inference`, `--base-model`, `--enable-thinking`, `--disable-thinking`, and `--qwen-chat-template` are no longer Shrimpy configuration surfaces.
+- Changed local model setup to write Pi-native provider/model entries only. Use Pi's `state/pi/models.json` fields, including Pi-native `compat.thinkingFormat` values such as `qwen` or `qwen-chat-template`, when a local provider needs compatibility settings.
+
 ## 🦐 0.5.0 - The Reef Remembers - 2026-06-17
 
 ### Breaking Changes
@@ -22,7 +29,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Fresh setup now writes the default skills into the workspace and mechanic agent, so users and agents can inspect and edit the actual skill files.
 - New workspaces get visible copies of the coding delegation, memory, journal, `remember`, Shrimpy how-to, search, and mechanic audit skills.
 - Changed fresh setup to seed memory, journal, security-audit, and hygiene-audit watches disabled by default, with `shrimpy watches enable|disable <agent-id>/<watch-id>` available for explicit activation.
-- Added interactive model setup and `shrimpy models providers add-openai-compatible` for local or OpenAI-compatible endpoints, including context-window, max-tokens, Qwen thinking-template, and `--set-coding` support.
+- Added interactive model setup and `shrimpy models providers add-openai-compatible` for local or OpenAI-compatible endpoints, including `--context-window`, `--max-tokens`, `--qwen-chat-template`, `--enable-thinking`/`--disable-thinking`, and `--set-coding` support.
 - `codex-web-search` is still available as `included:codex-web-search`, but setup no longer installs it by default.
 
 ### Agents, Skills & Tools

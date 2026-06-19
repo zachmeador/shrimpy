@@ -2,12 +2,6 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AppRuntime } from "../app/runtime.js";
-import {
-  INFERENCE_PARAM_NAMES,
-  parseModelVariantInference,
-  resolveModelVariantInference,
-  type ModelVariantInference,
-} from "../inference/params.js";
 import { isRecord } from "../util/record.js";
 import {
   resolveSessionCompactionPolicy,
@@ -37,7 +31,6 @@ export interface SessionCompactionPolicySummary {
     provider: string;
     id: string;
     contextWindow?: number;
-    inference?: ModelVariantInference;
   };
   effective: EffectiveCompactionPolicy;
   recorded?: EffectiveCompactionPolicy;
@@ -45,7 +38,6 @@ export interface SessionCompactionPolicySummary {
     provider?: string;
     id?: string;
     bootedAt?: string;
-    inference?: ModelVariantInference;
   };
   restartRequired: boolean;
   note: string;
@@ -77,10 +69,6 @@ export async function inspectSessionCompactionPolicy(
     agent.modelPolicy,
     { allowMissingDefault: true },
   );
-  const inference = resolveModelVariantInference({
-    modelsPath: bootstrap.modelsPath,
-    model,
-  });
   const effective = resolveSessionCompactionPolicy({
     runtimeConfig: runtime.resolved.runtime,
     descriptor,
@@ -99,7 +87,6 @@ export async function inspectSessionCompactionPolicy(
       effectivePolicy: effective,
       recordedSession,
       model,
-      inference,
     })
     : [];
   const restartRequired = restartReasons.length > 0;
@@ -119,7 +106,6 @@ export async function inspectSessionCompactionPolicy(
         provider: model.provider,
         id: model.id,
         contextWindow: model.contextWindow,
-        inference,
       }
       : undefined,
     effective,
@@ -169,7 +155,6 @@ function readRecordedSessionRuntime(path: string): SessionCompactionPolicySummar
     provider: typeof env.provider === "string" ? env.provider : undefined,
     id: typeof env.model_id === "string" ? env.model_id : undefined,
     bootedAt: typeof env.booted_at_iso === "string" ? env.booted_at_iso : undefined,
-    inference: parseModelVariantInference(entry.data.inference),
   };
 }
 
@@ -178,7 +163,6 @@ function compactionRestartReasons(input: {
   effectivePolicy: EffectiveCompactionPolicy;
   recordedSession: SessionCompactionPolicySummary["recordedSession"] | undefined;
   model?: Model<Api>;
-  inference?: ModelVariantInference;
 }): string[] {
   const reasons: string[] = [];
   if (input.recordedPolicy === undefined) {
@@ -187,11 +171,11 @@ function compactionRestartReasons(input: {
     reasons.push("different compaction policy");
   }
 
-  if (input.model || input.inference) {
+  if (input.model) {
     if (input.recordedSession === undefined) {
       reasons.push("missing recorded session model metadata");
-    } else if (!sameRecordedSessionRuntime(input.recordedSession, input.model, input.inference)) {
-      reasons.push("different session model or inference metadata");
+    } else if (!sameRecordedSessionRuntime(input.recordedSession, input.model)) {
+      reasons.push("different session model metadata");
     }
   }
 
@@ -225,7 +209,6 @@ function samePolicySettings(
 function sameRecordedSessionRuntime(
   recorded: NonNullable<SessionCompactionPolicySummary["recordedSession"]>,
   model: Model<Api> | undefined,
-  inference: ModelVariantInference | undefined,
 ): boolean {
   if (model) {
     if (recorded.provider !== model.provider || recorded.id !== model.id) return false;
@@ -233,21 +216,6 @@ function sameRecordedSessionRuntime(
     return false;
   }
 
-  return sameInference(recorded.inference, inference);
-}
-
-function sameInference(
-  left: ModelVariantInference | undefined,
-  right: ModelVariantInference | undefined,
-): boolean {
-  if (!left && !right) return true;
-  if (!left || !right) return false;
-  if (left.baseModel !== right.baseModel) return false;
-  if (left.enableThinking !== right.enableThinking) return false;
-
-  for (const name of INFERENCE_PARAM_NAMES) {
-    if (left.params[name] !== right.params[name]) return false;
-  }
   return true;
 }
 

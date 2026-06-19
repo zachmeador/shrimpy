@@ -138,9 +138,6 @@ export function printSessionCompactionPolicy(
       `${label("model:")} ${summary.model.provider}/${summary.model.id}`
       + (summary.model.contextWindow ? ` (${summary.model.contextWindow} tokens)` : ""),
     );
-    if (summary.model.inference) {
-      console.log(`  inference: ${formatInference(summary.model.inference)}`);
-    }
   }
   console.log(label("effective compaction:"));
   console.log(`  enabled: ${summary.effective.enabled}`);
@@ -167,9 +164,6 @@ export function printSessionCompactionPolicy(
     }
     if (summary.recordedSession.bootedAt) {
       console.log(`  booted_at: ${summary.recordedSession.bootedAt}`);
-    }
-    if (summary.recordedSession.inference) {
-      console.log(`  inference: ${formatInference(summary.recordedSession.inference)}`);
     }
   }
   console.log(`${label("restart_required:")} ${summary.restartRequired}`);
@@ -249,16 +243,4 @@ function printGatewayLanes(lanes: GatewayLaneState[]): void {
 
 function formatSessionPath(summary: SessionPathSummary): string {
   return `${summary.path}${summary.exists ? "" : ` ${dim("(missing)")}`}`;
-}
-
-function formatInference(inference: NonNullable<SessionCompactionPolicySummary["model"]>["inference"]): string {
-  if (!inference) return "none";
-  const params = Object.entries(inference.params)
-    .map(([key, value]) => `${key}=${value}`)
-    .join(" ");
-  return [
-    inference.baseModel ? `baseModel=${inference.baseModel}` : undefined,
-    inference.enableThinking !== undefined ? `enableThinking=${inference.enableThinking}` : undefined,
-    `params=${params || "none"}`,
-  ].filter(Boolean).join(" ");
 }

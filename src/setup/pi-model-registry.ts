@@ -28,8 +28,6 @@ export interface AddOpenAICompatibleModelInput {
   name?: string;
   contextWindow?: number;
   maxTokens?: number;
-  baseModel?: string;
-  enableThinking?: boolean;
   thinkingFormat?: string;
   setCoding?: boolean;
 }
@@ -52,6 +50,9 @@ export function addOpenAICompatibleModel(
   const endpoint = normalizeEndpoint(input.endpoint ?? DEFAULT_LOCAL_ENDPOINT);
   const contextWindow = input.contextWindow ?? DEFAULT_LOCAL_CONTEXT_WINDOW;
   const maxTokens = input.maxTokens ?? DEFAULT_LOCAL_MAX_TOKENS;
+  const thinkingFormat = input.thinkingFormat === undefined
+    ? undefined
+    : normalizeIdentifier(input.thinkingFormat, "thinking format");
   validatePositiveInteger(contextWindow, "contextWindow");
   validatePositiveInteger(maxTokens, "maxTokens");
   if (input.setCoding && !existsSync(paths.primaryConfigPath)) {
@@ -72,8 +73,6 @@ export function addOpenAICompatibleModel(
     name: input.name,
     contextWindow,
     maxTokens,
-    baseModel: input.baseModel,
-    enableThinking: input.enableThinking,
   }));
 
   providers[provider] = {
@@ -81,7 +80,7 @@ export function addOpenAICompatibleModel(
     baseUrl: endpoint,
     apiKey: "local",
     api: "openai-completions",
-    compat: buildOpenAICompatibleCompat(existingProvider.compat, input.thinkingFormat),
+    compat: buildOpenAICompatibleCompat(existingProvider.compat, thinkingFormat),
     models,
   };
   raw.providers = providers;
@@ -116,8 +115,6 @@ function createOpenAICompatibleModelEntry(input: {
   name?: string;
   contextWindow: number;
   maxTokens: number;
-  baseModel?: string;
-  enableThinking?: boolean;
 }): Record<string, unknown> {
   return {
     id: input.modelId,
@@ -127,10 +124,6 @@ function createOpenAICompatibleModelEntry(input: {
     cost: ZERO_COST,
     contextWindow: input.contextWindow,
     maxTokens: input.maxTokens,
-    ...(input.baseModel ? { baseModel: input.baseModel } : {}),
-    ...(input.enableThinking !== undefined
-      ? { inference: { enableThinking: input.enableThinking } }
-      : {}),
   };
 }
 

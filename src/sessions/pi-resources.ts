@@ -7,9 +7,6 @@ import {
 import { projectRoot } from "../app/project-root.js";
 import type { RuntimeConfig } from "../config/index.js";
 import {
-  applyCurrentModelVariantInferenceToPayload,
-} from "../inference/params.js";
-import {
   createTurnContextExtensionFactory,
   type SessionTurnContextController,
 } from "./turn-context.js";
@@ -31,7 +28,6 @@ export function createShrimpyResourceLoader(opts: {
   settingsManager: SettingsManager;
   runtimeConfig: Required<RuntimeConfig>;
   systemPrompt: string;
-  modelsPath?: string;
   skillPaths?: string[];
   turnContextController?: SessionTurnContextController;
 }): DefaultResourceLoader {
@@ -41,7 +37,6 @@ export function createShrimpyResourceLoader(opts: {
     settingsManager: opts.settingsManager,
     additionalExtensionPaths: SHRIMPY_EXTENSION_PATHS,
     extensionFactories: createExtensionFactories({
-      modelsPath: opts.modelsPath,
       turnContextController: opts.turnContextController,
     }),
     additionalSkillPaths: opts.runtimeConfig.noSkills
@@ -64,11 +59,9 @@ export function createShrimpyResourceLoader(opts: {
 }
 
 function createExtensionFactories(opts: {
-  modelsPath?: string;
   turnContextController?: SessionTurnContextController;
 }): ExtensionFactory[] {
   return [
-    ...createInferenceExtensionFactories(opts.modelsPath),
     ...(
       opts.turnContextController
         ? [createTurnContextExtensionFactory(opts.turnContextController)]
@@ -87,20 +80,4 @@ function createPromptContainmentExtensionFactory(): ExtensionFactory {
       ),
     }));
   };
-}
-
-function createInferenceExtensionFactories(modelsPath?: string): ExtensionFactory[] {
-  if (!modelsPath) return [];
-  return [
-    (pi) => {
-      pi.on("before_provider_request", (event, ctx) => {
-        // /model can switch providers inside one TUI session; keep local aliases
-        // scoped to the model Pi is about to call.
-        return applyCurrentModelVariantInferenceToPayload(event.payload, {
-          modelsPath,
-          model: ctx.model,
-        });
-      });
-    },
-  ];
 }

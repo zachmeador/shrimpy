@@ -207,16 +207,6 @@ async function configureLocalProvider(input: {
     "Max output tokens",
     DEFAULT_LOCAL_MAX_TOKENS,
   );
-  const baseModel = await promptOptional(question, "Provider model name override, blank to use model id: ");
-  const qwenDefault = /qwen/i.test(modelId);
-  const useQwenChatTemplate = await promptBoolean(
-    question,
-    "Use Qwen chat-template thinking controls?",
-    qwenDefault,
-  );
-  const enableThinking = useQwenChatTemplate
-    ? await promptBoolean(question, "Enable Qwen thinking by default?", false)
-    : undefined;
 
   const result = addOpenAICompatibleModel({
     workspace: input.workspace,
@@ -226,9 +216,6 @@ async function configureLocalProvider(input: {
     name,
     contextWindow,
     maxTokens,
-    baseModel,
-    enableThinking,
-    thinkingFormat: useQwenChatTemplate ? "qwen-chat-template" : undefined,
   });
 
   registry.refresh();
@@ -368,20 +355,6 @@ async function promptIntegerWithDefault(
     if (!answer) return fallback;
     const parsed = Number(answer);
     if (Number.isInteger(parsed) && parsed > 0) return parsed;
-  }
-}
-
-async function promptBoolean(
-  question: (prompt: string) => Promise<string>,
-  label: string,
-  fallback: boolean,
-): Promise<boolean> {
-  const suffix = fallback ? "Y/n" : "y/N";
-  while (true) {
-    const answer = (await question(`${label} [${suffix}] `)).trim().toLowerCase();
-    if (!answer) return fallback;
-    if (answer === "y" || answer === "yes") return true;
-    if (answer === "n" || answer === "no") return false;
   }
 }
 

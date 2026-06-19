@@ -372,11 +372,7 @@ async function cmdModelProvidersAddOpenAICompatible(
       name: { type: "string" },
       "context-window": { type: "string" },
       "max-tokens": { type: "string" },
-      "base-model": { type: "string" },
-      "enable-thinking": { type: "boolean", default: false },
-      "disable-thinking": { type: "boolean", default: false },
       "thinking-format": { type: "string" },
-      "qwen-chat-template": { type: "boolean", default: false },
       "set-coding": { type: "boolean", default: false },
       json: { type: "boolean", default: false },
     },
@@ -387,26 +383,13 @@ async function cmdModelProvidersAddOpenAICompatible(
 
   const modelId = requireArg(values.model, USAGE, "--model");
   const provider = requireArg(values.provider, USAGE, "--provider");
-  if (values["enable-thinking"] && values["disable-thinking"]) {
-    return printError("choose at most one of --enable-thinking or --disable-thinking");
-  }
-  if (values["qwen-chat-template"] && values["thinking-format"]) {
-    return printError("choose at most one of --qwen-chat-template or --thinking-format <format>");
-  }
 
   const contextWindow = parseOptionalPositiveInteger(
     values["context-window"],
     "--context-window",
   );
   const maxTokens = parseOptionalPositiveInteger(values["max-tokens"], "--max-tokens");
-  const enableThinking = values["enable-thinking"]
-    ? true
-    : values["disable-thinking"]
-      ? false
-      : undefined;
-  const thinkingFormat = values["qwen-chat-template"]
-    ? "qwen-chat-template"
-    : values["thinking-format"];
+  const thinkingFormat = values["thinking-format"]?.trim() || undefined;
 
   try {
     const result = addOpenAICompatibleModel({
@@ -417,8 +400,6 @@ async function cmdModelProvidersAddOpenAICompatible(
       name: values.name,
       contextWindow,
       maxTokens,
-      baseModel: values["base-model"],
-      enableThinking,
       thinkingFormat,
       setCoding: values["set-coding"],
     });

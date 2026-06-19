@@ -1,6 +1,6 @@
 # 🦐 SETUP-006: Pi Model Config Ownership
 
-Status: todo
+Status: review
 Priority: P1
 Area: Setup
 Depends On: none
@@ -11,7 +11,7 @@ Pi already owns local model configuration through `models.json`, including Ollam
 
 The target boundary is simple: Shrimpy may provide workspace-local setup convenience and policy selection, but Pi remains the authority for provider schema, compatibility names, thinking formats, and request payload shaping.
 
-## Current State
+## Original State
 
 - Shrimpy writes workspace-local Pi model state at `state/pi/models.json` through `src/setup/pi-model-registry.ts`.
 - `shrimpy setup` and `shrimpy models providers add-openai-compatible` add local/OpenAI-compatible provider entries and can set the Shrimpy `coding` model policy.
@@ -26,12 +26,12 @@ The target boundary is simple: Shrimpy may provide workspace-local setup conveni
 - If Shrimpy keeps `shrimpy models providers add-openai-compatible`, make it a thin convenience command for common Pi-native fields. Advanced provider compatibility should pass through Pi's native `compat.thinkingFormat` values rather than inventing Shrimpy names.
 - Remove any Shrimpy-specific `baseModel` alias feature unless Pi supports the field natively. A user-facing model id should be the provider model id Pi sends to the API, or this needs an upstream Pi feature before Shrimpy exposes it.
 - Remove Shrimpy-owned sampler params such as `inference.params` unless Pi has a native place for them. Do not keep a Shrimpy-only model variant recipe layer.
-- Update docs so local model configuration points to Pi-native `models.json` semantics. Shrimpy docs should explain workspace-local storage and policy selection, then link or summarize the Pi fields Shrimpy writes.
+- Update docs so local model configuration points to Pi-native `models.json` semantics. Shrimpy docs should explain workspace-local storage and policy selection, then link or summarize the Pi fields Shrimpy writes, including how a user keeps using Qwen through Pi-native `compat.thinkingFormat` values when needed.
 - Update changelog text to say Shrimpy removed its provider compatibility layer and now writes Pi-native local model config.
 
 ## Boundaries
 
-- Do not add backward compatibility for Shrimpy-specific thinking format names. If they only existed in unreleased local work, delete them outright.
+- Do not add backward compatibility for Shrimpy-specific thinking format names. If they only existed in unreleased local work, delete them outright. This must not remove Qwen support; Qwen remains available through Pi-native model config and Pi-native `compat.thinkingFormat` values.
 - Do not keep duplicate Shrimpy names for Pi compatibility values. Use Pi's values exactly, including `qwen` and `qwen-chat-template` when the user explicitly chooses those Pi formats.
 - Do not build a broad local-model preset catalog in Shrimpy. Pi owns provider compatibility; Shrimpy owns setup flow, policy selection, diagnostics, and workspace paths.
 - Do not migrate user model files silently. If a released Shrimpy version shipped Shrimpy-only fields, report the exact stale fields and ask before editing user data.
@@ -58,4 +58,5 @@ The target boundary is simple: Shrimpy may provide workspace-local setup conveni
 - Session startup no longer installs a Shrimpy-owned provider request transform for model compatibility.
 - `shrimpy models providers add-openai-compatible` writes only Pi-native model registry fields or is removed if it cannot stay thin.
 - Shrimpy docs describe local model setup as workspace-local Pi `models.json` configuration plus Shrimpy model policy selection.
+- A personal workspace can still use Qwen models by configuring Pi-native custom models directly or through a thin Shrimpy setup writer.
 - Tests prove local model setup creates Pi-compatible provider/model entries, model policies resolve through Pi's `ModelRegistry`, and stale Shrimpy-only fields are not accepted as supported behavior.

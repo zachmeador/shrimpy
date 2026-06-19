@@ -19,7 +19,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
 | [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
 | [SETUP-005](setup-005-workspace-runtime-profiles.md) | draft | P1 | Setup | none | Workspace runtime profiles bind PATH, CLI, gateway, and workspace |
-| [SETUP-006](setup-006-pi-model-config-ownership.md) | todo | P1 | Setup | none | Restore Pi ownership of local model provider configuration |
+| [SETUP-006](setup-006-pi-model-config-ownership.md) | review | P1 | Setup | none | Restore Pi ownership of local model provider configuration |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |

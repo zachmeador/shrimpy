@@ -210,21 +210,19 @@ describe("cmdModels", () => {
         "providers",
         "add-openai-compatible",
         "--provider",
-        "local_qwen",
+        "local_llm",
         "--endpoint",
         "http://localhost:8090/v1",
         "--model",
-        "Qwen3.6-27B-UD-Q6_K_XL",
+        "local-coder",
         "--name",
-        "Qwen 3.6 27B UD Q6_K_XL (local)",
+        "Local Coder",
         "--context-window",
         "200000",
         "--max-tokens",
         "8192",
-        "--base-model",
-        "dense",
-        "--qwen-chat-template",
-        "--disable-thinking",
+        "--thinking-format",
+        "qwen-chat-template",
         "--set-coding",
         "--json",
       ], { workspace } as any)
@@ -233,22 +231,22 @@ describe("cmdModels", () => {
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
     assert.deepEqual(summary.model, {
-      provider: "local_qwen",
-      id: "Qwen3.6-27B-UD-Q6_K_XL",
+      provider: "local_llm",
+      id: "local-coder",
       endpoint: "http://localhost:8090/v1",
     });
 
     const models = JSON.parse(
       readFileSync(join(workspace, "state", "pi", "models.json"), "utf-8"),
     );
-    assert.deepEqual(models.providers.local_qwen.compat, {
+    assert.deepEqual(models.providers.local_llm.compat, {
       supportsDeveloperRole: false,
       supportsReasoningEffort: false,
       thinkingFormat: "qwen-chat-template",
     });
-    assert.deepEqual(models.providers.local_qwen.models[0], {
-      id: "Qwen3.6-27B-UD-Q6_K_XL",
-      name: "Qwen 3.6 27B UD Q6_K_XL (local)",
+    assert.deepEqual(models.providers.local_llm.models[0], {
+      id: "local-coder",
+      name: "Local Coder",
       reasoning: false,
       input: ["text"],
       cost: {
@@ -259,19 +257,39 @@ describe("cmdModels", () => {
       },
       contextWindow: 200000,
       maxTokens: 8192,
-      baseModel: "dense",
-      inference: {
-        enableThinking: false,
-      },
     });
 
     const config = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
     assert.deepEqual(config.modelPolicies.coding.candidates, [{
-      provider: "local_qwen",
-      id: "Qwen3.6-27B-UD-Q6_K_XL",
+      provider: "local_llm",
+      id: "local-coder",
     }]);
+  });
+
+  test("passes Pi-native thinking format values through", async () => {
+    await setupInit(workspace);
+
+    const captured = await captureLogs(() =>
+      cmdModels([
+        "providers",
+        "add-openai-compatible",
+        "--provider",
+        "local_llm",
+        "--model",
+        "local-coder",
+        "--thinking-format",
+        "qwen",
+        "--json",
+      ], { workspace } as any)
+    );
+
+    assert.equal(captured.result, 0);
+    const models = JSON.parse(
+      readFileSync(join(workspace, "state", "pi", "models.json"), "utf-8"),
+    );
+    assert.equal(models.providers.local_llm.compat.thinkingFormat, "qwen");
   });
 });
 

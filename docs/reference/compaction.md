@@ -50,10 +50,10 @@ Policy precedence is:
 
 When a session opens, Shrimpy appends inspection-only custom entries to the active session JSONL:
 
-- `shrimpy_session_metadata`, including agent, channel, env, effective compaction policy, and resolved model inference metadata.
+- `shrimpy_session_metadata`, including agent, channel, env, effective compaction policy, and resolved model metadata.
 - `shrimpy_compaction_policy`, storing the policy that was active when the session was opened.
 
-Pi ignores these custom entries when building LLM context. Shrimpy uses them for inspection and for compaction request parity.
+Pi ignores these custom entries when building LLM context. Shrimpy uses them for inspection and restart diagnostics.
 
 Policy changes do not rewrite already-open sessions. Running gateway sessions need to be reset/reopened or the gateway restarted before changed policy takes effect. Use:
 
@@ -61,7 +61,7 @@ Policy changes do not rewrite already-open sessions. Running gateway sessions ne
 shrimpy sessions compaction <channel> --agent <id> --json
 ```
 
-The command reports the effective policy, selected model/inference metadata, the active session's recorded policy/runtime metadata when present, and whether a restart/reset is required.
+The command reports the effective policy, selected model metadata, the active session's recorded policy/runtime metadata when present, and whether a restart/reset is required.
 
 ## Runtime Flow
 
@@ -71,9 +71,9 @@ When compaction starts:
 
 1. Pi prepares a cut plan: entries to summarize, entries to keep, optional split-turn prefix messages, previous compaction summary, token counts, and file operation details.
 2. Shrimpy's `session_before_compact` extension handles the prepared plan.
-3. The extension reads Shrimpy policy instructions and session inference metadata from the branch entries.
+3. The extension reads Shrimpy policy instructions from the branch entries.
 4. The extension reads the current session system prompt through Pi's extension context and passes it to Shrimpy's compaction runner, so the compaction request has the same parent agent identity, personality, voice, tone, and operating context as the session being compacted.
-5. The extension calls Shrimpy's compaction runner with Pi's selected model, model-registry API key, headers, abort signal, and provider payload hook.
+5. The extension calls Shrimpy's compaction runner with Pi's selected model, model-registry API key, headers, and abort signal.
 6. If the extension returns a compaction result, Pi persists it as a normal `compaction` entry with `fromHook: true`.
 7. If the extension does not return a compaction result, Pi falls back to its built-in compaction path.
 
@@ -111,16 +111,9 @@ Compaction must use the same provider path as normal turns. Shrimpy's compaction
 - model-registry API key
 - model-registry headers
 - abort signal
-- Shrimpy's model inference payload transform
 - Pi-compatible reasoning options for reasoning-capable models
 
-The payload transform reads the latest `shrimpy_session_metadata.inference` from the session branch and applies the same behavior used by normal turns:
-
-- logical model id to backend `baseModel` alias mapping
-- inference params such as `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`, and `repeat_penalty`
-- provider-specific thinking flags such as Qwen chat-template `enable_thinking`
-
-This matters for local gateway setups where the user-facing model id is a Shrimpy alias and the backend only serves a healthier model alias such as `dense`.
+Compaction uses Pi's selected model/provider config for provider compatibility, model ids, thinking formats, and request shaping.
 
 Compaction also caps summarization `maxTokens` to the selected model's `maxTokens`. Pi's requested summary budget can otherwise be much larger than the model's output limit.
 
@@ -140,8 +133,8 @@ Turn prefix summarization failed: 503 status code (no body)
 
 These mean the summarization request reached the provider path and the provider returned an error. Common causes:
 
-- the request used a logical model id that the backend cannot serve
-- the backend has no healthy worker for the mapped model alias
+- the configured model id is not served by the backend
+- the backend has no healthy worker for the selected model
 - provider headers or API key are wrong
 - requested output limits exceed provider/model limits
 - the provider is temporarily unavailable
@@ -149,10 +142,9 @@ These mean the summarization request reached the provider path and the provider 
 Check these in order:
 
 1. `shrimpy sessions compaction <channel> --agent <id> --json` to confirm effective and recorded policy.
-2. The active session JSONL for `shrimpy_session_metadata.inference`.
-3. The configured model entry in `state/pi/models.json`.
-4. The gateway/provider model list and health status.
-5. Recent `workspace/runtime/logs/gateway.log` lines around the failed compaction.
+2. The configured model entry in `state/pi/models.json`.
+3. The gateway/provider model list and health status.
+4. Recent `workspace/runtime/logs/gateway.log` lines around the failed compaction.
 
 If the active session recorded stale policy or stale model metadata, reset/reopen that session or restart the gateway so the session records the current configuration.
 

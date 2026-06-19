@@ -12,13 +12,8 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
 import {
-  sameModelRef,
   type ModelRef,
 } from "../config/model.js";
-import {
-  resolveModelVariantInference,
-  type ModelVariantInference,
-} from "../inference/params.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import { resolveSessionCompactionPolicy } from "./compaction-policy.js";
 import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
@@ -144,11 +139,6 @@ async function openSessionWithRuntimeDeps(
   const effectivePlan: SessionOpenPlan = {
     ...modelPlan,
     model: assembly.resolvedModel,
-    inference: resolveEffectiveInference({
-      bootstrap,
-      originalPlan: plan,
-      model: assembly.resolvedModel,
-    }),
   };
   const compactionPolicy = resolveSessionCompactionPolicy({
     runtimeConfig: bootstrap.runtimeConfig,
@@ -242,10 +232,6 @@ function resolveSessionModelPlan(input: {
       ...input.plan,
       model: modelResolution.model,
       modelResolution,
-      inference: resolveModelVariantInference({
-        modelsPath: input.bootstrap.modelsPath,
-        model: modelResolution.model,
-      }),
     };
   }
 
@@ -261,10 +247,6 @@ function resolveSessionModelPlan(input: {
     ...input.plan,
     model: modelResolution.model,
     modelResolution,
-    inference: resolveModelVariantInference({
-      modelsPath: input.bootstrap.modelsPath,
-      model: modelResolution.model,
-    }),
   };
 }
 
@@ -279,25 +261,6 @@ function readStoredSessionModel(
   };
 }
 
-function resolveEffectiveInference(input: {
-  bootstrap: SessionBootstrap;
-  originalPlan: SessionOpenPlan;
-  model?: Model<Api>;
-}): ModelVariantInference | undefined {
-  if (sameModelRef(input.originalPlan.model, input.model)) {
-    return input.originalPlan.inference ??
-      resolveModelVariantInference({
-        modelsPath: input.bootstrap.modelsPath,
-        model: input.model,
-      });
-  }
-
-  return resolveModelVariantInference({
-    modelsPath: input.bootstrap.modelsPath,
-    model: input.model,
-  });
-}
-
 async function resolveSessionResourceLoader(
   bootstrap: SessionBootstrap,
   assembly: ReturnType<typeof assembleSessionPrompt>,
@@ -309,7 +272,6 @@ async function resolveSessionResourceLoader(
     settingsManager,
     runtimeConfig: bootstrap.runtimeConfig,
     systemPrompt: assembly.baseSystemPrompt,
-    modelsPath: bootstrap.modelsPath,
     skillPaths: bootstrap.skillEntryPaths,
     turnContextController,
   });

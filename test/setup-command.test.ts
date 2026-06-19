@@ -151,14 +151,11 @@ describe("setup entry", () => {
     const answers = [
       "1",
       "http://localhost:8090/v1",
-      "local_qwen",
-      "Qwen3.6-27B-UD-Q6_K_XL",
-      "Qwen 3.6 27B UD Q6_K_XL (local)",
+      "local_llm",
+      "local-coder",
+      "Local Coder",
       "200000",
       "8192",
-      "dense",
-      "",
-      "",
     ];
 
     try {
@@ -179,21 +176,20 @@ describe("setup entry", () => {
     const models = JSON.parse(
       readFileSync(join(workspace, "state", "pi", "models.json"), "utf-8"),
     );
-    assert.equal(models.providers.local_qwen.baseUrl, "http://localhost:8090/v1");
-    assert.equal(models.providers.local_qwen.apiKey, "local");
-    assert.deepEqual(models.providers.local_qwen.compat, {
+    assert.equal(models.providers.local_llm.baseUrl, "http://localhost:8090/v1");
+    assert.equal(models.providers.local_llm.apiKey, "local");
+    assert.deepEqual(models.providers.local_llm.compat, {
       supportsDeveloperRole: false,
       supportsReasoningEffort: false,
-      thinkingFormat: "qwen-chat-template",
     });
     assert.equal(
       listAvailableSetupModels(workspace).some((model) =>
-        model.provider === "local_qwen" && model.id === "Qwen3.6-27B-UD-Q6_K_XL"
+        model.provider === "local_llm" && model.id === "local-coder"
       ),
       true,
     );
     assert.match(lines.join("\n"), /Configure a local OpenAI-compatible endpoint\./);
-    assert.match(lines.join("\n"), /Saved local model local_qwen\/Qwen3\.6-27B-UD-Q6_K_XL\./);
+    assert.match(lines.join("\n"), /Saved local model local_llm\/local-coder\./);
   });
 
   test("runSetupOnboarding launches the setup session when a model is available", async () => {

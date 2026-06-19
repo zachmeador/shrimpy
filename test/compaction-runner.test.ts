@@ -1,16 +1,14 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  compactWithProviderRequestHooks,
-  readShrimpySessionInference,
+  compactSessionHistory,
   resolveCompactionMaxTokens,
 } from "../dist/sessions/compaction-runner.js";
-import { applyModelVariantInferenceToPayload } from "../dist/inference/params.js";
 
-const qwenModel = {
-  provider: "local_qwen_moe",
-  id: "qwen-coding",
-  name: "Qwen coding",
+const localModel = {
+  provider: "local_llm",
+  id: "local-coder",
+  name: "Local Coder",
   api: "openai-completions",
   baseUrl: "http://example.test/v1",
   reasoning: false,
@@ -18,59 +16,14 @@ const qwenModel = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   contextWindow: 262144,
   maxTokens: 8192,
-  compat: {
-    thinkingFormat: "qwen-chat-template",
-  },
 };
 
 describe("compaction runner", () => {
-  test("reads latest session inference metadata from branch entries", () => {
-    const inference = readShrimpySessionInference([
-      {
-        type: "custom",
-        customType: "shrimpy_session_metadata",
-        data: {
-          inference: {
-            baseModel: "old",
-            enableThinking: true,
-            params: { temperature: 1 },
-          },
-        },
-      },
-      { type: "message", message: { role: "user", content: "hi", timestamp: 1 } },
-      {
-        type: "custom",
-        customType: "shrimpy_session_metadata",
-        data: {
-          inference: {
-            baseModel: "dense",
-            enableThinking: false,
-            params: {
-              temperature: 0.6,
-              top_p: 0.95,
-              repeat_penalty: 1.05,
-            },
-          },
-        },
-      },
-    ]);
-
-    assert.deepEqual(inference, {
-      baseModel: "dense",
-      enableThinking: false,
-      params: {
-        temperature: 0.6,
-        top_p: 0.95,
-        repeat_penalty: 1.05,
-      },
-    });
-  });
-
-  test("passes payload hooks through history and split-turn summarization", async () => {
+  test("summarizes history and split turns with the selected Pi model", async () => {
     const payloads: Array<Record<string, unknown>> = [];
     const maxTokens: number[] = [];
 
-    const result = await compactWithProviderRequestHooks(
+    const result = await compactSessionHistory(
       {
         firstKeptEntryId: "entry-keep",
         messagesToSummarize: [
@@ -89,30 +42,18 @@ describe("compaction runner", () => {
         },
         settings: { reserveTokens: 100000 },
       },
-      qwenModel as any,
+      localModel as any,
       {
         apiKey: "test-key",
         headers: { "x-test": "1" },
         customInstructions: "Preserve approximate time anchors.",
-        onPayload: (payload, model) =>
-          applyModelVariantInferenceToPayload(
-            payload,
-            {
-              baseModel: "dense",
-              enableThinking: false,
-              params: { temperature: 0.6, top_p: 0.95 },
-            },
-            model,
-          ),
         complete: async (model, _context, options) => {
           const initial = {
             model: model.id,
             max_tokens: options.maxTokens,
           };
-          const transformed = options.onPayload
-            ? await options.onPayload(initial, model)
-            : undefined;
-          payloads.push((transformed ?? initial) as Record<string, unknown>);
+          assert.equal("onPayload" in options, false);
+          payloads.push(initial);
           maxTokens.push(options.maxTokens);
           return assistantMessage(`summary ${payloads.length}`);
         },
@@ -122,14 +63,8 @@ describe("compaction runner", () => {
     assert.equal(payloads.length, 2);
     assert.deepEqual(maxTokens, [8192, 8192]);
     for (const payload of payloads) {
-      assert.equal(payload.model, "dense");
+      assert.equal(payload.model, "local-coder");
       assert.equal(payload.max_tokens, 8192);
-      assert.equal(payload.temperature, 0.6);
-      assert.equal(payload.top_p, 0.95);
-      assert.deepEqual(payload.chat_template_kwargs, {
-        enable_thinking: false,
-        preserve_thinking: true,
-      });
     }
     assert.match(result.summary, /summary 1/);
     assert.match(result.summary, /Turn Context \(split turn\)/);
@@ -148,7 +83,7 @@ describe("compaction runner", () => {
   test("frames summarization with the parent agent system prompt", async () => {
     const requests: Array<{ systemPrompt?: string; userPrompt: string }> = [];
 
-    await compactWithProviderRequestHooks(
+    await compactSessionHistory(
       {
         firstKeptEntryId: "entry-keep",
         messagesToSummarize: [
@@ -164,7 +99,7 @@ describe("compaction runner", () => {
         },
         settings: { reserveTokens: 1000 },
       },
-      qwenModel as any,
+      localModel as any,
       {
         apiKey: "test-key",
         sessionSystemPrompt: [
@@ -201,7 +136,7 @@ describe("compaction runner", () => {
 
   test("preserves Pi-style summarization errors", async () => {
     await assert.rejects(
-      compactWithProviderRequestHooks(
+      compactSessionHistory(
         {
           firstKeptEntryId: "entry-keep",
           messagesToSummarize: [
@@ -217,7 +152,7 @@ describe("compaction runner", () => {
           },
           settings: { reserveTokens: 1000 },
         },
-        qwenModel as any,
+        localModel as any,
         {
           apiKey: "test-key",
           complete: async () => assistantMessage("", "error", "503 status code (no body)"),
@@ -229,14 +164,14 @@ describe("compaction runner", () => {
 
   test("chunks oversized history before merging a final summary", async () => {
     const compactModel = {
-      ...qwenModel,
+      ...localModel,
       contextWindow: 20_000,
       maxTokens: 6_000,
     };
     const payloads: Array<Record<string, unknown>> = [];
     const prompts: string[] = [];
 
-    const result = await compactWithProviderRequestHooks(
+    const result = await compactSessionHistory(
       {
         firstKeptEntryId: "entry-keep",
         messagesToSummarize: [
@@ -258,16 +193,6 @@ describe("compaction runner", () => {
       compactModel as any,
       {
         apiKey: "test-key",
-        onPayload: (payload, model) =>
-          applyModelVariantInferenceToPayload(
-            payload,
-            {
-              baseModel: "dense",
-              enableThinking: false,
-              params: { temperature: 0.6 },
-            },
-            model,
-          ),
         complete: async (model, context, options) => {
           const text = readUserPrompt(context);
           prompts.push(text);
@@ -275,10 +200,8 @@ describe("compaction runner", () => {
             model: model.id,
             max_tokens: options.maxTokens,
           };
-          const transformed = options.onPayload
-            ? await options.onPayload(initial, model)
-            : undefined;
-          payloads.push((transformed ?? initial) as Record<string, unknown>);
+          assert.equal("onPayload" in options, false);
+          payloads.push(initial);
           return assistantMessage(`summary ${prompts.length}`);
         },
       },
@@ -290,15 +213,14 @@ describe("compaction runner", () => {
     assert.match(prompts.at(-1) ?? "", /<previous-summary>\nExisting compacted context\./);
     assert.equal(result.summary, `summary ${prompts.length}`);
     for (const payload of payloads) {
-      assert.equal(payload.model, "dense");
-      assert.equal(payload.temperature, 0.6);
+      assert.equal(payload.model, "local-coder");
       assert.ok((payload.max_tokens as number) <= compactModel.maxTokens);
     }
   });
 
   test("caps compaction max tokens to the selected model limit", () => {
-    assert.equal(resolveCompactionMaxTokens(qwenModel as any, 80000), 8192);
-    assert.equal(resolveCompactionMaxTokens(qwenModel as any, 4000), 4000);
+    assert.equal(resolveCompactionMaxTokens(localModel as any, 80000), 8192);
+    assert.equal(resolveCompactionMaxTokens(localModel as any, 4000), 4000);
   });
 });
 
@@ -311,8 +233,8 @@ function assistantMessage(
     role: "assistant",
     content: text ? [{ type: "text", text }] : [],
     api: "openai-completions",
-    provider: "local_qwen_moe",
-    model: "qwen-coding",
+    provider: "local_llm",
+    model: "local-coder",
     usage: {
       input: 0,
       output: 0,

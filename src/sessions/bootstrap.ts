@@ -139,7 +139,6 @@ export async function createBootstrap(
     settingsManager,
     runtimeConfig,
     systemPrompt: baseSystemPrompt,
-    modelsPath: source.modelsPath,
     skillPaths: skillEntryPaths,
   });
   await resourceLoader.reload();

@@ -3,10 +3,6 @@ import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
 import { buildTurnContext, renderTurnContext } from "../context/index.js";
-import {
-  resolveModelVariantInference,
-  type ModelVariantInference,
-} from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import type {
   AgentToolPolicy,
@@ -57,7 +53,6 @@ export interface DirectSessionPlanOverrides {
 
 interface GatewayStartupPlan {
   modelResolution: ModelResolution;
-  inference?: ModelVariantInference;
 }
 
 export class SessionPlanner {
@@ -87,10 +82,6 @@ export class SessionPlanner {
     });
     this.gatewayStartup = {
       modelResolution,
-      inference: resolveModelVariantInference({
-        modelsPath: opts.bootstrap.modelsPath,
-        model: modelResolution.model,
-      }),
     };
   }
 
@@ -114,10 +105,6 @@ export class SessionPlanner {
       restoreModelFromSession,
       allowMissingModel: overrides.allowMissingModel,
       thinking: overrides.thinking,
-      inference: resolveModelVariantInference({
-        modelsPath: this.bootstrap.modelsPath,
-        model: modelResolution.model,
-      }),
       defaultThinking: this.agent.thinking,
       prompt: {
         appendSystemPrompt: overrides.appendSystemPrompt,
@@ -144,7 +131,6 @@ export class SessionPlanner {
       descriptor,
       model: this.gatewayStartup.modelResolution.model,
       modelResolution: this.gatewayStartup.modelResolution,
-      inference: this.gatewayStartup.inference,
       defaultThinking: this.agent.thinking,
       tools: await this.buildTools({
         actorId: `agent:${this.agent.id}`,

@@ -2,7 +2,6 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import { join } from "node:path";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PromptResourceRef } from "../context/index.js";
-import type { ModelVariantInference } from "../inference/params.js";
 import type { ThinkingLevel } from "../inference/thinking.js";
 import type { SessionToolPolicy } from "../tools/policy.js";
 import type {
@@ -24,7 +23,6 @@ export interface SessionOpenPlan {
   model?: Model<Api>;
   modelResolution?: ModelResolution;
   modelRequest?: SessionModelRequest;
-  inference?: ModelVariantInference;
   restoreModelFromSession?: boolean;
   allowMissingModel?: boolean;
   thinking?: ThinkingLevel;

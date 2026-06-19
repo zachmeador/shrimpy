@@ -171,7 +171,7 @@ Tool defaults live under `tools`:
     },
     "local": {
       "candidates": [
-        { "provider": "local_qwen", "id": "qwen-coder" }
+        { "provider": "local_llm", "id": "local-coder" }
       ]
     }
   }
@@ -197,36 +197,33 @@ llama.cpp, Ollama, vLLM, LM Studio, private proxies, and similar servers are Pi 
 
 ```bash
 shrimpy models providers add-openai-compatible \
-  --provider local_qwen \
+  --provider local_llm \
   --endpoint http://localhost:8090/v1 \
-  --model Qwen3.6-27B-UD-Q6_K_XL \
-  --name "Qwen 3.6 27B UD Q6_K_XL (local)" \
+  --model local-coder \
+  --name "Local Coder" \
   --context-window 200000 \
   --max-tokens 8192 \
-  --base-model dense \
-  --qwen-chat-template \
-  --disable-thinking \
   --set-coding
 ```
 
-The command writes Pi's OpenAI-compatible provider shape, a local dummy `apiKey`, zero cost metadata, optional `baseModel`, and Shrimpy inference metadata for Qwen-style thinking controls.
+The command writes Pi's OpenAI-compatible provider shape, a local dummy `apiKey`, default provider `compat`, zero cost metadata, `input: ["text"]`, `reasoning: false`, and the requested `contextWindow`/`maxTokens`. `--set-coding` points Shrimpy's `coding` model policy at the new provider/model pair.
 
-For hand-edited local model variants:
+Provider request shape comes from Pi's selected provider/model config. The model id you configure is the id Pi sends to the provider. If a server exposes a different backend model name, configure that name as the model id or use a Pi-supported compatibility feature upstream before depending on it from Shrimpy.
 
-- put sampler values on the model entry in `state/pi/models.json`, not in workspace or agent config
-- use separate model ids for task-specific recipes
-- use `baseModel` when the provider serves a different backend model name than the user-facing model id
-- use `inference.params` for supported sampler params such as `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`, and `repeat_penalty`
-- use `inference.enableThinking` for Qwen chat-template thinking
+For hand-edited local model entries:
+
+- use Pi-native provider/model fields in `state/pi/models.json`
+- use `compat.thinkingFormat` only with Pi's own values, such as `qwen` or `qwen-chat-template`, when the provider/model needs that compatibility behavior
 - prefer Pi model-level `thinkingLevelMap` for model-specific reasoning controls
-- set `reasoning: false` for Qwen GGUF variants when Pi should not expose reasoning-effort levels
+- set `reasoning: false` for local models when Pi should not expose reasoning-effort levels
+- keep sampler presets and backend aliasing in the provider or in Pi-supported model config, not in Shrimpy workspace or agent config
 
-Example `state/pi/models.json` provider with two variants for one loaded GGUF:
+Example `state/pi/models.json` provider:
 
 ```json
 {
   "providers": {
-    "local_qwen_moe": {
+    "local_llm": {
       "baseUrl": "http://localhost:8081/v1",
       "apiKey": "local",
       "api": "openai-completions",
@@ -237,37 +234,17 @@ Example `state/pi/models.json` provider with two variants for one loaded GGUF:
       },
       "models": [
         {
-          "id": "qwen-a3b:thinking-coding",
-          "name": "Qwen 3.6 A3B Thinking Coding",
-          "baseModel": "Qwen3.6-35B-A3B-UD-Q6_K.gguf",
+          "id": "qwen3-coder",
+          "name": "Qwen3 Coder Local",
           "reasoning": false,
-          "inference": {
-            "enableThinking": true,
-            "params": {
-              "temperature": 0.6,
-              "top_p": 0.95,
-              "top_k": 20,
-              "min_p": 0.0,
-              "presence_penalty": 0.0,
-              "repeat_penalty": 1.0
-            }
-          }
-        },
-        {
-          "id": "qwen-a3b:instruct-general",
-          "name": "Qwen 3.6 A3B Instruct General",
-          "baseModel": "Qwen3.6-35B-A3B-UD-Q6_K.gguf",
-          "reasoning": false,
-          "inference": {
-            "enableThinking": false,
-            "params": {
-              "temperature": 0.7,
-              "top_p": 0.8,
-              "top_k": 20,
-              "min_p": 0.0,
-              "presence_penalty": 1.5,
-              "repeat_penalty": 1.0
-            }
+          "input": ["text"],
+          "contextWindow": 128000,
+          "maxTokens": 8192,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
           }
         }
       ]
@@ -275,8 +252,6 @@ Example `state/pi/models.json` provider with two variants for one loaded GGUF:
   }
 }
 ```
-
-Pi accepts Shrimpy's extra `baseModel` and `inference` fields in `models.json` but strips them from runtime model objects. Shrimpy re-reads the raw selected model entry just before the provider request and applies the metadata.
 
 `apiKey` and custom `headers` support Pi's config value syntax: `"$ENV_VAR"` / `"${ENV_VAR}"` interpolation, `"!command"` command execution, `"$$"` for a literal dollar prefix, and `"$!"` for a literal bang prefix. Command values resolve at request time; wrap slow secret fetches in a caching script.
 

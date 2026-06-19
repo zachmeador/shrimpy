@@ -21,16 +21,6 @@ import {
   COMPACTION_TURN_PREFIX_SUMMARY_PROMPT,
   COMPACTION_UPDATE_SUMMARY_PROMPT,
 } from "../context/system/compaction.js";
-import {
-  parseModelVariantInference,
-  type ModelVariantInference,
-} from "../inference/params.js";
-import { findLastCustomEntry } from "./storage.js";
-
-type CompactionPayloadTransform = (
-  payload: unknown,
-  model: Model<Api>,
-) => unknown | undefined | Promise<unknown | undefined>;
 
 type CompactionResponseHandler = (
   response: ProviderResponse,
@@ -46,7 +36,6 @@ type CompactionComplete = (
     apiKey: string;
     headers?: Record<string, string>;
     reasoning?: ThinkingLevel;
-    onPayload?: CompactionPayloadTransform;
     onResponse?: CompactionResponseHandler;
   },
 ) => Promise<AssistantMessage>;
@@ -70,7 +59,6 @@ interface ShrimpyCompactionOptions {
   customInstructions?: string;
   sessionSystemPrompt?: string;
   signal?: AbortSignal;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete?: CompactionComplete;
 }
@@ -85,7 +73,6 @@ interface SummaryRequestBase {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   sessionSystemPrompt?: string;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
 }
@@ -97,7 +84,7 @@ const PROMPT_OVERHEAD_TOKENS = 4_000;
 const CHUNK_SUMMARY_MAX_TOKENS = 4_096;
 const MAX_SUMMARY_MERGE_PASSES = 4;
 
-export async function compactWithProviderRequestHooks(
+export async function compactSessionHistory(
   preparation: ShrimpyCompactionPreparation,
   model: Model<Api>,
   options: ShrimpyCompactionOptions,
@@ -128,7 +115,6 @@ export async function compactWithProviderRequestHooks(
           customInstructions: options.customInstructions,
           sessionSystemPrompt: options.sessionSystemPrompt,
           previousSummary,
-          onPayload: options.onPayload,
           onResponse: options.onResponse,
           complete,
         })
@@ -141,7 +127,6 @@ export async function compactWithProviderRequestHooks(
         headers: options.headers,
         signal: options.signal,
         sessionSystemPrompt: options.sessionSystemPrompt,
-        onPayload: options.onPayload,
         onResponse: options.onResponse,
         complete,
       }),
@@ -158,7 +143,6 @@ export async function compactWithProviderRequestHooks(
       customInstructions: options.customInstructions,
       sessionSystemPrompt: options.sessionSystemPrompt,
       previousSummary,
-      onPayload: options.onPayload,
       onResponse: options.onResponse,
       complete,
     });
@@ -179,16 +163,6 @@ export async function compactWithProviderRequestHooks(
   };
 }
 
-export function readShrimpySessionInference(
-  branchEntries: unknown[],
-): ModelVariantInference | undefined {
-  const entry = findLastCustomEntry<{ inference?: unknown }>(
-    branchEntries,
-    "shrimpy_session_metadata",
-  );
-  return parseModelVariantInference(entry?.data?.inference);
-}
-
 async function generateSummaryWithHooks(input: {
   messages: AgentMessage[];
   model: Model<Api>;
@@ -199,7 +173,6 @@ async function generateSummaryWithHooks(input: {
   customInstructions?: string;
   sessionSystemPrompt?: string;
   previousSummary?: string;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
 }): Promise<string> {
@@ -239,7 +212,6 @@ async function generateChunkedSummaryWithHooks(input: {
   customInstructions?: string;
   sessionSystemPrompt?: string;
   previousSummary?: string;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
 }): Promise<string> {
@@ -288,7 +260,6 @@ async function mergeChunkSummariesWithHooks(input: {
   customInstructions?: string;
   sessionSystemPrompt?: string;
   previousSummary?: string;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
   pass: number;
@@ -569,7 +540,6 @@ function generateTurnPrefixSummaryWithHooks(input: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   sessionSystemPrompt?: string;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
 }): Promise<string> {
@@ -592,7 +562,6 @@ function summaryRequestBase(input: SummaryRequestBase): SummaryRequestBase {
     headers: input.headers,
     signal: input.signal,
     sessionSystemPrompt: input.sessionSystemPrompt,
-    onPayload: input.onPayload,
     onResponse: input.onResponse,
     complete: input.complete,
   };
@@ -606,7 +575,6 @@ async function completeSummaryRequest(input: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   sessionSystemPrompt?: string;
-  onPayload?: CompactionPayloadTransform;
   onResponse?: CompactionResponseHandler;
   complete: CompactionComplete;
   errorPrefix: string;
@@ -629,7 +597,6 @@ async function completeSummaryRequest(input: {
       apiKey: input.apiKey,
       headers: input.headers,
       reasoning: input.model.reasoning ? "high" : undefined,
-      onPayload: input.onPayload,
       onResponse: input.onResponse,
     },
   );

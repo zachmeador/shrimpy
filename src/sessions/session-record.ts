@@ -9,10 +9,6 @@ import {
   toModelRef,
   type ModelRef,
 } from "../config/model.js";
-import {
-  resolveModelVariantInference,
-  type ModelVariantInference,
-} from "../inference/params.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import type { EffectiveCompactionPolicy } from "./compaction-policy.js";
 import type { ModelResolution } from "./models.js";
@@ -26,7 +22,6 @@ interface SessionMetadata {
   envKeys: string[];
   env: Record<string, string>;
   compaction: EffectiveCompactionPolicy;
-  inference?: ModelVariantInference;
   toolPolicy?: {
     excludedToolNames?: string[];
   };
@@ -57,7 +52,6 @@ interface ModelSwitchMessageDetails {
   previous?: ModelRef;
   current?: ModelRef;
   thinkingLevel?: string;
-  inference?: ModelVariantInference;
 }
 
 const MODEL_SWITCH_CUSTOM_TYPE = "shrimpy_model_switch";
@@ -155,7 +149,6 @@ function appendSessionMetadata(input: {
   modelResolution?: ModelResolution;
 }): void {
   const { sessionManager, bootstrap, plan, model } = input;
-  const inference = resolveSessionInference({ bootstrap, plan, model });
   const env = {
     ...input.env,
     ...(model
@@ -173,27 +166,10 @@ function appendSessionMetadata(input: {
     envKeys: input.envKeys,
     env,
     compaction: input.compaction,
-    inference,
     toolPolicy: plan.toolPolicy,
     modelResolution: serializeModelResolution(input.modelResolution ?? plan.modelResolution),
   };
   sessionManager.appendCustomEntry("shrimpy_session_metadata", metadata);
-}
-
-function resolveSessionInference(input: {
-  bootstrap: SessionBootstrap;
-  plan: SessionOpenPlan;
-  model?: Model<Api>;
-}): ModelVariantInference | undefined {
-  return sameModelRef(input.plan.model, input.model)
-    ? input.plan.inference ?? resolveModelVariantInference({
-      modelsPath: input.bootstrap.modelsPath,
-      model: input.model,
-    })
-    : resolveModelVariantInference({
-      modelsPath: input.bootstrap.modelsPath,
-      model: input.model,
-    });
 }
 
 async function appendModelSwitchMessage(input: {
@@ -206,11 +182,6 @@ async function appendModelSwitchMessage(input: {
 }): Promise<void> {
   if (sameModelRef(input.previousModel, input.currentModel)) return;
 
-  const inference = resolveSessionInference({
-    bootstrap: input.bootstrap,
-    plan: input.plan,
-    model: input.currentModel,
-  });
   const thinkingLevel = typeof input.session.thinkingLevel === "string"
     ? input.session.thinkingLevel
     : undefined;
@@ -219,7 +190,6 @@ async function appendModelSwitchMessage(input: {
     previous: toModelRef(input.previousModel),
     current: toModelRef(input.currentModel),
     thinkingLevel,
-    inference,
   };
 
   await input.session.sendCustomMessage({

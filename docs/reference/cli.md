@@ -30,7 +30,7 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | `shrimpy sessions stop <channel> [--agent <id>]` | Stop the running gateway turn for a channel session. |
 | `shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]` | Search active and archived session transcripts with bounded snippets. |
 | `shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]` | Read a bounded transcript window around one session entry. |
-| `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model/inference metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
+| `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
 | `shrimpy models [--json]` | Inspect model policies, agent defaults, and Pi-visible provider models. |
 | `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]` | Explain model precedence for a CLI override, explicit policy, local session, channel session, or agent default. |
 | `shrimpy models policies [list] [--json]` | List configured model policies and candidate resolution. |
@@ -39,7 +39,7 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | `shrimpy models policies add-candidate <name> <provider>/<model> [--index <n>] [--json]` | Add or reposition one policy candidate. |
 | `shrimpy models policies remove-candidate <name> <provider>/<model> [--json]` | Remove one policy candidate. |
 | `shrimpy models policies move-candidate <name> <provider>/<model> --index <n> [--json]` | Move one policy candidate. |
-| `shrimpy models providers add-openai-compatible --provider <id> --model <id> [--endpoint <url>] [--set-coding] [--json]` | Add an OpenAI-compatible provider model to Pi's model registry. |
+| `shrimpy models providers add-openai-compatible --provider <id> --model <id> [--endpoint <url>] [--context-window <n>] [--max-tokens <n>] [--thinking-format <format>] [--set-coding] [--json]` | Add an OpenAI-compatible provider model to Pi's model registry. |
 
 Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, `--thinking`, `--skill`, `--json` where supported.
 

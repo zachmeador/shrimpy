@@ -348,13 +348,6 @@ describe("cmdSessions", () => {
           {
             id: "chosen-model",
             contextWindow: 200000,
-            baseModel: "dense",
-            inference: {
-              enableThinking: false,
-              params: {
-                temperature: 0.7,
-              },
-            },
           },
         ]),
       },
@@ -369,13 +362,7 @@ describe("cmdSessions", () => {
     assert.equal(summary.model.provider, "configured_provider");
     assert.equal(summary.model.id, "chosen-model");
     assert.equal(summary.model.contextWindow, 200000);
-    assert.deepEqual(summary.model.inference, {
-      baseModel: "dense",
-      enableThinking: false,
-      params: {
-        temperature: 0.7,
-      },
-    });
+    assert.equal(summary.model.inference, undefined);
     assert.equal(summary.effective.reserveTokens, 32768);
   });
 
@@ -404,13 +391,6 @@ describe("cmdSessions", () => {
           {
             id: "chosen-model",
             contextWindow: 200000,
-            baseModel: "dense",
-            inference: {
-              enableThinking: false,
-              params: {
-                temperature: 0.7,
-              },
-            },
           },
         ]),
       },
@@ -432,13 +412,6 @@ describe("cmdSessions", () => {
             provider: "configured_provider",
             model_id: "old-model",
             booted_at_iso: "2026-05-20T04:02:19.469Z",
-          },
-          inference: {
-            baseModel: "old-dense",
-            enableThinking: false,
-            params: {
-              temperature: 0.2,
-            },
           },
         },
         id: "metadata",
@@ -463,7 +436,7 @@ describe("cmdSessions", () => {
     assert.equal(summary.recordedSession.provider, "configured_provider");
     assert.equal(summary.recordedSession.id, "old-model");
     assert.equal(summary.restartRequired, true);
-    assert.match(summary.note, /different session model or inference metadata/);
+    assert.match(summary.note, /different session model metadata/);
   });
 });
 

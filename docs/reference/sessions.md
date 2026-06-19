@@ -18,7 +18,7 @@ Direct and gateway labels are sanitized for filesystem paths by replacing charac
 When a session opens, Shrimpy builds a Pi session plan:
 
 - descriptor: agent id, kind, channel/label, cwd, and session directory
-- model and model-variant inference metadata
+- model metadata
 - default and requested thinking level
 - Shrimpy daemon tools plus disabled-tool policy
 - stable system prompt resources and approved skills
@@ -81,12 +81,12 @@ When a session opens, Shrimpy appends inspection metadata to the active JSONL:
 
 - `shrimpy_system_prompt` — resolved Shrimpy system prompt
 - `shrimpy_tools` — tools registered for the session
-- `shrimpy_session_metadata` — agent, channel, env, model, model-policy resolution, inference, compaction, and tool policy
+- `shrimpy_session_metadata` — agent, channel, env, model, model-policy resolution, compaction, and tool policy
 - `shrimpy_compaction_policy` — effective compaction policy at open time
 - `shrimpy_lifecycle` — active or archived state
 - `shrimpy_model_switch` — visible model-change note when the model changes
 
-Pi ignores inspection-only custom entries when building normal model context. Shrimpy uses them for session inspection, compaction parity, and restart diagnostics.
+Pi ignores inspection-only custom entries when building normal model context. Shrimpy uses them for session inspection and restart diagnostics.
 
 ## Inspection
 
