@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ChannelActivityHandle } from "../channels/egress.js";
 import type { ChannelMessage } from "../channels/index.js";
-import type { ThinkingLevel } from "../inference/thinking.js";
+import type { ThinkingLevel } from "./thinking.js";
 import {
   formatChannelMessage,
   renderTurnContext,

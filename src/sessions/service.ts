@@ -13,7 +13,7 @@ import {
   loadGatewayRuntimeState,
   type GatewayLaneState,
 } from "../gateway/runtime-state.js";
-import type { ThinkingLevel } from "../inference/thinking.js";
+import type { ThinkingLevel } from "./thinking.js";
 import { isLocalDirectChannel } from "./direct-channels.js";
 import { openDirectAgentSession } from "./direct.js";
 import { createGatewaySessionDescriptor } from "./spec.js";

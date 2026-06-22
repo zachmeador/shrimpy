@@ -5,7 +5,7 @@ import {
   formatThinkingInputs,
   isThinkingLevel,
   parseThinkingLevel,
-} from "../dist/inference/thinking.js";
+} from "../dist/sessions/thinking.js";
 
 const qwenChatTemplateModel = {
   id: "qwen3.6",

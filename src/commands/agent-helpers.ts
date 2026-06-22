@@ -2,7 +2,7 @@ import {
   formatThinkingInputs,
   parseThinkingLevel,
   type ThinkingLevel,
-} from "../inference/thinking.js";
+} from "../sessions/thinking.js";
 import type { AgentChannelPolicyMode } from "../config/agents.js";
 
 export const DEFAULT_AGENT_TOOLS = [

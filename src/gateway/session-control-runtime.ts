@@ -3,7 +3,7 @@ import type { ChannelBus } from "../channels/bus.js";
 import {
   isThinkingLevel,
   type ThinkingLevel,
-} from "../inference/thinking.js";
+} from "../sessions/thinking.js";
 import {
   readSessionControlContent,
   type ChannelMessage,

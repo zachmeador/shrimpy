@@ -10,7 +10,7 @@ import {
 import {
   formatThinkingInputs,
   parseThinkingLevel,
-} from "../../inference/thinking.js";
+} from "../../sessions/thinking.js";
 import type { ChannelMembershipStore } from "../../channels/index.js";
 import {
   ensureSurfaceChannelMember,

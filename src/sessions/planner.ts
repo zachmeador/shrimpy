@@ -3,7 +3,7 @@ import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
 import { buildTurnContext, renderTurnContext } from "../context/index.js";
-import type { ThinkingLevel } from "../inference/thinking.js";
+import type { ThinkingLevel } from "./thinking.js";
 import type {
   AgentToolPolicy,
   SessionToolPolicy,

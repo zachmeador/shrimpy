@@ -1,7 +1,7 @@
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
 import type { PromptResourceRef } from "../context/index.js";
-import type { ThinkingLevel } from "../inference/thinking.js";
+import type { ThinkingLevel } from "./thinking.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import { openSession } from "./factory.js";
 import { SessionPlanner, type DirectSessionPlanOverrides } from "./planner.js";

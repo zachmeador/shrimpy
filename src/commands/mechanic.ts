@@ -3,7 +3,7 @@ import type { ShrimpyConfig } from "../config/index.js";
 import { MECHANIC_AGENT_ID } from "../setup/init.js";
 import type { SetupOnboardingResult } from "../setup/onboarding.js";
 import type { SetupState } from "../setup/state.js";
-import type { ThinkingLevel } from "../inference/thinking.js";
+import type { ThinkingLevel } from "../sessions/thinking.js";
 import {
   MODEL_SESSION_OPTIONS,
   readModelSessionValues,

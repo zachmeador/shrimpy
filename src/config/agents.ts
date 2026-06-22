@@ -7,7 +7,7 @@ import {
 import {
   thinkingLevelSchema,
   type ThinkingLevel,
-} from "../inference/thinking.js";
+} from "../sessions/thinking.js";
 import { channelMatches } from "../util/channel-pattern.js";
 
 export type AgentChannelPolicyMode = "all" | "mentions" | "addressed" | "none";
