@@ -14,6 +14,7 @@ This directory holds source notes and comparison research that may inform future
 - [macos-seatbelt-helper.md](macos-seatbelt-helper.md) — high-level Seatbelt/App Sandbox notes and a small Mac helper shape for hosting Shrimpy with native per-agent sandboxing.
 - [facade-interactive-drama.md](facade-interactive-drama.md) — deep dive on Mateas and Stern's Façade, interactive drama mechanics, and lessons for Shrimpy story-agent architecture.
 - [pi-agent.md](pi-agent.md) — notes from Pi's coding-agent architecture.
+- [pi-ai-sdk-layer-2026-06-22.md](pi-ai-sdk-layer-2026-06-22.md) — notes on Pi's upcoming `pi-ai` SDK-layer breaking change, the new `Models`/provider-factory surface, `/compat`, and likely Shrimpy migration impact.
 - [pi-skill-handling.md](pi-skill-handling.md) — focused notes on Pi skill discovery, loading, slash commands, and the Shrimpy integration gap.
 - [pufferlib-personal-rl.md](pufferlib-personal-rl.md) — research on how PufferLib/PufferPPO could inform a Shrimpy personal RL framework, especially environment design, trajectory capture, small policy training, and trainer export boundaries.
 - [rl-eval-framework.md](rl-eval-framework.md) — watchlist and eventual architecture notes for a Shrimpy personal RL/eval framework.
