@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, resolve, sep } from "node:path";
 
 export const SKILLS_DIR = "skills";
 export const SKILL_ENTRYPOINT = "SKILL.md";
@@ -106,4 +106,12 @@ export function deriveSkillIdFromUrl(source: string): string {
 export function deriveSkillIdFromGitHubPath(path: string): string {
   if (!path) return "skill";
   return normalizeSkillId(path.split("/").at(-1) ?? path);
+}
+
+export function isUnderPath(target: string, root: string): boolean {
+  const resolvedTarget = resolve(target);
+  const resolvedRoot = resolve(root);
+  if (resolvedTarget === resolvedRoot) return true;
+  const prefix = resolvedRoot.endsWith(sep) ? resolvedRoot : `${resolvedRoot}${sep}`;
+  return resolvedTarget.startsWith(prefix);
 }

@@ -1,5 +1,5 @@
 import { existsSync, mkdtempSync, mkdirSync, renameSync, rmSync } from "node:fs";
-import { dirname, join, resolve, sep } from "node:path";
+import { dirname, join } from "node:path";
 import { loadSkills } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
 import {
@@ -25,7 +25,7 @@ import {
   type PreparedPackageSource,
   type PreparedIncludedPackageSource,
 } from "./package-sources.js";
-import { normalizeSkillId, SKILL_ENTRYPOINT, SKILLS_DIR } from "./shared.js";
+import { isUnderPath, normalizeSkillId, SKILL_ENTRYPOINT, SKILLS_DIR } from "./shared.js";
 
 export type {
   GitHubSkillPackageInfo,
@@ -583,14 +583,6 @@ function assertSafeInstalledSkillPath(
     return;
   }
   throw new Error(`skill package install is missing assignment: ${packageInfo.id}`);
-}
-
-function isUnderPath(target: string, root: string): boolean {
-  const resolvedTarget = resolve(target);
-  const resolvedRoot = resolve(root);
-  if (resolvedTarget === resolvedRoot) return true;
-  const prefix = resolvedRoot.endsWith(sep) ? resolvedRoot : `${resolvedRoot}${sep}`;
-  return resolvedTarget.startsWith(prefix);
 }
 
 function validateCopiedSkillPackage(opts: {

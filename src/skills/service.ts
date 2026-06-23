@@ -6,7 +6,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { join, relative, resolve } from "node:path";
 import {
   loadSkills,
   type ResourceDiagnostic,
@@ -20,6 +20,7 @@ import {
 } from "./package-state.js";
 import { hashSkillPackage } from "./package-sources.js";
 import {
+  isUnderPath,
   normalizeSkillId,
   quoteYamlString,
   readYamlFrontmatter,
@@ -143,17 +144,29 @@ interface ScannedSkillEntry {
   packageInfo?: SkillPackageInfo;
 }
 
-export function listSkillViews(
+function skillRuntimeContext(
   runtime: AppRuntime,
   agentId?: string,
-): SkillView[] {
+): {
+  agentId: string;
+  agentRootPath: string;
+  workspacePath: string;
+  activeToolNames: string[];
+} {
   const agent = runtime.getAgent(agentId);
-  return listSkillViewsFromPaths({
+  return {
     agentId: agent.id,
     agentRootPath: runtime.getAgentPaths(agent.id).root,
     workspacePath: runtime.paths.workspace,
     activeToolNames: runtime.resolveAgentToolPolicy(agent.id).activeToolNames,
-  });
+  };
+}
+
+export function listSkillViews(
+  runtime: AppRuntime,
+  agentId?: string,
+): SkillView[] {
+  return inspectSkillsFromPaths(skillRuntimeContext(runtime, agentId)).skills;
 }
 
 export function getSkillView(
@@ -161,36 +174,17 @@ export function getSkillView(
   skillId: string,
   agentId?: string,
 ): SkillView {
-  const agent = runtime.getAgent(agentId);
   return getSkillViewFromPaths({
-    agentId: agent.id,
-    agentRootPath: runtime.getAgentPaths(agent.id).root,
-    workspacePath: runtime.paths.workspace,
-    activeToolNames: runtime.resolveAgentToolPolicy(agent.id).activeToolNames,
+    ...skillRuntimeContext(runtime, agentId),
     skillId,
   });
-}
-
-export function listSkillViewsFromPaths(opts: {
-  agentId: string;
-  agentRootPath: string;
-  workspacePath: string;
-  activeToolNames?: string[];
-}): SkillView[] {
-  return inspectSkillsFromPaths(opts).skills;
 }
 
 export function inspectSkills(
   runtime: AppRuntime,
   agentId?: string,
 ): SkillInventory {
-  const agent = runtime.getAgent(agentId);
-  return inspectSkillsFromPaths({
-    agentId: agent.id,
-    agentRootPath: runtime.getAgentPaths(agent.id).root,
-    workspacePath: runtime.paths.workspace,
-    activeToolNames: runtime.resolveAgentToolPolicy(agent.id).activeToolNames,
-  });
+  return inspectSkillsFromPaths(skillRuntimeContext(runtime, agentId));
 }
 
 export function inspectSkillsFromPaths(opts: {
@@ -297,12 +291,8 @@ export function validateSkills(
     skillId?: string;
   },
 ): SkillValidationResult {
-  const agent = runtime.getAgent(opts?.agentId);
   return validateSkillsFromPaths({
-    agentId: agent.id,
-    agentRootPath: runtime.getAgentPaths(agent.id).root,
-    workspacePath: runtime.paths.workspace,
-    activeToolNames: runtime.resolveAgentToolPolicy(agent.id).activeToolNames,
+    ...skillRuntimeContext(runtime, opts?.agentId),
     skillId: opts?.skillId,
   });
 }
@@ -748,14 +738,6 @@ function skillValidationPackageStatuses(
         modified: packageInfo.modified,
       };
     });
-}
-
-function isUnderPath(target: string, root: string): boolean {
-  const resolvedTarget = resolve(target);
-  const resolvedRoot = resolve(root);
-  if (resolvedTarget === resolvedRoot) return true;
-  const prefix = resolvedRoot.endsWith(sep) ? resolvedRoot : `${resolvedRoot}${sep}`;
-  return resolvedTarget.startsWith(prefix);
 }
 
 function resolveSkillTarget(
