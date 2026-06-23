@@ -52,7 +52,7 @@ Keep `SKILL.md` short: trigger, decisions, safety boundaries, intended agent beh
 
 Do not bury reusable app knowledge in one agent's private skill. If several agents would benefit, move the reusable behavior into a workspace skill or included Shrimpy skill and point durable details to docs.
 
-The directory id and frontmatter `name` must match. Use `description` for model-visible trigger wording. Use `disable-model-invocation: true` when a skill should be available only by explicit preload, watch, or user invocation. Treat `allowed-tools` as a compatibility declaration, not a permission grant.
+The directory id and frontmatter `name` must match. Use `description` for model-visible trigger wording. Treat `allowed-tools` as a compatibility declaration, not a permission grant.
 
 ## Validate
 

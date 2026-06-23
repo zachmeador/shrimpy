@@ -1,7 +1,6 @@
 ---
 name: shrimpy-dev-git-commit-all
 description: Use when a Shrimpy checkout has many mixed local changes and the user wants Codex to spend light effort grouping, staging, and committing everything that reasonably belongs together. Prefer this for "commit all", "sort these changes into commits", "checkpoint this worktree", or similar requests where large related commits are acceptable.
-disable-model-invocation: true
 ---
 
 # Shrimpy Dev Git Commit All

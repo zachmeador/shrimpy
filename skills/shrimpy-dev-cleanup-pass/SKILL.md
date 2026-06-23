@@ -1,7 +1,6 @@
 ---
 name: shrimpy-dev-cleanup-pass
 description: Use only when the user explicitly invokes this exact skill for a Shrimpy cleanup pass. If the invocation has no narrower prompt, run one monolithic discovery workflow over large Shrimpy shapes, choose one high-leverage shape, deep-dive weird structure, repeated behavior, duplicated abstractions, stale paths, and behavior-preserving simplification opportunities, then present the case and plan for one large cleanup pass. Do not use automatically for normal feature work, code review, lint cleanup, or unsolicited refactoring.
-disable-model-invocation: true
 ---
 
 # Shrimpy Dev Cleanup Pass
