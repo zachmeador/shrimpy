@@ -27,7 +27,7 @@ Treat a backlog item as parallel-friendly when it has a narrow owner, clear touc
 Warn that work should probably be single-threaded or carefully coordinated when any of these are true:
 
 - several backlog notes touch the same files, commands, templates, docs indexes, or tests;
-- the work changes central surfaces such as `src/cli.ts`, `src/commands/registry.ts`, `src/app/runtime.ts`, `src/sessions/`, `src/context/`, `src/setup/templates/`, `src/skills/`, `package.json`, lockfiles, root docs, generated skill mirrors, or release/build tooling;
+- the work changes central surfaces such as `src/cli.ts`, `src/commands/catalog.ts`, `src/app/runtime.ts`, `src/sessions/`, `src/context/`, `src/setup/templates/`, `src/skills/`, `package.json`, lockfiles, root docs, generated skill mirrors, or release/build tooling;
 - the backlog lacks a concrete `Touches` section and implies architecture, lifecycle, data model, setup, or command-surface changes;
 - the implementation is likely to cross more than three top-level areas or more than about ten source/doc files;
 - the item depends on unresolved product direction or a preceding backlog item that another agent is actively changing.

@@ -4,8 +4,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  CLI_COMMAND_CATALOG,
+  COMMAND_REGISTRY,
+  configForRegisteredCommand,
   renderCommandUsage,
   renderGroupUsage,
+  resolveConfigRequirement,
 } from "../dist/commands/catalog.js";
 import { renderShellCompletion } from "../dist/commands/completion-script.js";
 import {
@@ -14,11 +18,6 @@ import {
   resolveCompletionCachePath,
 } from "../dist/commands/completion-runtime.js";
 import { renderCliHelp } from "../dist/commands/help.js";
-import {
-  COMMAND_REGISTRY,
-  configForRegisteredCommand,
-  resolveConfigRequirement,
-} from "../dist/commands/registry.js";
 
 describe("CLI catalog", () => {
   test("generates group usage from shared metadata", () => {
@@ -126,11 +125,19 @@ describe("CLI catalog", () => {
     }
   });
 
-  test("command registry keeps command handlers lazy", async () => {
-    const registry = readFileSync("dist/commands/registry.js", "utf-8");
+  test("catalog top-level paths match dispatch registry keys", () => {
+    const catalogCommands = [
+      ...new Set(CLI_COMMAND_CATALOG.flatMap((command) => command.path[0] ? [command.path[0]] : [])),
+    ].sort();
 
-    assert.doesNotMatch(registry, /from "\.\/channels\.js"/);
-    assert.match(registry, /import\("\.\/channels\.js"\)/);
+    assert.deepEqual(catalogCommands, Object.keys(COMMAND_REGISTRY).sort());
+  });
+
+  test("command catalog keeps command handlers lazy", async () => {
+    const catalog = readFileSync("dist/commands/catalog.js", "utf-8");
+
+    assert.doesNotMatch(catalog, /from "\.\/channels\.js"/);
+    assert.match(catalog, /import\("\.\/channels\.js"\)/);
     assert.equal("handler" in COMMAND_REGISTRY.channels, false);
     assert.equal(typeof COMMAND_REGISTRY.channels.load, "function");
     assert.equal((await COMMAND_REGISTRY.channels.load()).name, "cmdChannels");

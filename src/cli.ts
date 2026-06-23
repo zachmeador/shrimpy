@@ -13,7 +13,7 @@ import {
 import {
   COMMAND_REGISTRY,
   configForRegisteredCommand,
-} from "./commands/registry.js";
+} from "./commands/catalog.js";
 import {
   brand,
 } from "./util/style.js";

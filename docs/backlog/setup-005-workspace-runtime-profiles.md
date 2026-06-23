@@ -55,7 +55,7 @@ The target shape is boring: inside a Shrimpy runtime, bare `shrimpy` should mean
 - `src/gateway.ts`
 - `src/gateway/path-env.ts`
 - `src/gateway/service-ctl.ts`
-- `src/commands/registry.ts`
+- `src/commands/catalog.ts`
 - `src/commands/status.ts`
 - `src/setup/init.ts`
 - `src/setup/templates/workspace/context/WORKSPACE.md`
