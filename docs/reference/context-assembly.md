@@ -58,7 +58,7 @@ Use `workspace:context/` for shared workspace context and `agent:context/` for t
 
 String sources ending in `/` are directory sources. They load every Markdown file under that directory recursively in deterministic path order. The default `workspace:context/` source loads `context/SYSTEM.md`, `context/USER.md`, `context/WORKSPACE.md`, and any other Markdown below workspace `context/`; the default `agent:context/` source loads any Markdown below the active agent's `context/` tree.
 
-Command sources are turn-scoped. Their output is clipped by `maxChars`, can be channel-filtered with `channels`, and is inspectable with `shrimpy context sources run <id>`. Pass `--session-type <type>` to preview the same `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose.
+Command sources are turn-scoped. Their output is clipped by `maxChars`, can be channel-filtered with `channels`, and is inspectable with `shrimpy context sources run <id>`. Pass `--session-type <type>` to use the same `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose.
 
 Channel- or agent-specific overrides live under `context.channels`, `context.agents.<id>`, and `context.agents.<id>.channels`.
 
@@ -118,7 +118,7 @@ shrimpy context --agent shrimpy                 # rendered system prompt
 shrimpy context --agent shrimpy --json          # includes contained systemPrompt and base shrimpySystemPrompt
 shrimpy context --agent shrimpy --sections      # section manifest with provenance
 shrimpy context --agent shrimpy --sections --json
-shrimpy context --turn --channel home           # full preview with separate turn context and user message
+shrimpy context --turn --channel home           # prompt sections plus turn-context-prefixed user message
 shrimpy context turn --agent shrimpy --channel home
 shrimpy context sources list --agent shrimpy --channel home --json
 shrimpy context sources run runtime:turn-context --agent shrimpy --channel home

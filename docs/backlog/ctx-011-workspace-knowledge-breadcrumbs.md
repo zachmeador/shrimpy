@@ -22,7 +22,7 @@ In a large workspace the agent does not know what knowledge exists unless someth
 - Config under `context.turn.knowledge`: `enabled` (default false), `maxItems` (default 3), `minScore`. Opt-in until it proves itself.
 - Threshold-gated with silence as the default outcome: below threshold nothing is emitted, results are deduped by path, and nothing pads toward `maxItems`.
 - Turn assembly never downloads models, never blocks on a rebuild, and serves a stale index rather than waiting; if the search service or index is not ready, the producer emits nothing.
-- `shrimpy context turn` previews the items like every other producer.
+- `shrimpy context turn` renders the items like every other producer.
 
 ## Boundaries
 
@@ -34,6 +34,6 @@ In a large workspace the agent does not know what knowledge exists unless someth
 
 ## Done
 
-- With the feature enabled and an index present, a related incoming message yields bounded knowledge items with exact paths in both live turns and the `shrimpy context turn` preview.
+- With the feature enabled and an index present, a related incoming message yields bounded knowledge items with exact paths in both live turns and `shrimpy context turn` output.
 - Unrelated messages, a disabled flag, or a missing index/service yield zero items and zero turn-time downloads or rebuilds.
 - Tests cover threshold and cap behavior, dedupe, silence on low scores, disabled-by-default config, and the not-ready path.

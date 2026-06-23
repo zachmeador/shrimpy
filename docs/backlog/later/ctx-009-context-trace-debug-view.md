@@ -52,7 +52,7 @@ This is lowest-priority observability work. Build it only when context provenanc
 
 ## Done
 
-- Context source resolution, block materialization, prompt rendering, turn context rendering, provider-facing turn injection preview, and CLI inspection share one trace model.
+- Context source resolution, item materialization, prompt rendering, turn context rendering, provider-facing turn injection output, and CLI inspection share one trace model.
 - JSON output exposes the trace with source plan, produced blocks, render targets, provenance, freshness/cache status, inspect commands, and skipped or failed source statuses.
 - Continuation-related trace entries point back to channel messages and their source records.
 - Existing text output remains compact and agent-friendly.

@@ -57,7 +57,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /Shrimpy Setup/);
   });
 
-  test("context command renders turn context with the user message preview", async () => {
+  test("context command renders turn context with the user message", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -146,7 +146,7 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /=== System Prompt ===/);
   });
 
-  test("context turn preview includes channel unread context", async () => {
+  test("context turn output includes channel unread context", async () => {
     await setupInit(workspace);
     const runtime = createAppRuntime({ workspace });
     const channelBus = runtime.createChannelBus();
@@ -333,7 +333,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /session: watch channel: home/);
   });
 
-  test("context command renders section manifest for turn previews", async () => {
+  test("context command renders section manifest for turn context output", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>

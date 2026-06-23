@@ -76,7 +76,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy worker close <id> [--json]` | Close a worker after checking the result. If the worker is still running, Shrimpy runs the same terminate-then-force-kill cleanup first. |
 | `shrimpy context` | Inspect the model-facing context for an agent/session/turn. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
-| `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |
+| `shrimpy context --turn -c <name>` | Inspect prompt sections plus the turn-context-prefixed user message for a channel turn. |
 | `shrimpy context turn --channel <name> [--session-type <type>]` | Render only turn context for a channel/session. |
 | `shrimpy context files list [--agent <id>] [--older-than <dur>] [--json]` | List agent context Markdown files. Useful for upkeep skills. |
 | `shrimpy context files show [--agent <id>] <path>` | Print one agent context file. |

@@ -12,8 +12,8 @@ This is lowest-priority observability work. Build it only when runtime context p
 
 ## Current State
 
-- `shrimpy context sources list` exposes `runtime:turn-context` as a runtime source, and `shrimpy context sources run runtime:turn-context` renders the whole current turn context preview.
-- `shrimpy context turn` also renders the combined turn-context preview.
+- `shrimpy context sources list` exposes `runtime:turn-context` as a runtime source, and `shrimpy context sources run runtime:turn-context` renders the whole current turn context.
+- `shrimpy context turn` also renders the combined turn context.
 - Individual runtime producers such as channel unread, session status, source message facts, and watch provenance are not separately addressable from CLI.
 
 ## Build
@@ -28,7 +28,7 @@ This is lowest-priority observability work. Build it only when runtime context p
 ## Boundaries
 
 - Do not create a second prompt assembly path.
-- Do not introduce separate prompt preview/rendering paths. Debug output should match the direct session hook path and the gateway explicit turn-value path.
+- Do not introduce separate prompt inspection/rendering paths. Debug output should match the direct session hook path and the gateway explicit turn-value path.
 - Keep output compact, deterministic, and inspectable.
 - Do not add migration or compatibility code unless a concrete workspace-facing break requires it.
 
