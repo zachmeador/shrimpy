@@ -4,7 +4,6 @@ import {
   loadChannelWatchClockSummary,
 } from "../../channels/activity.js";
 import { loadRuntimeWatchIds } from "../../watches/index.js";
-import { buildMemoryContext } from "./memory.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import { formatAgeShort } from "../../util/time-format.js";
 import {
@@ -55,15 +54,6 @@ export async function buildTurnContext(
     ...await buildCommandItems(input),
   ];
 
-  const memory = buildMemoryContext({
-    runtime: input.runtime,
-    agentId,
-    channel,
-    peerIds: input.currentMessage
-      ? [input.currentMessage.sender.actorId]
-      : [],
-  });
-
   return {
     agentId,
     channel,
@@ -71,7 +61,6 @@ export async function buildTurnContext(
     capturedAt,
     maxChars: input.runtime.resolved.context.turn.maxChars,
     items,
-    memory,
   };
 }
 

@@ -40,7 +40,7 @@ export interface Tree {
 
 const ROOT_ORDER = new Map(
   [
-    "profile",
+    "context",
     "config",
     "agents",
     "channels",

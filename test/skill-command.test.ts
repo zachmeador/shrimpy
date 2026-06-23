@@ -57,7 +57,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /Shrimpy Setup/);
   });
 
-  test("context command renders separate turn context and user message previews", async () => {
+  test("context command renders turn context with the user message preview", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -68,9 +68,10 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     assert.match(output, /## Delivery/);
     assert.match(output, /send_message\(channel="home", text="\.\.\."\)/);
-    assert.match(output, /=== Turn Context ===\n\n\[turn-context\]/);
-    assert.match(output, /=== User Message ===/);
-    assert.match(output, /\[channel: home, sender: human:\(user\)\]\nhello/);
+    assert.match(output, /\[turn-context\]/);
+    assert.match(output, /The turn context above is background for the user message below/);
+    assert.match(output, /\[turn-context\][\s\S]*\[channel: home, sender: human:\(user\)\]\nhello/);
+    assert.doesNotMatch(output, /=== Turn Context|=== User Message|=== System Prompt/);
     assert.doesNotMatch(output, /\[incoming\]/);
   });
 
@@ -99,7 +100,7 @@ describe("skill context inspection", () => {
     ));
     assert.equal(parsed.contextLayers, undefined);
     assert.equal(parsed.turnContext.sessionType, "gateway");
-    assert.match(parsed.systemPrompt, /\[context pi:available_skills capability\]/);
+    assert.match(parsed.systemPrompt, /<context path="pi\/available_skills">/);
     assert.match(parsed.systemPrompt, /<available_skills>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-setup<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-channels<\/name>/);
@@ -114,11 +115,11 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(parsed.systemPrompt, /<name>setup<\/name>/);
     assert.doesNotMatch(parsed.systemPrompt, /<name>mechanic<\/name>/);
     assert.doesNotMatch(parsed.systemPrompt, /<name>codex-web-search<\/name>/);
-    assert.match(parsed.systemPrompt, /\[context pi:runtime_facts runtime\]/);
+    assert.match(parsed.systemPrompt, /<context path="pi\/runtime_facts">/);
     assert.match(parsed.systemPrompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
     assert.match(parsed.systemPrompt, new RegExp(`\\(${Intl.DateTimeFormat().resolvedOptions().timeZone}, UTC[+-]\\d{2}:\\d{2}\\)`));
     assert.match(parsed.systemPrompt, /Current working directory:/);
-    assert.match(parsed.systemPrompt, /\[end context\]$/);
+    assert.doesNotMatch(parsed.systemPrompt, /\[end context\]/);
     assert.match(parsed.shrimpySystemPrompt, /# SOUL/);
     assert.doesNotMatch(parsed.shrimpySystemPrompt, /<available_skills>/);
     assert.doesNotMatch(parsed.systemPrompt, /\*\*model_id\*\*/);
@@ -182,8 +183,8 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     const parsed = JSON.parse(lines.join("\n"));
     assert.ok(parsed.some((source: any) =>
-      source.id === "file:workspace:profile/WORKSPACE.md" &&
-      source.type === "file" &&
+      source.id === "directory:workspace:context/" &&
+      source.type === "directory" &&
       source.scope === "session"
     ));
     assert.ok(parsed.some((source: any) =>
@@ -201,9 +202,9 @@ describe("skill context inspection", () => {
   test("context sources run renders file and directory sources through prompt sections", async () => {
     await setupInit(workspace);
 
-    const fileRun = await captureLogs(() =>
+    const workspaceDirRun = await captureLogs(() =>
       cmdContext(
-        ["sources", "run", "file:workspace:profile/WORKSPACE.md"],
+        ["sources", "run", "directory:workspace:context/"],
         { workspace } as any,
       )
     );
@@ -214,14 +215,24 @@ describe("skill context inspection", () => {
       )
     );
 
-    const fileOutput = fileRun.lines.join("\n");
+    const workspaceDirOutput = workspaceDirRun.lines.join("\n");
     const dirOutput = dirRun.lines.join("\n");
-    assert.equal(fileRun.result, 0);
+    assert.equal(workspaceDirRun.result, 0);
     assert.equal(dirRun.result, 0);
-    assert.match(fileOutput, /^\[context base:profile\/WORKSPACE\.md identity\]/);
+    assert.ok(workspaceDirOutput.startsWith(
+      `<context path="${join(workspace, "context", "SYSTEM.md")}">`,
+    ));
+    assert.ok(workspaceDirOutput.includes(
+      `<context path="${join(workspace, "context", "USER.md")}">`,
+    ));
+    assert.ok(workspaceDirOutput.includes(
+      `<context path="${join(workspace, "context", "WORKSPACE.md")}">`,
+    ));
     assert.equal(dirOutput.trim(), "");
-    assert.doesNotMatch(dirOutput, /\[context base:context\/identity\.md memory\]/);
-    assert.doesNotMatch(fileOutput, /^## profile\/WORKSPACE\.md/m);
+    assert.equal(dirOutput.includes(
+      `<context path="${join(workspace, "agents", "shrimpy", "context", "identity.md")}">`,
+    ), false);
+    assert.doesNotMatch(workspaceDirOutput, /^## context\/SYSTEM\.md/m);
     assert.doesNotMatch(dirOutput, /^## context\//m);
   });
 
@@ -335,9 +346,9 @@ describe("skill context inspection", () => {
     assert.match(output, /\[identity\]/);
     assert.match(output, /\[runtime\]/);
     assert.match(output, /\[turn-context\]/);
-    assert.match(output, /=== System Prompt ===/);
     assert.match(output, /<available_skills>/);
-    assert.match(output, /=== User Message ===/);
+    assert.match(output, /\[turn-context\][\s\S]*\[channel: home, sender: human:\(user\)\]\nhello/);
+    assert.doesNotMatch(output, /=== Turn Context|=== User Message|=== System Prompt/);
   });
 
   test("context turn subcommand renders turn context without a prompt", async () => {

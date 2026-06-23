@@ -3,6 +3,7 @@ import { join, relative } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import {
+  prefixPromptWithTurnContext,
   renderPromptSectionManifest,
   summarizePromptSection,
 } from "../context/index.js";
@@ -131,24 +132,18 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
 
   if (values.sections || values.turn) {
     console.log(renderPromptSectionManifest(preview.assembly.sections));
-    if (preview.turnContextText) console.log(`\n${preview.turnContextText}`);
     if (!values.turn) return 0;
-    console.log("\n=== System Prompt ===\n");
+    console.log("");
   }
 
-  console.log(preview.assembly.systemPrompt);
-
-  if (prompt && preview.turnContextText && !values.turn) {
-    console.log(
-      `\n=== Turn Context ===\n\n${preview.turnContextText}`,
-    );
-  }
-
-  if (preview.userMessage) {
-    console.log(
-      `\n=== User Message ===\n\n${preview.userMessage}`,
-    );
-  }
+  const userMessage = preview.userMessage && preview.turnContextText
+    ? prefixPromptWithTurnContext(preview.userMessage, preview.turnContextText)
+    : preview.userMessage;
+  const blocks = [
+    preview.assembly.systemPrompt,
+    userMessage ?? (values.turn ? preview.turnContextText : undefined),
+  ].filter(Boolean);
+  console.log(blocks.join("\n\n"));
 
   return 0;
 }

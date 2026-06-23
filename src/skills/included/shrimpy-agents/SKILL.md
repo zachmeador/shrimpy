@@ -67,14 +67,14 @@ Warn about active sessions: local TUI sessions can keep using a model saved insi
 ## Shape Choices
 
 - `SOUL.md`: concise role, responsibilities, boundaries, and voice.
-- `context/*.md`: durable memory and active references that should load into prompts.
+- `context/**/*.md`: durable memory and active references that should load into every normal prompt for this agent. Treat this as scarce prompt budget; keep files tiny, stable, and character-count efficient.
 - `vault/`: saved files and reports.
 - `projects/`: code, apps, experiments, and focused work folders.
 - `skills/`: agent-specific skills that override workspace skills.
 - `watches.json`: recurring attention owned by this agent.
 - `channelPolicy`: prefer `addressed` or `mentions` on shared human channels; use `all` only for private channels, maintenance channels, or deliberate always-on listeners.
 
-Create context files only when there is something real to preserve. Keep bulky evidence in `vault/`, not `context/`.
+Create context files only when there is something real to preserve and always-loading it is worth the token cost. Keep bulky evidence, journals, reports, saved files, and working material in `vault/` or `projects/`, with only a compact pointer in `context/` when needed.
 
 ## App-Agent Context
 

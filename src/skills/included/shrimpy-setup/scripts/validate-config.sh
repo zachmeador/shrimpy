@@ -45,9 +45,9 @@ const channels = readJson("config/channels.json");
 readJson("agents/shrimpy/watches.json");
 readJson("agents/mechanic/watches.json");
 
-requireFile(path.join(workspaceRoot, "profile", "WORKSPACE.md"), "profile/WORKSPACE.md");
-requireFile(path.join(workspaceRoot, "profile", "USER.md"), "profile/USER.md");
-requireFile(path.join(workspaceRoot, "profile", "SYSTEM.md"), "profile/SYSTEM.md");
+requireFile(path.join(workspaceRoot, "context", "SYSTEM.md"), "context/SYSTEM.md");
+requireFile(path.join(workspaceRoot, "context", "USER.md"), "context/USER.md");
+requireFile(path.join(workspaceRoot, "context", "WORKSPACE.md"), "context/WORKSPACE.md");
 requireFile(path.join(workspaceRoot, "agents", "shrimpy", "SOUL.md"), "agents/shrimpy/SOUL.md");
 requireFile(path.join(workspaceRoot, "agents", "mechanic", "SOUL.md"), "agents/mechanic/SOUL.md");
 requireDir(path.join(workspaceRoot, "agents", "shrimpy", "vault"), "agents/shrimpy/vault");

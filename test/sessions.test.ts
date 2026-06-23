@@ -491,7 +491,7 @@ describe("turn context Pi extension", () => {
       cwd,
       settingsManager,
       runtimeConfig: resolveRuntimeConfig({ noPromptTemplates: true }),
-      systemPrompt: "[context base:test identity]\n\n# BASE",
+      systemPrompt: `<context path="test/base">\n# BASE\n</context>`,
       skillPaths: [join(skillDir, "SKILL.md")],
     });
     await resourceLoader.reload();
@@ -513,14 +513,14 @@ describe("turn context Pi extension", () => {
 
       assert.equal(capturedSystemPrompts.length, 1);
       const prompt = capturedSystemPrompts[0]!;
-      assert.match(prompt, /^\[context base:test identity\]\n\n# BASE/);
-      assert.match(prompt, /\[context pi:available_skills capability\]/);
+      assert.match(prompt, /^<context path="test\/base">\n# BASE/);
+      assert.match(prompt, /<context path="pi\/available_skills">/);
       assert.match(prompt, /<name>sample-skill<\/name>/);
-      assert.match(prompt, /\[context pi:runtime_facts runtime\]/);
+      assert.match(prompt, /<context path="pi\/runtime_facts">/);
       assert.match(prompt, /Current time: .*; UTC: \d{4}-\d{2}-\d{2}T/);
       assert.match(prompt, new RegExp(`\\(${Intl.DateTimeFormat().resolvedOptions().timeZone}, UTC[+-]\\d{2}:\\d{2}\\)`));
       assert.match(prompt, new RegExp(`Current working directory: ${escapeRegExp(cwd)}`));
-      assert.match(prompt, /\[end context\]$/);
+      assert.doesNotMatch(prompt, /\[end context\]/);
       assert.equal((prompt.match(/<available_skills>/g) ?? []).length, 1);
       assert.equal((prompt.match(/Current time:/g) ?? []).length, 1);
     } finally {
@@ -601,14 +601,16 @@ describe("turn context Pi extension", () => {
 
       assert.equal(capturedContexts.length, 1);
       const providerText = capturedContexts[0].messages.map(messageText).join("\n");
-      assert.match(providerText, /<context>\nprepared by Pi before_agent_start/);
-      assert.match(providerText, /The context above is background for the user message below/);
+      assert.match(providerText, /prepared by Pi before_agent_start/);
+      assert.match(providerText, /The turn context above is background for the user message below/);
       assert.match(providerText, /hello from pi/);
+      assert.doesNotMatch(providerText, /<context>\nprepared by Pi before_agent_start/);
 
       const persistedText = (session as any).messages.map(messageText).join("\n");
       assert.match(persistedText, /hello from pi/);
-      assert.match(persistedText, /<context>\nprepared by Pi before_agent_start/);
+      assert.match(persistedText, /prepared by Pi before_agent_start/);
       assert.match(persistedText, /ok/);
+      assert.doesNotMatch(persistedText, /<context>\nprepared by Pi before_agent_start/);
     } finally {
       session.dispose();
       modelRegistry.unregisterProvider(model.provider);
@@ -783,7 +785,7 @@ describe("SessionRegistry", () => {
     assert.equal(sessionFactory.sessions[0].prompts.length, 1);
     assert.match(
       sessionFactory.sessions[0].prompts[0],
-      /^<context>\n\[turn-context\][\s\S]*prior thing happened[\s\S]*<\/context>/,
+      /^\[turn-context\][\s\S]*prior thing happened[\s\S]*The turn context above/,
     );
     assert.match(
       sessionFactory.sessions[0].prompts[0],
@@ -793,7 +795,7 @@ describe("SessionRegistry", () => {
     assert.equal(modelBatch.length, 1);
     assert.match(
       modelBatch[0],
-      /^<context>\n\[turn-context\][\s\S]*prior thing happened[\s\S]*<\/context>/,
+      /^\[turn-context\][\s\S]*prior thing happened[\s\S]*The turn context above/,
     );
     assert.doesNotMatch(modelBatch.join("\n"), /\[incoming\]/);
   });
@@ -819,7 +821,7 @@ describe("SessionRegistry", () => {
     assert.equal(sessionFactory.createSessionOpts[0].prepareTurnContext, undefined);
     assert.match(
       session.prompts[0],
-      /^<context>\nprepared direct\/TUI-style context[\s\S]*<\/context>/,
+      /^prepared direct\/TUI-style context[\s\S]*The turn context above/,
     );
     assert.match(
       session.llmPromptBatches[0][0],
@@ -864,7 +866,7 @@ describe("SessionRegistry", () => {
     assert.match(session.systemPrompt, /## Delivery/);
     assert.doesNotMatch(
       session.systemPrompt,
-      /<context>|\[turn-context\]|first live turn context|second live turn context/,
+      /\[turn-context\]|first live turn context|second live turn context/,
     );
     assert.match(
       session.prompts[0],

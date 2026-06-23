@@ -11,7 +11,7 @@ Use this skill when the user asks to save, capture, catalog, archive, remember a
 
 - Use the owning agent's `agents/<id>/vault/` for durable user-owned collections, saved artifacts, source notes, reports, and research packets.
 - Use `agents/<id>/projects/` for code, apps, experiments, and tightly scoped work folders.
-- Use `agents/<id>/context/` only for memory intended to load into prompts.
+- Use `agents/<id>/context/` only for tiny stable memory intended to load into every normal prompt for that agent.
 - For unclear ownership, use the active agent. For career artifacts, prefer the career agent's vault when that agent exists.
 
 Keep vault categories loose and user-led. Create an obvious collection folder when the request is clear, and ask before inventing a large taxonomy.

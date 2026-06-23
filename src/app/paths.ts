@@ -7,7 +7,7 @@ export interface WorkspacePaths {
   primaryConfigPath: string;
   channelMembershipsPath: string;
   agentsDir: string;
-  profileDir: string;
+  workspaceContextDir: string;
   docsDir: string;
   frameworkDir: string;
   stateDir: string;
@@ -35,9 +35,9 @@ export interface WorkspacePaths {
   outboundReceiptsPath: string;
   surfaceStatePath: string;
   watchClockStatePath: string;
-  workspacePromptPath: string;
-  systemPromptPath: string;
-  userPromptPath: string;
+  workspaceSystemContextPath: string;
+  workspaceUserContextPath: string;
+  workspaceContextPath: string;
 }
 
 export interface AgentPaths {
@@ -60,7 +60,7 @@ export function createWorkspacePaths(
     primaryConfigPath: primaryConfigPath(workspace),
     channelMembershipsPath: join(workspace, "config", "channels.json"),
     agentsDir: join(workspace, "agents"),
-    profileDir: join(workspace, "profile"),
+    workspaceContextDir: join(workspace, "context"),
     docsDir: join(workspace, "docs"),
     frameworkDir: join(workspace, "docs", "framework"),
     stateDir: join(workspace, "state"),
@@ -88,9 +88,9 @@ export function createWorkspacePaths(
     outboundReceiptsPath: join(workspace, "runtime", "channel-deliveries.json"),
     surfaceStatePath: join(workspace, "runtime", "cursors", "surface-threads.json"),
     watchClockStatePath: join(workspace, "state", "watch-clock.json"),
-    workspacePromptPath: join(workspace, "profile", "WORKSPACE.md"),
-    systemPromptPath: join(workspace, "profile", "SYSTEM.md"),
-    userPromptPath: join(workspace, "profile", "USER.md"),
+    workspaceSystemContextPath: join(workspace, "context", "SYSTEM.md"),
+    workspaceUserContextPath: join(workspace, "context", "USER.md"),
+    workspaceContextPath: join(workspace, "context", "WORKSPACE.md"),
   };
 }
 

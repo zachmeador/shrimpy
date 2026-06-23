@@ -29,9 +29,9 @@ Pi owns the session runtime, transcript format, model calls, tool execution, and
 
 ## Prompt And Turn Context
 
-Shrimpy passes Pi one stable system prompt at session open. Per-turn live facts are rendered as a `<context>...</context>` envelope and prefixed to the current user message before Pi persists and sends it. This keeps the session JSONL an exact representation of the model-facing user turn.
+Shrimpy passes Pi one stable system prompt at session open. Per-turn live facts are rendered as turn context and prefixed to the current user message before Pi persists and sends it. This keeps the session JSONL an exact representation of the model-facing user turn.
 
-For direct `tui` and `run` sessions, the user prompt body is the local prompt text. For gateway sessions, the body is the formatted channel message. When turn context exists, the persisted user message contains the context envelope followed by that body. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
+For direct `tui` and `run` sessions, the user prompt body is the local prompt text. For gateway sessions, the body is the formatted channel message. When turn context exists, the persisted user message contains the turn context, an instruction sentence, and then that body. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
 
 ## Model And Thinking
 

@@ -233,28 +233,28 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
       content: "",
     },
     {
-      path: paths.workspacePromptPath,
-      content: loadSetupTemplate("WORKSPACE.md", docsPath, workspace),
+      path: paths.workspaceSystemContextPath,
+      content: loadSetupTemplate("workspace/context/SYSTEM.md", docsPath, workspace),
     },
     {
-      path: paths.userPromptPath,
-      content: loadSetupTemplate("USER.md", docsPath),
+      path: paths.workspaceUserContextPath,
+      content: loadSetupTemplate("workspace/context/USER.md", docsPath, workspace),
     },
     {
-      path: paths.systemPromptPath,
-      content: loadSetupTemplate("SYSTEM.md", docsPath),
+      path: paths.workspaceContextPath,
+      content: loadSetupTemplate("workspace/context/WORKSPACE.md", docsPath, workspace),
     },
     {
       path: agentPaths.soulPath,
-      content: loadSetupTemplate("SOUL.md", docsPath),
+      content: loadSetupTemplate("workspace/agents/shrimpy/SOUL.md", docsPath),
     },
     {
       path: mechanicPaths.soulPath,
-      content: loadSetupTemplate("mechanic/SOUL.md", docsPath),
+      content: loadSetupTemplate("workspace/agents/mechanic/SOUL.md", docsPath),
     },
     {
       path: join(mechanicPaths.contextDir, "scope.md"),
-      content: loadSetupTemplate("mechanic/context/scope.md", docsPath),
+      content: loadSetupTemplate("workspace/agents/mechanic/context/scope.md", docsPath),
     },
   ];
 

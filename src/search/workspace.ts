@@ -421,7 +421,7 @@ function collectCorpusFileSnapshots(runtime: AppRuntime): CorpusFileSnapshot[] {
 
 function collectCorpusFiles(runtime: AppRuntime): string[] {
   const paths = new Set<string>();
-  addProfileMarkdown(runtime, paths);
+  addMarkdownTree(runtime.paths.workspace, runtime.paths.workspaceContextDir, paths);
   addMarkdownTree(runtime.paths.workspace, join(runtime.paths.workspace, "skills"), paths);
   for (const agent of runtime.resolved.agents) {
     const agentPaths = runtime.getAgentPaths(agent.id);
@@ -430,15 +430,6 @@ function collectCorpusFiles(runtime: AppRuntime): string[] {
     addMarkdownTree(runtime.paths.workspace, agentPaths.vaultDir, paths);
   }
   return [...paths].sort();
-}
-
-function addProfileMarkdown(runtime: AppRuntime, paths: Set<string>): void {
-  const profileDir = runtime.paths.profileDir;
-  if (!existsSync(profileDir)) return;
-  for (const entry of readdirSync(profileDir, { withFileTypes: true })) {
-    if (!entry.isFile() || extname(entry.name).toLowerCase() !== ".md") continue;
-    paths.add(join(profileDir, entry.name));
-  }
 }
 
 function addMarkdownTree(

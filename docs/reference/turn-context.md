@@ -1,8 +1,8 @@
 # 🦐 Turn Context
 
-Turn context is generated live state for one model turn. Shrimpy renders it as a `<context>...</context>` envelope and prefixes the current user message before Pi persists and sends it.
+Turn context is generated live state for one model turn. Shrimpy prefixes the current user message with rendered turn context and a short instruction before Pi persists and sends it.
 
-The session transcript intentionally records that envelope, so replay and session search show what the model saw. The runtime labels the rendered header `[turn-context]`, and the public API is `shrimpy context`.
+The session transcript intentionally records that prefixed user message, so replay and session search show what the model saw. The runtime labels the rendered header `[turn-context]`, and the public API is `shrimpy context`.
 
 ## Shape
 
@@ -25,7 +25,6 @@ Shrimpy includes:
 - owned worker outcomes: current-session workers first, current-channel workers next, then compact counts for other completed, blocked, failed, or cancelled workers that need review
 - generated watch turns include session status and owned worker outcome counts so agents can notice background results without manually listing workers first
 - channel unread summaries for matching channels
-- path-indexed memory slices from `context/people/<sender>.md` and `context/channels/<channel>.md`
 - workspace-configured command sources from `context.sources`
 
 Command sources let workspace-specific agents add their own alerts. For example, a finance agent can expose `finance-shrimpy alerts context` and Shrimpy includes its output for selected channels.
@@ -60,10 +59,8 @@ Gateway channel dispatch builds an explicit turn value containing the channel me
       }
     },
     "sources": [
-      "workspace:profile/WORKSPACE.md",
-      "workspace:profile/SYSTEM.md",
+      "workspace:context/",
       "agent:SOUL.md",
-      "workspace:profile/USER.md",
       "agent:context/",
       {
         "type": "command",

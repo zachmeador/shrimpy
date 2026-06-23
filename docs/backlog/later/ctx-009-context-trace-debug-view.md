@@ -11,7 +11,7 @@ Agents need a dependable answer to: "What do I know right now, why do I know it,
 Make context assembly inspectable as one deterministic trace:
 
 ```text
-source config -> resolved source plan -> produced context blocks -> rendered prompt/turn context -> provider-facing injected turn
+source config -> resolved source plan -> produced prompt sections / turn-context items -> rendered prompt/turn context -> provider-facing injected turn
 ```
 
 The inspection view should match the actual material used for the prompt and turn context, so agents and developers can trust `shrimpy context` output when debugging a session. The trace should keep four artifacts distinct: stable system prompt, ephemeral turn context, durable user message, and the provider-facing message sequence after Pi's context hook has injected the ephemeral context.
@@ -20,14 +20,14 @@ This is lowest-priority observability work. Build it only when context provenanc
 
 ## Current State
 
-- `ContextBlock`, `PromptSection`, and `TurnContextItem` are still separate shapes.
+- `PromptSection` and `TurnContextItem` are still separate shapes.
 - Existing CLI inspection covers section manifests, turn-context rendering, and source list/run output, including the aggregate `runtime:turn-context` source.
-- There is no normalized trace/plan model that links source config, produced blocks, rendered prompt sections, turn-context items, and provider-facing injected context in one JSON view.
+- There is no normalized trace/plan model that links source config, produced prompt sections, rendered prompt sections, turn-context items, and provider-facing injected context in one JSON view.
 
 ## Build
 
 - Add a normalized `ContextTrace` or `ContextPlan` layer for a resolved session and optional turn.
-- Represent each produced block with stable metadata: `id`, `scope`, `kind`, body or summary, provenance, freshness/cache state, inspect command, and materialization status.
+- Represent each produced item with stable metadata: `id`, `scope`, `kind`, body or summary, provenance, freshness/cache state, inspect command, and materialization status.
 - Represent continuation context with enough provenance to explain the source message, source record, message channel, wake decision, and related watch/worker id without treating it as a special prompt side channel.
 - Render existing `PromptSection` and `TurnContextItem` outputs from the trace instead of treating them as separate source systems.
 - Make `shrimpy context --sections`, `shrimpy context turn`, and `shrimpy context sources list/run` read from the same trace model.

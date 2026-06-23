@@ -55,6 +55,10 @@ Avoid:
 - fake security gates
 - feature parity as strategy
 
+## Context Cue Style
+
+Shrimpy uses Pi-style XML context cues for consistency with Pi's skill and runtime prompting. This is a preference, not doctrine: if evidence shows that a less verbose formatter is equally reliable, or that another format improves model behavior, latency, or token efficiency, switch to the better formatter.
+
 ## Gate For New Work
 
 Add to core only when the change:

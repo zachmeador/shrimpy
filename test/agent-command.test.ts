@@ -47,9 +47,13 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.root, "agent-roots/career");
     assert.equal(agent.channels, undefined);
 
-    assert.equal(existsSync(join(workspace, "agent-roots", "career", "SOUL.md")), true);
+    const careerSoulPath = join(workspace, "agent-roots", "career", "SOUL.md");
+    assert.equal(existsSync(careerSoulPath), true);
     assert.equal(existsSync(join(workspace, "agent-roots", "career", "vault")), true);
     assert.equal(existsSync(join(workspace, "agent-roots", "career", "projects")), true);
+    const careerSoul = readFileSync(careerSoulPath, "utf-8");
+    assert.match(careerSoul, /You are Career, a Shrimpy agent built on Pi\./);
+    assert.doesNotMatch(careerSoul, /pragmatic Shrimpy agent/);
 
     const memberships = JSON.parse(
       readFileSync(join(workspace, "config", "channels.json"), "utf-8"),
@@ -84,6 +88,10 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.root, "agents/helper");
     assert.equal(agent.channels, undefined);
     assert.equal(agent.thinking, undefined);
+
+    const helperSoul = readFileSync(join(workspace, "agents", "helper", "SOUL.md"), "utf-8");
+    assert.match(helperSoul, /You are Helper, a Shrimpy agent built on Pi\./);
+    assert.doesNotMatch(helperSoul, /Enjoys adding the shrimpy emoji/u);
   });
 
   test("stores an agent thinking default when provided", async () => {

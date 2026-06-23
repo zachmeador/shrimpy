@@ -74,7 +74,7 @@ Common flags: `--agent`, `--provider`, `--model`, `--model-policy`, `--policy`, 
 | `shrimpy worker wait <id> [--timeout-ms <n>] [--json]` | Block until a worker is no longer running. |
 | `shrimpy worker cancel <id> [--json]` | Mark a worker cancelled, send `SIGTERM` to the recorded supervisor process group, then escalate to `SIGKILL` if it stays alive past the grace period. |
 | `shrimpy worker close <id> [--json]` | Close a worker after checking the result. If the worker is still running, Shrimpy runs the same terminate-then-force-kill cleanup first. |
-| `shrimpy context` | Render assembled session prompt context. |
+| `shrimpy context` | Inspect the model-facing context for an agent/session/turn. |
 | `shrimpy context --sections` | Inspect prompt sections with provenance. |
 | `shrimpy context --turn -c <name>` | Render the full turn preview, with prompt sections, turn context, and user message shown separately. |
 | `shrimpy context turn --channel <name> [--session-type <type>]` | Render only turn context for a channel/session. |

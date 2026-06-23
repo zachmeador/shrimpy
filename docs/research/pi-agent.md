@@ -169,7 +169,7 @@ Custom renderers receive a `ToolRenderContext` with args, cwd, tool call id, ren
 
 In the system prompt, tools can opt into an "Available tools" one-liner via `promptSnippet` and add guidelines via `promptGuidelines`. The prompt also includes cwd, date, AGENTS.md context files, skills, and `appendSystemPrompt` content. Extensions can modify the prompt per turn via `before_agent_start`, or mutate messages in `context`.
 
-When a caller passes a full custom prompt body through `DefaultResourceLoader({ systemPrompt })`, Pi treats that as the system prompt replacement. In that mode, Pi does not automatically render the default "Available tools" prose for built-ins into the prompt text, but native tool schemas are still passed to the provider. That distinction matters for `shrimpy context`: a prompt preview can omit detailed bash/read/write schemas even though the live Pi session still exposes those tools provider-side.
+When a caller passes a full custom prompt body through `DefaultResourceLoader({ systemPrompt })`, Pi treats that as the system prompt replacement. Native tool definitions are still part of the model call. Shrimpy context inspection should use the real session/model-call path so prompt text, selected tools, turn context, and the final message payload are represented together.
 
 ## Context Construction
 

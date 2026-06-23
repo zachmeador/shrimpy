@@ -1,4 +1,3 @@
-import { renderMemoryContext } from "./memory.js";
 import type { TurnContext } from "./types.js";
 
 export function renderTurnContext(
@@ -19,11 +18,6 @@ export function renderTurnContext(
       lines.push(`- ${item.summary}`);
       if (item.inspect) lines.push(`  inspect: ${item.inspect}`);
     }
-  }
-
-  if (context.memory) {
-    const memoryBlock = renderMemoryContext(context.memory);
-    if (memoryBlock) lines.push("", memoryBlock);
   }
 
   return clipContextWithMarker(lines.join("\n"), maxChars);

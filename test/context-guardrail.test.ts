@@ -14,7 +14,7 @@ const ALLOWED_PREFIXES = [
   normalize("src/setup/templates/"),
 ];
 const PROMPT_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
-  { name: "context envelope", pattern: /<context>/ },
+  { name: "context path wrapper", pattern: /<context path=/ },
   { name: "turn context header", pattern: /\[turn-context\]/ },
   { name: "channel header", pattern: /\[channel:/ },
   { name: "image marker", pattern: /\[Image:/ },

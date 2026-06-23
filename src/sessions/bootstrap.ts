@@ -10,7 +10,6 @@ import {
   assemblePromptContext,
   createPromptSection,
   FALLBACK_IDENTITY_TEXT,
-  SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
   resolveBootEnv,
   type BootEnv,
   type ResolvedContextConfig,
@@ -95,6 +94,7 @@ export async function createBootstrap(
   if (baseSections.length === 0) {
     baseSections.push({
       id: "base:fallback",
+      path: "fallback",
       title: "Fallback Identity",
       kind: "identity",
       source: "fallback",
@@ -104,6 +104,7 @@ export async function createBootstrap(
   }
   const appendSection = createPromptSection({
     id: "base:append_system_prompt",
+    path: "inline/bootstrap_append_system_prompt",
     title: "Append System Prompt",
     kind: "instruction",
     source: "inline",
@@ -112,14 +113,6 @@ export async function createBootstrap(
   });
   const baseContext = assemblePromptContext({
     sections: [
-      {
-        id: "builtin:immutable_system_instructions",
-        title: "Immutable System Instructions",
-        kind: "identity",
-        source: "builtin",
-        reason: "Compact immutable system instructions",
-        content: SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
-      },
       baseSections,
       appendSection,
     ],

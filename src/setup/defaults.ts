@@ -50,7 +50,7 @@ export function createJournalDailyWatch(opts?: {
       channel: opts?.channel ?? DEFAULT_WATCH_MAINTENANCE_CHANNEL,
       text: [
         "Use the `journal-daily` skill.",
-        "If today had activity worth remembering, write today's short journal note.",
+        "If today had activity worth remembering, write today's short vault journal note and update the tiny context breadcrumb.",
         "Do not backfill or overwrite prior days.",
       ].join(" "),
     },
@@ -75,8 +75,8 @@ export function createJournalCompactWatch(opts?: {
       channel: opts?.channel ?? DEFAULT_WATCH_MAINTENANCE_CHANNEL,
       text: [
         "Use the `journal-compact` skill.",
-        "Compact old journal day/week notes according to the skill's date limits.",
-        "Only delete source files after the replacement summary exists.",
+        "Compact old prompt-loaded journal breadcrumbs according to the skill's date limits.",
+        "Keep vault journal notes; prune only replaced lines in context/journal.md.",
       ].join(" "),
     },
   };

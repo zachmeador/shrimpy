@@ -2,27 +2,27 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { InteractiveMode } from "@earendil-works/pi-coding-agent";
-import { formatPromptWithTurnContext } from "../dist/context/index.js";
+import { prefixPromptWithTurnContext } from "../dist/context/index.js";
 import {
   installShrimpyContextRendering,
-  stripLeadingContextBlockForDisplay,
+  stripTurnContextPrefixForDisplay,
   stripSessionPreviewContextForDisplay,
 } from "../dist/tui/shrimpy-context-rendering.js";
 import { installShrimpyToolRendering } from "../dist/tui/shrimpy-tool-rendering.js";
 
-test("context block display stripping leaves the actual prompt body", () => {
+test("turn context display stripping leaves the actual prompt body", () => {
   assert.equal(
-    stripLeadingContextBlockForDisplay(
-      formatPromptWithTurnContext("what changed?", "workspace notes"),
+    stripTurnContextPrefixForDisplay(
+      prefixPromptWithTurnContext("what changed?", "workspace notes"),
     ),
     "what changed?",
   );
   assert.equal(
-    stripLeadingContextBlockForDisplay("show me <context> literally"),
+    stripTurnContextPrefixForDisplay("show me <context> literally"),
     "show me <context> literally",
   );
   assert.equal(
-    stripLeadingContextBlockForDisplay("<context>\nunterminated"),
+    stripTurnContextPrefixForDisplay("<context>\nunterminated"),
     "<context>\nunterminated",
   );
 });
@@ -42,7 +42,7 @@ test("Shrimpy context rendering strips leading context while collapsed", () => {
 
   const message: AgentMessage = {
     role: "user",
-    content: formatPromptWithTurnContext("hello", "private turn context"),
+    content: prefixPromptWithTurnContext("hello", "private turn context"),
     timestamp: 1,
   };
 
@@ -72,7 +72,7 @@ test("Shrimpy context rendering preserves the original message while expanded", 
 
   const message: AgentMessage = {
     role: "user",
-    content: formatPromptWithTurnContext("hello", "private turn context"),
+    content: prefixPromptWithTurnContext("hello", "private turn context"),
     timestamp: 1,
   };
 
@@ -99,7 +99,7 @@ test("Shrimpy context rendering preserves non-text user content", () => {
     content: [
       {
         type: "text",
-        text: formatPromptWithTurnContext("caption", "private turn context"),
+        text: prefixPromptWithTurnContext("caption", "private turn context"),
       },
       {
         type: "image",
@@ -133,7 +133,7 @@ test("Shrimpy context rendering follows Ctrl+O expansion rebuild state", () => {
   const captured: AgentMessage[] = [];
   const message: AgentMessage = {
     role: "user",
-    content: formatPromptWithTurnContext("hello", "private turn context"),
+    content: prefixPromptWithTurnContext("hello", "private turn context"),
     timestamp: 1,
   };
 
@@ -183,7 +183,7 @@ test("session preview context stripping sanitizes unnamed session previews only"
     created: new Date("2026-06-14T00:00:00Z"),
     modified: new Date("2026-06-14T00:00:00Z"),
     messageCount: 1,
-    firstMessage: formatPromptWithTurnContext("resume this", "private turn context"),
+    firstMessage: prefixPromptWithTurnContext("resume this", "private turn context"),
     allMessagesText: "original transcript text",
   };
 

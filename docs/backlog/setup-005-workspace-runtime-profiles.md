@@ -30,7 +30,7 @@ The target shape is boring: inside a Shrimpy runtime, bare `shrimpy` should mean
 - Prepend the workspace-local bin dir to `PATH` for gateway boot, session launches, watch command actions, context command sources, worker supervisors, and other Shrimpy-owned child processes.
 - Bind gateway service definitions to the runtime profile: service ExecStart or env must name the workspace, and the service label/unit should be derived from a stable profile name or workspace hash so multiple local/dev workspaces can coexist.
 - Add status diagnostics that report active workspace, resolution source, app root, CLI path, effective `command -v shrimpy`, gateway service id/path, and any mismatch between the current CLI, gateway service, and workspace-local shim.
-- Update setup docs and `profile/WORKSPACE.md` breadcrumbs so agents know the local command path, workspace path, app checkout, and service binding.
+- Update setup docs and `context/WORKSPACE.md` breadcrumbs so agents know the local command path, workspace path, app checkout, and service binding.
 
 ## Boundaries
 
@@ -58,7 +58,7 @@ The target shape is boring: inside a Shrimpy runtime, bare `shrimpy` should mean
 - `src/commands/registry.ts`
 - `src/commands/status.ts`
 - `src/setup/init.ts`
-- `src/setup/templates/WORKSPACE.md`
+- `src/setup/templates/workspace/context/WORKSPACE.md`
 - `scripts/dev-setup.mjs`
 - `docs/reference/setup.md`
 - `docs/reference/workspace.md`

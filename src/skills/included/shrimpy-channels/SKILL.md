@@ -7,7 +7,7 @@ description: Use when choosing where Shrimpy messages go, why an agent did or di
 
 Use this skill when an agent needs to choose, inspect, or fix message routing. If the user asks for recurring work, use `shrimpy-watches` for the schedule after choosing the destination channel.
 
-Use the paths in `profile/WORKSPACE.md`. For detail, use:
+Use the paths in `context/WORKSPACE.md`. For detail, use:
 
 - `reference/channels.md` — channel logs, membership, wake policy, addressed messages.
 - `reference/surfaces.md` — chat surface adapters and external delivery bindings.

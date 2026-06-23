@@ -117,7 +117,7 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["workspace", "track", "init"], "[--json]", "Initialize local workspace git checkpoint tracking.", "Workspace And Runtime", [jsonOption]),
   entry(["workspace", "track", "status"], "[--json]", "Inspect workspace git checkpoint tracking.", "Workspace And Runtime", [jsonOption]),
   entry(["workspace", "track", "checkpoint"], "--message <text> [--json]", "Create a manual workspace git checkpoint.", "Workspace And Runtime", [{ name: "--message", takesValue: true }, jsonOption]),
-  entry(["workspace", "search"], "<query> [--limit N] [--json]", "Search workspace profile, skills, context, and vault notes.", "Workspace And Runtime", [{ name: "--limit", takesValue: true }, jsonOption]),
+  entry(["workspace", "search"], "<query> [--limit N] [--json]", "Search workspace context, skills, and vault notes.", "Workspace And Runtime", [{ name: "--limit", takesValue: true }, jsonOption]),
   entry(["workspace", "index", "status"], "[--json]", "Inspect workspace search index freshness.", "Workspace And Runtime", [jsonOption]),
   entry(["workspace", "index", "rebuild"], "[--json]", "Rebuild the workspace search index cache.", "Workspace And Runtime", [jsonOption]),
   entry(["update"], "[--dry-run] [--json]", "Preflight a safe Shrimpy environment update.", "Workspace And Runtime", [{ name: "--dry-run" }, jsonOption]),

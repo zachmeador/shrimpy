@@ -327,7 +327,7 @@ Concrete ideas worth borrowing:
 - A clear split between `USER` profile facts and agent self/environment notes.
 - A session-search CLI before building heavier memory inference.
 - Provider-style lifecycle hooks even if the first provider is just local markdown upkeep: `prefetch`, `sync_turn`, `on_session_switch`, `on_pre_compress`.
-- A fenced context envelope with sanitization and stream scrubbing.
+- Fenced memory-prefix text with sanitization and stream scrubbing.
 - Compression summaries that explicitly say they are reference-only and that persistent memory remains authoritative.
 - User-turn cadence hydration from persisted history so scheduled memory upkeep remains reliable across process restarts.
 

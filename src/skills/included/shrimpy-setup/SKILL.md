@@ -16,8 +16,10 @@ Start by inspecting the current workspace state before asking questions:
 - `pwd`
 - `ls`
 - `test -f config/shrimpy.json && sed -n '1,220p' config/shrimpy.json`
-- `test -f profile/WORKSPACE.md && sed -n '1,180p' profile/WORKSPACE.md`
-- `find agents/shrimpy agents/mechanic profile skills -maxdepth 4 -type f | sort | head -180`
+- `test -f context/SYSTEM.md && sed -n '1,180p' context/SYSTEM.md`
+- `test -f context/USER.md && sed -n '1,120p' context/USER.md`
+- `test -f context/WORKSPACE.md && sed -n '1,220p' context/WORKSPACE.md`
+- `find context agents/shrimpy agents/mechanic skills -maxdepth 4 -type f | sort | head -180`
 
 Then give the user a compact state summary and ask exactly one next setup decision.
 
@@ -41,8 +43,8 @@ A chat-surface setup is not complete until the surface has an explicit inbound w
 Default background behavior: setup installs watch schedules disabled. Ask whether the user wants to enable some, all, or none. Offer each watch briefly, noting that runs use the configured model:
 
 - `shrimpy/memory-management`: daily 03:00, reviews recent activity and updates durable memory only when warranted.
-- `shrimpy/journal-daily`: daily 22:30, writes a short day note when there was activity worth keeping.
-- `shrimpy/journal-compact`: Sundays 04:00, compacts older journal notes after summaries exist.
+- `shrimpy/journal-daily`: daily 22:30, writes a short vault journal note and leaves a tiny prompt-loaded breadcrumb when there was activity worth keeping.
+- `shrimpy/journal-compact`: Sundays 04:00, compacts older prompt-loaded journal breadcrumbs while preserving vault journal notes.
 - `mechanic/security-audit`: Mondays 05:00, writes a read-only security posture report.
 - `mechanic/hygiene-audit`: Fridays 05:00, writes a read-only workspace hygiene report.
 
@@ -60,14 +62,15 @@ When editing agent identity, keep ownership clear. `agents/shrimpy/` is the firs
 
 When enough information is available, make concrete edits instead of only describing them. Preserve existing user edits.
 
-- User facts and preferences: `profile/USER.md`
-- Workspace layout and local path breadcrumbs: `profile/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, Shrimpy docs, reference docs, included skill sources, workspace skills, and agent skill path stems. Do not add broad crawl roots unless the user approved broader path scope.
+- Workspace owner identity and hard preferences for all default agents: `context/USER.md`. Keep it tiny; every Markdown file under workspace `context/` is prompt-loaded by default.
+- User facts and preferences for the main agent only: `agents/shrimpy/context/user.md` when they are tiny, stable, and worth loading into every normal prompt for that agent.
+- Local path breadcrumbs and workspace details: `context/WORKSPACE.md`; maintain a short `Local Paths` section with the active workspace, Shrimpy app checkout, Shrimpy source, Shrimpy docs, reference docs, included skill sources, workspace skills, and agent skill path stems. Do not add broad crawl roots unless the user approved broader path scope.
 - Shrimpy identity and style: `agents/shrimpy/SOUL.md`
-- Durable agent memory: `agents/shrimpy/context/*.md`
+- Durable agent memory: `agents/shrimpy/context/**/*.md`; every Markdown file there is prompt-loaded, so keep it extremely character-count efficient.
 - Saved material and setup notes for the main agent: `agents/shrimpy/vault/`
 - Projects, apps, and scripts for the main agent: `agents/shrimpy/projects/`
 - Watch preferences: `agents/<id>/watches.json`; setup defaults include `agents/shrimpy/watches.json` and `agents/mechanic/watches.json`. Prefer `shrimpy watches enable|disable <agent-id>/<watch-id>` for toggles.
-- Shared framework guidance: `profile/SYSTEM.md`
+- Shared framework guidance: `context/SYSTEM.md`
 - Config changes: prefer `shrimpy <command>` when a command exists; otherwise edit JSON carefully.
 
 Keep replies short and practical. Do not explain Shrimpy's whole architecture unless the user asks.

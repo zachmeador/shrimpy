@@ -12,7 +12,7 @@ export function logGatewayStartup(runtime: AppRuntime): void {
 export function ensureGatewayDirectories(runtime: AppRuntime): void {
   for (const dir of [
     runtime.paths.agentsDir,
-    runtime.paths.profileDir,
+    runtime.paths.workspaceContextDir,
     runtime.paths.docsDir,
     runtime.paths.frameworkDir,
     runtime.paths.stateDir,

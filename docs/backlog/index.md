@@ -11,7 +11,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | draft | P2 | TUI | none | Bare `shrimpy` resumes the most recent TUI agent |
 | [TUI-010](tui-010-tui-backlog-closeout-plan.md) | draft | P2 | TUI | [TUI-004](tui-004-agent-session-navigator.md), [TUI-007](tui-007-pi-patch-surface-reduction.md), [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | TUI backlog closeout coordination |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
-| [AGENT-002](agent-002-gateway-hosted-agent-clients.md) | draft | P2 | Agents | none | Gateway-hosted agent clients own channels, watches, and sessions |
+| [CTX-012](ctx-012-exact-context-command-parity.md) | todo | P2 | Context | context cleanup | Exact provider-facing context from `shrimpy context` |
+| [AGENT-002](agent-002-gateway-hosted-agent-runtimes.md) | draft | P2 | Agents | none | Gateway-hosted agent runtimes own channels, watches, and sessions |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |

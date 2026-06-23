@@ -13,17 +13,17 @@ context files. If nothing's durable, do nothing.
 
 ## What lives where
 
-- top-level `context/*.md` files — always loaded into every session. Stable
-  working knowledge, active references, and durable memory about how I work.
-  Create them only when there is something real to preserve.
-- `context/people/<actor-id>.md` — per-peer notes, loaded only when that peer
-  is the active sender.
-- `context/channels/<name>.md` — per-channel notes, loaded only when that
-  channel is active.
-- `context/journal/` — handled by `journal-daily` and `journal-compact`, not
-  this skill.
-- `profile/*.md` (workspace-level) — shared, not mine. Ask the user before
-  touching.
+- `context/**/*.md` files — always loaded into every session. Stable working
+  knowledge, active references, per-peer notes, per-channel notes, and durable
+  memory about how I work. Create them only when there is something real to
+  preserve, and keep every file extremely character-count efficient.
+- `context/journal.md` — tiny always-loaded summary and breadcrumbs maintained
+  by `journal-daily` and `journal-compact`; full journal entries live under
+  `vault/journal/`, not context.
+- workspace `context/SYSTEM.md`, `context/USER.md`, and
+  `context/WORKSPACE.md` — shared, not mine. Ask the user before touching
+  shared baseline context, workspace-owner preferences, or local workspace
+  breadcrumbs.
 
 ## Activity gating
 

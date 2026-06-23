@@ -14,7 +14,7 @@ Shrimpy customizes Pi at three levels: the public session SDK in `src/sessions/`
 - Installers and their private touchpoints:
   - `shrimpy-command-surface.ts` wraps the editor submit handler for `/status`, `/thinking`, `/shrimpy`, `/share`, wraps `handleClearCommand` for archive-on-`/new`, and reaches `chatContainer`, `showSelector`, and the footer.
   - `shrimpy-activity-indicator.ts` wraps `footer.render`/`footer.dispose` and reads the private `loadingAnimation`, `autoCompactionLoader`, and `retryLoader` fields.
-  - `shrimpy-context-rendering.ts` wraps `addMessageToChat` to strip turn-context blocks from display.
+  - `shrimpy-context-rendering.ts` wraps `addMessageToChat` to strip the turn-context prefix from display.
   - `shrimpy-tool-rendering.ts` wraps `setToolsExpanded` and touches `pendingTools`, `chatContainer.children`, and streaming fields.
   - `shrimpy-model-selection.ts` replaces `showModelsSelector`, wraps `createBaseAutocompleteProvider` and `setupKeyHandlers`, and live-patches the internals of Pi's model selector component instance (`sortModels`, `filterModels`, `updateList`, `handleInput`) for favorites.
   - `shrimpy-settings.ts` reaches selector, editor, ui, and footer privates.

@@ -20,9 +20,9 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a named channel for that agent.
 - **Watch Clock** — the small clock used by watches with time triggers. It does not choose which agent wakes; normal channel membership and agent policy handle delivery.
 - **Skill** — prompt and resource material loaded into a session.
-- **Prompt context** — configured files, directories, command sources, and generated runtime sections that go to agents. `workspace:context/` shares workspace context across all or selected views; `agent:context/` loads the active agent's top-level memory; `context/people/<actor-id>.md` and `context/channels/<name>.md` load only for matching turns. Identity links and the workspace owner live in `state/users.json`. See [memory.md](memory.md) and [context-assembly.md](context-assembly.md).
+- **Prompt context** — model-visible material selected by `context.sources`. Stable Markdown usually comes from recursive directory sources such as `workspace:context/` and `agent:context/`; turn-scoped sources add compact runtime or command facts. Human identity links and the workspace owner live in `state/users.json`, not prompt files. See [memory.md](memory.md) and [context-assembly.md](context-assembly.md).
 - **Prompt assembly** — orders typed `PromptSection`s by `kind` (identity/memory/instruction first, capability next, runtime/activity/evidence last), adds generated skill/runtime sections, and renders the contained system prompt.
-- **Turn context** — renders runtime facts, unread-channel pointers, command-source output, and path-indexed memory slices for one turn, then prefixes the current user message so the persisted session transcript matches the model-facing turn.
+- **Turn context** — renders runtime facts, unread-channel pointers, and command-source output for one turn, then prefixes the current user message so the persisted session transcript matches the model-facing turn.
 
 ## Boundaries
 
@@ -32,8 +32,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - Channel membership, not agent config, determines channel participation. Agent config owns wake policy.
 - Agent resources (`SOUL.md`, `context/`, skills, sessions, watches) are part of the agent contract.
 - Workspace and agent context are normal Markdown selected through context sources.
-- Shrimpy prepends one compact immutable system-instruction section during session bootstrap. This is the only immutable instruction slot Shrimpy adds.
-- Workspace `profile/SYSTEM.md` carries shared editable framework context and CLI inspection breadcrumbs. Agent-specific system guidance can also load from agent-owned context files or any configured agent resource; configured sources add together.
+- Workspace `context/SYSTEM.md` carries shared Shrimpy/Pi baseline context, `context/USER.md` carries durable workspace-owner preferences, and `context/WORKSPACE.md` carries local environment breadcrumbs. Agent-specific system guidance can also load from agent-owned context files or any configured agent resource; configured sources add together.
 - Skills are Markdown instruction sets advertised to agents as context trails.
 - Shrimpy owns the contained system prompt shape. Pi receives the Shrimpy base prompt for session setup, then Shrimpy replaces Pi's built prompt with the contained system prompt before model calls.
 - Prompt sections are ordered by kind for the base prompt: stable identity/memory/instruction first, capability next, runtime/activity/evidence last. Generated skill and Pi runtime-fact sections are appended by the contained system prompt renderer.
@@ -59,7 +58,6 @@ Where each concept lives:
 - Channel persistence, typed message construction, manifests, outbox receipts, and membership: `src/channels/`. Protocol and policy semantics are in [channels.md](channels.md).
 - Each surface vertical: third-party client, real-time listener, channel translation, outbound formatting, command dispatch, config schema, lifecycle. Shared chat primitives and the surface module contract: `src/surfaces/shared/`.
 - Session context, turn context, metadata, and Pi bootstrap: `src/sessions/` and `src/context/`.
-- Path-indexed memory turn slices: `src/context/turn/memory.ts`.
 - Agent lifecycle: `src/agents/`.
 
 ## Direction

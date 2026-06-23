@@ -19,7 +19,7 @@ Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; 
 - Sessions persist under each agent as Pi `.jsonl` transcripts. A session is attached to either a local label such as `tui` or `run`, or to a channel handled by the gateway. See [sessions.md](sessions.md).
 - Agent memory is Markdown under `agents/<id>/context/` and loads for that agent by default. Saved reports and collections belong in `vault/`; code and app work belong in `projects/`. See [memory.md](memory.md) and [workspace.md](workspace.md).
 - Skills are visible Markdown packages under workspace or agent `skills/` roots. Shrimpy selects the skill paths; Pi loads and invokes them. See [skills.md](skills.md).
-- Prompts are assembled from typed `PromptSection`s into one stable system prompt. Per-turn facts are rendered into a `<context>...</context>` envelope and prefixed to the current user message so the session transcript matches what the model saw. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
+- Prompts are assembled from typed `PromptSection`s into one stable system prompt. Per-turn facts are prefixed to the current user message with a short instruction so the session transcript matches what the model saw. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
 
 ## How Work Runs
 
@@ -45,7 +45,7 @@ Watches use the same channel path as everything else. Agent-owned watches live i
 - [runtime.md](runtime.md) — execution flow.
 - [channels.md](channels.md) — channel protocol, membership, addressing, wake policy, and egress.
 - [sessions.md](sessions.md) — session files, lifecycle, model metadata, and inspection.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and persisted turn-context envelopes.
+- [context-assembly.md](context-assembly.md) — prompt section assembly and persisted turn-context injection.
 - [memory.md](memory.md) — memory model and upkeep.
 - [skills.md](skills.md) — skill directory shape and Pi-backed loading.
 - [cli.md](cli.md) — commands.

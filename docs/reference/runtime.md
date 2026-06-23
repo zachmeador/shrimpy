@@ -55,9 +55,9 @@ Gateway channel sessions are opened from the agent's resolved model policy for t
 
 Shrimpy passes Pi one explicit system prompt. Pi's cwd-discovered `AGENTS.md`, append-system prompts, and ambient skill roots are suppressed so session context is inspectable and controlled by Shrimpy.
 
-The Shrimpy-owned base system prompt is assembled from typed `PromptSection`s ordered by kind: identity, memory, and instructions first; capability next; runtime, activity, and evidence last. Pi then appends its own `<available_skills>` block for the Shrimpy-approved skill paths. See [context-assembly.md](context-assembly.md) and [skills.md](skills.md).
+The Shrimpy-owned base system prompt is assembled from typed `PromptSection`s ordered by kind: identity, memory, and instructions first; capability next; runtime, activity, and evidence last. The contained prompt renderer appends Pi's `<available_skills>` block for the Shrimpy-approved skill paths. See [context-assembly.md](context-assembly.md) and [skills.md](skills.md).
 
-At turn time, Shrimpy prepares a `<context>...</context>` envelope with current time/session facts, channel-unread pointers, path-indexed memory slices, command-source output, and inspect commands. Shrimpy prefixes the current user message with that envelope before Pi persists and sends the turn, so the session file matches what the model saw. The context is intended for that immediately following message.
+At turn time, Shrimpy prepares current time/session facts, channel-unread pointers, command-source output, and inspect commands. Shrimpy prefixes the current user message with that turn context and a short instruction before Pi persists and sends the turn, so the session file matches what the model saw. The context is intended for that immediately following message.
 
 ## Session Lifecycle
 
@@ -82,4 +82,4 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 - `shrimpy gateway status` reports gateway service, watch-run, watch clock, gateway lane, and loop-guard status.
 - `shrimpy watches` reports source paths, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
-- `shrimpy context` renders the assembled session prompt and can preview per-turn context and the user message body.
+- `shrimpy context` inspects the assembled session prompt, per-turn context, and user message body for an agent/session/turn.

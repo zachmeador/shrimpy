@@ -7,11 +7,11 @@ description: Use when looking up existing Shrimpy workspace knowledge, session h
 
 Use this skill when the user asks what Shrimpy already knows, when you need prior context, or before creating a new note, memory, watch, channel, agent, or handoff that may already exist.
 
-Read `profile/WORKSPACE.md` first when you need exact local paths. For more detail after this skill, use `docs/reference/workspace.md`, `docs/reference/sessions.md`, `docs/reference/channels.md`, and `docs/reference/context-assembly.md`.
+Read `context/WORKSPACE.md` first when you need exact local paths. For more detail after this skill, use `docs/reference/workspace.md`, `docs/reference/sessions.md`, `docs/reference/channels.md`, and `docs/reference/context-assembly.md`.
 
 ## Choose The Corpus
 
-- Written workspace knowledge: `profile/*.md`, workspace skills, agent skills, `agents/<id>/context/`, and `agents/<id>/vault/`.
+- Written workspace knowledge: workspace `context/**/*.md`, workspace skills, agent skills, `agents/<id>/context/**/*.md`, and `agents/<id>/vault/`.
 - Session transcripts: active and archived Pi conversation history under each agent.
 - Channel logs: shared message records, watch messages, status/control records, and surface messages.
 - Current turn context: what Shrimpy would load for an agent, channel, session type, and prompt.

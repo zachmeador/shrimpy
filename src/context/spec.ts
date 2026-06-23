@@ -73,10 +73,8 @@ export interface ContextConfig {
 export type ContextDefaultsConfig = Pick<ContextConfig, "sources" | "env">;
 
 export const DEFAULT_CONTEXT_SOURCES: ContextSourceConfig[] = [
-  "workspace:profile/WORKSPACE.md",
-  "workspace:profile/SYSTEM.md",
+  "workspace:context/",
   "agent:SOUL.md",
-  "workspace:profile/USER.md",
   "agent:context/",
 ];
 
@@ -90,12 +88,7 @@ export const DEFAULT_CONTEXT_ENV = [
   "session_dir",
 ];
 
-/**
- * A directory source. String sources ending in "/" load every top-level .md
- * file under the directory in deterministic path order, each as its own
- * session section. Subdirectories (e.g. context/people/, context/channels/)
- * are intentionally skipped — they are turn-scoped slices.
- */
+/** A directory source. String sources ending in "/" load Markdown files recursively. */
 export function isDirectoryResource(source: ContextSourceConfig): boolean {
   if (typeof source !== "string") return false;
   const { path } = parseContextResource(source);

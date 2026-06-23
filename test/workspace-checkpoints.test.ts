@@ -100,7 +100,9 @@ describe("workspace checkpoints", () => {
 
     const files = git(["ls-files"]).split("\n").filter(Boolean);
     assert.equal(files.includes(".gitignore"), true);
-    assert.equal(files.includes("profile/WORKSPACE.md"), true);
+    assert.equal(files.includes("context/SYSTEM.md"), true);
+    assert.equal(files.includes("context/USER.md"), true);
+    assert.equal(files.includes("context/WORKSPACE.md"), true);
     assert.equal(files.includes("config/shrimpy.json"), true);
     assert.equal(files.includes("agents/shrimpy/SOUL.md"), true);
     assert.equal(files.includes("agents/shrimpy/watches.json"), true);
@@ -122,7 +124,7 @@ describe("workspace checkpoints", () => {
     assert.equal(initPayload.repositoryCreated, true);
     assert.equal(initPayload.status.clean, true);
 
-    writeFileSync(join(workspace, "profile", "USER.md"), "# User\n\nLikes tiny checkpoints.\n");
+    writeFileSync(join(workspace, "context", "notes.md"), "# Notes\n\nLikes tiny checkpoints.\n");
 
     const dirty = await captureLogs(() =>
       cmdWorkspace(["track", "status", "--json"], { workspace } as any)
@@ -131,23 +133,23 @@ describe("workspace checkpoints", () => {
     const dirtyPayload = JSON.parse(dirty.lines.join("\n"));
     assert.equal(dirtyPayload.enabled, true);
     assert.equal(dirtyPayload.clean, false);
-    assert.deepEqual(dirtyPayload.changedPaths, ["profile/USER.md"]);
+    assert.deepEqual(dirtyPayload.changedPaths, ["context/notes.md"]);
 
     const checkpoint = await captureLogs(() =>
       cmdWorkspace([
         "track",
         "checkpoint",
         "--message",
-        "manual: update user profile",
+        "manual: update workspace context",
         "--json",
       ], { workspace } as any)
     );
     assert.equal(checkpoint.result, 0);
     const checkpointPayload = JSON.parse(checkpoint.lines.join("\n"));
     assert.equal(checkpointPayload.created, true);
-    assert.equal(checkpointPayload.message, "manual: update user profile");
-    assert.deepEqual(checkpointPayload.changedPaths, ["profile/USER.md"]);
-    assert.equal(git(["log", "-1", "--pretty=%s"]), "manual: update user profile");
+    assert.equal(checkpointPayload.message, "manual: update workspace context");
+    assert.deepEqual(checkpointPayload.changedPaths, ["context/notes.md"]);
+    assert.equal(git(["log", "-1", "--pretty=%s"]), "manual: update workspace context");
 
     const cleanCheckpoint = await captureLogs(() =>
       cmdWorkspace([

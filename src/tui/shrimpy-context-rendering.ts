@@ -5,7 +5,9 @@ import {
   type InteractiveMode,
   type SessionInfo,
 } from "@earendil-works/pi-coding-agent";
-import { stripPromptTurnContextForDisplay } from "../context/index.js";
+import {
+  stripTurnContextPrefixForDisplay as stripTurnContextPrefixFromPrompt,
+} from "../context/index.js";
 
 interface AddMessageOptions {
   populateHistory?: boolean;
@@ -47,14 +49,14 @@ export function installShrimpyContextRendering(
   };
 }
 
-export function stripLeadingContextBlockForDisplay(text: string): string {
-  return stripPromptTurnContextForDisplay(text);
+export function stripTurnContextPrefixForDisplay(text: string): string {
+  return stripTurnContextPrefixFromPrompt(text);
 }
 
 export function stripSessionPreviewContextForDisplay(session: SessionInfo): SessionInfo {
   if (session.name) return session;
 
-  const firstMessage = stripLeadingContextBlockForDisplay(session.firstMessage);
+  const firstMessage = stripTurnContextPrefixForDisplay(session.firstMessage);
   return firstMessage === session.firstMessage
     ? session
     : { ...session, firstMessage };
@@ -99,14 +101,14 @@ function stripUserContentContext(
   content: UserMessage["content"],
 ): UserMessage["content"] {
   if (typeof content === "string") {
-    const stripped = stripLeadingContextBlockForDisplay(content);
+    const stripped = stripTurnContextPrefixForDisplay(content);
     return stripped === content ? content : stripped;
   }
 
   const [firstBlock] = content;
   if (firstBlock?.type !== "text") return content;
 
-  const stripped = stripLeadingContextBlockForDisplay(firstBlock.text);
+  const stripped = stripTurnContextPrefixForDisplay(firstBlock.text);
   if (stripped === firstBlock.text) return content;
 
   const nextContent = [...content];

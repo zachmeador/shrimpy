@@ -12,7 +12,8 @@ import {
   assemblePromptContext,
   assembleBasePromptSections,
   assembleContextViewSections,
-  buildSystemEnvSections,
+  buildRuntimeEnvironmentSection,
+  buildSessionDeliverySection,
   renderPromptSections,
   resolveContextEnvKeys,
   resolveContextConfig,
@@ -25,6 +26,7 @@ describe("assemblePromptContext", () => {
       sections: [
         {
           id: "capability:skill",
+          path: "skill",
           title: "Skill",
           kind: "capability",
           source: "test",
@@ -33,6 +35,7 @@ describe("assemblePromptContext", () => {
         },
         {
           id: "session:env",
+          path: "runtime/env",
           title: "Runtime",
           kind: "runtime",
           source: "test",
@@ -41,6 +44,7 @@ describe("assemblePromptContext", () => {
         },
         {
           id: "base:identity",
+          path: "identity",
           title: "Identity",
           kind: "identity",
           source: "test",
@@ -57,7 +61,7 @@ describe("assemblePromptContext", () => {
     ]);
     assert.match(
       context.systemPrompt,
-      /^\[context base:identity identity\]\n\n# IDENTITY\n\n---\n\n\[context capability:skill capability\]\n\n# SKILL\n\n---\n\n\[context session:env runtime\]\n\n# RUNTIME$/,
+      /^<context path="identity">\n# IDENTITY\n<\/context>\n\n<context path="skill">\n# SKILL\n<\/context>\n\n<context path="runtime\/env">\n# RUNTIME\n<\/context>$/,
     );
   });
 });
@@ -67,10 +71,8 @@ describe("resolveContextDefaultsConfig", () => {
     const defaults = resolveContextDefaultsConfig();
     assert.deepEqual(defaults, {
       sources: [
-        "workspace:profile/WORKSPACE.md",
-        "workspace:profile/SYSTEM.md",
+        "workspace:context/",
         "agent:SOUL.md",
-        "workspace:profile/USER.md",
         "agent:context/",
       ],
       env: [
@@ -106,8 +108,7 @@ describe("resolveContextDefaultsConfig", () => {
   });
 
   test("keeps model identity out of rendered runtime environment", () => {
-    const sections = buildSystemEnvSections({
-      sessionType: "preview",
+    const section = buildRuntimeEnvironmentSection({
       envKeys: ["workspace_path", "model_id", "provider"],
       env: {
         workspace_path: "/tmp/shrimpy",
@@ -116,54 +117,47 @@ describe("resolveContextDefaultsConfig", () => {
       },
     });
 
-    assert.equal(sections.length, 1);
-    assert.match(sections[0]!.content, /\*\*workspace_path\*\*/);
-    assert.doesNotMatch(sections[0]!.content, /\*\*model_id\*\*/);
-    assert.doesNotMatch(sections[0]!.content, /\*\*provider\*\*/);
+    assert.equal(section?.id, "session:runtime_environment");
+    assert.match(section!.content, /\*\*workspace_path\*\*/);
+    assert.doesNotMatch(section!.content, /\*\*model_id\*\*/);
+    assert.doesNotMatch(section!.content, /\*\*provider\*\*/);
   });
 
   test("renders boot timestamp as session boot time", () => {
-    const sections = buildSystemEnvSections({
-      sessionType: "preview",
+    const section = buildRuntimeEnvironmentSection({
       envKeys: ["booted_at_iso"],
       env: {
         booted_at_iso: "2026-05-20T04:02:19.469Z",
       },
     });
 
-    assert.equal(sections.length, 1);
-    assert.match(sections[0]!.content, /\*\*session_booted_at_utc\*\*: 2026-05-20T04:02:19\.469Z/);
-    assert.doesNotMatch(sections[0]!.content, /booted_at_iso/);
+    assert.equal(section?.id, "session:runtime_environment");
+    assert.match(section!.content, /\*\*session_booted_at_utc\*\*: 2026-05-20T04:02:19\.469Z/);
+    assert.doesNotMatch(section!.content, /booted_at_iso/);
   });
 
   test("adds direct-session delivery guidance for TUI sessions", () => {
-    const sections = buildSystemEnvSections({
+    const section = buildSessionDeliverySection({
       sessionType: "tui",
-      envKeys: [],
-      env: {},
     });
 
-    assert.equal(sections.length, 1);
-    assert.equal(sections[0]!.id, "session:direct_delivery");
-    assert.match(sections[0]!.content, /ordinary assistant text/);
-    assert.match(sections[0]!.content, /Do not use reply\(text\)/);
-    assert.match(sections[0]!.content, /only when explicitly asked/);
-    assert.match(sections[0]!.content, /Agent DMs are internal channels/);
+    assert.equal(section?.id, "session:direct_delivery");
+    assert.match(section!.content, /ordinary assistant text/);
+    assert.match(section!.content, /Do not use reply\(text\)/);
+    assert.match(section!.content, /only when explicitly asked/);
+    assert.match(section!.content, /Agent DMs are internal channels/);
   });
 
   test("adds publication guidance for gateway channel sessions", () => {
-    const sections = buildSystemEnvSections({
+    const section = buildSessionDeliverySection({
       sessionType: "gateway",
       channel: "telegram-123",
-      envKeys: [],
-      env: {},
     });
 
-    assert.equal(sections.length, 1);
-    assert.equal(sections[0]!.id, "session:delivery");
-    assert.match(sections[0]!.content, /Plain assistant text stays/);
-    assert.match(sections[0]!.content, /no external adapter is expected/);
-    assert.match(sections[0]!.content, /normally completes your response/);
+    assert.equal(section?.id, "session:delivery");
+    assert.match(section!.content, /Plain assistant text stays/);
+    assert.match(section!.content, /no external adapter is expected/);
+    assert.match(section!.content, /normally completes your response/);
   });
 });
 
@@ -195,19 +189,19 @@ describe("resolveContextConfig", () => {
   test("context values override defaults while preserving fallback fields", () => {
     const resolved = resolveContextConfig(
       {
-        sources: ["workspace:profile/USER.md"],
+        sources: ["workspace:context/user.md"],
       },
       {
         sources: [
           "agent:SOUL.md",
-          "workspace:profile/SYSTEM.md",
+          "workspace:context/",
         ],
         env: ["workspace_path"],
       },
     );
 
     assert.deepEqual(resolved, {
-      sources: ["workspace:profile/USER.md"],
+      sources: ["workspace:context/user.md"],
       env: ["workspace_path"],
       channels: {},
       agents: {},
@@ -219,14 +213,14 @@ describe("resolveContextConfig", () => {
     const resolved = resolveContextConfig(
       {
         sources: [
-          "workspace:profile/WORKSPACE.md",
+          "workspace:context/",
           "agent:SOUL.md",
         ],
       },
       {
         sources: [
           "workspace:HOME.md",
-          "workspace:profile/SYSTEM.md",
+          "workspace:context/extra.md",
         ],
         env: ["workspace_path"],
       },
@@ -234,7 +228,7 @@ describe("resolveContextConfig", () => {
 
     assert.deepEqual(resolved, {
       sources: [
-        "workspace:profile/WORKSPACE.md",
+        "workspace:context/",
         "agent:SOUL.md",
       ],
       env: ["workspace_path"],
@@ -279,7 +273,6 @@ describe("assembleContextViewSections", () => {
     const workspace = mkdtempSync(join(tmpdir(), "shrimpy-context-session-test-"));
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
-    mkdirSync(join(workspace, "profile"), { recursive: true });
 
     try {
       writeFileSync(join(agentRoot, "MAINTENANCE.md"), "# MAINTENANCE\n\nsteady\n", "utf-8");
@@ -316,7 +309,6 @@ describe("assembleContextViewSections", () => {
     const workspace = mkdtempSync(join(tmpdir(), "shrimpy-context-session-section-test-"));
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
-    mkdirSync(join(workspace, "profile"), { recursive: true });
 
     try {
       writeFileSync(join(workspace, "NOTICE.md"), "# NOTICE\n\nworkspace\n", "utf-8");
@@ -358,10 +350,10 @@ describe("assembleBasePromptSections", () => {
     const workspace = mkdtempSync(join(tmpdir(), "shrimpy-context-base-test-"));
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
-    mkdirSync(join(workspace, "profile"), { recursive: true });
+    mkdirSync(join(workspace, "context"), { recursive: true });
 
     try {
-      writeFileSync(join(workspace, "profile", "WORKSPACE.md"), "# WORKSPACE\n\nroot\n", "utf-8");
+      writeFileSync(join(workspace, "context", "SYSTEM.md"), "# SYSTEM\n\nroot\n", "utf-8");
       writeFileSync(join(agentRoot, "SOUL.md"), "# SOUL\n\nagent\n", "utf-8");
 
       const rendered = renderPromptSections(assembleBasePromptSections(
@@ -369,13 +361,15 @@ describe("assembleBasePromptSections", () => {
         workspace,
         resolveContextConfig({
           sources: [
-            "workspace:profile/WORKSPACE.md",
+            "workspace:context/",
             "agent:SOUL.md",
           ],
         }),
       ));
 
-      assert.match(rendered, /^\[context base:profile\/WORKSPACE\.md identity\]\n\n# WORKSPACE/);
+      assert.ok(rendered.startsWith(
+        `<context path="${join(workspace, "context", "SYSTEM.md")}">\n# SYSTEM`,
+      ));
       assert.match(rendered, /# SOUL/);
     } finally {
       rmSync(workspace, { recursive: true, force: true });
@@ -386,26 +380,36 @@ describe("assembleBasePromptSections", () => {
     const workspace = mkdtempSync(join(tmpdir(), "shrimpy-context-base-section-test-"));
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
-    mkdirSync(join(workspace, "profile"), { recursive: true });
+    mkdirSync(join(workspace, "context"), { recursive: true });
 
     try {
-      writeFileSync(join(workspace, "profile", "WORKSPACE.md"), "# WORKSPACE\n\nroot\n", "utf-8");
+      writeFileSync(join(workspace, "context", "SYSTEM.md"), "# SYSTEM\n\nroot\n", "utf-8");
+      writeFileSync(join(workspace, "context", "USER.md"), "# USER\n\nowner\n", "utf-8");
+      writeFileSync(join(workspace, "context", "WORKSPACE.md"), "# WORKSPACE\n\nenv\n", "utf-8");
       mkdirSync(join(agentRoot, "context"), { recursive: true });
       writeFileSync(join(agentRoot, "context", "memory.md"), "# MEMORY\n\nagent\n", "utf-8");
+      mkdirSync(join(agentRoot, "context", "people"), { recursive: true });
+      writeFileSync(join(agentRoot, "context", "people", "human-alice.md"), "# ALICE\n\nperson\n", "utf-8");
 
       const sections = assembleBasePromptSections(agentRoot, workspace, resolveContextConfig({
         sources: [
-          "workspace:profile/WORKSPACE.md",
+          "workspace:context/",
           "agent:context/",
         ],
       }));
 
       assert.deepEqual(sections.map((section) => section.id), [
-        "base:profile/WORKSPACE.md",
+        "base:context/SYSTEM.md",
+        "base:context/USER.md",
+        "base:context/WORKSPACE.md",
         "base:context/memory.md",
+        "base:context/people/human-alice.md",
       ]);
       assert.deepEqual(sections.map((section) => section.kind), [
         "identity",
+        "identity",
+        "identity",
+        "memory",
         "memory",
       ]);
     } finally {

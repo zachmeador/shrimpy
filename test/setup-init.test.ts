@@ -29,9 +29,9 @@ describe("setupInit", () => {
 
     const configPath = join(workspace, "config", "shrimpy.json");
     const channelsConfigPath = join(workspace, "config", "channels.json");
-    const workspaceDocPath = join(workspace, "profile", "WORKSPACE.md");
-    const userPath = join(workspace, "profile", "USER.md");
-    const systemPath = join(workspace, "profile", "SYSTEM.md");
+    const systemPath = join(workspace, "context", "SYSTEM.md");
+    const userContextPath = join(workspace, "context", "USER.md");
+    const workspaceContextPath = join(workspace, "context", "WORKSPACE.md");
     const agentRoot = join(workspace, "agents", "shrimpy");
     const mechanicRoot = join(workspace, "agents", "mechanic");
     const watchesPath = join(agentRoot, "watches.json");
@@ -149,9 +149,12 @@ describe("setupInit", () => {
     assert.equal(existsSync(channelsConfigPath), true);
     assert.equal(existsSync(watchesPath), true);
     assert.equal(existsSync(mechanicWatchesPath), true);
-    assert.equal(existsSync(workspaceDocPath), true);
-    assert.equal(existsSync(userPath), true);
     assert.equal(existsSync(systemPath), true);
+    assert.equal(existsSync(userContextPath), true);
+    assert.equal(existsSync(workspaceContextPath), true);
+    assert.equal(existsSync(join(workspace, "profile", "WORKSPACE.md")), false);
+    assert.equal(existsSync(join(workspace, "profile", "USER.md")), false);
+    assert.equal(existsSync(join(workspace, "profile", "SYSTEM.md")), false);
     assert.equal(existsSync(soulPath), true);
     assert.equal(existsSync(mechanicSoulPath), true);
     assert.equal(existsSync(contextIdentityPath), false);
@@ -250,10 +253,8 @@ describe("setupInit", () => {
     ]);
     assert.deepEqual(config.agents[1].channelPolicy, { mode: "addressed" });
     assert.deepEqual(config.context.sources, [
-      "workspace:profile/WORKSPACE.md",
-      "workspace:profile/SYSTEM.md",
+      "workspace:context/",
       "agent:SOUL.md",
-      "workspace:profile/USER.md",
       "agent:context/",
     ]);
     assert.deepEqual(config.context.turn, {
@@ -314,29 +315,51 @@ describe("setupInit", () => {
     });
 
     const system = readFileSync(systemPath, "utf-8");
-    assert.match(system, /all Shrimpy agents shared workspace context/);
-    assert.match(system, /Edit it when the workspace's baseline guidance should change/);
-    assert.match(system, /Use the Shrimpy source and docs paths listed in `profile\/WORKSPACE\.md`/);
-    assert.match(system, /Framework Map/);
-    assert.match(system, /reference\/context-assembly\.md/);
-    assert.match(system, /Coding Work/);
-    assert.match(system, /optional delegation is preferred/);
-    assert.match(system, /real worker\/session handoff exists/);
-    assert.match(system, /CLI Breadcrumbs/);
-    assert.match(system, /When the `bash` tool is available/);
-    assert.match(system, /shrimpy context --sections/);
-    assert.match(system, /shrimpy channels read <name>/);
-    assert.match(system, /Storage Breadcrumbs/);
-    assert.match(system, /Use `agents\/<id>\/context\/` only for memory intended to load into prompts/);
-    assert.match(system, /Use the `remember` skill when the user asks to save, capture, collect, archive, or remember something for later/);
-    assert.doesNotMatch(system, /skills\/remember|included:remember|# Remember/);
-    assert.doesNotMatch(system, /source URL or origin, capture timestamp, the user's request/);
-    assert.doesNotMatch(system, /agents\/shrimpy\/vault\/research\/<YYYY-MM-DD>-<slug>/);
-    assert.match(system, /persist the relevant Markdown note before claiming it will be remembered/);
-    assert.equal(system.includes(projectRoot), false);
-    assert.equal(system.includes(join(projectRoot, "src")), false);
-    assert.equal(system.includes(join(projectRoot, "docs")), false);
-    assert.equal(system.includes(workspace), false);
+    assert.match(system, /shared baseline context/);
+    assert.match(system, /Shrimpy is the home-agent layer/);
+    assert.match(system, /Pi is the underlying agent runtime/);
+    assert.match(system, /reference\//);
+    assert.doesNotMatch(system, /Local Paths/);
+
+    const userContext = readFileSync(userContextPath, "utf-8");
+    assert.match(userContext, /Durable workspace-owner identity/);
+    assert.match(userContext, /hard preferences/);
+    assert.match(userContext, /prompt-loaded by default/);
+    assert.doesNotMatch(userContext, /Local Paths/);
+
+    const workspaceContext = readFileSync(workspaceContextPath, "utf-8");
+    assert.match(workspaceContext, /local workspace details/);
+    assert.match(workspaceContext, /Local Paths/);
+    assert.match(workspaceContext, /Workspace:/);
+    assert.match(workspaceContext, /Shrimpy checkout:/);
+    assert.match(workspaceContext, /Source:/);
+    assert.match(workspaceContext, /Docs:/);
+    assert.match(workspaceContext, /Reference docs:/);
+    assert.match(workspaceContext, /Included skills:/);
+    assert.match(workspaceContext, /Workspace skills:/);
+    assert.match(workspaceContext, /Agent skills:/);
+    assert.match(workspaceContext, /Storage/);
+    assert.match(workspaceContext, /Shared workspace context: `context\/`/);
+    assert.match(workspaceContext, /Workspace owner context: `context\/USER\.md`/);
+    assert.match(workspaceContext, /Agent context and prompt-loaded memory: `agents\/<id>\/context\/`/);
+    assert.match(workspaceContext, /Saved artifacts and reports: `agents\/<id>\/vault\/`/);
+    assert.match(workspaceContext, /Code, apps, experiments, and focused work folders: `agents\/<id>\/projects\/`/);
+    assert.match(workspaceContext, /CLI/);
+    assert.match(workspaceContext, /shrimpy context --sections/);
+    assert.match(workspaceContext, /shrimpy channels read <name>/);
+    assert.match(workspaceContext, /Use the `remember` skill when the user asks to save, capture, collect, archive, or remember something for later/);
+    assert.doesNotMatch(workspaceContext, /skills\/remember|included:remember|# Remember/);
+    assert.doesNotMatch(workspaceContext, /source URL or origin, capture timestamp, the user's request/);
+    assert.doesNotMatch(workspaceContext, /agents\/shrimpy\/vault\/research\/<YYYY-MM-DD>-<slug>/);
+    assert.match(workspaceContext, /Persist the relevant Markdown note before claiming it will be remembered/);
+    assert.equal(workspaceContext.includes(workspace), true);
+    assert.equal(workspaceContext.includes(projectRoot), true);
+    assert.equal(workspaceContext.includes(join(projectRoot, "src")), true);
+    assert.equal(workspaceContext.includes(join(projectRoot, "docs")), true);
+    assert.equal(workspaceContext.includes(join(projectRoot, "docs", "reference")), true);
+    assert.equal(workspaceContext.includes(join(projectRoot, "src", "skills", "included")), true);
+    assert.equal(workspaceContext.includes(join(workspace, "skills")), true);
+    assert.equal(workspaceContext.includes(join(workspace, "agents", "<id>", "skills")), true);
 
     const soul = readFileSync(soulPath, "utf-8");
     // very important
@@ -348,34 +371,7 @@ describe("setupInit", () => {
     assert.match(mechanicSoul, /Use assigned Shrimpy skills first/);
     assert.match(mechanicSoul, /Do not treat yourself as the user's normal `shrimpy` agent/);
 
-    const workspaceDoc = readFileSync(workspaceDocPath, "utf-8");
-    assert.match(workspaceDoc, /This workspace is the home system/);
-    assert.match(workspaceDoc, /Each agent keeps saved files and collections under `agents\/<id>\/vault\/`/);
-    assert.match(workspaceDoc, /Each agent keeps code, apps, experiments, and focused work folders under `agents\/<id>\/projects\/`/);
-    assert.match(workspaceDoc, /Use the `remember` skill for save, capture, collect, archive, and remember-for-later requests/);
-    assert.doesNotMatch(workspaceDoc, /skills\/remember|included:remember|# Remember/);
-    assert.doesNotMatch(workspaceDoc, /durable user-owned collections such as recipes/);
-    assert.doesNotMatch(workspaceDoc, /agents\/<id>\/vault\/recipes\/<slug>\.md/);
-    assert.equal(workspaceDoc.includes("agents/shrimpy/vault/inbox/"), false);
-    assert.match(workspaceDoc, /Local Paths/);
-    assert.match(workspaceDoc, /Active workspace:/);
-    assert.match(workspaceDoc, /Shrimpy app checkout:/);
-    assert.match(workspaceDoc, /Shrimpy source:/);
-    assert.match(workspaceDoc, /Shrimpy docs:/);
-    assert.match(workspaceDoc, /Reference docs:/);
-    assert.match(workspaceDoc, /Included skill sources:/);
-    assert.match(workspaceDoc, /Workspace skills:/);
-    assert.match(workspaceDoc, /Agent skills:/);
-    assert.match(workspaceDoc, /Do not put reports in `context\/`/);
-    assert.equal(workspaceDoc.includes(workspace), true);
-    assert.equal(workspaceDoc.includes(projectRoot), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "src")), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "docs")), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "patterns")), false);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "docs", "reference")), true);
-    assert.equal(workspaceDoc.includes(join(projectRoot, "src", "skills", "included")), true);
-    assert.equal(workspaceDoc.includes(join(workspace, "skills")), true);
-    assert.equal(workspaceDoc.includes(join(workspace, "agents", "<id>", "skills")), true);
+    assert.equal(system.includes(join(projectRoot, "docs", "patterns")), false);
 
     const mechanicScope = readFileSync(mechanicContextScopePath, "utf-8");
     assert.match(mechanicScope, /workspace-specific maintenance boundaries/);
@@ -406,13 +402,19 @@ describe("setupInit", () => {
   test("does not overwrite existing workspace and agent docs", async () => {
     await setupInit(workspace);
 
-    const systemPath = join(workspace, "profile", "SYSTEM.md");
+    const systemPath = join(workspace, "context", "SYSTEM.md");
+    const userContextPath = join(workspace, "context", "USER.md");
+    const workspaceContextPath = join(workspace, "context", "WORKSPACE.md");
     const soulPath = join(workspace, "agents", "shrimpy", "SOUL.md");
     writeFileSync(systemPath, "# SYSTEM\n\ncustom\n", "utf-8");
+    writeFileSync(userContextPath, "# USER\n\ncustom\n", "utf-8");
+    writeFileSync(workspaceContextPath, "# WORKSPACE\n\ncustom\n", "utf-8");
     writeFileSync(soulPath, "# SOUL\n\ncustom\n", "utf-8");
 
     await setupInit(workspace);
     assert.equal(readFileSync(systemPath, "utf-8"), "# SYSTEM\n\ncustom\n");
+    assert.equal(readFileSync(userContextPath, "utf-8"), "# USER\n\ncustom\n");
+    assert.equal(readFileSync(workspaceContextPath, "utf-8"), "# WORKSPACE\n\ncustom\n");
     assert.equal(readFileSync(soulPath, "utf-8"), "# SOUL\n\ncustom\n");
   });
 });

@@ -94,11 +94,7 @@ The view distinguishes `pi built-in`, `shrimpy daemon`, and `unknown` names, and
 
 ## Prompt Text
 
-Pi provider-native tool schemas are authoritative even when the rendered system prompt does not include detailed built-in tool prose.
-
-Shrimpy passes Pi an explicit assembled system prompt. With that custom prompt, Pi still exposes active tool schemas to the provider, but Pi's default "Available tools" prose for built-ins is not automatically rendered into `shrimpy context` previews. Shrimpy daemon tools provide short prompt snippets and descriptions for the model.
-
-Use `shrimpy context --agent <id>` to inspect prompt text, and use `shrimpy agent inspect <id>` to inspect the effective provider-side tool set.
+`shrimpy context --agent <id>` is the context inspection surface for an agent. It should match the model-facing context for the requested agent, session, and turn. Use `shrimpy agent inspect <id>` when you specifically need to debug effective tool policy.
 
 ## Skill Context
 

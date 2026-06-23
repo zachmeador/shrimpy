@@ -37,12 +37,12 @@ Shrimpy already exposes time in several places:
 - `src/context/turn/session-status.ts` adds active/stale session counts on generated watch turns.
 - `src/context/turn/workers.ts` adds owned worker outcomes and ages.
 - `src/context/turn/service.ts` caches command-source output according to `freshForMs`.
-- `docs/reference/turn-context.md` documents the generated context envelope and inspection commands.
+- `docs/reference/turn-context.md` documents generated turn context and inspection commands.
 
 That is a strong substrate. The most suspicious parts, viewed through these papers:
 
 - Shrimpy has at least two model-visible "now" surfaces: Pi runtime facts and turn context. The source also has a `before_agent_start` prompt-containment hook, while reference docs describe a stable session prompt. A follow-up implementation/doc audit should clarify which "Current time" the model actually sees per session type, how often it refreshes, and whether the turn-context time should be explicitly authoritative.
-- The turn-context envelope says the context is background to use "when relevant." The papers suggest time often needs stronger placement than ordinary background, because models frequently ignore temporal cues unless they are decision-local.
+- The turn-context instruction says the context is background to use "when relevant." The papers suggest time often needs stronger placement than ordinary background, because models frequently ignore temporal cues unless they are decision-local.
 - Command-source caching is invisible unless the command output includes its own timestamp. When Shrimpy reuses cached command items inside `freshForMs`, the model may see an alert without knowing whether it was observed 1 second or 59 seconds ago.
 - Watch context tells the model next/last/active state, but not an explicit behavior cue such as "this is a scheduled nudge; no user is waiting" or "this fired late; compress and prioritize overdue checks."
 - Path-indexed memory context has no framework-owned temporal validity. A note in `context/people/` or `context/channels/` can be durable, stale, or time-sensitive, but the renderer does not distinguish those cases.

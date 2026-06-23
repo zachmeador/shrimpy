@@ -14,7 +14,7 @@ shrimpy skills list --agent <id>
 shrimpy skills validate --agent <id>
 ```
 
-If you need exact local paths, read `profile/WORKSPACE.md` first. It should point to the active workspace, app checkout, reference docs, included skill sources, workspace skill root, and agent skill path stems. For more detail after this skill, check `docs/reference/skills.md`; use `docs/reference/workspace.md` for storage layout and precedence.
+If you need exact local paths, read `context/WORKSPACE.md` first. It should point to the active workspace, app checkout, reference docs, included skill sources, workspace skill root, and agent skill path stems. For more detail after this skill, check `docs/reference/skills.md`; use `docs/reference/workspace.md` for storage layout and precedence.
 
 ## Decide
 

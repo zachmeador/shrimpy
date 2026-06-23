@@ -7,12 +7,12 @@ Depends On: workspace search
 
 ## Why
 
-In a large workspace the agent does not know what knowledge exists unless something tells it. Turn context already carries fixed, path-routed slices (people/channel memory, skills trails); nothing connects the content of the incoming message to the rest of the corpus. A few high-confidence pointers — never content — let the agent notice "there is a vault note about this" and decide whether to read it.
+In a large workspace the agent does not know what knowledge exists unless something tells it. Turn context already carries fixed runtime pointers and command-source output; nothing connects the content of the incoming message to the rest of the corpus. A few high-confidence pointers — never content — let the agent notice "there is a vault note about this" and decide whether to read it.
 
 ## Current State
 
 - Turn context is assembled by item builders in `src/context/turn/service.ts`, each returning `{summary, inspect}` items under the `context.turn.maxChars` budget.
-- `src/context/turn/memory.ts` is the deterministic precedent: path-routed per-turn slices keyed by sender and channel.
+- Command sources are the deterministic precedent for bounded workspace-specific items with inspect commands.
 - `shrimpy workspace search` provides the local workspace search service this producer calls.
 
 ## Build
@@ -26,7 +26,7 @@ In a large workspace the agent does not know what knowledge exists unless someth
 
 ## Boundaries
 
-- Pointers only. Document content never enters the context block; the agent reads the source if it cares.
+- Pointers only. Document content never enters turn context; the agent reads the source if it cares.
 - An irrelevant breadcrumb is worse than none: conservative threshold, small cap, no filler.
 - Corpus is exactly `shrimpy workspace search`'s. No transcript or channel-log breadcrumbs; `shrimpy sessions search` remains on-demand recall, not ambient context.
 - No new config surface beyond `context.turn.knowledge`; budget interaction stays inside the existing `maxChars` mechanism.

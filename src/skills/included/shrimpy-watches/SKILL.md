@@ -7,7 +7,7 @@ description: Use when creating, changing, inspecting, or debugging Shrimpy watch
 
 Use this skill when the user wants recurring work, reminders, periodic audits, or background checks.
 
-Use the paths in `profile/WORKSPACE.md`. For detail, use:
+Use the paths in `context/WORKSPACE.md`. For detail, use:
 
 - `reference/configuration.md` — watch configuration, message watches, command watches, status config.
 - `reference/runtime.md` — gateway dispatch, watch runs, run history.

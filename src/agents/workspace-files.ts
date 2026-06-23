@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { createAgentPaths, type AgentPaths } from "../app/paths.js";
-import { renderSoulTemplate } from "../context/index.js";
+import { loadSetupTemplate } from "../setup/templates.js";
 
 export function scaffoldAgentFiles(
   workspace: string,
@@ -18,7 +18,7 @@ export function scaffoldAgentFiles(
   const files = [
     {
       path: paths.soulPath,
-      content: renderSoulTemplate(agentId),
+      content: renderAgentSoulTemplate(agentId),
     },
     {
       path: join(paths.vaultDir, ".gitkeep"),
@@ -35,6 +35,25 @@ export function scaffoldAgentFiles(
     mkdirSync(dirname(file.path), { recursive: true });
     writeFileSync(file.path, file.content, "utf-8");
   }
+}
+
+function renderAgentSoulTemplate(agentId: string): string {
+  if (agentId === "shrimpy") {
+    return loadSetupTemplate("workspace/agents/shrimpy/SOUL.md");
+  }
+
+  return loadSetupTemplate("scaffold/agent/SOUL.md")
+    .replaceAll("{{AGENT_ID}}", agentId)
+    .replaceAll("{{AGENT_NAME}}", formatAgentName(agentId));
+}
+
+function formatAgentName(agentId: string): string {
+  const pretty = agentId
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join(" ");
+  return pretty || agentId;
 }
 
 export function deleteAgentWorkspaceFiles(

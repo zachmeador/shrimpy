@@ -1,5 +1,5 @@
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import { formatPromptWithTurnContext } from "../context/index.js";
+import { prefixPromptWithTurnContext } from "../context/index.js";
 
 interface MessageLike {
   role?: string;
@@ -58,7 +58,7 @@ export function runSessionTurn(
   const signal = opts?.signal;
   const abortMessage = opts?.abortMessage ?? "session turn aborted";
   const promptText = opts?.turnContextText?.trim()
-    ? formatPromptWithTurnContext(prompt, opts.turnContextText.trim())
+    ? prefixPromptWithTurnContext(prompt, opts.turnContextText.trim())
     : prompt;
 
   return new Promise<SessionTurnResult>((resolve, reject) => {

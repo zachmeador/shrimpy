@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 
 type PromptSectionKind =
   | "identity"
@@ -12,6 +12,7 @@ type PromptSectionKind =
 
 export interface PromptSection {
   id: string;
+  path?: string;
   title: string;
   kind: PromptSectionKind;
   source: string;
@@ -26,6 +27,7 @@ export interface PromptResourceRef {
 
 interface PromptSectionSummary {
   id: string;
+  path: string;
   title: string;
   kind: PromptSectionKind;
   source: string;
@@ -64,13 +66,7 @@ export function readPromptResource(
   return readFileSync(path, "utf-8");
 }
 
-/**
- * Expand a directory resource into one ref per top-level .md file, in
- * deterministic path order. Subdirectories are skipped — they are reserved
- * for turn-scoped slices (people/, channels/) handled elsewhere.
- *
- * Returns an empty list if the directory doesn't exist or has no .md files.
- */
+/** Expand a directory resource into one ref per Markdown file, recursively. */
 export function expandDirectoryResource(
   rootPath: string,
   dirResourcePath: string,
@@ -79,19 +75,9 @@ export function expandDirectoryResource(
   if (!existsSync(dirPath)) return [];
   if (!statSync(dirPath).isDirectory()) return [];
 
-  const names = readdirSync(dirPath)
-    .filter((name) => name.endsWith(".md"))
-    .sort();
-
-  return names
-    .filter((name) => {
-      const full = join(dirPath, name);
-      return statSync(full).isFile();
-    })
-    .map((name) => ({
-      rootPath,
-      resourcePath: join(dirResourcePath, name),
-    }));
+  const refs: PromptResourceRef[] = [];
+  collectMarkdownRefs(rootPath, dirResourcePath, refs);
+  return refs.sort((a, b) => a.resourcePath.localeCompare(b.resourcePath));
 }
 
 export function createPromptSection(
@@ -105,9 +91,31 @@ export function createPromptSection(
 }
 
 export function promptResourceKind(resourcePath: string): PromptSectionKind {
+  if (resourcePath === "context/SYSTEM.md") return "identity";
+  if (resourcePath === "context/USER.md") return "identity";
+  if (resourcePath === "context/WORKSPACE.md") return "identity";
   if (resourcePath.startsWith("context/") || resourcePath === "context") return "memory";
   if (resourcePath.startsWith("skills/") || resourcePath.endsWith("SKILL.md")) return "capability";
   return "identity";
+}
+
+function collectMarkdownRefs(
+  rootPath: string,
+  dirResourcePath: string,
+  refs: PromptResourceRef[],
+): void {
+  const dirPath = join(rootPath, dirResourcePath);
+  const entries = readdirSync(dirPath, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  for (const entry of entries) {
+    const resourcePath = join(dirResourcePath, entry.name);
+    if (entry.isDirectory()) {
+      collectMarkdownRefs(rootPath, resourcePath, refs);
+    } else if (entry.isFile() && extname(entry.name).toLowerCase() === ".md") {
+      refs.push({ rootPath, resourcePath });
+    }
+  }
 }
 
 export function promptResourceTitle(resourcePath: string): string {
@@ -136,11 +144,13 @@ export function assemblePromptResourceSections(
   return resources
     .map((resource) => {
       const content = readPromptResource(resource.rootPath, resource.resourcePath);
+      const source = join(resource.rootPath, resource.resourcePath);
       return createPromptSection({
         id: promptResourceSectionId(idPrefix, resource.resourcePath),
+        path: source,
         title: promptResourceTitle(resource.resourcePath),
         kind: promptResourceKind(resource.resourcePath),
-        source: join(resource.rootPath, resource.resourcePath),
+        source,
         reason: opts?.reason ?? "Configured context resource",
         content,
       });
@@ -152,20 +162,25 @@ export function renderPromptSections(sections: PromptSection[]): string {
   return sections
     .map(renderPromptSection)
     .filter(Boolean)
-    .join("\n\n---\n\n");
+    .join("\n\n");
 }
 
 export function renderPromptSection(section: PromptSection): string {
   return [
-    `[context ${section.id} ${section.kind}]`,
-    "",
+    `<context path="${promptSectionPath(section)}">`,
     section.content.trimEnd(),
+    "</context>",
   ].join("\n");
+}
+
+function promptSectionPath(section: PromptSection): string {
+  return section.path ?? section.source;
 }
 
 export function summarizePromptSection(section: PromptSection): PromptSectionSummary {
   return {
     id: section.id,
+    path: promptSectionPath(section),
     title: section.title,
     kind: section.kind,
     source: section.source,
@@ -196,7 +211,8 @@ export function renderPromptSectionManifest(sections: PromptSection[]): string {
     "",
   ];
   for (const summary of summaries) {
-    lines.push(`- ${summary.id} [${summary.kind}] ${summary.chars} chars`);
+    lines.push(`- ${summary.path} [${summary.kind}] ${summary.chars} chars`);
+    lines.push(`  id: ${summary.id}`);
     lines.push(`  source: ${summary.source}`);
     lines.push(`  reason: ${summary.reason}`);
   }

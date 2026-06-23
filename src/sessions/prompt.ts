@@ -3,7 +3,8 @@ import {
   assembleContextViewSections,
   assemblePromptContext,
   assemblePromptResourceSections,
-  buildSystemEnvSections,
+  buildRuntimeEnvironmentSection,
+  buildSessionDeliverySection,
   createPromptSection,
   FALLBACK_IDENTITY_TEXT,
   resolveContextEnvKeys,
@@ -48,12 +49,18 @@ export function assembleSessionPrompt(
     descriptor.agentId ?? bootstrap.agentId,
   );
   const env = { ...bootstrap.bootEnv, ...sessionEnv };
-  const stableEnvSections = buildSystemEnvSections({
-    sessionType: descriptor.kind,
-    channel: descriptor.channel,
+  const runtimeEnvironmentSection = buildRuntimeEnvironmentSection({
     envKeys,
     env,
   });
+  const deliverySection = buildSessionDeliverySection({
+    sessionType: descriptor.kind,
+    channel: descriptor.channel,
+  });
+  const stableRuntimeSections = [
+    runtimeEnvironmentSection,
+    deliverySection,
+  ].filter((section): section is PromptSection => Boolean(section));
 
   const sessionPromptSections = assembleContextViewSections(
     bootstrap.agentRootPath,
@@ -83,6 +90,7 @@ export function assembleSessionPrompt(
   );
   const appendSection = createPromptSection({
     id: "session:append_system_prompt",
+    path: "inline/session_append_system_prompt",
     title: "Append System Prompt",
     kind: "instruction",
     source: "inline",
@@ -91,7 +99,7 @@ export function assembleSessionPrompt(
   });
 
   const needsCustomLoader =
-    stableEnvSections.length > 0 ||
+    stableRuntimeSections.length > 0 ||
     extraBasePromptSections.length > 0 ||
     sessionPromptSections.length > 0 ||
     Boolean(appendSection);
@@ -99,7 +107,7 @@ export function assembleSessionPrompt(
     ? assemblePromptContext({
       sections: [
         bootstrap.baseSystemSections,
-        stableEnvSections,
+        stableRuntimeSections,
         extraBasePromptSections,
         sessionPromptSections,
         appendSection,

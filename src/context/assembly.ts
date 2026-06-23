@@ -73,6 +73,7 @@ export function assembleBasePromptSections(
   if (opts?.extraText) {
     sections.push({
       id: "base:extra_text",
+      path: "inline/base_extra_text",
       title: "Extra Base Context",
       kind: "instruction",
       source: "inline",
@@ -129,20 +130,19 @@ export function contextResourcesToPromptRefs(
     if (isDirectoryResource(source)) {
       refs.push(...expandDirectoryResource(rootPath, path));
     } else {
-      refs.push({ rootPath, resourcePath: path });
+      refs.push({
+        rootPath,
+        resourcePath: path,
+      });
     }
   }
   return refs;
 }
 
-export function buildSystemEnvSections(opts: {
-  sessionType: string;
-  channel?: string;
+export function buildRuntimeEnvironmentSection(opts: {
   envKeys: string[];
   env: Record<string, string | undefined>;
-}): PromptSection[] {
-  const sections: PromptSection[] = [];
-
+}): PromptSection | undefined {
   const envRows: string[] = [];
   for (const key of opts.envKeys) {
     if (!isPromptRuntimeEnvKey(key)) continue;
@@ -151,20 +151,27 @@ export function buildSystemEnvSections(opts: {
       envRows.push(`- **${promptRuntimeEnvLabel(key)}**: ${value}`);
     }
   }
-  if (envRows.length > 0) {
-    sections.push({
-      id: "session:runtime_environment",
-      title: "Runtime Environment",
-      kind: "runtime",
-      source: "runtime",
-      reason: "Stable session environment facts",
-      content: `## Runtime Environment\n\n${envRows.join("\n")}`,
-    });
-  }
+  if (envRows.length === 0) return undefined;
 
+  return {
+    id: "session:runtime_environment",
+    path: "runtime/environment",
+    title: "Runtime Environment",
+    kind: "runtime",
+    source: "runtime",
+    reason: "Stable session environment facts",
+    content: `## Runtime Environment\n\n${envRows.join("\n")}`,
+  };
+}
+
+export function buildSessionDeliverySection(opts: {
+  sessionType: string;
+  channel?: string;
+}): PromptSection | undefined {
   if (opts.sessionType === "gateway" && opts.channel) {
-    sections.push({
+    return {
       id: "session:delivery",
+      path: "runtime/delivery",
       title: "Delivery",
       kind: "runtime",
       source: "runtime",
@@ -181,10 +188,13 @@ export function buildSystemEnvSections(opts: {
         "- A successful publication normally completes your response for this channel turn; do not also answer the same user with plain assistant text.",
         "- After a publication or routed send_message tool logs or delivers the message, wait until a new message is received.",
       ].join("\n"),
-    });
-  } else if (opts.sessionType === "tui" || opts.sessionType === "run") {
-    sections.push({
+    };
+  }
+
+  if (opts.sessionType === "tui" || opts.sessionType === "run") {
+    return {
       id: "session:direct_delivery",
+      path: "runtime/direct_delivery",
       title: "Direct Session Delivery",
       kind: "runtime",
       source: "runtime",
@@ -198,10 +208,10 @@ export function buildSystemEnvSections(opts: {
         "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are only for gateway/channel turns.",
         "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel, user:<id> alias, or agent DM. Agent DMs are internal channels, so no external adapter is expected.",
       ].join("\n"),
-    });
+    };
   }
 
-  return sections;
+  return undefined;
 }
 
 function promptRuntimeEnvLabel(key: string): string {

@@ -3,7 +3,7 @@ import type {
   ExtensionFactory,
 } from "@earendil-works/pi-coding-agent";
 import type { ImageContent, UserMessage } from "@earendil-works/pi-ai";
-import { formatPromptWithTurnContext } from "../context/index.js";
+import { prefixPromptWithTurnContext } from "../context/index.js";
 
 interface ActiveSessionTurnContext {
   text: string;
@@ -91,7 +91,7 @@ function rewriteUserContent(
   content: UserMessage["content"],
   active: ActiveSessionTurnContext,
 ): UserMessage["content"] {
-  const text = formatPromptWithTurnContext(userContentText(content), active.text);
+  const text = prefixPromptWithTurnContext(userContentText(content), active.text);
   if (typeof content === "string") return text;
   return [
     { type: "text", text },

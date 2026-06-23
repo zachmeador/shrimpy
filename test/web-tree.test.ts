@@ -26,7 +26,7 @@ function findNode(root: DirectoryNode, path: string): TreeNode | undefined {
 
 test("web tree mirrors the workspace layout", async () => {
   const workspace = await mkdtemp(join(tmpdir(), "shrimpy-web-"));
-  await mkdir(join(workspace, "profile"), { recursive: true });
+  await mkdir(join(workspace, "context"), { recursive: true });
   await mkdir(join(workspace, "config"), { recursive: true });
   await mkdir(join(workspace, "channels"), { recursive: true });
   await mkdir(join(workspace, "state", "pi"), { recursive: true });
@@ -38,7 +38,9 @@ test("web tree mirrors the workspace layout", async () => {
     recursive: true,
   });
 
-  await writeFile(join(workspace, "profile", "WORKSPACE.md"), "# Workspace\n");
+  await writeFile(join(workspace, "context", "SYSTEM.md"), "# System\n");
+  await writeFile(join(workspace, "context", "USER.md"), "# User\n");
+  await writeFile(join(workspace, "context", "WORKSPACE.md"), "# Workspace\n");
   await writeFile(join(workspace, "config", "shrimpy.json"), "{}\n");
   await writeFile(join(workspace, "channels", "home.jsonl"), "{}\n");
   await writeFile(join(workspace, "state", "pi", "auth.json"), "{}\n");
@@ -55,12 +57,18 @@ test("web tree mirrors the workspace layout", async () => {
   const tree = await buildTree(workspace);
   assert.deepEqual(
     tree.root.children.slice(0, 6).map((node) => node.name),
-    ["profile", "config", "agents", "channels", "state", "runtime"],
+    ["context", "config", "agents", "channels", "state", "runtime"],
   );
 
-  const profile = findNode(tree.root, "profile/WORKSPACE.md") as FileLeaf;
-  assert.equal(profile.kind, "markdown");
-  assert.equal(profile.readable, true);
+  const context = findNode(tree.root, "context/SYSTEM.md") as FileLeaf;
+  assert.equal(context.kind, "markdown");
+  assert.equal(context.readable, true);
+  const userContext = findNode(tree.root, "context/USER.md") as FileLeaf;
+  assert.equal(userContext.kind, "markdown");
+  assert.equal(userContext.readable, true);
+  const workspaceContext = findNode(tree.root, "context/WORKSPACE.md") as FileLeaf;
+  assert.equal(workspaceContext.kind, "markdown");
+  assert.equal(workspaceContext.readable, true);
 
   const channel = findNode(tree.root, "channels/home.jsonl") as FileLeaf;
   assert.equal(channel.kind, "channel");
@@ -77,7 +85,7 @@ test("web tree mirrors the workspace layout", async () => {
 });
 
 test("web file classifier and text reader support non-jsonl workspace files", async () => {
-  assert.deepEqual(classifyWorkspaceFile("profile/SYSTEM.md"), {
+  assert.deepEqual(classifyWorkspaceFile("context/SYSTEM.md"), {
     kind: "markdown",
     readable: true,
   });

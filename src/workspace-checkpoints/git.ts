@@ -11,10 +11,8 @@ import { join, resolve } from "node:path";
 export const WORKSPACE_CHECKPOINT_GITIGNORE = `# Managed by shrimpy workspace tracking.
 *
 !.gitignore
-!profile/
-!profile/WORKSPACE.md
-!profile/SYSTEM.md
-!profile/USER.md
+!context/
+!context/**
 !config/
 !config/shrimpy.json
 !config/channels.json

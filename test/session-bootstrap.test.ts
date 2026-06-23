@@ -10,7 +10,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   resolveContextConfig,
-  SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
 } from "../dist/context/index.js";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
 import { createBootstrap } from "../dist/sessions/index.js";
@@ -26,7 +25,7 @@ afterEach(() => {
 });
 
 describe("createBootstrap", () => {
-  test("always includes immutable Shrimpy system instructions", async () => {
+  test("uses a minimal fallback when no configured context resources are readable", async () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
 
@@ -42,18 +41,15 @@ describe("createBootstrap", () => {
       runtimeConfig: resolveRuntimeConfig(),
     });
 
-    assert.match(
+    assert.equal(
       bootstrap.baseSystemPrompt,
-      /^\[context builtin:immutable_system_instructions identity\]\n\n# Shrimpy Framework/,
-    );
-    assert.match(bootstrap.baseSystemPrompt, /You are shrimpy\./);
-    assert.ok(
-      bootstrap.baseSystemPrompt.includes(
-        SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS,
-      ),
+      [
+        `<context path="fallback">`,
+        "You are shrimpy.",
+        "</context>",
+      ].join("\n"),
     );
     assert.deepEqual(bootstrap.baseSystemSections.map((section) => section.id), [
-      "builtin:immutable_system_instructions",
       "base:fallback",
     ]);
   });
@@ -61,15 +57,19 @@ describe("createBootstrap", () => {
   test("uses Shrimpy-owned system prompt assembly instead of Pi prompt discovery", async () => {
     const agentRoot = join(workspace, "agents", "shrimpy");
     mkdirSync(agentRoot, { recursive: true });
-    mkdirSync(join(workspace, "profile"), { recursive: true });
+    mkdirSync(join(workspace, "context"), { recursive: true });
     mkdirSync(join(agentRoot, ".pi"), { recursive: true });
 
     const soul = "# SOUL\n\nShrimpy soul.\n";
     const system = "# SYSTEM\n\nShared framework and tools guidance.\n";
+    const userContext = "# USER\n\nOwner preferences.\n";
+    const workspaceContext = "# WORKSPACE\n\nLocal environment.\n";
     const memory = "# MEMORY\n\nShrimpy memory.\n";
 
     writeFileSync(join(agentRoot, "SOUL.md"), soul, "utf-8");
-    writeFileSync(join(workspace, "profile", "SYSTEM.md"), system, "utf-8");
+    writeFileSync(join(workspace, "context", "SYSTEM.md"), system, "utf-8");
+    writeFileSync(join(workspace, "context", "USER.md"), userContext, "utf-8");
+    writeFileSync(join(workspace, "context", "WORKSPACE.md"), workspaceContext, "utf-8");
     mkdirSync(join(agentRoot, "context"), { recursive: true });
     writeFileSync(join(agentRoot, "context", "memory.md"), memory, "utf-8");
 
@@ -88,7 +88,7 @@ describe("createBootstrap", () => {
 
     const contextConfig = resolveContextConfig({
       sources: [
-        "workspace:profile/SYSTEM.md",
+        "workspace:context/",
         "agent:SOUL.md",
         "agent:context/",
       ],
@@ -105,11 +105,12 @@ describe("createBootstrap", () => {
     });
 
     const expectedPrompt = [
-      `[context builtin:immutable_system_instructions identity]\n\n${SHRIMPY_IMMUTABLE_SYSTEM_INSTRUCTIONS}`,
-      `[context base:profile/SYSTEM.md identity]\n\n${system.trimEnd()}`,
-      `[context base:SOUL.md identity]\n\n${soul.trimEnd()}`,
-      `[context base:context/memory.md memory]\n\n${memory.trimEnd()}`,
-    ].join("\n\n---\n\n");
+      `<context path="${join(workspace, "context", "SYSTEM.md")}">\n${system.trimEnd()}\n</context>`,
+      `<context path="${join(workspace, "context", "USER.md")}">\n${userContext.trimEnd()}\n</context>`,
+      `<context path="${join(workspace, "context", "WORKSPACE.md")}">\n${workspaceContext.trimEnd()}\n</context>`,
+      `<context path="${join(agentRoot, "SOUL.md")}">\n${soul.trimEnd()}\n</context>`,
+      `<context path="${join(agentRoot, "context", "memory.md")}">\n${memory.trimEnd()}\n</context>`,
+    ].join("\n\n");
 
     assert.equal(bootstrap.baseSystemPrompt, expectedPrompt);
     assert.equal(bootstrap.resourceLoader.getSystemPrompt(), expectedPrompt);

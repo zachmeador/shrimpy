@@ -10,8 +10,6 @@ import {
 } from "../context/index.js";
 import { formatAgentCurrentTime } from "../util/time-format.js";
 
-const CONTEXT_END_MARKER = "[end context]";
-
 interface ContainedSystemPromptInput {
   basePrompt: string;
   cwd: string;
@@ -53,6 +51,7 @@ export function buildContainedSystemPromptSections(
   return [
     createPromptSection({
       id: "pi:available_skills",
+      path: "pi/available_skills",
       title: "Available Skills",
       kind: "capability",
       source: "pi",
@@ -61,6 +60,7 @@ export function buildContainedSystemPromptSections(
     }),
     {
       id: "pi:runtime_facts",
+      path: "pi/runtime_facts",
       title: "Pi Runtime Facts",
       kind: "runtime",
       source: "pi",
@@ -77,9 +77,9 @@ export function appendContainedSystemPromptSections(
   const renderedSections = renderPromptSections(sections);
   const body = [basePrompt.trimEnd(), renderedSections.trimEnd()]
     .filter(Boolean)
-    .join("\n\n---\n\n")
+    .join("\n\n")
     .trimEnd();
-  return body ? `${body}\n\n${CONTEXT_END_MARKER}` : "";
+  return body;
 }
 
 function renderSkillsForSelectedTools(

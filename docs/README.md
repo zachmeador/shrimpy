@@ -14,7 +14,7 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 - [reference/sessions.md](reference/sessions.md) — session kinds, files, lifecycle, model metadata, and inspection.
 - [reference/tools.md](reference/tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
 - [reference/security.md](reference/security.md) — tool policy and inspection commands.
-- [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and the per-turn context envelope.
+- [reference/context-assembly.md](reference/context-assembly.md) — prompt section assembly and per-turn context injection.
 - [reference/memory.md](reference/memory.md) — memory model, upkeep, and context loading.
 - [reference/skills.md](reference/skills.md) — included and external skill packages, local skills, Pi loading, and CLI management.
 - [reference/turn-context.md](reference/turn-context.md) — compact per-turn alerts and inspect pointers.

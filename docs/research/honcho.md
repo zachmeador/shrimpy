@@ -111,7 +111,7 @@ What is **not** worth borrowing:
 - The external-service substrate, full stop. Files first. The `musings/memory-design.md` principles all push the same direction.
 - The 30+ config knobs. If a feature lands, land it with one knob.
 - The multi-pass dialectic with bail-out. One `.chat()` (or in Shrimpy's case, one consolidation pass) with a good prompt is plenty.
-- The `<memory-context>` fence-into-user-message trick. Shrimpy turn-context items use a compact `<context>...</context>` envelope with inspect pointers, which is cleaner.
+- The `<memory-context>` fence-into-user-message trick. Shrimpy turn-context items use compact inspect-pointed text prepended to the user message, which is cleaner.
 - Server-derived conclusions that the user can only delete for "PII reasons". That's the spookiest version of autonomous memory upkeep, and `musings/memory-design.md` explicitly flags spooky as a non-goal.
 
 ## Sources

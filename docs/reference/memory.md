@@ -8,36 +8,34 @@ Shrimpy keeps memory in ordinary files so continuity stays legible and recoverab
 
 Agent memory is Markdown under `agents/<id>/context/`.
 
-- Top-level `context/*.md` files are loaded as session context for that agent.
-- `context/people/<actor-id>.md` is loaded only for turns from that actor.
-- `context/channels/<name>.md` is loaded only for turns in that channel.
-- `context/journal/**` is durable upkeep material and is not loaded by the default `agent:context/` source unless an explicit bounded source is added.
+- Any Markdown file under `context/` is loaded as session context for that agent by the default `agent:context/` source.
+- Subdirectories such as `context/people/` and `context/channels/` are organizational structure, not special routing boundaries.
 
-The path is the routing index. Shrimpy does not parse headings to decide what memory belongs to a turn, and there is no framework-owned global memory blob.
+The path is structure for humans and tools. Shrimpy does not parse headings to decide what memory belongs to a turn, and there is no framework-owned global memory blob. Treat `context/` as scarce prompt budget: tiny stable facts, preferences, active references, and compact pointers only.
 
 ## Ownership
 
 Agents write memory in their own voice as notes to their future selves. The framework provides context-loading primitives, CLI inspection, skills, and watches; the owning agent decides what is worth preserving during normal upkeep. The user can also edit memory files directly.
 
-Workspace-wide baseline facts belong in `profile/*.md`, especially `profile/USER.md`, `profile/WORKSPACE.md`, and `profile/SYSTEM.md`, because those files are shared identity and setup truth. Shared model-visible working context belongs under workspace `context/` and is selected with `workspace:context/` sources for all agents, selected agents, selected channels, or an agent/channel pair.
+Workspace-wide Shrimpy/Pi framing belongs in `context/SYSTEM.md`; durable workspace-owner identity and hard preferences belong in `context/USER.md`; local environment details and path breadcrumbs belong in `context/WORKSPACE.md`. Shared model-visible working context belongs under workspace `context/` and is selected with `workspace:context/` sources for all agents, selected agents, selected channels, or an agent/channel pair. User/person-specific memory normally belongs in the owning agent's `agents/<id>/context/`.
 
 When the user explicitly asks an agent to remember something, the agent should persist the relevant Markdown note before claiming it will be remembered. If it cannot persist the note immediately, it should say that plainly.
 
-Do not use model-visible `context/` directories as filing cabinets. Put saved notes, reports, and other files in `agents/<id>/vault/`. Put code or app work in `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
+Do not use model-visible `context/` directories as filing cabinets. Put saved notes, reports, journals, and other files in `agents/<id>/vault/`. Put code or app work in `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
 
 ## Upkeep
 
 Fresh setup installs ordinary memory watches disabled by default:
 
 - `memory-management` can run daily and asks the agent to review recent activity, update its own context files when durable memory is warranted, and prune stale notes.
-- `journal-daily` can write a same-day journal note only if activity warrants it.
-- `journal-compact` can summarize old daily and weekly journal notes into longer horizon files.
+- `journal-daily` can write a same-day journal note under `vault/journal/days/` only if activity warrants it, then update `context/journal.md` with a tiny summary and path breadcrumb.
+- `journal-compact` can summarize old vault journal notes into weekly/monthly files and keep `context/journal.md` small.
 
 When enabled, these are normal watch-origin agent turns. They use skills, CLI commands, and file inspection.
 
 ## Context Assembly
 
-The prompt assembler loads memory through the same source model as other context: file, directory, command, and runtime sources all become bounded prompt blocks. At turn time, path-indexed memory slices from `context/people/` and `context/channels/` appear in the `<context>...</context>` envelope only when they match the active sender or channel.
+The prompt assembler loads memory through the same source model as other context: file, directory, command, and runtime sources all become bounded prompt blocks. Directory context sources load Markdown recursively in deterministic path order.
 
 Inspect memory and context loading with:
 

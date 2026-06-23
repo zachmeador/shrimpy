@@ -487,17 +487,14 @@ See [runtime.md](runtime.md) and [channels.md](channels.md) for how watch messag
 
 ## Context
 
-`context.sources` is the ordered source list for stable prompt material and turn-scoped command context. The built-in default sources are the profile files, `agent:SOUL.md`, and `agent:context/`. `workspace:context/` is the workspace-level prompt memory source; place it in the default list or a scoped override according to which agents and channels should receive it.
+`context.sources` is the ordered source list for stable prompt material and turn-scoped command context. The built-in default sources are `workspace:context/`, `agent:SOUL.md`, and `agent:context/`. Add more workspace context files under `context/` or add scoped overrides according to which agents and channels should receive them.
 
 ```json
 {
   "context": {
     "sources": [
-      "workspace:profile/WORKSPACE.md",
-      "workspace:profile/SYSTEM.md",
-      "agent:SOUL.md",
-      "workspace:profile/USER.md",
       "workspace:context/",
+      "agent:SOUL.md",
       "agent:context/",
       {
         "type": "command",
@@ -512,8 +509,7 @@ See [runtime.md](runtime.md) and [channels.md](channels.md) for how watch messag
     "agents": {
       "mechanic": {
         "sources": [
-          "workspace:profile/WORKSPACE.md",
-          "workspace:profile/SYSTEM.md",
+          "workspace:context/",
           "agent:SOUL.md",
           "workspace:context/maintenance.md",
           "agent:context/"
@@ -521,12 +517,10 @@ See [runtime.md](runtime.md) and [channels.md](channels.md) for how watch messag
         "channels": {
           "maintenance": {
             "sources": [
-              "workspace:profile/WORKSPACE.md",
-              "workspace:profile/SYSTEM.md",
+              "workspace:context/",
               "agent:SOUL.md",
               "workspace:context/maintenance.md",
-              "agent:context/",
-              "agent:context/channels/maintenance.md"
+              "agent:context/"
             ]
           }
         }
@@ -548,7 +542,7 @@ See [runtime.md](runtime.md) and [channels.md](channels.md) for how watch messag
 }
 ```
 
-String sources such as `workspace:profile/SYSTEM.md`, `workspace:context/`, `agent:SOUL.md`, and `agent:context/` load stable session prompt material. `workspace:<path>` resolves from the workspace root; `agent:<path>` resolves from the active agent root. Directory sources load top-level Markdown files in deterministic order. Command sources run at turn time and emit compact text. `context.agents.<id>` adds sources/env for one agent, and `context.agents.<id>.channels.<pattern>` specializes that agent's view for a channel pattern.
+String sources such as `workspace:context/`, `workspace:context/maintenance.md`, `agent:SOUL.md`, and `agent:context/` load stable session prompt material. `workspace:<path>` resolves from the workspace root; `agent:<path>` resolves from the active agent root. Directory sources load Markdown files recursively in deterministic path order. Command sources run at turn time and emit compact text. `context.agents.<id>` adds sources/env for one agent, and `context.agents.<id>.channels.<pattern>` specializes that agent's view for a channel pattern.
 
 Inspect context with:
 
