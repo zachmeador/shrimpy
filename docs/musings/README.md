@@ -26,5 +26,6 @@ Current notes worth scanning:
 - `memory-design.md` — desired feel of memory and continuity
 - `pi-tui-fork-tradeoffs.md` — rough thoughts on replacing Pi's stock TUI, what a semi-custom fork would buy, and what it would cost
 - `desktop-spotlight-surface.md` — macOS-first Spotlight/Raycast-style command surface for Shrimpy
+- `bm25-grep-retrieval.md` — BM25 plus grep-style exact search as the default local, inspectable retrieval loop for agents
 
 Implementation details belong in reference docs or git history, not here.
