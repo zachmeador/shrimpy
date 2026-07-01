@@ -67,7 +67,6 @@ export const cmdRootTui: CommandHandler = async (
     thinking: sessionValues.thinking,
     skills: sessionValues.skills,
     initialMessage: prompt,
-    cwd: process.cwd(),
   }, {
     beforeLaunch: bootstrapInteractiveCompletion,
     onboardingMode: "setup",

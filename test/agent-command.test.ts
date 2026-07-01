@@ -86,6 +86,7 @@ describe("cmdAgent lifecycle", () => {
     );
     const agent = config.agents.find((entry: any) => entry.id === "helper");
     assert.equal(agent.root, "agents/helper");
+    assert.equal(agent.cwd, undefined);
     assert.equal(agent.channels, undefined);
     assert.equal(agent.thinking, undefined);
 
@@ -129,6 +130,23 @@ describe("cmdAgent lifecycle", () => {
     );
     const agent = config.agents.find((entry: any) => entry.id === "planner");
     assert.equal(agent.modelPolicy, "local");
+  });
+
+  test("stores an agent cwd default when provided", async () => {
+    await setupInit(workspace);
+
+    const code = await withMutedConsole(() =>
+      cmdAgent(["add", "mounted", "--cwd", "/mnt/shrimpy/mounted"], { workspace } as any)
+    );
+
+    assert.equal(code, 0);
+
+    const config = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    );
+    const agent = config.agents.find((entry: any) => entry.id === "mounted");
+    assert.equal(agent.root, "agents/mounted");
+    assert.equal(agent.cwd, "/mnt/shrimpy/mounted");
   });
 
   test("stores an agent channel policy mode when provided", async () => {
@@ -608,6 +626,8 @@ describe("cmdAgent lifecycle", () => {
     const career = agents.find((entry: any) => entry.id === "career");
     assert.equal(career.paths.root, join(workspace, "agent-roots", "career"));
     assert.equal(career.root, "agent-roots/career");
+    assert.equal(career.cwd, "agent-roots/career");
+    assert.equal(career.cwdPath, join(workspace, "agent-roots", "career"));
     assert.deepEqual(career.toolPolicy.activeToolNames, [
       "read",
       "bash",
@@ -662,6 +682,8 @@ describe("cmdAgent lifecycle", () => {
         "helper",
         "--root",
         "agent-roots/helper",
+        "--cwd",
+        ".",
         "--model-policy",
         "local",
         "--tools",
@@ -682,6 +704,7 @@ describe("cmdAgent lifecycle", () => {
     );
     const agent = config.agents.find((entry: any) => entry.id === "helper");
     assert.equal(agent.root, "agent-roots/helper");
+    assert.equal(agent.cwd, ".");
     assert.equal(agent.modelPolicy, "local");
     assert.equal(agent.channels, undefined);
     assert.equal(agent.triggers, undefined);
@@ -707,7 +730,7 @@ describe("cmdAgent lifecycle", () => {
     assert.deepEqual(messages.at(-1)?.content.data, {
       kind: "agent_updated",
       agentId: "helper",
-      updatedFields: ["root", "modelPolicy", "tools", "disabledTools", "thinking", "channelPolicy"],
+      updatedFields: ["root", "cwd", "modelPolicy", "tools", "disabledTools", "thinking", "channelPolicy"],
     });
   });
 

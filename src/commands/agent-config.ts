@@ -26,6 +26,7 @@ export async function cmdAgentAdd(
     args,
     options: {
       root: { type: "string" },
+      cwd: { type: "string" },
       "model-policy": { type: "string" },
       tools: { type: "string" },
       "disable-tools": { type: "string" },
@@ -44,6 +45,7 @@ export async function cmdAgentAdd(
   const result = addAgent(runtime, {
     agentId,
     root: values.root,
+    cwd: values.cwd,
     ...(values["model-policy"] !== undefined ? { modelPolicy: values["model-policy"] } : {}),
     tools: parseCsv(values.tools) ?? [...(defaultAgent.tools ?? DEFAULT_AGENT_TOOLS)],
     disabledTools: parseCsv(values["disable-tools"]) ?? [...(defaultAgent.disabledTools ?? [])],
@@ -79,6 +81,7 @@ export async function cmdAgentSet(
     args,
     options: {
       root: { type: "string" },
+      cwd: { type: "string" },
       "model-policy": { type: "string" },
       tools: { type: "string" },
       "disable-tools": { type: "string" },
@@ -94,6 +97,7 @@ export async function cmdAgentSet(
 
   if (
     values.root === undefined
+    && values.cwd === undefined
     && values["model-policy"] === undefined
     && values.tools === undefined
     && values["disable-tools"] === undefined
@@ -107,6 +111,7 @@ export async function cmdAgentSet(
   const result = updateAgent(runtime, {
     agentId,
     ...(values.root !== undefined ? { root: values.root } : {}),
+    ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
     ...(values["model-policy"] !== undefined ? { modelPolicy: values["model-policy"] } : {}),
     ...(values.tools !== undefined ? { tools: parseCsv(values.tools) ?? [] } : {}),
     ...(values["disable-tools"] !== undefined

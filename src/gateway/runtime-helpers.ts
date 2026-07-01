@@ -39,7 +39,7 @@ export async function createGatewayBootstraps(
       agent.id,
       await runtime.createBootstrap({
         agentId: agent.id,
-        cwd: runtime.paths.workspace,
+        cwd: runtime.getAgentCwd(agent.id),
       }),
     );
   }

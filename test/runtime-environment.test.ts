@@ -21,3 +21,25 @@ test("createAppRuntime creates runtime shims without mutating process.env", () =
     rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+test("createAppRuntime resolves agent cwd from workspace-relative or absolute config", () => {
+  const workspace = mkdtempSync(join(tmpdir(), "shrimpy-runtime-cwd-"));
+  const externalCwd = join(tmpdir(), "shrimpy-external-cwd");
+
+  try {
+    const runtime = createAppRuntime({
+      workspace,
+      agents: [
+        { id: "shrimpy", root: "agents/shrimpy" },
+        { id: "mechanic", root: "agents/mechanic", cwd: "." },
+        { id: "external", root: "agents/external", cwd: externalCwd },
+      ],
+    });
+
+    assert.equal(runtime.getAgentCwd("shrimpy"), join(workspace, "agents", "shrimpy"));
+    assert.equal(runtime.getAgentCwd("mechanic"), workspace);
+    assert.equal(runtime.getAgentCwd("external"), externalCwd);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});

@@ -11,6 +11,7 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy mechanic` opens a direct TUI session as the `mechanic` maintenance agent.
 - `shrimpy agent tui <id>` opens the same gated TUI launcher for an explicit agent. `shrimpy agent run <id>` runs a one-shot prompt as an explicit agent.
 - `--provider`, `--model`, `--model-policy`, `--thinking <off|low|medium|high>`, and `--skill <id>` override one direct session where supported.
+- Direct sessions start in the selected agent's configured `cwd`, defaulting to the agent root. Fresh setup config starts the `shrimpy` agent in `agents/shrimpy` and the `mechanic` agent at the workspace root.
 - Without a model override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
 - `--skill <id>` loads full skill context into the session. The normal workspace/agent skill list is also passed to Pi so `/skill:<name>`, autocomplete, and available-skill prompt advertising see the same skill set.
 
@@ -49,7 +50,7 @@ Direct local sessions do not have an active publication channel, so `reply`, `as
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
 
-Gateway channel sessions are opened from the agent's resolved model policy for that gateway process. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default. See [sessions.md](sessions.md).
+Gateway channel sessions are opened from the agent's resolved model policy for that gateway process and use the same agent-configured `cwd` as direct sessions. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default. See [sessions.md](sessions.md).
 
 ## Prompt Context
 

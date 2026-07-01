@@ -49,6 +49,5 @@ export async function cmdAgentTui(
     thinking: sessionValues.thinking,
     skills: sessionValues.skills,
     initialMessage: prompt,
-    cwd: process.cwd(),
   });
 }

@@ -98,7 +98,7 @@ export function buildContextPreviewTarget(
 ): ContextPreviewTarget {
   const agent = runtime.getAgent(input.agentId);
   const agentPaths = runtime.getAgentPaths(agent.id);
-  const cwd = input.cwd ?? process.cwd();
+  const cwd = input.cwd ?? runtime.getAgentCwd(agent.id);
   const sessionType = input.sessionType
     ?? (input.channel ? "gateway" : "preview");
   const descriptor = input.channel

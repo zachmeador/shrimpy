@@ -44,8 +44,8 @@ export interface PreparedDirectSessionOpen {
 export async function prepareDirectSessionOpen(
   input: OpenDirectSessionInput,
 ): Promise<PreparedDirectSessionOpen> {
-  const cwd = input.cwd ?? process.cwd();
   const agent = input.runtime.getAgent(input.agentId);
+  const cwd = input.cwd ?? input.runtime.getAgentCwd(agent.id);
   const egressRegistry = input.runtime.createCliEgressRegistry();
   const channelBus = input.runtime.createChannelBus({ egressRegistry });
   const bootstrap = await input.runtime.createBootstrap({

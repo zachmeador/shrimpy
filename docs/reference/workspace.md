@@ -58,7 +58,7 @@ skills/                            agent-level skills
 sessions/                          Pi session transcripts and lifecycle entries
 ```
 
-`shrimpy agent add <id>` scaffolds an agent root with identity and working directories. `context/` is part of the expected agent root even when it starts empty. Setup creates default roots for `shrimpy` and `mechanic`; the mechanic gets default context such as `context/scope.md`.
+`shrimpy agent add <id>` scaffolds an agent root with identity and working directories. `context/` is part of the expected agent root even when it starts empty. Setup creates default roots for `shrimpy` and `mechanic`; the mechanic gets default context such as `context/scope.md`. Agent `cwd` can point at the root, the workspace, or another absolute path while Shrimpy-owned files remain under the root.
 
 Agent-owned skills under `agents/<id>/skills/<skill-id>/SKILL.md` override workspace skills with the same id. Workspace skills live under `skills/<skill-id>/SKILL.md`. Managed package provenance and drift state live in `state/skills/packages.json`. See [skills.md](skills.md).
 

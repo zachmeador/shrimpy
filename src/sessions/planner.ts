@@ -145,6 +145,7 @@ export class SessionPlanner {
       workspacePath: this.bootstrap.agentRootPath,
       agentId: this.agent.id,
       channel,
+      cwd: this.runtime.getAgentCwd(this.agent.id),
     });
   }
 

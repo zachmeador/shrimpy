@@ -27,7 +27,7 @@ export interface ChatSessionRequest {
   modelPolicy?: string;
   thinking?: ThinkingLevel;
   skills?: string[];
-  cwd: string;
+  cwd?: string;
 }
 
 interface ChatCommandDeps {
@@ -53,8 +53,7 @@ export async function cmdChat(
   config: ShrimpyConfig,
   deps: ChatCommandDeps = {},
 ): Promise<CommandResult> {
-  const cwd = deps.cwd ?? process.cwd();
-  const request = createChatSessionRequest(args, CHAT_USAGE, cwd);
+  const request = createChatSessionRequest(args, CHAT_USAGE, deps.cwd);
 
   return createShrimpyTuiCommand(request, {
     createRuntime: deps.createRuntime,
@@ -73,7 +72,7 @@ export async function cmdChat(
 export function createChatSessionRequest(
   args: string[],
   usageText: string,
-  cwd: string,
+  cwd?: string,
 ): ChatSessionRequest {
   const { values, positionals } = parseCommandArgs({
     args,
@@ -99,6 +98,6 @@ export function createChatSessionRequest(
     modelPolicy: sessionValues.modelPolicy,
     thinking: sessionValues.thinking,
     skills: sessionValues.skills,
-    cwd,
+    ...(cwd !== undefined ? { cwd } : {}),
   };
 }

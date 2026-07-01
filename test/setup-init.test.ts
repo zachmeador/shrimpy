@@ -239,8 +239,10 @@ describe("setupInit", () => {
       "read_channel",
     ]);
     assert.deepEqual(config.agents[0].channelPolicy, { mode: "all" });
+    assert.equal(config.agents[0].cwd, "agents/shrimpy");
     assert.equal(config.agents[1].id, "mechanic");
     assert.equal(config.agents[1].root, "agents/mechanic");
+    assert.equal(config.agents[1].cwd, ".");
     assert.equal(config.agents[1].modelPolicy, "coding");
     assert.equal(config.agents[1].thinking, "high");
     assert.deepEqual(config.agents[1].tools, [

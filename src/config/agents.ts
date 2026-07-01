@@ -63,6 +63,7 @@ const agentSchema = Type.Object(
   {
     id: Type.String({ pattern: "^[a-zA-Z0-9._-]+$", minLength: 1 }),
     root: Type.Optional(Type.String({ minLength: 1 })),
+    cwd: Type.Optional(Type.String({ minLength: 1 })),
     modelPolicy: Type.Optional(Type.String({ minLength: 1 })),
     tools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     disabledTools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
@@ -76,6 +77,7 @@ export type AgentConfig = Static<typeof agentSchema>;
 export type ResolvedAgentConfig = {
   id: string;
   root: string;
+  cwd: string;
   modelPolicy?: string;
   tools?: DaemonToolName[];
   disabledTools?: string[];
@@ -186,16 +188,20 @@ function isDaemonToolName(value: string): value is DaemonToolName {
 
 export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
   if (raw === undefined) {
+    const root = `agents/${DEFAULT_AGENT_ID}`;
     return [{
       id: DEFAULT_AGENT_ID,
-      root: `agents/${DEFAULT_AGENT_ID}`,
+      root,
+      cwd: root,
       channelPolicy: resolveAgentChannelPolicy(),
     }];
   }
   return validateAgentsConfig(raw).map((agent) => {
+    const root = agent.root ?? `agents/${agent.id}`;
     return {
       id: agent.id,
-      root: agent.root ?? `agents/${agent.id}`,
+      root,
+      cwd: agent.cwd ?? root,
       modelPolicy: agent.modelPolicy,
       tools: agent.tools?.length
         ? ([...new Set(agent.tools)] as DaemonToolName[])

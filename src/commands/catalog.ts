@@ -48,6 +48,7 @@ const indexOption = { name: "--index", takesValue: true };
 const thinkingOption = { name: "--thinking", takesValue: true };
 const skillOption = { name: "--skill", short: "-k", takesValue: true };
 const workspaceOption = { name: "--workspace", takesValue: true };
+const cwdOption = { name: "--cwd", takesValue: true };
 
 export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
   agentOption,
@@ -190,8 +191,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["agent", "list"], "[--json]", "List configured agents.", "Agents, Skills, Users", [jsonOption]),
   entry(["agent", "show"], "<id>", "Show resolved agent config and paths.", "Agents, Skills, Users"),
   entry(["agent", "inspect"], "<id> [--json]", "Show effective tool capability view.", "Agents, Skills, Users", [jsonOption]),
-  entry(["agent", "add"], "<id> [--root <path>] [--model-policy <name>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Add an agent and scaffold docs.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, modelPolicyOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
-  entry(["agent", "set"], "<id> [--root <path>] [--model-policy <name>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Update agent root, model policy, tools, thinking, or base channel policy.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, modelPolicyOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
+  entry(["agent", "add"], "<id> [--root <path>] [--cwd <path>] [--model-policy <name>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Add an agent and scaffold docs.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, cwdOption, modelPolicyOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
+  entry(["agent", "set"], "<id> [--root <path>] [--cwd <path>] [--model-policy <name>] [--tools a,b] [--disable-tools a,b] [--thinking <level>] [--channel-policy <mode>] [--json]", "Update agent root, cwd, model policy, tools, thinking, or base channel policy.", "Agents, Skills, Users", [{ name: "--root", takesValue: true }, cwdOption, modelPolicyOption, { name: "--tools", takesValue: true }, { name: "--disable-tools", takesValue: true }, thinkingOption, { name: "--channel-policy", takesValue: true }, jsonOption]),
   entry(["agent", "channel-policy"], "<id> [--channel <name>] [--json]", "Inspect an agent-owned channel policy.", "Agents, Skills, Users", [{ name: "--channel", takesValue: true }, jsonOption]),
   entry(["agent", "channel-policy", "set"], "<id> [--channel <pattern>] [--mode <all|mentions|addressed|none>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b] [--json]", "Set base or per-channel policy fields.", "Agents, Skills, Users", [{ name: "--channel", takesValue: true }, { name: "--mode", takesValue: true }, { name: "--senders", takesValue: true }, { name: "--actor-ids", takesValue: true }, { name: "--user-ids", takesValue: true }, jsonOption]),
   entry(["agent", "channel-policy", "clear"], "<id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids] [--json]", "Clear base or per-channel policy fields.", "Agents, Skills, Users", [{ name: "--channel", takesValue: true }, { name: "--mode" }, { name: "--senders" }, { name: "--actor-ids" }, { name: "--user-ids" }, jsonOption]),

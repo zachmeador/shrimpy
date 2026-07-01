@@ -24,7 +24,7 @@ export interface MechanicSessionRequest {
   thinking?: ThinkingLevel;
   skills?: string[];
   initialMessage?: string;
-  cwd: string;
+  cwd?: string;
 }
 
 interface MechanicCommandDeps {
@@ -50,7 +50,7 @@ export async function cmdMechanic(
   const request = createMechanicSessionRequest(
     args,
     "usage: shrimpy mechanic [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]",
-    deps.cwd ?? process.cwd(),
+    deps.cwd,
   );
   return createShrimpyTuiCommand(request, {
     createRuntime: deps.createRuntime,
@@ -75,7 +75,7 @@ export async function cmdMechanic(
 export function createMechanicSessionRequest(
   args: string[],
   usage: string,
-  cwd: string,
+  cwd?: string,
 ): MechanicSessionRequest {
   const { values, positionals } = parseCommandArgs({
     args,
@@ -100,6 +100,6 @@ export function createMechanicSessionRequest(
     thinking: sessionValues.thinking,
     skills,
     initialMessage: prompt,
-    cwd,
+    ...(cwd !== undefined ? { cwd } : {}),
   };
 }

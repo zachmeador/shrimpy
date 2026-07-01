@@ -56,6 +56,7 @@ describe("SessionPlanner", () => {
     assert.equal(plan.modelResolution?.model?.name, "Initial Model");
     assert.equal(plan.descriptor.kind, "gateway");
     assert.equal(plan.descriptor.channel, "telegram~shrimpy~1");
+    assert.equal(plan.descriptor.cwd, "/tmp/shrimpy-cwd");
     assert.equal(plan.defaultThinking, "high");
   });
 });
@@ -73,6 +74,9 @@ function createRuntime() {
       return {
         root: "/tmp/shrimpy-agent",
       };
+    },
+    getAgentCwd() {
+      return "/tmp/shrimpy-cwd";
     },
     resolveAgentToolPolicy() {
       return {

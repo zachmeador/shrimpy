@@ -438,7 +438,7 @@ function agentsStatusText(options: ShrimpyCommandSurfaceOptions): string {
     const tools = agent.tools?.join(",") ?? "default";
     const thinking = agent.thinking ?? "inherit";
     const modelPolicy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
-    lines.push(`${marker} ${agent.id} root=${agent.root} tools=${tools} thinking=${thinking} model_policy=${modelPolicy}`);
+    lines.push(`${marker} ${agent.id} root=${agent.root} cwd=${agent.cwd} tools=${tools} thinking=${thinking} model_policy=${modelPolicy}`);
   }
 
   lines.push("", theme.bold("Inspect"), "shrimpy agent list", `shrimpy agent show ${options.agentId}`);

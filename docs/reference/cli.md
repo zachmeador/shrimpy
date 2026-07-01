@@ -117,8 +117,8 @@ See [channels.md](channels.md) for the channel protocol, membership, addressing,
 | `shrimpy agent list` | List configured agents. |
 | `shrimpy agent show <id>` | Show resolved agent config and paths. |
 | `shrimpy agent inspect <id>` | Show the effective tool capability view, including Pi built-ins, Shrimpy daemon tools, active tools, and excluded tools. See [tools.md](tools.md). |
-| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--model-policy`, `--tools`, `--disable-tools`, `--thinking`, and `--channel-policy <all|mentions|addressed|none>`. |
-| `shrimpy agent set <id>` | Update root, model policy default, Shrimpy daemon tools, disabled tools, thinking default, or base channel policy mode. |
+| `shrimpy agent add <id>` | Add an agent and scaffold docs. Supports `--root`, `--cwd`, `--model-policy`, `--tools`, `--disable-tools`, `--thinking`, and `--channel-policy <all|mentions|addressed|none>`. |
+| `shrimpy agent set <id>` | Update root, session cwd, model policy default, Shrimpy daemon tools, disabled tools, thinking default, or base channel policy mode. |
 | `shrimpy agent channel-policy <id> [--channel <name>]` | Inspect base and effective agent-owned channel policy. |
 | `shrimpy agent channel-policy set <id> [--channel <pattern>] [--mode <m>] [--senders a,b] [--actor-ids a,b] [--user-ids a,b]` | Set base or per-channel policy fields without rewriting the rest of the policy. |
 | `shrimpy agent channel-policy clear <id> [--channel <pattern>] [--mode] [--senders] [--actor-ids] [--user-ids]` | Clear base or per-channel policy fields; `--channel` with no fields removes the whole override. |

@@ -43,7 +43,6 @@ export const cmdRun: CommandHandler = async (argv, config) => {
     thinking: sessionValues.thinking,
     skills: sessionValues.skills,
     prompt,
-    cwd: process.cwd(),
   });
 
   if (output) console.log(output);

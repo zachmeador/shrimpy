@@ -35,6 +35,9 @@ describe("AgentChannelRuntime", () => {
           root: agentRoot,
         };
       },
+      getAgentCwd() {
+        return workspace;
+      },
       async buildRuntimeTools() {
         return [];
       },
@@ -74,6 +77,7 @@ describe("AgentChannelRuntime", () => {
 
     const plan = await agentRuntime.registry.planForChannel("skill~jobs~weather-check");
     assert.equal(plan.descriptor.kind, "gateway");
+    assert.equal(plan.descriptor.cwd, workspace);
     assert.deepEqual(plan.model, { provider: "local", id: "qwen", contextWindow: 1000 });
     assert.equal(plan.defaultThinking, "high");
     assert.equal(plan.prompt?.extraResources, undefined);

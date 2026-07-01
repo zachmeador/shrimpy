@@ -261,7 +261,6 @@ export async function executeSessionThinkingAction(
       channel: input.channel,
       sessionType: input.channel,
       thinking: input.level,
-      cwd: process.cwd(),
     });
 
     try {

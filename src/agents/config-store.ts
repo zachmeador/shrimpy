@@ -19,6 +19,7 @@ export interface AgentWorkspaceConfig {
 export interface AgentConfigDraft {
   agentId: string;
   root?: string;
+  cwd?: string;
   modelPolicy?: string;
   tools: string[];
   disabledTools?: string[];
@@ -28,6 +29,7 @@ export interface AgentConfigDraft {
 
 export interface AgentConfigPatch {
   root?: string;
+  cwd?: string;
   modelPolicy?: string;
   tools?: string[];
   disabledTools?: string[];
@@ -54,6 +56,7 @@ export function createAgentConfig(input: AgentConfigDraft): AgentConfig {
   const agent: AgentConfig = {
     id: input.agentId,
     root: input.root ?? `agents/${input.agentId}`,
+    ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
     ...(input.modelPolicy !== undefined ? { modelPolicy: input.modelPolicy } : {}),
     tools: [...new Set(input.tools)],
     ...(input.disabledTools?.length
@@ -71,12 +74,16 @@ export function renameStoredAgentConfig(
   toAgentId: string,
 ): AgentConfig {
   const defaultRoot = `agents/${fromAgentId}`;
+  const defaultCwd = defaultRoot;
 
   return {
     ...agent,
     id: toAgentId,
     ...(agent.root
       ? { root: agent.root === defaultRoot ? `agents/${toAgentId}` : agent.root }
+      : {}),
+    ...(agent.cwd
+      ? { cwd: agent.cwd === defaultCwd ? `agents/${toAgentId}` : agent.cwd }
       : {}),
   };
 }
@@ -88,6 +95,7 @@ export function patchStoredAgentConfig(
   const next: AgentConfig = {
     ...agent,
     ...(patch.root !== undefined ? { root: patch.root } : {}),
+    ...(patch.cwd !== undefined ? { cwd: patch.cwd } : {}),
     ...(patch.modelPolicy !== undefined ? { modelPolicy: patch.modelPolicy } : {}),
     ...(patch.tools !== undefined ? { tools: [...new Set(patch.tools)] } : {}),
   };

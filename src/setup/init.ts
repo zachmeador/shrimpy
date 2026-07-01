@@ -55,6 +55,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       {
         id: "shrimpy",
         root: "agents/shrimpy",
+        cwd: "agents/shrimpy",
         modelPolicy: DEFAULT_MODEL_POLICY,
         tools: DEFAULT_AGENT_TOOLS,
         channelPolicy: {
@@ -64,6 +65,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       {
         id: MECHANIC_AGENT_ID,
         root: "agents/mechanic",
+        cwd: ".",
         modelPolicy: DEFAULT_MODEL_POLICY,
         tools: DEFAULT_AGENT_TOOLS,
         thinking: "high",

@@ -86,7 +86,7 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   assert.match(chat, /\* admin\/daily-check enabled time every 60000ms action=message -> home/);
   assert.match(chat, /shrimpy watches history <agent-id>\/<watch-id>/);
   assert.match(chat, /Agents/);
-  assert.match(chat, /\* admin root=agents\/admin tools=send_message thinking=high/);
+  assert.match(chat, /\* admin root=agents\/admin cwd=agents\/admin tools=send_message thinking=high/);
   assert.match(chat, /home 2 msgs/);
   assert.match(chat, /workspace-skill \[workspace\]/);
   assert.match(chat, /agent-skill \[agent\]/);

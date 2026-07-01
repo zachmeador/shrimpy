@@ -21,6 +21,7 @@ import { resolveAgentToolPolicy } from "../tools/policy.js";
 export function listAgentViews(runtime: AppRuntime) {
   return runtime.resolved.agents.map((agent) => ({
     ...agent,
+    cwdPath: runtime.getAgentCwd(agent.id),
     paths: runtime.getAgentPaths(agent.id),
     toolPolicy: resolveAgentToolPolicy(agent),
   }));
@@ -30,6 +31,7 @@ export function getAgentView(runtime: AppRuntime, agentId: string) {
   const agent = runtime.getAgent(agentId);
   return {
     ...agent,
+    cwdPath: runtime.getAgentCwd(agent.id),
     paths: runtime.getAgentPaths(agent.id),
     toolPolicy: resolveAgentToolPolicy(agent),
   };
@@ -80,6 +82,7 @@ export function updateAgent(
     agentId: input.agentId,
     updatedFields: [
       ...(input.root !== undefined ? ["root"] : []),
+      ...(input.cwd !== undefined ? ["cwd"] : []),
       ...(input.modelPolicy !== undefined ? ["modelPolicy"] : []),
       ...(input.tools !== undefined ? ["tools"] : []),
       ...(input.disabledTools !== undefined ? ["disabledTools"] : []),

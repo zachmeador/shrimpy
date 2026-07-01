@@ -68,7 +68,7 @@ Use `--json` when the output is feeding a script or another agent. Hand-edit JSO
 `config/shrimpy.json` is a JSON object. Recognized sections:
 
 - `modelPolicies` — named model policies with ordered provider/model candidates.
-- `agents` — agent ids, roots, default model policy, Shrimpy daemon tools, disabled effective tools, default `thinking`, and channel policy.
+- `agents` — agent ids, roots, session cwd, default model policy, Shrimpy daemon tools, disabled effective tools, default `thinking`, and channel policy.
 - `runtime` — Pi/Shrimpy runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, and compaction policy.
 - `tools` — defaults for Shrimpy daemon tools, such as `send_message` actor id and `read_channel` limit.
 - `context` / `contextDefaults` — stable prompt sources, command sources, turn-context settings, env fields, channel overrides, and agent-scoped context views.
@@ -267,6 +267,7 @@ An agent config entry controls the runtime defaults for one agent. The agent's d
 {
   "id": "shrimpy",
   "root": "agents/shrimpy",
+  "cwd": "agents/shrimpy",
   "modelPolicy": "coding",
   "tools": ["reply", "ask", "notify", "report", "send_message", "read_channel"],
   "disabledTools": [],
@@ -280,7 +281,8 @@ An agent config entry controls the runtime defaults for one agent. The agent's d
 Fields:
 
 - `id` — stable agent id.
-- `root` — workspace-relative or absolute path to that agent's root.
+- `root` — workspace-relative or absolute path to that agent's Shrimpy-owned root. Identity, context, vault, watches, skills, and session files live under this root.
+- `cwd` — workspace-relative or absolute default working directory for direct and gateway Pi sessions opened as this agent. Omitted `cwd` defaults to `root`; use `"."` for the workspace root or an absolute path for another mount.
 - `modelPolicy` — default model policy for fresh sessions opened as that agent; omitted agents fall back to `coding`.
 - `tools` — allowed Shrimpy daemon tools. If omitted or empty, Shrimpy uses all built-in daemon tools.
 - `disabledTools` — effective tool names passed to Pi as `excludeTools`; use this for Pi built-ins such as `bash` or any active custom tool.
@@ -332,6 +334,7 @@ Prefer command edits:
 ```bash
 shrimpy agent add <id>
 shrimpy agent set <id> --model-policy coding
+shrimpy agent set <id> --cwd .
 shrimpy agent inspect <id>
 shrimpy agent channel-policy set <id> --channel maintenance --mode all --senders system
 shrimpy agent channel-policy explain <id> --channel home --sender human --text "@shrimpy hello"

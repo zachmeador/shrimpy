@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { isAbsolute, resolve } from "node:path";
 import { ChannelBus } from "../channels/bus.js";
 import { EgressRegistry } from "../channels/egress.js";
 import { ChannelMembershipStore } from "../channels/membership.js";
@@ -116,6 +117,10 @@ export class AppRuntime {
   }): Promise<SessionBootstrap> {
     const agent = this.getAgent(opts?.agentId);
     const { createBootstrap } = await import("../sessions/bootstrap.js");
+    const bootstrapOpts = {
+      ...opts,
+      cwd: opts?.cwd ?? this.getAgentCwd(agent.id),
+    };
     return createBootstrap(
       {
         config: this.config,
@@ -127,7 +132,7 @@ export class AppRuntime {
         contextConfig: this.resolved.context,
         runtimeConfig: this.resolved.runtime,
       },
-      opts,
+      bootstrapOpts,
     );
   }
 
@@ -206,6 +211,13 @@ export class AppRuntime {
   getAgentPaths(agentId?: string): AgentPaths {
     const agent = this.getAgent(agentId);
     return createAgentPaths(this.paths.workspace, agent.root);
+  }
+
+  getAgentCwd(agentId?: string): string {
+    const agent = this.getAgent(agentId);
+    return isAbsolute(agent.cwd)
+      ? agent.cwd
+      : resolve(this.paths.workspace, agent.cwd);
   }
 }
 

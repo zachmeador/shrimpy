@@ -27,6 +27,8 @@ When a session opens, Shrimpy builds a Pi session plan:
 
 Pi owns the session runtime, transcript format, model calls, tool execution, and TUI mechanics. Shrimpy owns the shared session planner, workspace paths, channel publication tools, turn-context assembly, and inspection metadata.
 
+Direct and gateway session cwd comes from the selected agent config unless a caller supplies an explicit cwd for a specialized flow. The session transcript still persists under the agent root.
+
 ## Prompt And Turn Context
 
 Shrimpy passes Pi one stable system prompt at session open. Per-turn live facts are rendered as turn context and prefixed to the current user message before Pi persists and sends it. This keeps the session JSONL an exact representation of the model-facing user turn.

@@ -62,6 +62,7 @@ export interface RenameAgentResult {
 export interface UpdateAgentInput {
   agentId: string;
   root?: string;
+  cwd?: AgentConfig["cwd"];
   modelPolicy?: AgentConfig["modelPolicy"];
   tools?: string[];
   disabledTools?: string[];
@@ -232,6 +233,7 @@ export function updateAgentInWorkspace(
 
   const nextAgent = patchStoredAgentConfig(existingAgent, {
     ...(input.root !== undefined ? { root: input.root } : {}),
+    ...(input.cwd !== undefined ? { cwd: input.cwd } : {}),
     ...(input.modelPolicy !== undefined ? { modelPolicy: input.modelPolicy } : {}),
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
     ...(input.disabledTools !== undefined ? { disabledTools: input.disabledTools } : {}),
