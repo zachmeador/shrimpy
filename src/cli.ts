@@ -13,6 +13,7 @@ import {
 import {
   COMMAND_REGISTRY,
   configForRegisteredCommand,
+  resolveConfigRequirement,
 } from "./commands/catalog.js";
 import {
   brand,
@@ -20,6 +21,9 @@ import {
 import {
   extractGlobalWorkspace,
 } from "./config/workspace.js";
+import {
+  applyShrimpyRuntimeProcessEnv,
+} from "./app/environment.js";
 
 try {
   const rawArgs = extractGlobalWorkspace(process.argv.slice(2));
@@ -44,6 +48,9 @@ try {
       (await import("./config/index.js")).loadConfig,
       commandArgs,
     );
+    if (resolveConfigRequirement(registration, commandArgs) !== false) {
+      applyShrimpyRuntimeProcessEnv(config.workspace);
+    }
     const code = await runCommand(handler, commandArgs, config);
     process.exit(code);
   }
@@ -51,9 +58,9 @@ try {
   const { resolveWorkspacePath } = await import("./config/index.js");
   const { cmdRootTui } = await import("./commands/root.js");
 
-  const code = await runCommand(cmdRootTui, rawArgs, {
-    workspace: resolveWorkspacePath(),
-  });
+  const workspace = resolveWorkspacePath();
+  applyShrimpyRuntimeProcessEnv(workspace);
+  const code = await runCommand(cmdRootTui, rawArgs, { workspace });
   process.exit(code);
 } catch (err) {
   console.error(err instanceof Error ? err.message : String(err));

@@ -12,6 +12,7 @@
 
 import { loadConfig } from "./config/index.js";
 import { createAppRuntime } from "./app/index.js";
+import { applyShrimpyRuntimeProcessEnv } from "./app/environment.js";
 import { IdentityStore } from "./gateway/identity-store.js";
 import { installGatewayLogFile } from "./gateway/logging.js";
 import {
@@ -42,6 +43,7 @@ async function run() {
   extractGlobalWorkspace(process.argv.slice(2));
 
   const config = loadConfig();
+  applyShrimpyRuntimeProcessEnv(config.workspace);
   const runtime = createAppRuntime(config);
 
   const existingPid = findRunningGatewayPid(runtime.paths.gatewayPidPath);

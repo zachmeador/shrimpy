@@ -47,7 +47,7 @@ import {
   type WorkspacePaths,
 } from "./paths.js";
 import {
-  applyShrimpyRuntimeProcessEnv,
+  ensureShrimpyRuntimeEnvironment,
   type ShrimpyRuntimeEnvironment,
 } from "./environment.js";
 
@@ -79,7 +79,7 @@ export class AppRuntime {
   constructor(config: ShrimpyConfig) {
     this.config = config;
     this.paths = createWorkspacePaths(config.workspace);
-    this.environment = applyShrimpyRuntimeProcessEnv(config.workspace);
+    this.environment = ensureShrimpyRuntimeEnvironment(config.workspace);
     const agents = resolveAgentsConfig(config.agents);
     const agentIds = agents.map((agent) => agent.id);
 
