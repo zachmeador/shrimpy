@@ -18,8 +18,7 @@ See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and
 | --- | --- |
 | `shrimpy` | Open Shrimpy, running setup onboarding when needed. |
 | `shrimpy "prompt"` | Open the TUI session with an initial prompt. |
-| `shrimpy chat [agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open a TUI chat with the default or selected agent. |
-| `shrimpy mechanic [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open the maintenance TUI as the mechanic agent. |
+| `shrimpy chat [agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open a TUI chat with the default or selected agent. Use `shrimpy chat mechanic` for the maintenance agent. |
 | `shrimpy run "prompt"` | Run a one-shot prompt and print the response. |
 | `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. Supports `--provider`, `--model`, `--model-policy`, `--thinking`, and `--skill`. |
 | `shrimpy agent run <id> "prompt"` | Run a one-shot prompt as a specific agent. |

@@ -40,7 +40,7 @@ Setup creates missing workspace files, writes Shrimpy/Pi baseline guidance into 
 
 Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth and the setup agent workspace exists. If no usable model is available in an interactive terminal, setup runs a plain model access wizard first: choose a local OpenAI-compatible endpoint, API key, or subscription login. The local endpoint path writes a Pi custom provider into `state/pi/models.json` with a dummy local API key, and setup then selects the `coding` policy model from the Pi-visible registry. If no usable model is available in a non-interactive shell, setup prints the auth/model state paths and exits without opening a TUI.
 
-Normal TUI launchers are blocked until setup is complete: `shrimpy`, `shrimpy "prompt"`, `shrimpy chat`, `shrimpy mechanic`, and `shrimpy agent tui <id>`. `shrimpy status` includes the derived setup state and names `shrimpy setup` when setup is blocked. The durable workspace layout is owned by [workspace.md](workspace.md).
+Normal TUI launchers are blocked until setup is complete: `shrimpy`, `shrimpy "prompt"`, `shrimpy chat`, `shrimpy chat mechanic`, and `shrimpy agent tui <id>`. `shrimpy status` includes the derived setup state and names `shrimpy setup` when setup is blocked. The durable workspace layout is owned by [workspace.md](workspace.md).
 
 ## Gateway
 

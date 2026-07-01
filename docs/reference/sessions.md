@@ -6,7 +6,7 @@ A Shrimpy session is one private Pi working context for one agent and one sessio
 
 | Kind | Label | Path | Opened by |
 | --- | --- | --- | --- |
-| TUI | `tui` | `agents/<id>/sessions/tui/` | `shrimpy`, `shrimpy chat [agent]`, `shrimpy mechanic`, `shrimpy agent tui <id>` |
+| TUI | `tui` | `agents/<id>/sessions/tui/` | `shrimpy`, `shrimpy chat [agent]`, `shrimpy agent tui <id>` |
 | Direct run | `run` | `agents/<id>/sessions/run/` | `shrimpy run`, `shrimpy agent run <id>` |
 | Gateway channel | channel name | `agents/<id>/sessions/<channel>/` | gateway delivery after membership plus agent `channelPolicy` wake |
 | Worker | worker id | `agents/<id>/sessions/<worker-id>/` | Pi-backed `shrimpy worker` turns |

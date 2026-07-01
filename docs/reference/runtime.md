@@ -8,7 +8,7 @@ Shrimpy has two execution modes: direct local sessions and channel sessions. Bot
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy chat [agent]` opens the same TUI chat path for the default or selected agent without treating positionals as an initial prompt.
 - `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
-- `shrimpy mechanic` opens a direct TUI session as the `mechanic` maintenance agent.
+- `shrimpy chat mechanic` opens the same direct TUI chat path as the `mechanic` maintenance agent.
 - `shrimpy agent tui <id>` opens the same gated TUI launcher for an explicit agent. `shrimpy agent run <id>` runs a one-shot prompt as an explicit agent.
 - `--provider`, `--model`, `--model-policy`, `--thinking <off|low|medium|high>`, and `--skill <id>` override one direct session where supported.
 - Direct sessions start in the selected agent's configured `cwd`, defaulting to the agent root. Fresh setup config starts the `shrimpy` agent in `agents/shrimpy` and the `mechanic` agent at the workspace root.

@@ -59,10 +59,10 @@ describe("root shrimpy command setup path", () => {
     assert.match(result.stderr, /Run: shrimpy setup/);
   });
 
-  test("mechanic non-interactive CLI reaches the setup gate before loading config", () => {
+  test("mechanic chat non-interactive CLI reaches the setup gate before loading config", () => {
     const result = spawnSync(
       process.execPath,
-      [join(process.cwd(), "dist", "cli.js"), "mechanic"],
+      [join(process.cwd(), "dist", "cli.js"), "chat", "mechanic"],
       {
         cwd: workspace,
         env: { ...process.env, HOME: workspace },

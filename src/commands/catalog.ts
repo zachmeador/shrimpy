@@ -65,7 +65,6 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
 const DEFAULT_HELP_PATHS = new Set([
   "",
   "chat",
-  "mechanic",
   "run",
   "setup",
   "setup telegram",
@@ -103,7 +102,6 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry([], undefined, "Open Shrimpy, running setup onboarding when needed.", "Session Commands"),
   entry([], "\"prompt\"", "Open the TUI session with an initial prompt.", "Session Commands"),
   entry(["chat"], "[agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open a TUI chat with the default or selected agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
-  entry(["mechanic"], "[prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open the maintenance TUI as the mechanic agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
   entry(["run"], "[--agent <id>] [--skill <id>] <prompt> [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>]", "Run a one-shot prompt and print the response.", "Session Commands", [agentOption, skillOption, providerOption, modelOption, modelPolicyOption, thinkingOption]),
   entry(["agent", "tui"], "<id> [prompt] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]", "Open a TUI session as a specific agent.", "Session Commands", [providerOption, modelOption, modelPolicyOption, thinkingOption, skillOption]),
   entry(["agent", "run"], "<id> <prompt>", "Run a one-shot prompt as a specific agent.", "Session Commands"),
@@ -253,7 +251,6 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   setup: { requiresConfig: "workspace", load: async () => (await import("./setup.js")).cmdSetup },
   chat: { requiresConfig: "workspace", load: async () => (await import("./chat.js")).cmdChat },
   run: { requiresConfig: true, load: async () => (await import("./run.js")).cmdRun },
-  mechanic: { requiresConfig: "workspace", load: async () => (await import("./mechanic.js")).cmdMechanic },
   context: { requiresConfig: true, load: async () => (await import("./context.js")).cmdContext },
   users: { requiresConfig: true, load: async () => (await import("./users.js")).cmdUsers },
   help: { requiresConfig: false, load: async () => (await import("./help-command.js")).cmdHelp },

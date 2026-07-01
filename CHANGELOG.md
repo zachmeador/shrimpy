@@ -11,6 +11,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Removed Shrimpy-owned local model variant fields and request rewriting for OpenAI-compatible providers. `baseModel`, `inference`, `--base-model`, `--enable-thinking`, `--disable-thinking`, and `--qwen-chat-template` are no longer Shrimpy configuration surfaces.
 - Changed local model setup to write Pi-native provider/model entries only. Use Pi's `state/pi/models.json` fields, including Pi-native `compat.thinkingFormat` values such as `qwen` or `qwen-chat-template`, when a local provider needs compatibility settings.
 - Changed direct and gateway session cwd defaults to use the selected agent's configured `cwd` instead of the shell launch directory or workspace fallback. Use `agents[].cwd` or `shrimpy agent set <id> --cwd <path>` to pin custom workspaces.
+- Removed the top-level `shrimpy mechanic` command. Use `shrimpy chat mechanic` to open the mechanic agent through the normal chat path.
 
 ## 🦐 0.5.0 - The Reef Remembers - 2026-06-17
 

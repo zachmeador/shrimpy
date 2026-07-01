@@ -23,7 +23,7 @@ Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, bu
 - Add a narrow startup resolver for the root interactive command when no explicit `--agent` is provided.
 - Resolve the most recent active local `tui` session across configured agents by inspecting each `agents/<id>/sessions/tui/` directory and lifecycle state.
 - Use the resolved agent id before calling `prepareDirectSessionOpen`, so the existing per-agent resume path opens the right session without changing Pi session storage.
-- Preserve explicit agent selection for `shrimpy --agent <id>`, `shrimpy chat <agent>`, `shrimpy mechanic`, and `shrimpy agent tui <id>`.
+- Preserve explicit agent selection for `shrimpy --agent <id>`, `shrimpy chat <agent>`, `shrimpy chat mechanic`, and `shrimpy agent tui <id>`.
 - Keep the default first-configured-agent behavior when no active `tui` session exists anywhere.
 - Decide and document whether `shrimpy "prompt"` without `--agent` should target the most recent TUI agent or the configured default agent.
 

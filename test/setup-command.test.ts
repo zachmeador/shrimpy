@@ -300,7 +300,7 @@ describe("setup entry", () => {
     assert.equal(result.kind, "already_configured");
     assert.equal(launched, false);
     assert.match(lines.join("\n"), /Nothing to do\./);
-    assert.match(lines.join("\n"), /shrimpy mechanic/);
+    assert.match(lines.join("\n"), /shrimpy chat mechanic/);
     assert.match(lines.join("\n"), /shrimpy setup telegram/);
     const config = readConfig();
     assert.deepEqual(config.modelPolicies.coding.candidates, [{
@@ -484,7 +484,7 @@ describe("setup entry", () => {
     assert.equal(result.kind, "already_configured");
     assert.equal(launched, false);
     assert.match(lines.join("\n"), /Nothing to do\./);
-    assert.match(lines.join("\n"), /shrimpy mechanic/);
+    assert.match(lines.join("\n"), /shrimpy chat mechanic/);
   });
 
 });

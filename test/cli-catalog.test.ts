@@ -39,14 +39,6 @@ describe("CLI catalog", () => {
     assert.match(usage, /shrimpy models policies move-candidate <name> <provider>\/<model> --index <n> \[--json\]/);
   });
 
-  test("catalogs the direct mechanic command", () => {
-    const usage = renderCommandUsage(["mechanic"]);
-
-    assert.match(usage, /shrimpy mechanic \[prompt\]/);
-    assert.match(usage, /\[--model-policy <name>\]/);
-    assert.match(usage, /\[--skill <id>\]/);
-  });
-
   test("catalogs the chat command", () => {
     const usage = renderCommandUsage(["chat"]);
 
@@ -88,12 +80,12 @@ describe("CLI catalog", () => {
     assert.match(bash, /skip_next=1; continue/);
     assert.match(bash, /"agent"\) suggestions="[^"]*channel-policy[^"]*list[^"]*run/);
     assert.match(bash, /"channels"\) suggestions="[^"]*join[^"]*leave[^"]*read/);
-    assert.match(bash, /suggestions="[^"]*chat[^"]*help[^"]*mechanic[^"]*setup/);
+    assert.match(bash, /suggestions="[^"]*chat[^"]*help[^"]*setup/);
+    assert.doesNotMatch(bash, /suggestions="[^"]*mechanic/);
     assert.match(bash, /"help"\) suggestions="all/);
     assert.match(bash, /""\) suggestions="[^"]*--workspace[^"]*chat/);
     assert.match(bash, /value_options="[^"]*--workspace/);
     assert.match(bash, /"chat"\) suggestions="[^"]*--model-policy[^"]*--skill/);
-    assert.match(bash, /"mechanic"\) suggestions="[^"]*--model-policy[^"]*--skill/);
     assert.match(bash, /"models"\) suggestions="[^"]*policies[^"]*resolve/);
     assert.match(bash, /"models policies"\) suggestions="[^"]*add-candidate[^"]*list[^"]*move-candidate[^"]*remove-candidate[^"]*set[^"]*show/);
     assert.match(bash, /"models policies set"\) suggestions="[^"]*--candidate[^"]*--json/);
@@ -175,17 +167,17 @@ describe("CLI catalog", () => {
   });
 
   test("TUI registered commands resolve only the workspace before the setup gate", () => {
-    const mechanicRegistration = COMMAND_REGISTRY.mechanic;
+    const chatRegistration = COMMAND_REGISTRY.chat;
     const agentRegistration = COMMAND_REGISTRY.agent;
 
-    assert.equal(resolveConfigRequirement(mechanicRegistration, []), "workspace");
+    assert.equal(resolveConfigRequirement(chatRegistration, ["mechanic"]), "workspace");
     assert.equal(resolveConfigRequirement(agentRegistration, ["tui", "career"]), "workspace");
     assert.equal(resolveConfigRequirement(agentRegistration, ["show", "career"]), true);
     assert.equal(resolveConfigRequirement(agentRegistration, ["run", "career", "hello"]), true);
 
-    assert.equal(configForRegisteredCommand(mechanicRegistration, () => {
+    assert.equal(configForRegisteredCommand(chatRegistration, () => {
       throw new Error("should not load full config");
-    }).workspace.length > 0, true);
+    }, ["mechanic"]).workspace.length > 0, true);
     assert.equal(configForRegisteredCommand(agentRegistration, () => {
       throw new Error("should not load full config");
     }, ["tui", "career"]).workspace.length > 0, true);
@@ -195,7 +187,6 @@ describe("CLI catalog", () => {
     const docs = readFileSync("docs/reference/cli.md", "utf-8");
 
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["chat"]).replace(/^usage: /, "")}\``)));
-    assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["mechanic"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["help"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["help", "all"]).replace(/^usage: /, "")}\``)));
     assert.match(docs, new RegExp(escapeRegExp(`\`${renderCommandUsage(["completion", "bash"]).replace(/^usage: /, "")}\``)));
