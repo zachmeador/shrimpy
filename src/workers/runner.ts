@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import { createAppRuntime, projectRoot } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import { runDirectAgentPrompt } from "../sessions/index.js";
@@ -82,6 +83,7 @@ export function defaultWorkerSupervisor(): WorkerSupervisor {
         {
           detached: true,
           stdio: "ignore",
+          env: shrimpyRuntimeChildEnv(input.config.workspace),
         },
       );
       if (!child.pid) {
@@ -125,6 +127,7 @@ function runCodexTurn(input: WorkerRunInput): Promise<WorkerRunResult> {
   const child = spawn("codex", args, {
     cwd: input.cwd,
     stdio: ["pipe", "pipe", "pipe"],
+    env: shrimpyRuntimeChildEnv(input.config.workspace),
   });
   let jsonl = "";
   let spawnError: Error | undefined;

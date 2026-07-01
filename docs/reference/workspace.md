@@ -25,6 +25,7 @@ state/workers.json                 coding worker records
 state/telegram/                    Telegram polling offsets
 runtime/cursors/channels.json      gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
+runtime/bin/                       workspace-local command shims
 runtime/context/                   generated turn-context state
 runtime/search/                    rebuildable workspace search cache
 runtime/watches/                   watch active-run state and run history

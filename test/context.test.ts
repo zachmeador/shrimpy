@@ -530,6 +530,8 @@ describe("buildTurnContext", () => {
         "    process.env.SHRIMPY_CONTEXT_AGENT,",
         "    process.env.SHRIMPY_CONTEXT_CHANNEL,",
         "    process.env.SHRIMPY_CONTEXT_SESSION_TYPE,",
+        "    process.env.SHRIMPY_WORKSPACE,",
+        "    process.env.PATH.split(':')[0],",
         "  ].join('|'),",
         "}));",
       ].join("\n"),
@@ -557,7 +559,10 @@ describe("buildTurnContext", () => {
       }),
     });
 
-    assert.match(renderTurnContext(turnContext), /shrimpy\|maintenance\|watch/);
+    assert.match(
+      renderTurnContext(turnContext),
+      new RegExp(`shrimpy\\|maintenance\\|watch\\|${escapeRegExp(workspace)}\\|${escapeRegExp(join(workspace, "runtime", "bin"))}`),
+    );
   });
 
   test("reuses fresh command context items without rerunning the command", async () => {
@@ -741,4 +746,8 @@ function watchRunRecord(overrides: any = {}) {
     emittedChannelMessageIds: [],
     ...(overrides.error ? { error: overrides.error } : {}),
   };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

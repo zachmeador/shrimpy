@@ -10,7 +10,7 @@ Shrimpy depends directly on registry-published `@earendil-works/*` Pi packages; 
 
 - The main binary is `shrimpy`, backed by `src/cli.ts`.
 - The long-running process is `shrimpy-gateway`, backed by `src/gateway.ts`.
-- The workspace path comes from `~/.shrimpy/.shrimpy-workspace.json`, with `~/.shrimpy-workspace.json` as a fallback; when unset, it defaults to `~/.shrimpy/`.
+- The workspace path comes from explicit `--workspace` or `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy/config/shrimpy.json`, the optional `~/.shrimpy-workspace.json` pointer, or the default `~/.shrimpy/`.
 - Runtime config lives in `workspace/config/shrimpy.json`.
 - Setup starts with two agents: `shrimpy` for normal work and `mechanic` for setup, repair, models, agents, skills, channels, watches, and upgrades.
 - Agents live under `workspace/agents/<id>/` with their own `SOUL.md`, `context/`, `vault/`, `projects/`, `skills/`, `watches.json`, and `sessions/`.

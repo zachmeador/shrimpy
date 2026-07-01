@@ -6,6 +6,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Breaking Changes
 
+- Changed gateway service identities from one global user service to workspace/app-bound names. Existing `shrimpy-gateway.service` or `io.github.zachmeador.shrimpy.gateway.plist` files are not removed automatically; reinstall the gateway for the workspace you want to run.
+- Removed the nested `~/.shrimpy/.shrimpy-workspace.json` pointer location. Use explicit `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy`, `~/.shrimpy-workspace.json`, or the default `~/.shrimpy/`.
 - Removed Shrimpy-owned local model variant fields and request rewriting for OpenAI-compatible providers. `baseModel`, `inference`, `--base-model`, `--enable-thinking`, `--disable-thinking`, and `--qwen-chat-template` are no longer Shrimpy configuration surfaces.
 - Changed local model setup to write Pi-native provider/model entries only. Use Pi's `state/pi/models.json` fields, including Pi-native `compat.thinkingFormat` values such as `qwen` or `qwen-chat-template`, when a local provider needs compatibility settings.
 
@@ -26,6 +28,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
+- Added workspace runtime profiles with global `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy` discovery, workspace-local `runtime/bin` command shims, profile-bound gateway services, and status diagnostics so dev and normal environments can coexist without PATH or pointer collisions.
 - Fresh setup now writes the default skills into the workspace and mechanic agent, so users and agents can inspect and edit the actual skill files.
 - New workspaces get visible copies of the coding delegation, memory, journal, `remember`, Shrimpy how-to, search, and mechanic audit skills.
 - Changed fresh setup to seed memory, journal, security-audit, and hygiene-audit watches disabled by default, with `shrimpy watches enable|disable <agent-id>/<watch-id>` available for explicit activation.

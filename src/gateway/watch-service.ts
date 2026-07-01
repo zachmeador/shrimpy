@@ -4,6 +4,7 @@ import {
   type FSWatcher,
 } from "node:fs";
 import { basename, dirname } from "node:path";
+import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import {
@@ -37,6 +38,7 @@ export function startGatewayWatchClock(
         run,
         channelBus,
         runStoreRoot: runtime.paths.runtimeWatchesDir,
+        env: shrimpyRuntimeChildEnv(runtime.paths.workspace),
         logger: console,
       });
     },

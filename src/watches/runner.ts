@@ -32,6 +32,7 @@ interface RunWatchDueOptions {
   run: WatchRunDue;
   channelBus: ChannelBus;
   runStoreRoot: string;
+  env?: NodeJS.ProcessEnv;
   now?: () => number;
   logger?: Pick<Console, "warn" | "error">;
 }
@@ -75,6 +76,7 @@ export async function runWatchDue(
       run: opts.run,
       channelBus: opts.channelBus,
       runStoreRoot: opts.runStoreRoot,
+      env: opts.env,
     });
     const finishedAtMs = now();
     const record = finishedRecord({
@@ -156,6 +158,7 @@ async function runWatchAction(input: {
   run: WatchRunDue;
   channelBus: ChannelBus;
   runStoreRoot: string;
+  env?: NodeJS.ProcessEnv;
 }): Promise<{
   ok: boolean;
   observation: WatchRunObservation;
@@ -180,7 +183,7 @@ async function runWatchAction(input: {
     };
   }
 
-  const command = await runCommandWatchAction(input.watch.action);
+  const command = await runCommandWatchAction(input.watch.action, input.env);
   const previousHash = latestWatchOutputHash(
     input.runStoreRoot,
     input.watch.ownerAgentId,

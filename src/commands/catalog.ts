@@ -47,6 +47,7 @@ const candidateOption = { name: "--candidate", takesValue: true };
 const indexOption = { name: "--index", takesValue: true };
 const thinkingOption = { name: "--thinking", takesValue: true };
 const skillOption = { name: "--skill", short: "-k", takesValue: true };
+const workspaceOption = { name: "--workspace", takesValue: true };
 
 export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
   agentOption,
@@ -55,6 +56,7 @@ export const ROOT_OPTIONS: readonly CliOptionSpec[] = [
   modelPolicyOption,
   thinkingOption,
   skillOption,
+  workspaceOption,
   { name: "--help", short: "-h" },
   { name: "--version", short: "-v" },
 ];
@@ -210,8 +212,8 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
 
   entry(["gateway", "status"], undefined, "Show gateway activity and watch clock status.", "Gateway"),
   entry(["gateway", "logs"], "[--lines N|--tail N] [--follow] [--path]", "Print or follow recent workspace gateway log lines.", "Gateway", [{ name: "--lines", takesValue: true }, { name: "--tail", takesValue: true }, { name: "--follow" }, { name: "--path" }]),
-  entry(["gateway", "install"], undefined, "Install the per-user gateway service.", "Gateway"),
-  entry(["gateway", "uninstall"], undefined, "Uninstall the per-user gateway service.", "Gateway"),
+  entry(["gateway", "install"], undefined, "Install the workspace runtime gateway service.", "Gateway"),
+  entry(["gateway", "uninstall"], undefined, "Uninstall the workspace runtime gateway service.", "Gateway"),
   entry(["gateway", "start"], undefined, "Start the gateway service.", "Gateway"),
   entry(["gateway", "stop"], undefined, "Stop the gateway service.", "Gateway"),
   entry(["gateway", "restart"], undefined, "Restart the gateway service.", "Gateway"),

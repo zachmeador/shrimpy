@@ -36,10 +36,10 @@ import {
   registerSurfaceEgresses,
 } from "./surfaces/index.js";
 import { ChannelOutbox } from "./channels/outbox.js";
-import { ensureShrimpyBinOnPath } from "./gateway/path-env.js";
+import { extractGlobalWorkspace } from "./config/workspace.js";
 
 async function run() {
-  ensureShrimpyBinOnPath();
+  extractGlobalWorkspace(process.argv.slice(2));
 
   const config = loadConfig();
   const runtime = createAppRuntime(config);

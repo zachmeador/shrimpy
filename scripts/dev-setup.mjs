@@ -6,14 +6,14 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cliPath = join(projectRoot, "dist", "cli.js");
+const workspaceEnvVar = "SHRIMPY_WORKSPACE";
 const validCommands = new Set([
   "setup",
   "init",
@@ -104,7 +104,7 @@ if (build === undefined) build = command === "setup" || command === "init" || co
 const root = join(tmpdir(), `shrimpy-dev-setup-${name}`);
 const home = join(root, "home");
 const workspace = join(root, "workspace");
-const pointerPath = join(home, ".shrimpy", ".shrimpy-workspace.json");
+const runtimeBin = join(workspace, "runtime", "bin");
 const existedBefore = existsSync(root);
 
 if (command === "clean") {
@@ -116,29 +116,31 @@ if (command === "clean") {
 if (fresh) rmSync(root, { force: true, recursive: true });
 mkdirSync(home, { recursive: true });
 mkdirSync(workspace, { recursive: true });
-mkdirSync(dirname(pointerPath), { recursive: true });
-writeFileSync(pointerPath, `${JSON.stringify({ workspace })}\n`, "utf-8");
 
 if (piStateSource !== undefined) {
   const sourceWorkspace =
-    piStateSource === true ? resolveWorkspaceFromHome(process.env.HOME) : piStateSource;
+    piStateSource === true ? resolveSourceWorkspace() : piStateSource;
   copyPiState(sourceWorkspace, workspace);
 }
 
 const env = {
   ...process.env,
   HOME: home,
+  [workspaceEnvVar]: workspace,
   SHRIMPY_DEV_HOME: home,
   SHRIMPY_DEV_WORKSPACE: workspace,
   SHRIMPY_NO_AUTO_COMPLETION: process.env.SHRIMPY_NO_AUTO_COMPLETION ?? "1",
+  PATH: pathWithRuntimeBin(process.env.PATH),
 };
 
 printEnvSummary();
 
 if (command === "path") {
   console.log(`export HOME=${quote(home)}`);
+  console.log(`export ${workspaceEnvVar}=${quote(workspace)}`);
   console.log(`export SHRIMPY_DEV_HOME=${quote(home)}`);
   console.log(`export SHRIMPY_DEV_WORKSPACE=${quote(workspace)}`);
+  console.log(`export PATH=${quote(runtimeBin)}:$PATH`);
   process.exit(0);
 }
 
@@ -202,6 +204,7 @@ function printEnvSummary() {
   console.error(`[dev-setup] ${mode} env: ${root}`);
   console.error(`[dev-setup] home: ${home}`);
   console.error(`[dev-setup] workspace: ${workspace}`);
+  console.error(`[dev-setup] runtime bin: ${runtimeBin}`);
 }
 
 function quote(value) {
@@ -244,20 +247,51 @@ Examples:
   process.exit(code);
 }
 
-function resolveWorkspaceFromHome(homeDir) {
-  const pointerPaths = [
-    join(homeDir, ".shrimpy", ".shrimpy-workspace.json"),
-    join(homeDir, ".shrimpy-workspace.json"),
-  ];
-  for (const livePointerPath of pointerPaths) {
-    if (!existsSync(livePointerPath)) continue;
+function resolveSourceWorkspace() {
+  const fromEnv = workspaceFromEnv(process.env, process.cwd());
+  if (fromEnv) return fromEnv;
+
+  const fromCwd = workspaceFromCwd(process.cwd());
+  if (fromCwd) return fromCwd;
+
+  const homeDir = process.env.HOME ?? homedir();
+  const livePointerPath = join(homeDir, ".shrimpy-workspace.json");
+  if (existsSync(livePointerPath)) {
     const raw = JSON.parse(readFileSync(livePointerPath, "utf-8"));
     if (!raw || typeof raw.workspace !== "string" || raw.workspace.length === 0) {
       fail(`cannot copy Pi state: ${livePointerPath} has no workspace field`);
     }
     return raw.workspace;
   }
-  fail(`cannot copy Pi state: no workspace pointer found at ${pointerPaths.join(" or ")}`);
+
+  return join(homeDir, ".shrimpy");
+}
+
+function workspaceFromEnv(env, cwd) {
+  const raw = env[workspaceEnvVar];
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return isAbsolute(trimmed) ? trimmed : resolve(cwd, trimmed);
+}
+
+function workspaceFromCwd(cwd) {
+  let current = resolve(cwd);
+  while (true) {
+    const workspacePath = join(current, ".shrimpy");
+    if (existsSync(join(workspacePath, "config", "shrimpy.json"))) return workspacePath;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function pathWithRuntimeBin(pathValue) {
+  const parts = [
+    runtimeBin,
+    ...(pathValue ? pathValue.split(delimiter) : []),
+  ].filter((part) => part.length > 0);
+  return [...new Set(parts)].join(delimiter);
 }
 
 function copyPiState(sourceWorkspace, targetWorkspace) {

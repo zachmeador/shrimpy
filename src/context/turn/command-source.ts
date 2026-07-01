@@ -1,5 +1,6 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { shrimpyRuntimeChildEnv } from "../../app/environment.js";
 import type { AppRuntime } from "../../app/runtime.js";
 import { isRecord } from "../../util/record.js";
 import type { ResolvedContextCommandSource } from "../source.js";
@@ -30,7 +31,7 @@ export async function runContextSourceCommand(
       cwd: ctx.runtime.paths.workspace,
       timeout: command.timeoutMs,
       env: {
-        ...process.env,
+        ...shrimpyRuntimeChildEnv(ctx.runtime.paths.workspace),
         SHRIMPY_CONTEXT_AGENT: ctx.agentId,
         SHRIMPY_CONTEXT_CHANNEL: ctx.channel ?? "",
         SHRIMPY_CONTEXT_SESSION_TYPE: ctx.sessionType,

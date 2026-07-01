@@ -6,6 +6,8 @@ This file carries local workspace details and path breadcrumbs for Shrimpy agent
 
 - Workspace: `{{WORKSPACE_PATH}}`
 - Shrimpy checkout: `{{APP_PATH}}`
+- Shrimpy runtime bin: `{{WORKSPACE_PATH}}/runtime/bin`
+- Shrimpy command: `{{WORKSPACE_PATH}}/runtime/bin/shrimpy`
 - Source: `{{SOURCE_PATH}}`
 - Docs: `{{DOCS_PATH}}`
 - Reference docs: `{{DOCS_PATH}}/reference`

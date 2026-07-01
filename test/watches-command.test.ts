@@ -378,7 +378,7 @@ describe("watch inspection surfaces", () => {
           trigger: { kind: "time", everyMs: 60_000 },
           action: {
             kind: "command",
-            command: "printf 'watch output'",
+            command: "node -e \"console.log([process.env.SHRIMPY_WORKSPACE, process.env.PATH.split(':')[0]].join('|'))\"",
           },
           emit: {
             policy: "on_output",
@@ -414,7 +414,10 @@ describe("watch inspection surfaces", () => {
 
     const { messages } = runtime.createChannelBus().read("maintenance");
     assert.equal(messages[0].content.type, "text");
-    assert.equal(messages[0].content.data.text, "Command said: watch output");
+    assert.equal(
+      messages[0].content.data.text,
+      `Command said: ${workspace}|${join(workspace, "runtime", "bin")}`,
+    );
   });
 
   test("rejects missing watch ids", async () => {

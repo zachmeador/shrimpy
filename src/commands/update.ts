@@ -94,7 +94,7 @@ async function buildUpdatePreflight(
   const metadata = readAppMetadata();
   const git = readGitState(projectRoot);
   const mechanicModel = await resolveMechanicModel(config);
-  const gateway = readGatewayServiceStatus();
+  const gateway = readGatewayServiceStatus({ workspace: config.workspace });
   const binaryTarget = resolveBinaryTarget();
   const protectedPaths = [
     paths.primaryConfigPath,

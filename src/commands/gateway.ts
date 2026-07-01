@@ -14,7 +14,10 @@ const USAGE = renderGroupUsage("gateway");
 function controlGateway(action: "install" | "uninstall" | "start" | "stop" | "restart") {
   return async ({ config }: CommandInvocation): Promise<number> => {
     const runtime = createAppRuntime(config);
-    await gatewayCtl(action, { pidPath: runtime.paths.gatewayPidPath });
+    await gatewayCtl(action, {
+      pidPath: runtime.paths.gatewayPidPath,
+      workspace: config.workspace,
+    });
     return 0;
   };
 }

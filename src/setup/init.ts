@@ -4,7 +4,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { createAgentPaths, createWorkspacePaths } from "../app/index.js";
+import {
+  createAgentPaths,
+  createWorkspacePaths,
+  ensureShrimpyRuntimeEnvironment,
+} from "../app/index.js";
 import { writeChannelMemberships } from "../channels/membership.js";
 import {
   configDir,
@@ -120,7 +124,8 @@ export function setupNextStepLines(
   options: SetupNextStepLinesOptions = {},
 ): string[] {
   const paths = createWorkspacePaths(workspace);
-  const servicePaths = gatewayServicePaths();
+  const environment = ensureShrimpyRuntimeEnvironment(workspace);
+  const servicePaths = gatewayServicePaths({ workspace });
   const manager = gatewayServiceManager();
   const serviceFile = manager === "systemd"
     ? servicePaths.unitPath
@@ -140,6 +145,7 @@ export function setupNextStepLines(
     "",
     heading("Paths:"),
     `  workspace: ${paths.workspace}`,
+    `  command:   ${environment.binDir}/shrimpy`,
     `  config:    ${paths.primaryConfigPath}`,
     `  log:       ${paths.gatewayLogPath}`,
     ...(serviceFile ? [`  service:   ${serviceFile}`] : []),
@@ -153,6 +159,14 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
   mkdirSync(workspace, { recursive: true });
   mkdirSync(configDir(workspace), { recursive: true });
   const paths = createWorkspacePaths(workspace);
+  const shimPath = `${paths.runtimeBinDir}/shrimpy`;
+  const hadShim = existsSync(shimPath);
+  const environment = ensureShrimpyRuntimeEnvironment(workspace);
+  if (hadShim) {
+    existing.push(`${environment.binDir}/shrimpy`);
+  } else {
+    created.push(`${environment.binDir}/shrimpy`);
+  }
   const agentPaths = createAgentPaths(workspace, "agents/shrimpy");
   const mechanicPaths = createAgentPaths(workspace, "agents/mechanic");
   const docsPath = stableDocsRoot();

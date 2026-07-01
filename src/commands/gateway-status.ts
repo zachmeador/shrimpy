@@ -1,4 +1,9 @@
+import { spawnSync } from "node:child_process";
 import { createAppRuntime } from "../app/index.js";
+import {
+  collectShrimpyRuntimeWarnings,
+  shrimpyRuntimeChildEnv,
+} from "../app/environment.js";
 import { timeSince } from "../channels/format.js";
 import {
   collectChannelActivity,
@@ -9,7 +14,10 @@ import {
   summarizeDeliveryReceipts,
 } from "../channels/outbox.js";
 import { loadRuntimeWatchIds } from "../watches/index.js";
-import { readGatewayServiceStatus, type GatewayServiceStatus } from "../gateway/service-ctl.js";
+import {
+  readGatewayServiceStatus,
+  type GatewayServiceStatus,
+} from "../gateway/service-ctl.js";
 import {
   flattenGatewayLanes,
   gatewayRuntimeStatePath,
@@ -21,7 +29,7 @@ import { formatFutureOrPast } from "../util/time-format.js";
 
 export function printGatewayStatus(
   config: Parameters<typeof createAppRuntime>[0],
-  service: GatewayServiceStatus = readGatewayServiceStatus(),
+  service: GatewayServiceStatus = readGatewayServiceStatus({ workspace: config.workspace }),
 ): void {
   const runtime = createAppRuntime(config);
   const watchIds = loadRuntimeWatchIds(runtime);
@@ -46,7 +54,12 @@ export function printGatewayStatus(
   );
 
   console.log(`${label("workspace:")} ${runtime.paths.workspace}`);
+  console.log(`${label("app checkout:")} ${runtime.environment.appRoot}`);
+  console.log(`${label("runtime bin:")} ${runtime.environment.binDir}`);
+  const shrimpyCommand = resolveShrimpyCommand(runtime.paths.workspace);
+  console.log(`${label("shrimpy command:")} ${shrimpyCommand}`);
   console.log(`${label("gateway manager:")} ${service.manager}`);
+  console.log(`${label("gateway service id:")} ${service.serviceName}`);
   console.log(`${label("gateway service:")} ${service.active}`);
   console.log(`${label("gateway enabled:")} ${service.enabled}`);
   if (service.definitionPath) {
@@ -55,6 +68,13 @@ export function printGatewayStatus(
   console.log(`${label("gateway log:")} ${runtime.paths.gatewayLogPath}`);
   if (service.serviceLogPath) {
     console.log(`${label("gateway service log:")} ${service.serviceLogPath}`);
+  }
+  for (const warning of collectShrimpyRuntimeWarnings(runtime.environment, {
+    shrimpyCommandPath: shrimpyCommand === "(not found)" ? undefined : shrimpyCommand,
+    gatewayServiceName: service.serviceName,
+    currentCliPath: process.argv[1],
+  })) {
+    console.log(`${label("runtime warning:")} ${warning}`);
   }
   console.log(`${label("tracked channels:")} ${activity.channelCount}`);
   console.log(`${label("undelivered outbound:")} ${undelivered}`);
@@ -113,6 +133,15 @@ export function printGatewayStatus(
       );
     }
   }
+}
+
+function resolveShrimpyCommand(workspace: string): string {
+  const result = spawnSync("sh", ["-lc", "command -v shrimpy"], {
+    encoding: "utf-8",
+    env: shrimpyRuntimeChildEnv(workspace),
+  });
+  if (result.error || result.status !== 0) return "(not found)";
+  return String(result.stdout).trim() || "(not found)";
 }
 
 function when(ms: number): string {

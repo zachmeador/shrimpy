@@ -46,6 +46,10 @@ import {
   type AgentPaths,
   type WorkspacePaths,
 } from "./paths.js";
+import {
+  applyShrimpyRuntimeProcessEnv,
+  type ShrimpyRuntimeEnvironment,
+} from "./environment.js";
 
 export interface ResolvedAppConfig {
   agents: ResolvedAgentConfig[];
@@ -69,11 +73,13 @@ interface AppRuntimeBuildToolsOpts {
 export class AppRuntime {
   readonly config: ShrimpyConfig;
   readonly paths: WorkspacePaths;
+  readonly environment: ShrimpyRuntimeEnvironment;
   readonly resolved: ResolvedAppConfig;
 
   constructor(config: ShrimpyConfig) {
     this.config = config;
     this.paths = createWorkspacePaths(config.workspace);
+    this.environment = applyShrimpyRuntimeProcessEnv(config.workspace);
     const agents = resolveAgentsConfig(config.agents);
     const agentIds = agents.map((agent) => agent.id);
 

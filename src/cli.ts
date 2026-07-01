@@ -17,9 +17,12 @@ import {
 import {
   brand,
 } from "./util/style.js";
+import {
+  extractGlobalWorkspace,
+} from "./config/workspace.js";
 
 try {
-  const rawArgs = process.argv.slice(2);
+  const rawArgs = extractGlobalWorkspace(process.argv.slice(2));
   const helpPath = resolveCliHelpPath(rawArgs);
   if (helpPath !== null) {
     console.log(renderCommandPathHelp(helpPath));

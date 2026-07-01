@@ -1,4 +1,5 @@
 import { evaluateAgentChannelPolicy } from "../agents/channel-policy.js";
+import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import type { AppRuntime } from "../app/runtime.js";
 import {
   makeMessage,
@@ -228,6 +229,7 @@ export async function runWatchNow(
     },
     channelBus: runtime.createChannelBus(),
     runStoreRoot: runtime.paths.runtimeWatchesDir,
+    env: shrimpyRuntimeChildEnv(runtime.paths.workspace),
     logger: console,
   });
 }

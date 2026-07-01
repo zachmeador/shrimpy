@@ -45,9 +45,9 @@ npm run dev:setup:shell
 npm run dev:setup:clean
 ```
 
-`npm run dev:setup` rebuilds, resets an isolated `/tmp` home/workspace pair, writes a temporary `.shrimpy/.shrimpy-workspace.json`, and runs `shrimpy setup`. It is fresh by default so edits under `src/setup/templates/` are copied into the test workspace each run. Use `npm run dev:setup -- --reuse --no-build` to rerun against the same temp workspace, or `npm run dev:setup -- --name tui` to keep a separate named sandbox.
+`npm run dev:setup` rebuilds, resets an isolated `/tmp` home/workspace pair, sets `SHRIMPY_WORKSPACE` to the temp workspace, and runs `shrimpy setup`. The isolated `HOME` keeps shell/provider side effects out of the real home directory; workspace selection does not depend on a temporary pointer file. It is fresh by default so edits under `src/setup/templates/` are copied into the test workspace each run. Use `npm run dev:setup -- --reuse --no-build` to rerun against the same temp workspace, or `npm run dev:setup -- --name tui` to keep a separate named sandbox.
 
-To skip repeated provider login/model selection while testing the setup skill, run `npm run dev:setup:tui`. It is the one-command loop for setup walkthrough work: rebuild, create a fresh temp sandbox, copy `state/pi/auth.json` and `state/pi/models.json` from the workspace selected by your real workspace pointer, then open the setup TUI. The lower-level equivalent is `npm run dev:setup -- --copy-pi-state`. Use `npm run dev:setup:clean` when done because the sandbox may contain credentials.
+To skip repeated provider login/model selection while testing the setup skill, run `npm run dev:setup:tui`. It is the one-command loop for setup walkthrough work: rebuild, create a fresh temp sandbox, copy `state/pi/auth.json` and `state/pi/models.json` from the workspace selected by normal workspace resolution in the current shell, then open the setup TUI. The lower-level equivalent is `npm run dev:setup -- --copy-pi-state`. Use `npm run dev:setup:clean` when done because the sandbox may contain credentials.
 
 Interactive zsh launches automatically install and refresh Shrimpy's cached shell completion in `~/.zshrc`. Set `SHRIMPY_NO_AUTO_COMPLETION=1` to disable that setup step while developing.
 

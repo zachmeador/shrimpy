@@ -12,6 +12,7 @@ export interface WorkspacePaths {
   frameworkDir: string;
   stateDir: string;
   runtimeDir: string;
+  runtimeBinDir: string;
   runtimeCursorsDir: string;
   runtimeContextDir: string;
   runtimeWatchesDir: string;
@@ -65,6 +66,7 @@ export function createWorkspacePaths(
     frameworkDir: join(workspace, "docs", "framework"),
     stateDir: join(workspace, "state"),
     runtimeDir: join(workspace, "runtime"),
+    runtimeBinDir: join(workspace, "runtime", "bin"),
     runtimeCursorsDir: join(workspace, "runtime", "cursors"),
     runtimeContextDir: join(workspace, "runtime", "context"),
     runtimeWatchesDir: join(workspace, "runtime", "watches"),

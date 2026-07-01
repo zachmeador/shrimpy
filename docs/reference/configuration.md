@@ -18,18 +18,18 @@ Shrimpy config is file-backed and meant to be inspected through normal commands 
 ## Files
 
 ```text
-~/.shrimpy/.shrimpy-workspace.json      primary workspace pointer
-~/.shrimpy-workspace.json               fallback workspace pointer
+~/.shrimpy-workspace.json               optional default workspace pointer
 config/shrimpy.json                     main workspace runtime config
 config/channels.json                    channel membership, manifests, and transport bindings
 agents/<id>/watches.json                agent-owned watches
+runtime/bin/                            workspace-local command shims
 state/pi/auth.json                      Pi provider auth
 state/pi/models.json                    Pi-visible provider/model registry
 state/users.json                        stable user ids and optional workspace owner
 state/user-presence.json                last active chat surface per known user
 ```
 
-The pointer files use:
+The optional workspace pointer uses:
 
 ```json
 {
@@ -37,7 +37,11 @@ The pointer files use:
 }
 ```
 
-When neither pointer selects a workspace, Shrimpy uses `~/.shrimpy/`.
+Workspace resolution is explicit-first: leading `--workspace <path>`, then `SHRIMPY_WORKSPACE`, then a cwd-local `.shrimpy/config/shrimpy.json`, then `~/.shrimpy-workspace.json`, then `~/.shrimpy/`. The CLI stores the flag value in `SHRIMPY_WORKSPACE` so Shrimpy-owned child processes inherit it; `shrimpy-gateway` honors both forms. Relative explicit values resolve against the cwd.
+
+Each initialized runtime writes workspace-local command shims under `runtime/bin/`. Shrimpy-owned child processes put that directory first on `PATH`, so bare `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` resolve to the app checkout and workspace that created the runtime. `shrimpy gateway install` writes the resolved workspace into the service environment and uses a service id derived from the workspace/app pair so multiple local environments can coexist.
+
+The global `--workspace` must lead, before the subcommand (`shrimpy --workspace /path status`). A trailing `--workspace` belongs to the subcommand, like the `skills add ... --workspace` target.
 
 ## Inspect First
 

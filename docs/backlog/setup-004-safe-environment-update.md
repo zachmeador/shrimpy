@@ -16,7 +16,7 @@ The updater should therefore protect model config validity first, then let the m
 - `shrimpy update --dry-run` now exists as a safe preflight surface in the command catalog. Apply mode is still intentionally unsupported until the update source, snapshot/restore, and gateway lifecycle semantics are implemented.
 - Model policy resolution already has inspectable CLI coverage through `shrimpy models`, `shrimpy models policies show <name>`, and `shrimpy models resolve --policy <name> --json`.
 - The mechanic has a `shrimpy-workspace-migration` assigned included skill package that inventories installed source, workspace files, risks, and checks before applying user-approved workspace changes.
-- The gateway can be installed as a per-user service and may be running watches or chat delivery while the CLI source and generated `dist/cli.js` change.
+- The gateway can be installed as a workspace runtime service and may be running watches or chat delivery while the CLI source and generated `dist/cli.js` change.
 - The local binary points at this checkout's generated `dist/cli.js`, so changing source and rebuilding can immediately alter the live CLI for this machine.
 
 ## Build
@@ -53,7 +53,7 @@ The updater should therefore protect model config validity first, then let the m
 
 ## Notes
 
-- Dual macOS/Linux gateway support should reuse `src/gateway/service-ctl.ts` rather than teaching `shrimpy update` direct `systemctl` or `launchctl` behavior. The service layer already maps Linux to `systemd --user`, macOS to a per-user LaunchAgent, and unsupported hosts to manual gateway management.
+- Dual macOS/Linux gateway support should reuse `src/gateway/service-ctl.ts` rather than teaching `shrimpy update` direct `systemctl` or `launchctl` behavior. The service layer already maps Linux to `systemd --user`, macOS to a profile-bound LaunchAgent, and unsupported hosts to manual gateway management.
 - The tricky part is lifecycle semantics, not command syntax: systemd has active/enabled states and daemon reloads; launchd has installed/bootstrapped/kickstarted states and user-domain failures. The update command needs a small platform-neutral result shape such as `{ manager, wasInstalled, wasRunning, stopped, restartAttempted, restartOk }`.
 - Treat unsupported/manual platforms as a supported dry-run path and a guarded update path that prints manual `shrimpy-gateway` stop/start instructions, rather than pretending service control exists.
 

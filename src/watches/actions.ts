@@ -23,11 +23,13 @@ export interface CommandWatchResult {
 
 export async function runCommandWatchAction(
   action: WatchCommandAction,
+  env?: NodeJS.ProcessEnv,
 ): Promise<CommandWatchResult> {
   try {
     const result = await execAsync(action.command, {
       cwd: action.cwd,
       timeout: action.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      ...(env ? { env } : {}),
       maxBuffer: MAX_BUFFER,
     });
     const stdout = String(result.stdout ?? "");

@@ -105,5 +105,6 @@ describe("cmdGateway", () => {
     assert.match(output, /gateway service file:.*io\.github\.zachmeador\.shrimpy\.gateway\.plist/);
     assert.match(output, /gateway log:.*runtime\/logs\/gateway\.log/);
     assert.match(output, /gateway service log:.*gateway\.launchd\.log/);
+    assert.match(output, /runtime warning:.*gateway service is io\.github\.zachmeador\.shrimpy\.gateway/);
   });
 });
