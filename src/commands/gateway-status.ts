@@ -23,6 +23,7 @@ import {
   gatewayRuntimeStatePath,
   loadGatewayRuntimeState,
 } from "../gateway/runtime-state.js";
+import { collectGatewayLiveness } from "../gateway/liveness.js";
 import { formatSessionAge } from "../sessions/index.js";
 import { dim, label } from "../util/style.js";
 import { formatFutureOrPast } from "../util/time-format.js";
@@ -32,6 +33,13 @@ export function printGatewayStatus(
   service: GatewayServiceStatus = readGatewayServiceStatus({ workspace: config.workspace }),
 ): void {
   const runtime = createAppRuntime(config);
+  const liveness = collectGatewayLiveness({
+    pidPath: runtime.paths.gatewayPidPath,
+    healthPath: runtime.paths.gatewayHealthPath,
+    workspace: runtime.paths.workspace,
+    appCheckout: runtime.environment.appRoot,
+    service,
+  });
   const watchIds = loadRuntimeWatchIds(runtime);
   const activity = collectChannelActivity(
     runtime.paths.channelsDir,
@@ -62,6 +70,9 @@ export function printGatewayStatus(
   console.log(`${label("gateway service id:")} ${service.serviceName}`);
   console.log(`${label("gateway service:")} ${service.active}`);
   console.log(`${label("gateway enabled:")} ${service.enabled}`);
+  console.log(`${label("gateway process:")} ${liveness.process}${liveness.pid ? ` (PID ${liveness.pid})` : ""}`);
+  console.log(`${label("gateway heartbeat:")} ${liveness.heartbeat}`);
+  for (const warning of liveness.warnings) console.log(`${label("gateway warning:")} ${warning}`);
   if (service.definitionPath) {
     console.log(`${label("gateway service file:")} ${service.definitionPath}`);
   }
@@ -78,6 +89,15 @@ export function printGatewayStatus(
   }
   console.log(`${label("tracked channels:")} ${activity.channelCount}`);
   console.log(`${label("undelivered outbound:")} ${undelivered}`);
+
+  for (const [surface, health] of Object.entries(liveness.surfaces)) {
+    console.log(`${label(`surface ${surface}:`)} ${health.status} failures=${health.consecutiveFailures} stalls=${health.stallRestartCount}`
+      + (health.lastCompletedPollAt ? ` last poll ${when(health.lastCompletedPollAt)}` : ""));
+    if (health.lastError) {
+      console.log(`  ${label("surface error:")} ${dim(health.lastError)}`);
+      console.log(`  ${label("inspect:")} shrimpy gateway status; shrimpy gateway logs`);
+    }
+  }
 
   if (activity.lastWatchRun) {
     console.log(

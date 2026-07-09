@@ -26,6 +26,31 @@ function createPoller(opts: ConstructorParameters<typeof TelegramPoller>[1] = {}
 }
 
 describe("TelegramPoller shutdown", () => {
+  test("exposes healthy and stopped polling snapshots without transport secrets", async () => {
+    let calls = 0;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls++;
+      if (calls === 1) {
+        return new Response(JSON.stringify({
+          ok: true,
+          result: [{ update_id: 1, message: { message_id: 1, date: 123, chat: { id: 4, type: "private" } } }],
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return await new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      });
+    }) as typeof fetch;
+
+    const poller = createPoller();
+    poller.start();
+    for (let i = 0; i < 50 && poller.health().status !== "healthy"; i++) await sleep(10);
+    assert.equal(poller.health().status, "healthy");
+    assert.equal(poller.health().lastReceivedUpdateAt, 123_000);
+    await poller.stop();
+    assert.equal(poller.health().status, "stopped");
+  });
+
   test("stop aborts an in-flight getUpdates request", async () => {
     let aborted = false;
     let started = false;

@@ -18,6 +18,7 @@ import {
   type TelegramPolicyOverrides,
   type TelegramUpdate,
 } from "./client.js";
+import type { SurfaceHealthSnapshot } from "../shared/types.js";
 
 export type TelegramUpdateHandler = (
   update: TelegramUpdate,
@@ -49,6 +50,11 @@ export class TelegramPoller {
   private readonly onUpdateOffset?: (offset: number) => void;
   private readonly onUpdateError?: TelegramUpdateErrorHandler;
   private readonly updateHandlers = new Set<TelegramUpdateHandler>();
+  private healthStatus: SurfaceHealthSnapshot["status"] = "stopped";
+  private lastReceivedUpdateAt = 0;
+  private consecutiveFailures = 0;
+  private lastError: string | undefined;
+  private stallRestartCount = 0;
 
   constructor(
     private readonly client: TelegramBotApiClient,
@@ -65,10 +71,23 @@ export class TelegramPoller {
     return () => this.updateHandlers.delete(handler);
   }
 
+  health(): SurfaceHealthSnapshot {
+    return {
+      status: this.healthStatus,
+      ...(this.lastPollTime ? { lastCompletedPollAt: this.lastPollTime } : {}),
+      ...(this.lastReceivedUpdateAt ? { lastReceivedUpdateAt: this.lastReceivedUpdateAt } : {}),
+      consecutiveFailures: this.consecutiveFailures,
+      ...(this.lastError ? { lastError: this.lastError } : {}),
+      stallRestartCount: this.stallRestartCount,
+    };
+  }
+
   start(): void {
     if (this.running) return;
     this.running = true;
     this.restartAttempts = 0;
+    this.healthStatus = "starting";
+    this.lastError = undefined;
     this.startStallDetection();
     this.pollLoopPromise = this.pollLoop().finally(() => {
       this.pollLoopPromise = null;
@@ -82,6 +101,7 @@ export class TelegramPoller {
       return;
     }
     this.running = false;
+    this.healthStatus = "stopped";
     this.abortController?.abort();
     this.stopStallDetection();
     await this.pollLoopPromise;
@@ -102,8 +122,14 @@ export class TelegramPoller {
         this.pollRequestStartedAt = 0;
         this.lastPollTime = Date.now();
         this.restartAttempts = 0;
+        this.consecutiveFailures = 0;
+        this.lastError = undefined;
+        this.healthStatus = "healthy";
 
         for (const update of updates) {
+          this.lastReceivedUpdateAt = typeof update.message?.date === "number"
+            ? update.message.date * 1000
+            : Date.now();
           await this.notifyUpdate(update);
           this.offset = update.update_id + 1;
           this.onUpdateOffset?.(this.offset);
@@ -122,6 +148,9 @@ export class TelegramPoller {
 
         if (isRecoverableError(err)) {
           this.restartAttempts++;
+          this.consecutiveFailures++;
+          this.lastError = safeErrorMessage(err);
+          this.healthStatus = "retrying";
           const delay = err instanceof TelegramApiError && err.retryAfterMs
             ? err.retryAfterMs
             : computeBackoff(this.policy, this.restartAttempts);
@@ -139,6 +168,8 @@ export class TelegramPoller {
           }
           this.abortController = null;
         } else {
+          this.lastError = safeErrorMessage(err);
+          this.healthStatus = "stopped";
           console.error("[telegram] fatal poll error:", err);
           this.running = false;
           break;
@@ -176,6 +207,8 @@ export class TelegramPoller {
 
       const elapsed = Date.now() - this.pollRequestStartedAt;
       if (elapsed > STALL_THRESHOLD_MS) {
+        this.healthStatus = "stalled";
+        this.stallRestartCount++;
         console.warn(
           `[telegram] poll stalled for ${Math.round(elapsed / 1000)}s, forcing restart`,
         );
@@ -193,4 +226,11 @@ export class TelegramPoller {
       this.stallTimer = null;
     }
   }
+}
+
+function safeErrorMessage(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return message
+    .replace(/\b\d{6,}:[A-Za-z0-9_-]{20,}\b/g, "[redacted-token]")
+    .slice(0, 500);
 }

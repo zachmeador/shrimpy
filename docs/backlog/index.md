@@ -6,6 +6,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
+| [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | review | P1 | Gateway | none | Truthful cross-platform gateway ownership, heartbeat, and surface health |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
 | [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | draft | P2 | TUI | none | Bare `shrimpy` resumes the most recent TUI agent |

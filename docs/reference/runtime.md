@@ -80,7 +80,7 @@ Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy cu
 ## Observability
 
 - `shrimpy status` summarizes workspace and gateway activity.
-- `shrimpy gateway status` reports gateway service, watch-run, watch clock, gateway lane, and loop-guard status.
+- `shrimpy gateway status` reports PID/heartbeat-backed gateway process health separately from service-manager state, followed by surface health, watch-run, watch clock, gateway lane, and loop-guard status. `shrimpy status` uses the same liveness collector.
 - `shrimpy watches` reports source paths, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` inspects the assembled session prompt, per-turn context, and user message body for an agent/session/turn.

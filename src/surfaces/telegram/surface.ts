@@ -188,6 +188,10 @@ class TelegramGatewaySurface
     this.poller.start();
   }
 
+  health() {
+    return this.poller.health();
+  }
+
   async stop(): Promise<void> {
     if (!this.started) return;
     this.started = false;

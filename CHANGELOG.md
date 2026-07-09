@@ -4,6 +4,11 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 🦐 0.5.1 - The Reef Remembers - Unreleased
 
+### Watches & Gateway
+
+- Changed gateway ownership and status to use an atomic workspace PID claim, cross-platform process identity, and a fresh heartbeat record; service-manager state is reported separately and manual gateways remain visible as running with a management warning.
+- Added Telegram surface health reporting for successful polling, retries, stalls, recovery, and bounded failure details.
+
 ### Breaking Changes
 
 - Changed gateway service identities from one global user service to workspace/app-bound names. Existing `shrimpy-gateway.service` or `io.github.zachmeador.shrimpy.gateway.plist` files are not removed automatically; reinstall the gateway for the workspace you want to run.

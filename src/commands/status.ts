@@ -17,6 +17,7 @@ import {
   formatGatewayServiceSummary,
   readGatewayServiceStatus,
 } from "../gateway/service-ctl.js";
+import { collectGatewayLiveness } from "../gateway/liveness.js";
 import {
   loadTelegramOffset,
   telegramStatePath,
@@ -51,8 +52,22 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
   console.log(`${label("setup:")} ${formatSetupStatus(await resolveSetupState(ws))}`);
 
   const gatewayStatus = readGatewayServiceStatus({ workspace: ws });
+  const gateway = collectGatewayLiveness({
+    pidPath: runtime.paths.gatewayPidPath,
+    healthPath: runtime.paths.gatewayHealthPath,
+    workspace: ws,
+    appCheckout: runtime.environment.appRoot,
+    service: gatewayStatus,
+  });
   console.log(`${label("gateway service id:")} ${gatewayStatus.serviceName}`);
-  console.log(`${label("gateway:")} ${formatGatewayServiceSummary(gatewayStatus)}`);
+  console.log(`${label("gateway:")} ${gateway.process}${gateway.pid ? ` (PID ${gateway.pid})` : ""}`);
+  console.log(`${label("gateway service:")} ${formatGatewayServiceSummary(gatewayStatus)}`);
+  console.log(`${label("gateway heartbeat:")} ${gateway.heartbeat}`);
+  for (const warning of gateway.warnings) console.log(`${label("gateway warning:")} ${warning}`);
+  for (const [surface, health] of Object.entries(gateway.surfaces)) {
+    console.log(`${label(`surface ${surface}:`)} ${health.status} failures=${health.consecutiveFailures} stalls=${health.stallRestartCount}`);
+    if (health.lastError) console.log(`  ${label("inspect:")} shrimpy gateway status; shrimpy gateway logs`);
+  }
   for (const warning of collectShrimpyRuntimeWarnings(runtime.environment, {
     workspaceResolution,
     shrimpyCommandPath: shrimpyCommand === "(not found)" ? undefined : shrimpyCommand,

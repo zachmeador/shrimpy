@@ -68,11 +68,11 @@ shrimpy gateway logs --path
 shrimpy gateway logs --follow
 ```
 
-On unsupported platforms, run the gateway manually with `shrimpy-gateway` and inspect the workspace log with `shrimpy gateway logs`.
+On unsupported platforms, run the gateway manually with `shrimpy-gateway` and inspect the workspace log with `shrimpy gateway logs`. Gateway running state comes from the workspace PID claim and fresh `runtime/gateway-health.json` heartbeat. Service-manager state is reported separately as management metadata.
 
 Gateway services are bound to the active workspace and app checkout. Linux writes `~/.config/systemd/user/shrimpy-gateway-<id>.service`; macOS writes `~/Library/LaunchAgents/io.github.zachmeador.shrimpy.gateway.<id>.plist` and launchd stdout/stderr to `~/Library/Logs/Shrimpy/shrimpy-gateway-<id>.launchd.log`. The `<id>` is derived from the workspace/app pair, so separate dev and normal workspaces can install separate services on the same host.
 
-Installed services record `SHRIMPY_WORKSPACE` and capture a `PATH` with `workspace/runtime/bin` first. Gateway sessions, watches, context command sources, and worker supervisors inherit the same runtime environment, so bare `shrimpy` inside a Shrimpy-owned child process resolves to that workspace's command shim. Use `shrimpy status` or `shrimpy gateway status` to inspect the workspace source, app checkout, runtime bin, effective `shrimpy` command, service id, service file, and runtime mismatch warnings.
+Installed services record `SHRIMPY_WORKSPACE` and capture a `PATH` with `workspace/runtime/bin` first. Gateway sessions, watches, context command sources, and worker supervisors inherit the same runtime environment, so bare `shrimpy` inside a Shrimpy-owned child process resolves to that workspace's command shim. Use `shrimpy status` or `shrimpy gateway status` to inspect the workspace source, app checkout, runtime bin, effective `shrimpy` command, process PID/heartbeat, service id, service file, surface health, and mismatch warnings. A live manually started gateway remains running in status when the installed service is inactive; the service discrepancy is shown as a warning.
 
 ## macOS Smoke Checklist
 

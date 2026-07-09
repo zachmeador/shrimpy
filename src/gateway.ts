@@ -16,11 +16,11 @@ import { applyShrimpyRuntimeProcessEnv } from "./app/environment.js";
 import { IdentityStore } from "./gateway/identity-store.js";
 import { installGatewayLogFile } from "./gateway/logging.js";
 import {
-  findRunningGatewayPid,
-  readPidFile,
-  removePidFile,
-  writePidFile,
+  GatewayAlreadyRunningError,
+  claimGatewayPid,
+  releaseGatewayPid,
 } from "./gateway/pid-file.js";
+import { GatewayHealthWriter } from "./gateway/liveness.js";
 import {
   createGatewayBootstraps,
   ensureGatewayDirectories,
@@ -46,15 +46,24 @@ async function run() {
   applyShrimpyRuntimeProcessEnv(config.workspace);
   const runtime = createAppRuntime(config);
 
-  const existingPid = findRunningGatewayPid(runtime.paths.gatewayPidPath);
-  if (existingPid !== null) {
-    console.error(
-      `[gateway] another gateway is already running (PID ${existingPid}); refusing to start. Run 'shrimpy gateway restart' to replace it.`,
-    );
+  try {
+    claimGatewayPid(runtime.paths.gatewayPidPath);
+  } catch (err) {
+    if (err instanceof GatewayAlreadyRunningError) {
+      console.error(
+        `[gateway] ${err.message}; refusing to start. Run 'shrimpy gateway restart' to replace it.`,
+      );
+    } else {
+      console.error("[gateway] unable to claim workspace ownership:", err);
+    }
     process.exit(1);
   }
   ensureGatewayDirectories(runtime);
-  writePidFile(runtime.paths.gatewayPidPath, process.pid);
+  const health = new GatewayHealthWriter(runtime.paths.gatewayHealthPath, {
+    pid: process.pid,
+    workspace: runtime.paths.workspace,
+    appCheckout: runtime.environment.appRoot,
+  });
 
   installGatewayLogFile(runtime.paths.gatewayLogPath);
   logGatewayStartup(runtime);
@@ -69,6 +78,20 @@ async function run() {
     identityStore,
     surfaceThreadStateStore,
   });
+  const updateHealth = () => health.setSurfaces(Object.fromEntries(
+    surfaces.map((surface) => [surface.name, surface.health?.() ?? {
+      status: "starting",
+      consecutiveFailures: 0,
+      stallRestartCount: 0,
+    }]),
+  ));
+  health.setSurfaceProvider(() => Object.fromEntries(
+    surfaces.map((surface) => [surface.name, surface.health?.() ?? {
+      status: "starting",
+      consecutiveFailures: 0,
+      stallRestartCount: 0,
+    }]),
+  ));
   registerSurfaceEgresses(egressRegistry, surfaces);
   const outbox = new ChannelOutbox({
     channelBus,
@@ -86,6 +109,8 @@ async function run() {
   for (const surface of surfaces) {
     surface.start();
   }
+  updateHealth();
+  health.start();
 
   await outbox.drainBacklog();
   outbox.start();
@@ -106,12 +131,12 @@ async function run() {
     workspaceCheckpointService.stop();
     saveWatchClockState(runtime.paths.watchClockStatePath, watchClock.getState());
     await Promise.allSettled(surfaces.map((surface) => surface.stop()));
+    updateHealth();
+    health.stop();
     await outbox.stop();
     await deliveryLoop.stop();
 
-    if (readPidFile(runtime.paths.gatewayPidPath) === process.pid) {
-      removePidFile(runtime.paths.gatewayPidPath);
-    }
+    releaseGatewayPid(runtime.paths.gatewayPidPath, process.pid);
 
     console.log("[gateway] shutdown complete");
     process.exit(0);
