@@ -19,8 +19,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
 | [SESSION-002](session-002-shared-session-model-resolver.md) | review | P2 | Sessions | none | Single model resolver behind session open and models resolve |
-| [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
-| [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
+| [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | Gateway session lifecycle commands confirm and verify outcomes |
+| [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | Safe Shrimpy environment update that preserves mechanic model access |
 | [SETUP-006](setup-006-pi-model-config-ownership.md) | review | P1 | Setup | none | Restore Pi ownership of local model provider configuration |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
