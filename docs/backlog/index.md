@@ -4,6 +4,8 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 
 Status `draft` means the maintainer is not sure about the item yet. Status `review` means an implementation is ready for maintainer review but not yet closed out.
 
+Across backlog work, inspection surfaces should call production decision paths and prove parity; asynchronous control commands should distinguish queued requests from confirmed outcomes; and shared abstractions should be extracted when a second concrete consumer establishes the common boundary.
+
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
 | [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | review | P1 | Gateway | none | Truthful cross-platform gateway ownership, heartbeat, and surface health |
@@ -14,7 +16,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [TUI-011](tui-011-terminal-title-agent-label.md) | draft | P2 | TUI | none | Terminal title shows the active Shrimpy agent |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [CTX-012](ctx-012-exact-context-command-parity.md) | todo | P2 | Context | context cleanup | Exact provider-facing context from `shrimpy context` |
-| [AGENT-002](agent-002-gateway-hosted-agent-runtimes.md) | draft | P2 | Agents | none | Gateway-hosted agent runtimes own channels, watches, and sessions |
+| [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
+| [CHANNEL-001](channel-001-watch-message-backlog-contract.md) | draft | P2 | Channels | none | Decide and expose watch-message replay behavior across gateway restarts |
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |

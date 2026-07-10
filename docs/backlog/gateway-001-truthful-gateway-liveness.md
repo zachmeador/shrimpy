@@ -38,7 +38,7 @@ The Telegram poller detects and restarts stalled requests, but its last successf
 
 - Do not add an HTTP health server, admin RPC, socket protocol, or network probe. The contract is local files plus existing process and service inspection.
 - Do not automatically uninstall, rewrite, or stop unexpected service definitions. Report the mismatch and the explicit lifecycle commands.
-- Do not fold SESSION-003 lifecycle confirmation, SETUP-004 update application, or AGENT-002 runtime ownership refactoring into this item. Those items consume this liveness contract afterward.
+- Do not fold SESSION-003 lifecycle confirmation or SETUP-004 update application into this item. Both items consume this liveness contract afterward.
 - Do not treat a quiet workspace as unhealthy. Heartbeat freshness is independent of channel, watch, and session activity.
 - Do not expose Telegram tokens, message text, user identities, or provider secrets in health state or JSON output.
 - Do not make Telegram fields part of the generic gateway core beyond the shared surface-health envelope.
