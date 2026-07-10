@@ -16,6 +16,7 @@ This directory holds source notes and comparison research that may inform future
 - [pi-agent.md](pi-agent.md) — notes from Pi's coding-agent architecture.
 - [pi-ai-sdk-layer-2026-06-22.md](pi-ai-sdk-layer-2026-06-22.md) — notes on Pi's upcoming `pi-ai` SDK-layer breaking change, the new `Models`/provider-factory surface, `/compat`, and likely Shrimpy migration impact.
 - [pi-skill-handling.md](pi-skill-handling.md) — focused notes on Pi skill discovery, loading, slash commands, and the Shrimpy integration gap.
+- [agent-loop-workflows.md](agent-loop-workflows.md) — taxonomy of agent loop and workflow shapes, what Pi makes easy or leaves to Shrimpy, and a possible path from goal-evaluated turns to scheduled and multi-agent runs.
 - [pufferlib-personal-rl.md](pufferlib-personal-rl.md) — research on how PufferLib/PufferPPO could inform a Shrimpy personal RL framework, especially environment design, trajectory capture, small policy training, and trainer export boundaries.
 - [rl-eval-framework.md](rl-eval-framework.md) — watchlist and eventual architecture notes for a Shrimpy personal RL/eval framework.
 - [skillfish-skill-crud.md](skillfish-skill-crud.md) — review of knoxgraeme/skillfish's skill manager model, dependency fit, license/dependency concerns, and lessons for Shrimpy's prototyping skill CRUD.
