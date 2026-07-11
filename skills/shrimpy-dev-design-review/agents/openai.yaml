@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shrimpy Design Review"
+  short_description: "Evaluate Shrimpy design choices from first principles"
+  default_prompt: "Use $shrimpy-dev-design-review to evaluate this Shrimpy proposal from first principles and recommend whether to keep, narrow, defer, delete, replace, or research it."
