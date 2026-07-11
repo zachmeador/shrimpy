@@ -14,6 +14,7 @@ Keep the backlog useful as a small planning map: concrete enough for an agent to
 ## Files
 
 - `docs/backlog/index.md` is the source of truth for listed backlog items.
+- Keep `docs/backlog/index.md` to the status legend and backlog tables.
 - Active backlog notes live directly in `docs/backlog/`.
 - Deferred notes live in `docs/backlog/later/`.
 - Completed work belongs in git history, stable docs, and the changelog when user-visible; do not keep completed planning notes active unless the maintainer asks.
@@ -53,7 +54,7 @@ Choose the next number in that area by inspecting existing active and `later/` n
 
 ## Writing Rules
 
-- Write briefly and directly. Backlog notes are for agent execution, not long essays.
+- When editing wording, preserve the note's meaning.
 - Describe current behavior and desired build shape with concrete commands, files, modules, surfaces, and tests when known.
 - Keep uncertain work in `draft` and name the open decision plainly.
 - Make boundaries explicit when they prevent scope creep, legacy support, unsafe data changes, or runtime policy from leaking into the item.

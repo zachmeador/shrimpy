@@ -7,46 +7,44 @@ Depends On: none
 
 ## Why
 
-Watch-origin messages are durable channel records but have special delivery semantics: live appends pass through normal membership and agent channel policy, while gateway backlog draining silently skips every message classified as watch-origin. This avoids waking agents for stale periodic instructions after downtime, but it also loses a watch wake when the gateway stops after the message is appended and before it is dispatched.
+Watch messages wake agents when the gateway sees them live. The gateway skips them when replaying channel history after a restart. This avoids running stale instructions, but a restart can lose a watch wake that was written to the channel and not yet handled.
 
-The current all-or-nothing class check is a real reliability policy. Shrimpy should either document it as intentional or replace it with one explicit replay contract.
+Decide whether that loss is acceptable or whether some watch messages should be replayed.
 
 ## Current State
 
-- `ChannelDeliveryLoop.start` sends live watch-origin messages through ordinary channel fanout and agent policy evaluation.
-- `shouldDispatchBacklogMessage` rejects every watch-origin message before membership fanout or agent policy evaluation.
-- Channel messages have no persisted backlog eligibility or expiry metadata.
-- Watch definitions cannot request bounded replay for an important emitted instruction.
-- `shrimpy watches show` explains expected wake policy but not restart or backlog behavior.
+- Live watch messages go through normal channel membership and agent wake policy.
+- Backlog replay skips every watch message.
+- Messages do not record whether or how long they may be replayed.
+- `shrimpy watches show` does not explain this behavior.
 
 ## Decision Required
 
-Choose the delivery guarantee before implementation:
+Choose one behavior:
 
-- Keep watch messages live-only and document the crash window as intentional at-most-once wake delivery; or
-- Add a generic persisted backlog policy to channel messages, preferably one discriminated shape that can express `skip`, `until <expiresAt>`, and `always` without interacting booleans.
+- Keep watch messages live-only and document that a restart can lose a wake.
+- Store a replay policy on channel messages: `skip`, `until <expiresAt>`, or `always`.
 
-If replay is configurable, decide which watch actions may opt in, what the default is, and how inspection displays the effective policy. Do not implement both an independent `dispatchBacklog` flag and an unrelated expiry field without one precedence rule.
+If replay is configurable, decide the default and which watch actions may change it.
 
 ## Build After Decision
 
-- Put backlog eligibility in the channel delivery layer because it is evaluated before agent fanout; do not make it part of agent wake policy.
-- If the current live-only behavior is retained, name it in channel and watch reference docs and add a diagnostic to `shrimpy watches show`.
-- If persisted replay metadata is selected, validate it in the typed channel protocol, stamp it when watch messages are published, evaluate it consistently during backlog draining, and expose it through watch inspection.
+- Keep replay handling in channel delivery, before membership and wake policy.
+- If watch messages stay live-only, document that and show it in `shrimpy watches show`.
+- If messages gain a replay policy, add it to the channel protocol, stamp it on watch messages, apply it during backlog replay, and show it in watch inspection.
 - Test the gateway crash window, long downtime, expired messages, eligible replay, cursor advancement, and ordinary non-watch backlog messages.
 
 ## Boundaries
 
-- Do not create an `AgentRuntime` abstraction for this work.
-- Do not replay stale watch instructions merely to make every channel message behave identically.
-- Do not hide backlog eligibility inside agent channel policy; visibility and wake policy apply only after a message is eligible for delivery.
-- Do not add a general retry queue, job scheduler, acknowledgement protocol, or exactly-once claim.
+- Do not replay stale watch instructions by default.
+- Do not put replay rules in agent wake policy.
+- Do not add a retry queue, scheduler, or acknowledgement protocol, and do not claim exactly-once delivery.
 - Do not change session-control backlog behavior as part of this item.
 
 ## Touches
 
 - `src/gateway/channel-delivery-loop.ts`
-- `src/channels/messages.ts` and message builders only if persisted replay metadata is selected
+- `src/channels/protocol.ts` and message builders if messages gain a replay policy
 - `src/watches/runner.ts` and watch schema only if watches gain a replay option
 - `src/watches/inspection.ts`
 - `test/channel-delivery-loop.test.ts`
@@ -56,8 +54,8 @@ If replay is configurable, decide which watch actions may opt in, what the defau
 
 ## Done
 
-- Watch-message behavior across gateway restart is explicit in code, inspection, and reference docs.
-- The chosen default states whether a watch wake may be lost in the append-to-dispatch crash window.
-- Any replay opt-in has one unambiguous persisted representation and bounded stale-message behavior.
-- Backlog eligibility remains separate from membership visibility and agent wake policy.
+- Code, inspection, and docs agree on whether watch messages replay after a restart.
+- The default clearly states whether a restart may lose a watch wake.
+- Any replay option has one stored representation and an expiry when needed.
+- Replay rules remain separate from membership and wake policy.
 - Tests cover the chosen contract without weakening replay of ordinary channel messages.

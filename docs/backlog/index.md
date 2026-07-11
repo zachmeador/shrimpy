@@ -4,8 +4,6 @@ Active engineering notes for `shrimpy`. Completed work belongs in git history an
 
 Status `draft` means the maintainer is not sure about the item yet. Status `review` means an implementation is ready for maintainer review but not yet closed out.
 
-Across backlog work, inspection surfaces should call production decision paths and prove parity; asynchronous control commands should distinguish queued requests from confirmed outcomes; and shared abstractions should be extracted when a second concrete consumer establishes the common boundary.
-
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
 | [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | review | P1 | Gateway | none | Truthful cross-platform gateway ownership, heartbeat, and surface health |

@@ -29,11 +29,10 @@ That leaves remote chat users without the operational picture they already get i
 - Do not expose secrets, prompt bodies, private session summaries, auth tokens, or provider internals in chat status output.
 - Do not publish read-only command output into channel logs as agent-authored conversation.
 - Do not require Telegram-specific code to know about every Shrimpy status subsystem.
-- Extract the shared status facts and section registry justified by TUI and chat as concrete consumers. Do not build a general cross-surface command framework ahead of another proven shared command shape.
 - Do not add legacy shims or migration paths.
 
 ## Shape
-Treat chat commands as surface-local command invocations that call shared Shrimpy inspection/control services. Status collectors should be production services used directly by CLI, TUI, and chat callers; renderers stay surface-specific and must not parse or reproduce another surface's rendered output. The TUI can render richer local blocks; chat adapters render compact Markdown/plain text with the same facts, section names, and command semantics where practical.
+Treat chat commands as surface-local command invocations that call shared Shrimpy inspection/control services. The TUI can render richer local blocks; chat adapters render compact Markdown/plain text with the same facts, section names, and command semantics where practical.
 
 The first implementation should make `/status` and `/status <section>` useful from Telegram without prompting an agent. Later chat adapters should be able to reuse the same command registry and renderer with only transport-specific formatting and message-length handling.
 
