@@ -155,9 +155,12 @@ describe("resolveContextDefaultsConfig", () => {
     });
 
     assert.equal(section?.id, "session:delivery");
-    assert.match(section!.content, /Plain assistant text stays/);
-    assert.match(section!.content, /no external adapter is expected/);
-    assert.match(section!.content, /normally completes your response/);
+    assert.match(section!.content, /Plain assistant text is private/);
+    assert.match(section!.content, /Use reply\(text\) for a normal user-visible response/);
+    assert.match(section!.content, /only for explicit routing/);
+    assert.match(section!.content, /no external adapter by default/);
+    assert.match(section!.content, /do not duplicate the message/);
+    assert.doesNotMatch(section!.content, /exactly one/);
   });
 });
 

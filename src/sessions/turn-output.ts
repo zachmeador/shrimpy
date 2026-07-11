@@ -53,12 +53,15 @@ export function runSessionTurn(
     signal?: AbortSignal;
     abortMessage?: string;
     turnContextText?: string;
+    sessionType?: string;
   },
 ): Promise<SessionTurnResult> {
   const signal = opts?.signal;
   const abortMessage = opts?.abortMessage ?? "session turn aborted";
   const promptText = opts?.turnContextText?.trim()
-    ? prefixPromptWithTurnContext(prompt, opts.turnContextText.trim())
+    ? prefixPromptWithTurnContext(prompt, opts.turnContextText.trim(), {
+      sessionType: opts.sessionType,
+    })
     : prompt;
 
   return new Promise<SessionTurnResult>((resolve, reject) => {

@@ -310,6 +310,7 @@ export class SessionRegistry {
         signal: controller.signal,
         abortMessage: "session turn stopped by user",
         turnContextText: turn.turnContextText,
+        sessionType: "gateway",
       });
       this.recordOutcome(managed, turn.message.id, "completed");
     } catch (err) {

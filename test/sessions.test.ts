@@ -789,6 +789,14 @@ describe("SessionRegistry", () => {
     );
     assert.match(
       sessionFactory.sessions[0].prompts[0],
+      /This is a channel turn[\s\S]*for a normal response, call reply/,
+    );
+    assert.doesNotMatch(
+      sessionFactory.sessions[0].prompts[0],
+      /exactly one/,
+    );
+    assert.match(
+      sessionFactory.sessions[0].prompts[0],
       /\[channel: telegram~shrimpy~1, sender: human:alice\]\nhello$/,
     );
     const modelBatch = sessionFactory.sessions[0].llmPromptBatches[0];

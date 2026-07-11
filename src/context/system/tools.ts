@@ -14,6 +14,18 @@ interface ToolProse {
 const AGENT_DM_CHANNEL_DESCRIPTION =
   'Direct agent DMs use channel names like "dm~agent-a~agent-b"; `shrimpy channels dm` creates the canonical sorted name. Agent DMs are internal channels, not external surface chats.';
 
+export function gatewayDeliveryGuidance(channel: string): string[] {
+  return [
+    "Plain assistant text is private and never reaches the channel.",
+    "Use reply(text) for a normal user-visible response; use ask(text), notify(text), or report(summary) when those intents fit.",
+    `Use send_message(channel=\"${channel}\", text=\"...\") only for explicit routing to another destination. A user:<id> alias targets that user's last active chat surface; agent DM channels are internal and have no external adapter by default.`,
+    "After publishing, do not duplicate the message in plain assistant text; wait for another incoming message.",
+  ];
+}
+
+export const GATEWAY_TURN_DELIVERY_INSTRUCTION =
+  "This is a channel turn. Use a publication tool for every user-visible message; for a normal response, call reply. Plain assistant text is private and does not reach the user. Do not duplicate published messages in plain assistant text.";
+
 const TOOL_PROSE: Record<ToolProseId, ToolProse> = {
   reply: {
     description:

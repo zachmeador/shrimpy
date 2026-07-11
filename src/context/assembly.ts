@@ -6,6 +6,7 @@ import {
   type PromptSection,
   type PromptResourceRef,
 } from "./resources.js";
+import { gatewayDeliveryGuidance } from "./system/tools.js";
 import {
   isDirectoryResource,
   type ResolvedContextConfig,
@@ -181,12 +182,7 @@ export function buildSessionDeliverySection(opts: {
         "",
         `This session is attached to channel ${opts.channel}.`,
         "",
-        "- Plain assistant text stays in this private session transcript. It is not sent to the channel.",
-        "- To append an intentional message to this channel, call reply(text), ask(text), notify(text), or report(summary). Surface adapters, when configured, also deliver those channel messages externally.",
-        `- For explicit routing or unusual cases, call send_message(channel=\"${opts.channel}\", text=\"...\"). You can use channel=\"user:<id>\" to reach a user's last active chat surface.`,
-        "- Agent DM channels are internal Shrimpy channels: the channel log plus gateway routing is their delivery path, and no external adapter is expected.",
-        "- A successful publication normally completes your response for this channel turn; do not also answer the same user with plain assistant text.",
-        "- After a publication or routed send_message tool logs or delivers the message, wait until a new message is received.",
+        ...gatewayDeliveryGuidance(opts.channel).map((line) => `- ${line}`),
       ].join("\n"),
     };
   }

@@ -137,7 +137,9 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
   }
 
   const userMessage = preview.userMessage && preview.turnContextText
-    ? prefixPromptWithTurnContext(preview.userMessage, preview.turnContextText)
+    ? prefixPromptWithTurnContext(preview.userMessage, preview.turnContextText, {
+      sessionType: preview.turnContext?.sessionType,
+    })
     : preview.userMessage;
   const blocks = [
     preview.assembly.systemPrompt,

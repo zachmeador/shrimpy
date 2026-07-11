@@ -1,10 +1,18 @@
+import { GATEWAY_TURN_DELIVERY_INSTRUCTION } from "../system/tools.js";
+
 export const TURN_CONTEXT_INSTRUCTION =
   "The turn context above is background for the user message below. Answer the user message below using this context when relevant.";
 
-export function formatTurnContextPrefix(text: string): string {
+export function formatTurnContextPrefix(
+  text: string,
+  opts?: { sessionType?: string },
+): string {
   return [
     text.trimEnd(),
     "",
+    ...(opts?.sessionType === "gateway"
+      ? [GATEWAY_TURN_DELIVERY_INSTRUCTION, ""]
+      : []),
     TURN_CONTEXT_INSTRUCTION,
   ].join("\n");
 }
@@ -12,8 +20,9 @@ export function formatTurnContextPrefix(text: string): string {
 export function prefixPromptWithTurnContext(
   prompt: string,
   turnContextText: string,
+  opts?: { sessionType?: string },
 ): string {
-  return `${formatTurnContextPrefix(turnContextText)}\n\n${prompt}`;
+  return `${formatTurnContextPrefix(turnContextText, opts)}\n\n${prompt}`;
 }
 
 export function stripTurnContextPrefixForDisplay(text: string): string {
