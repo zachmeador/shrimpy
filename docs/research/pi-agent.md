@@ -1,27 +1,37 @@
 # 🦐 Pi Coding Agent
 
 Date: 2026-06-11
-Updated: 2026-06-22
+Updated: 2026-07-12
 Status: Research
 
 `earendil-works/pi/packages/coding-agent` - TypeScript, MIT, npm: `@earendil-works/pi-coding-agent`
 
-Shrimpy pins registry-published `@earendil-works/*` Pi packages. The latest npm version checked for this note is `0.79.10`; upstream `main` also contains an unreleased `pi-ai` SDK-layer breaking change tracked in [pi-ai-sdk-layer-2026-06-22.md](pi-ai-sdk-layer-2026-06-22.md).
+Shrimpy pins registry-published `@earendil-works/*` Pi packages. The latest stable npm version checked for this note is `0.80.6`. The `pi-ai` SDK-layer breaking change previously tracked as unreleased shipped in `0.80.0`; its concrete Shrimpy impact and the disposable `0.80.6` probe are recorded in [pi-ai-sdk-layer-2026-06-22.md](pi-ai-sdk-layer-2026-06-22.md) and the root `PI-UPGRADE.md`.
 
 ## Current Shrimpy Impact
 
 - Shrimpy pins `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` directly.
-- Shrimpy currently pins all four packages at `0.79.6`; npm `latest` is `0.79.10` as of 2026-06-22.
+- Shrimpy currently pins all four packages at `0.79.6`; npm `latest` is `0.80.6` as of 2026-07-12.
 - Shrimpy requires Node `>=22.19.0`, matching Pi `0.75.0+` runtime constraints.
 - The public dependency path is upstream npm registry packages, not a local path dependency, unpacked package, checked-in tarball, or active Pi fork.
 - Tool schemas now use `typebox` 1.x types. Shrimpy's Pi-facing tool definitions should import `Type` from `typebox`; Shrimpy-owned config schemas can keep using `@sinclair/typebox` where they do not flow into Pi `ToolDefinition`.
 - Normal `npm test` does not typecheck `extensions/*.ts`. The Pi bump should include an explicit extension typecheck because extension imports and root exports changed.
 - `ToolRenderContext` still exists internally, but it is not exported from the package root in `0.79.1`. Shrimpy compact-tool renderers should use local structural typing or a deeper supported export if Pi adds one.
-- Upcoming `pi-ai` break: upstream `main` moves old root global helpers such as `completeSimple`, `streamSimple`, and `getProviders` to `@earendil-works/pi-ai/compat` while introducing explicit `Models` collections and provider factories. Shrimpy directly imports only a few of those old globals; most runtime model calls still go through `pi-coding-agent`.
+- Released `pi-ai` break: `0.80.0` moved old root global helpers such as `completeSimple`, `streamSimple`, and `getProviders` to `@earendil-works/pi-ai/compat` while introducing explicit `Models` collections and provider factories. Shrimpy's `0.80.6` build probe confirms three affected imports: `src/sessions/compaction-runner.ts`, `src/setup/model-access.ts`, and `test/thinking.test.ts`.
+- Pi `0.80.3` and `0.80.4` expand the public settings selector with `outputPad`, automatic light/dark theme state, and `showCacheMissNotices`; Shrimpy's unified settings bridge must carry those fields and callbacks.
+- Pi `0.80.6` adds the opt-in `max` thinking level. Shrimpy's own validation and bundled `/thinking` extension must add it or they will reject a Pi-native value.
 
 ## Latest Version Gap
 
-The current installed gap is `0.79.6 -> 0.79.10`, plus an unreleased breaking `pi-ai` change on upstream `main`. Since `0.79.6`, the published patch stream mainly contains provider/model metadata fixes, provider-scoped `StreamOptions.env`, `@earendil-works/pi-ai/base`, configurable `chat-template` thinking support for OpenAI-compatible providers, and streaming/reasoning fixes. See [pi-ai-sdk-layer-2026-06-22.md](pi-ai-sdk-layer-2026-06-22.md) before attempting the next Pi bump.
+The current installed gap is `0.79.6 -> 0.80.6`. The published stream includes the breaking `pi-ai` SDK split, many provider/model and auth fixes, `max` thinking, automatic theme/settings changes, output padding, cache-miss notices, richer session/RPC events, and compaction fixes. See [pi-ai-sdk-layer-2026-06-22.md](pi-ai-sdk-layer-2026-06-22.md) and `PI-UPGRADE.md` before applying the bump.
+
+Upgrade-relevant `0.80.x` highlights:
+
+- `0.80.0`: moves the old `pi-ai` global API from the root to temporary `/compat`, adds explicit `Models`/provider factories, renames the old `Provider` id type to `ProviderId`, and removes `/base`. Pi coding-agent itself still uses `/compat` internally in `0.80.6`.
+- `0.80.2`: aligns `ApiKeyCredential` with `auth.json` (`type: "api_key"`) and restores request-scoped auth/environment behavior.
+- `0.80.3`: adds `outputPad`, Claude Sonnet 5, reasoning-token accounting, RPC tree access, and several compaction/provider fixes.
+- `0.80.4`: adds `showCacheMissNotices`, `agent_settled`, provider-header hooks, entry renderers, project-local resource management, and more provider/auth fixes.
+- `0.80.6`: adds the `max` thinking level and long-context pricing tiers.
 
 Historical `0.77.0 -> 0.79.1` upgrade-relevant highlights:
 
@@ -30,7 +40,7 @@ Historical `0.77.0 -> 0.79.1` upgrade-relevant highlights:
 - `0.79.0`: adds project trust gating for project-local settings/resources/instructions/packages, extension-controlled project-trust decisions, cache-hit footer display, RPC extension UI exports, and package asset path helpers. It also neutralizes compaction summary wording for non-coding agents and changes trust behavior around reload and project `.pi` creation.
 - `0.79.1`: adds prompt-template default positional arguments, global `defaultProjectTrust`, `ctx.isProjectTrusted()`, experimental feature guard, extension autocomplete trigger characters, and Claude Fable 5 metadata. It fixes Azure/OpenAI metadata, provider thinking-off payloads, prompt history restoration, mixed CJK wrapping, extension OAuth prompt stability, `/reload` queue-mode updates, invalid `models.json` migration handling, CLI help/version output, and ephemeral `/new` behavior.
 
-Shrimpy upgrade action for the next bump: bump all four package pins together, run `npm run build`, and run TUI/settings/model/compaction tests. Before moving past the breaking `pi-ai` release, check whether Shrimpy should temporarily import old globals from `/compat` or migrate the affected call sites to the new `Models` collection.
+Shrimpy upgrade action for this bump: review `PI-UPGRADE.md`, decide explicitly whether the custom compaction seam may use Pi's temporary `/compat` entrypoint, then bump all four package pins together and apply the tested settings, thinking-level, model-catalog, and test-import changes. Do not build a parallel Shrimpy auth/model collection merely to avoid `/compat`; Pi coding-agent `0.80.6` has not exposed its own `Models` collection at the extension boundary.
 
 ## Local Patch Contingency
 

@@ -1,73 +1,72 @@
 # 🦐 Pi AI SDK Layer Breaking Change
 
 Date: 2026-06-22
+Updated: 2026-07-12
 Status: Research
 
-This note tracks the upcoming `@earendil-works/pi-ai` breaking release reported in the maintainer tweet quoted by the user and verified against upstream Pi `main`. It is background for a future Pi package bump, not an instruction to change Shrimpy's runtime today.
+This note tracks the `@earendil-works/pi-ai` breaking change first observed on upstream `main`, released in `0.80.0`, and probed against Shrimpy with stable Pi `0.80.6`. It is upgrade background, not authorization to change Shrimpy's runtime before review.
 
 ## Sources Checked
 
-- Upstream `@earendil-works/pi-ai` README on `main`: [packages/ai/README.md](https://github.com/earendil-works/pi/tree/main/packages/ai#quick-start)
-- Upstream `@earendil-works/pi-ai` changelog on `main`: [packages/ai/CHANGELOG.md](https://github.com/earendil-works/pi/blob/main/packages/ai/CHANGELOG.md)
-- Upstream `@earendil-works/pi-ai` package exports on `main`: [packages/ai/package.json](https://github.com/earendil-works/pi/blob/main/packages/ai/package.json)
-- Upstream source files checked directly: `packages/ai/src/index.ts`, `packages/ai/src/compat.ts`, `packages/ai/src/models.ts`, `packages/ai/src/providers/all.ts`, `packages/coding-agent/src/core/model-registry.ts`, `packages/coding-agent/src/core/auth-storage.ts`, `packages/coding-agent/src/core/agent-session.ts`
-- npm registry checks on 2026-06-22: `@earendil-works/pi-ai@0.79.10` and `@earendil-works/pi-coding-agent@0.79.10`
-- Shrimpy source imports checked with `rg` against `src`, `test`, `docs`, and `package.json`
+- Local upstream clone `/Users/zachmeador/gits/pi-mono`, refreshed to `8479bd84743e8889f728acb21a62794102db0529`; stable tag `v0.80.6` is `2b3fda9921b5590f285165287bd442a25817f17b`.
+- Stable `v0.80.6` `@earendil-works/pi-ai` README, changelog, package exports, declarations, source, and tests.
+- Upstream source files checked directly: `packages/ai/src/index.ts`, `packages/ai/src/compat.ts`, `packages/ai/src/models.ts`, `packages/ai/src/providers/all.ts`, `packages/coding-agent/src/core/model-registry.ts`, `packages/coding-agent/src/core/auth-storage.ts`, `packages/coding-agent/src/core/agent-session.ts`, and coding-agent compaction and extension types.
+- npm registry checks on 2026-07-12: all four Shrimpy-used Pi packages report `0.80.6` as `latest`.
+- Shrimpy imports checked across `src`, `test`, `extensions`, docs, and package metadata, followed by a clean detached-worktree dependency/build/full-test probe.
 
 ## Short Answer
 
-Pi is splitting `pi-ai` into an explicit SDK surface. The root `@earendil-works/pi-ai` entrypoint on upstream `main` is now core-only and side-effect free. Consumers build a `Models` collection, register provider factories, and call `models.stream()` / `models.complete()` instead of relying on global provider registration and global helper functions.
+Pi split `pi-ai` into an explicit SDK surface in `0.80.0`. The root `@earendil-works/pi-ai` entrypoint is now core-only and side-effect free. Consumers build a `Models` collection, register provider factories, and call `models.stream()` or `models.complete()` instead of relying on global provider registration and global helper functions.
 
-The old global API is not gone immediately. Upstream moved it to `@earendil-works/pi-ai/compat`, described as a temporary strict superset of the old root. A mechanical import-path change should keep old code working while a real migration moves to `createModels()` and provider factories.
+The old global API remains at `@earendil-works/pi-ai/compat`, described as temporary. Pi coding-agent `0.80.6` still uses that entrypoint for its own compaction and model runtime, so Shrimpy cannot cleanly share coding-agent's new `Models` collection yet. The Shrimpy probe used `/compat` only as a disposable compile/test bridge; adopting it in the main checkout requires an explicit policy decision because Shrimpy normally rejects legacy compatibility paths.
 
 ## Version State
 
 - Shrimpy currently pins `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at `0.79.6`.
-- npm `latest` for `@earendil-works/pi-ai` and `@earendil-works/pi-coding-agent` was `0.79.10` on 2026-06-22.
-- The current npm `0.79.10` `pi-ai` package has a `./base` export and direct provider subpaths, but it does not have `./compat`.
-- Upstream GitHub `main` still reports package version `0.79.10`, but its `CHANGELOG.md` has an `Unreleased` breaking section and its package exports include `./compat`, `./providers/*`, and `./api/*`. Treat the breaking API as landed on `main` but not yet released as npm `latest`.
-- Upstream `pi-coding-agent` on `main` still imports `@earendil-works/pi-ai/compat` in `model-registry.ts`, `auth-storage.ts`, and `agent-session.ts`. That matches the tweet's note that coding-agent and new harness integration remain unfinished.
+- npm `latest` for all four packages is `0.80.6` as of 2026-07-12.
+- Stable `0.80.6` exports `./compat`, `./providers/*`, and `./api/*`; the old `./base` entrypoint is removed.
+- Stable `pi-coding-agent@0.80.6` still imports `@earendil-works/pi-ai/compat` in its session, model registry, auth, and compaction implementation. Its extension context exposes `ModelRegistry` and resolved request auth, not the underlying new `Models` collection.
+- A clean Shrimpy `0.80.6` probe fails before source changes at the removed root imports and the expanded settings selector contract. After the documented probe-only changes, `npm run build` and all 570 tests pass.
 
 ## What Changed
 
-- The old root global API moves behind `@earendil-works/pi-ai/compat`: `stream`, `complete`, `streamSimple`, `completeSimple`, `getModel`, `getModels`, `getProviders`, API provider registry helpers, env-key helpers, direct lazy stream wrappers, and image-generation globals.
-- The new runtime object is `Models`. `createModels()` returns an isolated provider collection with sync reads (`getModel`, `getModels`, `getProviders`), explicit async `refresh()`, auth inspection (`getAuth()`), and stream/complete methods that resolve auth through the owning provider.
-- Provider factories live under `@earendil-works/pi-ai/providers/*`. `@earendil-works/pi-ai/providers/all` exposes `builtinModels()`, `builtinProviders()`, and static catalog reads such as `getBuiltinModel()` / `getBuiltinModels()` / `getBuiltinProviders()`.
-- Provider SDKs are still lazy-loaded on first request. The bundle-size win comes from importing only selected provider factories and catalogs instead of importing all generated provider metadata through the old root.
-- Auth is provider-owned. `CredentialStore` is injectable, `AuthContext` is injectable, and stored credentials own their provider; environment variables are fallback only when nothing is stored.
-- API implementation modules move from provider-named modules to API-id modules under `@earendil-works/pi-ai/api/*`. For example, Anthropic is now `api/anthropic-messages`, Google is `api/google-generative-ai`, and Mistral is `api/mistral-conversations`.
-- The type name `Provider` changes meaning: upstream renamed the old provider-id type to `ProviderId`, and `Provider` now means the runtime provider interface.
+- The old root global API moved behind `@earendil-works/pi-ai/compat`: `stream`, `complete`, `streamSimple`, `completeSimple`, `getModel`, `getModels`, `getProviders`, API provider registry helpers, environment-key helpers, direct lazy stream wrappers, and image-generation globals.
+- The new runtime object is `Models`. `createModels()` returns an isolated provider collection with sync catalog reads, explicit async refresh, auth inspection, and stream/complete methods that resolve auth through the owning provider.
+- Provider factories live under `@earendil-works/pi-ai/providers/*`. `@earendil-works/pi-ai/providers/all` exposes `builtinModels()`, `builtinProviders()`, and static catalog reads such as `getBuiltinModel()`, `getBuiltinModels()`, and `getBuiltinProviders()`.
+- API implementation modules live under `@earendil-works/pi-ai/api/*`, named by API id. They export raw `stream` and `streamSimple` functions for callers that deliberately target one API.
+- Auth is provider-owned through injectable `CredentialStore` and `AuthContext` abstractions.
+- The old provider-id type `Provider` became `ProviderId`; `Provider` now means the runtime provider interface.
 
 ## Shrimpy Direct Impact
 
-Most Shrimpy runtime calls go through `@earendil-works/pi-coding-agent` (`ModelRegistry`, `AuthStorage`, `createAgentSession`, session runtime, TUI, extensions). That may shield Shrimpy from part of the `pi-ai` break if Pi lands a coherent coding-agent migration before the next package release. Shrimpy should still bump the Pi packages together, not `pi-ai` alone.
+Most Shrimpy runtime calls still go through `@earendil-works/pi-coding-agent` (`ModelRegistry`, `AuthStorage`, `createAgentSession`, session runtime, TUI, extensions). Shrimpy should bump the four Pi packages together.
 
-Direct `pi-ai` imports in this checkout are smaller:
-
-| File | Current direct use | Likely migration |
+| File | Current direct use | Released migration |
 | --- | --- | --- |
-| `src/sessions/compaction-runner.ts` | Imports `completeSimple` from the root and passes explicit `apiKey` / `headers` for Shrimpy's custom compaction summaries. | Temporary path: import `completeSimple` from `@earendil-works/pi-ai/compat`. Better path: inject or construct the same provider/auth collection used by the active Pi session once coding-agent exposes the new model path. |
-| `src/setup/model-access.ts` | Imports `getProviders()` from the root to distinguish built-in API-key providers from custom providers and OAuth providers. | Use `getBuiltinProviders()` from `@earendil-works/pi-ai/providers/all`, or avoid a static Pi catalog read by deriving setup choices from `ModelRegistry` plus Pi's display-name map if upstream changes that boundary. |
-| `test/thinking.test.ts` | Imports `streamSimple` from the root to capture a local Qwen OpenAI-compatible request payload. | Temporary path: import `streamSimple` from `/compat`. Better path: use a focused provider/API import once the new `api/openai-completions` surface is released and stable. |
-| Type-only imports across `src` and `test` | `Api`, `Model`, `Context`, content block types, option/result types. | Root core still exports the stable type layer on upstream `main`; these are not the main risk. Watch for the `Provider` -> `ProviderId` rename if Shrimpy ever imports that type directly. |
-| `src/tui/shrimpy-model-selection.ts` | Imports `modelsAreEqual` plus `Api` / `Model` types. | `modelsAreEqual` remains exported from upstream `models.ts` through the new root in the checked source, so this is probably unchanged. |
+| `src/sessions/compaction-runner.ts` | Imports `completeSimple` from the root and passes explicit `apiKey` and `headers` for custom compaction summaries. The `0.80.6` build fails with `TS2305`. | Probe path: import `completeSimple` from `@earendil-works/pi-ai/compat`, matching Pi coding-agent's own `0.80.6` compaction. Long-term path: inject the active Pi `Models` completion function once coding-agent exposes it. Do not invent a second auth/model runtime in Shrimpy. |
+| `src/setup/model-access.ts` | Imports `getProviders()` from the root to distinguish built-in API-key providers from custom providers and OAuth providers. The build fails with `TS2724`, followed by a `Set<unknown>` inference error. | Use `getBuiltinProviders()` from `@earendil-works/pi-ai/providers/all`. The disposable probe and setup tests pass with this direct migration. |
+| `test/thinking.test.ts` | Imports `streamSimple` from the root to capture a local Qwen OpenAI-compatible request payload. Runtime test loading fails because the export is absent. | Import `streamSimple` from `@earendil-works/pi-ai/api/openai-completions`; this test is intentionally API-specific and does not need `/compat`. |
+| Type-only imports across `src` and `test` | `Api`, `Model`, `Context`, content block types, and option/result types. | The root still exports the relevant core types. No probe change was required. |
+| `src/tui/shrimpy-model-selection.ts` | Imports `modelsAreEqual` plus `Api` and `Model` types. | `modelsAreEqual` remains on the root. No probe change was required. |
 
 ## Migration Bias
 
-For the first bump after the breaking release, prefer a small compatibility pass over a speculative rewrite. If the released coding-agent still exposes the same `ModelRegistry` and `AuthStorage` shape, Shrimpy can likely switch the few direct old-global imports to `/compat`, build, and then evaluate a proper `Models` migration separately.
+For `0.80.6`, migrate direct call sites where the new API is clear: use `getBuiltinProviders()` for setup catalog reads and the raw `api/openai-completions` stream in the focused Qwen test. The custom compaction seam is different: coding-agent still owns auth through `ModelRegistry` and internally dispatches through `/compat`, while it does not expose its new `Models` collection to extensions. A Shrimpy-owned parallel `Models` collection would duplicate Pi's auth/model boundary and is the wrong abstraction.
 
-The long-term direction is still worth tracking: Shrimpy already stores Pi auth/model state under workspace `state/pi/`, and the new `CredentialStore` / `AuthContext` shape is a cleaner conceptual match than global environment resolution. But Shrimpy should not invent its own parallel model/auth collection until Pi's coding-agent migration lands and shows the supported integration point.
+That leaves an explicit review choice: allow one temporary `/compat` import in `src/sessions/compaction-runner.ts`, matching upstream coding-agent, or defer the package bump until coding-agent exposes a non-compat completion boundary. If the temporary bridge is approved, keep it isolated and tracked for removal; do not spread `/compat` across other Shrimpy code.
 
-The bundle-size motivation matters more for browser/web surfaces than for the current Node CLI/TUI process. Do not let "selective providers" drive a Shrimpy refactor unless a Shrimpy web/runtime bundle actually imports `pi-ai` directly.
+The bundle-size motivation matters more for browser bundles than for Shrimpy's current Node CLI/TUI process. Do not let selective providers drive a broad Shrimpy refactor without a concrete runtime need.
 
-## Checks To Run When The Release Lands
+## Probe Results And Implementation Checks
 
-- Re-check npm `latest`, upstream `CHANGELOG.md`, and package `exports`; do not assume GitHub `main` exactly matches the published release.
-- Re-run `rg -n "from ['\\\"]@earendil-works/pi-ai|@earendil-works/pi-ai"` across `src`, `test`, `extensions`, and docs.
-- In a disposable branch/worktree, bump all four Pi packages together and run `npm run build` plus targeted tests for model setup, compaction, sessions, TUI model selection/settings, and `test/thinking.test.ts`.
-- Inspect released `pi-coding-agent` imports and exports for `ModelRegistry`, `AuthStorage`, OAuth login, custom provider/model config, and session auth resolution before changing Shrimpy's setup flow.
-- Re-verify Qwen/chat-template thinking behavior. Upstream `0.79.9` already added configurable `chat-template` thinking support for OpenAI-compatible providers, and Shrimpy's local thinking test is sensitive to the exact request payload.
+- Registry, changelog, exports, declarations, source diffs, and the stable tag were rechecked on 2026-07-12.
+- A disposable worktree from Shrimpy clean `HEAD` was bumped to all four `0.80.6` packages. The unmodified build exposed the expected root-export and settings-selector failures.
+- Probe-only changes moved the setup catalog and Qwen test to direct new APIs, used `/compat` only for custom compaction, carried the new settings contract, and added `max` to Shrimpy's thinking validation and bundled extension.
+- `npm run build` passed after those changes.
+- The affected 50-test slice passed, including compaction, setup/model access, thinking, TUI settings/theme/command/model selection, context rendering, and tool rendering.
+- `npm test` passed 570/570 after the disposable worktree path was made to end in `/shrimpy` for existing path-sensitive tests.
+- Implementation should add assertions for `max`, the new Pi settings fields/callbacks, and automatic light/dark theme selection; the probe proved compatibility but did not manually drive the interactive automatic-theme submenu.
 
 ## Current Recommendation
 
-Do not change code for this yet. Add this as a known upgrade watchpoint, keep Shrimpy pinned until the breaking Pi release and migration guide are published, then evaluate the smallest compatible bump first. A deeper Shrimpy-side SDK migration should wait for the released coding-agent integration rather than guessing against an unfinished upstream transition.
+Pi `0.80.6` is upgradeable with a small, known patch and high automated confidence, but Shrimpy should remain pinned pending review. The only architectural decision is the custom compaction bridge: approve one temporary `/compat` import or defer until Pi exposes its `Models` runtime at the coding-agent/extension boundary. A deeper Shrimpy-side SDK migration should wait for that supported integration point.

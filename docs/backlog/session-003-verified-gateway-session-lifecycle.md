@@ -3,7 +3,7 @@
 Status: todo
 Priority: P2
 Area: Sessions
-Depends On: [GATEWAY-001](gateway-001-truthful-gateway-liveness.md)
+Depends On: none
 
 ## Why
 `shrimpy sessions new|clear|restore <channel> --agent <id>` against a gateway channel publishes a session control message into the channel and immediately prints success-shaped output like `requested new session for mechanic on maintenance`. The command exits before the gateway has done anything, prints the same text whether the gateway is running or stopped (a stopped gateway leaves the message queued as backlog with no signal), and gives no way to learn whether the reset took effect. In a live maintenance pass this forced dropping to the session storage archive helper to mark bloated sessions archived by hand, because the CLI's own lifecycle command could not show that it had worked.
@@ -15,7 +15,7 @@ The gateway already does the hard part: `SessionControlRuntime` performs the res
 - Make gateway-channel lifecycle commands wait by default: after publishing, tail the channel for the correlated status up to a timeout (default well above the delivery-loop tick, roughly 30s), then report the gateway's status text. `--no-wait` opts out and prints queued-shaped output (`queued new session ...`), never the current success-shaped text.
 - On a confirmed `ok` status, verify from disk and report concretely: name the archived session and state that the next message opens a fresh session under current policy.
 - On a failed status, print the gateway's error text and exit nonzero. On timeout, report the request as unconfirmed, point at `shrimpy gateway status` and `shrimpy sessions list`, and exit nonzero.
-- Check gateway liveness first through the GATEWAY-001 shared collector. When the gateway is down, `new`/`clear`/`restore` apply the same direct file path local channels use (`archiveSessionDir`/`restoreArchivedSessionDir`) and report `applied directly; gateway not running` — no orphaned control message left in the channel. Runtime-only actions (`stop`, thinking level) fail fast with a clear gateway-not-running error.
+- Check gateway liveness first through the shared collector used by `shrimpy gateway status`. When the gateway is down, `new`/`clear`/`restore` apply the same direct file path local channels use (`archiveSessionDir`/`restoreArchivedSessionDir`) and report `applied directly; gateway not running` — no orphaned control message left in the channel. Runtime-only actions (`stop`, thinking level) fail fast with a clear gateway-not-running error.
 - In `SessionControlRuntime`, publish a failed `operation_status` for unknown target agents instead of only logging, so waiters always resolve.
 - `--json` carries the resolved outcome (`applied | applied_direct | failed | unconfirmed | queued`), archive name when applicable, and wait duration.
 - Update `docs/reference/sessions.md` (lifecycle command behavior) and the compaction doc's reset guidance to describe the verified flow.

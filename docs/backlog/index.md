@@ -6,7 +6,6 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | review | P1 | Gateway | none | Truthful cross-platform gateway ownership, heartbeat, and surface health |
 | [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
 | [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
 | [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | draft | P2 | TUI | none | Bare `shrimpy` resumes the most recent TUI agent |
@@ -19,10 +18,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
-| [SESSION-002](session-002-shared-session-model-resolver.md) | review | P2 | Sessions | none | Single model resolver behind session open and models resolve |
-| [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | Gateway session lifecycle commands confirm and verify outcomes |
-| [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | [GATEWAY-001](gateway-001-truthful-gateway-liveness.md) | Safe Shrimpy environment update that preserves mechanic model access |
-| [SETUP-006](setup-006-pi-model-config-ownership.md) | review | P1 | Setup | none | Restore Pi ownership of local model provider configuration |
+| [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
+| [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |

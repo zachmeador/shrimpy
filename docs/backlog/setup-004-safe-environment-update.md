@@ -3,7 +3,7 @@
 Status: draft
 Priority: P1
 Area: Setup
-Depends On: [GATEWAY-001](gateway-001-truthful-gateway-liveness.md)
+Depends On: none
 
 ## Why
 
@@ -23,7 +23,7 @@ The updater should therefore protect model config validity first, then let the m
 
 - Add `shrimpy update` as a workspace/runtime command with `--dry-run` and `--json`.
 - Preflight the current environment before touching the install: resolve the active workspace, installed app checkout, current version/commit, current binary target, and the mechanic's effective model policy. Confirm at least one mechanic-usable model resolves through the same model/auth registry the next mechanic session will use.
-- Inspect gateway state before update through the GATEWAY-001 shared collector used by `shrimpy gateway status`: whether a healthy process owns the workspace, how it is managed, active session or watch activity when available, and the command needed to stop or restart it.
+- Inspect gateway state before update through the shared collector used by `shrimpy gateway status`: whether a healthy process owns the workspace, how it is managed, active session or watch activity when available, and the command needed to stop or restart it.
 - Snapshot the model-critical files before update: `config/shrimpy.json`, `state/pi/auth.json`, `state/pi/models.json`, and any agent config that selects the mechanic model policy. The snapshot can be a workspace checkpoint when tracking is enabled, plus an explicit update-local backup for files outside tracked scope.
 - If the gateway is running, stop or pause it before replacing the live CLI/build output so it cannot run mixed old/new code during the update. Record whether it was running so the command can restore that runtime state after validation.
 - Apply the app update through the installation mechanism that owns this checkout, then rebuild or relink the live CLI only after the source update succeeds.
