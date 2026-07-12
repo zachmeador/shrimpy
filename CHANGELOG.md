@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.5.1 - The Reef Remembers - Unreleased
+## 🦐 0.6.0 - The Blue Hour - Unreleased
 
 ### Watches & Gateway
 
@@ -11,6 +11,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Breaking Changes
 
+- Added workspace runtime profiles with global `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy` discovery, workspace-local `runtime/bin` command shims, and profile-bound gateway services so development and normal environments can coexist without PATH or pointer collisions.
 - Changed gateway service identities from one global user service to workspace/app-bound names. Existing `shrimpy-gateway.service` or `io.github.zachmeador.shrimpy.gateway.plist` files are not removed automatically; reinstall the gateway for the workspace you want to run.
 - Removed the nested `~/.shrimpy/.shrimpy-workspace.json` pointer location. Use explicit `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy`, `~/.shrimpy-workspace.json`, or the default `~/.shrimpy/`.
 - Removed Shrimpy-owned local model variant fields and request rewriting for OpenAI-compatible providers. `baseModel`, `inference`, `--base-model`, `--enable-thinking`, `--disable-thinking`, and `--qwen-chat-template` are no longer Shrimpy configuration surfaces.
@@ -21,6 +22,14 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Sessions, Models & TUI
 
 - Upgraded Pi packages from `0.79.6` to `0.80.6`, adding the `max` thinking level, automatic light/dark TUI themes, cache-miss notices, output padding, and the latest provider, model, auth, compaction, and rendering fixes.
+
+### Channels & Agent Policy
+
+- Changed gateway turn guidance so publication tools carry user-visible replies, plain assistant text stays private, and agents do not duplicate a message after publishing.
+
+### Docs & Agent References
+
+- Added `shrimpy-dev-cleanup-pass` and `shrimpy-dev-design-review` source skills for behavior-preserving cleanup discovery and first-principles design evaluation.
 
 ## 🦐 0.5.0 - The Reef Remembers - 2026-06-17
 
