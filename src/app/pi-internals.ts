@@ -10,8 +10,10 @@ export {
 } from "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/thinking-selector.js";
 export {
   getAvailableThemes,
+  detectTerminalBackgroundFromEnv,
   initTheme,
   loadThemeFromPath,
+  resolveThemeSetting,
   setRegisteredThemes,
   setTheme,
   theme,

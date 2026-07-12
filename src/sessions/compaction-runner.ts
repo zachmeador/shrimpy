@@ -1,6 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import {
-  completeSimple,
   type Api,
   type AssistantMessage,
   type Context,
@@ -8,6 +7,7 @@ import {
   type ProviderResponse,
   type ThinkingLevel,
 } from "@earendil-works/pi-ai";
+import { completeSimple } from "@earendil-works/pi-ai/compat";
 import {
   convertToLlm,
   serializeConversation,

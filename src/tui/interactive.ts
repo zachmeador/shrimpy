@@ -3,7 +3,9 @@ import {
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import {
+  detectTerminalBackgroundFromEnv,
   initTheme,
+  resolveThemeSetting,
   setRegisteredThemes,
 } from "../app/pi-internals.js";
 import { assertSetupReadyForNormalTui } from "../setup/readiness.js";
@@ -36,7 +38,17 @@ export function primeInteractiveThemeForSession(
   session: Pick<AgentSession, "resourceLoader" | "settingsManager">,
 ): void {
   setRegisteredThemes(session.resourceLoader.getThemes().themes);
-  initTheme(session.settingsManager.getTheme(), false);
+  initTheme(
+    resolveInteractiveThemeName(session.settingsManager.getThemeSetting()),
+    false,
+  );
+}
+
+export function resolveInteractiveThemeName(
+  themeSetting: string | undefined,
+  terminalTheme: "dark" | "light" = detectTerminalBackgroundFromEnv().theme,
+): string | undefined {
+  return resolveThemeSetting(themeSetting, terminalTheme);
 }
 
 async function runAgentTuiSession(

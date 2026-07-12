@@ -1,10 +1,10 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import {
-  getProviders,
   type OAuthPrompt,
   type OAuthSelectPrompt,
 } from "@earendil-works/pi-ai";
+import { getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
 import {
   createWorkspacePaths,
@@ -362,7 +362,7 @@ function listApiKeyProviderOptions(registry: ModelRegistry): AuthProviderOption[
   const oauthProviderIds = new Set(
     registry.authStorage.getOAuthProviders().map((provider) => provider.id),
   );
-  const builtInProviderIds = new Set(getProviders());
+  const builtInProviderIds = new Set(getBuiltinProviders());
   const providerIds = new Set(
     registry.getAll()
       .map((model) => model.provider)

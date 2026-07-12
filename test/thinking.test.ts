@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { streamSimple } from "@earendil-works/pi-ai";
+import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
 import {
   formatThinkingInputs,
   isThinkingLevel,
@@ -52,6 +52,7 @@ describe("thinking helpers", () => {
   test("parses canonical thinking levels", () => {
     assert.equal(parseThinkingLevel("off"), "off");
     assert.equal(parseThinkingLevel("HIGH"), "high");
+    assert.equal(parseThinkingLevel("max"), "max");
   });
 
   test("maps on to medium thinking", () => {

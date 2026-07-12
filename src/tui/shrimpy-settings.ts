@@ -18,7 +18,6 @@ import {
   configureHttpDispatcher,
   formatHttpIdleTimeoutMs,
   getAvailableThemes,
-  setTheme,
 } from "../app/pi-internals.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { RuntimeConfig } from "../config/index.js";
@@ -38,6 +37,11 @@ interface InteractiveModeInternals {
   showSelector(create: ShowSelectorFactory): void;
   session: AgentSession;
   settingsManager: SettingsManager;
+  themeController: {
+    applyFromSettings(): Promise<void>;
+    getTerminalTheme(): SettingsConfig["terminalTheme"];
+    preview(themeSetting: string): void;
+  };
   footer: {
     setAutoCompactEnabled(enabled: boolean): void;
     invalidate(): void;
@@ -61,6 +65,8 @@ interface InteractiveModeInternals {
     setClearOnShrink(enabled: boolean): void;
   };
   hideThinkingBlock: boolean;
+  outputPad: 0 | 1;
+  streamingComponent?: Component;
   setupAutocompleteProvider(): void;
   updateEditorBorderColor(): void;
   rebuildChatFromMessages(): void;
@@ -352,15 +358,18 @@ function buildPiSettingsConfig(mode: InteractiveModeInternals): SettingsConfig {
     httpIdleTimeoutMs: mode.settingsManager.getHttpIdleTimeoutMs(),
     thinkingLevel: mode.session.thinkingLevel,
     availableThinkingLevels: mode.session.getAvailableThinkingLevels(),
-    currentTheme: mode.settingsManager.getTheme() || "dark",
+    currentTheme: mode.settingsManager.getThemeSetting() || "dark",
+    terminalTheme: mode.themeController.getTerminalTheme(),
     availableThemes: getAvailableThemes(),
     hideThinkingBlock: mode.hideThinkingBlock,
+    showCacheMissNotices: mode.settingsManager.getShowCacheMissNotices(),
     collapseChangelog: mode.settingsManager.getCollapseChangelog(),
     enableInstallTelemetry: mode.settingsManager.getEnableInstallTelemetry(),
     doubleEscapeAction: mode.settingsManager.getDoubleEscapeAction(),
     treeFilterMode: mode.settingsManager.getTreeFilterMode(),
     showHardwareCursor: mode.settingsManager.getShowHardwareCursor(),
     editorPaddingX: mode.settingsManager.getEditorPaddingX(),
+    outputPad: mode.settingsManager.getOutputPad(),
     autocompleteMaxVisible: mode.settingsManager.getAutocompleteMaxVisible(),
     quietStartup: mode.settingsManager.getQuietStartup(),
     defaultProjectTrust: mode.settingsManager.getDefaultProjectTrust(),
@@ -425,23 +434,13 @@ function buildPiSettingsCallbacks(
       mode.footer.invalidate();
       mode.updateEditorBorderColor();
     },
-    onThemeChange: (themeName) => {
-      const result = setTheme(themeName, true);
-      mode.settingsManager.setTheme(themeName);
-      persistRuntimeConfigSafely(mode, options.runtime, { theme: themeName });
-      mode.ui.invalidate();
-      if (!result.success) {
-        mode.showError(
-          `Failed to load theme "${themeName}": ${result.error}\nFell back to dark theme.`,
-        );
-      }
+    onThemeChange: (themeSetting) => {
+      mode.settingsManager.setTheme(themeSetting);
+      persistRuntimeConfigSafely(mode, options.runtime, { theme: themeSetting });
+      void mode.themeController.applyFromSettings();
     },
-    onThemePreview: (themeName) => {
-      const result = setTheme(themeName, true);
-      if (result.success) {
-        mode.ui.invalidate();
-        mode.ui.requestRender();
-      }
+    onThemePreview: (themeSetting) => {
+      mode.themeController.preview(themeSetting);
     },
     onHideThinkingBlockChange: (hidden) => {
       mode.hideThinkingBlock = hidden;
@@ -450,6 +449,10 @@ function buildPiSettingsCallbacks(
         callIfPresent(child, "setHideThinkingBlock", hidden);
       }
       mode.chatContainer.clear();
+      mode.rebuildChatFromMessages();
+    },
+    onShowCacheMissNoticesChange: (shown) => {
+      mode.settingsManager.setShowCacheMissNotices(shown);
       mode.rebuildChatFromMessages();
     },
     onCollapseChangelogChange: (collapsed) => {
@@ -481,6 +484,21 @@ function buildPiSettingsCallbacks(
       if (mode.editor !== mode.defaultEditor) {
         mode.editor.setPaddingX?.(padding);
       }
+    },
+    onOutputPadChange: (padding) => {
+      mode.settingsManager.setOutputPad(padding);
+      mode.outputPad = padding;
+      if (mode.streamingComponent || mode.session.isStreaming) {
+        for (const child of mode.chatContainer.children) {
+          callIfPresent(child, "setOutputPad", padding);
+        }
+        if (mode.streamingComponent) {
+          callIfPresent(mode.streamingComponent, "setOutputPad", padding);
+        }
+        mode.ui.requestRender();
+        return;
+      }
+      mode.rebuildChatFromMessages();
     },
     onAutocompleteMaxVisibleChange: (maxVisible) => {
       mode.settingsManager.setAutocompleteMaxVisible(maxVisible);

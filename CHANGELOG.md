@@ -18,6 +18,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed direct and gateway session cwd defaults to use the selected agent's configured `cwd` instead of the shell launch directory or workspace fallback. Use `agents[].cwd` or `shrimpy agent set <id> --cwd <path>` to pin custom workspaces.
 - Removed the top-level `shrimpy mechanic` command. Use `shrimpy chat mechanic` to open the mechanic agent through the normal chat path.
 
+### Sessions, Models & TUI
+
+- Upgraded Pi packages from `0.79.6` to `0.80.6`, adding the `max` thinking level, automatic light/dark TUI themes, cache-miss notices, output padding, and the latest provider, model, auth, compaction, and rendering fixes.
+
 ## 🦐 0.5.0 - The Reef Remembers - 2026-06-17
 
 ### Breaking Changes

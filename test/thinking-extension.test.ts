@@ -69,7 +69,7 @@ describe("thinking extension", () => {
     });
 
     assert.deepEqual(notifications, [{
-      text: "Usage: /thinking <level> (off, minimal, low, medium, high, xhigh, on (= medium)); current low",
+      text: "Usage: /thinking <level> (off, minimal, low, medium, high, xhigh, max, on (= medium)); current low",
       level: "info",
     }]);
   });

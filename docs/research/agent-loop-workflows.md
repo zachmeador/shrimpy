@@ -46,7 +46,7 @@ This decomposition separates mechanisms that are often bundled together. For exa
 
 ## What Pi Makes Easy
 
-This assessment is based on Shrimpy's pinned `@earendil-works/*` Pi packages at `0.79.6`, the installed package source, and Pi's upstream [agent loop](https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts), [agent session](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/agent-session.ts), and [subagent example](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent).
+This assessment is based on Shrimpy's pinned `@earendil-works/*` Pi packages at `0.80.6`, the installed package source, and Pi's upstream [agent loop](https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts), [agent session](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/agent-session.ts), and [subagent example](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent).
 
 ### Inner agentic loop
 

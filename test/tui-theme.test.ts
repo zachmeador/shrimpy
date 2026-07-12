@@ -7,7 +7,10 @@ import {
   loadThemeFromPath,
   theme,
 } from "../dist/app/pi-internals.js";
-import { primeInteractiveThemeForSession } from "../dist/tui/interactive.js";
+import {
+  primeInteractiveThemeForSession,
+  resolveInteractiveThemeName,
+} from "../dist/tui/interactive.js";
 
 test("TUI sessions prime the configured theme before Pi builds interactive components", () => {
   const shrimpyTheme = loadThemeFromPath(
@@ -25,4 +28,10 @@ test("TUI sessions prime the configured theme before Pi builds interactive compo
   } as Parameters<typeof primeInteractiveThemeForSession>[0]);
 
   assert.equal(theme.fg("accent", "x"), shrimpyTheme.fg("accent", "x"));
+});
+
+test("TUI theme priming resolves automatic light and dark theme pairs", () => {
+  assert.equal(resolveInteractiveThemeName("light/dark", "light"), "light");
+  assert.equal(resolveInteractiveThemeName("light/dark", "dark"), "dark");
+  assert.equal(resolveInteractiveThemeName("invalid/pair/value", "dark"), undefined);
 });
