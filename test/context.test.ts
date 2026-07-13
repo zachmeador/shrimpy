@@ -29,6 +29,12 @@ import {
   markWatchRunActive,
   saveWatchClockState,
 } from "../dist/watches/index.js";
+import {
+  createChannelSessionKey,
+  createLocalSessionKey,
+} from "../dist/sessions/identity.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
+import { ensureSessionManifest } from "../dist/sessions/storage.js";
 
 let workspace: string;
 
@@ -41,12 +47,16 @@ afterEach(() => {
 });
 
 function descriptor(agentId: string, kind: string, channel?: string) {
-  return {
-    agentId,
-    kind,
-    channel,
-    sessionDir: join(workspace, "sessions", agentId, channel ?? kind),
-  };
+  return createSessionDescriptor({
+    agentRoot: join(workspace, "agents", agentId),
+    key: channel
+      ? createChannelSessionKey({ agentId, channel })
+      : createLocalSessionKey({ agentId, name: kind }),
+    purpose: kind,
+    delivery: channel
+      ? { kind: "channel", channel }
+      : { kind: "transcript" },
+  });
 }
 
 function writeWorkerRecords(records: any[]): void {
@@ -418,8 +428,8 @@ describe("buildTurnContext", () => {
     });
     const text = renderTurnContext(turnContext);
 
-    assert.match(text, /sessions: 2 active across #ops,#research/);
-    assert.match(text, /most recent ops \d+m ago/);
+    assert.match(text, /sessions: 2 active across channel\/ops,channel\/research/);
+    assert.match(text, /most recent channel\/ops \d+m ago/);
     assert.match(text, /1 stale >12h/);
     assert.match(text, /inspect: shrimpy sessions list/);
   });
@@ -689,8 +699,10 @@ describe("buildTurnContext", () => {
 });
 
 function writeActiveSessionFile(channel: string, ageMs: number): void {
-  const sessionDir = join(workspace, "agents", "shrimpy", "sessions", channel);
-  mkdirSync(sessionDir, { recursive: true });
+  const session = descriptor("shrimpy", "gateway", channel);
+  ensureSessionManifest(session);
+  assert.equal(session.storage.kind, "durable");
+  const sessionDir = session.storage.dir;
   const path = join(sessionDir, `${channel}.jsonl`);
   writeFileSync(
     path,

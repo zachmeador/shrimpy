@@ -1,5 +1,8 @@
 import { createAppRuntime } from "../app/index.js";
-import { runDirectAgentPrompt } from "../sessions/index.js";
+import {
+  parseSessionId,
+  runForegroundAgentPrompt,
+} from "../sessions/index.js";
 import {
   MODEL_SESSION_OPTIONS,
   readModelSessionValues,
@@ -18,6 +21,7 @@ export const cmdRun: CommandHandler = async (argv, config) => {
     args: argv,
     options: {
       agent: { type: "string", short: "a" },
+      session: { type: "string", short: "s" },
       ...MODEL_SESSION_OPTIONS,
     },
     allowPositionals: true,
@@ -32,11 +36,22 @@ export const cmdRun: CommandHandler = async (argv, config) => {
   const sessionValues = readModelSessionValues(values);
 
   const runtime = createAppRuntime(config);
-  const { output } = await runDirectAgentPrompt({
+  const agent = runtime.getAgent(values.agent);
+  const requestedSession = values.session
+    ? parseSessionId(agent.id, values.session)
+    : undefined;
+  const { output } = await runForegroundAgentPrompt({
     runtime,
-    agentId: values.agent,
-    channel: "run",
-    sessionType: "run",
+    agentId: agent.id,
+    session: requestedSession
+      ? {
+        namespace: requestedSession.namespace,
+        name: requestedSession.name,
+        profileId: requestedSession.profileId,
+      }
+      : { namespace: "local", name: "run" },
+    purpose: "one-shot",
+    persistent: requestedSession !== undefined,
     provider: sessionValues.provider,
     model: sessionValues.model,
     modelPolicy: sessionValues.modelPolicy,

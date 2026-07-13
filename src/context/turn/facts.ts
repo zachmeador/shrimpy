@@ -6,6 +6,7 @@ import type { AppRuntime } from "../../app/runtime.js";
 import { resolveAgentDmMembers } from "../../channels/dm.js";
 import type { ChannelMessage } from "../../channels/index.js";
 import type { SessionDescriptor } from "../../sessions/spec.js";
+import { sessionChannel } from "../../sessions/spec.js";
 import { formatAgentDateTime } from "./time.js";
 import type { TurnContextItem } from "./types.js";
 
@@ -18,7 +19,7 @@ interface TurnFactInput {
 
 export function buildTurnFactItems(input: TurnFactInput): TurnContextItem[] {
   const { currentMessage: message } = input;
-  const channel = input.descriptor.channel;
+  const channel = sessionChannel(input.descriptor);
   if (!message || !channel) return [];
 
   return [

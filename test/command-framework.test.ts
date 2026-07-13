@@ -89,8 +89,8 @@ describe("command framework", () => {
     const code = await runCommand(
       async () =>
         createShrimpyTuiCommand({
-          channel: "tui",
-          sessionType: "tui",
+          session: { namespace: "local", name: "main" },
+          purpose: "interactive",
           cwd: "/tmp/shrimpy-command-framework-test",
         }, {
           resolveSetupState: async () => ({ kind: "ready", models: [] }),

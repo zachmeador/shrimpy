@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import type { Api, Model } from "@earendil-works/pi-ai";
 import {
   createAgentSession,
   createAgentSessionRuntime,
@@ -7,7 +6,7 @@ import {
   type AgentSessionRuntime,
   type ResourceLoader,
   type SettingsManager,
-  type SessionManager,
+  SessionManager,
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
@@ -29,7 +28,13 @@ import {
   recordSessionOpen,
   wrapModelMetadataRecording,
 } from "./session-record.js";
-import { createSessionManager } from "./storage.js";
+import {
+  createSessionManager,
+  ensureSessionManifest,
+} from "./storage.js";
+import type { SessionDescriptor } from "./spec.js";
+import { formatSessionId } from "./identity.js";
+import { acquireSessionLease } from "./ownership.js";
 import {
   createSessionTurnContextController,
   type SessionTurnContextController,
@@ -96,7 +101,7 @@ export async function openSessionRuntime(
     {
       cwd,
       agentDir,
-      sessionManager: createSessionManager(cwd, plan.descriptor.sessionDir),
+      sessionManager: createDescriptorSessionManager(cwd, plan.descriptor),
     },
   );
 }
@@ -112,14 +117,37 @@ async function openSessionWithRuntimeDeps(
   session: AgentSession;
   resourceLoader: ResourceLoader;
 }> {
+  const lease = acquireSessionLease({
+    workspace: bootstrap.workspacePath,
+    descriptor: plan.descriptor,
+  });
+  try {
+    return await openLeasedSessionWithRuntimeDeps(bootstrap, plan, opts, lease);
+  } catch (err) {
+    lease?.release();
+    throw err;
+  }
+}
+
+async function openLeasedSessionWithRuntimeDeps(
+  bootstrap: SessionBootstrap,
+  plan: SessionOpenPlan,
+  opts: {
+    sessionManager?: SessionManager;
+    sessionStartEvent?: SessionStartEvent;
+  } | undefined,
+  lease: ReturnType<typeof acquireSessionLease>,
+): Promise<{
+  session: AgentSession;
+  resourceLoader: ResourceLoader;
+}> {
   if (plan.defaultThinking !== undefined) {
     bootstrap.settingsManager.setDefaultThinkingLevel(plan.defaultThinking);
   }
 
   const cwd = plan.descriptor.cwd ?? bootstrap.agentRootPath;
-  const sessionManager =
-    opts?.sessionManager ??
-      createSessionManager(cwd, plan.descriptor.sessionDir);
+  const sessionManager = opts?.sessionManager ??
+    createDescriptorSessionManager(cwd, plan.descriptor);
   const modelPlan = resolveSessionModelPlan({
     bootstrap,
     plan,
@@ -130,8 +158,8 @@ async function openSessionWithRuntimeDeps(
     throw new Error(
       reason ??
         (
-          `session ${modelPlan.descriptor.channel ?? modelPlan.descriptor.kind} has no model. `
-          + `Configure a model policy for agent ${modelPlan.descriptor.agentId ?? bootstrap.agentId}.`
+          `session ${formatSessionId(modelPlan.descriptor.key)} has no model. `
+          + `Configure a model policy for agent ${modelPlan.descriptor.key.agentId}.`
         ),
     );
   }
@@ -213,6 +241,20 @@ async function openSessionWithRuntimeDeps(
   });
   subscribeToCompactionLogs(session, effectivePlan);
 
+  if (lease) {
+    const dispose = session.dispose.bind(session);
+    let released = false;
+    session.dispose = () => {
+      if (released) return;
+      released = true;
+      try {
+        dispose();
+      } finally {
+        lease.release();
+      }
+    };
+  }
+
   return { session, resourceLoader };
 }
 
@@ -283,7 +325,7 @@ function subscribeToCompactionLogs(
   session: AgentSession,
   plan: SessionOpenPlan,
 ): void {
-  const sessionLabel = plan.descriptor.channel ?? plan.descriptor.kind;
+  const sessionLabel = formatSessionId(plan.descriptor.key);
   session.subscribe((event: unknown) => {
     if (!isCompactionLogEvent(event)) return;
     if (event.type === "compaction_start") {
@@ -304,6 +346,17 @@ function subscribeToCompactionLogs(
       );
     }
   });
+}
+
+function createDescriptorSessionManager(
+  cwd: string,
+  descriptor: SessionDescriptor,
+): SessionManager {
+  if (descriptor.storage.kind === "memory") {
+    return SessionManager.inMemory(cwd);
+  }
+  ensureSessionManifest(descriptor);
+  return createSessionManager(cwd, descriptor.storage.dir);
 }
 
 function isCompactionLogEvent(event: unknown): event is CompactionLogEvent {

@@ -1,21 +1,21 @@
 # 🦐 Runtime
 
-Shrimpy has two execution modes: direct local sessions and channel sessions. Both use the same workspace, model registry, auth files, context assembly, skills, and tool surface. See [channels.md](channels.md) for channel semantics, [sessions.md](sessions.md) for session files and lifecycle, and [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
+Shrimpy has one Pi session core hosted by foreground commands, the gateway, setup, and workers. Hosts share the workspace, resolver, model registry, auth files, context assembly, skills, and tool surface; delivery and persistence are explicit session policy. See [channels.md](channels.md) for channel semantics, [sessions.md](sessions.md) for identity and lifecycle, and [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
 
 ## Direct CLI Sessions
 
-- `shrimpy` opens a long-lived TUI session for the selected agent on the `tui` session label. The shared TUI launcher runs setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
+- `shrimpy` opens the selected agent's durable `local/main` TUI session. The shared TUI launcher runs setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy chat [agent]` opens the same TUI chat path for the default or selected agent without treating positionals as an initial prompt.
-- `shrimpy run "prompt"` opens a one-shot `run` session and prints the final assistant text.
+- `shrimpy run "prompt"` opens an in-memory one-shot session and prints the final assistant text. `--session <canonical-id>` opts into a durable resumed session.
 - `shrimpy chat mechanic` opens the same direct TUI chat path as the `mechanic` maintenance agent.
 - `shrimpy agent tui <id>` opens the same gated TUI launcher for an explicit agent. `shrimpy agent run <id>` runs a one-shot prompt as an explicit agent.
 - `--provider`, `--model`, `--model-policy`, `--thinking <off|low|medium|high>`, and `--skill <id>` override one direct session where supported.
 - Direct sessions start in the selected agent's configured `cwd`, defaulting to the agent root. Fresh setup config starts the `shrimpy` agent in `agents/shrimpy` and the `mechanic` agent at the workspace root.
-- Without a model override, local `tui` and `run` sessions first restore a saved session model when one exists, then use the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
+- Without a model override, every durable session first restores its saved model when one exists, then uses the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
 - `--skill <id>` loads full skill context into the session. The normal workspace/agent skill list is also passed to Pi so `/skill:<name>`, autocomplete, and available-skill prompt advertising see the same skill set.
 
-Direct `tui` and `run` sessions are local execution labels. They do not first write user prompts to a channel log.
+Transcript-delivered foreground sessions do not first write user prompts to a channel log.
 
 Setup model access uses a plain CLI wizard backed by Pi auth and model registry APIs, including a local OpenAI-compatible endpoint path that writes Pi `models.json`. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
 
@@ -35,7 +35,7 @@ surface / CLI channel post / watch
   -> ChannelDeliveryLoop
   -> channel membership + agent channelPolicy
   -> AgentChannelRuntime
-  -> SessionRegistry
+  -> SessionPool lane
   -> Pi session turn
   -> Pi built-ins + Shrimpy daemon tools
   -> ChannelBus
@@ -50,7 +50,7 @@ Direct local sessions do not have an active publication channel, so `reply`, `as
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
 
-Gateway channel sessions are opened from the agent's resolved model policy for that gateway process and use the same agent-configured `cwd` as direct sessions. Existing session files record model metadata for inspection, but channel sessions do not restore a previously recorded model as their restart default. See [sessions.md](sessions.md).
+Gateway channel sessions use the same resolver and agent-configured `cwd` as foreground sessions. Like every durable session, they restore a recorded model when no explicit override is supplied. See [sessions.md](sessions.md).
 
 ## Prompt Context
 
@@ -62,7 +62,7 @@ At turn time, Shrimpy prepares current time/session facts, channel-unread pointe
 
 ## Session Lifecycle
 
-Sessions persist under each agent workspace as Pi `.jsonl` files with Shrimpy custom entries for metadata and lifecycle state. `SessionRegistry` serializes turns per gateway channel session and exposes lane state for gateway status. `shrimpy sessions new|clear|restore` mutate local `tui`/`run` session files directly and publish control messages for gateway channel sessions; `shrimpy sessions stop` publishes a gateway-only stop control. See [sessions.md](sessions.md).
+Durable sessions persist under each agent workspace as manifested Pi `.jsonl` directories. `SessionPool` serializes each gateway lane and exposes lane state for gateway status. Owner leases prevent foreground, gateway, and maintenance hosts from opening or mutating the same transcript concurrently. Session lifecycle, thinking, and stop commands route to the live owner when possible; unowned lifecycle changes take a maintenance lease and apply directly. See [sessions.md](sessions.md).
 
 ## Background Work
 

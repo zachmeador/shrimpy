@@ -1,114 +1,96 @@
 # 🦐 Sessions
 
-A Shrimpy session is one private Pi working context for one agent and one session label. Sessions persist model-facing conversation state under the agent workspace; channels persist shared communication logs. A channel message can become a turn in a session, but the channel log and the session transcript are separate records. See [channels.md](channels.md) for channel protocol, membership, addressing, and wake policy.
+A Shrimpy session is one private Pi working context. Channels are shared routing and communication logs; sessions carry the model-facing instructions and transcript. A channel message can become a session turn, but resetting a session never rewrites channel history. See [channels.md](channels.md).
 
-## Session Kinds
+## Identity
 
-| Kind | Label | Path | Opened by |
-| --- | --- | --- | --- |
-| TUI | `tui` | `agents/<id>/sessions/tui/` | `shrimpy`, `shrimpy chat [agent]`, `shrimpy agent tui <id>` |
-| Direct run | `run` | `agents/<id>/sessions/run/` | `shrimpy run`, `shrimpy agent run <id>` |
-| Gateway channel | channel name | `agents/<id>/sessions/<channel>/` | gateway delivery after membership plus agent `channelPolicy` wake |
-| Worker | worker id | `agents/<id>/sessions/<worker-id>/` | Pi-backed `shrimpy worker` turns |
+Every session has one structured key:
 
-Direct and gateway labels are sanitized for filesystem paths by replacing characters outside `a-zA-Z0-9._-` with `_`.
-
-## Opening A Session
-
-When a session opens, Shrimpy builds a Pi session plan:
-
-- descriptor: agent id, kind, channel/label, cwd, and session directory
-- model metadata
-- default and requested thinking level
-- Shrimpy daemon tools plus disabled-tool policy
-- stable system prompt resources and approved skills
-- turn-context preparation for direct sessions and explicit turn-context dispatch for gateway turns
-- compaction settings
-
-Pi owns the session runtime, transcript format, model calls, tool execution, and TUI mechanics. Shrimpy owns the shared session planner, workspace paths, channel publication tools, turn-context assembly, and inspection metadata.
-
-Direct and gateway session cwd comes from the selected agent config unless a caller supplies an explicit cwd for a specialized flow. The session transcript still persists under the agent root.
-
-## Prompt And Turn Context
-
-Shrimpy passes Pi one stable system prompt at session open. Per-turn live facts are rendered as turn context and prefixed to the current user message before Pi persists and sends it. This keeps the session JSONL an exact representation of the model-facing user turn.
-
-For direct `tui` and `run` sessions, the user prompt body is the local prompt text. For gateway sessions, the body is the formatted channel message. When turn context exists, the persisted user message contains the turn context, an instruction sentence, and then that body. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
-
-## Model And Thinking
-
-Direct local sessions restore the model saved inside the existing session when no CLI `--provider`, `--model`, or `--model-policy` override is supplied. If there is no saved session model, Shrimpy uses the selected agent's `modelPolicy`, falling back to the workspace `coding` policy.
-
-Gateway channel sessions open from the agent's resolved model policy for that gateway process. Existing channel session files record model metadata for inspection, but a gateway restart does not use a previously recorded channel-session model as the restart default.
-
-When the model changes inside a session, Shrimpy appends a visible `shrimpy_model_switch` custom message so later turns can see that earlier assistant messages may have used a different model.
-
-Thinking level comes from the agent default unless a command or session setting overrides it. `shrimpy sessions thinking tui <level>` mutates the local direct session. `shrimpy sessions thinking <channel> <level>` for gateway channels publishes a control message that the gateway applies to the targeted agent's channel session.
-
-`shrimpy sessions stop <channel> [--agent <id>]` publishes a gateway control message that aborts the running turn for that agent/channel lane. Queued turns stay queued and run afterward. There is no local direct-session stop path for `tui` or `run`.
-
-## Lifecycle
-
-Session files are Pi `.jsonl` files. Shrimpy marks active and archived files with `shrimpy_lifecycle` custom entries instead of moving or rewriting the transcript.
-
-Use:
-
-```bash
-shrimpy sessions list [channel] [--agent <id>] [--json]
-shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]
-shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]
-shrimpy sessions new <channel> [--agent <id>]
-shrimpy sessions clear <channel> [--agent <id>]
-shrimpy sessions restore <channel> [--agent <id>] [--archive <name>]
-shrimpy sessions stop <channel> [--agent <id>]
+```text
+agent id + namespace + name + profile id
 ```
 
-`new` and `clear` archive the active session file. The next turn opens a fresh active file. `restore` marks an archived file active and archives the previous active file if one exists.
+The canonical CLI form omits the default profile:
 
-For local labels `tui` and `run`, lifecycle commands mutate the session files directly. For gateway channel sessions, lifecycle commands publish session control messages into the channel; the running gateway handles them in order with that channel session.
+| Namespace | Example | Typical host |
+| --- | --- | --- |
+| `local` | `local/main`, `local/setup` | TUI, setup, or an explicitly resumed run |
+| `channel` | `channel/home`, `channel/telegram~main~42` | Gateway delivery |
+| `worker` | `worker/wrk_123` | Pi-backed worker |
 
-`shrimpy sessions search` scans active and archived Pi JSONL transcripts for one agent by default, or every configured agent with `--all-agents`. It matches user text, assistant text, assistant tool-call names, tool-result names, and recorded bash commands. Tool-result bodies are not searched or emitted. Results include the agent id, session label, lifecycle state, transcript path, entry id, role, timestamp, and a clipped snippet plus a `sessions read` command.
+Non-default profiles use `<namespace>/<name>@<profile>`. Names and profiles are percent-encoded in CLI ids.
 
-`shrimpy sessions read <session> --around <entry>` expands one search hit into a bounded transcript window. The session argument can be the workspace-relative path returned by search, and `--window` controls how many neighboring entries are returned on each side.
+Durable sessions live under `agents/<agent-id>/sessions/<namespace>/<encoded-name>/<encoded-profile>/`. The path components use lossless base64url encoding, so `a~b` cannot collide with `a_b`, and `local/tui` cannot collide with `channel/tui`. Each durable directory has a `session.json` manifest containing the key, purpose, and delivery binding. Inspection discovers manifests; it does not infer identity from directory names.
 
-## Queuing
+This layout replaces the old flat sanitized directories directly. Shrimpy does not read or migrate the old layout.
 
-One agent has one managed gateway session per channel. `SessionRegistry` serializes work per channel, so only one turn runs in that session at a time. Queued turns, resets, restores, and thinking changes are applied in order for that session. Stop controls abort the running turn out of band, then the lane continues with any queued turns. Different agents and different channels have separate sessions.
+## One Core, Multiple Hosts
 
-`shrimpy sessions list` and `shrimpy gateway status` show gateway lane state when available: running turn age, queue depth, and the last outcome.
+All callers use the same `SessionResolver` and open path. The resolver selects the descriptor, model policy, thinking level, tools, stable prompt resources, turn context, and compaction policy. Pi owns the session runtime, transcript format, model calls, tools, and TUI mechanics.
 
-## Recorded Metadata
+A descriptor keeps independent concerns independent:
 
-When a session opens, Shrimpy appends inspection metadata to the active JSONL:
+- `key` is identity.
+- `purpose` selects policy such as `interactive`, `channel`, `setup`, `run`, or `worker`.
+- `delivery` is either the caller transcript or a named channel.
+- `storage` is durable or in-memory.
+- `cwd` is the selected agent's configured working directory unless a specialized caller overrides it.
 
-- `shrimpy_system_prompt` — resolved Shrimpy system prompt
-- `shrimpy_tools` — tools registered for the session
-- `shrimpy_session_metadata` — agent, channel, env, model, model-policy resolution, compaction, and tool policy
-- `shrimpy_compaction_policy` — effective compaction policy at open time
-- `shrimpy_lifecycle` — active or archived state
-- `shrimpy_model_switch` — visible model-change note when the model changes
+TUI, setup, gateway, run, and worker are hosts around this core, not different session implementations. Channel delivery registers active publication helpers such as `reply`; transcript delivery returns ordinary assistant text to its caller.
 
-Pi ignores inspection-only custom entries when building normal model context. Shrimpy uses them for session inspection and restart diagnostics.
+`shrimpy run` is ephemeral by default and leaves no transcript. Pass `--session <canonical-id>` to resume a durable session deliberately. TUI uses `local/main`; setup uses `local/setup`; gateway lanes use `channel/<channel>`.
 
-## Inspection
+## Model, Prompt, and Thinking
+
+Every durable session restores the model recorded in its active Pi transcript when no `--provider`, `--model`, or `--model-policy` override is supplied. If no saved model exists, Shrimpy uses the agent's `modelPolicy`, then the workspace `coding` policy. Model changes append a visible `shrimpy_model_switch` custom message.
+
+Shrimpy gives Pi one stable system prompt when the session opens. Per-turn facts are prefixed to the current user message before Pi persists and sends it, so the JSONL matches what the model saw. Channel turns use the formatted channel message as their prompt body; transcript turns use the caller's local prompt. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
+
+Thinking defaults to the agent setting and can be overridden when a host opens the session. `shrimpy sessions thinking <session-id> <level>` controls a running gateway-owned session and waits for its correlated outcome.
+
+## Ownership and Lifecycle
+
+A durable session records its current owner under `runtime/sessions/`. That record acts as a lock: foreground, gateway, and maintenance processes cannot open or change the same transcript concurrently. Records left by dead processes are removed automatically.
+
+Lifecycle and runtime controls use canonical ids:
 
 ```bash
-shrimpy sessions list --agent shrimpy
-shrimpy sessions list home --agent shrimpy --json
+shrimpy sessions list [session-id] [--agent <id>] [--json]
+shrimpy sessions new <session-id> [--agent <id>] [--no-wait] [--json]
+shrimpy sessions clear <session-id> [--agent <id>] [--no-wait] [--json]
+shrimpy sessions restore <session-id> [--agent <id>] [--archive <name>] [--no-wait] [--json]
+shrimpy sessions thinking <session-id> <level> [--agent <id>] [--no-wait] [--json]
+shrimpy sessions stop <session-id> [--agent <id>] [--no-wait] [--json]
+```
+
+`new` and `clear` mark the active Pi JSONL archived with a `shrimpy_lifecycle` entry. `restore` marks an archive active and archives the previous active file. If no process owns the session, lifecycle commands take a maintenance lease and apply the file operation directly. If the gateway owns it, the command sends a correlated channel control message, waits up to 30 seconds for `operation_status`, and verifies lifecycle success on disk. Foreground-owned sessions reject external mutation; use that host's controls.
+
+`thinking` and `stop` require a live owner. Gateway-owned controls are routed out of band. Stop aborts the running turn without waiting behind it; queued turns remain in FIFO order. `--no-wait` returns a `queued` result after publication. JSON outcomes are `applied`, `applied_direct`, `failed`, `unconfirmed`, or `queued`.
+
+## Pool and Queuing
+
+The gateway has one `SessionPool` per agent and one lane per channel session. The lane is the only FIFO queue: it serializes turns, reset, restore, and thinking changes. `ChannelDeliveryLoop` tracks in-flight dispatches but does not add another channel queue, which lets stop controls reach a running lane immediately. Different agents and session keys remain independent.
+
+`shrimpy sessions list` and `shrimpy gateway status` expose running turn age, queue depth, last outcome, and live owner when available.
+
+## Search and Inspection
+
+```bash
 shrimpy sessions search "deployment notes" --agent shrimpy
-shrimpy sessions read agents/shrimpy/sessions/home/example.jsonl --around a1b2c3d4
-shrimpy sessions compaction home --agent shrimpy --json
-shrimpy models resolve --agent shrimpy --session tui
+shrimpy sessions read agents/shrimpy/sessions/channel/<name>/<profile>/example.jsonl --around a1b2c3d4
+shrimpy sessions compaction channel/home --agent shrimpy --json
+shrimpy models resolve --agent shrimpy --session local/main
 shrimpy models resolve --agent shrimpy --channel home
-shrimpy context --turn --channel home --agent shrimpy
 ```
 
-`shrimpy sessions compaction` reports the current effective policy, the active session's recorded policy/runtime metadata, and whether reset/reopen or gateway restart is needed for changed settings. See [compaction.md](compaction.md).
+Search scans active and archived Pi JSONL transcripts. It matches user and assistant text, assistant tool-call names, tool-result names, and recorded bash commands without exposing tool-result bodies. `sessions read` expands one hit into a bounded neighboring window.
+
+Session JSONL also records `shrimpy_system_prompt`, `shrimpy_tools`, `shrimpy_session_metadata`, `shrimpy_compaction_policy`, `shrimpy_lifecycle`, and `shrimpy_model_switch` entries. Pi ignores inspection-only entries when building ordinary model context.
 
 ## Boundaries
 
 - Sessions are private working context; channels are shared logs.
-- Gateway assistant text is not automatically published to a channel. Agents use `reply`, `ask`, `notify`, or `report` for user-visible output.
+- Channel-bound assistant text is private until the agent uses a publication helper.
 - Resetting or restoring a session does not mutate channel history.
 - Session compaction is working-context maintenance, not long-term memory.
-- Skills, memory, and turn context provide prompt material. Channel dispatch and wake policy stay in channels, watches, and agent config.
+- Skills provide instructions; hosts and session policy decide scheduling, delivery, and persistence.

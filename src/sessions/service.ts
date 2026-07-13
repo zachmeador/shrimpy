@@ -1,7 +1,11 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import type { AppRuntime } from "../app/runtime.js";
+import type { ChannelBus } from "../channels/bus.js";
 import {
+  type ChannelMessage,
+  type OperationStatusContentData,
+  readOperationStatusContent,
   sessionResetMessageInput,
   sessionRestoreMessageInput,
   sessionStopMessageInput,
@@ -14,18 +18,29 @@ import {
   type GatewayLaneState,
 } from "../gateway/runtime-state.js";
 import type { ThinkingLevel } from "./thinking.js";
-import { isLocalDirectChannel } from "./direct-channels.js";
-import { openDirectAgentSession } from "./direct.js";
-import { createGatewaySessionDescriptor } from "./spec.js";
+import {
+  formatSessionId,
+  parseSessionId,
+  sameSessionKey,
+  type SessionKey,
+} from "./identity.js";
+import {
+  acquireMaintenanceLease,
+  readSessionOwner,
+  type SessionOwner,
+} from "./ownership.js";
+import { createSessionDescriptor, type SessionDescriptor } from "./spec.js";
 import {
   archiveSessionDir,
   findActiveSessionFile,
   listArchivedSessionDirs,
+  listSessionDescriptors,
   resolveArchivedSessionDir,
   restoreArchivedSessionDir,
 } from "./storage.js";
 
-type SessionLifecycleAction = "new" | "clear" | "restore";
+type LifecycleAction = "new" | "clear" | "restore";
+type Operation = "reset" | "restore" | "thinking" | "stop";
 
 export interface SessionPathSummary {
   name: string;
@@ -34,332 +49,392 @@ export interface SessionPathSummary {
   updatedAt: string | null;
 }
 
-export interface SingleSessionListingSummary {
-  channel: string;
+export interface SessionSummary {
+  sessionId: string;
+  purpose: string;
+  delivery: SessionDescriptor["delivery"];
   active: SessionPathSummary;
   archives: SessionPathSummary[];
+  owner?: SessionOwner;
   gatewayLanes: GatewayLaneState[];
 }
 
 export interface SessionListingSummary {
   agentId: string;
   sessionsRoot: string;
-  active: Array<SessionPathSummary & { channel: string }>;
-  recentArchives: Array<SessionPathSummary & { channel: string }>;
-  gatewayLanes: GatewayLaneState[];
+  sessions: SessionSummary[];
 }
 
-type SessionLifecycleResult =
-  | {
-    kind: "local_reset";
-    agentId: string;
-    channel: string;
-    archivedTo?: string;
-  }
-  | {
-    kind: "local_restore";
-    agentId: string;
-    channel: string;
-    restoredFrom: string;
-    archivedPreviousTo?: string;
-  }
-  | {
-    kind: "requested_reset";
-    action: "new" | "clear";
-    agentId: string;
-    channel: string;
-  }
-  | {
-    kind: "requested_restore";
-    agentId: string;
-    channel: string;
-    archiveName?: string;
-    requestedArchive?: string;
-  };
+export type SessionActionOutcome =
+  | "applied"
+  | "applied_direct"
+  | "failed"
+  | "unconfirmed"
+  | "queued";
 
-type SessionThinkingResult =
-  | {
-    kind: "local_thinking";
-    agentId: string;
-    channel: string;
-    requestedLevel: ThinkingLevel;
-    effectiveLevel: ThinkingLevel;
-  }
-  | {
-    kind: "requested_thinking";
-    agentId: string;
-    channel: string;
-    level: ThinkingLevel;
-  };
+export interface SessionActionResult {
+  outcome: SessionActionOutcome;
+  operation: Operation;
+  sessionId: string;
+  agentId: string;
+  channel?: string;
+  archiveName?: string;
+  archivedPreviousName?: string;
+  requestMessageId?: string;
+  waitDurationMs: number;
+  requestedLevel?: ThinkingLevel;
+  effectiveLevel?: ThinkingLevel;
+  message?: string;
+}
 
-type SessionStopResult =
-  | {
-    kind: "local_stop_unavailable";
-    agentId: string;
-    channel: string;
-  }
-  | {
-    kind: "requested_stop";
-    agentId: string;
-    channel: string;
-  };
+export interface SessionControlDeps {
+  sleep?: (ms: number) => Promise<void>;
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}
+
+interface SessionTarget {
+  key: SessionKey;
+  id: string;
+  dir: string;
+}
+
+interface ControlRequest {
+  operation: Operation;
+  wait: boolean;
+  make(bus: ChannelBus, channel: string): ChannelMessage;
+  sessionDir?: string;
+  requestedLevel?: ThinkingLevel;
+}
+
+const CONTROL_TIMEOUT_MS = 30_000;
+const CONTROL_POLL_MS = 100;
 
 export function summarizeAgentSessions(
   runtime: AppRuntime,
-  opts?: {
-    agentId?: string;
-    channel?: string;
-  },
-): SessionListingSummary | SingleSessionListingSummary {
+  opts?: { agentId?: string; sessionId?: string },
+): SessionListingSummary | SessionSummary {
   const agent = runtime.getAgent(opts?.agentId);
   const agentRoot = runtime.getAgentPaths(agent.id).root;
-  const sessionsRoot = `${agentRoot}/sessions`;
-
-  if (opts?.channel) {
-    const sessionDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: agent.id,
-      channel: opts.channel,
-    }).sessionDir;
-    return {
-      channel: opts.channel,
-      active: summarizeActiveSessionPath(sessionDir),
-      archives: listArchivedSessionDirs(sessionDir).map(summarizeSessionPath),
-      gatewayLanes: gatewayLanesFor(runtime, {
-        agentId: agent.id,
-        channel: opts.channel,
-      }),
-    };
+  const descriptors = listSessionDescriptors(agentRoot);
+  if (opts?.sessionId) {
+    const key = parseSessionId(agent.id, opts.sessionId);
+    return summarizeDescriptor(
+      runtime,
+      descriptors.find((item) => sameSessionKey(item.key, key)) ?? descriptorFor(agentRoot, key),
+    );
   }
-
-  const sessionDirs = !existsSync(sessionsRoot)
-    ? []
-    : readdirSync(sessionsRoot).map((entry) => ({
-      channel: entry,
-      path: `${sessionsRoot}/${entry}`,
-    }));
-
-  const active = sessionDirs
-    .map((entry) => ({
-      channel: entry.channel,
-      path: findActiveSessionFile(entry.path),
-    }))
-    .filter((entry): entry is { channel: string; path: string } =>
-      entry.path !== undefined
-    )
-    .map((entry) => ({
-      channel: entry.channel,
-      ...summarizeSessionPath(entry.path),
-    }));
-
-  const recentArchives = sessionDirs
-    .flatMap((summary) =>
-      listArchivedSessionDirs(summary.path).map((path) => ({
-        channel: summary.channel,
-        ...summarizeSessionPath(path),
-      }))
-    )
-    .sort((a, b) => b.path.localeCompare(a.path))
-    .slice(0, 20);
-
   return {
     agentId: agent.id,
-    sessionsRoot,
-    active,
-    recentArchives,
-    gatewayLanes: gatewayLanesFor(runtime, {
-      agentId: agent.id,
-    }),
+    sessionsRoot: `${agentRoot}/sessions`,
+    sessions: descriptors
+      .map((descriptor) => summarizeDescriptor(runtime, descriptor))
+      .sort((a, b) => a.sessionId.localeCompare(b.sessionId)),
   };
 }
 
-export function executeSessionLifecycleAction(
+export async function executeSessionLifecycleAction(
   runtime: AppRuntime,
   input: {
-    action: SessionLifecycleAction;
-    channel: string;
+    action: LifecycleAction;
+    sessionId: string;
     agentId?: string;
     archive?: string;
+    wait?: boolean;
   },
-): SessionLifecycleResult {
-  const agent = runtime.getAgent(input.agentId);
-  const agentRoot = runtime.getAgentPaths(agent.id).root;
-  const sessionDir = createGatewaySessionDescriptor({
-    workspacePath: agentRoot,
-    agentId: agent.id,
-    channel: input.channel,
-  }).sessionDir;
-
-  if (isLocalDirectChannel(input.channel)) {
-    return executeLocalSessionLifecycle({
-      action: input.action,
-      sessionDir,
-      channel: input.channel,
-      agentId: agent.id,
-      archive: input.archive,
-    });
+  deps: SessionControlDeps = {},
+): Promise<SessionActionResult> {
+  const target = resolveTarget(runtime, input.agentId, input.sessionId);
+  const operation = input.action === "restore" ? "restore" : "reset";
+  const archiveName = input.archive
+    ? basename(resolveArchivedSessionDir(target.dir, input.archive) ?? "")
+    : undefined;
+  if (input.archive && !archiveName) {
+    return failure(target, operation, `archive not found for ${target.id}: ${input.archive}`);
   }
 
-  const channelBus = runtime.createChannelBus();
+  const owner = readSessionOwner(runtime.paths.workspace, target.key);
+  if (owner) {
+    if (owner.kind !== "gateway" || !owner.channel) return ownerFailure(target, operation, owner);
+    return sendControl(runtime, target, owner.channel, {
+      operation,
+      wait: input.wait !== false,
+      sessionDir: target.dir,
+      make: (bus, channel) => input.action === "restore"
+        ? bus.publish(sessionRestoreMessageInput({
+          channel,
+          targetAgentId: target.key.agentId,
+          archiveName,
+          sender: cliSender(),
+          origin: cliOrigin(channel),
+          command: "/restore",
+        }))
+        : bus.publish(sessionResetMessageInput({
+          channel,
+          targetAgentId: target.key.agentId,
+          sender: cliSender(),
+          origin: cliOrigin(channel),
+          command: `/${input.action}`,
+        })),
+    }, deps);
+  }
 
-  if (input.action === "restore") {
-    const archivePath = input.archive
-      ? resolveArchivedSessionDir(sessionDir, input.archive)
-      : undefined;
-    if (input.archive && !archivePath) {
-      throw new Error(`archive not found for ${agent.id}/${input.channel}: ${input.archive}`);
+  try {
+    const lease = acquireMaintenanceLease({ workspace: runtime.paths.workspace, key: target.key });
+    try {
+      return applyOffline(target, input.action, archiveName);
+    } finally {
+      lease.release();
     }
-
-    channelBus.publish(sessionRestoreMessageInput({
-      channel: input.channel,
-      targetAgentId: agent.id,
-      archiveName: archivePath ? basename(archivePath) : undefined,
-      sender: cliSender(),
-      origin: cliOrigin(input.channel),
-      command: "/restore",
-    }));
-
-    return {
-      kind: "requested_restore",
-      agentId: agent.id,
-      channel: input.channel,
-      archiveName: archivePath ? basename(archivePath) : undefined,
-      requestedArchive: input.archive,
-    };
+  } catch (err) {
+    return failure(target, operation, errorMessage(err));
   }
-
-  channelBus.publish(sessionResetMessageInput({
-    channel: input.channel,
-    targetAgentId: agent.id,
-    sender: cliSender(),
-    origin: cliOrigin(input.channel),
-    command: `/${input.action}`,
-  }));
-
-  return {
-    kind: "requested_reset",
-    action: input.action,
-    agentId: agent.id,
-    channel: input.channel,
-  };
 }
 
-export async function executeSessionThinkingAction(
+export function executeSessionThinkingAction(
   runtime: AppRuntime,
-  input: {
-    channel: string;
-    level: ThinkingLevel;
-    agentId?: string;
-  },
-): Promise<SessionThinkingResult> {
-  const agent = runtime.getAgent(input.agentId);
-
-  if (isLocalDirectChannel(input.channel)) {
-    const { session } = await openDirectAgentSession({
-      runtime,
-      agentId: agent.id,
-      channel: input.channel,
-      sessionType: input.channel,
-      thinking: input.level,
-    });
-
-    try {
-      return {
-        kind: "local_thinking",
-        agentId: agent.id,
-        channel: input.channel,
-        requestedLevel: input.level,
-        effectiveLevel: session.thinkingLevel as ThinkingLevel,
-      };
-    } finally {
-      session.dispose();
-    }
-  }
-
-  runtime.createChannelBus().publish(sessionThinkingLevelMessageInput({
-    channel: input.channel,
-    targetAgentId: agent.id,
-    level: input.level,
-    sender: cliSender(),
-    origin: cliOrigin(input.channel),
-    command: "/thinking",
-  }));
-
-  return {
-    kind: "requested_thinking",
-    agentId: agent.id,
-    channel: input.channel,
-    level: input.level,
-  };
+  input: { sessionId: string; level: ThinkingLevel; agentId?: string; wait?: boolean },
+  deps: SessionControlDeps = {},
+): Promise<SessionActionResult> {
+  const target = resolveTarget(runtime, input.agentId, input.sessionId);
+  return sendRunningControl(runtime, target, {
+    operation: "thinking",
+    wait: input.wait !== false,
+    requestedLevel: input.level,
+    make: (bus, channel) => bus.publish(sessionThinkingLevelMessageInput({
+      channel,
+      targetAgentId: target.key.agentId,
+      level: input.level,
+      sender: cliSender(),
+      origin: cliOrigin(channel),
+      command: "/thinking",
+    })),
+  }, deps);
 }
 
 export function executeSessionStopAction(
   runtime: AppRuntime,
-  input: {
-    channel: string;
-    agentId?: string;
-  },
-): SessionStopResult {
-  const agent = runtime.getAgent(input.agentId);
+  input: { sessionId: string; agentId?: string; wait?: boolean },
+  deps: SessionControlDeps = {},
+): Promise<SessionActionResult> {
+  const target = resolveTarget(runtime, input.agentId, input.sessionId);
+  return sendRunningControl(runtime, target, {
+    operation: "stop",
+    wait: input.wait !== false,
+    make: (bus, channel) => bus.publish(sessionStopMessageInput({
+      channel,
+      targetAgentId: target.key.agentId,
+      sender: cliSender(),
+      origin: cliOrigin(channel),
+      command: "/stop",
+    })),
+  }, deps);
+}
 
-  if (isLocalDirectChannel(input.channel)) {
+function sendRunningControl(
+  runtime: AppRuntime,
+  target: SessionTarget,
+  request: ControlRequest,
+  deps: SessionControlDeps,
+): Promise<SessionActionResult> {
+  const owner = readSessionOwner(runtime.paths.workspace, target.key);
+  if (!owner) {
+    return Promise.resolve(failure(target, request.operation, `Session ${target.id} is not running.`));
+  }
+  if (owner.kind !== "gateway" || !owner.channel) {
+    return Promise.resolve(ownerFailure(target, request.operation, owner));
+  }
+  return sendControl(runtime, target, owner.channel, request, deps);
+}
+
+async function sendControl(
+  runtime: AppRuntime,
+  target: SessionTarget,
+  channel: string,
+  request: ControlRequest,
+  deps: SessionControlDeps,
+): Promise<SessionActionResult> {
+  const bus = runtime.createChannelBus();
+  const cursor = bus.read(channel).cursor;
+  const message = request.make(bus, channel);
+  const base = {
+    operation: request.operation,
+    sessionId: target.id,
+    agentId: target.key.agentId,
+    channel,
+    requestMessageId: message.id,
+    ...(request.requestedLevel ? { requestedLevel: request.requestedLevel } : {}),
+  };
+  if (!request.wait) return { outcome: "queued", ...base, waitDurationMs: 0 };
+
+  const startedAt = Date.now();
+  const status = await waitForStatus(bus, channel, message.id, cursor, deps);
+  const waitDurationMs = Date.now() - startedAt;
+  if (!status) {
     return {
-      kind: "local_stop_unavailable",
-      agentId: agent.id,
-      channel: input.channel,
+      outcome: "unconfirmed",
+      ...base,
+      waitDurationMs,
+      message: `Session ${request.operation} was not confirmed within ${waitDurationMs}ms.`,
     };
   }
-
-  runtime.createChannelBus().publish(sessionStopMessageInput({
-    channel: input.channel,
-    targetAgentId: agent.id,
-    sender: cliSender(),
-    origin: cliOrigin(input.channel),
-    command: "/stop",
-  }));
-
+  if (!status.ok) {
+    return { outcome: "failed", ...base, waitDurationMs, message: status.text };
+  }
+  const verificationError = request.sessionDir
+    ? verifyLifecycle(request.operation, request.sessionDir, status)
+    : undefined;
   return {
-    kind: "requested_stop",
-    agentId: agent.id,
-    channel: input.channel,
+    outcome: verificationError ? "unconfirmed" : "applied",
+    ...base,
+    waitDurationMs,
+    ...(status.archiveName ? { archiveName: status.archiveName } : {}),
+    message: verificationError ?? status.text,
   };
 }
 
-function executeLocalSessionLifecycle(input: {
-  action: SessionLifecycleAction;
-  sessionDir: string;
-  channel: string;
-  agentId: string;
-  archive?: string;
-}): SessionLifecycleResult {
-  if (input.action === "restore") {
-    const restored = restoreArchivedSessionDir(input.sessionDir, input.archive);
-    if (!restored) {
-      throw new Error(
-        input.archive
-          ? `archive not found for ${input.agentId}/${input.channel}: ${input.archive}`
-          : `no archived sessions for ${input.agentId}/${input.channel}`,
-      );
+async function waitForStatus(
+  bus: ChannelBus,
+  channel: string,
+  requestId: string,
+  initialCursor: { byteOffset: number },
+  deps: SessionControlDeps,
+): Promise<OperationStatusContentData | undefined> {
+  const deadline = Date.now() + (deps.timeoutMs ?? CONTROL_TIMEOUT_MS);
+  const interval = deps.pollIntervalMs ?? CONTROL_POLL_MS;
+  const pause = deps.sleep ?? sleep;
+  let cursor = initialCursor;
+  while (true) {
+    const read = bus.read(channel, cursor);
+    cursor = read.cursor;
+    for (const message of read.messages) {
+      const status = readOperationStatusContent(message.content);
+      if (status?.requestMessageId === requestId) return status;
     }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return undefined;
+    await pause(Math.min(interval, remaining));
+  }
+}
 
+function applyOffline(
+  target: SessionTarget,
+  action: LifecycleAction,
+  archiveName?: string,
+): SessionActionResult {
+  if (action === "restore") {
+    const restored = restoreArchivedSessionDir(target.dir, archiveName);
+    if (!restored) {
+      throw new Error(archiveName
+        ? `archive not found for ${target.id}: ${archiveName}`
+        : `no archived sessions for ${target.id}`);
+    }
     return {
-      kind: "local_restore",
-      agentId: input.agentId,
-      channel: input.channel,
-      restoredFrom: restored.restoredFrom,
-      archivedPreviousTo: restored.archivedPreviousTo,
+      ...resultBase(target, "restore"),
+      outcome: "applied_direct",
+      archiveName: basename(restored.restoredFrom),
+      ...(restored.archivedPreviousTo
+        ? { archivedPreviousName: basename(restored.archivedPreviousTo) }
+        : {}),
     };
   }
-
+  const archived = archiveSessionDir(target.dir);
   return {
-    kind: "local_reset",
-    agentId: input.agentId,
-    channel: input.channel,
-    archivedTo: archiveSessionDir(input.sessionDir),
+    ...resultBase(target, "reset"),
+    outcome: "applied_direct",
+    ...(archived ? { archiveName: basename(archived) } : {}),
   };
 }
 
-function summarizeSessionPath(path: string): SessionPathSummary {
+function resolveTarget(
+  runtime: AppRuntime,
+  agentId: string | undefined,
+  sessionId: string,
+): SessionTarget {
+  const agent = runtime.getAgent(agentId);
+  const agentRoot = runtime.getAgentPaths(agent.id).root;
+  const key = parseSessionId(agent.id, sessionId);
+  const descriptor = listSessionDescriptors(agentRoot).find((item) =>
+    sameSessionKey(item.key, key)
+  ) ?? descriptorFor(agentRoot, key);
+  if (descriptor.storage.kind !== "durable") throw new Error(`session ${sessionId} is not durable`);
+  return { key, id: formatSessionId(key), dir: descriptor.storage.dir };
+}
+
+function descriptorFor(agentRoot: string, key: SessionKey): SessionDescriptor {
+  const purpose = key.namespace === "channel"
+    ? "channel"
+    : key.namespace === "worker"
+      ? "worker"
+      : key.name === "setup" ? "setup" : "interactive";
+  return createSessionDescriptor({
+    agentRoot,
+    key,
+    purpose,
+    delivery: key.namespace === "channel"
+      ? { kind: "channel", channel: key.name }
+      : { kind: "transcript" },
+  });
+}
+
+function summarizeDescriptor(runtime: AppRuntime, descriptor: SessionDescriptor): SessionSummary {
+  if (descriptor.storage.kind !== "durable") throw new Error("cannot summarize an in-memory session");
+  const channel = descriptor.delivery.kind === "channel" ? descriptor.delivery.channel : undefined;
+  return {
+    sessionId: formatSessionId(descriptor.key),
+    purpose: descriptor.purpose,
+    delivery: descriptor.delivery,
+    active: summarizeActivePath(descriptor.storage.dir),
+    archives: listArchivedSessionDirs(descriptor.storage.dir).map(summarizePath),
+    owner: readSessionOwner(runtime.paths.workspace, descriptor.key),
+    gatewayLanes: channel ? gatewayLanesFor(runtime, descriptor.key.agentId, channel) : [],
+  };
+}
+
+function verifyLifecycle(
+  operation: Operation,
+  sessionDir: string,
+  status: OperationStatusContentData,
+): string | undefined {
+  if (operation === "reset" && status.archiveName &&
+    !resolveArchivedSessionDir(sessionDir, status.archiveName)) {
+    return `Gateway reported success, but archived session ${status.archiveName} was not found on disk.`;
+  }
+  if (operation === "restore") {
+    const active = findActiveSessionFile(sessionDir);
+    if (!status.archiveName || !active || basename(active) !== status.archiveName) {
+      return "Gateway reported success, but the restored session was not active on disk.";
+    }
+  }
+  return undefined;
+}
+
+function resultBase(target: SessionTarget, operation: Operation) {
+  return {
+    operation,
+    sessionId: target.id,
+    agentId: target.key.agentId,
+    waitDurationMs: 0,
+  };
+}
+
+function failure(target: SessionTarget, operation: Operation, message: string): SessionActionResult {
+  return { ...resultBase(target, operation), outcome: "failed", message };
+}
+
+function ownerFailure(
+  target: SessionTarget,
+  operation: Operation,
+  owner: SessionOwner,
+): SessionActionResult {
+  return failure(
+    target,
+    operation,
+    `Session ${target.id} is owned by ${owner.kind} process ${owner.pid}; use that host's session controls.`,
+  );
+}
+
+function summarizePath(path: string): SessionPathSummary {
   const exists = existsSync(path);
   return {
     name: basename(path),
@@ -369,11 +444,9 @@ function summarizeSessionPath(path: string): SessionPathSummary {
   };
 }
 
-function summarizeActiveSessionPath(sessionDir: string): SessionPathSummary {
+function summarizeActivePath(sessionDir: string): SessionPathSummary {
   const active = findActiveSessionFile(sessionDir);
-  if (active) return summarizeSessionPath(active);
-
-  return {
+  return active ? summarizePath(active) : {
     name: basename(sessionDir),
     path: sessionDir,
     exists: false,
@@ -381,28 +454,23 @@ function summarizeActiveSessionPath(sessionDir: string): SessionPathSummary {
   };
 }
 
-function gatewayLanesFor(
-  runtime: AppRuntime,
-  opts: {
-    agentId?: string;
-    channel?: string;
-  },
-): GatewayLaneState[] {
+function gatewayLanesFor(runtime: AppRuntime, agentId: string, channel: string) {
   const state = loadGatewayRuntimeState(gatewayRuntimeStatePath(runtime.paths));
-  return flattenGatewayLanes(state, opts);
+  return flattenGatewayLanes(state, { agentId, channel });
 }
 
 function cliSender() {
-  return {
-    kind: "system" as const,
-    actorId: "system:cli",
-    displayName: "shrimpy-cli",
-  };
+  return { kind: "system" as const, actorId: "system:cli", displayName: "shrimpy-cli" };
 }
 
 function cliOrigin(channel: string) {
-  return {
-    transport: "cli",
-    sourceChannel: channel,
-  };
+  return { transport: "cli", sourceChannel: channel };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error && err.message.trim() ? err.message.trim() : String(err);
 }

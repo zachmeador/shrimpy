@@ -1,5 +1,4 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { join } from "node:path";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PromptResourceRef } from "../context/index.js";
 import type { ThinkingLevel } from "./thinking.js";
@@ -9,12 +8,22 @@ import type {
   SessionModelRequest,
 } from "./models.js";
 import type { PrepareSessionTurnContext } from "./turn-context.js";
+import type { SessionKey } from "./identity.js";
+import { sessionRootPath } from "./identity.js";
+
+export type SessionDelivery =
+  | { kind: "transcript" }
+  | { kind: "channel"; channel: string };
+
+export type SessionStorage =
+  | { kind: "durable"; dir: string }
+  | { kind: "memory" };
 
 export interface SessionDescriptor {
-  agentId?: string;
-  kind: string;
-  channel?: string;
-  sessionDir: string;
+  key: SessionKey;
+  purpose: string;
+  delivery: SessionDelivery;
+  storage: SessionStorage;
   cwd?: string;
 }
 
@@ -37,63 +46,34 @@ export interface SessionOpenPlan {
   prepareTurnContext?: PrepareSessionTurnContext;
 }
 
-export function sanitizeSessionSegment(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-export function createGatewaySessionDescriptor(opts: {
-  workspacePath: string;
-  agentId?: string;
-  channel: string;
+export function createSessionDescriptor(opts: {
+  agentRoot: string;
+  key: SessionKey;
+  purpose: string;
+  delivery: SessionDelivery;
+  persistent?: boolean;
   cwd?: string;
 }): SessionDescriptor {
   return {
-    agentId: opts.agentId,
-    kind: "gateway",
-    channel: opts.channel,
-    sessionDir: join(
-      opts.workspacePath,
-      "sessions",
-      sanitizeSessionSegment(opts.channel),
-    ),
+    key: opts.key,
+    purpose: opts.purpose,
+    delivery: opts.delivery,
+    storage: opts.persistent === false
+      ? { kind: "memory" }
+      : { kind: "durable", dir: sessionRootPath(opts.agentRoot, opts.key) },
     cwd: opts.cwd,
   };
 }
 
-export function createLocalSessionDescriptor(opts: {
-  workspacePath: string;
-  agentId?: string;
-  label: string;
-  kind: string;
-  channel?: string;
-  cwd?: string;
-}): SessionDescriptor {
-  return {
-    agentId: opts.agentId,
-    kind: opts.kind,
-    channel: opts.channel,
-    sessionDir: join(
-      opts.workspacePath,
-      "sessions",
-      sanitizeSessionSegment(opts.label),
-    ),
-    cwd: opts.cwd,
-  };
+export function sessionChannel(descriptor: SessionDescriptor): string | undefined {
+  return descriptor.delivery.kind === "channel"
+    ? descriptor.delivery.channel
+    : undefined;
 }
 
-export function createStoredSessionDescriptor(opts: {
-  workspacePath: string;
-  sessionName: string;
-  kind: string;
-  agentId?: string;
-  channel?: string;
-  cwd?: string;
-}): SessionDescriptor {
-  return {
-    agentId: opts.agentId,
-    kind: opts.kind,
-    channel: opts.channel,
-    sessionDir: join(opts.workspacePath, "sessions", opts.sessionName),
-    cwd: opts.cwd,
-  };
+export function durableSessionDir(descriptor: SessionDescriptor): string {
+  if (descriptor.storage.kind !== "durable") {
+    throw new Error(`session ${descriptor.key.namespace}/${descriptor.key.name} is not durable`);
+  }
+  return descriptor.storage.dir;
 }

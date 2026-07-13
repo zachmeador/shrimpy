@@ -72,8 +72,8 @@ interface InteractiveModeCommandSurfaceInternals {
 interface ShrimpyCommandSurfaceOptions {
   runtime: AppRuntime;
   agentId: string;
-  channel: string;
-  sessionType: string;
+  sessionId: string;
+  purpose: string;
   cwd: string;
 }
 

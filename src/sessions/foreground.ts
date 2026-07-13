@@ -4,15 +4,22 @@ import type { PromptResourceRef } from "../context/index.js";
 import type { ThinkingLevel } from "./thinking.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import { openSession } from "./factory.js";
-import { SessionPlanner, type DirectSessionPlanOverrides } from "./planner.js";
+import type { SessionNamespace } from "./identity.js";
+import { createSessionKey } from "./identity.js";
+import { SessionResolver } from "./resolver.js";
 import type { SessionOpenPlan } from "./spec.js";
 import { runSessionTurn } from "./turn-output.js";
 
-export interface OpenDirectSessionInput {
+export interface OpenForegroundSessionInput {
   runtime: AppRuntime;
   agentId?: string;
-  channel: string;
-  sessionType: string;
+  session: {
+    namespace: SessionNamespace;
+    name: string;
+    profileId?: string;
+  };
+  purpose: string;
+  persistent?: boolean;
   cwd?: string;
   provider?: string;
   model?: string;
@@ -25,25 +32,25 @@ export interface OpenDirectSessionInput {
   allowRegistryFallbackModel?: boolean;
 }
 
-export interface OpenDirectSessionResult {
+export interface OpenForegroundSessionResult {
   agentId: string;
   session: AgentSession;
 }
 
-interface RunDirectPromptInput extends OpenDirectSessionInput {
+interface RunForegroundPromptInput extends OpenForegroundSessionInput {
   prompt: string;
 }
 
-export interface PreparedDirectSessionOpen {
+export interface PreparedForegroundSessionOpen {
   agentId: string;
   cwd: string;
   bootstrap: SessionBootstrap;
   plan: SessionOpenPlan;
 }
 
-export async function prepareDirectSessionOpen(
-  input: OpenDirectSessionInput,
-): Promise<PreparedDirectSessionOpen> {
+export async function prepareForegroundSessionOpen(
+  input: OpenForegroundSessionInput,
+): Promise<PreparedForegroundSessionOpen> {
   const agent = input.runtime.getAgent(input.agentId);
   const cwd = input.cwd ?? input.runtime.getAgentCwd(agent.id);
   const egressRegistry = input.runtime.createCliEgressRegistry();
@@ -53,16 +60,17 @@ export async function prepareDirectSessionOpen(
     cwd,
     basePromptResources: input.basePromptResources,
   });
-  const planner = new SessionPlanner({
+  const resolver = new SessionResolver({
     runtime: input.runtime,
     bootstrap,
     channelBus,
     agentId: agent.id,
   });
-  const overrides: DirectSessionPlanOverrides = {
-    label: input.channel,
-    channel: input.channel,
-    sessionType: input.sessionType,
+  const plan = await resolver.resolve({
+    key: createSessionKey({ agentId: agent.id, ...input.session }),
+    purpose: input.purpose,
+    delivery: { kind: "transcript" },
+    persistent: input.persistent,
     cwd,
     provider: input.provider,
     model: input.model,
@@ -72,39 +80,25 @@ export async function prepareDirectSessionOpen(
     skills: input.skills,
     allowMissingModel: input.allowMissingModel,
     allowRegistryFallbackModel: input.allowRegistryFallbackModel,
-  };
-  const plan = await planner.planDirect(overrides);
+  });
 
-  return {
-    agentId: agent.id,
-    cwd,
-    bootstrap,
-    plan,
-  };
+  return { agentId: agent.id, cwd, bootstrap, plan };
 }
 
-export async function openDirectAgentSession(
-  input: OpenDirectSessionInput,
-): Promise<OpenDirectSessionResult> {
-  const prepared = await prepareDirectSessionOpen(input);
+export async function openForegroundAgentSession(
+  input: OpenForegroundSessionInput,
+): Promise<OpenForegroundSessionResult> {
+  const prepared = await prepareForegroundSessionOpen(input);
   const session = await openSession(prepared.bootstrap, prepared.plan);
-
-  return {
-    agentId: prepared.agentId,
-    session,
-  };
+  return { agentId: prepared.agentId, session };
 }
 
-export async function runDirectAgentPrompt(
-  input: RunDirectPromptInput,
+export async function runForegroundAgentPrompt(
+  input: RunForegroundPromptInput,
 ): Promise<{ agentId: string; output: string }> {
-  const { agentId, session } = await openDirectAgentSession(input);
-
+  const { agentId, session } = await openForegroundAgentSession(input);
   try {
-    const { assistantText: output } = await runSessionTurn(
-      session,
-      input.prompt,
-    );
+    const { assistantText: output } = await runSessionTurn(session, input.prompt);
     return { agentId, output };
   } finally {
     session.dispose();

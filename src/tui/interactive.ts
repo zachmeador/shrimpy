@@ -13,9 +13,10 @@ import {
   openSessionRuntime,
 } from "../sessions/factory.js";
 import {
-  prepareDirectSessionOpen,
-  type OpenDirectSessionInput,
-} from "../sessions/direct.js";
+  prepareForegroundSessionOpen,
+  type OpenForegroundSessionInput,
+} from "../sessions/foreground.js";
+import { formatSessionId } from "../sessions/identity.js";
 import { installShrimpyActivityIndicator } from "./shrimpy-activity-indicator.js";
 import { installShrimpyCommandSurface } from "./shrimpy-command-surface.js";
 import { installShrimpyContextRendering } from "./shrimpy-context-rendering.js";
@@ -23,7 +24,7 @@ import { installShrimpyModelSelectionGuard } from "./shrimpy-model-selection.js"
 import { installShrimpySettingsSelector } from "./shrimpy-settings.js";
 import { installShrimpyToolRendering } from "./shrimpy-tool-rendering.js";
 
-export interface RunInteractiveSessionInput extends OpenDirectSessionInput {
+export interface RunInteractiveSessionInput extends OpenForegroundSessionInput {
   initialMessage?: string;
 }
 
@@ -54,7 +55,7 @@ export function resolveInteractiveThemeName(
 async function runAgentTuiSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
-  const prepared = await prepareDirectSessionOpen(input);
+  const prepared = await prepareForegroundSessionOpen(input);
   const runtime = await openSessionRuntime(prepared.bootstrap, prepared.plan);
 
   try {
@@ -66,8 +67,8 @@ async function runAgentTuiSession(
     installShrimpyCommandSurface(interactive, {
       runtime: input.runtime,
       agentId: prepared.agentId,
-      channel: input.channel,
-      sessionType: input.sessionType,
+      sessionId: formatSessionId(prepared.plan.descriptor.key),
+      purpose: prepared.plan.descriptor.purpose,
       cwd: prepared.cwd,
     });
     installShrimpyContextRendering(interactive);
@@ -76,8 +77,8 @@ async function runAgentTuiSession(
     installShrimpySettingsSelector(interactive, {
       runtime: input.runtime,
       agentId: prepared.agentId,
-      channel: input.channel,
-      sessionType: input.sessionType,
+      sessionId: formatSessionId(prepared.plan.descriptor.key),
+      purpose: prepared.plan.descriptor.purpose,
       cwd: prepared.cwd,
     });
     await interactive.run();

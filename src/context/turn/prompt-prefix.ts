@@ -5,12 +5,12 @@ export const TURN_CONTEXT_INSTRUCTION =
 
 export function formatTurnContextPrefix(
   text: string,
-  opts?: { sessionType?: string },
+  opts?: { channelDelivery?: boolean },
 ): string {
   return [
     text.trimEnd(),
     "",
-    ...(opts?.sessionType === "gateway"
+    ...(opts?.channelDelivery
       ? [GATEWAY_TURN_DELIVERY_INSTRUCTION, ""]
       : []),
     TURN_CONTEXT_INSTRUCTION,
@@ -20,7 +20,7 @@ export function formatTurnContextPrefix(
 export function prefixPromptWithTurnContext(
   prompt: string,
   turnContextText: string,
-  opts?: { sessionType?: string },
+  opts?: { channelDelivery?: boolean },
 ): string {
   return `${formatTurnContextPrefix(turnContextText, opts)}\n\n${prompt}`;
 }

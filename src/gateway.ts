@@ -5,7 +5,7 @@
  *
  * Three jobs:
  * 1. Channel adapters (Telegram polling → channel files)
- * 2. Channel watcher → SessionRegistry dispatch
+ * 2. Channel watcher → SessionPool dispatch
  * 3. Watch clock (runs time-based agent-owned watches)
  * 4. Workspace checkpoint clock (optional local git checkpoints)
  */

@@ -16,6 +16,10 @@ import {
 } from "../dist/watches/index.js";
 import { loadRuntimeWatchIds } from "../dist/watches/index.js";
 import {
+  createChannelSessionKey,
+  sessionRootPath,
+} from "../dist/sessions/identity.js";
+import {
   captureLogs,
   makeTempWorkspace,
   removeTempWorkspace,
@@ -63,7 +67,13 @@ describe("watch inspection surfaces", () => {
     assert.equal(inspected.nextRunSource, "clock_state");
     assert.equal(inspected.lastRun?.status, "success");
     assert.equal(inspected.lastRun?.emittedChannelMessageIds.length, 1);
-    assert.match(inspected.expectedWake[0]?.sessionPath ?? "", /agents\/shrimpy\/sessions\/maintenance$/);
+    assert.equal(
+      inspected.expectedWake[0]?.sessionPath,
+      sessionRootPath(
+        join(workspace, "agents", "shrimpy"),
+        createChannelSessionKey({ agentId: "shrimpy", channel: "maintenance" }),
+      ),
+    );
 
     const { messages } = runtime.createChannelBus().read("maintenance");
     assert.equal(messages.length, 1);

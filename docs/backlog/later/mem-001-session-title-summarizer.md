@@ -13,7 +13,7 @@ This is low priority. It should wait until session-inventory shapes are clearer.
 
 ## Current State
 
-- `shrimpy sessions list [channel] --agent <id> --json` lists active sessions and recent archives for one agent, but it does not include generated titles.
+- `shrimpy sessions list [session-id] --agent <id> --json` lists manifested sessions and archives for one agent, but it does not include generated titles.
 - Session metadata records runtime/model/compaction facts and lifecycle state; there is no `shrimpy_session_title` custom entry or sidecar title index.
 - Model-policy support exists for normal sessions, but there is no dedicated low-cost title/summarization policy yet.
 
@@ -25,7 +25,7 @@ This is low priority. It should wait until session-inventory shapes are clearer.
 - Use the same provider path and inference handling as Shrimpy compaction, but resolve a cheap/fast summarization model through an explicit title or summarization policy.
 - Persist the title as Shrimpy-owned session metadata, for example a `shrimpy_session_title` custom session entry or an equivalent inspectable sidecar index. The record should include title, source digest/newest entry, generated timestamp, and model metadata.
 - Expose titles through existing CLI inspection:
-  - `shrimpy sessions list [channel] [--agent <id>] [--json]` includes title when present.
+  - `shrimpy sessions list [session-id] [--agent <id>] [--json]` includes title when present.
   - richer agent/session inventory commands from [TUI-004](../tui-004-agent-session-navigator.md) include title when present.
 - Refresh the title after session activity at a bounded cadence, or through normal maintenance/session-inventory work if an explicit refresh path is later needed.
 - Include active and archived sessions so old work remains discoverable.

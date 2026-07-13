@@ -2,6 +2,8 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
 import { resolveSessionCompactionPolicy } from "../dist/sessions/compaction-policy.js";
+import { createChannelSessionKey } from "../dist/sessions/identity.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
 describe("resolveRuntimeConfig", () => {
   test("returns defaults when runtime config is omitted", () => {
@@ -52,11 +54,7 @@ describe("resolveRuntimeConfig", () => {
   test("uses base compaction policy when no channel override is configured", () => {
     const policy = resolveSessionCompactionPolicy({
       runtimeConfig: resolveRuntimeConfig(),
-      descriptor: {
-        kind: "gateway",
-        channel: "maintenance",
-        sessionDir: "/tmp/shrimpy/sessions/maintenance",
-      },
+      descriptor: channelDescriptor("shrimpy", "maintenance"),
       model: { contextWindow: 262144 } as any,
     });
 
@@ -78,11 +76,7 @@ describe("resolveRuntimeConfig", () => {
           },
         },
       }),
-      descriptor: {
-        kind: "gateway",
-        channel: "maintenance",
-        sessionDir: "/tmp/shrimpy/sessions/maintenance",
-      },
+      descriptor: channelDescriptor("shrimpy", "maintenance"),
       model: { contextWindow: 262144 } as any,
     });
 
@@ -108,12 +102,7 @@ describe("resolveRuntimeConfig", () => {
           },
         },
       }),
-      descriptor: {
-        kind: "gateway",
-        agentId: "ops",
-        channel: "ops-alerts",
-        sessionDir: "/tmp/shrimpy/sessions/ops-alerts",
-      },
+      descriptor: channelDescriptor("ops", "ops-alerts"),
       model: { contextWindow: 262144 } as any,
     });
 
@@ -127,3 +116,12 @@ describe("resolveRuntimeConfig", () => {
     ]);
   });
 });
+
+function channelDescriptor(agentId: string, channel: string) {
+  return createSessionDescriptor({
+    agentRoot: `/tmp/shrimpy/agents/${agentId}`,
+    key: createChannelSessionKey({ agentId, channel }),
+    purpose: "channel",
+    delivery: { kind: "channel", channel },
+  });
+}

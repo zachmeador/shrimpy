@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import { createAppRuntime, projectRoot } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
-import { runDirectAgentPrompt } from "../sessions/index.js";
+import { runForegroundAgentPrompt } from "../sessions/index.js";
 import {
   readWorkerBackendAvailability,
   type WorkerBackend,
@@ -252,11 +252,12 @@ async function runPiTurn(input: WorkerRunInput): Promise<WorkerRunResult> {
   mkdirSync(dirname(input.logPath), { recursive: true });
   try {
     const runtime = createAppRuntime(input.config);
-    const { output } = await runDirectAgentPrompt({
+    const { output } = await runForegroundAgentPrompt({
       runtime,
       agentId: input.ownerAgent,
-      channel: input.workerId,
-      sessionType: "worker",
+      session: { namespace: "worker", name: input.workerId },
+      purpose: "worker",
+      persistent: true,
       cwd: input.cwd,
       modelPolicy: "coding",
       prompt: buildWorkerPrompt(input.prompt),

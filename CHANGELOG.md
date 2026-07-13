@@ -17,10 +17,15 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Removed Shrimpy-owned local model variant fields and request rewriting for OpenAI-compatible providers. `baseModel`, `inference`, `--base-model`, `--enable-thinking`, `--disable-thinking`, and `--qwen-chat-template` are no longer Shrimpy configuration surfaces.
 - Changed local model setup to write Pi-native provider/model entries only. Use Pi's `state/pi/models.json` fields, including Pi-native `compat.thinkingFormat` values such as `qwen` or `qwen-chat-template`, when a local provider needs compatibility settings.
 - Changed direct and gateway session cwd defaults to use the selected agent's configured `cwd` instead of the shell launch directory or workspace fallback. Use `agents[].cwd` or `shrimpy agent set <id> --cwd <path>` to pin custom workspaces.
+- Replaced flat sanitized session directories with canonical ids (`local/<name>`, `channel/<name>`, and `worker/<name>`). Each durable session now has a reversible directory path and a `session.json` identity file, and Shrimpy prevents multiple processes from writing the same transcript at once. Existing flat session directories are not read or migrated.
+- Changed `shrimpy sessions` lifecycle, thinking, stop, list, and compaction arguments to require canonical session ids instead of ambiguous labels or channel names.
+- Changed `shrimpy run` to use an in-memory session by default. Pass `--session <session-id>` to resume durable state explicitly.
 - Removed the top-level `shrimpy mechanic` command. Use `shrimpy chat mechanic` to open the mechanic agent through the normal chat path.
 
 ### Sessions, Models & TUI
 
+- Replaced separate direct/gateway planning and duplicate delivery queues with one `SessionResolver`, foreground host, and gateway `SessionPool`; every durable session now shares saved-model restoration, manifest discovery, and owner-aware controls.
+- Changed `shrimpy sessions new|clear|restore|thinking|stop` to route through the session's live owner, verify correlated gateway outcomes, apply unowned lifecycle changes under an exclusive maintenance lease, and expose `--no-wait` plus structured JSON outcomes. Stop controls now bypass a running turn instead of waiting behind the delivery queue.
 - Upgraded Pi packages from `0.79.6` to `0.80.6`, adding the `max` thinking level, automatic light/dark TUI themes, cache-miss notices, output padding, and the latest provider, model, auth, compaction, and rendering fixes.
 
 ### Channels & Agent Policy

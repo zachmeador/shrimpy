@@ -10,6 +10,10 @@ import {
   findActiveSessionFile,
   listArchivedSessionDirs,
 } from "../dist/sessions/index.js";
+import {
+  createLocalSessionKey,
+  sessionRootPath,
+} from "../dist/sessions/identity.js";
 import { installShrimpyCommandSurface } from "../dist/tui/shrimpy-command-surface.js";
 
 test("Shrimpy command surface appends status output to the TUI log", async () => {
@@ -58,8 +62,8 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   installShrimpyCommandSurface(mode as never, {
     runtime,
     agentId: "admin",
-    channel: "home",
-    sessionType: "interactive",
+    sessionId: "local/main",
+    purpose: "interactive",
     cwd: workspace,
   });
   mode.setupEditorSubmitHandler();
@@ -105,8 +109,8 @@ test("Shrimpy command surface replaces Pi changelog command output", async () =>
   installShrimpyCommandSurface(mode as never, {
     runtime,
     agentId: "shrimpy",
-    channel: "home",
-    sessionType: "interactive",
+    sessionId: "local/main",
+    purpose: "interactive",
     cwd: workspace,
   });
   mode.setupEditorSubmitHandler();
@@ -138,8 +142,8 @@ test("Shrimpy command surface opens Pi thinking selector for bare thinking comma
   installShrimpyCommandSurface(mode as never, {
     runtime,
     agentId: "shrimpy",
-    channel: "home",
-    sessionType: "interactive",
+    sessionId: "local/main",
+    purpose: "interactive",
     cwd: workspace,
   });
   mode.setupEditorSubmitHandler();
@@ -166,7 +170,10 @@ test("Shrimpy command surface opens Pi thinking selector for bare thinking comma
 test("Shrimpy command surface archives the previous TUI session after /new succeeds", async () => {
   initTheme("dark", false);
   const workspace = mkdtempSync(join(tmpdir(), "shrimpy-command-surface-test-"));
-  const sessionDir = join(workspace, "agents", "shrimpy", "sessions", "tui");
+  const sessionDir = sessionRootPath(
+    join(workspace, "agents", "shrimpy"),
+    createLocalSessionKey({ agentId: "shrimpy", name: "main" }),
+  );
   mkdirSync(sessionDir, { recursive: true });
   const previousSessionFile = join(sessionDir, "previous.jsonl");
   const currentSessionFile = join(sessionDir, "current.jsonl");
@@ -183,8 +190,8 @@ test("Shrimpy command surface archives the previous TUI session after /new succe
   installShrimpyCommandSurface(mode as never, {
     runtime,
     agentId: "shrimpy",
-    channel: "tui",
-    sessionType: "tui",
+    sessionId: "local/main",
+    purpose: "interactive",
     cwd: workspace,
   });
   mode.setupEditorSubmitHandler();
@@ -200,7 +207,10 @@ test("Shrimpy command surface archives the previous TUI session after /new succe
 test("Shrimpy command surface does not archive a TUI session when /new is cancelled", async () => {
   initTheme("dark", false);
   const workspace = mkdtempSync(join(tmpdir(), "shrimpy-command-surface-test-"));
-  const sessionDir = join(workspace, "agents", "shrimpy", "sessions", "tui");
+  const sessionDir = sessionRootPath(
+    join(workspace, "agents", "shrimpy"),
+    createLocalSessionKey({ agentId: "shrimpy", name: "main" }),
+  );
   mkdirSync(sessionDir, { recursive: true });
   const previousSessionFile = join(sessionDir, "previous.jsonl");
   writeSessionFile(previousSessionFile, "previous");
@@ -212,8 +222,8 @@ test("Shrimpy command surface does not archive a TUI session when /new is cancel
   installShrimpyCommandSurface(mode as never, {
     runtime,
     agentId: "shrimpy",
-    channel: "tui",
-    sessionType: "tui",
+    sessionId: "local/main",
+    purpose: "interactive",
     cwd: workspace,
   });
   mode.setupEditorSubmitHandler();

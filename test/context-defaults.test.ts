@@ -136,12 +136,12 @@ describe("resolveContextDefaultsConfig", () => {
     assert.doesNotMatch(section!.content, /booted_at_iso/);
   });
 
-  test("adds direct-session delivery guidance for TUI sessions", () => {
+  test("adds delivery guidance for transcript sessions", () => {
     const section = buildSessionDeliverySection({
-      sessionType: "tui",
+      delivery: { kind: "transcript" },
     });
 
-    assert.equal(section?.id, "session:direct_delivery");
+    assert.equal(section?.id, "session:transcript_delivery");
     assert.match(section!.content, /ordinary assistant text/);
     assert.match(section!.content, /Do not use reply\(text\)/);
     assert.match(section!.content, /only when explicitly asked/);
@@ -150,8 +150,7 @@ describe("resolveContextDefaultsConfig", () => {
 
   test("adds publication guidance for gateway channel sessions", () => {
     const section = buildSessionDeliverySection({
-      sessionType: "gateway",
-      channel: "telegram-123",
+      delivery: { kind: "channel", channel: "telegram-123" },
     });
 
     assert.equal(section?.id, "session:delivery");

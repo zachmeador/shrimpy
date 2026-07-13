@@ -6,7 +6,7 @@ Compaction is working-context maintenance. It does not mutate channel history, a
 
 ## Scope
 
-Each Shrimpy session is a private Pi context for one agent and one session label, usually a channel name. Auto-compaction applies to that session file only.
+Each Shrimpy session is a private Pi context with a canonical key such as `local/main` or `channel/home`. Auto-compaction applies to that session file only.
 
 Channel logs remain append-only JSONL under `channels/`. If a summary is too compressed, an agent can use channel and session inspection tools to go back to the original logs.
 
@@ -40,11 +40,11 @@ Policy precedence is:
 
 1. `runtime.compaction`
 2. `runtime.compaction.agents.<agentId>`
-3. `runtime.compaction.sessions.<sessionType>`
+3. `runtime.compaction.sessions.<purpose>`
 4. matching `runtime.compaction.channels.<pattern>`
-5. `runtime.compaction.sessions.<sessionLabel>`
+5. `runtime.compaction.sessions.<sessionName>`
 
-`sessionType` is a broad class such as `gateway` or `tui`. `sessionLabel` is the concrete session directory label, such as `maintenance`.
+`purpose` is a policy class such as `channel`, `interactive`, `setup`, `run`, or `worker`. `sessionName` is the key's concrete name, such as `maintenance`.
 
 ## Recorded Policy
 
@@ -55,10 +55,10 @@ When a session opens, Shrimpy appends inspection-only custom entries to the acti
 
 Pi ignores these custom entries when building LLM context. Shrimpy uses them for inspection and restart diagnostics.
 
-Policy changes do not rewrite already-open sessions. Running gateway sessions need to be reset/reopened or the gateway restarted before changed policy takes effect. Use:
+Policy changes do not rewrite already-open sessions. Reset or reopen the durable session before changed policy takes effect. Use:
 
 ```sh
-shrimpy sessions compaction <channel> --agent <id> --json
+shrimpy sessions compaction <session-id> --agent <id> --json
 ```
 
 The command reports the effective policy, selected model metadata, the active session's recorded policy/runtime metadata when present, and whether a restart/reset is required.
@@ -141,12 +141,12 @@ These mean the summarization request reached the provider path and the provider 
 
 Check these in order:
 
-1. `shrimpy sessions compaction <channel> --agent <id> --json` to confirm effective and recorded policy.
+1. `shrimpy sessions compaction <session-id> --agent <id> --json` to confirm effective and recorded policy.
 2. The configured model entry in `state/pi/models.json`.
 3. The gateway/provider model list and health status.
 4. Recent `workspace/runtime/logs/gateway.log` lines around the failed compaction.
 
-If the active session recorded stale policy or stale model metadata, reset/reopen that session or restart the gateway so the session records the current configuration.
+If the active session recorded stale policy or model metadata, run `shrimpy sessions new <session-id> --agent <id>`. Shrimpy routes the request to a gateway owner or takes an exclusive maintenance lease when the session is unowned. The next message opens a fresh session under current policy.
 
 ## Related Code
 

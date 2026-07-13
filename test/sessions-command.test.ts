@@ -4,7 +4,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdSessions } from "../dist/commands/sessions.js";
-import { createGatewaySessionDescriptor } from "../dist/sessions/spec.js";
+import { createChannelSessionKey } from "../dist/sessions/identity.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
+import { ensureSessionManifest } from "../dist/sessions/storage.js";
 import {
   setupInit,
   captureLogs,
@@ -26,11 +28,7 @@ describe("cmdSessions", () => {
   test("searches active and archived transcripts without matching tool result bodies", async () => {
     await setupInit(workspace);
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const sessionDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "home",
-    }).sessionDir;
+    const sessionDir = channelSessionDir(agentRoot, "home");
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(
       join(sessionDir, "home-active.jsonl"),
@@ -95,11 +93,7 @@ describe("cmdSessions", () => {
   test("reads a bounded transcript window around a search match", async () => {
     await setupInit(workspace);
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const sessionDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "home",
-    }).sessionDir;
+    const sessionDir = channelSessionDir(agentRoot, "home");
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(
       join(sessionDir, "home-active.jsonl"),
@@ -149,22 +143,19 @@ describe("cmdSessions", () => {
   test("lists one channel session as JSON", async () => {
     await setupInit(workspace);
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const sessionDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "home",
-    }).sessionDir;
+    const sessionDir = channelSessionDir(agentRoot, "home");
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(join(sessionDir, "home-active.jsonl"));
     writeArchivedSessionFile(join(sessionDir, "home-123.jsonl"));
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["list", "home", "--json"], { workspace } as any)
+      cmdSessions(["list", "channel/home", "--json"], { workspace } as any)
     );
 
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
-    assert.equal(summary.channel, "home");
+    assert.equal(summary.sessionId, "channel/home");
+    assert.deepEqual(summary.delivery, { kind: "channel", channel: "home" });
     assert.equal(summary.active.exists, true);
     assert.equal(summary.active.name, "home-active.jsonl");
     assert.deepEqual(summary.archives.map((entry: any) => entry.name), ["home-123.jsonl"]);
@@ -173,16 +164,8 @@ describe("cmdSessions", () => {
   test("lists all sessions as JSON", async () => {
     await setupInit(workspace);
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const homeDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "home",
-    }).sessionDir;
-    const telegramDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "telegram-123",
-    }).sessionDir;
+    const homeDir = channelSessionDir(agentRoot, "home");
+    const telegramDir = channelSessionDir(agentRoot, "telegram-123");
     mkdirSync(homeDir, { recursive: true });
     mkdirSync(telegramDir, { recursive: true });
     writeActiveSessionFile(join(homeDir, "home-active.jsonl"));
@@ -196,80 +179,96 @@ describe("cmdSessions", () => {
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
     assert.equal(summary.agentId, "shrimpy");
-    assert.deepEqual(summary.active.map((entry: any) => entry.channel).sort(), ["home", "telegram-123"]);
-    assert.deepEqual(summary.recentArchives.map((entry: any) => entry.name), ["home-123.jsonl"]);
+    assert.deepEqual(
+      summary.sessions.map((entry: any) => entry.sessionId).sort(),
+      ["channel/home", "channel/telegram-123"],
+    );
+    assert.deepEqual(summary.sessions[0].archives.map((entry: any) => entry.name), ["home-123.jsonl"]);
   });
 
-  test("requests a thinking change for routed sessions", async () => {
+  test("fails a routed thinking change when the gateway is stopped", async () => {
     await setupInit(workspace);
 
-    const { result, lines } = await captureLogs(() =>
-      cmdSessions(["thinking", "home", "high"], { workspace } as any)
+    const { result, lines, errors } = await captureLogs(() =>
+      cmdSessions(["thinking", "channel/home", "high"], { workspace } as any)
     );
 
-    assert.equal(result, 0);
-    assert.deepEqual(lines, ["requested thinking high for shrimpy on home"]);
+    assert.equal(result, 1);
+    assert.deepEqual(lines, []);
+    assert.deepEqual(errors, ["Session channel/home is not running."]);
 
     const bus = new ChannelBus(join(workspace, "channels"));
     const { messages } = bus.read("home");
-    assert.deepEqual(messages.at(-1)?.content.data, {
-      kind: "session_thinking_level",
-      targetAgentId: "shrimpy",
-      level: "high",
-      command: "/thinking",
-    });
+    assert.deepEqual(messages, []);
   });
 
-  test("maps sessions thinking on to medium", async () => {
+  test("maps sessions thinking on to medium before reporting a stopped gateway", async () => {
     await setupInit(workspace);
 
-    const { result, lines } = await captureLogs(() =>
-      cmdSessions(["thinking", "home", "on"], { workspace } as any)
+    const { result, lines, errors } = await captureLogs(() =>
+      cmdSessions(["thinking", "channel/home", "on"], { workspace } as any)
     );
 
-    assert.equal(result, 0);
-    assert.deepEqual(lines, ["requested thinking medium for shrimpy on home"]);
+    assert.equal(result, 1);
+    assert.deepEqual(lines, []);
+    assert.deepEqual(errors, ["Session channel/home is not running."]);
 
     const bus = new ChannelBus(join(workspace, "channels"));
     const { messages } = bus.read("home");
-    assert.deepEqual(messages.at(-1)?.content.data, {
-      kind: "session_thinking_level",
-      targetAgentId: "shrimpy",
-      level: "medium",
-      command: "/thinking",
-    });
+    assert.deepEqual(messages, []);
   });
 
-  test("requests a stop for routed sessions", async () => {
+  test("fails a routed stop when the gateway is stopped", async () => {
     await setupInit(workspace);
 
-    const { result, lines } = await captureLogs(() =>
-      cmdSessions(["stop", "home"], { workspace } as any)
+    const { result, lines, errors } = await captureLogs(() =>
+      cmdSessions(["stop", "channel/home"], { workspace } as any)
     );
 
-    assert.equal(result, 0);
-    assert.deepEqual(lines, ["requested stop for shrimpy on home"]);
+    assert.equal(result, 1);
+    assert.deepEqual(lines, []);
+    assert.deepEqual(errors, ["Session channel/home is not running."]);
 
     const bus = new ChannelBus(join(workspace, "channels"));
     const { messages } = bus.read("home");
-    assert.deepEqual(messages.at(-1)?.content.data, {
-      kind: "session_stop",
-      targetAgentId: "shrimpy",
-      command: "/stop",
-    });
+    assert.deepEqual(messages, []);
+  });
+
+  test("applies a gateway-channel reset directly when the gateway is stopped", async () => {
+    await setupInit(workspace);
+    const sessionDir = channelSessionDir(
+      join(workspace, "agents", "shrimpy"),
+      "home",
+    );
+    mkdirSync(sessionDir, { recursive: true });
+    writeActiveSessionFile(join(sessionDir, "home-active.jsonl"));
+
+    const { result, lines } = await captureLogs(() =>
+      cmdSessions(["new", "channel/home", "--json"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const payload = JSON.parse(lines.join("\n"));
+    assert.equal(payload.outcome, "applied_direct");
+    assert.equal(payload.archiveName, "home-active.jsonl");
+    assert.equal(payload.sessionId, "channel/home");
+
+    const bus = new ChannelBus(join(workspace, "channels"));
+    assert.deepEqual(bus.read("home").messages, []);
   });
 
   test("inspects effective compaction policy as JSON", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "maintenance", "--json"], { workspace } as any)
+      cmdSessions(["compaction", "channel/maintenance", "--json"], { workspace } as any)
     );
 
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
     assert.equal(summary.agentId, "shrimpy");
-    assert.equal(summary.channel, "maintenance");
+    assert.equal(summary.sessionId, "channel/maintenance");
+    assert.equal(summary.purpose, "channel");
     assert.equal(summary.effective.thresholdTokens, undefined);
     assert.equal(summary.effective.reserveTokens, 32768);
     assert.equal(summary.effective.keepRecentTokens, 30000);
@@ -281,11 +280,7 @@ describe("cmdSessions", () => {
   test("reports stale recorded compaction policy for active sessions", async () => {
     await setupInit(workspace);
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const sessionDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "maintenance",
-    }).sessionDir;
+    const sessionDir = channelSessionDir(agentRoot, "maintenance");
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(
       join(sessionDir, "maintenance-active.jsonl"),
@@ -306,7 +301,7 @@ describe("cmdSessions", () => {
     );
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "maintenance", "--json"], { workspace } as any)
+      cmdSessions(["compaction", "channel/maintenance", "--json"], { workspace } as any)
     );
 
     assert.equal(result, 0);
@@ -354,7 +349,7 @@ describe("cmdSessions", () => {
     });
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "maintenance", "--json"], config as any)
+      cmdSessions(["compaction", "channel/maintenance", "--json"], config as any)
     );
 
     assert.equal(result, 0);
@@ -396,11 +391,7 @@ describe("cmdSessions", () => {
       },
     });
     const agentRoot = join(workspace, "agents", "shrimpy");
-    const sessionDir = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      channel: "maintenance",
-    }).sessionDir;
+    const sessionDir = channelSessionDir(agentRoot, "maintenance");
     mkdirSync(sessionDir, { recursive: true });
     writeActiveSessionFile(
       join(sessionDir, "maintenance-active.jsonl"),
@@ -428,7 +419,7 @@ describe("cmdSessions", () => {
     );
 
     const { result, lines } = await captureLogs(() =>
-      cmdSessions(["compaction", "maintenance", "--json"], config as any)
+      cmdSessions(["compaction", "channel/maintenance", "--json"], config as any)
     );
 
     assert.equal(result, 0);
@@ -439,6 +430,18 @@ describe("cmdSessions", () => {
     assert.match(summary.note, /different session model metadata/);
   });
 });
+
+function channelSessionDir(agentRoot: string, channel: string): string {
+  const descriptor = createSessionDescriptor({
+    agentRoot,
+    key: createChannelSessionKey({ agentId: "shrimpy", channel }),
+    purpose: "channel",
+    delivery: { kind: "channel", channel },
+  });
+  ensureSessionManifest(descriptor);
+  assert.equal(descriptor.storage.kind, "durable");
+  return descriptor.storage.dir;
+}
 
 function writeActiveSessionFile(path: string, extra = ""): void {
   writeSessionFile(path, "active", extra);

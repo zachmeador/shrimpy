@@ -1,8 +1,8 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { basename } from "node:path";
 import type { RuntimeConfig } from "../config/index.js";
 import { channelMatches } from "../util/channel-pattern.js";
 import type { SessionDescriptor } from "./spec.js";
+import { sessionChannel } from "./spec.js";
 
 interface CompactionPolicyOverride {
   enabled?: boolean;
@@ -44,18 +44,17 @@ export function resolveSessionCompactionPolicy(input: {
     matched: ["runtime.compaction"],
   };
 
-  const sessionLabel = basename(input.descriptor.sessionDir);
-  const agentId = input.descriptor.agentId;
+  const sessionLabel = input.descriptor.key.name;
+  const agentId = input.descriptor.key.agentId;
+  const channel = sessionChannel(input.descriptor);
 
-  if (agentId) {
-    applyOverride(policy, base.agents?.[agentId], `runtime.compaction.agents.${agentId}`);
-  }
+  applyOverride(policy, base.agents?.[agentId], `runtime.compaction.agents.${agentId}`);
 
-  applyOverride(policy, base.sessions?.[input.descriptor.kind], `runtime.compaction.sessions.${input.descriptor.kind}`);
+  applyOverride(policy, base.sessions?.[input.descriptor.purpose], `runtime.compaction.sessions.${input.descriptor.purpose}`);
 
-  if (input.descriptor.channel) {
+  if (channel) {
     for (const [pattern, override] of Object.entries(base.channels ?? {})) {
-      if (!channelMatches(pattern, input.descriptor.channel)) continue;
+      if (!channelMatches(pattern, channel)) continue;
       applyOverride(policy, override, `runtime.compaction.channels.${pattern}`);
     }
   }

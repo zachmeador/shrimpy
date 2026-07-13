@@ -12,12 +12,12 @@ Now that Shrimpy has more control over the Pi TUI instance, `/agent` can become 
 
 ## Current State
 
-- CLI session inventory exists through `shrimpy sessions list [channel] --agent <id> --json`, backed by `summarizeAgentSessions`. It is per-agent only, and already returns active sessions, recent archives, and gateway lane state (`gatewayLanes` with queue depth and current turn).
+- CLI session inventory exists through `shrimpy sessions list [session-id] --agent <id> --json`, backed by each session's `session.json` identity file and `summarizeAgentSessions`. It is per-agent only and returns canonical ids, active sessions, archives, current owners, and gateway lane state.
 - Session files already carry rich Shrimpy metadata: `shrimpy_lifecycle` entries for lifecycle state, and `shrimpy_session_metadata` entries recording agent id, channel, session type, and current model. Model switches append fresh metadata entries via `wrapModelMetadataRecording`, so the last entry reflects the current model.
 - The TUI command surface has Shrimpy-owned `/status`, `/settings`, `/model`, `/thinking`, and `/changelog` hooks, but no `/agent` navigator.
 - The Pi footer shows cwd, token stats, context usage, git branch, and extension statuses set via `ctx.ui.setStatus()`; nothing identifies the active agent.
 - The TUI runtime factory in `openSessionRuntime` closes over one agent's `(bootstrap, plan)`, so Pi session replacement always reopens as the launch agent.
-- `installShrimpyCommandSurface` and `installShrimpySettingsSelector` capture `agentId`, `channel`, `sessionType`, and `cwd` at install time.
+- `installShrimpyCommandSurface` and `installShrimpySettingsSelector` capture `agentId`, canonical `sessionId`, purpose, and cwd at install time.
 - There is no workspace-wide all-agent session inventory service.
 
 ## Build
@@ -33,9 +33,9 @@ Now that Shrimpy has more control over the Pi TUI instance, `/agent` can become 
 
 ## Safe MVP
 
-- Directly switch between `tui` sessions for any configured agent.
+- Directly switch between `local/main` sessions for any configured agent.
 - Include archived sessions in the list. Selecting an archive restores it to active first, matching `executeSessionLifecycleAction` restore semantics (move the archive back, archive the current active), then opens it.
-- Show gateway/channel sessions as visible records, but do not attach to a session that may be owned by the running gateway. Offer a clear fork/open-local path. A direct attach can come later only with explicit confirmation and a well-defined writer-safety story.
+- Show channel sessions as visible records, but do not attach while the gateway owns them. Offer a clear fork/open-local path. A direct attach can come later only through an explicit ownership handoff.
 
 ## Runtime Boundary
 
@@ -66,7 +66,7 @@ The Shrimpy TUI surfaces capture agent identity at install time and must instead
 
 ## Implementation Notes
 
-- Likely files: `src/sessions/service.ts`, `src/sessions/storage.ts`, `src/sessions/open.ts`, `src/sessions/direct.ts`, `src/tui/interactive.ts`, `src/tui/shrimpy-command-surface.ts`, and a new `src/tui/shrimpy-agent-navigator.ts`.
+- Likely files: `src/sessions/service.ts`, `src/sessions/storage.ts`, `src/sessions/foreground.ts`, `src/sessions/resolver.ts`, `src/tui/interactive.ts`, `src/tui/shrimpy-command-surface.ts`, and a new `src/tui/shrimpy-agent-navigator.ts`.
 - The agent capture point is the factory closure over `(bootstrap, plan)` in `openSessionRuntime` (`src/sessions/open.ts`). `runAgentTuiSession` and the surface installers capture agent identity again for display; both captures become reads of the live target.
 - Footer indicator seam: extension statuses set via `ctx.ui.setStatus(key, text)` land in Pi's `FooterDataProvider` and render on the built-in footer's status line. Shrimpy's extension factories in `src/sessions/pi-resources.ts` already close over per-session state (`createTurnContextExtensionFactory`), so the indicator follows the same pattern with the agent id.
 - Pi's own `/resume` remains a Pi session selector for the current runtime/session directory. `/agent` is the Shrimpy workspace-level navigator.

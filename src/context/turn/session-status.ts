@@ -28,13 +28,13 @@ export function buildSessionStatusItems(input: {
   if (status.counts.active === 0) return workerItems;
 
   const pieces = [
-    `sessions: ${status.counts.active} active across ${formatChannels(
-      status.active.map((session) => session.channel),
+    `sessions: ${status.counts.active} active across ${formatSessions(
+      status.active.map((session) => session.sessionId),
     )}`,
   ];
   if (status.mostRecent) {
     pieces.push(
-      `most recent ${status.mostRecent.channel} ${formatSessionAge(status.mostRecent.ageMs)} ago`,
+      `most recent ${status.mostRecent.sessionId} ${formatSessionAge(status.mostRecent.ageMs)} ago`,
     );
   }
   if (status.counts.stale > 0) {
@@ -50,10 +50,10 @@ export function buildSessionStatusItems(input: {
   }, ...workerItems];
 }
 
-function formatChannels(channels: string[]): string {
-  const unique = [...new Set(channels)].slice(0, 5);
-  const suffix = channels.length > unique.length
-    ? `,+${channels.length - unique.length} more`
+function formatSessions(sessionIds: string[]): string {
+  const unique = [...new Set(sessionIds)].slice(0, 5);
+  const suffix = sessionIds.length > unique.length
+    ? `,+${sessionIds.length - unique.length} more`
     : "";
-  return unique.map((channel) => `#${channel}`).join(",") + suffix;
+  return unique.join(",") + suffix;
 }

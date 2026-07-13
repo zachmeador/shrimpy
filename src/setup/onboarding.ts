@@ -48,8 +48,8 @@ interface SetupSessionLaunchInput {
 
 interface SetupInteractiveSessionSpec {
   agentId: typeof MECHANIC_AGENT_ID;
-  channel: "setup";
-  sessionType: "tui";
+  session: { namespace: "local"; name: "setup" };
+  purpose: "setup";
   initialMessage: string;
   skills: ["shrimpy-setup"];
   modelPolicy: typeof DEFAULT_MODEL_POLICY;
@@ -102,8 +102,8 @@ export function createSetupInteractiveSessionSpec(
 ): SetupInteractiveSessionSpec {
   return {
     agentId: MECHANIC_AGENT_ID,
-    channel: "setup",
-    sessionType: "tui",
+    session: { namespace: "local", name: "setup" },
+    purpose: "setup",
     initialMessage: "Begin setup.",
     skills: ["shrimpy-setup"],
     modelPolicy: DEFAULT_MODEL_POLICY,

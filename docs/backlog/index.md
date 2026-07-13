@@ -18,7 +18,6 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [CAREER-001](career-001-resume-agent-workflow.md) | todo | P2 | Apps | none | Career agent resume workflow |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
-| [SESSION-003](session-003-verified-gateway-session-lifecycle.md) | todo | P2 | Sessions | none | Gateway session lifecycle commands confirm and verify outcomes |
 | [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
 | [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |

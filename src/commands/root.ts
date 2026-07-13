@@ -59,8 +59,8 @@ export const cmdRootTui: CommandHandler = async (
 
   return createShrimpyTuiCommand({
     agentId: values.agent,
-    channel: "tui",
-    sessionType: "tui",
+    session: { namespace: "local", name: "main" },
+    purpose: "interactive",
     provider: sessionValues.provider,
     model: sessionValues.model,
     modelPolicy: sessionValues.modelPolicy,

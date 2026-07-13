@@ -11,7 +11,7 @@ import type {
   AgentChannelPolicyRule,
   ResolvedAgentConfig,
 } from "../config/agents.js";
-import { createGatewaySessionDescriptor } from "../sessions/spec.js";
+import { createChannelSessionKey, sessionRootPath } from "../sessions/identity.js";
 import {
   computeNextWatchRunAtMs,
 } from "./clock.js";
@@ -278,11 +278,10 @@ function inspectExpectedWake(
       policyOwner: decision.policyOwner,
       ...(decision.effectivePolicy ? { effectivePolicy: decision.effectivePolicy } : {}),
       ...(decision.runtimeGuard ? { runtimeGuard: decision.runtimeGuard } : {}),
-      sessionPath: createGatewaySessionDescriptor({
-        workspacePath: runtime.getAgentPaths(agent.id).root,
-        agentId: agent.id,
-        channel,
-      }).sessionDir,
+      sessionPath: sessionRootPath(
+        runtime.getAgentPaths(agent.id).root,
+        createChannelSessionKey({ agentId: agent.id, channel }),
+      ),
       inspectCommand: wakeInspectCommand(agent.id, channel, message),
     }];
   });

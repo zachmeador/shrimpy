@@ -1,4 +1,12 @@
-import { existsSync, readdirSync, readFileSync, statSync, appendFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
@@ -10,8 +18,14 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "../config/model.js";
 import { isRecord } from "../util/record.js";
+import type { SessionDescriptor, SessionDelivery } from "./spec.js";
+import { createSessionDescriptor } from "./spec.js";
+import type { SessionKey } from "./identity.js";
+import { sameSessionKey } from "./identity.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
+const SESSION_MANIFEST_NAME = "session.json";
+const SESSION_MANIFEST_VERSION = 1;
 
 type SessionLifecycleState = "active" | "archived";
 
@@ -23,6 +37,75 @@ interface StoredSessionSummary {
   path: string;
   updatedAtMs: number;
   state: SessionLifecycleState;
+}
+
+export interface SessionManifest {
+  version: typeof SESSION_MANIFEST_VERSION;
+  key: SessionKey;
+  purpose: string;
+  delivery: SessionDelivery;
+}
+
+export function ensureSessionManifest(descriptor: SessionDescriptor): void {
+  if (descriptor.storage.kind !== "durable") return;
+  const path = join(descriptor.storage.dir, SESSION_MANIFEST_NAME);
+  const expected = manifestFromDescriptor(descriptor);
+  const existing = readSessionManifest(path);
+  if (existing) {
+    if (!sameSessionKey(existing.key, expected.key)) {
+      throw new Error(`session manifest identity mismatch: ${path}`);
+    }
+    if (
+      existing.purpose !== expected.purpose ||
+      JSON.stringify(existing.delivery) !== JSON.stringify(expected.delivery)
+    ) {
+      throw new Error(`session manifest binding mismatch: ${path}`);
+    }
+    return;
+  }
+
+  mkdirSync(descriptor.storage.dir, { recursive: true });
+  writeFileSync(path, `${JSON.stringify(expected, null, 2)}\n`, "utf8");
+}
+
+export function readSessionManifest(path: string): SessionManifest | undefined {
+  if (!existsSync(path)) return undefined;
+  try {
+    const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    return parseSessionManifest(value);
+  } catch {
+    return undefined;
+  }
+}
+
+export function listSessionDescriptors(agentRoot: string): SessionDescriptor[] {
+  const sessionsRoot = join(agentRoot, "sessions");
+  if (!existsSync(sessionsRoot)) return [];
+  const descriptors: SessionDescriptor[] = [];
+
+  for (const namespace of readdirSync(sessionsRoot, { withFileTypes: true })) {
+    if (!namespace.isDirectory()) continue;
+    const namespacePath = join(sessionsRoot, namespace.name);
+    for (const name of readdirSync(namespacePath, { withFileTypes: true })) {
+      if (!name.isDirectory()) continue;
+      const namePath = join(namespacePath, name.name);
+      for (const profile of readdirSync(namePath, { withFileTypes: true })) {
+        if (!profile.isDirectory()) continue;
+        const manifest = readSessionManifest(
+          join(namePath, profile.name, SESSION_MANIFEST_NAME),
+        );
+        if (!manifest) continue;
+        descriptors.push(createSessionDescriptor({
+          agentRoot,
+          key: manifest.key,
+          purpose: manifest.purpose,
+          delivery: manifest.delivery,
+        }));
+      }
+    }
+  }
+
+  return descriptors;
 }
 
 export function archiveSessionDir(sessionDir: string): string | undefined {
@@ -86,6 +169,43 @@ export function createSessionManager(cwd: string, sessionDir: string): SessionMa
   return active
     ? SessionManager.open(active, sessionDir, cwd)
     : SessionManager.create(cwd, sessionDir);
+}
+
+function manifestFromDescriptor(descriptor: SessionDescriptor): SessionManifest {
+  return {
+    version: SESSION_MANIFEST_VERSION,
+    key: descriptor.key,
+    purpose: descriptor.purpose,
+    delivery: descriptor.delivery,
+  };
+}
+
+function parseSessionManifest(value: unknown): SessionManifest | undefined {
+  if (!isRecord(value) || value.version !== SESSION_MANIFEST_VERSION) return undefined;
+  if (!isRecord(value.key)) return undefined;
+  const { agentId, namespace, name, profileId } = value.key;
+  if (
+    typeof agentId !== "string" ||
+    (namespace !== "local" && namespace !== "channel" && namespace !== "worker") ||
+    typeof name !== "string" ||
+    typeof profileId !== "string" ||
+    typeof value.purpose !== "string" ||
+    !isSessionDelivery(value.delivery)
+  ) {
+    return undefined;
+  }
+  return {
+    version: SESSION_MANIFEST_VERSION,
+    key: { agentId, namespace, name, profileId },
+    purpose: value.purpose,
+    delivery: value.delivery,
+  };
+}
+
+function isSessionDelivery(value: unknown): value is SessionDelivery {
+  if (!isRecord(value)) return false;
+  if (value.kind === "transcript") return true;
+  return value.kind === "channel" && typeof value.channel === "string";
 }
 
 export function readSessionRecordedModel(

@@ -14,7 +14,8 @@ The clean shape is sender trust deciding a session profile before a Pi session i
 - Telegram has `allowedChatIds`, which authorizes whole chats before channel binding, identity mapping, presence, commands, media downloads, or model wake.
 - Surface `users` mappings and `state/users.json` provide stable identity, not authorization.
 - Channel membership decides agent visibility, and `agents[].channelPolicy` decides wake/ignore by sender kind, `actorIds`, `userIds`, mentions, addressing, and channel pattern.
-- Agent tool policy is agent-scoped. `SessionPlanner` resolves one tool policy for the agent, and `SessionRegistry` caches one plan/session per agent plus channel.
+- Agent tool policy is agent-scoped. `SessionResolver` currently resolves one tool policy for the agent, and `SessionPool` has one lane per channel.
+- Session keys already include `profileId`; canonical ids, self-describing storage, single-writer protection, and the shared resolver preserve it. Gateway dispatch currently always uses the `default` profile.
 - In a mixed public room, trusted and untrusted human messages would currently share the same agent/channel session and tool surface if channel policy wakes for both.
 - Registered `send_message` and `read_channel` are broad routing/reading primitives. They are not constrained by channel membership once present in a session.
 - Chat commands such as `/new`, `/restore`, `/stop`, `/thinking`, and `/agent` are currently surface-local and gated by the surface's inbound acceptance, not by per-sender Shrimpy permissions.
@@ -31,11 +32,11 @@ First useful profile set:
 The profile id becomes part of gateway session identity. A limited public turn for `agent:shrimpy` in `telegram~main~4242` must not reuse the same private Pi transcript as the normal trusted `agent:shrimpy` session for that channel. The channel log remains shared; private model context and active tools are separated by profile.
 
 ## Build
-- Introduce a typed session-profile concept under the session/tool planning layer, not inside prompts. Candidate names: `SessionProfile`, `SessionSecurityProfile`, or `ChannelTurnProfile`.
+- Introduce a typed security-profile policy under the existing `SessionKey.profileId` and session/tool resolution layer, not inside prompts. Candidate names: `SessionProfile`, `SessionSecurityProfile`, or `ChannelTurnProfile`.
 - Add a resolver that receives `runtime`, `agent`, `channel`, and `ChannelMessage`, then returns `{ profileId, reason, toolPolicyOverride, commandPermission }` or an ignore/block result. It should use stable Shrimpy `userId` / `actorId` values and surface origin facts, not display names.
 - Keep room acceptance and sender permissions distinct. Surface allowlists answer "may this transport thread enter Shrimpy at all?" The new resolver answers "what may this Shrimpy sender do inside this accepted channel?"
-- Thread the resolved profile through `AgentChannelRuntime` and `SessionRegistry`. Session keys, lane state, session directories, recorded metadata, and `shrimpy sessions list/search/read` inspection should make the profile visible.
-- Extend `SessionPlanner.planChannel` so profile-specific tool policy is resolved before `openSession`. The limited profile should register only active-channel publication helpers that are safe for the current channel, likely `reply` and `ask` first. It should exclude Pi built-ins such as `bash`, `edit`, `write`, `read`, `grep`, `find`, and `ls`, and should not register broad Shrimpy daemon tools such as `send_message` or `read_channel`.
+- Thread the resolved profile through `AgentChannelRuntime` when it constructs the session key, and key `SessionPool` lanes by the full canonical identity rather than channel alone. Canonical ids, manifests, ownership, lane state, recorded metadata, and `shrimpy sessions list/search/read` inspection should keep the profile visible.
+- Extend `SessionResolver` so profile-specific tool policy is resolved before `openSession`. The limited profile should register only active-channel publication helpers that are safe for the current channel, likely `reply` and `ask` first. It should exclude Pi built-ins such as `bash`, `edit`, `write`, `read`, `grep`, `find`, and `ls`, and should not register broad Shrimpy daemon tools such as `send_message` or `read_channel`.
 - Decide whether `notify` and `report` belong in `limited-public`. Default conservative answer: omit `notify` because public users should not trigger notification semantics, and omit `report` unless a concrete public-room workflow needs it.
 - Add a compact profile fact to turn context: sender identity, trust/profile, why the profile was chosen, and the active-channel limitation. This is for inspectability, not enforcement.
 - Gate chat commands through the same sender permission result. Read-only `/help` and a minimal public-safe `/status` may remain available. Session lifecycle, thinking changes, addressed-agent switching, model/settings changes, and future admin commands require a trusted profile.
@@ -52,8 +53,9 @@ surface / channel post / watch
   -> agent channelPolicy wake decision
   -> sender/session-profile resolver
   -> AgentChannelRuntime dispatch with profile id
-  -> SessionRegistry key: agent + channel + profile
-  -> SessionPlanner opens profile-specific tools and prompt metadata
+  -> canonical SessionKey: agent + channel namespace + channel name + profile
+  -> SessionPool lane keyed by canonical identity
+  -> SessionResolver opens profile-specific tools and prompt metadata
   -> Pi turn
   -> active-channel publication only for limited-public
 ```
@@ -84,7 +86,7 @@ This keeps the existing boundaries intact:
 - `src/config/` for permission/profile config parsing.
 - `src/surfaces/shared/` and surface verticals for accepted-thread versus sender-permission plumbing.
 - `src/agents/channel-runtime.ts` and `src/agents/channel-policy.ts` or a sibling resolver module for wake plus profile inspection.
-- `src/sessions/planner.ts`, `src/sessions/registry.ts`, `src/sessions/spec.ts`, `src/sessions/session-record.ts`, and session inspection/search formatting.
+- `src/sessions/resolver.ts`, `src/sessions/pool.ts`, `src/sessions/identity.ts`, `src/sessions/spec.ts`, `src/sessions/session-record.ts`, and session inspection/search formatting.
 - `src/tools/policy.ts`, `src/tools/factory.ts`, and daemon tool selection for profile-specific active tools.
 - `src/surfaces/telegram/commands.ts` and future shared chat command registry from SURFACE-006 for command authorization.
 - `src/context/turn/` for model-visible profile facts.

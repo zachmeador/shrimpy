@@ -12,26 +12,26 @@ Default help is for common human actions. Full help, path help, reference docs, 
 
 ## Session Commands
 
-See [sessions.md](sessions.md) for session files, lifecycle, model metadata, and the direct-vs-gateway behavior behind these commands.
+See [sessions.md](sessions.md) for canonical session ids, manifests, ownership, lifecycle, and model metadata.
 
 | Command | Purpose |
 | --- | --- |
 | `shrimpy` | Open Shrimpy, running setup onboarding when needed. |
 | `shrimpy "prompt"` | Open the TUI session with an initial prompt. |
 | `shrimpy chat [agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open a TUI chat with the default or selected agent. Use `shrimpy chat mechanic` for the maintenance agent. |
-| `shrimpy run "prompt"` | Run a one-shot prompt and print the response. |
+| `shrimpy run "prompt" [--session <session-id>]` | Run a one-shot prompt and print the response. Runs are in-memory unless `--session` explicitly resumes durable state. |
 | `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. Supports `--provider`, `--model`, `--model-policy`, `--thinking`, and `--skill`. |
 | `shrimpy agent run <id> "prompt"` | Run a one-shot prompt as a specific agent. |
-| `shrimpy sessions list [channel]` | Inspect active and archived sessions. |
-| `shrimpy sessions new <channel>` | Archive/reset a session. |
-| `shrimpy sessions restore <channel>` | Restore an archived session. |
-| `shrimpy sessions thinking <channel> <level>` | Change reasoning effort for a session. |
-| `shrimpy sessions stop <channel> [--agent <id>]` | Stop the running gateway turn for a channel session. |
+| `shrimpy sessions list [session-id]` | Inspect manifested sessions, active/archive state, owner, and gateway lane state. |
+| `shrimpy sessions new <session-id>` | Archive/reset a session through its owner or an exclusive maintenance lease. |
+| `shrimpy sessions restore <session-id>` | Restore an archived session through its owner or an exclusive maintenance lease. |
+| `shrimpy sessions thinking <session-id> <level>` | Change reasoning effort for a running session and verify the outcome. |
+| `shrimpy sessions stop <session-id> [--agent <id>]` | Stop a running gateway turn out of band and verify the outcome. |
 | `shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]` | Search active and archived session transcripts with bounded snippets. |
 | `shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]` | Read a bounded transcript window around one session entry. |
-| `shrimpy sessions compaction <channel> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
+| `shrimpy sessions compaction <session-id> [--agent <id>] [--json]` | Inspect the effective compaction policy, selected model metadata, and whether the active session recorded older runtime settings. See [compaction.md](compaction.md). |
 | `shrimpy models [--json]` | Inspect model policies, agent defaults, and Pi-visible provider models. |
-| `shrimpy models resolve [--agent <id>] [--session <name>\|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]` | Explain model precedence for a CLI override, explicit policy, local session, channel session, or agent default. |
+| `shrimpy models resolve [--agent <id>] [--session <session-id>\|--channel <name>] [--provider <p>] [--model <m>] [--policy <name>] [--json]` | Explain model precedence for a CLI override, explicit policy, durable session, channel session, or agent default. |
 | `shrimpy models policies [list] [--json]` | List configured model policies and candidate resolution. |
 | `shrimpy models policies show <name> [--json]` | Inspect one model policy. |
 | `shrimpy models policies set <name> --candidate <provider>/<model> ... [--json]` | Replace a policy's ordered candidates. |

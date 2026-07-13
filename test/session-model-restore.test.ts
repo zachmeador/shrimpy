@@ -13,9 +13,10 @@ import { resolveRuntimeConfig } from "../dist/config/runtime.js";
 import { resolveContextConfig } from "../dist/context/index.js";
 import {
   createBootstrap,
+  createLocalSessionKey,
   openSession,
 } from "../dist/sessions/index.js";
-import { createLocalSessionDescriptor } from "../dist/sessions/spec.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
 let workspace: string;
 
@@ -38,13 +39,7 @@ describe("session model restore", () => {
       },
     });
     const bootstrap = await testBootstrap(agentRoot);
-    const descriptor = createLocalSessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      label: "tui",
-      kind: "tui",
-      channel: "tui",
-    });
+    const descriptor = localDescriptor(agentRoot);
     const configuredModel = bootstrap.modelRegistry.find(
       "configured_provider",
       "configured-model",
@@ -95,13 +90,7 @@ describe("session model restore", () => {
       },
     });
     const bootstrap = await testBootstrap(agentRoot);
-    const descriptor = createLocalSessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      label: "tui",
-      kind: "tui",
-      channel: "tui",
-    });
+    const descriptor = localDescriptor(agentRoot);
     const configuredModel = bootstrap.modelRegistry.find(
       "configured_provider",
       "configured-model",
@@ -161,13 +150,7 @@ describe("session model restore", () => {
       },
     });
     const bootstrap = await testBootstrap(agentRoot);
-    const descriptor = createLocalSessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      label: "tui",
-      kind: "tui",
-      channel: "tui",
-    });
+    const descriptor = localDescriptor(agentRoot);
     const configuredModel = bootstrap.modelRegistry.find(
       "configured_provider",
       "configured-model",
@@ -209,13 +192,7 @@ describe("session model restore", () => {
       },
     });
     const bootstrap = await testBootstrap(agentRoot);
-    const descriptor = createLocalSessionDescriptor({
-      workspacePath: agentRoot,
-      agentId: "shrimpy",
-      label: "tui",
-      kind: "tui",
-      channel: "tui",
-    });
+    const descriptor = localDescriptor(agentRoot);
     const configuredModel = bootstrap.modelRegistry.find(
       "configured_provider",
       "configured-model",
@@ -249,6 +226,15 @@ describe("session model restore", () => {
     }
   });
 });
+
+function localDescriptor(agentRoot: string) {
+  return createSessionDescriptor({
+    agentRoot,
+    key: createLocalSessionKey({ agentId: "shrimpy", name: "main" }),
+    purpose: "interactive",
+    delivery: { kind: "transcript" },
+  });
+}
 
 async function testBootstrap(agentRoot: string) {
   return createBootstrap({

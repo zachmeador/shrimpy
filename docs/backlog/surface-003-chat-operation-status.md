@@ -46,7 +46,7 @@ Exact wording should be adapter-neutral in shared code and adapter-specific at t
 
 ## Implementation Notes
 - Build on the current compaction event subscription in `src/sessions/open.ts`.
-- Thread a scoped operation-status publisher into gateway session opening, likely from `SessionRegistry` or `AgentChannelRuntime`, so direct `tui` and `run` sessions do not publish chat statuses.
+- Thread a scoped operation-status publisher into channel-delivered session opening, likely from `SessionPool` or `AgentChannelRuntime`, so transcript-delivered foreground and run sessions do not publish chat statuses.
 - Keep operation-status emission tied to accepted gateway/session lifecycle events, not to turn-context preparation or Pi's provider-bound context hook. Status is surface-facing runtime telemetry; turn context is model-facing ephemeral context.
 - Keep this parallel to, but distinct from, the ephemeral surface activity route used for typing.
 - Statuses are always logged as typed status messages in the channel, never as fake agent replies and never as unlogged side-channel text.

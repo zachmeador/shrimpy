@@ -26,8 +26,8 @@ test("Shrimpy interactive mode installs a unified settings selector", () => {
       },
     },
     agentId: "shrimpy",
-    channel: "tui",
-    sessionType: "tui",
+    sessionId: "local/main",
+    purpose: "interactive",
     cwd: "/tmp/project",
   } as unknown as ShrimpySettingsSelectorOptions);
 

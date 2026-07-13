@@ -58,8 +58,8 @@ describe("cmdChat", () => {
       ),
       {
         agentId: undefined,
-        channel: "tui",
-        sessionType: "tui",
+        session: { namespace: "local", name: "main" },
+        purpose: "interactive",
         provider: "openai",
         model: "gpt-5",
         modelPolicy: "coding",
@@ -79,8 +79,8 @@ describe("cmdChat", () => {
       ),
       {
         agentId: "career",
-        channel: "tui",
-        sessionType: "tui",
+        session: { namespace: "local", name: "main" },
+        purpose: "interactive",
         provider: undefined,
         model: undefined,
         modelPolicy: "fast",
@@ -133,8 +133,8 @@ describe("cmdChat", () => {
     assert.equal(loadedWorkspace, workspace);
     assert.deepEqual(captured, {
       agentId: undefined,
-      channel: "tui",
-      sessionType: "tui",
+      session: { namespace: "local", name: "main" },
+      purpose: "interactive",
       provider: undefined,
       model: undefined,
       modelPolicy: "coding",
@@ -175,8 +175,8 @@ describe("cmdChat", () => {
     assert.equal(setupStateResolved, true);
     assert.deepEqual(captured, {
       agentId: "career",
-      channel: "tui",
-      sessionType: "tui",
+      session: { namespace: "local", name: "main" },
+      purpose: "interactive",
       provider: undefined,
       model: undefined,
       modelPolicy: undefined,

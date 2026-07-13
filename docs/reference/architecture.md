@@ -13,8 +13,9 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Channel outbox** — gateway worker that tails channel logs, sends outbound-eligible messages through surface egress, and records delivery receipts.
 - **Channel membership** — the source of truth for which agents participate in a channel.
 - **Agent channel policy** — per-agent policy for which visible channel messages become turns.
-- **Session** — one private Pi working context for one agent, attached to either a channel or a local session label (`tui`, `run`). See [sessions.md](sessions.md).
-- **SessionRegistry** — one active turn at a time per session, with FIFO queuing.
+- **Session** — one private Pi working context identified by agent, namespace, name, and profile, with independent purpose, delivery, and storage policy. See [sessions.md](sessions.md).
+- **SessionResolver** — the single policy path used by foreground, gateway, setup, run, and worker hosts.
+- **SessionPool** — one gateway lane per channel session, with the only FIFO queue for that lane and out-of-band stop.
 - **Surface** — a transport-facing interaction layer such as Telegram. Each surface is a self-contained vertical at `src/surfaces/<name>/` and registers via the `ChatSurfaceModule` interface; `AppRuntime` aggregates the registry without knowing surface kinds.
 - **Gateway** — the long-running process that runs surfaces, dispatches channel messages, and advances agent-owned watches.
 - **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a named channel for that agent.

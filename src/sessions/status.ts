@@ -8,7 +8,7 @@ import {
 type SessionRecencyStatus = "recent" | "stale";
 
 interface SessionStatusEntry {
-  channel: string;
+  sessionId: string;
   name: string;
   path: string;
   updatedAt: string;
@@ -40,13 +40,13 @@ export function summarizeSessionStatus(
   const agent = runtime.getAgent(opts?.agentId);
   const staleAfterMs = opts?.staleAfterMs ?? 12 * 60 * 60 * 1000;
   const listing = summarizeAgentSessions(runtime, { agentId: agent.id });
-  if ("channel" in listing) {
+  if ("sessionId" in listing) {
     throw new Error("session status requires an agent-wide session listing");
   }
   const now = Date.now();
-  const active = listing.active
+  const active = listing.sessions
     .flatMap((session): SessionStatusEntry[] => {
-      const entry = sessionStatusEntry(session, now, staleAfterMs);
+      const entry = sessionStatusEntry(session.sessionId, session.active, now, staleAfterMs);
       return entry ? [entry] : [];
     })
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs);
@@ -72,7 +72,8 @@ export function formatSessionAge(ms: number): string {
 }
 
 function sessionStatusEntry(
-  session: SessionPathSummary & { channel: string },
+  sessionId: string,
+  session: SessionPathSummary,
   now: number,
   staleAfterMs: number,
 ): SessionStatusEntry | undefined {
@@ -81,7 +82,7 @@ function sessionStatusEntry(
   if (!Number.isFinite(updatedAtMs)) return undefined;
   const ageMs = Math.max(0, now - updatedAtMs);
   return {
-    channel: session.channel,
+    sessionId,
     name: session.name,
     path: session.path,
     updatedAt: session.updatedAt,

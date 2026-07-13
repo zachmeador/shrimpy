@@ -78,8 +78,8 @@ interface InteractiveModeInternals {
 export interface ShrimpySettingsSelectorOptions {
   runtime: AppRuntime;
   agentId: string;
-  channel: string;
-  sessionType: string;
+  sessionId: string;
+  purpose: string;
   cwd: string;
 }
 
@@ -227,10 +227,10 @@ class ShrimpySettingsSubmenu extends Container {
         currentValue: agentPaths.root,
       },
       {
-        id: "session-label",
-        label: "Session label",
-        description: "Direct local session label used for this Pi transcript.",
-        currentValue: `${this.options.channel} / ${this.options.sessionType}`,
+        id: "session-id",
+        label: "Session",
+        description: "Canonical Shrimpy session id and purpose for this Pi transcript.",
+        currentValue: `${this.options.sessionId} / ${this.options.purpose}`,
       },
       {
         id: "cwd",

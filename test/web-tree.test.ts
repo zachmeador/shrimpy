@@ -31,7 +31,15 @@ test("web tree mirrors the workspace layout", async () => {
   await mkdir(join(workspace, "channels"), { recursive: true });
   await mkdir(join(workspace, "state", "pi"), { recursive: true });
   await mkdir(join(workspace, "runtime", "logs"), { recursive: true });
-  await mkdir(join(workspace, "agents", "shrimpy", "sessions", "home"), {
+  await mkdir(join(
+    workspace,
+    "agents",
+    "shrimpy",
+    "sessions",
+    "channel",
+    "aG9tZQ",
+    "ZGVmYXVsdA",
+  ), {
     recursive: true,
   });
   await mkdir(join(workspace, "agents", "shrimpy", "vault", "notes"), {
@@ -46,7 +54,16 @@ test("web tree mirrors the workspace layout", async () => {
   await writeFile(join(workspace, "state", "pi", "auth.json"), "{}\n");
   await writeFile(join(workspace, "runtime", "logs", "gateway.log"), "started\n");
   await writeFile(
-    join(workspace, "agents", "shrimpy", "sessions", "home", "turn.jsonl"),
+    join(
+      workspace,
+      "agents",
+      "shrimpy",
+      "sessions",
+      "channel",
+      "aG9tZQ",
+      "ZGVmYXVsdA",
+      "turn.jsonl",
+    ),
     "{}\n",
   );
   await writeFile(
@@ -75,7 +92,7 @@ test("web tree mirrors the workspace layout", async () => {
 
   const session = findNode(
     tree.root,
-    "agents/shrimpy/sessions/home/turn.jsonl",
+    "agents/shrimpy/sessions/channel/aG9tZQ/ZGVmYXVsdA/turn.jsonl",
   ) as FileLeaf;
   assert.equal(session.kind, "session");
 

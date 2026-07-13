@@ -27,17 +27,18 @@ import type {
   TurnContext,
   TurnContextInput,
 } from "./types.js";
+import { sessionChannel } from "../../sessions/spec.js";
 
 function contextAgentId(input: TurnContextInput): string {
-  return input.descriptor.agentId ?? input.runtime.getAgent().id;
+  return input.descriptor.key.agentId;
 }
 
 export async function buildTurnContext(
   input: TurnContextInput,
 ): Promise<TurnContext> {
   const agentId = contextAgentId(input);
-  const channel = input.descriptor.channel;
-  const sessionType = input.descriptor.kind;
+  const channel = sessionChannel(input.descriptor);
+  const sessionType = input.descriptor.purpose;
   const capturedAt = formatAgentDateTime();
   const items = [
     ...buildTurnFactItems({
@@ -108,7 +109,7 @@ function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
 function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
   const { currentMessage, runtime } = input;
   const agentId = contextAgentId(input);
-  const channel = input.descriptor.channel;
+  const channel = sessionChannel(input.descriptor);
   const config = runtime.resolved.context.turn.channelUnread;
   if (!channel || !currentMessage || !config.enabled) return [];
   if (!matchesAny(config.channels, channel)) return [];
@@ -145,7 +146,7 @@ function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
 }
 
 async function buildCommandItems(input: TurnContextInput): Promise<TurnContextItem[]> {
-  const channel = input.descriptor.channel;
+  const channel = sessionChannel(input.descriptor);
   const agentId = contextAgentId(input);
   const resolved = input.runtime.resolved.context.sources
     .map(resolveContextSource)
@@ -165,7 +166,7 @@ async function buildCommandItems(input: TurnContextInput): Promise<TurnContextIt
       runtime: input.runtime,
       agentId,
       channel,
-      sessionType: input.descriptor.kind,
+      sessionType: input.descriptor.purpose,
     });
     if (!input.preview) rememberCommandRun(command, input, result.items);
     return result.items;

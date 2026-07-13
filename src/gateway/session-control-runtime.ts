@@ -1,15 +1,28 @@
+import { basename } from "node:path";
 import type { AgentChannelRuntime } from "../agents/channel-runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  isThinkingLevel,
-  type ThinkingLevel,
-} from "../sessions/thinking.js";
 import {
   readSessionControlContent,
   type ChannelMessage,
 } from "../channels/index.js";
+import { isThinkingLevel } from "../sessions/thinking.js";
 
 export type DispatchSource = "backlog" | "live";
+type SessionControl = NonNullable<ReturnType<typeof readSessionControlContent>>;
+type Operation = "reset" | "restore" | "thinking" | "stop";
+
+interface ControlSuccess {
+  operation: Operation;
+  text: string;
+  archiveName?: string;
+}
+
+const OPERATION_DESCRIPTION: Record<Operation, string> = {
+  reset: "start a new session",
+  restore: "restore the session",
+  thinking: "set the thinking level",
+  stop: "stop the running turn",
+};
 
 export function isSessionControlMessage(message: ChannelMessage): boolean {
   return readSessionControlContent(message.content) !== null;
@@ -35,199 +48,46 @@ export class SessionControlRuntime {
     const control = readSessionControlContent(message.content);
     if (!control) return false;
 
-    switch (control.kind) {
-      case "session_reset":
-        await this.resetChannelSession(channel, control.targetAgentId, source);
-        return true;
-      case "session_restore":
-        await this.restoreChannelSession(
-          channel,
-          control.targetAgentId,
-          control.archiveName,
-          source,
-        );
-        return true;
-      case "session_thinking_level":
-        await this.setChannelThinkingLevel(
-          channel,
-          control.targetAgentId,
-          control.level,
-          source,
-        );
-        return true;
-      case "session_stop":
-        await this.stopChannelSession(channel, control.targetAgentId, source);
-        return true;
-    }
-
-    const exhaustive: never = control;
-    return exhaustive;
-  }
-
-  private getAgentRuntime(
-    channel: string,
-    agentId: string,
-    source: DispatchSource,
-    action: "reset" | "restore" | "thinking" | "stop",
-  ): AgentChannelRuntime | null {
-    const agentRuntime = this.agentRuntimes.get(agentId);
-    if (!agentRuntime) {
+    const operation = operationFor(control);
+    const runtime = this.agentRuntimes.get(control.targetAgentId);
+    if (!runtime) {
       console.error(
-        `[delivery] ${source} session ${action} ignored for ${channel}; unknown agent ${agentId}`,
+        `[delivery] ${source} session ${operation} ignored for ${channel}; unknown agent ${control.targetAgentId}`,
       );
-      return null;
+      this.publish(channel, control.targetAgentId, message.id, {
+        operation,
+        text: `Failed to ${OPERATION_DESCRIPTION[operation]} for ${control.targetAgentId}: unknown agent.`,
+      }, false);
+      return true;
     }
-    return agentRuntime;
-  }
-
-  private async resetChannelSession(
-    channel: string,
-    agentId: string,
-    source: DispatchSource,
-  ): Promise<void> {
-    const agentRuntime = this.getAgentRuntime(channel, agentId, source, "reset");
-    if (!agentRuntime) return;
 
     try {
-      await agentRuntime.reset(channel);
-      this.publishOperationStatus(
+      this.publish(
         channel,
-        agentId,
-        "reset",
+        control.targetAgentId,
+        message.id,
+        await runControl(runtime, channel, control),
         true,
-        `Started a new session for ${agentId}.`,
       );
     } catch (err) {
       console.error(
-        `[delivery] ${source} session reset error for ${channel} (agent ${agentId}):`,
+        `[delivery] ${source} session ${operation} error for ${channel} (agent ${control.targetAgentId}):`,
         err,
       );
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "reset",
-        false,
-        `Failed to start a new session for ${agentId}: ${formatDispatchError(err)}`,
-      );
+      this.publish(channel, control.targetAgentId, message.id, {
+        operation,
+        text: `Failed to ${OPERATION_DESCRIPTION[operation]} for ${control.targetAgentId}: ${formatError(err)}`,
+      }, false);
     }
+    return true;
   }
 
-  private async restoreChannelSession(
+  private publish(
     channel: string,
     agentId: string,
-    archiveName: string | undefined,
-    source: DispatchSource,
-  ): Promise<void> {
-    const agentRuntime = this.getAgentRuntime(channel, agentId, source, "restore");
-    if (!agentRuntime) return;
-
-    try {
-      const restored = await agentRuntime.restore(channel, archiveName);
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "restore",
-        true,
-        `Restored session for ${agentId} from ${restored.restoredFrom}.`,
-      );
-    } catch (err) {
-      console.error(
-        `[delivery] ${source} session restore error for ${channel} (agent ${agentId}):`,
-        err,
-      );
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "restore",
-        false,
-        `Failed to restore session for ${agentId}: ${formatDispatchError(err)}`,
-      );
-    }
-  }
-
-  private async setChannelThinkingLevel(
-    channel: string,
-    agentId: string,
-    level: string,
-    source: DispatchSource,
-  ): Promise<void> {
-    const agentRuntime = this.getAgentRuntime(channel, agentId, source, "thinking");
-    if (!agentRuntime) return;
-
-    try {
-      if (!isThinkingLevel(level)) {
-        throw new Error(`invalid thinking level: ${level}`);
-      }
-
-      const result = await agentRuntime.setThinkingLevel(
-        channel,
-        level as ThinkingLevel,
-      );
-      const description = result.effectiveLevel === result.requestedLevel
-        ? result.effectiveLevel
-        : `${result.effectiveLevel} (requested ${result.requestedLevel})`;
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "thinking",
-        true,
-        `Set thinking level for ${agentId} to ${description}.`,
-      );
-    } catch (err) {
-      console.error(
-        `[delivery] ${source} session thinking error for ${channel} (agent ${agentId}):`,
-        err,
-      );
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "thinking",
-        false,
-        `Failed to set thinking level for ${agentId}: ${formatDispatchError(err)}`,
-      );
-    }
-  }
-
-  private async stopChannelSession(
-    channel: string,
-    agentId: string,
-    source: DispatchSource,
-  ): Promise<void> {
-    const agentRuntime = this.getAgentRuntime(channel, agentId, source, "stop");
-    if (!agentRuntime) return;
-
-    try {
-      const result = agentRuntime.stop(channel);
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "stop",
-        true,
-        result.stopped
-          ? `Stopped the running turn for ${agentId}.`
-          : `No running turn for ${agentId} on ${channel}.`,
-      );
-    } catch (err) {
-      console.error(
-        `[delivery] ${source} session stop error for ${channel} (agent ${agentId}):`,
-        err,
-      );
-      this.publishOperationStatus(
-        channel,
-        agentId,
-        "stop",
-        false,
-        `Failed to stop the running turn for ${agentId}: ${formatDispatchError(err)}`,
-      );
-    }
-  }
-
-  private publishOperationStatus(
-    channel: string,
-    agentId: string,
-    operation: string,
+    requestMessageId: string,
+    result: ControlSuccess,
     ok: boolean,
-    text: string,
   ): void {
     this.channelBus.publishStatus({
       channel,
@@ -236,18 +96,74 @@ export class SessionControlRuntime {
       sourceChannel: channel,
       data: {
         kind: "operation_status",
-        text,
+        text: result.text,
         ok,
         targetAgentId: agentId,
-        operation,
+        operation: result.operation,
+        requestMessageId,
+        ...(result.archiveName ? { archiveName: result.archiveName } : {}),
       },
     });
   }
 }
 
-function formatDispatchError(err: unknown): string {
-  if (err instanceof Error && err.message.trim()) {
-    return err.message.trim();
+async function runControl(
+  runtime: AgentChannelRuntime,
+  channel: string,
+  control: SessionControl,
+): Promise<ControlSuccess> {
+  const agentId = control.targetAgentId;
+  switch (control.kind) {
+    case "session_reset": {
+      const result = await runtime.reset(channel);
+      return {
+        operation: "reset",
+        text: `Started a new session for ${agentId}.`,
+        ...(result.archivedTo ? { archiveName: basename(result.archivedTo) } : {}),
+      };
+    }
+    case "session_restore": {
+      const result = await runtime.restore(channel, control.archiveName);
+      return {
+        operation: "restore",
+        text: `Restored session for ${agentId} from ${result.restoredFrom}.`,
+        archiveName: basename(result.restoredFrom),
+      };
+    }
+    case "session_thinking_level": {
+      if (!isThinkingLevel(control.level)) {
+        throw new Error(`invalid thinking level: ${control.level}`);
+      }
+      const result = await runtime.setThinkingLevel(channel, control.level);
+      const level = result.effectiveLevel === result.requestedLevel
+        ? result.effectiveLevel
+        : `${result.effectiveLevel} (requested ${result.requestedLevel})`;
+      return {
+        operation: "thinking",
+        text: `Set thinking level for ${agentId} to ${level}.`,
+      };
+    }
+    case "session_stop": {
+      const result = runtime.stop(channel);
+      return {
+        operation: "stop",
+        text: result.stopped
+          ? `Stopped the running turn for ${agentId}.`
+          : `No running turn for ${agentId} on ${channel}.`,
+      };
+    }
   }
-  return String(err);
+}
+
+function operationFor(control: SessionControl): Operation {
+  switch (control.kind) {
+    case "session_reset": return "reset";
+    case "session_restore": return "restore";
+    case "session_thinking_level": return "thinking";
+    case "session_stop": return "stop";
+  }
+}
+
+function formatError(err: unknown): string {
+  return err instanceof Error && err.message.trim() ? err.message.trim() : String(err);
 }

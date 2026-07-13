@@ -7,9 +7,10 @@ import { resolveRuntimeConfig } from "../dist/config/runtime.js";
 import { resolveContextConfig } from "../dist/context/index.js";
 import {
   createBootstrap,
+  createLocalSessionKey,
   openSession,
 } from "../dist/sessions/index.js";
-import { createLocalSessionDescriptor } from "../dist/sessions/spec.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
 let workspace: string;
 
@@ -45,11 +46,11 @@ describe("session tool policy", () => {
     assert.ok(model);
 
     const session = await openSession(bootstrap, {
-      descriptor: createLocalSessionDescriptor({
-        workspacePath: agentRoot,
-        agentId: "shrimpy",
-        label: "policy",
-        kind: "run",
+      descriptor: createSessionDescriptor({
+        agentRoot,
+        key: createLocalSessionKey({ agentId: "shrimpy", name: "policy" }),
+        purpose: "run",
+        delivery: { kind: "transcript" },
       }),
       toolPolicy: {
         excludedToolNames: ["bash"],

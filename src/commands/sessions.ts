@@ -42,7 +42,7 @@ function parseSessionArgs(argv: string[], usageText: string) {
     options: {
       agent: { type: "string", short: "a" },
       archive: { type: "string" },
-      "session-type": { type: "string" },
+      "no-wait": { type: "boolean", default: false },
       json: { type: "boolean" },
     },
     allowPositionals: true,
@@ -125,12 +125,11 @@ async function readSession({ argv, config, usage: usageText }: CommandInvocation
 
 async function inspectCompaction({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
   const { values, positionals } = parseSessionArgs(argv, usageText);
-  const channel = requireArg(positionals[0], usageText, "channel");
+  const sessionId = requireArg(positionals[0], usageText, "session id");
   const runtime = createAppRuntime(config);
   const summary = await inspectSessionCompactionPolicy(runtime, {
     agentId: values.agent,
-    channel,
-    sessionType: values["session-type"],
+    sessionId,
   });
   if (values.json) {
     console.log(JSON.stringify(summary, null, 2));
@@ -143,12 +142,12 @@ async function inspectCompaction({ argv, config, usage: usageText }: CommandInvo
 async function listSessions({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
   const { values, positionals } = parseSessionArgs(argv, usageText);
   const runtime = createAppRuntime(config);
-  const channel = positionals[0];
+  const sessionId = positionals[0];
   const summary = summarizeAgentSessions(runtime, {
     agentId: values.agent,
-    channel,
+    sessionId,
   });
-  const status = channel
+  const status = sessionId
     ? undefined
     : summarizeSessionStatus(runtime, {
       agentId: values.agent,
@@ -164,7 +163,7 @@ async function listSessions({ argv, config, usage: usageText }: CommandInvocatio
 
 async function setThinking({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
   const { values, positionals } = parseSessionArgs(argv, usageText);
-  const channel = requireArg(positionals[0], usageText, "channel");
+  const sessionId = requireArg(positionals[0], usageText, "session id");
   const level = requireArg(positionals[1], usageText, "level");
   const parsedLevel = parseThinkingLevel(level);
   if (!parsedLevel) {
@@ -173,45 +172,55 @@ async function setThinking({ argv, config, usage: usageText }: CommandInvocation
 
   const runtime = createAppRuntime(config);
   const result = await executeSessionThinkingAction(runtime, {
-    channel,
+    sessionId,
     level: parsedLevel,
     agentId: values.agent,
+    wait: !values["no-wait"],
   });
 
-  printSessionThinkingResult(result);
-  return 0;
+  if (values.json) console.log(JSON.stringify(result, null, 2));
+  else printSessionThinkingResult(result);
+  return actionExitCode(result.outcome);
 }
 
 function sessionLifecycleAction(action: "new" | "clear" | "restore") {
-  return ({ argv, config, usage: usageText }: CommandInvocation): number => {
+  return async ({ argv, config, usage: usageText }: CommandInvocation): Promise<number> => {
     const { values, positionals } = parseSessionArgs(argv, usageText);
-    const channel = requireArg(positionals[0], usageText, "channel");
+    const sessionId = requireArg(positionals[0], usageText, "session id");
     const runtime = createAppRuntime(config);
 
-    const result = executeSessionLifecycleAction(runtime, {
+    const result = await executeSessionLifecycleAction(runtime, {
       action,
-      channel,
+      sessionId,
       agentId: values.agent,
       archive: values.archive,
+      wait: !values["no-wait"],
     });
 
-    printSessionLifecycleResult(result);
-    return 0;
+    if (values.json) console.log(JSON.stringify(result, null, 2));
+    else printSessionLifecycleResult(result);
+    return actionExitCode(result.outcome);
   };
 }
 
-function stopSession({ argv, config, usage: usageText }: CommandInvocation): number {
+async function stopSession({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
   const { values, positionals } = parseSessionArgs(argv, usageText);
-  const channel = requireArg(positionals[0], usageText, "channel");
+  const sessionId = requireArg(positionals[0], usageText, "session id");
   const runtime = createAppRuntime(config);
 
-  const result = executeSessionStopAction(runtime, {
-    channel,
+  const result = await executeSessionStopAction(runtime, {
+    sessionId,
     agentId: values.agent,
+    wait: !values["no-wait"],
   });
 
-  printSessionStopResult(result);
-  return 0;
+  if (values.json) console.log(JSON.stringify(result, null, 2));
+  else printSessionStopResult(result);
+  return actionExitCode(result.outcome);
+}
+
+function actionExitCode(outcome: "applied" | "applied_direct" | "failed" | "unconfirmed" | "queued"): number {
+  return outcome === "failed" || outcome === "unconfirmed" ? 1 : 0;
 }
 
 export const cmdSessions: CommandHandler = createCommandGroup({

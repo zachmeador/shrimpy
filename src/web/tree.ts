@@ -78,7 +78,7 @@ function normalizeRel(path: string): string {
 }
 
 function isSessionLog(relPath: string): boolean {
-  return /^agents\/[^/]+\/sessions\/[^/]+\/[^/]+\.jsonl$/.test(relPath);
+  return /^agents\/[^/]+\/sessions\/(local|channel|worker)\/[^/]+\/[^/]+\/[^/]+\.jsonl$/.test(relPath);
 }
 
 export function classifyWorkspaceFile(relPath: string): {
@@ -117,7 +117,7 @@ function compareNodes(parentPath: string): (a: TreeNode, b: TreeNode) => number 
 
     const filesByNewest =
       parentPath === "channels" ||
-      /^agents\/[^/]+\/sessions\/[^/]+$/.test(parentPath);
+      /^agents\/[^/]+\/sessions\/(local|channel|worker)\/[^/]+\/[^/]+$/.test(parentPath);
     if (filesByNewest && a.type === "file" && b.type === "file") {
       return b.mtimeMs - a.mtimeMs;
     }

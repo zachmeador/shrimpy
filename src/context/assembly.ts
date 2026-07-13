@@ -15,6 +15,7 @@ import {
 } from "./spec.js";
 import type { ContextSourceConfig } from "./source.js";
 import { isPromptRuntimeEnvKey } from "./env.js";
+import type { SessionDelivery } from "../sessions/spec.js";
 
 interface PromptContextAssembly {
   sections: PromptSection[];
@@ -166,10 +167,10 @@ export function buildRuntimeEnvironmentSection(opts: {
 }
 
 export function buildSessionDeliverySection(opts: {
-  sessionType: string;
-  channel?: string;
-}): PromptSection | undefined {
-  if (opts.sessionType === "gateway" && opts.channel) {
+  delivery: SessionDelivery;
+}): PromptSection {
+  if (opts.delivery.kind === "channel") {
+    const channel = opts.delivery.channel;
     return {
       id: "session:delivery",
       path: "runtime/delivery",
@@ -180,34 +181,30 @@ export function buildSessionDeliverySection(opts: {
       content: [
         "## Delivery",
         "",
-        `This session is attached to channel ${opts.channel}.`,
+        `This session is attached to channel ${channel}.`,
         "",
-        ...gatewayDeliveryGuidance(opts.channel).map((line) => `- ${line}`),
+        ...gatewayDeliveryGuidance(channel).map((line) => `- ${line}`),
       ].join("\n"),
     };
   }
 
-  if (opts.sessionType === "tui" || opts.sessionType === "run") {
-    return {
-      id: "session:direct_delivery",
-      path: "runtime/direct_delivery",
-      title: "Direct Session Delivery",
-      kind: "runtime",
-      source: "runtime",
-      reason: "Direct local sessions answer in the session transcript",
-      content: [
-        "## Direct Session Delivery",
-        "",
-        `This is a direct ${opts.sessionType} session. The user sees ordinary assistant text in this transcript.`,
-        "",
-        "- Answer the current conversation with normal assistant messages.",
-        "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are only for gateway/channel turns.",
-        "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel, user:<id> alias, or agent DM. Agent DMs are internal channels, so no external adapter is expected.",
-      ].join("\n"),
-    };
-  }
-
-  return undefined;
+  return {
+    id: "session:transcript_delivery",
+    path: "runtime/transcript_delivery",
+    title: "Transcript Delivery",
+    kind: "runtime",
+    source: "runtime",
+    reason: "Transcript sessions answer directly to their caller",
+    content: [
+      "## Transcript Delivery",
+      "",
+      "The user sees ordinary assistant text in this transcript.",
+      "",
+      "- Answer the current conversation with normal assistant messages.",
+      "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are for channel-bound turns.",
+      "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel, user:<id> alias, or agent DM. Agent DMs are internal channels, so no external adapter is expected.",
+    ].join("\n"),
+  };
 }
 
 function promptRuntimeEnvLabel(key: string): string {

@@ -16,10 +16,11 @@ import {
 import { editConfigFile } from "../config/store.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
-  createGatewaySessionDescriptor,
-  createLocalSessionDescriptor,
+  formatSessionId,
+  parseSessionId,
   resolveModelPolicy,
   resolveSessionModel,
+  sessionRootPath,
   shouldRestoreSavedSessionModel,
   type ModelPolicyResolution,
   type ModelResolution,
@@ -461,13 +462,12 @@ async function cmdModelsResolve(
   const session = values.channel
     ? {
       label: values.channel,
-      kind: "gateway",
+      kind: "channel",
       channel: values.channel,
-      dir: createGatewaySessionDescriptor({
-        workspacePath: agentPaths.root,
-        agentId: agent.id,
-        channel: values.channel,
-      }).sessionDir,
+      dir: sessionRootPath(agentPaths.root, parseSessionId(
+        agent.id,
+        `channel/${encodeURIComponent(values.channel)}`,
+      )),
     }
     : values.session
       ? resolveSessionRef(agentPaths.root, agent.id, values.session)
@@ -581,38 +581,17 @@ function resolveSessionRef(
   agentId: string,
   raw: string,
 ): ResolvedSessionRef {
-  if (raw.startsWith("gateway:")) {
-    const channel = raw.slice("gateway:".length);
-    const descriptor = createGatewaySessionDescriptor({
-      workspacePath: agentRoot,
-      agentId,
-      channel,
-    });
-    return {
-      label: channel,
-      kind: "gateway",
-      channel,
-      dir: descriptor.sessionDir,
-    };
-  }
-
-  const descriptor = createLocalSessionDescriptor({
-    workspacePath: agentRoot,
-    agentId,
-    label: raw,
-    kind: raw,
-    channel: raw,
-  });
+  const key = parseSessionId(agentId, raw);
   return {
-    label: raw,
-    kind: raw,
-    channel: raw,
-    dir: descriptor.sessionDir,
+    label: formatSessionId(key),
+    kind: key.namespace,
+    ...(key.namespace === "channel" ? { channel: key.name } : {}),
+    dir: sessionRootPath(agentRoot, key),
   };
 }
 
-function sessionCanRestoreSavedModel(session: ResolvedSessionRef): boolean {
-  return session.kind !== "gateway";
+function sessionCanRestoreSavedModel(_session: ResolvedSessionRef): boolean {
+  return true;
 }
 
 function listPolicyViews(

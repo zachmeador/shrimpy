@@ -584,7 +584,7 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(calls.map((call) => call.agentId), ["career", "shrimpy"]);
   });
 
-  test("serializes live dispatch in append order per channel", async () => {
+  test("does not add a second channel queue above the session pool", async () => {
     const agents = testAgents();
     const memberships = new ChannelMembershipStore(
       join(workspace, "config", "channels.json"),
@@ -637,7 +637,81 @@ describe("ChannelDeliveryLoop routing", () => {
       }, "live"),
     ]);
 
-    assert.deepEqual(calls, ["first", "second"]);
+    assert.deepEqual(calls, ["second", "first"]);
+  });
+
+  test("delivers stop controls while a turn is still running", async () => {
+    const agents = testAgents();
+    const memberships = new ChannelMembershipStore(
+      join(workspace, "config", "channels.json"),
+      agents,
+    );
+    memberships.write({
+      channels: { "room-1": { agents: { shrimpy: {} } } },
+    });
+    const dispatcher = new ChannelDeliveryLoop({
+      runtime: testRuntime(agents, memberships),
+      bootstraps: testBootstraps(agents),
+      channelBus: { publishStatus() {} } as any,
+    }) as any;
+
+    let finishTurn!: () => void;
+    const running = new Promise<void>((resolve) => {
+      finishTurn = resolve;
+    });
+    let started = false;
+    let stopped = false;
+    dispatcher.agentRuntimes = new Map([
+      ["shrimpy", {
+        async handleMessage() {
+          started = true;
+          await running;
+        },
+        stop() {
+          stopped = true;
+          finishTurn();
+          return { channel: "room-1", stopped: true, messageId: "turn-1" };
+        },
+      }],
+    ]);
+    dispatcher.controlRuntime = new SessionControlRuntime(
+      dispatcher.channelBus,
+      dispatcher.agentRuntimes,
+    );
+
+    const turn = dispatcher.enqueueMessage("room-1", {
+      id: "turn-1",
+      sender: { kind: "human", actorId: "human:alice" },
+      origin: { transport: "telegram" },
+      content: { type: "text", data: { text: "long turn" } },
+      timestamp: Date.now(),
+    }, "live");
+    while (!started) {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    const stop = dispatcher.enqueueMessage("room-1", {
+      id: "stop-1",
+      sender: { kind: "system", actorId: "system:cli" },
+      origin: { transport: "cli" },
+      content: {
+        type: "control",
+        data: {
+          kind: "session_stop",
+          targetAgentId: "shrimpy",
+          command: "/stop",
+        },
+      },
+      timestamp: Date.now(),
+    }, "live");
+
+    await Promise.race([
+      Promise.all([turn, stop]),
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error("stop was queued behind the running turn")),
+        100,
+      )),
+    ]);
+    assert.equal(stopped, true);
   });
 
   test("skips messages already acknowledged in the gateway ledger", async () => {
@@ -998,7 +1072,12 @@ describe("ChannelDeliveryLoop routing", () => {
     memberships.addAgent("room-1", "shrimpy");
     memberships.addAgent("room-1", "career");
 
-    const delivered: Array<{ channel: string; text: string }> = [];
+    const delivered: Array<{
+      channel: string;
+      text: string;
+      requestMessageId: string;
+      archiveName?: string;
+    }> = [];
     const runtime = {
       resolved: {
         agents,
@@ -1023,7 +1102,12 @@ describe("ChannelDeliveryLoop routing", () => {
       bootstraps: testBootstraps(agents),
       channelBus: {
         publishStatus(input: any) {
-          delivered.push({ channel: input.channel, text: input.data.text });
+          delivered.push({
+            channel: input.channel,
+            text: input.data.text,
+            requestMessageId: input.data.requestMessageId,
+            archiveName: input.data.archiveName,
+          });
         },
       } as any,
     }) as any;
@@ -1045,6 +1129,7 @@ describe("ChannelDeliveryLoop routing", () => {
         },
         async reset(channel: string) {
           resets.push(`career:${channel}`);
+          return { archivedTo: "/tmp/career-archive.jsonl" };
         },
       }],
     ]);
@@ -1073,6 +1158,8 @@ describe("ChannelDeliveryLoop routing", () => {
     assert.deepEqual(delivered, [{
       channel: "room-1",
       text: "Started a new session for career.",
+      requestMessageId: "reset-1",
+      archiveName: "career-archive.jsonl",
     }]);
   });
 

@@ -4,6 +4,7 @@ import { listWorkers } from "../../workers/store.js";
 import type { WorkerRecord, WorkerStatus } from "../../workers/types.js";
 import { formatAgeShort } from "../../util/time-format.js";
 import type { TurnContextInput, TurnContextItem } from "./types.js";
+import { sessionChannel } from "../../sessions/spec.js";
 
 const ACTIONABLE_STATUSES = new Set<WorkerStatus>(["complete", "blocked", "failed", "cancelled"]);
 
@@ -20,9 +21,13 @@ export function buildWorkerContextItems(input: {
   const workers = ownedOpenWorkers(input.turn.runtime, input.agentId);
   if (workers.length === 0) return [];
 
-  const currentSession = input.turn.descriptor.sessionDir;
-  const currentChannel = input.turn.descriptor.channel;
-  const currentSessionWorkers = workers.filter((worker) => worker.parent.session === currentSession);
+  const currentSession = input.turn.descriptor.storage.kind === "durable"
+    ? input.turn.descriptor.storage.dir
+    : undefined;
+  const currentChannel = sessionChannel(input.turn.descriptor);
+  const currentSessionWorkers = currentSession
+    ? workers.filter((worker) => worker.parent.session === currentSession)
+    : [];
   const currentChannelWorkers = currentChannel
     ? workers.filter((worker) => worker.relatedChannel === currentChannel && worker.parent.session !== currentSession)
     : [];
@@ -86,7 +91,7 @@ function workerItem(worker: WorkerRecord, relevance: string): TurnContextItem {
 
 function relevanceLabel(
   worker: WorkerRecord,
-  currentSession: string,
+  currentSession: string | undefined,
   currentChannel?: string,
 ): string {
   if (worker.parent.session === currentSession) return "current session";

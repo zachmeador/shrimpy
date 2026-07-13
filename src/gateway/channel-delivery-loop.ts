@@ -38,7 +38,7 @@ export class ChannelDeliveryLoop {
   private readonly agentRuntimes: Map<string, AgentChannelRuntime>;
   private readonly controlRuntime: SessionControlRuntime;
   private readonly stateStore: GatewayRuntimeStateStore;
-  private readonly channelChains = new Map<string, Promise<void>>();
+  private readonly activeDispatches = new Set<Promise<void>>();
   private cursors: Record<string, ChannelCursor> = {};
   private watcher: ChannelWatcher | null = null;
 
@@ -119,7 +119,7 @@ export class ChannelDeliveryLoop {
 
   async stop(): Promise<void> {
     this.watcher?.stop();
-    await Promise.allSettled(this.channelChains.values());
+    await Promise.allSettled(this.activeDispatches);
     await Promise.allSettled(
       Array.from(this.agentRuntimes.values(), (agentRuntime) => agentRuntime.dispose()),
     );
@@ -133,26 +133,22 @@ export class ChannelDeliveryLoop {
     message: ChannelMessage,
     source: DispatchSource,
   ): Promise<void> {
-    const previous = this.channelChains.get(channel) ?? Promise.resolve();
-    const next = previous
+    const dispatch = this.dispatchMessage(channel, message, source)
       .catch((err) => {
-        console.error(`[delivery] channel queue error for ${channel}:`, err);
+        console.error(`[delivery] dispatch error for ${channel}:`, err);
       })
-      .then(() => this.dispatchMessage(channel, message, source))
       .finally(() => {
-        if (this.channelChains.get(channel) === next) {
-          this.channelChains.delete(channel);
-        }
+        this.activeDispatches.delete(dispatch);
         if (source === "live") {
           this.saveLiveCursorsIfIdle();
         }
       });
-    this.channelChains.set(channel, next);
-    return next;
+    this.activeDispatches.add(dispatch);
+    return dispatch;
   }
 
   private saveLiveCursorsIfIdle(): void {
-    if (!this.watcher || this.channelChains.size > 0) return;
+    if (!this.watcher || this.activeDispatches.size > 0) return;
     saveCursors(this.runtime.paths.cursorsPath, this.watcher.getCursors());
   }
 

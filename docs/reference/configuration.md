@@ -50,7 +50,7 @@ Use CLI commands for routine inspection and edits. They validate inputs and pres
 ```bash
 shrimpy status
 shrimpy models
-shrimpy models resolve --agent shrimpy --session tui
+shrimpy models resolve --agent shrimpy --session local/main
 shrimpy agent show shrimpy
 shrimpy agent inspect shrimpy
 shrimpy agent channel-policy shrimpy --channel home
@@ -108,7 +108,7 @@ Runtime compaction defaults live under `runtime.compaction`, but the full policy
 Inspect recorded/effective compaction settings with:
 
 ```bash
-shrimpy sessions compaction <channel> --agent <id> --json
+shrimpy sessions compaction <session-id> --agent <id> --json
 ```
 
 A useful override shape:
@@ -189,7 +189,7 @@ shrimpy models
 shrimpy models policies show coding
 shrimpy models policies set coding --candidate openai/gpt-5
 shrimpy models policies add-candidate coding anthropic/claude-opus --index 1
-shrimpy models resolve --agent shrimpy --session tui
+shrimpy models resolve --agent shrimpy --session local/main
 shrimpy models resolve --agent shrimpy --channel home
 ```
 

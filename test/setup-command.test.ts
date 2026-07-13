@@ -43,8 +43,8 @@ describe("setup entry", () => {
       }),
       {
         agentId: "mechanic",
-        channel: "setup",
-        sessionType: "tui",
+        session: { namespace: "local", name: "setup" },
+        purpose: "setup",
         initialMessage: "Begin setup.",
         skills: ["shrimpy-setup"],
         modelPolicy: "coding",

@@ -7,11 +7,12 @@ import {
   resolveSessionCompactionPolicy,
   type EffectiveCompactionPolicy,
 } from "./compaction-policy.js";
-import { isLocalDirectChannel } from "./direct-channels.js";
-import { createGatewaySessionDescriptor } from "./spec.js";
+import { formatSessionId, parseSessionId, sameSessionKey } from "./identity.js";
+import { createSessionDescriptor } from "./spec.js";
 import {
   findActiveSessionFile,
   findLastCustomEntry,
+  listSessionDescriptors,
 } from "./storage.js";
 
 interface SessionPathSummary {
@@ -23,8 +24,8 @@ interface SessionPathSummary {
 
 export interface SessionCompactionPolicySummary {
   agentId: string;
-  channel: string;
-  sessionType: string;
+  sessionId: string;
+  purpose: string;
   sessionDir: string;
   activeSession: SessionPathSummary;
   model?: {
@@ -46,20 +47,26 @@ export interface SessionCompactionPolicySummary {
 export async function inspectSessionCompactionPolicy(
   runtime: AppRuntime,
   input: {
-    channel: string;
+    sessionId: string;
     agentId?: string;
-    sessionType?: string;
   },
 ): Promise<SessionCompactionPolicySummary> {
   const agent = runtime.getAgent(input.agentId);
   const agentRoot = runtime.getAgentPaths(agent.id).root;
-  const sessionType = input.sessionType ?? (isLocalDirectChannel(input.channel) ? input.channel : "gateway");
-  const descriptor = createGatewaySessionDescriptor({
-    workspacePath: agentRoot,
-    agentId: agent.id,
-    channel: input.channel,
+  const key = parseSessionId(agent.id, input.sessionId);
+  const descriptor = listSessionDescriptors(agentRoot).find((candidate) =>
+    sameSessionKey(candidate.key, key)
+  ) ?? createSessionDescriptor({
+    agentRoot,
+    key,
+    purpose: key.namespace === "channel" ? "channel" : key.namespace,
+    delivery: key.namespace === "channel"
+      ? { kind: "channel", channel: key.name }
+      : { kind: "transcript" },
   });
-  descriptor.kind = sessionType;
+  if (descriptor.storage.kind !== "durable") {
+    throw new Error(`session ${input.sessionId} is not durable`);
+  }
 
   const bootstrap = await runtime.createBootstrap({ agentId: agent.id });
   const model = runtime.resolveModel(
@@ -74,7 +81,7 @@ export async function inspectSessionCompactionPolicy(
     descriptor,
     model,
   });
-  const activeSession = summarizeActiveSessionPath(descriptor.sessionDir);
+  const activeSession = summarizeActiveSessionPath(descriptor.storage.dir);
   const recorded = activeSession.exists
     ? readRecordedCompactionPolicy(activeSession.path)
     : undefined;
@@ -97,9 +104,9 @@ export async function inspectSessionCompactionPolicy(
 
   return {
     agentId: agent.id,
-    channel: input.channel,
-    sessionType,
-    sessionDir: descriptor.sessionDir,
+    sessionId: formatSessionId(key),
+    purpose: descriptor.purpose,
+    sessionDir: descriptor.storage.dir,
     activeSession,
     model: model
       ? {

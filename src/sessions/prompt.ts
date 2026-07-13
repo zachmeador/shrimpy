@@ -15,6 +15,7 @@ import { getSkillPromptResourcesFromPaths } from "../skills/index.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
 import type { SessionOpenPlan } from "./spec.js";
+import { sessionChannel } from "./spec.js";
 
 export interface SessionPromptAssembly {
   systemPrompt: string;
@@ -34,6 +35,7 @@ export function assembleSessionPrompt(
   plan: SessionOpenPlan,
 ): SessionPromptAssembly {
   const { descriptor } = plan;
+  const channel = sessionChannel(descriptor);
   const resolvedModel = plan.model;
 
   const cwd = descriptor.cwd ?? bootstrap.agentRootPath;
@@ -45,8 +47,8 @@ export function assembleSessionPrompt(
   });
   const envKeys = resolveContextEnvKeys(
     bootstrap.contextConfig,
-    descriptor.channel,
-    descriptor.agentId ?? bootstrap.agentId,
+    channel,
+    descriptor.key.agentId,
   );
   const env = { ...bootstrap.bootEnv, ...sessionEnv };
   const runtimeEnvironmentSection = buildRuntimeEnvironmentSection({
@@ -54,8 +56,7 @@ export function assembleSessionPrompt(
     env,
   });
   const deliverySection = buildSessionDeliverySection({
-    sessionType: descriptor.kind,
-    channel: descriptor.channel,
+    delivery: descriptor.delivery,
   });
   const stableRuntimeSections = [
     runtimeEnvironmentSection,
@@ -66,8 +67,8 @@ export function assembleSessionPrompt(
     bootstrap.agentRootPath,
     bootstrap.workspacePath,
     bootstrap.contextConfig,
-    descriptor.channel,
-    descriptor.agentId ?? bootstrap.agentId,
+    channel,
+    descriptor.key.agentId,
   );
   const skillPromptResources = plan.prompt?.skills && !bootstrap.runtimeConfig.noSkills
     ? getSkillPromptResourcesFromPaths({

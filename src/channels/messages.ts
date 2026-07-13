@@ -52,6 +52,8 @@ export type OperationStatusContentData = Record<string, unknown> & {
   ok: boolean;
   targetAgentId?: string;
   operation?: string;
+  requestMessageId?: string;
+  archiveName?: string;
 };
 
 export type StatusContentData =
@@ -430,6 +432,14 @@ function isOperationStatusContentData(
     && (
       value.operation === undefined ||
       typeof value.operation === "string"
+    )
+    && (
+      value.requestMessageId === undefined ||
+      typeof value.requestMessageId === "string"
+    )
+    && (
+      value.archiveName === undefined ||
+      typeof value.archiveName === "string"
     );
 }
 
@@ -505,6 +515,8 @@ export function operationStatusContent(input: {
   ok: boolean;
   targetAgentId?: string;
   operation?: string;
+  requestMessageId?: string;
+  archiveName?: string;
 }): StatusMessageContent<OperationStatusContentData> {
   return statusContent({
     kind: "operation_status",
@@ -512,7 +524,16 @@ export function operationStatusContent(input: {
     ok: input.ok,
     ...(input.targetAgentId ? { targetAgentId: input.targetAgentId } : {}),
     ...(input.operation ? { operation: input.operation } : {}),
+    ...(input.requestMessageId ? { requestMessageId: input.requestMessageId } : {}),
+    ...(input.archiveName ? { archiveName: input.archiveName } : {}),
   } as OperationStatusContentData);
+}
+
+export function readOperationStatusContent(
+  value: MessageContent,
+): OperationStatusContentData | null {
+  if (!isStatusMessageContent(value)) return null;
+  return isOperationStatusContentData(value.data) ? value.data : null;
 }
 
 export function readSessionControlContent(

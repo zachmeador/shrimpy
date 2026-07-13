@@ -1,14 +1,16 @@
-import { join } from "node:path";
 import type { AppRuntime } from "../app/runtime.js";
 import {
   makeMessage,
   textContent,
 } from "../channels/index.js";
 import {
-  createGatewaySessionDescriptor,
-  createStoredSessionDescriptor,
+  createSessionDescriptor,
   type SessionDescriptor,
 } from "../sessions/spec.js";
+import {
+  createChannelSessionKey,
+  createLocalSessionKey,
+} from "../sessions/identity.js";
 import {
   assembleSessionPrompt,
   type SessionPromptAssembly,
@@ -101,23 +103,18 @@ export function buildContextPreviewTarget(
   const cwd = input.cwd ?? runtime.getAgentCwd(agent.id);
   const sessionType = input.sessionType
     ?? (input.channel ? "gateway" : "preview");
-  const descriptor = input.channel
-    ? {
-      ...createGatewaySessionDescriptor({
-        workspacePath: agentPaths.root,
-        agentId: agent.id,
-        channel: input.channel,
-        cwd,
-      }),
-      kind: sessionType,
-    }
-    : createStoredSessionDescriptor({
-      workspacePath: agentPaths.root,
-      agentId: agent.id,
-      sessionName: join("context-preview", agent.id),
-      kind: sessionType,
-      cwd,
-    });
+  const descriptor = createSessionDescriptor({
+    agentRoot: agentPaths.root,
+    key: input.channel
+      ? createChannelSessionKey({ agentId: agent.id, channel: input.channel })
+      : createLocalSessionKey({ agentId: agent.id, name: "context-preview" }),
+    purpose: sessionType,
+    delivery: input.channel
+      ? { kind: "channel", channel: input.channel }
+      : { kind: "transcript" },
+    persistent: false,
+    cwd,
+  });
 
   return {
     agentId: agent.id,

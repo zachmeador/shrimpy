@@ -1,30 +1,34 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { SessionPlanner } from "../dist/sessions/index.js";
+import {
+  createChannelSessionKey,
+  createLocalSessionKey,
+  SessionResolver,
+} from "../dist/sessions/index.js";
 
-describe("SessionPlanner", () => {
-  test("plans direct model restore only when no model override is provided", async () => {
+describe("session resolution", () => {
+  test("restores durable session models only when no override is provided", async () => {
     const model = createModel("Selected Model");
     const runtime = createRuntime();
     const bootstrap = createBootstrap(() => model);
-    const planner = new SessionPlanner({
+    const resolver = new SessionResolver({
       runtime,
       bootstrap,
       channelBus: {} as any,
       agentId: "shrimpy",
     });
 
-    const restored = await planner.planDirect({
-      label: "tui",
-      channel: "tui",
-      sessionType: "tui",
+    const restored = await resolver.resolve({
+      key: createLocalSessionKey({ agentId: "shrimpy", name: "main" }),
+      purpose: "interactive",
+      delivery: { kind: "transcript" },
       cwd: "/tmp/cwd",
     });
-    const explicit = await planner.planDirect({
-      label: "tui",
-      channel: "tui",
-      sessionType: "tui",
+    const explicit = await resolver.resolve({
+      key: createLocalSessionKey({ agentId: "shrimpy", name: "main" }),
+      purpose: "interactive",
+      delivery: { kind: "transcript" },
       cwd: "/tmp/cwd",
       model: "qwen",
     });
@@ -32,17 +36,17 @@ describe("SessionPlanner", () => {
     assert.equal(restored.restoreModelFromSession, true);
     assert.equal(restored.modelResolution?.source, "policy");
     assert.equal(restored.defaultThinking, "high");
-    assert.equal(restored.descriptor.kind, "tui");
-    assert.equal(restored.descriptor.channel, "tui");
+    assert.equal(restored.descriptor.key.namespace, "local");
+    assert.deepEqual(restored.descriptor.delivery, { kind: "transcript" });
     assert.equal(explicit.restoreModelFromSession, false);
     assert.equal(explicit.modelResolution?.source, "cli");
   });
 
-  test("keeps gateway model resolution fixed at planner construction", async () => {
+  test("resolves channel sessions through the same path", async () => {
     const initial = createModel("Initial Model");
     const changed = createModel("Changed Model");
     let current = initial;
-    const planner = new SessionPlanner({
+    const resolver = new SessionResolver({
       runtime: createRuntime(),
       bootstrap: createBootstrap(() => current),
       channelBus: {} as any,
@@ -50,14 +54,27 @@ describe("SessionPlanner", () => {
     });
     current = changed;
 
-    const plan = await planner.planChannel("telegram~shrimpy~1");
+    const plan = await resolver.resolve({
+      key: createChannelSessionKey({
+        agentId: "shrimpy",
+        channel: "telegram~shrimpy~1",
+      }),
+      purpose: "channel",
+      delivery: { kind: "channel", channel: "telegram~shrimpy~1" },
+      cwd: "/tmp/shrimpy-cwd",
+    });
 
-    assert.equal(plan.model?.name, "Initial Model");
-    assert.equal(plan.modelResolution?.model?.name, "Initial Model");
-    assert.equal(plan.descriptor.kind, "gateway");
-    assert.equal(plan.descriptor.channel, "telegram~shrimpy~1");
+    assert.equal(plan.model?.name, "Changed Model");
+    assert.equal(plan.modelResolution?.model?.name, "Changed Model");
+    assert.equal(plan.descriptor.key.namespace, "channel");
+    assert.deepEqual(plan.descriptor.delivery, {
+      kind: "channel",
+      channel: "telegram~shrimpy~1",
+    });
     assert.equal(plan.descriptor.cwd, "/tmp/shrimpy-cwd");
     assert.equal(plan.defaultThinking, "high");
+    assert.equal(plan.prompt?.extraResources, undefined);
+    assert.equal(plan.prompt?.appendSystemPrompt, undefined);
   });
 });
 

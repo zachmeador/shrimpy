@@ -1,5 +1,5 @@
 /**
- * SessionRegistry tests — exercise the real registry with a fake session
+ * SessionPool tests — exercise the real pool with a fake session
  * factory so we validate the actual concurrency and prompt formatting paths.
  */
 
@@ -31,7 +31,7 @@ import {
   type Model,
 } from "@earendil-works/pi-ai";
 import { makeMessage } from "../dist/channels/index.js";
-import { SessionRegistry } from "../dist/sessions/registry.js";
+import { SessionPool } from "../dist/sessions/pool.js";
 import { assembleSessionPrompt } from "../dist/sessions/prompt.js";
 import {
   createSessionTurnContextController,
@@ -43,7 +43,8 @@ import {
   formatChannelMessage,
   renderTurnContext,
 } from "../dist/context/index.js";
-import { createGatewaySessionDescriptor } from "../dist/sessions/spec.js";
+import { createChannelSessionKey } from "../dist/sessions/identity.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
 type Listener = (event: { type: string; messages?: unknown[] }) => void;
 
@@ -240,18 +241,15 @@ function createRegistry(
   sessionFactory: ReturnType<typeof createSessionFactory>,
   workspacePath?: string,
   opts?: {
-    turnContextForMessage?: ConstructorParameters<typeof SessionRegistry>[1]["turnContextForMessage"];
-    startActivity?: ConstructorParameters<typeof SessionRegistry>[1]["startActivity"];
+    turnContextForMessage?: ConstructorParameters<typeof SessionPool>[1]["turnContextForMessage"];
+    startActivity?: ConstructorParameters<typeof SessionPool>[1]["startActivity"];
   },
 ) {
   const bootstrap = createFakeBootstrap(workspacePath);
-  return new SessionRegistry(bootstrap, {
+  return new SessionPool(bootstrap, {
     sessionFactory: sessionFactory.factory as any,
     planForChannel: (channel) => ({
-      descriptor: createGatewaySessionDescriptor({
-        workspacePath: bootstrap.workspacePath,
-        channel,
-      }),
+      descriptor: channelDescriptor(bootstrap.agentRootPath, channel),
     }),
     turnContextForMessage: opts?.turnContextForMessage,
     startActivity: opts?.startActivity,
@@ -414,27 +412,33 @@ describe("formatMessage", () => {
   });
 });
 
-describe("createGatewaySessionDescriptor", () => {
-  test("stores channel sessions directly under the agent session root", () => {
-    const descriptor = createGatewaySessionDescriptor({
-      workspacePath: "/tmp/shrimpy-test-workspace",
-      agentId: "career-shrimpy",
-      channel: "telegram~shrimpy~123",
-    });
-
-    assert.equal(
-      descriptor.sessionDir,
-      "/tmp/shrimpy-test-workspace/sessions/telegram_shrimpy_123",
+describe("channel session descriptor", () => {
+  test("stores channel sessions under a collision-free namespace", () => {
+    const descriptor = channelDescriptor(
+      "/tmp/shrimpy-test-workspace",
+      "telegram~shrimpy~123",
+      "career-shrimpy",
     );
+
+    assert.equal(descriptor.storage.kind, "durable");
+    assert.match(
+      descriptor.storage.kind === "durable" ? descriptor.storage.dir : "",
+      /\/sessions\/channel\/[^/]+\/[^/]+$/,
+    );
+    assert.equal(descriptor.key.namespace, "channel");
   });
 
   test("does not infer a skill session type from skill-like channel names", () => {
-    const descriptor = createGatewaySessionDescriptor({
-      workspacePath: "/tmp/shrimpy-test-workspace",
+    const descriptor = channelDescriptor(
+      "/tmp/shrimpy-test-workspace",
+      "skill~jobs~weather-check",
+    );
+
+    assert.equal(descriptor.purpose, "channel");
+    assert.deepEqual(descriptor.delivery, {
+      kind: "channel",
       channel: "skill~jobs~weather-check",
     });
-
-    assert.equal(descriptor.kind, "gateway");
   });
 });
 
@@ -619,7 +623,7 @@ describe("turn context Pi extension", () => {
   });
 });
 
-describe("SessionRegistry", () => {
+describe("SessionPool", () => {
   test("deduplicates concurrent session creation per channel", async () => {
     const sessionFactory = createSessionFactory({ creationDelayMs: 20 });
     const registry = createRegistry(sessionFactory);
@@ -706,6 +710,30 @@ describe("SessionRegistry", () => {
       registry.getLaneState("telegram~shrimpy~1").lastOutcome?.outcome,
       "completed",
     );
+  });
+
+  test("clears the lane when session preparation fails", async () => {
+    let handled = false;
+    const pool = new SessionPool(createFakeBootstrap(), {
+      planForChannel: () => {
+        throw new Error("plan failed");
+      },
+      markMessageHandled: () => {
+        handled = true;
+      },
+    });
+    const originalError = console.error;
+    console.error = () => {};
+    try {
+      await pool.dispatch("telegram~shrimpy~1", humanText("hello"));
+    } finally {
+      console.error = originalError;
+    }
+
+    const lane = pool.getLaneState("telegram~shrimpy~1");
+    assert.equal(lane.currentTurn, undefined);
+    assert.equal(lane.lastOutcome?.outcome, "errored");
+    assert.equal(handled, true);
   });
 
   test("stops the running turn without waiting for the prompt to finish", async () => {
@@ -811,13 +839,10 @@ describe("SessionRegistry", () => {
   test("persists prepared session context through the same user message path", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const bootstrap = createFakeBootstrap();
-    const registry = new SessionRegistry(bootstrap, {
+    const registry = new SessionPool(bootstrap, {
       sessionFactory: sessionFactory.factory as any,
       planForChannel: (channel) => ({
-        descriptor: createGatewaySessionDescriptor({
-          workspacePath: bootstrap.workspacePath,
-          channel,
-        }),
+        descriptor: channelDescriptor(bootstrap.agentRootPath, channel),
         prepareTurnContext: async () => "prepared direct/TUI-style context",
       }),
     });
@@ -1071,9 +1096,9 @@ describe("SessionRegistry", () => {
     await registry.dispatch("discord-1", humanText("discord"));
 
     assert.equal(sessionFactory.createSessionOpts.length, 3);
-    assert.equal(sessionFactory.createSessionOpts[0].descriptor.kind, "gateway");
-    assert.equal(sessionFactory.createSessionOpts[1].descriptor.kind, "gateway");
-    assert.equal(sessionFactory.createSessionOpts[2].descriptor.kind, "gateway");
+    assert.equal(sessionFactory.createSessionOpts[0].descriptor.purpose, "channel");
+    assert.equal(sessionFactory.createSessionOpts[1].descriptor.purpose, "channel");
+    assert.equal(sessionFactory.createSessionOpts[2].descriptor.purpose, "channel");
   });
 
   test("reset archives the current session file and opens a fresh session on the next turn", async () => {
@@ -1083,7 +1108,7 @@ describe("SessionRegistry", () => {
 
     try {
       await registry.dispatch("telegram~shrimpy~1", humanText("first"));
-      const sessionDir = sessionFactory.createSessionOpts[0].descriptor.sessionDir;
+      const sessionDir = sessionFactory.createSessionOpts[0].descriptor.storage.dir;
       mkdirSync(sessionDir, { recursive: true });
       const sessionFile = join(sessionDir, "state.jsonl");
       writeSessionFile(sessionFile, "state");
@@ -1113,7 +1138,7 @@ describe("SessionRegistry", () => {
 
     try {
       await registry.dispatch("telegram~shrimpy~1", humanText("first"));
-      const sessionDir = sessionFactory.createSessionOpts[0].descriptor.sessionDir;
+      const sessionDir = sessionFactory.createSessionOpts[0].descriptor.storage.dir;
       mkdirSync(sessionDir, { recursive: true });
       const stateA = join(sessionDir, "state-a.jsonl");
       const stateB = join(sessionDir, "state-b.jsonl");
@@ -1141,6 +1166,19 @@ describe("SessionRegistry", () => {
     }
   });
 });
+
+function channelDescriptor(
+  agentRoot: string,
+  channel: string,
+  agentId = "shrimpy",
+) {
+  return createSessionDescriptor({
+    agentRoot,
+    key: createChannelSessionKey({ agentId, channel }),
+    purpose: "channel",
+    delivery: { kind: "channel", channel },
+  });
+}
 
 function writeSessionFile(path: string, id: string): void {
   const now = new Date().toISOString();

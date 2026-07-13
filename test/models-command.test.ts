@@ -5,9 +5,10 @@ import { join } from "node:path";
 import { cmdModels } from "../dist/commands/models.js";
 import { runCommand } from "../dist/commands/framework.js";
 import {
-  createGatewaySessionDescriptor,
-  createLocalSessionDescriptor,
-} from "../dist/sessions/spec.js";
+  createChannelSessionKey,
+  createLocalSessionKey,
+} from "../dist/sessions/identity.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
 import {
   setupInit,
   captureLogs,
@@ -91,7 +92,7 @@ describe("cmdModels", () => {
     const config = configWithModelPolicy("configured_provider", "configured-model");
 
     const { result, lines } = await captureLogs(() =>
-      cmdModels(["resolve", "--agent", "shrimpy", "--session", "tui", "--json"], config as any)
+      cmdModels(["resolve", "--agent", "shrimpy", "--session", "local/tui", "--json"], config as any)
     );
 
     assert.equal(result, 0);
@@ -110,7 +111,7 @@ describe("cmdModels", () => {
     });
   });
 
-  test("reports channel session model records without making them the restart default", async () => {
+  test("restores channel session models through the shared persistent-session policy", async () => {
     await setupInit(workspace);
     writeModelsJson({
       providers: {
@@ -127,17 +128,16 @@ describe("cmdModels", () => {
 
     assert.equal(result, 0);
     const summary = JSON.parse(lines.join("\n"));
-    assert.equal(summary.session.restoreSavedModel, false);
+    assert.equal(summary.session.restoreSavedModel, true);
     assert.deepEqual(summary.session.recordedModel, {
       provider: "selected_provider",
       id: "selected-model",
     });
     assert.deepEqual(summary.effective, {
-      source: "policy",
-      policy: "coding",
+      source: "saved-session",
       model: {
-        provider: "configured_provider",
-        id: "configured-model",
+        provider: "selected_provider",
+        id: "selected-model",
       },
     });
   });
@@ -311,24 +311,26 @@ function configWithModelPolicy(provider: string, id: string): Record<string, unk
 
 function writeLocalSessionModel(label: string, provider: string, id: string): void {
   const agentRoot = join(workspace, "agents", "shrimpy");
-  const descriptor = createLocalSessionDescriptor({
-    workspacePath: agentRoot,
-    agentId: "shrimpy",
-    label,
-    kind: label,
-    channel: label,
+  const descriptor = createSessionDescriptor({
+    agentRoot,
+    key: createLocalSessionKey({ agentId: "shrimpy", name: label }),
+    purpose: label,
+    delivery: { kind: "transcript" },
   });
-  writeSessionModel(join(descriptor.sessionDir, `${label}-active.jsonl`), provider, id);
+  assert.equal(descriptor.storage.kind, "durable");
+  writeSessionModel(join(descriptor.storage.dir, `${label}-active.jsonl`), provider, id);
 }
 
 function writeGatewaySessionModel(channel: string, provider: string, id: string): void {
   const agentRoot = join(workspace, "agents", "shrimpy");
-  const descriptor = createGatewaySessionDescriptor({
-    workspacePath: agentRoot,
-    agentId: "shrimpy",
-    channel,
+  const descriptor = createSessionDescriptor({
+    agentRoot,
+    key: createChannelSessionKey({ agentId: "shrimpy", channel }),
+    purpose: "channel",
+    delivery: { kind: "channel", channel },
   });
-  writeSessionModel(join(descriptor.sessionDir, `${channel}-active.jsonl`), provider, id);
+  assert.equal(descriptor.storage.kind, "durable");
+  writeSessionModel(join(descriptor.storage.dir, `${channel}-active.jsonl`), provider, id);
 }
 
 function writeSessionModel(path: string, provider: string, id: string): void {

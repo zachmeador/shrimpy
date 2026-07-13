@@ -12,8 +12,8 @@ Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, bu
 ## Current State
 
 - `cmdRootTui` passes `agentId: values.agent`; when no `--agent` is supplied, the value is undefined.
-- `prepareDirectSessionOpen` calls `runtime.getAgent(input.agentId)`, and `AppRuntime.getAgent(undefined)` returns the first configured agent.
-- Direct TUI sessions are already agent-scoped under `agents/<id>/sessions/tui/`.
+- `prepareForegroundSessionOpen` calls `runtime.getAgent(input.agentId)`, and `AppRuntime.getAgent(undefined)` returns the first configured agent.
+- TUI sessions are agent-scoped canonical `local/main` sessions with manifests under `agents/<id>/sessions/local/`.
 - `createSessionManager` resumes the active JSONL only inside the selected agent's session directory.
 - `shrimpy_session_metadata` records `agentId`, but only after a session has already been opened, so it cannot help bare startup choose the agent.
 - Live workspace evidence shows active `tui` sessions for multiple configured agents, with the newest active TUI session not necessarily belonging to the first configured agent.
@@ -21,8 +21,8 @@ Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, bu
 ## Build
 
 - Add a narrow startup resolver for the root interactive command when no explicit `--agent` is provided.
-- Resolve the most recent active local `tui` session across configured agents by inspecting each `agents/<id>/sessions/tui/` directory and lifecycle state.
-- Use the resolved agent id before calling `prepareDirectSessionOpen`, so the existing per-agent resume path opens the right session without changing Pi session storage.
+- Resolve the most recent active `local/main` session across configured agents through the manifest-backed session catalog and lifecycle state.
+- Use the resolved agent id before calling `prepareForegroundSessionOpen`, so the existing per-agent resume path opens the right session without changing Pi session storage.
 - Preserve explicit agent selection for `shrimpy --agent <id>`, `shrimpy chat <agent>`, `shrimpy chat mechanic`, and `shrimpy agent tui <id>`.
 - Keep the default first-configured-agent behavior when no active `tui` session exists anywhere.
 - Decide and document whether `shrimpy "prompt"` without `--agent` should target the most recent TUI agent or the configured default agent.
@@ -31,7 +31,7 @@ Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, bu
 
 - Do not create a new session format or move session files.
 - Do not read full transcripts to choose the agent; lifecycle state and file timestamps are enough.
-- Do not change direct `run` or gateway channel resume semantics.
+- Do not change ephemeral `run` or gateway channel resume semantics.
 - Do not make root startup depend on live workspace channel logs, runtime logs, or provider state.
 - Do not add legacy command aliases or compatibility shims.
 

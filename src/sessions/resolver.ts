@@ -18,28 +18,27 @@ import {
   resolveSessionModel,
   shouldRestoreSavedSessionModel,
 } from "./models.js";
-import type {
-  ModelResolution,
-  SessionModelRequest,
-} from "./models.js";
+import type { SessionModelRequest } from "./models.js";
+import type { SessionKey } from "./identity.js";
 import {
-  createGatewaySessionDescriptor,
-  createLocalSessionDescriptor,
+  createSessionDescriptor,
+  type SessionDelivery,
   type SessionDescriptor,
   type SessionOpenPlan,
 } from "./spec.js";
 
-interface SessionPlannerOpts {
+interface SessionResolverOptions {
   runtime: AppRuntime;
   bootstrap: SessionBootstrap;
   channelBus: ChannelBus;
   agentId?: string;
 }
 
-export interface DirectSessionPlanOverrides {
-  label: string;
-  channel: string;
-  sessionType: string;
+export interface ResolveSessionInput {
+  key: SessionKey;
+  purpose: string;
+  delivery: SessionDelivery;
+  persistent?: boolean;
   cwd: string;
   provider?: string;
   model?: string;
@@ -51,11 +50,7 @@ export interface DirectSessionPlanOverrides {
   allowRegistryFallbackModel?: boolean;
 }
 
-interface GatewayStartupPlan {
-  modelResolution: ModelResolution;
-}
-
-export class SessionPlanner {
+export class SessionResolver {
   readonly agentId: string;
   private readonly runtime: AppRuntime;
   private readonly bootstrap: SessionBootstrap;
@@ -63,52 +58,45 @@ export class SessionPlanner {
   private readonly agent: ResolvedAgentConfig;
   private readonly toolPolicy: AgentToolPolicy;
   private readonly sessionToolPolicy: SessionToolPolicy | undefined;
-  private readonly gatewayStartup: GatewayStartupPlan;
 
-  constructor(opts: SessionPlannerOpts) {
-    this.runtime = opts.runtime;
-    this.bootstrap = opts.bootstrap;
-    this.channelBus = opts.channelBus;
-    this.agent = opts.runtime.getAgent(opts.agentId);
+  constructor(options: SessionResolverOptions) {
+    this.runtime = options.runtime;
+    this.bootstrap = options.bootstrap;
+    this.channelBus = options.channelBus;
+    this.agent = options.runtime.getAgent(options.agentId);
     this.agentId = this.agent.id;
-    this.toolPolicy = resolvePlannerToolPolicy(opts.runtime, this.agent);
+    this.toolPolicy = resolveResolverToolPolicy(options.runtime, this.agent);
     this.sessionToolPolicy = createSessionToolPolicy(this.toolPolicy);
-
-    // Gateway sessions reuse this startup resolution until the agent runtime restarts.
-    const modelRequest = this.createModelRequest({});
-    const modelResolution = resolveSessionModel({
-      bootstrap: opts.bootstrap,
-      ...modelRequest,
-    });
-    this.gatewayStartup = {
-      modelResolution,
-    };
   }
 
-  async planDirect(
-    overrides: DirectSessionPlanOverrides,
-  ): Promise<SessionOpenPlan> {
+  async resolve(input: ResolveSessionInput): Promise<SessionOpenPlan> {
     process.env.PI_SKIP_VERSION_CHECK = "1";
+    if (input.key.agentId !== this.agent.id) {
+      throw new Error(
+        `session key agent ${input.key.agentId} does not match resolver agent ${this.agent.id}`,
+      );
+    }
 
-    const descriptor = this.createDirectDescriptor(overrides);
-    const modelRequest = this.createModelRequest(overrides);
-    const restoreModelFromSession = shouldRestoreSavedSessionModel(modelRequest);
+    const descriptor = this.descriptor(input);
+    const modelRequest = this.modelRequest(input);
+    const restoreModelFromSession = input.persistent !== false &&
+      shouldRestoreSavedSessionModel(modelRequest);
     const modelResolution = resolveSessionModel({
       bootstrap: this.bootstrap,
       ...modelRequest,
-      allowMissingModel: restoreModelFromSession || overrides.allowMissingModel,
+      allowMissingModel: restoreModelFromSession || input.allowMissingModel,
     });
 
     return {
       descriptor,
       modelRequest,
       restoreModelFromSession,
-      allowMissingModel: overrides.allowMissingModel,
-      thinking: overrides.thinking,
+      allowMissingModel: input.allowMissingModel,
+      thinking: input.thinking,
       defaultThinking: this.agent.thinking,
       prompt: {
-        appendSystemPrompt: overrides.appendSystemPrompt,
-        skills: overrides.skills,
+        appendSystemPrompt: input.appendSystemPrompt,
+        skills: input.skills,
       },
       prepareTurnContext: async () => {
         const turnContext = await buildTurnContext({
@@ -120,51 +108,24 @@ export class SessionPlanner {
       model: modelResolution.model,
       modelResolution,
       toolPolicy: this.sessionToolPolicy,
-      tools: await this.buildTools(),
+      tools: await this.buildTools(descriptor),
     };
   }
 
-  async planChannel(channel: string): Promise<SessionOpenPlan> {
-    const descriptor = this.createGatewayDescriptor(channel);
-
-    return {
-      descriptor,
-      model: this.gatewayStartup.modelResolution.model,
-      modelResolution: this.gatewayStartup.modelResolution,
-      defaultThinking: this.agent.thinking,
-      tools: await this.buildTools({
-        actorId: `agent:${this.agent.id}`,
-        activePublicationChannel: channel,
-      }),
-      toolPolicy: this.sessionToolPolicy,
-    };
-  }
-
-  createGatewayDescriptor(channel: string): SessionDescriptor {
-    return createGatewaySessionDescriptor({
-      workspacePath: this.bootstrap.agentRootPath,
-      agentId: this.agent.id,
-      channel,
-      cwd: this.runtime.getAgentCwd(this.agent.id),
+  descriptor(input: Pick<ResolveSessionInput, "key" | "purpose" | "delivery" | "persistent" | "cwd">): SessionDescriptor {
+    return createSessionDescriptor({
+      agentRoot: this.runtime.getAgentPaths(this.agent.id).root,
+      key: input.key,
+      purpose: input.purpose,
+      delivery: input.delivery,
+      persistent: input.persistent,
+      cwd: input.cwd,
     });
   }
 
-  private createDirectDescriptor(
-    overrides: DirectSessionPlanOverrides,
-  ): SessionDescriptor {
-    return createLocalSessionDescriptor({
-      workspacePath: this.runtime.getAgentPaths(this.agent.id).root,
-      agentId: this.agent.id,
-      label: overrides.label,
-      kind: overrides.sessionType,
-      channel: overrides.channel,
-      cwd: overrides.cwd,
-    });
-  }
-
-  private createModelRequest(
+  private modelRequest(
     input: Pick<
-      DirectSessionPlanOverrides,
+      ResolveSessionInput,
       | "provider"
       | "model"
       | "modelPolicy"
@@ -183,23 +144,27 @@ export class SessionPlanner {
     };
   }
 
-  private async buildTools(opts?: {
-    actorId?: string;
-    activePublicationChannel?: string;
-  }): Promise<ToolDefinition[]> {
+  private async buildTools(descriptor: SessionDescriptor): Promise<ToolDefinition[]> {
+    const channel = descriptor.delivery.kind === "channel"
+      ? descriptor.delivery.channel
+      : undefined;
     return this.runtime.buildRuntimeTools({
       bootstrap: this.bootstrap,
       channelBus: this.channelBus,
       agentId: this.agent.id,
       toolNames: this.toolPolicy.daemonToolNames,
       toolPolicy: this.sessionToolPolicy,
-      actorId: opts?.actorId,
-      activePublicationChannel: opts?.activePublicationChannel,
+      ...(channel
+        ? {
+          actorId: `agent:${this.agent.id}`,
+          activePublicationChannel: channel,
+        }
+        : {}),
     });
   }
 }
 
-function resolvePlannerToolPolicy(
+function resolveResolverToolPolicy(
   runtime: AppRuntime,
   agent: ResolvedAgentConfig,
 ): AgentToolPolicy {

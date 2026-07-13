@@ -1,6 +1,7 @@
 import { hostname } from "node:os";
 import { readAppMetadata } from "../app/metadata.js";
 import type { SessionDescriptor } from "../sessions/spec.js";
+import { sessionChannel } from "../sessions/spec.js";
 
 export interface BootEnv {
   workspace_path: string;
@@ -59,9 +60,11 @@ export function resolveSessionEnv(opts: {
   cwd: string;
 }): SessionEnv {
   return {
-    session_type: opts.descriptor.kind,
-    channel: opts.descriptor.channel ?? "",
-    session_dir: opts.descriptor.sessionDir,
+    session_type: opts.descriptor.purpose,
+    channel: sessionChannel(opts.descriptor) ?? "",
+    session_dir: opts.descriptor.storage.kind === "durable"
+      ? opts.descriptor.storage.dir
+      : "",
     model_id: opts.modelId,
     provider: opts.provider,
     cwd: opts.cwd,

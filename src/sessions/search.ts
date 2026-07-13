@@ -1,8 +1,10 @@
 import { createReadStream, existsSync, readdirSync, statSync } from "node:fs";
-import { basename, isAbsolute, join, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { createInterface } from "node:readline";
 import type { AppRuntime } from "../app/runtime.js";
 import { isRecord } from "../util/record.js";
+import { formatSessionId } from "./identity.js";
+import { listSessionDescriptors } from "./storage.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
 const DEFAULT_SEARCH_LIMIT = 25;
@@ -208,21 +210,22 @@ function listSessionFileCandidates(
   const candidates: SessionFileCandidate[] = [];
 
   for (const agent of agents) {
-    const sessionsRoot = runtime.getAgentPaths(agent.id).sessionsDir;
-    const labels = input.channel
-      ? [input.channel]
-      : listDirectoryNames(sessionsRoot);
+    const descriptors = listSessionDescriptors(runtime.getAgentPaths(agent.id).root)
+      .filter((descriptor) =>
+        !input.channel ||
+        (descriptor.delivery.kind === "channel" && descriptor.delivery.channel === input.channel)
+      );
 
-    for (const label of labels) {
-      const sessionDir = join(sessionsRoot, label);
-      if (!existsSync(sessionDir)) continue;
+    for (const descriptor of descriptors) {
+      if (descriptor.storage.kind !== "durable") continue;
+      const sessionDir = descriptor.storage.dir;
       for (const entry of readdirSync(sessionDir, { withFileTypes: true })) {
         if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
         const path = join(sessionDir, entry.name);
         candidates.push({
           agentId: agent.id,
-          sessionLabel: label,
-          sessionType: sessionTypeForLabel(label),
+          sessionLabel: formatSessionId(descriptor.key),
+          sessionType: descriptor.purpose,
           path,
           name: entry.name,
           relativePath: relative(runtime.paths.workspace, path),
@@ -349,15 +352,7 @@ function candidateForPath(
   const found = candidates.find((candidate) => candidate.path === path);
   if (found) return found;
 
-  return {
-    agentId: agentId ?? runtime.getAgent().id,
-    sessionLabel: basename(join(path, "..")),
-    sessionType: sessionTypeForLabel(basename(join(path, ".."))),
-    path,
-    name: basename(path),
-    relativePath: relative(runtime.paths.workspace, path),
-    updatedAtMs: statSync(path).mtimeMs,
-  };
+  throw new Error(`session transcript is not registered by a session manifest: ${path}`);
 }
 
 function searchableSessionEntry(
@@ -508,19 +503,6 @@ function lifecycleStateFromEntry(entry: Record<string, unknown>): SessionLifecyc
   if (entry.type !== "custom" || entry.customType !== LIFECYCLE_CUSTOM_TYPE) return null;
   if (!isRecord(entry.data)) return null;
   return entry.data.state === "archived" ? "archived" : "active";
-}
-
-function listDirectoryNames(path: string): string[] {
-  if (!existsSync(path)) return [];
-  return readdirSync(path, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
-}
-
-function sessionTypeForLabel(label: string): string {
-  if (label === "tui" || label === "run") return label;
-  return "channel";
 }
 
 function entryTimestamp(

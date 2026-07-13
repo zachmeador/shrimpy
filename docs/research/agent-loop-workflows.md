@@ -131,7 +131,7 @@ Longer loops amplify ordinary failure modes: repeated side effects, stale observ
 | Human/direct turns | Direct TUI and `run` sessions | Already natural | Optional goal envelope and budgets |
 | Background time triggers | Watches and watch clock | Cron/interval, history, command/message actions | Run-scoped concurrency and terminal disable policy |
 | Event ingress | Channels, surfaces, gateway delivery | Unified typed message path | Typed external trigger adapters and idempotent event/run correlation |
-| Agent execution lanes | Gateway `SessionRegistry` | FIFO serialization per channel session and user stop | A long goal run can monopolize a lane; background runs may need dedicated sessions |
+| Agent execution lanes | Gateway `SessionPool` | FIFO serialization per channel session and user stop | A long goal run can monopolize a lane; background runs may need dedicated sessions |
 | Verification instructions | Skills | Good place for repeatable checks and scripts | Machine-readable evaluator result contract |
 | Delegated coding | Workers | Detached, inspectable, resumable through amendments | Fan-out/fan-in, worktree isolation, judging, and parent run state |
 | Public reporting | Channel publication helpers and outbox | Deliberate egress with receipts | One final run report plus optional bounded progress events |

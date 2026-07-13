@@ -8,129 +8,87 @@ import type {
   SessionReadResult,
   SessionSearchResult,
   SessionStatusSummary,
-  SingleSessionListingSummary,
+  SessionSummary,
 } from "../sessions/index.js";
 import { formatSessionAge } from "../sessions/index.js";
 import { accent, dim, label } from "../util/style.js";
 import type { GatewayLaneState } from "../gateway/runtime-state.js";
 
 export function printSessionListing(
-  summary: SessionListingSummary | SingleSessionListingSummary,
+  summary: SessionListingSummary | SessionSummary,
   status?: SessionStatusSummary,
 ): void {
-  if ("channel" in summary) {
+  if ("sessionId" in summary) {
     printSingleSessionListing(summary);
     return;
   }
 
-  if (summary.active.length === 0 && summary.recentArchives.length === 0) {
+  if (summary.sessions.length === 0) {
     console.log(dim("(no sessions)"));
     return;
   }
 
-  if (summary.active.length === 0) {
-    console.log(dim("(no active sessions)"));
-  } else {
-    console.log(label("active sessions:"));
-    for (const session of summary.active) {
-      const statusEntry = status?.active.find((entry) =>
-        entry.channel === session.channel && entry.path === session.path
-      );
+  console.log(label("sessions:"));
+  for (const session of summary.sessions) {
+    const statusEntry = status?.active.find((entry) =>
+      entry.sessionId === session.sessionId && entry.path === session.active.path
+    );
       const recency = statusEntry
         ? `  ${statusEntry.status} ${formatSessionAge(statusEntry.ageMs)} ago`
         : "";
-      console.log(
-        `  ${accent(session.channel)}  ${session.path}  ${dim(session.updatedAt ?? "(unknown)")}${recency}`,
-      );
-    }
-    if (status) {
-      console.log(
-        dim(
-          `  ${status.counts.recent} recent, ${status.counts.stale} stale (>${formatSessionAge(status.staleAfterMs)})`,
-        ),
-      );
-    }
+    const owner = session.owner ? ` owner=${session.owner.kind}:${session.owner.pid}` : "";
+    console.log(
+      `  ${accent(session.sessionId)}  ${session.purpose}  ${formatSessionPath(session.active)}${owner}${recency}`,
+    );
   }
-
-  if (summary.recentArchives.length > 0) {
-    console.log(label("recent archives:"));
-    for (const archived of summary.recentArchives) {
-      console.log(`  ${archived.name}  ${dim(archived.path)}`);
-    }
+  if (status) {
+    console.log(
+      dim(
+        `  ${status.counts.recent} recent, ${status.counts.stale} stale (>${formatSessionAge(status.staleAfterMs)})`,
+      ),
+    );
   }
-
-  printGatewayLanes(summary.gatewayLanes);
 }
 
 export function printSessionLifecycleResult(
-  result: ReturnType<typeof executeSessionLifecycleAction>,
+  result: Awaited<ReturnType<typeof executeSessionLifecycleAction>>,
 ): void {
-  switch (result.kind) {
-    case "local_restore":
-      console.log(`restored ${result.agentId} session for ${result.channel}`);
-      console.log(`restored_from: ${result.restoredFrom}`);
-      if (result.archivedPreviousTo) {
-        console.log(`archived_previous: ${result.archivedPreviousTo}`);
-      }
-      return;
-    case "local_reset":
-      if (result.archivedTo) {
-        console.log(`reset ${result.agentId} session for ${result.channel}`);
-        console.log(`archived: ${result.archivedTo}`);
-      } else {
-        console.log(`no existing ${result.agentId} session for ${result.channel}`);
-      }
-      return;
-    case "requested_restore":
-      console.log(
-        `requested restore session for ${result.agentId} on ${result.channel}${result.requestedArchive ? ` (${result.requestedArchive})` : ""}`,
-      );
-      return;
-    case "requested_reset":
-      console.log(`requested ${result.action} session for ${result.agentId} on ${result.channel}`);
-      return;
-  }
+  printSessionActionResult(result);
 }
 
 export function printSessionThinkingResult(
   result: Awaited<ReturnType<typeof executeSessionThinkingAction>>,
 ): void {
-  switch (result.kind) {
-    case "local_thinking":
-      console.log(
-        `set thinking for ${result.agentId} session on ${result.channel} to ${result.effectiveLevel}`,
-      );
-      if (result.effectiveLevel !== result.requestedLevel) {
-        console.log(`requested: ${result.requestedLevel}`);
-      }
-      return;
-    case "requested_thinking":
-      console.log(
-        `requested thinking ${result.level} for ${result.agentId} on ${result.channel}`,
-      );
-      return;
-  }
+  printSessionActionResult(result);
 }
 
 export function printSessionStopResult(
-  result: ReturnType<typeof executeSessionStopAction>,
+  result: Awaited<ReturnType<typeof executeSessionStopAction>>,
 ): void {
-  switch (result.kind) {
-    case "local_stop_unavailable":
-      console.log(`no gateway turn to stop for ${result.agentId} on ${result.channel}`);
-      return;
-    case "requested_stop":
-      console.log(`requested stop for ${result.agentId} on ${result.channel}`);
-      return;
+  printSessionActionResult(result);
+}
+
+function printSessionActionResult(
+  result: Awaited<ReturnType<typeof executeSessionLifecycleAction>>,
+): void {
+  if (result.outcome === "failed" || result.outcome === "unconfirmed") {
+    console.error(result.message ?? `${result.operation} ${result.outcome}`);
+    return;
   }
+  if (result.outcome === "queued") {
+    console.log(`queued ${result.operation} for ${result.sessionId}`);
+    return;
+  }
+  const archive = result.archiveName ? ` archive=${result.archiveName}` : "";
+  console.log(`${result.operation} ${result.sessionId} ${result.outcome}${archive}`);
 }
 
 export function printSessionCompactionPolicy(
   summary: SessionCompactionPolicySummary,
 ): void {
   console.log(`${label("agent:")} ${accent(summary.agentId)}`);
-  console.log(`${label("channel:")} ${accent(summary.channel)}`);
-  console.log(`${label("session_type:")} ${summary.sessionType}`);
+  console.log(`${label("session:")} ${accent(summary.sessionId)}`);
+  console.log(`${label("purpose:")} ${summary.purpose}`);
   console.log(`${label("session_dir:")} ${summary.sessionDir}`);
   console.log(`${label("active:")} ${formatSessionPath(summary.activeSession)}`);
   if (summary.model) {
@@ -208,9 +166,14 @@ export function printSessionReadResult(result: SessionReadResult): void {
   }
 }
 
-function printSingleSessionListing(summary: SingleSessionListingSummary): void {
-  console.log(`${label("channel:")} ${accent(summary.channel)}`);
+function printSingleSessionListing(summary: SessionSummary): void {
+  console.log(`${label("session:")} ${accent(summary.sessionId)}`);
+  console.log(`${label("purpose:")} ${summary.purpose}`);
+  console.log(`${label("delivery:")} ${summary.delivery.kind}`);
   console.log(`${label("active:")} ${formatSessionPath(summary.active)}`);
+  if (summary.owner) {
+    console.log(`${label("owner:")} ${summary.owner.kind} pid=${summary.owner.pid}`);
+  }
   printGatewayLanes(summary.gatewayLanes);
 
   if (summary.archives.length === 0) {

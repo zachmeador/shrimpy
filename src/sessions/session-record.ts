@@ -13,6 +13,7 @@ import type { SessionBootstrap } from "./bootstrap.js";
 import type { EffectiveCompactionPolicy } from "./compaction-policy.js";
 import type { ModelResolution } from "./models.js";
 import type { SessionOpenPlan } from "./spec.js";
+import { sessionChannel } from "./spec.js";
 
 interface SessionMetadata {
   workspacePath: string;
@@ -160,9 +161,9 @@ function appendSessionMetadata(input: {
   };
   const metadata: SessionMetadata = {
     workspacePath: bootstrap.workspacePath,
-    agentId: plan.descriptor.agentId ?? bootstrap.agentId,
-    sessionType: plan.descriptor.kind,
-    channel: plan.descriptor.channel,
+    agentId: plan.descriptor.key.agentId,
+    sessionType: plan.descriptor.purpose,
+    channel: sessionChannel(plan.descriptor),
     envKeys: input.envKeys,
     env,
     compaction: input.compaction,

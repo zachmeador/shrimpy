@@ -1,6 +1,7 @@
 import type { AppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import type { ThinkingLevel } from "../sessions/thinking.js";
+import type { SessionNamespace } from "../sessions/identity.js";
 import type { SetupOnboardingResult } from "../setup/onboarding.js";
 import type { SetupState } from "../setup/state.js";
 import {
@@ -20,8 +21,8 @@ import {
 
 export interface ChatSessionRequest {
   agentId?: string;
-  channel: "tui";
-  sessionType: "tui";
+  session: { namespace: SessionNamespace; name: string };
+  purpose: string;
   provider?: string;
   model?: string;
   modelPolicy?: string;
@@ -91,8 +92,8 @@ export function createChatSessionRequest(
 
   return {
     agentId: positionals[0],
-    channel: "tui",
-    sessionType: "tui",
+    session: { namespace: "local", name: "main" },
+    purpose: "interactive",
     provider: sessionValues.provider,
     model: sessionValues.model,
     modelPolicy: sessionValues.modelPolicy,
