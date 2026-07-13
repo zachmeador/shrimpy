@@ -7,7 +7,7 @@ import {
   createPromptSection,
   renderPromptSections,
   type PromptSection,
-} from "../context/index.js";
+} from "./resources.js";
 import { formatAgentCurrentTime } from "../util/time-format.js";
 
 interface ContainedSystemPromptInput {

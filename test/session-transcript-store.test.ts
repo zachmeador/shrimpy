@@ -11,30 +11,30 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  archiveSessionDir,
+  archiveActiveSession,
   archiveSessionFile,
-  listArchivedSessionDirs,
-  restoreArchivedSessionDir,
+  listArchivedSessionFiles,
+  restoreArchivedSession,
 } from "../dist/sessions/index.js";
 
 let testDir: string;
 
 beforeEach(() => {
-  testDir = mkdtempSync(join(tmpdir(), "shrimpy-session-storage-test-"));
+  testDir = mkdtempSync(join(tmpdir(), "shrimpy-session-transcript-store-test-"));
 });
 
 afterEach(() => {
   rmSync(testDir, { recursive: true, force: true });
 });
 
-describe("session storage helpers", () => {
+describe("session transcript store", () => {
   test("archives the active session JSONL in place", () => {
     const sessionDir = join(testDir, "sessions", "shrimpy", "tui");
     mkdirSync(sessionDir, { recursive: true });
     const sessionFile = join(sessionDir, "state.jsonl");
     writeSessionFile(sessionFile);
 
-    const archivedTo = archiveSessionDir(sessionDir);
+    const archivedTo = archiveActiveSession(sessionDir);
     assert.equal(archivedTo, sessionFile);
     assert.equal(existsSync(sessionDir), true);
     assert.equal(existsSync(sessionFile), true);
@@ -52,7 +52,7 @@ describe("session storage helpers", () => {
     const archivedTo = archiveSessionFile(oldFile);
 
     assert.equal(archivedTo, oldFile);
-    assert.deepEqual(listArchivedSessionDirs(sessionDir), [oldFile]);
+    assert.deepEqual(listArchivedSessionFiles(sessionDir), [oldFile]);
     assert.match(readFileSync(oldFile, "utf-8"), /"state":"archived"/);
     assert.doesNotMatch(readFileSync(newFile, "utf-8"), /"state":"archived"/);
   });
@@ -63,13 +63,13 @@ describe("session storage helpers", () => {
     const one = join(sessionDir, "one.jsonl");
     const two = join(sessionDir, "two.jsonl");
     writeSessionFile(one);
-    archiveSessionDir(sessionDir);
+    archiveActiveSession(sessionDir);
     await new Promise((resolve) => setTimeout(resolve, 2));
 
     writeSessionFile(two);
-    archiveSessionDir(sessionDir);
+    archiveActiveSession(sessionDir);
 
-    const archived = listArchivedSessionDirs(sessionDir);
+    const archived = listArchivedSessionFiles(sessionDir);
     assert.equal(archived.length, 2);
     assert.equal(archived[0], two);
     assert.equal(archived[1], one);
@@ -81,12 +81,12 @@ describe("session storage helpers", () => {
     const oldFile = join(sessionDir, "old.jsonl");
     const currentFile = join(sessionDir, "current.jsonl");
     writeSessionFile(oldFile);
-    archiveSessionDir(sessionDir);
+    archiveActiveSession(sessionDir);
     await new Promise((resolve) => setTimeout(resolve, 2));
 
     writeSessionFile(currentFile);
 
-    const restored = restoreArchivedSessionDir(sessionDir);
+    const restored = restoreArchivedSession(sessionDir);
     assert.ok(restored);
     assert.equal(restored!.restoredFrom, oldFile);
     assert.equal(restored!.archivedPreviousTo, currentFile);

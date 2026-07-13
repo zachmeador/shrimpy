@@ -18,7 +18,7 @@ import { createSessionDescriptor } from "../dist/sessions/spec.js";
 import {
   ensureSessionManifest,
   listSessionDescriptors,
-} from "../dist/sessions/storage.js";
+} from "../dist/sessions/manifest.js";
 
 let workspace: string;
 let agentRoot: string;

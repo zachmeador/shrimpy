@@ -26,7 +26,7 @@ import {
   type ModelResolution,
   type SessionModelRequest,
 } from "../sessions/index.js";
-import { readSessionRecordedModel } from "../sessions/storage.js";
+import { readSessionRecordedModel } from "../sessions/transcript-store.js";
 import {
   addOpenAICompatibleModel,
 } from "../setup/pi-model-registry.js";

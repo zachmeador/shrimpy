@@ -1,7 +1,7 @@
 import {
   isThinkingLevel,
   type ThinkingLevel,
-} from "../sessions/thinking.js";
+} from "../thinking.js";
 import { isRecord } from "../util/record.js";
 
 export type SessionResetContentData = Record<string, unknown> & {

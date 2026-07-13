@@ -11,11 +11,12 @@ import type {
   GatewayLaneOutcome,
   GatewayLaneState,
 } from "../gateway/runtime-state.js";
-import { openSession, type SessionBootstrap } from "./factory.js";
+import type { SessionBootstrap } from "./bootstrap.js";
+import { disposeSession, openSession } from "./open.js";
 import type { SessionOpenPlan } from "./spec.js";
 import { durableSessionDir } from "./spec.js";
-import { archiveSessionDir, restoreArchivedSessionDir } from "./storage.js";
-import type { ThinkingLevel } from "./thinking.js";
+import { archiveActiveSession, restoreArchivedSession } from "./transcript-store.js";
+import type { ThinkingLevel } from "../thinking.js";
 import { runSessionTurn } from "./turn-output.js";
 
 interface SessionLane {
@@ -95,7 +96,7 @@ export class SessionPool {
         channel,
         sessionDir,
         hadSession,
-        archivedTo: archiveSessionDir(sessionDir),
+        archivedTo: archiveActiveSession(sessionDir),
       };
     });
   }
@@ -106,7 +107,7 @@ export class SessionPool {
       const sessionDir = durableSessionDir((await this.plan(lane)).descriptor);
       this.drop(lane, "restore");
       lane.plan = undefined;
-      const restored = restoreArchivedSessionDir(sessionDir, archiveName);
+      const restored = restoreArchivedSession(sessionDir, archiveName);
       if (!restored) {
         throw new Error(archiveName
           ? `archive not found for ${channel}: ${archiveName}`
@@ -268,7 +269,7 @@ export class SessionPool {
   private drop(lane: SessionLane, reason: string): void {
     if (!lane.session) return;
     try {
-      lane.session.dispose();
+      disposeSession(lane.session);
     } catch (err) {
       console.error(`[session:${lane.channel}] dispose error during ${reason}:`, err);
     }

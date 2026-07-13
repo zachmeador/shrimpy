@@ -1,11 +1,9 @@
 import {
   appendFileSync,
   existsSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
   statSync,
-  writeFileSync,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -18,14 +16,8 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "../config/model.js";
 import { isRecord } from "../util/record.js";
-import type { SessionDescriptor, SessionDelivery } from "./spec.js";
-import { createSessionDescriptor } from "./spec.js";
-import type { SessionKey } from "./identity.js";
-import { sameSessionKey } from "./identity.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
-const SESSION_MANIFEST_NAME = "session.json";
-const SESSION_MANIFEST_VERSION = 1;
 
 type SessionLifecycleState = "active" | "archived";
 
@@ -39,76 +31,7 @@ interface StoredSessionSummary {
   state: SessionLifecycleState;
 }
 
-export interface SessionManifest {
-  version: typeof SESSION_MANIFEST_VERSION;
-  key: SessionKey;
-  purpose: string;
-  delivery: SessionDelivery;
-}
-
-export function ensureSessionManifest(descriptor: SessionDescriptor): void {
-  if (descriptor.storage.kind !== "durable") return;
-  const path = join(descriptor.storage.dir, SESSION_MANIFEST_NAME);
-  const expected = manifestFromDescriptor(descriptor);
-  const existing = readSessionManifest(path);
-  if (existing) {
-    if (!sameSessionKey(existing.key, expected.key)) {
-      throw new Error(`session manifest identity mismatch: ${path}`);
-    }
-    if (
-      existing.purpose !== expected.purpose ||
-      JSON.stringify(existing.delivery) !== JSON.stringify(expected.delivery)
-    ) {
-      throw new Error(`session manifest binding mismatch: ${path}`);
-    }
-    return;
-  }
-
-  mkdirSync(descriptor.storage.dir, { recursive: true });
-  writeFileSync(path, `${JSON.stringify(expected, null, 2)}\n`, "utf8");
-}
-
-export function readSessionManifest(path: string): SessionManifest | undefined {
-  if (!existsSync(path)) return undefined;
-  try {
-    const value = JSON.parse(readFileSync(path, "utf8")) as unknown;
-    return parseSessionManifest(value);
-  } catch {
-    return undefined;
-  }
-}
-
-export function listSessionDescriptors(agentRoot: string): SessionDescriptor[] {
-  const sessionsRoot = join(agentRoot, "sessions");
-  if (!existsSync(sessionsRoot)) return [];
-  const descriptors: SessionDescriptor[] = [];
-
-  for (const namespace of readdirSync(sessionsRoot, { withFileTypes: true })) {
-    if (!namespace.isDirectory()) continue;
-    const namespacePath = join(sessionsRoot, namespace.name);
-    for (const name of readdirSync(namespacePath, { withFileTypes: true })) {
-      if (!name.isDirectory()) continue;
-      const namePath = join(namespacePath, name.name);
-      for (const profile of readdirSync(namePath, { withFileTypes: true })) {
-        if (!profile.isDirectory()) continue;
-        const manifest = readSessionManifest(
-          join(namePath, profile.name, SESSION_MANIFEST_NAME),
-        );
-        if (!manifest) continue;
-        descriptors.push(createSessionDescriptor({
-          agentRoot,
-          key: manifest.key,
-          purpose: manifest.purpose,
-          delivery: manifest.delivery,
-        }));
-      }
-    }
-  }
-
-  return descriptors;
-}
-
-export function archiveSessionDir(sessionDir: string): string | undefined {
+export function archiveActiveSession(sessionDir: string): string | undefined {
   const active = findActiveSessionFile(sessionDir);
   if (!active) return undefined;
   return archiveSessionFile(active);
@@ -120,19 +43,19 @@ export function archiveSessionFile(sessionFile: string): string | undefined {
   return sessionFile;
 }
 
-export function listArchivedSessionDirs(sessionDir: string): string[] {
+export function listArchivedSessionFiles(sessionDir: string): string[] {
   return listStoredSessions(sessionDir)
     .filter((session) => session.state === "archived")
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs)
     .map((session) => session.path);
 }
 
-export function resolveArchivedSessionDir(
+export function resolveArchivedSessionFile(
   sessionDir: string,
   archiveName?: string,
 ): string | undefined {
   if (!archiveName) {
-    return listArchivedSessionDirs(sessionDir)[0];
+    return listArchivedSessionFiles(sessionDir)[0];
   }
 
   if (archiveName.includes("/") || archiveName.includes("\\")) {
@@ -145,17 +68,17 @@ export function resolveArchivedSessionDir(
   return readStoredSession(candidate)?.state === "archived" ? candidate : undefined;
 }
 
-export function restoreArchivedSessionDir(
+export function restoreArchivedSession(
   sessionDir: string,
   archiveName?: string,
 ): {
   restoredFrom: string;
   archivedPreviousTo?: string;
 } | undefined {
-  const archivedSource = resolveArchivedSessionDir(sessionDir, archiveName);
+  const archivedSource = resolveArchivedSessionFile(sessionDir, archiveName);
   if (!archivedSource) return undefined;
 
-  const archivedPreviousTo = archiveSessionDir(sessionDir);
+  const archivedPreviousTo = archiveActiveSession(sessionDir);
   appendLifecycleEntry(archivedSource, "active");
 
   return {
@@ -164,48 +87,11 @@ export function restoreArchivedSessionDir(
   };
 }
 
-export function createSessionManager(cwd: string, sessionDir: string): SessionManager {
+export function openSessionManager(cwd: string, sessionDir: string): SessionManager {
   const active = findActiveSessionFile(sessionDir);
   return active
     ? SessionManager.open(active, sessionDir, cwd)
     : SessionManager.create(cwd, sessionDir);
-}
-
-function manifestFromDescriptor(descriptor: SessionDescriptor): SessionManifest {
-  return {
-    version: SESSION_MANIFEST_VERSION,
-    key: descriptor.key,
-    purpose: descriptor.purpose,
-    delivery: descriptor.delivery,
-  };
-}
-
-function parseSessionManifest(value: unknown): SessionManifest | undefined {
-  if (!isRecord(value) || value.version !== SESSION_MANIFEST_VERSION) return undefined;
-  if (!isRecord(value.key)) return undefined;
-  const { agentId, namespace, name, profileId } = value.key;
-  if (
-    typeof agentId !== "string" ||
-    (namespace !== "local" && namespace !== "channel" && namespace !== "worker") ||
-    typeof name !== "string" ||
-    typeof profileId !== "string" ||
-    typeof value.purpose !== "string" ||
-    !isSessionDelivery(value.delivery)
-  ) {
-    return undefined;
-  }
-  return {
-    version: SESSION_MANIFEST_VERSION,
-    key: { agentId, namespace, name, profileId },
-    purpose: value.purpose,
-    delivery: value.delivery,
-  };
-}
-
-function isSessionDelivery(value: unknown): value is SessionDelivery {
-  if (!isRecord(value)) return false;
-  if (value.kind === "transcript") return true;
-  return value.kind === "channel" && typeof value.channel === "string";
 }
 
 export function readSessionRecordedModel(
@@ -213,7 +99,7 @@ export function readSessionRecordedModel(
   sessionDir: string,
 ): ModelRef | undefined {
   try {
-    const model = createSessionManager(cwd, sessionDir).buildSessionContext().model;
+    const model = openSessionManager(cwd, sessionDir).buildSessionContext().model;
     return model
       ? { provider: model.provider, id: model.modelId }
       : undefined;

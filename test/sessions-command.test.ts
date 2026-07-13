@@ -6,7 +6,7 @@ import { ChannelBus } from "../dist/channels/bus.js";
 import { cmdSessions } from "../dist/commands/sessions.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
-import { ensureSessionManifest } from "../dist/sessions/storage.js";
+import { ensureSessionManifest } from "../dist/sessions/manifest.js";
 import {
   setupInit,
   captureLogs,

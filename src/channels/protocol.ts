@@ -1,4 +1,4 @@
-import type { ThinkingLevel } from "../sessions/thinking.js";
+import type { ThinkingLevel } from "../thinking.js";
 import { isRecord } from "../util/record.js";
 import {
   imageContent,

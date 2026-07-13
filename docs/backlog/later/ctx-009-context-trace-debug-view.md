@@ -46,7 +46,7 @@ This is lowest-priority observability work. Build it only when context provenanc
 ## Notes
 
 - This overlaps with CTX-008. CTX-008 may become the runtime-producer slice of this work, or be folded into this item when implementation starts.
-- Likely files: `src/context/source.ts`, `src/context/assembly.ts`, `src/context/turn/service.ts`, `src/context/resources.ts`, `src/commands/context.ts`, and `src/sessions/prompt.ts`.
+- Likely files: `src/context/source.ts`, `src/context/assembly.ts`, `src/context/session-prompt.ts`, `src/context/turn/service.ts`, `src/context/resources.ts`, and `src/commands/context.ts`.
 - This should make future turn-context facts easier to add because new facts can be introduced as trace producers with provenance and inspection metadata.
 - Related: active channel wake guidance lives in [channels.md](../../reference/channels.md).
 

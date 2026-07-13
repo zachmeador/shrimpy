@@ -30,7 +30,7 @@ The highest-value prompt-side improvements look small:
 
 Shrimpy already exposes time in several places:
 
-- `src/sessions/contained-system-prompt.ts` renders Pi runtime facts, including `Current time: ...; UTC: ...` and cwd.
+- `src/context/contained-system-prompt.ts` renders Pi runtime facts, including `Current time: ...; UTC: ...` and cwd.
 - `src/context/turn/render.ts` renders per-turn `[turn-context]` with `time: ...`.
 - `src/context/turn/service.ts` adds gateway status: last watch run, next watch run, and last user interaction.
 - `src/context/turn/agent-watches.ts` summarizes watch state: enabled/disabled, trigger text, target channels, next run, last run, active run, and important diagnostics.

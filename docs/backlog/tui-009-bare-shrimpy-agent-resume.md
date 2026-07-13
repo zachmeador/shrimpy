@@ -14,7 +14,7 @@ Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, bu
 - `cmdRootTui` passes `agentId: values.agent`; when no `--agent` is supplied, the value is undefined.
 - `prepareForegroundSessionOpen` calls `runtime.getAgent(input.agentId)`, and `AppRuntime.getAgent(undefined)` returns the first configured agent.
 - TUI sessions are agent-scoped canonical `local/main` sessions with manifests under `agents/<id>/sessions/local/`.
-- `createSessionManager` resumes the active JSONL only inside the selected agent's session directory.
+- `openSessionManager` resumes the active JSONL only inside the selected agent's session directory.
 - `shrimpy_session_metadata` records `agentId`, but only after a session has already been opened, so it cannot help bare startup choose the agent.
 - Live workspace evidence shows active `tui` sessions for multiple configured agents, with the newest active TUI session not necessarily belonging to the first configured agent.
 
@@ -38,8 +38,9 @@ Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, bu
 ## Touches
 
 - `src/commands/root.ts`
-- `src/sessions/storage.ts`
-- `src/sessions/service.ts` or a small new session-selection helper
+- `src/sessions/manifest.ts`
+- `src/sessions/catalog.ts`
+- `src/sessions/transcript-store.ts`
 - `test/root-command.test.ts` or a focused direct-session startup test
 - `docs/reference/cli.md`
 - `docs/reference/sessions.md`

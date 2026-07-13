@@ -8,6 +8,7 @@ import { resolveContextConfig } from "../dist/context/index.js";
 import {
   createBootstrap,
   createLocalSessionKey,
+  disposeSession,
   openSession,
 } from "../dist/sessions/index.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
@@ -63,7 +64,7 @@ describe("session tool policy", () => {
       assert.equal(session.getAllTools().some((tool: any) => tool.name === "bash"), false);
       assert.equal(session.getActiveToolNames().includes("read"), true);
     } finally {
-      session.dispose();
+      disposeSession(session);
     }
   });
 });

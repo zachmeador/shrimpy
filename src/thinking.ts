@@ -1,4 +1,7 @@
 import { Type } from "@sinclair/typebox";
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+
+export type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 
 export const THINKING_LEVELS = [
   "off",
@@ -8,9 +11,7 @@ export const THINKING_LEVELS = [
   "high",
   "xhigh",
   "max",
-] as const;
-
-export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+] as const satisfies readonly ThinkingLevel[];
 
 const THINKING_LEVEL_ALIASES: Record<string, ThinkingLevel> = {
   on: "medium",

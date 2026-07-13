@@ -6,11 +6,11 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
 import type { RuntimeConfig } from "../config/index.js";
+import { buildContainedSystemPromptFromPiOptions } from "../context/contained-system-prompt.js";
 import {
   createTurnContextExtensionFactory,
   type SessionTurnContextController,
 } from "./turn-context.js";
-import { buildContainedSystemPromptFromPiOptions } from "./contained-system-prompt.js";
 
 const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "hello.ts"),
@@ -30,6 +30,7 @@ export function createShrimpyResourceLoader(opts: {
   systemPrompt: string;
   skillPaths?: string[];
   turnContextController?: SessionTurnContextController;
+  extensionFactories?: ExtensionFactory[];
 }): DefaultResourceLoader {
   return new DefaultResourceLoader({
     cwd: opts.cwd,
@@ -38,6 +39,7 @@ export function createShrimpyResourceLoader(opts: {
     additionalExtensionPaths: SHRIMPY_EXTENSION_PATHS,
     extensionFactories: createExtensionFactories({
       turnContextController: opts.turnContextController,
+      additional: opts.extensionFactories,
     }),
     additionalSkillPaths: opts.runtimeConfig.noSkills
       ? []
@@ -60,8 +62,10 @@ export function createShrimpyResourceLoader(opts: {
 
 function createExtensionFactories(opts: {
   turnContextController?: SessionTurnContextController;
+  additional?: ExtensionFactory[];
 }): ExtensionFactory[] {
   return [
+    ...(opts.additional ?? []),
     ...(
       opts.turnContextController
         ? [createTurnContextExtensionFactory(opts.turnContextController)]

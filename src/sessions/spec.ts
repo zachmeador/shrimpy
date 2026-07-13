@@ -1,7 +1,7 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PromptResourceRef } from "../context/index.js";
-import type { ThinkingLevel } from "./thinking.js";
+import type { ThinkingLevel } from "../thinking.js";
 import type { SessionToolPolicy } from "../tools/policy.js";
 import type {
   ModelResolution,

@@ -4,37 +4,39 @@ import {
   createAgentSessionRuntime,
   type AgentSession,
   type AgentSessionRuntime,
+  type ExtensionFactory,
   type ResourceLoader,
-  type SettingsManager,
+  SettingsManager,
   SessionManager,
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
-import {
-  type ModelRef,
-} from "../config/model.js";
+import { buildContainedSystemPrompt } from "../context/contained-system-prompt.js";
+import { assembleSessionPrompt } from "../context/session-prompt.js";
+import type { ModelRef } from "../config/model.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import { resolveSessionCompactionPolicy } from "./compaction-policy.js";
-import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
-import { createInlineSettingsManager } from "./inline-settings.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
-import { assembleSessionPrompt } from "./prompt.js";
-import type { SessionOpenPlan } from "./spec.js";
+import type { SessionDescriptor, SessionOpenPlan } from "./spec.js";
 import {
   resolveSavedSessionModel,
   resolveSessionModel,
 } from "./models.js";
 import {
+  createSessionRecordingExtensionFactory,
   recordSessionOpen,
-  wrapModelMetadataRecording,
 } from "./session-record.js";
 import {
-  createSessionManager,
+  openSessionManager,
+} from "./transcript-store.js";
+import {
   ensureSessionManifest,
-} from "./storage.js";
-import type { SessionDescriptor } from "./spec.js";
+} from "./manifest.js";
 import { formatSessionId } from "./identity.js";
-import { acquireSessionLease } from "./ownership.js";
+import {
+  acquireSessionLease,
+  type SessionLease,
+} from "./ownership.js";
 import {
   createSessionTurnContextController,
   type SessionTurnContextController,
@@ -51,6 +53,8 @@ type CompactionLogEvent =
     willRetry?: boolean;
   };
 
+const sessionLeases = new WeakMap<AgentSession, SessionLease>();
+
 export async function openSession(
   bootstrap: SessionBootstrap,
   plan: SessionOpenPlan,
@@ -66,7 +70,7 @@ export async function openSessionRuntime(
   const cwd = plan.descriptor.cwd ?? bootstrap.agentRootPath;
   const agentDir = join(projectRoot, ".shrimpy");
 
-  return createAgentSessionRuntime(
+  const runtime = await createAgentSessionRuntime(
     async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
       const { session, resourceLoader } = await openSessionWithRuntimeDeps(
         bootstrap,
@@ -104,6 +108,16 @@ export async function openSessionRuntime(
       sessionManager: createDescriptorSessionManager(cwd, plan.descriptor),
     },
   );
+  runtime.setBeforeSessionInvalidate(() => releaseSessionLease(runtime.session));
+  return runtime;
+}
+
+export function disposeSession(session: AgentSession): void {
+  try {
+    session.dispose();
+  } finally {
+    releaseSessionLease(session);
+  }
 }
 
 async function openSessionWithRuntimeDeps(
@@ -176,7 +190,7 @@ async function openLeasedSessionWithRuntimeDeps(
   const turnContextController = createSessionTurnContextController({
     prepare: effectivePlan.prepareTurnContext,
   });
-  const settingsManager = createInlineSettingsManager({
+  const settingsManager = SettingsManager.inMemory({
     theme: bootstrap.runtimeConfig.theme,
     quietStartup: bootstrap.runtimeConfig.quietStartup,
     compaction: {
@@ -193,6 +207,14 @@ async function openLeasedSessionWithRuntimeDeps(
     assembly,
     settingsManager,
     turnContextController,
+    [createSessionRecordingExtensionFactory({
+      sessionManager,
+      bootstrap,
+      plan: effectivePlan,
+      envKeys: assembly.envKeys,
+      env: assembly.env,
+      compaction: compactionPolicy,
+    })],
   );
 
   const { session } = await createAgentSession({
@@ -230,30 +252,9 @@ async function openLeasedSessionWithRuntimeDeps(
     env: assembly.env,
     compaction: compactionPolicy,
   });
-  wrapModelMetadataRecording({
-    session,
-    sessionManager,
-    bootstrap,
-    plan: effectivePlan,
-    envKeys: assembly.envKeys,
-    env: assembly.env,
-    compaction: compactionPolicy,
-  });
   subscribeToCompactionLogs(session, effectivePlan);
 
-  if (lease) {
-    const dispose = session.dispose.bind(session);
-    let released = false;
-    session.dispose = () => {
-      if (released) return;
-      released = true;
-      try {
-        dispose();
-      } finally {
-        lease.release();
-      }
-    };
-  }
+  if (lease) sessionLeases.set(session, lease);
 
   return { session, resourceLoader };
 }
@@ -308,6 +309,7 @@ async function resolveSessionResourceLoader(
   assembly: ReturnType<typeof assembleSessionPrompt>,
   settingsManager: SettingsManager,
   turnContextController: SessionTurnContextController,
+  extensionFactories: ExtensionFactory[],
 ): Promise<ResourceLoader> {
   const resourceLoader = createShrimpyResourceLoader({
     cwd: assembly.cwd,
@@ -316,6 +318,7 @@ async function resolveSessionResourceLoader(
     systemPrompt: assembly.baseSystemPrompt,
     skillPaths: bootstrap.skillEntryPaths,
     turnContextController,
+    extensionFactories,
   });
   await resourceLoader.reload();
   return resourceLoader;
@@ -356,7 +359,7 @@ function createDescriptorSessionManager(
     return SessionManager.inMemory(cwd);
   }
   ensureSessionManifest(descriptor);
-  return createSessionManager(cwd, descriptor.storage.dir);
+  return openSessionManager(cwd, descriptor.storage.dir);
 }
 
 function isCompactionLogEvent(event: unknown): event is CompactionLogEvent {
@@ -366,4 +369,11 @@ function isCompactionLogEvent(event: unknown): event is CompactionLogEvent {
     "type" in event &&
     (event.type === "compaction_start" || event.type === "compaction_end")
   );
+}
+
+function releaseSessionLease(session: AgentSession): void {
+  const lease = sessionLeases.get(session);
+  if (!lease) return;
+  sessionLeases.delete(session);
+  lease.release();
 }

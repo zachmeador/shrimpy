@@ -14,7 +14,7 @@ This note summarizes Pi skill behavior as observed in `@earendil-works/pi-coding
 - Pi implementation: `node_modules/@earendil-works/pi-coding-agent/dist/core/skills.js`
 - Pi resource loader: `node_modules/@earendil-works/pi-coding-agent/dist/core/resource-loader.js`
 - Pi session runtime: `node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.js`
-- Shrimpy integration: `src/sessions/pi-resources.ts`, `src/skills/service.ts`, `src/sessions/bootstrap.ts`, `src/sessions/prompt.ts`
+- Shrimpy integration: `src/sessions/pi-resources.ts`, `src/skills/service.ts`, `src/sessions/bootstrap.ts`, `src/context/session-prompt.ts`
 
 ## Pi Model
 

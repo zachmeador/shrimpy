@@ -2,20 +2,22 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import {
   assembleContextViewSections,
   assemblePromptContext,
-  assemblePromptResourceSections,
   buildRuntimeEnvironmentSection,
   buildSessionDeliverySection,
-  createPromptSection,
-  FALLBACK_IDENTITY_TEXT,
   resolveContextEnvKeys,
-  resolveSessionEnv,
+} from "./assembly.js";
+import { resolveSessionEnv } from "./env.js";
+import {
+  assemblePromptResourceSections,
+  createPromptSection,
   type PromptSection,
-} from "../context/index.js";
+} from "./resources.js";
+import { FALLBACK_IDENTITY_TEXT } from "./system/scaffold.js";
 import { getSkillPromptResourcesFromPaths } from "../skills/index.js";
-import type { SessionBootstrap } from "./bootstrap.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
-import type { SessionOpenPlan } from "./spec.js";
-import { sessionChannel } from "./spec.js";
+import type { SessionOpenPlan } from "../sessions/spec.js";
+import { sessionChannel } from "../sessions/spec.js";
 
 export interface SessionPromptAssembly {
   systemPrompt: string;

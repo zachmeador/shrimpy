@@ -9,9 +9,7 @@ import {
   setRegisteredThemes,
 } from "../app/pi-internals.js";
 import { assertSetupReadyForNormalTui } from "../setup/readiness.js";
-import {
-  openSessionRuntime,
-} from "../sessions/factory.js";
+import { openSessionRuntime } from "../sessions/open.js";
 import {
   prepareForegroundSessionOpen,
   type OpenForegroundSessionInput,

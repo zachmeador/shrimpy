@@ -12,7 +12,7 @@ import {
 import {
   formatThinkingInputs,
   parseThinkingLevel,
-} from "../sessions/thinking.js";
+} from "../thinking.js";
 import {
   printSessionLifecycleResult,
   printSessionListing,

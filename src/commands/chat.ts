@@ -1,6 +1,6 @@
 import type { AppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
-import type { ThinkingLevel } from "../sessions/thinking.js";
+import type { ThinkingLevel } from "../thinking.js";
 import type { SessionNamespace } from "../sessions/identity.js";
 import type { SetupOnboardingResult } from "../setup/onboarding.js";
 import type { SetupState } from "../setup/state.js";

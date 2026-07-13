@@ -5,7 +5,7 @@ import {
   readSessionControlContent,
   type ChannelMessage,
 } from "../channels/index.js";
-import { isThinkingLevel } from "../sessions/thinking.js";
+import { isThinkingLevel } from "../thinking.js";
 
 export type DispatchSource = "backlog" | "live";
 type SessionControl = NonNullable<ReturnType<typeof readSessionControlContent>>;

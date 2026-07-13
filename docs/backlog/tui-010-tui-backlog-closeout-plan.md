@@ -62,7 +62,7 @@ This worktree exists to make those architectural pieces explicit before implemen
 ## Collision Risks
 
 - `src/tui/shrimpy-tool-rendering.ts`, `src/tui/shrimpy-command-surface.ts`, `src/tui/shrimpy-context-rendering.ts`, `src/tui/shrimpy-model-selection.ts`, and `src/tui/shrimpy-settings.ts` are shared TUI patch surfaces.
-- `src/sessions/open.ts`, `src/sessions/foreground.ts`, `src/sessions/resolver.ts`, `src/sessions/service.ts`, and `src/sessions/storage.ts` are shared by TUI-004 and TUI-009.
+- `src/sessions/open.ts`, `src/sessions/foreground.ts`, `src/sessions/resolver.ts`, `src/sessions/catalog.ts`, `src/sessions/manifest.ts`, and `src/sessions/transcript-store.ts` are shared by TUI-004 and TUI-009.
 - `extensions/shrimpy-commands.ts` and `src/sessions/pi-resources.ts` are shared by TUI-004F, model-switch rendering, and TUI-007.
 - TUI tests may need shared fixtures for fake Pi internals; update those fixtures once per branch instead of separately per item.
 - Upstream Pi changes can invalidate the TUI-007 migration shape. Re-check the linked Pi issue/PR before implementing display-only command output through extensions.

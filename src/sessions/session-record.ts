@@ -1,11 +1,11 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type {
   AgentSession,
+  ExtensionFactory,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import {
   formatModelRef,
-  sameModelRef,
   toModelRef,
   type ModelRef,
 } from "../config/model.js";
@@ -57,14 +57,17 @@ interface ModelSwitchMessageDetails {
 
 const MODEL_SWITCH_CUSTOM_TYPE = "shrimpy_model_switch";
 
-export function recordSessionOpen(input: {
-  session: AgentSession;
+interface SessionRecordingContext {
   sessionManager: SessionManager;
   bootstrap: SessionBootstrap;
   plan: SessionOpenPlan;
   envKeys: string[];
   env: Record<string, string>;
   compaction: EffectiveCompactionPolicy;
+}
+
+export function recordSessionOpen(input: SessionRecordingContext & {
+  session: AgentSession;
 }): void {
   const { session, sessionManager, bootstrap, plan } = input;
 
@@ -91,51 +94,36 @@ export function recordSessionOpen(input: {
   sessionManager.appendCustomEntry("shrimpy_compaction_policy", input.compaction);
 }
 
-export function wrapModelMetadataRecording(input: {
-  session: AgentSession;
-  sessionManager: SessionManager;
-  bootstrap: SessionBootstrap;
-  plan: SessionOpenPlan;
-  envKeys: string[];
-  env: Record<string, string>;
-  compaction: EffectiveCompactionPolicy;
-}): void {
-  const { session } = input;
-  const originalSetModel = session.setModel.bind(session);
-  session.setModel = async (model) => {
-    const previousModel = session.model;
-    await originalSetModel(model);
-    appendSessionMetadata({
-      ...input,
-      model: session.model,
-      modelResolution: createSessionSwitchModelResolution(session.model),
-    });
-    await appendModelSwitchMessage({
-      ...input,
-      previousModel,
-      currentModel: session.model,
-      source: "set",
-    });
-  };
-
-  const originalCycleModel = session.cycleModel.bind(session);
-  session.cycleModel = async (direction) => {
-    const previousModel = session.model;
-    const result = await originalCycleModel(direction);
-    if (result) {
+export function createSessionRecordingExtensionFactory(
+  input: SessionRecordingContext,
+): ExtensionFactory {
+  return (pi) => {
+    pi.on("model_select", (event) => {
+      if (event.source === "restore") return;
       appendSessionMetadata({
         ...input,
-        model: session.model,
-        modelResolution: createSessionSwitchModelResolution(session.model),
+        model: event.model,
+        modelResolution: createSessionSwitchModelResolution(event.model),
       });
-      await appendModelSwitchMessage({
-        ...input,
-        previousModel,
-        currentModel: session.model,
-        source: "cycle",
+      const thinkingLevel = pi.getThinkingLevel();
+      pi.sendMessage({
+        customType: MODEL_SWITCH_CUSTOM_TYPE,
+        content: formatModelSwitchMessage({
+          previousModel: event.previousModel,
+          currentModel: event.model,
+          thinkingLevel,
+        }),
+        display: true,
+        details: {
+          source: event.source,
+          previous: toModelRef(event.previousModel),
+          current: toModelRef(event.model),
+          thinkingLevel,
+        } satisfies ModelSwitchMessageDetails,
+      }, {
+        triggerTurn: false,
       });
-    }
-    return result;
+    });
   };
 }
 
@@ -171,38 +159,6 @@ function appendSessionMetadata(input: {
     modelResolution: serializeModelResolution(input.modelResolution ?? plan.modelResolution),
   };
   sessionManager.appendCustomEntry("shrimpy_session_metadata", metadata);
-}
-
-async function appendModelSwitchMessage(input: {
-  session: AgentSession;
-  bootstrap: SessionBootstrap;
-  plan: SessionOpenPlan;
-  previousModel?: Model<Api>;
-  currentModel?: Model<Api>;
-  source: ModelSwitchMessageDetails["source"];
-}): Promise<void> {
-  if (sameModelRef(input.previousModel, input.currentModel)) return;
-
-  const thinkingLevel = typeof input.session.thinkingLevel === "string"
-    ? input.session.thinkingLevel
-    : undefined;
-  const details: ModelSwitchMessageDetails = {
-    source: input.source,
-    previous: toModelRef(input.previousModel),
-    current: toModelRef(input.currentModel),
-    thinkingLevel,
-  };
-
-  await input.session.sendCustomMessage({
-    customType: MODEL_SWITCH_CUSTOM_TYPE,
-    content: formatModelSwitchMessage({
-      previousModel: input.previousModel,
-      currentModel: input.currentModel,
-      thinkingLevel,
-    }),
-    display: true,
-    details,
-  });
 }
 
 function formatModelSwitchMessage(input: {

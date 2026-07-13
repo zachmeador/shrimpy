@@ -4,7 +4,7 @@ import { createInterface } from "node:readline";
 import type { AppRuntime } from "../app/runtime.js";
 import { isRecord } from "../util/record.js";
 import { formatSessionId } from "./identity.js";
-import { listSessionDescriptors } from "./storage.js";
+import { listSessionDescriptors } from "./manifest.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
 const DEFAULT_SEARCH_LIMIT = 25;

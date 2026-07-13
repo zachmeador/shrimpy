@@ -34,7 +34,7 @@ import {
   createLocalSessionKey,
 } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
-import { ensureSessionManifest } from "../dist/sessions/storage.js";
+import { ensureSessionManifest } from "../dist/sessions/manifest.js";
 
 let workspace: string;
 

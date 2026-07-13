@@ -1,4 +1,3 @@
-import { existsSync, statSync } from "node:fs";
 import { basename } from "node:path";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
@@ -11,59 +10,23 @@ import {
   sessionStopMessageInput,
   sessionThinkingLevelMessageInput,
 } from "../channels/index.js";
-import {
-  flattenGatewayLanes,
-  gatewayRuntimeStatePath,
-  loadGatewayRuntimeState,
-  type GatewayLaneState,
-} from "../gateway/runtime-state.js";
-import type { ThinkingLevel } from "./thinking.js";
-import {
-  formatSessionId,
-  parseSessionId,
-  sameSessionKey,
-  type SessionKey,
-} from "./identity.js";
+import type { ThinkingLevel } from "../thinking.js";
+import { formatSessionId, type SessionKey } from "./identity.js";
 import {
   acquireMaintenanceLease,
   readSessionOwner,
   type SessionOwner,
 } from "./ownership.js";
-import { createSessionDescriptor, type SessionDescriptor } from "./spec.js";
+import { resolveSessionDescriptor } from "./catalog.js";
 import {
-  archiveSessionDir,
+  archiveActiveSession,
   findActiveSessionFile,
-  listArchivedSessionDirs,
-  listSessionDescriptors,
-  resolveArchivedSessionDir,
-  restoreArchivedSessionDir,
-} from "./storage.js";
+  resolveArchivedSessionFile,
+  restoreArchivedSession,
+} from "./transcript-store.js";
 
 type LifecycleAction = "new" | "clear" | "restore";
 type Operation = "reset" | "restore" | "thinking" | "stop";
-
-export interface SessionPathSummary {
-  name: string;
-  path: string;
-  exists: boolean;
-  updatedAt: string | null;
-}
-
-export interface SessionSummary {
-  sessionId: string;
-  purpose: string;
-  delivery: SessionDescriptor["delivery"];
-  active: SessionPathSummary;
-  archives: SessionPathSummary[];
-  owner?: SessionOwner;
-  gatewayLanes: GatewayLaneState[];
-}
-
-export interface SessionListingSummary {
-  agentId: string;
-  sessionsRoot: string;
-  sessions: SessionSummary[];
-}
 
 export type SessionActionOutcome =
   | "applied"
@@ -110,29 +73,6 @@ interface ControlRequest {
 const CONTROL_TIMEOUT_MS = 30_000;
 const CONTROL_POLL_MS = 100;
 
-export function summarizeAgentSessions(
-  runtime: AppRuntime,
-  opts?: { agentId?: string; sessionId?: string },
-): SessionListingSummary | SessionSummary {
-  const agent = runtime.getAgent(opts?.agentId);
-  const agentRoot = runtime.getAgentPaths(agent.id).root;
-  const descriptors = listSessionDescriptors(agentRoot);
-  if (opts?.sessionId) {
-    const key = parseSessionId(agent.id, opts.sessionId);
-    return summarizeDescriptor(
-      runtime,
-      descriptors.find((item) => sameSessionKey(item.key, key)) ?? descriptorFor(agentRoot, key),
-    );
-  }
-  return {
-    agentId: agent.id,
-    sessionsRoot: `${agentRoot}/sessions`,
-    sessions: descriptors
-      .map((descriptor) => summarizeDescriptor(runtime, descriptor))
-      .sort((a, b) => a.sessionId.localeCompare(b.sessionId)),
-  };
-}
-
 export async function executeSessionLifecycleAction(
   runtime: AppRuntime,
   input: {
@@ -147,7 +87,7 @@ export async function executeSessionLifecycleAction(
   const target = resolveTarget(runtime, input.agentId, input.sessionId);
   const operation = input.action === "restore" ? "restore" : "reset";
   const archiveName = input.archive
-    ? basename(resolveArchivedSessionDir(target.dir, input.archive) ?? "")
+    ? basename(resolveArchivedSessionFile(target.dir, input.archive) ?? "")
     : undefined;
   if (input.archive && !archiveName) {
     return failure(target, operation, `archive not found for ${target.id}: ${input.archive}`);
@@ -323,7 +263,7 @@ function applyOffline(
   archiveName?: string,
 ): SessionActionResult {
   if (action === "restore") {
-    const restored = restoreArchivedSessionDir(target.dir, archiveName);
+    const restored = restoreArchivedSession(target.dir, archiveName);
     if (!restored) {
       throw new Error(archiveName
         ? `archive not found for ${target.id}: ${archiveName}`
@@ -338,7 +278,7 @@ function applyOffline(
         : {}),
     };
   }
-  const archived = archiveSessionDir(target.dir);
+  const archived = archiveActiveSession(target.dir);
   return {
     ...resultBase(target, "reset"),
     outcome: "applied_direct",
@@ -351,43 +291,12 @@ function resolveTarget(
   agentId: string | undefined,
   sessionId: string,
 ): SessionTarget {
-  const agent = runtime.getAgent(agentId);
-  const agentRoot = runtime.getAgentPaths(agent.id).root;
-  const key = parseSessionId(agent.id, sessionId);
-  const descriptor = listSessionDescriptors(agentRoot).find((item) =>
-    sameSessionKey(item.key, key)
-  ) ?? descriptorFor(agentRoot, key);
+  const descriptor = resolveSessionDescriptor(runtime, agentId, sessionId);
   if (descriptor.storage.kind !== "durable") throw new Error(`session ${sessionId} is not durable`);
-  return { key, id: formatSessionId(key), dir: descriptor.storage.dir };
-}
-
-function descriptorFor(agentRoot: string, key: SessionKey): SessionDescriptor {
-  const purpose = key.namespace === "channel"
-    ? "channel"
-    : key.namespace === "worker"
-      ? "worker"
-      : key.name === "setup" ? "setup" : "interactive";
-  return createSessionDescriptor({
-    agentRoot,
-    key,
-    purpose,
-    delivery: key.namespace === "channel"
-      ? { kind: "channel", channel: key.name }
-      : { kind: "transcript" },
-  });
-}
-
-function summarizeDescriptor(runtime: AppRuntime, descriptor: SessionDescriptor): SessionSummary {
-  if (descriptor.storage.kind !== "durable") throw new Error("cannot summarize an in-memory session");
-  const channel = descriptor.delivery.kind === "channel" ? descriptor.delivery.channel : undefined;
   return {
-    sessionId: formatSessionId(descriptor.key),
-    purpose: descriptor.purpose,
-    delivery: descriptor.delivery,
-    active: summarizeActivePath(descriptor.storage.dir),
-    archives: listArchivedSessionDirs(descriptor.storage.dir).map(summarizePath),
-    owner: readSessionOwner(runtime.paths.workspace, descriptor.key),
-    gatewayLanes: channel ? gatewayLanesFor(runtime, descriptor.key.agentId, channel) : [],
+    key: descriptor.key,
+    id: formatSessionId(descriptor.key),
+    dir: descriptor.storage.dir,
   };
 }
 
@@ -397,7 +306,7 @@ function verifyLifecycle(
   status: OperationStatusContentData,
 ): string | undefined {
   if (operation === "reset" && status.archiveName &&
-    !resolveArchivedSessionDir(sessionDir, status.archiveName)) {
+    !resolveArchivedSessionFile(sessionDir, status.archiveName)) {
     return `Gateway reported success, but archived session ${status.archiveName} was not found on disk.`;
   }
   if (operation === "restore") {
@@ -432,31 +341,6 @@ function ownerFailure(
     operation,
     `Session ${target.id} is owned by ${owner.kind} process ${owner.pid}; use that host's session controls.`,
   );
-}
-
-function summarizePath(path: string): SessionPathSummary {
-  const exists = existsSync(path);
-  return {
-    name: basename(path),
-    path,
-    exists,
-    updatedAt: exists ? new Date(statSync(path).mtimeMs).toISOString() : null,
-  };
-}
-
-function summarizeActivePath(sessionDir: string): SessionPathSummary {
-  const active = findActiveSessionFile(sessionDir);
-  return active ? summarizePath(active) : {
-    name: basename(sessionDir),
-    path: sessionDir,
-    exists: false,
-    updatedAt: null,
-  };
-}
-
-function gatewayLanesFor(runtime: AppRuntime, agentId: string, channel: string) {
-  const state = loadGatewayRuntimeState(gatewayRuntimeStatePath(runtime.paths));
-  return flattenGatewayLanes(state, { agentId, channel });
 }
 
 function cliSender() {

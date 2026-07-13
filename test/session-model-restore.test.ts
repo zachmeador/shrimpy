@@ -14,6 +14,7 @@ import { resolveContextConfig } from "../dist/context/index.js";
 import {
   createBootstrap,
   createLocalSessionKey,
+  disposeSession,
   openSession,
 } from "../dist/sessions/index.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
@@ -58,7 +59,7 @@ describe("session model restore", () => {
     });
     appendAssistantMessage(first.sessionManager, configuredModel);
     await first.setModel(selectedModel);
-    first.dispose();
+    disposeSession(first);
 
     const resumed = await openSession(bootstrap, {
       descriptor,
@@ -76,7 +77,7 @@ describe("session model restore", () => {
       assert.equal(metadata.env.provider, "selected_provider");
       assert.equal(metadata.env.model_id, "selected-model");
     } finally {
-      resumed.dispose();
+      disposeSession(resumed);
     }
   });
 
@@ -137,7 +138,7 @@ describe("session model restore", () => {
       });
       assert.equal(switchMessage.details.source, "set");
     } finally {
-      session.dispose();
+      disposeSession(session);
     }
   });
 
@@ -178,7 +179,7 @@ describe("session model restore", () => {
         false,
       );
     } finally {
-      session.dispose();
+      disposeSession(session);
     }
   });
 
@@ -211,7 +212,7 @@ describe("session model restore", () => {
     });
     appendAssistantMessage(first.sessionManager, configuredModel);
     await first.setModel(selectedModel);
-    first.dispose();
+    disposeSession(first);
 
     const explicit = await openSession(bootstrap, {
       descriptor,
@@ -222,7 +223,7 @@ describe("session model restore", () => {
       assert.equal(explicit.model?.provider, "configured_provider");
       assert.equal(explicit.model?.id, "configured-model");
     } finally {
-      explicit.dispose();
+      disposeSession(explicit);
     }
   });
 });

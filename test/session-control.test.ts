@@ -10,14 +10,16 @@ import {
   executeSessionLifecycleAction,
   executeSessionStopAction,
   executeSessionThinkingAction,
-} from "../dist/sessions/service.js";
+} from "../dist/sessions/control.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { acquireSessionLease } from "../dist/sessions/ownership.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 import {
-  archiveSessionDir,
+  archiveActiveSession,
+} from "../dist/sessions/transcript-store.js";
+import {
   ensureSessionManifest,
-} from "../dist/sessions/storage.js";
+} from "../dist/sessions/manifest.js";
 import {
   makeTempWorkspace,
   removeTempWorkspace,
@@ -27,7 +29,7 @@ import {
 let workspace: string;
 
 beforeEach(() => {
-  workspace = makeTempWorkspace("shrimpy-session-control-service-test-");
+  workspace = makeTempWorkspace("shrimpy-session-control-test-");
   setupInit(workspace);
 });
 
@@ -35,7 +37,7 @@ afterEach(() => {
   removeTempWorkspace(workspace);
 });
 
-describe("verified session control service", () => {
+describe("verified session control", () => {
   test("confirms a reset and verifies the archived session on disk", async () => {
     const runtime = createAppRuntime({ workspace });
     const bus = new ChannelBus(join(workspace, "channels"));
@@ -66,7 +68,7 @@ describe("verified session control service", () => {
           message.content.type === "control"
         );
         assert.ok(request);
-        const archivedTo = archiveSessionDir(sessionDir);
+        const archivedTo = archiveActiveSession(sessionDir);
         assert.equal(archivedTo, activePath);
         bus.publishStatus({
           channel: "home",

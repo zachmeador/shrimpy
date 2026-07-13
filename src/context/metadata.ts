@@ -5,7 +5,7 @@ import {
   statSync,
 } from "node:fs";
 import { join } from "node:path";
-import { findLastCustomEntry } from "../sessions/storage.js";
+import { findLastCustomEntry } from "../sessions/transcript-store.js";
 import { isRecord } from "../util/record.js";
 
 interface ShrimpySessionMetadata {

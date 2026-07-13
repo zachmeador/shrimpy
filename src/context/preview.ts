@@ -14,7 +14,7 @@ import {
 import {
   assembleSessionPrompt,
   type SessionPromptAssembly,
-} from "../sessions/prompt.js";
+} from "./session-prompt.js";
 import {
   assemblePromptResourceSections,
   expandDirectoryResource,

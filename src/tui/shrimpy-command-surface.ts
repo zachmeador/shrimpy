@@ -34,7 +34,7 @@ import {
   type WatchInspection,
 } from "../watches/index.js";
 import { inspectSkills } from "../skills/index.js";
-import { archiveSessionFile } from "../sessions/storage.js";
+import { archiveSessionFile } from "../sessions/transcript-store.js";
 import { formatFutureOrPast } from "../util/time-format.js";
 
 type SubmitHandler = (text: string) => void | Promise<void>;

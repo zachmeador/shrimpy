@@ -32,7 +32,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { makeMessage } from "../dist/channels/index.js";
 import { SessionPool } from "../dist/sessions/pool.js";
-import { assembleSessionPrompt } from "../dist/sessions/prompt.js";
+import { assembleSessionPrompt } from "../dist/context/session-prompt.js";
 import {
   createSessionTurnContextController,
   createTurnContextExtensionFactory,

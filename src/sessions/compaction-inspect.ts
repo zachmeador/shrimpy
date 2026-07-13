@@ -12,8 +12,10 @@ import { createSessionDescriptor } from "./spec.js";
 import {
   findActiveSessionFile,
   findLastCustomEntry,
+} from "./transcript-store.js";
+import {
   listSessionDescriptors,
-} from "./storage.js";
+} from "./manifest.js";
 
 interface SessionPathSummary {
   name: string;

@@ -2,9 +2,8 @@ import {
   AuthStorage,
   ModelRegistry,
   type DefaultResourceLoader,
-  type SettingsManager,
+  SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import { createInlineSettingsManager } from "./inline-settings.js";
 import {
   assembleBasePromptSections,
   assemblePromptContext,
@@ -121,7 +120,7 @@ export async function createBootstrap(
   const baseSystemSections = baseContext.sections;
   const baseSystemPrompt = baseContext.systemPrompt;
 
-  const settingsManager = createInlineSettingsManager({
+  const settingsManager = SettingsManager.inMemory({
     theme: runtimeConfig.theme,
     quietStartup: runtimeConfig.quietStartup,
     compaction: runtimeConfig.compaction,

@@ -8,7 +8,7 @@ import { formatVersionLabel } from "../dist/app/metadata.js";
 import { createAppRuntime } from "../dist/app/runtime.js";
 import {
   findActiveSessionFile,
-  listArchivedSessionDirs,
+  listArchivedSessionFiles,
 } from "../dist/sessions/index.js";
 import {
   createLocalSessionKey,
@@ -198,7 +198,7 @@ test("Shrimpy command surface archives the previous TUI session after /new succe
 
   await mode.defaultEditor.onSubmit!("/new");
 
-  assert.deepEqual(listArchivedSessionDirs(sessionDir), [previousSessionFile]);
+  assert.deepEqual(listArchivedSessionFiles(sessionDir), [previousSessionFile]);
   assert.equal(findActiveSessionFile(sessionDir), currentSessionFile);
   assert.match(readFileSync(previousSessionFile, "utf-8"), /"state":"archived"/);
   assert.doesNotMatch(readFileSync(currentSessionFile, "utf-8"), /"state":"archived"/);
@@ -230,7 +230,7 @@ test("Shrimpy command surface does not archive a TUI session when /new is cancel
 
   await mode.defaultEditor.onSubmit!("/new");
 
-  assert.deepEqual(listArchivedSessionDirs(sessionDir), []);
+  assert.deepEqual(listArchivedSessionFiles(sessionDir), []);
   assert.equal(findActiveSessionFile(sessionDir), previousSessionFile);
   assert.doesNotMatch(readFileSync(previousSessionFile, "utf-8"), /"state":"archived"/);
 });
