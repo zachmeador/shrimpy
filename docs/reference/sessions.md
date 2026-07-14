@@ -42,11 +42,11 @@ TUI, setup, gateway, run, and worker are hosts around this core, not different s
 
 ## Model, Prompt, and Thinking
 
-Every durable session restores the model recorded in its active Pi transcript when no `--provider`, `--model`, or `--model-policy` override is supplied. If no saved model exists, Shrimpy uses the agent's `modelPolicy`, then the workspace `coding` policy. Model changes append a visible `shrimpy_model_switch` custom message.
+Every durable session restores the model recorded in its active Pi transcript when no `--provider`, `--model`, or `--model-policy` override is supplied. If no saved model exists, Shrimpy uses the agent's `modelPolicy`, then the workspace `coding` policy. `shrimpy sessions set <session-id> --model <provider/model>` changes the current session model. `--model-policy <name>` resolves the policy to a concrete model for the session. Model changes append a visible `shrimpy_model_switch` custom message.
 
 Shrimpy gives Pi one stable system prompt when the session opens. Per-turn facts are prefixed to the current user message before Pi persists and sends it, so the JSONL matches what the model saw. Channel turns use the formatted channel message as their prompt body; transcript turns use the caller's local prompt. See [context-assembly.md](context-assembly.md) and [turn-context.md](turn-context.md).
 
-Thinking defaults to the agent setting and can be overridden when a host opens the session. `shrimpy sessions thinking <session-id> <level>` controls a running gateway-owned session and waits for its correlated outcome.
+Thinking defaults to the agent setting and can be overridden when a host opens the session. `shrimpy sessions set <session-id> --thinking <level>` changes a running gateway-owned session and waits for its correlated outcome.
 
 ## Ownership and Lifecycle
 
@@ -59,17 +59,17 @@ shrimpy sessions list [session-id] [--agent <id>] [--json]
 shrimpy sessions new <session-id> [--agent <id>] [--no-wait] [--json]
 shrimpy sessions clear <session-id> [--agent <id>] [--no-wait] [--json]
 shrimpy sessions restore <session-id> [--agent <id>] [--archive <name>] [--no-wait] [--json]
-shrimpy sessions thinking <session-id> <level> [--agent <id>] [--no-wait] [--json]
+shrimpy sessions set <session-id> [--thinking <level>] [--model <provider/model>|--model-policy <name>] [--agent <id>] [--no-wait] [--json]
 shrimpy sessions stop <session-id> [--agent <id>] [--no-wait] [--json]
 ```
 
 `new` and `clear` mark the active Pi JSONL archived with a `shrimpy_lifecycle` entry. `restore` marks an archive active and archives the previous active file. If no process owns the session, lifecycle commands take a maintenance lease and apply the file operation directly. If the gateway owns it, the command sends a correlated channel control message, waits up to 30 seconds for `operation_status`, and verifies lifecycle success on disk. Foreground-owned sessions reject external mutation; use that host's controls.
 
-`thinking` and `stop` require a live owner. Gateway-owned controls are routed out of band. Stop aborts the running turn without waiting behind it; queued turns remain in FIFO order. `--no-wait` returns a `queued` result after publication. JSON outcomes are `applied`, `applied_direct`, `failed`, `unconfirmed`, or `queued`.
+`set` and `stop` require a live owner. Gateway-owned controls are routed out of band. A model or thinking change applies to the session itself; it does not change the agent default or channel configuration. Foreground hosts expose their own model and thinking controls. Stop aborts the running turn without waiting behind it; queued turns remain in FIFO order. `--no-wait` returns a `queued` result after publication. JSON outcomes are `applied`, `applied_direct`, `failed`, `unconfirmed`, or `queued`.
 
 ## Pool and Queuing
 
-The gateway has one `SessionPool` per agent and one lane per channel session. The lane is the only FIFO queue: it serializes turns, reset, restore, and thinking changes. `ChannelDeliveryLoop` tracks in-flight dispatches but does not add another channel queue, which lets stop controls reach a running lane immediately. Different agents and session keys remain independent.
+The gateway has one `SessionPool` per agent and one lane per channel session. The lane is the only FIFO queue: it serializes turns, reset, restore, and session setting changes. `ChannelDeliveryLoop` tracks in-flight dispatches but does not add another channel queue, which lets stop controls reach a running lane immediately. Different agents and session keys remain independent.
 
 `shrimpy sessions list` and `shrimpy gateway status` expose running turn age, queue depth, last outcome, and live owner when available.
 

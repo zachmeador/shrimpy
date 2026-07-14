@@ -6,6 +6,8 @@ import {
   markChannelSeen,
 } from "../context/index.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
+import type { ModelRef } from "../config/model.js";
+import type { ThinkingLevel } from "../thinking.js";
 import {
   evaluateAgentChannelPolicy,
 } from "./channel-policy.js";
@@ -41,10 +43,14 @@ export class AgentChannelRuntime {
   private readonly agent: ResolvedAgentConfig;
   private readonly channelBus: ChannelBus;
   private readonly pool: SessionPool;
+  private readonly runtime: AppRuntime;
+  private readonly bootstrap: SessionBootstrap;
   private readonly onRuntimeGuardTrip?: AgentChannelRuntimeOpts["onRuntimeGuardTrip"];
 
   constructor(opts: AgentChannelRuntimeOpts) {
     this.agentId = opts.agentId;
+    this.runtime = opts.runtime;
+    this.bootstrap = opts.bootstrap;
     this.agent = opts.runtime.getAgent(opts.agentId);
     this.channelBus = opts.channelBus;
     this.onRuntimeGuardTrip = opts.onRuntimeGuardTrip;
@@ -111,6 +117,29 @@ export class AgentChannelRuntime {
     level: NonNullable<typeof this.agent.thinking>,
   ) {
     return this.pool.setThinkingLevel(channel, level);
+  }
+
+  async setSettings(
+    channel: string,
+    input: {
+      thinking?: ThinkingLevel;
+      model?: ModelRef;
+      modelPolicy?: string;
+    },
+  ) {
+    const model = input.model || input.modelPolicy
+      ? this.runtime.resolveModel(
+        this.bootstrap,
+        input.model?.provider,
+        input.model?.id,
+        input.modelPolicy ? undefined : this.agent.modelPolicy,
+        input.modelPolicy ? { modelPolicy: input.modelPolicy } : undefined,
+      )
+      : undefined;
+    return this.pool.setSettings(channel, {
+      thinking: input.thinking,
+      model,
+    });
   }
 
   stop(channel: string) {

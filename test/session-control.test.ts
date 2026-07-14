@@ -8,8 +8,8 @@ import { readOperationStatusContent } from "../dist/channels/messages.js";
 import { SessionControlRuntime } from "../dist/gateway/session-control-runtime.js";
 import {
   executeSessionLifecycleAction,
+  executeSessionSettingsAction,
   executeSessionStopAction,
-  executeSessionThinkingAction,
 } from "../dist/sessions/control.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { acquireSessionLease } from "../dist/sessions/ownership.js";
@@ -101,9 +101,10 @@ describe("verified session control", () => {
     assert.ok(lease);
     let published = false;
 
-    const result = await executeSessionThinkingAction(runtime, {
+    const result = await executeSessionSettingsAction(runtime, {
       sessionId: "channel/home",
-      level: "high",
+      thinking: "high",
+      model: { provider: "test", id: "reef" },
     }, {
       pollIntervalMs: 1,
       timeoutMs: 100,
@@ -133,9 +134,11 @@ describe("verified session control", () => {
             kind: "operation_status",
             text: "Set thinking level for shrimpy to high.",
             ok: true,
-            operation: "thinking",
+            operation: "set",
             targetAgentId: "shrimpy",
             requestMessageId: request.id,
+            thinking: "high",
+            model: { provider: "test", id: "reef" },
           },
         });
       },
@@ -144,6 +147,7 @@ describe("verified session control", () => {
     assert.equal(result.outcome, "applied");
     assert.equal(result.requestMessageId?.length > 0, true);
     assert.equal(result.message, "Set thinking level for shrimpy to high.");
+    assert.deepEqual(result.effectiveModel, { provider: "test", id: "reef" });
     lease.release();
   });
 
@@ -203,6 +207,59 @@ describe("verified session control", () => {
 
     assert.equal(result.outcome, "unconfirmed");
     assert.match(result.message ?? "", /not confirmed/);
+    assert.match(result.message ?? "", /shrimpy gateway status/);
+    assert.match(result.message ?? "", /shrimpy sessions list channel\/home --agent shrimpy/);
+    lease.release();
+  });
+
+  test("rejects reset success without the expected archive", async () => {
+    const runtime = createAppRuntime({ workspace });
+    const bus = new ChannelBus(join(workspace, "channels"));
+    const { descriptor, sessionDir } = channelSession("home");
+    const lease = acquireSessionLease({ workspace, descriptor, kind: "gateway" });
+    assert.ok(lease);
+    mkdirSync(sessionDir, { recursive: true });
+    writeFileSync(join(sessionDir, "home-active.jsonl"), `${JSON.stringify({
+      type: "session",
+      version: 3,
+      id: "home-active",
+      timestamp: new Date().toISOString(),
+      cwd: workspace,
+    })}\n`, "utf-8");
+    let published = false;
+
+    const result = await executeSessionLifecycleAction(runtime, {
+      action: "new",
+      sessionId: "channel/home",
+    }, {
+      pollIntervalMs: 1,
+      timeoutMs: 100,
+      sleep: async () => {
+        if (published) return;
+        published = true;
+        const request = bus.read("home").messages.find((message) =>
+          message.content.type === "control"
+        );
+        assert.ok(request);
+        archiveActiveSession(sessionDir);
+        bus.publishStatus({
+          channel: "home",
+          actorId: "system:session-control",
+          transport: "internal",
+          data: {
+            kind: "operation_status",
+            text: "Started a new session for shrimpy.",
+            ok: true,
+            operation: "reset",
+            targetAgentId: "shrimpy",
+            requestMessageId: request.id,
+          },
+        });
+      },
+    });
+
+    assert.equal(result.outcome, "unconfirmed");
+    assert.match(result.message ?? "", /did not identify the archived session/);
     lease.release();
   });
 
@@ -236,6 +293,50 @@ function channelSession(channel: string) {
 }
 
 describe("SessionControlRuntime correlation", () => {
+  test("applies model and thinking settings to the target runtime", async () => {
+    const bus = new ChannelBus(join(workspace, "channels"));
+    const calls: unknown[] = [];
+    const runtime = new SessionControlRuntime(bus, new Map([["shrimpy", {
+      async setSettings(channel: string, input: unknown) {
+        calls.push({ channel, input });
+        return {
+          effectiveThinking: "high",
+          effectiveModel: { provider: "test", id: "reef" },
+        };
+      },
+    } as any]]));
+    const request = bus.publish({
+      channel: "home",
+      sender: { kind: "system", actorId: "system:cli" },
+      origin: { transport: "cli" },
+      content: {
+        type: "control",
+        data: {
+          kind: "session_settings",
+          targetAgentId: "shrimpy",
+          thinking: "high",
+          model: { provider: "test", id: "reef" },
+        },
+      },
+    });
+
+    assert.equal(await runtime.handleMessage("home", request, "live"), true);
+    assert.deepEqual(calls, [{
+      channel: "home",
+      input: {
+        thinking: "high",
+        model: { provider: "test", id: "reef" },
+        modelPolicy: undefined,
+      },
+    }]);
+    const statusMessage = bus.read("home").messages.at(-1);
+    assert.ok(statusMessage);
+    const status = readOperationStatusContent(statusMessage.content);
+    assert.equal(status?.operation, "set");
+    assert.equal(status?.thinking, "high");
+    assert.deepEqual(status?.model, { provider: "test", id: "reef" });
+  });
+
   test("publishes a correlated failure for an unknown target agent", async () => {
     const bus = new ChannelBus(join(workspace, "channels"));
     const runtime = new SessionControlRuntime(bus, new Map());

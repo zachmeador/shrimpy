@@ -62,7 +62,7 @@ At turn time, Shrimpy prepares current time/session facts, channel-unread pointe
 
 ## Session Lifecycle
 
-Durable sessions persist under each agent workspace as manifested Pi `.jsonl` directories. `SessionPool` serializes each gateway lane and exposes lane state for gateway status. Owner leases prevent foreground, gateway, and maintenance hosts from opening or mutating the same transcript concurrently. Session lifecycle, thinking, and stop commands route to the live owner when possible; unowned lifecycle changes take a maintenance lease and apply directly. See [sessions.md](sessions.md).
+Durable sessions persist under each agent workspace as manifested Pi `.jsonl` directories. `SessionPool` serializes each gateway lane and exposes lane state for gateway status. Owner leases prevent foreground, gateway, and maintenance hosts from opening or mutating the same transcript concurrently. Session lifecycle commands and live setting or stop controls route to the owner when possible; unowned lifecycle changes take a maintenance lease and apply directly. See [sessions.md](sessions.md).
 
 ## Background Work
 

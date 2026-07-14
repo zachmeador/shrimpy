@@ -15,7 +15,7 @@ Use the workspace as source of truth before changing anything:
 shrimpy agent list
 shrimpy agent show <id>
 shrimpy agent inspect <id> --json
-shrimpy models resolve --agent <id> --session tui --json
+shrimpy models resolve --agent <id> --session local/main --json
 shrimpy skills list --agent <id>
 shrimpy context --agent <id> --sections
 ```
@@ -47,7 +47,7 @@ Inspect first:
 ```bash
 shrimpy models --json
 shrimpy models policies --json
-shrimpy models resolve --agent <id> --session tui --json
+shrimpy models resolve --agent <id> --session local/main --json
 ```
 
 Find the exact Pi-visible `<provider>/<model>` id. If the user's model name is ambiguous or missing from `shrimpy models`, ask before changing anything.
@@ -57,12 +57,23 @@ Prefer a named policy for durable defaults:
 ```bash
 shrimpy models policies set <policy> --candidate <provider>/<model> --json
 shrimpy agent set <id> --model-policy <policy> --json
-shrimpy models resolve --agent <id> --session tui --json
+shrimpy models resolve --agent <id> --session local/main --json
 ```
 
 Use an existing policy only when changing every agent that uses it is intended. Otherwise create or update an agent-specific policy name such as `<agent-id>-default`.
 
-Warn about active sessions: local TUI sessions can keep using a model saved inside the existing session until the user switches models, resets/reopens that session, or starts a new one. Gateway channel sessions use the resolved policy for the running gateway process, so a gateway restart may be needed for channel turns.
+Active sessions restore the model saved in their transcript. Changing an agent's model policy or restarting the gateway does not replace that saved selection.
+
+When the user explicitly wants to change a current gateway-owned session, inspect its canonical id and set the session itself:
+
+```bash
+shrimpy sessions list --agent <id> --json
+shrimpy sessions set <session-id> --agent <id> --model <provider>/<model>
+shrimpy sessions set <session-id> --agent <id> --model-policy <policy>
+shrimpy sessions set <session-id> --agent <id> --thinking <level>
+```
+
+Use the foreground host's model or thinking controls for a TUI-owned session. Do not reset a session merely to apply a default unless the user asked to archive its current transcript. See `reference/sessions.md` for session ownership and model persistence.
 
 ## Shape Choices
 
@@ -118,7 +129,7 @@ Use `shrimpy-channels` for surface routing, channel naming, bindings, and Telegr
 ```bash
 shrimpy agent show <id>
 shrimpy agent inspect <id> --json
-shrimpy models resolve --agent <id> --session tui --json
+shrimpy models resolve --agent <id> --session local/main --json
 shrimpy context --agent <id> --sections
 ```
 

@@ -6,20 +6,25 @@ import {
   type ChannelMessage,
 } from "../channels/index.js";
 import { isThinkingLevel } from "../thinking.js";
+import type { ModelRef } from "../config/model.js";
+import type { ThinkingLevel } from "../thinking.js";
 
 export type DispatchSource = "backlog" | "live";
 type SessionControl = NonNullable<ReturnType<typeof readSessionControlContent>>;
-type Operation = "reset" | "restore" | "thinking" | "stop";
+type Operation = "reset" | "restore" | "set" | "thinking" | "stop";
 
 interface ControlSuccess {
   operation: Operation;
   text: string;
   archiveName?: string;
+  thinking?: ThinkingLevel;
+  model?: ModelRef;
 }
 
 const OPERATION_DESCRIPTION: Record<Operation, string> = {
   reset: "start a new session",
   restore: "restore the session",
+  set: "set session settings",
   thinking: "set the thinking level",
   stop: "stop the running turn",
 };
@@ -102,6 +107,8 @@ export class SessionControlRuntime {
         operation: result.operation,
         requestMessageId,
         ...(result.archiveName ? { archiveName: result.archiveName } : {}),
+        ...(result.thinking ? { thinking: result.thinking } : {}),
+        ...(result.model ? { model: result.model } : {}),
       },
     });
   }
@@ -143,6 +150,25 @@ async function runControl(
         text: `Set thinking level for ${agentId} to ${level}.`,
       };
     }
+    case "session_settings": {
+      const result = await runtime.setSettings(channel, {
+        thinking: control.thinking,
+        model: control.model,
+        modelPolicy: control.modelPolicy,
+      });
+      const settings = [
+        result.effectiveThinking ? `thinking=${result.effectiveThinking}` : undefined,
+        result.effectiveModel
+          ? `model=${result.effectiveModel.provider}/${result.effectiveModel.id}`
+          : undefined,
+      ].filter((value): value is string => Boolean(value));
+      return {
+        operation: "set",
+        text: `Set session ${settings.join(" and ")} for ${agentId}.`,
+        ...(result.effectiveThinking ? { thinking: result.effectiveThinking } : {}),
+        ...(result.effectiveModel ? { model: result.effectiveModel } : {}),
+      };
+    }
     case "session_stop": {
       const result = runtime.stop(channel);
       return {
@@ -159,6 +185,7 @@ function operationFor(control: SessionControl): Operation {
   switch (control.kind) {
     case "session_reset": return "reset";
     case "session_restore": return "restore";
+    case "session_settings": return "set";
     case "session_thinking_level": return "thinking";
     case "session_stop": return "stop";
   }

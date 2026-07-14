@@ -2,6 +2,7 @@ import {
   isThinkingLevel,
   type ThinkingLevel,
 } from "../thinking.js";
+import type { ModelRef } from "../config/model.js";
 import { isRecord } from "../util/record.js";
 
 export type SessionResetContentData = Record<string, unknown> & {
@@ -24,6 +25,15 @@ export type SessionThinkingLevelContentData = Record<string, unknown> & {
   command?: string;
 };
 
+export type SessionSettingsContentData = Record<string, unknown> & {
+  kind: "session_settings";
+  targetAgentId: string;
+  thinking?: ThinkingLevel;
+  model?: ModelRef;
+  modelPolicy?: string;
+  command?: string;
+};
+
 export type SessionStopContentData = Record<string, unknown> & {
   kind: "session_stop";
   targetAgentId: string;
@@ -34,6 +44,7 @@ export type SessionControlContentData =
   | SessionResetContentData
   | SessionRestoreContentData
   | SessionThinkingLevelContentData
+  | SessionSettingsContentData
   | SessionStopContentData;
 
 export type SurfaceAddressingStatusContentData = Record<string, unknown> & {
@@ -54,6 +65,8 @@ export type OperationStatusContentData = Record<string, unknown> & {
   operation?: string;
   requestMessageId?: string;
   archiveName?: string;
+  thinking?: ThinkingLevel;
+  model?: ModelRef;
 };
 
 export type StatusContentData =
@@ -365,6 +378,30 @@ function isSessionThinkingLevelContentData(
     );
 }
 
+function isSessionSettingsContentData(
+  value: unknown,
+): value is SessionSettingsContentData {
+  if (!isRecord(value)
+    || value.kind !== "session_settings"
+    || typeof value.targetAgentId !== "string"
+    || (value.thinking !== undefined && !isThinkingLevel(value.thinking))
+    || (value.modelPolicy !== undefined && typeof value.modelPolicy !== "string")
+    || (value.command !== undefined && typeof value.command !== "string")
+    || (value.model !== undefined && !isModelRef(value.model))) {
+    return false;
+  }
+  return (value.thinking !== undefined || value.model !== undefined || value.modelPolicy !== undefined)
+    && !(value.model !== undefined && value.modelPolicy !== undefined);
+}
+
+function isModelRef(value: unknown): value is ModelRef {
+  return isRecord(value)
+    && typeof value.provider === "string"
+    && value.provider.length > 0
+    && typeof value.id === "string"
+    && value.id.length > 0;
+}
+
 function isSessionStopContentData(
   value: unknown,
 ): value is SessionStopContentData {
@@ -383,6 +420,7 @@ function isSessionControlContentData(
   return isSessionResetContentData(value)
     || isSessionRestoreContentData(value)
     || isSessionThinkingLevelContentData(value)
+    || isSessionSettingsContentData(value)
     || isSessionStopContentData(value);
 }
 
@@ -440,6 +478,14 @@ function isOperationStatusContentData(
     && (
       value.archiveName === undefined ||
       typeof value.archiveName === "string"
+    )
+    && (
+      value.thinking === undefined ||
+      isThinkingLevel(value.thinking)
+    )
+    && (
+      value.model === undefined ||
+      isModelRef(value.model)
     );
 }
 
@@ -480,6 +526,15 @@ export function sessionThinkingLevelContent(
   } as SessionThinkingLevelContentData);
 }
 
+export function sessionSettingsContent(
+  input: Omit<SessionSettingsContentData, "kind">,
+): ControlMessageContent<SessionSettingsContentData> {
+  return controlContent({
+    kind: "session_settings",
+    ...input,
+  } as SessionSettingsContentData);
+}
+
 export function sessionStopContent(
   targetAgentId: string,
   command?: string,
@@ -517,6 +572,8 @@ export function operationStatusContent(input: {
   operation?: string;
   requestMessageId?: string;
   archiveName?: string;
+  thinking?: ThinkingLevel;
+  model?: ModelRef;
 }): StatusMessageContent<OperationStatusContentData> {
   return statusContent({
     kind: "operation_status",
@@ -526,6 +583,8 @@ export function operationStatusContent(input: {
     ...(input.operation ? { operation: input.operation } : {}),
     ...(input.requestMessageId ? { requestMessageId: input.requestMessageId } : {}),
     ...(input.archiveName ? { archiveName: input.archiveName } : {}),
+    ...(input.thinking ? { thinking: input.thinking } : {}),
+    ...(input.model ? { model: input.model } : {}),
   } as OperationStatusContentData);
 }
 
@@ -561,6 +620,13 @@ export function readSessionThinkingLevelContent(
 ): SessionThinkingLevelContentData | null {
   if (!isControlMessageContent(value)) return null;
   return isSessionThinkingLevelContentData(value.data) ? value.data : null;
+}
+
+export function readSessionSettingsContent(
+  value: MessageContent,
+): SessionSettingsContentData | null {
+  if (!isControlMessageContent(value)) return null;
+  return isSessionSettingsContentData(value.data) ? value.data : null;
 }
 
 export function readSessionStopContent(

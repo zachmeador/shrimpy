@@ -136,6 +136,7 @@ function createMockSession(opts?: {
   const llmPromptBatches: string[][] = [];
   const systemPromptSnapshots: string[] = [];
   const thinkingChanges: string[] = [];
+  const modelChanges: Array<Model<Api>> = [];
   let beforePrompt: ((text: string) => Promise<void>) | undefined;
   let rewriteMessage: ((message: any) => any | undefined) | undefined;
 
@@ -145,7 +146,9 @@ function createMockSession(opts?: {
     systemPrompt: opts?.systemPrompt ?? STABLE_SYSTEM_PROMPT,
     systemPromptSnapshots,
     thinkingChanges,
+    modelChanges,
     thinkingLevel: "off",
+    model: undefined as Model<Api> | undefined,
     disposed: false,
     agent: {
       state: {
@@ -201,6 +204,10 @@ function createMockSession(opts?: {
     setThinkingLevel(level: string): void {
       session.thinkingLevel = level;
       thinkingChanges.push(level);
+    },
+    async setModel(model: Model<Api>): Promise<void> {
+      session.model = model;
+      modelChanges.push(model);
     },
     dispose(): void {
       session.disposed = true;
@@ -1085,6 +1092,30 @@ describe("SessionPool", () => {
     assert.deepEqual(sessionFactory.sessions[0].prompts, []);
     assert.deepEqual(sessionFactory.sessions[0].thinkingChanges, ["high"]);
     assert.equal(result.effectiveLevel, "high");
+  });
+
+  test("can set session model and thinking together without dispatching a turn", async () => {
+    const sessionFactory = createSessionFactory();
+    const registry = createRegistry(sessionFactory);
+    const model = {
+      ...createCaptureModel("settings-provider"),
+      id: "settings-model",
+    };
+
+    const result = await registry.setSettings("telegram~shrimpy~1", {
+      model,
+      thinking: "high" as any,
+    });
+
+    assert.equal(sessionFactory.calls, 1);
+    assert.deepEqual(sessionFactory.sessions[0].prompts, []);
+    assert.deepEqual(sessionFactory.sessions[0].modelChanges, [model]);
+    assert.deepEqual(sessionFactory.sessions[0].thinkingChanges, ["high"]);
+    assert.deepEqual(result.effectiveModel, {
+      provider: "settings-provider",
+      id: "settings-model",
+    });
+    assert.equal(result.effectiveThinking, "high");
   });
 
   test("uses the same routed session type regardless of channel name", async () => {

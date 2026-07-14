@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ChannelActivityHandle } from "../channels/egress.js";
 import type { ChannelMessage } from "../channels/index.js";
@@ -17,6 +18,7 @@ import type { SessionOpenPlan } from "./spec.js";
 import { durableSessionDir } from "./spec.js";
 import { archiveActiveSession, restoreArchivedSession } from "./transcript-store.js";
 import type { ThinkingLevel } from "../thinking.js";
+import { toModelRef } from "../config/model.js";
 import { runSessionTurn } from "./turn-output.js";
 
 interface SessionLane {
@@ -128,6 +130,35 @@ export class SessionPool {
         sessionDir: durableSessionDir(plan.descriptor),
         requestedLevel: level,
         effectiveLevel: session.thinkingLevel as ThinkingLevel,
+      };
+    });
+  }
+
+  async setSettings(
+    channel: string,
+    input: { thinking?: ThinkingLevel; model?: Model<Api> },
+  ) {
+    const lane = this.lane(channel);
+    return this.enqueue(lane, "set session settings", async () => {
+      const plan = await this.plan(lane);
+      const session = await this.session(lane);
+      if (input.model) await session.setModel(input.model);
+      if (input.thinking) session.setThinkingLevel(input.thinking);
+      return {
+        channel,
+        sessionDir: durableSessionDir(plan.descriptor),
+        ...(input.thinking
+          ? {
+            requestedThinking: input.thinking,
+            effectiveThinking: session.thinkingLevel as ThinkingLevel,
+          }
+          : {}),
+        ...(input.model
+          ? {
+            requestedModel: toModelRef(input.model),
+            effectiveModel: toModelRef(session.model),
+          }
+          : {}),
       };
     });
   }

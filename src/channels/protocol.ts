@@ -6,6 +6,7 @@ import {
   isMessageContent,
   sessionResetContent,
   sessionRestoreContent,
+  sessionSettingsContent,
   sessionStopContent,
   sessionThinkingLevelContent,
   statusContent,
@@ -14,6 +15,7 @@ import {
   unsupportedMediaContent,
   type MessageContent,
   type PublicationIntent,
+  type SessionSettingsContentData,
   type StatusContentData,
   type UnsupportedSurfaceMessage,
 } from "./messages.js";
@@ -139,6 +141,9 @@ interface PublishSessionRestoreInput extends PublishSessionControlInput {
 interface PublishSessionThinkingLevelInput extends PublishSessionControlInput {
   level: ThinkingLevel;
 }
+
+type PublishSessionSettingsInput = PublishSessionControlInput &
+  Pick<SessionSettingsContentData, "thinking" | "model" | "modelPolicy">;
 
 type PublishSessionStopInput = PublishSessionControlInput;
 
@@ -316,6 +321,25 @@ export function sessionThinkingLevelMessageInput(
       input.level,
       input.command,
     ),
+    timestamp: input.timestamp,
+    id: input.id,
+  };
+}
+
+export function sessionSettingsMessageInput(
+  input: PublishSessionSettingsInput,
+): PublishChannelMessageInput {
+  return {
+    channel: input.channel,
+    sender: input.sender,
+    origin: input.origin,
+    content: sessionSettingsContent({
+      targetAgentId: input.targetAgentId,
+      ...(input.thinking ? { thinking: input.thinking } : {}),
+      ...(input.model ? { model: input.model } : {}),
+      ...(input.modelPolicy ? { modelPolicy: input.modelPolicy } : {}),
+      ...(input.command ? { command: input.command } : {}),
+    }),
     timestamp: input.timestamp,
     id: input.id,
   };

@@ -25,7 +25,7 @@ See [sessions.md](sessions.md) for canonical session ids, manifests, ownership, 
 | `shrimpy sessions list [session-id]` | Inspect manifested sessions, active/archive state, owner, and gateway lane state. |
 | `shrimpy sessions new <session-id>` | Archive/reset a session through its owner or an exclusive maintenance lease. |
 | `shrimpy sessions restore <session-id>` | Restore an archived session through its owner or an exclusive maintenance lease. |
-| `shrimpy sessions thinking <session-id> <level>` | Change reasoning effort for a running session and verify the outcome. |
+| `shrimpy sessions set <session-id> [--thinking <level>] [--model <provider/model>\|--model-policy <name>]` | Change the model or reasoning effort for a running session. |
 | `shrimpy sessions stop <session-id> [--agent <id>]` | Stop a running gateway turn out of band and verify the outcome. |
 | `shrimpy sessions search <query> [--agent <id>] [--channel <channel>] [--all-agents] [--limit N] [--json]` | Search active and archived session transcripts with bounded snippets. |
 | `shrimpy sessions read <session> --around <entry> [--window N] [--agent <id>] [--json]` | Read a bounded transcript window around one session entry. |

@@ -3,10 +3,15 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
-import { cmdSessions } from "../dist/commands/sessions.js";
+import {
+  cmdSessions,
+  createSessionsCommand,
+} from "../dist/commands/sessions.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 import { ensureSessionManifest } from "../dist/sessions/manifest.js";
+import { acquireSessionLease } from "../dist/sessions/ownership.js";
+import { archiveActiveSession } from "../dist/sessions/transcript-store.js";
 import {
   setupInit,
   captureLogs,
@@ -186,11 +191,11 @@ describe("cmdSessions", () => {
     assert.deepEqual(summary.sessions[0].archives.map((entry: any) => entry.name), ["home-123.jsonl"]);
   });
 
-  test("fails a routed thinking change when the gateway is stopped", async () => {
+  test("fails a routed settings change when the gateway is stopped", async () => {
     await setupInit(workspace);
 
     const { result, lines, errors } = await captureLogs(() =>
-      cmdSessions(["thinking", "channel/home", "high"], { workspace } as any)
+      cmdSessions(["set", "channel/home", "--thinking", "high"], { workspace } as any)
     );
 
     assert.equal(result, 1);
@@ -202,11 +207,11 @@ describe("cmdSessions", () => {
     assert.deepEqual(messages, []);
   });
 
-  test("maps sessions thinking on to medium before reporting a stopped gateway", async () => {
+  test("maps sessions set --thinking on to medium before reporting a stopped gateway", async () => {
     await setupInit(workspace);
 
     const { result, lines, errors } = await captureLogs(() =>
-      cmdSessions(["thinking", "channel/home", "on"], { workspace } as any)
+      cmdSessions(["set", "channel/home", "--thinking", "on"], { workspace } as any)
     );
 
     assert.equal(result, 1);
@@ -216,6 +221,113 @@ describe("cmdSessions", () => {
     const bus = new ChannelBus(join(workspace, "channels"));
     const { messages } = bus.read("home");
     assert.deepEqual(messages, []);
+  });
+
+  test("queues model and thinking settings for the session owner", async () => {
+    await setupInit(workspace);
+    const descriptor = channelSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "home",
+    );
+    const lease = acquireSessionLease({ workspace, descriptor, kind: "gateway" });
+    assert.ok(lease);
+
+    try {
+      const { result, lines } = await captureLogs(() =>
+        cmdSessions([
+          "set",
+          "channel/home",
+          "--model",
+          "test/reef",
+          "--thinking",
+          "high",
+          "--no-wait",
+          "--json",
+        ], { workspace } as any)
+      );
+      assert.equal(result, 0);
+      assert.equal(JSON.parse(lines.join("\n")).outcome, "queued");
+      const control = new ChannelBus(join(workspace, "channels")).read("home").messages[0];
+      assert.deepEqual(control.content, {
+        type: "control",
+        data: {
+          kind: "session_settings",
+          targetAgentId: "shrimpy",
+          thinking: "high",
+          model: { provider: "test", id: "reef" },
+          command: "sessions set",
+        },
+      });
+    } finally {
+      lease.release();
+    }
+  });
+
+  test("returns a nonzero exit for a correlated settings failure", async () => {
+    await setupInit(workspace);
+    const descriptor = channelSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "home",
+    );
+    const lease = acquireSessionLease({ workspace, descriptor, kind: "gateway" });
+    assert.ok(lease);
+    const bus = new ChannelBus(join(workspace, "channels"));
+    const respond = respondToNextControl(bus, "home", (request) => {
+      bus.publishStatus({
+        channel: "home",
+        actorId: "system:session-control",
+        transport: "internal",
+        data: {
+          kind: "operation_status",
+          text: "Failed to set session settings for shrimpy: model unavailable.",
+          ok: false,
+          operation: "set",
+          targetAgentId: "shrimpy",
+          requestMessageId: request.id,
+        },
+      });
+    });
+
+    try {
+      const command = createSessionsCommand({ timeoutMs: 100, pollIntervalMs: 1 });
+      const { result, lines, errors } = await captureLogs(() =>
+        command(["set", "channel/home", "--thinking", "high"], { workspace } as any)
+      );
+      await respond;
+      assert.equal(result, 1);
+      assert.deepEqual(lines, []);
+      assert.deepEqual(errors, [
+        "Failed to set session settings for shrimpy: model unavailable.",
+      ]);
+    } finally {
+      lease.release();
+    }
+  });
+
+  test("returns a nonzero exit with diagnostics when gateway confirmation times out", async () => {
+    await setupInit(workspace);
+    const descriptor = channelSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "home",
+    );
+    const lease = acquireSessionLease({ workspace, descriptor, kind: "gateway" });
+    assert.ok(lease);
+
+    try {
+      const command = createSessionsCommand({
+        timeoutMs: 5,
+        pollIntervalMs: 1,
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      });
+      const { result, errors } = await captureLogs(() =>
+        command(["set", "channel/home", "--thinking", "high"], { workspace } as any)
+      );
+      assert.equal(result, 1);
+      assert.match(errors.join("\n"), /shrimpy gateway status/);
+      assert.match(errors.join("\n"), /shrimpy sessions list channel\/home --agent shrimpy/);
+    } finally {
+      lease.release();
+    }
   });
 
   test("fails a routed stop when the gateway is stopped", async () => {
@@ -255,6 +367,55 @@ describe("cmdSessions", () => {
 
     const bus = new ChannelBus(join(workspace, "channels"));
     assert.deepEqual(bus.read("home").messages, []);
+  });
+
+  test("prints the confirmed gateway reset outcome and fresh-session behavior", async () => {
+    await setupInit(workspace);
+    const descriptor = channelSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "home",
+    );
+    if (descriptor.storage.kind !== "durable") throw new Error("expected durable session");
+    mkdirSync(descriptor.storage.dir, { recursive: true });
+    writeActiveSessionFile(join(descriptor.storage.dir, "home-active.jsonl"));
+    const lease = acquireSessionLease({ workspace, descriptor, kind: "gateway" });
+    assert.ok(lease);
+    const bus = new ChannelBus(join(workspace, "channels"));
+    const respond = respondToNextControl(bus, "home", (request) => {
+      const archived = archiveActiveSession(descriptor.storage.dir);
+      assert.ok(archived);
+      bus.publishStatus({
+        channel: "home",
+        actorId: "system:session-control",
+        transport: "internal",
+        data: {
+          kind: "operation_status",
+          text: "Started a new session for shrimpy.",
+          ok: true,
+          operation: "reset",
+          targetAgentId: "shrimpy",
+          requestMessageId: request.id,
+          archiveName: "home-active.jsonl",
+        },
+      });
+    });
+
+    try {
+      const command = createSessionsCommand({ timeoutMs: 100, pollIntervalMs: 1 });
+      const { result, lines, errors } = await captureLogs(() =>
+        command(["new", "channel/home"], { workspace } as any)
+      );
+      await respond;
+      assert.equal(result, 0);
+      assert.deepEqual(errors, []);
+      assert.deepEqual(lines, [
+        "Started a new session for shrimpy.",
+        "Archived home-active.jsonl.",
+        "The next message opens a fresh session under the current policy.",
+      ]);
+    } finally {
+      lease.release();
+    }
   });
 
   test("inspects effective compaction policy as JSON", async () => {
@@ -432,6 +593,12 @@ describe("cmdSessions", () => {
 });
 
 function channelSessionDir(agentRoot: string, channel: string): string {
+  const descriptor = channelSessionDescriptor(agentRoot, channel);
+  assert.equal(descriptor.storage.kind, "durable");
+  return descriptor.storage.dir;
+}
+
+function channelSessionDescriptor(agentRoot: string, channel: string) {
   const descriptor = createSessionDescriptor({
     agentRoot,
     key: createChannelSessionKey({ agentId: "shrimpy", channel }),
@@ -439,8 +606,26 @@ function channelSessionDir(agentRoot: string, channel: string): string {
     delivery: { kind: "channel", channel },
   });
   ensureSessionManifest(descriptor);
-  assert.equal(descriptor.storage.kind, "durable");
-  return descriptor.storage.dir;
+  return descriptor;
+}
+
+async function respondToNextControl(
+  bus: ChannelBus,
+  channel: string,
+  respond: (request: any) => void,
+): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < 500) {
+    const request = bus.read(channel).messages.find((message) =>
+      message.content.type === "control"
+    );
+    if (request) {
+      respond(request);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  throw new Error("timed out waiting for session control request");
 }
 
 function writeActiveSessionFile(path: string, extra = ""): void {

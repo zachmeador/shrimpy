@@ -1,7 +1,7 @@
 import type {
   executeSessionLifecycleAction,
+  executeSessionSettingsAction,
   executeSessionStopAction,
-  executeSessionThinkingAction,
   SessionCompactionPolicySummary,
   SessionListingSummary,
   SessionPathSummary,
@@ -56,8 +56,8 @@ export function printSessionLifecycleResult(
   printSessionActionResult(result);
 }
 
-export function printSessionThinkingResult(
-  result: Awaited<ReturnType<typeof executeSessionThinkingAction>>,
+export function printSessionSettingsResult(
+  result: Awaited<ReturnType<typeof executeSessionSettingsAction>>,
 ): void {
   printSessionActionResult(result);
 }
@@ -79,8 +79,11 @@ function printSessionActionResult(
     console.log(`queued ${result.operation} for ${result.sessionId}`);
     return;
   }
-  const archive = result.archiveName ? ` archive=${result.archiveName}` : "";
-  console.log(`${result.operation} ${result.sessionId} ${result.outcome}${archive}`);
+  console.log(result.message ?? `${result.operation} ${result.sessionId} ${result.outcome}`);
+  if (result.operation === "reset") {
+    if (result.archiveName) console.log(`Archived ${result.archiveName}.`);
+    console.log("The next message opens a fresh session under the current policy.");
+  }
 }
 
 export function printSessionCompactionPolicy(

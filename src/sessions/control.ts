@@ -7,9 +7,10 @@ import {
   readOperationStatusContent,
   sessionResetMessageInput,
   sessionRestoreMessageInput,
+  sessionSettingsMessageInput,
   sessionStopMessageInput,
-  sessionThinkingLevelMessageInput,
 } from "../channels/index.js";
+import type { ModelRef } from "../config/model.js";
 import type { ThinkingLevel } from "../thinking.js";
 import { formatSessionId, type SessionKey } from "./identity.js";
 import {
@@ -26,7 +27,7 @@ import {
 } from "./transcript-store.js";
 
 type LifecycleAction = "new" | "clear" | "restore";
-type Operation = "reset" | "restore" | "thinking" | "stop";
+type Operation = "reset" | "restore" | "set" | "stop";
 
 export type SessionActionOutcome =
   | "applied"
@@ -47,6 +48,9 @@ export interface SessionActionResult {
   waitDurationMs: number;
   requestedLevel?: ThinkingLevel;
   effectiveLevel?: ThinkingLevel;
+  requestedModel?: ModelRef;
+  effectiveModel?: ModelRef;
+  modelPolicy?: string;
   message?: string;
 }
 
@@ -67,7 +71,10 @@ interface ControlRequest {
   wait: boolean;
   make(bus: ChannelBus, channel: string): ChannelMessage;
   sessionDir?: string;
+  hadActiveSession?: boolean;
   requestedLevel?: ThinkingLevel;
+  requestedModel?: ModelRef;
+  modelPolicy?: string;
 }
 
 const CONTROL_TIMEOUT_MS = 30_000;
@@ -100,6 +107,7 @@ export async function executeSessionLifecycleAction(
       operation,
       wait: input.wait !== false,
       sessionDir: target.dir,
+      hadActiveSession: Boolean(findActiveSessionFile(target.dir)),
       make: (bus, channel) => input.action === "restore"
         ? bus.publish(sessionRestoreMessageInput({
           channel,
@@ -131,23 +139,40 @@ export async function executeSessionLifecycleAction(
   }
 }
 
-export function executeSessionThinkingAction(
+export function executeSessionSettingsAction(
   runtime: AppRuntime,
-  input: { sessionId: string; level: ThinkingLevel; agentId?: string; wait?: boolean },
+  input: {
+    sessionId: string;
+    thinking?: ThinkingLevel;
+    model?: ModelRef;
+    modelPolicy?: string;
+    agentId?: string;
+    wait?: boolean;
+  },
   deps: SessionControlDeps = {},
 ): Promise<SessionActionResult> {
   const target = resolveTarget(runtime, input.agentId, input.sessionId);
+  if (input.model && input.modelPolicy) {
+    return Promise.resolve(failure(target, "set", "model and model policy are mutually exclusive"));
+  }
+  if (!input.thinking && !input.model && !input.modelPolicy) {
+    return Promise.resolve(failure(target, "set", "no session setting was provided"));
+  }
   return sendRunningControl(runtime, target, {
-    operation: "thinking",
+    operation: "set",
     wait: input.wait !== false,
-    requestedLevel: input.level,
-    make: (bus, channel) => bus.publish(sessionThinkingLevelMessageInput({
+    requestedLevel: input.thinking,
+    requestedModel: input.model,
+    modelPolicy: input.modelPolicy,
+    make: (bus, channel) => bus.publish(sessionSettingsMessageInput({
       channel,
       targetAgentId: target.key.agentId,
-      level: input.level,
+      thinking: input.thinking,
+      model: input.model,
+      modelPolicy: input.modelPolicy,
       sender: cliSender(),
       origin: cliOrigin(channel),
-      command: "/thinking",
+      command: "sessions set",
     })),
   }, deps);
 }
@@ -204,6 +229,8 @@ async function sendControl(
     channel,
     requestMessageId: message.id,
     ...(request.requestedLevel ? { requestedLevel: request.requestedLevel } : {}),
+    ...(request.requestedModel ? { requestedModel: request.requestedModel } : {}),
+    ...(request.modelPolicy ? { modelPolicy: request.modelPolicy } : {}),
   };
   if (!request.wait) return { outcome: "queued", ...base, waitDurationMs: 0 };
 
@@ -215,20 +242,27 @@ async function sendControl(
       outcome: "unconfirmed",
       ...base,
       waitDurationMs,
-      message: `Session ${request.operation} was not confirmed within ${waitDurationMs}ms.`,
+      message: `Session ${request.operation} was not confirmed within ${waitDurationMs}ms. Check "shrimpy gateway status" and "shrimpy sessions list ${target.id} --agent ${target.key.agentId}".`,
     };
   }
   if (!status.ok) {
     return { outcome: "failed", ...base, waitDurationMs, message: status.text };
   }
   const verificationError = request.sessionDir
-    ? verifyLifecycle(request.operation, request.sessionDir, status)
+    ? verifyLifecycle(
+      request.operation,
+      request.sessionDir,
+      status,
+      request.hadActiveSession ?? false,
+    )
     : undefined;
   return {
     outcome: verificationError ? "unconfirmed" : "applied",
     ...base,
     waitDurationMs,
     ...(status.archiveName ? { archiveName: status.archiveName } : {}),
+    ...(status.thinking ? { effectiveLevel: status.thinking } : {}),
+    ...(status.model ? { effectiveModel: status.model } : {}),
     message: verificationError ?? status.text,
   };
 }
@@ -304,10 +338,18 @@ function verifyLifecycle(
   operation: Operation,
   sessionDir: string,
   status: OperationStatusContentData,
+  hadActiveSession: boolean,
 ): string | undefined {
-  if (operation === "reset" && status.archiveName &&
-    !resolveArchivedSessionFile(sessionDir, status.archiveName)) {
-    return `Gateway reported success, but archived session ${status.archiveName} was not found on disk.`;
+  if (operation === "reset") {
+    if (hadActiveSession && !status.archiveName) {
+      return "Gateway reported success, but did not identify the archived session.";
+    }
+    if (status.archiveName && !resolveArchivedSessionFile(sessionDir, status.archiveName)) {
+      return `Gateway reported success, but archived session ${status.archiveName} was not found on disk.`;
+    }
+    if (findActiveSessionFile(sessionDir)) {
+      return "Gateway reported success, but the previous session was still active on disk.";
+    }
   }
   if (operation === "restore") {
     const active = findActiveSessionFile(sessionDir);

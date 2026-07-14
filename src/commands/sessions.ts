@@ -1,18 +1,17 @@
 import { createAppRuntime } from "../app/index.js";
 import {
   executeSessionLifecycleAction,
+  executeSessionSettingsAction,
   executeSessionStopAction,
-  executeSessionThinkingAction,
   inspectSessionCompactionPolicy,
   readSessionAroundEntry,
   searchSessionTranscripts,
   summarizeAgentSessions,
   summarizeSessionStatus,
+  type SessionControlDeps,
 } from "../sessions/index.js";
-import {
-  formatThinkingInputs,
-  parseThinkingLevel,
-} from "../thinking.js";
+import { parseModelRef } from "../config/model.js";
+import { formatThinkingInputs, parseThinkingLevel } from "../thinking.js";
 import {
   printSessionLifecycleResult,
   printSessionListing,
@@ -20,7 +19,7 @@ import {
   printSessionStopResult,
   printSessionReadResult,
   printSessionSearchResult,
-  printSessionThinkingResult,
+  printSessionSettingsResult,
 } from "./sessions-format.js";
 import { parsePositiveInt } from "../util/parse.js";
 import { renderGroupUsage } from "./catalog.js";
@@ -59,6 +58,23 @@ function parseSessionSearchArgs(argv: string[], usageText: string) {
       "all-agents": { type: "boolean", default: false },
       channel: { type: "string" },
       limit: { type: "string" },
+      json: { type: "boolean" },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: usageText,
+  });
+}
+
+function parseSessionSetArgs(argv: string[], usageText: string) {
+  return parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      thinking: { type: "string" },
+      model: { type: "string", short: "m" },
+      "model-policy": { type: "string" },
+      "no-wait": { type: "boolean", default: false },
       json: { type: "boolean" },
     },
     allowPositionals: true,
@@ -161,29 +177,43 @@ async function listSessions({ argv, config, usage: usageText }: CommandInvocatio
   return 0;
 }
 
-async function setThinking({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
-  const { values, positionals } = parseSessionArgs(argv, usageText);
+async function setSession(
+  { argv, config, usage: usageText }: CommandInvocation,
+  controlDeps: SessionControlDeps = {},
+): Promise<number> {
+  const { values, positionals } = parseSessionSetArgs(argv, usageText);
   const sessionId = requireArg(positionals[0], usageText, "session id");
-  const level = requireArg(positionals[1], usageText, "level");
-  const parsedLevel = parseThinkingLevel(level);
-  if (!parsedLevel) {
+  if (positionals.length > 1) usage(usageText, `unexpected argument: ${positionals[1]}`);
+  if (values.model && values["model-policy"]) {
+    usage(usageText, "--model and --model-policy are mutually exclusive");
+  }
+  if (!values.thinking && !values.model && !values["model-policy"]) {
+    usage(usageText, "provide --thinking, --model, or --model-policy");
+  }
+  const thinking = values.thinking ? parseThinkingLevel(values.thinking) : undefined;
+  if (values.thinking && !thinking) {
     usage(usageText, `thinking level must be one of: ${formatThinkingInputs()}`);
   }
 
   const runtime = createAppRuntime(config);
-  const result = await executeSessionThinkingAction(runtime, {
+  const result = await executeSessionSettingsAction(runtime, {
     sessionId,
-    level: parsedLevel,
+    thinking,
+    model: values.model ? parseModelRef(values.model, "--model") : undefined,
+    modelPolicy: values["model-policy"],
     agentId: values.agent,
     wait: !values["no-wait"],
-  });
+  }, controlDeps);
 
   if (values.json) console.log(JSON.stringify(result, null, 2));
-  else printSessionThinkingResult(result);
+  else printSessionSettingsResult(result);
   return actionExitCode(result.outcome);
 }
 
-function sessionLifecycleAction(action: "new" | "clear" | "restore") {
+function sessionLifecycleAction(
+  action: "new" | "clear" | "restore",
+  controlDeps: SessionControlDeps = {},
+) {
   return async ({ argv, config, usage: usageText }: CommandInvocation): Promise<number> => {
     const { values, positionals } = parseSessionArgs(argv, usageText);
     const sessionId = requireArg(positionals[0], usageText, "session id");
@@ -195,7 +225,7 @@ function sessionLifecycleAction(action: "new" | "clear" | "restore") {
       agentId: values.agent,
       archive: values.archive,
       wait: !values["no-wait"],
-    });
+    }, controlDeps);
 
     if (values.json) console.log(JSON.stringify(result, null, 2));
     else printSessionLifecycleResult(result);
@@ -203,7 +233,10 @@ function sessionLifecycleAction(action: "new" | "clear" | "restore") {
   };
 }
 
-async function stopSession({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
+async function stopSession(
+  { argv, config, usage: usageText }: CommandInvocation,
+  controlDeps: SessionControlDeps = {},
+): Promise<number> {
   const { values, positionals } = parseSessionArgs(argv, usageText);
   const sessionId = requireArg(positionals[0], usageText, "session id");
   const runtime = createAppRuntime(config);
@@ -212,7 +245,7 @@ async function stopSession({ argv, config, usage: usageText }: CommandInvocation
     sessionId,
     agentId: values.agent,
     wait: !values["no-wait"],
-  });
+  }, controlDeps);
 
   if (values.json) console.log(JSON.stringify(result, null, 2));
   else printSessionStopResult(result);
@@ -223,19 +256,25 @@ function actionExitCode(outcome: "applied" | "applied_direct" | "failed" | "unco
   return outcome === "failed" || outcome === "unconfirmed" ? 1 : 0;
 }
 
-export const cmdSessions: CommandHandler = createCommandGroup({
-  name: "sessions",
-  usage: USAGE,
-  default: () => showUsage(USAGE),
-  commands: {
-    list: listSessions,
-    search: searchSessions,
-    read: readSession,
-    compaction: inspectCompaction,
-    thinking: setThinking,
-    stop: stopSession,
-    new: sessionLifecycleAction("new"),
-    clear: sessionLifecycleAction("clear"),
-    restore: sessionLifecycleAction("restore"),
-  },
-});
+export function createSessionsCommand(
+  controlDeps: SessionControlDeps = {},
+): CommandHandler {
+  return createCommandGroup({
+    name: "sessions",
+    usage: USAGE,
+    default: () => showUsage(USAGE),
+    commands: {
+      list: listSessions,
+      search: searchSessions,
+      read: readSession,
+      compaction: inspectCompaction,
+      set: (invocation) => setSession(invocation, controlDeps),
+      stop: (invocation) => stopSession(invocation, controlDeps),
+      new: sessionLifecycleAction("new", controlDeps),
+      clear: sessionLifecycleAction("clear", controlDeps),
+      restore: sessionLifecycleAction("restore", controlDeps),
+    },
+  });
+}
+
+export const cmdSessions: CommandHandler = createSessionsCommand();
