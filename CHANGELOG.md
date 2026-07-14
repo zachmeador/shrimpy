@@ -34,6 +34,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Fixed
 
+- Fixed TUI `/new` exiting instead of starting a fresh session when durable session ownership was enabled.
 - Fixed concurrent worker state mutations overwriting other worker records, duplicate worker ids being accepted, and late supervisor results reviving cancelled or closed turns.
 - Fixed session ownership races during stale-owner replacement, cleanup, and token-checked release.
 - Fixed watch schedule edits retaining stale next-run timestamps by binding persisted clock entries to their effective interval or cron/timezone schedule.

@@ -108,7 +108,6 @@ export async function openSessionRuntime(
       sessionManager: createDescriptorSessionManager(cwd, plan.descriptor),
     },
   );
-  runtime.setBeforeSessionInvalidate(() => releaseSessionLease(runtime.session));
   return runtime;
 }
 
@@ -207,14 +206,17 @@ async function openLeasedSessionWithRuntimeDeps(
     assembly,
     settingsManager,
     turnContextController,
-    [createSessionRecordingExtensionFactory({
-      sessionManager,
-      bootstrap,
-      plan: effectivePlan,
-      envKeys: assembly.envKeys,
-      env: assembly.env,
-      compaction: compactionPolicy,
-    })],
+    [
+      createSessionRecordingExtensionFactory({
+        sessionManager,
+        bootstrap,
+        plan: effectivePlan,
+        envKeys: assembly.envKeys,
+        env: assembly.env,
+        compaction: compactionPolicy,
+      }),
+      ...(lease ? [createSessionLeaseExtensionFactory(lease)] : []),
+    ],
   );
 
   const { session } = await createAgentSession({
@@ -376,4 +378,14 @@ function releaseSessionLease(session: AgentSession): void {
   if (!lease) return;
   sessionLeases.delete(session);
   lease.release();
+}
+
+function createSessionLeaseExtensionFactory(
+  lease: SessionLease,
+): ExtensionFactory {
+  return (pi) => {
+    pi.on("session_shutdown", () => {
+      lease.release();
+    });
+  };
 }
