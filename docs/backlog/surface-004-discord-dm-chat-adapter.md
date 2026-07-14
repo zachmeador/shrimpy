@@ -3,6 +3,7 @@
 Status: todo
 Priority: P2
 Area: Surfaces
+Depends On: [SURFACE-006](surface-006-remote-chat-commands.md)
 
 ## Why
 Shrimpy should support Discord as another chat surface, but the first version should stay narrow: one bot account receiving and sending direct messages with explicitly authorized human users. That gives the user a familiar low-friction control path without taking on Discord guild-channel, thread, role, slash-command, or multi-user room semantics.
@@ -13,12 +14,13 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 
 ## Build
 - Add a `discord` chat surface module under `src/surfaces/discord/`, following the current Telegram module shape.
-- Build the shared chat engine by extraction while porting: move inbound gating, identity mapping, burst buffering, and the chat command registry into `src/surfaces/shared/` as Discord needs them, instead of copying Telegram's `bridge.ts`/`commands.ts`. Discord is the forcing function that earns the abstraction; do not abstract ahead of it. See [SURFACE-006](surface-006-chat-command-parity.md) for the command registry shape.
-- Add `discord.instances.<id>` config with bot token, `defaultAgentId`, required authorized Discord user ids, stable Shrimpy user mappings, and conservative text-burst/message formatting policy.
+- Reuse `ChatSurfacePublisher`, identity resolution, thread state, membership, and the remote command service from [SURFACE-006](surface-006-remote-chat-commands.md). Extract any additional shared helper only after Telegram and Discord have the same concrete behavior; keep transport authorization, event filtering, and gateway lifecycle inside their adapters.
+- Add `discord.instances.<id>` config with bot token, `defaultAgentId`, required authorized Discord user ids, stable Shrimpy user mappings, and conservative message-formatting policy.
 - Register Discord surface egress for `discord/<instance>` bindings, and have inbound DMs write channel manifests with bindings such as `discord/<instance>/<thread>` while keeping stable generated channel names like `discord~<instance>~<thread>`.
 - Start a gateway listener for configured instances and accept only `MESSAGE_CREATE` events from one-on-one DM channels.
 - Drop guild messages, group DMs, bot-authored messages, self messages, missing/empty allowlists, and unauthorized users before publishing anything to Shrimpy channels.
 - Publish inbound DM text through `ChatSurfacePublisher` with `transport: "discord"`, Discord author id as `transportUserId`, the DM channel/conversation id as `transportChatId`, and mapped stable human identity.
+- Route the small shared chat command set before publishing ordinary DM text so session controls, addressed-agent switching, status, and help behave consistently with Telegram.
 - Implement outbound egress for Discord-backed channels with Discord's create-message API, 2000-character chunking, and mention suppression by default.
 - Add `shrimpy setup discord` and status/diagnostic inspection enough to verify token, gateway connection, configured authorized users, and recent channel delivery from the CLI.
 
@@ -30,6 +32,7 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 - Do not add name-based authorization. Discord user ids are the authorization key.
 - Do not create a second chat/session system. Discord DMs become normal Shrimpy channels and gateway sessions.
 - Do not add Discord-specific session semantics. Once a DM is normalized into a Shrimpy channel message, the normal gateway session and turn-value context path should carry origin/delivery facts.
+- Do not turn `src/surfaces/shared/` into a transport-neutral bridge framework. Discord-specific authorization, event shapes, connection state, and formatting stay in the Discord vertical.
 - Do not add legacy shims, deprecated config aliases, or migration paths.
 
 ## Shape

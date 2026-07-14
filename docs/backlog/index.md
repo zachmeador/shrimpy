@@ -18,10 +18,9 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
 | [SETUP-004](setup-004-safe-environment-update.md) | draft | P1 | Setup | none | Safe Shrimpy environment update that preserves mechanic model access |
 | [SURFACE-002](surface-002-chat-delivery-attribution.md) | todo | P2 | Surfaces | none | Chat delivery attribution |
-| [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Chat operation status updates |
-| [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
-| [SURFACE-006](surface-006-chat-command-parity.md) | todo | P2 | Surfaces | none | Chat command parity |
-| [SURFACE-007](surface-007-react-web-chat.md) | todo | P2 | Surfaces | none | React web chat surface |
+| [SURFACE-003](surface-003-chat-operation-status.md) | todo | P2 | Surfaces | none | Terminal chat compaction failure status |
+| [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](surface-006-remote-chat-commands.md) | Discord DM chat adapter |
+| [SURFACE-006](surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
 
 ## Later
 
@@ -37,4 +36,5 @@ Deferred notes that are intentionally outside the active backlog.
 | [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
 | [RUNTIME-001](later/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SEARCH-003](later/search-003-workspace-search-embeddings.md) | todo | P3 | Search | workspace search | Optional local embeddings for workspace search |
+| [SURFACE-007](later/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
 | [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |

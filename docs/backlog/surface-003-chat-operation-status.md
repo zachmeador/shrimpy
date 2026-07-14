@@ -1,4 +1,4 @@
-# 🦐 SURFACE-003: Chat Operation Status Updates
+# 🦐 SURFACE-003: Chat Compaction Failure Status
 
 Status: todo
 Priority: P2
@@ -6,58 +6,47 @@ Area: Surfaces
 Depends On: none
 
 ## Why
-Telegram and future chat adapters should be able to show small operational status updates when Shrimpy is doing user-relevant background maintenance for an active chat. The immediate case is session compaction: today a Telegram-backed gateway session can start, finish, or fail compaction without any visible chat signal, leaving the user with no clue that the agent's working context was summarized.
 
-This should grow into a general operations status mechanism for chat surfaces, not a Telegram-only compaction special case.
+Routine session compaction is internal working-context maintenance and should stay quiet. A terminal compaction failure is different: it can prevent the active chat turn from completing and gives the user a concrete reason for an otherwise unexplained failure.
+
+Shrimpy already has typed `operation_status` channel messages, channel-outbox delivery, Telegram rendering of status text, and session compaction events. This item only connects a terminal gateway-session compaction failure to that existing path.
 
 ## Build
-- Add a generic chat operation status path for accepted gateway channel sessions.
-- Start with compaction lifecycle statuses:
-  - compaction started
-  - compaction finished
-  - compaction failed or was aborted
-- Implement Telegram delivery for those statuses with compact, plain-language messages.
-- Keep the status mechanism available for future chat adapters such as Discord.
-- Make status emission configurable by operation and surface, with conservative defaults.
-- Include enough metadata for adapters to format the status without reading private session internals directly: channel, agent id, session label, operation kind, phase, and optional error summary.
-- Add a CLI-first inspection or test command for sending a synthetic operation status to a channel.
-- Log delivery failures without failing the underlying operation.
+
+- Observe `compaction_end` for channel-delivered gateway sessions.
+- Publish one failed `operation_status` only when compaction ends with an error and Pi will not retry it.
+- Stamp `operation: "compaction"`, `ok: false`, and the target agent id, with concise text that says compaction failed and points repeated failures toward `shrimpy sessions compaction <session-id> --agent <id>` and gateway logs.
+- Deliver the status through the existing channel outbox so Telegram and future adapters receive the same durable status record.
+- Log publication or delivery failures without replacing or obscuring the underlying compaction error.
 
 ## Boundaries
-- Do not mutate or summarize the Telegram-visible chat transcript.
-- Do not expose private session summary content, model prompts, token counts, or provider internals in user-facing status text by default.
-- Do not make every internal event a chat message. Only surface events that explain visible delay, changed working context, or actionable failure.
-- Do not replace ephemeral activity indicators such as typing status; this is a visible status/update path, not a keepalive.
-- Do not hardwire Telegram into session or compaction code. Deliver through the shared channel/surface boundary.
+
+- Do not emit routine compaction-start or compaction-success chat messages.
+- Do not emit a failure while Pi reports that it will retry.
+- Do not expose summary content, prompts, token counts, provider payloads, or raw provider errors in the chat message.
+- Do not add per-operation or per-surface configuration for this first policy.
+- Do not hardwire Telegram into session or compaction code.
+- Do not emit chat statuses for direct local TUI, run, setup, or worker sessions.
 - Do not add legacy shims or migration paths.
 
 ## Shape
-Operation statuses are typed status messages posted to the channel and delivered through the channel outbox like any other typed message; each chat adapter decides how to display them. This item owns which lifecycle events become statuses and how adapters render them, not the delivery path.
 
-This should share the same surface-boundary shape as existing surface activity support, but not the same semantics: activity is ephemeral and refreshed while work is running; operation status is a visible one-shot update for user-relevant lifecycle events.
+The existing `operation_status` message and channel outbox remain the delivery contract. `src/sessions/open.ts` already subscribes to Pi's `compaction_start` and `compaction_end` events for logs; channel-delivered session opening should add a scoped publisher that is absent from direct local sessions.
 
-For compaction, Pi already emits `compaction_start` and `compaction_end` events on the session. Shrimpy should bridge those events for gateway sessions that have an attached channel. Telegram can format these as short system-ish bot messages such as:
-
-- `Compacting working context...`
-- `Working context compacted.`
-- `Compaction failed; I may need a reset or larger-context model.`
-
-Exact wording should be adapter-neutral in shared code and adapter-specific at the edge where needed.
+The shared status text should be transport-neutral. Surface adapters may apply their normal status formatting and message-size rules, but they should not reinterpret compaction state or inspect private session internals.
 
 ## Implementation Notes
-- Build on the current compaction event subscription in `src/sessions/open.ts`.
-- Thread a scoped operation-status publisher into channel-delivered session opening, likely from `SessionPool` or `AgentChannelRuntime`, so transcript-delivered foreground and run sessions do not publish chat statuses.
-- Keep operation-status emission tied to accepted gateway/session lifecycle events, not to turn-context preparation or Pi's provider-bound context hook. Status is surface-facing runtime telemetry; turn context is model-facing ephemeral context.
-- Keep this parallel to, but distinct from, the ephemeral surface activity route used for typing.
-- Statuses are always logged as typed status messages in the channel, never as fake agent replies and never as unlogged side-channel text.
-- Add Telegram formatting in `src/surfaces/telegram/surface.ts` or a nearby outbound helper.
-- Consider dependencies and overlap with existing typing activity support: typing is ephemeral while a turn is running; operation status is a visible chat update for important lifecycle events.
-- Add tests for compaction start/end dispatch, Telegram formatting, disabled status policy, and no status emission for direct local sessions.
+
+- Thread the scoped publisher from `SessionPool` or `AgentChannelRuntime` into channel session opening rather than teaching the generic session opener about Telegram.
+- Treat `errorMessage` with `willRetry !== true` as terminal. Do not surface ordinary aborts unless implementation evidence shows that an abort is an actionable failure rather than cancellation.
+- Keep the durable status record correlated to its channel and target agent; no synthetic agent reply is needed.
+- Existing `shrimpy sessions compaction ... --json`, `shrimpy gateway status`, and `shrimpy gateway logs` remain the CLI inspection paths.
+- Add tests for terminal failure publication, retry suppression, successful/aborted compaction silence, direct-session silence, and failure isolation.
 
 ## Done
-- A Telegram-backed gateway session can visibly report compaction start, success, and failure when enabled.
-- The mechanism is generic enough for future chat adapters to implement without touching compaction internals.
-- Status updates do not expose private session contents or provider internals.
-- Direct local sessions do not emit chat operation statuses.
-- CLI or tests can trigger a synthetic operation status for adapter verification.
-- Unit tests cover dispatch, formatting, config gating, and failure isolation.
+
+- A terminal compaction failure in a Telegram-backed gateway session produces one concise visible status.
+- Routine start, success, retryable failure, and ordinary abort events do not add chat noise.
+- The channel log contains the typed status and no private compaction contents.
+- Direct local sessions remain surface-silent.
+- Unit tests cover dispatch policy, existing outbox delivery, and failure isolation.

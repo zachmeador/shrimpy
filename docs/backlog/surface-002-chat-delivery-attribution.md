@@ -13,11 +13,10 @@ Shrimpy should preserve the one-visible-account pattern while making cross-agent
 The completed channel outbox work hands adapters typed deliveries carrying the published `ChannelMessage` and publication intent. The remaining problem here is choosing and applying a surface decoration policy.
 
 ## Build
-- Pass enough message metadata through channel egress for adapters to inspect `sender`, `origin`, and text content during delivery.
-- Add a generic outbound decoration policy for chat adapters, starting with agent attribution.
-- For Telegram, prefix or otherwise lightly decorate messages delivered by non-default or non-addressed agents, such as `Ole Scrappy:` followed by the message body.
-- Keep default-agent replies in the current plain format unless attribution would resolve ambiguity.
-- Make decoration configurable enough to disable or adjust later, but start with one conservative default.
+- Thread the resolved surface instance's `defaultAgentId` into Telegram outbound rendering alongside the typed `ChannelMessage` that egress already receives.
+- When an agent-authored message's `sender.actorId` differs from the instance default agent, render a visually separate attribution header followed by a blank line and the unchanged message body, for example `📨 **Message from Ole Scrappy**`.
+- Use `sender.displayName` when present and otherwise show the explicit actor id. Never hide an unknown non-default sender behind the ordinary default-agent presentation.
+- Keep default-agent replies in the current plain format.
 
 ## Boundaries
 - Do not mutate the durable channel message text just to satisfy a surface display concern.
@@ -30,22 +29,22 @@ The completed channel outbox work hands adapters typed deliveries carrying the p
 ## Shape
 The channel outbox delivers typed `ChannelMessage`s to adapters; this item is the presentation policy applied at render time. The adapter decides whether the transport needs decoration for the delivered sender.
 
-Telegram can compare the message sender against the channel/session's default visible agent and publication intent metadata. If the delivered sender is a different internal agent, it prepends a compact attribution label using `sender.displayName` when available, otherwise a friendly form of `agent:<id>`. Unknown senders fall back to the existing plain delivery behavior.
+Telegram compares an agent message's sender with the configured default agent for that surface instance. A different internal agent gets a compact header such as `📨 **Message from Ole Scrappy**`, then a blank line, then the original message body. The label uses `sender.displayName` when available and the exact `sender.actorId` otherwise. This first policy is deterministic and has no user-facing configuration.
 
 ## Progress
 - The channel outbox now hands typed `ChannelMessage`s to adapter egress; this item owns only attribution decoration.
 - Telegram delivery already consumes publication intent metadata for quiet or low-urgency notifications.
-- Remaining work here is the attribution policy and Telegram decoration behavior for non-default or non-addressed agent senders.
+- Remaining work here is passing the instance default into outbound rendering and decorating non-default agent senders.
 
 ## Implementation Notes
 - Apply decoration where the channel outbox invokes the adapter's typed render-and-send; do not reintroduce a parallel raw-text path.
-- Update Telegram outbound rendering in `src/surfaces/telegram/surface.ts` to decorate only when sender attribution is needed.
-- Consider a small shared helper under `src/surfaces/shared/` for choosing attribution labels so future chat adapters can reuse the policy.
+- Update Telegram outbound rendering in `src/surfaces/telegram/outbound.ts` and its egress registration to decorate only non-default agent messages.
+- Keep label selection as a small pure rendering helper. Move it into `src/surfaces/shared/` only when Discord or another adapter uses the same rule.
 - Related: [channels.md](../reference/channels.md) keeps channel-emitting app-agent work inspectable; this item keeps later cross-agent chat deliveries legible at the surface.
-- Add tests for plain default-agent delivery, decorated non-default agent delivery, and preservation of the stored channel text.
+- Add tests for plain default-agent delivery, the separate `📨 **Message from <agent>**` header on non-default agent delivery, fallback actor-id attribution, and preservation of the stored channel text.
 
 ## Done
-- A non-default agent delivering into a Telegram-backed chat is visibly attributed in the Telegram message.
+- A non-default agent delivering into a Telegram-backed chat is visibly distinguished from the normative agent with a separate `📨 **Message from <agent>**` header.
 - The channel JSONL entry still stores the original message text and typed `sender`.
 - Default Shrimpy replies remain visually unchanged in the common case.
 - Unit tests cover egress metadata plumbing and Telegram decoration behavior.
