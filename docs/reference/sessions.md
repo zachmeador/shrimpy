@@ -50,7 +50,7 @@ Thinking defaults to the agent setting and can be overridden when a host opens t
 
 ## Ownership and Lifecycle
 
-A durable session records its current owner under `runtime/sessions/`. That record acts as a lock: foreground, gateway, and maintenance processes cannot open or change the same transcript concurrently. Records left by dead processes are removed automatically.
+A durable session records its current owner under `runtime/sessions/`. That record acts as a lock: foreground, gateway, and maintenance processes cannot open or change the same transcript concurrently. Owner acquisition, stale-owner replacement, and release are serialized across processes. Records left by dead processes are rechecked under that transaction before removal, and release removes a record only when its token still matches.
 
 Lifecycle and runtime controls use canonical ids:
 

@@ -214,8 +214,14 @@ describe("loadChannelWatchClockSummary", () => {
     mkdirSync(workspace, { recursive: true });
     const statePath = join(workspace, "watch-clock.json");
     saveWatchClockState(statePath, {
-      "shrimpy/memory-management": { nextRunAtMs: 12_345 },
-      "custom.watch": { nextRunAtMs: 99_999 },
+      "shrimpy/memory-management": {
+        nextRunAtMs: 12_345,
+        scheduleKey: "test-schedule",
+      },
+      "custom.watch": {
+        nextRunAtMs: 99_999,
+        scheduleKey: "test-schedule",
+      },
     });
 
     const summary = loadChannelWatchClockSummary(
@@ -255,8 +261,14 @@ describe("loadChannelWatchClockSummary", () => {
     mkdirSync(workspace, { recursive: true });
     const statePath = join(workspace, "watch-clock.json");
     saveWatchClockState(statePath, {
-      "ops/pulse": { nextRunAtMs: 77_777 },
-      "shrimpy/memory-management": { nextRunAtMs: 12_345 },
+      "ops/pulse": {
+        nextRunAtMs: 77_777,
+        scheduleKey: "test-schedule",
+      },
+      "shrimpy/memory-management": {
+        nextRunAtMs: 12_345,
+        scheduleKey: "test-schedule",
+      },
     });
 
     const summary = loadChannelWatchClockSummary(
@@ -279,9 +291,18 @@ describe("loadChannelWatchClockSummary", () => {
     mkdirSync(workspace, { recursive: true });
     const statePath = join(workspace, "watch-clock.json");
     saveWatchClockState(statePath, {
-      "removed/job": { nextRunAtMs: 10 },
-      "ops/pulse": { nextRunAtMs: 77_777 },
-      "shrimpy/memory-management": { nextRunAtMs: 12_345 },
+      "removed/job": {
+        nextRunAtMs: 10,
+        scheduleKey: "test-schedule",
+      },
+      "ops/pulse": {
+        nextRunAtMs: 77_777,
+        scheduleKey: "test-schedule",
+      },
+      "shrimpy/memory-management": {
+        nextRunAtMs: 12_345,
+        scheduleKey: "test-schedule",
+      },
     });
 
     const summary = loadChannelWatchClockSummary(

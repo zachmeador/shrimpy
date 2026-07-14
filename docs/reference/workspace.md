@@ -19,7 +19,7 @@ state/pi/auth.json                 provider credentials
 state/pi/models.json               Pi-visible model registry
 state/users.json                   identity links plus optional workspace owner
 state/user-presence.json           last active chat surface channel per known user
-state/watch-clock.json             persisted watch next-run timestamps
+state/watch-clock.json             persisted watch next-run timestamps and schedule keys
 state/worker-backends.json         persisted worker backend availability
 state/workers.json                 coding worker records
 state/telegram/                    Telegram polling offsets
@@ -143,7 +143,7 @@ Workspace search excludes channel logs and session transcripts. Use `shrimpy cha
 - Agent memory lives under `agents/<id>/context/`; see [memory.md](memory.md).
 - Session transcripts live under `agents/<id>/sessions/`; see [sessions.md](sessions.md).
 - Gateway logs live at `runtime/logs/gateway.log`; read them with `shrimpy gateway logs`.
-- Watch run state lives under `runtime/watches/`; next-run state lives in `state/watch-clock.json`.
+- Watch run state lives under `runtime/watches/`; next-run state lives in `state/watch-clock.json`. Each clock entry has `nextRunAtMs` and a `scheduleKey` derived from the interval or the cron expression plus effective timezone. A timestamp survives non-schedule watch edits only while that key still matches; schedule changes and invalid or keyless cache entries are recomputed.
 - Worker records live in `state/workers.json`; detached worker artifacts live under `runtime/workers/`.
 - Identity links live in `state/users.json`; presence lives in `state/user-presence.json`; manage them with `shrimpy users ...`.
 - Auth and models live under `state/pi/`.

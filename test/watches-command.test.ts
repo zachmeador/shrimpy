@@ -41,7 +41,10 @@ describe("watch inspection surfaces", () => {
     const runtime = createAppRuntime({ workspace });
     const future = Date.parse("2030-01-01T00:00:00.000Z");
     saveWatchClockState(runtime.paths.watchClockStatePath, {
-      "shrimpy/memory-management": { nextRunAtMs: future },
+      "shrimpy/memory-management": {
+        nextRunAtMs: future,
+        scheduleKey: "test-schedule",
+      },
     });
 
     const { result: runResult } = await captureLogs(() =>

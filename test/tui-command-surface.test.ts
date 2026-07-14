@@ -27,7 +27,10 @@ test("Shrimpy command surface appends status output to the TUI log", async () =>
   writeFileSync(
     join(workspace, "state", "watch-clock.json"),
     JSON.stringify({
-      "admin/daily-check": { nextRunAtMs: Date.parse("2030-01-01T00:00:00.000Z") },
+      "admin/daily-check": {
+        nextRunAtMs: Date.parse("2030-01-01T00:00:00.000Z"),
+        scheduleKey: "test-schedule",
+      },
     }),
     "utf-8",
   );

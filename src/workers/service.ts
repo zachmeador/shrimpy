@@ -282,8 +282,11 @@ export function finalizeWorkerTurn(
   },
 ): WorkerRecord {
   const now = new Date().toISOString();
-  return updateWorker(workersPath(config), id, (current) =>
-    finalizeTurn(current, turnId, {
+  return updateWorker(workersPath(config), id, (current) => {
+    const turn = current.turns.find((candidate) => candidate.id === turnId);
+    if (!turn) throw new Error(`unknown worker turn: ${id}/${turnId}`);
+    if (turn.status !== "running") return current;
+    return finalizeTurn(current, turnId, {
       status: result.status,
       now,
       output: result.output,
@@ -291,8 +294,8 @@ export function finalizeWorkerTurn(
       backendSessionId: result.backendSessionId,
       exitCode: result.exitCode,
       signal: result.signal,
-    })
-  );
+    });
+  });
 }
 
 function assertOpenForAmendment(worker: WorkerRecord): void {

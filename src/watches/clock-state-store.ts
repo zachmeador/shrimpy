@@ -11,12 +11,16 @@ function parseWatchClockState(raw: unknown): WatchClockStateSnapshot {
   for (const [watchId, value] of Object.entries(raw)) {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
 
-    const nextRunAtMs = (value as Record<string, unknown>).nextRunAtMs;
-    if (nextRunAtMs !== undefined && typeof nextRunAtMs !== "number") {
-      continue;
-    }
+    const entry = value as Record<string, unknown>;
+    const nextRunAtMs = entry.nextRunAtMs;
+    const scheduleKey = entry.scheduleKey;
+    if (
+      typeof nextRunAtMs !== "number" ||
+      !Number.isFinite(nextRunAtMs) ||
+      typeof scheduleKey !== "string"
+    ) continue;
 
-    result[watchId] = { nextRunAtMs };
+    result[watchId] = { nextRunAtMs, scheduleKey };
   }
   return result;
 }

@@ -1,14 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  closeSync,
   existsSync,
-  mkdirSync,
-  openSync,
   readFileSync,
   unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { withFileTransactionLock } from "../util/file-lock.js";
+import { writeJsonFileAtomic } from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 import type { SessionDescriptor } from "./spec.js";
 import type { SessionKey } from "./identity.js";
@@ -82,12 +80,12 @@ export function readSessionOwner(
   if (!existsSync(path)) return undefined;
   const owner = parseSessionOwner(path);
   if (owner && processIsAlive(owner.pid)) return owner;
-  try {
-    unlinkSync(path);
-  } catch {
-    // A concurrent owner may already have replaced or removed a stale lease.
-  }
-  return undefined;
+  return withFileTransactionLock(path, () => {
+    const current = parseSessionOwner(path);
+    if (current && processIsAlive(current.pid)) return current;
+    removeSessionOwnerFile(path);
+    return undefined;
+  });
 }
 
 function acquireLease(input: {
@@ -96,48 +94,27 @@ function acquireLease(input: {
   owner: SessionOwner;
 }): SessionLease {
   const path = sessionOwnerPath(input.workspace, input.key);
-  mkdirSync(join(input.workspace, "runtime", "sessions"), { recursive: true });
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const fd = openSync(path, "wx", 0o600);
-      try {
-        writeFileSync(fd, `${JSON.stringify(input.owner, null, 2)}\n`, "utf8");
-      } finally {
-        closeSync(fd);
-      }
-      return {
-        owner: input.owner,
-        release: () => releaseLease(path, input.owner.token),
-      };
-    } catch (err) {
-      const code = isRecord(err) && typeof err.code === "string" ? err.code : undefined;
-      if (code !== "EEXIST") throw err;
-      const existing = parseSessionOwner(path);
-      if (existing && processIsAlive(existing.pid)) {
-        throw new Error(
-          `session ${input.owner.sessionId} is owned by ${existing.kind} process ${existing.pid}`,
-        );
-      }
-      try {
-        unlinkSync(path);
-      } catch {
-        // Retry once; a concurrent owner either won or removed the stale file.
-      }
+  return withFileTransactionLock(path, () => {
+    const existing = parseSessionOwner(path);
+    if (existing && processIsAlive(existing.pid)) {
+      throw new Error(
+        `session ${input.owner.sessionId} is owned by ${existing.kind} process ${existing.pid}`,
+      );
     }
-  }
-
-  throw new Error(`could not acquire session ${input.owner.sessionId}`);
+    writeJsonFileAtomic(path, input.owner, { mode: 0o600 });
+    return {
+      owner: input.owner,
+      release: () => releaseLease(path, input.owner.token),
+    };
+  });
 }
 
 function releaseLease(path: string, token: string): void {
-  const owner = parseSessionOwner(path);
-  if (!owner || owner.token !== token) return;
-  try {
-    unlinkSync(path);
-  } catch {
-    // Disposal must remain best effort.
-  }
+  withFileTransactionLock(path, () => {
+    const owner = parseSessionOwner(path);
+    if (!owner || owner.token !== token) return;
+    removeSessionOwnerFile(path);
+  });
 }
 
 function sessionOwnerPath(workspace: string, key: SessionKey): string {
@@ -164,6 +141,17 @@ function parseSessionOwner(path: string): SessionOwner | undefined {
     return value as unknown as SessionOwner;
   } catch {
     return undefined;
+  }
+}
+
+function removeSessionOwnerFile(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    const code = isRecord(error) && typeof error.code === "string"
+      ? error.code
+      : undefined;
+    if (code !== "ENOENT") throw error;
   }
 }
 

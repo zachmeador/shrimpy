@@ -1,6 +1,6 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -8,6 +8,7 @@ import {
   createWatchClock,
   loadWatchClockState,
   saveWatchClockState,
+  watchScheduleKey,
   type ResolvedAgentWatchDefinition,
   type WatchClockStateSnapshot,
   type WatchRunDue,
@@ -43,6 +44,16 @@ function resolvedWatch(
     },
     ...input,
   };
+}
+
+function persistedClockState(
+  watch: ResolvedAgentWatchDefinition,
+  nextRunAtMs: number,
+  defaultTimezone?: string,
+): { nextRunAtMs: number; scheduleKey: string } {
+  const scheduleKey = watchScheduleKey(watch, defaultTimezone);
+  assert.ok(scheduleKey);
+  return { nextRunAtMs, scheduleKey };
 }
 
 describe("createDefaultShrimpyWatches", () => {
@@ -106,7 +117,7 @@ describe("createWatchClock", () => {
     const clock = createWatchClock({
       watches: [watch],
       now: () => nowMs,
-      initialState: { [watch.id]: { nextRunAtMs: 5_000 } },
+      initialState: { [watch.id]: persistedClockState(watch, 5_000) },
       onRunDue: async (run) => {
         runs.push(run);
       },
@@ -141,6 +152,7 @@ describe("createWatchClock", () => {
     await clock.tick();
     assert.equal(snapshots.length, 1);
     assert.equal(snapshots[0][watch.id].nextRunAtMs, 1_000);
+    assert.equal(snapshots[0][watch.id].scheduleKey, watchScheduleKey(watch));
 
     nowMs = 500;
     await clock.tick();
@@ -226,8 +238,8 @@ describe("createWatchClock", () => {
       watches: [kept, removed],
       now: () => 0,
       initialState: {
-        [kept.id]: { nextRunAtMs: 5_000 },
-        [removed.id]: { nextRunAtMs: 6_000 },
+        [kept.id]: persistedClockState(kept, 5_000),
+        [removed.id]: persistedClockState(removed, 6_000),
       },
       onRunDue: async () => {},
       onStateChange: (snapshot) => snapshots.push(snapshot),
@@ -236,24 +248,177 @@ describe("createWatchClock", () => {
     clock.setWatches([kept, added, disabled], 1_000);
 
     assert.deepEqual(clock.getState(), {
-      [kept.id]: { nextRunAtMs: 5_000 },
-      [added.id]: { nextRunAtMs: 3_000 },
+      [kept.id]: persistedClockState(kept, 5_000),
+      [added.id]: persistedClockState(added, 3_000),
     });
     assert.deepEqual(snapshots.at(-1), clock.getState());
   });
 
+  test("prunes removed and disabled clock entries during startup", async () => {
+    const snapshots: WatchClockStateSnapshot[] = [];
+    const kept = resolvedWatch({ id: "shrimpy/kept", localId: "kept" });
+    const removed = resolvedWatch({
+      id: "shrimpy/removed",
+      localId: "removed",
+    });
+    const disabled = resolvedWatch({
+      id: "shrimpy/disabled",
+      localId: "disabled",
+      enabled: false,
+    });
+    const keptState = persistedClockState(kept, 5_000);
+    const clock = createWatchClock({
+      watches: [kept, disabled],
+      initialState: {
+        [kept.id]: keptState,
+        [removed.id]: persistedClockState(removed, 6_000),
+        [disabled.id]: persistedClockState(disabled, 7_000),
+      },
+      onRunDue: async () => {},
+      onStateChange: (snapshot) => snapshots.push(snapshot),
+    });
+
+    assert.deepEqual(clock.getState(), { [kept.id]: keptState });
+    await clock.tick(0);
+    assert.deepEqual(snapshots, [{ [kept.id]: keptState }]);
+  });
+
+  test("recomputes next runs only when the effective schedule changes", () => {
+    const original = resolvedWatch({
+      id: "shrimpy/editable",
+      localId: "editable",
+      trigger: { kind: "time", everyMs: 1_000 },
+    });
+    const clock = createWatchClock({
+      watches: [original],
+      initialState: {
+        [original.id]: persistedClockState(original, 5_000),
+      },
+      onRunDue: async () => {},
+    });
+    const actionOnlyEdit = resolvedWatch({
+      ...original,
+      name: "Renamed watch",
+      action: {
+        kind: "message",
+        channel: "maintenance",
+        text: "Different action.",
+        addressedAgentId: "shrimpy",
+      },
+    });
+
+    clock.setWatches([actionOnlyEdit], 1_000);
+    assert.equal(clock.getState()[original.id]?.nextRunAtMs, 5_000);
+
+    const scheduleEdit = resolvedWatch({
+      ...actionOnlyEdit,
+      trigger: { kind: "time", everyMs: 2_000 },
+    });
+    clock.setWatches([scheduleEdit], 1_000);
+    assert.deepEqual(
+      clock.getState()[original.id],
+      persistedClockState(scheduleEdit, 3_000),
+    );
+  });
+
+  test("recomputes cron watches when explicit or default timezone changes", async () => {
+    const explicitUtc = resolvedWatch({
+      id: "shrimpy/timezone",
+      localId: "timezone",
+      trigger: { kind: "time", cron: "0 9 * * *", timezone: "UTC" },
+    });
+    const previousNextRun = Date.parse("2026-04-09T09:00:00.000Z");
+    const clock = createWatchClock({
+      watches: [explicitUtc],
+      initialState: {
+        [explicitUtc.id]: persistedClockState(explicitUtc, previousNextRun),
+      },
+      onRunDue: async () => {},
+    });
+    const newYork = resolvedWatch({
+      ...explicitUtc,
+      trigger: {
+        kind: "time",
+        cron: "0 9 * * *",
+        timezone: "America/New_York",
+      },
+    });
+
+    clock.setWatches([newYork], Date.parse("2026-04-08T12:59:00.000Z"));
+    assert.equal(
+      clock.getState()[explicitUtc.id]?.nextRunAtMs,
+      Date.parse("2026-04-08T13:00:00.000Z"),
+    );
+
+    const expressionEdit = resolvedWatch({
+      ...newYork,
+      trigger: {
+        kind: "time",
+        cron: "30 9 * * *",
+        timezone: "America/New_York",
+      },
+    });
+    clock.setWatches(
+      [expressionEdit],
+      Date.parse("2026-04-08T12:59:00.000Z"),
+    );
+    assert.equal(
+      clock.getState()[explicitUtc.id]?.nextRunAtMs,
+      Date.parse("2026-04-08T13:30:00.000Z"),
+    );
+
+    const inheritedTimezone = resolvedWatch({
+      id: "shrimpy/default-timezone",
+      localId: "default-timezone",
+      trigger: { kind: "time", cron: "0 9 * * *" },
+    });
+    const utcState = persistedClockState(
+      inheritedTimezone,
+      previousNextRun,
+      "UTC",
+    );
+    const restarted = createWatchClock({
+      watches: [inheritedTimezone],
+      defaultTimezone: "America/New_York",
+      initialState: { [inheritedTimezone.id]: utcState },
+      onRunDue: async () => {},
+      now: () => Date.parse("2026-04-08T12:59:00.000Z"),
+    });
+
+    await restarted.tick();
+    assert.equal(
+      restarted.getState()[inheritedTimezone.id]?.nextRunAtMs,
+      Date.parse("2026-04-08T13:00:00.000Z"),
+    );
+  });
 });
 
 describe("watch clock state persistence", () => {
   test("round-trips next run timestamps", () => {
     const path = join(testDir, "watch-clock.json");
     const state: WatchClockStateSnapshot = {
-      "shrimpy/maintenance": { nextRunAtMs: 1_000 },
+      "shrimpy/maintenance": {
+        nextRunAtMs: 1_000,
+        scheduleKey: JSON.stringify({ kind: "every", everyMs: 1_000 }),
+      },
     };
 
     saveWatchClockState(path, state);
     const loaded = loadWatchClockState(path);
     assert.deepEqual(loaded, state);
+  });
+
+  test("drops clock entries without schedule keys", () => {
+    const path = join(testDir, "watch-clock.json");
+    writeFileSync(
+      path,
+      `${JSON.stringify({
+        "shrimpy/maintenance": { nextRunAtMs: 1_000 },
+      })}\n`,
+      "utf-8",
+    );
+
+    assert.deepEqual(loadWatchClockState(path), {});
   });
 
   test("returns empty state when missing", () => {

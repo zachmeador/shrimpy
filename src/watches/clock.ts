@@ -17,10 +17,12 @@ export interface WatchClockConfig {
 
 interface WatchClockRuntimeState {
   nextRunAtMs?: number;
+  scheduleKey?: string;
 }
 
 interface WatchClockStateEntry {
-  nextRunAtMs?: number;
+  nextRunAtMs: number;
+  scheduleKey: string;
 }
 
 export type WatchClockStateSnapshot = Record<string, WatchClockStateEntry>;
@@ -64,6 +66,27 @@ export function computeNextWatchRunAtMs(
   return interval.next().getTime();
 }
 
+export function watchScheduleKey(
+  watch: ResolvedAgentWatchDefinition,
+  defaultTimezone?: string,
+): string | undefined {
+  const everyMs = everyMsOf(watch);
+  if (everyMs !== undefined) {
+    return everyMs > 0
+      ? JSON.stringify({ kind: "every", everyMs })
+      : undefined;
+  }
+
+  const cron = cronOf(watch);
+  if (!cron) return undefined;
+  const timezone = watch.trigger.timezone ?? watch.timezone ?? defaultTimezone;
+  return JSON.stringify({
+    kind: "cron",
+    cron,
+    timezone: timezone ?? null,
+  });
+}
+
 function toRunDue(
   watch: ResolvedAgentWatchDefinition,
   fireTimeMs: number,
@@ -94,12 +117,21 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
   const state = new Map<string, WatchClockRuntimeState>();
   let timer: ReturnType<typeof setInterval> | null = null;
   let lastSnapshotKey = "";
+  let initialStateWasPruned = false;
 
   function getState(): WatchClockStateSnapshot {
     const snapshot: WatchClockStateSnapshot = {};
     for (const [watchId, runtime] of state) {
-      if (runtime.nextRunAtMs === undefined) continue;
-      snapshot[watchId] = { nextRunAtMs: runtime.nextRunAtMs };
+      if (
+        runtime.nextRunAtMs === undefined ||
+        runtime.scheduleKey === undefined
+      ) {
+        continue;
+      }
+      snapshot[watchId] = {
+        nextRunAtMs: runtime.nextRunAtMs,
+        scheduleKey: runtime.scheduleKey,
+      };
     }
     return snapshot;
   }
@@ -114,21 +146,31 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
   }
 
   if (initialState) {
+    const activeWatchIds = new Set(
+      watches
+        .filter((watch) => watch.enabled !== false)
+        .map((watch) => watch.id),
+    );
     for (const [watchId, persisted] of Object.entries(initialState)) {
       if (!persisted) continue;
+      if (!activeWatchIds.has(watchId)) {
+        initialStateWasPruned = true;
+        continue;
+      }
       state.set(watchId, {
         nextRunAtMs: persisted.nextRunAtMs,
+        scheduleKey: persisted.scheduleKey,
       });
     }
-    lastSnapshotKey = JSON.stringify(getState());
+    lastSnapshotKey = JSON.stringify(initialState);
   }
 
   function ensureState(
     watch: ResolvedAgentWatchDefinition,
     currentNowMs: number,
-  ): { runtime: WatchClockRuntimeState; initialized: boolean } {
+  ): { runtime: WatchClockRuntimeState; changed: boolean } {
     let current = state.get(watch.id);
-    let initialized = false;
+    let changed = false;
     if (!current) {
       current = {};
       state.set(watch.id, current);
@@ -139,41 +181,55 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
       logger.warn(
         `[watch-clock] invalid everyMs interval for watch ${watch.id}: ${everyMs}`,
       );
-      return { runtime: current, initialized };
-    }
-    if (everyMs !== undefined && !current.nextRunAtMs) {
-      current.nextRunAtMs = computeNextWatchRunAtMs(
-        watch,
-        currentNowMs,
-        defaultTimezone,
-      );
-      initialized = true;
-    }
-    if (cronOf(watch) && !current.nextRunAtMs) {
-      current.nextRunAtMs = computeNextWatchRunAtMs(
-        watch,
-        currentNowMs,
-        defaultTimezone,
-      );
-      initialized = true;
+      if (
+        current.nextRunAtMs !== undefined ||
+        current.scheduleKey !== undefined
+      ) {
+        current.nextRunAtMs = undefined;
+        current.scheduleKey = undefined;
+        changed = true;
+      }
+      return { runtime: current, changed };
     }
     if (everyMs === undefined && !cronOf(watch)) {
       logger.warn(
         `[watch-clock] invalid trigger for watch ${watch.id}: expected kind=time with cron or everyMs`,
       );
+      if (
+        current.nextRunAtMs !== undefined ||
+        current.scheduleKey !== undefined
+      ) {
+        current.nextRunAtMs = undefined;
+        current.scheduleKey = undefined;
+        changed = true;
+      }
+      return { runtime: current, changed };
     }
-    return { runtime: current, initialized };
+
+    const scheduleKey = watchScheduleKey(watch, defaultTimezone);
+    if (scheduleKey && current.scheduleKey !== scheduleKey) {
+      const nextRunAtMs = computeNextWatchRunAtMs(
+        watch,
+        currentNowMs,
+        defaultTimezone,
+      );
+      current.scheduleKey = scheduleKey;
+      current.nextRunAtMs = nextRunAtMs;
+      changed = true;
+    }
+    return { runtime: current, changed };
   }
 
   async function tick(nowMs = now()): Promise<WatchRunDue[]> {
     const dueRuns: WatchRunDue[] = [];
-    let changed = false;
+    let changed = initialStateWasPruned;
+    initialStateWasPruned = false;
 
     for (const watch of watches) {
       if (watch.enabled === false) continue;
 
-      const { runtime: watchState, initialized } = ensureState(watch, nowMs);
-      if (initialized) changed = true;
+      const { runtime: watchState, changed: stateChanged } = ensureState(watch, nowMs);
+      if (stateChanged) changed = true;
 
       const nextRunAtMs = watchState.nextRunAtMs;
       if (nextRunAtMs === undefined || nextRunAtMs > nowMs) continue;
@@ -230,29 +286,19 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
           .filter((watch) => watch.enabled !== false)
           .map((watch) => watch.id),
       );
-      const nextState = new Map(state);
-      let changed = false;
-      for (const watchId of [...nextState.keys()]) {
+      let changed = initialStateWasPruned;
+      initialStateWasPruned = false;
+      for (const watchId of [...state.keys()]) {
         if (activeWatchIds.has(watchId)) continue;
-        nextState.delete(watchId);
+        state.delete(watchId);
         changed = true;
       }
       for (const watch of nextWatches) {
         if (watch.enabled === false) continue;
-        const current = nextState.get(watch.id) ?? {};
-        if (current.nextRunAtMs === undefined) {
-          current.nextRunAtMs = computeNextWatchRunAtMs(
-            watch,
-            nowMs,
-            defaultTimezone,
-          );
-          nextState.set(watch.id, current);
-          changed = true;
-        }
+        const result = ensureState(watch, nowMs);
+        if (result.changed) changed = true;
       }
       watches = [...nextWatches];
-      state.clear();
-      for (const [watchId, runtime] of nextState) state.set(watchId, runtime);
       if (changed) notifyStateChanged();
     },
 

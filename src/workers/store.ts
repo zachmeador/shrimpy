@@ -2,6 +2,7 @@ import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { withFileTransactionLock } from "../util/file-lock.js";
 import type {
   WorkerRecord,
   WorkersState,
@@ -14,7 +15,7 @@ export function readWorkers(path: string): WorkersState {
 }
 
 export function writeWorkers(path: string, state: WorkersState): void {
-  writeJsonFileAtomic(path, state);
+  withFileTransactionLock(path, () => writeWorkersUnlocked(path, state));
 }
 
 export function listWorkers(path: string): WorkerRecord[] {
@@ -30,20 +31,31 @@ export function updateWorker(
   id: string,
   update: (worker: WorkerRecord) => WorkerRecord,
 ): WorkerRecord {
-  const state = readWorkers(path);
-  const index = state.workers.findIndex((worker) => worker.id === id);
-  if (index < 0) throw new Error(`unknown worker: ${id}`);
-  const next = update(state.workers[index]);
-  state.workers[index] = next;
-  writeWorkers(path, state);
-  return next;
+  return withFileTransactionLock(path, () => {
+    const state = readWorkers(path);
+    const index = state.workers.findIndex((worker) => worker.id === id);
+    if (index < 0) throw new Error(`unknown worker: ${id}`);
+    const next = update(state.workers[index]);
+    state.workers[index] = next;
+    writeWorkersUnlocked(path, state);
+    return next;
+  });
 }
 
 export function appendWorker(path: string, worker: WorkerRecord): WorkerRecord {
-  const state = readWorkers(path);
-  state.workers.push(worker);
-  writeWorkers(path, state);
-  return worker;
+  return withFileTransactionLock(path, () => {
+    const state = readWorkers(path);
+    if (state.workers.some((current) => current.id === worker.id)) {
+      throw new Error(`worker already exists: ${worker.id}`);
+    }
+    state.workers.push(worker);
+    writeWorkersUnlocked(path, state);
+    return worker;
+  });
+}
+
+function writeWorkersUnlocked(path: string, state: WorkersState): void {
+  writeJsonFileAtomic(path, state);
 }
 
 function parseWorkersState(raw: unknown): WorkersState {

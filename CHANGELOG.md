@@ -32,6 +32,12 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Changed gateway turn guidance so publication tools carry user-visible replies, plain assistant text stays private, and agents do not duplicate a message after publishing.
 
+### Fixed
+
+- Fixed concurrent worker state mutations overwriting other worker records, duplicate worker ids being accepted, and late supervisor results reviving cancelled or closed turns.
+- Fixed session ownership races during stale-owner replacement, cleanup, and token-checked release.
+- Fixed watch schedule edits retaining stale next-run timestamps by binding persisted clock entries to their effective interval or cron/timezone schedule.
+
 ### Docs & Agent References
 
 - Added `shrimpy-dev-cleanup-pass` and `shrimpy-dev-design-review` source skills for behavior-preserving cleanup discovery and first-principles design evaluation.

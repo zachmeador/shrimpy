@@ -145,9 +145,18 @@ describe("buildTurnContext", () => {
     );
     const runtime = createAppRuntime({ workspace });
     saveWatchClockState(runtime.paths.watchClockStatePath, {
-      "shrimpy/soon": { nextRunAtMs: now + 60_000 },
-      "shrimpy/recent": { nextRunAtMs: now + 3_600_000 },
-      "shrimpy/failed": { nextRunAtMs: now + 7_200_000 },
+      "shrimpy/soon": {
+        nextRunAtMs: now + 60_000,
+        scheduleKey: "test-schedule",
+      },
+      "shrimpy/recent": {
+        nextRunAtMs: now + 3_600_000,
+        scheduleKey: "test-schedule",
+      },
+      "shrimpy/failed": {
+        nextRunAtMs: now + 7_200_000,
+        scheduleKey: "test-schedule",
+      },
     });
     markWatchRunActive(runtime.paths.runtimeWatchesDir, {
       ownerAgentId: "shrimpy",

@@ -35,6 +35,7 @@ export function writeJsonFileAtomic(
   data: unknown,
   opts?: {
     trailingNewline?: boolean;
+    mode?: number;
   },
 ): void {
   const dir = dirname(path);
@@ -48,7 +49,10 @@ export function writeJsonFileAtomic(
   const content = JSON.stringify(data, null, 2) + (trailingNewline ? "\n" : "");
 
   try {
-    writeFileSync(tmpPath, content, "utf-8");
+    writeFileSync(tmpPath, content, {
+      encoding: "utf-8",
+      ...(opts?.mode === undefined ? {} : { mode: opts.mode }),
+    });
     renameSync(tmpPath, path);
   } catch (err) {
     try {
