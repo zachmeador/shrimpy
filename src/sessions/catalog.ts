@@ -9,6 +9,7 @@ import {
 } from "../gateway/runtime-state.js";
 import { formatAgeShort } from "../util/time-format.js";
 import {
+  DEFAULT_SESSION_PROFILE_ID,
   formatSessionId,
   parseSessionId,
   sameSessionKey,
@@ -19,6 +20,7 @@ import { readSessionOwner, type SessionOwner } from "./ownership.js";
 import { createSessionDescriptor, type SessionDescriptor } from "./spec.js";
 import {
   findActiveSessionFile,
+  findMostRecentSessionFile,
   listArchivedSessionFiles,
 } from "./transcript-store.js";
 
@@ -62,6 +64,39 @@ export interface SessionStatusSummary {
   counts: { active: number; recent: number; stale: number };
   active: SessionStatusEntry[];
   mostRecent?: SessionStatusEntry;
+}
+
+export function resolveMostRecentInteractiveAgentId(
+  runtime: AppRuntime,
+): string | undefined {
+  let mostRecent: { agentId: string; updatedAtMs: number } | undefined;
+
+  for (const agent of runtime.resolved.agents) {
+    const descriptor = listSessionDescriptors(runtime.getAgentPaths(agent.id).root)
+      .find((candidate) =>
+        candidate.key.namespace === "local" &&
+        candidate.key.name === "main" &&
+        candidate.key.profileId === DEFAULT_SESSION_PROFILE_ID &&
+        candidate.purpose === "interactive" &&
+        candidate.delivery.kind === "transcript"
+      );
+    if (!descriptor || descriptor.storage.kind !== "durable") continue;
+
+    const recentPath = findMostRecentSessionFile(descriptor.storage.dir);
+    if (!recentPath) continue;
+
+    let updatedAtMs: number;
+    try {
+      updatedAtMs = statSync(recentPath).mtimeMs;
+    } catch {
+      continue;
+    }
+    if (!mostRecent || updatedAtMs > mostRecent.updatedAtMs) {
+      mostRecent = { agentId: agent.id, updatedAtMs };
+    }
+  }
+
+  return mostRecent?.agentId;
 }
 
 export function summarizeAgentSessions(

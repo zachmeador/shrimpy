@@ -44,6 +44,7 @@ interface ShrimpyTuiCommandDeps {
     missingMessage: string;
   };
   beforeLaunch?: () => Promise<unknown>;
+  resolveAgentId?: (runtime: AppRuntime) => string | undefined;
 }
 
 export interface ShrimpyTuiCommandResult {
@@ -100,7 +101,11 @@ export async function runShrimpyTuiCommandSession(
       return printError(deps.requiredAgent.missingMessage);
     }
   }
-  await (deps.launchSession ?? launchSession)(runtime, request);
+  const resolvedAgentId = request.agentId ?? deps.resolveAgentId?.(runtime);
+  const resolvedRequest = resolvedAgentId === undefined
+    ? request
+    : { ...request, agentId: resolvedAgentId };
+  await (deps.launchSession ?? launchSession)(runtime, resolvedRequest);
   return 0;
 }
 

@@ -40,6 +40,8 @@ TUI, setup, gateway, run, and worker are hosts around this core, not different s
 
 `shrimpy run` is ephemeral by default and leaves no transcript. Pass `--session <canonical-id>` to resume a durable session deliberately. TUI uses `local/main`; setup uses `local/setup`; gateway lanes use `channel/<channel>`.
 
+Bare, promptless `shrimpy` resumes the agent whose primary terminal chat has the newest transcript or lifecycle update. This keeps the same agent selected when `/new` archives the old transcript but Pi has not yet persisted the fresh conversation. The archived conversation is recency evidence only: Shrimpy starts the fresh conversation instead of restoring its contents. Channel and worker sessions do not participate. If there is no prior primary terminal chat, Shrimpy uses the first configured agent. An explicit `--agent`, `shrimpy chat <agent>`, or `shrimpy agent tui <agent>` always wins, while `shrimpy "prompt"` without `--agent` deliberately stays on the first configured agent.
+
 ## Model, Prompt, and Thinking
 
 Every durable session restores the model recorded in its active Pi transcript when no `--provider`, `--model`, or `--model-policy` override is supplied. If no saved model exists, Shrimpy uses the agent's `modelPolicy`, then the workspace `coding` policy. `shrimpy sessions set <session-id> --model <provider/model>` changes the current session model. `--model-policy <name>` resolves the policy to a concrete model for the session. Model changes append a visible `shrimpy_model_switch` custom message.

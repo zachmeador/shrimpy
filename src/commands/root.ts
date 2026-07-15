@@ -7,6 +7,7 @@ import {
   isSetupReady,
   resolveSetupState,
 } from "../setup/state.js";
+import { resolveMostRecentInteractiveAgentId } from "../sessions/catalog.js";
 import { formatVersionLabel } from "../app/metadata.js";
 import { brand } from "../util/style.js";
 import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
@@ -70,6 +71,9 @@ export const cmdRootTui: CommandHandler = async (
   }, {
     beforeLaunch: bootstrapInteractiveCompletion,
     onboardingMode: "setup",
+    ...(values.agent === undefined && prompt === undefined
+      ? { resolveAgentId: resolveMostRecentInteractiveAgentId }
+      : {}),
   });
 };
 

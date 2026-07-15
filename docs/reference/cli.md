@@ -16,8 +16,8 @@ See [sessions.md](sessions.md) for canonical session ids, manifests, ownership, 
 
 | Command | Purpose |
 | --- | --- |
-| `shrimpy` | Open Shrimpy, running setup onboarding when needed. |
-| `shrimpy "prompt"` | Open the TUI session with an initial prompt. |
+| `shrimpy` | Open Shrimpy, running setup onboarding when needed. With no prompt or explicit agent, resume the agent used most recently in terminal chat; `/new` still remembers that agent before the fresh conversation has a reply. Fall back to the first configured agent when there is no prior terminal chat. |
+| `shrimpy "prompt"` | Open the first configured agent's TUI session with an initial prompt. Use `--agent <id>` to target another agent explicitly. |
 | `shrimpy chat [agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open a TUI chat with the default or selected agent. Use `shrimpy chat mechanic` for the maintenance agent. |
 | `shrimpy run "prompt" [--session <session-id>]` | Run a one-shot prompt and print the response. Runs are in-memory unless `--session` explicitly resumes durable state. |
 | `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. Supports `--provider`, `--model`, `--model-policy`, `--thinking`, and `--skill`. |

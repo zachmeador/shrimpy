@@ -114,6 +114,11 @@ export function findActiveSessionFile(sessionDir: string): string | undefined {
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]?.path;
 }
 
+export function findMostRecentSessionFile(sessionDir: string): string | undefined {
+  return listStoredSessions(sessionDir)
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]?.path;
+}
+
 export function findLastCustomEntry<T = unknown>(
   source: readonly unknown[],
   customType: string,

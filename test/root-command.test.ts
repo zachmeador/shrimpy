@@ -7,12 +7,23 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { shouldRunSetupBootstrapForRootShrimpy } from "../dist/commands/root.js";
+import {
+  cmdRootTui,
+  shouldRunSetupBootstrapForRootShrimpy,
+} from "../dist/commands/root.js";
+import { resolveCommandResult } from "../dist/commands/framework.js";
 import { ensureWorkspaceInitialized } from "../dist/setup/init.js";
+import {
+  createChannelSessionKey,
+  createLocalSessionKey,
+} from "../dist/sessions/identity.js";
+import { ensureSessionManifest } from "../dist/sessions/manifest.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
 let workspace: string;
 
@@ -157,6 +168,165 @@ describe("root shrimpy command setup path", () => {
     assert.equal(await shouldRunSetupBootstrapForRootShrimpy(workspace), false);
   });
 });
+
+describe("root shrimpy agent resume", () => {
+  test("bare shrimpy selects the agent with the most recent terminal chat", async () => {
+    const config = multiAgentConfig();
+    writeInteractiveSession("shrimpy", 1_000);
+    writeInteractiveSession("career", 2_000);
+
+    const request = await captureRootLaunch([], config);
+
+    assert.equal(request.agentId, "career");
+  });
+
+  test("keeps the agent selected after /new archives its old transcript", async () => {
+    const config = multiAgentConfig();
+    writeInteractiveSession("shrimpy", 1_000);
+    writeInteractiveSession("career", 2_000, { archived: true });
+
+    const request = await captureRootLaunch([], config);
+
+    assert.equal(request.agentId, "career");
+  });
+
+  test("does not let an older archived transcript beat newer terminal activity", async () => {
+    const config = multiAgentConfig();
+    writeInteractiveSession("shrimpy", 2_000);
+    writeInteractiveSession("career", 1_000, { archived: true });
+
+    const request = await captureRootLaunch([], config);
+
+    assert.equal(request.agentId, "shrimpy");
+  });
+
+  test("ignores newer channel sessions", async () => {
+    const config = multiAgentConfig();
+    writeInteractiveSession("shrimpy", 1_000);
+    writeChannelSession("career", 2_000);
+
+    const request = await captureRootLaunch([], config);
+
+    assert.equal(request.agentId, "shrimpy");
+  });
+
+  test("keeps the configured default when no prior terminal chat exists", async () => {
+    const request = await captureRootLaunch([], multiAgentConfig());
+
+    assert.equal(request.agentId, undefined);
+  });
+
+  test("does not apply recent-agent resolution to a prompted root launch", async () => {
+    const config = multiAgentConfig();
+    writeInteractiveSession("career", 2_000);
+
+    const request = await captureRootLaunch(["hello"], config);
+
+    assert.equal(request.agentId, undefined);
+    assert.equal(request.initialMessage, "hello");
+  });
+
+  test("explicit agent selection takes precedence", async () => {
+    const config = multiAgentConfig();
+    writeInteractiveSession("shrimpy", 2_000);
+
+    const request = await captureRootLaunch(["--agent", "career"], config);
+
+    assert.equal(request.agentId, "career");
+  });
+});
+
+function multiAgentConfig(): any {
+  return {
+    workspace,
+    agents: [
+      { id: "shrimpy", root: "agents/shrimpy" },
+      { id: "career", root: "agents/career" },
+    ],
+  };
+}
+
+async function captureRootLaunch(
+  args: string[],
+  config: any,
+): Promise<any> {
+  const result = await cmdRootTui(args, config);
+  assert.notEqual(typeof result, "number");
+  if (typeof result === "number") throw new Error("expected TUI command result");
+
+  let captured: any;
+  result.deps = {
+    ...result.deps,
+    resolveSetupState: async () => ({ kind: "ready", models: [] }),
+    beforeLaunch: async () => undefined,
+    loadConfig: () => config,
+    launchSession: async (_runtime, request) => {
+      captured = request;
+    },
+  };
+
+  assert.equal(await resolveCommandResult(result, config), 0);
+  assert.ok(captured);
+  return captured;
+}
+
+function writeInteractiveSession(
+  agentId: string,
+  updatedAtMs: number,
+  opts?: { archived?: boolean },
+): void {
+  const descriptor = createSessionDescriptor({
+    agentRoot: join(workspace, "agents", agentId),
+    key: createLocalSessionKey({ agentId, name: "main" }),
+    purpose: "interactive",
+    delivery: { kind: "transcript" },
+  });
+  writeSessionForDescriptor(descriptor, agentId, updatedAtMs, opts);
+}
+
+function writeChannelSession(agentId: string, updatedAtMs: number): void {
+  const descriptor = createSessionDescriptor({
+    agentRoot: join(workspace, "agents", agentId),
+    key: createChannelSessionKey({ agentId, channel: "home" }),
+    purpose: "channel",
+    delivery: { kind: "channel", channel: "home" },
+  });
+  writeSessionForDescriptor(descriptor, agentId, updatedAtMs);
+}
+
+function writeSessionForDescriptor(
+  descriptor: ReturnType<typeof createSessionDescriptor>,
+  agentId: string,
+  updatedAtMs: number,
+  opts?: { archived?: boolean },
+): void {
+  ensureSessionManifest(descriptor);
+  assert.equal(descriptor.storage.kind, "durable");
+  if (descriptor.storage.kind !== "durable") return;
+
+  const path = join(descriptor.storage.dir, `${agentId}.jsonl`);
+  const timestamp = new Date(updatedAtMs).toISOString();
+  const entries: Record<string, unknown>[] = [{
+    type: "session",
+    version: 3,
+    id: `${agentId}-session`,
+    timestamp,
+    cwd: workspace,
+  }];
+  if (opts?.archived) {
+    entries.push({
+      type: "custom",
+      customType: "shrimpy_lifecycle",
+      data: { state: "archived" },
+      id: `${agentId}-archived`,
+      parentId: null,
+      timestamp,
+    });
+  }
+  writeFileSync(path, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`, "utf-8");
+  const updatedAt = new Date(updatedAtMs);
+  utimesSync(path, updatedAt, updatedAt);
+}
 
 function readConfig(): any {
   return JSON.parse(

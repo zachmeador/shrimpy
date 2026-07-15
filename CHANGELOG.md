@@ -24,6 +24,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Sessions, Models & TUI
 
+- Changed bare `shrimpy` to resume the agent used most recently in terminal chat while prompted and explicit-agent launches keep their existing targets; `/new` preserves the selected agent even before the fresh conversation receives a reply.
 - Replaced separate direct/gateway planning and duplicate delivery queues with one `SessionResolver`, foreground host, and gateway `SessionPool`; every durable session now shares saved-model restoration, manifest discovery, and owner-aware controls.
 - Changed `shrimpy sessions new|clear|restore|thinking|stop` to route through the session's live owner, verify correlated gateway outcomes, apply unowned lifecycle changes under an exclusive maintenance lease, and expose `--no-wait` plus structured JSON outcomes. Stop controls now bypass a running turn instead of waiting behind the delivery queue.
 - Upgraded Pi packages from `0.79.6` to `0.80.6`, adding the `max` thinking level, automatic light/dark TUI themes, cache-miss notices, output padding, and the latest provider, model, auth, compaction, and rendering fixes.
