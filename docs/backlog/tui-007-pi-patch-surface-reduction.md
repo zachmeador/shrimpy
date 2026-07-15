@@ -1,72 +1,83 @@
 # 🦐 TUI-007: Pi TUI Patch Surface Reduction
 
-Status: todo
+Status: draft
 Priority: P2
 Area: TUI
 Depends On: none
 
 ## Why
 
-Shrimpy customizes Pi at three levels: the public session SDK in `src/sessions/`, Pi's extension API (`extensions/` plus the in-process factories in `src/sessions/pi-resources.ts`), and six installers in `src/tui/` that cast `InteractiveMode` to hand-written interfaces describing Pi's private fields and wrap methods decorator-style. The TUI tests fake those internals, so they verify Shrimpy's wrapper logic, not the Pi contract: a Pi upgrade that renames a private member passes tests and breaks at runtime. Pi's extension API has grown hooks that cover some of these patches. The unsanctioned surface should shrink to the patches that have no sanctioned equivalent, and the remainder should fail loud on Pi upgrades.
+Shrimpy currently customizes Pi through six installers that describe and mutate `InteractiveMode` private fields. Those patches make ordinary Pi upgrades risky, and their unit tests mostly verify Shrimpy's hand-written facsimile of Pi internals rather than the real contract.
+
+Pi 0.80.6 already exposes more sanctioned UI and lifecycle APIs than this backlog previously accounted for. The work should begin by deleting patches that now have a public replacement, then make explicit product choices for the few behaviors that do not.
 
 ## Current State
 
-- Installers and their private touchpoints:
-  - `shrimpy-command-surface.ts` wraps the editor submit handler for `/status`, `/thinking`, `/shrimpy`, `/share`, wraps `handleClearCommand` for archive-on-`/new`, and reaches `chatContainer`, `showSelector`, and the footer.
-  - `shrimpy-activity-indicator.ts` wraps `footer.render`/`footer.dispose` and reads the private `loadingAnimation`, `autoCompactionLoader`, and `retryLoader` fields.
-  - `shrimpy-context-rendering.ts` wraps `addMessageToChat` to strip the turn-context prefix from display.
-  - `shrimpy-tool-rendering.ts` wraps `setToolsExpanded` and touches `pendingTools`, `chatContainer.children`, and streaming fields.
-  - `shrimpy-model-selection.ts` replaces `showModelsSelector`, wraps `createBaseAutocompleteProvider` and `setupKeyHandlers`, and live-patches the internals of Pi's model selector component instance (`sortModels`, `filterModels`, `updateList`, `handleInput`) for favorites.
-  - `shrimpy-settings.ts` reaches selector, editor, ui, and footer privates.
-- `src/app/pi-internals.ts` deep-imports Pi `dist/` modules: theme, `ThinkingSelectorComponent`, http dispatcher, provider display names.
-- Extension API hooks now available that overlap with patches: `ctx.ui.addAutocompleteProvider()`, `registerMessageRenderer()`, `pi.appendEntry()` plus `registerEntryRenderer()`, `ctx.ui.setStatus()`, `ctx.ui.setWidget()`/`setFooter()`/`setHeader()`, and `registerCommand` with argument completions.
-- `/status` and `/shrimpy` are each defined in two places: extension registration owns discovery/completions and a notice handler, while the command-surface submit patch intercepts submission and performs the real rendering through Pi-private chat-container access.
-- Patch-time guarding is inconsistent: `shrimpy-model-selection.ts` checks members before patching and degrades gracefully; the command surface patches unconditionally.
-- The previous extension-API-gap analysis is stale. Pi added custom-entry renderers in v0.80.4, and Shrimpy's pinned Pi v0.80.6 exposes `pi.appendEntry()` plus `registerEntryRenderer()`. Custom entries are durable session entries, render immediately and during transcript rebuild, and never become agent messages or pass through `convertToLlm`. This is the sanctioned persistent-but-display-only seam for `/status` and `/shrimpy`; the proposed `CustomMessage.excludeFromContext` dependency is unnecessary.
-- The remaining command-surface behaviors are not one problem: `/new` archive handling is a session lifecycle hook, `/share` is command suppression, bare `/thinking` opens a selector while the registered `/thinking <level>` command handles explicit values, and `/changelog` replaces a Pi built-in that `InteractiveMode` intercepts before extension commands reach `AgentSession.prompt()`.
+- `shrimpy-command-surface.ts` wraps editor submission and clear handling for Shrimpy commands, archive-on-`/new`, `/share` suppression, the thinking selector, and the changelog override.
+- `shrimpy-activity-indicator.ts` replaces footer behavior and reads Pi's private loading, compaction, and retry loaders.
+- `shrimpy-context-rendering.ts` wraps message insertion and globally patches Pi session-listing methods to strip Shrimpy turn context from previews.
+- `shrimpy-tool-rendering.ts` wraps tool expansion, traverses chat children, and rebuilds the transcript. Part of that rebuild exists only because Shrimpy currently couples context-envelope visibility to Pi's tool-output expansion state.
+- `shrimpy-model-selection.ts` replaces Pi's model selector, autocomplete creation, key handling, and live selector-component internals to support favorites.
+- `shrimpy-settings.ts` copies a large portion of Pi's settings interaction while reaching private selector, editor, UI, and footer state.
+- `src/app/pi-internals.ts` deep-imports Pi modules even where Pi now publicly exports `ThinkingSelectorComponent`, `initTheme`, and `Theme`.
+- Pi 0.80.6 provides `ctx.ui.select()`, `ctx.ui.custom()`, `ctx.ui.setStatus()`, `ctx.ui.setWorkingIndicator()`, widgets/header/footer/title hooks, autocomplete wrapping, public tool-expansion controls, custom entry renderers, and session lifecycle events.
 
 ## Build
 
-- Migrate slash-command autocomplete filtering (hiding `/scoped-models` and `/share`) from the `createBaseAutocompleteProvider` wrap to `ctx.ui.addAutocompleteProvider()`, then delete the wrap.
-- Add an install-time contract check: a small shared helper each installer uses to assert the private members it is about to patch exist with the expected shape. On mismatch, fail at TUI launch with a diagnostic naming the installer and member, so a Pi upgrade surfaces immediately instead of misbehaving silently.
-- Move `/status` and `/shrimpy` completely onto Pi's extension API. One in-process Shrimpy command extension factory owns each command's name, description, completions, and handler. The handler builds an immutable output snapshot and appends a small Shrimpy custom entry; one registered entry renderer renders those snapshots in the TUI.
-- Store output captured at invocation time, not command arguments that a renderer recomputes later. A restored historical `/status gateway` block must show the status observed when it ran, and rendering must remain a pure operation without filesystem or service inspection.
-- Keep the custom-entry payload small and serializable, initially plain text or Markdown. Do not persist ANSI/theme output and do not introduce a general status-document AST solely to reproduce bold labels; apply presentation in the entry renderer.
-- Delete the `/status` and `/shrimpy` branches from the patched editor submit handler, their placeholder notice handlers, and the corresponding direct `chatContainer` rendering path after the extension flow is covered.
-- Split or rename the remaining `shrimpy-command-surface.ts` responsibilities so each private patch states its real purpose. Evaluate `/new` archive handling, `/share` suppression, the bare `/thinking` selector, and the `/changelog` override independently; do not preserve a general Shrimpy command router after `/status` and `/shrimpy` leave it.
+Work in deletion-first slices and record the private member/override count after each slice.
 
-## Decisions
+1. Replace deep imports that now have public Pi exports. Leave only genuinely unexported utilities behind and name why each remains.
+2. Move the working-state presentation to `ctx.ui.setWorkingIndicator()`. Accept the sanctioned indicator lifecycle instead of preserving private footer-loader choreography pixel for pixel.
+3. Make bare `/thinking` an extension command using `ctx.ui.select()` or `ctx.ui.custom()` and Pi's public thinking component/export, then remove its private selector/footer path.
+4. Move archive-on-`/new` to a session lifecycle path if `session_start` reason and `previousSessionFile` provide the required post-success semantics. If they do not, isolate the behavior as one narrow upstream request instead of retaining a general clear-command wrapper.
+5. Delete the tool-rendering patch where Pi's public `getToolsExpanded()`/`setToolsExpanded()` is sufficient. Decouple turn-context visibility from tool-output expansion; context envelopes and tool bodies are unrelated controls.
+6. Stop cloning Pi's `/settings` UI. Let Pi own provider/model settings and expose Shrimpy-only values through a separate extension command such as `/shrimpy settings`.
+7. Resolve command restrictions explicitly. Autocomplete filtering can hide `/share` and `/scoped-models`, but it does not disable them; either obtain a sanctioned upstream command-disable hook or make those commands intentionally available. Do not describe suggestion filtering as enforcement.
+8. Let Pi own `/changelog` and move Shrimpy release notes under `/shrimpy changelog`, unless an upstream override hook is accepted.
+9. Upstream model favorites or delete the customization when it breaks. Do not grow the live component monkey-patch.
 
-- The model-favorites patch is the deepest reach (duck-typed live patch of a Pi component instance). Either upstream a favorites feature to Pi or keep the patch explicitly marked first-to-delete on breakage. Do not grow it.
-- Pi custom entries, not custom messages with a new context-exclusion flag, own durable display-only command output. The upstream [earendil-works/pi#5654](https://github.com/earendil-works/pi/issues/5654) request is no longer a dependency for this item.
-- Command output entries are historical snapshots. They do not recompute live workspace state when a session is restored, its transcript is rebuilt, or its theme changes.
-- Registering an extension command does not override Pi built-ins handled earlier by `InteractiveMode`; `/changelog` therefore remains a separate patch/upstream decision rather than being folded into the `/status` migration.
-- Model-switch rendering now uses Pi's `registerMessageRenderer` path. TUI-004F's footer agent indicator uses `ctx.ui.setStatus()`, already noted in TUI-004.
-- A TUI rebuild on pi-tui primitives is out of scope and not currently justified; the tipping point would be a UI shape `InteractiveMode` cannot express (multi-pane, multiple visible sessions), not more tweaks of the current shape.
+## Status And Help Output
+
+`/status` and `/shrimpy` should each have one extension-owned definition for metadata, completion, and execution. Their output is operational and should remain ephemeral by default.
+
+- Do not persist `/status` snapshots as custom session entries merely because custom entry renderers exist. Restored transcripts would show stale operational state, and persistence would change current behavior.
+- First try a sanctioned custom overlay/widget presentation. If command output must remain inline in chat, ask Pi for a small append-ephemeral-display-block API rather than routing it through model context or private chat-container mutation.
+- A durable custom entry is acceptable only after an explicit product decision that historical status/help blocks are desirable. It is not the default migration plan.
+
+## Failure Policy
+
+- Validate a private seam before patching it and emit a diagnostic that names the disabled Shrimpy feature when the seam changed.
+- Cosmetic or optional patch failure must degrade that feature rather than prevent the entire TUI from launching.
+- A launch-blocking check is reserved for a seam whose failure could corrupt session state or violate an enforced safety boundary.
+- Test public replacement paths against the real pinned Pi package where practical; fake `InteractiveMode` shapes remain useful only for the private seams that survive.
 
 ## Boundaries
 
 - Do not fork `InteractiveMode` or build a parallel chat renderer.
-- User-visible TUI behavior stays identical after each migration.
+- Prefer deleting customization over preserving every visual detail.
 - Replaced patches are deleted, not shimmed.
-- Do not add mutable module-global state to pass `AppRuntime` or session metadata into a path-loaded extension. Use an in-process factory with explicit, narrow dependencies.
-- Do not add legacy `sendMessage()` or patched-submit fallbacks after the custom-entry route replaces them.
+- Do not use tool expansion as a proxy for Shrimpy context visibility.
+- Do not add mutable module-global state to feed extension factories.
+- Do not call autocomplete hiding a security or policy control.
+- User-visible changes are allowed when they remove a private patch and retain the underlying capability clearly.
 
-## Implementation Notes
+## Open Decisions
 
-- Likely files: `src/tui/*.ts`, `extensions/shrimpy-commands.ts` or its replacement under `src/sessions/`, `src/sessions/pi-resources.ts`, session resource-loader assembly call sites, and a new shared contract-check helper under `src/tui/`.
-- The command factory needs explicit Shrimpy status inputs such as runtime/workspace inspection, active agent, channel, session type, and cwd; the current Pi model is available from `ExtensionCommandContext`. Prefer a narrow status context if passing `AppRuntime` across the session-resource boundary would blur layering.
-- Validate the custom-entry spike with `/shrimpy` before moving `/status`: immediate rendering, established-session reload, transcript rebuild, absence from `buildSessionContext().messages`, execution while the agent is streaming, and Pi's lazy persistence behavior in a brand-new command-only session.
-- The per-installer internals interfaces already enumerate the patched members; the contract check can be derived from them, and the patched-member count is the metric to track.
-- Related: the shrimpy-dev-pi-upgrade skill flow; this item reduces what each Pi upgrade evaluation must re-verify.
+- Whether inline ephemeral command output needs a new Pi API or can become an overlay/widget.
+- Whether `/share` and `/scoped-models` must be truly disabled or merely absent from suggestions.
+- Whether model favorites justify an upstream Pi feature; the current private patch is not a durable Shrimpy-owned surface.
+
+TUI-007 stays `draft` until those product decisions are made. Individual deletion slices that do not depend on them can still be promoted and implemented separately.
 
 ## Done
 
-- Autocomplete filtering rides the extension API and the corresponding wrap is deleted.
-- Every remaining installer verifies its patched members at install time and fails with a clear diagnostic when Pi internals change.
-- `/status` and `/shrimpy` each have one registered definition owning metadata, completions, and behavior; neither is recognized by a patched submit handler.
-- Their visible output uses `appendEntry()` plus `registerEntryRenderer()`, survives Pi transcript restoration/rebuild in an established session, and is absent from model context.
-- Historical command entries render stored plain-text or Markdown snapshots without recomputing live status and without persisted theme escape codes.
-- Remaining command-surface patches are separated and named by the behavior they own; no general duplicate Shrimpy command router remains.
-- The patched-private-member count before and after is recorded in this note, and it went down.
-- The command-only empty-session persistence behavior is tested and either matches the desired durability or is recorded as an accepted Pi lazy-session limitation; it does not reintroduce a custom-message or private-rendering fallback.
+- Every surviving private patch names the missing public Pi capability and its failure/degradation behavior.
+- Public Pi exports replace avoidable `dist/` imports.
+- Working-state presentation, thinking selection, and tool expansion no longer read or mutate private Pi state.
+- Context-envelope visibility is independent of tool-output expansion.
+- Shrimpy no longer clones Pi's full settings interaction.
+- `/status` and `/shrimpy` each have one extension-owned command definition and do not enter model context; persistence is deliberate rather than accidental.
+- Command hiding and command disabling are accurately distinguished and tested.
+- `/changelog`, `/new`, and model favorites each have one narrow owner instead of sharing a general submit-handler patch.
+- Optional visual customization breakage does not brick TUI launch.
+- The private patch/member count is recorded and materially smaller.

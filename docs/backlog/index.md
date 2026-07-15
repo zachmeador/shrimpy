@@ -6,10 +6,9 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | none | Interactive `/agent` navigator for agents and sessions |
-| [TUI-007](tui-007-pi-patch-surface-reduction.md) | todo | P2 | TUI | none | Shrink unsanctioned Pi TUI patch surface |
-| [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | draft | P2 | TUI | none | Bare `shrimpy` resumes the most recent TUI agent |
-| [TUI-011](tui-011-terminal-title-agent-label.md) | draft | P2 | TUI | none | Terminal title shows the active Shrimpy agent |
+| [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | [TUI-007](tui-007-pi-patch-surface-reduction.md) | Minimal `/agent` navigator for active local sessions |
+| [TUI-007](tui-007-pi-patch-surface-reduction.md) | draft | P2 | TUI | none | Delete Pi-private TUI patches where sanctioned APIs now exist |
+| [TUI-009](tui-009-bare-shrimpy-agent-resume.md) | todo | P2 | TUI | none | Bare `shrimpy` resumes the most recent interactive agent |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [CTX-012](ctx-012-exact-context-command-parity.md) | todo | P2 | Context | context cleanup | Exact provider-facing context from `shrimpy context` |
 | [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
@@ -33,8 +32,9 @@ Deferred notes that are intentionally outside the active backlog.
 | [AGENT-001](later/agent-001-nested-agents.md) | todo | P3 | Agents | [CTX-008](later/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
 | [CODE-003](later/code-003-claude-code-worker-adapter.md) | todo | P3 | Coding Agents | none | Claude Code worker adapter |
 | [CODE-004](later/code-004-agent-worker-tools.md) | todo | P3 | Coding Agents | none | Agent worker tools |
-| [MEM-001](later/mem-001-session-title-summarizer.md) | todo | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Efficient generated session titles |
+| [MEM-001](later/mem-001-session-title-summarizer.md) | draft | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Validate and optionally generate canonical Pi session names |
 | [RUNTIME-001](later/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SEARCH-003](later/search-003-workspace-search-embeddings.md) | todo | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](later/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
+| [TUI-011](later/tui-011-terminal-title-agent-label.md) | draft | P3 | TUI | upstream Pi title hook | Terminal title identifies the active agent without a private patch |
 | [WORKSPACE-002](later/workspace-002-tiered-checkpoint-retention.md) | todo | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |

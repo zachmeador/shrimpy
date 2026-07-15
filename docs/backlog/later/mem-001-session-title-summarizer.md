@@ -1,55 +1,42 @@
-# MEM-001: Session Title Summarizer
+# 🦐 MEM-001: Session Title Summarizer
 
-Status: todo
+Status: draft
 Priority: P3
 Area: Memory
 Depends On: [TUI-004](../tui-004-agent-session-navigator.md)
 
 ## Why
 
-Long-running Shrimpy sessions are hard to recognize from channel/session labels alone. Shrimpy should maintain a compact generated title for each session so agents and humans can identify prior work quickly from the CLI and future session navigation surfaces.
-
-This is low priority. It should wait until session-inventory shapes are clearer.
+Generated session titles might make old sessions easier to scan, but Pi already persists user-facing session names and a first-prompt preview may be sufficient for the initial navigator. This should wait until TUI-004 provides evidence that automatic titles solve a real ambiguity.
 
 ## Current State
 
-- `shrimpy sessions list [session-id] --agent <id> --json` lists manifested sessions and archives for one agent, but it does not include generated titles.
-- Session metadata records runtime/model/compaction facts and lifecycle state; there is no `shrimpy_session_title` custom entry or sidecar title index.
-- Model-policy support exists for normal sessions, but there is no dedicated low-cost title/summarization policy yet.
+- Pi persists session names through `session_info`, exposes naming in the TUI, and already uses the name in resume and title surfaces.
+- Shrimpy's session inventory can read Pi session names and derive a first-prompt preview without creating parallel title metadata.
+- There is no demonstrated need yet for background model calls over active and archived sessions.
 
 ## Build
 
-- Add an efficient session-title summarizer that produces a title of 140 characters or less.
-- Strip tool results before summarization. Keep only the minimum useful shape: roles, user-visible text, assistant-visible text, tool names, timestamps when relevant, and short error/status hints.
-- Avoid re-summarizing unchanged sessions. Track a digest, message count, or newest entry id so title refreshes only when the summarized input changed meaningfully.
-- Use the same provider path and inference handling as Shrimpy compaction, but resolve a cheap/fast summarization model through an explicit title or summarization policy.
-- Persist the title as Shrimpy-owned session metadata, for example a `shrimpy_session_title` custom session entry or an equivalent inspectable sidecar index. The record should include title, source digest/newest entry, generated timestamp, and model metadata.
-- Expose titles through existing CLI inspection:
-  - `shrimpy sessions list [session-id] [--agent <id>] [--json]` includes title when present.
-  - richer agent/session inventory commands from [TUI-004](../tui-004-agent-session-navigator.md) include title when present.
-- Refresh the title after session activity at a bounded cadence, or through normal maintenance/session-inventory work if an explicit refresh path is later needed.
-- Include active and archived sessions so old work remains discoverable.
+- Validate the need from the TUI-004 navigator before adding generation or scheduling.
+- If needed, generate a short name only for sessions without a user-provided Pi session name. Target roughly 60–80 characters so it remains useful in selectors and terminal tabs.
+- Write the generated value through Pi's existing session-name mechanism so every Pi and Shrimpy surface has one canonical display name.
+- If generation provenance is necessary, store only narrow Shrimpy metadata such as source digest, generated timestamp, and model id; do not create a second canonical title field.
+- Strip tool results, file contents, command logs, credentials, screenshots, and media payloads from any summarization request.
+- Start with an explicit CLI refresh path or one bounded post-session trigger. Do not schedule background refreshes across every active and archived session until usage proves that worthwhile.
+- Use an explicit cheap summarization model policy and avoid reprocessing unchanged inputs.
 
 ## Boundaries
 
-- Do not treat the generated title as long-term memory or load it into prompts by default. It is discoverability metadata for sessions.
-- Do not mutate channel logs or rewrite existing session transcript entries.
-- Do not send raw tool outputs, file contents, command logs, credentials, screenshots, or binary/media payloads to the title summarizer.
-- Do not create a second session registry. Titles should attach to existing session storage and listing flows.
-- Do not make TUI navigation depend on title generation succeeding.
-
-## Touches
-
-- [TUI-004](../tui-004-agent-session-navigator.md): the navigator wants richer session metadata and should display these titles when available.
-- Worker sessions already need compact summaries; this title generator should share token-stripping and cheap summarization helpers where useful, while keeping worker Markdown summaries separate from 140-character session titles.
-- Model policy: title generation should use an explicit low-cost summarization intent instead of silently spending the active session's main model.
-- [Compaction](../../reference/compaction.md): title summarization should reuse provider/request plumbing where practical, but it is not compaction and should not affect working context.
-- [Memory](../../reference/memory.md): titles help locate session evidence for memory upkeep, but they are not durable memory files.
+- Do not overwrite a user-provided Pi session name.
+- Do not treat a generated name as long-term memory or load it into prompts.
+- Do not create a second session registry or parallel canonical title entry.
+- Do not make TUI navigation depend on generation succeeding.
+- Do not automatically spend model tokens across archived sessions without an explicit user-visible workflow.
 
 ## Done
 
-- Session titles are generated at 140 characters or less from stripped, token-efficient inputs.
-- Tool result bodies are excluded from title prompts.
-- Titles are persisted as inspectable Shrimpy session metadata.
-- `shrimpy sessions list` shows titles in human and JSON output.
-- Existing compaction, memory upkeep, and worker-session summaries remain separate concepts.
+- TUI-004 usage demonstrates that first-prompt previews and manual Pi names are insufficient.
+- Generated names are short, omit sensitive/tool payloads, and use an explicit low-cost model policy.
+- Sessions retain one canonical Pi session name, with user-provided names taking precedence.
+- Generation is inspectable, bounded, and skips unchanged input.
+- CLI and TUI inventory display the same resulting name.

@@ -1,55 +1,53 @@
 # 🦐 TUI-009: Bare Shrimpy Agent Resume
 
-Status: draft
+Status: todo
 Priority: P2
 Area: TUI
 Depends On: none
 
 ## Why
 
-Bare `shrimpy` opens the interactive TUI and resumes an active `tui` session, but it selects the default configured agent before resume happens. If the last interactive session was started through `shrimpy --agent <id>`, `shrimpy chat <agent>`, or `shrimpy agent tui <id>`, a later bare `shrimpy` resumes the default agent's `tui` session instead of the most recent agent-specific TUI session. The result feels like resume forgot which agent the user was talking to.
+Bare `shrimpy` opens the interactive TUI, but it selects the default configured agent before Pi resumes that agent's session. If the most recent interactive session belongs to another agent, bare startup feels like it forgot who the user was talking to.
 
 ## Current State
 
-- `cmdRootTui` passes `agentId: values.agent`; when no `--agent` is supplied, the value is undefined.
+- `cmdRootTui` leaves `agentId` undefined when no `--agent` is supplied.
 - `prepareForegroundSessionOpen` calls `runtime.getAgent(input.agentId)`, and `AppRuntime.getAgent(undefined)` returns the first configured agent.
-- TUI sessions are agent-scoped canonical `local/main` sessions with manifests under `agents/<id>/sessions/local/`.
-- `openSessionManager` resumes the active JSONL only inside the selected agent's session directory.
-- `shrimpy_session_metadata` records `agentId`, but only after a session has already been opened, so it cannot help bare startup choose the agent.
-- Live workspace evidence shows active `tui` sessions for multiple configured agents, with the newest active TUI session not necessarily belonging to the first configured agent.
+- Interactive sessions use each agent's canonical `local/main` session. Its manifest is stored under the encoded `agents/<id>/sessions/local/<name>/<profile>/session.json` path.
+- `openSessionManager` resumes only inside the agent directory selected before session open.
+- The manifest-backed catalog and transcript helpers can identify active sessions and their update times without reading full transcript content.
 
 ## Build
 
-- Add a narrow startup resolver for the root interactive command when no explicit `--agent` is provided.
-- Resolve the most recent active `local/main` session across configured agents through the manifest-backed session catalog and lifecycle state.
-- Use the resolved agent id before calling `prepareForegroundSessionOpen`, so the existing per-agent resume path opens the right session without changing Pi session storage.
+- Add a narrow resolver for bare, promptless root TUI startup when no explicit `--agent` is provided.
+- After the app runtime is available and before `prepareForegroundSessionOpen`, resolve the configured agent whose active `local/main` session was updated most recently.
+- Feed that agent id into the existing foreground-open path so normal per-agent Pi resume behavior remains unchanged.
+- Keep the first configured agent as the fallback when no configured agent has an active `local/main` session.
 - Preserve explicit agent selection for `shrimpy --agent <id>`, `shrimpy chat <agent>`, `shrimpy chat mechanic`, and `shrimpy agent tui <id>`.
-- Keep the default first-configured-agent behavior when no active `tui` session exists anywhere.
-- Decide and document whether `shrimpy "prompt"` without `--agent` should target the most recent TUI agent or the configured default agent.
+- Keep `shrimpy "prompt"` without `--agent` on the configured default agent. Only bare, promptless `shrimpy` follows the most recently active interactive agent; prompt targeting should remain predictable.
 
 ## Boundaries
 
 - Do not create a new session format or move session files.
-- Do not read full transcripts to choose the agent; lifecycle state and file timestamps are enough.
-- Do not change ephemeral `run` or gateway channel resume semantics.
-- Do not make root startup depend on live workspace channel logs, runtime logs, or provider state.
+- Do not read full transcripts to choose the agent.
+- Do not change ephemeral `run` or gateway/channel resume semantics.
+- Do not make startup depend on channel logs, runtime logs, provider state, or Shrimpy session metadata appended after open.
 - Do not add legacy command aliases or compatibility shims.
 
 ## Touches
 
-- `src/commands/root.ts`
-- `src/sessions/manifest.ts`
-- `src/sessions/catalog.ts`
-- `src/sessions/transcript-store.ts`
-- `test/root-command.test.ts` or a focused direct-session startup test
+- Root TUI/session launch orchestration after `AppRuntime` creation
+- `src/sessions/catalog.ts` and existing transcript/manifest helpers as needed
+- A focused root interactive startup test
 - `docs/reference/cli.md`
 - `docs/reference/sessions.md`
 
 ## Done
 
-- Starting `shrimpy agent tui career`, exiting, then running bare `shrimpy` opens the active `career` TUI session when it is the most recent active TUI session.
-- Bare `shrimpy` still opens the first configured agent when there are no active `tui` sessions.
-- Explicit agent commands ignore the resolver and keep targeting the requested agent.
-- The resolver ignores archived sessions and does not inspect transcript text.
-- Focused tests cover multi-agent active TUI selection, archived-session exclusion, explicit-agent precedence, and the no-session fallback.
-- Reference docs describe how bare `shrimpy` chooses the agent it resumes.
+- Starting an interactive session for a non-default agent, exiting, then running bare `shrimpy` resumes that agent when its active `local/main` session is the most recent.
+- Bare `shrimpy` opens the first configured agent when no active `local/main` session exists.
+- `shrimpy "prompt"` still targets the configured default agent unless `--agent` is explicit.
+- Explicit agent commands ignore the resolver.
+- Archived and channel sessions do not influence selection, and the resolver does not inspect transcript text.
+- Focused tests cover multi-agent recency, archived-session exclusion, explicit-agent precedence, prompted-root behavior, and the no-session fallback.
+- Reference docs describe the bare-startup resume rule.
