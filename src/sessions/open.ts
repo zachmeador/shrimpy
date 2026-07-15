@@ -66,6 +66,9 @@ export async function openSession(
 export async function openSessionRuntime(
   bootstrap: SessionBootstrap,
   plan: SessionOpenPlan,
+  opts?: {
+    extensionFactories?: ExtensionFactory[];
+  },
 ): Promise<AgentSessionRuntime> {
   const cwd = plan.descriptor.cwd ?? bootstrap.agentRootPath;
   const agentDir = join(projectRoot, ".shrimpy");
@@ -84,6 +87,7 @@ export async function openSessionRuntime(
         {
           sessionManager,
           sessionStartEvent,
+          extensionFactories: opts?.extensionFactories,
         },
       );
 
@@ -125,6 +129,7 @@ async function openSessionWithRuntimeDeps(
   opts?: {
     sessionManager?: SessionManager;
     sessionStartEvent?: SessionStartEvent;
+    extensionFactories?: ExtensionFactory[];
   },
 ): Promise<{
   session: AgentSession;
@@ -148,6 +153,7 @@ async function openLeasedSessionWithRuntimeDeps(
   opts: {
     sessionManager?: SessionManager;
     sessionStartEvent?: SessionStartEvent;
+    extensionFactories?: ExtensionFactory[];
   } | undefined,
   lease: ReturnType<typeof acquireSessionLease>,
 ): Promise<{
@@ -215,6 +221,7 @@ async function openLeasedSessionWithRuntimeDeps(
         env: assembly.env,
         compaction: compactionPolicy,
       }),
+      ...(opts?.extensionFactories ?? []),
       ...(lease ? [createSessionLeaseExtensionFactory(lease)] : []),
     ],
   );

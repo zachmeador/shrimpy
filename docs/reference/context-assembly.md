@@ -2,7 +2,7 @@
 
 Shrimpy assembles stable session prompt text from `PromptSection`s. Each section has a `kind`, content, and provenance. The assembler orders file-backed and generated sections, then renders the contained system prompt at session open.
 
-Per-turn context is separate from the stable system prompt. At turn time Shrimpy renders live state, prefixes the current user message with that text and a short instruction, then lets Pi persist and send it. The session file therefore records the same user turn the model saw.
+Per-turn context is separate from the stable system prompt. For direct Pi sessions, Shrimpy persists the submitted user message unchanged and follows it with a model-visible custom context message. Gateway turns persist the rendered context and routed prompt body together in one user message.
 
 ## Sections
 
@@ -93,7 +93,7 @@ session: gateway channel: home
   inspect: shrimpy channels read home --after <message-id>
 ```
 
-`prefixPromptWithTurnContext` prefixes that rendered text, adds a short instruction, then appends the current user prompt body. Shrimpy's Pi extension uses `before_agent_start`, `message_end`, and `agent_end` hooks to rewrite the finalized user message before Pi persists and sends it:
+Gateway delivery uses `prefixPromptWithTurnContext` to prefix that rendered text, add a short instruction, and append the routed user prompt body:
 
 ```text
 [turn-context]
@@ -105,7 +105,7 @@ The turn context above is background for the user message below. Answer the user
 ...
 ```
 
-The turn context and final channel/user prompt body are persisted together. This keeps direct TUI, direct `run`, gateway channel, and child-session behavior aligned while keeping the stable system prompt cacheable.
+Direct TUI, direct `run`, and other direct Pi sessions instead use a `before_agent_start` extension hook. It preserves the submitted user message and follows it with a `shrimpy_turn_context` custom message containing the model-facing context instruction. The custom message consumes no transcript rows while collapsed and appears when Ctrl+O expands turn details. Both direct and gateway paths keep live context out of the stable system prompt so prompt caching remains effective.
 
 Agent memory Markdown is loaded through configured file and directory sources, not a separate turn-memory loader. There is no heading parser, derived peer card, or framework-owned memory writer.
 

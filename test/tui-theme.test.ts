@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import {
   initTheme,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
+import {
   loadThemeFromPath,
   theme,
 } from "../dist/app/pi-internals.js";

@@ -11,6 +11,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Breaking Changes
 
+- Removed the `on` thinking alias. Thinking inputs now accept only Pi's canonical levels: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`.
 - Added workspace runtime profiles with global `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy` discovery, workspace-local `runtime/bin` command shims, and profile-bound gateway services so development and normal environments can coexist without PATH or pointer collisions.
 - Changed gateway service identities from one global user service to workspace/app-bound names. Existing `shrimpy-gateway.service` or `io.github.zachmeador.shrimpy.gateway.plist` files are not removed automatically; reinstall the gateway for the workspace you want to run.
 - Removed the nested `~/.shrimpy/.shrimpy-workspace.json` pointer location. Use explicit `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy`, `~/.shrimpy-workspace.json`, or the default `~/.shrimpy/`.
@@ -25,6 +26,8 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Sessions, Models & TUI
 
 - Changed bare `shrimpy` to resume the agent used most recently in terminal chat while prompted and explicit-agent launches keep their existing targets; `/new` preserves the selected agent even before the fresh conversation receives a reply.
+- Reduced the Pi-private TUI surface while retaining Shrimpy UX: public Pi APIs now own `/new` lifecycle, thinking state, working-indicator state, footer composition, retry/compaction events, custom-message registration, and tool expansion; four named compatibility seams preserve inline status/help and the Shrimpy `/changelog`, the unified `/settings` landing page and live Shrimpy readouts, model favorites and command guardrails, and zero-row collapsed turn context.
+- Changed direct-session turn context to persist as a model-visible custom message after the unchanged user message. It stays collapsed in the transcript by default, reappears with Ctrl+O for turn inspection, and keeps session previews clean.
 - Replaced separate direct/gateway planning and duplicate delivery queues with one `SessionResolver`, foreground host, and gateway `SessionPool`; every durable session now shares saved-model restoration, manifest discovery, and owner-aware controls.
 - Changed `shrimpy sessions new|clear|restore|thinking|stop` to route through the session's live owner, verify correlated gateway outcomes, apply unowned lifecycle changes under an exclusive maintenance lease, and expose `--no-wait` plus structured JSON outcomes. Stop controls now bypass a running turn instead of waiting behind the delivery queue.
 - Upgraded Pi packages from `0.79.6` to `0.80.6`, adding the `max` thinking level, automatic light/dark TUI themes, cache-miss notices, output padding, and the latest provider, model, auth, compaction, and rendering fixes.
@@ -36,6 +39,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Fixed
 
 - Fixed TUI `/new` exiting instead of starting a fresh session when durable session ownership was enabled.
+- Fixed TUI parity regressions that removed model favorites, flattened `/settings`, replaced inline operational output with modal panels, showed unsupported thinking choices, stopped the footer shrimp during retry or compaction, and left blank rows for collapsed turn context.
 - Fixed concurrent worker state mutations overwriting other worker records, duplicate worker ids being accepted, and late supervisor results reviving cancelled or closed turns.
 - Fixed session ownership races during stale-owner replacement, cleanup, and token-checked release.
 - Fixed watch schedule edits retaining stale next-run timestamps by binding persisted clock entries to their effective interval or cron/timezone schedule.

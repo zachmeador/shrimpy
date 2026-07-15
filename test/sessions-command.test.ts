@@ -207,16 +207,15 @@ describe("cmdSessions", () => {
     assert.deepEqual(messages, []);
   });
 
-  test("maps sessions set --thinking on to medium before reporting a stopped gateway", async () => {
+  test("rejects sessions set --thinking aliases", async () => {
     await setupInit(workspace);
 
-    const { result, lines, errors } = await captureLogs(() =>
-      cmdSessions(["set", "channel/home", "--thinking", "on"], { workspace } as any)
+    await assert.rejects(
+      () => captureLogs(() =>
+        cmdSessions(["set", "channel/home", "--thinking", "on"], { workspace } as any)
+      ),
+      /thinking level must be one of: off, minimal, low, medium, high, xhigh, max/,
     );
-
-    assert.equal(result, 1);
-    assert.deepEqual(lines, []);
-    assert.deepEqual(errors, ["Session channel/home is not running."]);
 
     const bus = new ChannelBus(join(workspace, "channels"));
     const { messages } = bus.read("home");

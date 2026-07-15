@@ -239,8 +239,9 @@ function installFavoriteAwareModelSelector(
           decorateModelSelectorWithFavorites(selectorView.component, {
             getFavoriteIds: () => favoriteIds,
             setFavoriteIds: (nextFavoriteIds) => {
-              favoriteIds = normalizeModelFavoriteIds(nextFavoriteIds);
-              persistModelFavoriteIds(options.runtime, favoriteIds);
+              const normalized = normalizeModelFavoriteIds(nextFavoriteIds);
+              persistModelFavoriteIds(options.runtime, normalized);
+              favoriteIds = normalized;
             },
             requestRender: () => mode.ui?.requestRender(),
             showStatus: (message) => mode.showStatus(message),

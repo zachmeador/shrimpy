@@ -1,10 +1,11 @@
 import {
   InteractiveMode,
   type AgentSession,
+  type AgentSessionRuntime,
+  initTheme,
 } from "@earendil-works/pi-coding-agent";
 import {
   detectTerminalBackgroundFromEnv,
-  initTheme,
   resolveThemeSetting,
   setRegisteredThemes,
 } from "../app/pi-internals.js";
@@ -15,12 +16,15 @@ import {
   type OpenForegroundSessionInput,
 } from "../sessions/foreground.js";
 import { formatSessionId } from "../sessions/identity.js";
-import { installShrimpyActivityIndicator } from "./shrimpy-activity-indicator.js";
-import { installShrimpyCommandSurface } from "./shrimpy-command-surface.js";
-import { installShrimpyContextRendering } from "./shrimpy-context-rendering.js";
+import { createShrimpyTuiCommandExtensionFactory } from "./shrimpy-commands.js";
+import { createShrimpyFooterExtensionFactory } from "./shrimpy-footer.js";
+import { installShrimpyInlineCommands } from "./shrimpy-inline-commands.js";
 import { installShrimpyModelSelectionGuard } from "./shrimpy-model-selection.js";
-import { installShrimpySettingsSelector } from "./shrimpy-settings.js";
-import { installShrimpyToolRendering } from "./shrimpy-tool-rendering.js";
+import {
+  createShrimpySettingsUiController,
+  installShrimpySettingsSelector,
+} from "./shrimpy-settings.js";
+import { installShrimpyTurnContextRendering } from "./shrimpy-turn-context-rendering.js";
 
 export interface RunInteractiveSessionInput extends OpenForegroundSessionInput {
   initialMessage?: string;
@@ -54,30 +58,42 @@ async function runAgentTuiSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
   const prepared = await prepareForegroundSessionOpen(input);
-  const runtime = await openSessionRuntime(prepared.bootstrap, prepared.plan);
+  const sessionId = formatSessionId(prepared.plan.descriptor.key);
+  const sessionRuntime: { current?: AgentSessionRuntime } = {};
+  const settingsUi = createShrimpySettingsUiController();
+  const commandOptions = {
+    runtime: input.runtime,
+    agentId: prepared.agentId,
+    sessionId,
+    purpose: prepared.plan.descriptor.purpose,
+    cwd: prepared.cwd,
+  };
+  const runtime = await openSessionRuntime(prepared.bootstrap, prepared.plan, {
+    extensionFactories: [
+      createShrimpyTuiCommandExtensionFactory(commandOptions),
+      createShrimpyFooterExtensionFactory(() => {
+        if (!sessionRuntime.current) {
+          throw new Error("Shrimpy footer initialized before the TUI session runtime");
+        }
+        return sessionRuntime.current.session;
+      }),
+      settingsUi.extensionFactory,
+    ],
+  });
+  sessionRuntime.current = runtime;
 
   try {
     primeInteractiveThemeForSession(runtime.session);
     const interactive = new InteractiveMode(runtime, {
       initialMessage: input.initialMessage,
     });
-    installShrimpyActivityIndicator(interactive);
-    installShrimpyCommandSurface(interactive, {
-      runtime: input.runtime,
-      agentId: prepared.agentId,
-      sessionId: formatSessionId(prepared.plan.descriptor.key),
-      purpose: prepared.plan.descriptor.purpose,
-      cwd: prepared.cwd,
-    });
-    installShrimpyContextRendering(interactive);
-    installShrimpyToolRendering(interactive);
+    installShrimpyInlineCommands(interactive, commandOptions);
     installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
+    installShrimpyTurnContextRendering();
     installShrimpySettingsSelector(interactive, {
-      runtime: input.runtime,
-      agentId: prepared.agentId,
-      sessionId: formatSessionId(prepared.plan.descriptor.key),
-      purpose: prepared.plan.descriptor.purpose,
-      cwd: prepared.cwd,
+      ...commandOptions,
+      getSession: () => runtime.session,
+      ui: settingsUi,
     });
     await interactive.run();
     return { agentId: prepared.agentId };

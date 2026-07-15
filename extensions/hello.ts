@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { readAppMetadata } from "../src/app/metadata.ts";
-import { registerShrimpyHelpCommand } from "./shrimpy-commands.ts";
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
@@ -22,6 +21,4 @@ export default function (pi: ExtensionAPI) {
       return new Text(`${logo}\n${hints}`, 1, 0);
     });
   });
-
-  registerShrimpyHelpCommand(pi);
 }

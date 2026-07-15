@@ -487,20 +487,21 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.channelPolicy, undefined);
   });
 
-  test("maps agent thinking on to a medium default", async () => {
+  test("rejects non-canonical agent thinking aliases", async () => {
     await setupInit(workspace);
 
-    const code = await withMutedConsole(() =>
-      cmdAgent(["add", "planner", "--thinking", "on"], { workspace } as any)
+    await assert.rejects(
+      () => withMutedConsole(() =>
+        cmdAgent(["add", "planner", "--thinking", "on"], { workspace } as any)
+      ),
+      /thinking level must be one of: off, minimal, low, medium, high, xhigh, max/,
     );
-
-    assert.equal(code, 0);
 
     const config = JSON.parse(
       readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
     );
     const agent = config.agents.find((entry: any) => entry.id === "planner");
-    assert.equal(agent.thinking, "medium");
+    assert.equal(agent, undefined);
   });
 
   test("removes an agent from config, memberships, and surface state", async () => {

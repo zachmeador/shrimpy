@@ -87,7 +87,7 @@ shrimpy models resolve --agent shrimpy --channel home
 
 Search scans active and archived Pi JSONL transcripts. It matches user and assistant text, assistant tool-call names, tool-result names, and recorded bash commands without exposing tool-result bodies. `sessions read` expands one hit into a bounded neighboring window.
 
-Session JSONL also records `shrimpy_system_prompt`, `shrimpy_tools`, `shrimpy_session_metadata`, `shrimpy_compaction_policy`, `shrimpy_lifecycle`, and `shrimpy_model_switch` entries. Pi ignores inspection-only entries when building ordinary model context.
+Session JSONL also records `shrimpy_system_prompt`, `shrimpy_tools`, `shrimpy_session_metadata`, `shrimpy_compaction_policy`, `shrimpy_lifecycle`, and `shrimpy_model_switch` entries. Pi ignores those inspection-only entries when building ordinary model context. Direct-session turn context is different: the `shrimpy_turn_context` custom message is persisted immediately after its user message and participates in model context. Pi's renderer expansion state shows it when Ctrl+O expands transcript details; Shrimpy suppresses the otherwise empty custom-message spacer while it is collapsed.
 
 ## Boundaries
 

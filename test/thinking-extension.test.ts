@@ -1,5 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { initTheme } from "@earendil-works/pi-coding-agent";
 import thinkingExtension from "../extensions/thinking.ts";
 
 describe("thinking extension", () => {
@@ -60,6 +61,7 @@ describe("thinking extension", () => {
 
     assert.ok(handler);
     await handler!("   ", {
+      mode: "print",
       waitForIdle: async () => {},
       ui: {
         notify(text: string, level: string) {
@@ -69,12 +71,63 @@ describe("thinking extension", () => {
     });
 
     assert.deepEqual(notifications, [{
-      text: "Usage: /thinking <level> (off, minimal, low, medium, high, xhigh, max, on (= medium)); current low",
+      text: "Usage: /thinking <level> (off, minimal, low, medium, high, xhigh, max); current low",
       level: "info",
     }]);
   });
 
-  test("maps /thinking on to medium", async () => {
+  test("opens Pi's public selector for bare /thinking in the TUI", async () => {
+    initTheme("dark", false);
+    let handler: ((args: string, ctx: any) => Promise<void>) | undefined;
+    let thinkingLevel = "low";
+    let rendered = "";
+    let waited = false;
+
+    thinkingExtension({
+      registerCommand(_name: string, options: any) {
+        handler = options.handler;
+      },
+      getThinkingLevel() {
+        return thinkingLevel;
+      },
+      setThinkingLevel(level: string) {
+        thinkingLevel = level;
+      },
+    } as any);
+
+    await handler!("", {
+      mode: "tui",
+      model: {
+        provider: "test",
+        id: "reasoning-model",
+        reasoning: true,
+        thinkingLevelMap: { xhigh: null, max: null },
+      },
+      waitForIdle: async () => {
+        waited = true;
+      },
+      ui: {
+        async custom(factory: Function) {
+          let selected: string | undefined;
+          const selector = factory({}, {}, {}, (level: string | undefined) => {
+            selected = level;
+          });
+          rendered = selector.render(100).join("\n");
+          selector.getSelectList().onSelect({ value: "high", label: "high" });
+          return selected;
+        },
+        notify() {},
+      },
+    });
+
+    assert.match(rendered, /Light reasoning/);
+    assert.match(rendered, /Deep reasoning/);
+    assert.doesNotMatch(rendered, /xhigh/);
+    assert.equal(waited, false);
+    assert.equal(thinkingLevel, "high");
+  });
+
+  test("rejects non-canonical thinking aliases", async () => {
     let handler: ((args: string, ctx: any) => Promise<void>) | undefined;
     const notifications: Array<{ text: string; level: string }> = [];
     let thinkingLevel = "off";
@@ -101,10 +154,10 @@ describe("thinking extension", () => {
       },
     });
 
-    assert.equal(thinkingLevel, "medium");
+    assert.equal(thinkingLevel, "off");
     assert.deepEqual(notifications, [{
-      text: "Thinking set to medium (requested on)",
-      level: "info",
+      text: "Invalid thinking level \"on\". Use: off, minimal, low, medium, high, xhigh, max",
+      level: "warning",
     }]);
   });
 });

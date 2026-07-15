@@ -465,8 +465,9 @@ describe("TelegramChannelBridge", () => {
     });
   });
 
-  test("/thinking on maps to medium in the session control message", async () => {
-    const { bridge, channelBus } = createBridge();
+  test("/thinking rejects non-canonical aliases", async () => {
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const { bridge, channelBus } = createBridge({ sent });
 
     await bridge.handleUpdate({
       update_id: 1,
@@ -480,16 +481,10 @@ describe("TelegramChannelBridge", () => {
     });
 
     const { messages } = channelBus.read("telegram~main~4242");
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0].content, {
-      type: "control",
-      data: {
-        kind: "session_thinking_level",
-        targetAgentId: "shrimpy",
-        level: "medium",
-        command: "/thinking",
-      },
-    });
+    assert.equal(messages.length, 0);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]!.text, /Invalid thinking level/);
+    assert.doesNotMatch(sent[0]!.text, /on \(= medium\)/);
   });
 
   test("renders /thinking usage when no level is provided", async () => {

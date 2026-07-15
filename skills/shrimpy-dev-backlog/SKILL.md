@@ -47,7 +47,8 @@ Choose the next number in that area by inspecting existing active and `later/` n
 4. Write the note with the existing backlog shape:
    - H1 with the shrimp emoji for every backlog note, including notes in `later/`.
    - Header fields: `Status`, `Priority`, `Area`, and `Depends On` when known.
-   - Sections that fit the work, usually `Why`, `Current State`, `Build`, `Boundaries`, `Notes`, `Touches`, and `Done`.
+   - A required `## UX Implications` section that states the expected user-visible behavior, interaction changes, affected commands or keyboard flows, defaults, and regressions to avoid. If no user-facing effect is expected, say so explicitly and explain why.
+   - Other sections that fit the work, usually `Why`, `Current State`, `Build`, `Boundaries`, `Notes`, `Touches`, and `Done`.
 5. Update `docs/backlog/index.md` in the matching active or `Later` table with a concise row. Link dependencies to their notes when practical.
 6. If moving a note between active and `later/`, update relative links in that note and in any notes that point to it.
 7. If closing or removing a note, make sure the implementation, stable docs, or changelog now carry the durable information before deleting the planning note or row.
@@ -56,6 +57,7 @@ Choose the next number in that area by inspecting existing active and `later/` n
 
 - When editing wording, preserve the note's meaning.
 - Describe current behavior and desired build shape with concrete commands, files, modules, surfaces, and tests when known.
+- Add or refresh `## UX Implications` whenever creating or materially updating a backlog note. Do not bury UX decisions only in `Build`, `Tradeoffs`, or acceptance criteria.
 - Keep uncertain work in `draft` and name the open decision plainly.
 - Make boundaries explicit when they prevent scope creep, legacy support, unsafe data changes, or runtime policy from leaking into the item.
 - Do not hard-wrap prose.

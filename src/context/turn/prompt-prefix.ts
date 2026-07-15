@@ -3,6 +3,9 @@ import { GATEWAY_TURN_DELIVERY_INSTRUCTION } from "../system/tools.js";
 export const TURN_CONTEXT_INSTRUCTION =
   "The turn context above is background for the user message below. Answer the user message below using this context when relevant.";
 
+export const TRAILING_TURN_CONTEXT_INSTRUCTION =
+  "The turn context above is background for the user message immediately before it. Answer that message using this context when relevant.";
+
 export function formatTurnContextPrefix(
   text: string,
   opts?: { channelDelivery?: boolean },
@@ -23,6 +26,14 @@ export function prefixPromptWithTurnContext(
   opts?: { channelDelivery?: boolean },
 ): string {
   return `${formatTurnContextPrefix(turnContextText, opts)}\n\n${prompt}`;
+}
+
+export function formatTrailingTurnContext(text: string): string {
+  return [
+    text.trimEnd(),
+    "",
+    TRAILING_TURN_CONTEXT_INSTRUCTION,
+  ].join("\n");
 }
 
 export function stripTurnContextPrefixForDisplay(text: string): string {

@@ -55,17 +55,10 @@ describe("thinking helpers", () => {
     assert.equal(parseThinkingLevel("max"), "max");
   });
 
-  test("maps on to medium thinking", () => {
-    assert.equal(parseThinkingLevel("on"), "medium");
-  });
-
-  test("keeps aliases out of persisted level validation", () => {
+  test("rejects non-canonical thinking aliases", () => {
     assert.equal(isThinkingLevel("on"), false);
-    assert.equal(isThinkingLevel(parseThinkingLevel("on")), true);
-  });
-
-  test("advertises the on alias in user-facing input help", () => {
-    assert.match(formatThinkingInputs(), /on \(= medium\)/);
+    assert.equal(parseThinkingLevel("on"), undefined);
+    assert.doesNotMatch(formatThinkingInputs(), /\bon\b/);
   });
 
   test("qwen chat-template config disables thinking when reasoning is omitted", async () => {

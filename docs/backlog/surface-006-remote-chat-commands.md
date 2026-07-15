@@ -45,7 +45,7 @@ Read-only commands return surface-local output without waking an agent. State-ch
 ## Implementation Notes
 
 - Current Telegram command handling lives in `src/surfaces/telegram/commands.ts`.
-- Current TUI status collection is mixed with rendering in `src/tui/shrimpy-command-surface.ts`; extract only collectors needed by the remote overview rather than moving its section registry wholesale.
+- Current TUI status assembly lives in `src/tui/shrimpy-status.ts`; extract only the collectors needed by the remote overview rather than importing its TUI-oriented section registry or renderer.
 - Gateway lane state is already inspectable through runtime-state and gateway-status services. If active model or thinking state cannot be obtained accurately without opening or mutating a session, omit it from the first overview.
 - The existing CLI commands remain the deep inspection contract: `shrimpy status`, `shrimpy gateway status`, `shrimpy surface show`, `shrimpy sessions list`, and `shrimpy sessions compaction`.
 - Add tests for shared command routing, Telegram parsing/rendering, concise status disclosure, unsupported-command help, transport message-size behavior, and the split between read-only output and logged controls.

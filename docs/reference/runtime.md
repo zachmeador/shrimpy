@@ -4,7 +4,7 @@ Shrimpy has one Pi session core hosted by foreground commands, the gateway, setu
 
 ## Direct CLI Sessions
 
-- `shrimpy` opens the selected agent's durable `local/main` TUI session. The shared TUI launcher runs setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns rendering, key handling, and slash autocomplete; Shrimpy owns session assembly and replaces `/settings` with a unified Shrimpy/Pi selector.
+- `shrimpy` opens the selected agent's durable `local/main` TUI session. The shared TUI launcher runs setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns the core renderer, tools, session state, and live Pi settings. Shrimpy adds public Pi extensions for its animated working indicator, composed stock footer with a bottom-right shrimp, command registration, the `/thinking` adapter, and post-`/new` archival. Four compatibility seams preserve established UX that pinned Pi does not expose publicly: inline ephemeral `/status`, `/shrimpy`, and Shrimpy `/changelog` output; the Shrimpy/Pi `/settings` namespace; model favorites plus cycle/share/scoped-model guardrails; and zero-height collapsed turn context. The Pi settings branch and model list still use Pi's real components.
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy chat [agent]` opens the same TUI chat path for the default or selected agent without treating positionals as an initial prompt.
 - `shrimpy run "prompt"` opens an in-memory one-shot session and prints the final assistant text. `--session <canonical-id>` opts into a durable resumed session.
@@ -58,7 +58,7 @@ Shrimpy passes Pi one explicit system prompt. Pi's cwd-discovered `AGENTS.md`, a
 
 The Shrimpy-owned base system prompt is assembled from typed `PromptSection`s ordered by kind: identity, memory, and instructions first; capability next; runtime, activity, and evidence last. The contained prompt renderer appends Pi's `<available_skills>` block for the Shrimpy-approved skill paths. See [context-assembly.md](context-assembly.md) and [skills.md](skills.md).
 
-At turn time, Shrimpy prepares current time/session facts, channel-unread pointers, command-source output, and inspect commands. Shrimpy prefixes the current user message with that turn context and a short instruction before Pi persists and sends the turn, so the session file matches what the model saw. The context is intended for that immediately following message.
+At turn time, Shrimpy prepares current time/session facts, channel-unread pointers, command-source output, and inspect commands. Direct Pi sessions persist the submitted user message unchanged and add the prepared context as a `shrimpy_turn_context` custom message immediately after it; both messages participate in model context. The custom message stays collapsed in the transcript until Ctrl+O expands turn details. Gateway delivery still prefixes the routed channel prompt with its context and publication instruction before persistence. See [turn-context.md](turn-context.md).
 
 ## Session Lifecycle
 

@@ -7,7 +7,7 @@ import type {
   AutocompleteProvider,
   AutocompleteSuggestions,
 } from "@earendil-works/pi-tui";
-import { initTheme } from "../dist/app/pi-internals.js";
+import { initTheme } from "@earendil-works/pi-coding-agent";
 import {
   filterScopedModelsAutocompleteSuggestions,
   hideScopedModelsAutocomplete,

@@ -1,60 +1,49 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-
-const THINKING_LEVELS = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-] as const;
-
-type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-
-const THINKING_LEVEL_ALIASES: Record<string, ThinkingLevel> = {
-  on: "medium",
-};
-
-function isThinkingLevel(value: string): value is ThinkingLevel {
-  return THINKING_LEVELS.includes(value as ThinkingLevel);
-}
-
-function formatThinkingLevels(): string {
-  return THINKING_LEVELS.join(", ");
-}
-
-function formatThinkingInputs(): string {
-  return `${formatThinkingLevels()}, on (= medium)`;
-}
-
-function parseThinkingLevel(value: string): ThinkingLevel | undefined {
-  const normalized = value.trim().toLowerCase();
-  if (isThinkingLevel(normalized)) return normalized;
-  return THINKING_LEVEL_ALIASES[normalized];
-}
+import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import {
+  ThinkingSelectorComponent,
+  type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
+import {
+  formatThinkingInputs,
+  parseThinkingLevel,
+  THINKING_LEVELS,
+} from "../src/thinking.ts";
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("thinking", {
     description: "Set the session thinking level",
     getArgumentCompletions: (prefix) => {
       const normalized = prefix.trim().toLowerCase();
-      const inputs = ["on", ...THINKING_LEVELS];
-      const matches = inputs.filter((level) =>
+      const matches = THINKING_LEVELS.filter((level) =>
         normalized.length === 0 || level.startsWith(normalized)
       );
       return matches.map((level) => ({ value: level, label: level }));
     },
     handler: async (args, ctx) => {
-      await ctx.waitForIdle();
-
-      const requested = args.trim().toLowerCase();
-      if (!requested) {
+      let requested = args.trim().toLowerCase();
+      if (!requested && ctx.mode === "tui") {
+        const availableLevels = ctx.model
+          ? getSupportedThinkingLevels(ctx.model)
+          : [...THINKING_LEVELS];
+        requested = (await ctx.ui.custom<ThinkingLevel | undefined>(
+          (_tui, _theme, _keybindings, done) =>
+            new ThinkingSelectorComponent(
+              pi.getThinkingLevel(),
+              availableLevels,
+              (level) => done(level),
+              () => done(undefined),
+            ),
+        )) ?? "";
+        if (!requested) return;
+      } else if (!requested) {
         ctx.ui.notify(
           `Usage: /thinking <level> (${formatThinkingInputs()}); current ${pi.getThinkingLevel()}`,
           "info",
         );
         return;
+      } else {
+        await ctx.waitForIdle();
       }
 
       const level = parseThinkingLevel(requested);

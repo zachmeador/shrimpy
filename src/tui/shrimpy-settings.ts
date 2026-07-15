@@ -1,31 +1,23 @@
 import {
   type AgentSession,
   DynamicBorder,
-  type InteractiveMode,
-  type SettingsCallbacks,
-  type SettingsConfig,
-  SettingsSelectorComponent,
-  type SettingsManager,
+  getSelectListTheme,
   getSettingsListTheme,
+  type ExtensionFactory,
+  type ExtensionCommandContext,
+  type InteractiveMode,
 } from "@earendil-works/pi-coding-agent";
 import {
   Container,
+  SelectList,
   SettingsList,
   type Component,
   type SettingItem,
 } from "@earendil-works/pi-tui";
-import {
-  configureHttpDispatcher,
-  formatHttpIdleTimeoutMs,
-  getAvailableThemes,
-} from "../app/pi-internals.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { RuntimeConfig } from "../config/index.js";
+import { DEFAULT_MODEL_POLICY, formatModelRef } from "../config/model.js";
 import { editConfigFile } from "../config/store.js";
-import {
-  DEFAULT_MODEL_POLICY,
-  formatModelRef,
-} from "../config/model.js";
 import { isRecord } from "../util/record.js";
 
 type ShowSelectorFactory = (done: () => void) => {
@@ -33,45 +25,8 @@ type ShowSelectorFactory = (done: () => void) => {
   focus: Component;
 };
 
-interface InteractiveModeInternals {
+interface SettingsInteractiveMode {
   showSelector(create: ShowSelectorFactory): void;
-  session: AgentSession;
-  settingsManager: SettingsManager;
-  themeController: {
-    applyFromSettings(): Promise<void>;
-    getTerminalTheme(): SettingsConfig["terminalTheme"];
-    preview(themeSetting: string): void;
-  };
-  footer: {
-    setAutoCompactEnabled(enabled: boolean): void;
-    invalidate(): void;
-  };
-  chatContainer: {
-    children: Component[];
-    clear(): void;
-  };
-  defaultEditor: {
-    setPaddingX?(padding: number): void;
-    setAutocompleteMaxVisible?(maxVisible: number): void;
-  };
-  editor: {
-    setPaddingX?(padding: number): void;
-    setAutocompleteMaxVisible?(maxVisible: number): void;
-  };
-  ui: {
-    invalidate(): void;
-    requestRender(): void;
-    setShowHardwareCursor(enabled: boolean): void;
-    setClearOnShrink(enabled: boolean): void;
-  };
-  hideThinkingBlock: boolean;
-  outputPad: 0 | 1;
-  streamingComponent?: Component;
-  setupAutocompleteProvider(): void;
-  updateEditorBorderColor(): void;
-  rebuildChatFromMessages(): void;
-  showError(message: string): void;
-  showStatus(message: string): void;
   showSettingsSelector(): void;
 }
 
@@ -81,62 +36,140 @@ export interface ShrimpySettingsSelectorOptions {
   sessionId: string;
   purpose: string;
   cwd: string;
+  getSession: () => AgentSession;
+  ui: ShrimpySettingsUiController;
 }
 
+type NotificationType = "info" | "warning" | "error";
+
+export interface ShrimpySettingsUiController {
+  extensionFactory: ExtensionFactory;
+  notify(message: string, type?: NotificationType): void;
+}
+
+export function createShrimpySettingsUiController(): ShrimpySettingsUiController {
+  let notify: ((message: string, type?: NotificationType) => void) | undefined;
+  return {
+    extensionFactory: (pi) => {
+      pi.on("session_start", (_event, ctx) => {
+        if (ctx.mode !== "tui") return;
+        notify = (message, type) => ctx.ui.notify(message, type);
+      });
+    },
+    notify(message, type = "info") {
+      notify?.(message, type);
+    },
+  };
+}
+
+/**
+ * Pi handles built-in /settings before extension commands and input hooks, so
+ * there is no public API for adding a Shrimpy settings namespace. Keep this
+ * compatibility seam limited to the two selector entry methods: Pi still owns
+ * its settings component, callbacks, persistence, and live TUI behavior.
+ */
 export function installShrimpySettingsSelector(
   interactive: InteractiveMode,
   options: ShrimpySettingsSelectorOptions,
 ): void {
-  const mode = interactive as unknown as InteractiveModeInternals;
-  mode.showSettingsSelector = () => {
-    mode.showSelector((done) => {
-      const selector = new UnifiedSettingsSelector(mode, options, done);
+  const mode = interactive as unknown as SettingsInteractiveMode;
+  if (
+    typeof mode.showSettingsSelector !== "function"
+    || typeof mode.showSelector !== "function"
+  ) {
+    return;
+  }
+  const piSettings = mode.showSettingsSelector;
+  const showSelector = mode.showSelector;
+
+  const showRoot = () => {
+    showSelector.call(mode, (done) => {
+      const selector = new SettingsRootSelector(
+        options.agentId,
+        showShrimpy,
+        showPi,
+        done,
+      );
+      return { component: selector, focus: selector.getSelectList() };
+    });
+  };
+
+  const showShrimpy = () => {
+    showSelector.call(mode, () => {
+      const selector = new ShrimpySettingsPanel(options, showRoot);
       return { component: selector, focus: selector.getSettingsList() };
     });
   };
+
+  const showPi = () => {
+    const currentShowSelector = mode.showSelector;
+    mode.showSelector = (create) => {
+      showSelector.call(mode, () => create(showRoot));
+    };
+    try {
+      piSettings.call(mode);
+    } finally {
+      mode.showSelector = currentShowSelector;
+    }
+  };
+
+  mode.showSettingsSelector = showRoot;
 }
 
-class UnifiedSettingsSelector extends Container {
+class SettingsRootSelector extends Container {
+  private readonly selectList: SelectList;
+
+  constructor(
+    agentId: string,
+    showShrimpy: () => void,
+    showPi: () => void,
+    onCancel: () => void,
+  ) {
+    super();
+    this.selectList = new SelectList([
+      {
+        value: "shrimpy",
+        label: "Shrimpy settings",
+        description: `Workspace, policy, and current-session settings for ${agentId}`,
+      },
+      {
+        value: "pi",
+        label: "Pi settings",
+        description: "Live interactive-mode, model, display, and input settings",
+      },
+    ], 10, getSelectListTheme());
+    this.selectList.onSelect = (item) => {
+      if (item.value === "shrimpy") showShrimpy();
+      else showPi();
+    };
+    this.selectList.onCancel = onCancel;
+    this.addChild(new DynamicBorder());
+    this.addChild(this.selectList);
+    this.addChild(new DynamicBorder());
+  }
+
+  getSelectList(): SelectList {
+    return this.selectList;
+  }
+}
+
+class ShrimpySettingsPanel extends Container {
   private readonly settingsList: SettingsList;
 
   constructor(
-    private readonly mode: InteractiveModeInternals,
     private readonly options: ShrimpySettingsSelectorOptions,
     onCancel: () => void,
   ) {
     super();
-
-    const configPath = options.runtime.paths.primaryConfigPath;
-    const items: SettingItem[] = [
-      {
-        id: "shrimpy",
-        label: "Shrimpy settings",
-        description:
-          `Workspace, agent, and Shrimpy runtime settings from ${configPath}.`,
-        currentValue: options.agentId,
-        submenu: (_currentValue, done) =>
-          new ShrimpySettingsSubmenu(mode, options, () => done()),
-      },
-      {
-        id: "pi",
-        label: "Pi settings",
-        description:
-          "Pi interactive-mode settings. Shrimpy keeps these visible because Pi owns the TUI runtime and is doing the heavy lifting here.",
-        currentValue: "interactive mode",
-        submenu: (_currentValue, done) =>
-          new PiSettingsSubmenu(mode, options, () => done()),
-      },
-    ];
-
-    this.addChild(new DynamicBorder());
     this.settingsList = new SettingsList(
-      items,
-      10,
+      this.createItems(),
+      12,
       getSettingsListTheme(),
-      () => {},
+      (id, value) => this.handleChange(id, value),
       onCancel,
       { enableSearch: true },
     );
+    this.addChild(new DynamicBorder());
     this.addChild(this.settingsList);
     this.addChild(new DynamicBorder());
   }
@@ -144,476 +177,224 @@ class UnifiedSettingsSelector extends Container {
   getSettingsList(): SettingsList {
     return this.settingsList;
   }
-}
-
-class PiSettingsSubmenu extends Container {
-  private readonly selector: SettingsSelectorComponent;
-
-  constructor(
-    mode: InteractiveModeInternals,
-    options: ShrimpySettingsSelectorOptions,
-    onCancel: () => void,
-  ) {
-    super();
-    this.selector = new SettingsSelectorComponent(
-      buildPiSettingsConfig(mode),
-      buildPiSettingsCallbacks(mode, options, onCancel),
-    );
-    this.addChild(this.selector);
-  }
-
-  handleInput(data: string): void {
-    this.selector.getSettingsList().handleInput(data);
-  }
-}
-
-class ShrimpySettingsSubmenu extends Container {
-  private readonly settingsList: SettingsList;
-
-  constructor(
-    private readonly mode: InteractiveModeInternals,
-    private readonly options: ShrimpySettingsSelectorOptions,
-    onCancel: () => void,
-  ) {
-    super();
-    this.settingsList = new SettingsList(
-      this.createItems(),
-      10,
-      getSettingsListTheme(),
-      (id, newValue) => this.handleChange(id, newValue),
-      onCancel,
-      { enableSearch: true },
-    );
-    this.addChild(this.settingsList);
-  }
-
-  handleInput(data: string): void {
-    this.settingsList.handleInput(data);
-  }
 
   private createItems(): SettingItem[] {
     const runtime = this.options.runtime;
     const agent = runtime.getAgent(this.options.agentId);
     const agentPaths = runtime.getAgentPaths(agent.id);
-    const configuredModelPolicy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
-    const activeTools = this.mode.session.getActiveToolNames();
-    const allTools = this.mode.session.getAllTools();
+    const session = this.options.getSession();
     const compaction = runtime.resolved.runtime.compaction;
-    const channelPolicySummary = formatChannelPolicy(agent.channelPolicy.mode);
-
     return [
-      {
-        id: "workspace",
-        label: "Workspace",
-        description: "Shrimpy's persistent home directory.",
-        currentValue: runtime.paths.workspace,
-      },
-      {
-        id: "config",
-        label: "Config",
-        description: "Main Shrimpy config file. Editable settings here persist to this JSON file.",
-        currentValue: runtime.paths.primaryConfigPath,
-      },
-      {
-        id: "agent",
-        label: "Agent",
-        description: "Active Shrimpy agent for this TUI session.",
-        currentValue: agent.id,
-      },
-      {
-        id: "agent-root",
-        label: "Agent root",
-        description: "Agent-owned memory, sessions, skills, watches, and vault directory.",
-        currentValue: agentPaths.root,
-      },
-      {
-        id: "session-id",
-        label: "Session",
-        description: "Canonical Shrimpy session id and purpose for this Pi transcript.",
-        currentValue: `${this.options.sessionId} / ${this.options.purpose}`,
-      },
-      {
-        id: "cwd",
-        label: "Working dir",
-        description: "Current working directory passed to Pi tools and the TUI.",
-        currentValue: this.options.cwd,
-      },
-      {
-        id: "model",
-        label: "Model",
-        description:
-          `Current Pi session model. Agent policy: ${configuredModelPolicy}.`,
-        currentValue: formatSessionModel(this.mode.session.model),
-      },
-      {
-        id: "thinking",
-        label: "Thinking",
-        description: "Current Pi session thinking level. Agent defaults are configured through Shrimpy agent settings.",
-        currentValue: this.mode.session.thinkingLevel,
-      },
-      {
-        id: "tool-policy",
-        label: "Tool policy",
-        description:
-          `Active tools: ${activeTools.join(", ") || "none"}. Available tools: ${allTools.map((tool) => tool.name).join(", ") || "none"}.`,
-        currentValue: `${activeTools.length}/${allTools.length} active`,
-      },
-      {
-        id: "channel-policy",
-        label: "Channel policy",
-        description: "Agent-owned policy for visible channel messages.",
-        currentValue: channelPolicySummary,
-      },
+      readOnly("workspace", "Workspace", runtime.paths.workspace, "Shrimpy's persistent home directory"),
+      readOnly("config", "Config", runtime.paths.primaryConfigPath, "Main Shrimpy configuration file"),
+      readOnly("agent", "Agent", agent.id, "Active agent for this TUI session"),
+      readOnly("agent-root", "Agent root", agentPaths.root, "Agent-owned context, sessions, skills, watches, and vault"),
+      readOnly("session", "Session", `${this.options.sessionId} / ${this.options.purpose}`, "Canonical Shrimpy session and purpose"),
+      readOnly("cwd", "Working dir", this.options.cwd, "Working directory passed to Pi tools"),
+      readOnly(
+        "model",
+        "Model",
+        formatSessionModel(session.model),
+        `Current Pi session model; agent policy ${agent.modelPolicy ?? DEFAULT_MODEL_POLICY}`,
+      ),
+      readOnly(
+        "thinking",
+        "Thinking",
+        session.thinkingLevel,
+        "Current Pi session thinking level",
+      ),
+      readOnly(
+        "tool-policy",
+        "Tool policy",
+        `${session.getActiveToolNames().length}/${session.getAllTools().length} active`,
+        `Active tools: ${session.getActiveToolNames().join(", ") || "none"}. Available tools: ${session.getAllTools().map((tool) => tool.name).join(", ") || "none"}`,
+      ),
+      readOnly(
+        "channel-policy",
+        "Channel policy",
+        formatChannelPolicy(agent.channelPolicy.mode),
+        "Agent-owned policy for visible channel messages",
+      ),
       {
         id: "auto-compact",
         label: "Auto-compact",
-        description:
-          "Persist Shrimpy runtime.compaction.enabled and update the current Pi session immediately.",
-        currentValue: this.mode.session.autoCompactionEnabled ? "true" : "false",
-        values: ["true", "false"],
+        description: "Update the current Pi session and persist the Shrimpy default",
+        currentValue: onOff(session.autoCompactionEnabled),
+        values: ["on", "off"],
       },
-      {
-        id: "compaction-window",
-        label: "Compaction window",
-        description: "Effective Shrimpy compaction policy for newly opened sessions.",
-        currentValue: `keep ${compaction.keepRecentTokens}, reserve ${compaction.reserveTokens}`,
-      },
+      readOnly(
+        "compaction-window",
+        "Compaction window",
+        `keep ${compaction.keepRecentTokens}, reserve ${compaction.reserveTokens}`,
+        "Effective Shrimpy compaction policy for newly opened sessions",
+      ),
       {
         id: "quiet-startup",
         label: "Quiet startup",
-        description:
-          "Persist Shrimpy runtime.quietStartup and update Pi's current settings manager.",
-        currentValue: runtime.resolved.runtime.quietStartup ? "true" : "false",
-        values: ["true", "false"],
+        description: "Persist Shrimpy quiet startup and synchronize Pi's current settings manager",
+        currentValue: onOff(runtime.resolved.runtime.quietStartup),
+        values: ["on", "off"],
       },
       {
         id: "skill-context",
         label: "Skill context",
-        description:
-          "Controls Shrimpy's prompt-time skill advertisement for future sessions. Pi slash skill commands are still a Pi setting.",
-        currentValue: runtime.resolved.runtime.noSkills ? "disabled" : "enabled",
-        values: ["enabled", "disabled"],
+        description: "Advertise available Shrimpy skills in future-session context",
+        currentValue: onOff(!runtime.resolved.runtime.noSkills),
+        values: ["on", "off"],
       },
       {
         id: "prompt-templates",
         label: "Prompt templates",
-        description:
-          "Controls whether Pi loads prompt-template slash commands in newly opened Shrimpy TUI sessions.",
-        currentValue: runtime.resolved.runtime.noPromptTemplates ? "disabled" : "enabled",
-        values: ["enabled", "disabled"],
+        description: "Load prompt-template slash commands in future sessions",
+        currentValue: onOff(!runtime.resolved.runtime.noPromptTemplates),
+        values: ["on", "off"],
       },
     ];
   }
 
-  private handleChange(id: string, newValue: string): void {
+  private handleChange(id: string, value: string): void {
+    const previous = this.currentValue(id);
+    const enabled = value === "on";
     try {
-      switch (id) {
-        case "auto-compact": {
-          const enabled = newValue === "true";
-          this.mode.session.setAutoCompactionEnabled(enabled);
-          this.mode.footer.setAutoCompactEnabled(enabled);
-          persistRuntimeConfig(this.options.runtime, {
-            compaction: { enabled },
-          });
-          this.mode.showStatus(`Shrimpy auto-compact: ${newValue}`);
-          break;
-        }
-        case "quiet-startup": {
-          const enabled = newValue === "true";
-          this.mode.settingsManager.setQuietStartup(enabled);
-          persistRuntimeConfig(this.options.runtime, { quietStartup: enabled });
-          this.mode.showStatus(`Shrimpy quiet startup: ${newValue}`);
-          break;
-        }
-        case "skill-context": {
-          const noSkills = newValue === "disabled";
-          persistRuntimeConfig(this.options.runtime, { noSkills });
-          this.mode.showStatus(`Shrimpy skill context: ${newValue}`);
-          break;
-        }
-        case "prompt-templates": {
-          const noPromptTemplates = newValue === "disabled";
-          persistRuntimeConfig(this.options.runtime, { noPromptTemplates });
-          this.mode.showStatus(`Shrimpy prompt templates: ${newValue}`);
-          break;
-        }
+      if (id === "auto-compact") {
+        persistRuntimeConfig(this.options.runtime, { compaction: { enabled } });
+        this.options.getSession().setAutoCompactionEnabled(enabled);
+      } else if (id === "quiet-startup") {
+        persistRuntimeConfig(this.options.runtime, { quietStartup: enabled });
+        this.options.getSession().settingsManager.setQuietStartup(enabled);
+      } else if (id === "skill-context") {
+        persistRuntimeConfig(this.options.runtime, { noSkills: !enabled });
+      } else if (id === "prompt-templates") {
+        persistRuntimeConfig(this.options.runtime, { noPromptTemplates: !enabled });
       }
+      this.options.ui.notify(`Shrimpy ${settingLabel(id)}: ${value}`);
     } catch (error) {
-      this.mode.showError(error instanceof Error ? error.message : String(error));
+      if (previous !== undefined) this.settingsList.updateValue(id, previous);
+      this.options.ui.notify(
+        error instanceof Error ? error.message : String(error),
+        "error",
+      );
+    }
+  }
+
+  private currentValue(id: string): string | undefined {
+    const runtime = this.options.runtime;
+    if (id === "auto-compact") return onOff(this.options.getSession().autoCompactionEnabled);
+    if (id === "quiet-startup") return onOff(runtime.resolved.runtime.quietStartup);
+    if (id === "skill-context") return onOff(!runtime.resolved.runtime.noSkills);
+    if (id === "prompt-templates") return onOff(!runtime.resolved.runtime.noPromptTemplates);
+    return undefined;
+  }
+}
+
+function readOnly(
+  id: string,
+  label: string,
+  currentValue: string,
+  description: string,
+): SettingItem {
+  return { id, label, currentValue, description };
+}
+
+export async function showShrimpySettings(
+  ctx: ExtensionCommandContext,
+  runtime: AppRuntime,
+): Promise<void> {
+  if (ctx.mode !== "tui") {
+    ctx.ui.notify("/shrimpy settings is available in the TUI.", "info");
+    return;
+  }
+
+  while (true) {
+    const compaction = runtime.resolved.runtime.compaction.enabled;
+    const quiet = runtime.resolved.runtime.quietStartup;
+    const skills = !runtime.resolved.runtime.noSkills;
+    const templates = !runtime.resolved.runtime.noPromptTemplates;
+    const selected = await ctx.ui.select("Shrimpy settings", [
+      `Default auto-compact (new sessions): ${onOff(compaction)}`,
+      `Quiet startup (new sessions): ${onOff(quiet)}`,
+      `Skill context (new sessions): ${onOff(skills)}`,
+      `Prompt templates (new sessions): ${onOff(templates)}`,
+      "Done",
+    ]);
+    if (!selected || selected === "Done") return;
+
+    if (selected.startsWith("Default auto-compact")) {
+      persistRuntimeConfig(runtime, { compaction: { enabled: !compaction } });
+    } else if (selected.startsWith("Quiet startup")) {
+      persistRuntimeConfig(runtime, { quietStartup: !quiet });
+    } else if (selected.startsWith("Skill context")) {
+      persistRuntimeConfig(runtime, { noSkills: skills });
+    } else if (selected.startsWith("Prompt templates")) {
+      persistRuntimeConfig(runtime, { noPromptTemplates: templates });
     }
   }
 }
 
-function buildPiSettingsConfig(mode: InteractiveModeInternals): SettingsConfig {
-  return {
-    autoCompact: mode.session.autoCompactionEnabled,
-    showImages: mode.settingsManager.getShowImages(),
-    imageWidthCells: mode.settingsManager.getImageWidthCells(),
-    autoResizeImages: mode.settingsManager.getImageAutoResize(),
-    blockImages: mode.settingsManager.getBlockImages(),
-    enableSkillCommands: mode.settingsManager.getEnableSkillCommands(),
-    steeringMode: mode.session.steeringMode,
-    followUpMode: mode.session.followUpMode,
-    transport: mode.settingsManager.getTransport(),
-    httpIdleTimeoutMs: mode.settingsManager.getHttpIdleTimeoutMs(),
-    thinkingLevel: mode.session.thinkingLevel,
-    availableThinkingLevels: mode.session.getAvailableThinkingLevels(),
-    currentTheme: mode.settingsManager.getThemeSetting() || "dark",
-    terminalTheme: mode.themeController.getTerminalTheme(),
-    availableThemes: getAvailableThemes(),
-    hideThinkingBlock: mode.hideThinkingBlock,
-    showCacheMissNotices: mode.settingsManager.getShowCacheMissNotices(),
-    collapseChangelog: mode.settingsManager.getCollapseChangelog(),
-    enableInstallTelemetry: mode.settingsManager.getEnableInstallTelemetry(),
-    doubleEscapeAction: mode.settingsManager.getDoubleEscapeAction(),
-    treeFilterMode: mode.settingsManager.getTreeFilterMode(),
-    showHardwareCursor: mode.settingsManager.getShowHardwareCursor(),
-    editorPaddingX: mode.settingsManager.getEditorPaddingX(),
-    outputPad: mode.settingsManager.getOutputPad(),
-    autocompleteMaxVisible: mode.settingsManager.getAutocompleteMaxVisible(),
-    quietStartup: mode.settingsManager.getQuietStartup(),
-    defaultProjectTrust: mode.settingsManager.getDefaultProjectTrust(),
-    clearOnShrink: mode.settingsManager.getClearOnShrink(),
-    showTerminalProgress: mode.settingsManager.getShowTerminalProgress(),
-    warnings: mode.settingsManager.getWarnings(),
-  };
+function onOff(enabled: boolean): "on" | "off" {
+  return enabled ? "on" : "off";
 }
 
-function buildPiSettingsCallbacks(
-  mode: InteractiveModeInternals,
-  options: ShrimpySettingsSelectorOptions,
-  onCancel: () => void,
-): SettingsCallbacks {
-  return {
-    onAutoCompactChange: (enabled) => {
-      mode.session.setAutoCompactionEnabled(enabled);
-      mode.footer.setAutoCompactEnabled(enabled);
-      persistRuntimeConfigSafely(mode, options.runtime, {
-        compaction: { enabled },
-      });
-    },
-    onShowImagesChange: (enabled) => {
-      mode.settingsManager.setShowImages(enabled);
-      for (const child of mode.chatContainer.children) {
-        callIfPresent(child, "setShowImages", enabled);
-      }
-    },
-    onImageWidthCellsChange: (width) => {
-      mode.settingsManager.setImageWidthCells(width);
-      for (const child of mode.chatContainer.children) {
-        callIfPresent(child, "setImageWidthCells", width);
-      }
-    },
-    onAutoResizeImagesChange: (enabled) => {
-      mode.settingsManager.setImageAutoResize(enabled);
-    },
-    onBlockImagesChange: (blocked) => {
-      mode.settingsManager.setBlockImages(blocked);
-    },
-    onEnableSkillCommandsChange: (enabled) => {
-      mode.settingsManager.setEnableSkillCommands(enabled);
-      mode.setupAutocompleteProvider();
-    },
-    onSteeringModeChange: (setting) => {
-      mode.session.setSteeringMode(setting);
-    },
-    onFollowUpModeChange: (setting) => {
-      mode.session.setFollowUpMode(setting);
-    },
-    onTransportChange: (transport) => {
-      mode.settingsManager.setTransport(transport);
-      mode.session.agent.transport = transport;
-    },
-    onHttpIdleTimeoutMsChange: (timeoutMs) => {
-      mode.settingsManager.setHttpIdleTimeoutMs(timeoutMs);
-      configureHttpDispatcher(timeoutMs);
-      mode.showStatus(`HTTP idle timeout: ${formatHttpIdleTimeoutMs(timeoutMs)}`);
-    },
-    onThinkingLevelChange: (level) => {
-      mode.session.setThinkingLevel(level);
-      mode.footer.invalidate();
-      mode.updateEditorBorderColor();
-    },
-    onThemeChange: (themeSetting) => {
-      mode.settingsManager.setTheme(themeSetting);
-      persistRuntimeConfigSafely(mode, options.runtime, { theme: themeSetting });
-      void mode.themeController.applyFromSettings();
-    },
-    onThemePreview: (themeSetting) => {
-      mode.themeController.preview(themeSetting);
-    },
-    onHideThinkingBlockChange: (hidden) => {
-      mode.hideThinkingBlock = hidden;
-      mode.settingsManager.setHideThinkingBlock(hidden);
-      for (const child of mode.chatContainer.children) {
-        callIfPresent(child, "setHideThinkingBlock", hidden);
-      }
-      mode.chatContainer.clear();
-      mode.rebuildChatFromMessages();
-    },
-    onShowCacheMissNoticesChange: (shown) => {
-      mode.settingsManager.setShowCacheMissNotices(shown);
-      mode.rebuildChatFromMessages();
-    },
-    onCollapseChangelogChange: (collapsed) => {
-      mode.settingsManager.setCollapseChangelog(collapsed);
-    },
-    onEnableInstallTelemetryChange: (enabled) => {
-      mode.settingsManager.setEnableInstallTelemetry(enabled);
-    },
-    onQuietStartupChange: (enabled) => {
-      mode.settingsManager.setQuietStartup(enabled);
-      persistRuntimeConfigSafely(mode, options.runtime, { quietStartup: enabled });
-    },
-    onDefaultProjectTrustChange: (defaultProjectTrust) => {
-      mode.settingsManager.setDefaultProjectTrust(defaultProjectTrust);
-    },
-    onDoubleEscapeActionChange: (action) => {
-      mode.settingsManager.setDoubleEscapeAction(action);
-    },
-    onTreeFilterModeChange: (treeFilterMode) => {
-      mode.settingsManager.setTreeFilterMode(treeFilterMode);
-    },
-    onShowHardwareCursorChange: (enabled) => {
-      mode.settingsManager.setShowHardwareCursor(enabled);
-      mode.ui.setShowHardwareCursor(enabled);
-    },
-    onEditorPaddingXChange: (padding) => {
-      mode.settingsManager.setEditorPaddingX(padding);
-      mode.defaultEditor.setPaddingX?.(padding);
-      if (mode.editor !== mode.defaultEditor) {
-        mode.editor.setPaddingX?.(padding);
-      }
-    },
-    onOutputPadChange: (padding) => {
-      mode.settingsManager.setOutputPad(padding);
-      mode.outputPad = padding;
-      if (mode.streamingComponent || mode.session.isStreaming) {
-        for (const child of mode.chatContainer.children) {
-          callIfPresent(child, "setOutputPad", padding);
-        }
-        if (mode.streamingComponent) {
-          callIfPresent(mode.streamingComponent, "setOutputPad", padding);
-        }
-        mode.ui.requestRender();
-        return;
-      }
-      mode.rebuildChatFromMessages();
-    },
-    onAutocompleteMaxVisibleChange: (maxVisible) => {
-      mode.settingsManager.setAutocompleteMaxVisible(maxVisible);
-      mode.defaultEditor.setAutocompleteMaxVisible?.(maxVisible);
-      if (mode.editor !== mode.defaultEditor) {
-        mode.editor.setAutocompleteMaxVisible?.(maxVisible);
-      }
-    },
-    onClearOnShrinkChange: (enabled) => {
-      mode.settingsManager.setClearOnShrink(enabled);
-      mode.ui.setClearOnShrink(enabled);
-    },
-    onShowTerminalProgressChange: (enabled) => {
-      mode.settingsManager.setShowTerminalProgress(enabled);
-    },
-    onWarningsChange: (warnings) => {
-      mode.settingsManager.setWarnings(warnings);
-    },
-    onCancel: () => {
-      onCancel();
-      mode.ui.requestRender();
-    },
-  };
+function settingLabel(id: string): string {
+  if (id === "auto-compact") return "auto-compact";
+  if (id === "quiet-startup") return "quiet startup";
+  if (id === "skill-context") return "skill context";
+  if (id === "prompt-templates") return "prompt templates";
+  return id;
 }
 
-function persistRuntimeConfigSafely(
-  mode: Pick<InteractiveModeInternals, "showError">,
-  runtime: AppRuntime,
-  patch: RuntimeConfigPatch,
-): void {
-  try {
-    persistRuntimeConfig(runtime, patch);
-  } catch (error) {
-    mode.showError(error instanceof Error ? error.message : String(error));
-  }
+function formatSessionModel(model: AgentSession["model"]): string {
+  return model ? formatModelRef(model, "set") : "unset";
+}
+
+function formatChannelPolicy(mode: string): string {
+  if (mode === "all") return "all visible messages";
+  if (mode === "mention") return "mentions only";
+  if (mode === "none") return "disabled";
+  return mode;
 }
 
 type RuntimeConfigPatch = Partial<Omit<RuntimeConfig, "compaction">> & {
   compaction?: Partial<NonNullable<RuntimeConfig["compaction"]>>;
 };
 
-function persistRuntimeConfig(
-  runtime: AppRuntime,
-  patch: RuntimeConfigPatch,
-): void {
+function persistRuntimeConfig(runtime: AppRuntime, patch: RuntimeConfigPatch): void {
   editConfigFile(runtime.paths.workspace, (raw) => {
-    const runtimeRaw = asRecord(raw.runtime);
-    const nextRuntime: Record<string, unknown> = { ...runtimeRaw };
-
-    for (const [key, value] of Object.entries(patch)) {
-      if (key === "compaction") continue;
-      nextRuntime[key] = value;
-    }
-
-    if (patch.compaction !== undefined) {
-      nextRuntime.compaction = {
-        ...asRecord(runtimeRaw.compaction),
-        ...patch.compaction,
-      };
-    }
-
-    raw.runtime = nextRuntime;
+    const current = isRecord(raw.runtime) ? raw.runtime : {};
+    const next = applyPatch(current, patch);
+    raw.runtime = next;
   });
-  applyRuntimePatch(runtime, patch);
-}
 
-function applyRuntimePatch(
-  runtime: AppRuntime,
-  patch: RuntimeConfigPatch,
-): void {
-  const configRuntime = {
-    ...asRecord(runtime.config.runtime),
-  };
+  const currentConfig = isRecord(runtime.config.runtime)
+    ? runtime.config.runtime
+    : {};
+  runtime.config.runtime = applyPatch(currentConfig, patch) as RuntimeConfig;
 
   for (const [key, value] of Object.entries(patch)) {
     if (key === "compaction") continue;
-    configRuntime[key] = value;
     (runtime.resolved.runtime as Record<string, unknown>)[key] = value;
   }
-
-  if (patch.compaction !== undefined) {
-    configRuntime.compaction = {
-      ...asRecord(configRuntime.compaction),
-      ...patch.compaction,
-    };
+  if (patch.compaction) {
     runtime.resolved.runtime.compaction = {
       ...runtime.resolved.runtime.compaction,
       ...patch.compaction,
     };
   }
-
-  runtime.config.runtime = configRuntime as RuntimeConfig;
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-function callIfPresent<T>(
-  target: Component,
-  method: string,
-  value: T,
-): void {
-  const candidate = target as unknown as Record<string, unknown>;
-  const fn = candidate[method];
-  if (typeof fn === "function") {
-    (fn as (input: T) => void).call(target, value);
+function applyPatch(
+  current: Record<string, unknown>,
+  patch: RuntimeConfigPatch,
+): Record<string, unknown> {
+  const next = { ...current };
+  for (const [key, value] of Object.entries(patch)) {
+    if (key !== "compaction") next[key] = value;
   }
-}
-
-function formatSessionModel(model: AgentSession["model"]): string {
-  if (!model) return "unset";
-  return formatModelRef(model, "set");
-}
-
-function formatChannelPolicy(mode: string): string {
-  return mode || "all";
+  if (patch.compaction) {
+    next.compaction = {
+      ...(isRecord(current.compaction) ? current.compaction : {}),
+      ...patch.compaction,
+    };
+  }
+  return next;
 }

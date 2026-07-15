@@ -1,8 +1,8 @@
 # 🦐 Turn Context
 
-Turn context is generated live state for one model turn. Shrimpy prefixes the current user message with rendered turn context and a short instruction before Pi persists and sends it.
+Turn context is generated live state for one model turn. Direct Pi sessions persist it as a `shrimpy_turn_context` custom message immediately after the unchanged submitted user message. Gateway turns prefix the routed channel prompt with rendered context and a short publication instruction.
 
-The session transcript intentionally records that prefixed user message, so replay and session search show what the model saw. The runtime labels the rendered header `[turn-context]`, and the public API is `shrimpy context`.
+Both forms are durable and participate in later model context. The direct-session message is collapsed in the transcript by default and appears when Ctrl+O expands tool output and turn details; session previews still use the unchanged user message. The rendered context header is `[turn-context]`, and the public inspection API is `shrimpy context`.
 
 ## Shape
 
@@ -37,7 +37,7 @@ Worker context is intentionally brief. Detailed items include the worker id, sta
 
 ## Runtime Path
 
-Direct TUI, direct `run`, and other direct Pi sessions open with a `prepareTurnContext` hook. Shrimpy's Pi extension prepares context in `before_agent_start`, rewrites the next finalized user message in `message_end`, and clears prepared context on `agent_end`.
+Direct TUI, direct `run`, and other direct Pi sessions open with a `prepareTurnContext` hook. Shrimpy's Pi extension prepares context in `before_agent_start` and returns it as a custom message for that turn. Pi persists the unchanged user message followed by the context message and sends both to the model. A custom-message renderer shows the display text only while Pi's Ctrl+O expansion state is active; one narrow TUI compatibility seam suppresses Pi's unconditional custom-message spacer while the context is collapsed. The model-facing message retains the instruction that associates the context with the preceding user message.
 
 Gateway channel dispatch builds an explicit turn value containing the channel message, formatted prompt body, and rendered turn context. `runSessionTurn` prefixes that rendered context to the prompt body before handing Pi one durable user message. The registry does not keep a pending context stash or compare prompt strings, so queued channel turns cannot leak context into one another.
 

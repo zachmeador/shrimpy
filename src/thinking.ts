@@ -13,10 +13,6 @@ export const THINKING_LEVELS = [
   "max",
 ] as const satisfies readonly ThinkingLevel[];
 
-const THINKING_LEVEL_ALIASES: Record<string, ThinkingLevel> = {
-  on: "medium",
-};
-
 export const thinkingLevelSchema = Type.Union(
   THINKING_LEVELS.map((level) => Type.Literal(level)),
 );
@@ -29,8 +25,7 @@ export function isThinkingLevel(value: unknown): value is ThinkingLevel {
 export function parseThinkingLevel(value: unknown): ThinkingLevel | undefined {
   if (typeof value !== "string") return undefined;
   const normalized = value.trim().toLowerCase();
-  if (isThinkingLevel(normalized)) return normalized;
-  return THINKING_LEVEL_ALIASES[normalized];
+  return isThinkingLevel(normalized) ? normalized : undefined;
 }
 
 export function formatThinkingLevels(): string {
@@ -38,5 +33,5 @@ export function formatThinkingLevels(): string {
 }
 
 export function formatThinkingInputs(): string {
-  return `${formatThinkingLevels()}, on (= medium)`;
+  return formatThinkingLevels();
 }

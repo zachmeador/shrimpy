@@ -36,6 +36,7 @@ import { assembleSessionPrompt } from "../dist/context/session-prompt.js";
 import {
   createSessionTurnContextController,
   createTurnContextExtensionFactory,
+  TURN_CONTEXT_CUSTOM_TYPE,
 } from "../dist/sessions/turn-context.js";
 import { createShrimpyResourceLoader } from "../dist/sessions/pi-resources.js";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
@@ -282,12 +283,6 @@ function createSessionFactory(opts?: {
       turnDurationMs: opts?.turnDurationMs,
       systemPrompt: assembly?.systemPrompt,
     });
-    const controller = createSessionTurnContextController({
-      prepare: (createOpts as any)?.prepareTurnContext,
-    });
-    session.setBeforePrompt((text) => controller.prepareForPrompt(text));
-    session.setRewriteMessage((message) => controller.rewriteMessage(message));
-    session.agent.transformContext = async (messages) => controller.transform(messages);
     sessions.push(session);
     return session as any;
   };
@@ -450,6 +445,46 @@ describe("channel session descriptor", () => {
 });
 
 describe("turn context Pi extension", () => {
+  test("renders turn context only when Ctrl+O expansion is active", () => {
+    const renderers = new Map<string, (...args: any[]) => any>();
+    const handlers = new Map<string, (...args: any[]) => any>();
+    const extension = createTurnContextExtensionFactory(
+      createSessionTurnContextController({
+        prepare: () => "[turn-context]\nprepared context",
+      }),
+    );
+
+    extension({
+      registerMessageRenderer(customType: string, next: (...args: any[]) => any) {
+        renderers.set(customType, next);
+      },
+      on(event: string, handler: (...args: any[]) => any) {
+        handlers.set(event, handler);
+      },
+    } as any);
+
+    const turnContextRenderer = renderers.get(TURN_CONTEXT_CUSTOM_TYPE);
+    assert.ok(turnContextRenderer);
+    const theme = {
+      fg: (_color: string, text: string) => text,
+    };
+    const message = {
+      role: "custom",
+      customType: TURN_CONTEXT_CUSTOM_TYPE,
+      content: "model-facing context",
+      display: true,
+      details: { text: "[turn-context]\nprepared context" },
+      timestamp: Date.now(),
+    };
+
+    assert.deepEqual(turnContextRenderer(message, { expanded: false }, theme).render(80), []);
+    assert.match(
+      turnContextRenderer(message, { expanded: true }, theme).render(80).join("\n"),
+      /^\s*\[turn-context\][\s\S]*prepared context/,
+    );
+    assert.ok(handlers.has("before_agent_start"));
+  });
+
   test("replaces Pi prompt appendices with the contained Shrimpy prompt", async () => {
     const root = mkdtempSync(join(tmpdir(), "shrimpy-pi-prompt-"));
     const cwd = join(root, "cwd");
@@ -613,7 +648,7 @@ describe("turn context Pi extension", () => {
       assert.equal(capturedContexts.length, 1);
       const providerText = capturedContexts[0].messages.map(messageText).join("\n");
       assert.match(providerText, /prepared by Pi before_agent_start/);
-      assert.match(providerText, /The turn context above is background for the user message below/);
+      assert.match(providerText, /The turn context above is background for the user message immediately before it/);
       assert.match(providerText, /hello from pi/);
       assert.doesNotMatch(providerText, /<context>\nprepared by Pi before_agent_start/);
 
@@ -622,6 +657,13 @@ describe("turn context Pi extension", () => {
       assert.match(persistedText, /prepared by Pi before_agent_start/);
       assert.match(persistedText, /ok/);
       assert.doesNotMatch(persistedText, /<context>\nprepared by Pi before_agent_start/);
+      assert.equal((session as any).messages[0].role, "user");
+      assert.equal(messageText((session as any).messages[0]), "hello from pi");
+      assert.equal((session as any).messages[1].role, "custom");
+      assert.equal((session as any).messages[1].display, true);
+      assert.deepEqual((session as any).messages[1].details, {
+        text: "prepared by Pi before_agent_start",
+      });
     } finally {
       session.dispose();
       modelRegistry.unregisterProvider(model.provider);
