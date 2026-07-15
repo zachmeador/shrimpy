@@ -16,6 +16,7 @@ Current notes worth scanning:
 
 - `app-habitats.md` — apps as durable habitats for code, channels, skills, state, resident agents, and self-maintaining loops
 - `app-config-patterns.md` — simple-to-complex app/config examples for setup skills, guided init, and consultative check-ins
+- `agent-specific-tui-surfaces.md` — agent-owned dashboards, themes, commands, and a career-agent spike to test Pi's TUI extension limits
 - `agent-currency-and-rl.md` — agent currency as a cost/value ledger, runtime policy pressure, and possible reward scaffold for personal RL
 - `asynchronous-agents.md` — first principles for async home-agent design, why heartbeat is only one piece, and how one visible agent can be many internal actors
 - `character-agents.md` — story-character agents, inner voices, and this weird art-project shape as an architecture litmus test; paired with [`../research/facade-interactive-drama.md`](../research/facade-interactive-drama.md)
