@@ -24,15 +24,15 @@ Turn repeated live usage into concrete source improvements. Prefer improving set
 1. Confirm the Shrimpy repository root and read `AGENTS.md` plus `AGENTS-PRIVATE.md` if present.
 2. Resolve the live workspace from `~/.shrimpy-workspace.json` `workspace`, falling back to `~/.shrimpy`. Use private notes only as local hints; do not hard-code those paths into tracked files.
 3. Inventory before reading deeply. Prefer `find`, `rg --files`, `wc -l`, and file sizes to understand shape without dumping content.
-4. Start with small text surfaces: `profile/WORKSPACE.md`, `profile/SYSTEM.md`, `profile/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/*/SOUL.md`, `agents/*/context/**/*.md`, `agents/*/watches.json`, `skills/**/SKILL.md`, and `agents/*/skills/**/SKILL.md`.
+4. Start with small text surfaces: `context/WORKSPACE.md`, `context/SYSTEM.md`, `context/USER.md`, `config/shrimpy.json`, `config/channels.json`, `agents/*/SOUL.md`, `agents/*/context/**/*.md`, `agents/*/watches.json`, `skills/**/SKILL.md`, and `agents/*/skills/**/SKILL.md`.
 5. Sample runtime material only when the pattern depends on behavior in the wild. Prefer bounded command output and metadata over raw logs.
 
 ## Source Baseline
 
 Compare live workspace patterns to source-owned defaults:
 
-- Workspace profile templates: `src/setup/templates/WORKSPACE.md`, `src/setup/templates/SYSTEM.md`, `src/setup/templates/USER.md`.
-- Default agent instructions: `src/setup/templates/SOUL.md`, `src/setup/templates/mechanic/SOUL.md`, and `src/setup/templates/mechanic/context/`.
+- Workspace context templates: `src/setup/templates/workspace/context/WORKSPACE.md`, `src/setup/templates/workspace/context/SYSTEM.md`, and `src/setup/templates/workspace/context/USER.md`.
+- Default agent instructions: `src/setup/templates/workspace/agents/shrimpy/SOUL.md`, `src/setup/templates/workspace/agents/mechanic/SOUL.md`, and `src/setup/templates/workspace/agents/mechanic/context/`.
 - Included Shrimpy skill packages: `src/skills/included/`.
 - Repository developer skills: `skills/`.
 - Current behavior docs: `docs/reference/`.
