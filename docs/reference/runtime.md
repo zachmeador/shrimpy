@@ -10,7 +10,8 @@ Shrimpy has one Pi session core hosted by foreground commands, the gateway, setu
 - `shrimpy run "prompt"` opens an in-memory one-shot session and prints the final assistant text. `--session <canonical-id>` opts into a durable resumed session.
 - `shrimpy chat mechanic` opens the same direct TUI chat path as the `mechanic` maintenance agent.
 - `shrimpy agent tui <id>` opens the same gated TUI launcher for an explicit agent. `shrimpy agent run <id>` runs a one-shot prompt as an explicit agent.
-- `--provider`, `--model`, `--model-policy`, `--thinking <off|low|medium|high>`, and `--skill <id>` override one direct session where supported.
+- `/agents` opens a searchable, keyboard-navigable list of agents and local sessions. Selecting a session switches agents; selecting an agent with none opens a new `local/main`. The header shows the active agent, and a failed switch restores the previous session.
+- `--provider`, `--model`, `--model-policy`, `--thinking <off|minimal|low|medium|high|xhigh|max>`, and `--skill <id>` override one direct session where supported.
 - Direct sessions start in the selected agent's configured `cwd`, defaulting to the agent root. Fresh setup config starts the `shrimpy` agent in `agents/shrimpy` and the `mechanic` agent at the workspace root.
 - Without a model override, every durable session first restores its saved model when one exists, then uses the selected agent's `modelPolicy`, falling back to the workspace `coding` policy. Fresh sessions without a usable policy fail with a setup hint.
 - `--skill <id>` loads full skill context into the session. The normal workspace/agent skill list is also passed to Pi so `/skill:<name>`, autocomplete, and available-skill prompt advertising see the same skill set.

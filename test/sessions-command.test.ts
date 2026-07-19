@@ -7,7 +7,10 @@ import {
   cmdSessions,
   createSessionsCommand,
 } from "../dist/commands/sessions.js";
-import { createChannelSessionKey } from "../dist/sessions/identity.js";
+import {
+  createChannelSessionKey,
+  createLocalSessionKey,
+} from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 import { ensureSessionManifest } from "../dist/sessions/manifest.js";
 import { acquireSessionLease } from "../dist/sessions/ownership.js";
@@ -189,6 +192,115 @@ describe("cmdSessions", () => {
       ["channel/home", "channel/telegram-123"],
     );
     assert.deepEqual(summary.sessions[0].archives.map((entry: any) => entry.name), ["home-123.jsonl"]);
+  });
+
+  test("lists active local interactive sessions across every configured agent", async () => {
+    await setupInit(workspace);
+    const config = {
+      workspace,
+      agents: [
+        { id: "shrimpy", root: "agents/shrimpy" },
+        { id: "admin", root: "agents/admin" },
+        { id: "empty", root: "agents/empty" },
+      ],
+    };
+    const shrimpyMain = localSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "shrimpy",
+      "main",
+    );
+    const shrimpyResearch = localSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "shrimpy",
+      "research",
+    );
+    const adminMain = localSessionDescriptor(
+      join(workspace, "agents", "admin"),
+      "admin",
+      "main",
+    );
+    const setup = localSessionDescriptor(
+      join(workspace, "agents", "admin"),
+      "admin",
+      "setup",
+      "setup",
+    );
+    for (const descriptor of [shrimpyMain, shrimpyResearch, adminMain, setup]) {
+      assert.equal(descriptor.storage.kind, "durable");
+      mkdirSync(descriptor.storage.dir, { recursive: true });
+    }
+    if (
+      shrimpyMain.storage.kind !== "durable"
+      || shrimpyResearch.storage.kind !== "durable"
+      || adminMain.storage.kind !== "durable"
+      || setup.storage.kind !== "durable"
+    ) throw new Error("expected durable sessions");
+    writeActiveSessionFile(
+      join(shrimpyMain.storage.dir, "shrimpy-main.jsonl"),
+      messageEntry("u1", null, "2026-05-01T10:00:00.000Z", {
+        role: "user",
+        content: "[turn-context]\nold activity\n\nThe turn context above is background for the user message below. Answer the user message below using this context when relevant.\n\nMain tidepool conversation",
+      }),
+    );
+    writeActiveSessionFile(
+      join(shrimpyResearch.storage.dir, "shrimpy-research.jsonl"),
+      messageEntry("u2", null, "2026-05-01T10:01:00.000Z", {
+        role: "user",
+        content: "Research the reef",
+      }),
+    );
+    writeActiveSessionFile(join(adminMain.storage.dir, "admin-main.jsonl"));
+    writeActiveSessionFile(join(setup.storage.dir, "admin-setup.jsonl"));
+    const channel = channelSessionDescriptor(
+      join(workspace, "agents", "shrimpy"),
+      "home",
+    );
+    assert.equal(channel.storage.kind, "durable");
+    mkdirSync(channel.storage.dir, { recursive: true });
+    writeActiveSessionFile(join(channel.storage.dir, "home-active.jsonl"));
+
+    const { result, lines } = await captureLogs(() =>
+      cmdSessions(["list", "--all-agents", "--json"], config as any)
+    );
+
+    assert.equal(result, 0);
+    const inventory = JSON.parse(lines.join("\n"));
+    assert.equal(inventory.sessionCount, 3);
+    assert.deepEqual(
+      inventory.agents.map((agent: any) => [
+        agent.agentId,
+        agent.sessions.map((session: any) => session.sessionId).sort(),
+      ]),
+      [
+        ["shrimpy", ["local/main", "local/research"]],
+        ["admin", ["local/main"]],
+        ["empty", []],
+      ],
+    );
+    assert.equal(
+      inventory.agents[0].sessions.find((session: any) =>
+        session.sessionId === "local/main"
+      ).preview,
+      "Main tidepool conversation",
+    );
+    assert.equal(JSON.stringify(inventory).includes("channel/home"), false);
+    assert.equal(JSON.stringify(inventory).includes("local/setup"), false);
+  });
+
+  test("rejects conflicting all-agent session list targeting", async () => {
+    await setupInit(workspace);
+    await assert.rejects(
+      () => captureLogs(() =>
+        cmdSessions(["list", "--all-agents", "--agent", "shrimpy"], { workspace } as any)
+      ),
+      /--agent and --all-agents cannot be used together/,
+    );
+    await assert.rejects(
+      () => captureLogs(() =>
+        cmdSessions(["list", "local\/main", "--all-agents"], { workspace } as any)
+      ),
+      /session id cannot be combined with --all-agents/,
+    );
   });
 
   test("fails a routed settings change when the gateway is stopped", async () => {
@@ -603,6 +715,22 @@ function channelSessionDescriptor(agentRoot: string, channel: string) {
     key: createChannelSessionKey({ agentId: "shrimpy", channel }),
     purpose: "channel",
     delivery: { kind: "channel", channel },
+  });
+  ensureSessionManifest(descriptor);
+  return descriptor;
+}
+
+function localSessionDescriptor(
+  agentRoot: string,
+  agentId: string,
+  name: string,
+  purpose = "interactive",
+) {
+  const descriptor = createSessionDescriptor({
+    agentRoot,
+    key: createLocalSessionKey({ agentId, name }),
+    purpose,
+    delivery: { kind: "transcript" },
   });
   ensureSessionManifest(descriptor);
   return descriptor;

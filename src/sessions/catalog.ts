@@ -1,6 +1,8 @@
 import { existsSync, statSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, resolve } from "node:path";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
+import { stripTurnContextPrefixForDisplay } from "../context/turn/prompt-prefix.js";
 import {
   flattenGatewayLanes,
   gatewayRuntimeStatePath,
@@ -45,6 +47,30 @@ export interface SessionListingSummary {
   agentId: string;
   sessionsRoot: string;
   sessions: SessionSummary[];
+}
+
+export interface NavigableSessionSummary {
+  agentId: string;
+  sessionId: string;
+  purpose: string;
+  path: string;
+  sessionDir: string;
+  name?: string;
+  preview?: string;
+  updatedAt: string;
+  updatedAtMs: number;
+  current: boolean;
+}
+
+export interface NavigableAgentSummary {
+  agentId: string;
+  current: boolean;
+  sessions: NavigableSessionSummary[];
+}
+
+export interface NavigableSessionInventory {
+  agents: NavigableAgentSummary[];
+  sessionCount: number;
 }
 
 interface SessionStatusEntry {
@@ -114,6 +140,46 @@ export function summarizeAgentSessions(
     sessions: descriptors
       .map((descriptor) => summarizeDescriptor(runtime, descriptor))
       .sort((a, b) => a.sessionId.localeCompare(b.sessionId)),
+  };
+}
+
+export function summarizeNavigableSessions(
+  runtime: AppRuntime,
+  opts?: { currentSessionFile?: string; currentAgentId?: string },
+): NavigableSessionInventory {
+  const currentPath = opts?.currentSessionFile
+    ? resolve(opts.currentSessionFile)
+    : undefined;
+  const agents = runtime.resolved.agents.map((agent) => {
+    const sessions = listSessionDescriptors(runtime.getAgentPaths(agent.id).root)
+      .filter(isNavigableDescriptor)
+      .flatMap((descriptor) => {
+        if (descriptor.storage.kind !== "durable") return [];
+        const active = findActiveSessionFile(descriptor.storage.dir);
+        if (!active) return [];
+        const summary = summarizeNavigableSession(
+          agent.id,
+          descriptor,
+          active,
+          currentPath,
+        );
+        return summary ? [summary] : [];
+      })
+      .sort((left, right) => {
+        if (left.current !== right.current) return left.current ? -1 : 1;
+        return right.updatedAtMs - left.updatedAtMs
+          || left.sessionId.localeCompare(right.sessionId);
+      });
+    return {
+      agentId: agent.id,
+      current: agent.id === opts?.currentAgentId
+        || sessions.some((session) => session.current),
+      sessions,
+    };
+  });
+  return {
+    agents,
+    sessionCount: agents.reduce((count, agent) => count + agent.sessions.length, 0),
   };
 }
 
@@ -187,6 +253,93 @@ function summarizeDescriptor(runtime: AppRuntime, descriptor: SessionDescriptor)
     owner: readSessionOwner(runtime.paths.workspace, descriptor.key),
     gatewayLanes: channel ? gatewayLanesFor(runtime, descriptor.key.agentId, channel) : [],
   };
+}
+
+function isNavigableDescriptor(descriptor: SessionDescriptor): boolean {
+  return descriptor.key.namespace === "local"
+    && descriptor.purpose === "interactive"
+    && descriptor.delivery.kind === "transcript"
+    && descriptor.storage.kind === "durable";
+}
+
+function summarizeNavigableSession(
+  agentId: string,
+  descriptor: SessionDescriptor,
+  path: string,
+  currentPath: string | undefined,
+): NavigableSessionSummary | undefined {
+  let updatedAtMs: number;
+  try {
+    updatedAtMs = statSync(path).mtimeMs;
+  } catch {
+    return undefined;
+  }
+
+  const metadata = readNavigableSessionMetadata(path);
+  return {
+    agentId,
+    sessionId: formatSessionId(descriptor.key),
+    purpose: descriptor.purpose,
+    path,
+    sessionDir: descriptor.storage.kind === "durable"
+      ? descriptor.storage.dir
+      : "",
+    ...(metadata.name ? { name: metadata.name } : {}),
+    ...(metadata.preview ? { preview: metadata.preview } : {}),
+    updatedAt: new Date(updatedAtMs).toISOString(),
+    updatedAtMs,
+    current: currentPath === resolve(path),
+  };
+}
+
+function readNavigableSessionMetadata(path: string): {
+  name?: string;
+  preview?: string;
+} {
+  try {
+    const session = SessionManager.open(path);
+    const name = session.getSessionName();
+    const preview = firstUserText(session.getEntries());
+    return {
+      ...(name ? { name } : {}),
+      ...(preview ? { preview } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function firstUserText(entries: readonly unknown[]): string | undefined {
+  for (const entry of entries) {
+    const candidate = entry as {
+      type?: string;
+      message?: { role?: string; content?: unknown };
+    };
+    if (candidate.type !== "message" || candidate.message?.role !== "user") continue;
+    const text = stripTurnContextPrefixForDisplay(
+      messageText(candidate.message.content),
+    )
+      .replace(/\s+/gu, " ")
+      .trim();
+    if (text) return text.length > 96 ? `${text.slice(0, 93)}...` : text;
+  }
+  return undefined;
+}
+
+function messageText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter((block): block is { type: "text"; text: string } =>
+      typeof block === "object"
+      && block !== null
+      && "type" in block
+      && block.type === "text"
+      && "text" in block
+      && typeof block.text === "string"
+    )
+    .map((block) => block.text)
+    .join(" ");
 }
 
 function summarizePath(path: string): SessionPathSummary {

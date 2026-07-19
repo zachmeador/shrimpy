@@ -4,6 +4,8 @@ import {
   createAgentSessionRuntime,
   type AgentSession,
   type AgentSessionRuntime,
+  type CreateAgentSessionRuntimeFactory,
+  type CreateAgentSessionRuntimeResult,
   type ExtensionFactory,
   type ResourceLoader,
   SettingsManager,
@@ -55,6 +57,23 @@ type CompactionLogEvent =
 
 const sessionLeases = new WeakMap<AgentSession, SessionLease>();
 
+export interface SessionRuntimeOpenTarget {
+  bootstrap: SessionBootstrap;
+  plan: SessionOpenPlan;
+}
+
+export type SessionRuntimeFactoryInput = Parameters<CreateAgentSessionRuntimeFactory>[0];
+
+export type OpenSessionRuntimeTarget = (
+  target: SessionRuntimeOpenTarget,
+  input: SessionRuntimeFactoryInput,
+) => Promise<CreateAgentSessionRuntimeResult>;
+
+export type ShrimpySessionRuntimeFactory = (
+  input: SessionRuntimeFactoryInput,
+  openTarget: OpenSessionRuntimeTarget,
+) => Promise<CreateAgentSessionRuntimeResult>;
+
 export async function openSession(
   bootstrap: SessionBootstrap,
   plan: SessionOpenPlan,
@@ -68,19 +87,22 @@ export async function openSessionRuntime(
   plan: SessionOpenPlan,
   opts?: {
     extensionFactories?: ExtensionFactory[];
+    runtimeFactory?: ShrimpySessionRuntimeFactory;
   },
 ): Promise<AgentSessionRuntime> {
   const cwd = plan.descriptor.cwd ?? bootstrap.agentRootPath;
   const agentDir = join(projectRoot, ".shrimpy");
 
-  const runtime = await createAgentSessionRuntime(
-    async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
+  const openTarget: OpenSessionRuntimeTarget = async (
+    target,
+    { cwd, agentDir, sessionManager, sessionStartEvent },
+  ) => {
       const { session, resourceLoader } = await openSessionWithRuntimeDeps(
-        bootstrap,
+        target.bootstrap,
         {
-          ...plan,
+          ...target.plan,
           descriptor: {
-            ...plan.descriptor,
+            ...target.plan.descriptor,
             cwd,
           },
         },
@@ -97,15 +119,19 @@ export async function openSessionRuntime(
         services: {
           cwd,
           agentDir,
-          authStorage: bootstrap.authStorage,
-          settingsManager: bootstrap.settingsManager,
-          modelRegistry: bootstrap.modelRegistry,
+          authStorage: target.bootstrap.authStorage,
+          settingsManager: target.bootstrap.settingsManager,
+          modelRegistry: target.bootstrap.modelRegistry,
           resourceLoader,
           diagnostics: [],
         },
         diagnostics: [],
       };
-    },
+  };
+  const runtime = await createAgentSessionRuntime(
+    (factoryInput) => opts?.runtimeFactory
+      ? opts.runtimeFactory(factoryInput, openTarget)
+      : openTarget({ bootstrap, plan }, factoryInput),
     {
       cwd,
       agentDir,

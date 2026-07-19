@@ -6,8 +6,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [TUI-004](tui-004-agent-session-navigator.md) | draft | P2 | TUI | [TUI-007](tui-007-pi-patch-surface-reduction.md) | Minimal `/agent` navigator for active local sessions |
-| [TUI-007](tui-007-pi-patch-surface-reduction.md) | review | P2 | TUI | none | Delete Pi-private TUI patches where sanctioned APIs now exist |
+| [TUI-004](tui-004-agent-session-navigator.md) | review | P2 | TUI | none | Pi-style `/agents` navigator for active local sessions |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [CTX-012](ctx-012-exact-context-command-parity.md) | todo | P2 | Context | context cleanup | Exact provider-facing context from `shrimpy context` |
 | [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |

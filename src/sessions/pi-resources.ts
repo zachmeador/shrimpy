@@ -13,7 +13,6 @@ import {
 } from "./turn-context.js";
 
 const SHRIMPY_EXTENSION_PATHS = [
-  join(projectRoot, "extensions", "hello.ts"),
   join(projectRoot, "extensions", "activity-indicator.ts"),
   join(projectRoot, "extensions", "archive-new-session.ts"),
   join(projectRoot, "extensions", "compaction-bias.ts"),

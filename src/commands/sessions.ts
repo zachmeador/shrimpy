@@ -7,6 +7,7 @@ import {
   readSessionAroundEntry,
   searchSessionTranscripts,
   summarizeAgentSessions,
+  summarizeNavigableSessions,
   summarizeSessionStatus,
   type SessionControlDeps,
 } from "../sessions/index.js";
@@ -15,6 +16,7 @@ import { formatThinkingInputs, parseThinkingLevel } from "../thinking.js";
 import {
   printSessionLifecycleResult,
   printSessionListing,
+  printNavigableSessionInventory,
   printSessionCompactionPolicy,
   printSessionStopResult,
   printSessionReadResult,
@@ -58,6 +60,20 @@ function parseSessionSearchArgs(argv: string[], usageText: string) {
       "all-agents": { type: "boolean", default: false },
       channel: { type: "string" },
       limit: { type: "string" },
+      json: { type: "boolean" },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: usageText,
+  });
+}
+
+function parseSessionListArgs(argv: string[], usageText: string) {
+  return parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      "all-agents": { type: "boolean", default: false },
       json: { type: "boolean" },
     },
     allowPositionals: true,
@@ -156,8 +172,20 @@ async function inspectCompaction({ argv, config, usage: usageText }: CommandInvo
 }
 
 async function listSessions({ argv, config, usage: usageText }: CommandInvocation): Promise<number> {
-  const { values, positionals } = parseSessionArgs(argv, usageText);
+  const { values, positionals } = parseSessionListArgs(argv, usageText);
+  if (values.agent && values["all-agents"]) {
+    usage(usageText, "--agent and --all-agents cannot be used together");
+  }
+  if (values["all-agents"] && positionals[0]) {
+    usage(usageText, "a session id cannot be combined with --all-agents");
+  }
   const runtime = createAppRuntime(config);
+  if (values["all-agents"]) {
+    const inventory = summarizeNavigableSessions(runtime);
+    if (values.json) console.log(JSON.stringify(inventory, null, 2));
+    else printNavigableSessionInventory(inventory);
+    return 0;
+  }
   const sessionId = positionals[0];
   const summary = summarizeAgentSessions(runtime, {
     agentId: values.agent,

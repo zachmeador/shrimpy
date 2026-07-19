@@ -15,7 +15,8 @@ import {
   prepareForegroundSessionOpen,
   type OpenForegroundSessionInput,
 } from "../sessions/foreground.js";
-import { formatSessionId } from "../sessions/identity.js";
+import { createAgentSessionNavigatorExtensionFactory } from "./agent-session-navigator.js";
+import { createShrimpyHeaderExtensionFactory } from "./shrimpy-header.js";
 import { createShrimpyTuiCommandExtensionFactory } from "./shrimpy-commands.js";
 import { createShrimpyFooterExtensionFactory } from "./shrimpy-footer.js";
 import { installShrimpyInlineCommands } from "./shrimpy-inline-commands.js";
@@ -25,6 +26,7 @@ import {
   installShrimpySettingsSelector,
 } from "./shrimpy-settings.js";
 import { installShrimpyTurnContextRendering } from "./shrimpy-turn-context-rendering.js";
+import { TuiSessionTargetController } from "./session-target.js";
 
 export interface RunInteractiveSessionInput extends OpenForegroundSessionInput {
   initialMessage?: string;
@@ -58,18 +60,31 @@ async function runAgentTuiSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
   const prepared = await prepareForegroundSessionOpen(input);
-  const sessionId = formatSessionId(prepared.plan.descriptor.key);
   const sessionRuntime: { current?: AgentSessionRuntime } = {};
   const settingsUi = createShrimpySettingsUiController();
+  const target = new TuiSessionTargetController(input.runtime, prepared);
   const commandOptions = {
     runtime: input.runtime,
-    agentId: prepared.agentId,
-    sessionId,
-    purpose: prepared.plan.descriptor.purpose,
-    cwd: prepared.cwd,
+    get agentId() {
+      return target.getTarget().agentId;
+    },
+    get sessionId() {
+      return target.getTarget().sessionId;
+    },
+    get purpose() {
+      return target.getTarget().purpose;
+    },
+    get cwd() {
+      return target.getTarget().cwd;
+    },
   };
   const runtime = await openSessionRuntime(prepared.bootstrap, prepared.plan, {
     extensionFactories: [
+      createAgentSessionNavigatorExtensionFactory({
+        runtime: input.runtime,
+        target,
+      }),
+      createShrimpyHeaderExtensionFactory(() => target.getTarget().agentId),
       createShrimpyTuiCommandExtensionFactory(commandOptions),
       createShrimpyFooterExtensionFactory(() => {
         if (!sessionRuntime.current) {
@@ -79,6 +94,7 @@ async function runAgentTuiSession(
       }),
       settingsUi.extensionFactory,
     ],
+    runtimeFactory: target.createRuntime,
   });
   sessionRuntime.current = runtime;
 
@@ -91,12 +107,24 @@ async function runAgentTuiSession(
     installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
     installShrimpyTurnContextRendering();
     installShrimpySettingsSelector(interactive, {
-      ...commandOptions,
+      runtime: input.runtime,
+      get agentId() {
+        return target.getTarget().agentId;
+      },
+      get sessionId() {
+        return target.getTarget().sessionId;
+      },
+      get purpose() {
+        return target.getTarget().purpose;
+      },
+      get cwd() {
+        return target.getTarget().cwd;
+      },
       getSession: () => runtime.session,
       ui: settingsUi,
     });
     await interactive.run();
-    return { agentId: prepared.agentId };
+    return { agentId: target.getTarget().agentId };
   } finally {
     await runtime.dispose();
   }

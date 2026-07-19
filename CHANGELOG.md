@@ -25,6 +25,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Sessions, Models & TUI
 
+- Added `/agents`, a searchable Pi-style agent/session hierarchy with four-arrow traversal, new `local/main` chats for zero-session agents, live cross-agent runtime switching, current-agent identity on the existing startup-header line, preflight and rollback safety, plus `shrimpy sessions list --all-agents` for the same inspectable inventory.
 - Changed bare `shrimpy` to resume the agent used most recently in terminal chat while prompted and explicit-agent launches keep their existing targets; `/new` preserves the selected agent even before the fresh conversation receives a reply.
 - Reduced the Pi-private TUI surface while retaining Shrimpy UX: public Pi APIs now own `/new` lifecycle, thinking state, working-indicator state, footer composition, retry/compaction events, custom-message registration, and tool expansion; four named compatibility seams preserve inline status/help and the Shrimpy `/changelog`, the unified `/settings` landing page and live Shrimpy readouts, model favorites and command guardrails, and zero-row collapsed turn context.
 - Changed direct-session turn context to persist as a model-visible custom message after the unchanged user message. It stays collapsed in the transcript by default, reappears with Ctrl+O for turn inspection, and keeps session previews clean.

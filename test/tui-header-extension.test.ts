@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import shrimpyHeaderExtension from "../extensions/hello.ts";
+import { visibleWidth } from "@earendil-works/pi-tui";
+import { createShrimpyHeaderExtensionFactory } from "../dist/tui/shrimpy-header.js";
 
 interface PackageJson {
   name: string;
@@ -16,12 +17,15 @@ const packageJson = JSON.parse(
   readFileSync(join(process.cwd(), "package.json"), "utf-8"),
 ) as PackageJson;
 
-test("Shrimpy TUI header uses package version metadata", async () => {
+test("Shrimpy TUI header shares its logo line with the live agent identity", async () => {
   let sessionStart:
-    | ((_event: unknown, ctx: { ui: { setHeader(factory: HeaderFactory): void } }) => Promise<void>)
+    | ((_event: unknown, ctx: {
+      mode: string;
+      ui: { setHeader(factory: HeaderFactory): void };
+    }) => Promise<void>)
     | undefined;
 
-  shrimpyHeaderExtension({
+  createShrimpyHeaderExtensionFactory(() => "beta")({
     on(event: string, handler: typeof sessionStart) {
       assert.equal(event, "session_start");
       sessionStart = handler;
@@ -31,6 +35,7 @@ test("Shrimpy TUI header uses package version metadata", async () => {
 
   let headerFactory: HeaderFactory | undefined;
   await sessionStart?.({}, {
+    mode: "tui",
     ui: {
       setHeader(factory: HeaderFactory): void {
         headerFactory = factory;
@@ -39,10 +44,20 @@ test("Shrimpy TUI header uses package version metadata", async () => {
   });
 
   assert.ok(headerFactory);
-  const rendered = headerFactory({}, identityTheme).render(120).join("\n");
+  const header = headerFactory({}, identityTheme);
+  const lines = header.render(120);
+  const rendered = lines.join("\n");
 
-  assert.match(rendered, new RegExp(escapeRegExp(expectedVersionLabel())));
+  assert.match(lines[0]!, /^shrimpy  ·  agent beta  ·  /);
+  assert.match(rendered, new RegExp(escapeRegExp(expectedReleaseLabel())));
+  assert.match(lines[0]!, /agent beta/);
+  assert.equal(lines.length, 2);
   assert.doesNotMatch(rendered, /v0\.1\.0/);
+
+  const narrowLines = header.render(24);
+  assert.equal(narrowLines.length, 2);
+  assert.match(narrowLines[0]!, /agent beta/);
+  assert.equal(narrowLines.every((line) => visibleWidth(line) <= 24), true);
 });
 
 interface HeaderFactory {
@@ -62,8 +77,8 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function expectedVersionLabel(): string {
-  const base = `${packageJson.name} v${packageJson.version}`;
+function expectedReleaseLabel(): string {
+  const base = `v${packageJson.version}`;
   return packageJson.shrimpy?.releaseName
     ? `${base} - ${packageJson.shrimpy.releaseName}`
     : base;

@@ -40,6 +40,7 @@ test("Shrimpy TUI commands use public extension registration and custom UI", asy
   assert.match(panels[0]!, /\* admin root=agents\/admin/);
   assert.match(panels[1]!, /\/shrimpy settings/);
   assert.match(panels[1]!, /\/settings\s+Open unified Shrimpy and Pi settings/);
+  assert.match(panels[1]!, /\/agents \[id\]\s+Navigate agents and local sessions/);
   assert.match(panels[1]!, /\/thinking\s+Open the supported session thinking menu/);
   assert.match(panels[1]!, /\/changelog\s+Show the Shrimpy changelog/);
   assert.match(panels[1]!, /model guardrails, and changelog surface/);

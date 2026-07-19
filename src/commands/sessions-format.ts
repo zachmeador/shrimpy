@@ -9,6 +9,7 @@ import type {
   SessionSearchResult,
   SessionStatusSummary,
   SessionSummary,
+  NavigableSessionInventory,
 } from "../sessions/index.js";
 import { formatSessionAge } from "../sessions/index.js";
 import { accent, dim, label } from "../util/style.js";
@@ -48,6 +49,21 @@ export function printSessionListing(
       ),
     );
   }
+}
+
+export function printNavigableSessionInventory(
+  inventory: NavigableSessionInventory,
+): void {
+  console.log(label("local interactive sessions:"));
+  for (const agent of inventory.agents) {
+    console.log(`  ${accent(agent.agentId)}  ${agent.sessions.length} session${agent.sessions.length === 1 ? "" : "s"}`);
+    for (const session of agent.sessions) {
+      const title = session.name ?? session.preview ?? session.sessionId;
+      const age = formatSessionAge(Math.max(0, Date.now() - session.updatedAtMs));
+      console.log(`    ${session.sessionId}  ${title}  ${dim(`${age} ago`)}`);
+    }
+  }
+  console.log(dim(`  ${inventory.sessionCount} active local interactive session${inventory.sessionCount === 1 ? "" : "s"}`));
 }
 
 export function printSessionLifecycleResult(

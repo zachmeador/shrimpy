@@ -22,7 +22,7 @@ See [sessions.md](sessions.md) for canonical session ids, manifests, ownership, 
 | `shrimpy run "prompt" [--session <session-id>]` | Run a one-shot prompt and print the response. Runs are in-memory unless `--session` explicitly resumes durable state. |
 | `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. Supports `--provider`, `--model`, `--model-policy`, `--thinking`, and `--skill`. |
 | `shrimpy agent run <id> "prompt"` | Run a one-shot prompt as a specific agent. |
-| `shrimpy sessions list [session-id]` | Inspect manifested sessions, active/archive state, owner, and gateway lane state. |
+| `shrimpy sessions list [session-id] [--agent <id>\|--all-agents] [--json]` | Inspect one agent's manifested sessions, or use `--all-agents` for the active local interactive-session inventory shared with the TUI `/agents` navigator. |
 | `shrimpy sessions new <session-id>` | Archive/reset a session through its owner or an exclusive maintenance lease. |
 | `shrimpy sessions restore <session-id>` | Restore an archived session through its owner or an exclusive maintenance lease. |
 | `shrimpy sessions set <session-id> [--thinking <level>] [--model <provider/model>\|--model-policy <name>]` | Change the model or reasoning effort for a running session. |

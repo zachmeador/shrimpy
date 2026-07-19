@@ -42,6 +42,8 @@ TUI, setup, gateway, run, and worker are hosts around this core, not different s
 
 Bare, promptless `shrimpy` resumes the agent whose primary terminal chat has the newest transcript or lifecycle update. This keeps the same agent selected when `/new` archives the old transcript but Pi has not yet persisted the fresh conversation. The archived conversation is recency evidence only: Shrimpy starts the fresh conversation instead of restoring its contents. Channel and worker sessions do not participate. If there is no prior primary terminal chat, Shrimpy uses the first configured agent. An explicit `--agent`, `shrimpy chat <agent>`, or `shrimpy agent tui <agent>` always wins, while `shrimpy "prompt"` without `--agent` deliberately stays on the first configured agent.
 
+Inside the TUI, `/agents` opens a searchable, arrow-key-navigable hierarchy of agents and active local sessions. Sessions use Pi names or first-prompt previews; setup, channel, worker, and archived sessions are excluded. Select a session to switch, or an empty agent to open a new `local/main`. Failed switches restore the previous session.
+
 ## Model, Prompt, and Thinking
 
 Every durable session restores the model recorded in its active Pi transcript when no `--provider`, `--model`, or `--model-policy` override is supplied. If no saved model exists, Shrimpy uses the agent's `modelPolicy`, then the workspace `coding` policy. `shrimpy sessions set <session-id> --model <provider/model>` changes the current session model. `--model-policy <name>` resolves the policy to a concrete model for the session. Model changes append a visible `shrimpy_model_switch` custom message.
@@ -57,7 +59,7 @@ A durable session records its current owner under `runtime/sessions/`. That reco
 Lifecycle and runtime controls use canonical ids:
 
 ```bash
-shrimpy sessions list [session-id] [--agent <id>] [--json]
+shrimpy sessions list [session-id] [--agent <id>|--all-agents] [--json]
 shrimpy sessions new <session-id> [--agent <id>] [--no-wait] [--json]
 shrimpy sessions clear <session-id> [--agent <id>] [--no-wait] [--json]
 shrimpy sessions restore <session-id> [--agent <id>] [--archive <name>] [--no-wait] [--json]
@@ -78,12 +80,15 @@ The gateway has one `SessionPool` per agent and one lane per channel session. Th
 ## Search and Inspection
 
 ```bash
+shrimpy sessions list --all-agents --json
 shrimpy sessions search "deployment notes" --agent shrimpy
 shrimpy sessions read agents/shrimpy/sessions/channel/<name>/<profile>/example.jsonl --around a1b2c3d4
 shrimpy sessions compaction channel/home --agent shrimpy --json
 shrimpy models resolve --agent shrimpy --session local/main
 shrimpy models resolve --agent shrimpy --channel home
 ```
+
+`sessions list --all-agents` exposes the same navigator inventory used by `/agents`: every configured agent plus its active durable local interactive sessions. It does not include archives or setup, channel, worker, missing, or in-memory sessions. Ordinary per-agent `sessions list` retains the full manifested lifecycle and ownership view.
 
 Search scans active and archived Pi JSONL transcripts. It matches user and assistant text, assistant tool-call names, tool-result names, and recorded bash commands without exposing tool-result bodies. `sessions read` expands one hit into a bounded neighboring window.
 

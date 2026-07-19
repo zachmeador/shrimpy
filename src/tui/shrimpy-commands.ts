@@ -16,6 +16,7 @@ export const HELP_TEXT = [
   "Shrimpy commands",
   "",
   "/status [section]   Show operational Shrimpy status",
+  "/agents [id]        Navigate agents and local sessions",
   "/settings           Open unified Shrimpy and Pi settings",
   "/model              Select the session model",
   "/thinking           Open the supported session thinking menu",
@@ -23,7 +24,7 @@ export const HELP_TEXT = [
   "/shrimpy settings  Edit Shrimpy defaults",
   "/shrimpy            Show this command list",
   "",
-  "Pi commands remain available; Shrimpy keeps its home-agent status, settings, model guardrails, and changelog surface.",
+  "Pi commands remain available; Shrimpy keeps its agent navigation, home-agent status, settings, model guardrails, and changelog surface.",
 ].join("\n");
 
 export function createShrimpyTuiCommandExtensionFactory(
