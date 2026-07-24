@@ -1,279 +1,180 @@
 # 🦐 Pi Coding Agent
 
 Date: 2026-06-11
-Updated: 2026-07-12
+Updated: 2026-07-23
 Status: Research
 
-`earendil-works/pi/packages/coding-agent` - TypeScript, MIT, npm: `@earendil-works/pi-coding-agent`
+Pi is Shrimpy's embedded agent and session engine. Shrimpy pins the registry-published `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` packages rather than depending on a local checkout or active fork.
 
-Shrimpy pins registry-published `@earendil-works/*` Pi packages. The latest stable npm version checked for this note is `0.80.6`; upgrade evidence lives in the root `PI-UPGRADE.md`.
+This note describes the architectural boundary, the latest stable upgrade assessment, and how Shrimpy can use more of Pi's package ecosystem without becoming a Pi package itself.
 
-## Current Shrimpy Impact
+## Architectural Position
 
-- Shrimpy pins `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` directly.
-- Shrimpy pins all four packages at `0.80.6`, matching npm `latest` as of 2026-07-12.
-- Shrimpy requires Node `>=22.19.0`, matching Pi `0.75.0+` runtime constraints.
-- The public dependency path is upstream npm registry packages, not a local path dependency, unpacked package, checked-in tarball, or active Pi fork.
-- Tool schemas now use `typebox` 1.x types. Shrimpy's Pi-facing tool definitions should import `Type` from `typebox`; Shrimpy-owned config schemas can keep using `@sinclair/typebox` where they do not flow into Pi `ToolDefinition`.
-- Normal `npm test` does not typecheck `extensions/*.ts`. The Pi bump should include an explicit extension typecheck because extension imports and root exports changed.
-- `ToolRenderContext` remains internal rather than a package-root export. Shrimpy compact-tool renderers use local structural typing.
-- Released `pi-ai` break: `0.80.0` moved old root global helpers such as `completeSimple`, `streamSimple`, and `getProviders` to `@earendil-works/pi-ai/compat` while introducing explicit `Models` collections and provider factories. Shrimpy uses the reviewed temporary `/compat` bridge only for custom compaction; setup catalog reads and the focused Qwen payload test use the new direct APIs.
-- Shrimpy's unified settings bridge carries Pi's `outputPad`, automatic light/dark theme state, and `showCacheMissNotices` fields and callbacks.
-- Shrimpy's validation and bundled `/thinking` extension support Pi's opt-in `max` thinking level.
+Shrimpy should remain an application built on Pi's SDK. Pi owns the model/tool loop, provider dispatch, transcript mechanics, session tree, compaction primitives, extension runtime, and interactive terminal foundation. Shrimpy owns durable workspaces, agents, channels, surfaces, watches, workers, routing, policy, and long-lived services.
 
-## Latest Version State
+A Pi package has a session-level lifecycle and contributes extensions, skills, prompts, themes, or providers. Moving all of Shrimpy into that lifecycle would invert the ownership boundary and force durable home-agent services into an agent-session plugin. Pi packages should instead be optional capabilities hosted by Shrimpy.
 
-Shrimpy upgraded from `0.79.6` to `0.80.6` on 2026-07-12. The published stream includes the breaking `pi-ai` SDK split, many provider/model and auth fixes, `max` thinking, automatic theme/settings changes, output padding, cache-miss notices, richer session/RPC events, and compaction fixes. See `PI-UPGRADE.md` for the implementation evidence.
+## Current Shrimpy Integration
 
-Upgrade-relevant `0.80.x` highlights:
+- Shrimpy pins all four Pi packages at `0.80.6`.
+- Shrimpy requires Node `>=22.19.0`, matching Pi's runtime requirement.
+- Pi-facing tool schemas use `typebox` 1.x. Shrimpy-owned configuration schemas can use a different schema library when their types never cross the Pi tool boundary.
+- The main host boundary uses `createAgentSession()`, `createAgentSessionRuntime()`, `SessionManager`, `SettingsManager`, and `DefaultResourceLoader`.
+- Shrimpy extensions register tools, commands, headers, footers, custom UI, message renderers, lifecycle hooks, model-switch rendering, activity state, turn context, session leases, and compaction interception through public extension APIs.
+- Resource-loader overrides let Shrimpy own prompt assembly and visible skill selection while Pi retains native tool definitions, provider calls, transcript mechanics, and the interactive runtime.
+- Pi's session replacement lifecycle powers Shrimpy's cross-agent and cross-session navigator.
+- Normal `npm test` does not typecheck `extensions/*.ts`; Pi upgrades need a separate extension typecheck.
+- `ToolRenderContext` remains internal. Shrimpy compact-tool renderers use local structural typing rather than importing a private type.
 
-- `0.80.0`: moves the old `pi-ai` global API from the root to temporary `/compat`, adds explicit `Models`/provider factories, renames the old `Provider` id type to `ProviderId`, and removes `/base`. Pi coding-agent itself still uses `/compat` internally in `0.80.6`.
-- `0.80.2`: aligns `ApiKeyCredential` with `auth.json` (`type: "api_key"`) and restores request-scoped auth/environment behavior.
-- `0.80.3`: adds `outputPad`, Claude Sonnet 5, reasoning-token accounting, RPC tree access, and several compaction/provider fixes.
-- `0.80.4`: adds `showCacheMissNotices`, `agent_settled`, provider-header hooks, entry renderers, project-local resource management, and more provider/auth fixes.
-- `0.80.6`: adds the `max` thinking level and long-context pricing tiers.
+Shrimpy deliberately creates Pi settings in memory and passes a fixed set of bundled extension and skill paths. This keeps sessions deterministic and prevents ambient Pi configuration from silently changing a home agent, but it also means Shrimpy cannot currently consume normal Pi packages.
 
-Historical `0.77.0 -> 0.79.1` upgrade-relevant highlights:
+## Latest Stable Pi
 
-- `0.78.0`: adds named startup sessions, clickable file tool paths, exported `parseArgs`, custom Bedrock request headers, early-input buffering, and several OpenRouter/OpenCode provider fixes. `@earendil-works/pi-ai` changed direct provider stream functions to require explicit `options.apiKey`; top-level helpers still resolve built-in environment auth.
-- `0.78.1`: adds Ant Ling, NVIDIA NIM, MiniMax-M3, extension `ctx.mode`, and `ctx.getSystemPromptOptions()`. It also hardens temporary extension installs, git package source handling, HTML export URL sanitization, SDK embedding without adjacent package metadata, HTTP timeout handling across providers, large session-file loading, tab width accounting, and overlay focus restoration.
-- `0.79.0`: adds project trust gating for project-local settings/resources/instructions/packages, extension-controlled project-trust decisions, cache-hit footer display, RPC extension UI exports, and package asset path helpers. It also neutralizes compaction summary wording for non-coding agents and changes trust behavior around reload and project `.pi` creation.
-- `0.79.1`: adds prompt-template default positional arguments, global `defaultProjectTrust`, `ctx.isProjectTrusted()`, experimental feature guard, extension autocomplete trigger characters, and Claude Fable 5 metadata. It fixes Azure/OpenAI metadata, provider thinking-off payloads, prompt history restoration, mixed CJK wrapping, extension OAuth prompt stability, `/reload` queue-mode updates, invalid `models.json` migration handling, CLI help/version output, and ephemeral `/new` behavior.
+The latest stable tag inspected on 2026-07-23 is `v0.81.1`. Shrimpy remains on `0.80.6`, so the next upgrade is a model-runtime migration rather than a package-only bump.
 
-Shrimpy implemented this bump with the explicitly approved temporary `/compat` entrypoint at the custom compaction seam, while keeping the other migrated call sites on direct released APIs. Remove that bridge when Pi coding-agent exposes its own `Models` collection at the extension boundary; do not build a parallel Shrimpy auth/model collection.
+Upgrade-relevant changes after `0.80.6`:
 
-## Pi 2.0 Watch
+- `0.80.7` adds deferred tool loading and changes session-affinity configuration.
+- `0.80.8` introduces canonical `ModelRuntime`, moves authentication and model catalogs under provider-owned runtime state, replaces the SDK's `authStorage` and `modelRegistry` options with `modelRuntime`, removes `AuthStorage` from the coding-agent root exports, and leaves `ModelRegistry` as a compatibility facade.
+- `0.81.0` adds provider extensions, llama.cpp support, generated provider catalogs, and broader usage accounting for tools, compaction, and branch summaries.
+- `0.81.1` adds bounded retry behavior and lifecycle events for compaction and branch summaries, plus a compatibility fix for custom stream functions.
 
-Upstream's current [models architecture plan](https://github.com/earendil-works/pi/blob/main/packages/agent/docs/models.md#phase-10--compat-deletion-pi-20-era-separate) uses “pi 2.0” as the label for a future breaking architecture phase, not as a scheduled release announcement. No date, release branch, or tag is published in the repository.
+Pi's upstream `main` was 29 commits beyond `v0.81.1` during the assessment. The upgrade target is the stable tag and published packages, not unreleased branch state.
 
-The concrete planned scope is:
+## `0.81.1` Upgrade Assessment
 
-- Replace coding-agent's `AgentSession` runtime with `AgentHarness` and use harness-owned `Models` directly.
-- Remove the `ModelRegistry` compatibility facade.
-- Remove every internal `/compat` import, then delete the `@earendil-works/pi-ai/compat` entrypoint, the extension-loader root alias, old environment-key and OAuth registries/interfaces, and the compat-local legacy API registry.
-- Ship an extension-author migration guide because this intentionally breaks extensions that still depend on the old global API.
+The upstream clone was fetched and fast-forwarded before inspection. Stable `v0.81.1` is commit `20be4b18d4c57487f8993d2762bace129f0cf7c6`; the inspected upstream `main` was `65ff8e7f6db447dcddb1a9c8fd05f081c5cda76a`.
 
-The preceding coding-agent migration to `Models` and `CredentialStore` is still an unfinished upstream phase. For Shrimpy, Pi 2.0 will at minimum require removing `src/sessions/compaction-runner.ts`'s approved `/compat` import and reassessing the direct `AgentSession`, `ModelRegistry`, `AuthStorage`, extension-context, and TUI integration seams. Treat this as an architecture watchpoint rather than an upgrade target until upstream publishes a release candidate or migration guide.
+A disposable probe was created from clean Shrimpy commit `5be5e6e01f3288833bd7acf76e852131a600c8af`, excluding uncommitted workspace changes. All four published Pi packages installed successfully at exact `0.81.1`.
 
-## Local Patch Contingency
+Verification results:
 
-The normal path is to stay on upstream Pi packages. For a private patch test only, use a separate Pi checkout with an untouched upstream-tracking branch and a small `shrimpy-patches` branch. Build Pi there, create local package artifacts with `npm pack` from the changed Pi package directories, install those artifacts into Shrimpy temporarily, and run Shrimpy's normal build and test commands. Do not check generated tarballs into Shrimpy; before public release, replace the temporary artifacts with upstream packages, a pinned public fork commit, or a scoped registry package.
+- Current Shrimpy `0.80.6` source typecheck: passed.
+- Current bundled-extension typecheck: passed.
+- Disposable `0.81.1` bundled-extension typecheck: passed.
+- Disposable `0.81.1` source typecheck: failed with 19 errors localized to `src/app/pi-internals.ts`, `src/sessions/bootstrap.ts`, `src/sessions/open.ts`, `src/setup/coding-policy.ts`, and `src/setup/model-access.ts`.
+- Full candidate tests were not run because the source must compile before runtime behavior can be assessed.
+- The assessment changed no package pins, lockfiles, source, tests, generated output, or live workspace state.
 
-## What It Is
+### Primary Migration
 
-Terminal coding agent similar to Claude Code. Pi provides the session runtime, provider/model registry, TUI, tools, extension system, compaction, and transcript persistence. It runs as an interactive CLI, print-mode CLI, JSON event stream, RPC subprocess, or embedded SDK.
+`ModelRuntime` is the public replacement for Shrimpy's separate auth-storage and model-registry construction. It owns providers, models, credentials, login, catalog refresh, provider metadata, and completion dispatch.
 
-The default active built-ins are `read`, `bash`, `edit`, and `write`. The built-in registry also includes file-discovery helpers such as `grep`, `find`, and `ls`, which can be selected by CLI flags, SDK options, or extension tool APIs.
+The upgrade should:
 
-## CLI
+1. Create one `ModelRuntime` in `SessionBootstrap` with explicit `state/pi/auth.json`, `state/pi/models.json`, and `state/pi/models-store.json` paths.
+2. Pass that runtime through `createAgentSession()`, `AgentSessionServices`, session replacement, model resolution, commands, and tests.
+3. Move setup model listing, policy resolution, refresh, API-key login, and OAuth login to asynchronous `ModelRuntime` operations and provider-owned `AuthInteraction`.
+4. Replace `ModelRegistry.find()`, `getAll()`, `getAvailable()`, and model-shaped auth checks with canonical `ModelRuntime` methods.
+5. Remove the deleted private provider-display-name import and use public provider names from `ModelRuntime`.
+6. Add the dynamic catalog store to workspace paths, update protection and development-state copying, and document it as durable Pi state.
+7. Update test providers and runtime fixtures rather than recreating the removed auth/model compatibility shape.
+8. Pin all four Pi packages to exact `0.81.1` together only when the implementation is ready.
 
-```bash
-pi "do something"                  # interactive
-pi -p "summarize this"             # print mode, non-interactive
-pi --mode json "prompt"            # JSONL event stream to stdout
-pi --mode rpc                      # headless, drive via stdin/stdout JSONL
-pi --name "release audit"          # set session display name at startup
-pi --session-id release-audit -p "continue audit" # create/resume an exact project-local session id
-```
+No repository or inspected workspace model entry used the removed `compat.sendSessionIdHeader` field. If one appears elsewhere, it must move to `compat.sessionAffinityFormat`.
 
-Important options for Shrimpy integration:
+### Compaction
 
-- `--provider`, `--model`, `--thinking`, `--models`, `--list-models`
-- `--tools`, `--exclude-tools`, `--no-builtin-tools`, `--no-tools`
-- `--skill`, `--extension`, `--prompt-template`, `--theme`
-- `--no-skills`, `--no-extensions`, `--no-prompt-templates`, `--no-context-files`
-- `--session`, `--session-id`, `--session-dir`, `--continue`, `--resume`, `--fork`, `--no-session`, `--name`
+Shrimpy's custom compaction runner still imports `completeSimple` through Pi's temporary `/compat` entrypoint. That code compiles at `0.81.1`, but it bypasses the canonical runtime, omits provider-scoped environment data, does not aggregate summary-call usage, and misses Pi's new summarization retry lifecycle.
 
-Sessions persist as JSONL with a tree structure: branching, forking, named sessions, and compaction are built in.
+The upgrade should inject `ModelRuntime.completeSimple()` into custom compaction, preserve provider environment, combine usage across chunk and merge calls, and either implement equivalent bounded retries or delegate more of compaction back to Pi.
 
-## SDK
+### Upgrade Risks
 
-```typescript
-import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+- Model availability, refresh, and login are genuinely asynchronous under `ModelRuntime`. Shrimpy should carry that boundary through setup and policy code instead of hiding it behind synchronous casts or wrappers.
+- Dynamic catalog refresh can perform network work. Shrimpy needs an explicit startup and timeout policy.
+- The custom compaction path needs behavioral work beyond changing an import.
+- Private terminal integration seams can break without a semver-visible export change.
+- Implementation verification should use a Node release supported by Shrimpy and the repository's lint toolchain.
 
-const { session } = await createAgentSession({
-  sessionManager: SessionManager.inMemory(),
-});
+## Extensibility Assessment
 
-session.subscribe((event) => { /* streaming events */ });
-await session.prompt("do something");
-```
+### Public Surfaces Used Well
 
-Key methods on `AgentSession`: `prompt()`, `steer()`, `followUp()`, `subscribe()`, `abort()`, `compact()`, `setModel()`, `setThinkingLevel()`, `fork()`, `navigateTree()`, `sendHookMessage()`, `dispose()`, `getActiveToolNames()`, `getAllTools()`, `setActiveToolsByName()`, and `reload()`.
+Shrimpy already leans heavily on Pi's public SDK and extension system:
 
-State access: `session.agent.state.messages`, `.model`, `.tools`, `.systemPrompt`, `.streamingMessage`.
+- Session creation and runtime replacement
+- Session persistence, branching, navigation, and event subscriptions
+- Tool registration, inspection, activation, and same-name overrides
+- Commands, renderers, headers, footers, widgets, and lifecycle hooks
+- Prompt and skill resource overrides
+- Provider registration and model switching
+- Context mutation and per-turn `before_agent_start` handling
+- Compaction interception and session leases
 
-Useful `createAgentSession()` options for Shrimpy:
+These are the right seams for an application host. Shrimpy does not duplicate Pi's model loop, native tool-call protocol, transcript engine, or provider request machinery.
 
-- `agentDir` to redirect Pi auth/model/settings state under the Shrimpy workspace.
-- `settingsManager`, `sessionManager`, `modelRegistry`, and `resourceLoader` for isolation.
-- `tools` as an allowlist.
-- `excludeTools` as a denylist.
-- `noTools: "all" | "builtin"` for broad suppression modes.
-- `customTools` for additive Shrimpy daemon tools.
+### Private And Compatibility Seams
 
-## Extension API
+The hackier integration points are concentrated in terminal composition and a few incomplete host APIs:
 
-Extensions are TS files exporting a default function that receives `ExtensionAPI`:
+- `src/tui/shrimpy-inline-commands.ts` patches private editor submission, changelog handling, and transcript containers because Pi cannot publicly override built-in commands or append ephemeral transcript blocks.
+- `src/tui/shrimpy-model-selection.ts` patches private autocomplete, key handling, selectors, and model-selector internals to hide commands, disable cycling, and add favorites.
+- `src/tui/shrimpy-settings.ts` patches private settings and selector methods because Pi has no public settings-section composition API.
+- `src/tui/shrimpy-turn-context-rendering.ts` patches `CustomMessageComponent.prototype` because a renderer with no collapsed content still leaves a reserved spacer.
+- `src/app/pi-internals.ts` deep-imports theme registry, proxy, and automatic-theme helpers outside Pi's public export contract. The provider-display-name deep import is deleted in `0.81.1` and can be replaced by public runtime metadata.
+- `src/sessions/open.ts` assigns `session.state.systemPrompt` after creation. The public per-turn containment hook remains authoritative, but a host setter or stronger initialization contract would be cleaner.
+- `src/sessions/compaction-runner.ts` owns a copy-like compaction path because `session_before_compact` can replace or cancel compaction but cannot augment the default instructions.
 
-```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+These gaps justify narrow upstream API requests, not turning Shrimpy into a Pi package. The useful asks are built-in command interception, composable settings sections, model-selector decoration, ephemeral transcript components, no-spacer collapsed renderers, exported theme preparation, compaction-instruction augmentation, and canonical model access in extension context.
 
-export default function (pi: ExtensionAPI) {
-  pi.on("tool_call", async (event, ctx) => { /* intercept */ });
-  pi.registerTool({
-    name: "my_tool",
-    label: "My Tool",
-    description: "Do something structured",
-    parameters: Type.Object({}),
-    execute: async () => ({ content: [{ type: "text", text: "done" }], details: {} }),
-  });
-  pi.registerCommand("mycmd", { handler: async () => {} });
-  pi.registerProvider("my-llm", { baseUrl: "...", models: [] });
-  pi.sendMessage({ content: "injected", customType: "x", display: true });
-  pi.sendUserMessage("as if the user typed this");
-  pi.appendEntry("my-state", { count: 1 });  // persist to session
-  pi.getAllTools();                           // ToolInfo[] with sourceInfo and promptGuidelines
-  pi.getActiveTools();                        // active tool names
-  pi.setActiveTools(["read", "bash"]);        // toggle tools at runtime
-}
-```
+## Pi Package Ecosystem
 
-Events you can hook: `resources_discover`, `session_start`, `session_shutdown`, `session_before_switch`, `session_before_fork`, `session_before_compact`, `session_compact`, `session_before_tree`, `session_tree`, `context`, `before_provider_request`, `after_provider_response`, `before_agent_start`, `agent_start/end`, `turn_start/end`, `message_start/update/end`, `tool_call`, `tool_result`, `tool_execution_start/update/end`, `model_update`, `thinking_level_update`, `input`, and `user_bash`.
+A Pi package is an npm package or git repository contributing `extensions/`, `skills/`, `prompts/`, or `themes/`. Pi can discover those resources by convention or explicit package metadata.
 
-`InputEvent.streamingBehavior` distinguishes idle prompts from mid-stream steers and queued follow-ups. `!` / `!!` user bash input emits `user_bash`, whose handler can replace shell operations or return a synthetic result.
+Shrimpy does not currently load the user's normal Pi package configuration. `createShrimpyResourceLoader()` uses `SettingsManager.inMemory()`, fixed bundled extension paths, explicit Shrimpy skill paths, and disabled ambient skill discovery. This is a sound default for a durable home agent but leaves useful ecosystem work inaccessible.
 
-## Tool Policy
+A Shrimpy-controlled package bridge should:
 
-Built-in, extension, and custom tools can be inspected, enabled, disabled, and overridden without patching Pi:
+1. Add CLI commands to list, inspect, install, pin, enable, disable, update, and remove trusted Pi packages.
+2. Store policy and provenance under the Shrimpy workspace rather than inheriting unrelated user-level or project-local Pi configuration.
+3. Resolve only explicitly approved package resources into a session while retaining Shrimpy's context and tool-policy controls.
+4. Treat extension code as full-trust executable code, expose its source and provenance, and never install from the network as an implicit session-start side effect.
+5. Keep channels, watches, workers, surfaces, workspace state, and agent orchestration in Shrimpy core.
+6. Let packages contribute session-local tools, commands, providers, renderers, prompts, themes, and optional skills.
 
-- CLI: `--tools`, `--exclude-tools`, `--no-builtin-tools`, `--no-tools`
-- SDK: `createAgentSession({ tools, excludeTools, noTools, customTools })`
-- Extension: `pi.getAllTools()`, `pi.getActiveTools()`, `pi.setActiveTools()`
-- Override: register a same-name tool to replace a built-in implementation
-- Prompt: active tools contribute `promptSnippet` and `promptGuidelines` to Pi's default prompt assembly
+This bridge should follow the `0.81.1` runtime migration rather than share its implementation.
 
-For Shrimpy, this makes Pi's tool policy a good adapter point. Use `tools` / `excludeTools` for the effective per-agent policy and keep `customTools` for Shrimpy daemon tools. Treat `customTools` alone as incomplete because Pi defaults still exist unless explicitly selected or disabled.
+## Relevant Pi Runtime Surfaces
 
-## RPC Protocol
+### SDK And Sessions
 
-JSONL over stdin/stdout. Commands include `prompt`, `steer`, `follow_up`, `abort`, `get_state`, `get_messages`, `set_model`, `cycle_model`, `set_thinking_level`, `compact`, `bash`, `get_commands`, `new_session`, `set_session_name`, `get_session_stats`, etc. Events stream back as typed JSON objects.
+Pi runs as an interactive CLI, print-mode CLI, JSON event stream, RPC subprocess, or embedded SDK. Sessions persist as JSONL trees with branching, forking, naming, navigation, and compaction.
 
-`bash` accepts `excludeFromContext`, matching the internal `!!` behavior: the command can run while keeping its output out of the next model-visible context.
+Useful host objects include `createAgentSession()`, `SessionManager`, `SettingsManager`, `DefaultResourceLoader`, and `ModelRuntime`. The session exposes prompting, steering, queued follow-ups, subscriptions, aborts, compaction, model and thinking changes, tree navigation, active-tool control, reload, and disposal.
 
-## Theming And TUI
+### Extension API
 
-JSON theme files live in `~/.pi/agent/themes/` or `.pi/themes/` and can be selected through `/settings` or settings JSON. Extensions can replace or add footer/editor/widgets/overlays for deeper UI changes.
+Extensions can register tools, commands, providers, renderers, shortcuts, flags, and UI components. They can persist custom session entries, inject user or system messages, inspect and activate tools, and intercept resource discovery, session lifecycle, model requests, agent turns, tool calls, input, compaction, and tree navigation.
 
-Interactive mode has a built-in slash command registry for `/settings`, `/model`, `/scoped-models`, `/export`, `/import`, `/share`, `/copy`, `/name`, `/session`, `/changelog`, `/hotkeys`, `/fork`, `/clone`, `/tree`, `/login`, `/logout`, `/new`, `/compact`, `/resume`, `/reload`, and `/quit`. Extensions add commands with `pi.registerCommand()`, and they appear in autocomplete unless they conflict with built-ins.
+Tool policy is composable through SDK allowlists and denylists, active-tool APIs, additive custom tools, and same-name tool replacement. Pi passes active tool schemas to providers and executes validated model calls.
 
-Current Shrimpy direction: the normal Shrimpy TUI uses Pi's stock `InteractiveMode` so autocomplete, selectors, editor behavior, hotkeys, and built-in commands stay aligned with Pi. Shrimpy patches the instance-level `/settings` selector to present a unified menu with Shrimpy workspace/runtime settings and Pi interactive settings. During first setup, Shrimpy can hand the user to Pi's built-in `/login` and `/model` flow to add credentials and pick a model.
+### Prompt And Resources
 
-## Packaging
+`DefaultResourceLoader` controls system prompts, appended prompt text, instruction files, extensions, skills, prompts, and themes. Shrimpy supplies a complete assembled system prompt, strips ambient Pi instruction and skill layers, and loads a curated extension set. Pi continues to own provider-native tool definitions and interactive command handling.
 
-A Pi package is an npm package or git repo with `extensions/`, `skills/`, `prompts/`, or `themes/` directories. Pi auto-discovers them by convention, or package paths can be declared under Pi package metadata. Install with `pi install .`, `pi install npm:pkg`, or `pi install git:repo`.
+The focused [Pi skill handling note](pi-skill-handling.md) covers skill discovery, additional paths, slash-command expansion, and the Shrimpy integration gap in more detail.
 
-Current bundled extension peer imports are `@earendil-works/pi-ai`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, and `typebox`.
+### Background Work And Multi-Agent Scope
 
-## Models
+Pi has no durable background daemon or native cross-agent orchestration layer. Extensions can schedule work inside one session, and external supervisors can prompt sessions or drive RPC, but Shrimpy's watches, channels, workers, and multi-agent routing remain application-level responsibilities.
 
-Pi reads custom providers and model overrides from `models.json`. The parser accepts `//` comments and trailing commas before JSON parsing.
+The upstream `packages/mom/` example demonstrates one external messaging channel driving queued Pi sessions. It is useful prior art for routing but is narrower than Shrimpy's multi-channel, multi-agent workspace.
 
-Provider `apiKey` and `headers` support command execution (`"!cmd"`), environment interpolation (`"$ENV_VAR"` / `"${ENV_VAR}"`), and escaped literal prefixes (`"$$"` and `"$!"`). Commands are resolved at request time; Pi does not cache arbitrary command output.
+## Implementation Sequence
 
-Model-level `thinkingLevelMap` maps Pi thinking levels (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`) to provider values and hides unsupported levels with `null`. Older configs that used `compat.reasoningEffortMap` should move that mapping to model-level `thinkingLevelMap`.
-
-## How Tools Work
-
-A tool is `{ name, description, parameters }` with a `typebox` schema. Pi passes active tool schemas as native tool definitions to the provider. The model calls them, Pi validates args, runs `execute()`, and returns the result. Tool calls can run in parallel within a turn. Output should be truncated (default 50KB / 2000 lines).
-
-Custom renderers receive a structural context with args, cwd, tool call id, render state, invalidation, partial/error/expanded flags, and image visibility. Shrimpy should not assume Pi exports the internal `ToolRenderContext` type from the package root.
-
-In the system prompt, tools can opt into an "Available tools" one-liner via `promptSnippet` and add guidelines via `promptGuidelines`. The prompt also includes cwd, date, AGENTS.md context files, skills, and `appendSystemPrompt` content. Extensions can modify the prompt per turn via `before_agent_start`, or mutate messages in `context`.
-
-When a caller passes a full custom prompt body through `DefaultResourceLoader({ systemPrompt })`, Pi treats that as the system prompt replacement. Native tool definitions are still part of the model call. Shrimpy context inspection should use the real session/model-call path so prompt text, selected tools, turn context, and the final message payload are represented together.
-
-## Context Construction
-
-`buildSystemPrompt()` concatenates layers into a single string:
-
-1. Base prompt - hardcoded identity or custom replacement via `.pi/SYSTEM.md` / resource-loader `systemPrompt`
-2. Tool list - one-liner per active tool with `promptSnippet`
-3. Guidelines - auto-generated active-tool guidelines plus custom `promptGuidelines`
-4. `appendSystemPrompt` - free text appended when Pi's default prompt assembly is used
-5. Context files - AGENTS.md hierarchy loaded by `DefaultResourceLoader`
-6. Skills - formatted in XML blocks
-7. Metadata - date and cwd
-
-The prompt is rebuilt each turn and when `setActiveTools()` changes the active tool set. `DefaultResourceLoader` controls which context files and skills are fed in.
-
-Constructor overrides allow Shrimpy to intercept or replace layers without subclassing: `systemPromptOverride`, `appendSystemPromptOverride`, `agentsFilesOverride`, `extensionsOverride`, `skillsOverride`, and `promptsOverride`. It also accepts `systemPrompt`, `appendSystemPrompt`, `additionalExtensionPaths`, `additionalSkillPaths`, and `additionalPromptTemplatePaths`.
-
-Shrimpy currently uses the `systemPrompt` replacement path for its assembled context, strips Pi-discovered AGENTS/append-prompt/skill layers, and loads a curated extension list. This means Shrimpy owns the stable prompt body while Pi still owns provider-native tool definitions and interactive command handling.
-
-Focused follow-up: [pi-skill-handling.md](pi-skill-handling.md) covers Pi skill discovery, `additionalSkillPaths`, slash command expansion, and the Shrimpy integration gap in more detail.
-
-## pi-mom
-
-`packages/mom/` is the upstream example of an external messaging channel driving a Pi agent.
-
-Architecture:
-
-- Slack Socket Mode receives messages, logs them to per-channel `log.jsonl`, and queues them for sequential processing.
-- Per-channel state includes `log.jsonl`, `context.jsonl`, and `MEMORY.md`.
-- `ChannelQueue` handles one-message-at-a-time processing per channel.
-- Event trigger files can trigger channel processing immediately, once at a scheduled time, or periodically.
-
-Relevance to Shrimpy: prior art for channel-to-agent routing. Key differences from Shrimpy's design are that mom responds via Slack API directly, handles only Slack, and runs one agent per channel.
-
-## Ongoing Conversation Context
-
-The conversation is the context. Pi sends the system prompt plus message history to the LLM each turn. No selective per-turn injection exists by default; messages accumulate until compaction triggers.
-
-Compaction walks backward from newest messages, keeps recent history, summarizes older context into a structured checkpoint, and preserves file-awareness metadata. Recent Pi fixes make compaction use custom agent stream functions and ensure session disposal aborts in-flight compaction/retry/bash work.
-
-What Pi still does not provide by default:
-
-- No per-turn context selection by source.
-- No token budgeting per context section.
-- No memory tiering beyond message history and compaction.
-- No selective injection of external knowledge mid-conversation unless Shrimpy or an extension does it.
-
-## Loops / Polling / Watchers
-
-Pi has no native background daemon concept. Three ways to get there:
-
-- Extension: use `fs.watch` or `setInterval` inside `session_start`, then call `pi.sendMessage()` or `pi.sendUserMessage()`.
-- SDK supervisor: wrap `createAgentSession()` in an external loop and call `session.prompt()` when conditions are met.
-- RPC driver: spawn `pi --mode rpc` and send prompts on stdin whenever an external scheduler decides to.
-
-## Embedding Without Touching User Config
-
-The SDK can run Pi as an isolated runtime. Use `SettingsManager.inMemory()` to avoid reading/writing user settings. Use `DefaultResourceLoader` with explicit paths to load only Shrimpy extensions, skills, and prompts. Use `SessionManager.create(cwd, sessionDir)` to store sessions in Shrimpy's workspace. Set `agentDir` or `PI_CODING_AGENT_DIR` depending on the integration path to redirect auth/model/config reads.
-
-```typescript
-const { session } = await createAgentSession({
-  agentDir: "/path/to/shrimpy/workspace/state/pi",
-  settingsManager: SettingsManager.inMemory(),
-  sessionManager: SessionManager.create(process.cwd(), "./shrimpy-sessions"),
-  resourceLoader: loader,
-  tools: ["read", "bash"],
-  excludeTools: ["write"],
-  customTools: [myTool],
-});
-```
-
-## Sub-Agents And Cross-Agent Supervision
-
-Pi has no built-in sub-agent or multi-agent support. Ecosystem packages such as `pi-subagents`, `pi-cli-subagent-extension`, `pi-side-agents`, and `@tintinweb/pi-subagents` spawn child Pi or other coding-agent processes and feed their output back to the supervising agent. No protocol-level interop is required; the parent agent reads subprocess output like a human would.
-
-## Ecosystem Packages
-
-MCP is not built in, but packages such as `pi-mcp-adapter` and `pi-mcp-tools` add MCP access through extension tools.
-
-A2A / ACP are not in core.
+1. Begin from an intentional Shrimpy git state on a focused upgrade branch or disposable implementation worktree.
+2. Add the dynamic model catalog store to Shrimpy's workspace path and protection surfaces.
+3. Introduce one canonical `ModelRuntime` in bootstrap and migrate session services to it.
+4. Migrate model commands and setup flows, including asynchronous provider login and refresh.
+5. Remove the private provider-name import.
+6. Move custom compaction off `/compat` and add usage and retry behavior.
+7. Update runtime, provider, setup, compaction, and session-replacement tests.
+8. Install all four exact `0.81.1` pins and update the lockfile.
+9. Run source and extension typechecks, focused suites, the full suite, build, and lint.
+10. Smoke API-key and subscription login, local providers, model selection and favorites, settings, automatic themes, session switching, compaction, and resume.
+11. Design the package bridge separately after the runtime upgrade is stable.
 
 ## Sources
 
-[README](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#readme) · [SDK](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/sdk.md) · [Extensions](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/extensions.md) · [RPC](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/rpc.md) · [Usage](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/usage.md) · [Models](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/models.md) · [Custom providers](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/custom-provider.md) · [Skills](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/skills.md) · [Packages](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/packages.md) · [Themes](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/themes.md)
+[Repository](https://github.com/earendil-works/pi) · [Coding agent README](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#readme) · [SDK](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/sdk.md) · [Extensions](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/extensions.md) · [Models](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/models.md) · [Custom providers](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/custom-provider.md) · [Packages](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/packages.md) · [Themes](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/themes.md)
