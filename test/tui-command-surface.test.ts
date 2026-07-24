@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getMarkdownTheme, initTheme } from "@earendil-works/pi-coding-agent";
 import { createAppRuntime } from "../dist/app/runtime.js";
-import { installShrimpyInlineCommands } from "../dist/tui/shrimpy-inline-commands.js";
+import { installShrimpyInlineCommands } from "../dist/tui/inline-commands.js";
 
 test("Shrimpy keeps status and help output inline and blocks hidden sharing", async () => {
   initTheme("dark", false);

@@ -11,28 +11,19 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createAppRuntime } from "../dist/app/index.js";
-import {
-  buildTurnContext,
-  markChannelSeen,
-  renderTurnContext,
-  resolveContextTurnConfig,
-} from "../dist/context/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
+import { buildTurnContext } from "../dist/context/turn/builder.js";
+import { markChannelSeen } from "../dist/context/turn/state.js";
+import { renderTurnContext } from "../dist/context/turn/render.js";
+import { resolveContextTurnConfig } from "../dist/context/spec.js";
 import {
   buildContextTurnPreview,
 } from "../dist/context/preview.js";
-import {
-  makeMessage,
-  textContent,
-} from "../dist/channels/index.js";
-import {
-  writeWorkers,
-} from "../dist/workers/index.js";
-import {
-  appendWatchRunRecord,
-  markWatchRunActive,
-  saveWatchClockState,
-} from "../dist/watches/index.js";
+import { makeMessage } from "../dist/channels/protocol.js";
+import { textContent } from "../dist/channels/messages.js";
+import { writeWorkers } from "../dist/workers/store.js";
+import { appendWatchRunRecord, markWatchRunActive } from "../dist/watches/runs.js";
+import { saveWatchClockState } from "../dist/watches/clock-state.js";
 import {
   createChannelSessionKey,
   createLocalSessionKey,

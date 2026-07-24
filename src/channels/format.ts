@@ -1,10 +1,7 @@
 import { accent, dim } from "../util/style.js";
 import { formatAgeShort } from "../util/time-format.js";
-import {
-  readSessionResetContent,
-  type MessageContent,
-  type ChannelMessage,
-} from "./index.js";
+import { readSessionResetContent, type MessageContent } from "./messages.js";
+import type { ChannelMessage } from "./protocol.js";
 
 export const DEFAULT_CHANNEL_BODY_PREVIEW_CHARS = 360;
 

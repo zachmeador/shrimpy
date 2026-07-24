@@ -1,11 +1,13 @@
 import { channelMatches } from "../util/channel-pattern.js";
 import { KNOWN_RUNTIME_ENV_KEYS } from "./env.js";
-import type { ContextSourceConfig } from "./source.js";
 import {
   resolveContextTurnProducer,
   type ContextTurnProducerConfig,
   type ResolvedContextTurnProducer,
 } from "./turn/producer.js";
+
+/** Stable Markdown resource loaded into the session prompt. */
+export type ContextSourceConfig = string;
 
 interface ContextChannelOverride {
   sources?: ContextSourceConfig[];

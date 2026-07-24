@@ -20,7 +20,7 @@ import {
 } from "./util/style.js";
 import {
   extractGlobalWorkspace,
-} from "./config/workspace.js";
+} from "./workspace/location.js";
 import {
   applyShrimpyRuntimeProcessEnv,
 } from "./app/environment.js";
@@ -45,7 +45,7 @@ try {
     const handler = await registration.load();
     const config = configForRegisteredCommand(
       registration,
-      (await import("./config/index.js")).loadConfig,
+      (await import("./config/load.js")).loadConfig,
       commandArgs,
     );
     if (resolveConfigRequirement(registration, commandArgs) !== false) {
@@ -55,7 +55,7 @@ try {
     process.exit(code);
   }
 
-  const { resolveWorkspacePath } = await import("./config/index.js");
+  const { resolveWorkspacePath } = await import("./workspace/location.js");
   const { cmdRootTui } = await import("./commands/root.js");
 
   const workspace = resolveWorkspacePath();

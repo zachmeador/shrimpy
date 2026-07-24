@@ -1,17 +1,12 @@
-import { createAppRuntime } from "../app/index.js";
-import {
-  createWorkspaceCheckpoint,
-  initializeWorkspaceCheckpointTracking,
-  inspectWorkspaceCheckpointStatus,
-  type WorkspaceCheckpointStatus,
-} from "../workspace-checkpoints/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { createWorkspaceCheckpoint, initializeWorkspaceCheckpointTracking, inspectWorkspaceCheckpointStatus, type WorkspaceCheckpointStatus } from "../workspace/checkpoints/git.js";
 import {
   inspectWorkspaceSearchIndex,
   rebuildWorkspaceSearchIndex,
   searchWorkspaceKnowledge,
   type WorkspaceIndexStatus,
   type WorkspaceSearchResult,
-} from "../search/workspace.js";
+} from "../workspace/search.js";
 import { parsePositiveInt } from "../util/parse.js";
 import { accent, dim, label } from "../util/style.js";
 import { renderGroupUsage } from "./catalog.js";

@@ -1,11 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { createAppRuntime } from "../app/index.js";
-import type { ShrimpyConfig } from "../config/index.js";
-import {
-  renderPromptSectionManifest,
-  summarizePromptSection,
-} from "../context/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import type { ShrimpyConfig } from "../config/load.js";
+import { renderPromptSectionManifest, summarizePromptSection } from "../context/resources.js";
 import {
   buildContextTurnPreview,
   buildSessionContextPreview,

@@ -6,29 +6,17 @@ import { tmpdir } from "node:os";
 import {
   EgressRegistry,
 } from "../dist/channels/egress.js";
-import { registerTelegramEgress } from "../dist/surfaces/telegram/index.js";
+import { registerTelegramEgress } from "../dist/surfaces/telegram/module.js";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
-import { createDaemonTools } from "../dist/tools/index.js";
+import { createDaemonTools } from "../dist/tools/daemon.js";
 import { ChannelBus } from "../dist/channels/bus.js";
-import {
-  appendMessage,
-  channelPath,
-  makeMessage,
-  readMessages,
-  textContent,
-} from "../dist/channels/index.js";
-import {
-  getToolProse,
-  renderPublicationResult,
-  renderReadChannelResult,
-  renderSendMessageResult,
-} from "../dist/context/index.js";
+import { appendMessage, channelPath, readMessages } from "../dist/channels/store.js";
+import { makeMessage } from "../dist/channels/protocol.js";
+import { textContent } from "../dist/channels/messages.js";
+import { getToolProse, renderPublicationResult, renderReadChannelResult, renderSendMessageResult } from "../dist/context/system/tools.js";
 import { resolveToolRuntimeConfig } from "../dist/config/tools.js";
-import {
-  DAEMON_TOOL_NAMES,
-  createSessionToolPolicy,
-  resolveAgentToolPolicy,
-} from "../dist/tools/index.js";
+import { DAEMON_TOOL_NAMES } from "../dist/tools/names.js";
+import { createSessionToolPolicy, resolveAgentToolPolicy } from "../dist/tools/policy.js";
 
 let testDir: string;
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { cmdUpdate } from "../dist/commands/update.js";
-import { loadConfigForWorkspace } from "../dist/config/index.js";
+import { loadConfigForWorkspace } from "../dist/config/load.js";
 import {
   captureLogs,
   makeTempWorkspace,

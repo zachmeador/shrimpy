@@ -9,14 +9,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createAppRuntime } from "../dist/app/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
 import { cmdWorkspace } from "../dist/commands/workspace.js";
 import { setupInit } from "./helpers.ts";
-import {
-  createWorkspaceCheckpointService,
-  initializeWorkspaceCheckpointTracking,
-  inspectWorkspaceCheckpointStatus,
-} from "../dist/workspace-checkpoints/index.js";
+import { createWorkspaceCheckpointService } from "../dist/workspace/checkpoints/scheduler.js";
+import { initializeWorkspaceCheckpointTracking, inspectWorkspaceCheckpointStatus } from "../dist/workspace/checkpoints/git.js";
 import {
   captureLogs,
   makeTempWorkspace,

@@ -9,18 +9,9 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  appendMessage,
-  readMessages,
-  makeMessage,
-  channelPath,
-  textContent,
-  watchChannels,
-  drainBacklog,
-  loadCursors,
-  saveCursors,
-  type ChannelCursor,
-} from "../dist/channels/index.js";
+import { appendMessage, readMessages, channelPath, watchChannels, drainBacklog, loadCursors, saveCursors, type ChannelCursor } from "../dist/channels/store.js";
+import { makeMessage } from "../dist/channels/protocol.js";
+import { textContent } from "../dist/channels/messages.js";
 
 let testDir: string;
 

@@ -1,5 +1,12 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { SessionBootstrap } from "./bootstrap.js";
+import type {
+  ModelPolicyCandidateResolution,
+  ModelPolicyResolution,
+  ModelPolicySource,
+  ModelResolution,
+  SessionModelRequest,
+} from "./model-types.js";
 import {
   DEFAULT_MODEL_POLICY,
   formatModelRef,
@@ -12,47 +19,6 @@ import {
 interface ModelCandidate {
   id?: string;
   name?: string;
-}
-
-interface ModelPolicyCandidateResolution extends ModelRef {
-  usable: boolean;
-  selected?: boolean;
-  reason?: string;
-}
-
-type ModelPolicySource = "cli-policy" | "agent" | "default";
-type ModelResolutionSource =
-  | "cli"
-  | "policy"
-  | "registry-fallback"
-  | "saved-session"
-  | "session-switch"
-  | "missing";
-
-export interface ModelPolicyResolution {
-  name: string;
-  source: ModelPolicySource;
-  candidates: ModelPolicyCandidateResolution[];
-  selected?: ModelRef;
-  problems: string[];
-}
-
-export interface ModelResolution {
-  source: ModelResolutionSource;
-  model?: Model<Api>;
-  modelRef?: ModelRef;
-  policy?: ModelPolicyResolution;
-  problems: string[];
-}
-
-export interface SessionModelRequest {
-  provider?: string;
-  model?: string;
-  modelPolicy?: string;
-  defaultModelPolicy?: string;
-  allowMissingModel?: boolean;
-  allowRegistryFallbackModel?: boolean;
-  missingMessage?: string;
 }
 
 export interface ResolveSessionModelInput extends SessionModelRequest {
@@ -250,7 +216,7 @@ export function resolveModelPolicy(
   policyName: string,
   source: ModelPolicySource = "default",
 ): ModelPolicyResolution {
-  const policy = bootstrap.config?.modelPolicies?.[policyName];
+  const policy = bootstrap.modelPolicies?.[policyName];
   if (!policy) {
     return {
       name: policyName,

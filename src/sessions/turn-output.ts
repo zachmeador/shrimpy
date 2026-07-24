@@ -1,5 +1,5 @@
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import { prefixPromptWithTurnContext } from "../context/index.js";
+import { prefixPromptWithTurnContext } from "../context/turn/prompt-prefix.js";
 
 interface MessageLike {
   role?: string;

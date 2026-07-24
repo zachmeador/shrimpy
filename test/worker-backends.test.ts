@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import {
-  detectWorkerBackendAvailability,
-  readWorkerBackendAvailability,
-  refreshWorkerBackendAvailability,
-  writeWorkerBackendAvailability,
-} from "../dist/workers/index.js";
+import { detectWorkerBackendAvailability, readWorkerBackendAvailability, refreshWorkerBackendAvailability, writeWorkerBackendAvailability } from "../dist/workers/availability.js";
 import { cmdWorker } from "../dist/commands/worker.js";
 import {
   captureLogs,

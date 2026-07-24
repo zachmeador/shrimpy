@@ -1,14 +1,8 @@
-import {
-  createAppRuntime,
-  type AppRuntime,
-} from "../app/index.js";
-import {
-  loadConfigForWorkspace,
-  type ShrimpyConfig,
-} from "../config/index.js";
+import { createAppRuntime, type AppRuntime } from "../app/runtime.js";
+import { loadConfigForWorkspace, type ShrimpyConfig } from "../config/load.js";
 import {
   TUI_SETUP_REQUIRED_MESSAGE,
-} from "../setup/readiness.js";
+} from "../setup/state.js";
 import {
   runSetupOnboarding,
   setupOnboardingExitCode,

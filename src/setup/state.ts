@@ -1,8 +1,7 @@
 import { existsSync } from "node:fs";
-import {
-  primaryConfigPath,
-} from "../config/index.js";
+import { primaryConfigPath } from "../workspace/paths.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
+import type { AppRuntime } from "../app/runtime.js";
 import {
   hasSetupAgentWorkspace,
   loadRawSetupConfig,
@@ -113,4 +112,16 @@ export function isSetupReady(
   state: SetupState,
 ): state is Extract<SetupState, { kind: "ready" }> {
   return state.kind === "ready";
+}
+
+export const TUI_SETUP_REQUIRED_MESSAGE =
+  "Shrimpy needs a usable coding model policy before opening the TUI. Run: shrimpy setup";
+
+export async function assertSetupReadyForNormalTui(
+  runtime: AppRuntime,
+): Promise<void> {
+  const state = await resolveSetupState(runtime.paths.workspace);
+  if (!isSetupReady(state)) {
+    throw new Error(TUI_SETUP_REQUIRED_MESSAGE);
+  }
 }

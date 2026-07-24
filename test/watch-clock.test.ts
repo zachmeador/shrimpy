@@ -3,16 +3,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  computeNextWatchRunAtMs,
-  createWatchClock,
-  loadWatchClockState,
-  saveWatchClockState,
-  watchScheduleKey,
-  type ResolvedAgentWatchDefinition,
-  type WatchClockStateSnapshot,
-  type WatchRunDue,
-} from "../dist/watches/index.js";
+import { computeNextWatchRunAtMs, createWatchClock, watchScheduleKey, type WatchClockStateSnapshot } from "../dist/watches/clock.js";
+import { loadWatchClockState, saveWatchClockState } from "../dist/watches/clock-state.js";
+import type { ResolvedAgentWatchDefinition, WatchRunDue } from "../dist/watches/schema.js";
 import {
   createDefaultShrimpyWatches,
 } from "../dist/setup/defaults.js";

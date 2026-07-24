@@ -1,17 +1,15 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { createAppRuntime } from "../app/index.js";
+import { createAppRuntime } from "../app/runtime.js";
 import { readAppMetadata } from "../app/metadata.js";
 import { projectRoot } from "../app/project-root.js";
-import { createWorkspacePaths } from "../app/paths.js";
+import { createWorkspacePaths } from "../workspace/paths.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
-import type { ShrimpyConfig } from "../config/index.js";
+import type { ShrimpyConfig } from "../config/load.js";
 import {
   readGatewayServiceStatus,
-} from "../gateway/service-ctl.js";
-import {
-  resolveSessionModel,
-} from "../sessions/index.js";
+} from "../gateway/service/index.js";
+import { resolveSessionModel } from "../sessions/models.js";
 import {
   parseCommandArgs,
   printError,
@@ -105,10 +103,6 @@ async function buildUpdatePreflight(
     ...mechanicModel.problems,
     ...(git?.dirty ? [`install checkout has local changes: ${projectRoot}`] : []),
   ];
-  const versionLabel = git?.commit
-    ? `${metadata.version}@${git.commit}`
-    : metadata.version;
-
   return {
     dryRun,
     workspace: config.workspace,

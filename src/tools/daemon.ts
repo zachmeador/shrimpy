@@ -1,24 +1,11 @@
 import { Type } from "typebox";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
-import type {
-  PublicationIntent,
-  PublicationIntentKind,
-  PublicationUrgency,
-} from "../channels/index.js";
+import type { PublicationIntent, PublicationIntentKind, PublicationUrgency } from "../channels/messages.js";
 import type { ChannelBus } from "../channels/bus.js";
-import type { SessionBootstrap } from "../sessions/index.js";
-import {
-  type ResolvedToolRuntimeConfig,
-  resolveToolRuntimeConfig,
-} from "../config/index.js";
-import {
-  getToolProse,
-  renderPublicationResult,
-  renderReadChannelResult,
-  renderSendMessageResult,
-  TOOL_PARAMETER_PROSE,
-} from "../context/index.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
+import { type ResolvedToolRuntimeConfig, resolveToolRuntimeConfig } from "../config/tools.js";
+import { getToolProse, renderPublicationResult, renderReadChannelResult, renderSendMessageResult, TOOL_PARAMETER_PROSE } from "../context/system/tools.js";
 import {
   DAEMON_TOOL_NAMES,
   isActivePublicationToolName,
@@ -145,6 +132,34 @@ interface DaemonToolDeps {
   toolPolicy?: SessionToolPolicy;
   activePublicationChannel?: string;
   userPresencePath?: string;
+}
+
+export interface BuildRuntimeToolsOpts {
+  bootstrap: SessionBootstrap;
+  channelBus: ChannelBus;
+  toolConfig: ResolvedToolRuntimeConfig;
+  agentId?: string;
+  toolNames?: DaemonToolName[];
+  toolPolicy?: SessionToolPolicy;
+  actorId?: string;
+  activePublicationChannel?: string;
+  userPresencePath?: string;
+}
+
+export function buildRuntimeTools(
+  opts: BuildRuntimeToolsOpts,
+): ToolDefinition[] {
+  return createDaemonTools({
+    channelBus: opts.channelBus,
+    bootstrap: opts.bootstrap,
+    toolConfig: opts.toolConfig,
+    agentId: opts.agentId,
+    sendMessageActorId: opts.actorId,
+    activePublicationChannel: opts.activePublicationChannel,
+    userPresencePath: opts.userPresencePath,
+    toolNames: opts.toolNames,
+    toolPolicy: opts.toolPolicy,
+  });
 }
 
 export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {

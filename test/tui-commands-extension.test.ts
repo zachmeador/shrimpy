@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { createAppRuntime } from "../dist/app/runtime.js";
-import { createShrimpyTuiCommandExtensionFactory } from "../dist/tui/shrimpy-commands.js";
+import { createShrimpyTuiCommandExtensionFactory } from "../dist/tui/commands.js";
 
 test("Shrimpy TUI commands use public extension registration and custom UI", async () => {
   initTheme("dark", false);

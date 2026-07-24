@@ -8,8 +8,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { cmdGateway } from "../dist/commands/gateway.js";
-import { printGatewayStatus } from "../dist/commands/gateway-status.js";
+import { cmdGateway } from "../dist/commands/gateway/index.js";
+import { printGatewayStatus } from "../dist/commands/gateway/status.js";
 
 let workspace: string;
 

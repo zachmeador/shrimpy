@@ -16,12 +16,12 @@ test("TUI launch limits private compatibility to four named UX seams", () => {
     "installShrimpyTurnContextRendering",
   ]);
 
-  const settings = read("src/tui/shrimpy-settings.ts");
+  const settings = read("src/tui/settings.ts");
   assert.match(settings, /showSettingsSelector/);
   assert.match(settings, /showSelector/);
   assert.doesNotMatch(settings, /themeController|chatContainer|footer/);
 
-  const inlineCommands = read("src/tui/shrimpy-inline-commands.ts");
+  const inlineCommands = read("src/tui/inline-commands.ts");
   assert.match(inlineCommands, /setupEditorSubmitHandler/);
   assert.match(inlineCommands, /handleChangelogCommand/);
   assert.doesNotMatch(
@@ -29,12 +29,12 @@ test("TUI launch limits private compatibility to four named UX seams", () => {
     /handleClearCommand|renderTool|contextRenderer|ThinkingSelectorComponent/,
   );
 
-  const modelSelection = read("src/tui/shrimpy-model-selection.ts");
+  const modelSelection = read("src/tui/model-selection.ts");
   assert.match(modelSelection, /showModelSelector/);
   assert.match(modelSelection, /createBaseAutocompleteProvider/);
   assert.match(modelSelection, /modelFavorites/);
 
-  const turnContext = read("src/tui/shrimpy-turn-context-rendering.ts");
+  const turnContext = read("src/tui/turn-context-rendering.ts");
   assert.match(turnContext, /CustomMessageComponent\.prototype/);
   assert.match(turnContext, /TURN_CONTEXT_CUSTOM_TYPE/);
 

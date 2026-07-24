@@ -6,8 +6,15 @@ import {
   type EgressRegistry,
 } from "./egress.js";
 import type { ChannelMembershipStore } from "./membership.js";
-import { ChannelPublisher } from "./publisher.js";
 import {
+  agentTextMessageInput,
+  humanImageGroupMessageInput,
+  humanImageMessageInput,
+  humanTextMessageInput,
+  humanUnsupportedMediaMessageInput,
+  makeMessage,
+  statusMessageInput,
+  systemMessageInput,
   type ChannelMessage,
   type PublishAgentTextInput,
   type PublishChannelMessageInput,
@@ -28,14 +35,12 @@ import {
 
 interface ChannelBusDeps {
   store?: ChannelStore;
-  publisher?: ChannelPublisher;
   egress?: ChannelEgress;
   memberships?: ChannelMembershipStore;
 }
 
 export class ChannelBus {
   private readonly store: ChannelStore;
-  private readonly publisher: ChannelPublisher;
   private readonly egress: ChannelEgress;
   private readonly memberships?: ChannelMembershipStore;
 
@@ -45,7 +50,6 @@ export class ChannelBus {
     deps?: ChannelBusDeps,
   ) {
     this.store = deps?.store ?? new ChannelStore(channelsDir);
-    this.publisher = deps?.publisher ?? new ChannelPublisher(this.store);
     this.egress = deps?.egress ?? new EgressRegistryChannelEgress(egressRegistry);
     this.memberships = deps?.memberships;
   }
@@ -81,37 +85,45 @@ export class ChannelBus {
   }
 
   publish(input: PublishChannelMessageInput): ChannelMessage {
-    return this.publisher.publish(input);
+    const message = makeMessage({
+      sender: input.sender,
+      origin: input.origin,
+      content: input.content,
+      timestamp: input.timestamp,
+      id: input.id,
+    });
+    this.store.append(input.channel, message);
+    return message;
   }
 
   publishHumanText(input: PublishHumanTextInput): ChannelMessage {
-    return this.publisher.publishHumanText(input);
+    return this.publish(humanTextMessageInput(input));
   }
 
   publishAgentText(input: PublishAgentTextInput): ChannelMessage {
-    return this.publisher.publishAgentText(input);
+    return this.publish(agentTextMessageInput(input));
   }
 
   publishHumanImage(input: PublishHumanImageInput): ChannelMessage {
-    return this.publisher.publishHumanImage(input);
+    return this.publish(humanImageMessageInput(input));
   }
 
   publishHumanImageGroup(input: PublishHumanImageGroupInput): ChannelMessage {
-    return this.publisher.publishHumanImageGroup(input);
+    return this.publish(humanImageGroupMessageInput(input));
   }
 
   publishHumanUnsupportedMedia(
     input: PublishHumanUnsupportedMediaInput,
   ): ChannelMessage {
-    return this.publisher.publishHumanUnsupportedMedia(input);
+    return this.publish(humanUnsupportedMediaMessageInput(input));
   }
 
   publishSystem(input: PublishSystemInput): ChannelMessage {
-    return this.publisher.publishSystem(input);
+    return this.publish(systemMessageInput(input));
   }
 
   publishStatus(input: PublishStatusInput): ChannelMessage {
-    return this.publisher.publishStatus(input);
+    return this.publish(statusMessageInput(input));
   }
 
   async startActivity(

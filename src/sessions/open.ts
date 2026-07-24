@@ -18,7 +18,7 @@ import { buildContainedSystemPrompt } from "../context/contained-system-prompt.j
 import { assembleSessionPrompt } from "../context/session-prompt.js";
 import type { ModelRef } from "../config/model.js";
 import type { SessionBootstrap } from "./bootstrap.js";
-import { resolveSessionCompactionPolicy } from "./compaction-policy.js";
+import { resolveSessionCompactionPolicy } from "./compaction/policy.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 import type { SessionDescriptor, SessionOpenPlan } from "./spec.js";
 import {
@@ -28,7 +28,7 @@ import {
 import {
   createSessionRecordingExtensionFactory,
   recordSessionOpen,
-} from "./session-record.js";
+} from "./recording.js";
 import {
   openSessionManager,
 } from "./transcript-store.js";

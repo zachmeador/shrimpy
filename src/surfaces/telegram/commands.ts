@@ -1,17 +1,10 @@
 import type { ChannelBus } from "../../channels/bus.js";
-import {
-  sessionResetMessageInput,
-  sessionRestoreMessageInput,
-  sessionStopMessageInput,
-  sessionThinkingLevelMessageInput,
-  type MessageOrigin,
-  type MessageSender,
-} from "../../channels/index.js";
+import { sessionResetMessageInput, sessionRestoreMessageInput, sessionStopMessageInput, sessionThinkingLevelMessageInput, type MessageOrigin, type MessageSender } from "../../channels/protocol.js";
 import {
   formatThinkingInputs,
   parseThinkingLevel,
-} from "../../thinking.js";
-import type { ChannelMembershipStore } from "../../channels/index.js";
+} from "../../config/thinking.js";
+import type { ChannelMembershipStore } from "../../channels/membership.js";
 import {
   ensureSurfaceChannelMember,
   publishSurfaceAddressingChange,

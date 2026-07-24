@@ -4,13 +4,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
-import { resolveContextConfig } from "../dist/context/index.js";
-import {
-  createBootstrap,
-  createLocalSessionKey,
-  disposeSession,
-  openSession,
-} from "../dist/sessions/index.js";
+import { resolveContextConfig } from "../dist/context/spec.js";
+import { createBootstrap } from "../dist/sessions/bootstrap.js";
+import { createLocalSessionKey } from "../dist/sessions/identity.js";
+import { disposeSession, openSession } from "../dist/sessions/open.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
 let workspace: string;

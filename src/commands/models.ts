@@ -1,36 +1,21 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { createAppRuntime } from "../app/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { DEFAULT_MODEL_POLICY, formatModelRef, parseModelRef, sameModelRef, toModelRef, type ModelRef, type ModelPoliciesConfig, type ModelSelectionConfig } from "../config/model.js";
 import {
-  DEFAULT_MODEL_POLICY,
-  formatModelRef,
-  parseModelRef,
-  sameModelRef,
-  toModelRef,
-  validateModelPoliciesConfig,
-  type ModelRef,
-  type ModelPoliciesConfig,
-  type ModelPolicyConfig,
-  type ModelSelectionConfig,
-  type ShrimpyConfig,
-} from "../config/index.js";
-import { editConfigFile } from "../config/store.js";
+  editModelPolicies,
+  parseModelPolicyIndex,
+  requireModelPolicy,
+  uniqueModelCandidates,
+} from "../config/model-policies.js";
+import type { ShrimpyConfig } from "../config/load.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
-import {
-  formatSessionId,
-  parseSessionId,
-  resolveModelPolicy,
-  resolveSessionModel,
-  sessionRootPath,
-  shouldRestoreSavedSessionModel,
-  type ModelPolicyResolution,
-  type ModelResolution,
-  type SessionModelRequest,
-} from "../sessions/index.js";
+import { formatSessionId, parseSessionId, sessionRootPath } from "../sessions/identity.js";
+import { resolveModelPolicy, resolveSessionModel, shouldRestoreSavedSessionModel } from "../sessions/models.js";
+import type { ModelPolicyResolution, ModelResolution, SessionModelRequest } from "../sessions/model-types.js";
 import { readSessionRecordedModel } from "../sessions/transcript-store.js";
 import {
   addOpenAICompatibleModel,
 } from "../setup/pi-model-registry.js";
-import { isRecord } from "../util/record.js";
 import {
   createCommandGroup,
   parseCommandArgs,
@@ -265,8 +250,8 @@ async function cmdModelPoliciesSet(
     return printError("models policies set requires at least one --candidate <provider>/<model>");
   }
 
-  const result = editPolicies(config.workspace, (policies) => {
-    policies[name] = { candidates: uniqueCandidates(candidates) };
+  const result = editModelPolicies(config.workspace, (policies) => {
+    policies[name] = { candidates: uniqueModelCandidates(candidates) };
   });
   return printPolicyMutation("set", name, result, values.json);
 }
@@ -287,14 +272,14 @@ async function cmdModelPoliciesAddCandidate(
   });
   const name = requireArg(positionals[0], USAGE, "policy name");
   const candidate = parseModelRef(requireArg(positionals[1], USAGE, "candidate"));
-  const result = editPolicies(config.workspace, (policies) => {
-    const policy = requirePolicy(policies, name);
-    const candidates = uniqueCandidates([
+  const result = editModelPolicies(config.workspace, (policies) => {
+    const policy = requireModelPolicy(policies, name);
+    const candidates = uniqueModelCandidates([
       ...policy.candidates.filter((existing) => !sameModelRef(existing, candidate)),
     ]);
     const index = values.index === undefined
       ? candidates.length
-      : parseIndex(values.index, candidates.length);
+      : parseModelPolicyIndex(values.index, candidates.length);
     candidates.splice(index, 0, candidate);
     policies[name] = { candidates };
   });
@@ -316,8 +301,8 @@ async function cmdModelPoliciesRemoveCandidate(
   });
   const name = requireArg(positionals[0], USAGE, "policy name");
   const candidate = parseModelRef(requireArg(positionals[1], USAGE, "candidate"));
-  const result = editPolicies(config.workspace, (policies) => {
-    const policy = requirePolicy(policies, name);
+  const result = editModelPolicies(config.workspace, (policies) => {
+    const policy = requireModelPolicy(policies, name);
     const candidates = policy.candidates.filter((existing) => !sameModelRef(existing, candidate));
     if (candidates.length === policy.candidates.length) {
       throw new Error(`candidate not found in ${name}: ${formatModelRef(candidate)}`);
@@ -344,8 +329,8 @@ async function cmdModelPoliciesMoveCandidate(
   const name = requireArg(positionals[0], USAGE, "policy name");
   const candidate = parseModelRef(requireArg(positionals[1], USAGE, "candidate"));
   if (values.index === undefined) return printError("move-candidate requires --index <n>");
-  const result = editPolicies(config.workspace, (policies) => {
-    const policy = requirePolicy(policies, name);
+  const result = editModelPolicies(config.workspace, (policies) => {
+    const policy = requireModelPolicy(policies, name);
     const currentIndex = policy.candidates.findIndex((existing) => sameModelRef(existing, candidate));
     if (currentIndex < 0) {
       throw new Error(`candidate not found in ${name}: ${formatModelRef(candidate)}`);
@@ -353,7 +338,7 @@ async function cmdModelPoliciesMoveCandidate(
     const candidates = [...policy.candidates];
     const [removed] = candidates.splice(currentIndex, 1);
     if (!removed) throw new Error(`candidate not found in ${name}: ${formatModelRef(candidate)}`);
-    const nextIndex = parseIndex(values.index!, candidates.length);
+    const nextIndex = parseModelPolicyIndex(values.index!, candidates.length);
     candidates.splice(nextIndex, 0, removed);
     policies[name] = { candidates };
   });
@@ -671,46 +656,6 @@ function printAvailableModels(
   }
 }
 
-function editPolicies(
-  workspace: string,
-  edit: (policies: ModelPoliciesConfig) => void,
-): {
-  configPath: string;
-  policies: ModelPoliciesConfig;
-} {
-  let policies: ModelPoliciesConfig = {};
-  const { configPath } = editConfigFile(workspace, (raw) => {
-    policies = clonePolicies(raw.modelPolicies);
-    edit(policies);
-    validateModelPoliciesConfig(policies);
-    raw.modelPolicies = policies;
-  }, { missing: "error" });
-  return { configPath, policies };
-}
-
-function clonePolicies(raw: unknown): ModelPoliciesConfig {
-  if (!isRecord(raw)) return {};
-  return Object.fromEntries(
-    Object.entries(raw).map(([name, value]) => {
-      const policy = value as Partial<ModelPolicyConfig>;
-      return [
-        name,
-        {
-          candidates: Array.isArray(policy.candidates)
-            ? policy.candidates.map((candidate) => ({ ...candidate }))
-            : [],
-        },
-      ];
-    }),
-  ) as ModelPoliciesConfig;
-}
-
-function requirePolicy(policies: ModelPoliciesConfig, name: string): ModelPolicyConfig {
-  const policy = policies[name];
-  if (!policy) throw new Error(`model policy not found: ${name}`);
-  return policy;
-}
-
 function printPolicyMutation(
   action: string,
   name: string,
@@ -734,24 +679,4 @@ function printPolicyMutation(
     console.log(`candidates: ${body.modelPolicy?.candidates.map((candidate) => formatModelRef(candidate)).join(", ") ?? "(missing)"}`);
   }
   return 0;
-}
-
-function parseIndex(raw: string, maxInclusive: number): number {
-  const index = Number(raw);
-  if (!Number.isInteger(index) || index < 0 || index > maxInclusive) {
-    throw new Error(`index must be an integer from 0 to ${maxInclusive}`);
-  }
-  return index;
-}
-
-function uniqueCandidates(candidates: ModelSelectionConfig[]): ModelSelectionConfig[] {
-  const seen = new Set<string>();
-  const unique: ModelSelectionConfig[] = [];
-  for (const candidate of candidates) {
-    const id = formatModelRef(candidate);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    unique.push(candidate);
-  }
-  return unique;
 }

@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import type { AppRuntime } from "../../app/runtime.js";
 import type { ChannelBus } from "../../channels/bus.js";
 import type {
   ChannelActivityHandle,
@@ -11,6 +10,7 @@ import {
   writeJsonFileAtomic,
 } from "../../util/json-file.js";
 import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
+import type { SurfaceRuntime } from "../shared/module.js";
 import type { GatewaySurface, SurfaceEgress } from "../shared/types.js";
 import { UserPresenceStore } from "../shared/user-presence.js";
 import { TelegramChannelBridge } from "./bridge.js";
@@ -130,7 +130,7 @@ class TelegramGatewaySurface
   private started = false;
 
   constructor(
-    runtime: AppRuntime,
+    runtime: SurfaceRuntime,
     channelBus: ChannelBus,
     identityStore: IdentityStore,
     surfaceThreadStateStore: SurfaceThreadStateStore,
@@ -230,7 +230,7 @@ function publishTelegramUpdateError(
 }
 
 export function createTelegramSurfaceEgresses(
-  runtime: AppRuntime,
+  runtime: SurfaceRuntime,
   resolved: { instances: ResolvedTelegramInstanceConfig[] },
 ): SurfaceEgress[] {
   void runtime;
@@ -244,7 +244,7 @@ export function createTelegramSurfaceEgresses(
 }
 
 export function createTelegramGatewaySurfaces(opts: {
-  runtime: AppRuntime;
+  runtime: SurfaceRuntime;
   channelBus: ChannelBus;
   identityStore: IdentityStore;
   surfaceThreadStateStore: SurfaceThreadStateStore;

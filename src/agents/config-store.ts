@@ -7,7 +7,7 @@ import {
   editConfigFile,
   readConfigFile,
 } from "../config/store.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 
 export interface AgentWorkspaceConfig {
   workspace: string;

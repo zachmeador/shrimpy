@@ -1,8 +1,6 @@
 import type { ChannelBus } from "../../channels/bus.js";
-import type {
-  MessageSender,
-  UnsupportedSurfaceMessage,
-} from "../../channels/index.js";
+import type { MessageSender } from "../../channels/protocol.js";
+import type { UnsupportedSurfaceMessage } from "../../channels/messages.js";
 import type { SurfaceThreadStateStore } from "./thread-state-store.js";
 
 export type ChatHumanMessageBase<TTransport extends string = string> = {

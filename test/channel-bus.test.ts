@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ChannelBus } from "../dist/channels/bus.js";
-import { readMessages } from "../dist/channels/index.js";
+import { readMessages } from "../dist/channels/store.js";
 
 let testDir: string;
 

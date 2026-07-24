@@ -30,7 +30,7 @@ import {
   type Context,
   type Model,
 } from "@earendil-works/pi-ai";
-import { makeMessage } from "../dist/channels/index.js";
+import { makeMessage } from "../dist/channels/protocol.js";
 import { SessionPool } from "../dist/sessions/pool.js";
 import { assembleSessionPrompt } from "../dist/context/session-prompt.js";
 import {
@@ -41,10 +41,8 @@ import {
 } from "../dist/sessions/turn-context.js";
 import { createShrimpyResourceLoader } from "../dist/sessions/pi-resources.js";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
-import {
-  formatChannelMessage,
-  renderTurnContext,
-} from "../dist/context/index.js";
+import { formatChannelMessage } from "../dist/context/turn/channel-message.js";
+import { renderTurnContext } from "../dist/context/turn/render.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 

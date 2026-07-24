@@ -1,4 +1,4 @@
-import type { GatewayStatusConfig } from "../config/index.js";
+import type { GatewayStatusConfig } from "../config/gateway-status.js";
 import type { WatchDefinition } from "../watches/schema.js";
 
 const DEFAULT_WATCH_MAINTENANCE_CHANNEL = "maintenance";

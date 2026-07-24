@@ -1,12 +1,12 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { PromptResourceRef } from "../context/index.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { PromptResourceRef } from "../context/resources.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 import type { SessionToolPolicy } from "../tools/policy.js";
 import type {
   ModelResolution,
   SessionModelRequest,
-} from "./models.js";
+} from "./model-types.js";
 import type { PrepareSessionTurnContext } from "./turn-context.js";
 import type { SessionKey } from "./identity.js";
 import { sessionRootPath } from "./identity.js";

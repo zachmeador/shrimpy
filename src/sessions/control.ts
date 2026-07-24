@@ -1,24 +1,17 @@
 import { basename } from "node:path";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  type ChannelMessage,
-  type OperationStatusContentData,
-  readOperationStatusContent,
-  sessionResetMessageInput,
-  sessionRestoreMessageInput,
-  sessionSettingsMessageInput,
-  sessionStopMessageInput,
-} from "../channels/index.js";
+import { type ChannelMessage, sessionResetMessageInput, sessionRestoreMessageInput, sessionSettingsMessageInput, sessionStopMessageInput } from "../channels/protocol.js";
+import { type OperationStatusContentData, readOperationStatusContent } from "../channels/messages.js";
 import type { ModelRef } from "../config/model.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 import { formatSessionId, type SessionKey } from "./identity.js";
 import {
   acquireMaintenanceLease,
   readSessionOwner,
   type SessionOwner,
 } from "./ownership.js";
-import { resolveSessionDescriptor } from "./catalog.js";
+import { resolveSessionDescriptor } from "./inventory.js";
 import {
   archiveActiveSession,
   findActiveSessionFile,

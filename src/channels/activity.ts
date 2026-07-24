@@ -1,12 +1,9 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { readMessages, type ChannelMessage } from "./index.js";
-import {
-  resolveGatewayStatusConfig,
-  type GatewayStatusConfig,
-  type ResolvedWatchedWatchStatusConfig,
-} from "../config/index.js";
-import { loadWatchClockState } from "../watches/index.js";
+import { readMessages } from "./store.js";
+import type { ChannelMessage } from "./protocol.js";
+import { resolveGatewayStatusConfig, type GatewayStatusConfig, type ResolvedWatchedWatchStatusConfig } from "../config/gateway-status.js";
+import { loadWatchClockState } from "../watches/clock-state.js";
 
 export interface ChannelMessageSnapshot {
   channel: string;

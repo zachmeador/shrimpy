@@ -8,7 +8,7 @@ import { createAppRuntime } from "../dist/app/runtime.js";
 import {
   installShrimpySettingsSelector,
   type ShrimpySettingsSelectorOptions,
-} from "../dist/tui/shrimpy-settings.js";
+} from "../dist/tui/settings.js";
 
 test("/settings preserves the Shrimpy/Pi landing page", () => {
   initTheme("dark", false);

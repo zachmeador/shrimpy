@@ -26,7 +26,7 @@ git log -1 --oneline
 npm pkg get version
 ```
 
-If the previous version or target version is known, compare it to the installed source with `git diff --name-status <old>..<new> -- src docs/reference test`. If it is not known, inspect the current source areas most likely to affect workspace shape: `src/setup/`, `src/config/`, `src/commands/`, `src/sessions/`, `src/skills/`, `src/workspace-checkpoints/`, and `docs/reference/`.
+If the previous version or target version is known, compare it to the installed source with `git diff --name-status <old>..<new> -- src docs/reference test`. If it is not known, inspect the current source areas most likely to affect workspace shape: `src/setup/`, `src/config/`, `src/commands/`, `src/sessions/`, `src/skills/`, `src/workspace/checkpoints/`, and `docs/reference/`.
 
 ## Inventory Workspace Impact
 

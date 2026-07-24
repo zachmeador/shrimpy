@@ -2,7 +2,7 @@ import {
   existsSync,
   readFileSync,
 } from "node:fs";
-import { createWorkspacePaths } from "../app/index.js";
+import { createWorkspacePaths } from "../workspace/paths.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import { editConfigFile } from "../config/store.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";

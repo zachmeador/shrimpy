@@ -1,14 +1,9 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import {
-  createAppRuntime,
-  createWorkspacePaths,
-} from "../app/index.js";
-import {
-  hasPrimaryConfig,
-  loadConfigForWorkspace,
-  type ShrimpyConfig,
-} from "../config/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { createWorkspacePaths } from "../workspace/paths.js";
+import { hasPrimaryConfig } from "../workspace/paths.js";
+import { loadConfigForWorkspace, type ShrimpyConfig } from "../config/load.js";
 import {
   DEFAULT_MODEL_POLICY,
 } from "../config/model.js";

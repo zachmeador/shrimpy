@@ -1,7 +1,6 @@
-import type { AppRuntime } from "../../app/runtime.js";
 import type { ChannelBus } from "../../channels/bus.js";
-import type { ChannelMembershipStore } from "../../channels/index.js";
-import { surfaceAddressingStatusContent } from "../../channels/index.js";
+import type { ChannelMembershipStore } from "../../channels/membership.js";
+import { surfaceAddressingStatusContent } from "../../channels/messages.js";
 
 export interface SurfaceAddressingChange {
   surface: string;
@@ -48,11 +47,9 @@ export function ensureSurfaceChannelMember(input: {
 }
 
 export function resolveSurfaceThreadChannel(
-  runtime: AppRuntime,
   surface: string,
   threadId: string,
 ): string | null {
-  void runtime;
   const [adapter, instance] = surface.split(".");
   if (!adapter || !instance || !threadId) return null;
   return `${adapter}~${instance}~${threadId}`;

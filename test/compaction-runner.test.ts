@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   compactSessionHistory,
   resolveCompactionMaxTokens,
-} from "../dist/sessions/compaction-runner.js";
+} from "../dist/sessions/compaction/runner.js";
 
 const localModel = {
   provider: "local_llm",

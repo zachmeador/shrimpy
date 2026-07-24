@@ -1,7 +1,7 @@
 import {
   searchWorkspaceKnowledge,
   type WorkspaceSearchResultItem,
-} from "../../search/workspace.js";
+} from "../../workspace/search.js";
 import type {
   TurnContextInput,
   TurnContextItem,

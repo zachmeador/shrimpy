@@ -1,7 +1,4 @@
-import {
-  inspectWatches,
-  type WatchInspection,
-} from "../../watches/index.js";
+import { inspectWatches, type WatchInspection } from "../../watches/inspection.js";
 import {
   formatAgeShort,
   formatFutureOrPast,

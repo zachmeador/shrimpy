@@ -5,6 +5,7 @@ import type { AppRuntime } from "../app/runtime.js";
 import { isRecord } from "../util/record.js";
 import { formatSessionId } from "./identity.js";
 import { listSessionDescriptors } from "./manifest.js";
+import type { SessionLifecycleState } from "./transcript-store.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
 const DEFAULT_SEARCH_LIMIT = 25;
@@ -12,7 +13,6 @@ const DEFAULT_READ_WINDOW = 3;
 const SEARCH_SNIPPET_CHARS = 220;
 const READ_SNIPPET_CHARS = 420;
 
-export type SessionLifecycleState = "active" | "archived";
 export type SessionSearchMatchKind = "text" | "tool" | "command";
 
 export interface SessionSearchMatch {

@@ -4,20 +4,15 @@ import {
   type DefaultResourceLoader,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import {
-  assembleBasePromptSections,
-  assemblePromptContext,
-  createPromptSection,
-  FALLBACK_IDENTITY_TEXT,
-  resolveBootEnv,
-  type BootEnv,
-  type ResolvedContextConfig,
-  type PromptResourceRef,
-  type PromptSection,
-} from "../context/index.js";
-import type { RuntimeConfig, ShrimpyConfig } from "../config/index.js";
-import { resolveAgentsConfig } from "../config/index.js";
-import { listEffectiveSkillEntryPathsFromPaths } from "../skills/index.js";
+import { assembleBasePromptSections, assemblePromptContext } from "../context/assembly.js";
+import { createPromptSection, type PromptResourceRef, type PromptSection } from "../context/resources.js";
+import { FALLBACK_IDENTITY_TEXT } from "../context/system/prompts.js";
+import { resolveBootEnv, type BootEnv } from "../context/env.js";
+import type { ResolvedContextConfig } from "../context/spec.js";
+import type { RuntimeConfig } from "../config/runtime.js";
+import type { ModelPoliciesConfig } from "../config/model.js";
+import { resolveAgentsConfig } from "../config/agents.js";
+import { listEffectiveSkillEntryPathsFromPaths } from "../skills/catalog.js";
 import { createShrimpyResourceLoader } from "./pi-resources.js";
 import { resolveAgentToolPolicy } from "../tools/policy.js";
 
@@ -31,7 +26,7 @@ export interface SessionBootstrap {
   workspacePath: string;
   authPath: string;
   modelsPath: string;
-  config: ShrimpyConfig;
+  modelPolicies?: ModelPoliciesConfig;
   contextConfig: ResolvedContextConfig;
   runtimeConfig: Required<RuntimeConfig>;
   bootEnv: BootEnv;
@@ -41,7 +36,10 @@ export interface SessionBootstrap {
 }
 
 interface SessionBootstrapSource {
-  config: ShrimpyConfig;
+  config: {
+    agents?: unknown;
+    modelPolicies?: ModelPoliciesConfig;
+  };
   agentId: string;
   agentRootPath: string;
   workspacePath: string;
@@ -151,7 +149,7 @@ export async function createBootstrap(
     workspacePath,
     authPath: source.authPath,
     modelsPath: source.modelsPath,
-    config,
+    modelPolicies: config.modelPolicies,
     contextConfig,
     runtimeConfig,
     bootEnv,

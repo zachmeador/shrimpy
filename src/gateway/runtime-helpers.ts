@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
 import type { AppRuntime } from "../app/runtime.js";
-import type { SessionBootstrap } from "../sessions/index.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
 
 export function logGatewayStartup(runtime: AppRuntime): void {
   console.log(`[gateway] workspace: ${runtime.paths.workspace}`);

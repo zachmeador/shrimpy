@@ -1,7 +1,7 @@
 import {
   isThinkingLevel,
   type ThinkingLevel,
-} from "../thinking.js";
+} from "../config/thinking.js";
 import type { ModelRef } from "../config/model.js";
 import { isRecord } from "../util/record.js";
 

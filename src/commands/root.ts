@@ -1,16 +1,14 @@
 import { existsSync } from "node:fs";
-import {
-  primaryConfigPath,
-  type ShrimpyConfig,
-} from "../config/index.js";
+import { primaryConfigPath } from "../workspace/paths.js";
+import type { ShrimpyConfig } from "../config/load.js";
 import {
   isSetupReady,
   resolveSetupState,
 } from "../setup/state.js";
-import { resolveMostRecentInteractiveAgentId } from "../sessions/catalog.js";
+import { resolveMostRecentInteractiveAgentId } from "../sessions/inventory.js";
 import { formatVersionLabel } from "../app/metadata.js";
 import { brand } from "../util/style.js";
-import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
+import { bootstrapInteractiveCompletion } from "./completion/runtime.js";
 import {
   CommandError,
   parseCommandArgs,
@@ -22,7 +20,7 @@ import { createShrimpyTuiCommand } from "./tui.js";
 import {
   MODEL_SESSION_OPTIONS,
   readModelSessionValues,
-} from "./agent-helpers.js";
+} from "./agent/helpers.js";
 
 export const cmdRootTui: CommandHandler = async (
   rawArgs: string[],

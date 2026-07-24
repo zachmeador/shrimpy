@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { createAgentPaths, type AgentPaths } from "../app/paths.js";
+import { createAgentPaths, type AgentPaths } from "../workspace/paths.js";
 import { loadSetupTemplate } from "../setup/templates.js";
 
 export function scaffoldAgentFiles(

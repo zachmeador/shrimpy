@@ -1,4 +1,4 @@
-import { createAppRuntime } from "../app/index.js";
+import { createAppRuntime } from "../app/runtime.js";
 import { IdentityStore } from "../gateway/identity-store.js";
 import { UserPresenceStore } from "../surfaces/shared/user-presence.js";
 import {

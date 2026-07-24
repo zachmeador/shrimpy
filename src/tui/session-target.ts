@@ -11,7 +11,7 @@ import type {
   OpenSessionRuntimeTarget,
   SessionRuntimeFactoryInput,
 } from "../sessions/open.js";
-import { summarizeNavigableSessions, type NavigableSessionSummary } from "../sessions/catalog.js";
+import { summarizeNavigableSessions, type NavigableSessionSummary } from "../sessions/inventory.js";
 
 export interface ShrimpyTuiTarget {
   agentId: string;

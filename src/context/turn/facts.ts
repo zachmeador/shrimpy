@@ -4,10 +4,10 @@ import {
 } from "../../agents/channel-policy.js";
 import type { AppRuntime } from "../../app/runtime.js";
 import { resolveAgentDmMembers } from "../../channels/dm.js";
-import type { ChannelMessage } from "../../channels/index.js";
+import type { ChannelMessage } from "../../channels/protocol.js";
 import type { SessionDescriptor } from "../../sessions/spec.js";
 import { sessionChannel } from "../../sessions/spec.js";
-import { formatAgentDateTime } from "./time.js";
+import { formatAgentCurrentTime } from "../../util/time-format.js";
 import type { TurnContextItem } from "./types.js";
 
 interface TurnFactInput {
@@ -126,7 +126,7 @@ function buildWatchItem(message: ChannelMessage): TurnContextItem | undefined {
     pieces.push(`action ${message.origin.watch.actionKind}`);
   }
   if (message.origin.runId) pieces.push(`run ${message.origin.runId}`);
-  pieces.push(`fired ${formatAgentDateTime(message.timestamp)}`);
+  pieces.push(`fired ${formatAgentCurrentTime(message.timestamp)}`);
 
   return {
     id: `turn:${message.id}:watch`,

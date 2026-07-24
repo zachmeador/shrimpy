@@ -8,7 +8,7 @@ import shrimpyActivityIndicator, {
 import {
   createShrimpyFooterExtensionFactory,
   renderShrimpyActivityFooter,
-} from "../dist/tui/shrimpy-footer.js";
+} from "../dist/tui/footer.js";
 
 test("Shrimpy activity indicator configures Pi's public TUI working indicator", () => {
   let sessionStart: SessionStartHandler | undefined;

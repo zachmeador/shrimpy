@@ -18,7 +18,7 @@ export const cmdSetup: CommandHandler = createCommandGroup({
   },
   commands: {
     telegram: async ({ config }) => {
-      const { setupTelegram } = await import("../setup/telegram.js");
+      const { setupTelegram } = await import("../surfaces/telegram/setup.js");
       await setupTelegram(config.workspace);
       return 0;
     },

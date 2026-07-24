@@ -6,7 +6,7 @@ import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
-import { resolveAgentDmMembers } from "./dm.js";
+import { buildAgentDmChannel, resolveAgentDmMembers } from "./dm.js";
 import {
   deriveChannelManifest,
   normalizeChannelManifest,
@@ -153,6 +153,41 @@ export function defaultChannelMembers(
 
 export function channelAgentIds(membership: ChannelMembership): string[] {
   return Object.keys(membership.agents).sort();
+}
+
+export function ensureChannelMembership(
+  memberships: ChannelMembershipStore,
+  channel: string,
+): ChannelMembership {
+  return memberships.seedChannel(channel);
+}
+
+export function ensureDirectMessageChannel(
+  memberships: ChannelMembershipStore,
+  agentA: string,
+  agentB: string,
+): {
+  channel: string;
+  membership: ChannelMembership;
+} {
+  const channel = buildAgentDmChannel(agentA, agentB);
+  return {
+    channel,
+    membership: memberships.seedChannel(channel),
+  };
+}
+
+export function updateChannelMembership(
+  memberships: ChannelMembershipStore,
+  input: {
+    action: "join" | "leave";
+    channel: string;
+    agentId: string;
+  },
+): ChannelMembership {
+  return input.action === "join"
+    ? memberships.addAgent(input.channel, input.agentId)
+    : memberships.removeAgent(input.channel, input.agentId);
 }
 
 export class ChannelMembershipStore {

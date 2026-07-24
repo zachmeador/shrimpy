@@ -8,7 +8,7 @@ import {
   releaseGatewayPid,
   type GatewayClaimOptions,
 } from "./pid-file.js";
-import type { GatewayServiceStatus } from "./service-ctl.js";
+import type { GatewayServiceStatus } from "./service/index.js";
 import type { SurfaceHealthSnapshot } from "../surfaces/shared/types.js";
 
 export interface GatewayHealthRecord {

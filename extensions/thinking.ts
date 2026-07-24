@@ -8,7 +8,7 @@ import {
   formatThinkingInputs,
   parseThinkingLevel,
   THINKING_LEVELS,
-} from "../src/thinking.ts";
+} from "../src/config/thinking.ts";
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("thinking", {

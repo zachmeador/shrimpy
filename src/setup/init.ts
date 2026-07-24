@@ -4,33 +4,24 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import {
-  createAgentPaths,
-  createWorkspacePaths,
-  ensureShrimpyRuntimeEnvironment,
-} from "../app/index.js";
+import { createAgentPaths, createWorkspacePaths } from "../workspace/paths.js";
+import { ensureShrimpyRuntimeEnvironment } from "../app/environment.js";
 import { writeChannelMemberships } from "../channels/membership.js";
-import {
-  configDir,
-  hasPrimaryConfig,
-} from "../config/index.js";
+import { configDir, hasPrimaryConfig } from "../workspace/paths.js";
 import { editConfigFile } from "../config/store.js";
-import {
-  DEFAULT_CONTEXT_ENV,
-  DEFAULT_CONTEXT_SOURCES,
-} from "../context/index.js";
+import { DEFAULT_CONTEXT_ENV, DEFAULT_CONTEXT_SOURCES } from "../context/spec.js";
 import { DEFAULT_MODEL_POLICY } from "../config/model.js";
 import {
   gatewayServiceManager,
   gatewayServicePaths,
-} from "../gateway/service-ctl.js";
+} from "../gateway/service/index.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { refreshWorkerBackendAvailability } from "../workers/availability.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { heading } from "../util/style.js";
 import { listAssignedIncludedSkillDefinitions } from "../skills/included.js";
-import { prepareIncludedPackageSource } from "../skills/package-sources.js";
-import { installIncludedSkillPackageCopy } from "../skills/packages.js";
+import { prepareIncludedPackageSource } from "../skills/packages/sources.js";
+import { installIncludedSkillPackageCopy } from "../skills/packages/operations.js";
 import {
   createDefaultMechanicWatches,
   createDefaultShrimpyWatches,

@@ -11,12 +11,12 @@ import {
   renderGroupUsage,
   resolveConfigRequirement,
 } from "../dist/commands/catalog.js";
-import { renderShellCompletion } from "../dist/commands/completion-script.js";
+import { renderShellCompletion } from "../dist/commands/completion/script.js";
 import {
   installCompletion,
   isCompletionInstalled,
   resolveCompletionCachePath,
-} from "../dist/commands/completion-runtime.js";
+} from "../dist/commands/completion/runtime.js";
 import { renderCliHelp } from "../dist/commands/help.js";
 
 describe("CLI catalog", () => {
@@ -133,8 +133,8 @@ describe("CLI catalog", () => {
   test("command catalog keeps command handlers lazy", async () => {
     const catalog = readFileSync("dist/commands/catalog.js", "utf-8");
 
-    assert.doesNotMatch(catalog, /from "\.\/channels\.js"/);
-    assert.match(catalog, /import\("\.\/channels\.js"\)/);
+    assert.doesNotMatch(catalog, /from "\.\/channels\/index\.js"/);
+    assert.match(catalog, /import\("\.\/channels\/index\.js"\)/);
     assert.equal("handler" in COMMAND_REGISTRY.channels, false);
     assert.equal(typeof COMMAND_REGISTRY.channels.load, "function");
     assert.equal((await COMMAND_REGISTRY.channels.load()).name, "cmdChannels");

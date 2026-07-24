@@ -2,9 +2,9 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
-import { buildTurnContext } from "../context/turn/service.js";
+import { buildTurnContext } from "../context/turn/builder.js";
 import { renderTurnContext } from "../context/turn/render.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 import type {
   AgentToolPolicy,
   SessionToolPolicy,
@@ -19,7 +19,7 @@ import {
   resolveSessionModel,
   shouldRestoreSavedSessionModel,
 } from "./models.js";
-import type { SessionModelRequest } from "./models.js";
+import type { SessionModelRequest } from "./model-types.js";
 import type { SessionKey } from "./identity.js";
 import {
   createSessionDescriptor,

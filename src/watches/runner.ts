@@ -1,9 +1,6 @@
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  textContent,
-  type ChannelMessage,
-  type MessageWatchProvenance,
-} from "../channels/index.js";
+import { textContent } from "../channels/messages.js";
+import type { ChannelMessage, MessageWatchProvenance } from "../channels/protocol.js";
 import {
   clip,
   renderCommandEmitText,
@@ -20,7 +17,7 @@ import {
   markWatchRunActive,
   type WatchRunObservation,
   type WatchRunRecord,
-} from "./run-store.js";
+} from "./runs.js";
 import type {
   ResolvedAgentWatchDefinition,
   WatchEmitConfig,

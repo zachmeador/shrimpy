@@ -1,12 +1,10 @@
-import { createAppRuntime } from "../app/index.js";
-import {
-  parseSessionId,
-  runForegroundAgentPrompt,
-} from "../sessions/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { parseSessionId } from "../sessions/identity.js";
+import { runForegroundAgentPrompt } from "../sessions/foreground.js";
 import {
   MODEL_SESSION_OPTIONS,
   readModelSessionValues,
-} from "./agent-helpers.js";
+} from "./agent/helpers.js";
 import {
   parseCommandArgs,
   usage,

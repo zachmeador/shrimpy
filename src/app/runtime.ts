@@ -15,7 +15,7 @@ import {
   type ResolvedGatewayStatusConfig,
   resolveGatewayStatusConfig,
 } from "../config/gateway-status.js";
-import type { ShrimpyConfig } from "../config/index.js";
+import type { ShrimpyConfig } from "../config/load.js";
 import {
   type ResolvedToolRuntimeConfig,
   resolveToolRuntimeConfig,
@@ -33,8 +33,8 @@ import {
   resolveSurfaceDefaultAgentIds,
   surfaceModules,
   SurfaceThreadStateStore,
-} from "../surfaces/index.js";
-import type { SurfaceModuleResolved } from "../surfaces/index.js";
+} from "../surfaces/registry.js";
+import type { SurfaceModuleResolved } from "../surfaces/shared/module.js";
 import type { DaemonToolName } from "../tools/names.js";
 import {
   resolveAgentToolPolicy as resolveAgentToolPolicyForConfig,
@@ -46,7 +46,7 @@ import {
   createWorkspacePaths,
   type AgentPaths,
   type WorkspacePaths,
-} from "./paths.js";
+} from "../workspace/paths.js";
 import {
   ensureShrimpyRuntimeEnvironment,
   type ShrimpyRuntimeEnvironment,
@@ -183,7 +183,7 @@ export class AppRuntime {
   }
 
   async buildRuntimeTools(opts: AppRuntimeBuildToolsOpts): Promise<ToolDefinition[]> {
-    const { buildRuntimeTools } = await import("../tools/factory.js");
+    const { buildRuntimeTools } = await import("../tools/daemon.js");
     return buildRuntimeTools({
       bootstrap: opts.bootstrap,
       channelBus: opts.channelBus,

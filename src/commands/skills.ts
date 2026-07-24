@@ -1,13 +1,8 @@
-import { createAppRuntime } from "../app/index.js";
-import {
-  addSkillPackage,
-  inspectSkills,
-  loadSkillPrompt,
-  removeSkillPackage,
-  scaffoldSkill,
-  updateSkillPackage,
-  validateSkills,
-} from "../skills/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { addSkillPackage, removeSkillPackage, updateSkillPackage } from "../skills/packages/operations.js";
+import { inspectSkills, loadSkillPrompt } from "../skills/catalog.js";
+import { scaffoldSkill } from "../skills/scaffold.js";
+import { validateSkills } from "../skills/validation.js";
 import {
   CommandError,
   createCommandGroup,

@@ -8,7 +8,7 @@ import {
   type Context,
   type Model,
 } from "@earendil-works/pi-ai";
-import { createAppRuntime } from "../dist/app/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
 import { createLocalSessionKey } from "../dist/sessions/identity.js";
 import {
   inspectSessionContext,

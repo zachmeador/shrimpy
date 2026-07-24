@@ -1,21 +1,16 @@
 import { AgentChannelRuntime } from "../agents/channel-runtime.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  loadCursors,
-  saveCursors,
-  type ChannelMembershipStore,
-  type ChannelCursor,
-  type ChannelMessage,
-  type ChannelWatcher,
-} from "../channels/index.js";
-import { classifyChannelMessage } from "../channels/service.js";
+import { loadCursors, saveCursors, type ChannelCursor, type ChannelWatcher } from "../channels/store.js";
+import type { ChannelMembershipStore } from "../channels/membership.js";
+import type { ChannelMessage } from "../channels/protocol.js";
+import { classifyChannelMessage } from "../channels/inspection.js";
 import {
   getSessionControlTargetAgentId,
   SessionControlRuntime,
   type DispatchSource,
 } from "./session-control-runtime.js";
-import { type SessionBootstrap } from "../sessions/index.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import {
   GatewayRuntimeStateStore,
   gatewayRuntimeStatePath,

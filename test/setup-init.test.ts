@@ -11,7 +11,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setupInit } from "./helpers.ts";
-import { projectRoot } from "../dist/app/index.js";
+import { projectRoot } from "../dist/app/project-root.js";
 
 let workspace: string;
 

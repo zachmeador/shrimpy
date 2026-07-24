@@ -11,10 +11,8 @@ import { existsSync, mkdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ChannelBus } from "../../channels/bus.js";
-import type {
-  ChannelMembershipStore,
-  UnsupportedSurfaceMessage,
-} from "../../channels/index.js";
+import type { ChannelMembershipStore } from "../../channels/membership.js";
+import type { UnsupportedSurfaceMessage } from "../../channels/messages.js";
 import type { IdentityStore } from "../../gateway/identity-store.js";
 import {
   ChatSurfacePublisher,

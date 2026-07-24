@@ -20,7 +20,7 @@ import {
   readWorkers,
   writeWorkers,
 } from "../dist/workers/store.js";
-import { finalizeWorkerTurn } from "../dist/workers/service.js";
+import { finalizeWorkerTurn } from "../dist/workers/lifecycle.js";
 import {
   acquireSessionLease,
   readSessionOwner,

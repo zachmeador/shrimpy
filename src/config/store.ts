@@ -8,10 +8,10 @@ import { readJsonFileStrict, writeJsonFileAtomic } from "../util/json-file.js";
 import { validateAgentsConfig } from "./agents.js";
 import { resolveGatewayStatusConfig } from "./gateway-status.js";
 import { validateModelPoliciesConfig } from "./model.js";
-import { primaryConfigPath } from "./paths.js";
+import { primaryConfigPath } from "../workspace/paths.js";
 import { resolveRuntimeConfig } from "./runtime.js";
 import { resolveToolRuntimeConfig } from "./tools.js";
-import { surfaceModules } from "../surfaces/index.js";
+import { surfaceModules } from "../surfaces/registry.js";
 
 interface ConfigFileEditOptions {
   missing?: "empty" | "error";

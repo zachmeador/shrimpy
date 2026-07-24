@@ -11,7 +11,8 @@ import {
   outboundTextForMessage,
   readDeliveryReceipts,
 } from "../dist/channels/outbox.js";
-import { sessionResetMessageInput, textContent } from "../dist/channels/index.js";
+import { sessionResetMessageInput } from "../dist/channels/protocol.js";
+import { textContent } from "../dist/channels/messages.js";
 import { saveCursors } from "../dist/channels/store.js";
 
 let testDir: string;

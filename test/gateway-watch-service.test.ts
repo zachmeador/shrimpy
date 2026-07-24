@@ -9,15 +9,13 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createAppRuntime } from "../dist/app/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
 import { setupInit } from "./helpers.ts";
 import {
   startGatewayWatchClock,
 } from "../dist/gateway/watch-service.js";
-import {
-  loadRuntimeAgentWatches,
-  type WatchClock,
-} from "../dist/watches/index.js";
+import { loadRuntimeAgentWatches } from "../dist/watches/agent-runtime.js";
+import type { WatchClock } from "../dist/watches/clock.js";
 
 let testDir: string;
 

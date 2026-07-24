@@ -8,11 +8,9 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  resolveContextConfig,
-} from "../dist/context/index.js";
+import { resolveContextConfig } from "../dist/context/spec.js";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
-import { createBootstrap } from "../dist/sessions/index.js";
+import { createBootstrap } from "../dist/sessions/bootstrap.js";
 
 let workspace: string;
 

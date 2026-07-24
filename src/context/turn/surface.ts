@@ -1,4 +1,4 @@
-import type { UnsupportedSurfaceMessage } from "../../channels/index.js";
+import type { UnsupportedSurfaceMessage } from "../../channels/messages.js";
 
 export type { UnsupportedSurfaceMessage };
 

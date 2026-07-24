@@ -17,7 +17,7 @@ import {
   generateLaunchAgentPlist,
   generateSystemdUnit,
   readGatewayServiceStatus,
-} from "../dist/gateway/service-ctl.js";
+} from "../dist/gateway/service/index.js";
 import {
   ensureShrimpyRuntimeEnvironment,
   pathWithShrimpyRuntimeBin,

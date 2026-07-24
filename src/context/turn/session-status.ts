@@ -1,7 +1,7 @@
 import {
   formatSessionAge,
   summarizeSessionStatus,
-} from "../../sessions/catalog.js";
+} from "../../sessions/inventory.js";
 import type { TurnContextInput, TurnContextItem } from "./types.js";
 import { buildWorkerSessionStatusItems } from "./workers.js";
 

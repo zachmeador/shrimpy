@@ -3,9 +3,10 @@ import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync }
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { shrimpyRuntimeChildEnv } from "../app/environment.js";
-import { createAppRuntime, projectRoot } from "../app/index.js";
-import type { ShrimpyConfig } from "../config/index.js";
-import { runForegroundAgentPrompt } from "../sessions/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { projectRoot } from "../app/project-root.js";
+import type { ShrimpyConfig } from "../config/load.js";
+import { runForegroundAgentPrompt } from "../sessions/foreground.js";
 import {
   readWorkerBackendAvailability,
   type WorkerBackend,

@@ -2,9 +2,11 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   renderTelegramTextChunks,
+  TELEGRAM_TEXT_CHUNK_LIMIT,
+} from "../dist/surfaces/telegram/format.js";
+import {
   sendTelegramPublicationText,
   sendTelegramFormattedText,
-  TELEGRAM_TEXT_CHUNK_LIMIT,
 } from "../dist/surfaces/telegram/outbound.js";
 
 describe("telegram outbound formatting", () => {

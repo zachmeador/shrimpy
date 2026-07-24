@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveRuntimeConfig } from "../dist/config/runtime.js";
-import { resolveSessionCompactionPolicy } from "../dist/sessions/compaction-policy.js";
+import { resolveSessionCompactionPolicy } from "../dist/sessions/compaction/policy.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 

@@ -1,8 +1,6 @@
 import type { AppRuntime } from "../app/runtime.js";
-import {
-  makeMessage,
-  textContent,
-} from "../channels/index.js";
+import { makeMessage } from "../channels/protocol.js";
+import { textContent } from "../channels/messages.js";
 import {
   createSessionDescriptor,
   sessionChannel,
@@ -20,7 +18,7 @@ import {
   createLocalSessionKey,
   formatSessionId,
 } from "../sessions/identity.js";
-import { resolveSessionDescriptor } from "../sessions/catalog.js";
+import { resolveSessionDescriptor } from "../sessions/inventory.js";
 import {
   assembleSessionPrompt,
   type SessionPromptAssembly,
@@ -37,16 +35,14 @@ import {
   isDirectoryResource,
   parseContextResource,
 } from "./spec.js";
-import {
-  type ContextSourceConfig,
-} from "./source.js";
+import type { ContextSourceConfig } from "./spec.js";
 import {
   formatChannelMessage,
 } from "./turn/channel-message.js";
 import {
   buildTurnContext,
   isProducerFresh,
-} from "./turn/service.js";
+} from "./turn/builder.js";
 import {
   renderTurnContext,
 } from "./turn/render.js";
@@ -574,7 +570,7 @@ async function runConfiguredContextProducer(
     };
   }
   const result = await runContextTurnProducer(producer, {
-    runtime: input.runtime,
+    workspacePath: input.runtime.paths.workspace,
     agentId: input.agentId,
     channel: input.channel,
     sessionType: input.sessionType,

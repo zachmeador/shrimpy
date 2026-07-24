@@ -5,7 +5,7 @@ import {
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
-import type { RuntimeConfig } from "../config/index.js";
+import type { RuntimeConfig } from "../config/runtime.js";
 import { buildContainedSystemPromptFromPiOptions } from "../context/contained-system-prompt.js";
 import {
   createTurnContextExtensionFactory,

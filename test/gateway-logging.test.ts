@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installGatewayLogFile } from "../dist/gateway/logging.js";
-import { createWorkspacePaths } from "../dist/app/paths.js";
+import { createWorkspacePaths } from "../dist/workspace/paths.js";
 
 let testDir: string;
 

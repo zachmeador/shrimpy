@@ -6,16 +6,14 @@ import {
   type PromptSection,
   type PromptResourceRef,
 } from "./resources.js";
-import { gatewayDeliveryGuidance } from "./system/tools.js";
 import {
   isDirectoryResource,
   type ResolvedContextConfig,
+  type ContextSourceConfig,
   findContextViewOverrides,
   parseContextResource,
 } from "./spec.js";
-import type { ContextSourceConfig } from "./source.js";
 import { isPromptRuntimeEnvKey } from "./env.js";
-import type { SessionDelivery } from "../sessions/spec.js";
 
 interface PromptContextAssembly {
   sections: PromptSection[];
@@ -162,47 +160,6 @@ export function buildRuntimeEnvironmentSection(opts: {
     source: "runtime",
     reason: "Stable session environment facts",
     content: `## Runtime Environment\n\n${envRows.join("\n")}`,
-  };
-}
-
-export function buildSessionDeliverySection(opts: {
-  delivery: SessionDelivery;
-}): PromptSection {
-  if (opts.delivery.kind === "channel") {
-    const channel = opts.delivery.channel;
-    return {
-      id: "session:delivery",
-      path: "runtime/delivery",
-      title: "Delivery",
-      kind: "runtime",
-      source: "runtime",
-      reason: "Channel sessions require explicit message delivery",
-      content: [
-        "## Delivery",
-        "",
-        `This session is attached to channel ${channel}.`,
-        "",
-        ...gatewayDeliveryGuidance(channel).map((line) => `- ${line}`),
-      ].join("\n"),
-    };
-  }
-
-  return {
-    id: "session:transcript_delivery",
-    path: "runtime/transcript_delivery",
-    title: "Transcript Delivery",
-    kind: "runtime",
-    source: "runtime",
-    reason: "Transcript sessions answer directly to their caller",
-    content: [
-      "## Transcript Delivery",
-      "",
-      "The user sees ordinary assistant text in this transcript.",
-      "",
-      "- Answer the current conversation with normal assistant messages.",
-      "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are for channel-bound turns.",
-      "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel, user:<id> alias, or agent DM. Agent DMs are internal channels, so no external adapter is expected.",
-    ].join("\n"),
   };
 }
 

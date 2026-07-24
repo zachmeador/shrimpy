@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createAppRuntime } from "../dist/app/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
 
 test("createAppRuntime creates runtime shims without mutating process.env", () => {
   const workspace = mkdtempSync(join(tmpdir(), "shrimpy-runtime-env-"));

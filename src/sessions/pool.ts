@@ -2,12 +2,10 @@ import { existsSync } from "node:fs";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ChannelActivityHandle } from "../channels/egress.js";
-import type { ChannelMessage } from "../channels/index.js";
-import {
-  formatChannelMessage,
-  renderTurnContext,
-  type TurnContext,
-} from "../context/index.js";
+import type { ChannelMessage } from "../channels/protocol.js";
+import { formatChannelMessage } from "../context/turn/channel-message.js";
+import { renderTurnContext } from "../context/turn/render.js";
+import type { TurnContext } from "../context/turn/types.js";
 import type {
   GatewayLaneOutcome,
   GatewayLaneState,
@@ -17,7 +15,7 @@ import { disposeSession, openSession } from "./open.js";
 import type { SessionOpenPlan } from "./spec.js";
 import { durableSessionDir } from "./spec.js";
 import { archiveActiveSession, restoreArchivedSession } from "./transcript-store.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 import { toModelRef } from "../config/model.js";
 import { runSessionTurn } from "./turn-output.js";
 

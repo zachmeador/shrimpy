@@ -8,10 +8,7 @@ import type {
   UserMessage,
 } from "@earendil-works/pi-ai";
 import { Text } from "@earendil-works/pi-tui";
-import {
-  formatTrailingTurnContext,
-  formatTurnContextPrefix,
-} from "../context/index.js";
+import { formatTrailingTurnContext, formatTurnContextPrefix } from "../context/turn/prompt-prefix.js";
 
 export const TURN_CONTEXT_CUSTOM_TYPE = "shrimpy_turn_context";
 

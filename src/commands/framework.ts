@@ -1,18 +1,13 @@
 import { parseArgs, type ParseArgsConfig } from "node:util";
-import type { ShrimpyConfig } from "../config/index.js";
-import type { ShrimpyTuiCommandResult } from "./tui.js";
+import type { ShrimpyConfig } from "../config/load.js";
+import type { CommandHandler, CommandResult } from "./contracts.js";
 import {
   isHelpFlag,
   renderCommandPathHelp,
   resolveCliHelpPath,
 } from "./help.js";
 
-export type CommandResult = number | ShrimpyTuiCommandResult;
-
-export type CommandHandler = (
-  argv: string[],
-  config: ShrimpyConfig,
-) => CommandResult | Promise<CommandResult>;
+export type { CommandHandler, CommandResult } from "./contracts.js";
 
 export interface CommandInvocation {
   argv: string[];

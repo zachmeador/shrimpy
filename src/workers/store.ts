@@ -3,6 +3,7 @@ import {
   writeJsonFileAtomic,
 } from "../util/json-file.js";
 import { withFileTransactionLock } from "../util/file-lock.js";
+import { isRecord } from "../util/record.js";
 import type {
   WorkerRecord,
   WorkersState,
@@ -161,8 +162,4 @@ function isStatus(value: unknown): value is WorkerStatus {
 
 function isBackend(value: unknown): value is WorkerRecord["backend"] {
   return value === "codex" || value === "claude" || value === "pi";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }

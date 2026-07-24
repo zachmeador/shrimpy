@@ -6,9 +6,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
-import {
-  createWorkspacePaths,
-} from "../app/index.js";
+import { createWorkspacePaths } from "../workspace/paths.js";
 import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../app/pi-internals.js";
 import {
   addOpenAICompatibleModel,

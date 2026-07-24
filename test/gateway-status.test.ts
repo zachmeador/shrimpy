@@ -3,18 +3,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  appendMessage,
-  channelPath,
-  textContent,
-  systemContent,
-  type MessageContent,
-} from "../dist/channels/index.js";
+import { appendMessage, channelPath } from "../dist/channels/store.js";
+import { textContent, systemContent, type MessageContent } from "../dist/channels/messages.js";
 import {
   collectChannelActivity,
   loadChannelWatchClockSummary,
 } from "../dist/channels/activity.js";
-import { saveWatchClockState } from "../dist/watches/index.js";
+import { saveWatchClockState } from "../dist/watches/clock-state.js";
 
 let testDir: string;
 let idCounter = 0;

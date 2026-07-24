@@ -19,7 +19,7 @@ import { isRecord } from "../util/record.js";
 
 const LIFECYCLE_CUSTOM_TYPE = "shrimpy_lifecycle";
 
-type SessionLifecycleState = "active" | "archived";
+export type SessionLifecycleState = "active" | "archived";
 
 interface SessionLifecycleData {
   state: SessionLifecycleState;

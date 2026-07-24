@@ -1,15 +1,15 @@
-import type { AppRuntime } from "../app/index.js";
-import type { ShrimpyConfig } from "../config/index.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { AppRuntime } from "../app/runtime.js";
+import type { ShrimpyConfig } from "../config/load.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 import type { SessionNamespace } from "../sessions/identity.js";
 import type { SetupOnboardingResult } from "../setup/onboarding.js";
 import type { SetupState } from "../setup/state.js";
 import {
   MODEL_SESSION_OPTIONS,
   readModelSessionValues,
-} from "./agent-helpers.js";
+} from "./agent/helpers.js";
 import { renderCommandUsage } from "./catalog.js";
-import { bootstrapInteractiveCompletion } from "./completion-runtime.js";
+import { bootstrapInteractiveCompletion } from "./completion/runtime.js";
 import {
   type CommandResult,
   parseCommandArgs,

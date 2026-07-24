@@ -3,15 +3,9 @@ import { stdin, stdout } from "node:process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
-import {
-  createAgentPaths,
-  createAppRuntime,
-  createWorkspacePaths,
-} from "../app/index.js";
-import {
-  loadConfigForWorkspace,
-  type ShrimpyConfig,
-} from "../config/index.js";
+import { createAgentPaths, createWorkspacePaths } from "../workspace/paths.js";
+import { createAppRuntime } from "../app/runtime.js";
+import { loadConfigForWorkspace } from "../config/load.js";
 import {
   editConfigFile,
   readConfigFile,
@@ -25,8 +19,8 @@ import {
 } from "../config/model.js";
 import {
   resolveModelPolicy,
-  type ModelPolicyResolution,
 } from "../sessions/models.js";
+import type { ModelPolicyResolution } from "../sessions/model-types.js";
 import { isRecord } from "../util/record.js";
 import { MECHANIC_AGENT_ID } from "./init.js";
 import type { SetupModelView } from "./model-access.js";
@@ -255,10 +249,7 @@ export function resolvePolicyAgainstRawConfig(
 ): ModelPolicyResolution {
   return resolveModelPolicy(
     {
-      config: {
-        ...raw,
-        workspace,
-      } as ShrimpyConfig,
+      modelPolicies: raw.modelPolicies,
       modelRegistry: createSetupModelRegistry(workspace),
     } as unknown as Parameters<typeof resolveModelPolicy>[0],
     name,

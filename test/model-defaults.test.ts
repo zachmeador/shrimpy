@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveModel } from "../dist/sessions/index.js";
+import { resolveModel } from "../dist/sessions/models.js";
 
 const a3b = {
   provider: "local_qwen_moe",
@@ -15,13 +15,11 @@ const twentySevenB = {
 
 function bootstrap(config?: Record<string, unknown>) {
   return {
-    config: config ?? {
-      modelPolicies: {
-        coding: {
-          candidates: [{ provider: "local_qwen_moe", id: "Qwen3.6-35B-A3B-UD-Q6_K.gguf" }],
-        },
+    modelPolicies: config?.modelPolicies ?? (config ? undefined : {
+      coding: {
+        candidates: [{ provider: "local_qwen_moe", id: "Qwen3.6-35B-A3B-UD-Q6_K.gguf" }],
       },
-    },
+    }),
     modelRegistry: {
       find(provider: string, id: string) {
         return [a3b, twentySevenB].find((model) =>

@@ -15,17 +15,18 @@ Each surface lives in its own folder under `src/surfaces/<name>/`. The folder ow
 - `client.ts` — third-party network client
 - `poller.ts` — surface lifecycle loop and inbound transport listener
 - `bridge.ts` — translates inbound transport messages into the typed channel protocol
-- `outbound.ts` — markdown → surface format + chunking
+- `format.ts` — markdown → surface format + chunking
+- `outbound.ts` — surface send orchestration and plain-text fallback
 - `commands.ts` — surface-specific command parser/dispatcher
 - `config.ts` — config schema, instance resolver, and default-agent helpers
 - `surface.ts` — `SurfaceEgress` and `GatewaySurface` lifecycle wiring
-- `index.ts` — exports the `ChatSurfaceModule` registered in `src/surfaces/index.ts`
+- `module.ts` — exports the `ChatSurfaceModule` registered in `src/surfaces/registry.ts`
 
 Shared primitives live in `src/surfaces/shared/`: `ChatSurfacePublisher`, `PendingByThread`, `mergeChatTextBurst`, `SurfaceThreadStateStore`, the `ChatSurfaceModule` interface, and the `SurfaceEgress` / `GatewaySurface` types.
 
 Gateway surfaces may expose a shared health snapshot with status `starting`, `healthy`, `retrying`, `stalled`, or `stopped`. Telegram includes completed-poll time, the last received update time when available, consecutive failures, a bounded error message, and stall/restart count. These snapshots are written into the workspace gateway heartbeat and contain no tokens, message text, or user identities.
 
-A new surface is a `surfaces/<name>/` folder appended to the array in `src/surfaces/index.ts`. `AppRuntime` iterates the registry to resolve config, register egress senders, and route channels to default agents.
+To add a surface, create a `surfaces/<name>/` folder and append its module to the array in `src/surfaces/registry.ts`. `AppRuntime` iterates the registry to resolve config, register egress senders, and route channels to default agents.
 
 ## Telegram
 

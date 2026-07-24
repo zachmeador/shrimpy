@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { createShrimpyHeaderExtensionFactory } from "../dist/tui/shrimpy-header.js";
+import { createShrimpyHeaderExtensionFactory } from "../dist/tui/header.js";
 
 interface PackageJson {
   name: string;

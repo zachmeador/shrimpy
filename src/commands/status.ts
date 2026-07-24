@@ -1,10 +1,9 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { basename, join } from "node:path";
-import { createAppRuntime } from "../app/index.js";
+import { createAppRuntime } from "../app/runtime.js";
 import {
   collectShrimpyRuntimeWarnings,
-  shrimpyRuntimeChildEnv,
+  resolveShrimpyCommand,
 } from "../app/environment.js";
 import { timeSince } from "../channels/format.js";
 import { collectChannelActivity } from "../channels/activity.js";
@@ -12,23 +11,23 @@ import {
   readDeliveryReceipts,
   summarizeDeliveryReceipts,
 } from "../channels/outbox.js";
-import { loadRuntimeWatchIds } from "../watches/index.js";
+import { loadRuntimeWatchIds } from "../watches/agent-runtime.js";
 import {
   formatGatewayServiceSummary,
   readGatewayServiceStatus,
-} from "../gateway/service-ctl.js";
+} from "../gateway/service/index.js";
 import { collectGatewayLiveness } from "../gateway/liveness.js";
 import {
   loadTelegramOffset,
   telegramStatePath,
   type ResolvedTelegramRuntimeConfig,
-} from "../surfaces/telegram/index.js";
+} from "../surfaces/telegram/module.js";
 import {
   resolveSetupState,
   type SetupState,
 } from "../setup/state.js";
-import { resolveWorkspacePathInfo } from "../config/workspace.js";
-import { inspectWorkspaceCheckpointStatus } from "../workspace-checkpoints/index.js";
+import { resolveWorkspacePathInfo } from "../workspace/location.js";
+import { inspectWorkspaceCheckpointStatus } from "../workspace/checkpoints/git.js";
 import { accent, dim, label } from "../util/style.js";
 import { printWorkspaceCheckpointStatus } from "./workspace.js";
 import type { CommandHandler } from "./framework.js";
@@ -131,15 +130,6 @@ function formatWorkspaceSource(
   return resolution.sourcePath
     ? `${resolution.source} (${resolution.sourcePath})`
     : resolution.source;
-}
-
-function resolveShrimpyCommand(workspace: string): string {
-  const result = spawnSync("sh", ["-lc", "command -v shrimpy"], {
-    encoding: "utf-8",
-    env: shrimpyRuntimeChildEnv(workspace),
-  });
-  if (result.error || result.status !== 0) return "(not found)";
-  return String(result.stdout).trim() || "(not found)";
 }
 
 export function formatSetupStatus(state: SetupState): string {

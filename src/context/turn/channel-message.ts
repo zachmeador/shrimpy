@@ -1,4 +1,4 @@
-import type { ChannelMessage } from "../../channels/index.js";
+import type { ChannelMessage } from "../../channels/protocol.js";
 import { renderUnsupportedSurfaceMessage } from "./surface.js";
 
 export function formatChannelMessage(

@@ -1,6 +1,6 @@
-import type { ShrimpyConfig } from "../config/index.js";
-import { resolveWorkspacePath } from "../config/workspace.js";
-import type { CommandHandler } from "./framework.js";
+import type { ShrimpyConfig } from "../config/load.js";
+import { resolveWorkspacePath } from "../workspace/location.js";
+import type { CommandHandler } from "./contracts.js";
 
 type CliCommandCategory =
   | "Session Commands"
@@ -238,12 +238,12 @@ export const CLI_CATEGORIES: readonly CliCommandCategory[] = [
 ];
 
 export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
-  gateway: { requiresConfig: true, load: async () => (await import("./gateway.js")).cmdGateway },
+  gateway: { requiresConfig: true, load: async () => (await import("./gateway/index.js")).cmdGateway },
   status: { requiresConfig: true, load: async () => (await import("./status.js")).cmdStatus },
-  channels: { requiresConfig: true, load: async () => (await import("./channels.js")).cmdChannels },
-  agent: { requiresConfig: (argv) => argv[0] === "tui" ? "workspace" : true, load: async () => (await import("./agent.js")).cmdAgent },
+  channels: { requiresConfig: true, load: async () => (await import("./channels/index.js")).cmdChannels },
+  agent: { requiresConfig: (argv) => argv[0] === "tui" ? "workspace" : true, load: async () => (await import("./agent/index.js")).cmdAgent },
   surface: { requiresConfig: true, load: async () => (await import("./surface.js")).cmdSurface },
-  sessions: { requiresConfig: true, load: async () => (await import("./sessions.js")).cmdSessions },
+  sessions: { requiresConfig: true, load: async () => (await import("./sessions/index.js")).cmdSessions },
   watches: { requiresConfig: true, load: async () => (await import("./watches.js")).cmdWatches },
   worker: { requiresConfig: true, load: async () => (await import("./worker.js")).cmdWorker },
   models: { requiresConfig: true, load: async () => (await import("./models.js")).cmdModels },
@@ -256,7 +256,7 @@ export const COMMAND_REGISTRY: Record<string, RegisteredCommand> = {
   context: { requiresConfig: true, load: async () => (await import("./context.js")).cmdContext },
   users: { requiresConfig: true, load: async () => (await import("./users.js")).cmdUsers },
   help: { requiresConfig: false, load: async () => (await import("./help-command.js")).cmdHelp },
-  completion: { requiresConfig: false, load: async () => (await import("./completion.js")).cmdCompletion },
+  completion: { requiresConfig: false, load: async () => (await import("./completion/index.js")).cmdCompletion },
 };
 
 export function configForRegisteredCommand(

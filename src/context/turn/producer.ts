@@ -1,11 +1,8 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { shrimpyRuntimeChildEnv } from "../../app/environment.js";
-import type { AppRuntime } from "../../app/runtime.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import { isRecord } from "../../util/record.js";
-import { clipContextWithMarker } from "./render.js";
-import type { TurnContextItem } from "./types.js";
 
 const execAsync = promisify(exec);
 
@@ -67,7 +64,7 @@ export function producerMatchesChannel(
 }
 
 export interface ContextTurnProducerRunContext {
-  runtime: AppRuntime;
+  workspacePath: string;
   agentId: string;
   channel?: string;
   sessionType: string;
@@ -75,8 +72,14 @@ export interface ContextTurnProducerRunContext {
 
 export interface ContextTurnProducerRunResult {
   raw: string;
-  items: TurnContextItem[];
+  items: ContextTurnProducerItem[];
   error?: string;
+}
+
+export interface ContextTurnProducerItem {
+  id: string;
+  summary: string;
+  inspect?: string;
 }
 
 export async function runContextTurnProducer(
@@ -85,17 +88,17 @@ export async function runContextTurnProducer(
 ): Promise<ContextTurnProducerRunResult> {
   try {
     const { stdout } = await execAsync(producer.run, {
-      cwd: ctx.runtime.paths.workspace,
+      cwd: ctx.workspacePath,
       timeout: producer.timeoutMs,
       env: {
-        ...shrimpyRuntimeChildEnv(ctx.runtime.paths.workspace),
+        ...shrimpyRuntimeChildEnv(ctx.workspacePath),
         SHRIMPY_CONTEXT_AGENT: ctx.agentId,
         SHRIMPY_CONTEXT_CHANNEL: ctx.channel ?? "",
         SHRIMPY_CONTEXT_SESSION_TYPE: ctx.sessionType,
       },
       maxBuffer: Math.max(producer.maxChars * 4, 4096),
     });
-    const raw = clipContextWithMarker(stdout.trim(), producer.maxChars);
+    const raw = clipProducerOutput(stdout.trim(), producer.maxChars);
     return {
       raw,
       items: parseProducerOutput(producer.id, raw),
@@ -114,7 +117,7 @@ export async function runContextTurnProducer(
   }
 }
 
-function parseProducerOutput(producerId: string, output: string): TurnContextItem[] {
+function parseProducerOutput(producerId: string, output: string): ContextTurnProducerItem[] {
   if (!output) return [];
   const parsed = parseJsonOutput(output);
   if (Array.isArray(parsed)) {
@@ -147,7 +150,7 @@ function parseProducerItem(
   producerId: string,
   item: unknown,
   index: number,
-): TurnContextItem[] {
+): ContextTurnProducerItem[] {
   if (typeof item === "string") {
     return [{ id: `producer:${producerId}:${index}`, summary: `${producerId}: ${item}` }];
   }
@@ -163,4 +166,9 @@ function parseProducerItem(
     summary,
     inspect: typeof item.inspect === "string" ? item.inspect : undefined,
   }];
+}
+
+function clipProducerOutput(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, Math.max(0, maxChars - 32)).trimEnd()}\n[turn-context truncated]`;
 }

@@ -8,17 +8,10 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  assemblePromptContext,
-  assembleBasePromptSections,
-  assembleContextViewSections,
-  buildRuntimeEnvironmentSection,
-  buildSessionDeliverySection,
-  renderPromptSections,
-  resolveContextEnvKeys,
-  resolveContextConfig,
-  resolveContextDefaultsConfig,
-} from "../dist/context/index.js";
+import { assemblePromptContext, assembleBasePromptSections, assembleContextViewSections, buildRuntimeEnvironmentSection, resolveContextEnvKeys } from "../dist/context/assembly.js";
+import { renderPromptSections } from "../dist/context/resources.js";
+import { resolveContextConfig, resolveContextDefaultsConfig } from "../dist/context/spec.js";
+import { buildSessionDeliverySection } from "../dist/context/session-prompt.js";
 
 describe("assemblePromptContext", () => {
   test("orders prompt sections by Foundation, Vault, then Situation", () => {

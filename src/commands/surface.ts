@@ -1,5 +1,5 @@
-import { createAppRuntime } from "../app/index.js";
-import type { ShrimpyConfig } from "../config/index.js";
+import { createAppRuntime } from "../app/runtime.js";
+import type { ShrimpyConfig } from "../config/load.js";
 import {
   ensureSurfaceChannelMember,
   publishSurfaceAddressingChange,
@@ -88,7 +88,7 @@ async function setSurfaceAgent(
 
   runtime.getAgent(agentId);
   const previousAgentId = store.get(surface, threadId).addressedAgentId;
-  const channel = resolveSurfaceThreadChannel(runtime, surface, threadId);
+  const channel = resolveSurfaceThreadChannel(surface, threadId);
   const joined = channel
     ? ensureSurfaceChannelMember({
       memberships: runtime.createChannelMembershipStore(),
@@ -134,7 +134,7 @@ async function clearSurfaceAgent(
   const surface = requireArg(argv[0], usage, "surface");
   const threadId = requireArg(argv[1], usage, "thread id");
   const previousAgentId = store.get(surface, threadId).addressedAgentId;
-  const channel = resolveSurfaceThreadChannel(runtime, surface, threadId);
+  const channel = resolveSurfaceThreadChannel(surface, threadId);
 
   store.clearAddressedAgent(surface, threadId);
   if (channel) {

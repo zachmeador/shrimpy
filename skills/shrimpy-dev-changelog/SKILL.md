@@ -50,7 +50,7 @@ Before trusting a bullet, verify the concrete surface:
 
 - Commands, flags, and help text: `src/commands/catalog.ts` plus command tests.
 - Config keys and validation: `src/config/`, `src/context/spec.ts`, setup tests.
-- Workspace files: `src/app/paths.ts`, `src/setup/init.ts`, setup templates/tests.
+- Workspace files: `src/workspace/paths.ts`, `src/setup/init.ts`, setup templates/tests.
 - Session behavior: `src/sessions/`, TUI code, session tests.
 - Channel/wake behavior: `src/channels/`, `src/agents/channel-policy*`, delivery-loop tests.
 - Watches/gateway behavior: `src/watches/`, `src/gateway/`, watch tests.

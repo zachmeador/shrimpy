@@ -16,23 +16,13 @@ import { tmpdir } from "node:os";
 import { cmdContext } from "../dist/commands/context.js";
 import { cmdSkills } from "../dist/commands/skills.js";
 import { setupInit } from "./helpers.ts";
-import {
-  createAppRuntime,
-  projectRoot,
-} from "../dist/app/index.js";
-import {
-  textContent,
-} from "../dist/channels/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
+import { projectRoot } from "../dist/app/project-root.js";
+import { textContent } from "../dist/channels/messages.js";
 import { createLocalSessionKey } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 import { ensureSessionManifest } from "../dist/sessions/manifest.js";
-import {
-  getSkillPromptResources,
-  getSkillView,
-  inspectSkills,
-  listSkillViews,
-  loadSkillPrompt,
-} from "../dist/skills/index.js";
+import { getSkillPromptResources, getSkillView, inspectSkills, listSkillViews, loadSkillPrompt } from "../dist/skills/catalog.js";
 import {
   captureLogs,
   makeTempWorkspace,

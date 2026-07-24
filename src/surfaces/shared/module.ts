@@ -1,6 +1,7 @@
-import type { AppRuntime } from "../../app/runtime.js";
 import type { ChannelBus } from "../../channels/bus.js";
+import type { ChannelMembershipStore } from "../../channels/membership.js";
 import type { IdentityStore } from "../../gateway/identity-store.js";
+import type { WorkspacePaths } from "../../workspace/paths.js";
 import type { GatewaySurface, SurfaceEgress } from "./types.js";
 import type { SurfaceThreadStateStore } from "./thread-state-store.js";
 
@@ -20,6 +21,18 @@ export interface SurfaceModuleResolved<TInstance extends ResolvedSurfaceInstance
   instances: TInstance[];
 }
 
+export interface SurfaceRuntime {
+  paths: Pick<
+    WorkspacePaths,
+    "workspace" | "mediaDir" | "userPresencePath"
+  >;
+  resolved: {
+    agents: Array<{ id: string }>;
+  };
+  surfaceConfig<T extends SurfaceModuleResolved>(name: string): T;
+  createChannelMembershipStore(): ChannelMembershipStore;
+}
+
 export interface ChatSurfaceModule<
   TResolved extends SurfaceModuleResolved = SurfaceModuleResolved,
 > {
@@ -37,11 +50,11 @@ export interface ChatSurfaceModule<
   resolveConfig(raw: unknown, agentIds: string[]): TResolved;
 
   /** Egress-only factories (CLI sessions, child runs). */
-  createEgresses(runtime: AppRuntime): SurfaceEgress[];
+  createEgresses(runtime: SurfaceRuntime): SurfaceEgress[];
 
   /** Full lifecycle factories used by the gateway. */
   createGatewaySurfaces(opts: {
-    runtime: AppRuntime;
+    runtime: SurfaceRuntime;
     channelBus: ChannelBus;
     identityStore: IdentityStore;
     surfaceThreadStateStore: SurfaceThreadStateStore;

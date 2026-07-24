@@ -1,8 +1,9 @@
 import type { AppRuntime } from "../../app/runtime.js";
-import { createWorkspacePaths } from "../../app/paths.js";
+import { createWorkspacePaths } from "../../workspace/paths.js";
 import { listWorkers } from "../../workers/store.js";
 import type { WorkerRecord, WorkerStatus } from "../../workers/types.js";
 import { formatAgeShort } from "../../util/time-format.js";
+import { clipOneLine } from "../../util/text.js";
 import type { TurnContextInput, TurnContextItem } from "./types.js";
 import { sessionChannel } from "../../sessions/spec.js";
 
@@ -143,9 +144,4 @@ function ageFromIso(value: string): string {
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) return "unknown time";
   return formatAgeShort(Date.now() - parsed);
-}
-
-function clipOneLine(text: string, max: number): string {
-  const oneLine = text.replaceAll(/\s+/g, " ").trim();
-  return oneLine.length <= max ? oneLine : `${oneLine.slice(0, max - 3)}...`;
 }

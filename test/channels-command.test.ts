@@ -3,14 +3,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
-import {
-  sessionResetContent,
-  surfaceAddressingStatusContent,
-  systemContent,
-  textContent,
-} from "../dist/channels/index.js";
-import { cmdAgent } from "../dist/commands/agent.js";
-import { cmdChannels } from "../dist/commands/channels.js";
+import { sessionResetContent, surfaceAddressingStatusContent, systemContent, textContent } from "../dist/channels/messages.js";
+import { cmdAgent } from "../dist/commands/agent/index.js";
+import { cmdChannels } from "../dist/commands/channels/index.js";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
 import {
   setupInit,

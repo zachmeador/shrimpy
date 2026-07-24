@@ -3,7 +3,7 @@ import { existsSync, promises as fs } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveWorkspacePath } from "../config/workspace.js";
+import { resolveWorkspacePath } from "../workspace/location.js";
 import { buildTree, classifyWorkspaceFile } from "./tree.js";
 import { readJsonl, readText } from "./read.js";
 

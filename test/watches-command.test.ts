@@ -5,16 +5,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { createAppRuntime } from "../dist/app/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
 import { cmdWatches } from "../dist/commands/watches.js";
 import { setupInit } from "./helpers.ts";
-import {
-  inspectWatchHistory,
-  inspectWatches,
-  loadWatchRunHistory,
-  saveWatchClockState,
-} from "../dist/watches/index.js";
-import { loadRuntimeWatchIds } from "../dist/watches/index.js";
+import { inspectWatchHistory, inspectWatches } from "../dist/watches/inspection.js";
+import { loadWatchRunHistory } from "../dist/watches/runs.js";
+import { saveWatchClockState } from "../dist/watches/clock-state.js";
+import { loadRuntimeWatchIds } from "../dist/watches/agent-runtime.js";
 import {
   createChannelSessionKey,
   sessionRootPath,

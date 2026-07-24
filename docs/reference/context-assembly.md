@@ -145,4 +145,4 @@ Inspection does not persist a turn or change producer freshness. Configured auto
 ## Related Code
 
 - Section types and kind order: `src/context/resources.ts`
-- Turn-context service: `src/context/turn/service.ts`
+- Turn-context builder: `src/context/turn/builder.ts`

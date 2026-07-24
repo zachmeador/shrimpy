@@ -10,12 +10,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  archiveActiveSession,
-  archiveSessionFile,
-  listArchivedSessionFiles,
-  restoreArchivedSession,
-} from "../dist/sessions/index.js";
+import { archiveActiveSession, archiveSessionFile, listArchivedSessionFiles, restoreArchivedSession } from "../dist/sessions/transcript-store.js";
 
 let testDir: string;
 

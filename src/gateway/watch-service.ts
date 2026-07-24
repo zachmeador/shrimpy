@@ -7,14 +7,10 @@ import { basename, dirname } from "node:path";
 import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  createWatchClock,
-  loadWatchClockState,
-  loadRuntimeAgentWatches,
-  runWatchDue,
-  saveWatchClockState,
-  type WatchClock,
-} from "../watches/index.js";
+import { createWatchClock, type WatchClock } from "../watches/clock.js";
+import { loadWatchClockState, saveWatchClockState } from "../watches/clock-state.js";
+import { loadRuntimeAgentWatches } from "../watches/agent-runtime.js";
+import { runWatchDue } from "../watches/runner.js";
 
 export function startGatewayWatchClock(
   runtime: AppRuntime,

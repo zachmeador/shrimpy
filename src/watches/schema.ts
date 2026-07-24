@@ -1,8 +1,6 @@
 import { existsSync } from "node:fs";
-import {
-  parseChannelName,
-  type MessageSenderKind,
-} from "../channels/index.js";
+import { parseChannelName } from "../channels/names.js";
+import type { MessageSenderKind } from "../channels/protocol.js";
 import { readJsonFileStrict } from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 

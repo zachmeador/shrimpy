@@ -10,8 +10,8 @@
  * 4. Workspace checkpoint clock (optional local git checkpoints)
  */
 
-import { loadConfig } from "./config/index.js";
-import { createAppRuntime } from "./app/index.js";
+import { loadConfig } from "./config/load.js";
+import { createAppRuntime } from "./app/runtime.js";
 import { applyShrimpyRuntimeProcessEnv } from "./app/environment.js";
 import { IdentityStore } from "./gateway/identity-store.js";
 import { installGatewayLogFile } from "./gateway/logging.js";
@@ -29,15 +29,15 @@ import {
 import {
   startGatewayWatchClock,
 } from "./gateway/watch-service.js";
-import { saveWatchClockState } from "./watches/index.js";
-import { createWorkspaceCheckpointService } from "./workspace-checkpoints/index.js";
+import { saveWatchClockState } from "./watches/clock-state.js";
+import { createWorkspaceCheckpointService } from "./workspace/checkpoints/scheduler.js";
 import { ChannelDeliveryLoop } from "./gateway/channel-delivery-loop.js";
 import {
   createConfiguredGatewaySurfaces,
   registerSurfaceEgresses,
-} from "./surfaces/index.js";
+} from "./surfaces/registry.js";
 import { ChannelOutbox } from "./channels/outbox.js";
-import { extractGlobalWorkspace } from "./config/workspace.js";
+import { extractGlobalWorkspace } from "./workspace/location.js";
 
 async function run() {
   extractGlobalWorkspace(process.argv.slice(2));

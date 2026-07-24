@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveAgentsConfig } from "../dist/config/agents.js";
-import { buildAgentDmChannel } from "../dist/channels/index.js";
+import { buildAgentDmChannel } from "../dist/channels/dm.js";
 import {
   ChannelMembershipStore,
   defaultChannelMembers,

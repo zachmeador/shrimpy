@@ -1,11 +1,8 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import {
-  createChannelSessionKey,
-  createLocalSessionKey,
-  SessionResolver,
-} from "../dist/sessions/index.js";
+import { createChannelSessionKey, createLocalSessionKey } from "../dist/sessions/identity.js";
+import { SessionResolver } from "../dist/sessions/resolver.js";
 
 describe("session resolution", () => {
   test("restores durable session models only when no override is provided", async () => {
@@ -116,11 +113,9 @@ function createBootstrap(currentModel: () => Model<Api>) {
     agentRootPath: "/tmp/shrimpy-agent",
     workspacePath: "/tmp/shrimpy-workspace",
     modelsPath: "/tmp/shrimpy-models.json",
-    config: {
-      modelPolicies: {
-        coding: {
-          candidates: [{ provider: "local", id: "qwen" }],
-        },
+    modelPolicies: {
+      coding: {
+        candidates: [{ provider: "local", id: "qwen" }],
       },
     },
     modelRegistry: {

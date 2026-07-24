@@ -10,7 +10,7 @@ import {
   resolveWorkspacePath,
   workspaceFromCwd,
   workspacePointerPath,
-} from "../dist/config/workspace.js";
+} from "../dist/workspace/location.js";
 
 describe("workspace path resolution", () => {
   test("defaults to .shrimpy under the user's home directory", () => {

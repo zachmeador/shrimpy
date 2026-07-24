@@ -150,9 +150,9 @@ If the active session recorded stale policy or model metadata, run `shrimpy sess
 
 ## Related Code
 
-- Compaction policy resolution: `src/sessions/compaction-policy.ts`
+- Compaction policy resolution: `src/sessions/compaction/policy.ts`
 - Session-open policy recording: `src/sessions/open.ts`
 - Shrimpy compaction hook: `extensions/compaction-bias.ts`
-- Provider-aware compaction runner: `src/sessions/compaction-runner.ts`
+- Provider-aware compaction runner: `src/sessions/compaction/runner.ts`
 - Compaction prompt text: `src/context/system/compaction.ts`
 - Regression coverage: `test/compaction-runner.test.ts`

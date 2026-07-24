@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
 import { fileURLToPath } from "node:url";
-import {
-  loadConfigForWorkspace,
-} from "../config/index.js";
+import { loadConfigForWorkspace } from "../config/load.js";
 import {
   finalizeWorkerTurn,
   readWorkerRecord,
   workerTurnArtifacts,
-} from "./service.js";
+} from "./lifecycle.js";
 import { runWorkerTurn } from "./runner.js";
 
 interface SupervisorArgs {

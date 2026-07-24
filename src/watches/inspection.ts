@@ -1,11 +1,8 @@
 import { evaluateAgentChannelPolicy } from "../agents/channel-policy.js";
 import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import type { AppRuntime } from "../app/runtime.js";
-import {
-  makeMessage,
-  textContent,
-  type ChannelMessage,
-} from "../channels/index.js";
+import { makeMessage, type ChannelMessage } from "../channels/protocol.js";
+import { textContent } from "../channels/messages.js";
 import { channelAgentIds } from "../channels/membership.js";
 import type {
   AgentChannelPolicyRule,
@@ -17,13 +14,13 @@ import {
 } from "./clock.js";
 import {
   loadWatchClockState,
-} from "./clock-state-store.js";
+} from "./clock-state.js";
 import {
   loadActiveWatchRuns,
   loadWatchRunHistory,
   type ActiveWatchRunRecord,
   type WatchRunRecord,
-} from "./run-store.js";
+} from "./runs.js";
 import {
   loadAgentWatchDefinitions,
   resolveAgentWatchDefinition,

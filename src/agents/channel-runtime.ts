@@ -1,22 +1,18 @@
 import type { AppRuntime } from "../app/runtime.js";
-import { type ChannelMessage } from "../channels/index.js";
+import type { ChannelMessage } from "../channels/protocol.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  buildTurnContext,
-  markChannelSeen,
-} from "../context/index.js";
+import { buildTurnContext } from "../context/turn/builder.js";
+import { markChannelSeen } from "../context/turn/state.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
 import type { ModelRef } from "../config/model.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 import {
   evaluateAgentChannelPolicy,
 } from "./channel-policy.js";
-import {
-  SessionPool,
-  type SessionBootstrap,
-  SessionResolver,
-  createChannelSessionKey,
-} from "../sessions/index.js";
+import { SessionPool } from "../sessions/pool.js";
+import type { SessionBootstrap } from "../sessions/bootstrap.js";
+import { SessionResolver } from "../sessions/resolver.js";
+import { createChannelSessionKey } from "../sessions/identity.js";
 import type { GatewayLaneState } from "../gateway/runtime-state.js";
 
 interface AgentChannelRuntimeOpts {

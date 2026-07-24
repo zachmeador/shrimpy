@@ -1,13 +1,11 @@
 import { basename } from "node:path";
 import type { AgentChannelRuntime } from "../agents/channel-runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
-import {
-  readSessionControlContent,
-  type ChannelMessage,
-} from "../channels/index.js";
-import { isThinkingLevel } from "../thinking.js";
+import { readSessionControlContent } from "../channels/messages.js";
+import type { ChannelMessage } from "../channels/protocol.js";
+import { isThinkingLevel } from "../config/thinking.js";
 import type { ModelRef } from "../config/model.js";
-import type { ThinkingLevel } from "../thinking.js";
+import type { ThinkingLevel } from "../config/thinking.js";
 
 export type DispatchSource = "backlog" | "live";
 type SessionControl = NonNullable<ReturnType<typeof readSessionControlContent>>;

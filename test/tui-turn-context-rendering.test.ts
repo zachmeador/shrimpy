@@ -7,7 +7,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { TURN_CONTEXT_CUSTOM_TYPE } from "../dist/sessions/turn-context.js";
-import { installShrimpyTurnContextRendering } from "../dist/tui/shrimpy-turn-context-rendering.js";
+import { installShrimpyTurnContextRendering } from "../dist/tui/turn-context-rendering.js";
 
 test("collapsed turn context takes zero transcript rows and Ctrl+O reveals it", () => {
   initTheme("dark", false);

@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { createWorkspacePaths } from "../app/paths.js";
+import { createWorkspacePaths } from "../workspace/paths.js";
 import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 
 export type WorkerBackend = "codex" | "claude" | "pi";
 export type WorkerBackendAuthStatus = "configured" | "unknown" | "unavailable";
@@ -222,8 +223,4 @@ function parseAuthStatus(value: unknown): WorkerBackendAuthStatus {
   return value === "configured" || value === "unknown" || value === "unavailable"
     ? value
     : "unknown";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }

@@ -6,7 +6,7 @@ import { ChannelBus } from "../dist/channels/bus.js";
 import {
   cmdSessions,
   createSessionsCommand,
-} from "../dist/commands/sessions.js";
+} from "../dist/commands/sessions/index.js";
 import {
   createChannelSessionKey,
   createLocalSessionKey,

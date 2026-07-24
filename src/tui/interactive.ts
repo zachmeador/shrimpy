@@ -9,23 +9,23 @@ import {
   resolveThemeSetting,
   setRegisteredThemes,
 } from "../app/pi-internals.js";
-import { assertSetupReadyForNormalTui } from "../setup/readiness.js";
+import { assertSetupReadyForNormalTui } from "../setup/state.js";
 import { openSessionRuntime } from "../sessions/open.js";
 import {
   prepareForegroundSessionOpen,
   type OpenForegroundSessionInput,
 } from "../sessions/foreground.js";
-import { createAgentSessionNavigatorExtensionFactory } from "./agent-session-navigator.js";
-import { createShrimpyHeaderExtensionFactory } from "./shrimpy-header.js";
-import { createShrimpyTuiCommandExtensionFactory } from "./shrimpy-commands.js";
-import { createShrimpyFooterExtensionFactory } from "./shrimpy-footer.js";
-import { installShrimpyInlineCommands } from "./shrimpy-inline-commands.js";
-import { installShrimpyModelSelectionGuard } from "./shrimpy-model-selection.js";
+import { createAgentSessionNavigatorExtensionFactory } from "./session-navigator.js";
+import { createShrimpyHeaderExtensionFactory } from "./header.js";
+import { createShrimpyTuiCommandExtensionFactory } from "./commands.js";
+import { createShrimpyFooterExtensionFactory } from "./footer.js";
+import { installShrimpyInlineCommands } from "./inline-commands.js";
+import { installShrimpyModelSelectionGuard } from "./model-selection.js";
 import {
   createShrimpySettingsUiController,
   installShrimpySettingsSelector,
-} from "./shrimpy-settings.js";
-import { installShrimpyTurnContextRendering } from "./shrimpy-turn-context-rendering.js";
+} from "./settings.js";
+import { installShrimpyTurnContextRendering } from "./turn-context-rendering.js";
 import { TuiSessionTargetController } from "./session-target.js";
 
 export interface RunInteractiveSessionInput extends OpenForegroundSessionInput {

@@ -1,15 +1,7 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, writeFileSync } from "node:fs";
-import {
-  startWorker,
-  amendWorker,
-  cancelWorker,
-  closeWorker,
-  finalizeWorkerTurn,
-  listWorkerRecords,
-  readWorkerRecord,
-} from "../dist/workers/index.js";
+import { startWorker, amendWorker, cancelWorker, closeWorker, finalizeWorkerTurn, listWorkerRecords, readWorkerRecord } from "../dist/workers/lifecycle.js";
 import { cmdWorker } from "../dist/commands/worker.js";
 import {
   buildCodexArgs,
@@ -17,7 +9,7 @@ import {
   buildWorkerPrompt,
   extractCodexSessionId,
 } from "../dist/workers/runner.js";
-import { writeWorkerBackendAvailability } from "../dist/workers/index.js";
+import { writeWorkerBackendAvailability } from "../dist/workers/availability.js";
 import {
   captureLogs,
   makeTempWorkspace,

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -13,8 +14,8 @@ import {
   WORKSPACE_ENV_VAR,
   type WorkspaceResolution,
   type WorkspaceResolutionSource,
-} from "../config/workspace.js";
-import { createWorkspacePaths } from "./paths.js";
+} from "../workspace/location.js";
+import { createWorkspacePaths } from "../workspace/paths.js";
 import { projectRoot } from "./project-root.js";
 
 export interface ShrimpyRuntimeEnvironment {
@@ -103,6 +104,15 @@ export function shrimpyRuntimeChildEnv(
     [WORKSPACE_ENV_VAR]: runtimeEnv.workspacePath,
     PATH: pathWithShrimpyRuntimeBin(baseEnv.PATH, runtimeEnv),
   };
+}
+
+export function resolveShrimpyCommand(workspacePath: string): string {
+  const result = spawnSync("sh", ["-lc", "command -v shrimpy"], {
+    encoding: "utf-8",
+    env: shrimpyRuntimeChildEnv(workspacePath),
+  });
+  if (result.error || result.status !== 0) return "(not found)";
+  return String(result.stdout).trim() || "(not found)";
 }
 
 export function pathWithShrimpyRuntimeBin(

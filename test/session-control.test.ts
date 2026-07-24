@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createAppRuntime } from "../dist/app/index.js";
+import { createAppRuntime } from "../dist/app/runtime.js";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { readOperationStatusContent } from "../dist/channels/messages.js";
 import { SessionControlRuntime } from "../dist/gateway/session-control-runtime.js";

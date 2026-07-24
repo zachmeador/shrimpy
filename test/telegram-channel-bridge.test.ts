@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { TelegramChannelBridge } from "../dist/surfaces/telegram/bridge.js";
-import { formatChannelMessage } from "../dist/context/index.js";
+import { formatChannelMessage } from "../dist/context/turn/channel-message.js";
 import { ChannelBus } from "../dist/channels/bus.js";
 import { ChannelMembershipStore } from "../dist/channels/membership.js";
 import { IdentityStore } from "../dist/gateway/identity-store.js";

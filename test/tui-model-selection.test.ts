@@ -14,7 +14,7 @@ import {
   installShrimpyModelSelectionGuard,
   orderModelItemsByFavorites,
   toggleModelFavoriteId,
-} from "../dist/tui/shrimpy-model-selection.js";
+} from "../dist/tui/model-selection.js";
 
 initTheme("dark", false);
 

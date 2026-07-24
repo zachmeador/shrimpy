@@ -43,7 +43,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 CLI / gateway / surfaces
   -> AppRuntime
   -> ChannelBus facade / config / context / sessions / tools
-  -> ChannelStore / ChannelPublisher / ChannelManifest / ChannelOutbox
+  -> ChannelStore / message builders / ChannelManifest / ChannelOutbox
   -> Pi session runtime
   -> model provider + transcript storage
 ```
@@ -51,7 +51,7 @@ CLI / gateway / surfaces
 Where each concept lives:
 
 - Cross-cutting config parsing: `src/config/`. Each surface's config schema and resolver: `src/surfaces/<name>/config.ts`.
-- Workspace paths: `src/app/paths.ts`.
+- Workspace paths: `src/workspace/paths.ts`.
 - Channel persistence, typed message construction, manifests, outbox receipts, and membership: `src/channels/`. Protocol and policy semantics are in [channels.md](channels.md).
 - Each surface vertical: third-party client, real-time listener, channel translation, outbound formatting, command dispatch, config schema, lifecycle. Shared chat primitives and the surface module contract: `src/surfaces/shared/`.
 - Session context, turn context, metadata, and Pi bootstrap: `src/sessions/` and `src/context/`.

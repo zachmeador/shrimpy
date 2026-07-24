@@ -1,4 +1,4 @@
-import type { ChannelMessage, MessageSenderKind } from "../channels/index.js";
+import type { ChannelMessage, MessageSenderKind } from "../channels/protocol.js";
 import { isSurfaceAddressingStatus } from "../surfaces/shared/addressing.js";
 import {
   resolveAgentChannelPolicyForChannel,

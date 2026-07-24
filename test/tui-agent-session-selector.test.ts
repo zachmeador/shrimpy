@@ -2,7 +2,7 @@ import { initTheme } from "@earendil-works/pi-coding-agent";
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 import { theme } from "../dist/app/pi-internals.js";
-import { AgentSessionSelectorComponent } from "../dist/tui/agent-session-selector.js";
+import { AgentSessionSelectorComponent } from "../dist/tui/session-selector.js";
 
 beforeEach(() => {
   initTheme("dark", false);

@@ -5,7 +5,7 @@
 - Entry point: `src/cli.ts`
 - Gateway entry point: `src/gateway.ts`
 - Runtime kernel: `src/app/runtime.ts`
-- Workspace paths: `src/app/paths.ts`
+- Workspace paths: `src/workspace/paths.ts`
 - Commands: `src/commands/`, with shared CLI plumbing in `src/commands/framework.ts`
 - Config: `src/config/`
 - Channels: `src/channels/`

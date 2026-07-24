@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ChannelBus } from "../dist/channels/bus.js";
-import { cmdAgent } from "../dist/commands/agent.js";
+import { cmdAgent } from "../dist/commands/agent/index.js";
 import { SurfaceThreadStateStore } from "../dist/surfaces/shared/thread-state-store.js";
 import {
   setupInit,

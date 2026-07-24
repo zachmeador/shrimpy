@@ -15,7 +15,7 @@ import { type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { COMPACTION_SUMMARY_INSTRUCTIONS } from "../src/context/system/compaction.ts";
 import {
   compactSessionHistory,
-} from "../src/sessions/compaction-runner.ts";
+} from "../src/sessions/compaction/runner.ts";
 
 interface ShrimpyCompactionPolicy {
   instructions?: string;

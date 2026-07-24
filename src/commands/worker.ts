@@ -1,19 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import {
-  amendWorker,
-  cancelWorker,
-  closeWorker,
-  readWorkerBackendAvailability,
-  refreshWorkerBackendAvailability,
-  listWorkerRecords,
-  readWorkerRecord,
-  startWorker,
-  waitForWorker,
-  type WorkerBackendAvailabilityState,
-  type WorkerBackendKind,
-  type WorkerRecord,
-  type WorkerTurn,
-} from "../workers/index.js";
+import { amendWorker, cancelWorker, closeWorker, listWorkerRecords, readWorkerRecord, startWorker, waitForWorker } from "../workers/lifecycle.js";
+import { readWorkerBackendAvailability, refreshWorkerBackendAvailability, type WorkerBackendAvailabilityState } from "../workers/availability.js";
+import type { WorkerBackendKind, WorkerRecord, WorkerTurn } from "../workers/types.js";
 import { accent, dim, label } from "../util/style.js";
 import {
   createCommandGroup,

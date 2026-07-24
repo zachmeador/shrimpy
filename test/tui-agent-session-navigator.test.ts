@@ -7,7 +7,7 @@ import { createAppRuntime } from "../dist/app/runtime.js";
 import { createLocalSessionKey } from "../dist/sessions/identity.js";
 import { ensureSessionManifest } from "../dist/sessions/manifest.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
-import { createAgentSessionNavigatorExtensionFactory } from "../dist/tui/agent-session-navigator.js";
+import { createAgentSessionNavigatorExtensionFactory } from "../dist/tui/session-navigator.js";
 import {
   makeTempWorkspace,
   removeTempWorkspace,
