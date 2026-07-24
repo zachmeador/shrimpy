@@ -8,7 +8,8 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 |---|---|---|---|---|---|
 | [TUI-004](tui-004-agent-session-navigator.md) | review | P2 | TUI | none | Pi-style `/agents` navigator for active local sessions |
 | [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | todo | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
-| [CTX-012](ctx-012-exact-context-command-parity.md) | todo | P2 | Context | context cleanup | Exact provider-facing context from `shrimpy context` |
+| [CTX-012](ctx-012-exact-context-command-parity.md) | todo | P2 | Context | [CTX-013](ctx-013-separate-stable-context-and-turn-producers.md) | Exact provider-facing context from `shrimpy context` |
+| [CTX-013](ctx-013-separate-stable-context-and-turn-producers.md) | draft | P2 | Context | none | Separate stable context resources from automatic turn producers |
 | [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
 | [CHANNEL-001](channel-001-watch-message-backlog-contract.md) | draft | P2 | Channels | none | Decide and expose watch-message replay behavior across gateway restarts |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
