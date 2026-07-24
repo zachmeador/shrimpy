@@ -1,6 +1,6 @@
 # CODE-003: Claude Code Worker Adapter
 
-Status: todo
+Status: draft
 Priority: P3
 Area: Coding Agents
 

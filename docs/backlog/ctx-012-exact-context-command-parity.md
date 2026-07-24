@@ -13,7 +13,7 @@ Depends On: [CTX-013](ctx-013-separate-stable-context-and-turn-producers.md)
 
 - `shrimpy context` uses separate inspection assembly paths, not the real session open/model-call path end to end.
 - Stable prompt text, selected skills, turn context, durable user message, active tools, and provider request shape are not yet emitted from one authoritative context path.
-- [CTX-009](later/ctx-009-context-trace-debug-view.md) describes a broader trace/debug model. This item is narrower: make the user-facing context command exact enough to trust before building a richer trace UI.
+- [CTX-009](proposals/ctx-009-context-trace-debug-view.md) describes a broader trace/debug model. This item is narrower: make the user-facing context command exact enough to trust before building a richer trace UI.
 
 ## Build
 

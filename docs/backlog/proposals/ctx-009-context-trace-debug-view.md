@@ -1,6 +1,6 @@
 # CTX-009: First-Class Context Trace Debug View
 
-Status: todo
+Status: draft
 Priority: P2
 Area: Context
 

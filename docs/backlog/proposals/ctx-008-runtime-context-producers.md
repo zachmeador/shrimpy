@@ -1,6 +1,6 @@
 # CTX-008: Runtime Context Producers As CLI Commands
 
-Status: todo
+Status: draft
 Priority: P2
 Area: Context
 

@@ -1,6 +1,6 @@
 ---
 name: shrimpy-dev-backlog
-description: Use when creating, updating, triaging, or closing Shrimpy backlog notes in docs/backlog, including choosing IDs, filenames, status, priority, dependencies, later/ placement, and index entries.
+description: Use when creating, updating, triaging, or closing Shrimpy backlog notes in docs/backlog, including choosing IDs, filenames, status, priority, dependencies, proposals/ placement, and index entries.
 ---
 
 # Shrimpy Dev Backlog
@@ -16,7 +16,7 @@ Keep the backlog useful as a small planning map: concrete enough for an agent to
 - `docs/backlog/index.md` is the source of truth for listed backlog items.
 - Keep `docs/backlog/index.md` to the status legend and backlog tables.
 - Active backlog notes live directly in `docs/backlog/`.
-- Deferred notes live in `docs/backlog/later/`.
+- Candidate problem definitions and solution sketches that are not yet accepted as backlog work live in `docs/backlog/proposals/`.
 - Completed work belongs in git history, stable docs, and the changelog when user-visible; do not keep completed planning notes active unless the maintainer asks.
 
 ## Naming
@@ -29,15 +29,15 @@ area-000-short-kebab-title.md
 
 Examples: `setup-003-opt-in-watch-seeding.md`, `surface-006-chat-command-parity.md`, `ctx-010-agent-watch-turn-context.md`.
 
-Choose the next number in that area by inspecting existing active and `later/` notes. Keep the ID uppercase in the title and index, for example `SETUP-004`, while keeping the filename lowercase. Older short filenames such as `app-001.md` and `code-001.md` are existing exceptions, not the preferred pattern for new notes.
+Choose the next number in that area by inspecting existing active and `proposals/` notes. Keep the ID uppercase in the title and index, for example `SETUP-004`, while keeping the filename lowercase. Older short filenames such as `app-001.md` and `code-001.md` are existing exceptions, not the preferred pattern for new notes.
 
 ## Status And Priority
 
-- New backlog notes start as `draft` unless the user explicitly says the item is accepted, planned, or ready for build.
-- Use `todo` only when the direction is accepted enough that an agent can implement it without re-deciding the product shape.
+- New backlog notes start as `draft` in `docs/backlog/proposals/` unless the user explicitly says the item is accepted, planned, or ready for build.
+- Use `todo` only when the direction is accepted enough that an agent can implement it without re-deciding the product shape, and keep accepted items directly in `docs/backlog/`.
 - Use `review` when implementation is ready for maintainer review but the backlog item has not been closed out.
-- Put every `P3` item in `docs/backlog/later/` and list it under the `Later` section of `docs/backlog/index.md`.
-- Keep `P1` and `P2` items in the active backlog unless the user explicitly defers them.
+- Use `proposals/` for uncertainty about whether or how to pursue an item, not merely low priority or delayed timing.
+- Priority does not determine placement: an accepted `P3` item may live in the active backlog, while an unresolved `P1` or `P2` proposal remains in `proposals/`.
 
 ## Workflow
 
@@ -45,13 +45,13 @@ Choose the next number in that area by inspecting existing active and `later/` n
 2. Preserve uncommitted user edits. Inspect `git status --short` before editing and avoid rewriting unrelated backlog rows or notes.
 3. For a new item, choose the area, next ID, filename, status, priority, and dependencies before writing the note.
 4. Write the note with the existing backlog shape:
-   - H1 with the shrimp emoji for every backlog note, including notes in `later/`.
+   - H1 with the shrimp emoji for every backlog note, including notes in `proposals/`.
    - Header fields: `Status`, `Priority`, `Area`, and `Depends On` when known.
    - A required `## UX Implications` section that states the expected user-visible behavior, interaction changes, affected commands or keyboard flows, defaults, and regressions to avoid. If no user-facing effect is expected, say so explicitly and explain why.
    - Other sections that fit the work, usually `Why`, `Current State`, `Build`, `Boundaries`, `Notes`, `Touches`, and `Done`.
-5. Update `docs/backlog/index.md` in the matching active or `Later` table with a concise row. Link dependencies to their notes when practical.
-6. If moving a note between active and `later/`, update relative links in that note and in any notes that point to it.
-7. If closing or removing a note, make sure the implementation, stable docs, or changelog now carry the durable information before deleting the planning note or row.
+5. Update `docs/backlog/index.md` in the matching active or `Proposals` table with a concise row. Link dependencies to their notes when practical.
+6. If moving a note between active and `proposals/`, update relative links in that note and in any notes that point to it.
+7. When completing an item, make sure the implementation, stable docs, or changelog carry its durable information, then delete its planning note and index row before making the item's final commit so both removals are included in that commit. Do not leave completed notes for later cleanup unless the maintainer explicitly asks.
 
 ## Writing Rules
 
@@ -70,7 +70,7 @@ For backlog-only edits, review:
 
 ```bash
 git diff -- docs/backlog skills/shrimpy-dev-backlog
-rg "Status:|Priority:|Depends On:" docs/backlog docs/backlog/later
+rg "Status:|Priority:|Depends On:" docs/backlog docs/backlog/proposals
 ```
 
 Run code tests only when source code changed or when the backlog edit is part of a source change that needs verification.

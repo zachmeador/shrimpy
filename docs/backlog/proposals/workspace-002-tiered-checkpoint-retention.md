@@ -1,6 +1,6 @@
 # 🦐 WORKSPACE-002: Tiered Workspace Checkpoint Retention
 
-Status: todo
+Status: draft
 Priority: P3
 Area: Workspace
 Depends On: workspace checkpoint tracking

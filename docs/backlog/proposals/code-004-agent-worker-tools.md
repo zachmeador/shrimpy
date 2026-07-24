@@ -1,6 +1,6 @@
 # CODE-004: Agent Worker Tools
 
-Status: todo
+Status: draft
 Priority: P3
 Area: Coding Agents
 

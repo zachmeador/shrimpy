@@ -1,6 +1,6 @@
 # 🦐 SEARCH-003: Workspace Search Embeddings
 
-Status: todo
+Status: draft
 Priority: P3
 Area: Search
 Depends On: workspace search

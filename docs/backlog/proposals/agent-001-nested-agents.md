@@ -1,6 +1,6 @@
 # AGENT-001: Nested Agents
 
-Status: todo
+Status: draft
 Priority: P3
 Area: Agents
 Depends On: [CTX-008](ctx-008-runtime-context-producers.md)

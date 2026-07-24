@@ -30,7 +30,7 @@ In a large workspace the agent does not know what knowledge exists unless someth
 - An irrelevant breadcrumb is worse than none: conservative threshold, small cap, no filler.
 - Corpus is exactly `shrimpy workspace search`'s. No transcript or channel-log breadcrumbs; `shrimpy sessions search` remains on-demand recall, not ambient context.
 - No new config surface beyond `context.turn.knowledge`; budget interaction stays inside the existing `maxChars` mechanism.
-- Optional semantic ranking from [SEARCH-003](later/search-003-workspace-search-embeddings.md) can improve relevance later, but this producer must work with keyword workspace search.
+- Optional semantic ranking from [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) can improve relevance later, but this producer must work with keyword workspace search.
 
 ## Done
 
