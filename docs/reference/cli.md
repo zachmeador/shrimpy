@@ -51,7 +51,7 @@ TUI and run commands accept `--provider`, `--model`, `--model-policy`, `--thinki
 | `shrimpy worker send <id> <prompt>` | Send a contract amendment to an open worker. |
 | `shrimpy worker cancel\|close <id>` | Cancel or close a worker, terminating its process group if needed. |
 | `shrimpy worker backends [--refresh]` | Inspect worker backend availability. |
-| `shrimpy context [--sections] [--turn] [--config]` | Inspect model-facing context. See [context-assembly.md](context-assembly.md). |
+| `shrimpy context [prompt] [--json]` | Show what an agent will send to the model. See [context-assembly.md](context-assembly.md). |
 | `shrimpy context turn --channel <name>` | Render only turn context for a channel/session. |
 | `shrimpy context files list\|show [--agent <id>]` | List or print agent context Markdown files. |
 | `shrimpy context sources list\|run [--agent <id>] [--channel <name>]` | Inspect or render stable context resources. |

@@ -12,6 +12,7 @@ import {
   SessionManager,
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { projectRoot } from "../app/project-root.js";
 import { buildContainedSystemPrompt } from "../context/contained-system-prompt.js";
 import { assembleSessionPrompt } from "../context/session-prompt.js";
@@ -79,6 +80,19 @@ export async function openSession(
   plan: SessionOpenPlan,
 ): Promise<AgentSession> {
   const result = await openSessionWithRuntimeDeps(bootstrap, plan);
+  return result.session;
+}
+
+export async function openSessionForContextInspection(
+  bootstrap: SessionBootstrap,
+  plan: SessionOpenPlan,
+  runtimeModel: Model<Api>,
+  sessionManager?: SessionManager,
+): Promise<AgentSession> {
+  const result = await openSessionWithRuntimeDeps(bootstrap, plan, {
+    runtimeModel,
+    sessionManager,
+  });
   return result.session;
 }
 
@@ -156,6 +170,7 @@ async function openSessionWithRuntimeDeps(
     sessionManager?: SessionManager;
     sessionStartEvent?: SessionStartEvent;
     extensionFactories?: ExtensionFactory[];
+    runtimeModel?: Model<Api>;
   },
 ): Promise<{
   session: AgentSession;
@@ -180,6 +195,7 @@ async function openLeasedSessionWithRuntimeDeps(
     sessionManager?: SessionManager;
     sessionStartEvent?: SessionStartEvent;
     extensionFactories?: ExtensionFactory[];
+    runtimeModel?: Model<Api>;
   } | undefined,
   lease: ReturnType<typeof acquireSessionLease>,
 ): Promise<{
@@ -258,7 +274,7 @@ async function openLeasedSessionWithRuntimeDeps(
     resourceLoader,
     authStorage: bootstrap.authStorage,
     modelRegistry: bootstrap.modelRegistry,
-    model: assembly.resolvedModel,
+    model: opts?.runtimeModel ?? assembly.resolvedModel,
     thinkingLevel: effectivePlan.thinking,
     customTools: effectivePlan.tools,
     excludeTools: effectivePlan.toolPolicy?.excludedToolNames,

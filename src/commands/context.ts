@@ -3,7 +3,6 @@ import { join, relative } from "node:path";
 import { createAppRuntime } from "../app/index.js";
 import type { ShrimpyConfig } from "../config/index.js";
 import {
-  prefixPromptWithTurnContext,
   renderPromptSectionManifest,
   summarizePromptSection,
 } from "../context/index.js";
@@ -100,6 +99,7 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
       skill: { type: "string", short: "k" },
       provider: { type: "string", short: "p" },
       model: { type: "string", short: "m" },
+      session: { type: "string" },
       "session-type": { type: "string", short: "s" },
       config: { type: "boolean", default: false },
       sections: { type: "boolean", default: false },
@@ -110,6 +110,10 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
     strict: true,
     usage: USAGE,
   });
+  if (values.session && values.channel) {
+    console.error("context accepts either --session or --channel, not both");
+    return 1;
+  }
 
   const runtime = createAppRuntime(config);
   // --config: just dump the resolved config
@@ -122,6 +126,7 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
   const preview = await buildSessionContextPreview(runtime, {
     agentId: values.agent,
     channel: values.channel,
+    session: values.session,
     sessionType: values["session-type"],
     provider: values.provider,
     model: values.model,
@@ -134,13 +139,30 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
     console.log(
       JSON.stringify(
         {
+          target: {
+            agentId: preview.target.agentId,
+            sessionId: preview.target.sessionId,
+            sessionType: preview.target.sessionType,
+            delivery: preview.target.descriptor.delivery,
+            model: preview.assembly.resolvedModel
+              ? {
+                provider: preview.assembly.resolvedModel.provider,
+                id: preview.assembly.resolvedModel.id,
+              }
+              : undefined,
+          },
           systemPrompt: preview.assembly.systemPrompt,
           shrimpySystemPrompt: preview.assembly.baseSystemPrompt,
           promptSections: preview.assembly.sections.map(summarizePromptSection),
+          selectedSkills: preview.selectedSkills,
+          activeTools: preview.activeTools,
+          historyMessageCount: preview.historyMessageCount,
           turnContext: preview.turnContext
             ? { ...preview.turnContext, text: preview.turnContextText }
             : undefined,
+          inputMessage: preview.inputMessage,
           userMessage: preview.userMessage,
+          context: preview.context,
         },
         null,
         2,
@@ -155,18 +177,41 @@ async function cmdContextPreview(argv: string[], config: ShrimpyConfig): Promise
     console.log("");
   }
 
-  const userMessage = preview.userMessage && preview.turnContextText
-    ? prefixPromptWithTurnContext(preview.userMessage, preview.turnContextText, {
-      channelDelivery: preview.target.descriptor.delivery.kind === "channel",
-    })
-    : preview.userMessage;
+  const contextMessages = preview.context.messages
+    .slice(preview.historyMessageCount)
+    .map(renderContextMessage)
+    .filter(Boolean);
   const blocks = [
     preview.assembly.systemPrompt,
-    userMessage ?? (values.turn ? preview.turnContextText : undefined),
+    ...contextMessages,
+    contextMessages.length === 0 && values.turn
+      ? preview.turnContextText
+      : undefined,
   ].filter(Boolean);
   console.log(blocks.join("\n\n"));
 
   return 0;
+}
+
+function renderContextMessage(message: {
+  role: string;
+  content?: unknown;
+}): string {
+  if (typeof message.content === "string") return message.content;
+  if (!Array.isArray(message.content)) return "";
+  return message.content.map((block) => {
+    if (
+      typeof block === "object" &&
+      block !== null &&
+      "type" in block &&
+      block.type === "text" &&
+      "text" in block &&
+      typeof block.text === "string"
+    ) {
+      return block.text;
+    }
+    return "";
+  }).filter(Boolean).join("\n");
 }
 
 async function cmdContextTurn(argv: string[], config: ShrimpyConfig): Promise<number> {

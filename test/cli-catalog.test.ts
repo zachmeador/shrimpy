@@ -68,6 +68,7 @@ describe("CLI catalog", () => {
     const help = renderCliHelp({ full: true });
 
     assert.match(help, /shrimpy completion zsh/);
+    assert.match(help, /shrimpy context \[--agent <id>\] \[--session <id>\]/);
     assert.match(help, /shrimpy context sources run/);
     assert.match(help, /shrimpy context producers run/);
     assert.match(help, /shrimpy gateway logs/);

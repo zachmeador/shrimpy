@@ -5,16 +5,27 @@ import {
 } from "../channels/index.js";
 import {
   createSessionDescriptor,
+  sessionChannel,
   type SessionDescriptor,
 } from "../sessions/spec.js";
+import { SessionResolver } from "../sessions/resolver.js";
+import {
+  cloneSessionManagerForContextInspection,
+  inspectSessionContext,
+  type SessionContextView,
+  type ContextToolSchema,
+} from "../sessions/context-inspection.js";
 import {
   createChannelSessionKey,
   createLocalSessionKey,
+  formatSessionId,
 } from "../sessions/identity.js";
+import { resolveSessionDescriptor } from "../sessions/catalog.js";
 import {
   assembleSessionPrompt,
   type SessionPromptAssembly,
 } from "./session-prompt.js";
+import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
 import {
   assemblePromptResourceSections,
   expandDirectoryResource,
@@ -40,6 +51,9 @@ import {
   renderTurnContext,
 } from "./turn/render.js";
 import {
+  prefixPromptWithTurnContext,
+} from "./turn/prompt-prefix.js";
+import {
   producerMatchesChannel,
   runContextTurnProducer,
   type ResolvedContextTurnProducer,
@@ -58,18 +72,25 @@ import type {
 type ContextSourceKind = "file" | "directory";
 type ContextProducerKind = "command" | "runtime";
 
-interface ContextPreviewTarget {
+export interface ContextPreviewTarget {
   agentId: string;
   descriptor: SessionDescriptor;
+  sourceDescriptor?: SessionDescriptor;
+  sessionId: string;
   sessionType: string;
   cwd: string;
 }
 
-interface SessionContextPreview {
+export interface SessionContextPreview {
   target: ContextPreviewTarget;
   assembly: SessionPromptAssembly;
+  selectedSkills: string[];
+  activeTools: ContextToolSchema[];
+  context: SessionContextView;
+  historyMessageCount: number;
   turnContext?: TurnContext;
   turnContextText?: string;
+  inputMessage?: string;
   userMessage?: string;
 }
 
@@ -116,31 +137,47 @@ export function buildContextPreviewTarget(
   input: {
     agentId?: string;
     channel?: string;
+    session?: string;
     sessionType?: string;
     cwd?: string;
   },
 ): ContextPreviewTarget {
   const agent = runtime.getAgent(input.agentId);
   const agentPaths = runtime.getAgentPaths(agent.id);
-  const cwd = input.cwd ?? runtime.getAgentCwd(agent.id);
+  const sourceDescriptor = input.session
+    ? resolveSessionDescriptor(runtime, agent.id, input.session)
+    : undefined;
+  const cwd = input.cwd
+    ?? sourceDescriptor?.cwd
+    ?? runtime.getAgentCwd(agent.id);
   const sessionType = input.sessionType
+    ?? sourceDescriptor?.purpose
     ?? (input.channel ? "gateway" : "preview");
-  const descriptor = createSessionDescriptor({
-    agentRoot: agentPaths.root,
-    key: input.channel
-      ? createChannelSessionKey({ agentId: agent.id, channel: input.channel })
-      : createLocalSessionKey({ agentId: agent.id, name: "context-preview" }),
-    purpose: sessionType,
-    delivery: input.channel
-      ? { kind: "channel", channel: input.channel }
-      : { kind: "transcript" },
-    persistent: false,
-    cwd,
-  });
+  const descriptor = sourceDescriptor
+    ? {
+      ...sourceDescriptor,
+      purpose: sessionType,
+      storage: { kind: "memory" } as const,
+      cwd,
+    }
+    : createSessionDescriptor({
+      agentRoot: agentPaths.root,
+      key: input.channel
+        ? createChannelSessionKey({ agentId: agent.id, channel: input.channel })
+        : createLocalSessionKey({ agentId: agent.id, name: "context-preview" }),
+      purpose: sessionType,
+      delivery: input.channel
+        ? { kind: "channel", channel: input.channel }
+        : { kind: "transcript" },
+      persistent: false,
+      cwd,
+    });
 
   return {
     agentId: agent.id,
     descriptor,
+    sourceDescriptor,
+    sessionId: formatSessionId(descriptor.key),
     sessionType,
     cwd,
   };
@@ -170,6 +207,7 @@ export async function buildSessionContextPreview(
   input: {
     agentId?: string;
     channel?: string;
+    session?: string;
     sessionType?: string;
     provider?: string;
     model?: string;
@@ -185,26 +223,37 @@ export async function buildSessionContextPreview(
     agentId: target.agentId,
     cwd: target.cwd,
   });
-  const plan = {
-    descriptor: target.descriptor,
-    model: runtime.resolveModel(
-      bootstrap,
-      input.provider,
-      input.model,
-      agent.modelPolicy,
-      { allowMissingDefault: true },
-    ),
-    defaultThinking: agent.thinking,
-    prompt: {
-      skills: input.skill ? [input.skill] : undefined,
-    },
-  };
-  const assembly = assembleSessionPrompt(bootstrap, plan);
+  const channelBus = runtime.createChannelBus({
+    egressRegistry: runtime.createCliEgressRegistry(),
+  });
+  const resolver = new SessionResolver({
+    runtime,
+    bootstrap,
+    channelBus,
+    agentId: target.agentId,
+  });
+  const inspectionSessionManager = target.sourceDescriptor
+    ? cloneSessionManagerForContextInspection(target.sourceDescriptor, target.cwd)
+    : undefined;
+  const plan = await resolver.resolve({
+    key: target.descriptor.key,
+    purpose: target.sessionType,
+    delivery: target.descriptor.delivery,
+    persistent: Boolean(target.sourceDescriptor),
+    cwd: target.cwd,
+    provider: input.provider,
+    model: input.model,
+    thinking: agent.thinking,
+    skills: input.skill ? [input.skill] : undefined,
+    allowMissingModel: true,
+  });
+  plan.descriptor = target.descriptor;
   const prompt = input.prompt ?? "";
-  const previewMessage = makeContextPreviewMessage(input.channel, prompt);
-  const userMessage = prompt
-    ? previewMessage && input.channel
-      ? formatChannelMessage(input.channel, previewMessage)
+  const channel = sessionChannel(target.descriptor);
+  const previewMessage = makeContextPreviewMessage(channel, prompt);
+  const inputMessage = prompt
+    ? previewMessage && channel
+      ? formatChannelMessage(channel, previewMessage)
       : prompt
     : undefined;
   const turnContext = input.includeTurn
@@ -215,12 +264,54 @@ export async function buildSessionContextPreview(
       preview: true,
     })
     : undefined;
+  const turnContextText = turnContext ? renderTurnContext(turnContext) : undefined;
+  const channelDelivery = plan.descriptor.delivery.kind === "channel";
+  if (channelDelivery) {
+    delete plan.prepareTurnContext;
+  } else {
+    plan.prepareTurnContext = turnContextText
+      ? () => turnContextText
+      : undefined;
+  }
+  const inspected = await inspectSessionContext({
+    bootstrap,
+    plan,
+    prompt: inputMessage,
+    turnContextText: channelDelivery ? turnContextText : undefined,
+    channelDelivery,
+    sessionManager: inspectionSessionManager,
+  });
+  const initialAssembly = assembleSessionPrompt(bootstrap, plan);
+  const contained = buildContainedSystemPrompt({
+    basePrompt: initialAssembly.baseSystemPrompt,
+    cwd: initialAssembly.cwd,
+    skills: bootstrap.runtimeConfig.noSkills
+      ? []
+      : bootstrap.resourceLoader.getSkills().skills,
+    selectedTools: inspected.activeToolNames,
+  });
+  const assembly: SessionPromptAssembly = {
+    ...initialAssembly,
+    systemPrompt: inspected.context.systemPrompt,
+    containedSections: contained.sections,
+    sections: [...initialAssembly.baseSections, ...contained.sections],
+  };
+  const userMessage = inputMessage && turnContextText && channelDelivery
+    ? prefixPromptWithTurnContext(inputMessage, turnContextText, {
+      channelDelivery: true,
+    })
+    : inputMessage;
 
   return {
     target,
     assembly,
+    selectedSkills: plan.prompt?.skills ?? [],
+    activeTools: inspected.context.tools,
+    context: inspected.context,
+    historyMessageCount: inspected.historyMessageCount,
     turnContext,
-    turnContextText: turnContext ? renderTurnContext(turnContext) : undefined,
+    turnContextText,
+    inputMessage,
     userMessage,
   };
 }

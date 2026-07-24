@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import {
   chmodSync,
   existsSync,
@@ -22,6 +23,9 @@ import {
 import {
   textContent,
 } from "../dist/channels/index.js";
+import { createLocalSessionKey } from "../dist/sessions/identity.js";
+import { createSessionDescriptor } from "../dist/sessions/spec.js";
+import { ensureSessionManifest } from "../dist/sessions/manifest.js";
 import {
   getSkillPromptResources,
   getSkillView,
@@ -55,6 +59,22 @@ describe("skill context inspection", () => {
 
     assert.equal(result, 0);
     assert.match(lines.join("\n"), /Shrimpy Setup/);
+  });
+
+  test("context json identifies explicitly selected skills", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdContext(
+        ["--agent", "mechanic", "--skill", "shrimpy-setup", "--json"],
+        readWorkspaceConfig(),
+      )
+    );
+
+    assert.equal(result, 0);
+    const parsed = JSON.parse(lines.join("\n"));
+    assert.deepEqual(parsed.selectedSkills, ["shrimpy-setup"]);
+    assert.match(parsed.context.systemPrompt, /Shrimpy Setup/);
   });
 
   test("context command renders turn context with the user message", async () => {
@@ -127,7 +147,24 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(parsed.systemPrompt, /Load a skill when/);
     assert.doesNotMatch(parsed.systemPrompt, /\| Skill \| Scope \| Description \|/);
     assert.match(parsed.turnContext.text, /^\[turn-context\]/);
-    assert.equal(parsed.userMessage, "[channel: home, sender: human:(user)]\nhello");
+    assert.equal(parsed.inputMessage, "[channel: home, sender: human:(user)]\nhello");
+    assert.match(parsed.userMessage, /^\[turn-context\]/);
+    assert.match(
+      parsed.userMessage,
+      /\[channel: home, sender: human:\(user\)\]\nhello$/,
+    );
+    assert.equal(parsed.context.systemPrompt, parsed.systemPrompt);
+    assert.deepEqual(parsed.context.tools, parsed.activeTools);
+    assert.ok(parsed.activeTools.some((tool: any) =>
+      tool.name === "send_message" &&
+      tool.description &&
+      tool.parameters?.type === "object"
+    ));
+    assert.equal(
+      parsed.context.messages[0].content[0].text,
+      parsed.userMessage,
+    );
+    assert.deepEqual(parsed.selectedSkills, []);
     assert.doesNotMatch(parsed.userMessage, /\[incoming\]/);
   });
 
@@ -171,6 +208,138 @@ describe("skill context inspection", () => {
     const parsed = JSON.parse(lines.join("\n"));
     assert.match(parsed.turnContext.text, /home: 2 new messages/);
     assert.match(parsed.turnContext.text, /inspect: shrimpy channels read home/);
+  });
+
+  test("context json preserves direct-turn message ordering from Pi", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdContext(["--json", "hello direct"], { workspace } as any)
+    );
+
+    assert.equal(result, 0);
+    const parsed = JSON.parse(lines.join("\n"));
+    assert.equal(parsed.inputMessage, "hello direct");
+    assert.equal(parsed.userMessage, "hello direct");
+    assert.equal(
+      parsed.context.messages[0].content[0].text,
+      "hello direct",
+    );
+    assert.match(
+      parsed.context.messages[1].content[0].text,
+      /^\[turn-context\]/,
+    );
+    assert.match(
+      parsed.context.messages[1].content[0].text,
+      /The turn context above is background for the user message immediately before it/,
+    );
+  });
+
+  test("context inspection does not execute or cache automatic producers", async () => {
+    await setupInit(workspace);
+    const counterPath = join(workspace, "inspection-producer.txt");
+    const configPath = join(workspace, "config", "shrimpy.json");
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    config.context.turn.producers.push({
+      id: "inspection.side-effect",
+      run: `node -e "require('fs').writeFileSync(${JSON.stringify(counterPath)}, 'ran'); console.log('should not appear')"`,
+    });
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+
+    const { result, lines } = await captureLogs(() =>
+      cmdContext(["--channel", "home", "--json", "inspect safely"], {
+        ...config,
+        workspace,
+      } as any)
+    );
+
+    assert.equal(result, 0);
+    assert.equal(existsSync(counterPath), false);
+    const parsed = JSON.parse(lines.join("\n"));
+    assert.equal(parsed.turnContext.producers[0].status, "skipped");
+    assert.equal(
+      parsed.turnContext.producers[0].reason,
+      "preview does not execute automatic producers",
+    );
+    assert.doesNotMatch(
+      JSON.stringify(parsed.context),
+      /should not appear/,
+    );
+  });
+
+  test("context can inspect a durable session without changing its transcript", async () => {
+    await setupInit(workspace);
+    const runtime = createAppRuntime({ workspace });
+    const agentRoot = runtime.getAgentPaths("shrimpy").root;
+    const descriptor = createSessionDescriptor({
+      agentRoot,
+      key: createLocalSessionKey({
+        agentId: "shrimpy",
+        name: "history",
+      }),
+      purpose: "interactive",
+      delivery: { kind: "transcript" },
+      cwd: runtime.getAgentCwd("shrimpy"),
+    });
+    ensureSessionManifest(descriptor);
+    assert.equal(descriptor.storage.kind, "durable");
+    const manager = SessionManager.create(
+      runtime.getAgentCwd("shrimpy"),
+      descriptor.storage.dir,
+    );
+    manager.appendModelChange("history-provider", "history-model");
+    manager.appendMessage({
+      role: "user",
+      content: [{ type: "text", text: "remembered history" }],
+      timestamp: Date.now() - 1000,
+    });
+    manager.appendMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "remembered answer" }],
+      api: "openai-completions",
+      provider: "history-provider",
+      model: "history-model",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          total: 0,
+        },
+      },
+      stopReason: "stop",
+      timestamp: Date.now() - 500,
+    });
+    const sessionFile = manager.getSessionFile();
+    assert.ok(sessionFile);
+    const before = readFileSync(sessionFile, "utf-8");
+
+    const { result, lines } = await captureLogs(() =>
+      cmdContext(
+        ["--session", "local/history", "--json", "next question"],
+        { workspace } as any,
+      )
+    );
+
+    assert.equal(result, 0);
+    const parsed = JSON.parse(lines.join("\n"));
+    assert.equal(parsed.target.sessionId, "local/history");
+    assert.equal(parsed.historyMessageCount, 2);
+    assert.equal(
+      parsed.context.messages[0].content[0].text,
+      "remembered history",
+    );
+    assert.equal(
+      parsed.context.messages[2].content[0].text,
+      "next question",
+    );
+    assert.equal(readFileSync(sessionFile, "utf-8"), before);
   });
 
   test("context sources list exposes only stable configured sources", async () => {

@@ -5,6 +5,7 @@ export * from "./identity.js";
 export * from "./foreground.js";
 export * from "./bootstrap.js";
 export * from "./open.js";
+export * from "./context-inspection.js";
 export * from "./models.js";
 export * from "./ownership.js";
 export * from "./resolver.js";

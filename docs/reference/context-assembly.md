@@ -117,9 +117,11 @@ Automatic producers should be reserved for bounded facts the model must see befo
 ## Inspection
 
 ```bash
-shrimpy context --agent shrimpy                 # rendered system prompt
-shrimpy context --agent shrimpy --sections      # section manifest with provenance
-shrimpy context --turn --channel home           # sections plus the turn-context-prefixed user message
+shrimpy context --agent shrimpy "hello" --json  # context for a direct turn
+shrimpy context --channel home "hello" --json   # context for a channel turn
+shrimpy context --session local/main "hello" --json
+shrimpy context --agent shrimpy --sections
+shrimpy context --turn --channel home
 shrimpy context turn --agent shrimpy --channel home
 shrimpy context sources list --agent shrimpy --channel home
 shrimpy context sources run directory:workspace:context/ --agent shrimpy
@@ -127,7 +129,11 @@ shrimpy context producers list --agent shrimpy --channel finance
 shrimpy context producers run finance_alerts --agent shrimpy --channel finance
 ```
 
-`--sections --json` returns each section's id, kind, source, reason, and length. `--turn --json` includes `turnContext` and `userMessage` as separate fields. `producers list` reports whether each producer matched, was skipped, or has cached output without executing it. `producers run` is the explicit execution path and accepts `--session-type <type>` to match the `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose; it does not update automatic-turn cache state. Provider-facing turn-context JSON reports configured producers as `ran`, `cached`, `failed`, or `skipped`.
+The main command opens the same session as a real run. With `--json`, `context` shows exactly what Pi sends to the model: the system prompt, messages, and available tools.
+
+`--session <canonical-id>` copies the active, compaction-aware transcript into memory before inspecting the next turn. The source transcript is not opened for writing, and the JSON `historyMessageCount` identifies the messages that came from stored history. `--session` and `--channel` are mutually exclusive.
+
+Inspection does not persist a turn or change producer freshness. Configured automatic producers are reported as skipped and are not executed; use `context producers run` when execution is intentional. `producers list` reports match and cache status without execution. `producers run` accepts `--session-type <type>` and does not update automatic-turn cache state.
 
 ## Related Code
 

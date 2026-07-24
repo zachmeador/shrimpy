@@ -2,7 +2,8 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
-import { buildTurnContext, renderTurnContext } from "../context/index.js";
+import { buildTurnContext } from "../context/turn/service.js";
+import { renderTurnContext } from "../context/turn/render.js";
 import type { ThinkingLevel } from "../thinking.js";
 import type {
   AgentToolPolicy,
