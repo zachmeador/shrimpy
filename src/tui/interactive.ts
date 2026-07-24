@@ -39,6 +39,18 @@ export async function runInteractiveAgentSession(
   return runAgentTuiSession(input);
 }
 
+export async function checkInteractiveAgentSession(
+  input: RunInteractiveSessionInput,
+): Promise<{ agentId: string }> {
+  await assertSetupReadyForNormalTui(input.runtime);
+  const prepared = await prepareAgentTuiSession(input);
+  try {
+    return { agentId: prepared.target.getTarget().agentId };
+  } finally {
+    await prepared.runtime.dispose();
+  }
+}
+
 export function primeInteractiveThemeForSession(
   session: Pick<AgentSession, "resourceLoader" | "settingsManager">,
 ): void {
@@ -59,6 +71,22 @@ export function resolveInteractiveThemeName(
 async function runAgentTuiSession(
   input: RunInteractiveSessionInput,
 ): Promise<{ agentId: string }> {
+  const prepared = await prepareAgentTuiSession(input);
+  try {
+    await prepared.interactive.run();
+    return { agentId: prepared.target.getTarget().agentId };
+  } finally {
+    await prepared.runtime.dispose();
+  }
+}
+
+async function prepareAgentTuiSession(
+  input: RunInteractiveSessionInput,
+): Promise<{
+  runtime: AgentSessionRuntime;
+  interactive: InteractiveMode;
+  target: TuiSessionTargetController;
+}> {
   const prepared = await prepareForegroundSessionOpen(input);
   const sessionRuntime: { current?: AgentSessionRuntime } = {};
   const settingsUi = createShrimpySettingsUiController();
@@ -123,9 +151,9 @@ async function runAgentTuiSession(
       getSession: () => runtime.session,
       ui: settingsUi,
     });
-    await interactive.run();
-    return { agentId: target.getTarget().agentId };
-  } finally {
+    return { runtime, interactive, target };
+  } catch (error) {
     await runtime.dispose();
+    throw error;
   }
 }

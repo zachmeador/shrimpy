@@ -18,6 +18,7 @@ Centralize ownership of Shrimpy-authored model-facing instructions without centr
 - `PromptSection` already records `id`, `kind`, `source`, `reason`, and `content`, providing useful runtime provenance for stable prompt sections.
 - Product-authored instructions live across `src/context/system/`, `src/context/turn/`, `src/context/assembly.ts`, `src/sessions/compaction-runner.ts`, `src/workers/runner.ts`, `src/setup/defaults.ts`, tool schemas/results, and setup templates.
 - Included skills are already explicit Markdown instruction bundles and should remain independently owned rather than being copied into a central catalog.
+- Skill-backed command handoffs such as `shrimpy update` load a canonical skill as an explicit session prompt resource and keep the task message to runtime facts plus the skill source path. Durable workflow directions belong in the skill.
 - Workspace `context/`, agent `SOUL.md` and context files, watch text, session prompts, and caller additions are user-owned inputs rather than Shrimpy product copy.
 
 ## Build
@@ -27,6 +28,7 @@ Centralize ownership of Shrimpy-authored model-facing instructions without centr
 - Keep static multi-paragraph instruction text readable as Markdown or plainly formatted source. Use small typed render functions for instructions with runtime values such as channel names, paths, and chunk numbers.
 - Move existing product-authored instructions behind the catalog without changing their rendered wording or behavior.
 - Return or retain enough definition metadata for prompt sections and debugging code to identify the instruction ID and source. Do not force all runtime facts or user-authored text through the catalog.
+- Keep included skill resources on the existing session prompt-resource path. When a command loads a workflow skill, remove duplicated behavioral prose instead of moving it into the catalog; task-specific runtime facts and the skill path can remain at the call site.
 - Cover the catalog with focused tests that verify stable IDs, interpolation, and parity with the current rendered prompts.
 - Make future replacement of the built-in instruction resolver possible without implementing locale packs or workspace overrides in this item.
 
@@ -85,7 +87,7 @@ The implementation should perform one repository-wide inventory for additional m
 
 Catalog Shrimpy-authored text when its purpose is to direct or frame model behavior, including instructions delivered through system prompts, user-message framing, auxiliary model prompts, tool descriptions, tool results with behavioral directions, and seeded default watch messages.
 
-Do not catalog ordinary CLI/UI copy, pure runtime data, user messages, model output, workspace context, agent-authored memory, or skill contents. Product-owned setup templates may remain template assets, but their role and source should be represented in the inventory where they seed instructions that users later own.
+Do not catalog ordinary CLI/UI copy, pure runtime data, user messages, model output, workspace context, agent-authored memory, skill contents, task-specific runtime facts, or skill source pointers. If a product command selects a skill, durable behavioral directions belong in that `SKILL.md` rather than an adjacent TypeScript prompt. Product-owned setup templates may remain template assets, but their role and source should be represented in the inventory where they seed instructions that users later own.
 
 ## Boundaries
 
@@ -121,6 +123,7 @@ No immediate end-user interaction or command behavior should change. Maintainers
 - Shrimpy-authored model-facing instructions have stable semantic IDs and are defined behind one obvious source boundary.
 - Existing product instruction call sites import or render catalog definitions instead of declaring scattered prose.
 - User-owned context, agent identity and memory, and skill contents remain outside the catalog.
+- Skill-backed command handoffs contain task facts and a skill source pointer without duplicating the workflow's behavioral directions in TypeScript.
 - Rendered prompt and task behavior remains unchanged.
 - Tests cover catalog identity, parameter interpolation, and representative rendering parity.
 - A repository search and manual inventory find no unexplained Shrimpy-authored behavioral instruction strings outside the catalog boundary.

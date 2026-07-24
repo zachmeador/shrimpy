@@ -39,7 +39,8 @@ TUI and run commands accept `--provider`, `--model`, `--model-policy`, `--thinki
 | `shrimpy setup` | Run first-run setup onboarding. |
 | `shrimpy setup telegram` | Guided Telegram config. |
 | `shrimpy status` | Show workspace, gateway, channels, watch-run, and surface status. |
-| `shrimpy update [--dry-run]` | Preflight a safe Shrimpy environment update. |
+| `shrimpy update [--dry-run] [--json]` | Resolve the newest release tag and open a mechanic-led update; dry-run and JSON modes only inspect. |
+| `shrimpy update apply --tag <tag> --commit <sha> [--json]` | Apply an exact mechanic-approved tagged release with guarded app rollback. |
 | `shrimpy workspace track init\|status\|checkpoint` | Opt-in workspace git checkpoint tracking. |
 | `shrimpy workspace search <query>` | Search workspace context, skills, and vault Markdown. |
 | `shrimpy workspace index status\|rebuild` | Inspect or rebuild the workspace search cache. |

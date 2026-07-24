@@ -133,6 +133,16 @@ describe("install.sh", () => {
     assert.equal(readlinkSync(join(binDir, "shrimpy")), join(installDir, "dist", "cli.js"));
     assert.equal(readlinkSync(join(binDir, "shrimpy-gateway")), join(installDir, "dist", "gateway.js"));
     assert.equal(readlinkSync(join(binDir, "shrimpy-web")), join(installDir, "dist", "web", "server.js"));
+    const installMetadata = JSON.parse(
+      readFileSync(join(dirname(installDir), ".shrimpy-install.json"), "utf-8"),
+    );
+    assert.equal(installMetadata.schemaVersion, 1);
+    assert.equal(installMetadata.managed, true);
+    assert.equal(installMetadata.installDir, installDir);
+    assert.equal(installMetadata.origin, `file://${repo}`);
+    assert.equal(installMetadata.requestedRef, "main");
+    assert.equal(installMetadata.installedRef, "main");
+    assert.match(installMetadata.installedCommit, /^[0-9a-f]{40}$/);
     assert.match(output, new RegExp(`${escapeRegExp(binDir)}/shrimpy setup`));
     assert.match(readFileSync(join(root, "home", ".zshrc"), "utf-8"), new RegExp(escapeRegExp(`export PATH="${binDir}:$PATH"`)));
 

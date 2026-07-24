@@ -13,6 +13,8 @@ Goal: leave the first usable Shrimpy workspace boring, inspectable, and ready fo
 
 Start by inspecting the current workspace state before asking questions:
 
+- `shrimpy status`
+- `shrimpy skills validate --agent mechanic --json`
 - `pwd`
 - `ls`
 - `test -f config/shrimpy.json && sed -n '1,220p' config/shrimpy.json`
@@ -54,6 +56,8 @@ Enable accepted watches with `shrimpy watches enable <agent-id>/<watch-id>`. Lea
 
 Default gateway behavior: ask before running `shrimpy gateway install` or `shrimpy gateway start`. If the user declines, include in the closing summary that watches and chat surfaces stay dormant until the gateway runs. If the user accepts, run the gateway commands and then inspect with `shrimpy gateway status`.
 
+Treat each clear answer as authorization for the setup action it describes. Once the user has accepted a concrete choice such as enabling selected watches or installing and starting the gateway, carry out its routine commands without asking again. Pause only when execution reveals a materially different consequence, conflict with existing user content, auth or secret choice, or destructive action that was not part of the accepted choice.
+
 Do not add a separate local/private model-policy chooser in first setup. `shrimpy setup` already made the `coding` policy usable, and this setup session runs as the `mechanic` agent through `modelPolicy: "coding"`.
 
 Use `shrimpy-agents` for specialized agents, `shrimpy-channels` for chat surfaces or adapter routing, `shrimpy-watches` for recurring/background work, and `shrimpy-skills` for skill package changes. Keep first setup focused on concrete owner choices and validated workspace state.
@@ -86,5 +90,15 @@ SHRIMPY_WORKSPACE="$(pwd)" bash <setup-skill-dir>/scripts/validate-config.sh
 ```
 
 If validation fails, inspect the error, fix the workspace, and run it again. Only claim success once validation passes.
+
+Also verify the CLI-facing result:
+
+```bash
+shrimpy status
+shrimpy skills validate --agent mechanic
+shrimpy context --agent shrimpy --sections
+```
+
+If the user chose to run the gateway, finish with `shrimpy gateway status` and inspect its log path when health is not clean.
 
 End with the exact files changed and the next normal command to use, usually `shrimpy`.

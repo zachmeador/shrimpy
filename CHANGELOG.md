@@ -4,6 +4,11 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ## 🦐 0.6.0 - The Blue Hour - Unreleased
 
+### Installation & Update
+
+- Changed `shrimpy update` into a mechanic-led tagged-release workflow: it opens normal mechanic chat with the app-bundled migration skill and exact release context, uses a guarded exact-tag apply primitive, and restores the previous app if the new mechanic TUI cannot bootstrap.
+- Changed managed installs to record their origin, requested ref, and installed commit outside the replaceable app directory, and expanded setup and migration guidance to carry approved routine work through gateway lifecycle and end-to-end verification without repeated confirmation.
+
 ### Watches & Gateway
 
 - Changed gateway ownership and status to use an atomic workspace PID claim, cross-platform process identity, and a fresh heartbeat record; service-manager state is reported separately and manual gateways remain visible as running with a management warning.

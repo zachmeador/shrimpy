@@ -18,7 +18,7 @@ Install a specific tag, branch, or commit:
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | env SHRIMPY_REF=v0.5.0 bash
 ```
 
-The installer creates an install-managed git checkout at `~/.local/share/shrimpy/app`, checks out the selected ref, installs dependencies, builds Shrimpy, prunes development dependencies, and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`. Branch refs such as `main` are installed as local tracking branches; tag and commit refs are checked out detached. If an existing git-backed app checkout has local changes, the installer refuses to replace it unless `SHRIMPY_FORCE=1` is set.
+The installer creates an install-managed git checkout at `~/.local/share/shrimpy/app`, checks out the selected ref, installs dependencies, builds Shrimpy, prunes development dependencies, records the managed origin, ref, and commit in `~/.local/share/shrimpy/.shrimpy-install.json`, and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`. Branch refs such as `main` are installed as local tracking branches; tag and commit refs are checked out detached. If an existing git-backed app checkout has local changes, the installer refuses to replace it unless `SHRIMPY_FORCE=1` is set.
 
 For source checkout development:
 
@@ -28,6 +28,27 @@ npm run build
 npm link
 ```
 
+## Update
+
+Run the user-facing update flow:
+
+```bash
+shrimpy update
+```
+
+For an installer-managed checkout, Shrimpy resolves the newest semantic-version release tag, verifies the local update prerequisites, and opens a normal mechanic chat with the app-bundled `shrimpy-workspace-migration` skill and the exact current and target release context already loaded. The bundled copy makes the update procedure independent of an older or locally edited workspace skill while leaving that user-owned copy untouched. The mechanic inspects what changed, presents one concrete migration plan, and asks for approval on consequential decisions. A clear approval of that plan authorizes its listed routine steps: stopping the gateway, applying the exact tagged release, making the described workspace or skill changes, restarting the service when appropriate, and verifying the result. It asks again only if inspection uncovers a new materially consequential choice.
+
+The app replacement itself is a guarded primitive. It stages and builds the exact approved tag, verifies its commit and CLI, requires a clean managed checkout and a stopped gateway, swaps the app, then checks that the new mechanic TUI can bootstrap. If that immediate mechanic check fails, Shrimpy restores the previous app and verifies the restored mechanic. Workspace migration remains in the mechanic session; the apply primitive does not rewrite user-owned workspace data.
+
+Inspect the same release and readiness information without opening chat:
+
+```bash
+shrimpy update --dry-run
+shrimpy update --dry-run --json
+```
+
+`shrimpy update` installs release tags only. It does not update from `main`, another branch, or an untagged commit. Source-development checkouts should continue to use Git and the repository build workflow instead.
+
 ## Setup
 
 Run first-run setup onboarding:
@@ -36,7 +57,7 @@ Run first-run setup onboarding:
 shrimpy setup
 ```
 
-Setup creates missing workspace files, writes Shrimpy/Pi baseline guidance into `context/SYSTEM.md`, writes durable user preference scaffolding into `context/USER.md`, writes local path breadcrumbs into `context/WORKSPACE.md`, writes workspace-local command shims under `runtime/bin/`, checks model access, writes or repairs `modelPolicies.coding`, and opens the mechanic setup TUI. The breadcrumbs include the active workspace, app checkout, local command path, source tree, reference docs, and skill roots so agents can inspect the right files without path hunting. The setup session asks before installing or starting the gateway service and can run `shrimpy gateway install`, `shrimpy gateway start`, and `shrimpy gateway status` when the user approves. After the mechanic setup session exits, setup prints `shrimpy status` and key workspace paths. A bare `shrimpy` follows the same onboarding entrypoint when the workspace is not ready, including non-interactive setup output.
+Setup creates missing workspace files, writes Shrimpy/Pi baseline guidance into `context/SYSTEM.md`, writes durable user preference scaffolding into `context/USER.md`, writes local path breadcrumbs into `context/WORKSPACE.md`, writes workspace-local command shims under `runtime/bin/`, checks model access, writes or repairs `modelPolicies.coding`, and opens the mechanic setup TUI. The breadcrumbs include the active workspace, app checkout, local command path, source tree, reference docs, and skill roots so agents can inspect the right files without path hunting. The setup session asks about meaningful environment choices such as gateway installation, then treats approval of its described routine setup work as authority to carry those steps through without repeated confirmation. It can run `shrimpy gateway install`, `shrimpy gateway start`, and `shrimpy gateway status` when the user approves. Before finishing, the mechanic verifies workspace status, skill visibility, assembled context, and any selected gateway service. After the mechanic setup session exits, setup prints `shrimpy status` and key workspace paths. A bare `shrimpy` follows the same onboarding entrypoint when the workspace is not ready, including non-interactive setup output.
 
 Shrimpy setup is complete only when `modelPolicies.coding` resolves to at least one Pi-visible model with configured auth and the setup agent workspace exists. If no usable model is available in an interactive terminal, setup runs a plain model access wizard first: choose a local OpenAI-compatible endpoint, API key, or subscription login. The local endpoint path writes a Pi custom provider into `state/pi/models.json` with a dummy local API key, and setup then selects the `coding` policy model from the Pi-visible registry. If no usable model is available in a non-interactive shell, setup prints the auth/model state paths and exits without opening a TUI.
 

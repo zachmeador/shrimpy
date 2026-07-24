@@ -206,6 +206,27 @@ echo "Installing app to $install_dir"
 rm -rf "$install_dir"
 mv "$stage" "$install_dir"
 
+installed_commit="$(git -C "$install_dir" rev-parse HEAD)"
+install_metadata="$install_parent/.shrimpy-install.json"
+node - "$install_metadata" "$install_dir" "$clone_url" "$ref" "$installed_commit" <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+
+const [metadataPath, installDir, origin, requestedRef, installedCommit] = process.argv.slice(2);
+const value = {
+  schemaVersion: 1,
+  managed: true,
+  installDir: path.resolve(installDir),
+  origin,
+  requestedRef,
+  installedRef: requestedRef,
+  installedCommit,
+};
+const temporaryPath = `${metadataPath}.${process.pid}.tmp`;
+fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
+fs.renameSync(temporaryPath, metadataPath);
+NODE
+
 echo "Linking commands in $bin_dir"
 mkdir -p "$bin_dir"
 ln -sfn "$install_dir/dist/cli.js" "$bin_dir/shrimpy"
