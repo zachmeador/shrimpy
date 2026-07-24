@@ -1,9 +1,11 @@
-# 🦐 SURFACE-007: Web Chat Surface
+---
+status: draft
+priority: P3
+area: Surfaces
+depends_on: []
+---
 
-Status: draft
-Priority: P3
-Area: Surfaces
-Depends On: none
+# 🦐 SURFACE-007: Web Chat Surface
 
 ## Why
 

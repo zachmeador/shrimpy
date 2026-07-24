@@ -1,8 +1,11 @@
-# CODE-004: Agent Worker Tools
+---
+status: draft
+priority: P3
+area: Coding Agents
+depends_on: []
+---
 
-Status: draft
-Priority: P3
-Area: Coding Agents
+# CODE-004: Agent Worker Tools
 
 ## Why
 

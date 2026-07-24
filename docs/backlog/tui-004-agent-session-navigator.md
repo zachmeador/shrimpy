@@ -1,9 +1,11 @@
-# 🦐 TUI-004: Agent Session Navigator
+---
+status: review
+priority: P2
+area: TUI
+depends_on: []
+---
 
-Status: review
-Priority: P2
-Area: TUI
-Depends On: none
+# 🦐 TUI-004: Agent Session Navigator
 
 ## Why
 

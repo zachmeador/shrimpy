@@ -1,8 +1,11 @@
-# 🦐 CTX-013: Separate Stable Context From Turn Producers
+---
+status: review
+priority: P2
+area: Context
+depends_on: []
+---
 
-Status: review
-Priority: P2
-Area: Context
+# 🦐 CTX-013: Separate Stable Context From Turn Producers
 
 ## Why
 

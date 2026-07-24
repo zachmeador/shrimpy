@@ -1,9 +1,12 @@
-# 🦐 CTX-011: Workspace Knowledge Breadcrumbs In Turn Context
+---
+status: todo
+priority: P2
+area: Context
+depends_on:
+  - workspace search
+---
 
-Status: todo
-Priority: P2
-Area: Context
-Depends On: workspace search
+# 🦐 CTX-011: Workspace Knowledge Breadcrumbs In Turn Context
 
 ## Why
 

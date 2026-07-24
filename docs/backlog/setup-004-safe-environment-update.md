@@ -1,9 +1,11 @@
-# 🦐 SETUP-004: Safe Environment Update
+---
+status: draft
+priority: P1
+area: Setup
+depends_on: []
+---
 
-Status: draft
-Priority: P1
-Area: Setup
-Depends On: none
+# 🦐 SETUP-004: Safe Environment Update
 
 ## Why
 

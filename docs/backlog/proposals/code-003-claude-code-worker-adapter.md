@@ -1,8 +1,11 @@
-# CODE-003: Claude Code Worker Adapter
+---
+status: draft
+priority: P3
+area: Coding Agents
+depends_on: []
+---
 
-Status: draft
-Priority: P3
-Area: Coding Agents
+# CODE-003: Claude Code Worker Adapter
 
 ## Why
 

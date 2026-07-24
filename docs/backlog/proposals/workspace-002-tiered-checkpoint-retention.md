@@ -1,9 +1,12 @@
-# 🦐 WORKSPACE-002: Tiered Workspace Checkpoint Retention
+---
+status: draft
+priority: P3
+area: Workspace
+depends_on:
+  - workspace checkpoint tracking
+---
 
-Status: draft
-Priority: P3
-Area: Workspace
-Depends On: workspace checkpoint tracking
+# 🦐 WORKSPACE-002: Tiered Workspace Checkpoint Retention
 
 ## Why
 

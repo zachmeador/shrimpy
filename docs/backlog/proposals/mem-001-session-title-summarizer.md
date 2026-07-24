@@ -1,9 +1,12 @@
-# 🦐 MEM-001: Session Title Summarizer
+---
+status: draft
+priority: P3
+area: Memory
+depends_on:
+  - TUI-004
+---
 
-Status: draft
-Priority: P3
-Area: Memory
-Depends On: [TUI-004](../tui-004-agent-session-navigator.md)
+# 🦐 MEM-001: Session Title Summarizer
 
 ## Why
 

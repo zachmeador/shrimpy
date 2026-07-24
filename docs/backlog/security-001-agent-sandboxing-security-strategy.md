@@ -1,8 +1,11 @@
-# 🦐 SECURITY-001: Local Agent Sandboxing
+---
+status: todo
+priority: P2
+area: Security
+depends_on: []
+---
 
-Status: todo
-Priority: P2
-Area: Security
+# 🦐 SECURITY-001: Local Agent Sandboxing
 
 ## Why
 Some agents should get a workspace folder, not the whole machine. Shrimpy needs a local sandbox story for macOS and Linux that normal people can live with.

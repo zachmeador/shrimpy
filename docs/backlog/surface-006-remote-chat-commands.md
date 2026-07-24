@@ -1,9 +1,11 @@
-# 🦐 SURFACE-006: Remote Chat Commands
+---
+status: todo
+priority: P2
+area: Surfaces
+depends_on: []
+---
 
-Status: todo
-Priority: P2
-Area: Surfaces
-Depends On: none
+# 🦐 SURFACE-006: Remote Chat Commands
 
 ## Why
 

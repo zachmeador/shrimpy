@@ -1,8 +1,11 @@
-# CTX-008: Runtime Context Producers As CLI Commands
+---
+status: draft
+priority: P2
+area: Context
+depends_on: []
+---
 
-Status: draft
-Priority: P2
-Area: Context
+# CTX-008: Runtime Context Producers As CLI Commands
 
 ## Why
 

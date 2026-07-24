@@ -1,9 +1,12 @@
-# 🦐 SURFACE-004: Discord DM Chat Adapter
+---
+status: todo
+priority: P2
+area: Surfaces
+depends_on:
+  - SURFACE-006
+---
 
-Status: todo
-Priority: P2
-Area: Surfaces
-Depends On: [SURFACE-006](surface-006-remote-chat-commands.md)
+# 🦐 SURFACE-004: Discord DM Chat Adapter
 
 ## Why
 Shrimpy should support Discord as another chat surface, but the first version should stay narrow: one bot account receiving and sending direct messages with explicitly authorized human users. That gives the user a familiar low-friction control path without taking on Discord guild-channel, thread, role, slash-command, or multi-user room semantics.

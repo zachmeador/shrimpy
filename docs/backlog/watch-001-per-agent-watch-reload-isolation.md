@@ -1,9 +1,11 @@
-# 🦐 WATCH-001: Per-Agent Watch Reload Isolation
+---
+status: draft
+priority: P2
+area: Watches
+depends_on: []
+---
 
-Status: draft
-Priority: P2
-Area: Watches
-Depends On: none
+# 🦐 WATCH-001: Per-Agent Watch Reload Isolation
 
 ## Why
 

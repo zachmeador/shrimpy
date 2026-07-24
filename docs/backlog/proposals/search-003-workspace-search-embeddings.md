@@ -1,9 +1,12 @@
-# 🦐 SEARCH-003: Workspace Search Embeddings
+---
+status: draft
+priority: P3
+area: Search
+depends_on:
+  - workspace search
+---
 
-Status: draft
-Priority: P3
-Area: Search
-Depends On: workspace search
+# 🦐 SEARCH-003: Workspace Search Embeddings
 
 ## Why
 

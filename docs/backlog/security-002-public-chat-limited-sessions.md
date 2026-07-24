@@ -1,9 +1,11 @@
-# 🦐 SECURITY-002: Public Chat Limited Sessions
+---
+status: draft
+priority: P2
+area: Security
+depends_on: []
+---
 
-Status: draft
-Priority: P2
-Area: Security
-Depends On: none
+# 🦐 SECURITY-002: Public Chat Limited Sessions
 
 ## Why
 Shrimpy eventually needs agents in group chats and public chatrooms. A channel-level allowlist is not enough for that world: the room may be allowed, while some people speaking in it have no Shrimpy permissions. Those messages should not enter the agent's normal channel session with its normal tools, memory pressure, and command surface.

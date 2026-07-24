@@ -1,8 +1,11 @@
-# CTX-009: First-Class Context Trace Debug View
+---
+status: draft
+priority: P2
+area: Context
+depends_on: []
+---
 
-Status: draft
-Priority: P2
-Area: Context
+# CTX-009: First-Class Context Trace Debug View
 
 ## Why
 

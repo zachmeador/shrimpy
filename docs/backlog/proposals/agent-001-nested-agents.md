@@ -1,9 +1,12 @@
-# AGENT-001: Nested Agents
+---
+status: draft
+priority: P3
+area: Agents
+depends_on:
+  - CTX-008
+---
 
-Status: draft
-Priority: P3
-Area: Agents
-Depends On: [CTX-008](ctx-008-runtime-context-producers.md)
+# AGENT-001: Nested Agents
 
 ## Why
 

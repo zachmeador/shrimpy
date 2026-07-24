@@ -1,9 +1,11 @@
-# 🦐 SURFACE-002: Chat Delivery Attribution
+---
+status: todo
+priority: P2
+area: Surfaces
+depends_on: []
+---
 
-Status: todo
-Priority: P2
-Area: Surfaces
-Depends On: none
+# 🦐 SURFACE-002: Chat Delivery Attribution
 
 ## Why
 Chat surfaces often expose one visible Shrimpy account even when multiple internal agents can deliver into the same user-facing channel. For example, an app-agent watch can write a poem into a Telegram session, but Telegram shows the message as coming from the Shrimpy bot account. The channel log records the real `sender`, and egress now passes that typed message to adapters, but surfaces still do not decorate outbound messages when attribution would help.

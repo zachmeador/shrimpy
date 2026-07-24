@@ -1,9 +1,11 @@
-# 🦐 CHANNEL-001: Watch Message Backlog Contract
+---
+status: draft
+priority: P2
+area: Channels
+depends_on: []
+---
 
-Status: draft
-Priority: P2
-Area: Channels
-Depends On: none
+# 🦐 CHANNEL-001: Watch Message Backlog Contract
 
 ## Why
 

@@ -45,8 +45,20 @@ Choose the next number in that area by inspecting existing active and `proposals
 2. Preserve uncommitted user edits. Inspect `git status --short` before editing and avoid rewriting unrelated backlog rows or notes.
 3. For a new item, choose the area, next ID, filename, status, priority, and dependencies before writing the note.
 4. Write the note with the existing backlog shape:
+   - Begin with YAML frontmatter for planning metadata:
+
+     ```yaml
+     ---
+     status: draft
+     priority: P2
+     area: Context
+     depends_on:
+       - CTX-013
+     ---
+     ```
+
+   - Keep `status`, `priority`, `area`, and `depends_on` in frontmatter rather than body labels such as `Status:`. Always make `depends_on` a YAML list; use `depends_on: []` when there are no dependencies, and use backlog IDs or short named prerequisites without Markdown links as list values.
    - H1 with the shrimp emoji for every backlog note, including notes in `proposals/`.
-   - Header fields: `Status`, `Priority`, `Area`, and `Depends On` when known.
    - A required `## UX Implications` section that states the expected user-visible behavior, interaction changes, affected commands or keyboard flows, defaults, and regressions to avoid. If no user-facing effect is expected, say so explicitly and explain why.
    - Other sections that fit the work, usually `Why`, `Current State`, `Build`, `Boundaries`, `Notes`, `Touches`, and `Done`.
 5. Update `docs/backlog/index.md` in the matching active or `Proposals` table with a concise row. Link dependencies to their notes when practical.
@@ -70,7 +82,10 @@ For backlog-only edits, review:
 
 ```bash
 git diff -- docs/backlog skills/shrimpy-dev-backlog
-rg "Status:|Priority:|Depends On:" docs/backlog docs/backlog/proposals
+rg "^(status|priority|area|depends_on):" docs/backlog
+rg "^(Status|Priority|Area|Depends On):" docs/backlog
 ```
+
+The second `rg` command should return no body-style metadata fields.
 
 Run code tests only when source code changed or when the backlog edit is part of a source change that needs verification.

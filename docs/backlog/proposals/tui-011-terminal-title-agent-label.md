@@ -1,9 +1,12 @@
-# 🦐 TUI-011: Terminal Title Agent Label
+---
+status: draft
+priority: P3
+area: TUI
+depends_on:
+  - upstream Pi persistent terminal-title hook
+---
 
-Status: draft
-Priority: P3
-Area: TUI
-Depends On: upstream Pi persistent terminal-title hook
+# 🦐 TUI-011: Terminal Title Agent Label
 
 ## Why
 

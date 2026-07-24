@@ -1,9 +1,12 @@
-# 🦐 CTX-012: Exact Context Command Parity
+---
+status: todo
+priority: P2
+area: Context
+depends_on:
+  - CTX-013
+---
 
-Status: todo
-Priority: P2
-Area: Context
-Depends On: [CTX-013](ctx-013-separate-stable-context-and-turn-producers.md)
+# 🦐 CTX-012: Exact Context Command Parity
 
 ## Why
 

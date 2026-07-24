@@ -1,8 +1,11 @@
-# RUNTIME-001: Optional Spend Controller
+---
+status: draft
+priority: P3
+area: Runtime
+depends_on: []
+---
 
-Status: draft
-Priority: P3
-Area: Runtime
+# RUNTIME-001: Optional Spend Controller
 
 ## Why
 
