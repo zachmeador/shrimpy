@@ -253,11 +253,91 @@ describe("resolveContextConfig", () => {
       /unknown env key in context\.channels\["maintenance"\]\.env/,
     );
   });
+
+  test("rejects executable objects in every stable source list", () => {
+    const commandSource = {
+      type: "command",
+      id: "old",
+      command: "printf old",
+    };
+    assert.throws(
+      () => resolveContextConfig({ sources: [commandSource] }),
+      /configure automatic commands in context\.turn\.producers/,
+    );
+    assert.throws(
+      () => resolveContextConfig({
+        agents: {
+          shrimpy: { sources: [commandSource] },
+        },
+      }),
+      /context\.agents\["shrimpy"\]\.sources\[0\] must be a stable resource string/,
+    );
+    assert.throws(
+      () => resolveContextConfig({
+        channels: {
+          home: { sources: [commandSource] },
+        },
+      }),
+      /context\.channels\["home"\]\.sources\[0\] must be a stable resource string/,
+    );
+  });
+
+  test("resolves automatic turn producers separately from stable sources", () => {
+    const resolved = resolveContextConfig({
+      sources: ["agent:SOUL.md"],
+      turn: {
+        producers: [{
+          id: "finance",
+          run: "finance-shrimpy alerts context",
+          when: { channels: ["finance"] },
+          timeoutMs: 3000,
+          cacheMs: 10000,
+          maxChars: 800,
+        }],
+      },
+    });
+
+    assert.deepEqual(resolved.sources, ["agent:SOUL.md"]);
+    assert.deepEqual(resolved.turn.producers, [{
+      id: "finance",
+      run: "finance-shrimpy alerts context",
+      when: { channels: ["finance"] },
+      timeoutMs: 3000,
+      cacheMs: 10000,
+      maxChars: 800,
+    }]);
+  });
+
+  test("rejects duplicate and reserved producer ids", () => {
+    assert.throws(
+      () => resolveContextConfig({
+        turn: {
+          producers: [
+            { id: "same", run: "printf one" },
+            { id: "same", run: "printf two" },
+          ],
+        },
+      }),
+      /duplicate producer id "same"/,
+    );
+    assert.throws(
+      () => resolveContextConfig({
+        turn: {
+          producers: [{
+            id: "runtime:turn-context",
+            run: "printf shadow",
+          }],
+        },
+      }),
+      /"runtime:turn-context" is reserved/,
+    );
+  });
 });
 
 function defaultTurnContextConfig() {
   return {
     maxChars: 2000,
+    producers: [],
     channelUnread: {
       enabled: true,
       channels: ["*"],

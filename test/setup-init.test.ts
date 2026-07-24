@@ -261,6 +261,7 @@ describe("setupInit", () => {
     ]);
     assert.deepEqual(config.context.turn, {
       maxChars: 2000,
+      producers: [],
       channelUnread: {
         enabled: true,
         channels: ["*"],

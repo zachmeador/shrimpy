@@ -35,7 +35,7 @@ When enabled, these are normal watch-origin agent turns. They use skills, CLI co
 
 ## Context Assembly
 
-The prompt assembler loads memory through the same source model as other context: file, directory, command, and runtime sources all become bounded prompt blocks. Directory context sources load Markdown recursively in deterministic path order.
+The stable prompt assembler loads memory from file and directory sources. Directory context sources load Markdown recursively in deterministic path order; live runtime facts and automatic producers stay in turn context.
 
 Inspect memory and context loading with:
 
@@ -44,5 +44,6 @@ shrimpy context --agent <id> --sections
 shrimpy context files list --agent <id>
 shrimpy context files show --agent <id> <path>
 shrimpy context sources list --agent <id> --channel <name>
+shrimpy context producers list --agent <id> --channel <name>
 shrimpy context turn --agent <id> --channel <name>
 ```

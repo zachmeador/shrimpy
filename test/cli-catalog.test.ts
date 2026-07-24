@@ -69,6 +69,7 @@ describe("CLI catalog", () => {
 
     assert.match(help, /shrimpy completion zsh/);
     assert.match(help, /shrimpy context sources run/);
+    assert.match(help, /shrimpy context producers run/);
     assert.match(help, /shrimpy gateway logs/);
   });
 
@@ -94,6 +95,7 @@ describe("CLI catalog", () => {
     assert.doesNotMatch(zsh, /\n_shrimpy "\$@"$/);
     assert.match(zsh, /skip_next=1/);
     assert.match(zsh, /"context sources"\) suggestions="list run"/);
+    assert.match(zsh, /"context producers"\) suggestions="list run"/);
     assert.match(zsh, /"models policies"\) suggestions="[^"]*add-candidate[^"]*list[^"]*move-candidate[^"]*remove-candidate[^"]*set[^"]*show/);
   });
 

@@ -11,6 +11,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Breaking Changes
 
+- Replaced executable objects in `context.sources` with automatic commands under `context.turn.producers`, using `run`, `when.channels`, and `cacheMs`; stable base, agent, and channel source lists now accept resource strings only, and channel-scoped producers no longer match channel-less sessions.
 - Removed the `on` thinking alias. Thinking inputs now accept only Pi's canonical levels: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`.
 - Added workspace runtime profiles with global `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy` discovery, workspace-local `runtime/bin` command shims, and profile-bound gateway services so development and normal environments can coexist without PATH or pointer collisions.
 - Changed gateway service identities from one global user service to workspace/app-bound names. Existing `shrimpy-gateway.service` or `io.github.zachmeador.shrimpy.gateway.plist` files are not removed automatically; reinstall the gateway for the workspace you want to run.
@@ -25,6 +26,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Sessions, Models & TUI
 
+- Added `shrimpy context producers list|run` plus per-turn producer status reporting so matching, cached output, failures, and skips are inspectable without conflating live commands with stable context sources.
 - Added `/agents`, a searchable Pi-style agent/session hierarchy with four-arrow traversal, new `local/main` chats for zero-session agents, live cross-agent runtime switching, current-agent identity on the existing startup-header line, preflight and rollback safety, plus `shrimpy sessions list --all-agents` for the same inspectable inventory.
 - Changed bare `shrimpy` to resume the agent used most recently in terminal chat while prompted and explicit-agent launches keep their existing targets; `/new` preserves the selected agent even before the fresh conversation receives a reply.
 - Reduced the Pi-private TUI surface while retaining Shrimpy UX: public Pi APIs now own `/new` lifecycle, thinking state, working-indicator state, footer composition, retry/compaction events, custom-message registration, and tool expansion; four named compatibility seams preserve inline status/help and the Shrimpy `/changelog`, the unified `/settings` landing page and live Shrimpy readouts, model favorites and command guardrails, and zero-row collapsed turn context.

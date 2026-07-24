@@ -1,10 +1,11 @@
 import { channelMatches } from "../util/channel-pattern.js";
 import { KNOWN_RUNTIME_ENV_KEYS } from "./env.js";
+import type { ContextSourceConfig } from "./source.js";
 import {
-  COMMAND_SOURCE_DEFAULTS,
-  type ContextCommandSourceConfig,
-  type ContextSourceConfig,
-} from "./source.js";
+  resolveContextTurnProducer,
+  type ContextTurnProducerConfig,
+  type ResolvedContextTurnProducer,
+} from "./turn/producer.js";
 
 interface ContextChannelOverride {
   sources?: ContextSourceConfig[];
@@ -32,6 +33,7 @@ export interface ContextTurnConfig {
   maxChars?: number;
   channelUnread?: ContextTurnChannelUnreadConfig;
   sessionStatus?: ContextTurnSessionStatusConfig;
+  producers?: ContextTurnProducerConfig[];
 }
 
 export interface ResolvedContextTurnConfig {
@@ -45,6 +47,7 @@ export interface ResolvedContextTurnConfig {
     enabled: boolean;
     staleAfterMinutes: number;
   };
+  producers: ResolvedContextTurnProducer[];
 }
 
 export interface ResolvedContextConfig {
@@ -90,7 +93,6 @@ export const DEFAULT_CONTEXT_ENV = [
 
 /** A directory source. String sources ending in "/" load Markdown files recursively. */
 export function isDirectoryResource(source: ContextSourceConfig): boolean {
-  if (typeof source !== "string") return false;
   const { path } = parseContextResource(source);
   return path.endsWith("/");
 }
@@ -109,7 +111,7 @@ function validateSourceList(
 ): ContextSourceConfig[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) {
-    throw new Error(`${key} must be an array of context sources`);
+    throw new Error(`${key} must be an array of stable context resource strings`);
   }
   return value.map((item, index) => validateSource(item, `${key}[${index}]`));
 }
@@ -140,7 +142,7 @@ function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefine
   }
 
   const obj = value as Record<string, unknown>;
-  const allowed = new Set(["maxChars", "channelUnread", "sessionStatus"]);
+  const allowed = new Set(["maxChars", "channelUnread", "sessionStatus", "producers"]);
   for (const key of Object.keys(obj)) {
     if (!allowed.has(key)) {
       throw new Error(`unknown key in context.turn: "${key}"`);
@@ -150,11 +152,16 @@ function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefine
   const maxChars = validatePositiveInteger(obj.maxChars, "context.turn.maxChars");
   const channelUnread = validateContextTurnChannelUnreadConfig(obj.channelUnread);
   const sessionStatus = validateContextTurnSessionStatusConfig(obj.sessionStatus);
+  const producers = validateContextTurnProducerList(
+    obj.producers,
+    "context.turn.producers",
+  );
 
   return {
     ...(maxChars !== undefined ? { maxChars } : {}),
     ...(channelUnread !== undefined ? { channelUnread } : {}),
     ...(sessionStatus !== undefined ? { sessionStatus } : {}),
+    ...(producers !== undefined ? { producers } : {}),
   };
 }
 
@@ -217,37 +224,93 @@ function validateSource(item: unknown, key: string): ContextSourceConfig {
     parseContextResource(item, key);
     return item;
   }
-  if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-    const obj = item as Record<string, unknown>;
-    if (obj.type !== "command") {
-      throw new Error(`${key} object source must have type: "command"`);
+  throw new Error(
+    `${key} must be a stable resource string; configure automatic commands in context.turn.producers with { id, run, ... }`,
+  );
+}
+
+function validateContextTurnProducerList(
+  value: unknown,
+  key: string,
+): ContextTurnProducerConfig[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error(`${key} must be an array of producer objects`);
+  }
+  const producers = value.map((item, index) =>
+    validateContextTurnProducer(item, `${key}[${index}]`)
+  );
+  const ids = new Set<string>();
+  for (const producer of producers) {
+    if (ids.has(producer.id)) {
+      throw new Error(`${key} contains duplicate producer id "${producer.id}"`);
     }
-    if (typeof obj.id !== "string" || obj.id.trim() === "") {
-      throw new Error(`${key}.id must be a non-empty string`);
+    ids.add(producer.id);
+  }
+  return producers;
+}
+
+function validateContextTurnProducer(
+  value: unknown,
+  key: string,
+): ContextTurnProducerConfig {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${key} must be a producer object`);
+  }
+  const obj = value as Record<string, unknown>;
+  const allowed = new Set(["id", "run", "when", "timeoutMs", "cacheMs", "maxChars"]);
+  for (const objKey of Object.keys(obj)) {
+    if (!allowed.has(objKey)) {
+      throw new Error(`unknown key in ${key}: "${objKey}"`);
     }
-    if (typeof obj.command !== "string" || obj.command.trim() === "") {
-      throw new Error(`${key}.command must be a non-empty string`);
+  }
+  if (typeof obj.id !== "string" || obj.id.trim() === "") {
+    throw new Error(`${key}.id must be a non-empty string`);
+  }
+  if (obj.id === "runtime:turn-context") {
+    throw new Error(`${key}.id "runtime:turn-context" is reserved`);
+  }
+  if (typeof obj.run !== "string" || obj.run.trim() === "") {
+    throw new Error(`${key}.run must be a non-empty string`);
+  }
+
+  let when: ContextTurnProducerConfig["when"];
+  if (obj.when !== undefined) {
+    if (typeof obj.when !== "object" || obj.when === null || Array.isArray(obj.when)) {
+      throw new Error(`${key}.when must be an object`);
     }
-    const cmd: ContextCommandSourceConfig = {
-      type: "command",
-      id: obj.id,
-      command: obj.command,
-    };
-    if (obj.channels !== undefined) {
-      const list = validateStringList(obj.channels, `${key}.channels`);
-      cmd.channels = list ?? [...COMMAND_SOURCE_DEFAULTS.channels];
-    }
-    for (const numKey of ["timeoutMs", "maxChars", "freshForMs"] as const) {
-      if (obj[numKey] !== undefined) {
-        if (typeof obj[numKey] !== "number" || !Number.isFinite(obj[numKey])) {
-          throw new Error(`${key}.${numKey} must be a number`);
-        }
-        cmd[numKey] = obj[numKey] as number;
+    const whenObj = obj.when as Record<string, unknown>;
+    for (const whenKey of Object.keys(whenObj)) {
+      if (whenKey !== "channels") {
+        throw new Error(`unknown key in ${key}.when: "${whenKey}"`);
       }
     }
-    return cmd;
+    const channels = validateStringList(whenObj.channels, `${key}.when.channels`);
+    when = channels === undefined ? {} : { channels };
   }
-  throw new Error(`${key} must be a resource string or a command source object`);
+
+  const timeoutMs = validatePositiveInteger(obj.timeoutMs, `${key}.timeoutMs`);
+  const maxChars = validatePositiveInteger(obj.maxChars, `${key}.maxChars`);
+  const cacheMs = validateNonNegativeInteger(obj.cacheMs, `${key}.cacheMs`);
+  return {
+    id: obj.id,
+    run: obj.run,
+    ...(when !== undefined ? { when } : {}),
+    ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    ...(cacheMs !== undefined ? { cacheMs } : {}),
+    ...(maxChars !== undefined ? { maxChars } : {}),
+  };
+}
+
+function validateNonNegativeInteger(
+  value: unknown,
+  key: string,
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    throw new Error(`${key} must be a non-negative integer`);
+  }
+  return value as number;
 }
 
 export function parseContextResource(
@@ -457,6 +520,7 @@ export function resolveContextTurnConfig(
       enabled: raw?.sessionStatus?.enabled ?? true,
       staleAfterMinutes: raw?.sessionStatus?.staleAfterMinutes ?? 12 * 60,
     },
+    producers: (raw?.producers ?? []).map(resolveContextTurnProducer),
   };
 }
 

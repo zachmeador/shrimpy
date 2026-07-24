@@ -32,6 +32,7 @@ test("help all prints the complete command catalog", () => {
 
   assert.match(output, /shrimpy completion zsh/);
   assert.match(output, /shrimpy context sources run/);
+  assert.match(output, /shrimpy context producers run/);
   assert.match(output, /shrimpy gateway logs/);
 });
 

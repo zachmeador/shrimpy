@@ -93,6 +93,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       channels: {},
       turn: {
         maxChars: 2000,
+        producers: [],
         channelUnread: {
           enabled: true,
           channels: ["*"],

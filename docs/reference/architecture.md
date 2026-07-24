@@ -21,7 +21,7 @@ Shrimpy is composed from ordinary files, ordinary CLI commands, ordinary Pi sess
 - **Watch** — an agent-owned background attention rule. Its `trigger` says what the system is keeping an eye on; time is one trigger kind. A message watch is the simple wake path: when the trigger fires, the gateway posts its text into a named channel for that agent.
 - **Watch Clock** — the small clock used by watches with time triggers. It does not choose which agent wakes; normal channel membership and agent policy handle delivery.
 - **Skill** — prompt and resource material loaded into a session. See [skills.md](skills.md).
-- **Prompt context** — model-visible material selected by `context.sources`: stable Markdown from workspace and agent sources, plus turn-scoped runtime and command facts. See [context-assembly.md](context-assembly.md).
+- **Prompt context** — stable Markdown selected by `context.sources`, plus built-in runtime facts and automatic live-fact commands configured under `context.turn.producers`. See [context-assembly.md](context-assembly.md).
 
 ## Boundaries
 

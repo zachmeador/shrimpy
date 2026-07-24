@@ -29,7 +29,7 @@ Use the `remember` skill when the user asks to save, capture, collect, archive, 
 ## CLI
 
 - Workspace/runtime: `shrimpy status`, `shrimpy context --config`
-- Context: `shrimpy context --sections`, `shrimpy context turn`, `shrimpy context sources list`
+- Context: `shrimpy context --sections`, `shrimpy context turn`, `shrimpy context sources list`, `shrimpy context producers list`
 - Agents: `shrimpy agent list`, `shrimpy agent show <id>`, `shrimpy agent inspect <id>`
 - Channels: `shrimpy channels`, `shrimpy channels read <name>`, `shrimpy channels members <name>`
 - Sessions/watches/gateway: `shrimpy sessions list`, `shrimpy watches`, `shrimpy gateway status`

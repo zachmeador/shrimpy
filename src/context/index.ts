@@ -4,7 +4,7 @@ export * from "./spec.js";
 export * from "./source.js";
 export * from "./env.js";
 export * from "./turn/channel-message.js";
-export * from "./turn/command-source.js";
+export * from "./turn/producer.js";
 export * from "./turn/prompt-prefix.js";
 export * from "./turn/facts.js";
 export * from "./turn/agent-watches.js";

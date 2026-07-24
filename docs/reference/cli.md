@@ -12,7 +12,7 @@ See [sessions.md](sessions.md) for session ids, lifecycle, and ownership.
 | --- | --- |
 | `shrimpy` | Open the TUI, resuming the most recent terminal-chat agent; runs setup onboarding when needed. |
 | `shrimpy "prompt"` | Open the first configured agent's TUI with an initial prompt. |
-| `shrimpy chat [agent]` | Open a TUI chat with the default or selected agent. |
+| `shrimpy chat [agent] [--provider <p>] [--model <m>] [--model-policy <name>] [--thinking <level>] [--skill <id>]` | Open a TUI chat with the default or selected agent. |
 | `shrimpy run "prompt" [--session <id>]` | Run a one-shot prompt; in-memory unless `--session` resumes durable state. |
 | `shrimpy agent tui <id> [prompt]` | Open a TUI session as a specific agent. |
 | `shrimpy agent run <id> "prompt"` | Run a one-shot prompt as a specific agent. |
@@ -54,7 +54,8 @@ TUI and run commands accept `--provider`, `--model`, `--model-policy`, `--thinki
 | `shrimpy context [--sections] [--turn] [--config]` | Inspect model-facing context. See [context-assembly.md](context-assembly.md). |
 | `shrimpy context turn --channel <name>` | Render only turn context for a channel/session. |
 | `shrimpy context files list\|show [--agent <id>]` | List or print agent context Markdown files. |
-| `shrimpy context sources list\|run [--agent <id>] [--channel <name>]` | Inspect or render configured context sources. |
+| `shrimpy context sources list\|run [--agent <id>] [--channel <name>]` | Inspect or render stable context resources. |
+| `shrimpy context producers list\|run [--agent <id>] [--channel <name>]` | Inspect or explicitly run turn-context producers. |
 
 ## Channels And Surfaces
 
@@ -111,8 +112,9 @@ See [channels.md](channels.md) for the protocol, membership, addressing, and egr
 | `shrimpy gateway install\|start\|stop\|restart\|uninstall` | Manage the gateway service. |
 | `shrimpy help [command...]` | Show default help or help for one command path. |
 | `shrimpy help all` | Show the complete command catalog. |
-| `shrimpy completion bash\|zsh` | Print generated shell completion. |
-| `shrimpy completion install\|write-state\|status [bash\|zsh]` | Manage cached shell completion. |
+| `shrimpy completion bash` / `shrimpy completion zsh` | Print generated shell completion. |
+| `shrimpy completion install [bash\|zsh]` | Install cached shell completion. |
+| `shrimpy completion write-state\|status [bash\|zsh]` | Manage or inspect cached shell completion state. |
 
 ## Conventions
 

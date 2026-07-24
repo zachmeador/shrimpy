@@ -126,7 +126,6 @@ export function contextResourcesToPromptRefs(
 ): PromptResourceRef[] {
   const refs: PromptResourceRef[] = [];
   for (const source of sources) {
-    if (typeof source !== "string") continue; // command sources are turn-scoped
     const { scope, path } = parseContextResource(source);
     const rootPath = scope === "agent" ? agentRootPath : workspacePath;
     if (isDirectoryResource(source)) {

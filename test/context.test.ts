@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   rmSync,
@@ -99,6 +100,7 @@ describe("resolveContextTurnConfig", () => {
   test("returns small defaults", () => {
     assert.deepEqual(resolveContextTurnConfig(), {
       maxChars: 2000,
+      producers: [],
       channelUnread: {
         enabled: true,
         channels: ["*"],
@@ -512,15 +514,16 @@ describe("buildTurnContext", () => {
     assert.doesNotMatch(renderTurnContext(turnContext), /sessions: /);
   });
 
-  test("accepts command turn-context JSON", async () => {
+  test("accepts turn-producer JSON", async () => {
     const runtime = createAppRuntime({
       workspace,
       context: {
-        sources: [{
-          type: "command",
-          id: "finance",
-          command: "printf '{\"items\":[{\"summary\":\"bank: balance is -10000 USD\",\"inspect\":\"finance-shrimpy bank transactions --recent\"}]}'",
-        }],
+        turn: {
+          producers: [{
+            id: "finance",
+            run: "printf '{\"items\":[{\"summary\":\"bank: balance is -10000 USD\",\"inspect\":\"finance-shrimpy bank transactions --recent\"}]}'",
+          }],
+        },
       },
     });
 
@@ -539,7 +542,30 @@ describe("buildTurnContext", () => {
     assert.match(text, /inspect: finance-shrimpy bank transactions --recent/);
   });
 
-  test("passes command source agent, channel, and session type env", async () => {
+  test("clips turn-producer output to its own prompt budget", async () => {
+    const runtime = createAppRuntime({
+      workspace,
+      context: {
+        turn: {
+          producers: [{
+            id: "bounded",
+            run: `node -e "process.stdout.write('x'.repeat(200))"`,
+            maxChars: 40,
+          }],
+        },
+      },
+    });
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui", "tui"),
+    });
+
+    assert.match(renderTurnContext(turnContext), /\[turn-context truncated\]/);
+    assert.equal(turnContext.producers?.[0]?.status, "ran");
+  });
+
+  test("passes producer agent, channel, and session type env", async () => {
     const scriptPath = join(workspace, "env-command.js");
     writeFileSync(
       scriptPath,
@@ -559,12 +585,13 @@ describe("buildTurnContext", () => {
     const runtime = createAppRuntime({
       workspace,
       context: {
-        sources: [{
-          type: "command",
-          id: "env",
-          command: `node ${scriptPath}`,
-          channels: ["maintenance"],
-        }],
+        turn: {
+          producers: [{
+            id: "env",
+            run: `node ${scriptPath}`,
+            when: { channels: ["maintenance"] },
+          }],
+        },
       },
     });
 
@@ -584,7 +611,7 @@ describe("buildTurnContext", () => {
     );
   });
 
-  test("reuses fresh command context items without rerunning the command", async () => {
+  test("reuses cached producer items without rerunning the producer", async () => {
     const counterPath = join(workspace, "counter.txt");
     const scriptPath = join(workspace, "counter.js");
     writeFileSync(
@@ -601,12 +628,13 @@ describe("buildTurnContext", () => {
     const runtime = createAppRuntime({
       workspace,
       context: {
-        sources: [{
-          type: "command",
-          id: "counter",
-          command: `node ${scriptPath}`,
-          freshForMs: 60000,
-        }],
+        turn: {
+          producers: [{
+            id: "counter",
+            run: `node ${scriptPath}`,
+            cacheMs: 60000,
+          }],
+        },
       },
     });
 
@@ -621,10 +649,12 @@ describe("buildTurnContext", () => {
 
     assert.match(renderTurnContext(first), /run 1/);
     assert.match(renderTurnContext(second), /run 1/);
+    assert.equal(first.producers?.[0]?.status, "ran");
+    assert.equal(second.producers?.[0]?.status, "cached");
     assert.equal(readFileSync(counterPath, "utf-8"), "1");
   });
 
-  test("does not update command freshness during preview", async () => {
+  test("does not execute automatic producers during preview", async () => {
     const counterPath = join(workspace, "preview-counter.txt");
     const scriptPath = join(workspace, "preview-counter.js");
     writeFileSync(
@@ -641,12 +671,13 @@ describe("buildTurnContext", () => {
     const runtime = createAppRuntime({
       workspace,
       context: {
-        sources: [{
-          type: "command",
-          id: "preview_counter",
-          command: `node ${scriptPath}`,
-          freshForMs: 60000,
-        }],
+        turn: {
+          producers: [{
+            id: "preview_counter",
+            run: `node ${scriptPath}`,
+            cacheMs: 60000,
+          }],
+        },
       },
     });
 
@@ -660,12 +691,14 @@ describe("buildTurnContext", () => {
       descriptor: descriptor("shrimpy", "gateway", "home"),
     });
 
-    assert.match(renderTurnContext(preview), /preview run 1/);
-    assert.match(renderTurnContext(real), /preview run 2/);
-    assert.equal(readFileSync(counterPath, "utf-8"), "2");
+    assert.doesNotMatch(renderTurnContext(preview), /preview run/);
+    assert.equal(preview.producers?.[0]?.status, "skipped");
+    assert.equal(preview.producers?.[0]?.reason, "preview does not execute automatic producers");
+    assert.match(renderTurnContext(real), /preview run 1/);
+    assert.equal(readFileSync(counterPath, "utf-8"), "1");
   });
 
-  test("reuses fresh command failures without retrying every turn", async () => {
+  test("reuses cached producer failures without retrying every turn", async () => {
     const counterPath = join(workspace, "failure-counter.txt");
     const scriptPath = join(workspace, "failure-counter.js");
     writeFileSync(
@@ -682,12 +715,13 @@ describe("buildTurnContext", () => {
     const runtime = createAppRuntime({
       workspace,
       context: {
-        sources: [{
-          type: "command",
-          id: "broken",
-          command: `node ${scriptPath}`,
-          freshForMs: 60000,
-        }],
+        turn: {
+          producers: [{
+            id: "broken",
+            run: `node ${scriptPath}`,
+            cacheMs: 60000,
+          }],
+        },
       },
     });
 
@@ -700,10 +734,49 @@ describe("buildTurnContext", () => {
       descriptor: descriptor("shrimpy", "tui", "tui"),
     });
 
-    assert.match(renderTurnContext(first), /broken: context command failed/);
+    assert.match(renderTurnContext(first), /broken: context producer failed/);
     assert.match(renderTurnContext(first), /broken 1/);
     assert.match(renderTurnContext(second), /broken 1/);
+    assert.equal(first.producers?.[0]?.status, "failed");
+    assert.equal(second.producers?.[0]?.status, "cached");
     assert.equal(readFileSync(counterPath, "utf-8"), "1");
+  });
+
+  test("skips channel-scoped producers for nonmatching and channel-less sessions", async () => {
+    const counterPath = join(workspace, "channel-counter.txt");
+    const scriptPath = join(workspace, "channel-counter.js");
+    writeFileSync(
+      scriptPath,
+      `require("fs").writeFileSync(${JSON.stringify(counterPath)}, "ran");`,
+      "utf-8",
+    );
+    const runtime = createAppRuntime({
+      workspace,
+      context: {
+        turn: {
+          producers: [{
+            id: "finance",
+            run: `node ${scriptPath}`,
+            when: { channels: ["finance"] },
+          }],
+        },
+      },
+    });
+
+    const nonmatching = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "home"),
+    });
+    const channelLess = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui", "tui"),
+    });
+
+    assert.equal(nonmatching.producers?.[0]?.matched, false);
+    assert.equal(nonmatching.producers?.[0]?.status, "skipped");
+    assert.equal(channelLess.producers?.[0]?.matched, false);
+    assert.equal(channelLess.producers?.[0]?.status, "skipped");
+    assert.equal(existsSync(counterPath), false);
   });
 });
 

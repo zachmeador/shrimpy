@@ -173,7 +173,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.turnContext.text, /inspect: shrimpy channels read home/);
   });
 
-  test("context sources list exposes configured and runtime sources", async () => {
+  test("context sources list exposes only stable configured sources", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -192,11 +192,7 @@ describe("skill context inspection", () => {
       source.type === "directory" &&
       source.scope === "session"
     ));
-    assert.ok(parsed.some((source: any) =>
-      source.id === "runtime:turn-context" &&
-      source.type === "runtime" &&
-      source.scope === "turn"
-    ));
+    assert.equal(parsed.some((source: any) => source.scope === "turn"), false);
   });
 
   test("context sources run renders file and directory sources through prompt sections", async () => {
@@ -236,22 +232,33 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(dirOutput, /^## context\//m);
   });
 
-  test("context sources run executes command sources", async () => {
+  test("context producers list inspects matching without executing", async () => {
     await setupInit(workspace);
     const configPath = join(workspace, "config", "shrimpy.json");
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    config.context.sources.push({
-      type: "command",
+    config.context.turn.producers.push({
       id: "test.command",
-      command: "node -e \"console.log([process.env.SHRIMPY_CONTEXT_AGENT, process.env.SHRIMPY_CONTEXT_CHANNEL, process.env.SHRIMPY_CONTEXT_SESSION_TYPE].join(':'))\"",
-      channels: ["home"],
+      run: "node -e \"console.log([process.env.SHRIMPY_CONTEXT_AGENT, process.env.SHRIMPY_CONTEXT_CHANNEL, process.env.SHRIMPY_CONTEXT_SESSION_TYPE].join(':'))\"",
+      when: { channels: ["home"] },
       maxChars: 100,
     });
     writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
 
+    const listed = await captureLogs(() =>
+      cmdContext(
+        ["producers", "list", "--channel", "home", "--json"],
+        { ...config, workspace } as any,
+      )
+    );
+    assert.equal(listed.result, 0);
+    const producer = JSON.parse(listed.lines.join("\n"))
+      .find((candidate: any) => candidate.id === "test.command");
+    assert.equal(producer.matched, true);
+    assert.equal(producer.status, "matched");
+
     const { result, lines } = await captureLogs(() =>
       cmdContext(
-        ["sources", "run", "test.command", "--channel", "home", "--session-type", "watch"],
+        ["producers", "run", "test.command", "--channel", "home", "--session-type", "watch"],
         { ...config, workspace } as any,
       )
     );
@@ -260,21 +267,20 @@ describe("skill context inspection", () => {
     assert.equal(lines.join("\n"), "shrimpy:home:watch");
   });
 
-  test("context sources run exposes parsed command items as json", async () => {
+  test("context producers run exposes parsed producer items as json", async () => {
     await setupInit(workspace);
     const configPath = join(workspace, "config", "shrimpy.json");
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    config.context.sources.push({
-      type: "command",
+    config.context.turn.producers.push({
       id: "json.command",
-      command: "node -e \"console.log(JSON.stringify({summary:'parsed item',inspect:'shrimpy context sources run json.command'}))\"",
+      run: "node -e \"console.log(JSON.stringify({summary:'parsed item',inspect:'shrimpy context producers run json.command'}))\"",
       maxChars: 200,
     });
     writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
 
     const { result, lines } = await captureLogs(() =>
       cmdContext(
-        ["sources", "run", "json.command", "--json"],
+        ["producers", "run", "json.command", "--json"],
         { ...config, workspace } as any,
       )
     );
@@ -282,29 +288,29 @@ describe("skill context inspection", () => {
     assert.equal(result, 0);
     const parsed = JSON.parse(lines.join("\n"));
     assert.equal(parsed.id, "json.command");
-    assert.equal(parsed.output, "{\"summary\":\"parsed item\",\"inspect\":\"shrimpy context sources run json.command\"}");
+    assert.equal(parsed.status, "ran");
+    assert.equal(parsed.output, "{\"summary\":\"parsed item\",\"inspect\":\"shrimpy context producers run json.command\"}");
     assert.deepEqual(parsed.items, [{
-      id: "command:json.command:0",
+      id: "producer:json.command:0",
       summary: "parsed item",
-      inspect: "shrimpy context sources run json.command",
+      inspect: "shrimpy context producers run json.command",
     }]);
   });
 
-  test("context sources run reports command failures as inspectable json", async () => {
+  test("context producers run reports failures as inspectable json", async () => {
     await setupInit(workspace);
     const configPath = join(workspace, "config", "shrimpy.json");
     const config = JSON.parse(readFileSync(configPath, "utf-8"));
-    config.context.sources.push({
-      type: "command",
+    config.context.turn.producers.push({
       id: "broken.command",
-      command: "node -e \"throw new Error('broken source')\"",
+      run: "node -e \"throw new Error('broken producer')\"",
       maxChars: 200,
     });
     writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
 
     const { result, lines } = await captureLogs(() =>
       cmdContext(
-        ["sources", "run", "broken.command", "--json"],
+        ["producers", "run", "broken.command", "--json"],
         { ...config, workspace } as any,
       )
     );
@@ -312,19 +318,20 @@ describe("skill context inspection", () => {
     assert.equal(result, 1);
     const parsed = JSON.parse(lines.join("\n"));
     assert.equal(parsed.id, "broken.command");
+    assert.equal(parsed.status, "failed");
     assert.equal(parsed.output, "");
-    assert.match(parsed.error, /broken source/);
-    assert.equal(parsed.items[0].id, "command:broken.command:error");
-    assert.match(parsed.items[0].summary, /broken.command: context command failed/);
-    assert.equal(parsed.items[0].inspect, "node -e \"throw new Error('broken source')\"");
+    assert.match(parsed.error, /broken producer/);
+    assert.equal(parsed.items[0].id, "producer:broken.command:error");
+    assert.match(parsed.items[0].summary, /broken.command: context producer failed/);
+    assert.equal(parsed.items[0].inspect, "node -e \"throw new Error('broken producer')\"");
   });
 
-  test("context sources run runtime source honors session type", async () => {
+  test("context producers run runtime producer honors session type", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
       cmdContext(
-        ["sources", "run", "runtime:turn-context", "--channel", "home", "--session-type", "watch"],
+        ["producers", "run", "runtime:turn-context", "--channel", "home", "--session-type", "watch"],
         { workspace } as any,
       )
     );

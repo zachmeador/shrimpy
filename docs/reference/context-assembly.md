@@ -2,7 +2,7 @@
 
 Shrimpy controls everything the model sees in a session: a stable system prompt assembled at session open, plus live per-turn facts injected alongside each user message. Stable material comes from Markdown files selected by config; per-turn material is generated at turn time. Keeping live facts out of the system prompt keeps prompt caching effective.
 
-## Sources
+## Stable Sources
 
 `context.sources` in `config/shrimpy.json` is the ordered source list. The defaults are `workspace:context/`, `agent:SOUL.md`, and `agent:context/`.
 
@@ -12,16 +12,7 @@ Shrimpy controls everything the model sees in a session: a stable system prompt 
     "sources": [
       "workspace:context/",
       "agent:SOUL.md",
-      "agent:context/",
-      {
-        "type": "command",
-        "id": "finance_alerts",
-        "command": "finance-shrimpy alerts context",
-        "channels": ["maintenance", "finance"],
-        "timeoutMs": 5000,
-        "maxChars": 1200,
-        "freshForMs": 60000
-      }
+      "agent:context/"
     ]
   }
 }
@@ -29,8 +20,9 @@ Shrimpy controls everything the model sees in a session: a stable system prompt 
 
 - `workspace:<path>` resolves from the workspace root; `agent:<path>` resolves from the active agent's root.
 - Sources ending in `/` are directory sources: every Markdown file under the tree loads recursively in deterministic path order. The default `workspace:context/` loads `context/SYSTEM.md`, `context/USER.md`, `context/WORKSPACE.md`, and anything else below workspace `context/`.
-- Command sources run at turn time and emit compact text: clipped by `maxChars`, optionally filtered by `channels`, and cached for `freshForMs` before the command runs again.
 - `context.agents.<id>` and `context.agents.<id>.channels.<pattern>` scope sources to one agent or one agent/channel pair.
+
+Stable source lists accept only `workspace:` and `agent:` resource strings. Executable objects are rejected in base, agent, and channel source lists.
 
 ## The System Prompt
 
@@ -68,9 +60,9 @@ Shrimpy includes by default:
 - the active agent's watch inventory, capped and ordered around active runs, nearest due watches, and recent runs
 - owned worker outcomes: current-session workers first, current-channel workers next, then compact counts for other workers needing review, with `shrimpy worker read <id>` as the inspect command
 - channel unread summaries for matching channels
-- command-source output from `context.sources`
+- output from configured `context.turn.producers`
 
-Per-agent state under `runtime/context/` records what the agent has already seen, so each turn surfaces only new channel-unread pointers.
+Per-agent state under `runtime/context/` records channel-unread progress and cached producer output. Producer caches are isolated by producer id, channel, and session type.
 
 ### Delivery
 
@@ -86,6 +78,18 @@ The two session paths persist turn context differently, and both forms are durab
   "context": {
     "turn": {
       "maxChars": 2000,
+      "producers": [
+        {
+          "id": "finance_alerts",
+          "run": "finance-shrimpy alerts context",
+          "when": {
+            "channels": ["maintenance", "finance"]
+          },
+          "timeoutMs": 5000,
+          "cacheMs": 60000,
+          "maxChars": 1200
+        }
+      ],
       "channelUnread": {
         "enabled": true,
         "channels": ["*"],
@@ -102,6 +106,14 @@ The two session paths persist turn context differently, and both forms are durab
 
 `context.turn.maxChars` is the total rendered budget. `context.turn.sessionStatus` controls watch-turn session recency pointers.
 
+### Automatic Producers
+
+`context.turn.producers` contains bounded commands that Shrimpy runs automatically before matching live turns. `run` is the shell command, `timeoutMs` bounds execution time, `maxChars` clips its stdout, and `cacheMs` controls how long the parsed output is reused. Producer output can be plain lines, one JSON item, a JSON item array, or an object with an `items` array.
+
+`when.channels` is an applicability condition. A producer without `when.channels` matches both channel and channel-less sessions. A producer with `when.channels` runs only when a named session channel matches one of its patterns; direct, TUI, and other channel-less sessions do not match it. Preview commands do not automatically execute configured producers.
+
+Automatic producers should be reserved for bounded facts the model must see before it can decide what to inspect. Prefer an agent-invoked CLI command or tool when the model can decide whether live data is relevant.
+
 ## Inspection
 
 ```bash
@@ -110,10 +122,12 @@ shrimpy context --agent shrimpy --sections      # section manifest with provenan
 shrimpy context --turn --channel home           # sections plus the turn-context-prefixed user message
 shrimpy context turn --agent shrimpy --channel home
 shrimpy context sources list --agent shrimpy --channel home
-shrimpy context sources run finance_alerts --agent shrimpy --channel finance
+shrimpy context sources run directory:workspace:context/ --agent shrimpy
+shrimpy context producers list --agent shrimpy --channel finance
+shrimpy context producers run finance_alerts --agent shrimpy --channel finance
 ```
 
-`--sections --json` returns each section's id, kind, source, reason, and length. `--turn --json` includes `turnContext` and `userMessage` as separate fields. `sources run` accepts `--session-type <type>` to match the `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose; preview runs do not update command-source freshness state.
+`--sections --json` returns each section's id, kind, source, reason, and length. `--turn --json` includes `turnContext` and `userMessage` as separate fields. `producers list` reports whether each producer matched, was skipped, or has cached output without executing it. `producers run` is the explicit execution path and accepts `--session-type <type>` to match the `SHRIMPY_CONTEXT_SESSION_TYPE` value a runtime turn would expose; it does not update automatic-turn cache state. Provider-facing turn-context JSON reports configured producers as `ran`, `cached`, `failed`, or `skipped`.
 
 ## Related Code
 

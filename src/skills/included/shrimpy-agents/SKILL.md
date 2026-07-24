@@ -89,17 +89,18 @@ Create context files only when there is something real to preserve and always-lo
 
 ## App-Agent Context
 
-For app-like agents, consider whether live app state should arrive through turn context instead of memory or a watch. Command context sources in `config/shrimpy.json` can run a small workspace command on relevant turns and emit compact summaries with optional inspect commands. Good uses include queue status, external-data alerts, dashboards, app health, or domain state the agent should see automatically.
+For app-like agents, consider whether live app state should arrive through turn context instead of memory or a watch. Automatic producers under `context.turn.producers` in `config/shrimpy.json` can run a small workspace command on relevant turns and emit compact summaries with optional inspect commands. Reserve them for bounded facts the model must receive before it can decide what to inspect.
 
 Inspect before changing context wiring:
 
 ```bash
 shrimpy context sources list --agent <id> --channel <channel> --json
-shrimpy context sources run <source-id> --agent <id> --channel <channel> --json
+shrimpy context producers list --agent <id> --channel <channel> --json
+shrimpy context producers run <producer-id> --agent <id> --channel <channel> --json
 shrimpy context turn --agent <id> --channel <channel>
 ```
 
-Prefer existing CLI/config helpers. If a command source needs hand-edited config, read `docs/reference/configuration.md` and `docs/reference/context-assembly.md` first, keep the command output bounded, and test with `shrimpy context sources run` before declaring the app-agent wired.
+Prefer existing CLI/config helpers. If an automatic producer needs hand-edited config, read `docs/reference/configuration.md` and `docs/reference/context-assembly.md` first, keep the command output bounded, and test with `shrimpy context producers run` before declaring the app-agent wired.
 
 ## Wire Channels
 

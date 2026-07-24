@@ -7,16 +7,15 @@ import { loadRuntimeWatchIds } from "../../watches/index.js";
 import { channelMatches } from "../../util/channel-pattern.js";
 import { formatAgeShort } from "../../util/time-format.js";
 import {
-  isCommandSource,
-  resolveContextSource,
-  type ResolvedContextCommandSource,
-} from "../source.js";
-import { runContextSourceCommand } from "./command-source.js";
+  producerMatchesChannel,
+  runContextTurnProducer,
+} from "./producer.js";
 import { buildTurnFactItems } from "./facts.js";
 import { buildAgentWatchItems } from "./agent-watches.js";
 import { buildSessionStatusItems } from "./session-status.js";
 import { buildWorkerContextItems } from "./workers.js";
 import {
+  contextTurnProducerStateKey,
   readContextState,
   writeContextState,
 } from "./state.js";
@@ -26,6 +25,7 @@ import type {
   TurnContextItem,
   TurnContext,
   TurnContextInput,
+  TurnProducerReport,
 } from "./types.js";
 import { sessionChannel } from "../../sessions/spec.js";
 
@@ -40,6 +40,7 @@ export async function buildTurnContext(
   const channel = sessionChannel(input.descriptor);
   const sessionType = input.descriptor.purpose;
   const capturedAt = formatAgentDateTime();
+  const produced = await buildProducerContext(input);
   const items = [
     ...buildTurnFactItems({
       runtime: input.runtime,
@@ -52,7 +53,7 @@ export async function buildTurnContext(
     ...buildSessionStatusItems({ turn: input, agentId }),
     ...buildWorkerContextItems({ turn: input, agentId }),
     ...buildChannelUnreadItems(input),
-    ...await buildCommandItems(input),
+    ...produced.items,
   ];
 
   return {
@@ -62,6 +63,7 @@ export async function buildTurnContext(
     capturedAt,
     maxChars: input.runtime.resolved.context.turn.maxChars,
     items,
+    producers: produced.reports,
   };
 }
 
@@ -145,55 +147,104 @@ function buildChannelUnreadItems(input: TurnContextInput): TurnContextItem[] {
   }];
 }
 
-async function buildCommandItems(input: TurnContextInput): Promise<TurnContextItem[]> {
+async function buildProducerContext(input: TurnContextInput): Promise<{
+  items: TurnContextItem[];
+  reports: TurnProducerReport[];
+}> {
   const channel = sessionChannel(input.descriptor);
   const agentId = contextAgentId(input);
-  const resolved = input.runtime.resolved.context.sources
-    .map(resolveContextSource)
-    .filter(isCommandSource);
-  const commands = resolved.filter(
-    (command) => !channel || matchesAny(command.channels, channel),
-  );
-  if (commands.length === 0) return [];
+  const producers = input.runtime.resolved.context.turn.producers;
+  if (producers.length === 0) return { items: [], reports: [] };
 
   const state = readContextState(input.runtime, agentId);
-  const results = await Promise.all(commands.map(async (command) => {
-    const cached = state.commands[command.id];
-    if (!input.preview && isCommandFresh(cached, command.freshForMs)) {
-      return cached.items ?? [];
+  const results = await Promise.all(producers.map(async (producer) => {
+    const matched = producerMatchesChannel(producer, channel);
+    if (!matched) {
+      return {
+        items: [],
+        report: {
+          id: producer.id,
+          matched: false,
+          status: "skipped",
+          reason: channel
+            ? `channel "${channel}" did not match when.channels`
+            : "channel-scoped producer does not match a channel-less session",
+        } satisfies TurnProducerReport,
+      };
     }
-    const result = await runContextSourceCommand(command, {
+    if (input.preview) {
+      return {
+        items: [],
+        report: {
+          id: producer.id,
+          matched: true,
+          status: "skipped",
+          reason: "preview does not execute automatic producers",
+        } satisfies TurnProducerReport,
+      };
+    }
+
+    const stateKey = contextTurnProducerStateKey(
+      producer.id,
+      channel,
+      input.descriptor.purpose,
+    );
+    const cached = state.producers[stateKey];
+    if (isProducerFresh(cached, producer.cacheMs)) {
+      return {
+        items: cached.items ?? [],
+        report: {
+          id: producer.id,
+          matched: true,
+          status: "cached",
+        } satisfies TurnProducerReport,
+      };
+    }
+    const result = await runContextTurnProducer(producer, {
       runtime: input.runtime,
       agentId,
       channel,
       sessionType: input.descriptor.purpose,
     });
-    if (!input.preview) rememberCommandRun(command, input, result.items);
-    return result.items;
+    return {
+      items: result.items,
+      report: {
+        id: producer.id,
+        matched: true,
+        status: result.error ? "failed" : "ran",
+        ...(result.error ? { reason: result.error } : {}),
+      } satisfies TurnProducerReport,
+      remember: {
+        stateKey,
+        lastRunAt: Date.now(),
+        items: result.items,
+      },
+    };
   }));
-  return results.flat();
-}
 
-function rememberCommandRun(
-  command: ResolvedContextCommandSource,
-  input: TurnContextInput,
-  items: TurnContextItem[],
-): void {
-  const agentId = contextAgentId(input);
-  const state = readContextState(input.runtime, agentId);
-  state.commands[command.id] = {
-    lastRunAt: Date.now(),
-    items,
+  let stateChanged = false;
+  results.forEach((result) => {
+    if (!result.remember) return;
+    state.producers[result.remember.stateKey] = {
+      lastRunAt: result.remember.lastRunAt,
+      items: result.remember.items,
+    };
+    stateChanged = true;
+  });
+  if (stateChanged) writeContextState(input.runtime, agentId, state);
+
+  return {
+    items: results.flatMap((result) => result.items),
+    reports: results.map((result) => result.report),
   };
-  writeContextState(input.runtime, agentId, state);
 }
 
-function isCommandFresh(
+export function isProducerFresh(
   cached: { lastRunAt?: number; items?: TurnContextItem[] } | undefined,
-  freshForMs: number,
+  cacheMs: number,
 ): cached is { lastRunAt: number; items: TurnContextItem[] } {
   if (!cached?.lastRunAt || !cached.items) return false;
-  return Date.now() - cached.lastRunAt < freshForMs;
+  return Date.now() - cached.lastRunAt < cacheMs;
 }
 
 function matchesAny(patterns: string[], channel: string): boolean {

@@ -1,6 +1,6 @@
 # 🦐 CTX-013: Separate Stable Context From Turn Producers
 
-Status: draft
+Status: review
 Priority: P2
 Area: Context
 
@@ -10,7 +10,7 @@ Area: Context
 
 The mixed shape also obscures the actual behavior: command output, not the command itself, enters turn context; `channels` is an execution condition rather than channel routing; and channel-less sessions currently bypass the channel filter and run every configured command source.
 
-## Current State
+## Previous State
 
 - `context.sources` accepts both `workspace:` / `agent:` resource strings and `{type: "command", ...}` objects.
 - String resources contribute stable session prompt sections.
@@ -19,7 +19,7 @@ The mixed shape also obscures the actual behavior: command output, not the comma
 - Agent and channel source overrides accept the same source union even though override command sources are discoverable but are not executed by the live turn-context service.
 - Built-in turn-context producers live under `context.turn`, while configurable command producers live in `context.sources`.
 
-## Proposed Direction
+## Implemented Shape
 
 Make the lifecycle boundary explicit:
 
@@ -55,11 +55,9 @@ Make the lifecycle boundary explicit:
 - A missing channel has explicit semantics; it must not silently match a channel-scoped producer.
 - Inspection reports whether a producer matched, ran, used cached output, failed, or was skipped.
 
-## Open Decision
+## Decision
 
-Decide whether configurable automatic shell producers should survive at all. Prefer an agent-invoked CLI command or tool when the agent can decide whether current data is relevant. Keep an automatic producer only for bounded facts the model must receive before it can make that decision.
-
-If no concrete automatic-producer use case clears that bar, remove command sources instead of relocating their configuration.
+Configurable automatic shell producers survive behind the explicit `context.turn.producers` boundary. They are reserved for bounded facts the model must receive before it can decide what to inspect; agent-invoked commands and tools remain preferable for live data whose relevance the model can determine itself.
 
 ## Build
 

@@ -10,9 +10,12 @@ import {
 import {
   buildContextTurnPreview,
   buildSessionContextPreview,
+  collectContextProducers,
   collectContextSources,
+  runContextProducer,
   runContextSource,
-  type ContextSourceRunResult,
+  type ContextProducerRunResult,
+  type ContextProducerView,
   type ContextSourceView,
 } from "../context/preview.js";
 import { tryParseDurationMs } from "../util/time-format.js";
@@ -37,6 +40,10 @@ const CONTEXT_SOURCES_USAGE = [
   renderCommandUsage(["context", "sources", "list"]),
   renderCommandUsage(["context", "sources", "run"]),
 ].join("\n");
+const CONTEXT_PRODUCERS_USAGE = [
+  renderCommandUsage(["context", "producers", "list"]),
+  renderCommandUsage(["context", "producers", "run"]),
+].join("\n");
 
 const cmdContextFiles: CommandHandler = createCommandGroup({
   name: "files",
@@ -60,6 +67,17 @@ const cmdContextSources: CommandHandler = createCommandGroup({
   },
 });
 
+const cmdContextProducers: CommandHandler = createCommandGroup({
+  name: "producers",
+  path: ["context", "producers"],
+  usage: CONTEXT_PRODUCERS_USAGE,
+  default: ({ usage }) => printUsage(usage, "producers subcommand required"),
+  commands: {
+    list: ({ argv, config }) => cmdContextProducersList(argv, config),
+    run: ({ argv, config }) => cmdContextProducersRun(argv, config),
+  },
+});
+
 export const cmdContext: CommandHandler = createCommandGroup({
   name: "context",
   usage: USAGE,
@@ -67,6 +85,7 @@ export const cmdContext: CommandHandler = createCommandGroup({
   defaultWhen: () => true,
   commands: {
     files: ({ argv, config }) => cmdContextFiles(argv, config),
+    producers: ({ argv, config }) => cmdContextProducers(argv, config),
     sources: ({ argv, config }) => cmdContextSources(argv, config),
     turn: ({ argv, config }) => cmdContextTurn(argv, config),
   },
@@ -187,7 +206,6 @@ async function cmdContextSourcesList(argv: string[], config: ShrimpyConfig): Pro
     options: {
       agent: { type: "string", short: "a" },
       channel: { type: "string", short: "c" },
-      "session-type": { type: "string", short: "s" },
       json: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -218,7 +236,6 @@ async function cmdContextSourcesRun(argv: string[], config: ShrimpyConfig): Prom
     options: {
       agent: { type: "string", short: "a" },
       channel: { type: "string", short: "c" },
-      "session-type": { type: "string", short: "s" },
       json: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -248,23 +265,16 @@ async function cmdContextSourcesRun(argv: string[], config: ShrimpyConfig): Prom
     runtime,
     agentId: values.agent,
     channel: values.channel,
-    sessionType: values["session-type"],
   });
   if (values.json) {
     console.log(JSON.stringify({
       id: source.id,
       output: result.output,
-      ...(result.items ? { items: result.items } : {}),
-      ...(result.error ? { error: result.error } : {}),
     }, null, 2));
   } else {
-    if (result.error) {
-      console.error(renderContextSourceError(result));
-    } else {
-      console.log(result.output);
-    }
+    console.log(result.output);
   }
-  return result.error ? 1 : 0;
+  return 0;
 }
 
 function sourceToJson(source: ContextSourceView): Record<string, unknown> {
@@ -274,21 +284,129 @@ function sourceToJson(source: ContextSourceView): Record<string, unknown> {
     scope: source.scope,
     origin: source.origin,
     summary: source.summary,
-    ...(source.command
+  };
+}
+
+async function cmdContextProducersList(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const { values } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      channel: { type: "string", short: "c" },
+      "session-type": { type: "string", short: "s" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage: CONTEXT_PRODUCERS_USAGE,
+  });
+
+  const runtime = createAppRuntime(config);
+  const producers = collectContextProducers({
+    runtime,
+    agentId: values.agent,
+    channel: values.channel,
+    sessionType: values["session-type"],
+  });
+
+  if (values.json) {
+    console.log(JSON.stringify(producers.map(producerToJson), null, 2));
+    return 0;
+  }
+  for (const producer of producers) {
+    console.log(
+      `${producer.id}  [${producer.type}/${producer.status}]  ${producer.summary}`,
+    );
+  }
+  return 0;
+}
+
+async function cmdContextProducersRun(
+  argv: string[],
+  config: ShrimpyConfig,
+): Promise<number> {
+  const usage = renderCommandUsage(["context", "producers", "run"]);
+  const { values, positionals } = parseCommandArgs({
+    args: argv,
+    options: {
+      agent: { type: "string", short: "a" },
+      channel: { type: "string", short: "c" },
+      "session-type": { type: "string", short: "s" },
+      json: { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+    usage,
+  });
+
+  const runtime = createAppRuntime(config);
+  const producers = collectContextProducers({
+    runtime,
+    agentId: values.agent,
+    channel: values.channel,
+  });
+  const id = requireArg(positionals[0], usage, "context producer id");
+  const producer = producers.find((candidate) => candidate.id === id);
+  if (!producer) {
+    console.error(`unknown context producer: ${id}`);
+    return 1;
+  }
+
+  const result = await runContextProducer({
+    source: producer,
+    runtime,
+    agentId: values.agent,
+    channel: values.channel,
+    sessionType: values["session-type"],
+  });
+  if (values.json) {
+    console.log(JSON.stringify({
+      id: producer.id,
+      status: result.report.status,
+      matched: result.report.matched,
+      ...(result.report.reason ? { reason: result.report.reason } : {}),
+      output: result.output,
+      ...(result.items ? { items: result.items } : {}),
+      ...(result.error ? { error: result.error } : {}),
+    }, null, 2));
+  } else if (result.error) {
+    console.error(renderContextProducerError(result));
+  } else if (result.report.status === "skipped") {
+    console.log(`skipped: ${result.report.reason ?? "producer did not match"}`);
+  } else {
+    console.log(result.output);
+  }
+  return result.error ? 1 : 0;
+}
+
+function producerToJson(producer: ContextProducerView): Record<string, unknown> {
+  return {
+    id: producer.id,
+    type: producer.type,
+    scope: producer.scope,
+    origin: producer.origin,
+    summary: producer.summary,
+    matched: producer.matched,
+    status: producer.status,
+    ...(producer.reason ? { reason: producer.reason } : {}),
+    ...(producer.producer
       ? {
-        command: source.command.command,
-        channels: source.command.channels,
-        timeoutMs: source.command.timeoutMs,
-        maxChars: source.command.maxChars,
-        freshForMs: source.command.freshForMs,
+        run: producer.producer.run,
+        when: producer.producer.when,
+        timeoutMs: producer.producer.timeoutMs,
+        cacheMs: producer.producer.cacheMs,
+        maxChars: producer.producer.maxChars,
       }
       : {}),
   };
 }
 
-function renderContextSourceError(result: ContextSourceRunResult): string {
+function renderContextProducerError(result: ContextProducerRunResult): string {
   if (!result.items || result.items.length === 0) {
-    return result.error ?? "context source failed";
+    return result.error ?? "context producer failed";
   }
   return result.items.map((item) =>
     item.inspect ? `${item.summary}\n  inspect: ${item.inspect}` : item.summary

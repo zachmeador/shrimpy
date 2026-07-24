@@ -53,7 +53,7 @@ Use `--json` when the output feeds a script or another agent.
 - `agents` — agent ids, roots, session cwd, default model policy, tools, thinking default, and channel policy.
 - `runtime` — Pi/Shrimpy runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, and compaction policy.
 - `tools` — defaults for Shrimpy daemon tools.
-- `context` — stable prompt sources, command sources, and turn-context settings. See [context-assembly.md](context-assembly.md).
+- `context` — stable prompt sources and live turn-context producers/settings. See [context-assembly.md](context-assembly.md).
 - `telegram` and other surface keys — configured surface instances, auth, allowlists, user mappings, default agent, and reliability policy.
 - `watchClock` — workspace watch clock tick and default timezone.
 - `status` — optional targeted watch diagnostics.
@@ -364,9 +364,10 @@ Command watch emit policies are `never`, `always`, `on_output`, `on_change`, and
 
 ## Context
 
-`context.sources` is the ordered source list for stable prompt material and turn-scoped command context; `context.turn` configures per-turn context; `context.agents.<id>` and `context.agents.<id>.channels.<pattern>` scope sources to one agent or channel. The source syntax, canonical examples, and turn-context settings live in [context-assembly.md](context-assembly.md).
+`context.sources` is the ordered stable Markdown resource list; `context.turn.producers` configures automatic live-fact commands; other `context.turn` keys configure built-in per-turn context. `context.agents.<id>` and `context.agents.<id>.channels.<pattern>` can scope stable sources to one agent or channel. The source syntax, producer conditions, canonical examples, and turn-context settings live in [context-assembly.md](context-assembly.md).
 
 ```bash
 shrimpy context --config
 shrimpy context sources list --agent shrimpy --channel home
+shrimpy context producers list --agent shrimpy --channel home
 ```

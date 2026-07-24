@@ -6,18 +6,28 @@ import {
 } from "../../util/json-file.js";
 import type { TurnContextItem } from "./types.js";
 
-interface ContextState {
+export interface ContextTurnProducerState {
+  lastRunAt?: number;
+  items?: TurnContextItem[];
+}
+
+export interface ContextState {
   channels: Record<string, { lastSeenMessageId?: string }>;
-  commands: Record<string, {
-    lastRunAt?: number;
-    items?: TurnContextItem[];
-  }>;
+  producers: Record<string, ContextTurnProducerState>;
+}
+
+export function contextTurnProducerStateKey(
+  producerId: string,
+  channel: string | undefined,
+  sessionType: string,
+): string {
+  return JSON.stringify([producerId, channel ?? null, sessionType]);
 }
 
 function emptyState(): ContextState {
   return {
     channels: {},
-    commands: {},
+    producers: {},
   };
 }
 
@@ -29,9 +39,9 @@ function parseState(raw: unknown): ContextState {
       && !Array.isArray(parsed.channels)
     ? parsed.channels as Record<string, unknown>
     : {};
-  const commands = typeof parsed.commands === "object" && parsed.commands !== null
-      && !Array.isArray(parsed.commands)
-    ? parsed.commands as Record<string, unknown>
+  const producers = typeof parsed.producers === "object" && parsed.producers !== null
+      && !Array.isArray(parsed.producers)
+    ? parsed.producers as Record<string, unknown>
     : {};
 
   return {
@@ -50,8 +60,8 @@ function parseState(raw: unknown): ContextState {
         ];
       }),
     ),
-    commands: Object.fromEntries(
-      Object.entries(commands).map(([id, value]) => {
+    producers: Object.fromEntries(
+      Object.entries(producers).map(([id, value]) => {
         const obj = typeof value === "object" && value !== null && !Array.isArray(value)
           ? value as Record<string, unknown>
           : {};

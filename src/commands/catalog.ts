@@ -164,8 +164,10 @@ export const CLI_COMMAND_CATALOG: readonly CliCommandEntry[] = [
   entry(["context"], "--config", "Show resolved context config.", "Workspace And Runtime", [{ name: "--config" }]),
   entry(["context", "files", "list"], "[--agent <id>] [--older-than <dur>] [--json]", "List agent context Markdown files.", "Workspace And Runtime", [agentOption, { name: "--older-than", takesValue: true }, jsonOption]),
   entry(["context", "files", "show"], "[--agent <id>] <path>", "Print one agent context file.", "Workspace And Runtime", [agentOption]),
-  entry(["context", "sources", "list"], "[--agent <id>] [--channel <name>] [--json]", "Inspect configured file, directory, command, and runtime sources.", "Workspace And Runtime", [agentOption, { name: "--channel", short: "-c", takesValue: true }, jsonOption]),
-  entry(["context", "sources", "run"], "<id> [--agent <id>] [--channel <name>] [--session-type <type>] [--json]", "Render one context source for debugging.", "Workspace And Runtime", [agentOption, { name: "--channel", short: "-c", takesValue: true }, { name: "--session-type", short: "-s", takesValue: true }, jsonOption]),
+  entry(["context", "sources", "list"], "[--agent <id>] [--channel <name>] [--json]", "Inspect stable file and directory context sources.", "Workspace And Runtime", [agentOption, { name: "--channel", short: "-c", takesValue: true }, jsonOption]),
+  entry(["context", "sources", "run"], "<id> [--agent <id>] [--channel <name>] [--json]", "Render one stable context source for debugging.", "Workspace And Runtime", [agentOption, { name: "--channel", short: "-c", takesValue: true }, jsonOption]),
+  entry(["context", "producers", "list"], "[--agent <id>] [--channel <name>] [--session-type <type>] [--json]", "Inspect turn producers and their match/cache status without running them.", "Workspace And Runtime", [agentOption, { name: "--channel", short: "-c", takesValue: true }, { name: "--session-type", short: "-s", takesValue: true }, jsonOption]),
+  entry(["context", "producers", "run"], "<id> [--agent <id>] [--channel <name>] [--session-type <type>] [--json]", "Explicitly run one turn producer for debugging.", "Workspace And Runtime", [agentOption, { name: "--channel", short: "-c", takesValue: true }, { name: "--session-type", short: "-s", takesValue: true }, jsonOption]),
 
   entry(["channels"], "[--json]", "List channels.", "Channels And Surfaces", [jsonOption]),
   entry(["channels", "show"], "<name> [--json]", "Inspect one channel.", "Channels And Surfaces", [jsonOption]),

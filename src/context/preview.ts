@@ -27,30 +27,36 @@ import {
   parseContextResource,
 } from "./spec.js";
 import {
-  commandMatchesChannel,
   type ContextSourceConfig,
-  isCommandSource,
-  resolveContextSource,
-  type ResolvedContextCommandSource,
 } from "./source.js";
 import {
   formatChannelMessage,
 } from "./turn/channel-message.js";
 import {
   buildTurnContext,
+  isProducerFresh,
 } from "./turn/service.js";
 import {
   renderTurnContext,
 } from "./turn/render.js";
 import {
-  runContextSourceCommand,
-} from "./turn/command-source.js";
+  producerMatchesChannel,
+  runContextTurnProducer,
+  type ResolvedContextTurnProducer,
+} from "./turn/producer.js";
+import {
+  contextTurnProducerStateKey,
+  readContextState,
+} from "./turn/state.js";
 import type {
   TurnContext,
   TurnContextItem,
+  TurnProducerReport,
+  TurnProducerStatus,
 } from "./turn/types.js";
 
-type ContextSourceKind = "file" | "directory" | "command" | "runtime";
+type ContextSourceKind = "file" | "directory";
+type ContextProducerKind = "command" | "runtime";
 
 interface ContextPreviewTarget {
   agentId: string;
@@ -70,13 +76,12 @@ interface SessionContextPreview {
 export interface ContextSourceView {
   id: string;
   type: ContextSourceKind;
-  scope: "session" | "turn";
+  scope: "session";
   origin: string;
   summary: string;
   source?: ContextSourceConfig;
   path?: string;
   rootPath?: string;
-  command?: ResolvedContextCommandSource;
   prompt?: {
     idPrefix: string;
     reason: string;
@@ -85,8 +90,25 @@ export interface ContextSourceView {
 
 export interface ContextSourceRunResult {
   output: string;
+}
+
+export interface ContextProducerView {
+  id: string;
+  type: ContextProducerKind;
+  scope: "turn";
+  origin: string;
+  summary: string;
+  matched: boolean;
+  status: TurnProducerStatus;
+  reason?: string;
+  producer?: ResolvedContextTurnProducer;
+}
+
+export interface ContextProducerRunResult {
+  output: string;
   items?: TurnContextItem[];
   error?: string;
+  report: TurnProducerReport;
 }
 
 export function buildContextPreviewTarget(
@@ -282,14 +304,6 @@ export function collectContextSources(input: {
     );
   });
 
-  out.push({
-    id: "runtime:turn-context",
-    type: "runtime",
-    scope: "turn",
-    origin: "runtime",
-    summary: "built-in turn context producers",
-  });
-
   return dedupeSourceIds(out);
 }
 
@@ -300,26 +314,6 @@ export async function runContextSource(input: {
   channel?: string;
   sessionType?: string;
 }): Promise<ContextSourceRunResult> {
-  const agent = input.runtime.getAgent(input.agentId);
-  const sessionType = input.sessionType
-    ?? (input.channel ? "gateway" : "preview");
-
-  if (input.source.command) {
-    return runCommandContextSource(input.source.command, {
-      runtime: input.runtime,
-      agentId: agent.id,
-      channel: input.channel,
-      sessionType,
-    });
-  }
-  if (input.source.type === "runtime") {
-    const preview = await buildContextTurnPreview(input.runtime, {
-      agentId: agent.id,
-      channel: input.channel,
-      sessionType,
-    });
-    return { output: preview.text };
-  }
   if (!input.source.rootPath || !input.source.path) {
     return { output: "" };
   }
@@ -336,20 +330,7 @@ function createSourceView(input: {
   workspacePath: string;
   prompt: ContextSourceView["prompt"];
 }): ContextSourceView {
-  const resolved = resolveContextSource(input.source);
-  if (isCommandSource(resolved)) {
-    return {
-      id: resolved.id,
-      type: "command",
-      scope: "turn",
-      origin: input.origin,
-      summary: `${resolved.command} channels=${resolved.channels.join(",")}`,
-      source: input.source,
-      command: resolved,
-    };
-  }
-
-  const parsed = parseContextResource(resolved);
+  const parsed = parseContextResource(input.source);
   const rootPath = parsed.scope === "agent" ? input.agentRootPath : input.workspacePath;
   const type = isDirectoryResource(input.source) ? "directory" : "file";
   return {
@@ -357,7 +338,7 @@ function createSourceView(input: {
     type,
     scope: "session",
     origin: input.origin,
-    summary: resolved,
+    summary: input.source,
     source: input.source,
     path: parsed.path,
     rootPath,
@@ -387,19 +368,119 @@ function promptRefsForSource(source: ContextSourceView): PromptResourceRef[] {
   }];
 }
 
-async function runCommandContextSource(
-  command: ResolvedContextCommandSource,
+export function collectContextProducers(input: {
+  runtime: AppRuntime;
+  agentId?: string;
+  channel?: string;
+  sessionType?: string;
+}): ContextProducerView[] {
+  const agent = input.runtime.getAgent(input.agentId);
+  const state = readContextState(input.runtime, agent.id);
+  const sessionType = input.sessionType
+    ?? (input.channel ? "gateway" : "preview");
+  const configured = input.runtime.resolved.context.turn.producers.map((producer) => {
+    const matched = producerMatchesChannel(producer, input.channel);
+    const cached = matched && isProducerFresh(
+      state.producers[contextTurnProducerStateKey(
+        producer.id,
+        input.channel,
+        sessionType,
+      )],
+      producer.cacheMs,
+    );
+    return {
+      id: producer.id,
+      type: "command",
+      scope: "turn",
+      origin: "configured",
+      summary: producer.run,
+      matched,
+      status: matched ? (cached ? "cached" : "matched") : "skipped",
+      ...(!matched
+        ? {
+          reason: input.channel
+            ? `channel "${input.channel}" did not match when.channels`
+            : "channel-scoped producer does not match a channel-less session",
+        }
+        : {}),
+      producer,
+    } satisfies ContextProducerView;
+  });
+
+  return [
+    ...configured,
+    {
+      id: "runtime:turn-context",
+      type: "runtime",
+      scope: "turn",
+      origin: "runtime",
+      summary: "built-in turn context producers",
+      matched: true,
+      status: "matched",
+    },
+  ];
+}
+
+export async function runContextProducer(
+  input: {
+    source: ContextProducerView;
+    runtime: AppRuntime;
+    agentId?: string;
+    channel?: string;
+    sessionType?: string;
+  },
+): Promise<ContextProducerRunResult> {
+  const agent = input.runtime.getAgent(input.agentId);
+  const sessionType = input.sessionType
+    ?? (input.channel ? "gateway" : "preview");
+
+  if (input.source.producer) {
+    return runConfiguredContextProducer(input.source.producer, {
+      runtime: input.runtime,
+      agentId: agent.id,
+      channel: input.channel,
+      sessionType,
+    });
+  }
+
+  const preview = await buildContextTurnPreview(input.runtime, {
+    agentId: agent.id,
+    channel: input.channel,
+    sessionType,
+  });
+  return {
+    output: preview.text,
+    report: {
+      id: input.source.id,
+      matched: true,
+      status: "ran",
+    },
+  };
+}
+
+async function runConfiguredContextProducer(
+  producer: ResolvedContextTurnProducer,
   input: {
     runtime: AppRuntime;
     agentId: string;
     channel?: string;
     sessionType: string;
   },
-): Promise<ContextSourceRunResult> {
-  if (!commandMatchesChannel(command, input.channel)) {
-    return { output: "" };
+): Promise<ContextProducerRunResult> {
+  if (!producerMatchesChannel(producer, input.channel)) {
+    return {
+      output: "",
+      report: {
+        id: producer.id,
+        matched: false,
+        status: "skipped",
+        reason: input.channel
+          ? `channel "${input.channel}" did not match when.channels`
+          : "channel-scoped producer does not match a channel-less session",
+      },
+    };
   }
-  const result = await runContextSourceCommand(command, {
+  const result = await runContextTurnProducer(producer, {
     runtime: input.runtime,
     agentId: input.agentId,
     channel: input.channel,
@@ -409,6 +490,12 @@ async function runCommandContextSource(
     output: result.raw,
     items: result.items,
     error: result.error,
+    report: {
+      id: producer.id,
+      matched: true,
+      status: result.error ? "failed" : "ran",
+      ...(result.error ? { reason: result.error } : {}),
+    },
   };
 }
 

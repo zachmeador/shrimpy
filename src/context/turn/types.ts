@@ -8,6 +8,15 @@ export interface TurnContextItem {
   inspect?: string;
 }
 
+export type TurnProducerStatus = "matched" | "ran" | "cached" | "failed" | "skipped";
+
+export interface TurnProducerReport {
+  id: string;
+  matched: boolean;
+  status: TurnProducerStatus;
+  reason?: string;
+}
+
 export interface TurnContext {
   agentId: string;
   channel?: string;
@@ -15,6 +24,7 @@ export interface TurnContext {
   capturedAt: string;
   maxChars: number;
   items: TurnContextItem[];
+  producers?: TurnProducerReport[];
 }
 
 export interface TurnContextInput {
