@@ -24,6 +24,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed `shrimpy run` to use an in-memory session by default. Pass `--session <session-id>` to resume durable state explicitly.
 - Removed the top-level `shrimpy mechanic` command. Use `shrimpy chat mechanic` to open the mechanic agent through the normal chat path.
 
+### Turn Context
+
+- Added always-on workspace knowledge breadcrumbs with bounded high-confidence path pointers, automatic local index maintenance, and workspace-wide `context.turn.knowledge` ranking controls.
+
 ### Sessions, Models & TUI
 
 - Changed `shrimpy context` to show the same context a real turn sends to the model; `--session <canonical-id>` includes existing session history without changing its transcript.

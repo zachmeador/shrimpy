@@ -271,6 +271,10 @@ describe("setupInit", () => {
         enabled: true,
         staleAfterMinutes: 720,
       },
+      knowledge: {
+        maxItems: 3,
+        minScore: 1.5,
+      },
     });
 
     const watches = JSON.parse(readFileSync(watchesPath, "utf-8"));

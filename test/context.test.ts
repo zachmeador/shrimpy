@@ -19,6 +19,9 @@ import {
   resolveContextTurnConfig,
 } from "../dist/context/index.js";
 import {
+  buildContextTurnPreview,
+} from "../dist/context/preview.js";
+import {
   makeMessage,
   textContent,
 } from "../dist/channels/index.js";
@@ -110,11 +113,228 @@ describe("resolveContextTurnConfig", () => {
         enabled: true,
         staleAfterMinutes: 720,
       },
+      knowledge: {
+        maxItems: 3,
+        minScore: 1.5,
+      },
     });
   });
 });
 
 describe("buildTurnContext", () => {
+  test("builds the workspace index automatically and emits knowledge breadcrumbs by default", async () => {
+    writeKnowledgeFile(
+      "agents/shrimpy/context/reef.md",
+      "# Reef Plan\n\nCoral nursery operations.\n",
+    );
+    const runtime = createAppRuntime({ workspace });
+    const indexPath = join(
+      workspace,
+      "runtime",
+      "search",
+      "workspace-index.json",
+    );
+    assert.equal(existsSync(indexPath), false);
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "coral nursery",
+    });
+
+    assert.equal(existsSync(indexPath), true);
+    assert.match(
+      renderTurnContext(turnContext),
+      /workspace knowledge.*agents\/shrimpy\/context\/reef\.md/i,
+    );
+    const index = readFileSync(indexPath, "utf-8");
+    await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "coral nursery",
+    });
+    assert.equal(readFileSync(indexPath, "utf-8"), index);
+  });
+
+  test("emits bounded path-deduped workspace knowledge breadcrumbs for live turns and previews", async () => {
+    writeKnowledgeFile(
+      "agents/shrimpy/context/reef.md",
+      [
+        "# Reef Plan",
+        "",
+        "Coral nursery operations.",
+        "",
+        "## Water",
+        "",
+        "Coral nursery water checks.",
+      ].join("\n"),
+    );
+    writeKnowledgeFile(
+      "agents/shrimpy/vault/coral.md",
+      "# Coral Notes\n\nCoral nursery follow-up.\n",
+    );
+    writeKnowledgeFile(
+      "agents/shrimpy/vault/unrelated.md",
+      "# Groceries\n\nTea and rice.\n",
+    );
+    const runtime = createAppRuntime({
+      workspace,
+      context: {
+        turn: {
+          knowledge: {
+            maxItems: 2,
+            minScore: 0.01,
+          },
+        },
+      },
+    });
+    const live = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "gateway", "home"),
+      currentMessage: makeMessage({
+        sender: { kind: "human", actorId: "human:user" },
+        origin: { transport: "cli" },
+        content: textContent("coral nursery"),
+      }),
+    });
+    const preview = await buildContextTurnPreview(runtime, {
+      agentId: "shrimpy",
+      prompt: "coral nursery",
+    });
+    const liveItems = live.items.filter((item) => item.id.startsWith("knowledge:"));
+    const previewItems = preview.turnContext.items.filter((item) =>
+      item.id.startsWith("knowledge:")
+    );
+
+    assert.equal(liveItems.length, 2);
+    assert.equal(new Set(liveItems.map((item) => item.id)).size, 2);
+    assert.deepEqual(
+      previewItems.map((item) => item.id),
+      liveItems.map((item) => item.id),
+    );
+    assert.match(renderTurnContext(live), /agents\/shrimpy\/context\/reef\.md:\d+/);
+    assert.match(preview.text, /agents\/shrimpy\/vault\/coral\.md:\d+/);
+    assert.doesNotMatch(renderTurnContext(live), /Coral nursery operations/);
+
+    const unrelated = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "volcanic geology",
+    });
+    assert.equal(
+      unrelated.items.some((item) => item.id.startsWith("knowledge:")),
+      false,
+    );
+  });
+
+  test("refreshes changed workspace knowledge automatically", async () => {
+    const sourcePath = writeKnowledgeFile(
+      "agents/shrimpy/context/reef.md",
+      "# Reef Plan\n\nCoral nursery operations.\n",
+    );
+    const runtime = createAppRuntime({
+      workspace,
+      context: {
+        turn: {
+          knowledge: {
+            minScore: 0.01,
+          },
+        },
+      },
+    });
+    const indexPath = join(
+      workspace,
+      "runtime",
+      "search",
+      "workspace-index.json",
+    );
+    await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "coral nursery",
+    });
+    const before = readFileSync(indexPath, "utf-8");
+    writeFileSync(
+      sourcePath,
+      "# Reef Plan\n\nKelp restoration operations.\n",
+      "utf-8",
+    );
+
+    const turnContext = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "kelp restoration",
+    });
+
+    assert.match(renderTurnContext(turnContext), /knowledge:?\s.*reef\.md/i);
+    assert.notEqual(readFileSync(indexPath, "utf-8"), before);
+  });
+
+  test("repairs a malformed index automatically and stays silent below the score threshold", async () => {
+    writeKnowledgeFile(
+      "agents/shrimpy/context/reef.md",
+      "# Reef Plan\n\nCoral nursery operations.\n",
+    );
+    const missingRuntime = createAppRuntime({
+      workspace,
+      context: {
+        turn: {
+          knowledge: {
+            minScore: 0.01,
+          },
+        },
+      },
+    });
+    const indexPath = join(
+      workspace,
+      "runtime",
+      "search",
+      "workspace-index.json",
+    );
+    const created = await buildTurnContext({
+      runtime: missingRuntime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "coral nursery",
+    });
+    assert.equal(
+      created.items.some((item) => item.id.startsWith("knowledge:")),
+      true,
+    );
+    assert.equal(existsSync(indexPath), true);
+
+    writeFileSync(indexPath, "{malformed", "utf-8");
+    const malformed = await buildTurnContext({
+      runtime: missingRuntime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "coral nursery",
+    });
+    assert.equal(
+      malformed.items.some((item) => item.id.startsWith("knowledge:")),
+      true,
+    );
+    assert.notEqual(readFileSync(indexPath, "utf-8"), "{malformed");
+
+    const thresholdRuntime = createAppRuntime({
+      workspace,
+      context: {
+        turn: {
+          knowledge: {
+            minScore: 10_000,
+          },
+        },
+      },
+    });
+    const belowThreshold = await buildTurnContext({
+      runtime: thresholdRuntime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "coral nursery",
+    });
+    assert.equal(
+      belowThreshold.items.some((item) => item.id.startsWith("knowledge:")),
+      false,
+    );
+  });
+
   test("summarizes when the active agent has no configured watches", async () => {
     const runtime = createAppRuntime({ workspace });
 
@@ -799,6 +1019,13 @@ function writeActiveSessionFile(channel: string, ageMs: number): void {
   );
   const when = new Date(Date.now() - ageMs);
   utimesSync(path, when, when);
+}
+
+function writeKnowledgeFile(path: string, content: string): string {
+  const absolutePath = join(workspace, path);
+  mkdirSync(join(absolutePath, ".."), { recursive: true });
+  writeFileSync(absolutePath, content, "utf-8");
+  return absolutePath;
 }
 
 function messageWatch(id: string, everyMs: number) {

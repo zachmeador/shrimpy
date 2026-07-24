@@ -60,6 +60,7 @@ Shrimpy includes by default:
 - the active agent's watch inventory, capped and ordered around active runs, nearest due watches, and recent runs
 - owned worker outcomes: current-session workers first, current-channel workers next, then compact counts for other workers needing review, with `shrimpy worker read <id>` as the inspect command
 - channel unread summaries for matching channels
+- high-confidence workspace knowledge paths related to the incoming message
 - output from configured `context.turn.producers`
 
 Per-agent state under `runtime/context/` records channel-unread progress and cached producer output. Producer caches are isolated by producer id, channel, and session type.
@@ -105,6 +106,12 @@ The two session paths persist turn context differently, and both forms are durab
 ```
 
 `context.turn.maxChars` is the total rendered budget. `context.turn.sessionStatus` controls watch-turn session recency pointers.
+
+### Workspace Knowledge
+
+Workspace knowledge breadcrumbs connect incoming message text to `shrimpy workspace search`. Results are deduplicated by path, and each item includes a path-and-line inspection pointer; document bodies never enter turn context.
+
+The lookup uses the automatically maintained local index described in [workspace.md](workspace.md#search). See [configuration.md](configuration.md#workspace-knowledge-breadcrumbs) for workspace-wide ranking controls.
 
 ### Automatic Producers
 

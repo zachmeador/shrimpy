@@ -11,7 +11,7 @@ import type { AppRuntime } from "../app/runtime.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 
-const INDEX_VERSION = 1;
+const INDEX_VERSION = 2;
 const SCORER_ID = "keyword-bm25-v1";
 const DEFAULT_LIMIT = 10;
 const MAX_SNIPPET_CHARS = 220;
@@ -30,6 +30,8 @@ export interface WorkspaceSearchIndexedFile {
   path: string;
   hash: string;
   mtimeMs: number;
+  ctimeMs: number;
+  size: number;
   lastModifiedAt: string;
   contentChangedAt: string;
   chunks: WorkspaceSearchChunk[];
@@ -108,12 +110,17 @@ export interface WorkspaceEmbeddingStatus {
   note: string;
 }
 
-interface CorpusFileSnapshot {
+interface CorpusFileMetadata {
   path: string;
   absolutePath: string;
-  hash: string;
   mtimeMs: number;
+  ctimeMs: number;
+  size: number;
   lastModifiedAt: string;
+}
+
+interface CorpusFileSnapshot extends CorpusFileMetadata {
+  hash: string;
   content: string;
 }
 
@@ -154,18 +161,9 @@ export async function searchWorkspaceKnowledge(
     removedFiles: refresh.removedFiles,
     matchedCount: ranked.length,
     returnedCount: returned.length,
-    results: returned.map((rankedChunk) => ({
-      path: rankedChunk.chunk.path,
-      headingTrail: rankedChunk.chunk.headingTrail,
-      score: roundScore(rankedChunk.score),
-      keywordScore: roundScore(rankedChunk.keywordScore),
-      recencyScore: roundScore(rankedChunk.recencyScore),
-      snippet: snippetForChunk(rankedChunk.chunk, query),
-      lastModifiedAt: rankedChunk.file.lastModifiedAt,
-      contentChangedAt: rankedChunk.file.contentChangedAt,
-      lineStart: rankedChunk.chunk.lineStart,
-      lineEnd: rankedChunk.chunk.lineEnd,
-    })),
+    results: returned.map((rankedChunk) =>
+      toWorkspaceSearchResultItem(rankedChunk, query)
+    ),
     hints: localSearchHints(),
   };
 }
@@ -216,6 +214,24 @@ export function inspectWorkspaceSearchIndex(runtime: AppRuntime): WorkspaceIndex
   };
 }
 
+function toWorkspaceSearchResultItem(
+  rankedChunk: RankedChunk,
+  query: string,
+): WorkspaceSearchResultItem {
+  return {
+    path: rankedChunk.chunk.path,
+    headingTrail: rankedChunk.chunk.headingTrail,
+    score: roundScore(rankedChunk.score),
+    keywordScore: roundScore(rankedChunk.keywordScore),
+    recencyScore: roundScore(rankedChunk.recencyScore),
+    snippet: snippetForChunk(rankedChunk.chunk, query),
+    lastModifiedAt: rankedChunk.file.lastModifiedAt,
+    contentChangedAt: rankedChunk.file.contentChangedAt,
+    lineStart: rankedChunk.chunk.lineStart,
+    lineEnd: rankedChunk.chunk.lineEnd,
+  };
+}
+
 export function rebuildWorkspaceSearchIndex(runtime: AppRuntime): WorkspaceIndexRefreshResult {
   const indexPath = workspaceSearchIndexPath(runtime);
   if (existsSync(indexPath)) rmSync(indexPath, { force: true });
@@ -237,16 +253,31 @@ export function refreshWorkspaceSearchIndex(
     existing.embeddingModel === expectedEmbeddingModel;
   const usableExisting = metadataMatches ? existing : null;
   const existingByPath = new Map((usableExisting?.files ?? []).map((file) => [file.path, file]));
-  const snapshots = collectCorpusFileSnapshots(runtime);
+  const corpusFiles = collectCorpusFileMetadata(runtime);
   const files: WorkspaceSearchIndexedFile[] = [];
   let refreshedFiles = 0;
+  let indexChanged = !metadataMatches;
 
-  for (const snapshot of snapshots) {
-    const previous = existingByPath.get(snapshot.path);
+  for (const metadata of corpusFiles) {
+    const previous = existingByPath.get(metadata.path);
+    if (
+      previous &&
+      previous.mtimeMs === metadata.mtimeMs &&
+      previous.ctimeMs === metadata.ctimeMs &&
+      previous.size === metadata.size
+    ) {
+      files.push(previous);
+      continue;
+    }
+
+    const snapshot = readCorpusFileSnapshot(metadata);
+    indexChanged = true;
     if (previous && previous.hash === snapshot.hash) {
       files.push({
         ...previous,
         mtimeMs: snapshot.mtimeMs,
+        ctimeMs: snapshot.ctimeMs,
+        size: snapshot.size,
         lastModifiedAt: snapshot.lastModifiedAt,
       });
       continue;
@@ -257,6 +288,8 @@ export function refreshWorkspaceSearchIndex(
       path: snapshot.path,
       hash: snapshot.hash,
       mtimeMs: snapshot.mtimeMs,
+      ctimeMs: snapshot.ctimeMs,
+      size: snapshot.size,
       lastModifiedAt: snapshot.lastModifiedAt,
       contentChangedAt: previous
         ? new Date().toISOString()
@@ -265,9 +298,21 @@ export function refreshWorkspaceSearchIndex(
     });
   }
 
-  const snapshotPaths = new Set(snapshots.map((snapshot) => snapshot.path));
+  const snapshotPaths = new Set(corpusFiles.map((file) => file.path));
   const removedFiles = [...existingByPath.keys()]
     .filter((path) => !snapshotPaths.has(path)).length;
+  indexChanged ||= removedFiles > 0;
+  if (!indexChanged && usableExisting) {
+    return {
+      indexPath,
+      index: usableExisting,
+      corpusFiles: corpusFiles.length,
+      refreshedFiles: 0,
+      removedFiles: 0,
+      rebuilt: false,
+    };
+  }
+
   const index: WorkspaceSearchIndex = {
     version: INDEX_VERSION,
     scorerId: SCORER_ID,
@@ -280,7 +325,7 @@ export function refreshWorkspaceSearchIndex(
   return {
     indexPath,
     index,
-    corpusFiles: snapshots.length,
+    corpusFiles: corpusFiles.length,
     refreshedFiles,
     removedFiles,
     rebuilt: opts.force === true || !metadataMatches,
@@ -404,19 +449,32 @@ function contentRecencyScore(contentChangedAt: string): number {
 }
 
 function collectCorpusFileSnapshots(runtime: AppRuntime): CorpusFileSnapshot[] {
-  const files = collectCorpusFiles(runtime);
-  return files.map((absolutePath) => {
-    const content = readFileSync(absolutePath, "utf-8");
+  return collectCorpusFileMetadata(runtime).map(readCorpusFileSnapshot);
+}
+
+function collectCorpusFileMetadata(runtime: AppRuntime): CorpusFileMetadata[] {
+  return collectCorpusFiles(runtime).map((absolutePath) => {
     const stats = statSync(absolutePath);
     return {
       path: relative(runtime.paths.workspace, absolutePath),
       absolutePath,
-      hash: createHash("sha256").update(content).digest("hex"),
       mtimeMs: stats.mtimeMs,
+      ctimeMs: stats.ctimeMs,
+      size: stats.size,
       lastModifiedAt: new Date(stats.mtimeMs).toISOString(),
-      content,
     };
   }).sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function readCorpusFileSnapshot(
+  metadata: CorpusFileMetadata,
+): CorpusFileSnapshot {
+  const content = readFileSync(metadata.absolutePath, "utf-8");
+  return {
+    ...metadata,
+    hash: createHash("sha256").update(content).digest("hex"),
+    content,
+  };
 }
 
 function collectCorpusFiles(runtime: AppRuntime): string[] {

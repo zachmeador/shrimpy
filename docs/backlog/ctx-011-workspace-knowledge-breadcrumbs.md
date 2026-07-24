@@ -1,5 +1,5 @@
 ---
-status: todo
+status: review
 priority: P2
 area: Context
 depends_on:
@@ -15,17 +15,16 @@ In a large workspace the agent does not know what knowledge exists unless someth
 ## Current State
 
 - Turn context is assembled by item builders in `src/context/turn/service.ts`, each returning `{summary, inspect}` items under the `context.turn.maxChars` budget.
-- Command sources are the deterministic precedent for bounded workspace-specific items with inspect commands.
-- `shrimpy workspace search` provides the local workspace search service this producer calls.
+- `src/context/turn/knowledge.ts` turns incoming channel message text or a direct-session prompt into bounded path-and-line pointers.
+- `src/search/workspace.ts` lazily creates or refreshes the local index before ranking, reusing indexed chunks for unchanged files.
 
-## Build
+## Review Shape
 
-- New turn-context producer (for example `src/context/turn/knowledge.ts`) that queries the workspace search service with the current message text and emits at most a few items.
-- Item shape matches the rest of turn context: summary carries the workspace-relative path (and heading when useful) with a short relevance hook; inspect is the exact command or path to open the source.
-- Config under `context.turn.knowledge`: `enabled` (default false), `maxItems` (default 3), `minScore`. Opt-in until it proves itself.
-- Threshold-gated with silence as the default outcome: below threshold nothing is emitted, results are deduped by path, and nothing pads toward `maxItems`.
-- Turn assembly never downloads models, never blocks on a rebuild, and serves a stale index rather than waiting; if the search service or index is not ready, the producer emits nothing.
-- `shrimpy context turn` renders the items like every other producer.
+- The item shape matches the rest of turn context: summaries carry a workspace-relative path, line, optional heading trail, and rounded relevance score; inspect carries the exact path-and-line pointer.
+- Breadcrumbs are always active. Workspace-wide config under `context.turn.knowledge` can tune `maxItems` (default 3) and `minScore` (default 1.5); there is no agent override.
+- Threshold gating, path deduplication, and the item cap happen before rendering, with no below-threshold filler.
+- The normal workspace-search refresh path creates missing indexes, replaces incompatible or malformed indexes, and reindexes changed files automatically.
+- Direct/TUI turns pass prompt text into turn-context assembly, while channel turns use the routed text message. `shrimpy context turn` follows the same producer path.
 
 ## Boundaries
 
@@ -33,10 +32,15 @@ In a large workspace the agent does not know what knowledge exists unless someth
 - An irrelevant breadcrumb is worse than none: conservative threshold, small cap, no filler.
 - Corpus is exactly `shrimpy workspace search`'s. No transcript or channel-log breadcrumbs; `shrimpy sessions search` remains on-demand recall, not ambient context.
 - No new config surface beyond `context.turn.knowledge`; budget interaction stays inside the existing `maxChars` mechanism.
+- Configuration is workspace-wide. Agent-specific breadcrumb policy is out of scope.
 - Optional semantic ranking from [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) can improve relevance later, but this producer must work with keyword workspace search.
+
+## UX Implications
+
+Related live messages and `shrimpy context turn` previews can show up to three workspace-relative path-and-line breadcrumbs with optional heading trails. Unrelated messages remain quiet, source text stays out of turn context, and users do not need to enable the feature or maintain its index.
 
 ## Done
 
-- With the feature enabled and an index present, a related incoming message yields bounded knowledge items with exact paths in both live turns and `shrimpy context turn` output.
-- Unrelated messages, a disabled flag, or a missing index/service yield zero items and zero turn-time downloads or rebuilds.
-- Tests cover threshold and cap behavior, dedupe, silence on low scores, disabled-by-default config, and the not-ready path.
+- A related incoming message yields bounded knowledge items with exact paths in both live turns and `shrimpy context turn` output without prior configuration or index maintenance.
+- Unrelated messages and below-threshold results yield zero items, while missing, stale, malformed, or incompatible indexes repair through the local keyword-search path.
+- Tests cover automatic creation and refresh, malformed-index repair, threshold and cap behavior, dedupe, silence on low scores, and direct/channel/preview prompt parity.

@@ -99,10 +99,11 @@ export class SessionResolver {
         appendSystemPrompt: input.appendSystemPrompt,
         skills: input.skills,
       },
-      prepareTurnContext: async () => {
+      prepareTurnContext: async (prompt) => {
         const turnContext = await buildTurnContext({
           runtime: this.runtime,
           descriptor,
+          currentPrompt: prompt,
         });
         return renderTurnContext(turnContext);
       },

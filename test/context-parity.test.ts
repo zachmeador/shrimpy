@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
   createAssistantMessageEventStream,
   type Api,
@@ -40,7 +40,17 @@ test("context inspection matches a live session turn", async () => {
   const config = JSON.parse(
     readFileSync(`${workspace}/config/shrimpy.json`, "utf-8"),
   );
+  config.context.turn.knowledge = {
+    maxItems: 3,
+    minScore: 0.01,
+  };
   const runtime = createAppRuntime({ ...config, workspace });
+  mkdirSync(`${workspace}/agents/shrimpy/context`, { recursive: true });
+  writeFileSync(
+    `${workspace}/agents/shrimpy/context/parity.md`,
+    "# Parity Needle\n\nturnpromptneedle direct context reference\n",
+    "utf-8",
+  );
   const bootstrap = await runtime.createBootstrap({ agentId: "shrimpy" });
   const model = createCaptureModel();
   let liveContext: Context | undefined;
@@ -85,6 +95,10 @@ test("context inspection matches a live session turn", async () => {
     provider: model.provider,
     model: model.id,
   });
+  assert.match(
+    await plan.prepareTurnContext?.("turnpromptneedle") ?? "",
+    /agents\/shrimpy\/context\/parity\.md/,
+  );
   plan.prepareTurnContext = () =>
     "[turn-context]\nagent: shrimpy\nsession: test\n- deterministic parity fact";
 

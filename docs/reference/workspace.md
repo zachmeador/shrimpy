@@ -127,7 +127,7 @@ When the gateway is running and tracking is enabled, Shrimpy checks about every 
 - `agents/<id>/context/`
 - `agents/<id>/vault/`
 
-Results include workspace-relative paths, heading trails, line numbers, scores, clipped snippets, last-modified time, and content-change time. The cache under `runtime/search/` is rebuildable and refreshed lazily by content hash.
+Results include workspace-relative paths, heading trails, line numbers, scores, clipped snippets, last-modified time, and content-change time. The cache under `runtime/search/` is maintained lazily by both `shrimpy workspace search` and turn-context knowledge breadcrumbs. A missing, malformed, or incompatible index is rebuilt automatically. Unchanged files reuse indexed chunks without rereading their contents or rewriting the cache; changed files and corpus membership refresh before the current query is ranked.
 
 ```bash
 shrimpy workspace search "model policy"

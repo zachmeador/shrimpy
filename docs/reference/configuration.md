@@ -364,7 +364,29 @@ Command watch emit policies are `never`, `always`, `on_output`, `on_change`, and
 
 ## Context
 
-`context.sources` is the ordered stable Markdown resource list; `context.turn.producers` configures automatic live-fact commands; other `context.turn` keys configure built-in per-turn context. `context.agents.<id>` and `context.agents.<id>.channels.<pattern>` can scope stable sources to one agent or channel. The source syntax, producer conditions, canonical examples, and turn-context settings live in [context-assembly.md](context-assembly.md).
+`context.sources` is the ordered stable Markdown resource list; `context.turn.producers` configures automatic live-fact commands; other `context.turn` keys configure built-in per-turn context. `context.agents.<id>` and `context.agents.<id>.channels.<pattern>` can scope stable sources to one agent or channel. See [context-assembly.md](context-assembly.md) for source syntax, producer conditions, and what each context layer sends to the model.
+
+### Workspace Knowledge Breadcrumbs
+
+Workspace knowledge breadcrumbs are always active and configured once for the workspace. They do not have agent-level overrides.
+
+```json
+{
+  "context": {
+    "turn": {
+      "knowledge": {
+        "maxItems": 3,
+        "minScore": 1.5
+      }
+    }
+  }
+}
+```
+
+| Field | Default | Meaning |
+|---|---:|---|
+| `context.turn.knowledge.maxItems` | `3` | Maximum distinct workspace paths included in one turn. |
+| `context.turn.knowledge.minScore` | `1.5` | Minimum workspace-search relevance score required for a breadcrumb. |
 
 ```bash
 shrimpy context --config

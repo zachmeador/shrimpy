@@ -103,6 +103,10 @@ function defaultShrimpyConfig(): Record<string, unknown> {
           enabled: true,
           staleAfterMinutes: 720,
         },
+        knowledge: {
+          maxItems: 3,
+          minScore: 1.5,
+        },
       },
     },
     watchClock: {

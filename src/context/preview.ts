@@ -261,6 +261,7 @@ export async function buildSessionContextPreview(
       runtime,
       descriptor: target.descriptor,
       currentMessage: previewMessage,
+      currentPrompt: prompt,
       preview: true,
     })
     : undefined;
@@ -339,6 +340,7 @@ export async function buildContextTurnPreview(
     runtime,
     descriptor: target.descriptor,
     currentMessage: previewMessage,
+    currentPrompt: input.prompt ?? "",
     preview: true,
   });
 

@@ -29,10 +29,16 @@ export interface ContextTurnSessionStatusConfig {
   staleAfterMinutes?: number;
 }
 
+export interface ContextTurnKnowledgeConfig {
+  maxItems?: number;
+  minScore?: number;
+}
+
 export interface ContextTurnConfig {
   maxChars?: number;
   channelUnread?: ContextTurnChannelUnreadConfig;
   sessionStatus?: ContextTurnSessionStatusConfig;
+  knowledge?: ContextTurnKnowledgeConfig;
   producers?: ContextTurnProducerConfig[];
 }
 
@@ -46,6 +52,10 @@ export interface ResolvedContextTurnConfig {
   sessionStatus: {
     enabled: boolean;
     staleAfterMinutes: number;
+  };
+  knowledge: {
+    maxItems: number;
+    minScore: number;
   };
   producers: ResolvedContextTurnProducer[];
 }
@@ -135,6 +145,17 @@ function validateBoolean(value: unknown, key: string): boolean | undefined {
   return value;
 }
 
+function validatePositiveNumber(
+  value: unknown,
+  key: string,
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${key} must be a positive number`);
+  }
+  return value;
+}
+
 function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -142,7 +163,13 @@ function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefine
   }
 
   const obj = value as Record<string, unknown>;
-  const allowed = new Set(["maxChars", "channelUnread", "sessionStatus", "producers"]);
+  const allowed = new Set([
+    "maxChars",
+    "channelUnread",
+    "sessionStatus",
+    "knowledge",
+    "producers",
+  ]);
   for (const key of Object.keys(obj)) {
     if (!allowed.has(key)) {
       throw new Error(`unknown key in context.turn: "${key}"`);
@@ -152,6 +179,7 @@ function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefine
   const maxChars = validatePositiveInteger(obj.maxChars, "context.turn.maxChars");
   const channelUnread = validateContextTurnChannelUnreadConfig(obj.channelUnread);
   const sessionStatus = validateContextTurnSessionStatusConfig(obj.sessionStatus);
+  const knowledge = validateContextTurnKnowledgeConfig(obj.knowledge);
   const producers = validateContextTurnProducerList(
     obj.producers,
     "context.turn.producers",
@@ -161,6 +189,7 @@ function validateContextTurnConfig(value: unknown): ContextTurnConfig | undefine
     ...(maxChars !== undefined ? { maxChars } : {}),
     ...(channelUnread !== undefined ? { channelUnread } : {}),
     ...(sessionStatus !== undefined ? { sessionStatus } : {}),
+    ...(knowledge !== undefined ? { knowledge } : {}),
     ...(producers !== undefined ? { producers } : {}),
   };
 }
@@ -212,6 +241,34 @@ function validateContextTurnSessionStatusConfig(
     staleAfterMinutes: validatePositiveInteger(
       obj.staleAfterMinutes,
       "context.turn.sessionStatus.staleAfterMinutes",
+    ),
+  };
+}
+
+function validateContextTurnKnowledgeConfig(
+  value: unknown,
+): ContextTurnKnowledgeConfig | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("context.turn.knowledge must be an object");
+  }
+
+  const obj = value as Record<string, unknown>;
+  const allowed = new Set(["maxItems", "minScore"]);
+  for (const key of Object.keys(obj)) {
+    if (!allowed.has(key)) {
+      throw new Error(`unknown key in context.turn.knowledge: "${key}"`);
+    }
+  }
+
+  return {
+    maxItems: validatePositiveInteger(
+      obj.maxItems,
+      "context.turn.knowledge.maxItems",
+    ),
+    minScore: validatePositiveNumber(
+      obj.minScore,
+      "context.turn.knowledge.minScore",
     ),
   };
 }
@@ -519,6 +576,10 @@ export function resolveContextTurnConfig(
     sessionStatus: {
       enabled: raw?.sessionStatus?.enabled ?? true,
       staleAfterMinutes: raw?.sessionStatus?.staleAfterMinutes ?? 12 * 60,
+    },
+    knowledge: {
+      maxItems: raw?.knowledge?.maxItems ?? 3,
+      minScore: raw?.knowledge?.minScore ?? 1.5,
     },
     producers: (raw?.producers ?? []).map(resolveContextTurnProducer),
   };

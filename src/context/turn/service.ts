@@ -14,6 +14,7 @@ import { buildTurnFactItems } from "./facts.js";
 import { buildAgentWatchItems } from "./agent-watches.js";
 import { buildSessionStatusItems } from "./session-status.js";
 import { buildWorkerContextItems } from "./workers.js";
+import { buildKnowledgeBreadcrumbItems } from "./knowledge.js";
 import {
   contextTurnProducerStateKey,
   readContextState,
@@ -40,7 +41,10 @@ export async function buildTurnContext(
   const channel = sessionChannel(input.descriptor);
   const sessionType = input.descriptor.purpose;
   const capturedAt = formatAgentDateTime();
-  const produced = await buildProducerContext(input);
+  const [produced, knowledgeItems] = await Promise.all([
+    buildProducerContext(input),
+    buildKnowledgeBreadcrumbItems(input),
+  ]);
   const items = [
     ...buildTurnFactItems({
       runtime: input.runtime,
@@ -48,6 +52,7 @@ export async function buildTurnContext(
       agentId,
       currentMessage: input.currentMessage,
     }),
+    ...knowledgeItems,
     ...buildGatewayStatusItems(input),
     ...buildAgentWatchItems({ turn: input, agentId }),
     ...buildSessionStatusItems({ turn: input, agentId }),

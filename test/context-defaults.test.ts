@@ -308,6 +308,42 @@ describe("resolveContextConfig", () => {
     }]);
   });
 
+  test("resolves and validates workspace knowledge breadcrumb settings", () => {
+    const resolved = resolveContextConfig({
+      turn: {
+        knowledge: {
+          maxItems: 5,
+          minScore: 2.25,
+        },
+      },
+    });
+
+    assert.deepEqual(resolved.turn.knowledge, {
+      maxItems: 5,
+      minScore: 2.25,
+    });
+    assert.throws(
+      () => resolveContextConfig({
+        turn: {
+          knowledge: {
+            minScore: 0,
+          },
+        },
+      }),
+      /context\.turn\.knowledge\.minScore must be a positive number/,
+    );
+    assert.throws(
+      () => resolveContextConfig({
+        turn: {
+          knowledge: {
+            maxItems: 0,
+          },
+        },
+      }),
+      /context\.turn\.knowledge\.maxItems must be a positive integer/,
+    );
+  });
+
   test("rejects duplicate and reserved producer ids", () => {
     assert.throws(
       () => resolveContextConfig({
@@ -346,6 +382,10 @@ function defaultTurnContextConfig() {
     sessionStatus: {
       enabled: true,
       staleAfterMinutes: 720,
+    },
+    knowledge: {
+      maxItems: 3,
+      minScore: 1.5,
     },
   };
 }

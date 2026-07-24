@@ -31,5 +31,6 @@ export interface TurnContextInput {
   runtime: AppRuntime;
   descriptor: SessionDescriptor;
   currentMessage?: ChannelMessage;
+  currentPrompt?: string;
   preview?: boolean;
 }
