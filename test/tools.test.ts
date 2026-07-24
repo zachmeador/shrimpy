@@ -74,6 +74,7 @@ describe("send_message", () => {
     const { messages } = readMessages(channelPath(channelBus.channelsDir, "unknown-1"));
     assert.equal(messages.length, 1);
     assert.equal(messages[0].sender.kind, "agent");
+    assert.equal(messages[0].sender.actorId, "agent:shrimpy");
     assert.deepEqual(messages[0].content.data, { text: "hello" });
   });
 
@@ -174,6 +175,32 @@ describe("send_message", () => {
     assert.equal(messages[0].sender.actorId, "agent:maintenance");
   });
 
+  test("uses the active agent identity before the configured fallback", async () => {
+    const channelBus = createChannelBus();
+
+    const tools = createDaemonTools({
+      channelBus,
+      bootstrap: createBootstrap(),
+      agentId: "mechanic",
+      toolConfig: resolveToolRuntimeConfig({
+        sendMessage: { defaultActorId: "agent:shrimpy" },
+      }),
+    });
+    const sendMessage = findTool("send_message", tools);
+
+    await sendMessage.execute(
+      "call-1",
+      { channel: "telegram-123", text: "hello" },
+      new AbortController().signal,
+      () => {},
+      {},
+    );
+
+    const { messages } = readMessages(channelPath(channelBus.channelsDir, "telegram-123"));
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].sender.actorId, "agent:mechanic");
+  });
+
   test("resolves user channel aliases from last recorded presence", async () => {
     const channelBus = createChannelBus();
     const presencePath = join(testDir, "presence.json");
@@ -210,7 +237,7 @@ describe("send_message", () => {
     assert.deepEqual(messages[0].content.data, { text: "hello alice" });
   });
 
-  test("registerTelegramEgress sends by transport binding", async () => {
+  test("registerTelegramEgress sends with the configured default-agent attribution policy", async () => {
     const calls: Array<{ chatId: number; text: string }> = [];
     const registry = new EgressRegistry();
     registerTelegramEgress(
@@ -222,19 +249,23 @@ describe("send_message", () => {
         async sendPhoto() {},
       } as any,
       "main",
+      "shrimpy",
     );
 
     const delivered = await registry.send({
       channel: "home",
       binding: { adapter: "telegram", instance: "main", thread: "4242" },
       message: makeMessage({
-        sender: { kind: "agent", actorId: "agent:shrimpy" },
+        sender: { kind: "agent", actorId: "agent:mechanic" },
         origin: { transport: "internal" },
         content: textContent("hi"),
       }),
     });
     assert.equal(delivered, true);
-    assert.deepEqual(calls, [{ chatId: 4242, text: "hi" }]);
+    assert.deepEqual(calls, [{
+      chatId: 4242,
+      text: "📨 <b>Message from agent:mechanic</b>\n\nhi",
+    }]);
   });
 
   test("registerTelegramEgress supports typing activity routes", async () => {
@@ -250,6 +281,7 @@ describe("send_message", () => {
         },
       } as any,
       "main",
+      "shrimpy",
     );
 
     const handle = await registry.startActivity({

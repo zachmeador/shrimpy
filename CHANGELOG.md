@@ -43,6 +43,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Channels & Agent Policy
 
+- Added Telegram attribution for messages delivered by a non-default agent, while setup, channel, and watch guidance prefers dedicated bot identities for agents with an ongoing chat presence and the user's primary chat for occasional support-agent reports.
 - Changed gateway turn guidance so publication tools carry user-visible replies, plain assistant text stays private, and agents do not duplicate a message after publishing.
 
 ### Fixed

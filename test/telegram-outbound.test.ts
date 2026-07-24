@@ -5,9 +5,12 @@ import {
   TELEGRAM_TEXT_CHUNK_LIMIT,
 } from "../dist/surfaces/telegram/format.js";
 import {
+  sendTelegramChannelMessage,
   sendTelegramPublicationText,
   sendTelegramFormattedText,
 } from "../dist/surfaces/telegram/outbound.js";
+import { makeMessage } from "../dist/channels/protocol.js";
+import { textContent } from "../dist/channels/messages.js";
 
 describe("telegram outbound formatting", () => {
   test("renders common markdown into Telegram HTML", () => {
@@ -78,5 +81,87 @@ describe("telegram outbound formatting", () => {
         disableNotification: true,
       },
     }]);
+  });
+
+  test("leaves default-agent messages visually unchanged", async () => {
+    const sent: Array<{ text: string; options?: any }> = [];
+    const message = makeMessage({
+      sender: { kind: "agent", actorId: "agent:shrimpy" },
+      origin: { transport: "internal" },
+      content: textContent("Routine reply."),
+    });
+
+    await sendTelegramChannelMessage(
+      {
+        async sendMessage(_chatId, text, options) {
+          sent.push({ text, options });
+        },
+        async sendPhoto() {},
+      },
+      42,
+      message,
+      "shrimpy",
+    );
+
+    assert.deepEqual(sent, [{
+      text: "Routine reply.",
+      options: "HTML",
+    }]);
+  });
+
+  test("labels a non-default agent with its display name without changing stored text", async () => {
+    const sent: Array<{ text: string; options?: any }> = [];
+    const message = makeMessage({
+      sender: {
+        kind: "agent",
+        actorId: "agent:mechanic",
+        displayName: "Ole *Scrappy*",
+      },
+      origin: { transport: "internal" },
+      content: textContent("Audit complete."),
+    });
+
+    await sendTelegramChannelMessage(
+      {
+        async sendMessage(_chatId, text, options) {
+          sent.push({ text, options });
+        },
+        async sendPhoto() {},
+      },
+      42,
+      message,
+      "shrimpy",
+    );
+
+    assert.deepEqual(sent, [{
+      text: "📨 <b>Message from Ole *Scrappy*</b>\n\nAudit complete.",
+      options: "HTML",
+    }]);
+    assert.deepEqual(message.content.data, { text: "Audit complete." });
+  });
+
+  test("falls back to the exact non-default actor id", async () => {
+    const sent: string[] = [];
+    const message = makeMessage({
+      sender: { kind: "agent", actorId: "agent:mechanic" },
+      origin: { transport: "internal" },
+      content: textContent("Maintenance report."),
+    });
+
+    await sendTelegramChannelMessage(
+      {
+        async sendMessage(_chatId, text) {
+          sent.push(text);
+        },
+        async sendPhoto() {},
+      },
+      42,
+      message,
+      "shrimpy",
+    );
+
+    assert.deepEqual(sent, [
+      "📨 <b>Message from agent:mechanic</b>\n\nMaintenance report.",
+    ]);
   });
 });

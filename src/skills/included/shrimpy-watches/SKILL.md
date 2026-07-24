@@ -16,10 +16,10 @@ Use the paths in `context/WORKSPACE.md`. For detail, use:
 
 ## How To Work
 
-1. Confirm the user asked for recurring or delayed work. Identify the owner agent, cadence, task, destination channel, and expected user-visible result.
-2. Choose the destination channel. If the user wants the result in the same conversation, use the current channel. If the destination is unclear, inspect channels before choosing. For internal-only work, use a simple workflow channel name.
-3. Confirm the owner agent can receive work there with `shrimpy channels members <channel>` and `shrimpy agent channel-policy <agent> --channel <channel>`. Join the agent first if needed.
-4. Add a message watch for agent work. The watch message is an instruction to the agent, not text for the user; tell the agent to send exactly one final user-facing message to the destination channel when it finishes.
+1. Confirm the user asked for recurring or delayed work. Identify the owner agent, cadence, task, execution channel, user-facing delivery destination, and expected result.
+2. Choose the execution channel where the owner agent should wake. It can also be the delivery destination when the result belongs in that conversation. For an occasional report from a background or support agent, an internal execution channel plus the user's established `user:<id>` route or chosen bound channel avoids joining that agent to the main chat solely for delivery.
+3. Confirm the owner agent can receive work on the execution channel with `shrimpy channels members <channel>` and `shrimpy agent channel-policy <agent> --channel <channel>`. Join the agent first if needed.
+4. Add a message watch for agent work. The watch message is an instruction to the agent, not text for the user; tell the agent to send exactly one final user-facing message with `reply` when execution and delivery share a channel, or `send_message` when the destination differs.
 5. Use a command watch only for deterministic shell observations. Choose an emit policy deliberately.
 6. Verify with `shrimpy watches show <agent-id>/<watch-id> --json`; check diagnostics, target channel, next run, and expected wake.
 7. If an immediate test is safe, run `shrimpy watches run <agent-id>/<watch-id> --json`, then inspect `shrimpy watches history <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch --limit 10`.
@@ -27,10 +27,10 @@ Use the paths in `context/WORKSPACE.md`. For detail, use:
 ## Scheduled Message Pattern
 
 1. Pick a short watch id that names the job.
-2. Use `--channel <channel>` for the place the agent should wake.
+2. Use `--channel <channel>` for the place the agent should wake; this need not be the final user-facing destination.
 3. Use `--addressed <agent>` when the channel has multiple possible agents or the route depends on addressed wake behavior.
-4. Write `--message` as a small runbook: do the requested task, use any needed context, and send one final message with `reply`.
-5. Tell the user the cadence, destination, and owner agent after verification.
+4. Write `--message` as a small runbook: do the requested task, use any needed context, and send one final message with `reply` to the active channel or `send_message` to the named user/channel destination.
+5. Tell the user the cadence, execution channel, delivery destination, and owner agent after verification.
 
 ## Commands
 
@@ -46,6 +46,7 @@ shrimpy watches add <id> --agent <id> --every 30m --command "<command>" --emit-p
 shrimpy watches enable <agent-id>/<watch-id>
 shrimpy watches disable <agent-id>/<watch-id>
 shrimpy watches run <agent-id>/<watch-id>
+shrimpy users presence
 ```
 
 ## Guardrails
@@ -57,3 +58,4 @@ shrimpy watches run <agent-id>/<watch-id>
 - Do not write watch text as if the user will read it. Watch-origin text is internal trigger material; the agent should publish the user-facing message once per run.
 - Keep watch messages short and actionable. The watch should say what to do, where to inspect, and which skill to use if relevant.
 - Before changing an existing watch, inspect its history and explain any change that affects cadence, target channel, command execution, or user-visible messages.
+- Preserve the owner agent as the sender when an occasional report goes through another agent's primary chat. Do not rewrite identity to match the surface default; outbound attribution makes the cross-agent delivery legible.

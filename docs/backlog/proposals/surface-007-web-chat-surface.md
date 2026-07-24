@@ -52,7 +52,7 @@ The useful product idea is a dense local channel console that reuses Shrimpy's e
 
 ## Related Work
 
-- [SURFACE-002](../surface-002-chat-delivery-attribution.md) covers visible attribution when non-default agents speak through a shared surface identity.
+- [surfaces.md](../../reference/surfaces.md) describes visible attribution when non-default agents speak through a shared surface identity.
 - [SURFACE-003](../surface-003-chat-operation-status.md) covers the narrow user-visible compaction failure status.
 - [SURFACE-006](../surface-006-remote-chat-commands.md) covers the small remote command/status service.
 - [`session-model.md`](../../musings/session-model.md) describes surfaces converging on the same channel/session model.

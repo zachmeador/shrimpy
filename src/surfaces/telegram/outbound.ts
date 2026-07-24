@@ -95,6 +95,7 @@ export async function sendTelegramChannelMessage(
   telegram: TelegramMessageSender,
   chatId: number,
   message: ChannelMessage,
+  defaultAgentId: string,
 ): Promise<void> {
   const publication = publicationIntentForMessage(message);
   const disableNotification = shouldDisableTelegramNotification(publication);
@@ -114,12 +115,34 @@ export async function sendTelegramChannelMessage(
       }
       return;
     default: {
-      const text = outboundTextForMessage(message);
+      const text = telegramOutboundTextForMessage(message, defaultAgentId);
       if (text) {
         await sendTelegramPublicationText(telegram, chatId, text, publication);
       }
     }
   }
+}
+
+export function telegramOutboundTextForMessage(
+  message: ChannelMessage,
+  defaultAgentId: string,
+): string | null {
+  const text = outboundTextForMessage(message);
+  if (!text || message.sender.kind !== "agent") return text;
+  if (message.sender.actorId === `agent:${defaultAgentId}`) return text;
+
+  const label = message.sender.displayName?.trim() || message.sender.actorId;
+  return `📨 **Message from ${escapeMarkdownInline(label)}**\n\n${text}`;
+}
+
+function escapeMarkdownInline(text: string): string {
+  return text
+    .replaceAll("\\", "\\\\")
+    .replaceAll("`", "\\`")
+    .replaceAll("*", "\\*")
+    .replaceAll("_", "\\_")
+    .replaceAll("[", "\\[")
+    .replaceAll("]", "\\]");
 }
 
 function shouldDisableTelegramNotification(

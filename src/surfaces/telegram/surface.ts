@@ -44,13 +44,19 @@ class TelegramSurfaceEgress implements SurfaceEgress {
   constructor(
     readonly adapter: string,
     private readonly instanceId: string,
+    private readonly defaultAgentId: string,
     protected readonly client: TelegramBotApiClient,
   ) {}
 
   registerEgress(
     registry: EgressRegistry,
   ): void {
-    registerTelegramEgress(registry, this.client, this.instanceId);
+    registerTelegramEgress(
+      registry,
+      this.client,
+      this.instanceId,
+      this.defaultAgentId,
+    );
   }
 }
 
@@ -58,6 +64,7 @@ export function registerTelegramEgress(
   registry: EgressRegistry,
   telegram: Pick<TelegramBotApiClient, "sendMessage" | "sendPhoto" | "sendChatAction">,
   instanceId: string,
+  defaultAgentId: string,
 ): void {
   registry.register({ adapter: "telegram", instance: instanceId }, async (delivery) => {
     const chatId = parseInt(delivery.binding.thread, 10);
@@ -65,7 +72,12 @@ export function registerTelegramEgress(
       console.error(`[telegram] invalid chat ID from binding: ${delivery.binding.thread}`);
       return;
     }
-    await sendTelegramChannelMessage(telegram, chatId, delivery.message);
+    await sendTelegramChannelMessage(
+      telegram,
+      chatId,
+      delivery.message,
+      defaultAgentId,
+    );
   });
   registry.registerActivity({ adapter: "telegram", instance: instanceId }, async (activity) => {
     if (activity.kind !== "typing") return null;
@@ -141,7 +153,7 @@ class TelegramGatewaySurface
       { token: instance.token },
       { policy: instance.policy },
     );
-    super(instance.adapter, instance.id, client);
+    super(instance.adapter, instance.id, instance.defaultAgentId, client);
     this.poller = new TelegramPoller(client, {
       initialOffset: loadTelegramOffset(statePath),
       onUpdateOffset: (offset) => {
@@ -238,6 +250,7 @@ export function createTelegramSurfaceEgresses(
     new TelegramSurfaceEgress(
       instance.adapter,
       instance.id,
+      instance.defaultAgentId,
       new TelegramBotApiClient({ token: instance.token }, { policy: instance.policy }),
     )
   );

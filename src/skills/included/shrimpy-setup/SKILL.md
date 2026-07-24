@@ -38,6 +38,8 @@ Default path scope: only inspect official Shrimpy workspace paths, meaning the a
 
 If adding a chat surface, use the setup command for that surface, starting with `shrimpy setup telegram`. Do not make up generated-looking channel names; chat channels are created from configured instances and external chat ids.
 
+Prefer one bot or surface instance per agent that will regularly talk with the user, and set that agent as the instance's default. Do not create a bot for a background-only support agent merely so it can send occasional reports: use `shrimpy-channels` to route those reports to the user's established chat, where the surface will identify a non-default sender.
+
 A chat-surface setup is not complete until the surface has an explicit inbound whitelist. For Telegram, collect and configure the real numeric chat ID in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Do not start the gateway to discover a Telegram chat ID before `allowedChatIds` is set; use `shrimpy setup telegram` direct polling or leave the surface unconfigured and tell the user the exact next command to run.
 
 Default background behavior: setup installs watch schedules disabled. Ask whether the user wants to enable some, all, or none. Offer each watch briefly, noting that runs use the configured model:

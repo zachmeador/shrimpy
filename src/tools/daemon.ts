@@ -167,7 +167,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     channelBus,
     bootstrap: _bootstrap,
     toolConfig: rawToolConfig,
-    agentId: _agentId,
+    agentId,
     sendMessageActorId,
     toolNames,
     toolPolicy: _toolPolicy,
@@ -176,7 +176,8 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
   } = deps;
   const toolConfig = rawToolConfig ?? resolveToolRuntimeConfig();
   const resolvedSendMessageActorId =
-    sendMessageActorId ?? toolConfig.sendMessage.defaultActorId;
+    sendMessageActorId
+    ?? (agentId ? `agent:${agentId}` : toolConfig.sendMessage.defaultActorId);
   const sendMessageProse = getToolProse("send_message");
   const replyProse = getToolProse("reply");
   const askProse = getToolProse("ask");
