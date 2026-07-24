@@ -21,6 +21,7 @@ import {
 } from "./open.js";
 import type { SessionOpenPlan } from "./spec.js";
 import type { SessionDescriptor } from "./spec.js";
+import { normalizeTurnContextMessages } from "./turn-context.js";
 import {
   findActiveSessionFile,
   openSessionManager,
@@ -91,7 +92,9 @@ export async function inspectSessionContext(input: {
       input.sessionManager,
     );
     const activeToolNames = session.getActiveToolNames();
-    const historyMessageCount = convertToLlm(session.messages).length;
+    const historyMessageCount = convertToLlm(
+      normalizeTurnContextMessages(session.messages),
+    ).length;
     if (input.prompt !== undefined) {
       await runSessionTurn(session, input.prompt, {
         turnContextText: input.turnContextText,

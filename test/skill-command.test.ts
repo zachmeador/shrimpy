@@ -95,6 +95,25 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /\[incoming\]/);
   });
 
+  test("context command renders direct turn context before the user prompt", async () => {
+    await setupInit(workspace);
+
+    const { result, lines } = await captureLogs(() =>
+      cmdContext(
+        ["--agent", "mechanic", "need to migrate stuff"],
+        readWorkspaceConfig(),
+      )
+    );
+
+    const output = lines.join("\n");
+    assert.equal(result, 0);
+    assert.match(
+      output,
+      /\[turn-context\][\s\S]*The turn context above is background for the user message below[\s\S]*need to migrate stuff$/,
+    );
+    assert.doesNotMatch(output, /immediately before it/);
+  });
+
   test("context command can inspect session and turn sections as json", async () => {
     await setupInit(workspace);
 
@@ -210,7 +229,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.turnContext.text, /inspect: shrimpy channels read home/);
   });
 
-  test("context json preserves direct-turn message ordering from Pi", async () => {
+  test("context json presents direct turn context before the prompt", async () => {
     await setupInit(workspace);
 
     const { result, lines } = await captureLogs(() =>
@@ -221,18 +240,19 @@ describe("skill context inspection", () => {
     const parsed = JSON.parse(lines.join("\n"));
     assert.equal(parsed.inputMessage, "hello direct");
     assert.equal(parsed.userMessage, "hello direct");
-    assert.equal(
-      parsed.context.messages[0].content[0].text,
-      "hello direct",
-    );
     assert.match(
-      parsed.context.messages[1].content[0].text,
+      parsed.context.messages[0].content[0].text,
       /^\[turn-context\]/,
     );
     assert.match(
-      parsed.context.messages[1].content[0].text,
-      /The turn context above is background for the user message immediately before it/,
+      parsed.context.messages[0].content[0].text,
+      /The turn context above is background for the user message below/,
     );
+    assert.match(
+      parsed.context.messages[0].content[0].text,
+      /hello direct$/,
+    );
+    assert.equal(parsed.context.messages.length, 1);
   });
 
   test("context inspection does not execute or cache automatic producers", async () => {
@@ -293,6 +313,12 @@ describe("skill context inspection", () => {
       content: [{ type: "text", text: "remembered history" }],
       timestamp: Date.now() - 1000,
     });
+    manager.appendCustomMessageEntry(
+      "shrimpy_turn_context",
+      "[turn-context]\nold context\n\nThe turn context above is background for the user message immediately before it.",
+      true,
+      { text: "[turn-context]\nold context" },
+    );
     manager.appendMessage({
       role: "assistant",
       content: [{ type: "text", text: "remembered answer" }],
@@ -331,13 +357,13 @@ describe("skill context inspection", () => {
     const parsed = JSON.parse(lines.join("\n"));
     assert.equal(parsed.target.sessionId, "local/history");
     assert.equal(parsed.historyMessageCount, 2);
-    assert.equal(
+    assert.match(
       parsed.context.messages[0].content[0].text,
-      "remembered history",
+      /^\[turn-context\][\s\S]*old context[\s\S]*remembered history$/,
     );
-    assert.equal(
+    assert.match(
       parsed.context.messages[2].content[0].text,
-      "next question",
+      /^\[turn-context\][\s\S]*next question$/,
     );
     assert.equal(readFileSync(sessionFile, "utf-8"), before);
   });

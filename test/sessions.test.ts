@@ -36,6 +36,7 @@ import { assembleSessionPrompt } from "../dist/context/session-prompt.js";
 import {
   createSessionTurnContextController,
   createTurnContextExtensionFactory,
+  normalizeTurnContextMessages,
   TURN_CONTEXT_CUSTOM_TYPE,
 } from "../dist/sessions/turn-context.js";
 import { createShrimpyResourceLoader } from "../dist/sessions/pi-resources.js";
@@ -483,6 +484,62 @@ describe("turn context Pi extension", () => {
       /^\s*\[turn-context\][\s\S]*prepared context/,
     );
     assert.ok(handlers.has("before_agent_start"));
+    assert.ok(handlers.has("context"));
+  });
+
+  test("normalizes turn-context attachments into the provider user message", () => {
+    const timestamp = Date.now();
+    const messages = [
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "previous response" }],
+        timestamp: timestamp - 2,
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "describe this" },
+          {
+            type: "image",
+            mimeType: "image/png",
+            data: "ZmFrZQ==",
+          },
+        ],
+        timestamp: timestamp - 1,
+      },
+      {
+        role: "custom",
+        customType: "other-context",
+        content: "keep me",
+        display: true,
+        timestamp,
+      },
+      {
+        role: "custom",
+        customType: TURN_CONTEXT_CUSTOM_TYPE,
+        content: "stored trailing form",
+        display: true,
+        details: { text: "[turn-context]\nprepared context" },
+        timestamp,
+      },
+    ] as any[];
+
+    const normalized = normalizeTurnContextMessages(messages);
+
+    assert.notEqual(normalized, messages);
+    assert.equal(normalized.length, 3);
+    assert.equal(normalized[1].role, "user");
+    assert.match(
+      messageText(normalized[1]),
+      /^\[turn-context\][\s\S]*prepared context[\s\S]*The turn context above is background for the user message below[\s\S]*describe this$/,
+    );
+    assert.equal(
+      (normalized[1] as any).content.some((part: any) => part.type === "image"),
+      true,
+    );
+    assert.equal((normalized[2] as any).customType, "other-context");
+    assert.equal(messages.length, 4);
+    assert.equal(messageText(messages[1]), "describe this");
   });
 
   test("replaces Pi prompt appendices with the contained Shrimpy prompt", async () => {
@@ -646,15 +703,21 @@ describe("turn context Pi extension", () => {
       await session.prompt("hello from pi");
 
       assert.equal(capturedContexts.length, 1);
-      const providerText = capturedContexts[0].messages.map(messageText).join("\n");
-      assert.match(providerText, /prepared by Pi before_agent_start/);
-      assert.match(providerText, /The turn context above is background for the user message immediately before it/);
-      assert.match(providerText, /hello from pi/);
+      assert.equal(capturedContexts[0].messages.length, 1);
+      const providerText = messageText(capturedContexts[0].messages[0]);
+      assert.match(
+        providerText,
+        /^prepared by Pi before_agent_start[\s\S]*The turn context above is background for the user message below[\s\S]*hello from pi$/,
+      );
       assert.doesNotMatch(providerText, /<context>\nprepared by Pi before_agent_start/);
 
       const persistedText = (session as any).messages.map(messageText).join("\n");
       assert.match(persistedText, /hello from pi/);
       assert.match(persistedText, /prepared by Pi before_agent_start/);
+      assert.match(
+        persistedText,
+        /The turn context above is background for the user message immediately before it/,
+      );
       assert.match(persistedText, /ok/);
       assert.doesNotMatch(persistedText, /<context>\nprepared by Pi before_agent_start/);
       assert.equal((session as any).messages[0].role, "user");

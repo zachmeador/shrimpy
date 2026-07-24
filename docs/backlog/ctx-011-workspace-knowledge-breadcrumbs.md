@@ -25,6 +25,7 @@ In a large workspace the agent does not know what knowledge exists unless someth
 - Threshold gating, path deduplication, and the item cap happen before rendering, with no below-threshold filler.
 - The normal workspace-search refresh path creates missing indexes, replaces incompatible or malformed indexes, and reindexes changed files automatically.
 - Direct/TUI turns pass prompt text into turn-context assembly, while channel turns use the routed text message. `shrimpy context turn` follows the same producer path.
+- Direct/TUI transcripts keep the submitted user message followed by a collapsed turn-context attachment, while provider requests and `shrimpy context` previews normalize that pair into one context-before-prompt user message.
 
 ## Boundaries
 
@@ -37,10 +38,10 @@ In a large workspace the agent does not know what knowledge exists unless someth
 
 ## UX Implications
 
-Related live messages and `shrimpy context turn` previews can show up to three workspace-relative path-and-line breadcrumbs with optional heading trails. Unrelated messages remain quiet, source text stays out of turn context, and users do not need to enable the feature or maintain its index.
+Related live messages and `shrimpy context turn` previews can show up to three workspace-relative path-and-line breadcrumbs with optional heading trails. Model requests and full `shrimpy context` previews consistently place turn context before the submitted prompt, while direct/TUI transcripts keep the prompt clean and reveal the attachment through Ctrl+O. Unrelated messages remain quiet, source text stays out of turn context, and users do not need to enable the feature or maintain its index.
 
 ## Done
 
 - A related incoming message yields bounded knowledge items with exact paths in both live turns and `shrimpy context turn` output without prior configuration or index maintenance.
 - Unrelated messages and below-threshold results yield zero items, while missing, stale, malformed, or incompatible indexes repair through the local keyword-search path.
-- Tests cover automatic creation and refresh, malformed-index repair, threshold and cap behavior, dedupe, silence on low scores, and direct/channel/preview prompt parity.
+- Tests cover automatic creation and refresh, malformed-index repair, threshold and cap behavior, dedupe, silence on low scores, normalized direct/channel/preview ordering, direct transcript persistence, images, and resumed-session history accounting.

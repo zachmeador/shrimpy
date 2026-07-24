@@ -67,10 +67,10 @@ Per-agent state under `runtime/context/` records channel-unread progress and cac
 
 ### Delivery
 
-The two session paths persist turn context differently, and both forms are durable and participate in later model context:
+Every model request places turn context before the associated user prompt. The two session paths persist that input differently, and both forms are durable and participate in later model context:
 
 - **Gateway turns** prefix the rendered context to the routed channel prompt, add a short instruction associating the context with the message, and persist it all as one user message.
-- **Direct sessions** (TUI, `run`) persist the submitted user message unchanged, then follow it with a `shrimpy_turn_context` custom message. The custom message stays collapsed in the transcript until Ctrl+O expands turn details; session previews use the unchanged user message.
+- **Direct sessions** (TUI, `run`) persist the submitted user message unchanged, then follow it with a `shrimpy_turn_context` custom message. Before each model request Shrimpy folds that attachment ahead of its user prompt. The custom message stays collapsed in the transcript until Ctrl+O expands turn details; session previews keep the unchanged submitted message alongside the normalized model context.
 
 ### Config
 

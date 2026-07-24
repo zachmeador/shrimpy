@@ -27,6 +27,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Turn Context
 
 - Added always-on workspace knowledge breadcrumbs with bounded high-confidence path pointers, automatic local index maintenance, and workspace-wide `context.turn.knowledge` ranking controls.
+- Changed direct and TUI model context plus `shrimpy context` previews to place turn context before the user prompt while preserving the unchanged prompt and collapsed context attachment in direct transcripts.
 
 ### Sessions, Models & TUI
 
