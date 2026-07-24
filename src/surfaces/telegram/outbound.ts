@@ -1,6 +1,10 @@
 import { outboundTextForMessage, publicationIntentForMessage } from "../../channels/outbox.js";
 import type { ChannelMessage } from "../../channels/protocol.js";
-import type { PublicationIntent } from "../../channels/messages.js";
+import {
+  readOperationStatusContent,
+  type OperationStatusContentData,
+  type PublicationIntent,
+} from "../../channels/messages.js";
 import type {
   TelegramSendMessageOptions,
   TelegramSendPhotoOptions,
@@ -31,6 +35,15 @@ type TelegramMessageSender = TelegramTextSender & Pick<{
     options?: TelegramSendPhotoOptions,
   ): Promise<void>;
 }, "sendPhoto">;
+
+const OPERATION_STATUS_LABELS: Readonly<Record<string, string>> = {
+  compaction: "Compaction",
+  reset: "Session reset",
+  restore: "Session restore",
+  set: "Session settings",
+  thinking: "Thinking level",
+  stop: "Session stop",
+};
 
 export async function sendTelegramFormattedText(
   telegram: TelegramTextSender,
@@ -128,11 +141,44 @@ export function telegramOutboundTextForMessage(
   defaultAgentId: string,
 ): string | null {
   const text = outboundTextForMessage(message);
-  if (!text || message.sender.kind !== "agent") return text;
+  if (!text) return null;
+
+  const operationStatus = readOperationStatusContent(message.content);
+  if (operationStatus) {
+    return telegramNoticeText(
+      operationStatus.ok ? "✅" : "⚠️",
+      operationStatusLabel(operationStatus),
+      text,
+    );
+  }
+
+  if (message.sender.kind !== "agent") return text;
   if (message.sender.actorId === `agent:${defaultAgentId}`) return text;
 
   const label = (message.sender.displayName?.trim() ?? "") || message.sender.actorId;
-  return `📨 **Message from ${escapeMarkdownInline(label)}**\n\n${text}`;
+  return telegramNoticeText("📨", `Message from ${label}`, text);
+}
+
+function telegramNoticeText(icon: string, label: string, text: string): string {
+  return `${icon} **${escapeMarkdownInline(label)}**\n\n${text}`;
+}
+
+function operationStatusLabel(status: OperationStatusContentData): string {
+  const operation = status.operation?.trim();
+  const subject = operation
+    ? `${formatOperationName(operation)} status`
+    : "Operation status";
+  const targetAgentId = status.targetAgentId?.trim();
+  return targetAgentId ? `${subject} for ${targetAgentId}` : subject;
+}
+
+function formatOperationName(operation: string): string {
+  const knownLabel = OPERATION_STATUS_LABELS[operation];
+  if (knownLabel) return knownLabel;
+  const words = operation.replaceAll(/[-_]+/g, " ").trim();
+  return words
+    ? `${words[0]!.toUpperCase()}${words.slice(1)}`
+    : "Operation";
 }
 
 function escapeMarkdownInline(text: string): string {

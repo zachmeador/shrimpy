@@ -10,7 +10,7 @@ import {
   sendTelegramFormattedText,
 } from "../dist/surfaces/telegram/outbound.js";
 import { makeMessage } from "../dist/channels/protocol.js";
-import { textContent } from "../dist/channels/messages.js";
+import { statusContent, textContent } from "../dist/channels/messages.js";
 
 describe("telegram outbound formatting", () => {
   test("renders common markdown into Telegram HTML", () => {
@@ -162,6 +162,75 @@ describe("telegram outbound formatting", () => {
 
     assert.deepEqual(sent, [
       "📨 <b>Message from agent:mechanic</b>\n\nMaintenance report.",
+    ]);
+  });
+
+  test("renders a failed operation status as an attributed warning notice", async () => {
+    const sent: string[] = [];
+    const message = makeMessage({
+      sender: { kind: "system", actorId: "system:session-control" },
+      origin: { transport: "internal" },
+      content: statusContent({
+        kind: "operation_status",
+        operation: "compaction",
+        ok: false,
+        targetAgentId: "shrimpy",
+        text: "Compaction failed.",
+      }),
+    });
+
+    await sendTelegramChannelMessage(
+      {
+        async sendMessage(_chatId, text) {
+          sent.push(text);
+        },
+        async sendPhoto() {},
+      },
+      42,
+      message,
+      "shrimpy",
+    );
+
+    assert.deepEqual(sent, [
+      "⚠️ <b>Compaction status for shrimpy</b>\n\nCompaction failed.",
+    ]);
+    assert.deepEqual(message.content.data, {
+      kind: "operation_status",
+      operation: "compaction",
+      ok: false,
+      targetAgentId: "shrimpy",
+      text: "Compaction failed.",
+    });
+  });
+
+  test("renders a successful operation status with a success notice", async () => {
+    const sent: string[] = [];
+    const message = makeMessage({
+      sender: { kind: "system", actorId: "system:session-control" },
+      origin: { transport: "internal" },
+      content: statusContent({
+        kind: "operation_status",
+        operation: "reset",
+        ok: true,
+        targetAgentId: "mechanic",
+        text: "Started a new session.",
+      }),
+    });
+
+    await sendTelegramChannelMessage(
+      {
+        async sendMessage(_chatId, text) {
+          sent.push(text);
+        },
+        async sendPhoto() {},
+      },
+      42,
+      message,
+      "shrimpy",
+    );
+
+    assert.deepEqual(sent, [
+      "✅ <b>Session reset status for mechanic</b>\n\nStarted a new session.",
     ]);
   });
 });
