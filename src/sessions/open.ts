@@ -3,6 +3,7 @@ import {
   createAgentSession,
   createAgentSessionRuntime,
   type AgentSession,
+  type AgentSessionEvent,
   type AgentSessionRuntime,
   type CreateAgentSessionRuntimeFactory,
   type CreateAgentSessionRuntimeResult,
@@ -44,17 +45,6 @@ import {
   createSessionTurnContextController,
   type SessionTurnContextController,
 } from "./turn-context.js";
-
-type CompactionLogEvent =
-  | { type: "compaction_start"; reason?: string }
-  | {
-    type: "compaction_end";
-    reason?: string;
-    aborted?: boolean;
-    errorMessage?: string;
-    result?: { tokensBefore?: number };
-    willRetry?: boolean;
-  };
 
 const sessionLeases = new WeakMap<AgentSession, SessionLease>();
 
@@ -380,8 +370,8 @@ function subscribeToCompactionLogs(
   plan: SessionOpenPlan,
 ): void {
   const sessionLabel = formatSessionId(plan.descriptor.key);
-  session.subscribe((event: unknown) => {
-    if (!isCompactionLogEvent(event)) return;
+  session.subscribe((event: AgentSessionEvent) => {
+    if (event.type !== "compaction_start" && event.type !== "compaction_end") return;
     if (event.type === "compaction_start") {
       console.log(
         `[compaction:${sessionLabel}] start reason=${event.reason}`,
@@ -411,15 +401,6 @@ function createDescriptorSessionManager(
   }
   ensureSessionManifest(descriptor);
   return openSessionManager(cwd, descriptor.storage.dir);
-}
-
-function isCompactionLogEvent(event: unknown): event is CompactionLogEvent {
-  return (
-    typeof event === "object" &&
-    event !== null &&
-    "type" in event &&
-    (event.type === "compaction_start" || event.type === "compaction_end")
-  );
 }
 
 function releaseSessionLease(session: AgentSession): void {

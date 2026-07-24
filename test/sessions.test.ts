@@ -46,7 +46,8 @@ import { renderTurnContext } from "../dist/context/turn/render.js";
 import { createChannelSessionKey } from "../dist/sessions/identity.js";
 import { createSessionDescriptor } from "../dist/sessions/spec.js";
 
-type Listener = (event: { type: string; messages?: unknown[] }) => void;
+type SessionEvent = { type: string; [key: string]: unknown };
+type Listener = (event: SessionEvent) => void;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -150,6 +151,9 @@ function createMockSession(opts?: {
     thinkingLevel: "off",
     model: undefined as Model<Api> | undefined,
     disposed: false,
+    get listenerCount(): number {
+      return listeners.length;
+    },
     agent: {
       state: {
         messages: [] as any[],
@@ -170,6 +174,9 @@ function createMockSession(opts?: {
         const idx = listeners.indexOf(listener);
         if (idx >= 0) listeners.splice(idx, 1);
       };
+    },
+    emit(event: SessionEvent): void {
+      for (const listener of [...listeners]) listener(event);
     },
     async prompt(text: string): Promise<void> {
       systemPromptSnapshots.push(session.systemPrompt);
@@ -250,6 +257,7 @@ function createRegistry(
   opts?: {
     turnContextForMessage?: ConstructorParameters<typeof SessionPool>[1]["turnContextForMessage"];
     startActivity?: ConstructorParameters<typeof SessionPool>[1]["startActivity"];
+    onCompactionEnd?: ConstructorParameters<typeof SessionPool>[1]["onCompactionEnd"];
   },
 ) {
   const bootstrap = createFakeBootstrap(workspacePath);
@@ -260,6 +268,7 @@ function createRegistry(
     }),
     turnContextForMessage: opts?.turnContextForMessage,
     startActivity: opts?.startActivity,
+    onCompactionEnd: opts?.onCompactionEnd,
   });
 }
 
@@ -734,6 +743,100 @@ describe("turn context Pi extension", () => {
 });
 
 describe("SessionPool", () => {
+  test("does not install compaction delivery without a scoped handler", async () => {
+    const sessionFactory = createSessionFactory();
+    const registry = createRegistry(sessionFactory);
+
+    await registry.dispatch("telegram~shrimpy~1", humanText("hello"));
+
+    assert.equal(sessionFactory.sessions[0].listenerCount, 0);
+    assert.doesNotThrow(() => {
+      sessionFactory.sessions[0].emit({
+        type: "compaction_end",
+        reason: "threshold",
+        result: undefined,
+        aborted: false,
+        willRetry: false,
+        errorMessage: "provider unavailable",
+      });
+    });
+  });
+
+  test("forwards compaction end events only while the channel session is active", async () => {
+    const sessionFactory = createSessionFactory();
+    const events: Array<{ channel: string; errorMessage?: string }> = [];
+    const registry = createRegistry(sessionFactory, undefined, {
+      onCompactionEnd: (channel, event) => {
+        events.push({ channel, errorMessage: event.errorMessage });
+      },
+    });
+
+    await registry.dispatch("telegram~shrimpy~1", humanText("hello"));
+    const session = sessionFactory.sessions[0];
+    session.emit({
+      type: "compaction_start",
+      reason: "threshold",
+    });
+    session.emit({
+      type: "compaction_end",
+      reason: "threshold",
+      result: undefined,
+      aborted: false,
+      willRetry: false,
+      errorMessage: "provider unavailable",
+    });
+
+    assert.deepEqual(events, [{
+      channel: "telegram~shrimpy~1",
+      errorMessage: "provider unavailable",
+    }]);
+
+    await registry.disposeAll();
+    session.emit({
+      type: "compaction_end",
+      reason: "threshold",
+      result: undefined,
+      aborted: false,
+      willRetry: false,
+      errorMessage: "stale event",
+    });
+    assert.equal(events.length, 1);
+  });
+
+  test("isolates compaction end handler failures from the session event", async () => {
+    const sessionFactory = createSessionFactory();
+    const errors: string[] = [];
+    const originalError = console.error;
+    const registry = createRegistry(sessionFactory, undefined, {
+      onCompactionEnd: () => {
+        throw new Error("status append failed");
+      },
+    });
+
+    await registry.dispatch("telegram~shrimpy~1", humanText("hello"));
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((value) => String(value)).join(" "));
+    };
+    try {
+      assert.doesNotThrow(() => {
+        sessionFactory.sessions[0].emit({
+          type: "compaction_end",
+          reason: "threshold",
+          result: undefined,
+          aborted: false,
+          willRetry: false,
+          errorMessage: "provider unavailable",
+        });
+      });
+    } finally {
+      console.error = originalError;
+      await registry.disposeAll();
+    }
+
+    assert.match(errors.join("\n"), /compaction end handler error/);
+    assert.match(errors.join("\n"), /status append failed/);
+  });
+
   test("deduplicates concurrent session creation per channel", async () => {
     const sessionFactory = createSessionFactory({ creationDelayMs: 20 });
     const registry = createRegistry(sessionFactory);

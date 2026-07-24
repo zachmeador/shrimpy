@@ -18,10 +18,12 @@ import { archiveActiveSession, restoreArchivedSession } from "./transcript-store
 import type { ThinkingLevel } from "../config/thinking.js";
 import { toModelRef } from "../config/model.js";
 import { runSessionTurn } from "./turn-output.js";
+import type { SessionCompactionEndEvent } from "./compaction/events.js";
 
 interface SessionLane {
   channel: string;
   session: AgentSession | null;
+  unsubscribeCompaction?: () => void;
   plan?: SessionOpenPlan;
   chain: Promise<void>;
   queued: number;
@@ -48,6 +50,10 @@ interface SessionPoolOptions {
   startActivity?(
     channel: string,
   ): ChannelActivityHandle | null | Promise<ChannelActivityHandle | null>;
+  onCompactionEnd?: (
+    channel: string,
+    event: SessionCompactionEndEvent,
+  ) => void;
   onLaneStateChange?(state: GatewayLaneState): void;
 }
 
@@ -191,10 +197,12 @@ export class SessionPool {
     if (!lane.session) {
       const plan = { ...await this.plan(lane) };
       delete plan.prepareTurnContext;
-      lane.session = await (this.options.sessionFactory ?? openSession)(
+      const session = await (this.options.sessionFactory ?? openSession)(
         this.bootstrap,
         plan,
       );
+      lane.session = session;
+      lane.unsubscribeCompaction = this.subscribeToCompactionEnd(lane, session);
     }
     return lane.session;
   }
@@ -298,13 +306,42 @@ export class SessionPool {
   }
 
   private drop(lane: SessionLane, reason: string): void {
-    if (!lane.session) return;
+    const session = lane.session;
+    lane.session = null;
     try {
-      disposeSession(lane.session);
+      lane.unsubscribeCompaction?.();
+    } catch (err) {
+      console.error(
+        `[session:${lane.channel}] compaction listener cleanup error during ${reason}:`,
+        err,
+      );
+    }
+    lane.unsubscribeCompaction = undefined;
+    if (!session) return;
+    try {
+      disposeSession(session);
     } catch (err) {
       console.error(`[session:${lane.channel}] dispose error during ${reason}:`, err);
     }
-    lane.session = null;
+  }
+
+  private subscribeToCompactionEnd(
+    lane: SessionLane,
+    session: AgentSession,
+  ): (() => void) | undefined {
+    const onCompactionEnd = this.options.onCompactionEnd;
+    if (!onCompactionEnd) return undefined;
+    return session.subscribe((event) => {
+      if (event.type !== "compaction_end") return;
+      try {
+        onCompactionEnd(lane.channel, event);
+      } catch (err) {
+        console.error(
+          `[session:${lane.channel}] compaction end handler error:`,
+          err,
+        );
+      }
+    });
   }
 
   private async startActivity(channel: string): Promise<ChannelActivityHandle | null> {

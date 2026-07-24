@@ -119,6 +119,8 @@ Compaction also caps summarization `maxTokens` to the selected model's `maxToken
 
 ## Failures
 
+Channel-owned gateway sessions append one typed `operation_status` when Pi reports a compaction error that it will not retry. The bound chat receives that status through the normal channel outbox, with the affected agent and canonical `shrimpy sessions compaction` inspection command. Compaction start, success, retryable failure, and ordinary abort events stay quiet, as do direct local sessions. The status omits summary content, token counts, provider payloads, and raw provider errors.
+
 Gateway logs may show:
 
 ```text

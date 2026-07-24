@@ -43,6 +43,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Channels & Agent Policy
 
+- Added a visible operation-status notice when a gateway channel session's compaction fails terminally, while routine, retryable, aborted, and direct-session compaction stays quiet.
 - Added Telegram notice headers for messages delivered by a non-default agent and operation statuses, while keeping stored channel records unchanged; setup, channel, and watch guidance prefers dedicated bot identities for agents with an ongoing chat presence and the user's primary chat for occasional support-agent reports.
 - Changed gateway turn guidance so publication tools carry user-visible replies, plain assistant text stays private, and agents do not duplicate a message after publishing.
 

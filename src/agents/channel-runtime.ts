@@ -13,6 +13,7 @@ import { SessionPool } from "../sessions/pool.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import { SessionResolver } from "../sessions/resolver.js";
 import { createChannelSessionKey } from "../sessions/identity.js";
+import { publishTerminalCompactionFailureStatus } from "../sessions/compaction/channel-status.js";
 import type { GatewayLaneState } from "../gateway/runtime-state.js";
 
 interface AgentChannelRuntimeOpts {
@@ -81,6 +82,14 @@ export class AgentChannelRuntime {
           .then(() => opts.markMessageHandled?.(this.agent.id, channel, message)),
       startActivity: (channel) =>
         this.channelBus.startActivity({ channel, kind: "typing" }),
+      onCompactionEnd: (channel, event) => {
+        publishTerminalCompactionFailureStatus({
+          channelBus: this.channelBus,
+          channel,
+          agentId: this.agent.id,
+          event,
+        });
+      },
       onLaneStateChange: opts.onLaneStateChange,
     });
   }
