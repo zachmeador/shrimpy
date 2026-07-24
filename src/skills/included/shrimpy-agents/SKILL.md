@@ -99,7 +99,7 @@ shrimpy context sources run <source-id> --agent <id> --channel <channel> --json
 shrimpy context turn --agent <id> --channel <channel>
 ```
 
-Prefer existing CLI/config helpers. If a command source needs hand-edited config, read `docs/reference/configuration.md` and `docs/reference/turn-context.md` first, keep the command output bounded, and test with `shrimpy context sources run` before declaring the app-agent wired.
+Prefer existing CLI/config helpers. If a command source needs hand-edited config, read `docs/reference/configuration.md` and `docs/reference/context-assembly.md` first, keep the command output bounded, and test with `shrimpy context sources run` before declaring the app-agent wired.
 
 ## Wire Channels
 

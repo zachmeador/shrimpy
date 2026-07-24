@@ -120,11 +120,10 @@ Policy can narrow by sender kind, stable `actorIds`, stable `userIds`, and chann
 
 That example lets the agent be a member of `hangout`, where multiple agents and senders may publish, but wake only for visible human messages from the stable user `cool-dude`. If a producer does not stamp `userId`, use the stable `actorId` instead, for example `human:cool-dude`.
 
-Important runtime guards:
+Runtime guards worth knowing:
 
 - an agent is not re-offered its own agent-authored channel messages
 - a message addressed to another agent is ignored even if this agent can see the channel
-- addressing and mentions do not route around membership
 - `mode: "none"` wins over addressing and mentions
 
 Inspect and test policy with:
@@ -193,22 +192,6 @@ Use `shrimpy channels bind <channel> <adapter>/<instance>/<thread>` to attach a 
 
 ## Watches
 
-Message watches emit ordinary watch-authored channel messages. The target channel records the watch work, and the owner/target agent still needs both channel visibility and an agent channel policy that wakes for the watch message. Watch-origin instruction text is internal trigger material; user-facing delivery comes from the agent's later `reply`, `ask`, `notify`, `report`, or explicit `send_message` call. Command watches can emit user-facing text when their `emit.policy` matches the command observation.
+Message watches emit ordinary watch-authored channel messages. The target agent still needs both channel visibility and a channel policy that wakes for the watch message. Watch-origin instruction text is internal trigger material; user-facing delivery comes from the agent's later `reply`, `ask`, `notify`, `report`, or explicit `send_message` call. See [runtime.md](runtime.md) for watch behavior.
 
-Inspect watch delivery with:
-
-```bash
-shrimpy watches
-shrimpy watches show <agent-id>/<watch-id>
-shrimpy watches history <agent-id>/<watch-id>
-shrimpy channels search <channel> --kind watch
-```
-
-## Boundaries
-
-- Channels are append-only shared logs.
-- Sessions are private working contexts.
-- Membership is visibility, not wake policy.
-- Agent channel policy owns wake and response behavior.
-- Addressing is policy input, not a membership bypass.
-- Surface adapters translate external transport messages into typed channel messages. The gateway outbox translates outbound-eligible logged messages back out through manifest bindings and records delivery receipts.
+Inspect watch delivery with `shrimpy watches show <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch`.

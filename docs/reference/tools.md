@@ -53,11 +53,7 @@ Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services. The
 
 `reply`, `ask`, `notify`, and `report` require an active publication channel. Gateway channel sessions have one. Direct `tui` and `run` sessions do not, so those publication helpers are not registered there; the agent should answer the local user with ordinary assistant text.
 
-`send_message` is the lower-level routing primitive. It logs to the named channel; the gateway outbox delivers externally when the channel has a transport binding. `user:<id>` resolves to that user's last active chat surface at tool execution time, then logs to the concrete channel. Agent DMs are internal channels, so no external adapter is expected unless the channel is deliberately bound.
-
-`read_channel` returns recent channel messages as bounded JSON. The default limit comes from `tools.readChannel.defaultLimit`.
-
-Background attention rules are configured as agent-owned watches in `agents/<id>/watches.json` and inspected with `shrimpy watches`; there is no separate scheduling daemon tool.
+`send_message` is the lower-level routing primitive; alias resolution and egress semantics live in [channels.md](channels.md). `read_channel` returns recent channel messages as bounded JSON, with the default limit from `tools.readChannel.defaultLimit`.
 
 ## Agent Policy
 
@@ -92,10 +88,4 @@ shrimpy agent inspect <id> --json
 
 The view distinguishes `pi built-in`, `shrimpy daemon`, and `unknown` names, and shows active, registered-inactive, and excluded tools.
 
-## Prompt Text
-
-`shrimpy context --agent <id>` is the context inspection surface for an agent. It should match the model-facing context for the requested agent, session, and turn. Use `shrimpy agent inspect <id>` when you specifically need to debug effective tool policy.
-
-## Skill Context
-
-Skills are Markdown instruction sets. Shrimpy adds trails for the visible workspace and agent skills to context, while Pi owns skill parsing, `/skill:<name>` expansion, autocomplete, and the `<available_skills>` prompt block. Executable behavior lives in tools, watches, and CLI commands. See [skills.md](skills.md).
+`shrimpy context --agent <id>` inspects the model-facing context for an agent; use `shrimpy agent inspect <id>` when you specifically need to debug effective tool policy.

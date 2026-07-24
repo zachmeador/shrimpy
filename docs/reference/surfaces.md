@@ -4,18 +4,9 @@ Surfaces translate outside interaction into Shrimpy channels and translate Shrim
 
 ## Addressing
 
-Surfaces may set `origin.addressedAgentId` on a message. Addressing is a surface/user-facing affordance and an input to each visible agent's channel policy; it does not route around channel membership. Watch-origin messages wake agents through the same channel membership and agent channel policy checks.
+Surfaces may set `origin.addressedAgentId` on a message, and surface users can be mapped to stable Shrimpy user ids so agent channel policy does not depend on transport-specific ids. Addressing semantics and the one-visible-account pattern live in [channels.md](channels.md).
 
-Surface users can be mapped to stable Shrimpy user ids so peer cards and agent channel policy do not depend on transport-specific ids.
-
-This supports a one-visible-account pattern:
-
-- the user sees one bot/account
-- the surface tracks the currently addressed internal agent for that thread
-- plain follow-up messages carry that addressed-agent metadata
-- channel membership stays stable
-
-`shrimpy surface` inspects and edits addressed-agent state. Switching a surface thread to an agent joins that agent to the resolved surface channel when needed, and writes a `surface_addressing` status entry into the channel log. The status entry is informational; it does not wake agents by itself.
+`shrimpy surface` inspects and edits addressed-agent state. Switching a surface thread to an agent joins that agent to the resolved surface channel when needed, and writes an informational `surface_addressing` status entry into the channel log.
 
 ## Surface verticals
 
@@ -48,14 +39,6 @@ Inbound Telegram messages from known users update `state/user-presence.json` wit
 
 ## Delivery
 
-Gateway/channel sessions do not automatically publish assistant text to a channel. Agents call active-channel helpers such as `reply(text)`, `ask(text)`, `notify(text, opts)`, or `report(summary)` to deliver intentional user-facing text.
+Publication helpers append typed channel messages; the gateway outbox tails channel logs, sends outbound-eligible records through the registered surface instance, and records delivery receipts under `runtime/`. `shrimpy channels show <channel>` reports the manifest binding and undelivered receipt count. Publication and egress semantics live in [channels.md](channels.md).
 
-Those helpers append typed channel messages first. The gateway outbox tails channel logs, sends only outbound-eligible channel records through the registered surface instance, and records delivery receipts under `runtime/`. Outbound records are agent text/media, command-watch text emissions, and operation-status acknowledgements. Message-watch instruction text, arbitrary system text, channel control records, system records, and informational statuses stay inspectable in the channel log. `shrimpy channels show <channel>` reports the manifest binding and undelivered receipt count.
-
-Direct local sessions such as `tui` and `run` are different: ordinary assistant text is already visible in the session transcript, so active-channel publication helpers are not part of that response path.
-
-`send_message(channel="...", text="...")` remains available for explicit routing and unusual cases, including agent DMs. It should not be used to answer the current direct TUI/run conversation.
-
-Private gateway session transcript text stays separate from delivered channel messages.
-
-For operator-driven testing or automation: `shrimpy channels post <channel> <text>` injects a CLI human message into a channel log. Adding `--agent <id>` stamps `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
+For operator-driven testing or automation, `shrimpy channels post <channel> [--agent <id>] <text>` injects a CLI human message into a channel log.

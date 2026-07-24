@@ -89,7 +89,7 @@ Agent prompt resources live in the agent root:
 - `SOUL.md` defines who the agent is.
 - `context/**/*.md` is always-loaded agent memory for normal sessions when the default `agent:context/` source is active.
 
-See [memory.md](memory.md), [context-assembly.md](context-assembly.md), and [turn-context.md](turn-context.md).
+See [memory.md](memory.md) and [context-assembly.md](context-assembly.md).
 
 ## Checkpoints
 
@@ -143,7 +143,7 @@ Workspace search excludes channel logs and session transcripts. Use `shrimpy cha
 - Agent memory lives under `agents/<id>/context/`; see [memory.md](memory.md).
 - Session transcripts live under `agents/<id>/sessions/`; see [sessions.md](sessions.md).
 - Gateway logs live at `runtime/logs/gateway.log`; read them with `shrimpy gateway logs`.
-- Watch run state lives under `runtime/watches/`; next-run state lives in `state/watch-clock.json`. Each clock entry has `nextRunAtMs` and a `scheduleKey` derived from the interval or the cron expression plus effective timezone. A timestamp survives non-schedule watch edits only while that key still matches; schedule changes and invalid or keyless cache entries are recomputed.
+- Watch run state lives under `runtime/watches/`; next-run timestamps live in `state/watch-clock.json`, keyed by schedule so they survive non-schedule watch edits and recompute when the schedule changes.
 - Worker records live in `state/workers.json`; detached worker artifacts live under `runtime/workers/`.
 - Identity links live in `state/users.json`; presence lives in `state/user-presence.json`; manage them with `shrimpy users ...`.
 - Auth and models live under `state/pi/`.

@@ -37,7 +37,7 @@ Shrimpy already exposes time in several places:
 - `src/context/turn/session-status.ts` adds active/stale session counts on generated watch turns.
 - `src/context/turn/workers.ts` adds owned worker outcomes and ages.
 - `src/context/turn/service.ts` caches command-source output according to `freshForMs`.
-- `docs/reference/turn-context.md` documents generated turn context and inspection commands.
+- `docs/reference/context-assembly.md` documents generated turn context and inspection commands.
 
 That is a strong substrate. The most suspicious parts, viewed through these papers:
 

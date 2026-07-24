@@ -19,7 +19,7 @@ Agents write memory in their own voice as notes to their future selves. The fram
 
 Workspace-wide Shrimpy/Pi framing belongs in `context/SYSTEM.md`; durable workspace-owner identity and hard preferences belong in `context/USER.md`; local environment details and path breadcrumbs belong in `context/WORKSPACE.md`. Shared model-visible working context belongs under workspace `context/` and is selected with `workspace:context/` sources for all agents, selected agents, selected channels, or an agent/channel pair. User/person-specific memory normally belongs in the owning agent's `agents/<id>/context/`.
 
-When the user explicitly asks an agent to remember something, the agent should persist the relevant Markdown note before claiming it will be remembered. If it cannot persist the note immediately, it should say that plainly.
+When the user explicitly asks an agent to remember something, the agent should persist the relevant Markdown note before claiming it will be remembered. If it cannot persist the note immediately, it should say that plainly. Memory changes should be explicit, reviewable, and reversible through ordinary files and git history when the workspace is tracked.
 
 Do not use model-visible `context/` directories as filing cabinets. Put saved notes, reports, journals, and other files in `agents/<id>/vault/`. Put code or app work in `agents/<id>/projects/`. Use `agents/<id>/context/` only for memory the agent should load into prompts.
 
@@ -46,10 +46,3 @@ shrimpy context files show --agent <id> <path>
 shrimpy context sources list --agent <id> --channel <name>
 shrimpy context turn --agent <id> --channel <name>
 ```
-
-## Boundaries
-
-- Memory changes should be explicit, reviewable, and reversible through ordinary files and git history when the workspace is tracked.
-- Channel logs, sessions, vault files, and project documents are evidence, not the memory product.
-- Compaction is working-context maintenance, not long-term memory.
-- Shrimpy does not keep `state/memory.json`, derived peer cards, a `consolidate_memory` task, or a special memory tool.

@@ -4,24 +4,23 @@ Current behavior of Shrimpy.
 
 ## Index
 
-- [overview.md](overview.md) — orientation and current shape.
-- [design.md](design.md) — current design principles and constraints.
+- [overview.md](overview.md) — orientation: primitives and how work runs.
+- [design.md](design.md) — design principles and constraints.
 - [setup.md](setup.md) — install and gateway service lifecycle.
-- [architecture.md](architecture.md) — primitives, layering, and the boundaries that hold today.
-- [runtime.md](runtime.md) — direct runs, gateway dispatch, watch runs, child runs.
-- [channels.md](channels.md) — message protocol, membership, addressing, policy, inspection, and egress.
-- [sessions.md](sessions.md) — session kinds, files, lifecycle, model metadata, and inspection.
+- [architecture.md](architecture.md) — primitives, layering, and system invariants.
+- [runtime.md](runtime.md) — direct runs, gateway dispatch, watches, workers.
+- [channels.md](channels.md) — message protocol, membership, wake policy, addressing, and egress.
+- [sessions.md](sessions.md) — session identity, lifecycle, ownership, and inspection.
 - [tools.md](tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
 - [security.md](security.md) — tool policy and inspection commands.
-- [context-assembly.md](context-assembly.md) — prompt section assembly and persisted turn-context injection.
+- [context-assembly.md](context-assembly.md) — the system prompt and per-turn context.
 - [memory.md](memory.md) — memory model, upkeep, and context loading.
-- [skills.md](skills.md) — included and external skill packages, local skills, Pi loading, and CLI management.
-- [turn-context.md](turn-context.md) — per-turn context generation and config.
-- [compaction.md](compaction.md) — session compaction policy, runtime flow, provider path, and failures.
-- [cli.md](cli.md) — command surface.
+- [skills.md](skills.md) — skill packages, local skills, Pi loading, and CLI management.
+- [compaction.md](compaction.md) — session compaction policy, flow, and failures.
+- [cli.md](cli.md) — command index.
 - [configuration.md](configuration.md) — workspace config files and their fields.
-- [workspace.md](workspace.md) — workspace layout, prompt resources, sessions, state, and logs.
-- [surfaces.md](surfaces.md) — adapter verticals, Telegram, and surface thread state.
-- [development.md](development.md) — repo layout, build/test commands.
+- [workspace.md](workspace.md) — workspace layout, storage rules, checkpoints, and search.
+- [surfaces.md](surfaces.md) — surface verticals and Telegram.
+- [development.md](development.md) — repo layout and build/test commands.
 
 Other directories: [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../research/README.md) for external comparison notes.
