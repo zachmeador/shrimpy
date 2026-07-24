@@ -29,14 +29,20 @@ The updater should therefore protect model config validity first, then let the m
 - Snapshot the model-critical files before update: `config/shrimpy.json`, `state/pi/auth.json`, `state/pi/models.json`, and any agent config that selects the mechanic model policy. The snapshot can be a workspace checkpoint when tracking is enabled, plus an explicit update-local backup for files outside tracked scope.
 - If the gateway is running, stop or pause it before replacing the live CLI/build output so it cannot run mixed old/new code during the update. Record whether it was running so the command can restore that runtime state after validation.
 - Apply the app update through the installation mechanism that owns this checkout, then rebuild or relink the live CLI only after the source update succeeds.
+- Derive the workspace migration inventory from the exact previous-to-new source range when refs are available. The mechanic handoff must identify changes to config schemas and defaults, setup templates, included skills, context files, workspace paths, and generated state shapes, then compare those changes with the active workspace rather than assuming a successful source update implies workspace compatibility.
 - Inventory assigned package copies and modified status from `state/skills/packages.json`. Unmodified included package copies can be refreshed through the update path; modified copies require an explicit keep, replace, or review decision before overwrite.
 - After update, run the same model-policy checks again. If the mechanic cannot resolve a usable model, restore the model-critical files from the snapshot and report the exact failing policy/candidate/auth reason. Do not continue into workspace migration while the mechanic model path is broken.
 - Restart the gateway only after the post-update model check passes. If restart fails, leave the gateway stopped, report the exact command/log path to inspect, and still provide the mechanic migration handoff if the mechanic model path is valid.
-- When model checks pass, launch or print an exact next command for the mechanic with `--skill shrimpy-workspace-migration`, including the previous and new version/commit when known, so the mechanic can inventory workspace changes and ask for approval before applying them.
+- When model checks pass, launch or print an exact next command for the mechanic with `--skill shrimpy-workspace-migration`, including the previous and new version/commit plus the detected workspace-facing diff surfaces when known, so the mechanic can inventory required config, skill, context, and state changes and ask for approval before applying them.
+
+## UX Implications
+
+Updates remain a two-phase workflow: the updater protects the install and mechanic model path, then the mechanic presents a diff-derived workspace migration inventory before changing user data. Users should see which config keys, defaults, skills, context templates, or state shapes changed across the update, which active workspace files are affected, and whether each proposed edit is required, optional, or already satisfied.
 
 ## Boundaries
 
 - `shrimpy update` protects the ability to run the mechanic; it does not automatically migrate workspace files.
+- The updater may detect and hand off workspace-facing changes, but config, skill, context, and state migrations remain mechanic-owned and require the normal inventory and approval step.
 - Preserve the user's gateway runtime intent: if it was stopped before update, leave it stopped; if it was running, restart it only after validation succeeds.
 - Do not rewrite, normalize, or discard user model configuration just because newer defaults differ. Preserve valid user choices.
 - Do not overwrite locally modified included skills without explicit user approval.
@@ -68,4 +74,5 @@ The updater should therefore protect model config validity first, then let the m
 - If post-update model validation fails, model-critical files are restored from the pre-update snapshot and the command exits nonzero without running workspace migration.
 - If gateway restart fails after an otherwise valid update, the command exits nonzero or warning-coded with the gateway left stopped, the model path verified, and the migration handoff command still printed.
 - JSON output includes machine-readable phases, protected paths, version/commit refs, model validation result, gateway pre/post state, included package refresh decisions, migration handoff command, and any restore action taken.
-- Tests cover dry-run output, preflight refusal, post-update model validation failure with restore, dirty-checkout refusal, running-gateway stop/restart behavior, gateway restart failure reporting, and successful handoff to `shrimpy-workspace-migration`.
+- The mechanic handoff includes the old/new source refs and detected changes to config validation/defaults, setup templates, included skills, context files, workspace paths, and persisted state shapes so migration work is grounded in the actual update diff.
+- Tests cover dry-run output, preflight refusal, post-update model validation failure with restore, dirty-checkout refusal, running-gateway stop/restart behavior, gateway restart failure reporting, diff-derived config/workspace impact handoff, and successful handoff to `shrimpy-workspace-migration`.
