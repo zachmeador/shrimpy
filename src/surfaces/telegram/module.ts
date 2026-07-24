@@ -24,11 +24,11 @@ export const telegramSurface: ChatSurfaceModule<ResolvedTelegramRuntimeConfig> =
   resolveConfig: (raw, agentIds) =>
     resolveTelegramRuntimeConfig(raw, agentIds),
   createEgresses: (runtime) => {
-    const resolved = runtime.surfaceConfig<ResolvedTelegramRuntimeConfig>("telegram");
+    const resolved = runtime.surfaceConfig("telegram") as ResolvedTelegramRuntimeConfig;
     return createTelegramSurfaceEgresses(runtime, resolved);
   },
   createGatewaySurfaces: (opts) => {
-    const resolved = opts.runtime.surfaceConfig<ResolvedTelegramRuntimeConfig>("telegram");
+    const resolved = opts.runtime.surfaceConfig("telegram") as ResolvedTelegramRuntimeConfig;
     return createTelegramGatewaySurfaces({ ...opts, resolved });
   },
   resolveDefaultAgentIds: (resolved, channel) =>

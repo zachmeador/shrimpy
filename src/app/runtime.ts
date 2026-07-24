@@ -101,12 +101,12 @@ export class AppRuntime {
     };
   }
 
-  surfaceConfig<T extends SurfaceModuleResolved>(name: string): T {
+  surfaceConfig(name: string): SurfaceModuleResolved {
     const resolved = this.resolved.surfaces[name];
     if (!resolved) {
       throw new Error(`unknown surface module "${name}"`);
     }
-    return resolved as T;
+    return resolved;
   }
 
   async createBootstrap(opts?: {
@@ -202,7 +202,11 @@ export class AppRuntime {
   }
 
   getAgent(agentId?: string): ResolvedAgentConfig {
-    if (!agentId) return this.resolved.agents[0];
+    if (!agentId) {
+      const defaultAgent = this.resolved.agents[0];
+      if (!defaultAgent) throw new Error("no agents configured");
+      return defaultAgent;
+    }
     const found = this.resolved.agents.find((agent) => agent.id === agentId);
     if (!found) throw new Error(`unknown agent: ${agentId}`);
     return found;

@@ -216,7 +216,7 @@ function copyContext(context: Context): SessionContextView {
 
 function activeToolSchemas(session: AgentSession): ContextToolSchema[] {
   return session.getActiveToolNames().flatMap((name) => {
-    const definition = session?.getToolDefinition(name);
+    const definition = session.getToolDefinition(name);
     return definition
       ? [{
         name: definition.name,

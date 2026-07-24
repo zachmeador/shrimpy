@@ -3,7 +3,6 @@ import type { IdentityStore } from "../gateway/identity-store.js";
 import type {
   ChatSurfaceModule,
   SurfaceRuntime,
-  SurfaceModuleResolved,
 } from "./shared/module.js";
 import type { SurfaceThreadStateStore } from "./shared/thread-state-store.js";
 import type { GatewaySurface, SurfaceEgress } from "./shared/types.js";
@@ -37,7 +36,7 @@ export function resolveSurfaceDefaultAgentIds(
   channel: string,
 ): string[] {
   const ids = surfaceModules.flatMap((module) => {
-    const resolved = runtime.surfaceConfig<SurfaceModuleResolved>(module.name);
+    const resolved = runtime.surfaceConfig(module.name);
     return module.resolveDefaultAgentIds(resolved, channel);
   });
   return [...new Set(ids)];

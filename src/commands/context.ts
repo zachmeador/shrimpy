@@ -196,7 +196,8 @@ function renderContextMessage(message: {
 }): string {
   if (typeof message.content === "string") return message.content;
   if (!Array.isArray(message.content)) return "";
-  return message.content.map((block) => {
+  const blocks: unknown[] = message.content;
+  return blocks.map((block) => {
     if (
       typeof block === "object" &&
       block !== null &&

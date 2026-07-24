@@ -124,6 +124,7 @@ export function collectChannelActivity(
       for (const watch of resolvedStatusConfig.watchedWatches) {
         if (!isWatchedWatchRun(channel, message, watch)) continue;
         const watched = summary.watchedWatches[watch.label];
+        if (!watched) continue;
         watched.lastRun = latest(watched.lastRun, snapshot);
       }
 

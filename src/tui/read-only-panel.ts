@@ -27,13 +27,13 @@ export async function showReadOnlyPanel(
     return;
   }
 
-  await ctx.ui.custom<void>((tui, theme, _keybindings, done) =>
+  await ctx.ui.custom<undefined>((tui, theme, _keybindings, done) =>
     new ReadOnlyPanel(
       title,
       text,
       theme,
       tui,
-      done,
+      () => done(undefined),
       opts?.markdown ?? false,
     ));
 }

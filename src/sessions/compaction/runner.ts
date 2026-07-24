@@ -228,9 +228,9 @@ async function generateChunkedSummaryWithHooks(input: {
   }
 
   const chunkSummaries: string[] = [];
-  for (let index = 0; index < chunks.length; index++) {
+  for (const [index, chunk] of chunks.entries()) {
     const promptText = buildChunkSummaryPrompt(
-      chunks[index].text,
+      chunk.text,
       index + 1,
       chunks.length,
       input.customInstructions,
@@ -297,11 +297,11 @@ async function mergeChunkSummariesWithHooks(input: {
     resolveChunkContentTokenBudget(input.model, input.sessionSystemPrompt),
   );
   const intermediateSummaries: string[] = [];
-  for (let index = 0; index < intermediateChunks.length; index++) {
+  for (const [index, chunk] of intermediateChunks.entries()) {
     intermediateSummaries.push(await completeSummaryRequest({
       ...summaryRequestBase(input),
       promptText: buildIntermediateSummaryPrompt(
-        intermediateChunks[index].text,
+        chunk.text,
         index + 1,
         intermediateChunks.length,
       ),
@@ -601,7 +601,9 @@ async function completeSummaryRequest(input: {
     },
   );
   if (response.stopReason === "error") {
-    throw new Error(`${input.errorPrefix}: ${response.errorMessage || "Unknown error"}`);
+    throw new Error(
+      `${input.errorPrefix}: ${(response.errorMessage ?? "") || "Unknown error"}`,
+    );
   }
   return response.content
     .filter((content) => content.type === "text")

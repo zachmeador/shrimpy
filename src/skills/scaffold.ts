@@ -34,7 +34,7 @@ export function scaffoldSkill(opts: {
   }
 
   const name = skillNameForId(skillId);
-  const description = opts.description?.trim() || `Use for ${name} tasks.`;
+  const description = (opts.description?.trim() ?? "") || `Use for ${name} tasks.`;
   writeFileSync(
     entryPath,
     [

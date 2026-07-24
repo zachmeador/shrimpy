@@ -41,7 +41,7 @@ export async function cmdAgentAdd(
   const agentId = requireArg(positionals[0], usage, "agent id");
 
   const runtime = createAppRuntime(config);
-  const defaultAgent = runtime.resolved.agents[0];
+  const defaultAgent = runtime.getAgent();
   const result = addAgent(runtime, {
     agentId,
     root: values.root,

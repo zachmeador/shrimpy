@@ -15,6 +15,7 @@ import {
 } from "./client.js";
 import { readGatewayServiceStatus } from "../../gateway/service/index.js";
 import { brand, heading } from "../../util/style.js";
+import { isRecord } from "../../util/record.js";
 
 function createPrompter() {
   const rl = createInterface({ input: stdin, output: stdout });
@@ -43,17 +44,27 @@ async function validateToken(
       headers: { "Content-Type": "application/json" },
       body: "{}",
     });
-    const data = await resp.json();
-    if (data.ok && data.result) {
+    const data: unknown = await resp.json();
+    if (isRecord(data) && data.ok === true && isRecord(data.result)) {
       return {
         ok: true,
-        username: data.result.username ?? "unknown",
-        firstName: data.result.first_name ?? "unknown",
+        username: typeof data.result.username === "string"
+          ? data.result.username
+          : "unknown",
+        firstName: typeof data.result.first_name === "string"
+          ? data.result.first_name
+          : "unknown",
       };
     }
-    return { ok: false, error: data.description ?? "unknown error" };
+    const error = isRecord(data) && typeof data.description === "string"
+      ? data.description
+      : "unknown error";
+    return { ok: false, error };
   } catch (err) {
-    return { ok: false, error: (err as Error).message };
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -178,11 +189,12 @@ async function discoverAllowedChatIds(
       console.log(`  ${formatTelegramChatCandidate(candidate)}`);
     }
 
+    const onlyCandidate = candidates.length === 1 ? candidates[0] : undefined;
     if (
-      candidates.length === 1 &&
-      await confirm(`Use chat ID ${candidates[0].chatId}?`)
+      onlyCandidate &&
+      await confirm(`Use chat ID ${onlyCandidate.chatId}?`)
     ) {
-      return [candidates[0].chatId];
+      return [onlyCandidate.chatId];
     }
 
     return await askForChatIds(

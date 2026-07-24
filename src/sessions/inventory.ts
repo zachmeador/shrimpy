@@ -327,7 +327,8 @@ function firstUserText(entries: readonly unknown[]): string | undefined {
 function messageText(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
-  return content
+  const blocks: unknown[] = content;
+  return blocks
     .filter((block): block is { type: "text"; text: string } =>
       typeof block === "object"
       && block !== null

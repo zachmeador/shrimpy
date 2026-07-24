@@ -149,7 +149,7 @@ function readStoredSession(path: string): StoredSessionSummary | null {
   const entries = readSessionEntries(path);
   if (entries.length === 0) return null;
   const header = entries[0];
-  if (header.type !== "session" || typeof header.id !== "string") return null;
+  if (!header || header.type !== "session" || typeof header.id !== "string") return null;
 
   return {
     path,
@@ -177,6 +177,7 @@ function parseJsonLine(line: string): unknown {
 function readLifecycleState(entries: FileEntry[]): SessionLifecycleState {
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i];
+    if (!entry) continue;
     if (!isLifecycleEntry(entry)) continue;
     return entry.data?.state ?? "active";
   }

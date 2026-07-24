@@ -227,13 +227,13 @@ function installFavoriteAwareModelSelector(
   let favoriteIds = readModelFavoriteIds(options.runtime);
 
   mode.showModelSelector = (initialSearchInput?: string) => {
-    const previousShowSelector = mode.showSelector;
+    const previousShowSelector = mode.showSelector?.bind(mode);
     if (!previousShowSelector) {
       return originalShowModelSelector(initialSearchInput);
     }
 
     mode.showSelector = (create) => {
-      previousShowSelector.call(mode, (done) => {
+      previousShowSelector((done) => {
         const selectorView = create(done);
         if (isModelSelector(selectorView.component)) {
           decorateModelSelectorWithFavorites(selectorView.component, {

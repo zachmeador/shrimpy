@@ -110,7 +110,7 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
     );
   }
 
-  const telegram = runtime.surfaceConfig<ResolvedTelegramRuntimeConfig>("telegram");
+  const telegram = runtime.surfaceConfig("telegram") as ResolvedTelegramRuntimeConfig;
   for (const instance of telegram.instances) {
     const statePath = telegramStatePath(runtime.paths.workspace, instance.id);
     if (!existsSync(statePath)) continue;

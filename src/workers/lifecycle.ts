@@ -221,9 +221,7 @@ function launchLatestTurn(
     ? unavailableBackendError(config, "codex")
     : worker.backend === "pi"
       ? unavailableBackendError(config, "pi")
-      : worker.backend === "claude"
-        ? "claude worker backend is deferred to P3"
-      : undefined;
+      : "claude worker backend is deferred to P3";
   if (unavailable) {
     const now = new Date().toISOString();
     return updateWorker(workersPath(config), id, (current) => finalizeTurn(current, turn.id, {
@@ -473,6 +471,7 @@ function findLastTurn(
 ): WorkerTurn | undefined {
   for (let index = turns.length - 1; index >= 0; index -= 1) {
     const turn = turns[index];
+    if (!turn) continue;
     if (predicate(turn)) return turn;
   }
   return undefined;
@@ -549,7 +548,7 @@ function unique(values: string[]): string[] {
 }
 
 function firstLine(value: string): string {
-  return value.trim().split(/\r?\n/u).find(Boolean)?.slice(0, 120) || "coding worker";
+  return value.trim().split(/\r?\n/u).find(Boolean)?.slice(0, 120) ?? "coding worker";
 }
 
 function defaultOwnerAgent(config: ShrimpyConfig): string {

@@ -31,7 +31,7 @@ export function normalizeSkillId(skillId: string): string {
 }
 
 export function skillNameForId(skillId: string): string {
-  return skillId.split("/").at(-1) || skillId;
+  return (skillId.split("/").at(-1) ?? "") || skillId;
 }
 
 export function readSkillNameFromContent(content: string): string | undefined {

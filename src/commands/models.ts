@@ -375,7 +375,7 @@ async function cmdModelProvidersAddOpenAICompatible(
     "--context-window",
   );
   const maxTokens = parseOptionalPositiveInteger(values["max-tokens"], "--max-tokens");
-  const thinkingFormat = values["thinking-format"]?.trim() || undefined;
+  const thinkingFormat = (values["thinking-format"]?.trim() ?? "") || undefined;
 
   try {
     const result = addOpenAICompatibleModel({

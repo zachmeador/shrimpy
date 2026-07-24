@@ -29,7 +29,7 @@ export interface SurfaceRuntime {
   resolved: {
     agents: Array<{ id: string }>;
   };
-  surfaceConfig<T extends SurfaceModuleResolved>(name: string): T;
+  surfaceConfig(name: string): SurfaceModuleResolved;
   createChannelMembershipStore(): ChannelMembershipStore;
 }
 

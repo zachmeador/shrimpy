@@ -169,6 +169,7 @@ function renderInlineContainer(
 
   while (index < tokens.length) {
     const token = tokens[index];
+    if (!token) break;
     if (token.type === stopType) {
       return { html, nextIndex: index + 1 };
     }
@@ -194,6 +195,7 @@ function renderBlocks(
 
   while (index < tokens.length) {
     const token = tokens[index];
+    if (!token) break;
     if (stopType && token.type === stopType) {
       return { html: parts.join(joinWith), nextIndex: index + 1 };
     }
@@ -289,7 +291,7 @@ function renderBlocks(
 }
 
 function buildTelegramHtml(markdown: string): string {
-  const tokens = MARKDOWN.parse(markdown ?? "", {});
+  const tokens = MARKDOWN.parse(markdown, {});
   return wrapFileReferencesInHtml(collapseBlankLines(renderBlocks(tokens).html));
 }
 
@@ -331,7 +333,8 @@ function wrapFileReferencesInHtml(html: string): string {
     const tagStart = match.index;
     const tagEnd = HTML_TAG_PATTERN.lastIndex;
     const isClosing = match[1] === "</";
-    const tagName = match[2].toLowerCase();
+    const tagName = match[2]?.toLowerCase();
+    if (!tagName) continue;
 
     result += wrapSegmentFileRefs(
       deLinkified.slice(lastIndex, tagStart),
@@ -518,7 +521,8 @@ export function splitTelegramHtmlChunks(html: string, limit: number): string[] {
 
     const rawTag = match[0];
     const isClosing = match[1] === "</";
-    const tagName = match[2].toLowerCase();
+    const tagName = match[2]?.toLowerCase();
+    if (!tagName) continue;
     const isSelfClosing =
       !isClosing &&
       (TELEGRAM_SELF_CLOSING_HTML_TAGS.has(tagName) || rawTag.trimEnd().endsWith("/>"));

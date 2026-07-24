@@ -281,8 +281,7 @@ function shouldEmitCommandResult(
   if (!result.ok) return false;
   if (policy === "always") return true;
   if (policy === "on_output") return result.stdout.trim().length > 0;
-  if (policy === "on_change") return changed;
-  return false;
+  return changed;
 }
 
 function publishWatchMessage(

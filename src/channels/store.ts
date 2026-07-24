@@ -88,8 +88,7 @@ export function readMessages(
   const messages: ChannelMessage[] = [];
   let bytesConsumed = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const [i, line] of lines.entries()) {
     const lineBytes = Buffer.byteLength(line, "utf-8") + (i < lines.length - 1 ? 1 : 0);
 
     if (line.trim() === "") {
@@ -98,7 +97,7 @@ export function readMessages(
     }
 
     try {
-      const parsed = JSON.parse(line);
+      const parsed: unknown = JSON.parse(line);
       if (isChannelMessage(parsed)) {
         messages.push(parsed);
       }

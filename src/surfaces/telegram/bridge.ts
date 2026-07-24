@@ -261,7 +261,7 @@ export class TelegramChannelBridge {
     chatId: string,
   ): ReturnType<typeof setTimeout> {
     return setTimeout(() => {
-      void this.flushTextBurst(chatId).catch((err) => {
+      void this.flushTextBurst(chatId).catch((err: unknown) => {
         console.error("[telegram] text burst flush failed:", err);
       });
     }, this.textBurstWindowMs);
@@ -283,7 +283,7 @@ export class TelegramChannelBridge {
     chatId: string,
   ): ReturnType<typeof setTimeout> {
     return setTimeout(() => {
-      void this.flushPhotoGroup(chatId).catch((err) => {
+      void this.flushPhotoGroup(chatId).catch((err: unknown) => {
         console.error("[telegram] photo group flush failed:", err);
       });
     }, this.mediaGroupWindowMs);
@@ -421,7 +421,8 @@ export class TelegramChannelBridge {
     await this.flushPhotoGroup(messageBase.origin.transportChatId);
 
     // Telegram provides sizes in ascending order; use the largest.
-    const photo = photos[photos.length - 1];
+    const photo = photos.at(-1);
+    if (!photo) return;
 
     try {
       await this.publishPhotos(
@@ -487,7 +488,7 @@ export class TelegramChannelBridge {
 
   private async savePhoto(fileId: string): Promise<string> {
     const { filePath, data } = await this.client.downloadFileById(fileId);
-    const ext = filePath.split(".").pop() || "bin";
+    const ext = (filePath.split(".").pop() ?? "") || "bin";
     const filename = `${Date.now()}-${fileId.slice(0, 8)}.${ext}`;
     const localPath = join(this.config.mediaDir, filename);
     await writeFile(localPath, data);

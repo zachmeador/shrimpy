@@ -25,7 +25,7 @@ function isAgentEndEvent(event: unknown): event is AgentEndEvent {
 }
 
 function abortError(signal: AbortSignal, fallbackMessage: string): Error {
-  const reason = signal.reason;
+  const reason: unknown = signal.reason;
   if (reason instanceof Error) return reason;
   if (typeof reason === "string") return new Error(reason);
   return new Error(fallbackMessage);
@@ -87,7 +87,7 @@ export function runSessionTurn(
       if (settled) return;
       settled = true;
       cleanup();
-      reject(err);
+      reject(err instanceof Error ? err : new Error(String(err)));
     };
 
     const onAbort = () => {

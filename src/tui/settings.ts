@@ -79,11 +79,11 @@ export function installShrimpySettingsSelector(
   ) {
     return;
   }
-  const piSettings = mode.showSettingsSelector;
-  const showSelector = mode.showSelector;
+  const piSettings = mode.showSettingsSelector.bind(mode);
+  const showSelector = mode.showSelector.bind(mode);
 
   const showRoot = () => {
-    showSelector.call(mode, (done) => {
+    showSelector((done) => {
       const selector = new SettingsRootSelector(
         options.agentId,
         showShrimpy,
@@ -95,21 +95,20 @@ export function installShrimpySettingsSelector(
   };
 
   const showShrimpy = () => {
-    showSelector.call(mode, () => {
+    showSelector(() => {
       const selector = new ShrimpySettingsPanel(options, showRoot);
       return { component: selector, focus: selector.getSettingsList() };
     });
   };
 
   const showPi = () => {
-    const currentShowSelector = mode.showSelector;
     mode.showSelector = (create) => {
-      showSelector.call(mode, () => create(showRoot));
+      showSelector(() => create(showRoot));
     };
     try {
-      piSettings.call(mode);
+      piSettings();
     } finally {
-      mode.showSelector = currentShowSelector;
+      mode.showSelector = showSelector;
     }
   };
 

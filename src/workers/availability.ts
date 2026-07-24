@@ -112,7 +112,9 @@ function detectExternalBackend(
       command: spec.command,
       authStatus: "unavailable",
       checkedAt,
-      problem: located.error?.message || firstLine(located.stderr) || "command not found",
+      problem: (located.error?.message ?? "") ||
+        (firstLine(located.stderr) ?? "") ||
+        "command not found",
     };
   }
 
@@ -126,7 +128,9 @@ function detectExternalBackend(
     authStatus: "unknown",
     checkedAt,
     ...(version.status === 0 ? {} : {
-      problem: version.error?.message || firstLine(version.stderr) || "version check failed",
+      problem: (version.error?.message ?? "") ||
+        (firstLine(version.stderr) ?? "") ||
+        "version check failed",
     }),
   };
 }
@@ -137,8 +141,8 @@ function runCommand(command: string, args: string[]): CommandResult {
     : spawnSync(command, args, { encoding: "utf-8" });
   return {
     status: resolved.status,
-    stdout: resolved.stdout ?? "",
-    stderr: resolved.stderr ?? "",
+    stdout: resolved.stdout,
+    stderr: resolved.stderr,
     error: resolved.error,
   };
 }
@@ -148,8 +152,7 @@ function shellWord(value: string): string {
 }
 
 function firstLine(value: string): string | undefined {
-  const line = value.trim().split(/\r?\n/u).find(Boolean);
-  return line || undefined;
+  return value.trim().split(/\r?\n/u).find(Boolean);
 }
 
 function emptyAvailabilityState(now: Date): WorkerBackendAvailabilityState {

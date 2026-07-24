@@ -160,9 +160,6 @@ export async function resolveCommandResult(
   config: ShrimpyConfig,
 ): Promise<number> {
   if (typeof result === "number") return result;
-  if (result.kind === "shrimpy-tui") {
-    const { runShrimpyTuiCommandSession } = await import("./tui.js");
-    return runShrimpyTuiCommandSession(config, result.request, result.deps);
-  }
-  throw new Error("unknown command result");
+  const { runShrimpyTuiCommandSession } = await import("./tui.js");
+  return runShrimpyTuiCommandSession(config, result.request, result.deps);
 }

@@ -23,7 +23,8 @@ export function resolveCompletionCachePath(
   shell: CompletionShell,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const stateHome = env.XDG_STATE_HOME || join(env.HOME || homedir(), ".local", "state");
+  const home = (env.HOME ?? "") || homedir();
+  const stateHome = (env.XDG_STATE_HOME ?? "") || join(home, ".local", "state");
   return join(stateHome, "shrimpy", "completions", `shrimpy.${shell}`);
 }
 
@@ -31,7 +32,7 @@ export function resolveShellProfilePath(
   shell: CompletionShell,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const home = env.HOME || homedir();
+  const home = (env.HOME ?? "") || homedir();
   return shell === "zsh" ? join(home, ".zshrc") : join(home, ".bashrc");
 }
 

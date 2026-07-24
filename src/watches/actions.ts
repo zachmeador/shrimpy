@@ -32,8 +32,8 @@ export async function runCommandWatchAction(
       ...(env ? { env } : {}),
       maxBuffer: MAX_BUFFER,
     });
-    const stdout = String(result.stdout ?? "");
-    const stderr = String(result.stderr ?? "");
+    const stdout = String(result.stdout);
+    const stderr = String(result.stderr);
     return {
       ok: true,
       command: action.command,
@@ -91,7 +91,7 @@ export function renderCommandEmitText(input: {
     return stdout.length > 0 ? stdout : input.summary;
   }
 
-  const detail = input.result.stderr.trim() || input.result.error || "command failed";
+  const detail = input.result.stderr.trim() || (input.result.error ?? "command failed");
   return `${input.summary}: ${clip(detail)}`;
 }
 

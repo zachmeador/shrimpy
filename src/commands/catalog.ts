@@ -308,7 +308,8 @@ export function childCommandNames(path: readonly string[]): string[] {
   const names = new Set<string>();
   for (const command of CLI_COMMAND_CATALOG) {
     if (command.path.length <= path.length || !pathIsPrefix(path, command.path)) continue;
-    names.add(command.path[path.length]);
+    const childName = command.path[path.length];
+    if (childName) names.add(childName);
   }
   return [...names].sort();
 }

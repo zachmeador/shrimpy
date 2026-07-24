@@ -159,8 +159,8 @@ export function inspectWorkspaceCheckpointStatus(workspace: string): WorkspaceCh
     clean: diagnostics.length === 0 ? changedPaths.length === 0 : null,
     changedPaths,
     diagnostics,
-    branch: tryGit(workspace, ["branch", "--show-current"]) || undefined,
-    head: tryGit(workspace, ["rev-parse", "--short", "HEAD"]) || undefined,
+    branch: (tryGit(workspace, ["branch", "--show-current"]) ?? "") || undefined,
+    head: (tryGit(workspace, ["rev-parse", "--short", "HEAD"]) ?? "") || undefined,
   };
 }
 

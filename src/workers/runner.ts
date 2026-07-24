@@ -136,16 +136,16 @@ function runCodexTurn(input: WorkerRunInput): Promise<WorkerRunResult> {
   let timeout: NodeJS.Timeout | undefined;
   let killTimeout: NodeJS.Timeout | undefined;
 
-  child.stdout?.on("data", (chunk: Buffer) => {
+  child.stdout.on("data", (chunk: Buffer) => {
     const text = chunk.toString("utf-8");
     jsonl += text;
     stdout.write(text);
   });
-  child.stderr?.pipe(stderr);
+  child.stderr.pipe(stderr);
   child.on("error", (err) => {
     spawnError = err;
   });
-  child.stdin?.end(buildWorkerPrompt(input.prompt));
+  child.stdin.end(buildWorkerPrompt(input.prompt));
   if (input.timeoutMs && input.timeoutMs > 0) {
     timeout = setTimeout(() => {
       timedOut = true;
@@ -163,9 +163,10 @@ function runCodexTurn(input: WorkerRunInput): Promise<WorkerRunResult> {
       stdout.end();
       stderr.end();
       const output = readTextIfExists(input.outputPath);
-      const errorText = spawnError?.message || readTextIfExists(input.errorPath);
+      const errorText = (spawnError?.message ?? "") ||
+        readTextIfExists(input.errorPath);
       const backendSessionId = extractCodexSessionId(jsonl) ?? input.backendSessionId;
-      const failed = spawnError || exitCode !== 0;
+      const failed = spawnError !== undefined || exitCode !== 0;
       if (timedOut) {
         resolve({
           status: "cancelled",
@@ -213,7 +214,7 @@ function runWithTimeout(
       settled = true;
       clearTimeout(timeout);
       resolve(result);
-    }, (err) => {
+    }, (err: unknown) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);

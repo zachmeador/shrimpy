@@ -286,8 +286,7 @@ export function classifyChannelMessage(message: ChannelMessage): ChannelMessageK
   ) {
     return "media";
   }
-  if (message.content.type === "text") return "text";
-  return "other";
+  return "text";
 }
 
 function isWatchMessage(message: ChannelMessage): boolean {

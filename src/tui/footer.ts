@@ -62,7 +62,7 @@ class ShrimpyFooter implements Component {
       this.frameIndex = (this.frameIndex + 1) % SHRIMP_FRAMES.length;
       this.tui.requestRender();
     }, FRAME_INTERVAL_MS);
-    this.interval.unref?.();
+    this.interval.unref();
   }
 
   render(width: number): string[] {
@@ -127,7 +127,7 @@ export function renderShrimpyActivityFooter(
   }
 
   const block = busy
-    ? SHRIMP_FRAMES[frameIndex % SHRIMP_FRAMES.length] ?? SHRIMP_FRAMES[0]
+    ? SHRIMP_FRAMES[frameIndex % SHRIMP_FRAMES.length] ?? IDLE_FRAME
     : IDLE_FRAME;
   const contentWidth = shrimpyFooterContentWidth(width);
   const output = [...lines];
@@ -139,8 +139,9 @@ export function renderShrimpyActivityFooter(
     const truncated = truncateToWidth(line, contentWidth, "");
     if (blockIndex < 0) return truncated;
 
+    const shrimpLine = block[blockIndex] ?? "";
     const suffix = `${" ".repeat(SHRIMP_BLOCK_GAP)}${padVisibleWidth(
-      block[blockIndex] ?? "",
+      shrimpLine,
       SHRIMP_BLOCK_WIDTH,
     )}`;
     return padVisibleWidth(truncated, contentWidth) + suffix;

@@ -14,7 +14,7 @@ interface CliHelpRenderOptions {
 export function renderCliHelp(options: CliHelpRenderOptions = {}): string {
   const metadata = readAppMetadata();
   const rows = CLI_COMMAND_CATALOG
-    .filter((command) => options.full || command.visibility === "default")
+    .filter((command) => (options.full ?? false) || command.visibility === "default")
     .map((command) => ({
       category: command.category,
       usage: formatCommandUsage(command),

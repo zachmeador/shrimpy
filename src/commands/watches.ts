@@ -181,9 +181,11 @@ async function cmdWatchesSetEnabled(
   const watches = loadAgentWatchFile(watch.source.path);
   const index = watches.findIndex((candidate) => candidate.id === watch.localId);
   if (index < 0) throw new Error(`watch not found in source file: ${watch.id}`);
+  const existing = watches[index];
+  if (!existing) throw new Error(`watch not found in source file: ${watch.id}`);
 
   watches[index] = {
-    ...watches[index],
+    ...existing,
     enabled,
   };
   parseWatchDefinitions(watches);
@@ -376,7 +378,7 @@ function formatWakeExpectation(
 
 function loadAgentWatchFile(path: string): WatchDefinition[] {
   if (!existsSync(path)) return [];
-  const raw = JSON.parse(readFileSync(path, "utf-8"));
+  const raw: unknown = JSON.parse(readFileSync(path, "utf-8"));
   parseWatchDefinitions(raw);
   return raw as WatchDefinition[];
 }

@@ -152,7 +152,6 @@ export function createWatchClock(config: WatchClockConfig): WatchClock {
         .map((watch) => watch.id),
     );
     for (const [watchId, persisted] of Object.entries(initialState)) {
-      if (!persisted) continue;
       if (!activeWatchIds.has(watchId)) {
         initialStateWasPruned = true;
         continue;

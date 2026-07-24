@@ -23,7 +23,10 @@ export function installShrimpyTurnContextRendering(): void {
   const prototype = CustomMessageComponent.prototype as unknown as PatchablePrototype;
   if (prototype[PATCH_MARKER]) return;
 
-  const render = prototype.render;
+  const originalRender = Reflect.get(
+    prototype,
+    "render",
+  ) as PatchablePrototype["render"];
   prototype.render = function renderShrimpyTurnContext(
     this: TurnContextCustomMessageComponent,
     width: number,
@@ -34,7 +37,7 @@ export function installShrimpyTurnContextRendering(): void {
     ) {
       return [];
     }
-    return render.call(this, width);
+    return Reflect.apply(originalRender, this, [width]) as string[];
   };
   prototype[PATCH_MARKER] = true;
 }

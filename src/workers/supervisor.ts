@@ -45,7 +45,7 @@ function parseArgs(argv: string[]): SupervisorArgs {
   const values = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (!arg.startsWith("--")) continue;
+    if (!arg?.startsWith("--")) continue;
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) {
       throw new Error(`${arg} requires a value`);
@@ -63,7 +63,7 @@ function parseArgs(argv: string[]): SupervisorArgs {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  runWorkerSupervisor(parseArgs(process.argv.slice(2))).catch((err) => {
+  runWorkerSupervisor(parseArgs(process.argv.slice(2))).catch((err: unknown) => {
     console.error(err instanceof Error ? err.stack ?? err.message : String(err));
     process.exit(1);
   });

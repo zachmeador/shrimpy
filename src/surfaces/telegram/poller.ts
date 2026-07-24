@@ -71,6 +71,10 @@ export class TelegramPoller {
     return () => this.updateHandlers.delete(handler);
   }
 
+  private isRunning(): boolean {
+    return this.running;
+  }
+
   health(): SurfaceHealthSnapshot {
     return {
       status: this.healthStatus,
@@ -137,7 +141,7 @@ export class TelegramPoller {
       } catch (err) {
         this.abortController = null;
         this.pollRequestStartedAt = 0;
-        if (!this.running) break;
+        if (!this.isRunning()) break;
         if (isAbortError(err)) {
           if (this.restartRequested) {
             this.restartRequested = false;
@@ -163,7 +167,7 @@ export class TelegramPoller {
             await sleep(delay, this.abortController.signal);
           } catch (sleepErr) {
             this.abortController = null;
-            if (!this.running || isAbortError(sleepErr)) break;
+            if (!this.isRunning() || isAbortError(sleepErr)) break;
             throw sleepErr;
           }
           this.abortController = null;

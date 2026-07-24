@@ -28,7 +28,7 @@ export const cmdUsers: CommandHandler = async (argv, config) => {
 
   const runtime = createAppRuntime(config);
   const store = new IdentityStore(runtime.paths.usersPath);
-  const json = values.json ?? false;
+  const json = values.json;
 
   if (sub === "list") {
     const owner = store.getOwner();

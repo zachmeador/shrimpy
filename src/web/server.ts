@@ -154,7 +154,7 @@ async function main() {
   }
 
   const server = createServer((req, res) => {
-    handle(req, res, args, publicDir).catch((err) => {
+    handle(req, res, args, publicDir).catch((err: unknown) => {
       console.error(err);
       if (!res.headersSent) {
         res.writeHead(500, { "content-type": "text/plain" });
@@ -170,7 +170,7 @@ async function main() {
   });
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   console.error(err);
   process.exit(1);
 });

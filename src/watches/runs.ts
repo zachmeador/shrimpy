@@ -83,7 +83,7 @@ export function loadWatchRunHistory(
     .filter((line) => line.trim().length > 0);
   const records = lines.flatMap((line) => {
     try {
-      const parsed = JSON.parse(line);
+      const parsed: unknown = JSON.parse(line);
       return isWatchRunRecord(parsed) ? [parsed] : [];
     } catch {
       return [];

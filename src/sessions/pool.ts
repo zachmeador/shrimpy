@@ -57,9 +57,7 @@ export class SessionPool {
   constructor(
     private readonly bootstrap: SessionBootstrap,
     private readonly options: SessionPoolOptions,
-  ) {
-    if (!options.planForChannel) throw new Error("SessionPool requires planForChannel");
-  }
+  ) {}
 
   async dispatch(channel: string, message: ChannelMessage): Promise<void> {
     const lane = this.lane(channel);
@@ -208,7 +206,7 @@ export class SessionPool {
   ): Promise<T> {
     let result: { value: T } | undefined;
     lane.chain = lane.chain
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error(`[session:${lane.channel}] queue error before ${operation}:`, err);
       })
       .then(async () => {
@@ -245,10 +243,14 @@ export class SessionPool {
       else console.error(`[session:${lane.channel}] turn error:`, err);
     } finally {
       await this.stopActivity(activity, lane.channel);
-      if (lane.running?.messageId === message.id) lane.running = undefined;
+      this.clearRunningMessage(lane, message.id);
       this.publish(lane);
       await this.options.markMessageHandled?.(lane.channel, message);
     }
+  }
+
+  private clearRunningMessage(lane: SessionLane, messageId: string): void {
+    if (lane.running?.messageId === messageId) lane.running = undefined;
   }
 
   private async turnContext(
@@ -327,7 +329,8 @@ export class SessionPool {
 }
 
 function normalize(text: string | undefined): string | undefined {
-  return text?.trim() || undefined;
+  const trimmed = text?.trim();
+  return (trimmed ?? "") || undefined;
 }
 
 function formatError(err: unknown): string {

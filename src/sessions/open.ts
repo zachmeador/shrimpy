@@ -386,7 +386,7 @@ function subscribeToCompactionLogs(
       console.log(
         `[compaction:${sessionLabel}] start reason=${event.reason}`,
       );
-    } else if (event.type === "compaction_end") {
+    } else {
       const status = event.aborted
         ? "aborted"
         : event.errorMessage

@@ -90,8 +90,28 @@ interface ToolResultLike {
   content?: ToolResultContent[];
 }
 
+function printableToolValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  if (typeof value === "symbol") return value.description ?? "";
+  if (typeof value === "function") return `[function ${value.name || "anonymous"}]`;
+  try {
+    const serialized: unknown = JSON.stringify(value);
+    return typeof serialized === "string" ? serialized : "";
+  } catch {
+    return "[unserializable]";
+  }
+}
+
 function clip(value: unknown, limit = COLLAPSED_LIMIT): string {
-  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  const text = printableToolValue(value).replace(/\s+/g, " ").trim();
   return text.length > limit ? `${text.slice(0, limit - 3)}...` : text;
 }
 
@@ -105,7 +125,7 @@ function compactToolCall(
   theme: ToolRenderTheme,
   context: ToolRenderContext,
 ): Text {
-  const running = context.isPartial || !context.executionStarted;
+  const running = (context.isPartial ?? false) || !context.executionStarted;
   const failed = context.isError;
   const color = running ? "warning" : failed ? "error" : "success";
   const marker = running ? "..." : failed ? "x" : "ok";
@@ -118,7 +138,7 @@ function compactToolCall(
 }
 
 function renderExpandedResult(result: ToolResultLike, theme: ToolRenderTheme): Text {
-  const content = result.content?.find?.((entry) => entry.type === "text");
+  const content = result.content?.find((entry) => entry.type === "text");
   return new Text(theme.fg("toolOutput", content?.text ?? ""), 0, 0);
 }
 

@@ -151,7 +151,7 @@ export class ChannelOutbox {
   ): Promise<void> {
     const previous = this.channelChains.get(channel) ?? Promise.resolve();
     const next = previous
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error(`[outbox] channel queue error for ${channel}:`, err);
       })
       .then(() => this.processMessage(channel, message, source))

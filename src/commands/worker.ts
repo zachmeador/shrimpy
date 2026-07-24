@@ -86,7 +86,7 @@ export const cmdWorker: CommandHandler = createCommandGroup({
         usage: renderCommandUsage(["worker", "list"]),
       });
       const workers = listWorkerRecords(config)
-        .filter((worker) => values.all || worker.status !== "closed");
+        .filter((worker) => (values.all ?? false) || worker.status !== "closed");
       if (values.json) {
         console.log(JSON.stringify(workers, null, 2));
       } else {

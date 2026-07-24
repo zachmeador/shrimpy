@@ -131,7 +131,7 @@ export function telegramOutboundTextForMessage(
   if (!text || message.sender.kind !== "agent") return text;
   if (message.sender.actorId === `agent:${defaultAgentId}`) return text;
 
-  const label = message.sender.displayName?.trim() || message.sender.actorId;
+  const label = (message.sender.displayName?.trim() ?? "") || message.sender.actorId;
   return `📨 **Message from ${escapeMarkdownInline(label)}**\n\n${text}`;
 }
 

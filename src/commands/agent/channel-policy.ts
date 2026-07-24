@@ -154,7 +154,7 @@ export async function cmdAgentChannelPolicy(
   if (values.channel && effective) {
     console.log(`channel: ${values.channel}`);
     console.log(`visible: ${view.visible}`);
-    console.log(`members: ${memberAgentIds?.join(",") || "(none)"}`);
+    console.log(`members: ${(memberAgentIds ?? []).join(",") || "(none)"}`);
     console.log(`matched_overrides: ${matchedChannelOverrides.join(",") || "(none)"}`);
     console.log(`effective_mode: ${effective.mode}`);
     console.log(`effective_senders: ${effective.senders.join(",") || "(any)"}`);

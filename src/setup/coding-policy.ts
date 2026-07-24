@@ -269,7 +269,8 @@ export function hasSetupAgentWorkspace(workspace: string, raw: Record<string, un
 
 function findAgentRoot(rawAgents: unknown, agentId: string): string {
   if (Array.isArray(rawAgents)) {
-    const found = rawAgents.find((entry) => isRecord(entry) && entry.id === agentId);
+    const agents: unknown[] = rawAgents;
+    const found = agents.find((entry) => isRecord(entry) && entry.id === agentId);
     if (isRecord(found) && typeof found.root === "string" && found.root) {
       return found.root;
     }
@@ -415,8 +416,8 @@ function ensureDefaultAgentModelPolicies(
 ): boolean {
   if (!Array.isArray(raw.agents)) return false;
 
-  let changed = false;
-  const agents = raw.agents.map((entry) => {
+  const rawAgents: unknown[] = raw.agents;
+  const agents = rawAgents.map((entry) => {
     if (
       !isRecord(entry) ||
       (entry.id !== "shrimpy" && entry.id !== MECHANIC_AGENT_ID) ||
@@ -424,13 +425,13 @@ function ensureDefaultAgentModelPolicies(
     ) {
       return entry;
     }
-    changed = true;
     return {
       ...entry,
       modelPolicy: DEFAULT_MODEL_POLICY,
     };
   });
 
+  const changed = agents.some((entry, index) => entry !== rawAgents[index]);
   if (changed) {
     raw.agents = agents;
     log(`Defaulted setup agents to model policy ${DEFAULT_MODEL_POLICY}.`);

@@ -36,6 +36,27 @@ export default tseslint.config(
     },
   },
   {
+    name: "shrimpy/strict-production",
+    files: ["src/**/*.ts", "web/src/**/*.ts"],
+    extends: [...tseslint.configs.strictTypeChecked],
+    rules: {
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-dynamic-delete": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unnecessary-condition": [
+        "error",
+        { allowConstantLoopConditions: "only-allowed-literals" },
+      ],
+      "@typescript-eslint/no-unnecessary-template-expression": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/no-unsafe-type-assertion": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
+    },
+  },
+  {
     files: ["test/**/*.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

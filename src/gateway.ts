@@ -130,7 +130,7 @@ async function run() {
     watchClock.stop();
     workspaceCheckpointService.stop();
     saveWatchClockState(runtime.paths.watchClockStatePath, watchClock.getState());
-    await Promise.allSettled(surfaces.map((surface) => surface.stop()));
+    await Promise.allSettled(surfaces.map(async (surface) => surface.stop()));
     updateHealth();
     health.stop();
     await outbox.stop();
@@ -152,7 +152,7 @@ async function run() {
   console.log("[gateway] started");
 }
 
-run().catch((err) => {
+run().catch((err: unknown) => {
   console.error("[gateway] fatal:", err);
   process.exit(1);
 });

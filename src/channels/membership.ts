@@ -6,6 +6,7 @@ import {
   readJsonFile,
   writeJsonFileAtomic,
 } from "../util/json-file.js";
+import { isRecord } from "../util/record.js";
 import { buildAgentDmChannel, resolveAgentDmMembers } from "./dm.js";
 import {
   deriveChannelManifest,
@@ -59,20 +60,14 @@ function normalizeMembership(value: unknown): ChannelMembership {
 }
 
 function normalizeChannelConfigEntry(value: unknown): ChannelConfigEntry {
-  const record = typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-
-  const agents = typeof record.agents === "object" && record.agents !== null && !Array.isArray(record.agents)
-    ? Object.fromEntries(
-      Object.entries(record.agents as Record<string, unknown>)
-        .map(([agentId, membership]) => [
-          agentId.trim(),
-          normalizeAgentMembership(membership),
-        ])
-        .filter(([agentId]) => Boolean(agentId)),
-    )
-    : {};
+  const record = isRecord(value) ? value : {};
+  const agents: Record<string, ChannelAgentMembership> = {};
+  if (isRecord(record.agents)) {
+    for (const [rawAgentId, membership] of Object.entries(record.agents)) {
+      const agentId = rawAgentId.trim();
+      if (agentId) agents[agentId] = normalizeAgentMembership(membership);
+    }
+  }
 
   const manifest = normalizeChannelManifest(record.manifest);
   return {

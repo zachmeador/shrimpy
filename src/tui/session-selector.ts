@@ -334,8 +334,12 @@ function sessionMatches(session: NavigableSessionSummary, query: string): boolea
 }
 
 function isSearchText(data: string): boolean {
-  return data.length > 0 && ![...data].some((character) => {
+  if (data.length === 0) return false;
+  for (const character of data) {
     const code = character.charCodeAt(0);
-    return code < 32 || code === 0x7f || (code >= 0x80 && code <= 0x9f);
-  });
+    if (code < 32 || code === 0x7f || (code >= 0x80 && code <= 0x9f)) {
+      return false;
+    }
+  }
+  return true;
 }

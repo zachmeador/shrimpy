@@ -36,7 +36,9 @@ export function updateWorker(
     const state = readWorkers(path);
     const index = state.workers.findIndex((worker) => worker.id === id);
     if (index < 0) throw new Error(`unknown worker: ${id}`);
-    const next = update(state.workers[index]);
+    const worker = state.workers[index];
+    if (!worker) throw new Error(`unknown worker: ${id}`);
+    const next = update(worker);
     state.workers[index] = next;
     writeWorkersUnlocked(path, state);
     return next;

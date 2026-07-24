@@ -129,7 +129,7 @@ export class ChannelDeliveryLoop {
     source: DispatchSource,
   ): Promise<void> {
     const dispatch = this.dispatchMessage(channel, message, source)
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error(`[delivery] dispatch error for ${channel}:`, err);
       })
       .finally(() => {

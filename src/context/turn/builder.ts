@@ -198,7 +198,7 @@ async function buildProducerContext(input: TurnContextInput): Promise<{
     const cached = state.producers[stateKey];
     if (isProducerFresh(cached, producer.cacheMs)) {
       return {
-        items: cached.items ?? [],
+        items: cached.items,
         report: {
           id: producer.id,
           matched: true,
@@ -229,14 +229,14 @@ async function buildProducerContext(input: TurnContextInput): Promise<{
   }));
 
   let stateChanged = false;
-  results.forEach((result) => {
-    if (!result.remember) return;
+  for (const result of results) {
+    if (!result.remember) continue;
     state.producers[result.remember.stateKey] = {
       lastRunAt: result.remember.lastRunAt,
       items: result.remember.items,
     };
     stateChanged = true;
-  });
+  }
   if (stateChanged) writeContextState(input.runtime, agentId, state);
 
   return {

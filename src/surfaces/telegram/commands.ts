@@ -80,7 +80,7 @@ function parseTelegramCommand(text: string): ParsedTelegramCommand | null {
   }
 
   const args = match[2]?.trim();
-  return { name, args: args ? args : undefined };
+  return { name, ...(args ? { args } : {}) };
 }
 
 function resolveCurrentAgentId(

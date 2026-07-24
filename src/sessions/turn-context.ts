@@ -34,7 +34,7 @@ export function createSessionTurnContextController(opts?: {
 
       const prepared = await opts.prepare(prompt, images);
       const text = prepared?.trim();
-      return text || undefined;
+      return (text ?? "") || undefined;
     },
   };
 }
@@ -48,7 +48,7 @@ export function createTurnContextExtensionFactory(
       (message, { expanded }, theme) => {
         if (!expanded) return new Text("", 0, 0);
 
-        const text = message.details?.text?.trim();
+        const text = message.details?.text.trim();
         if (!text) return new Text("", 0, 0);
 
         return new Text(theme.fg("dim", text), 1, 0);
@@ -87,6 +87,7 @@ export function normalizeTurnContextMessages(
   ) {
     const source = normalized ?? messages;
     const message = source[index];
+    if (!message) continue;
     const text = turnContextMessageText(message);
     if (!text) continue;
 
@@ -94,7 +95,7 @@ export function normalizeTurnContextMessages(
     if (userIndex < 0) continue;
 
     const userMessage = source[userIndex];
-    if (userMessage.role !== "user") continue;
+    if (!userMessage || userMessage.role !== "user") continue;
 
     normalized ??= [...messages];
     normalized[userIndex] = prefixUserMessage(userMessage, text);
@@ -130,6 +131,7 @@ function precedingUserMessageIndex(
 ): number {
   for (let index = contextIndex - 1; index >= 0; index -= 1) {
     const message = messages[index];
+    if (!message) continue;
     if (message.role === "user") return index;
     if (message.role === "assistant" || message.role === "toolResult") return -1;
   }

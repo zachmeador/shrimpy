@@ -32,9 +32,10 @@ export function assemblePromptContext(opts: {
   fallback?: string;
 }): PromptContextAssembly {
   const sections = orderPromptSectionsByKind(collectPromptSections(opts.sections));
+  const rendered = renderPromptSections(sections);
   return {
     sections,
-    systemPrompt: renderPromptSections(sections) || opts.fallback || "",
+    systemPrompt: rendered || (opts.fallback ?? ""),
   };
 }
 

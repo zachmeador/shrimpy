@@ -80,7 +80,6 @@ export function registerTelegramEgress(
     );
   });
   registry.registerActivity({ adapter: "telegram", instance: instanceId }, async (activity) => {
-    if (activity.kind !== "typing") return null;
     const chatId = activity.binding ? parseInt(activity.binding.thread, 10) : NaN;
     if (isNaN(chatId)) {
       console.error(`[telegram] invalid chat ID from binding for ${activity.channel}`);
@@ -191,7 +190,7 @@ class TelegramGatewaySurface
   start(): void {
     if (this.started) return;
     this.started = true;
-    void this.client.setMyCommands(listTelegramMenuCommands()).catch((err) => {
+    void this.client.setMyCommands(listTelegramMenuCommands()).catch((err: unknown) => {
       console.error("[telegram] failed to sync bot commands:", err);
     });
     this.unsubscribeUpdate = this.poller.onUpdate((update) =>

@@ -65,8 +65,8 @@ export function listAvailableSetupModels(workspace: string): SetupModelView[] {
     const authStorage = AuthStorage.create(paths.authPath);
     const registry = ModelRegistry.create(authStorage, paths.modelsPath);
     return registry.getAvailable().map((model: SetupModelCandidate) => ({
-      provider: String(model.provider ?? "unknown"),
-      id: String(model.id ?? "unknown"),
+      provider: typeof model.provider === "string" ? model.provider : "unknown",
+      id: typeof model.id === "string" ? model.id : "unknown",
       name: typeof model.name === "string" ? model.name : undefined,
     }));
   } catch {
@@ -340,7 +340,8 @@ async function promptOptional(
   fallback?: string,
 ): Promise<string | undefined> {
   const answer = (await question(prompt)).trim();
-  return answer || fallback || undefined;
+  if (answer) return answer;
+  return (fallback ?? "") || undefined;
 }
 
 async function promptIntegerWithDefault(
