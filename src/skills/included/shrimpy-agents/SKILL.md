@@ -22,6 +22,23 @@ shrimpy context --agent <id> --sections
 
 If creating a new agent, ask for one stable id and one sentence of purpose when missing. Agent ids should be short, lowercase, and durable.
 
+## Choose The Smallest Actor
+
+Do not create a persistent agent merely because a task can be named as a role. Prefer the smallest primitive that preserves the behavior the user actually needs:
+
+- skill: reusable instructions or a capability the current agent can perform;
+- tool, script, or context producer: deterministic action or bounded live information;
+- worker session: delegated work with a concrete goal and completion point;
+- persistent agent: a durable actor the user recognizes or that collaborates across the household.
+
+A proposed persistent agent should satisfy all three conditions:
+
+- It has an enduring identity or viewpoint.
+- It needs genuinely separate memory.
+- It acts independently over time.
+
+If any condition is missing, start with a skill, tool, context producer, or worker session. Researching, editing, planning, reviewing, and similar job-shaped capabilities are not separate agents by default.
+
 ## Manage Agents
 
 Create the agent through the CLI, then edit its scaffolded files:

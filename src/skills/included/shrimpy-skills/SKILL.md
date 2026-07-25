@@ -26,6 +26,8 @@ Choose the smallest owner and source:
 - local/URL/GitHub package copy: external behavior the user wants installed and drift-tracked;
 - `new`: original local skill authored in this workspace.
 
+Prefer a skill over another persistent agent when the need is reusable research, editing, planning, reviewing, domain knowledge, or another capability that does not require its own enduring identity, separate memory, and independent activity over time.
+
 Ask before broad skill installs or updates. Package copies are real files under `skills/` or `agents/<id>/skills/`; local edits are allowed and `shrimpy skills list` reports modified package copies.
 
 ## Commands

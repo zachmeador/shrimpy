@@ -21,7 +21,8 @@ Candidate problem definitions and solution sketches that are worth preserving bu
 | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](proposals/ctx-009-context-trace-debug-view.md) | draft | P2 | Context | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
 | [CTX-012](proposals/ctx-012-product-agent-instruction-catalog.md) | draft | P2 | Context | none | Central catalog for Shrimpy-authored model instructions |
-| [AGENT-001](proposals/agent-001-nested-agents.md) | draft | P3 | Agents | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
+| [AGENT-002](proposals/agent-002-parent-owned-tidepools.md) | draft | P3 | Agents | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | One-level child-agent tidepools owned by top-level agents |
+| [AGENT-003](proposals/agent-003-shareable-agent-packages.md) | draft | P3 | Agents | none | Shareable agent definitions with safe package lifecycle |
 | [CODE-003](proposals/code-003-claude-code-worker-adapter.md) | draft | P3 | Coding Agents | none | Claude Code worker adapter |
 | [CODE-004](proposals/code-004-agent-worker-tools.md) | draft | P3 | Coding Agents | none | Agent worker tools |
 | [MEM-001](proposals/mem-001-session-title-summarizer.md) | draft | P3 | Memory | TUI-004 | Validate and optionally generate canonical Pi session names |

@@ -60,7 +60,7 @@ Treat each clear answer as authorization for the setup action it describes. Once
 
 Do not add a separate local/private model-policy chooser in first setup. `shrimpy setup` already made the `coding` policy usable, and this setup session runs as the `mechanic` agent through `modelPolicy: "coding"`.
 
-Use `shrimpy-agents` for specialized agents, `shrimpy-channels` for chat surfaces or adapter routing, `shrimpy-watches` for recurring/background work, and `shrimpy-skills` for skill package changes. Keep first setup focused on concrete owner choices and validated workspace state.
+Use `shrimpy-agents` for specialized agents, including its persistent-actor admission test; prefer `shrimpy-skills` when the requested role is only reusable behavior. Use `shrimpy-channels` for chat surfaces or adapter routing and `shrimpy-watches` for recurring/background work. Keep first setup focused on concrete owner choices and validated workspace state.
 
 When editing agent identity, keep ownership clear. `agents/shrimpy/` is the first normal agent's personality, context, watches, and durable memory. `agents/mechanic/` is your own maintenance identity and maintenance skills. For future agents, use `agents/<id>/` and normal `shrimpy agent ...` commands instead of mixing their personality or memory into `shrimpy` or `mechanic`.
 
