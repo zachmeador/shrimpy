@@ -7,7 +7,6 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
 | [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
-| [CHANNEL-001](channel-001-watch-message-backlog-contract.md) | draft | P2 | Channels | none | Decide and expose watch-message replay behavior across gateway restarts |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](surface-006-remote-chat-commands.md) | Discord DM chat adapter |

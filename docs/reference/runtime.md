@@ -65,6 +65,7 @@ Durable sessions persist under each agent workspace as manifested Pi `.jsonl` di
 - Message watches emit watch-authored channel messages; the owning agent needs channel membership and a `channelPolicy` that wakes for them. Command watches run a shell command and can emit to a channel based on `emit.policy`.
 - Watch-origin messages carry provenance in `origin.watch`, and turn context points back to `shrimpy watches show <watch-id>` and `shrimpy watches history <watch-id>`.
 - The gateway reloads watch definitions when `watches.json` files change, preserving clock state for unchanged watches. Active watch state and run history live under `runtime/watches/<agent-id>/`.
+- Next-run timestamps persist in `state/watch-clock.json`. A watch whose scheduled time passed while the gateway was down runs once on the next start, carrying its original fire time, then resumes its schedule. Missed runs do not stack up: a watch due several times during a long outage still runs once. This covers downtime only; a crash after a watch message reached its channel is covered in [channels.md](channels.md).
 - Fresh setup installs focused upkeep and audit watches disabled by default; the setup flow can enable selected watches with user approval.
 - Coding worker delegation runs through `shrimpy worker ...` commands and worker records.
 

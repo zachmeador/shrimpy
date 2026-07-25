@@ -192,6 +192,13 @@ Use `shrimpy channels bind <channel> <adapter>/<instance>/<thread>` to attach a 
 
 ## Watches
 
-Message watches emit ordinary watch-authored channel messages. The target agent still needs both channel visibility and a channel policy that wakes for the watch message. Watch-origin instruction text is internal trigger material; user-facing delivery comes from the agent's later `reply`, `ask`, `notify`, `report`, or explicit `send_message` call. See [runtime.md](runtime.md) for watch behavior.
+A message watch writes a normal channel message. Delivery is not special-cased: the target agent wakes only if it has visibility into the channel and a `channelPolicy` that wakes for watch messages.
+
+Watch text is trigger material for the agent, not output for the user. What the user sees comes from the agent's own `reply`, `ask`, `notify`, `report`, or `send_message` call afterward.
+
+Backlog replay skips watch-origin messages, so a watch wakes an agent only when the delivery loop sees the message live. Ordinary channel messages replay normally. This splits restart behavior into two cases:
+
+- **Gateway was down when a watch came due.** The run survives. The watch clock persists next-run times and fires it on the next start; see [runtime.md](runtime.md).
+- **Gateway crashed after the watch message was written.** The wake is lost. Skipping replay keeps instructions tied to a past moment from running late, and that applies to a message written moments before the crash too. The message stays in channel history and in `channels read` and `channels search` output.
 
 Inspect watch delivery with `shrimpy watches show <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch`.
