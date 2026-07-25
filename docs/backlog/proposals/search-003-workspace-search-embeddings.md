@@ -34,7 +34,7 @@ depends_on:
 - No external embedding APIs and no network at query time.
 - No silent multi-megabyte downloads. Config enablement is consent, and status must explain disabled, unavailable, downloading, or ready states.
 - No transcript or channel-log embeddings in this item; corpus remains the `shrimpy workspace search` workspace knowledge corpus.
-- No turn-context injection here. [CTX-011](../ctx-011-workspace-knowledge-breadcrumbs.md) decides how search results become breadcrumbs.
+- No turn-context injection here. CTX-011 decides how search results become breadcrumbs.
 
 ## Done
 

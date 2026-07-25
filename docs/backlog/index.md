@@ -6,8 +6,6 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [TUI-004](tui-004-agent-session-navigator.md) | review | P2 | TUI | none | Pi-style `/agents` navigator for active local sessions |
-| [CTX-011](ctx-011-workspace-knowledge-breadcrumbs.md) | review | P2 | Context | workspace search | Workspace knowledge breadcrumbs in turn context |
 | [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
 | [CHANNEL-001](channel-001-watch-message-backlog-contract.md) | draft | P2 | Channels | none | Decide and expose watch-message replay behavior across gateway restarts |
 | [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
@@ -27,7 +25,7 @@ Candidate problem definitions and solution sketches that are worth preserving bu
 | [AGENT-001](proposals/agent-001-nested-agents.md) | draft | P3 | Agents | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | Nested parent-managed agents |
 | [CODE-003](proposals/code-003-claude-code-worker-adapter.md) | draft | P3 | Coding Agents | none | Claude Code worker adapter |
 | [CODE-004](proposals/code-004-agent-worker-tools.md) | draft | P3 | Coding Agents | none | Agent worker tools |
-| [MEM-001](proposals/mem-001-session-title-summarizer.md) | draft | P3 | Memory | [TUI-004](tui-004-agent-session-navigator.md) | Validate and optionally generate canonical Pi session names |
+| [MEM-001](proposals/mem-001-session-title-summarizer.md) | draft | P3 | Memory | TUI-004 | Validate and optionally generate canonical Pi session names |
 | [RUNTIME-001](proposals/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) | draft | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](proposals/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
