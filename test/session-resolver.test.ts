@@ -118,13 +118,16 @@ function createBootstrap(currentModel: () => Model<Api>) {
         candidates: [{ provider: "local", id: "qwen" }],
       },
     },
-    modelRegistry: {
-      find(provider: string, id: string) {
+    modelRuntime: {
+      getModel(provider: string, id: string) {
         const model = currentModel();
         return provider === model.provider && id === model.id ? model : undefined;
       },
-      getAvailable() {
+      getAvailableSnapshot() {
         return [currentModel()];
+      },
+      hasConfiguredAuth() {
+        return true;
       },
     },
   } as any;

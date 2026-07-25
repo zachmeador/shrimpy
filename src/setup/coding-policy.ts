@@ -2,7 +2,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { createAgentPaths, createWorkspacePaths } from "../workspace/paths.js";
 import { createAppRuntime } from "../app/runtime.js";
 import { loadConfigForWorkspace } from "../config/load.js";
@@ -124,7 +124,7 @@ export async function ensureCodingModelPolicy(
     log(`Created ${DEFAULT_MODEL_POLICY} model policy from ${formatModelLabel(selected)}.`);
   } else {
     const resolution = policyState.kind === "configured"
-      ? resolvePolicyAgainstRawConfig(workspace, raw, DEFAULT_MODEL_POLICY)
+      ? await resolvePolicyAgainstRawConfig(workspace, raw, DEFAULT_MODEL_POLICY)
       : undefined;
     const problems = policyState.kind === "invalid"
       ? policyState.problems
@@ -242,15 +242,15 @@ export function readPolicyState(rawPolicies: unknown, name: string): PolicyState
     : { kind: "configured", candidates, problems: [] };
 }
 
-export function resolvePolicyAgainstRawConfig(
+export async function resolvePolicyAgainstRawConfig(
   workspace: string,
   raw: Record<string, unknown>,
   name: string,
-): ModelPolicyResolution {
+): Promise<ModelPolicyResolution> {
   return resolveModelPolicy(
     {
       modelPolicies: raw.modelPolicies,
-      modelRegistry: createSetupModelRegistry(workspace),
+      modelRuntime: await createSetupModelRuntime(workspace),
     } as unknown as Parameters<typeof resolveModelPolicy>[0],
     name,
     "default",
@@ -439,10 +439,14 @@ function ensureDefaultAgentModelPolicies(
   return changed;
 }
 
-function createSetupModelRegistry(workspace: string): ModelRegistry {
+function createSetupModelRuntime(workspace: string): Promise<ModelRuntime> {
   const paths = createWorkspacePaths(workspace);
-  const authStorage = AuthStorage.create(paths.authPath);
-  return ModelRegistry.create(authStorage, paths.modelsPath);
+  return ModelRuntime.create({
+    authPath: paths.authPath,
+    modelsPath: paths.modelsPath,
+    modelsStorePath: paths.modelsStorePath,
+    allowModelNetwork: false,
+  });
 }
 
 function logPolicyProblems(

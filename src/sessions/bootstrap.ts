@@ -1,7 +1,6 @@
 import {
-  AuthStorage,
-  ModelRegistry,
   type DefaultResourceLoader,
+  ModelRuntime,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { assembleBasePromptSections, assemblePromptContext } from "../context/assembly.js";
@@ -19,13 +18,13 @@ import { resolveAgentToolPolicy } from "../tools/policy.js";
 export interface SessionBootstrap {
   settingsManager: SettingsManager;
   resourceLoader: DefaultResourceLoader;
-  authStorage: AuthStorage;
-  modelRegistry: ModelRegistry;
+  modelRuntime: ModelRuntime;
   agentId: string;
   agentRootPath: string;
   workspacePath: string;
   authPath: string;
   modelsPath: string;
+  modelsStorePath: string;
   modelPolicies?: ModelPoliciesConfig;
   contextConfig: ResolvedContextConfig;
   runtimeConfig: Required<RuntimeConfig>;
@@ -45,6 +44,7 @@ interface SessionBootstrapSource {
   workspacePath: string;
   authPath: string;
   modelsPath: string;
+  modelsStorePath: string;
   contextConfig: ResolvedContextConfig;
   runtimeConfig: Required<RuntimeConfig>;
 }
@@ -124,31 +124,33 @@ export async function createBootstrap(
     compaction: runtimeConfig.compaction,
   });
 
+  const modelRuntime = await ModelRuntime.create({
+    authPath: source.authPath,
+    modelsPath: source.modelsPath,
+    modelsStorePath: source.modelsStorePath,
+    allowModelNetwork: false,
+  });
+
   const resourceLoader = createShrimpyResourceLoader({
     cwd,
     settingsManager,
+    modelRuntime,
     runtimeConfig,
     systemPrompt: baseSystemPrompt,
     skillPaths: skillEntryPaths,
   });
   await resourceLoader.reload();
 
-  const authStorage = AuthStorage.create(source.authPath);
-  const modelRegistry = ModelRegistry.create(
-    authStorage,
-    source.modelsPath,
-  );
-
   return {
     settingsManager,
     resourceLoader,
-    authStorage,
-    modelRegistry,
+    modelRuntime,
     agentId,
     agentRootPath,
     workspacePath,
     authPath: source.authPath,
     modelsPath: source.modelsPath,
+    modelsStorePath: source.modelsStorePath,
     modelPolicies: config.modelPolicies,
     contextConfig,
     runtimeConfig,

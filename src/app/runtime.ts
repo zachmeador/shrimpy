@@ -129,6 +129,7 @@ export class AppRuntime {
         workspacePath: this.paths.workspace,
         authPath: this.paths.authPath,
         modelsPath: this.paths.modelsPath,
+        modelsStorePath: this.paths.modelsStorePath,
         contextConfig: this.resolved.context,
         runtimeConfig: this.resolved.runtime,
       },

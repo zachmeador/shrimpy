@@ -11,7 +11,6 @@ import {
   DEFAULT_MODEL_POLICY,
   formatModelRef,
   formatModelSelection,
-  hasConfiguredAuth,
   toModelRef,
   type ModelRef,
 } from "../config/model.js";
@@ -57,14 +56,14 @@ export function resolveModelDetailed(
   defaultModelPolicy?: string,
   opts?: ResolveModelOptions,
 ): ModelResolution {
-  const { modelRegistry } = bootstrap;
+  const { modelRuntime } = bootstrap;
 
   if (provider && !model) {
     throw new Error("--provider requires --model");
   }
 
   if (provider && model) {
-    const found = modelRegistry.find(provider, model);
+    const found = modelRuntime.getModel(provider, model);
     if (!found) {
       throw new Error(`model not found: ${provider}/${model}`);
     }
@@ -77,8 +76,8 @@ export function resolveModelDetailed(
   }
 
   if (model) {
-    const found = modelRegistry
-      .getAvailable()
+    const found = modelRuntime
+      .getAvailableSnapshot()
       .find((candidate: ModelCandidate) => {
         return candidate.id === model || candidate.name === model;
       });
@@ -101,7 +100,7 @@ export function resolveModelDetailed(
       : "default";
   const policy = resolveModelPolicy(bootstrap, policyName, policySource);
   if (policy.selected) {
-    const selected = modelRegistry.find(policy.selected.provider, policy.selected.id);
+    const selected = modelRuntime.getModel(policy.selected.provider, policy.selected.id);
     if (selected) {
       return {
         source: "policy",
@@ -114,7 +113,7 @@ export function resolveModelDetailed(
   }
 
   if (opts?.allowRegistryFallback) {
-    const available = modelRegistry.getAvailable();
+    const available = modelRuntime.getAvailableSnapshot();
     if (available.length > 0) {
       return {
         source: "registry-fallback",
@@ -240,7 +239,7 @@ export function resolveModelPolicy(
       continue;
     }
 
-    const found = bootstrap.modelRegistry.find(candidate.provider, candidate.id);
+    const found = bootstrap.modelRuntime.getModel(candidate.provider, candidate.id);
     if (!found) {
       const reason = `model not found: ${formatModelSelection(candidate)}`;
       candidates.push({ ...candidate, usable: false, reason });
@@ -248,7 +247,7 @@ export function resolveModelPolicy(
       continue;
     }
 
-    if (!hasConfiguredAuth(bootstrap.modelRegistry, found)) {
+    if (!bootstrap.modelRuntime.hasConfiguredAuth(found.provider)) {
       const reason = `model auth not configured: ${formatModelSelection(candidate)}`;
       candidates.push({ ...candidate, usable: false, reason });
       problems.push(reason);
@@ -284,7 +283,7 @@ function findUsableRegistryModel(
   bootstrap: SessionBootstrap,
   ref: ModelRef,
 ): Model<Api> | undefined {
-  const model = bootstrap.modelRegistry.find(ref.provider, ref.id);
-  if (!model || !bootstrap.modelRegistry.hasConfiguredAuth(model)) return undefined;
+  const model = bootstrap.modelRuntime.getModel(ref.provider, ref.id);
+  if (!model || !bootstrap.modelRuntime.hasConfiguredAuth(model.provider)) return undefined;
   return model;
 }

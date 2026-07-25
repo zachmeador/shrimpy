@@ -31,10 +31,10 @@
     "web:dev": "node scripts/web-dev.mjs"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "0.80.6",
-    "@earendil-works/pi-ai": "0.80.6",
-    "@earendil-works/pi-coding-agent": "0.80.6",
-    "@earendil-works/pi-tui": "0.80.6",
+    "@earendil-works/pi-agent-core": "0.82.1",
+    "@earendil-works/pi-ai": "0.82.1",
+    "@earendil-works/pi-coding-agent": "0.82.1",
+    "@earendil-works/pi-tui": "0.82.1",
     "@sinclair/typebox": "0.34.41",
     "cron-parser": "^5.5.0",
     "markdown-it": "^14.1.1",

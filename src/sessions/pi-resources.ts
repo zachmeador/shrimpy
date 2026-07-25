@@ -2,11 +2,15 @@ import { join } from "node:path";
 import {
   DefaultResourceLoader,
   type ExtensionFactory,
+  type ModelRuntime,
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { projectRoot } from "../app/project-root.js";
 import type { RuntimeConfig } from "../config/runtime.js";
 import { buildContainedSystemPromptFromPiOptions } from "../context/contained-system-prompt.js";
+import {
+  createCompactionBiasExtensionFactory,
+} from "./compaction/extension.js";
 import {
   createTurnContextExtensionFactory,
   type SessionTurnContextController,
@@ -15,7 +19,6 @@ import {
 const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "activity-indicator.ts"),
   join(projectRoot, "extensions", "archive-new-session.ts"),
-  join(projectRoot, "extensions", "compaction-bias.ts"),
   join(projectRoot, "extensions", "compact-tools.ts"),
   join(projectRoot, "extensions", "model-switch-renderer.ts"),
   join(projectRoot, "extensions", "thinking.ts"),
@@ -26,6 +29,7 @@ const SHRIMPY_THEME_PATHS = [join(projectRoot, "themes")];
 export function createShrimpyResourceLoader(opts: {
   cwd: string;
   settingsManager: SettingsManager;
+  modelRuntime: ModelRuntime;
   runtimeConfig: Required<RuntimeConfig>;
   systemPrompt: string;
   skillPaths?: string[];
@@ -38,6 +42,8 @@ export function createShrimpyResourceLoader(opts: {
     settingsManager: opts.settingsManager,
     additionalExtensionPaths: SHRIMPY_EXTENSION_PATHS,
     extensionFactories: createExtensionFactories({
+      modelRuntime: opts.modelRuntime,
+      settingsManager: opts.settingsManager,
       turnContextController: opts.turnContextController,
       additional: opts.extensionFactories,
     }),
@@ -61,11 +67,14 @@ export function createShrimpyResourceLoader(opts: {
 }
 
 function createExtensionFactories(opts: {
+  modelRuntime: ModelRuntime;
+  settingsManager: SettingsManager;
   turnContextController?: SessionTurnContextController;
   additional?: ExtensionFactory[];
 }): ExtensionFactory[] {
   return [
     ...(opts.additional ?? []),
+    createCompactionBiasExtensionFactory(opts.modelRuntime, opts.settingsManager),
     ...(
       opts.turnContextController
         ? [createTurnContextExtensionFactory(opts.turnContextController)]

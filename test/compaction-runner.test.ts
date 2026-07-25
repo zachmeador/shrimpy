@@ -22,6 +22,7 @@ describe("compaction runner", () => {
   test("summarizes history and split turns with the selected Pi model", async () => {
     const payloads: Array<Record<string, unknown>> = [];
     const maxTokens: number[] = [];
+    const sessionIds: string[] = [];
 
     const result = await compactSessionHistory(
       {
@@ -44,8 +45,6 @@ describe("compaction runner", () => {
       },
       localModel as any,
       {
-        apiKey: "test-key",
-        headers: { "x-test": "1" },
         customInstructions: "Preserve approximate time anchors.",
         complete: async (model, _context, options) => {
           const initial = {
@@ -55,12 +54,16 @@ describe("compaction runner", () => {
           assert.equal("onPayload" in options, false);
           payloads.push(initial);
           maxTokens.push(options.maxTokens);
+          assert.equal(options.cacheRetention, "none");
+          assert.equal(typeof options.sessionId, "string");
+          sessionIds.push(options.sessionId);
           return assistantMessage(`summary ${payloads.length}`);
         },
       },
     );
 
     assert.equal(payloads.length, 2);
+    assert.equal(new Set(sessionIds).size, 2);
     assert.deepEqual(maxTokens, [8192, 8192]);
     for (const payload of payloads) {
       assert.equal(payload.model, "local-coder");
@@ -77,6 +80,14 @@ describe("compaction runner", () => {
     assert.deepEqual(result.details, {
       readFiles: ["src/read.ts"],
       modifiedFiles: ["src/changed.ts", "src/new.ts"],
+    });
+    assert.deepEqual(result.usage, {
+      input: 2,
+      output: 4,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 6,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     });
   });
 
@@ -101,7 +112,6 @@ describe("compaction runner", () => {
       },
       localModel as any,
       {
-        apiKey: "test-key",
         sessionSystemPrompt: [
           "# SOUL",
           "You are Ole Scrappy, direct and dry.",
@@ -154,7 +164,6 @@ describe("compaction runner", () => {
         },
         localModel as any,
         {
-          apiKey: "test-key",
           complete: async () => assistantMessage("", "error", "503 status code (no body)"),
         },
       ),
@@ -192,7 +201,6 @@ describe("compaction runner", () => {
       },
       compactModel as any,
       {
-        apiKey: "test-key",
         complete: async (model, context, options) => {
           const text = readUserPrompt(context);
           prompts.push(text);
@@ -218,6 +226,40 @@ describe("compaction runner", () => {
     }
   });
 
+  test("retries transient summary failures with the configured policy", async () => {
+    let attempts = 0;
+    const result = await compactSessionHistory(
+      {
+        firstKeptEntryId: "entry-keep",
+        messagesToSummarize: [
+          { role: "user", content: "history to summarize", timestamp: 1 },
+        ],
+        turnPrefixMessages: [],
+        isSplitTurn: false,
+        tokensBefore: 12345,
+        fileOps: {
+          read: new Set(),
+          edited: new Set(),
+          written: new Set(),
+        },
+        settings: { reserveTokens: 1000 },
+      },
+      localModel as any,
+      {
+        retry: { enabled: true, maxRetries: 1, baseDelayMs: 1 },
+        complete: async () => {
+          attempts += 1;
+          return attempts === 1
+            ? assistantMessage("", "error", "503 status code (no body)")
+            : assistantMessage("recovered summary");
+        },
+      },
+    );
+
+    assert.equal(attempts, 2);
+    assert.equal(result.summary, "recovered summary");
+  });
+
   test("caps compaction max tokens to the selected model limit", () => {
     assert.equal(resolveCompactionMaxTokens(localModel as any, 80000), 8192);
     assert.equal(resolveCompactionMaxTokens(localModel as any, 4000), 4000);
@@ -236,11 +278,11 @@ function assistantMessage(
     provider: "local_llm",
     model: "local-coder",
     usage: {
-      input: 0,
-      output: 0,
+      input: 1,
+      output: 2,
       cacheRead: 0,
       cacheWrite: 0,
-      totalTokens: 0,
+      totalTokens: 3,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
     stopReason,

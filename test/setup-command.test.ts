@@ -137,7 +137,7 @@ describe("setup entry", () => {
       key: "sk-ant-test",
     });
     assert.equal(
-      listAvailableSetupModels(workspace).some((model) => model.provider === "anthropic"),
+      (await listAvailableSetupModels(workspace)).some((model) => model.provider === "anthropic"),
       true,
     );
     assert.match(lines.join("\n"), /Model access setup/);
@@ -183,7 +183,7 @@ describe("setup entry", () => {
       supportsReasoningEffort: false,
     });
     assert.equal(
-      listAvailableSetupModels(workspace).some((model) =>
+      (await listAvailableSetupModels(workspace)).some((model) =>
         model.provider === "local_llm" && model.id === "local-coder"
       ),
       true,

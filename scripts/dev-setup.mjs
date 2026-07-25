@@ -303,7 +303,7 @@ function copyPiState(sourceWorkspace, targetWorkspace) {
   const copied = [];
   mkdirSync(targetDir, { recursive: true });
 
-  for (const file of ["auth.json", "models.json"]) {
+  for (const file of ["auth.json", "models.json", "models-store.json"]) {
     const sourcePath = join(sourceDir, file);
     if (!existsSync(sourcePath)) continue;
     copyFileSync(sourcePath, join(targetDir, file));
@@ -311,7 +311,7 @@ function copyPiState(sourceWorkspace, targetWorkspace) {
   }
 
   if (copied.length === 0) {
-    fail(`cannot copy Pi state: no auth.json or models.json under ${sourceDir}`);
+    fail(`cannot copy Pi state: no auth.json, models.json, or models-store.json under ${sourceDir}`);
   }
 
   console.error(

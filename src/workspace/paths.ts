@@ -32,6 +32,7 @@ export interface WorkspacePaths {
   piStateDir: string;
   authPath: string;
   modelsPath: string;
+  modelsStorePath: string;
   channelsDir: string;
   mediaDir: string;
   logsDir: string;
@@ -87,6 +88,7 @@ export function createWorkspacePaths(
     piStateDir: join(workspace, "state", "pi"),
     authPath: join(workspace, "state", "pi", "auth.json"),
     modelsPath: join(workspace, "state", "pi", "models.json"),
+    modelsStorePath: join(workspace, "state", "pi", "models-store.json"),
     channelsDir: join(workspace, "channels"),
     mediaDir: join(workspace, "media"),
     logsDir: join(workspace, "runtime", "logs"),

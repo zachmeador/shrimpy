@@ -55,8 +55,7 @@ test("context inspection matches a live session turn", async () => {
   const model = createCaptureModel();
   let liveContext: Context | undefined;
 
-  bootstrap.authStorage.setRuntimeApiKey(model.provider, "test-api-key");
-  bootstrap.modelRegistry.registerProvider(model.provider, {
+  bootstrap.modelRuntime.registerProvider(model.provider, {
     api: model.api,
     baseUrl: model.baseUrl,
     apiKey: "test-api-key",
@@ -76,6 +75,11 @@ test("context inspection matches a live session turn", async () => {
       maxTokens: model.maxTokens,
     }],
   });
+  await bootstrap.modelRuntime.setRuntimeApiKey(
+    model.provider,
+    "test-api-key",
+    { allowNetwork: false },
+  );
 
   const resolver = new SessionResolver({
     runtime,
@@ -130,8 +134,7 @@ test("context inspection matches a live session turn", async () => {
     assert.deepEqual(inspected.activeToolNames, session.getActiveToolNames());
   } finally {
     disposeSession(session);
-    bootstrap.modelRegistry.unregisterProvider(model.provider);
-    bootstrap.authStorage.removeRuntimeApiKey(model.provider);
+    bootstrap.modelRuntime.unregisterProvider(model.provider);
   }
 });
 

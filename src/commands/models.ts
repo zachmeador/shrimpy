@@ -111,7 +111,7 @@ async function cmdModelsList(argv: string[], config: ShrimpyConfig): Promise<num
 
   const runtime = createAppRuntime(config);
   const bootstrap = await runtime.createBootstrap();
-  const available = bootstrap.modelRegistry.getAvailable();
+  const available = await bootstrap.modelRuntime.getAvailable();
   const policies = listPolicyViews(config, bootstrap);
   const agentDefaults = runtime.resolved.agents.map((agent) => {
     const policy = agent.modelPolicy ?? DEFAULT_MODEL_POLICY;
@@ -592,7 +592,7 @@ function listPolicyViews(
     }));
 }
 
-function groupModelsByProvider(models: Array<Model<Api>>): Array<{
+function groupModelsByProvider(models: readonly Model<Api>[]): Array<{
   provider: string;
   models: ModelRef[];
 }> {

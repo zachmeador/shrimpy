@@ -37,10 +37,11 @@ describe("session tool policy", () => {
       workspacePath: workspace,
       authPath: join(workspace, "state", "pi", "auth.json"),
       modelsPath: join(workspace, "state", "pi", "models.json"),
+      modelsStorePath: join(workspace, "state", "pi", "models-store.json"),
       contextConfig: resolveContextConfig({ sources: [], env: [] }),
       runtimeConfig: resolveRuntimeConfig({ noSkills: true }),
     });
-    const model = bootstrap.modelRegistry.find("test", "test-model");
+    const model = bootstrap.modelRuntime.getModel("test", "test-model");
     assert.ok(model);
 
     const session = await openSession(bootstrap, {

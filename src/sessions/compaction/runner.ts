@@ -5,9 +5,13 @@ import {
   type Context,
   type Model,
   type ProviderResponse,
-  type ThinkingLevel,
+  retryAssistantCall,
+  type RetryCallbacks,
+  type RetryPolicy,
+  type SimpleStreamOptions,
+  type Usage,
+  uuidv7,
 } from "@earendil-works/pi-ai";
-import { completeSimple } from "@earendil-works/pi-ai/compat";
 import {
   convertToLlm,
   serializeConversation,
@@ -30,14 +34,7 @@ type CompactionResponseHandler = (
 type CompactionComplete = (
   model: Model<Api>,
   context: Context,
-  options: {
-    maxTokens: number;
-    signal?: AbortSignal;
-    apiKey: string;
-    headers?: Record<string, string>;
-    reasoning?: ThinkingLevel;
-    onResponse?: CompactionResponseHandler;
-  },
+  options: SimpleStreamOptions,
 ) => Promise<AssistantMessage>;
 
 interface ShrimpyCompactionPreparation {
@@ -54,13 +51,13 @@ interface ShrimpyCompactionPreparation {
 }
 
 interface ShrimpyCompactionOptions {
-  apiKey: string;
-  headers?: Record<string, string>;
   customInstructions?: string;
   sessionSystemPrompt?: string;
   signal?: AbortSignal;
   onResponse?: CompactionResponseHandler;
-  complete?: CompactionComplete;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  complete: CompactionComplete;
 }
 
 interface SerializedChunk {
@@ -69,11 +66,12 @@ interface SerializedChunk {
 
 interface SummaryRequestBase {
   model: Model<Api>;
-  apiKey: string;
-  headers?: Record<string, string>;
   signal?: AbortSignal;
   sessionSystemPrompt?: string;
   onResponse?: CompactionResponseHandler;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  recordUsage: (usage: Usage) => void;
   complete: CompactionComplete;
 }
 
@@ -99,7 +97,10 @@ export async function compactSessionHistory(
     fileOps,
     settings,
   } = preparation;
-  const complete = options.complete ?? completeSimple;
+  let totalUsage: Usage | undefined;
+  const recordUsage = (usage: Usage) => {
+    totalUsage = totalUsage ? combineUsage(totalUsage, usage) : usage;
+  };
 
   let summary: string;
   if (isSplitTurn && turnPrefixMessages.length > 0) {
@@ -109,26 +110,28 @@ export async function compactSessionHistory(
           messages: messagesToSummarize,
           model,
           reserveTokens: settings.reserveTokens,
-          apiKey: options.apiKey,
-          headers: options.headers,
           signal: options.signal,
           customInstructions: options.customInstructions,
           sessionSystemPrompt: options.sessionSystemPrompt,
           previousSummary,
           onResponse: options.onResponse,
-          complete,
+          retry: options.retry,
+          retryCallbacks: options.retryCallbacks,
+          recordUsage,
+          complete: options.complete,
         })
         : Promise.resolve("No prior history."),
       generateTurnPrefixSummaryWithHooks({
         messages: turnPrefixMessages,
         model,
         reserveTokens: settings.reserveTokens,
-        apiKey: options.apiKey,
-        headers: options.headers,
         signal: options.signal,
         sessionSystemPrompt: options.sessionSystemPrompt,
         onResponse: options.onResponse,
-        complete,
+        retry: options.retry,
+        retryCallbacks: options.retryCallbacks,
+        recordUsage,
+        complete: options.complete,
       }),
     ]);
     summary = `${historyResult}\n\n---\n\n**Turn Context (split turn):**\n\n${turnPrefixResult}`;
@@ -137,14 +140,15 @@ export async function compactSessionHistory(
       messages: messagesToSummarize,
       model,
       reserveTokens: settings.reserveTokens,
-      apiKey: options.apiKey,
-      headers: options.headers,
       signal: options.signal,
       customInstructions: options.customInstructions,
       sessionSystemPrompt: options.sessionSystemPrompt,
       previousSummary,
       onResponse: options.onResponse,
-      complete,
+      retry: options.retry,
+      retryCallbacks: options.retryCallbacks,
+      recordUsage,
+      complete: options.complete,
     });
   }
 
@@ -159,6 +163,7 @@ export async function compactSessionHistory(
     summary,
     firstKeptEntryId,
     tokensBefore,
+    usage: totalUsage,
     details: { readFiles, modifiedFiles },
   };
 }
@@ -167,13 +172,14 @@ async function generateSummaryWithHooks(input: {
   messages: AgentMessage[];
   model: Model<Api>;
   reserveTokens: number;
-  apiKey: string;
-  headers?: Record<string, string>;
   signal?: AbortSignal;
   customInstructions?: string;
   sessionSystemPrompt?: string;
   previousSummary?: string;
   onResponse?: CompactionResponseHandler;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  recordUsage: (usage: Usage) => void;
   complete: CompactionComplete;
 }): Promise<string> {
   const basePrompt = buildSummaryPrompt({
@@ -206,13 +212,14 @@ async function generateChunkedSummaryWithHooks(input: {
   messages: AgentMessage[];
   model: Model<Api>;
   reserveTokens: number;
-  apiKey: string;
-  headers?: Record<string, string>;
   signal?: AbortSignal;
   customInstructions?: string;
   sessionSystemPrompt?: string;
   previousSummary?: string;
   onResponse?: CompactionResponseHandler;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  recordUsage: (usage: Usage) => void;
   complete: CompactionComplete;
 }): Promise<string> {
   const chunks = chunkConversationMessages(
@@ -254,13 +261,14 @@ async function mergeChunkSummariesWithHooks(input: {
   chunkSummaries: string[];
   model: Model<Api>;
   reserveTokens: number;
-  apiKey: string;
-  headers?: Record<string, string>;
   signal?: AbortSignal;
   customInstructions?: string;
   sessionSystemPrompt?: string;
   previousSummary?: string;
   onResponse?: CompactionResponseHandler;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  recordUsage: (usage: Usage) => void;
   complete: CompactionComplete;
   pass: number;
 }): Promise<string> {
@@ -536,11 +544,12 @@ function generateTurnPrefixSummaryWithHooks(input: {
   messages: AgentMessage[];
   model: Model<Api>;
   reserveTokens: number;
-  apiKey: string;
-  headers?: Record<string, string>;
   signal?: AbortSignal;
   sessionSystemPrompt?: string;
   onResponse?: CompactionResponseHandler;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  recordUsage: (usage: Usage) => void;
   complete: CompactionComplete;
 }): Promise<string> {
   const conversationText = serializeConversation(convertToLlm(input.messages));
@@ -558,11 +567,12 @@ function generateTurnPrefixSummaryWithHooks(input: {
 function summaryRequestBase(input: SummaryRequestBase): SummaryRequestBase {
   return {
     model: input.model,
-    apiKey: input.apiKey,
-    headers: input.headers,
     signal: input.signal,
     sessionSystemPrompt: input.sessionSystemPrompt,
     onResponse: input.onResponse,
+    retry: input.retry,
+    retryCallbacks: input.retryCallbacks,
+    recordUsage: input.recordUsage,
     complete: input.complete,
   };
 }
@@ -571,35 +581,40 @@ async function completeSummaryRequest(input: {
   model: Model<Api>;
   promptText: string;
   maxTokens: number;
-  apiKey: string;
-  headers?: Record<string, string>;
   signal?: AbortSignal;
   sessionSystemPrompt?: string;
   onResponse?: CompactionResponseHandler;
+  retry?: RetryPolicy;
+  retryCallbacks?: RetryCallbacks;
+  recordUsage: (usage: Usage) => void;
   complete: CompactionComplete;
   errorPrefix: string;
 }): Promise<string> {
-  const response = await input.complete(
-    input.model,
-    {
-      systemPrompt: buildCompactionSystemPrompt(input.sessionSystemPrompt),
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: input.promptText }],
-          timestamp: Date.now(),
-        },
-      ],
-    },
-    {
-      maxTokens: input.maxTokens,
-      signal: input.signal,
-      apiKey: input.apiKey,
-      headers: input.headers,
-      reasoning: input.model.reasoning ? "high" : undefined,
-      onResponse: input.onResponse,
-    },
+  const context: Context = {
+    systemPrompt: buildCompactionSystemPrompt(input.sessionSystemPrompt),
+    messages: [
+      {
+        role: "user",
+        content: [{ type: "text", text: input.promptText }],
+        timestamp: Date.now(),
+      },
+    ],
+  };
+  const requestOptions: SimpleStreamOptions = {
+    maxTokens: input.maxTokens,
+    signal: input.signal,
+    cacheRetention: "none",
+    sessionId: uuidv7(),
+    reasoning: input.model.reasoning ? "high" : undefined,
+    onResponse: input.onResponse,
+  };
+  const response = await retryAssistantCall(
+    () => input.complete(input.model, context, requestOptions),
+    input.retry,
+    input.signal,
+    input.retryCallbacks,
   );
+  input.recordUsage(response.usage);
   if (response.stopReason === "error") {
     throw new Error(
       `${input.errorPrefix}: ${(response.errorMessage ?? "") || "Unknown error"}`,
@@ -609,6 +624,29 @@ async function completeSummaryRequest(input: {
     .filter((content) => content.type === "text")
     .map((content) => content.text)
     .join("\n");
+}
+
+function combineUsage(first: Usage, second: Usage): Usage {
+  return {
+    input: first.input + second.input,
+    output: first.output + second.output,
+    cacheRead: first.cacheRead + second.cacheRead,
+    cacheWrite: first.cacheWrite + second.cacheWrite,
+    ...(first.cacheWrite1h !== undefined || second.cacheWrite1h !== undefined
+      ? { cacheWrite1h: (first.cacheWrite1h ?? 0) + (second.cacheWrite1h ?? 0) }
+      : {}),
+    ...(first.reasoning !== undefined || second.reasoning !== undefined
+      ? { reasoning: (first.reasoning ?? 0) + (second.reasoning ?? 0) }
+      : {}),
+    totalTokens: first.totalTokens + second.totalTokens,
+    cost: {
+      input: first.cost.input + second.cost.input,
+      output: first.cost.output + second.cost.output,
+      cacheRead: first.cost.cacheRead + second.cost.cacheRead,
+      cacheWrite: first.cost.cacheWrite + second.cost.cacheWrite,
+      total: first.cost.total + second.cost.total,
+    },
+  };
 }
 
 export function buildCompactionSystemPrompt(

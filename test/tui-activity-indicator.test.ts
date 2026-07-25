@@ -118,7 +118,7 @@ test("Shrimpy footer stays busy during compaction and automatic retry", () => {
       getSessionName: () => undefined,
     },
     getContextUsage: () => ({ contextWindow: 1000, percent: 0 }),
-    modelRegistry: { isUsingOAuth: () => false },
+    modelRuntime: { isUsingOAuth: () => false },
     subscribe(listener: (event: { type: string }) => void): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);

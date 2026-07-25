@@ -11,6 +11,7 @@ import {
 import {
   convertToLlm,
   type AgentSession,
+  ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
@@ -58,11 +59,28 @@ export async function inspectSessionContext(input: {
 }): Promise<InspectedSessionContext> {
   const captureModel = createCaptureModel();
   let captured: SessionContextView | undefined;
-  input.bootstrap.authStorage.setRuntimeApiKey(
-    captureModel.provider,
-    "shrimpy-context-inspection",
-  );
-  input.bootstrap.modelRegistry.registerProvider(captureModel.provider, {
+  const modelRuntime = await ModelRuntime.create({
+    authPath: input.bootstrap.authPath,
+    modelsPath: input.bootstrap.modelsPath,
+    modelsStorePath: input.bootstrap.modelsStorePath,
+    allowModelNetwork: false,
+  });
+  const inspectionBootstrap: SessionBootstrap = {
+    ...input.bootstrap,
+    modelRuntime,
+  };
+  if (
+    input.plan.model &&
+    !modelRuntime.getModel(input.plan.model.provider, input.plan.model.id)
+  ) {
+    const providerConfig = input.bootstrap.modelRuntime.getRegisteredProviderConfig(
+      input.plan.model.provider,
+    );
+    if (providerConfig) {
+      modelRuntime.registerProvider(input.plan.model.provider, providerConfig);
+    }
+  }
+  modelRuntime.registerProvider(captureModel.provider, {
     api: captureModel.api,
     baseUrl: captureModel.baseUrl,
     apiKey: "shrimpy-context-inspection",
@@ -82,11 +100,16 @@ export async function inspectSessionContext(input: {
       maxTokens: captureModel.maxTokens,
     }],
   });
+  await modelRuntime.setRuntimeApiKey(
+    captureModel.provider,
+    "shrimpy-context-inspection",
+    { allowNetwork: false },
+  );
 
   let session: AgentSession | undefined;
   try {
     session = await openSessionForContextInspection(
-      input.bootstrap,
+      inspectionBootstrap,
       input.plan,
       captureModel,
       input.sessionManager,
@@ -121,8 +144,7 @@ export async function inspectSessionContext(input: {
     };
   } finally {
     if (session) disposeSession(session);
-    input.bootstrap.modelRegistry.unregisterProvider(captureModel.provider);
-    input.bootstrap.authStorage.removeRuntimeApiKey(captureModel.provider);
+    modelRuntime.unregisterProvider(captureModel.provider);
   }
 }
 

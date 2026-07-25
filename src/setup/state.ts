@@ -41,7 +41,7 @@ export type SetupState =
   };
 
 interface ResolveSetupStateDeps {
-  listModels?: (workspace: string) => SetupModelView[];
+  listModels?: (workspace: string) => SetupModelView[] | Promise<SetupModelView[]>;
 }
 
 export async function resolveSetupState(
@@ -53,7 +53,7 @@ export async function resolveSetupState(
   }
 
   const listModels = deps.listModels ?? listAvailableSetupModels;
-  const models = listModels(workspace);
+  const models = await listModels(workspace);
   if (models.length === 0) {
     return {
       kind: "needs_model_access",
@@ -82,7 +82,7 @@ export async function resolveSetupState(
   }
 
   const resolution = policyState.kind === "configured"
-    ? resolvePolicyAgainstRawConfig(workspace, raw, DEFAULT_MODEL_POLICY)
+    ? await resolvePolicyAgainstRawConfig(workspace, raw, DEFAULT_MODEL_POLICY)
     : undefined;
   if (!resolution?.selected) {
     return {

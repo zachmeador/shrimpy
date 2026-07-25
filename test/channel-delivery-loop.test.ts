@@ -492,18 +492,21 @@ function testBootstraps(agents: ReturnType<typeof resolveAgentsConfig>) {
             },
           },
         },
-        modelRegistry: {
-          find(provider: string, id: string) {
+        modelRuntime: {
+          getModel(provider: string, id: string) {
             return provider === "test"
               ? { provider, id, contextWindow: 1000 }
               : undefined;
           },
-          getAvailable() {
+          getAvailableSnapshot() {
             return agents.map((agent) => ({
               provider: "test",
               id: testModelId(agent.id),
               contextWindow: 1000,
             }));
+          },
+          hasConfiguredAuth() {
+            return true;
           },
         },
       },

@@ -57,7 +57,7 @@ interface RunSetupOnboardingDeps {
   confirmReplaceModelPolicy?: (input: ConfirmReplaceModelPolicyInput) => Promise<boolean>;
   launchModelAccessOnboarding?: (input: ModelAccessOnboardingInput) => Promise<void>;
   launchSetupSession?: (input: SetupSessionLaunchInput) => Promise<void>;
-  listModels?: (workspace: string) => SetupModelView[];
+  listModels?: (workspace: string) => SetupModelView[] | Promise<SetupModelView[]>;
   selectCodingModel?: (input: SelectSetupModelInput) => Promise<SetupModelView | undefined>;
   canRunInteractiveModelOnboarding?: () => boolean;
   log?: (line: string) => void;
@@ -178,7 +178,7 @@ export async function runSetupOnboarding(
     }
   }
 
-  const models = "models" in state ? state.models : listModels(workspace);
+  const models = "models" in state ? state.models : await listModels(workspace);
   const preview = models.slice(0, 2).map(formatModelLabel).join(", ");
   if (models.length > 0) {
     log(

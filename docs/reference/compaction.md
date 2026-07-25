@@ -73,7 +73,7 @@ When compaction starts:
 2. Shrimpy's `session_before_compact` extension handles the prepared plan.
 3. The extension reads Shrimpy policy instructions from the branch entries.
 4. The extension reads the current session system prompt through Pi's extension context and passes it to Shrimpy's compaction runner, so the compaction request has the same parent agent identity, personality, voice, tone, and operating context as the session being compacted.
-5. The extension calls Shrimpy's compaction runner with Pi's selected model, model-registry API key, headers, and abort signal.
+5. The extension asks Shrimpy's compaction runner to summarize the prepared history with the session's selected model, retry policy, and cancellation signal.
 6. If the extension returns a compaction result, Pi persists it as a normal `compaction` entry with `fromHook: true`.
 7. If the extension does not return a compaction result, Pi falls back to its built-in compaction path.
 
@@ -82,6 +82,7 @@ The compaction entry stores:
 - `summary`
 - `firstKeptEntryId`
 - `tokensBefore`
+- aggregate `usage` from every summary, chunk, and merge request
 - `details.readFiles`
 - `details.modifiedFiles`
 
@@ -106,14 +107,9 @@ The final stored summary includes a `Turn Context (split turn)` section for that
 
 ## Provider Request Path
 
-Compaction must use the same provider path as normal turns. Shrimpy's compaction runner calls `completeSimple` through the selected Pi model and passes:
+Compaction uses the same model/provider request path as normal turns, so it inherits the session's configured access and provider compatibility without maintaining a separate compaction-specific configuration.
 
-- model-registry API key
-- model-registry headers
-- abort signal
-- Pi-compatible reasoning options for reasoning-capable models
-
-Compaction uses Pi's selected model/provider config for provider compatibility, model ids, thinking formats, and request shaping.
+Each standalone summary request disables prompt-cache retention and receives a fresh routing session id. Transient failures use Pi's bounded retry classifier and the active session retry settings. Usage from split-turn, chunk, intermediate-merge, and final-merge calls is combined into the persisted compaction result.
 
 Compaction also caps summarization `maxTokens` to the selected model's `maxTokens`. Pi's requested summary budget can otherwise be much larger than the model's output limit.
 
@@ -154,7 +150,7 @@ If the active session recorded stale policy or model metadata, run `shrimpy sess
 
 - Compaction policy resolution: `src/sessions/compaction/policy.ts`
 - Session-open policy recording: `src/sessions/open.ts`
-- Shrimpy compaction hook: `extensions/compaction-bias.ts`
+- Shrimpy compaction hook: `src/sessions/compaction/extension.ts`
 - Provider-aware compaction runner: `src/sessions/compaction/runner.ts`
 - Compaction prompt text: `src/context/system/compaction.ts`
 - Regression coverage: `test/compaction-runner.test.ts`

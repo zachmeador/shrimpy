@@ -19,6 +19,7 @@ afterEach(() => {
 describe("gateway logging", () => {
   test("workspace paths expose logs dir and gateway log path", () => {
     const paths = createWorkspacePaths(testDir);
+    assert.equal(paths.modelsStorePath, join(testDir, "state", "pi", "models-store.json"));
     assert.equal(paths.logsDir, join(testDir, "runtime", "logs"));
     assert.equal(paths.gatewayLogPath, join(testDir, "runtime", "logs", "gateway.log"));
   });

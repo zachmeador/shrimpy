@@ -20,14 +20,17 @@ function bootstrap(config?: Record<string, unknown>) {
         candidates: [{ provider: "local_qwen_moe", id: "Qwen3.6-35B-A3B-UD-Q6_K.gguf" }],
       },
     }),
-    modelRegistry: {
-      find(provider: string, id: string) {
+    modelRuntime: {
+      getModel(provider: string, id: string) {
         return [a3b, twentySevenB].find((model) =>
           model.provider === provider && model.id === id
         );
       },
-      getAvailable() {
+      getAvailableSnapshot() {
         return [a3b, twentySevenB];
+      },
+      hasConfiguredAuth() {
+        return true;
       },
     },
   } as any;

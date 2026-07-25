@@ -52,6 +52,7 @@ test("web tree mirrors the workspace layout", async () => {
   await writeFile(join(workspace, "config", "shrimpy.json"), "{}\n");
   await writeFile(join(workspace, "channels", "home.jsonl"), "{}\n");
   await writeFile(join(workspace, "state", "pi", "auth.json"), "{}\n");
+  await writeFile(join(workspace, "state", "pi", "models-store.json"), "{}\n");
   await writeFile(join(workspace, "runtime", "logs", "gateway.log"), "started\n");
   await writeFile(
     join(
@@ -99,6 +100,9 @@ test("web tree mirrors the workspace layout", async () => {
   const auth = findNode(tree.root, "state/pi/auth.json") as FileLeaf;
   assert.equal(auth.kind, "private");
   assert.equal(auth.readable, false);
+  const modelsStore = findNode(tree.root, "state/pi/models-store.json") as FileLeaf;
+  assert.equal(modelsStore.kind, "json");
+  assert.equal(modelsStore.readable, true);
 });
 
 test("web file classifier and text reader support non-jsonl workspace files", async () => {

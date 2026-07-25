@@ -16,10 +16,9 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  AuthStorage,
   createAgentSession,
   DefaultResourceLoader,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
@@ -573,10 +572,13 @@ describe("turn context Pi extension", () => {
     const model = createCaptureModel(`capture-${Date.now()}`);
     const capturedSystemPrompts: string[] = [];
     const settingsManager = SettingsManager.inMemory({});
-    const authStorage = AuthStorage.create(join(agentDir, "auth.json"));
-    authStorage.setRuntimeApiKey(model.provider, "test-api-key");
-    const modelRegistry = ModelRegistry.create(authStorage, join(agentDir, "models.json"));
-    modelRegistry.registerProvider(model.provider, {
+    const modelRuntime = await ModelRuntime.create({
+      authPath: join(agentDir, "auth.json"),
+      modelsPath: join(agentDir, "models.json"),
+      modelsStorePath: join(agentDir, "models-store.json"),
+      allowModelNetwork: false,
+    });
+    modelRuntime.registerProvider(model.provider, {
       api: model.api,
       baseUrl: model.baseUrl,
       apiKey: "test-api-key",
@@ -596,10 +598,16 @@ describe("turn context Pi extension", () => {
         maxTokens: model.maxTokens,
       }],
     });
+    await modelRuntime.setRuntimeApiKey(
+      model.provider,
+      "test-api-key",
+      { allowNetwork: false },
+    );
 
     const resourceLoader = createShrimpyResourceLoader({
       cwd,
       settingsManager,
+      modelRuntime,
       runtimeConfig: resolveRuntimeConfig({ noPromptTemplates: true }),
       systemPrompt: `<context path="test/base">\n# BASE\n</context>`,
       skillPaths: [join(skillDir, "SKILL.md")],
@@ -611,8 +619,7 @@ describe("turn context Pi extension", () => {
       cwd,
       agentDir,
       model,
-      authStorage,
-      modelRegistry,
+      modelRuntime,
       settingsManager,
       sessionManager,
       resourceLoader,
@@ -635,7 +642,7 @@ describe("turn context Pi extension", () => {
       assert.equal((prompt.match(/Current time:/g) ?? []).length, 1);
     } finally {
       session.dispose();
-      modelRegistry.unregisterProvider(model.provider);
+      modelRuntime.unregisterProvider(model.provider);
       rmSync(root, { recursive: true, force: true });
     }
   });
@@ -650,10 +657,13 @@ describe("turn context Pi extension", () => {
     const model = createCaptureModel(`capture-${Date.now()}`);
     const capturedContexts: Context[] = [];
     const settingsManager = SettingsManager.inMemory({});
-    const authStorage = AuthStorage.create(join(agentDir, "auth.json"));
-    authStorage.setRuntimeApiKey(model.provider, "test-api-key");
-    const modelRegistry = ModelRegistry.create(authStorage, join(agentDir, "models.json"));
-    modelRegistry.registerProvider(model.provider, {
+    const modelRuntime = await ModelRuntime.create({
+      authPath: join(agentDir, "auth.json"),
+      modelsPath: join(agentDir, "models.json"),
+      modelsStorePath: join(agentDir, "models-store.json"),
+      allowModelNetwork: false,
+    });
+    modelRuntime.registerProvider(model.provider, {
       api: model.api,
       baseUrl: model.baseUrl,
       apiKey: "test-api-key",
@@ -673,6 +683,11 @@ describe("turn context Pi extension", () => {
         maxTokens: model.maxTokens,
       }],
     });
+    await modelRuntime.setRuntimeApiKey(
+      model.provider,
+      "test-api-key",
+      { allowNetwork: false },
+    );
 
     const controller = createSessionTurnContextController({
       prepare: (prompt) =>
@@ -699,8 +714,7 @@ describe("turn context Pi extension", () => {
       cwd,
       agentDir,
       model,
-      authStorage,
-      modelRegistry,
+      modelRuntime,
       settingsManager,
       sessionManager,
       resourceLoader,
@@ -736,7 +750,7 @@ describe("turn context Pi extension", () => {
       });
     } finally {
       session.dispose();
-      modelRegistry.unregisterProvider(model.provider);
+      modelRuntime.unregisterProvider(model.provider);
       rmSync(root, { recursive: true, force: true });
     }
   });

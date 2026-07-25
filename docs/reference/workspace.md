@@ -17,6 +17,7 @@ channels/                          append-only channel logs
 media/                             downloaded inbound surface media, currently Telegram photos/photo groups
 state/pi/auth.json                 provider credentials
 state/pi/models.json               Pi-visible model registry
+state/pi/models-store.json         cached dynamic provider catalogs
 state/users.json                   identity links plus optional workspace owner
 state/user-presence.json           last active chat surface channel per known user
 state/watch-clock.json             persisted watch next-run timestamps and schedule keys
@@ -33,7 +34,7 @@ runtime/workers/                   worker JSONL, stderr, and last-message artifa
 runtime/logs/gateway.log           gateway runtime log
 ```
 
-`state/` is durable machine state. `runtime/` is rebuildable or disposable process state. Channel logs and sessions are records, not prompt memory. Auth and model metadata stay under `state/pi/` so Shrimpy does not depend on a user's stock Pi config.
+`state/` is durable machine state. `runtime/` is rebuildable or disposable process state. Channel logs and sessions are records, not prompt memory. Auth, custom model configuration, and cached dynamic provider catalogs stay under `state/pi/` so Shrimpy does not depend on a user's stock Pi config.
 
 ## Context Directories
 
@@ -146,6 +147,6 @@ Workspace search excludes channel logs and session transcripts. Use `shrimpy cha
 - Watch run state lives under `runtime/watches/`; next-run timestamps live in `state/watch-clock.json`, keyed by schedule so they survive non-schedule watch edits and recompute when the schedule changes.
 - Worker records live in `state/workers.json`; detached worker artifacts live under `runtime/workers/`.
 - Identity links live in `state/users.json`; presence lives in `state/user-presence.json`; manage them with `shrimpy users ...`.
-- Auth and models live under `state/pi/`.
+- Auth, custom models, and cached provider catalogs live under `state/pi/`.
 
 Use `shrimpy status` for the current workspace/gateway summary before inspecting individual files.

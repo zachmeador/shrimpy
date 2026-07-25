@@ -123,9 +123,8 @@ export async function openSessionRuntime(
         services: {
           cwd,
           agentDir,
-          authStorage: target.bootstrap.authStorage,
+          modelRuntime: target.bootstrap.modelRuntime,
           settingsManager: target.bootstrap.settingsManager,
-          modelRegistry: target.bootstrap.modelRegistry,
           resourceLoader,
           diagnostics: [],
         },
@@ -262,8 +261,7 @@ async function openLeasedSessionWithRuntimeDeps(
     settingsManager,
     sessionManager,
     resourceLoader,
-    authStorage: bootstrap.authStorage,
-    modelRegistry: bootstrap.modelRegistry,
+    modelRuntime: bootstrap.modelRuntime,
     model: opts?.runtimeModel ?? assembly.resolvedModel,
     thinkingLevel: effectivePlan.thinking,
     customTools: effectivePlan.tools,
@@ -355,6 +353,7 @@ async function resolveSessionResourceLoader(
   const resourceLoader = createShrimpyResourceLoader({
     cwd: assembly.cwd,
     settingsManager,
+    modelRuntime: bootstrap.modelRuntime,
     runtimeConfig: bootstrap.runtimeConfig,
     systemPrompt: assembly.baseSystemPrompt,
     skillPaths: bootstrap.skillEntryPaths,

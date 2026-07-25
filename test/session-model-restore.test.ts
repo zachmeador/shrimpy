@@ -38,11 +38,11 @@ describe("session model restore", () => {
     });
     const bootstrap = await testBootstrap(agentRoot);
     const descriptor = localDescriptor(agentRoot);
-    const configuredModel = bootstrap.modelRegistry.find(
+    const configuredModel = bootstrap.modelRuntime.getModel(
       "configured_provider",
       "configured-model",
     );
-    const selectedModel = bootstrap.modelRegistry.find(
+    const selectedModel = bootstrap.modelRuntime.getModel(
       "selected_provider",
       "selected-model",
     );
@@ -89,11 +89,11 @@ describe("session model restore", () => {
     });
     const bootstrap = await testBootstrap(agentRoot);
     const descriptor = localDescriptor(agentRoot);
-    const configuredModel = bootstrap.modelRegistry.find(
+    const configuredModel = bootstrap.modelRuntime.getModel(
       "configured_provider",
       "configured-model",
     );
-    const selectedModel = bootstrap.modelRegistry.find(
+    const selectedModel = bootstrap.modelRuntime.getModel(
       "selected_provider",
       "selected-model",
     );
@@ -149,7 +149,7 @@ describe("session model restore", () => {
     });
     const bootstrap = await testBootstrap(agentRoot);
     const descriptor = localDescriptor(agentRoot);
-    const configuredModel = bootstrap.modelRegistry.find(
+    const configuredModel = bootstrap.modelRuntime.getModel(
       "configured_provider",
       "configured-model",
     );
@@ -191,11 +191,11 @@ describe("session model restore", () => {
     });
     const bootstrap = await testBootstrap(agentRoot);
     const descriptor = localDescriptor(agentRoot);
-    const configuredModel = bootstrap.modelRegistry.find(
+    const configuredModel = bootstrap.modelRuntime.getModel(
       "configured_provider",
       "configured-model",
     );
-    const selectedModel = bootstrap.modelRegistry.find(
+    const selectedModel = bootstrap.modelRuntime.getModel(
       "selected_provider",
       "selected-model",
     );
@@ -242,6 +242,7 @@ async function testBootstrap(agentRoot: string) {
     workspacePath: workspace,
     authPath: join(workspace, "state", "pi", "auth.json"),
     modelsPath: join(workspace, "state", "pi", "models.json"),
+    modelsStorePath: join(workspace, "state", "pi", "models-store.json"),
     contextConfig: resolveContextConfig({ sources: [], env: [] }),
     runtimeConfig: resolveRuntimeConfig({ noSkills: true }),
   });

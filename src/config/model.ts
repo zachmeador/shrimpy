@@ -74,15 +74,6 @@ export function toModelRef(
   };
 }
 
-export function hasConfiguredAuth(
-  modelRegistry: {
-    hasConfiguredAuth?: (candidate: Model<Api>) => boolean;
-  },
-  model: Model<Api>,
-): boolean {
-  return modelRegistry.hasConfiguredAuth ? modelRegistry.hasConfiguredAuth(model) : true;
-}
-
 export function validateModelPoliciesConfig(raw: unknown): ModelPoliciesConfig {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new Error("modelPolicies must be an object");

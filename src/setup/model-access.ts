@@ -1,13 +1,12 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import {
-  type OAuthPrompt,
-  type OAuthSelectPrompt,
+  type AuthEvent,
+  type AuthInteraction,
+  type AuthPrompt,
 } from "@earendil-works/pi-ai";
-import { getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
-import { AuthStorage, ModelRegistry } from "@earendil-works/pi-coding-agent";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { createWorkspacePaths } from "../workspace/paths.js";
-import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../app/pi-internals.js";
 import {
   addOpenAICompatibleModel,
   DEFAULT_LOCAL_CONTEXT_WINDOW,
@@ -59,12 +58,10 @@ export function canRunInteractiveModelOnboarding(): boolean {
   return Boolean(stdin.isTTY && stdout.isTTY);
 }
 
-export function listAvailableSetupModels(workspace: string): SetupModelView[] {
+export async function listAvailableSetupModels(workspace: string): Promise<SetupModelView[]> {
   try {
-    const paths = createWorkspacePaths(workspace);
-    const authStorage = AuthStorage.create(paths.authPath);
-    const registry = ModelRegistry.create(authStorage, paths.modelsPath);
-    return registry.getAvailable().map((model: SetupModelCandidate) => ({
+    const modelRuntime = await createSetupModelRuntime(workspace);
+    return (await modelRuntime.getAvailable()).map((model: SetupModelCandidate) => ({
       provider: typeof model.provider === "string" ? model.provider : "unknown",
       id: typeof model.id === "string" ? model.id : "unknown",
       name: typeof model.name === "string" ? model.name : undefined,
@@ -79,9 +76,7 @@ export async function launchModelAccessOnboarding(
   deps: ModelAccessOnboardingDeps = {},
 ): Promise<void> {
   const log = deps.log ?? ((line: string) => console.log(line));
-  const paths = createWorkspacePaths(input.workspace);
-  const authStorage = AuthStorage.create(paths.authPath);
-  const registry = ModelRegistry.create(authStorage, paths.modelsPath);
+  const modelRuntime = await createSetupModelRuntime(input.workspace);
   const rl = deps.question
     ? undefined
     : createInterface({ input: stdin, output: stdout });
@@ -94,8 +89,7 @@ export async function launchModelAccessOnboarding(
     log("");
     await runModelAccessWizard({
       workspace: input.workspace,
-      authStorage,
-      registry,
+      modelRuntime,
       log,
       question,
       secret,
@@ -107,15 +101,14 @@ export async function launchModelAccessOnboarding(
 
 async function runModelAccessWizard(input: {
   workspace: string;
-  authStorage: AuthStorage;
-  registry: ModelRegistry;
+  modelRuntime: ModelRuntime;
   log: (line: string) => void;
   question: (prompt: string) => Promise<string>;
   secret: (prompt: string) => Promise<string>;
 }): Promise<void> {
-  const { registry, log, question, secret } = input;
+  const { modelRuntime, log, question, secret } = input;
 
-  while (registry.getAvailable().length === 0) {
+  while (modelRuntime.getAvailableSnapshot().length === 0) {
     const action = await promptChoice({
       title: "Choose how to configure model access.",
       options: [
@@ -131,8 +124,8 @@ async function runModelAccessWizard(input: {
 
     if (!action || action.id === "cancel") return;
     if (action.id === "refresh") {
-      registry.refresh();
-      if (registry.getAvailable().length === 0) {
+      await refreshSetupModels(modelRuntime, log, { allowNetwork: true, force: true });
+      if (modelRuntime.getAvailableSnapshot().length === 0) {
         log("No available models found after refresh.");
       }
       continue;
@@ -146,8 +139,8 @@ async function runModelAccessWizard(input: {
       await configureOAuthProvider(input);
     }
 
-    registry.refresh();
-    if (registry.getAvailable().length === 0) {
+    await refreshSetupModels(modelRuntime, log, { allowNetwork: false });
+    if (modelRuntime.getAvailableSnapshot().length === 0) {
       log("");
       log("No available models found yet.");
     }
@@ -156,11 +149,11 @@ async function runModelAccessWizard(input: {
 
 async function configureLocalProvider(input: {
   workspace: string;
-  registry: ModelRegistry;
+  modelRuntime: ModelRuntime;
   log: (line: string) => void;
   question: (prompt: string) => Promise<string>;
 }): Promise<void> {
-  const { registry, log, question } = input;
+  const { modelRuntime, log, question } = input;
   log("");
   log("Configure a local OpenAI-compatible endpoint.");
 
@@ -216,8 +209,8 @@ async function configureLocalProvider(input: {
     maxTokens,
   });
 
-  registry.refresh();
-  const available = registry.getAvailable().filter((model) =>
+  await refreshSetupModels(modelRuntime, log, { allowNetwork: false });
+  const available = modelRuntime.getAvailableSnapshot().filter((model) =>
     model.provider === result.provider && model.id === result.modelId
   );
   if (available.length === 0) {
@@ -228,31 +221,34 @@ async function configureLocalProvider(input: {
 }
 
 async function configureApiKeyProvider(input: {
-  authStorage: AuthStorage;
-  registry: ModelRegistry;
+  modelRuntime: ModelRuntime;
   log: (line: string) => void;
   question: (prompt: string) => Promise<string>;
   secret: (prompt: string) => Promise<string>;
 }): Promise<void> {
-  const { authStorage, registry, log, question, secret } = input;
+  const { modelRuntime, log, question, secret } = input;
   const provider = await promptChoice({
     title: "Choose an API-key provider.",
-    options: listApiKeyProviderOptions(registry),
+    options: listApiKeyProviderOptions(modelRuntime),
     question,
     log,
   });
   if (!provider) return;
 
-  const apiKey = (await secret(`Paste ${provider.name} API key: `)).trim();
-  if (!apiKey) {
-    log("No API key entered.");
+  try {
+    await modelRuntime.login(
+      provider.id,
+      "api_key",
+      createAuthInteraction({ question, secret, log }),
+    );
+  } catch (err) {
+    log(`Login failed: ${err instanceof Error ? err.message : String(err)}`);
     return;
   }
 
-  authStorage.set(provider.id, { type: "api_key", key: apiKey });
-  registry.refresh();
-
-  const available = registry.getAvailable().filter((model) => model.provider === provider.id);
+  const available = modelRuntime.getAvailableSnapshot().filter(
+    (model) => model.provider === provider.id,
+  );
   if (available.length === 0) {
     log(`Saved API key for ${provider.name}, but no models are available for that provider.`);
     return;
@@ -262,42 +258,25 @@ async function configureApiKeyProvider(input: {
 }
 
 async function configureOAuthProvider(input: {
-  authStorage: AuthStorage;
-  registry: ModelRegistry;
+  modelRuntime: ModelRuntime;
   log: (line: string) => void;
   question: (prompt: string) => Promise<string>;
 }): Promise<void> {
-  const { authStorage, registry, log, question } = input;
+  const { modelRuntime, log, question } = input;
   const provider = await promptChoice({
     title: "Choose a subscription provider.",
-    options: authStorage.getOAuthProviders().map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-    })),
+    options: listOAuthProviderOptions(modelRuntime),
     question,
     log,
   });
   if (!provider) return;
 
   try {
-    await authStorage.login(provider.id, {
-      onAuth: (info) => {
-        log("");
-        if (info.instructions) log(info.instructions);
-        log(info.url);
-      },
-      onDeviceCode: (info) => {
-        log("");
-        log(`Open: ${info.verificationUri}`);
-        log(`Code: ${info.userCode}`);
-      },
-      onPrompt: (prompt) => promptOAuthValue(prompt, question),
-      onProgress: (message) => {
-        log(message);
-      },
-      onSelect: (prompt) => promptOAuthSelection(prompt, question, log),
-    });
-    registry.refresh();
+    await modelRuntime.login(
+      provider.id,
+      "oauth",
+      createAuthInteraction({ question, secret: question, log }),
+    );
     log(`Saved subscription login for ${provider.name}.`);
   } catch (err) {
     log(`Login failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -357,38 +336,28 @@ async function promptIntegerWithDefault(
   }
 }
 
-function listApiKeyProviderOptions(registry: ModelRegistry): AuthProviderOption[] {
-  const oauthProviderIds = new Set(
-    registry.authStorage.getOAuthProviders().map((provider) => provider.id),
-  );
-  const builtInProviderIds = new Set(getBuiltinProviders());
-  const providerIds = new Set(
-    registry.getAll()
-      .map((model) => model.provider)
-      .filter((provider) =>
-        isApiKeyLoginProvider(provider, oauthProviderIds, builtInProviderIds)
-      ),
-  );
-
-  return [...providerIds].map((id) => ({
-    id,
-    name: apiKeyProviderDisplayName(registry, id),
-  })).sort(compareProviderOptions);
+function listApiKeyProviderOptions(modelRuntime: ModelRuntime): AuthProviderOption[] {
+  return modelRuntime.getProviders()
+    .filter((provider) =>
+      Object.prototype.hasOwnProperty.call(provider.auth.apiKey ?? {}, "login")
+    )
+    .map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+    }))
+    .sort(compareProviderOptions);
 }
 
-function isApiKeyLoginProvider(
-  providerId: string,
-  oauthProviderIds: ReadonlySet<string>,
-  builtInProviderIds: ReadonlySet<string>,
-): boolean {
-  if (BUILT_IN_PROVIDER_DISPLAY_NAMES[providerId]) return true;
-  if (builtInProviderIds.has(providerId)) return false;
-  return !oauthProviderIds.has(providerId);
-}
-
-function apiKeyProviderDisplayName(registry: ModelRegistry, providerId: string): string {
-  return BUILT_IN_PROVIDER_DISPLAY_NAMES[providerId] ??
-    registry.getProviderDisplayName(providerId);
+function listOAuthProviderOptions(modelRuntime: ModelRuntime): AuthProviderOption[] {
+  return modelRuntime.getProviders()
+    .filter((provider) => Boolean(provider.auth.oauth))
+    .map((provider) => ({
+      id: provider.id,
+      name: provider.auth.oauth?.loginLabel ??
+        provider.auth.oauth?.name ??
+        provider.name,
+    }))
+    .sort(compareProviderOptions);
 }
 
 function compareProviderOptions(left: AuthProviderOption, right: AuthProviderOption): number {
@@ -406,8 +375,9 @@ async function promptChoice<T extends AuthProviderOption>(input: {
   options: T[];
   question: (prompt: string) => Promise<string>;
   log: (line: string) => void;
+  signal?: AbortSignal;
 }): Promise<T | undefined> {
-  const { title, options, question, log } = input;
+  const { title, options, question, log, signal } = input;
   if (options.length === 0) {
     log("No options available.");
     return undefined;
@@ -420,7 +390,11 @@ async function promptChoice<T extends AuthProviderOption>(input: {
   });
 
   while (true) {
-    const answer = (await question("Choose [1]: ")).trim();
+    const answer = (await questionWithSignal(
+      question,
+      "Choose [1]: ",
+      signal,
+    )).trim();
     const index = answer ? Number(answer) - 1 : 0;
     if (Number.isInteger(index) && index >= 0 && index < options.length) {
       return options[index];
@@ -429,30 +403,128 @@ async function promptChoice<T extends AuthProviderOption>(input: {
   }
 }
 
-async function promptOAuthValue(
-  prompt: OAuthPrompt,
-  question: (prompt: string) => Promise<string>,
-): Promise<string> {
-  while (true) {
-    const placeholder = prompt.placeholder ? ` (${prompt.placeholder})` : "";
-    const answer = await question(`${prompt.message}${placeholder}: `);
-    if (answer || prompt.allowEmpty) return answer;
-  }
+function createAuthInteraction(input: {
+  question: (prompt: string) => Promise<string>;
+  secret: (prompt: string) => Promise<string>;
+  log: (line: string) => void;
+}): AuthInteraction {
+  return {
+    prompt: (prompt) => promptAuthValue(prompt, input),
+    notify: (event) => notifyAuthEvent(event, input.log),
+  };
 }
 
-async function promptOAuthSelection(
-  prompt: OAuthSelectPrompt,
+async function promptAuthValue(
+  prompt: AuthPrompt,
+  input: {
+    question: (prompt: string) => Promise<string>;
+    secret: (prompt: string) => Promise<string>;
+    log: (line: string) => void;
+  },
+): Promise<string> {
+  if (prompt.signal?.aborted) throw new Error("Login prompt was cancelled.");
+  if (prompt.type === "select") {
+    const selected = await promptChoice({
+      title: prompt.message,
+      options: prompt.options.map((option) => ({
+        id: option.id,
+        name: option.description
+          ? `${option.label} — ${option.description}`
+          : option.label,
+      })),
+      question: input.question,
+      log: input.log,
+      signal: prompt.signal,
+    });
+    if (!selected) throw new Error("Login prompt was cancelled.");
+    return selected.id;
+  }
+
+  const placeholder = prompt.placeholder ? ` (${prompt.placeholder})` : "";
+  const ask = prompt.type === "secret" ? input.secret : input.question;
+  return questionWithSignal(
+    ask,
+    `${prompt.message}${placeholder}: `,
+    prompt.signal,
+  );
+}
+
+async function questionWithSignal(
   question: (prompt: string) => Promise<string>,
-  log: (line: string) => void,
-): Promise<string | undefined> {
-  const selected = await promptChoice({
-    title: prompt.message,
-    options: prompt.options.map((option) => ({
-      id: option.id,
-      name: option.label,
-    })),
-    question,
-    log,
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  if (!signal) return question(prompt);
+  if (signal.aborted) throw new Error("Login prompt was cancelled.");
+
+  return new Promise<string>((resolve, reject) => {
+    const onAbort = () => {
+      reject(new Error("Login prompt was cancelled."));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    void question(prompt).then(
+      (answer) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(answer);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
   });
-  return selected?.id;
+}
+
+function notifyAuthEvent(event: AuthEvent, log: (line: string) => void): void {
+  if (event.type === "info") {
+    log(event.message);
+    for (const link of event.links ?? []) {
+      log(link.label ? `${link.label}: ${link.url}` : link.url);
+    }
+    return;
+  }
+  if (event.type === "auth_url") {
+    log("");
+    if (event.instructions) log(event.instructions);
+    log(event.url);
+    return;
+  }
+  if (event.type === "device_code") {
+    log("");
+    log(`Open: ${event.verificationUri}`);
+    log(`Code: ${event.userCode}`);
+    return;
+  }
+  log(event.message);
+}
+
+async function createSetupModelRuntime(workspace: string): Promise<ModelRuntime> {
+  const paths = createWorkspacePaths(workspace);
+  return ModelRuntime.create({
+    authPath: paths.authPath,
+    modelsPath: paths.modelsPath,
+    modelsStorePath: paths.modelsStorePath,
+    allowModelNetwork: false,
+  });
+}
+
+async function refreshSetupModels(
+  modelRuntime: ModelRuntime,
+  log: (line: string) => void,
+  options: { allowNetwork: boolean; force?: boolean },
+): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const result = await modelRuntime.refresh({
+      ...options,
+      signal: controller.signal,
+    });
+    for (const [providerId, error] of result.errors) {
+      log(`Could not refresh ${providerId}: ${error.message}`);
+    }
+    if (result.aborted) log("Model refresh timed out.");
+  } finally {
+    clearTimeout(timeout);
+  }
 }

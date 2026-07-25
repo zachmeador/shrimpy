@@ -57,11 +57,11 @@ describe("context construction guardrail", () => {
 
   test("compaction extension imports context-owned instructions", () => {
     const extension = readFileSync(
-      join(ROOT, "extensions", "compaction-bias.ts"),
+      join(ROOT, "src", "sessions", "compaction", "extension.ts"),
       "utf-8",
     );
 
-    assert.match(extension, /src\/context\/system\/compaction\.ts/);
+    assert.match(extension, /context\/system\/compaction\.js/);
     assert.doesNotMatch(extension, /Preserve approximate time anchors/);
   });
 });

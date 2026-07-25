@@ -45,6 +45,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Replaced separate direct/gateway planning and duplicate delivery queues with one `SessionResolver`, foreground host, and gateway `SessionPool`; every durable session now shares saved-model restoration, manifest discovery, and owner-aware controls.
 - Changed `shrimpy sessions new|clear|restore|thinking|stop` to route through the session's live owner, verify correlated gateway outcomes, apply unowned lifecycle changes under an exclusive maintenance lease, and expose `--no-wait` plus structured JSON outcomes. Stop controls now bypass a running turn instead of waiting behind the delivery queue.
 - Upgraded Pi packages from `0.79.6` to `0.80.6`, adding the `max` thinking level, automatic light/dark TUI themes, cache-miss notices, output padding, and the latest provider, model, auth, compaction, and rendering fixes.
+- Upgraded all Pi packages from `0.80.6` to `0.82.1` and migrated Shrimpy to Pi's canonical `ModelRuntime`, including provider-owned setup login and refresh, offline dynamic catalog persistence, runtime-routed compaction auth, bounded summary retries, isolated summary routing/cache policy, and aggregate compaction usage.
 
 ### Channels & Agent Policy
 

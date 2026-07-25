@@ -53,7 +53,6 @@ test("remaining Pi deep imports are limited to named non-InteractiveMode gaps", 
   const paths = [...internals.matchAll(/from "([^"]+\/dist\/[^"]+)"/gu)]
     .map((match) => match[1]);
   assert.deepEqual(paths, [
-    "../../node_modules/@earendil-works/pi-coding-agent/dist/core/provider-display-names.js",
     "../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js",
   ]);
   assert.doesNotMatch(internals, /thinking-selector|interactive-mode/);

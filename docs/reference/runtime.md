@@ -1,6 +1,6 @@
 # 🦐 Runtime
 
-Shrimpy has one Pi session core hosted by foreground commands, the gateway, setup, and workers. Hosts share the workspace, resolver, model registry, auth files, context assembly, skills, and tool surface; delivery and persistence are explicit session policy. See [channels.md](channels.md) for channel semantics, [sessions.md](sessions.md) for identity and lifecycle, and [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
+Shrimpy has one Pi session core hosted by foreground commands, the gateway, setup, and workers. Hosts share the workspace, resolver, model runtime, auth and catalog state, context assembly, skills, and tool surface; delivery and persistence are explicit session policy. See [channels.md](channels.md) for channel semantics, [sessions.md](sessions.md) for identity and lifecycle, and [tools.md](tools.md) for the split between native Pi built-ins and Shrimpy daemon tools.
 
 ## Direct CLI Sessions
 
@@ -16,7 +16,7 @@ Shrimpy has one Pi session core hosted by foreground commands, the gateway, setu
 
 Transcript-delivered foreground sessions do not first write user prompts to a channel log.
 
-Setup model access uses a plain CLI wizard backed by Pi auth and model registry APIs, including a local OpenAI-compatible endpoint path that writes Pi `models.json`. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
+Setup model access uses a plain CLI wizard backed by Pi's `ModelRuntime` provider, login, availability, and refresh APIs, including a local OpenAI-compatible endpoint path that writes Pi `models.json`. Runtime bootstrap restores cached dynamic catalogs without network access; setup's explicit refresh action permits a bounded network refresh. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
 
 ## Gateway Sessions
 

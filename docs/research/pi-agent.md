@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Updated: 2026-07-25
-Status: Research
+Status: Implemented; awaiting final review
 
 Pi is Shrimpy's embedded agent and session engine. Shrimpy pins the registry-published `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` packages rather than depending on a local checkout or active fork.
 
@@ -16,11 +16,11 @@ A Pi package has a session-level lifecycle and contributes extensions, skills, p
 
 ## Current Shrimpy Integration
 
-- Shrimpy pins all four Pi packages at `0.80.6`.
+- Shrimpy pins all four Pi packages at `0.82.1`.
 - Shrimpy requires Node `>=22.19.0`, matching Pi's runtime requirement.
 - Pi-facing tool schemas use `typebox` 1.x. Shrimpy-owned configuration schemas can use a different schema library when their types never cross the Pi tool boundary.
 - The main host boundary uses `createAgentSession()`, `createAgentSessionRuntime()`, `SessionManager`, `SettingsManager`, and `DefaultResourceLoader`.
-- `SessionBootstrap` still constructs the now-replaced `AuthStorage` and `ModelRegistry` pair and passes both through session creation and replacement.
+- `SessionBootstrap` constructs one canonical `ModelRuntime` with workspace-local auth, custom-model, and dynamic-catalog paths and passes it through session creation and replacement.
 - Shrimpy extensions register tools, commands, headers, footers, custom UI, message renderers, lifecycle hooks, model-switch rendering, activity state, turn context, session leases, and compaction interception through public extension APIs.
 - Resource-loader overrides let Shrimpy own prompt assembly and visible skill selection while Pi retains native tool definitions, provider calls, transcript mechanics, and the interactive runtime.
 - Pi's session replacement lifecycle powers Shrimpy's cross-agent and cross-session navigator.
@@ -31,7 +31,7 @@ Shrimpy deliberately creates Pi settings in memory and passes a fixed set of bun
 
 ## Latest Stable Pi
 
-The latest stable tag inspected on 2026-07-25 is `v0.82.1`. Shrimpy remains on `0.80.6`, so the next upgrade is a model-runtime migration rather than a package-only bump.
+The latest stable tag inspected on 2026-07-25 is `v0.82.1`. Shrimpy now pins that release after completing the required model-runtime migration.
 
 Upgrade-relevant changes after `0.80.6`:
 
@@ -46,54 +46,66 @@ Pi's upstream `main` was one post-release bookkeeping commit beyond `v0.82.1` du
 
 ## `0.82.1` Upgrade Assessment
 
-The upstream clone at `/Users/zachmeador/gits/pi-mono` was fetched and fast-forwarded before inspection. Stable `v0.82.1` is commit `b4f293684bba718d59cc1157679bcf6157b3a7f5`; the inspected upstream `main` was `5bc1c2c0a6f07e00e8c240304182f213ab8d311f`.
+Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`, branch `codex/pi-0.82.1-upgrade`, based on commit `b115bc63d09cc61fe13ae6c89d5254019abeecb0`
 
-A disposable probe was created from clean Shrimpy commit `b01cd08f5840c89e4aaabb807ecfa172e70b9736`. The main checkout was clean when the assessment began; the developer-skill and research-note edits made for this assessment were intentionally excluded from the probe. All four published Pi packages installed successfully at exact `0.82.1`.
+Pi clone: `/Users/zachmeador/gits/pi-mono`; stable tag `v0.82.1` at `b4f293684bba718d59cc1157679bcf6157b3a7f5`; inspected `main` at `5bc1c2c0a6f07e00e8c240304182f213ab8d311f`
 
-Recommendation: do not update the package pins alone. Implement the `ModelRuntime` migration and the named test/runtime repairs in one focused upgrade branch, then pin all four packages together. Confidence is high because the published candidate packages were installed and exercised against both compile-time and targeted runtime seams.
+### Summary
 
-Verification results:
+Upgrade implemented on a focused branch with all four Pi packages pinned together. The result is ready for final review after the verification listed below. Confidence is high: the canonical runtime, setup login/refresh, session replacement, model resolution, dynamic catalog storage, and custom compaction paths have all been migrated and exercised by focused tests.
 
-- Current Shrimpy `0.80.6` source typecheck and bundled-extension typecheck passed.
-- The five focused baseline files that later exposed candidate failures passed all 19 tests on `0.80.6`.
-- Disposable `0.82.1` bundled-extension typecheck passed.
-- Disposable `npm run build` failed with 19 source errors localized to `src/app/pi-internals.ts`, `src/sessions/bootstrap.ts`, `src/sessions/open.ts`, `src/setup/coding-policy.ts`, and `src/setup/model-access.ts`. These are the same migration errors found at `0.81.1`; `0.82.x` adds no new source compile failures.
-- Three targeted candidate slices ran 34 tests: 29 passed and 5 failed. `test/tui-command-surface.test.ts`, `test/tui-model-selection.test.ts`, and `test/tui-theme.test.ts` could not load the deleted `dist/core/provider-display-names.js`; `test/session-runtime.test.ts` could not load the removed `AuthStorage` export; and `test/tui-activity-indicator.test.ts` exposed a footer fixture that supplies `modelRegistry` where Pi now reads `session.modelRuntime`.
-- Compaction-runner, compact-tool, model-switch-renderer, resource-loader, thinking, public-surface, settings, and turn-context-rendering checks passed under the candidate packages.
-- The full candidate suite was not run because the source build is a prerequisite. The probe used Node `23.6.0`, which satisfies Shrimpy's declared range but is outside ESLint 10's supported engine range; implementation lint verification should use Node 22 LTS or Node 24+.
-- The compatibility probe changed no package pins, lockfiles, source, tests, generated output, or live workspace state in the main checkout.
+### Versions
 
-### Primary Migration
+- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.82.1`.
+- Latest stable Pi version inspected: tag `v0.82.1`, commit `b4f293684bba718d59cc1157679bcf6157b3a7f5`.
 
-`ModelRuntime` is the public replacement for Shrimpy's separate auth-storage and model-registry construction. It owns providers, models, credentials, login, catalog refresh, provider metadata, and completion dispatch.
+### Likely Breakage
 
-The upgrade should:
+- The pre-migration build produced 19 errors in `src/app/pi-internals.ts`, `src/sessions/bootstrap.ts`, `src/sessions/open.ts`, `src/setup/coding-policy.ts`, and `src/setup/model-access.ts` because Pi removed the root `AuthStorage` export, replaced SDK `authStorage`/`modelRegistry` services with `modelRuntime`, and deleted the private provider-display-name module.
+- Setup model availability and provider login became asynchronous and provider-owned. Retaining synchronous setup casts would have produced stale availability and incomplete OAuth/API-key flows.
+- Session, footer, and resolver fixtures using `modelRegistry` failed at runtime because Pi reads `session.modelRuntime`.
+- The old custom compaction hook compiled through Pi's compatibility entrypoint but would have bypassed header-only and provider-environment auth, usage accounting, bounded retries, fresh routing IDs, and summary cache policy.
+- Pi's dynamic provider catalogs require a durable `models-store.json` path to retain refreshed model lists for offline startup.
 
-1. Create one `ModelRuntime` in `SessionBootstrap` with explicit `state/pi/auth.json`, `state/pi/models.json`, and `state/pi/models-store.json` paths.
-2. Pass that runtime through `createAgentSession()`, `AgentSessionServices`, session replacement, model resolution, commands, and tests; remove Shrimpy's separate `authStorage` and `modelRegistry` service fields.
-3. Move setup model listing, policy resolution, refresh, API-key login, and OAuth login to asynchronous `ModelRuntime` operations and provider-owned `AuthInteraction`.
-4. Replace `ModelRegistry.find()`, `getAll()`, `getAvailable()`, and model-shaped auth checks with `ModelRuntime.getModel()`, `getModels()`, `getAvailable()`, `checkAuth()`, and `hasConfiguredAuth(providerId)`.
-5. Remove the deleted private provider-display-name import and use the public `Provider.name` values returned by `ModelRuntime.getProviders()`.
-6. Add the dynamic catalog store to workspace paths, update protection and development-state copying, and document it as durable Pi state.
-7. Update test providers and runtime fixtures rather than recreating the removed auth/model compatibility shape. In particular, give the footer fixture `modelRuntime.isUsingOAuth(providerId)` and pass `outputPad` when tests directly invoke registered message renderers.
-8. Pin all four Pi packages to exact `0.82.1` together only when the implementation is ready.
+### Required Shrimpy Changes
 
-No repository or inspected workspace model entry used the removed `compat.sendSessionIdHeader` field. If one appears elsewhere, it must move to `compat.sessionAffinityFormat`.
+- Replaced separate auth/model services with one offline-initialized `ModelRuntime` in `SessionBootstrap`, session creation, runtime replacement, commands, resolvers, context inspection, and tests.
+- Migrated setup listing, policy checks, explicit catalog refresh, API-key login, OAuth login, provider metadata, and prompt/event handling to public `ModelRuntime` and `AuthInteraction` APIs.
+- Added `state/pi/models-store.json` to workspace paths, setup development-state copying, tests, and reference docs.
+- Removed the deleted provider-display-name deep import and use public `Provider.name` and provider auth metadata.
+- Replaced the path-loaded compaction hook with a runtime-injected extension factory. Compaction calls `ModelRuntime.completeSimple()`, uses Pi retry policy, disables summary cache retention, creates a fresh routing id per summary request, and combines usage across split/chunk/merge calls.
+- Updated all runtime fixtures to use `modelRuntime` rather than recreating removed compatibility services.
+- Pinned all four packages and regenerated the lockfile at exact `0.82.1`.
 
-### Compaction
+### Verification
 
-Shrimpy's custom compaction runner still imports `completeSimple` through Pi's temporary `/compat` entrypoint. That code compiles and its focused tests pass at `0.82.1`, but it bypasses the canonical runtime, requires an API key even though Pi now supports header-only provider auth, omits provider-scoped environment data, does not aggregate summary-call usage, and misses Pi's summarization retry lifecycle, fresh routing session IDs, and disabled prompt caching for summary requests.
+- Baseline disposable probe from clean Shrimpy commit `b01cd08f5840c89e4aaabb807ecfa172e70b9736`: exact `0.82.1` install passed; source build exposed the 19 expected migration errors; targeted candidate tests passed 29 of 34 before implementation.
+- `./node_modules/.bin/tsc --noEmit`: passed after implementation.
+- `./node_modules/.bin/tsc --noEmit --target ES2022 --module Node16 --moduleResolution Node16 --strict --skipLibCheck --allowImportingTsExtensions extensions/*.ts`: passed.
+- Focused migrated failure slice covering context inspection, model defaults, resources, session restore/resolution/tool policy, real session construction, setup, and footer activity: 64 tests, 64 passed after fixture migration.
+- Focused compaction/setup/catalog/workspace slice: 25 tests, 25 passed, including transient summary retry, aggregate usage, disabled cache retention, and distinct routing ids.
+- `npm run lint`: passed.
+- `npm test`: passed the complete build and all 657 tests. The first implementation run had passed 609 of 625 tests; all 16 failures were stale removed-service fixtures, which were migrated before the clean final run.
+- Live TUI smoke test: `/login` completed an Anthropic subscription account login successfully.
 
-The upgrade should inject `ModelRuntime.completeSimple()` into custom compaction, support header-only auth, preserve provider environment, combine usage across chunk and merge calls, create fresh summary routing IDs with prompt caching disabled, and either implement equivalent bounded retries or delegate more of compaction back to Pi.
+### Upgrade Steps
 
-### Upgrade Risks
+1. Pin all four Pi packages to exact `0.82.1` and regenerate the npm lockfile.
+2. Add the dynamic catalog store path and construct the canonical runtime during bootstrap.
+3. Pass the runtime through every session, model-resolution, setup, command, and inspection boundary.
+4. Migrate setup login and refresh to provider-owned asynchronous APIs and remove the deleted private provider-name import.
+5. Route custom compaction through `ModelRuntime.completeSimple()` with retry, routing, cache, and usage parity.
+6. Replace stale service fixtures and extend compaction, workspace-path, catalog-store, and resource-loader coverage.
+7. Update current-behavior docs, the changelog, and this assessment.
+8. Run source and extension typechecks, focused tests, full tests/build, lint, and manual smoke checks where credentials and a TTY are available.
 
-- Model availability, refresh, and login are genuinely asynchronous under `ModelRuntime`. Shrimpy should carry that boundary through setup and policy code instead of hiding it behind synchronous casts or wrappers.
-- `ModelRuntime.create()` defaults to an offline initial catalog refresh, but `InteractiveMode.run()` starts a background network refresh unless `PI_OFFLINE` is set. Shrimpy needs an explicit startup, timeout, and offline policy.
-- The custom compaction path needs behavioral work beyond changing an import.
-- Private terminal integration seams can break without a semver-visible export change.
+### Risks And Unknowns
+
+- Setup-wizard login, API-key provider login, dynamic remote catalog refresh, live model calls, and live compaction require credentials/network and remain manual smoke-test surfaces. Anthropic subscription login through the TUI `/login` command passed.
+- Bootstrap is explicitly offline and setup's manual refresh is bounded at 15 seconds. Pi's TUI retains its own non-blocking background refresh unless `PI_OFFLINE` is set.
+- Private terminal theme and UX integration seams can still break without a semver-visible export change.
 - Pi `0.82.1` now passes `outputPad` to custom renderers, but `CustomMessageComponent` still adds an unconditional leading spacer, so `src/tui/turn-context-rendering.ts` remains necessary.
-- Implementation verification should use a Node release supported by Shrimpy and the repository's lint toolchain.
+- The available Node `23.6.0` satisfies Shrimpy's declared `>=22.19.0` range but is outside ESLint 10's supported engine range. A Node 22 LTS or Node 24+ lint run is the authoritative lint check.
 
 ## Extensibility Assessment
 
@@ -171,16 +183,16 @@ The upstream `packages/mom/` example demonstrates one external messaging channel
 
 ## Implementation Sequence
 
-1. Begin from an intentional Shrimpy git state on a focused upgrade branch or disposable implementation worktree.
-2. Add the dynamic model catalog store to Shrimpy's workspace path and protection surfaces.
-3. Introduce one canonical `ModelRuntime` in bootstrap and migrate session services to it.
-4. Migrate model commands and setup flows, including asynchronous provider login and refresh.
-5. Remove the private provider-name import.
-6. Move custom compaction off `/compat` and add usage and retry behavior.
-7. Update runtime, provider, setup, compaction, and session-replacement tests.
-8. Install all four exact `0.82.1` pins and update the lockfile.
-9. Run source and extension typechecks, focused suites, the full suite, build, and lint.
-10. Smoke API-key and subscription login, local providers, model selection and favorites, settings, automatic themes, session switching, compaction, and resume.
+1. Completed the implementation on `codex/pi-0.82.1-upgrade` from an intentional clean Shrimpy state.
+2. Added the dynamic model catalog store to Shrimpy's workspace paths, development-state copying, tests, and reference docs.
+3. Introduced one canonical `ModelRuntime` in bootstrap and migrated session services to it.
+4. Migrated model commands and setup flows, including asynchronous provider login and bounded explicit refresh.
+5. Removed the private provider-name import.
+6. Moved custom compaction off `/compat` and added canonical auth, usage, retry, routing, and cache behavior.
+7. Updated runtime, provider, setup, compaction, context-inspection, footer, and session-replacement tests.
+8. Installed all four exact `0.82.1` pins and updated the lockfile.
+9. Completed the clean source/extension typechecks, full suite/build, and lint verification recorded above.
+10. During final review, smoke setup-wizard and API-key login, dynamic and local providers, model selection and favorites, settings, automatic themes, session switching, compaction, and resume where the necessary TTY, credentials, and provider access are available. Anthropic subscription login through `/login` has passed.
 11. Design the package bridge separately after the runtime upgrade is stable.
 
 ## Sources

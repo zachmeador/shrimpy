@@ -12,6 +12,7 @@ agents/<id>/watches.json                agent-owned watches
 runtime/bin/                            workspace-local command shims
 state/pi/auth.json                      Pi provider auth
 state/pi/models.json                    Pi-visible provider/model registry
+state/pi/models-store.json              cached dynamic provider catalogs
 state/users.json                        stable user ids and optional workspace owner
 state/user-presence.json                last active chat surface per known user
 ```
@@ -123,7 +124,7 @@ shrimpy models policies add-candidate coding anthropic/claude-opus --index 1
 shrimpy models resolve --agent shrimpy --session local/main
 ```
 
-Concrete provider/model entries live in `state/pi/models.json`. `shrimpy setup` can write provider auth through Pi, refresh the Pi-visible registry, and create `coding` from the selected candidate.
+Concrete custom provider/model entries live in `state/pi/models.json`. Pi caches refreshed dynamic provider catalogs in `state/pi/models-store.json` for offline startup. `shrimpy setup` can write provider auth through Pi's model runtime, refresh available models, and create `coding` from the selected candidate.
 
 ### OpenAI-Compatible Providers
 
