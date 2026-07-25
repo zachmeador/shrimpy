@@ -1,6 +1,6 @@
 ---
 name: shrimpy-dev-pi-upgrade
-description: Use when evaluating whether Shrimpy can upgrade to the latest stable Pi packages from a local Pi git clone, identifying likely breakage, and writing a root-level PI-UPGRADE.md plan without applying the upgrade in the main checkout.
+description: Use when evaluating whether Shrimpy can upgrade to the latest stable Pi packages from a local Pi git clone, identifying likely breakage, and updating the assessment in docs/research/pi-agent.md without applying the upgrade in the main checkout.
 ---
 
 # Shrimpy Dev Pi Upgrade
@@ -9,7 +9,7 @@ Use this Shrimpy developer skill from the Shrimpy repository when the user wants
 
 ## Goal
 
-Update the local Pi source clone (outside of the shrimpy project dir) to the latest stable Pi version, compare that version against the Pi packages currently used by Shrimpy, find what would break if Shrimpy upgraded, and write the upgrade plan to `PI-UPGRADE.md` at the Shrimpy project root.
+Update the local Pi source clone (outside of the shrimpy project dir) to the latest stable Pi version, compare that version against the Pi packages currently used by Shrimpy, find what would break if Shrimpy upgraded, and update the upgrade assessment in `docs/research/pi-agent.md`.
 
 Do not apply the upgrade to the main Shrimpy checkout unless the user explicitly asks for implementation after the report.
 
@@ -17,7 +17,7 @@ Do not apply the upgrade to the main Shrimpy checkout unless the user explicitly
 
 - Treat Shrimpy workspace config and runtime state as user data. Do not reset, migrate, delete, or rewrite workspace files.
 - Keep the main Shrimpy checkout inspectable. Prefer a temporary Shrimpy worktree or disposable copy for dependency install, build, and test probes.
-- Do not change `package.json`, lockfiles, source, tests, or generated output in the main checkout except for the final root-level `PI-UPGRADE.md` report.
+- Do not change `package.json`, lockfiles, source, tests, or generated output in the main checkout except for the requested developer-skill source and mirrors and the final `docs/research/pi-agent.md` update.
 - If the working tree is dirty, record that in the report before using a clean worktree based on `HEAD`; mention that uncommitted local changes were not part of the probe unless you deliberately copied them into the disposable checkout.
 - In the Pi clone, ordinary update commands are allowed for this skill: `git fetch --tags --prune` and a fast-forward pull of the stable branch or tag checkout used for analysis. Do not rewrite the Pi clone history.
 
@@ -38,40 +38,48 @@ Do not apply the upgrade to the main Shrimpy checkout unless the user explicitly
    - Install the candidate Pi package versions there.
    - Run the smallest useful checks first, usually `npm run build`, then targeted tests around affected areas. Run the full test suite only if it is useful and affordable.
    - Keep command output concise; capture failures, not entire logs.
-7. Write or replace `PI-UPGRADE.md` at the Shrimpy project root with the result.
+7. Update `docs/research/pi-agent.md` with the result. Refresh its date, current integration facts, latest stable version, upgrade assessment, implementation sequence, and relevant sources without replacing unrelated architectural or ecosystem research.
 
 ## Report Shape
 
-`PI-UPGRADE.md` should be direct and actionable:
+The upgrade-assessment sections in `docs/research/pi-agent.md` should remain direct and actionable and preserve every field from the standalone plan contract. Integrate them with the broader research note instead of dropping detail:
 
 ```markdown
-# Pi Upgrade Plan
+Updated: YYYY-MM-DD
 
-Date: YYYY-MM-DD
+## Latest Stable Pi
+- Current Shrimpy Pi packages: <packages and versions>
+- Latest stable Pi version inspected: <version/tag/commit>
+<concise change summary>
+
+## `<version>` Upgrade Assessment
 Shrimpy checkout: <path and commit>
 Pi clone: <path and commit/tag>
 
-## Summary
+### Summary
 <upgrade recommendation and confidence>
 
-## Versions
+### Versions
 - Current Shrimpy Pi packages: <packages and versions>
 - Latest stable Pi version inspected: <version/tag/commit>
 
-## Likely Breakage
+### Likely Breakage
 - <file/API/test impact and reason>
 
-## Required Shrimpy Changes
+### Required Shrimpy Changes
 - <concrete edits needed before upgrading>
 
-## Verification
+### Verification
 - <commands run and pass/fail result>
 
-## Upgrade Steps
+### Upgrade Steps
 1. <ordered implementation steps>
 
-## Risks And Unknowns
+### Risks And Unknowns
 - <remaining uncertainty>
+
+## Implementation Sequence
+<retain this broader sequence when the research note already uses it; keep it consistent with Upgrade Steps rather than letting the two disagree>
 ```
 
-Use file paths and API names, not vague labels. If no breaking changes are found, say what evidence supports that and still list the verification performed.
+Use file paths and API names, not vague labels. Preserve checkout provenance, version evidence, commands, pass/fail outcomes, remaining uncertainty, and confidence even when the prose is reorganized to avoid duplicated sections. If no breaking changes are found, say what evidence supports that and still list the verification performed.
