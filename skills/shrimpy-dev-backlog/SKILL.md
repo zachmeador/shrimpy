@@ -17,7 +17,7 @@ Keep the backlog useful as a small planning map: concrete enough for an agent to
 - Keep `docs/backlog/index.md` to the status legend and backlog tables.
 - The deliberately small now/soon engineering queue lives directly in `docs/backlog/`. Put a note there only when the maintainer has explicitly scheduled it for current or near-term work.
 - Unscheduled work lives in `docs/backlog/proposals/`, including exploratory candidates, mature accepted directions, and deferred items that are not currently committed to the now/soon queue.
-- Completed work belongs in git history, stable docs, and the changelog when user-visible; do not keep completed planning notes active unless the maintainer asks.
+- Completed work belongs in git history, stable docs, and the changelog when user-visible. A backlog note is temporary: when its work is done, delete both the note and its index row in the same final implementation commit unless the maintainer explicitly asks to keep it.
 
 ## Naming
 
@@ -35,7 +35,7 @@ Choose the next number in that area by inspecting existing active and `proposals
 
 - New backlog notes start as `draft` in `docs/backlog/proposals/` unless the user explicitly accepts the direction.
 - Use `todo` when the direction is accepted enough that an agent can implement it without re-deciding the product shape. An unscheduled `todo` remains in `proposals/`; status does not schedule work.
-- Use `review` when implementation is ready for maintainer review but the backlog item has not been closed out.
+- Use `review` only while implementation is awaiting maintainer review. Once the work is done, remove the note and index row; do not treat `review` as a completed-work archive.
 - Move a note directly into `docs/backlog/` only when the maintainer explicitly says it is being worked on now or soon. Scheduling is the placement decision; do not infer it from `todo`, priority, detail, or implementation readiness.
 - Priority does not determine placement: an accepted `P1` may remain an unscheduled proposal, while an explicitly scheduled `P3` may enter the now/soon queue.
 
@@ -63,7 +63,7 @@ Choose the next number in that area by inspecting existing active and `proposals
    - Other sections that fit the work, usually `Why`, `Current State`, `Build`, `Boundaries`, `Notes`, `Touches`, and `Done`.
 5. Update `docs/backlog/index.md` in the matching now/soon or `Proposals` section with a concise row. Link dependencies to their notes when practical.
 6. If moving a note between active and `proposals/`, update relative links in that note and in any notes that point to it.
-7. When completing an item, make sure the implementation, stable docs, or changelog carry its durable information, then delete its planning note and index row before making the item's final commit so both removals are included in that commit. Do not leave completed notes for later cleanup unless the maintainer explicitly asks.
+7. Completion means removal, not a status change. Once an item is done, make sure the implementation, stable docs, or changelog carry its durable information, then delete its planning note and `docs/backlog/index.md` row before making the item's final implementation commit. Do not leave completed items in `review`, active lists, or proposals for later cleanup unless the maintainer explicitly asks.
 
 ## Writing Rules
 
