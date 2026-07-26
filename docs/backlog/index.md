@@ -11,6 +11,7 @@ Status `draft` means the maintainer is not sure about the item yet. Status `revi
 | [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
 | [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](surface-006-remote-chat-commands.md) | Discord DM chat adapter |
 | [SURFACE-006](surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
+| [SURFACE-008](surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
 
 ## Proposals
 
