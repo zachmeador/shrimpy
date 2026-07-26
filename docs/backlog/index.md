@@ -36,5 +36,4 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [RUNTIME-001](proposals/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) | draft | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](proposals/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
-| [TUI-011](proposals/tui-011-terminal-title-agent-label.md) | draft | P1 | TUI | upstream Pi title hook | Remove Pi branding and identify the active agent in the terminal title |
 | [WORKSPACE-002](proposals/workspace-002-tiered-checkpoint-retention.md) | draft | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |

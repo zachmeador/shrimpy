@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 
 const projectRoot = process.cwd();
 
-test("TUI launch limits private compatibility to four named UX seams", () => {
+test("TUI launch limits private compatibility to five named UX seams", () => {
   const interactive = read("src/tui/interactive.ts");
   const installers = [...interactive.matchAll(/installShrimpy\w+/gu)]
     .map((match) => match[0]);
@@ -13,6 +13,7 @@ test("TUI launch limits private compatibility to four named UX seams", () => {
     "installShrimpyInlineCommands",
     "installShrimpyModelSelectionGuard",
     "installShrimpySettingsSelector",
+    "installShrimpyTerminalTitle",
     "installShrimpyTurnContextRendering",
   ]);
 
@@ -37,6 +38,10 @@ test("TUI launch limits private compatibility to four named UX seams", () => {
   const turnContext = read("src/tui/turn-context-rendering.ts");
   assert.match(turnContext, /CustomMessageComponent\.prototype/);
   assert.match(turnContext, /TURN_CONTEXT_CUSTOM_TYPE/);
+
+  const terminalTitle = read("src/tui/terminal-title.ts");
+  assert.match(terminalTitle, /\.ui\.terminal/);
+  assert.doesNotMatch(terminalTitle, /updateTerminalTitle|process\.stdout|setInterval/);
 
   for (const path of [
     "src/tui/shrimpy-activity-indicator.ts",

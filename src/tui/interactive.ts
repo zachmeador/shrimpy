@@ -25,6 +25,7 @@ import {
   createShrimpySettingsUiController,
   installShrimpySettingsSelector,
 } from "./settings.js";
+import { installShrimpyTerminalTitle } from "./terminal-title.js";
 import { installShrimpyTurnContextRendering } from "./turn-context-rendering.js";
 import { TuiSessionTargetController } from "./session-target.js";
 
@@ -131,6 +132,10 @@ async function prepareAgentTuiSession(
     const interactive = new InteractiveMode(runtime, {
       initialMessage: input.initialMessage,
     });
+    installShrimpyTerminalTitle(
+      interactive,
+      () => target.getTarget(),
+    );
     installShrimpyInlineCommands(interactive, commandOptions);
     installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
     installShrimpyTurnContextRendering();
