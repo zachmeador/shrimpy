@@ -23,6 +23,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Discord DM chat adapter |
 | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
 | [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
+| [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |
 | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](proposals/ctx-009-context-trace-debug-view.md) | draft | P2 | Context | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
