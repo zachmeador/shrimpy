@@ -2,18 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.6.0 - The Blue Hour - Unreleased
-
-### Installation & Update
-
-- Changed `shrimpy update` into a mechanic-led tagged-release workflow: it opens normal mechanic chat with the app-bundled migration skill and exact release context, uses a guarded exact-tag apply primitive, and restores the previous app if the new mechanic TUI cannot bootstrap.
-- Changed managed installs to record their origin, requested ref, and installed commit outside the replaceable app directory, and expanded setup and migration guidance to carry approved routine work through gateway lifecycle and end-to-end verification without repeated confirmation.
-
-### Watches & Gateway
-
-- Fixed one agent's invalid `watches.json` stopping the shared watch clock or blocking other agents' reloads; failed reloads keep that agent's last valid watches, and `shrimpy watches` reports sanitized per-agent load failures.
-- Changed gateway ownership and status to use an atomic workspace PID claim, cross-platform process identity, and a fresh heartbeat record; service-manager state is reported separately and manual gateways remain visible as running with a management warning.
-- Added Telegram surface health reporting for successful polling, retries, stalls, recovery, and bounded failure details.
+## 🦐 0.6.0 - The Blue Hour - 2026-07-26
 
 ### Breaking Changes
 
@@ -30,6 +19,17 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed `shrimpy sessions` lifecycle, thinking, stop, list, and compaction arguments to require canonical session ids instead of ambiguous labels or channel names.
 - Changed `shrimpy run` to use an in-memory session by default. Pass `--session <session-id>` to resume durable state explicitly.
 - Removed the top-level `shrimpy mechanic` command. Use `shrimpy chat mechanic` to open the mechanic agent through the normal chat path.
+
+### Installation & Update
+
+- Changed `shrimpy update` into a mechanic-led tagged-release workflow: it opens normal mechanic chat with the app-bundled migration skill and exact release context, uses a guarded exact-tag apply primitive, and restores the previous app if the new mechanic TUI cannot bootstrap.
+- Changed managed installs to record their origin, requested ref, and installed commit outside the replaceable app directory, and expanded setup and migration guidance to carry approved routine work through gateway lifecycle and end-to-end verification without repeated confirmation.
+
+### Watches & Gateway
+
+- Fixed one agent's invalid `watches.json` stopping the shared watch clock or blocking other agents' reloads; failed reloads keep that agent's last valid watches, and `shrimpy watches` reports sanitized per-agent load failures.
+- Changed gateway ownership and status to use an atomic workspace PID claim, cross-platform process identity, and a fresh heartbeat record; service-manager state is reported separately and manual gateways remain visible as running with a management warning.
+- Added Telegram surface health reporting for successful polling, retries, stalls, recovery, and bounded failure details.
 
 ### Turn Context
 
@@ -64,9 +64,9 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Fixed session ownership races during stale-owner replacement, cleanup, and token-checked release.
 - Fixed watch schedule edits retaining stale next-run timestamps by binding persisted clock entries to their effective interval or cron/timezone schedule.
 
-### Docs & Agent References
+### Release & Dependencies
 
-- Added `shrimpy-dev-cleanup-pass` and `shrimpy-dev-design-review` source skills for behavior-preserving cleanup discovery and first-principles design evaluation.
+- Updated the production transitive `linkify-it` lockfile entry to resolve a denial-of-service advisory.
 
 ## 🦐 0.5.0 - The Reef Remembers - 2026-06-17
 
@@ -85,11 +85,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Workspace & Setup
 
-- Added workspace runtime profiles with global `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy` discovery, workspace-local `runtime/bin` command shims, profile-bound gateway services, and status diagnostics so dev and normal environments can coexist without PATH or pointer collisions.
 - Fresh setup now writes the default skills into the workspace and mechanic agent, so users and agents can inspect and edit the actual skill files.
 - New workspaces get visible copies of the coding delegation, memory, journal, `remember`, Shrimpy how-to, search, and mechanic audit skills.
 - Changed fresh setup to seed memory, journal, security-audit, and hygiene-audit watches disabled by default, with `shrimpy watches enable|disable <agent-id>/<watch-id>` available for explicit activation.
-- Added interactive model setup and `shrimpy models providers add-openai-compatible` for local or OpenAI-compatible endpoints, including `--context-window`, `--max-tokens`, `--qwen-chat-template`, `--enable-thinking`/`--disable-thinking`, and `--set-coding` support.
+- Added interactive model setup and `shrimpy models providers add-openai-compatible` for local or OpenAI-compatible endpoints, including context-window, max-tokens, Qwen thinking-template, and `--set-coding` support.
 - `codex-web-search` is still available as `included:codex-web-search`, but setup no longer installs it by default.
 
 ### Agents, Skills & Tools

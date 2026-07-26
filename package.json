@@ -1,6 +1,6 @@
 {
   "name": "shrimpy",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "a home agent",
   "license": "MIT",
   "type": "module",
@@ -46,7 +46,7 @@
     "configDir": ".shrimpy"
   },
   "shrimpy": {
-    "releaseName": "The Reef Remembers"
+    "releaseName": "The Blue Hour"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
