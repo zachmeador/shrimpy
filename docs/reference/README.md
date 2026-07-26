@@ -12,7 +12,7 @@ Current behavior of Shrimpy.
 - [channels.md](channels.md) — message protocol, membership, wake policy, addressing, and egress.
 - [sessions.md](sessions.md) — session identity, lifecycle, ownership, and inspection.
 - [tools.md](tools.md) — Pi built-ins, Shrimpy daemon tools, and agent tool policy.
-- [security.md](security.md) — tool policy and inspection commands.
+- [security.md](security.md) — capability controls and inspection commands; the root [SECURITY.md](../../SECURITY.md) owns the trust model.
 - [context-assembly.md](context-assembly.md) — the system prompt and per-turn context.
 - [memory.md](memory.md) — memory model, upkeep, and context loading.
 - [skills.md](skills.md) — skill packages, local skills, Pi loading, and CLI management.

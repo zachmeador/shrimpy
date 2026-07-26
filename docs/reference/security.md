@@ -1,10 +1,8 @@
 # 🦐 Security
 
-**tldr:** If you don't know what you're doing, you can get totally Rekt. Same with Openclaw, Hermes-agent, whatever. Shrimpy's goal is to not *mislead you* about this.
+**tldr:** If you don't know what you're doing, you can get totally wrekt. Same with Openclaw, Hermes-agent, whatever. Shrimpy's goal is to not *mislead you* about this.
 
-## Current Model
-
-Shrimpy uses Pi's tool runtime. Active tool schemas are exposed to the model, Pi validates tool arguments, and Pi runs the selected tool implementation. Shrimpy adds its daemon tools for channels and publication. See [tools.md](tools.md) and [channels.md](channels.md).
+Shrimpy uses Pi's tool runtime and adds daemon tools for channels and publication. Read the root [SECURITY.md](../../SECURITY.md) first for the trust model, lack of sandboxing, prompt-injection risk, and safe-operation guidance; this page covers the controls available for inspection and capability reduction.
 
 ## Tool Policy
 
@@ -21,17 +19,6 @@ shrimpy agent inspect <id> --json
 ```
 
 Disabling a tool removes that tool from the session's active tool set.
-
-## Current Reach
-
-When the relevant tools or surfaces are available:
-
-- filesystem tools read and write through Pi's local tool runtime;
-- shell access can run package scripts, install commands, or arbitrary local commands;
-- web/search/browser-like tools add external content to session input;
-- channel surfaces can turn remote messages into agent turns when membership gives an agent visibility and that agent's channel policy accepts them;
-- watches can repeat work without a human watching every run;
-- generated apps and scripts can remain part of the user's local environment after Shrimpy has built or modified them.
 
 ## Inspection
 

@@ -14,8 +14,10 @@ The primitives are plain. Channels are shared rooms and logs. Sessions are priva
 
 ## 🦐 Docs
 
+- [Getting started](docs/getting-started.md) — a friendly first setup for curious newcomers.
 - [Overview](docs/reference/overview.md) — what Shrimpy is and how it's shaped.
 - [Setup](docs/reference/setup.md) — install and run.
+- [Security](SECURITY.md) — trust assumptions and operating risks.
 - [CLI](docs/reference/cli.md) — the command surface.
 - [Full docs map](docs/README.md) — everything else.
 
