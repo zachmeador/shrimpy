@@ -1,6 +1,6 @@
 ---
 status: draft
-priority: P2
+priority: P3
 area: Context
 depends_on: []
 ---

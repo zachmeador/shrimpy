@@ -25,8 +25,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |
-| [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P2 | Context | none | Runtime context producers as CLI commands |
-| [CTX-009](proposals/ctx-009-context-trace-debug-view.md) | draft | P2 | Context | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |
+| [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P3 | Context | none | Runtime context producers as CLI commands |
 | [CTX-012](proposals/ctx-012-product-agent-instruction-catalog.md) | draft | P2 | Context | none | Central catalog for Shrimpy-authored model instructions |
 | [AGENT-002](proposals/agent-002-parent-owned-tidepools.md) | draft | P3 | Agents | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | One-level child-agent tidepools owned by top-level agents |
 | [AGENT-003](proposals/agent-003-shareable-agent-packages.md) | draft | P3 | Agents | none | Shareable agent definitions with safe package lifecycle |
