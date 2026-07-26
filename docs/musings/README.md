@@ -28,5 +28,6 @@ Current notes worth scanning:
 - `pi-tui-fork-tradeoffs.md` — rough thoughts on replacing Pi's stock TUI, what a semi-custom fork would buy, and what it would cost
 - `desktop-spotlight-surface.md` — macOS-first Spotlight/Raycast-style command surface for Shrimpy
 - `bm25-grep-retrieval.md` — BM25 plus grep-style exact search as the default local, inspectable retrieval loop for agents
+- `promoting-browser-workflows.md` — when repeated browser work should graduate into a site-specific skill, script, CLI, or maintained app capability
 
 Implementation details belong in reference docs or git history, not here.
