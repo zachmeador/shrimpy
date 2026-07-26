@@ -23,7 +23,7 @@ See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for
 - Start a gateway listener for configured instances and accept only `MESSAGE_CREATE` events from one-on-one DM channels.
 - Drop guild messages, group DMs, bot-authored messages, self messages, missing/empty allowlists, and unauthorized users before publishing anything to Shrimpy channels.
 - Publish inbound DM text through `ChatSurfacePublisher` with `transport: "discord"`, Discord author id as `transportUserId`, the DM channel/conversation id as `transportChatId`, and mapped stable human identity.
-- Route the small shared chat command set before publishing ordinary DM text so session controls, addressed-agent switching, status, and help behave consistently with Telegram.
+- Route the small shared chat command set before publishing ordinary DM text so session controls, status, and help behave consistently with Telegram.
 - Implement outbound egress for Discord-backed channels with Discord's create-message API, 2000-character chunking, and mention suppression by default.
 - Add `shrimpy setup discord` and status/diagnostic inspection enough to verify token, gateway connection, configured authorized users, and recent channel delivery from the CLI.
 

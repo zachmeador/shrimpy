@@ -16,6 +16,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Breaking Changes
 
+- Removed the Telegram `/agent` command. Chat users can no longer inspect or switch addressed-agent routing from inside Telegram; operators retain `defaultAgentId` configuration and `shrimpy surface set-agent|clear-agent`.
 - Replaced executable objects in `context.sources` with automatic commands under `context.turn.producers`, using `run`, `when.channels`, and `cacheMs`; stable base, agent, and channel source lists now accept resource strings only, and channel-scoped producers no longer match channel-less sessions.
 - Removed the `on` thinking alias. Thinking inputs now accept only Pi's canonical levels: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`.
 - Added workspace runtime profiles with global `--workspace`, `SHRIMPY_WORKSPACE`, cwd-local `.shrimpy` discovery, workspace-local `runtime/bin` command shims, and profile-bound gateway services so development and normal environments can coexist without PATH or pointer collisions.

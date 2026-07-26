@@ -9,13 +9,17 @@ depends_on: []
 
 ## Why
 
-Remote chat users need a small operational view of the conversation they are currently using. Telegram already supports session reset/restore/stop, thinking changes, addressed-agent switching, status, and help, but its `/status` output only shows routing basics and its command implementation is Telegram-local.
+Remote chat users need a small operational view of the conversation they are currently using. Telegram already supports session reset/restore/stop, thinking changes, status, and help, but its `/status` output only shows routing basics and its command implementation is Telegram-local.
 
 The goal is not TUI parity. A remote chat should expose the few facts and controls that help a user understand or recover the current chat, while detailed workspace, context, skill, model-auth, and diagnostic inspection stays in the CLI and TUI.
 
+## UX Implications
+
+Remote users can inspect and control their current session but cannot switch its addressed agent from inside Telegram or another chat adapter. Operators can still choose an adapter instance's `defaultAgentId` during setup or configuration and can use `shrimpy surface set-agent` or `clear-agent` for explicit per-thread overrides. Occasional cross-agent outbound messages remain attributed to their actual sender without changing either configuration.
+
 ## Build
 
-- Define one small adapter-neutral remote command service for `/new`, `/clear`, `/restore`, `/stop`, `/thinking`, `/agent`, `/status`, and `/help`.
+- Define one small adapter-neutral remote command service for `/new`, `/clear`, `/restore`, `/stop`, `/thinking`, `/status`, and `/help`.
 - Keep transport parsing thin: each adapter recognizes its command syntax, constructs a shared command context, and sends the returned surface-local text or typed channel control/status message.
 - Replace Telegram's routing-only `/status` with one concise overview containing:
   - surface/thread and Shrimpy channel
@@ -35,6 +39,8 @@ The goal is not TUI parity. A remote chat should expose the few facts and contro
 - Do not shell out to the `shrimpy` CLI from a surface handler. Shared collectors sit below CLI and surface renderers.
 - Do not publish read-only `/status` or `/help` output into channel history as agent-authored text.
 - Keep state-changing session commands as typed control messages with their existing durable operation-status acknowledgement path.
+- Do not expose addressed-agent switching as a remote chat command. Adapter defaults and per-thread overrides remain operator-controlled through setup, configuration, and `shrimpy surface set-agent` or `clear-agent`; agent/session navigation stays local to the TUI.
+- Keep occasional cross-agent delivery as an explicit, attributed outbound send to a bound channel. It does not change the configured default agent, a per-thread override, or channel membership.
 - Do not introduce interactive settings or model selectors in chat. A later argument-driven command needs its own concrete use case and safety policy.
 - Do not add legacy shims or migration paths.
 
@@ -47,7 +53,7 @@ Read-only commands return surface-local output without waking an agent. State-ch
 ## Implementation Notes
 
 - Current Telegram command handling lives in `src/surfaces/telegram/commands.ts`.
-- Current TUI status assembly lives in `src/tui/shrimpy-status.ts`; extract only the collectors needed by the remote overview rather than importing its TUI-oriented section registry or renderer.
+- Current TUI status assembly lives in `src/tui/status.ts`. Reuse the focused collectors beneath it where they already expose the needed facts rather than importing its TUI-oriented section registry or renderer.
 - Gateway lane state is already inspectable through runtime-state and gateway-status services. If active model or thinking state cannot be obtained accurately without opening or mutating a session, omit it from the first overview.
 - The existing CLI commands remain the deep inspection contract: `shrimpy status`, `shrimpy gateway status`, `shrimpy surface show`, `shrimpy sessions list`, and `shrimpy sessions compaction`.
 - Add tests for shared command routing, Telegram parsing/rendering, concise status disclosure, unsupported-command help, transport message-size behavior, and the split between read-only output and logged controls.

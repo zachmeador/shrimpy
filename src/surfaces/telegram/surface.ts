@@ -174,7 +174,6 @@ class TelegramGatewaySurface
         instanceId: instance.id,
         channelPrefix: instance.channelPrefix,
         defaultAgentId: instance.defaultAgentId,
-        knownAgentIds: runtime.resolved.agents.map((agent) => agent.id),
         threadStateStore: surfaceThreadStateStore,
         channelMemberships: runtime.createChannelMembershipStore(),
         userPresenceStore: new UserPresenceStore(runtime.paths.userPresencePath),

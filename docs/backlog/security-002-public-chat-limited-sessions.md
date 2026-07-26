@@ -20,7 +20,7 @@ The clean shape is sender trust deciding a session profile before a Pi session i
 - Session keys already include `profileId`; canonical ids, self-describing storage, single-writer protection, and the shared resolver preserve it. Gateway dispatch currently always uses the `default` profile.
 - In a mixed public room, trusted and untrusted human messages would currently share the same agent/channel session and tool surface if channel policy wakes for both.
 - Registered `send_message` and `read_channel` are broad routing/reading primitives. They are not constrained by channel membership once present in a session.
-- Chat commands such as `/new`, `/restore`, `/stop`, `/thinking`, and `/agent` are currently surface-local and gated by the surface's inbound acceptance, not by per-sender Shrimpy permissions.
+- Chat commands such as `/new`, `/restore`, `/stop`, and `/thinking` are currently surface-local and gated by the surface's inbound acceptance, not by per-sender Shrimpy permissions.
 
 ## Direction
 Add a small runtime permission layer that classifies an accepted channel message before session dispatch. The output is not just wake/ignore; it includes the session profile that will handle the turn.
@@ -41,7 +41,7 @@ The profile id becomes part of gateway session identity. A limited public turn f
 - Extend `SessionResolver` so profile-specific tool policy is resolved before `openSession`. The limited profile should register only active-channel publication helpers that are safe for the current channel, likely `reply` and `ask` first. It should exclude Pi built-ins such as `bash`, `edit`, `write`, `read`, `grep`, `find`, and `ls`, and should not register broad Shrimpy daemon tools such as `send_message` or `read_channel`.
 - Decide whether `notify` and `report` belong in `limited-public`. Default conservative answer: omit `notify` because public users should not trigger notification semantics, and omit `report` unless a concrete public-room workflow needs it.
 - Add a compact profile fact to turn context: sender identity, trust/profile, why the profile was chosen, and the active-channel limitation. This is for inspectability, not enforcement.
-- Gate chat commands through the same sender permission result. Read-only `/help` and a minimal public-safe `/status` may remain available. Session lifecycle, thinking changes, addressed-agent switching, model/settings changes, and future admin commands require a trusted profile.
+- Gate chat commands through the same sender permission result. Read-only `/help` and a minimal public-safe `/status` may remain available. Session lifecycle, thinking changes, model/settings changes, and future admin commands require a trusted profile.
 - Add CLI inspection for the decision. Good targets: extend `shrimpy agent channel-policy explain` with session-profile output, or add a sibling command that explains wake plus profile plus command permission for a synthetic message.
 - Update reference docs after implementation: `security.md`, `channels.md`, `sessions.md`, `surfaces.md`, `tools.md`, and `configuration.md`.
 
@@ -78,7 +78,7 @@ This keeps the existing boundaries intact:
 
 ## Boundaries
 - Do not treat skills, prompt rules, channel policy, disabled tools, or command allowlists as sandboxing. This item is a Shrimpy runtime capability layer; SECURITY-001 owns OS/process isolation.
-- Do not allow addressing, mentions, or `/agent` switching to elevate a sender from `limited-public` to `default`.
+- Do not allow addressing or mentions to elevate a sender from `limited-public` to `default`.
 - Do not expose raw `send_message`, raw `read_channel`, filesystem tools, shell tools, package installs, worker tools, or future browser-control tools in the limited profile.
 - Do not let public senders reset, restore, stop, change thinking/model/settings, switch addressed agents, edit config, or mutate membership.
 - Do not add surface-specific one-off permission logic that cannot be inspected through Shrimpy commands.

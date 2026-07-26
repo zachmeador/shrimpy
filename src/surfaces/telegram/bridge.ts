@@ -71,7 +71,6 @@ export interface TelegramChannelBridgeConfig {
   instanceId: string;
   channelPrefix: string;
   defaultAgentId: string;
-  knownAgentIds: string[];
   threadStateStore: SurfaceThreadStateStore;
   channelMemberships?: ChannelMembershipStore;
   userPresenceStore?: UserPresenceStore;
@@ -360,9 +359,7 @@ export class TelegramChannelBridge {
         channelBus: this.config.channelBus,
         surfaceId: this.config.surfaceId,
         defaultAgentId: this.config.defaultAgentId,
-        knownAgentIds: this.config.knownAgentIds,
         threadStateStore: this.config.threadStateStore,
-        memberships: this.config.channelMemberships,
         sendText: async (targetChatId, replyText) => {
           await sendTelegramFormattedText(this.client, targetChatId, replyText);
         },

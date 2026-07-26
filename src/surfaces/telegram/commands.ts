@@ -4,11 +4,6 @@ import {
   formatThinkingInputs,
   parseThinkingLevel,
 } from "../../config/thinking.js";
-import type { ChannelMembershipStore } from "../../channels/membership.js";
-import {
-  ensureSurfaceChannelMember,
-  publishSurfaceAddressingChange,
-} from "../shared/addressing.js";
 import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
 
 export interface TelegramMenuCommand {
@@ -20,9 +15,7 @@ export interface TelegramCommandDeps {
   channelBus: ChannelBus;
   surfaceId: string;
   defaultAgentId: string;
-  knownAgentIds: string[];
   threadStateStore: SurfaceThreadStateStore;
-  memberships?: ChannelMembershipStore;
   sendText(chatId: number, text: string): Promise<void>;
 }
 
@@ -40,7 +33,6 @@ type TelegramCommandName =
   | "restore"
   | "stop"
   | "thinking"
-  | "agent"
   | "status"
   | "help";
 
@@ -55,7 +47,6 @@ const TELEGRAM_MENU_COMMANDS: TelegramMenuCommand[] = [
   { command: "restore", description: "Restore the latest archived session" },
   { command: "stop", description: "Stop the running turn" },
   { command: "thinking", description: "Set session thinking level" },
-  { command: "agent", description: "Show or switch the addressed agent" },
   { command: "status", description: "Show Telegram chat status" },
   { command: "help", description: "Show Telegram command help" },
 ];
@@ -72,7 +63,6 @@ function parseTelegramCommand(text: string): ParsedTelegramCommand | null {
     name !== "restore" &&
     name !== "stop" &&
     name !== "thinking" &&
-    name !== "agent" &&
     name !== "status" &&
     name !== "help"
   ) {
@@ -91,10 +81,6 @@ function resolveCurrentAgentId(
     ?? deps.defaultAgentId;
 }
 
-function formatAgentList(agentIds: string[]): string {
-  return agentIds.map((agentId) => `\`${agentId}\``).join(", ");
-}
-
 function buildHelpText(deps: TelegramCommandDeps, chatId: number, channel: string): string {
   const currentAgent = resolveCurrentAgentId(deps, chatId);
   return [
@@ -108,12 +94,8 @@ function buildHelpText(deps: TelegramCommandDeps, chatId: number, channel: strin
     "`/restore [archive]` restore the latest or a named archived session.",
     "`/stop` stop the running turn for the current agent.",
     `\`/thinking <level>\` set session thinking: ${formatThinkingInputs()}.`,
-    "`/agent` show the current agent and available choices.",
-    "`/agent <id>` switch the addressed agent for this chat.",
     "`/status` show chat routing status.",
     "`/help` show this help message.",
-    "",
-    `Known agents: ${formatAgentList(deps.knownAgentIds)}`,
   ].join("\n");
 }
 
@@ -127,21 +109,7 @@ function buildStatusText(deps: TelegramCommandDeps, ctx: TelegramCommandContext)
     `Channel: \`${ctx.channel}\``,
     `Chat id: \`${ctx.chatId}\``,
     "",
-    `Known agents: ${formatAgentList(deps.knownAgentIds)}`,
-    "",
     "Use `/help` for the full command list.",
-  ].join("\n");
-}
-
-function buildAgentStatusText(deps: TelegramCommandDeps, ctx: TelegramCommandContext): string {
-  const currentAgent = resolveCurrentAgentId(deps, ctx.chatId);
-  return [
-    "**Shrimpy Agent Routing**",
-    "",
-    `Current agent: \`${currentAgent}\``,
-    `Known agents: ${formatAgentList(deps.knownAgentIds)}`,
-    "",
-    "Use `/agent <id>` to switch the addressed agent for this chat.",
   ].join("\n");
 }
 
@@ -238,54 +206,6 @@ export async function handleTelegramCommand(
         },
         command: "/thinking",
       }));
-      return true;
-    }
-
-    case "agent": {
-      const requested = parsed.args?.split(/\s+/, 1)[0]?.trim();
-      if (!requested) {
-        await deps.sendText(ctx.chatId, buildAgentStatusText(deps, ctx));
-        return true;
-      }
-
-      if (!deps.knownAgentIds.includes(requested)) {
-        await deps.sendText(
-          ctx.chatId,
-          [
-            `**Unknown agent:** \`${requested}\``,
-            "",
-            `Known agents: ${formatAgentList(deps.knownAgentIds)}`,
-          ].join("\n"),
-        );
-        return true;
-      }
-
-      const previousAgentId = resolveCurrentAgentId(deps, ctx.chatId);
-      const joined = ensureSurfaceChannelMember({
-        memberships: deps.memberships,
-        channel: ctx.channel,
-        agentId: requested,
-      });
-      deps.threadStateStore.setAddressedAgent(
-        deps.surfaceId,
-        String(ctx.chatId),
-        requested,
-      );
-      publishSurfaceAddressingChange(deps.channelBus, {
-        surface: deps.surfaceId,
-        threadId: String(ctx.chatId),
-        channel: ctx.channel,
-        previousAgentId,
-        addressedAgentId: requested,
-        joinedAgentId: joined ? requested : undefined,
-        source: "chat",
-      });
-      await deps.sendText(
-        ctx.chatId,
-        joined
-          ? `Switched this chat to \`${requested}\` and joined it to the channel.`
-          : `Switched this chat to \`${requested}\`.`,
-      );
       return true;
     }
 
