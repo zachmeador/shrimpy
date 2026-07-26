@@ -6,9 +6,7 @@ Status `draft` means the product or implementation direction remains unsettled. 
 
 ## Now / Soon
 
-| ID | Status | Priority | Area | Depends On | Note |
-|---|---|---|---|---|---|
-| [CTX-012](ctx-012-product-agent-instruction-catalog.md) | review | P2 | Context | none | Central catalog for Shrimpy-authored model instructions |
+No items are currently scheduled.
 
 ## Proposals
 
