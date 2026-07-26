@@ -3,7 +3,6 @@ dist/
 coverage/
 .nyc_output/
 shrimpy-sessions/
-.shrimpy/
 *.tsbuildinfo
 .claude
 .agents/skills/
@@ -11,3 +10,5 @@ shrimpy-sessions/
 shrimpy_pi.code-workspace
 AGENTS-PRIVATE.md
 AGENTS_PRIVATE.md
+.shrimpy/
+.shrimpy*
