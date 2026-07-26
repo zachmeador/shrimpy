@@ -25,13 +25,7 @@ Do not use model-visible `context/` directories as filing cabinets. Put saved no
 
 ## Upkeep
 
-Fresh setup installs ordinary memory watches disabled by default:
-
-- `memory-management` can run daily and asks the agent to review recent activity, update its own context files when durable memory is warranted, and prune stale notes.
-- `journal-daily` can write a same-day journal note under `vault/journal/days/` only if activity warrants it, then update `context/journal.md` with a tiny summary and path breadcrumb.
-- `journal-compact` can summarize old vault journal notes into weekly/monthly files and keep `context/journal.md` small.
-
-When enabled, these are normal watch-origin agent turns. They use skills, CLI commands, and file inspection.
+An agent or user can configure an opt-in watch for recurring memory upkeep. The `memory-management`, `journal-daily`, and `journal-compact` skills guide suitable work; each watch remains an ordinary watch-origin agent turn with its own owner, cadence, channel, and message.
 
 ## Context Assembly
 

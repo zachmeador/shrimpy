@@ -1,10 +1,12 @@
-import { GATEWAY_TURN_DELIVERY_INSTRUCTION } from "../system/tools.js";
+import {
+  channelTurnDelivery,
+  turnContextLeading,
+  turnContextTrailing,
+} from "../../instructions/index.js";
 
-export const TURN_CONTEXT_INSTRUCTION =
-  "The turn context above is background for the user message below. Answer the user message below using this context when relevant.";
+export const TURN_CONTEXT_INSTRUCTION = turnContextLeading.render();
 
-export const TRAILING_TURN_CONTEXT_INSTRUCTION =
-  "The turn context above is background for the user message immediately before it. Answer that message using this context when relevant.";
+export const TRAILING_TURN_CONTEXT_INSTRUCTION = turnContextTrailing.render();
 
 export function formatTurnContextPrefix(
   text: string,
@@ -14,7 +16,7 @@ export function formatTurnContextPrefix(
     text.trimEnd(),
     "",
     ...(opts?.channelDelivery
-      ? [GATEWAY_TURN_DELIVERY_INSTRUCTION, ""]
+      ? [channelTurnDelivery.render(), ""]
       : []),
     TURN_CONTEXT_INSTRUCTION,
   ].join("\n");

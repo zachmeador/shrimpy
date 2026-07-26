@@ -36,6 +36,8 @@ The stable prompt is assembled from typed `PromptSection`s. Each section carries
 
 Sections sort by kind: `identity`, `memory`, `instruction`, `capability`, `runtime`, `activity`, `evidence`. Stable identity and memory lead; environment facts land near the end.
 
+Shrimpy-owned behavioral copy resolves from `src/instructions/`, where each definition has a semantic instruction id and a typed renderer for runtime values. Runtime prompt sections retain that id when applicable. Workspace context, agent identities and memory, caller additions, and skill contents remain owned by their respective files rather than entering the product catalog.
+
 The **contained system prompt** is the final prompt Shrimpy hands to the model: the sorted sections plus generated sections for Pi's `<available_skills>` block and Pi-style date/cwd facts. Shrimpy passes its base prompt to Pi at session setup, then replaces Pi's built prompt with the contained system prompt before model calls.
 
 ## Turn Context

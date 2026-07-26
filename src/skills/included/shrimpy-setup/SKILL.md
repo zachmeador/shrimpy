@@ -9,6 +9,14 @@ This setup session runs as the `mechanic` agent. Configure the user's workspace 
 
 Goal: leave the first usable Shrimpy workspace boring, inspectable, and ready for normal `shrimpy` runs.
 
+## Setup Session Contract
+
+When this skill starts a session, that session is a guided setup session until setup is complete. Own the path to a usable state: keep the user oriented, make the next decision concrete, perform accepted work, verify it, and return to the next unfinished setup decision.
+
+The user can ask questions or take short detours. Answer them directly and briefly, then connect the answer to setup and end with the next useful setup decision or action. Do not let an unanswered setup decision disappear just because the conversation changed topics. Ask only one decision at a time, and accept a clear “skip”, “not now”, or “none” as a valid completed choice.
+
+Setup is complete once the workspace has its usable baseline, the user has made or declined the relevant choices about identity, agent shape, path scope, chat surfaces, optional default watches, and gateway service, and the validation steps pass. Close with the changed files and the next normal command. After that closing summary, treat later messages as ordinary conversation rather than continuing to drive setup.
+
 ## Start
 
 Start by inspecting the current workspace state before asking questions:
@@ -33,7 +41,7 @@ Prefer the smallest useful setup. Ask one question at a time, usually in this or
 2. What should the default `shrimpy` agent be like?
 3. Should Shrimpy stay inside official workspace paths, or may it crawl other accessible folders on this machine to learn about projects and preferences?
 4. Should a chat surface be added now? If yes, start with Telegram.
-5. Should Shrimpy enable any background watches now? Offer some/all/none.
+5. Does the user want any recurring or background work configured now?
 6. Should Shrimpy install and start the gateway service now?
 
 Default path scope: only inspect official Shrimpy workspace paths, meaning the active Shrimpy workspace, agent roots inside it, and paths the user explicitly names. If the user allows broader crawling, summarize the intended roots first and avoid secrets, caches, dependency folders, and generated/runtime state.
@@ -44,15 +52,7 @@ Prefer one bot or surface instance per agent that will regularly talk with the u
 
 A chat-surface setup is not complete until the surface has an explicit inbound whitelist. For Telegram, collect and configure the real numeric chat ID in `allowedChatIds`; usernames, display names, and `users` identity mappings are not authorization. Do not start the gateway to discover a Telegram chat ID before `allowedChatIds` is set; use `shrimpy setup telegram` direct polling or leave the surface unconfigured and tell the user the exact next command to run.
 
-Default background behavior: setup installs watch schedules disabled. Ask whether the user wants to enable some, all, or none. Offer each watch briefly, noting that runs use the configured model:
-
-- `shrimpy/memory-management`: daily 03:00, reviews recent activity and updates durable memory only when warranted.
-- `shrimpy/journal-daily`: daily 22:30, writes a short vault journal note and leaves a tiny prompt-loaded breadcrumb when there was activity worth keeping.
-- `shrimpy/journal-compact`: Sundays 04:00, compacts older prompt-loaded journal breadcrumbs while preserving vault journal notes.
-- `mechanic/security-audit`: Mondays 05:00, writes a read-only security posture report.
-- `mechanic/hygiene-audit`: Fridays 05:00, writes a read-only workspace hygiene report.
-
-Enable accepted watches with `shrimpy watches enable <agent-id>/<watch-id>`. Leave declined watches disabled and discoverable. Tell the user they can change choices later with `shrimpy watches list`, `shrimpy watches enable ...`, and `shrimpy watches disable ...`.
+Shrimpy creates no watches until the user opts in. At the background-work decision, load `shrimpy-watches-default-init`, tell the user that the optional defaults are memory management, daily journal, journal compaction, security audit, and hygiene audit, summarize each routine from that skill, and ask which ones they want enabled. The skill is the canonical definition of each default's owner, cadence, and message; it creates selected defaults disabled, then enables only the entries the user explicitly approves. For a custom routine, use `shrimpy-watches` to define its owner, purpose, cadence, execution channel, and delivery destination. Tell the user they can inspect or change any watch later with `shrimpy watches list`, `shrimpy watches show ...`, `shrimpy watches enable ...`, and `shrimpy watches disable ...`.
 
 Default gateway behavior: ask before running `shrimpy gateway install` or `shrimpy gateway start`. If the user declines, include in the closing summary that watches and chat surfaces stay dormant until the gateway runs. If the user accepts, run the gateway commands and then inspect with `shrimpy gateway status`.
 
@@ -60,7 +60,7 @@ Treat each clear answer as authorization for the setup action it describes. Once
 
 Do not add a separate local/private model-policy chooser in first setup. `shrimpy setup` already made the `coding` policy usable, and this setup session runs as the `mechanic` agent through `modelPolicy: "coding"`.
 
-Use `shrimpy-agents` for specialized agents, including its persistent-actor admission test; prefer `shrimpy-skills` when the requested role is only reusable behavior. Use `shrimpy-channels` for chat surfaces or adapter routing and `shrimpy-watches` for recurring/background work. Keep first setup focused on concrete owner choices and validated workspace state.
+Use `shrimpy-agents` for specialized agents, including its persistent-actor admission test; prefer `shrimpy-skills` when the requested role is only reusable behavior. Use `shrimpy-channels` for chat surfaces or adapter routing, `shrimpy-watches-default-init` for the optional default upkeep set, and `shrimpy-watches` for custom recurring/background work. Keep first setup focused on concrete owner choices and validated workspace state.
 
 When editing agent identity, keep ownership clear. `agents/shrimpy/` is the first normal agent's personality, context, watches, and durable memory. `agents/mechanic/` is your own maintenance identity and maintenance skills. For future agents, use `agents/<id>/` and normal `shrimpy agent ...` commands instead of mixing their personality or memory into `shrimpy` or `mechanic`.
 
@@ -75,7 +75,7 @@ When enough information is available, make concrete edits instead of only descri
 - Durable agent memory: `agents/shrimpy/context/**/*.md`; every Markdown file there is prompt-loaded, so keep it extremely character-count efficient.
 - Saved material and setup notes for the main agent: `agents/shrimpy/vault/`
 - Projects, apps, and scripts for the main agent: `agents/shrimpy/projects/`
-- Watch preferences: `agents/<id>/watches.json`; setup defaults include `agents/shrimpy/watches.json` and `agents/mechanic/watches.json`. Prefer `shrimpy watches enable|disable <agent-id>/<watch-id>` for toggles.
+- Watch preferences: `agents/<id>/watches.json`, created only when an agent or user configures a watch. Prefer `shrimpy watches` commands over direct JSON edits.
 - Shared framework guidance: `context/SYSTEM.md`
 - Config changes: prefer `shrimpy <command>` when a command exists; otherwise edit JSON carefully.
 

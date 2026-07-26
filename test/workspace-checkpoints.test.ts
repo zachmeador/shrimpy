@@ -102,7 +102,7 @@ describe("workspace checkpoints", () => {
     assert.equal(files.includes("context/WORKSPACE.md"), true);
     assert.equal(files.includes("config/shrimpy.json"), true);
     assert.equal(files.includes("agents/shrimpy/SOUL.md"), true);
-    assert.equal(files.includes("agents/shrimpy/watches.json"), true);
+    assert.equal(files.includes("agents/shrimpy/watches.json"), false);
     assert.equal(files.includes("skills/tiny/SKILL.md"), true);
     assert.equal(files.some((path) => path.startsWith("state/")), false);
     assert.equal(files.some((path) => path.startsWith("runtime/")), false);

@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { shrimpyRuntimeChildEnv } from "../app/environment.js";
 import { createAppRuntime } from "../app/runtime.js";
 import { projectRoot } from "../app/project-root.js";
 import type { ShrimpyConfig } from "../config/load.js";
+import { codingWorkerContract } from "../instructions/index.js";
 import { runForegroundAgentPrompt } from "../sessions/foreground.js";
 import {
   readWorkerBackendAvailability,
@@ -50,22 +51,6 @@ export interface WorkerRunResult {
 export interface WorkerSupervisor {
   launch(input: WorkerLaunchInput): WorkerLaunchResult;
 }
-
-const WORKER_CONTRACT = [
-  "You are running as a Shrimpy coding worker.",
-  "",
-  "Shrimpy context:",
-  `- Shrimpy source checkout: ${projectRoot}`,
-  `- Shrimpy source: ${join(projectRoot, "src")}`,
-  `- Shrimpy docs: ${join(projectRoot, "docs")}`,
-  "- Worker cwd is the target project directory. If the task depends on Shrimpy behavior, inspect the Shrimpy source/docs above.",
-  "",
-  "Treat the user's text as a contract for one autonomous work turn.",
-  "Pursue the requested goal without waiting for hand-holding.",
-  "Stop and report blocked when required information, access, or approval is missing.",
-  "Avoid destructive or irreversible actions unless the contract explicitly authorizes them.",
-  "Leave merge, publish, delete, and reset decisions to the parent.",
-].join("\n");
 
 export function defaultWorkerSupervisor(): WorkerSupervisor {
   return {
@@ -247,7 +232,7 @@ export function buildCodexArgs(input: Pick<WorkerRunInput, "backendSessionId" | 
 }
 
 export function buildWorkerPrompt(prompt: string): string {
-  return `${WORKER_CONTRACT}\n\n${prompt}`;
+  return `${codingWorkerContract.render({ projectRoot })}\n\n${prompt}`;
 }
 
 async function runPiTurn(input: WorkerRunInput): Promise<WorkerRunResult> {

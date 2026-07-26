@@ -570,7 +570,8 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /shrimpy-agents \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-channels \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-hygiene-audit \[agent package\]/);
-    assert.match(lines.join("\n"), /shrimpy-watches \[workspace package\]/);
+    assert.match(lines.join("\n"), /shrimpy-watches \[agent package\]/);
+    assert.match(lines.join("\n"), /shrimpy-watches-default-init \[agent package\]/);
     assert.match(lines.join("\n"), /shrimpy-skills \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-security-audit \[agent package\]/);
     assert.match(lines.join("\n"), /shrimpy-workspace-migration \[agent package\]/);
@@ -606,7 +607,8 @@ describe("skill context inspection", () => {
     assert.match(output, /remember \[workspace package\]/);
     assert.match(output, /shrimpy-search \[workspace package\]/);
     assert.match(output, /shrimpy-channels \[workspace package\]/);
-    assert.match(output, /shrimpy-watches \[workspace package\]/);
+    assert.doesNotMatch(output, /shrimpy-watches/);
+    assert.doesNotMatch(output, /shrimpy-watches-default-init/);
     assert.match(output, /shrimpy-skills \[workspace package\]/);
     assert.match(output, /journal-daily \[workspace package\]/);
     assert.match(output, /journal-compact \[workspace package\]/);
@@ -1120,7 +1122,8 @@ describe("skill service", () => {
       "shrimpy-security-audit:agent",
       "shrimpy-setup:agent",
       "shrimpy-skills:workspace",
-      "shrimpy-watches:workspace",
+      "shrimpy-watches:agent",
+      "shrimpy-watches-default-init:agent",
       "shrimpy-workspace-migration:agent",
     ]);
 
@@ -1135,7 +1138,6 @@ describe("skill service", () => {
       "shrimpy-coding-delegation:workspace",
       "shrimpy-search:workspace",
       "shrimpy-skills:workspace",
-      "shrimpy-watches:workspace",
     ]);
 
     const mechanicRoot = join(workspace, "agents", "mechanic");
@@ -1297,6 +1299,7 @@ describe("skill service", () => {
       "shrimpy-setup",
       "shrimpy-skills",
       "shrimpy-watches",
+      "shrimpy-watches-default-init",
       "shrimpy-workspace-migration",
     ]);
     assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);

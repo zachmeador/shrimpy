@@ -85,7 +85,11 @@ const INCLUDED_SKILLS: IncludedSkillDefinition[] = [
   }),
   includedSkill("shrimpy-watches", {
     category: "shrimpy-how-to",
-    assignment: WORKSPACE_ASSIGNMENT,
+    assignment: MECHANIC_ASSIGNMENT,
+  }),
+  includedSkill("shrimpy-watches-default-init", {
+    category: "shrimpy-how-to",
+    assignment: MECHANIC_ASSIGNMENT,
   }),
   includedSkill("shrimpy-skills", {
     category: "shrimpy-how-to",

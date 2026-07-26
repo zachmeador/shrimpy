@@ -13,7 +13,7 @@ import { ChannelBus } from "../dist/channels/bus.js";
 import { appendMessage, channelPath, readMessages } from "../dist/channels/store.js";
 import { makeMessage } from "../dist/channels/protocol.js";
 import { textContent } from "../dist/channels/messages.js";
-import { getToolProse, renderPublicationResult, renderReadChannelResult, renderSendMessageResult } from "../dist/context/system/tools.js";
+import { publicationResult, readChannelResult, renderToolProse, sendMessageResult } from "../dist/instructions/index.js";
 import { resolveToolRuntimeConfig } from "../dist/config/tools.js";
 import { DAEMON_TOOL_NAMES } from "../dist/tools/names.js";
 import { createSessionToolPolicy, resolveAgentToolPolicy } from "../dist/tools/policy.js";
@@ -560,7 +560,7 @@ describe("agent tool policy", () => {
 describe("tool context prose", () => {
   test("has prose for every daemon tool", () => {
     for (const name of DAEMON_TOOL_NAMES) {
-      const prose = getToolProse(name);
+      const prose = renderToolProse(name);
       assert.equal(typeof prose.description, "string");
       assert.equal(typeof prose.promptSnippet, "string");
       assert.ok(prose.description.length > 0);
@@ -570,32 +570,32 @@ describe("tool context prose", () => {
 
   test("renders daemon tool result text", () => {
     assert.equal(
-      renderSendMessageResult({ channel: "home" }),
+      sendMessageResult.render({ channel: "home" }),
       "Logged to home for outbound delivery.",
     );
     assert.equal(
-      renderSendMessageResult({
+      sendMessageResult.render({
         channel: "home",
         waitForNewMessage: true,
       }),
       "Logged to home for outbound delivery. Wait until a new message is received.",
     );
     assert.equal(
-      renderPublicationResult({
+      publicationResult.render({
         intent: "reply",
         channel: "home",
       }),
       "Logged reply to home for outbound delivery. Wait until a new message is received.",
     );
     assert.equal(
-      renderPublicationResult({
+      publicationResult.render({
         intent: "reply",
         channel: "dm~helper~shrimpy",
       }),
       "Logged reply to agent DM dm~helper~shrimpy. No external adapter is expected; gateway channel routing handles DM members. Wait until a new message is received.",
     );
     assert.equal(
-      renderReadChannelResult({ messages: [{ id: "1" }] }),
+      readChannelResult.render({ messages: [{ id: "1" }] }),
       '[\n  {\n    "id": "1"\n  }\n]',
     );
   });

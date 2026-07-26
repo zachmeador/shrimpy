@@ -42,8 +42,6 @@ function readJson(relativePath) {
 
 const config = readJson("config/shrimpy.json");
 const channels = readJson("config/channels.json");
-readJson("agents/shrimpy/watches.json");
-readJson("agents/mechanic/watches.json");
 
 requireFile(path.join(workspaceRoot, "context", "SYSTEM.md"), "context/SYSTEM.md");
 requireFile(path.join(workspaceRoot, "context", "USER.md"), "context/USER.md");

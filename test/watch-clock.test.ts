@@ -6,9 +6,6 @@ import { tmpdir } from "node:os";
 import { computeNextWatchRunAtMs, createWatchClock, watchScheduleKey, type WatchClockStateSnapshot } from "../dist/watches/clock.js";
 import { loadWatchClockState, saveWatchClockState } from "../dist/watches/clock-state.js";
 import type { ResolvedAgentWatchDefinition, WatchRunDue } from "../dist/watches/schema.js";
-import {
-  createDefaultShrimpyWatches,
-} from "../dist/setup/defaults.js";
 
 let testDir: string;
 
@@ -48,24 +45,6 @@ function persistedClockState(
   assert.ok(scheduleKey);
   return { nextRunAtMs, scheduleKey };
 }
-
-describe("createDefaultShrimpyWatches", () => {
-  test("creates explicit maintenance watches without a broad catch-all watch", () => {
-    const watches = createDefaultShrimpyWatches();
-    assert.deepEqual(watches.map((watch) => watch.id), [
-      "memory-management",
-      "journal-daily",
-      "journal-compact",
-    ]);
-    assert.equal(watches.every((watch) => watch.enabled === false), true);
-    assert.equal(watches.every((watch) => watch.action.kind === "message"), true);
-    assert.equal(watches.every((watch: any) => watch.action.channel === "maintenance"), true);
-    assert.deepEqual(watches[0].trigger, { kind: "time", cron: "0 3 * * *" });
-    assert.match((watches[0].action as any).text, /memory-management/);
-    assert.match((watches[1].action as any).text, /journal-daily/);
-    assert.match((watches[2].action as any).text, /journal-compact/);
-  });
-});
 
 describe("createWatchClock", () => {
   test("emits one overdue run and resumes from now", async () => {

@@ -32,13 +32,32 @@ afterEach(() => {
   removeTempWorkspace(workspace);
 });
 
+function writeShrimpyWatches(ids: string[] = ["inventory-check"]): void {
+  writeFileSync(
+    join(workspace, "agents", "shrimpy", "watches.json"),
+    JSON.stringify(ids.map((id) => ({
+      id,
+      enabled: false,
+      trigger: { kind: "time", cron: "0 3 * * *" },
+      concurrencyPolicy: "forbid",
+      action: {
+        kind: "message",
+        channel: "maintenance",
+        text: "Inspect the workspace and report actionable findings.",
+      },
+    })), null, 2) + "\n",
+    "utf-8",
+  );
+}
+
 describe("watch inspection surfaces", () => {
-  test("inspects setup-seeded watches with state, run history, and wake policy", async () => {
+  test("inspects configured watches with state, run history, and wake policy", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches();
     const runtime = createAppRuntime({ workspace });
     const future = Date.parse("2030-01-01T00:00:00.000Z");
     saveWatchClockState(runtime.paths.watchClockStatePath, {
-      "shrimpy/memory-management": {
+      "shrimpy/inventory-check": {
         nextRunAtMs: future,
         scheduleKey: "test-schedule",
       },
@@ -47,7 +66,7 @@ describe("watch inspection surfaces", () => {
     const { result: runResult } = await captureLogs(() =>
       cmdWatches([
         "run",
-        "shrimpy/memory-management",
+        "shrimpy/inventory-check",
         "--json",
       ], { workspace } as any)
     );
@@ -55,12 +74,12 @@ describe("watch inspection surfaces", () => {
 
     const watches = inspectWatches(runtime);
     const inspected = watches.find((watch) =>
-      watch.id === "shrimpy/memory-management"
+      watch.id === "shrimpy/inventory-check"
     );
     assert.ok(inspected);
     assert.equal(inspected.source.kind, "agent");
     assert.equal(inspected.ownerAgentId, "shrimpy");
-    assert.equal(inspected.localId, "memory-management");
+    assert.equal(inspected.localId, "inventory-check");
     assert.deepEqual(inspected.targetChannels, ["maintenance"]);
     assert.deepEqual(inspected.expectedTurnAgentIds, ["shrimpy"]);
     assert.equal(inspected.nextRunAtMs, future);
@@ -79,18 +98,19 @@ describe("watch inspection surfaces", () => {
     assert.equal(messages.length, 1);
     assert.equal(messages[0]?.sender.actorId, "system:watch-runner");
     assert.equal(messages[0]?.origin.transport, "watch");
-    assert.equal(messages[0]?.origin.watchId, "shrimpy/memory-management");
+    assert.equal(messages[0]?.origin.watchId, "shrimpy/inventory-check");
     assert.equal(messages[0]?.origin.watch?.ownerAgentId, "shrimpy");
-    assert.equal(messages[0]?.origin.watch?.localId, "memory-management");
+    assert.equal(messages[0]?.origin.watch?.localId, "inventory-check");
     assert.equal(messages[0]?.origin.watch?.targetChannel, "maintenance");
     assert.deepEqual(messages[0]?.origin.watch?.inspect, [
-      "shrimpy watches show shrimpy/memory-management",
-      "shrimpy watches history shrimpy/memory-management",
+      "shrimpy watches show shrimpy/inventory-check",
+      "shrimpy watches history shrimpy/inventory-check",
     ]);
   });
 
   test("lists workspace watches as agent-consumable JSON", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches(["inventory-check", "nightly-summary", "weekly-review"]);
     const config = {
       ...JSON.parse(readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8")),
       workspace,
@@ -105,9 +125,9 @@ describe("watch inspection surfaces", () => {
     assert.deepEqual(
       payload.watches.map((watch: any) => watch.id),
       [
-        "shrimpy/memory-management",
-        "shrimpy/journal-daily",
-        "shrimpy/journal-compact",
+        "shrimpy/inventory-check",
+        "shrimpy/nightly-summary",
+        "shrimpy/weekly-review",
       ],
     );
     assert.equal(
@@ -116,7 +136,7 @@ describe("watch inspection surfaces", () => {
     );
     assert.equal(
       payload.watches[0].inspectCommands.watch,
-      "shrimpy watches show shrimpy/memory-management",
+      "shrimpy watches show shrimpy/inventory-check",
     );
     assert.deepEqual(payload.watches[0].trigger, {
       kind: "time",
@@ -130,6 +150,7 @@ describe("watch inspection surfaces", () => {
 
   test("lists valid watches and sanitized per-agent load errors", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches();
     const mechanicPath = join(workspace, "agents", "mechanic", "watches.json");
     writeFileSync(
       mechanicPath,
@@ -166,15 +187,16 @@ describe("watch inspection surfaces", () => {
 
   test("toggles an existing watch through the CLI", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches();
 
     const enabled = await captureLogs(() =>
-      cmdWatches(["enable", "shrimpy/memory-management", "--json"], { workspace } as any)
+      cmdWatches(["enable", "shrimpy/inventory-check", "--json"], { workspace } as any)
     );
     assert.equal(enabled.result, 0);
     assert.equal(JSON.parse(enabled.lines.join("\n")).enabled, true);
 
     const disabled = await captureLogs(() =>
-      cmdWatches(["disable", "shrimpy/memory-management", "--json"], { workspace } as any)
+      cmdWatches(["disable", "shrimpy/inventory-check", "--json"], { workspace } as any)
     );
     assert.equal(disabled.result, 0);
     assert.equal(JSON.parse(disabled.lines.join("\n")).enabled, false);
@@ -182,20 +204,22 @@ describe("watch inspection surfaces", () => {
 
   test("shows one resolved watch", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches();
     const { result, lines } = await captureLogs(() =>
-      cmdWatches(["show", "shrimpy/memory-management", "--json"], { workspace } as any)
+      cmdWatches(["show", "shrimpy/inventory-check", "--json"], { workspace } as any)
     );
 
     assert.equal(result, 0);
     const watch = JSON.parse(lines.join("\n"));
-    assert.equal(watch.id, "shrimpy/memory-management");
-    assert.equal(watch.localId, "memory-management");
+    assert.equal(watch.id, "shrimpy/inventory-check");
+    assert.equal(watch.localId, "inventory-check");
     assert.deepEqual(watch.trigger, { kind: "time", cron: "0 3 * * *" });
     assert.deepEqual(watch.targetChannels, ["maintenance"]);
   });
 
   test("adds a simple message watch through the CLI", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches();
 
     const { result, lines } = await captureLogs(() =>
       cmdWatches([
@@ -246,12 +270,13 @@ describe("watch inspection surfaces", () => {
 
   test("rejects invalid watch add values", async () => {
     await setupInit(workspace);
+    writeShrimpyWatches();
 
     await assert.rejects(
       () =>
         cmdWatches([
           "add",
-          "memory-management",
+          "inventory-check",
           "--agent",
           "shrimpy",
           "--every",
@@ -261,7 +286,7 @@ describe("watch inspection surfaces", () => {
           "--message",
           "Check in.",
         ], { workspace } as any),
-      /watch already exists: shrimpy\/memory-management/,
+      /watch already exists: shrimpy\/inventory-check/,
     );
 
     await assert.rejects(

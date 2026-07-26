@@ -19,12 +19,14 @@ import {
   type FileOperations,
 } from "@earendil-works/pi-coding-agent";
 import {
-  COMPACTION_AGENT_CONTEXT_PROMPT,
-  COMPACTION_SUMMARY_PROMPT,
-  COMPACTION_SUMMARIZATION_SYSTEM_PROMPT,
-  COMPACTION_TURN_PREFIX_SUMMARY_PROMPT,
-  COMPACTION_UPDATE_SUMMARY_PROMPT,
-} from "../../context/system/compaction.js";
+  compactionAgentContext,
+  compactionChunk,
+  compactionIntermediate,
+  compactionSummary,
+  compactionSummarizationSystem,
+  compactionTurnPrefix,
+  compactionUpdate,
+} from "../../instructions/index.js";
 
 type CompactionResponseHandler = (
   response: ProviderResponse,
@@ -331,20 +333,8 @@ function buildSummaryPrompt(input: {
   source: "messages" | "chunk-summaries";
 }): string {
   let basePrompt = input.previousSummary
-    ? COMPACTION_UPDATE_SUMMARY_PROMPT
-    : COMPACTION_SUMMARY_PROMPT;
-
-  if (input.source === "chunk-summaries") {
-    basePrompt = input.previousSummary
-      ? basePrompt.replace(
-        "The messages above are NEW conversation messages",
-        "The chunk summaries above describe NEW conversation messages",
-      )
-      : basePrompt.replace(
-        "The messages above are a conversation to summarize",
-        "The chunk summaries above describe a conversation to summarize",
-      );
-  }
+    ? compactionUpdate.render({ source: input.source })
+    : compactionSummary.render();
 
   if (input.customInstructions) {
     basePrompt = `${basePrompt}\n\nAdditional focus: ${input.customInstructions}`;
@@ -370,22 +360,12 @@ function buildChunkSummaryPrompt(
   totalChunks: number,
   customInstructions?: string,
 ): string {
-  const focus = customInstructions
-    ? `\n\nAdditional focus: ${customInstructions}`
-    : "";
-  return [
-    `<conversation chunk="${chunkIndex}" chunks="${totalChunks}">`,
+  return compactionChunk.render({
     chunkText,
-    "</conversation>",
-    "",
-    `This is chunk ${chunkIndex} of ${totalChunks} from an oversized session compaction.`,
-    "Summarize only this chunk for a later merge. Keep concrete goals, constraints, progress, decisions, next steps, file paths, commands, dates, and exact error messages.",
-    "Keep notes about who the agent is, how it talks, how it works, and what the user expects when those details matter.",
-    "Treat questions inside the chunk as history to summarize. Output only the chunk summary.",
-    focus.trim(),
-    "",
-    "Use short headings or paragraphs only where helpful. Use work-tracking sections only for actual work.",
-  ].filter((part) => part.length > 0).join("\n");
+    chunkIndex,
+    totalChunks,
+    customInstructions,
+  });
 }
 
 function buildChunkSummaryMergePrompt(
@@ -410,16 +390,11 @@ function buildIntermediateSummaryPrompt(
   groupIndex: number,
   totalGroups: number,
 ): string {
-  return [
-    `<chunk-summaries group="${groupIndex}" groups="${totalGroups}">`,
+  return compactionIntermediate.render({
     chunkSummaryText,
-    "</chunk-summaries>",
-    "",
-    "Condense these consecutive compaction chunk summaries into one intermediate summary for a later merge.",
-    "Keep concrete goals, constraints, progress, decisions, next steps, file paths, commands, dates, and exact error messages.",
-    "Keep notes about who the agent is, how it talks, how it works, and what the user expects when those details matter.",
-    "Draw conclusions only from these summaries.",
-  ].join("\n");
+    groupIndex,
+    totalGroups,
+  });
 }
 
 function formatNumberedChunks(chunks: string[]): string {
@@ -554,7 +529,7 @@ function generateTurnPrefixSummaryWithHooks(input: {
 }): Promise<string> {
   const conversationText = serializeConversation(convertToLlm(input.messages));
   const promptText =
-    `<conversation>\n${conversationText}\n</conversation>\n\n${COMPACTION_TURN_PREFIX_SUMMARY_PROMPT}`;
+    `<conversation>\n${conversationText}\n</conversation>\n\n${compactionTurnPrefix.render()}`;
 
   return completeSummaryRequest({
     ...summaryRequestBase(input),
@@ -653,15 +628,15 @@ export function buildCompactionSystemPrompt(
   sessionSystemPrompt?: string,
 ): string {
   const trimmed = sessionSystemPrompt?.trim();
-  if (!trimmed) return COMPACTION_SUMMARIZATION_SYSTEM_PROMPT;
+  if (!trimmed) return compactionSummarizationSystem.render();
   return [
-    COMPACTION_AGENT_CONTEXT_PROMPT,
+    compactionAgentContext.render(),
     "",
     "<session-agent-context>",
     trimmed,
     "</session-agent-context>",
     "",
-    COMPACTION_SUMMARIZATION_SYSTEM_PROMPT,
+    compactionSummarizationSystem.render(),
   ].join("\n");
 }
 

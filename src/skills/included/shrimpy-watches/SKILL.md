@@ -32,6 +32,14 @@ Use the paths in `context/WORKSPACE.md`. For detail, use:
 4. Write `--message` as a small runbook: do the requested task, use any needed context, and send one final message with `reply` to the active channel or `send_message` to the named user/channel destination.
 5. Tell the user the cadence, execution channel, delivery destination, and owner agent after verification.
 
+## Recurring Upkeep
+
+Shrimpy creates no watches by default. When the user asks the mechanic to establish recurring upkeep, treat each routine as a separate opt-in decision rather than a package to enable.
+
+For each approved routine, choose the responsible agent and write a small message watch that names the relevant skill. Common starting points are `memory-management` for durable memory review, `journal-daily` for activity-based daily notes, `journal-compact` for compacting journal breadcrumbs, `shrimpy-security-audit` for read-only security review, and `shrimpy-hygiene-audit` for read-only workspace hygiene review. Agree on cadence and execution channel with the user before creating it.
+
+Never create a watch merely because the corresponding skill is installed. Each watch must have an explicit purpose, owner, cadence, and user approval.
+
 ## Commands
 
 ```bash

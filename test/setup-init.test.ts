@@ -34,8 +34,6 @@ describe("setupInit", () => {
     const workspaceContextPath = join(workspace, "context", "WORKSPACE.md");
     const agentRoot = join(workspace, "agents", "shrimpy");
     const mechanicRoot = join(workspace, "agents", "mechanic");
-    const watchesPath = join(agentRoot, "watches.json");
-    const mechanicWatchesPath = join(mechanicRoot, "watches.json");
     const soulPath = join(agentRoot, "SOUL.md");
     const mechanicSoulPath = join(mechanicRoot, "SOUL.md");
     const contextIdentityPath = join(agentRoot, "context", "identity.md");
@@ -102,9 +100,15 @@ describe("setupInit", () => {
       "SKILL.md",
     );
     const watchesSkillPath = join(
-      workspace,
+      mechanicRoot,
       "skills",
       "shrimpy-watches",
+      "SKILL.md",
+    );
+    const defaultWatchesSkillPath = join(
+      mechanicRoot,
+      "skills",
+      "shrimpy-watches-default-init",
       "SKILL.md",
     );
     const skillsSkillPath = join(
@@ -147,8 +151,8 @@ describe("setupInit", () => {
 
     assert.equal(existsSync(configPath), true);
     assert.equal(existsSync(channelsConfigPath), true);
-    assert.equal(existsSync(watchesPath), true);
-    assert.equal(existsSync(mechanicWatchesPath), true);
+    assert.equal(existsSync(join(agentRoot, "watches.json")), false);
+    assert.equal(existsSync(join(mechanicRoot, "watches.json")), false);
     assert.equal(existsSync(systemPath), true);
     assert.equal(existsSync(userContextPath), true);
     assert.equal(existsSync(workspaceContextPath), true);
@@ -174,6 +178,7 @@ describe("setupInit", () => {
     assert.equal(existsSync(agentsSkillPath), true);
     assert.equal(existsSync(channelsSkillPath), true);
     assert.equal(existsSync(watchesSkillPath), true);
+    assert.equal(existsSync(defaultWatchesSkillPath), true);
     assert.equal(existsSync(skillsSkillPath), true);
     assert.equal(existsSync(securityAuditSkillPath), true);
     assert.equal(existsSync(hygieneAuditSkillPath), true);
@@ -205,10 +210,16 @@ describe("setupInit", () => {
     assert.equal(skillPackages["workspace:shrimpy-channels"].installKey, "workspace:shrimpy-channels");
     assert.equal(skillPackages["workspace:shrimpy-channels"].scope, "workspace");
     assert.equal(skillPackages["workspace:shrimpy-channels"].installedPath, join(workspace, "skills", "shrimpy-channels"));
-    assert.equal(skillPackages["workspace:shrimpy-watches"].sourceKind, "included");
-    assert.equal(skillPackages["workspace:shrimpy-watches"].installKey, "workspace:shrimpy-watches");
-    assert.equal(skillPackages["workspace:shrimpy-watches"].scope, "workspace");
-    assert.equal(skillPackages["workspace:shrimpy-watches"].installedPath, join(workspace, "skills", "shrimpy-watches"));
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches"].sourceKind, "included");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches"].installKey, "agent:mechanic:shrimpy-watches");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches"].scope, "agent");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches"].agentId, "mechanic");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches"].installedPath, join(mechanicRoot, "skills", "shrimpy-watches"));
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches-default-init"].sourceKind, "included");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches-default-init"].installKey, "agent:mechanic:shrimpy-watches-default-init");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches-default-init"].scope, "agent");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches-default-init"].agentId, "mechanic");
+    assert.equal(skillPackages["agent:mechanic:shrimpy-watches-default-init"].installedPath, join(mechanicRoot, "skills", "shrimpy-watches-default-init"));
     assert.equal(skillPackages["workspace:shrimpy-search"].sourceKind, "included");
     assert.equal(skillPackages["workspace:shrimpy-search"].installKey, "workspace:shrimpy-search");
     assert.equal(skillPackages["workspace:shrimpy-search"].scope, "workspace");
@@ -276,40 +287,6 @@ describe("setupInit", () => {
         minScore: 1.5,
       },
     });
-
-    const watches = JSON.parse(readFileSync(watchesPath, "utf-8"));
-    assert.equal(Array.isArray(watches), true);
-    assert.deepEqual(watches.map((watch: any) => watch.id), [
-      "memory-management",
-      "journal-daily",
-      "journal-compact",
-    ]);
-    assert.equal(watches[0].id, "memory-management");
-    assert.deepEqual(watches[0].trigger, { kind: "time", cron: "0 3 * * *" });
-    assert.equal(watches[0].action.kind, "message");
-    assert.equal(watches[0].action.channel, "maintenance");
-    assert.deepEqual(
-      watches.map((watch: any) => watch.action.channel),
-      ["maintenance", "maintenance", "maintenance"],
-    );
-    assert.match(watches[0].action.text, /memory-management/);
-    assert.match(watches[1].action.text, /journal-daily/);
-    assert.match(watches[2].action.text, /journal-compact/);
-    assert.deepEqual(watches.map((watch: any) => watch.enabled), [
-      false,
-      false,
-      false,
-    ]);
-
-    const mechanicWatches = JSON.parse(readFileSync(mechanicWatchesPath, "utf-8"));
-    assert.deepEqual(mechanicWatches.map((watch: any) => watch.id), [
-      "security-audit",
-      "hygiene-audit",
-    ]);
-    assert.deepEqual(mechanicWatches.map((watch: any) => watch.enabled), [
-      false,
-      false,
-    ]);
 
     const channelMemberships = JSON.parse(readFileSync(channelsConfigPath, "utf-8"));
     assert.deepEqual(channelMemberships.channels.home.agents, {

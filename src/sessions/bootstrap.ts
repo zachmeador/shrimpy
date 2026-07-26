@@ -5,7 +5,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { assembleBasePromptSections, assemblePromptContext } from "../context/assembly.js";
 import { createPromptSection, type PromptResourceRef, type PromptSection } from "../context/resources.js";
-import { FALLBACK_IDENTITY_TEXT } from "../context/system/prompts.js";
+import { fallbackIdentity } from "../instructions/index.js";
 import { resolveBootEnv, type BootEnv } from "../context/env.js";
 import type { ResolvedContextConfig } from "../context/spec.js";
 import type { RuntimeConfig } from "../config/runtime.js";
@@ -96,7 +96,7 @@ export async function createBootstrap(
       kind: "identity",
       source: "fallback",
       reason: "No configured context resources were readable",
-      content: FALLBACK_IDENTITY_TEXT,
+      content: fallbackIdentity.render(),
     });
   }
   const appendSection = createPromptSection({
@@ -113,7 +113,7 @@ export async function createBootstrap(
       baseSections,
       appendSection,
     ],
-    fallback: FALLBACK_IDENTITY_TEXT,
+    fallback: fallbackIdentity.render(),
   });
   const baseSystemSections = baseContext.sections;
   const baseSystemPrompt = baseContext.systemPrompt;

@@ -15,18 +15,12 @@ import {
   gatewayServiceManager,
   gatewayServicePaths,
 } from "../gateway/service/index.js";
-import { writeJsonFileAtomic } from "../util/json-file.js";
 import { refreshWorkerBackendAvailability } from "../workers/availability.js";
 import { resolveLocalTimezone } from "../util/time-format.js";
 import { heading } from "../util/style.js";
 import { listAssignedIncludedSkillDefinitions } from "../skills/included.js";
 import { prepareIncludedPackageSource } from "../skills/packages/sources.js";
 import { installIncludedSkillPackageCopy } from "../skills/packages/operations.js";
-import {
-  createDefaultMechanicWatches,
-  createDefaultShrimpyWatches,
-  createDefaultStatusConfig,
-} from "./defaults.js";
 import { loadSetupTemplate, stableDocsRoot } from "./templates.js";
 
 export const MECHANIC_AGENT_ID = "mechanic";
@@ -104,7 +98,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       tickIntervalMs: 1000,
       defaultTimezone: resolveLocalTimezone(),
     },
-    status: createDefaultStatusConfig(),
+    status: {},
   };
 }
 
@@ -177,22 +171,6 @@ export function ensureWorkspaceInitialized(workspace: string): SetupInitResult {
     created.push(configTargetPath);
   } else {
     existing.push(configTargetPath);
-  }
-
-  const watchesTargetPath = agentPaths.watchesPath;
-  if (!existsSync(watchesTargetPath)) {
-    writeJsonFileAtomic(watchesTargetPath, createDefaultShrimpyWatches());
-    created.push(watchesTargetPath);
-  } else {
-    existing.push(watchesTargetPath);
-  }
-
-  const mechanicWatchesTargetPath = mechanicPaths.watchesPath;
-  if (!existsSync(mechanicWatchesTargetPath)) {
-    writeJsonFileAtomic(mechanicWatchesTargetPath, createDefaultMechanicWatches());
-    created.push(mechanicWatchesTargetPath);
-  } else {
-    existing.push(mechanicWatchesTargetPath);
   }
 
   const channelMembershipsPath = paths.channelMembershipsPath;

@@ -11,6 +11,7 @@ const ROOT = process.cwd();
 const SCAN_ROOTS = ["src", "extensions"];
 const ALLOWED_PREFIXES = [
   normalize("src/context/"),
+  normalize("src/instructions/"),
   normalize("src/setup/templates/"),
 ];
 const PROMPT_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
@@ -36,7 +37,7 @@ const PROMPT_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
 ];
 
 describe("context construction guardrail", () => {
-  test("keeps model-facing prompt framing inside src/context", () => {
+  test("keeps model-facing prompt framing inside context or the instruction catalog", () => {
     const violations: string[] = [];
 
     for (const root of SCAN_ROOTS) {
@@ -55,13 +56,13 @@ describe("context construction guardrail", () => {
     assert.deepEqual(violations, []);
   });
 
-  test("compaction extension imports context-owned instructions", () => {
+  test("compaction extension imports catalogued instructions", () => {
     const extension = readFileSync(
       join(ROOT, "src", "sessions", "compaction", "extension.ts"),
       "utf-8",
     );
 
-    assert.match(extension, /context\/system\/compaction\.js/);
+    assert.match(extension, /instructions\/index\.js/);
     assert.doesNotMatch(extension, /Preserve approximate time anchors/);
   });
 });

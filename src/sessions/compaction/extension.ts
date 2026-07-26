@@ -4,7 +4,7 @@ import {
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { COMPACTION_SUMMARY_INSTRUCTIONS } from "../../context/system/compaction.js";
+import { compactionSummaryInstructions } from "../../instructions/index.js";
 import { compactSessionHistory } from "./runner.js";
 
 interface ShrimpyCompactionPolicy {
@@ -24,7 +24,7 @@ export function createCompactionBiasExtensionFactory(
         : ctx.sessionManager.getBranch();
       const policy = readShrimpyCompactionPolicy(branchEntries);
       const instructions = [
-        COMPACTION_SUMMARY_INSTRUCTIONS,
+        compactionSummaryInstructions.render(),
         policy?.instructions,
       ].filter(Boolean).join("\n\n");
       const modelLabel = `${ctx.model.provider}/${ctx.model.id}`;

@@ -5,7 +5,13 @@ import type { PublicationIntent, PublicationIntentKind, PublicationUrgency } fro
 import type { ChannelBus } from "../channels/bus.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import { type ResolvedToolRuntimeConfig, resolveToolRuntimeConfig } from "../config/tools.js";
-import { getToolProse, renderPublicationResult, renderReadChannelResult, renderSendMessageResult, TOOL_PARAMETER_PROSE } from "../context/system/tools.js";
+import {
+  publicationResult,
+  readChannelResult,
+  renderToolProse,
+  sendMessageResult,
+  toolParameterInstructions,
+} from "../instructions/index.js";
 import {
   DAEMON_TOOL_NAMES,
   isActivePublicationToolName,
@@ -16,26 +22,26 @@ import { resolveUserChannelAlias } from "../surfaces/shared/user-presence.js";
 
 const SendMessageParams = Type.Object({
   channel: Type.String({
-    description: TOOL_PARAMETER_PROSE.sendMessageChannel,
+    description: toolParameterInstructions.sendMessageChannel.render(),
   }),
-  text: Type.String({ description: TOOL_PARAMETER_PROSE.sendMessageText }),
+  text: Type.String({ description: toolParameterInstructions.sendMessageText.render() }),
 });
 
 const ActivePublicationParams = Type.Object({
   text: Type.String({
-    description: TOOL_PARAMETER_PROSE.activePublicationText,
+    description: toolParameterInstructions.activePublicationText.render(),
   }),
 });
 
 const ReportParams = Type.Object({
   summary: Type.String({
-    description: TOOL_PARAMETER_PROSE.activePublicationSummary,
+    description: toolParameterInstructions.activePublicationSummary.render(),
   }),
 });
 
 const NotifyParams = Type.Object({
   text: Type.String({
-    description: TOOL_PARAMETER_PROSE.activePublicationText,
+    description: toolParameterInstructions.activePublicationText.render(),
   }),
   urgency: Type.Optional(
     Type.Union([
@@ -43,27 +49,27 @@ const NotifyParams = Type.Object({
       Type.Literal("normal"),
       Type.Literal("high"),
     ], {
-      description: TOOL_PARAMETER_PROSE.activePublicationUrgency,
+      description: toolParameterInstructions.activePublicationUrgency.render(),
     }),
   ),
   quiet: Type.Optional(
     Type.Boolean({
-      description: TOOL_PARAMETER_PROSE.activePublicationQuiet,
+      description: toolParameterInstructions.activePublicationQuiet.render(),
     }),
   ),
   batchable: Type.Optional(
     Type.Boolean({
-      description: TOOL_PARAMETER_PROSE.activePublicationBatchable,
+      description: toolParameterInstructions.activePublicationBatchable.render(),
     }),
   ),
 });
 
 const ReadChannelParams = Type.Object({
   channel: Type.String({
-    description: TOOL_PARAMETER_PROSE.readChannelChannel,
+    description: toolParameterInstructions.readChannelChannel.render(),
   }),
   limit: Type.Optional(
-    Type.Number({ description: TOOL_PARAMETER_PROSE.readChannelLimit }),
+    Type.Number({ description: toolParameterInstructions.readChannelLimit.render() }),
   ),
 });
 
@@ -198,12 +204,12 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
   const resolvedSendMessageActorId =
     sendMessageActorId
     ?? (agentId ? `agent:${agentId}` : toolConfig.sendMessage.defaultActorId);
-  const sendMessageProse = getToolProse("send_message");
-  const replyProse = getToolProse("reply");
-  const askProse = getToolProse("ask");
-  const notifyProse = getToolProse("notify");
-  const reportProse = getToolProse("report");
-  const readChannelProse = getToolProse("read_channel");
+  const sendMessageProse = renderToolProse("send_message");
+  const replyProse = renderToolProse("reply");
+  const askProse = renderToolProse("ask");
+  const notifyProse = renderToolProse("notify");
+  const reportProse = renderToolProse("report");
+  const readChannelProse = renderToolProse("read_channel");
 
   async function publishToActivePublicationChannel(
     intent: PublicationIntent,
@@ -223,7 +229,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     return {
       content: [{
         type: "text" as const,
-        text: renderPublicationResult({
+        text: publicationResult.render({
           intent: intent.kind,
           channel: activePublicationChannel,
         }),
@@ -360,7 +366,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       return {
         content: [{
           type: "text" as const,
-          text: renderSendMessageResult({
+          text: sendMessageResult.render({
             channel: resolvedChannel,
             waitForNewMessage: Boolean(activePublicationChannel),
           }),
@@ -394,7 +400,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       const recent = messages.slice(-limit);
       return {
         content: [
-          { type: "text" as const, text: renderReadChannelResult({ messages: recent }) },
+          { type: "text" as const, text: readChannelResult.render({ messages: recent }) },
         ],
         details: undefined,
       };

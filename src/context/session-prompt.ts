@@ -10,8 +10,11 @@ import {
   createPromptSection,
   type PromptSection,
 } from "./resources.js";
-import { FALLBACK_IDENTITY_TEXT } from "./system/prompts.js";
-import { gatewayDeliveryGuidance } from "./system/tools.js";
+import {
+  channelDeliveryGuidance,
+  fallbackIdentity,
+  transcriptDelivery,
+} from "../instructions/index.js";
 import { getSkillPromptResourcesFromPaths } from "../skills/catalog.js";
 import type { SessionBootstrap } from "../sessions/bootstrap.js";
 import { buildContainedSystemPrompt } from "./contained-system-prompt.js";
@@ -118,7 +121,7 @@ export function assembleSessionPrompt(
         sessionPromptSections,
         appendSection,
       ],
-      fallback: FALLBACK_IDENTITY_TEXT,
+      fallback: fallbackIdentity.render(),
     })
     : {
       sections: bootstrap.baseSystemSections,
@@ -181,7 +184,7 @@ export function buildSessionDeliverySection(opts: {
         "",
         `This session is attached to channel ${channel}.`,
         "",
-        ...gatewayDeliveryGuidance(channel).map((line) => `- ${line}`),
+        ...channelDeliveryGuidance.render({ channel }).split("\n").map((line) => `- ${line}`),
       ].join("\n"),
     };
   }
@@ -196,11 +199,7 @@ export function buildSessionDeliverySection(opts: {
     content: [
       "## Transcript Delivery",
       "",
-      "The user sees ordinary assistant text in this transcript.",
-      "",
-      "- Answer the current conversation with normal assistant messages.",
-      "- Do not use reply(text), ask(text), notify(text), or report(summary) for this in-session conversation; those helpers are for channel-bound turns.",
-      "- Use send_message(channel=\"...\", text=\"...\") only when explicitly asked to send or log something to a Shrimpy channel, user:<id> alias, or agent DM. Agent DMs are internal channels, so no external adapter is expected.",
+      transcriptDelivery.render(),
     ].join("\n"),
   };
 }
