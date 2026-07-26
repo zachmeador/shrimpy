@@ -47,7 +47,12 @@ Install the current `main` build on Linux or macOS:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
-~/.local/bin/shrimpy setup
+```
+
+Open a new terminal, then run:
+
+```bash
+shrimpy setup
 ```
 
 Requires Git, Node `>=22.19.0`, and `npm`. Installs under `~/.local/share/shrimpy/app` and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`.

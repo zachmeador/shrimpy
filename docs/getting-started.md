@@ -134,10 +134,22 @@ Your Node version must be `v22.19.0` or newer. Then run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/install.sh | bash
-~/.local/bin/shrimpy setup
 ```
 
-The installer keeps Shrimpy under `~/.local/share/shrimpy/app` and places its commands under `~/.local/bin`. If your shell already knows that directory, future commands can simply start with `shrimpy`.
+When the installer finishes, close Terminal and open it again. Then start setup:
+
+```bash
+shrimpy setup
+```
+
+The installer teaches new Terminal windows where to find `shrimpy`. If you still see `command not found`, run this once and try again:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+shrimpy setup
+```
+
+From here on, every command in this guide begins with plain `shrimpy`.
 
 ## What Setup Looks Like
 
@@ -225,7 +237,7 @@ Paths:
 Run:
 
 ```bash
-~/.local/bin/shrimpy
+shrimpy
 ```
 
 You are now talking to the normal `shrimpy` agent. It is fine to begin with plain requests:
