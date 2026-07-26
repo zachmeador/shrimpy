@@ -146,7 +146,7 @@ Installation must be inert with respect to background and external behavior:
 - [Configuration](../../reference/configuration.md): safe packaged agent defaults and live config drift.
 - [Channels](../../reference/channels.md): inspectable activation plans for membership and delivery without packaging logs.
 - [Runtime](../../reference/runtime.md): packaged watch definitions remain inactive until explicitly enabled.
-- [SECURITY-001](security-001-agent-sandboxing-security-strategy.md): installed agents and packaged scripts still operate under ordinary agent tool and sandbox policy.
+- [SECURITY-005](security-005-session-scoped-authority-architecture.md): installed agents and packaged scripts still operate under the resolved session profile and runner policy.
 
 ## Done
 

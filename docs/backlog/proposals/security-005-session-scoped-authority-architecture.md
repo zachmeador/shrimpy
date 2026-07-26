@@ -337,7 +337,7 @@ Channels, shared safe prompt context, Pi session mechanics, surface verticals, a
 
 ## Relationship To Existing Backlog
 
-- [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) remains the strategy for concrete native and VM-backed runner implementations. If this direction is accepted, its sandbox policy vocabulary should extend the same resolved session profile rather than create an independent profile system.
+- Concrete native or VM-backed runner proposals should be created only after this direction settles the runner boundary. Their sandbox policy vocabulary should extend the same resolved session profile rather than create an independent profile system.
 - [SECURITY-002](security-002-session-admission-security-profiles.md) is the closest existing foundation. If this direction is accepted, SECURITY-002 should absorb the settled admission, full-key pool, exact-tool, inspection, and runner-seam decisions rather than both notes becoming separate implementation layers.
 - [SECURITY-003](security-003-public-chat-limited-sessions.md) remains a source-specific admission consumer.
 - [SECURITY-004](security-004-path-bounded-file-tools.md) remains an optional capability implementation for constrained profiles and later defense in depth with OS sandbox roots.
@@ -411,6 +411,6 @@ This architecture-decision proposal is resolved when:
 - the maintainer explicitly accepts, rejects, or substantially replaces session-scoped authority as the security center;
 - the shared-safe-context invariant is confirmed or replaced with another explicit product rule;
 - the ownership boundaries of agent, channel, session, profile, admission, and runner are settled;
-- accepted decisions are folded into SECURITY-001–004, WATCH-002, and any necessary follow-up proposals;
+- accepted decisions are folded into SECURITY-002–004, WATCH-002, and any necessary follow-up proposals;
 - overlapping implementation requirements are removed rather than maintained in competing notes;
 - this umbrella planning note and its index row are deleted once the durable direction lives in the concrete backlog and stable design documentation.

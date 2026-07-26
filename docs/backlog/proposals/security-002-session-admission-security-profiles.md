@@ -74,7 +74,7 @@ Ordinary trusted sessions remain behaviorally unchanged until a caller explicitl
 - Do not encode source identity, watch ids, sender ids, model names, filesystem roots, or policy versions into ad hoc profile-id strings.
 - Do not make prompt instructions, skills, tool descriptions, or model choice the enforcement boundary.
 - Do not implement public-user grants, watch-specific routing, or path-bounded file operations inside this foundation. Those are separate consumers or capabilities.
-- Do not call this OS sandboxing. SECURITY-001 owns process, syscall, device, network, and host filesystem containment.
+- Do not call this OS sandboxing. Process, syscall, device, network, and host filesystem containment belong to future native runner work after the runner boundary is settled.
 - Do not silently preserve a broader open session when its requested profile changes or becomes invalid.
 - Do not add legacy profile aliases or default-fallback compatibility paths.
 
