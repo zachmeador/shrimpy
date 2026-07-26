@@ -34,13 +34,15 @@ First useful profile set:
 The profile id becomes part of gateway session identity. A limited public turn for `agent:shrimpy` in `telegram~main~4242` must not reuse the same private Pi transcript as the normal trusted `agent:shrimpy` session for that channel. The channel log remains shared; private model context and active tools are separated by profile.
 
 ## Build
-- Introduce a typed security-profile policy under the existing `SessionKey.profileId` and session/tool resolution layer, not inside prompts. Candidate names: `SessionProfile`, `SessionSecurityProfile`, or `ChannelTurnProfile`.
+- Keep `SessionKey.profileId` as the identity discriminator and introduce a separate resolved `SessionSecurityProfile` policy under the session/tool resolution layer. The profile id names the runtime variant and separates storage; the resolved policy supplies tools, command permission, and model-visible inspection facts.
 - Add a resolver that receives `runtime`, `agent`, `channel`, and `ChannelMessage`, then returns `{ profileId, reason, toolPolicyOverride, commandPermission }` or an ignore/block result. It should use stable Shrimpy `userId` / `actorId` values and surface origin facts, not display names.
+- Reject an unknown or invalid resolved profile before session open; do not fall back to `default`.
 - Keep room acceptance and sender permissions distinct. Surface allowlists answer "may this transport thread enter Shrimpy at all?" The new resolver answers "what may this Shrimpy sender do inside this accepted channel?"
 - Thread the resolved profile through `AgentChannelRuntime` when it constructs the session key, and key `SessionPool` lanes by the full canonical identity rather than channel alone. Canonical ids, manifests, ownership, lane state, recorded metadata, and `shrimpy sessions list/search/read` inspection should keep the profile visible.
-- Extend `SessionResolver` so profile-specific tool policy is resolved before `openSession`. The limited profile should register only active-channel publication helpers that are safe for the current channel, likely `reply` and `ask` first. It should exclude Pi built-ins such as `bash`, `edit`, `write`, `read`, `grep`, `find`, and `ls`, and should not register broad Shrimpy daemon tools such as `send_message` or `read_channel`.
+- Extend `SessionResolver` so the `SessionSecurityProfile` is resolved before session lookup and `openSession`. Do not open `default` and downgrade it in place. The limited profile should pass Pi an explicit active-tool allowlist containing only active-channel publication helpers that are safe for the current channel, likely `reply` and `ask` first. It should not rely only on excluding Pi built-ins, because extension and custom tools are otherwise active by default.
 - Decide whether `notify` and `report` belong in `limited-public`. Default conservative answer: omit `notify` because public users should not trigger notification semantics, and omit `report` unless a concrete public-room workflow needs it.
 - Add a compact profile fact to turn context: sender identity, trust/profile, why the profile was chosen, and the active-channel limitation. This is for inspectability, not enforcement.
+- Record the resolved profile id, command permission, and effective active-tool names in session inspection metadata so later policy changes do not obscure what a turn could invoke.
 - Gate chat commands through the same sender permission result. Read-only `/help` and a minimal public-safe `/status` may remain available. Session lifecycle, thinking changes, model/settings changes, and future admin commands require a trusted profile.
 - Add CLI inspection for the decision. Good targets: extend `shrimpy agent channel-policy explain` with session-profile output, or add a sibling command that explains wake plus profile plus command permission for a synthetic message.
 - Update reference docs after implementation: `security.md`, `channels.md`, `sessions.md`, `surfaces.md`, `tools.md`, and `configuration.md`.
@@ -70,6 +72,12 @@ This keeps the existing boundaries intact:
 - OS sandboxing remains a separate later layer;
 - prompt instructions explain the boundary but do not enforce it.
 
+The reusable session-security-profile shape is also analyzed in `docs/research/shrimpy-constrained-tool-profile.md`. This backlog item implements the identity-to-policy resolution seam for public chat but does not add path-bounded file tools.
+
+## UX Implications
+
+Trusted and untrusted senders in one accepted public room can receive responses from the same agent without sharing a private transcript or capability set. Session and policy inspection must show the selected profile, selection reason, command permission, and exact active tools. Existing trusted direct and channel use remains on `default`; public limited mode must not add prompts or controls to ordinary trusted turns.
+
 ## Open Decisions
 - Where durable sender grants live. Options: extend surface config, add a small `config/users.json`, or add a `security.users` section in `config/shrimpy.json`. Keep identity links in `state/users.json` separate from grants unless there is a strong reason to merge them.
 - Whether profile selection should be purely global or agent-specific. Agent-specific profile overrides are probably useful, but default profiles should exist so every agent gets a safe public-room posture.
@@ -78,6 +86,7 @@ This keeps the existing boundaries intact:
 
 ## Boundaries
 - Do not treat skills, prompt rules, channel policy, disabled tools, or command allowlists as sandboxing. This item is a Shrimpy runtime capability layer; SECURITY-001 owns OS/process isolation.
+- Do not add path-bounded file tools in this item. A future constrained-workspace profile can reuse `SessionSecurityProfile`, but `limited-public` exposes no filesystem tools.
 - Do not allow addressing or mentions to elevate a sender from `limited-public` to `default`.
 - Do not expose raw `send_message`, raw `read_channel`, filesystem tools, shell tools, package installs, worker tools, or future browser-control tools in the limited profile.
 - Do not let public senders reset, restore, stop, change thinking/model/settings, switch addressed agents, edit config, or mutate membership.
