@@ -224,7 +224,7 @@ network: blocked
 git: none
 ```
 
-At the model-tool layer, this can construct bounded file operations and omit Bash. At the OS layer, the same policy can later become Seatbelt rules, `bubblewrap` mounts, Gondolin VFS policy, or another runner configuration.
+At the model-tool layer, this can construct bounded file operations and omit Bash. At the OS layer, the same policy can later become Seatbelt rules, `bubblewrap` mounts, or another runner configuration.
 
 The two enforcement layers remain distinct:
 

@@ -68,7 +68,6 @@ Shrimpy policy
 Sandbox backend
   macOS: Seatbelt/App Sandbox/XPC
   Linux: bubblewrap namespaces + bind mounts
-  VM: Gondolin micro-VM runner
   future: container runner, Windows AppContainer
 ```
 
@@ -94,12 +93,9 @@ Then each platform owns translation:
 |---|---|
 | `seatbelt` | Build/apply an SBPL profile, use bookmarks/XPC brokers for dynamic access, then launch Shrimpy. |
 | `bubblewrap` | Build a minimal root with `--ro-bind`, `--bind`, `/proc`, `/dev`, tmpfs scratch, PID/session isolation, and optional `--share-net`. |
-| `gondolin` | Start a local Linux micro-VM, mount a narrow workspace through Gondolin VFS, and enforce HTTP/TLS/secrets policy in the host TypeScript control plane. |
 | `none` | Run directly, but still report that no native sandbox is active. Useful for unsupported platforms and debugging. |
 
 The important design point: agents and config should talk about Shrimpy capabilities, not macOS operations or Linux namespace flags.
-
-Gondolin belongs in the backend set as the heavier isolation option, not as a replacement for the Mac helper. It is strongest for high-risk agent turns where a Linux guest is acceptable and Shrimpy can promote results back through a diff, branch, or narrow VFS mount. Native Seatbelt/App Sandbox/XPC is still needed for Mac-specific user consent, security-scoped bookmarks, TCC-adjacent resources, and local app/browser integration.
 
 The useful security boundary is:
 
@@ -206,7 +202,6 @@ For these, the app or an XPC service should act as a broker with explicit reques
 ## Open questions
 
 - Should Shrimpy rely on macOS profiles directly, or should it delegate sandbox execution to Pi when Pi already has a macOS sandbox runner available?
-- Should Shrimpy expose Gondolin as a high-isolation backend for coding turns while keeping the Mac helper focused on native policy, bookmarks, and brokers?
 - Does the gateway need one sandbox for the whole process, or should individual agent turns run in separate short-lived sandboxed workers?
 - How should browser automation be isolated: separate browser profile per agent, separate Seatbelt profile, or both?
 - Should network policy distinguish model-provider egress from arbitrary internet egress?
@@ -224,4 +219,3 @@ For these, the app or an XPC service should act as a broker with explicit reques
 - Chromium: [Mac Sandbox V2 Design Doc](https://chromium.googlesource.com/chromium/src/+/HEAD/sandbox/mac/seatbelt_sandbox_design.md)
 - containers: [bubblewrap README](https://github.com/containers/bubblewrap/blob/main/README.md)
 - containers: [bubblewrap security overview](https://github.com/containers/bubblewrap/security)
-- Gondolin: [GitHub repository](https://github.com/earendil-works/gondolin), [documentation](https://earendil-works.github.io/gondolin/), [architecture overview](https://earendil-works.github.io/gondolin/architecture/)
