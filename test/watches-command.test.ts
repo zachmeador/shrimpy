@@ -125,6 +125,43 @@ describe("watch inspection surfaces", () => {
     assert.equal(payload.watches[0].enabled, false);
     assert.equal(payload.watches[0].nextRunSource, undefined);
     assert.equal(payload.watches[0].nextRunAtMs, undefined);
+    assert.deepEqual(payload.loadErrors, []);
+  });
+
+  test("lists valid watches and sanitized per-agent load errors", async () => {
+    await setupInit(workspace);
+    const mechanicPath = join(workspace, "agents", "mechanic", "watches.json");
+    writeFileSync(
+      mechanicPath,
+      "[{\"id\":\"private-secret\",\"action\":{\"command\":\"do-not-expose\"}}]",
+      "utf-8",
+    );
+
+    const { result, lines } = await captureLogs(() =>
+      cmdWatches(["--json"], {
+        workspace,
+        agents: [
+          { id: "shrimpy", root: "agents/shrimpy" },
+          { id: "mechanic", root: "agents/mechanic" },
+        ],
+      } as any)
+    );
+
+    assert.equal(result, 0);
+    const payload = JSON.parse(lines.join("\n"));
+    assert.equal(payload.watches.some((watch: any) =>
+      watch.ownerAgentId === "shrimpy"
+    ), true);
+    assert.deepEqual(
+      payload.loadErrors.map(({ recordedAtMs: _, ...error }: any) => error),
+      [{
+        agentId: "mechanic",
+        path: mechanicPath,
+        message: "watch file could not be parsed or validated",
+      }],
+    );
+    assert.equal(lines.join("\n").includes("private-secret"), false);
+    assert.equal(lines.join("\n").includes("do-not-expose"), false);
   });
 
   test("toggles an existing watch through the CLI", async () => {

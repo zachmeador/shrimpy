@@ -4,7 +4,8 @@ import { timeSince } from "../channels/format.js";
 import type { ShrimpyConfig } from "../config/load.js";
 import { parseWatchDefinitions, assertNoStructuralInvisibleCharacters, watchTriggerMetadata, type WatchDefinition } from "../watches/schema.js";
 import { buildWatchDefinition } from "../watches/build.js";
-import { inspectWatch, inspectWatchHistory, inspectWatches, runWatchNow, type WatchInspection, type WatchWakeExpectation } from "../watches/inspection.js";
+import { inspectWatch, inspectWatchHistory, inspectWatchLoadErrors, inspectWatches, runWatchNow, type WatchInspection, type WatchWakeExpectation } from "../watches/inspection.js";
+import type { WatchLoadError } from "../watches/load-errors.js";
 import type { WatchRunRecord } from "../watches/runs.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { parsePositiveInt } from "../util/parse.js";
@@ -54,13 +55,19 @@ async function cmdWatchesList(
   const watches = inspectWatches(runtime, {
     agentId: values.agent,
   });
+  const loadErrors = inspectWatchLoadErrors(runtime, {
+    agentId: values.agent,
+  });
 
   if (values.json) {
-    console.log(JSON.stringify({ watches: watches.map(publicWatchInspection) }, null, 2));
+    console.log(JSON.stringify({
+      watches: watches.map(publicWatchInspection),
+      loadErrors,
+    }, null, 2));
     return 0;
   }
 
-  printWatchList(watches);
+  printWatchList(watches, loadErrors);
   return 0;
 }
 
@@ -266,26 +273,33 @@ async function cmdWatchesRun(
   return 0;
 }
 
-function printWatchList(watches: WatchInspection[]): void {
+function printWatchList(
+  watches: WatchInspection[],
+  loadErrors: WatchLoadError[],
+): void {
   if (watches.length === 0) {
     console.log("(no watches)");
-    return;
+  } else {
+    for (const watch of watches) {
+      const status = watch.enabled ? "enabled" : "disabled";
+      const targets = watch.targetChannels.join(",") || "(none)";
+      const next = watch.nextRunAtMs === undefined
+        ? "next=unknown"
+        : `next=${formatFutureOrPast(watch.nextRunAtMs)}`;
+      const last = watch.lastRun
+        ? `last=${timeSince(watch.lastRun.finishedAtMs)}`
+        : "last=none";
+      const issues = watch.diagnostics.length > 0
+        ? ` diagnostics=${watch.diagnostics.length}`
+        : "";
+      console.log(
+        `${watch.id}  ${status}  ${watch.triggerText}  action=${watch.actionKind}  target=${targets}  ${next}  ${last}${issues}`,
+      );
+    }
   }
-
-  for (const watch of watches) {
-    const status = watch.enabled ? "enabled" : "disabled";
-    const targets = watch.targetChannels.join(",") || "(none)";
-    const next = watch.nextRunAtMs === undefined
-      ? "next=unknown"
-      : `next=${formatFutureOrPast(watch.nextRunAtMs)}`;
-    const last = watch.lastRun
-      ? `last=${timeSince(watch.lastRun.finishedAtMs)}`
-      : "last=none";
-    const issues = watch.diagnostics.length > 0
-      ? ` diagnostics=${watch.diagnostics.length}`
-      : "";
+  for (const error of loadErrors) {
     console.log(
-      `${watch.id}  ${status}  ${watch.triggerText}  action=${watch.actionKind}  target=${targets}  ${next}  ${last}${issues}`,
+      `warning: agent ${error.agentId} watch load failed at ${error.path}: ${error.message}`,
     );
   }
 }

@@ -29,6 +29,11 @@ import {
   type ResolvedAgentWatchDefinition,
   type WatchEmitPolicy,
 } from "./schema.js";
+import {
+  createWatchLoadError,
+  loadWatchLoadErrors,
+  type WatchLoadError,
+} from "./load-errors.js";
 import { runWatchDue } from "./runner.js";
 
 export interface WatchWakeExpectation {
@@ -91,7 +96,7 @@ export function inspectWatches(
 ): WatchInspection[] {
   if (opts.agentId) runtime.getAgent(opts.agentId);
 
-  const entries = loadWatchInspectionEntries(runtime)
+  const entries = loadWatchInspectionEntries(runtime).entries
     .filter((entry) => !opts.agentId || entry.watch.ownerAgentId === opts.agentId);
   const watchClockState = loadWatchClockState(runtime.paths.watchClockStatePath);
   const memberships = runtime.createChannelMembershipStore();
@@ -171,6 +176,22 @@ export function inspectWatches(
   });
 }
 
+export function inspectWatchLoadErrors(
+  runtime: AppRuntime,
+  opts: InspectWatchesOptions = {},
+): WatchLoadError[] {
+  if (opts.agentId) runtime.getAgent(opts.agentId);
+
+  const current = loadWatchInspectionEntries(runtime).errors;
+  const byAgent = new Map(
+    loadWatchLoadErrors(runtime).map((error) => [error.agentId, error]),
+  );
+  for (const error of current) byAgent.set(error.agentId, error);
+  return [...byAgent.values()]
+    .filter((error) => !opts.agentId || error.agentId === opts.agentId)
+    .sort((a, b) => a.agentId.localeCompare(b.agentId));
+}
+
 function computeFallbackNextRunAtMs(
   runtime: AppRuntime,
   watch: ResolvedAgentWatchDefinition,
@@ -231,18 +252,26 @@ export async function runWatchNow(
   });
 }
 
-function loadWatchInspectionEntries(runtime: AppRuntime): WatchInspectionEntry[] {
+function loadWatchInspectionEntries(runtime: AppRuntime): {
+  entries: WatchInspectionEntry[];
+  errors: WatchLoadError[];
+} {
   const entries: WatchInspectionEntry[] = [];
+  const errors: WatchLoadError[] = [];
   for (const agent of runtime.resolved.agents) {
     const watchesPath = runtime.getAgentPaths(agent.id).watchesPath;
-    for (const watch of loadAgentWatchDefinitions(watchesPath)) {
-      entries.push({
-        watch: resolveAgentWatchDefinition(agent.id, watch),
-        sourcePath: watchesPath,
-      });
+    try {
+      for (const watch of loadAgentWatchDefinitions(watchesPath)) {
+        entries.push({
+          watch: resolveAgentWatchDefinition(agent.id, watch),
+          sourcePath: watchesPath,
+        });
+      }
+    } catch {
+      errors.push(createWatchLoadError(agent.id, watchesPath));
     }
   }
-  return entries;
+  return { entries, errors };
 }
 
 function watchTargetChannels(watch: ResolvedAgentWatchDefinition): string[] {

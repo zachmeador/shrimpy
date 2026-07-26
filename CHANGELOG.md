@@ -11,6 +11,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Watches & Gateway
 
+- Fixed one agent's invalid `watches.json` stopping the shared watch clock or blocking other agents' reloads; failed reloads keep that agent's last valid watches, and `shrimpy watches` reports sanitized per-agent load failures.
 - Changed gateway ownership and status to use an atomic workspace PID claim, cross-platform process identity, and a fresh heartbeat record; service-manager state is reported separately and manual gateways remain visible as running with a management warning.
 - Added Telegram surface health reporting for successful polling, retries, stalls, recovery, and bounded failure details.
 

@@ -64,7 +64,8 @@ Durable sessions persist under each agent workspace as manifested Pi `.jsonl` di
 - A watch is an agent-owned background attention rule in `agents/<id>/watches.json`: a `trigger` (time is the implemented kind), a concurrency policy, and either a message action or a command action. Config shapes live in [configuration.md](configuration.md).
 - Message watches emit watch-authored channel messages; the owning agent needs channel membership and a `channelPolicy` that wakes for them. Command watches run a shell command and can emit to a channel based on `emit.policy`.
 - Watch-origin messages carry provenance in `origin.watch`, and turn context points back to `shrimpy watches show <watch-id>` and `shrimpy watches history <watch-id>`.
-- The gateway reloads watch definitions when `watches.json` files change, preserving clock state for unchanged watches. Active watch state and run history live under `runtime/watches/<agent-id>/`.
+- The gateway loads and reloads each agent's `watches.json` independently. An invalid file leaves that agent with no watches at startup; a failed reload keeps its last valid watches while other agents continue normally. Fixing the file applies it without a gateway restart, while an empty or removed file unregisters that agent's watches. Unchanged schedules retain their clock state.
+- `shrimpy watches` reports per-agent load failures with the agent ID and source path. Error details are sanitized so watch contents, commands, and secrets do not enter diagnostics. Active watch state and run history live under `runtime/watches/<agent-id>/`.
 - Next-run timestamps persist in `state/watch-clock.json`. A watch whose scheduled time passed while the gateway was down runs once on the next start, carrying its original fire time, then resumes its schedule. Missed runs do not stack up: a watch due several times during a long outage still runs once. This covers downtime only; a crash after a watch message reached its channel is covered in [channels.md](channels.md).
 - Fresh setup installs focused upkeep and audit watches disabled by default; the setup flow can enable selected watches with user approval.
 - Coding worker delegation runs through `shrimpy worker ...` commands and worker records.
@@ -73,6 +74,6 @@ Durable sessions persist under each agent workspace as manifested Pi `.jsonl` di
 
 - `shrimpy status` summarizes workspace and gateway activity.
 - `shrimpy gateway status` reports PID/heartbeat-backed gateway process health separately from service-manager state, followed by surface health, watch-run, watch clock, gateway lane, and loop-guard status. `shrimpy status` uses the same liveness collector.
-- `shrimpy watches` reports source paths, target channels, expected wake, next runs, active runs, and recent run history.
+- `shrimpy watches` reports source paths, load failures, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` inspects the assembled session prompt, per-turn context, and user message body for an agent/session/turn.

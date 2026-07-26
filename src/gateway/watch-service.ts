@@ -9,14 +9,36 @@ import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { createWatchClock, type WatchClock } from "../watches/clock.js";
 import { loadWatchClockState, saveWatchClockState } from "../watches/clock-state.js";
-import { loadRuntimeAgentWatches } from "../watches/agent-runtime.js";
+import { loadRuntimeAgentWatchesForAgent } from "../watches/agent-runtime.js";
+import {
+  createWatchLoadError,
+  saveWatchLoadErrors,
+  type WatchLoadError,
+} from "../watches/load-errors.js";
 import { runWatchDue } from "../watches/runner.js";
+import type { ResolvedAgentWatchDefinition } from "../watches/schema.js";
 
 export function startGatewayWatchClock(
   runtime: AppRuntime,
   channelBus: ChannelBus,
 ): WatchClock {
-  const agentWatches = loadRuntimeAgentWatches(runtime);
+  const watchesByAgent = new Map<string, ResolvedAgentWatchDefinition[]>();
+  const loadErrors = new Map<string, WatchLoadError>();
+  for (const agent of runtime.resolved.agents) {
+    const path = runtime.getAgentPaths(agent.id).watchesPath;
+    try {
+      watchesByAgent.set(
+        agent.id,
+        loadRuntimeAgentWatchesForAgent(runtime, agent.id),
+      );
+    } catch {
+      watchesByAgent.set(agent.id, []);
+      loadErrors.set(agent.id, createWatchLoadError(agent.id, path));
+      logWatchLoadFailure(agent.id, path, "load");
+    }
+  }
+  saveWatchLoadErrors(runtime, loadErrors.values());
+  const agentWatches = flattenAgentWatches(runtime, watchesByAgent);
   console.log(
     `[gateway] loaded ${agentWatches.length} agent watch(es)`,
   );
@@ -39,16 +61,21 @@ export function startGatewayWatchClock(
       });
     },
   });
-  const stopWatching = watchAgentWatchFiles(runtime, () => {
+  const stopWatching = watchAgentWatchFiles(runtime, (agentId, path) => {
     try {
-      const nextWatches = loadRuntimeAgentWatches(runtime);
+      const nextAgentWatches = loadRuntimeAgentWatchesForAgent(runtime, agentId);
+      watchesByAgent.set(agentId, nextAgentWatches);
+      loadErrors.delete(agentId);
+      const nextWatches = flattenAgentWatches(runtime, watchesByAgent);
       clock.setWatches(nextWatches);
+      saveWatchLoadErrors(runtime, loadErrors.values());
       console.log(
-        `[gateway] reloaded ${nextWatches.length} agent watch(es)`,
+        `[gateway] reloaded ${nextAgentWatches.length} watch(es) for agent ${agentId} from ${path}`,
       );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`[gateway] watch reload failed: ${message}`);
+    } catch {
+      loadErrors.set(agentId, createWatchLoadError(agentId, path));
+      saveWatchLoadErrors(runtime, loadErrors.values());
+      logWatchLoadFailure(agentId, path, "reload");
     }
   });
   const stopClock = clock.stop.bind(clock);
@@ -62,18 +89,18 @@ export function startGatewayWatchClock(
 
 function watchAgentWatchFiles(
   runtime: AppRuntime,
-  onChange: () => void,
+  onChange: (agentId: string, path: string) => void,
 ): () => void {
   const stops: Array<() => void> = [];
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const scheduleReload = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(onChange, 100);
-    timer.unref();
-  };
 
   for (const agent of runtime.resolved.agents) {
     const watchesPath = runtime.getAgentPaths(agent.id).watchesPath;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => onChange(agent.id, watchesPath), 100);
+      timer.unref();
+    };
     let watcher: FSWatcher | undefined;
     let stopPolling: (() => void) | undefined;
     let stopped = false;
@@ -102,15 +129,34 @@ function watchAgentWatchFiles(
     startPolling();
     stops.push(() => {
       stopped = true;
+      if (timer) clearTimeout(timer);
       watcher?.close();
       stopPolling?.();
     });
   }
 
   return () => {
-    if (timer) clearTimeout(timer);
     for (const stop of stops) stop();
   };
+}
+
+function flattenAgentWatches(
+  runtime: AppRuntime,
+  watchesByAgent: ReadonlyMap<string, ResolvedAgentWatchDefinition[]>,
+): ResolvedAgentWatchDefinition[] {
+  return runtime.resolved.agents.flatMap((agent) =>
+    watchesByAgent.get(agent.id) ?? []
+  );
+}
+
+function logWatchLoadFailure(
+  agentId: string,
+  path: string,
+  action: "load" | "reload",
+): void {
+  console.warn(
+    `[gateway] watch ${action} failed for agent ${agentId} at ${path}: watch file could not be parsed or validated`,
+  );
 }
 
 function pollWatchFile(

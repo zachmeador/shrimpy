@@ -28,6 +28,7 @@ export interface WorkspacePaths {
   runtimeCursorsDir: string;
   runtimeContextDir: string;
   runtimeWatchesDir: string;
+  watchLoadErrorsPath: string;
   runtimePidsDir: string;
   piStateDir: string;
   authPath: string;
@@ -84,6 +85,7 @@ export function createWorkspacePaths(
     runtimeCursorsDir: join(workspace, "runtime", "cursors"),
     runtimeContextDir: join(workspace, "runtime", "context"),
     runtimeWatchesDir: join(workspace, "runtime", "watches"),
+    watchLoadErrorsPath: join(workspace, "runtime", "watches", "load-errors.json"),
     runtimePidsDir: join(workspace, "runtime", "pids"),
     piStateDir: join(workspace, "state", "pi"),
     authPath: join(workspace, "state", "pi", "auth.json"),
