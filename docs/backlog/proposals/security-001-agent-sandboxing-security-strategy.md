@@ -10,6 +10,10 @@ depends_on: []
 ## Why
 Some agents should get a workspace folder, not the whole machine. Shrimpy needs a local sandbox story for macOS and Linux that normal people can live with.
 
+## UX Implications
+
+Users can select and inspect a named OS-level containment profile for a session, understand its filesystem, network, browser, device, secret, and git boundaries, and deliberately promote sandboxed changes when the chosen backend requires it. Ordinary unsandboxed sessions must not be relabeled as safe merely because their model tools are restricted.
+
 ## Explore
 - Prefer in-OS sandboxing first, but evaluate Gondolin as a VM-backed runner for high-risk turns. Study macOS App Sandbox, Seatbelt/SBPL, XPC, bookmarks, Linux namespaces, `bubblewrap`, seccomp, Landlock, systemd sandboxing, separate users, and Gondolin's host-mediated network/secrets/VFS model.
 - Define the small policy shape Shrimpy needs: reads, writes, network, git, secrets, browser, devices, and promotion back to the real workspace.

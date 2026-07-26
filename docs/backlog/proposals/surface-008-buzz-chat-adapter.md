@@ -11,7 +11,7 @@ depends_on: []
 
 Buzz is a plausible primary human chat UX for Shrimpy: the user runs or joins a Buzz relay, Shrimpy connects to it as a normal Buzz identity, and Buzz messages become ordinary Shrimpy channel messages. Shrimpy remains the agent runtime and owns context, sessions, memory, tools, watches, and internal channel logs.
 
-The accepted scope is only a chat surface. Buzz canvases, workflows, git hosting, search, memory, ACP harnesses, managed agents, and other workspace features are not integration opportunities for this item. See [buzz-shrimpy-environment.md](../research/buzz-shrimpy-environment.md) for the protocol, deployment, identity, and security research behind this direction.
+The accepted scope is only a chat surface. Buzz canvases, workflows, git hosting, search, memory, ACP harnesses, managed agents, and other workspace features are not integration opportunities for this item. See [buzz-shrimpy-environment.md](../../research/buzz-shrimpy-environment.md) for the protocol, deployment, identity, and security research behind this direction.
 
 ## Current State
 

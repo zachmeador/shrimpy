@@ -1,24 +1,28 @@
 # 🦐 Backlog
 
-Active engineering notes for `shrimpy`. Completed work belongs in git history and stable docs.
+`docs/backlog/*.md` is the deliberately small now/soon engineering queue. Everything not explicitly scheduled belongs in `docs/backlog/proposals/`, even when its direction is mature or accepted. Completed work belongs in git history and stable docs.
 
-Status `draft` means the maintainer is not sure about the item yet. Status `review` means an implementation is ready for maintainer review but not yet closed out.
+Status `draft` means the product or implementation direction remains unsettled. Status `todo` means the direction is accepted enough to implement. Status `review` means an implementation is ready for maintainer review but not yet closed out. Status does not schedule an item; placement does.
 
-| ID | Status | Priority | Area | Depends On | Note |
-|---|---|---|---|---|---|
-| [WATCH-001](watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
-| [SECURITY-001](security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing |
-| [SECURITY-002](security-002-public-chat-limited-sessions.md) | draft | P2 | Security | none | Public chat limited sessions |
-| [SURFACE-004](surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](surface-006-remote-chat-commands.md) | Discord DM chat adapter |
-| [SURFACE-006](surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
-| [SURFACE-008](surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
+## Now / Soon
+
+No items are currently scheduled.
 
 ## Proposals
 
-Candidate problem definitions and solution sketches that are worth preserving but not yet accepted as backlog work.
+Unscheduled problem definitions and solution sketches worth preserving. Some are exploratory drafts; others are accepted directions waiting to be scheduled.
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
+| [SECURITY-001](proposals/security-001-agent-sandboxing-security-strategy.md) | todo | P2 | Security | none | Local agent sandboxing strategy |
+| [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | draft | P2 | Security | none | Generic session admission and named security profiles |
+| [SECURITY-003](proposals/security-003-public-chat-limited-sessions.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md), [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Public chat sender admission and limited sessions |
+| [SECURITY-004](proposals/security-004-path-bounded-file-tools.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Path-bounded replacement file tools for constrained profiles |
+| [WATCH-001](proposals/watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
+| [WATCH-002](proposals/watch-002-watch-session-profiles.md) | draft | P2 | Watches | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Watch-owned sessions with named profiles and model policy |
+| [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Discord DM chat adapter |
+| [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
+| [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |
 | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P2 | Context | none | Runtime context producers as CLI commands |
 | [CTX-009](proposals/ctx-009-context-trace-debug-view.md) | draft | P2 | Context | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | First-class context trace/debug view |

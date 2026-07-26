@@ -20,6 +20,10 @@ Load each agent's watches separately so one bad file affects only that agent.
 - Changing any `watches.json` reloads every agent's file.
 - Missing watch files are valid and mean that the agent has no watches.
 
+## UX Implications
+
+A malformed watch file affects only its owning agent. Other agents' watches continue running, inspection names the affected agent and file without exposing watch contents, and correcting the file restores normal operation without restarting the gateway.
+
 ## Build
 
 - Track the loaded watches for each agent.

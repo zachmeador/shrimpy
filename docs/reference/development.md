@@ -58,6 +58,6 @@ The release process — version tags, GitHub prereleases, release names — live
 ## Docs Layout
 
 - `docs/reference/` — current behavior.
-- `docs/backlog/` — active engineering items, indexed by `docs/backlog/index.md`.
+- `docs/backlog/` — the now/soon engineering queue plus unscheduled `proposals/`, indexed by `docs/backlog/index.md`.
 - `docs/musings/` — design sketches and unfinished thinking.
 - `docs/research/` — external comparison and source notes.

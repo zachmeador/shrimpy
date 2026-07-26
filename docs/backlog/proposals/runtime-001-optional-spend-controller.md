@@ -139,7 +139,7 @@ Possible config shape:
 - [Tools](../../reference/tools.md): daemon tools are the first Shrimpy-owned tool surface that can be wrapped cleanly.
 - [Channels](../../reference/channels.md): refusals and spend status need visible, inspectable channel records when they affect routed work.
 - [CODE-004](code-004-agent-worker-tools.md): future worker tools should be spend-controller-aware if this feature exists by then.
-- [SECURITY-001](../security-001-agent-sandboxing-security-strategy.md): spend policy and sandbox policy may share runtime action metadata, but they should remain separate capabilities.
+- [SECURITY-001](security-001-agent-sandboxing-security-strategy.md): spend policy and sandbox policy may share runtime action metadata, but they should remain separate capabilities.
 
 ## Done
 

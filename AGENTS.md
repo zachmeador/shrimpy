@@ -12,7 +12,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 - **Binary:** `~/.local/bin/shrimpy` → `dist/cli.js`
 - **Local build caveat:** the local `shrimpy` binary points at this repo's generated `dist/cli.js`, and `dist/` is gitignored. Running `npm run build` or `npm test` rewrites that file and can change the live local CLI behavior even when the source change seems unrelated.
 - **Project docs:** `docs/README.md`, `docs/reference/`, `docs/backlog/`, `docs/musings/`, `docs/research/`
-- **Upcoming goals:** `docs/backlog/index.md` is the source of truth for planned project work. Each active item has its own note in `docs/backlog/`.
+- **Upcoming goals:** `docs/backlog/index.md` is the source of truth for planned project work. The small now/soon queue lives directly in `docs/backlog/`; unscheduled directions live in `docs/backlog/proposals/`.
 
 ## CLI coverage
 

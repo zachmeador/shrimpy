@@ -13,7 +13,11 @@ Shrimpy should support Discord as another chat surface, but the first version sh
 
 Discord DMs fit Shrimpy's existing surface model well. The adapter translates an external one-on-one chat into a durable Shrimpy channel, stamps stable human identity, and lets agents reply through `send_message` instead of treating Discord as a separate conversation runtime.
 
-See [discord-adapter-interface.md](../research/discord-adapter-interface.md) for the current high-level interface notes.
+See [discord-adapter-interface.md](../../research/discord-adapter-interface.md) for the current high-level interface notes.
+
+## UX Implications
+
+An authorized user can talk privately to Shrimpy through a Discord bot and receive replies in the same DM. Setup and inspection remain CLI-driven, unauthorized or unsupported Discord conversations create no Shrimpy turns, and the first version does not imply guild, group-DM, thread, role, or slash-command support.
 
 ## Build
 - Add a `discord` chat surface module under `src/surfaces/discord/`, following the current Telegram module shape.
