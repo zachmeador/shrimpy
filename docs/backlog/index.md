@@ -18,6 +18,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | draft | P2 | Security | none | Generic session admission and named security profiles |
 | [SECURITY-003](proposals/security-003-public-chat-limited-sessions.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md), [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Public chat sender admission and limited sessions |
 | [SECURITY-004](proposals/security-004-path-bounded-file-tools.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Path-bounded replacement file tools for constrained profiles |
+| [SECURITY-005](proposals/security-005-session-scoped-authority-architecture.md) | draft | P2 | Security | none | Session-scoped authority architecture across admission, profiles, and runners |
 | [WATCH-001](proposals/watch-001-per-agent-watch-reload-isolation.md) | draft | P2 | Watches | none | Isolate watch loading and reload failures to the owning agent |
 | [WATCH-002](proposals/watch-002-watch-session-profiles.md) | draft | P2 | Watches | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Watch-owned sessions with named profiles and model policy |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Discord DM chat adapter |
@@ -35,5 +36,5 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [RUNTIME-001](proposals/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) | draft | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](proposals/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
-| [TUI-011](proposals/tui-011-terminal-title-agent-label.md) | draft | P3 | TUI | upstream Pi title hook | Terminal title identifies the active agent without a private patch |
+| [TUI-011](proposals/tui-011-terminal-title-agent-label.md) | draft | P1 | TUI | upstream Pi title hook | Remove Pi branding and identify the active agent in the terminal title |
 | [WORKSPACE-002](proposals/workspace-002-tiered-checkpoint-retention.md) | draft | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |
