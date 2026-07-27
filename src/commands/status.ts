@@ -62,6 +62,19 @@ export const cmdStatus: CommandHandler = async (_argv, config) => {
   console.log(`${label("gateway:")} ${gateway.process}${gateway.pid ? ` (PID ${gateway.pid})` : ""}`);
   console.log(`${label("gateway service:")} ${formatGatewayServiceSummary(gatewayStatus)}`);
   console.log(`${label("gateway heartbeat:")} ${gateway.heartbeat}`);
+  if (gateway.runtime?.web) {
+    const web = gateway.runtime.web;
+    console.log(
+      `${label("web inspector:")} ${web.status} ${web.url}`
+      + (web.pid ? ` (PID ${web.pid})` : "")
+      + (web.restartCount ? ` restarts=${web.restartCount}` : ""),
+    );
+  } else {
+    console.log(
+      `${label("web inspector:")} ${runtime.resolved.web.enabled ? "unreported" : "disabled"}`
+      + (runtime.resolved.web.enabled ? ` http://127.0.0.1:${runtime.resolved.web.port}` : ""),
+    );
+  }
   for (const warning of gateway.warnings) console.log(`${label("gateway warning:")} ${warning}`);
   for (const [surface, health] of Object.entries(gateway.surfaces)) {
     console.log(`${label(`surface ${surface}:`)} ${health.status} failures=${health.consecutiveFailures} stalls=${health.stallRestartCount}`);

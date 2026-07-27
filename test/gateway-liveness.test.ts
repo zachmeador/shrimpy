@@ -88,4 +88,31 @@ describe("gateway ownership and liveness", () => {
     assert.equal(stale.process, "stale");
     assert.equal(stale.heartbeat, "stale");
   });
+
+  test("heartbeat records managed web sidecar health", () => {
+    const healthPath = join(root, "gateway-health.json");
+    const writer = new GatewayHealthWriter(healthPath, {
+      pid: 101,
+      workspace: "/workspace",
+      appCheckout: "/app",
+    });
+    writer.setWebProvider(() => ({
+      enabled: true,
+      status: "running",
+      url: "http://127.0.0.1:5174",
+      port: 5174,
+      pid: 202,
+      restartCount: 1,
+    }));
+    writer.beat();
+    const record = JSON.parse(readFileSync(healthPath, "utf-8"));
+    assert.deepEqual(record.web, {
+      enabled: true,
+      status: "running",
+      url: "http://127.0.0.1:5174",
+      port: 5174,
+      pid: 202,
+      restartCount: 1,
+    });
+  });
 });

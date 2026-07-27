@@ -12,6 +12,7 @@ import { primaryConfigPath } from "../workspace/paths.js";
 import { resolveRuntimeConfig } from "./runtime.js";
 import { resolveToolRuntimeConfig } from "./tools.js";
 import { surfaceModules } from "../surfaces/registry.js";
+import { resolveWebConfig } from "./web.js";
 
 interface ConfigFileEditOptions {
   missing?: "empty" | "error";
@@ -33,6 +34,7 @@ export function validateRawConfig(raw: Record<string, unknown>): void {
   if (raw.tools !== undefined) resolveToolRuntimeConfig(raw.tools);
   if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
   if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);
+  if (raw.web !== undefined) resolveWebConfig(raw.web);
   for (const module of surfaceModules) {
     const rawSurfaceConfig = raw[module.name];
     if (rawSurfaceConfig !== undefined) module.validateConfig(rawSurfaceConfig);

@@ -1,23 +1,117 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import Tree from "./lib/Tree.svelte";
   import FileView from "./lib/FileView.svelte";
-  import { fetchTree, fetchFile } from "./lib/api";
-  import type { FileLeaf, FileResponse, TreeNode, TreeResponse } from "./lib/types";
+  import { fetchNode, fetchTree } from "./lib/api";
+  import type {
+    JsonlNodeResponse,
+    NodeResponse,
+    TreeLeaf,
+    TreeNode,
+    TreeResponse,
+  } from "./lib/types";
 
   let treeData = $state<TreeResponse | null>(null);
   let treeError = $state<string | null>(null);
-
-  let selectedPath = $state<string | null>(null);
-  let file = $state<FileResponse | null>(null);
-  let fileLoading = $state(false);
-  let fileError = $state<string | null>(null);
-
+  let selectedId = $state<string | null>(null);
+  let node = $state<NodeResponse | null>(null);
+  let nodeLoading = $state(false);
+  let nodeError = $state<string | null>(null);
+  let live = $state(false);
   let openGroups = $state<Record<string, boolean>>({});
-  let followLatest = $state(
-    typeof localStorage !== "undefined" &&
-      localStorage.getItem("shrimpy-web:follow-latest") === "1",
-  );
-  let requestSeq = 0;
+  let followLatest = $state(false);
+  let requestSequence = 0;
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function isOpen(key: string) {
+    return openGroups[key] ?? (key !== "directory:workspace");
+  }
+
+  function onToggle(key: string) {
+    openGroups[key] = !isOpen(key);
+  }
+
+  const visibleLeaves = $derived.by<TreeLeaf[]>(() => {
+    if (!treeData) return [];
+    const leaves: TreeLeaf[] = [];
+    function visit(nodes: TreeNode[]) {
+      for (const item of nodes) {
+        if (item.type === "file") {
+          if (item.readable) leaves.push(item);
+        } else if (isOpen(item.id)) {
+          visit(item.children);
+        }
+      }
+    }
+    visit(treeData.tree.root.children);
+    return leaves;
+  });
+
+  async function loadTree() {
+    try {
+      treeData = await fetchTree();
+      treeError = null;
+    } catch (error) {
+      treeError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  async function loadNode(id: string, incremental = false) {
+    selectedId = id;
+    if (!incremental) nodeLoading = true;
+    nodeError = null;
+    const sequence = ++requestSequence;
+    try {
+      const cursor = incremental && node?.mode === "jsonl" && node.id === id
+        ? node.cursor
+        : undefined;
+      const anchor = incremental && node?.mode === "jsonl" && node.id === id
+        ? node.anchor
+        : undefined;
+      const result = await fetchNode(id, cursor, anchor);
+      if (sequence !== requestSequence) return;
+      node = mergeNode(node, result);
+      if (
+        result.mode === "jsonl"
+        && result.cursor < result.totalSize
+        && selectedId === id
+      ) {
+        queueMicrotask(() => void loadNode(id, true));
+      }
+    } catch (error) {
+      if (sequence !== requestSequence) return;
+      nodeError = error instanceof Error ? error.message : String(error);
+      if (!incremental) node = null;
+    } finally {
+      if (sequence === requestSequence) nodeLoading = false;
+    }
+  }
+
+  function mergeNode(
+    current: NodeResponse | null,
+    incoming: NodeResponse,
+  ): NodeResponse {
+    if (
+      incoming.mode !== "jsonl"
+      || incoming.replace
+      || current?.mode !== "jsonl"
+      || current.id !== incoming.id
+    ) {
+      return incoming;
+    }
+    return {
+      ...incoming,
+      events: [...current.events, ...incoming.events],
+      parseErrors: [...current.parseErrors, ...incoming.parseErrors],
+      truncated: current.truncated || incoming.truncated,
+    } satisfies JsonlNodeResponse;
+  }
+
+  function onSelect(id: string) {
+    if (id === selectedId) return;
+    window.location.hash = id;
+    void loadNode(id);
+  }
 
   function onToggleFollow() {
     followLatest = !followLatest;
@@ -26,148 +120,91 @@
     } catch {}
   }
 
-  function isOpen(key: string) {
-    return openGroups[key] ?? true;
-  }
-
-  function onToggle(key: string) {
-    openGroups[key] = !(openGroups[key] ?? true);
-  }
-
-  const visibleLeaves = $derived.by<FileLeaf[]>(() => {
-    if (!treeData) return [];
-    const out: FileLeaf[] = [];
-
-    function visit(nodes: TreeNode[]) {
-      for (const node of nodes) {
-        if (node.type === "file") {
-          if (node.readable) out.push(node);
-          continue;
-        }
-        if (!isOpen(node.path)) continue;
-        visit(node.children);
-      }
-    }
-
-    visit(treeData.tree.root.children);
-    return out;
-  });
-
-  function readHash(): string | null {
-    const h = window.location.hash.replace(/^#/, "");
-    return h || null;
-  }
-
-  async function loadTree() {
-    try {
-      treeData = await fetchTree();
-      treeError = null;
-    } catch (e) {
-      treeError = e instanceof Error ? e.message : String(e);
-    }
-  }
-
-  async function loadFile(path: string) {
-    selectedPath = path;
-    fileLoading = true;
-    fileError = null;
-    const seq = ++requestSeq;
-    try {
-      const result = await fetchFile(path);
-      if (seq !== requestSeq) return;
-      file = result;
-    } catch (e) {
-      if (seq !== requestSeq) return;
-      fileError = e instanceof Error ? e.message : String(e);
-      file = null;
-    } finally {
-      if (seq === requestSeq) fileLoading = false;
-    }
-  }
-
-  function onSelect(path: string) {
-    if (path === selectedPath) return;
-    window.location.hash = "#" + path;
-    loadFile(path);
-  }
-
-  function onRefresh() {
-    loadTree();
-    if (selectedPath) loadFile(selectedPath);
-  }
-
   function moveSelection(delta: number) {
     const leaves = visibleLeaves;
     if (leaves.length === 0) return;
-    let idx = leaves.findIndex((l) => l.path === selectedPath);
-    if (idx === -1) {
-      idx = delta > 0 ? -1 : leaves.length;
-    }
-    const next = Math.max(0, Math.min(leaves.length - 1, idx + delta));
+    let index = leaves.findIndex((leaf) => leaf.id === selectedId);
+    if (index === -1) index = delta > 0 ? -1 : leaves.length;
+    const next = Math.max(0, Math.min(leaves.length - 1, index + delta));
     const target = leaves[next];
-    if (target && target.path !== selectedPath) onSelect(target.path);
+    if (target && target.id !== selectedId) onSelect(target.id);
   }
 
-  function onKeydown(e: KeyboardEvent) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    const tag = (e.target as HTMLElement | null)?.tagName;
+  function onKeydown(event: KeyboardEvent) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const tag = (event.target as HTMLElement | null)?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      moveSelection(1);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      moveSelection(-1);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveSelection(event.key === "ArrowDown" ? 1 : -1);
     }
   }
 
-  window.addEventListener("hashchange", () => {
-    const p = readHash();
-    if (p && p !== selectedPath) loadFile(p);
+  function scheduleRefresh() {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      void loadTree();
+      if (selectedId) void loadNode(selectedId, true);
+    }, 80);
+  }
+
+  onMount(() => {
+    followLatest = localStorage.getItem("shrimpy-web:follow-latest") === "1";
+    const initialId = window.location.hash.replace(/^#/, "") || null;
+    void (async () => {
+      await loadTree();
+      if (initialId) await loadNode(initialId);
+      else {
+        const overview = treeData?.tree.root.children.find(
+          (item) => item.type === "file" && item.kind === "overview",
+        );
+        if (overview?.type === "file") onSelect(overview.id);
+      }
+    })();
+    const events = new EventSource("/api/events");
+    events.addEventListener("ready", () => live = true);
+    events.addEventListener("change", scheduleRefresh);
+    events.onerror = () => live = false;
+    const onHashChange = () => {
+      const id = window.location.hash.replace(/^#/, "");
+      if (id && id !== selectedId) void loadNode(id);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    window.addEventListener("keydown", onKeydown);
+    return () => {
+      events.close();
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("keydown", onKeydown);
+    };
   });
-
-  window.addEventListener("keydown", onKeydown);
-
-  (async () => {
-    await loadTree();
-    const p = readHash();
-    if (p) await loadFile(p);
-  })();
 </script>
 
 {#if treeError}
-  <div class="fatal">failed to load tree: {treeError}</div>
+  <div class="fatal">failed to load workspace: {treeError}</div>
 {:else if treeData}
   <Tree
     tree={treeData.tree}
-    selected={selectedPath}
+    workspace={treeData.workspace}
+    selected={selectedId}
     {openGroups}
+    {live}
     {onSelect}
     {onToggle}
   />
   <FileView
-    {file}
-    loading={fileLoading}
-    error={fileError}
+    {node}
+    loading={nodeLoading}
+    error={nodeError}
     {followLatest}
-    {onRefresh}
+    {live}
     {onToggleFollow}
   />
 {:else}
-  <div class="status">loading tree…</div>
-  <div></div>
+  <div class="status">loading workspace…</div>
 {/if}
 
 <style>
-  .fatal {
-    grid-column: 1 / -1;
-    padding: 16px;
-    color: var(--c-error);
-  }
-  .status {
-    padding: 16px;
-    color: var(--fg-dim);
-    border-right: 1px solid var(--border);
-    background: var(--bg-raised);
-  }
+  .fatal, .status { padding: 16px; color: var(--c-error); }
+  .fatal { grid-column: 1 / -1; }
 </style>

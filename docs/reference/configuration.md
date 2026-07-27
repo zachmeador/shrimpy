@@ -58,6 +58,7 @@ Use `--json` when the output feeds a script or another agent.
 - `telegram` and other surface keys — configured surface instances, auth, allowlists, user mappings, default agent, and reliability policy.
 - `watchClock` — workspace watch clock tick and default timezone.
 - `status` — optional targeted watch diagnostics.
+- `web` — gateway-managed local workspace inspector enablement and port.
 
 Config validation rejects unknown fields inside validated sections. Surface modules validate their own top-level section.
 
@@ -82,6 +83,21 @@ Shrimpy keeps Pi's ambient discovery quiet by default: prompt-template discovery
 ```
 
 Compaction overrides can be scoped per agent, session type, channel pattern, or session name; the policy fields, precedence, and failure debugging live in [compaction.md](compaction.md).
+
+## Web Inspector
+
+The gateway starts the separate, read-only `shrimpy-web` process on loopback by default. It reads the current workspace files directly and serves the inspector at `http://127.0.0.1:5174`. A web bind or process failure is reported by `shrimpy status` and `shrimpy gateway status` but does not stop gateway delivery, watches, or surfaces.
+
+```json
+{
+  "web": {
+    "enabled": true,
+    "port": 5174
+  }
+}
+```
+
+Set `web.enabled` to `false` when this gateway should not manage an inspector. `shrimpy-web --workspace /path --port 5174` remains available for direct development and diagnostics.
 
 Tool defaults live under `tools`:
 

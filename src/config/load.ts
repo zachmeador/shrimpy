@@ -18,6 +18,7 @@ import {
   validateRawConfig,
 } from "./store.js";
 import { resolveWorkspacePath } from "../workspace/location.js";
+import type { WebConfig } from "./web.js";
 
 export interface ShrimpyConfig {
   workspace: string;
@@ -31,6 +32,7 @@ export interface ShrimpyConfig {
   tools?: ToolRuntimeConfig;
   runtime?: RuntimeConfig;
   status?: GatewayStatusConfig;
+  web?: WebConfig;
   watchClock?: {
     tickIntervalMs?: number;
     defaultTimezone?: string;

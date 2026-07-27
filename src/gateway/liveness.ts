@@ -10,6 +10,7 @@ import {
 } from "./pid-file.js";
 import type { GatewayServiceStatus } from "./service/index.js";
 import type { SurfaceHealthSnapshot } from "../surfaces/shared/types.js";
+import type { WebSidecarHealth } from "./web-sidecar.js";
 
 export interface GatewayHealthRecord {
   version: 1;
@@ -19,6 +20,7 @@ export interface GatewayHealthRecord {
   gatewayStartedAt: number;
   heartbeatAt: number;
   surfaces: Record<string, SurfaceHealthSnapshot>;
+  web?: WebSidecarHealth;
 }
 
 export type GatewayProcessState = "running" | "stale" | "mismatched" | "stopped";
@@ -50,6 +52,7 @@ export function loadGatewayHealth(path: string): GatewayHealthRecord | undefined
       gatewayStartedAt: value.gatewayStartedAt,
       heartbeatAt: value.heartbeatAt,
       surfaces: value.surfaces && typeof value.surfaces === "object" ? value.surfaces as Record<string, SurfaceHealthSnapshot> : {},
+      ...(isWebSidecarHealth(value.web) ? { web: value.web } : {}),
     };
   } catch {
     return undefined;
@@ -61,6 +64,7 @@ export class GatewayHealthWriter {
   private timer: ReturnType<typeof setInterval> | undefined;
   private surfaces: Record<string, SurfaceHealthSnapshot> = {};
   private surfaceProvider?: () => Record<string, SurfaceHealthSnapshot>;
+  private webProvider?: () => WebSidecarHealth;
 
   constructor(
     private readonly path: string,
@@ -76,6 +80,10 @@ export class GatewayHealthWriter {
     this.surfaceProvider = provider;
   }
 
+  setWebProvider(provider: () => WebSidecarHealth): void {
+    this.webProvider = provider;
+  }
+
   beat(): void {
     writeJsonFileAtomic(this.path, {
       version: 1,
@@ -83,6 +91,7 @@ export class GatewayHealthWriter {
       gatewayStartedAt: this.startedAt,
       heartbeatAt: Date.now(),
       surfaces: this.surfaceProvider?.() ?? this.surfaces,
+      ...(this.webProvider ? { web: this.webProvider() } : {}),
     } satisfies GatewayHealthRecord);
   }
 
@@ -144,3 +153,15 @@ export function collectGatewayLiveness(input: {
 }
 
 export { claimGatewayPid, releaseGatewayPid };
+
+function isWebSidecarHealth(value: unknown): value is WebSidecarHealth {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const web = value as Partial<WebSidecarHealth>;
+  return typeof web.enabled === "boolean"
+    && typeof web.status === "string"
+    && typeof web.url === "string"
+    && typeof web.port === "number"
+    && typeof web.restartCount === "number";
+}

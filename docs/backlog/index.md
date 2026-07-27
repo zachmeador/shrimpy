@@ -19,7 +19,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [SECURITY-004](proposals/security-004-path-bounded-file-tools.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Path-bounded replacement file tools for constrained profiles |
 | [SECURITY-005](proposals/security-005-session-scoped-authority-architecture.md) | draft | P2 | Security | none | Session-scoped authority architecture across admission, profiles, and runners |
 | [WATCH-002](proposals/watch-002-watch-session-profiles.md) | draft | P2 | Watches | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Watch-owned sessions with named profiles and model policy |
-| [WEB-001](proposals/web-001-file-backed-web-inspector-revamp.md) | todo | P2 | Web | none | Default-on gateway-managed, file-backed web inspector revamp |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Discord DM chat adapter |
 | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
 | [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |

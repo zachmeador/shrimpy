@@ -38,6 +38,7 @@ import {
 } from "./surfaces/registry.js";
 import { ChannelOutbox } from "./channels/outbox.js";
 import { extractGlobalWorkspace } from "./workspace/location.js";
+import { WebSidecarManager } from "./gateway/web-sidecar.js";
 
 async function run() {
   extractGlobalWorkspace(process.argv.slice(2));
@@ -67,6 +68,13 @@ async function run() {
 
   installGatewayLogFile(runtime.paths.gatewayLogPath);
   logGatewayStartup(runtime);
+  const webSidecar = new WebSidecarManager({
+    ...runtime.resolved.web,
+    workspace: runtime.paths.workspace,
+    scriptPath: runtime.environment.webServerPath,
+  });
+  health.setWebProvider(() => webSidecar.health());
+  webSidecar.start();
   const identityStore = new IdentityStore(runtime.paths.usersPath);
   const surfaceThreadStateStore = runtime.createSurfaceThreadStateStore();
 
@@ -132,9 +140,10 @@ async function run() {
     saveWatchClockState(runtime.paths.watchClockStatePath, watchClock.getState());
     await Promise.allSettled(surfaces.map(async (surface) => surface.stop()));
     updateHealth();
-    health.stop();
     await outbox.stop();
     await deliveryLoop.stop();
+    await webSidecar.stop();
+    health.stop();
 
     releaseGatewayPid(runtime.paths.gatewayPidPath, process.pid);
 

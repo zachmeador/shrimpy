@@ -5,7 +5,7 @@
     timestamp: number;
     senderKind: "human" | "agent" | "system" | string;
     actorId: string;
-    transport: string;
+    provenance: string;
     contentType: string;
     text: string;
     raw: any;
@@ -16,10 +16,20 @@
 
   function normalize(e: any): Normalized {
     if (e.sender && e.content) {
-      const text =
-        e.content?.data?.text ??
-        (e.content?.type === "system" ? JSON.stringify(e.content.data) : "") ??
-        "";
+      const data = e.content?.data;
+      const publication = data?.publication;
+      const text = formatContent(e.content?.type, data)
+        + (publication?.kind
+          ? ` · ${publication.kind}${publication.urgency ? `/${publication.urgency}` : ""}`
+          : "");
+      const provenance = [
+        e.origin?.transport,
+        e.origin?.addressedAgentId ? `→${e.origin.addressedAgentId}` : "",
+        e.origin?.watchId ? `watch:${e.origin.watchId}` : "",
+        e.origin?.sourceKind && e.origin?.sourceId
+          ? `${e.origin.sourceKind}:${e.origin.sourceId}`
+          : "",
+      ].filter(Boolean).join(" ");
       return {
         timestamp: e.timestamp ?? 0,
         senderKind: e.sender?.kind ?? "unknown",
@@ -28,25 +38,34 @@
           e.sender?.actorId ??
           e.sender?.userId ??
           "?",
-        transport: e.origin?.transport ?? "",
+        provenance,
         contentType: e.content?.type ?? "?",
         text: typeof text === "string" ? text : JSON.stringify(text),
         raw: e,
       };
     }
-    // legacy from/type/payload
     return {
       timestamp: e.timestamp ?? 0,
-      senderKind: e.from ?? "unknown",
-      actorId: e.from ?? "?",
-      transport: e.type ?? "",
+      senderKind: "unknown",
+      actorId: "?",
+      provenance: "unknown",
       contentType: e.type ?? "?",
-      text:
-        typeof e.payload === "string"
-          ? e.payload
-          : JSON.stringify(e.payload ?? {}),
+      text: JSON.stringify(e),
       raw: e,
     };
+  }
+
+  function formatContent(type: unknown, data: any): string {
+    if (type === "text") return typeof data?.text === "string" ? data.text : JSON.stringify(data);
+    if (type === "image") return [data?.caption, data?.path].filter(Boolean).join(" · ");
+    if (type === "image_group") {
+      const paths = Array.isArray(data?.paths) ? data.paths.join(", ") : "";
+      return [data?.caption, paths].filter(Boolean).join(" · ");
+    }
+    if (type === "unsupported_media") {
+      return [data?.mediaKind, data?.caption, data?.fileName].filter(Boolean).join(" · ");
+    }
+    return JSON.stringify(data ?? {});
   }
 
   const n = $derived(normalize(event));
@@ -71,7 +90,7 @@
   <span class="ts">{formatEventTime(n.timestamp)}</span>
   <span class="chip {chipClass(n.senderKind)}">{chipLetter(n.senderKind)}</span>
   <span class="actor">{n.actorId}</span>
-  <span class="transport dim">{n.transport}</span>
+  <span class="transport dim" title={n.provenance}>{n.provenance}</span>
   <span class="content">{n.text}</span>
   <button class="more" onclick={() => (expanded = !expanded)} title="raw">{expanded ? "−" : "⋯"}</button>
   {#if expanded}
@@ -82,7 +101,7 @@
 <style>
   .row {
     display: grid;
-    grid-template-columns: 104px 14px 140px 70px 1fr 18px;
+    grid-template-columns: 104px 14px 140px minmax(90px, 160px) 1fr 18px;
     gap: 6px;
     padding: 2px 8px;
     align-items: baseline;

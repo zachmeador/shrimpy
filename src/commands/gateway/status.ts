@@ -71,6 +71,20 @@ export function printGatewayStatus(
   console.log(`${label("gateway enabled:")} ${service.enabled}`);
   console.log(`${label("gateway process:")} ${liveness.process}${liveness.pid ? ` (PID ${liveness.pid})` : ""}`);
   console.log(`${label("gateway heartbeat:")} ${liveness.heartbeat}`);
+  if (liveness.runtime?.web) {
+    const web = liveness.runtime.web;
+    console.log(
+      `${label("web inspector:")} ${web.status} ${web.url}`
+      + (web.pid ? ` (PID ${web.pid})` : "")
+      + (web.restartCount ? ` restarts=${web.restartCount}` : ""),
+    );
+    if (web.lastError) console.log(`  ${label("web error:")} ${dim(web.lastError)}`);
+  } else {
+    console.log(
+      `${label("web inspector:")} ${runtime.resolved.web.enabled ? "unreported" : "disabled"}`
+      + (runtime.resolved.web.enabled ? ` http://127.0.0.1:${runtime.resolved.web.port}` : ""),
+    );
+  }
   for (const warning of liveness.warnings) console.log(`${label("gateway warning:")} ${warning}`);
   if (service.definitionPath) {
     console.log(`${label("gateway service file:")} ${service.definitionPath}`);

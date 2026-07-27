@@ -17,6 +17,10 @@ import {
 } from "../config/gateway-status.js";
 import type { ShrimpyConfig } from "../config/load.js";
 import {
+  type ResolvedWebConfig,
+  resolveWebConfig,
+} from "../config/web.js";
+import {
   type ResolvedToolRuntimeConfig,
   resolveToolRuntimeConfig,
 } from "../config/tools.js";
@@ -59,6 +63,7 @@ export interface ResolvedAppConfig {
   status: ResolvedGatewayStatusConfig;
   surfaces: Record<string, SurfaceModuleResolved>;
   tools: ResolvedToolRuntimeConfig;
+  web: ResolvedWebConfig;
 }
 
 interface AppRuntimeBuildToolsOpts {
@@ -98,6 +103,7 @@ export class AppRuntime {
       status: resolveGatewayStatusConfig(config.status),
       surfaces,
       tools: resolveToolRuntimeConfig(config.tools),
+      web: resolveWebConfig(config.web),
     };
   }
 

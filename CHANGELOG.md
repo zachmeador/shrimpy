@@ -39,6 +39,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Watches & Gateway
 
+- Added a default-on, gateway-managed loopback web inspector sidecar with `web.enabled`/`web.port` config, restart supervision, clean shutdown, and status/heartbeat reporting that remains non-fatal to gateway work.
 - Fixed one agent's invalid `watches.json` stopping the shared watch clock or blocking other agents' reloads; failed reloads keep that agent's last valid watches, and `shrimpy watches` reports sanitized per-agent load failures.
 - Changed gateway ownership and status to use an atomic workspace PID claim, cross-platform process identity, and a fresh heartbeat record; service-manager state is reported separately and manual gateways remain visible as running with a management warning.
 - Added Telegram surface health reporting for successful polling, retries, stalls, recovery, and bounded failure details.
@@ -69,6 +70,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Fixed
 
+- Rebuilt the read-only web inspector around current workspace files with a dense tree menu, synthetic channel/agent/session/runtime nodes, decoded session identities, bounded incremental transcript tails, instant filesystem updates, realpath containment, and explicit secret denial.
 - Fixed Shrimpy TUI terminal tabs retaining Pi's `π` identity; titles now show `🦐 - Agent: <agent> - cwd: <cwd>` across Pi title refreshes and `/agents` switches.
 - Fixed TUI `/new` exiting instead of starting a fresh session when durable session ownership was enabled.
 - Fixed TUI parity regressions that removed model favorites, flattened `/settings`, replaced inline operational output with modal panels, showed unsupported thinking choices, stopped the footer shrimp during retry or compaction, and left blank rows for collapsed turn context.

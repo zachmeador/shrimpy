@@ -93,10 +93,10 @@ shrimpy channels read <name>     # read a channel log
 shrimpy workspace search "..."   # search context, skills, notes, and vaults
 shrimpy update                   # update Shrimpy
 shrimpy-gateway                  # run the gateway (delivery, schedules, surfaces)
-shrimpy-web                      # browse channels and files at http://127.0.0.1:5174
+shrimpy-web                      # run the read-only workspace inspector directly
 ```
 
-`shrimpy --help` shows the common surface; `shrimpy help all` the full catalog. The gateway is meant to run as a per-user service — install it with `shrimpy gateway install` and `start`, and read logs with `shrimpy gateway logs`.
+`shrimpy --help` shows the common surface; `shrimpy help all` the full catalog. The gateway is meant to run as a per-user service — install it with `shrimpy gateway install` and `start`, and read logs with `shrimpy gateway logs`. The gateway starts the read-only web inspector at `http://127.0.0.1:5174` by default.
 
 ## 🦐 How it fits together
 

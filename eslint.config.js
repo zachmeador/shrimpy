@@ -5,7 +5,7 @@ export default tseslint.config(
     ignores: ["coverage/**", "dist/**", "node_modules/**"],
   },
   {
-    files: ["src/**/*.ts", "test/**/*.ts", "web/src/**/*.ts"],
+    files: ["src/**/*.ts", "test/**/*.ts", "web/**/*.ts"],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -37,7 +37,7 @@ export default tseslint.config(
   },
   {
     name: "shrimpy/strict-production",
-    files: ["src/**/*.ts", "web/src/**/*.ts"],
+    files: ["src/**/*.ts", "web/**/*.ts"],
     extends: [...tseslint.configs.strictTypeChecked],
     rules: {
       "@typescript-eslint/no-confusing-void-expression": "off",

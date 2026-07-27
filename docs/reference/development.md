@@ -15,6 +15,7 @@
 - Watch clock: `src/watches/`
 - Tools: `src/tools/`
 - Setup templates: `src/setup/templates/`
+- Web inspector: `web/` owns the Svelte client, file-backed server, workspace readers, live invalidation, and shared private transport types. Shrimpy core only owns `src/config/web.ts` and `src/gateway/web-sidecar.ts` for configuration and process lifecycle.
 - Repository developer skills: repository-root `skills/<id>/SKILL.md`. These are source-tree skill prompts for Shrimpy development work, separate from the workspace and agent skills described in [skills.md](skills.md). `npm run build` mirrors them into `.claude/skills/` and `.agents/skills/` with `DIRECTORY_MANAGED_BY_SHRIMPY_BUILD` marker files; edit `skills/`, not the generated mirrors.
 - `CLAUDE.md` is generated from `AGENTS.md` by the same build tooling and carries a short origin note at the top.
 
@@ -23,8 +24,11 @@
 ```bash
 npm run build
 npm run build:skills
+npm run build:web
 npm test
 ```
+
+Use `npm run web:dev` for the split Vite/client and file-backed server development loop. The inspector reads the selected Shrimpy workspace directly, stays read-only, and updates through filesystem invalidations; when a workspace format changes, update readers under `web/server/` rather than adding web-specific output to Shrimpy core.
 
 Local checks:
 

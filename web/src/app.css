@@ -7,6 +7,7 @@
   --bg-selected: #2a2a30;
   --border: #26262b;
   --fg: #d8d8dc;
+  --fg-strong: #f0f0f2;
   --fg-dim: #7a7a82;
   --fg-muted: #55555c;
   --accent: #6bd0b0;
@@ -38,7 +39,7 @@ html, body {
 #app {
   height: 100vh;
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -83,3 +84,9 @@ button {
 .dim { color: var(--fg-dim); }
 .muted { color: var(--fg-muted); }
 .err { color: var(--c-error); }
+
+@media (max-width: 720px) {
+  #app {
+    grid-template-columns: minmax(220px, 42vw) minmax(0, 1fr);
+  }
+}

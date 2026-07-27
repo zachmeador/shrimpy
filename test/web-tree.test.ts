@@ -1,37 +1,20 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { encodeNodeId } from "../dist/web/server/ids.js";
+import { readNode } from "../dist/web/server/nodes.js";
+import { readJsonl, readText } from "../dist/web/server/read.js";
+import { buildTree } from "../dist/web/server/tree.js";
 import {
-  buildTree,
   classifyWorkspaceFile,
-  type DirectoryNode,
-  type FileLeaf,
-  type TreeNode,
-} from "../dist/web/tree.js";
-import { readText } from "../dist/web/read.js";
+  resolveContainedFile,
+} from "../dist/web/server/workspace.js";
 
-function findNode(root: DirectoryNode, path: string): TreeNode | undefined {
-  const parts = path.split("/");
-  let current: TreeNode = root;
-  for (const part of parts) {
-    if (current.type !== "directory") return undefined;
-    const next = current.children.find((child) => child.name === part);
-    if (!next) return undefined;
-    current = next;
-  }
-  return current;
-}
-
-test("web tree mirrors the workspace layout", async () => {
+async function fixture(): Promise<string> {
   const workspace = await mkdtemp(join(tmpdir(), "shrimpy-web-"));
-  await mkdir(join(workspace, "context"), { recursive: true });
-  await mkdir(join(workspace, "config"), { recursive: true });
-  await mkdir(join(workspace, "channels"), { recursive: true });
-  await mkdir(join(workspace, "state", "pi"), { recursive: true });
-  await mkdir(join(workspace, "runtime", "logs"), { recursive: true });
-  await mkdir(join(
+  const session = join(
     workspace,
     "agents",
     "shrimpy",
@@ -39,90 +22,158 @@ test("web tree mirrors the workspace layout", async () => {
     "channel",
     "aG9tZQ",
     "ZGVmYXVsdA",
-  ), {
-    recursive: true,
-  });
-  await mkdir(join(workspace, "agents", "shrimpy", "vault", "notes"), {
-    recursive: true,
-  });
-
-  await writeFile(join(workspace, "context", "SYSTEM.md"), "# System\n");
-  await writeFile(join(workspace, "context", "USER.md"), "# User\n");
-  await writeFile(join(workspace, "context", "WORKSPACE.md"), "# Workspace\n");
-  await writeFile(join(workspace, "config", "shrimpy.json"), "{}\n");
-  await writeFile(join(workspace, "channels", "home.jsonl"), "{}\n");
-  await writeFile(join(workspace, "state", "pi", "auth.json"), "{}\n");
-  await writeFile(join(workspace, "state", "pi", "models-store.json"), "{}\n");
-  await writeFile(join(workspace, "runtime", "logs", "gateway.log"), "started\n");
-  await writeFile(
-    join(
-      workspace,
-      "agents",
-      "shrimpy",
-      "sessions",
-      "channel",
-      "aG9tZQ",
-      "ZGVmYXVsdA",
-      "turn.jsonl",
+  );
+  await Promise.all([
+    mkdir(join(workspace, "context"), { recursive: true }),
+    mkdir(join(workspace, "config"), { recursive: true }),
+    mkdir(join(workspace, "channels"), { recursive: true }),
+    mkdir(join(workspace, "state", "pi"), { recursive: true }),
+    mkdir(join(workspace, "runtime", "logs"), { recursive: true }),
+    mkdir(join(workspace, "agents", "shrimpy", "vault"), { recursive: true }),
+    mkdir(session, { recursive: true }),
+  ]);
+  await Promise.all([
+    writeFile(join(workspace, "context", "SYSTEM.md"), "# System\n"),
+    writeFile(join(workspace, "config", "shrimpy.json"), "{}\n"),
+    writeFile(join(workspace, "config", "channels.json"), JSON.stringify({
+      channels: {
+        home: { agents: { shrimpy: {} } },
+        ops: { agents: { shrimpy: {} } },
+      },
+    })),
+    writeFile(join(workspace, "channels", "home.jsonl"), "{\"text\":\"one\"}\n"),
+    writeFile(join(workspace, "state", "pi", "auth.json"), "{}\n"),
+    writeFile(join(workspace, "state", "pi", "models-store.json"), "{}\n"),
+    writeFile(join(workspace, "runtime", "logs", "gateway.log"), "started\n"),
+    writeFile(
+      join(workspace, "agents", "shrimpy", "watches.json"),
+      JSON.stringify({ watches: [{ id: "pulse", enabled: true }] }),
     ),
-    "{}\n",
-  );
-  await writeFile(
-    join(workspace, "agents", "shrimpy", "vault", "notes", "idea.md"),
-    "note\n",
-  );
+    writeFile(join(session, "session.json"), JSON.stringify({
+      version: 1,
+      key: {
+        agentId: "shrimpy",
+        namespace: "channel",
+        name: "home",
+        profileId: "default",
+      },
+      purpose: "interactive",
+      delivery: { kind: "channel", channel: "home" },
+    })),
+    writeFile(join(session, "turn.jsonl"), [
+      JSON.stringify({ type: "session", id: "one" }),
+      JSON.stringify({
+        type: "custom",
+        customType: "shrimpy_session_lifecycle",
+        data: { state: "active" },
+      }),
+      "",
+    ].join("\n")),
+  ]);
+  return workspace;
+}
 
+test("web tree combines useful menu nodes with the physical workspace", async () => {
+  const workspace = await fixture();
   const tree = await buildTree(workspace);
   assert.deepEqual(
-    tree.root.children.slice(0, 6).map((node) => node.name),
-    ["context", "config", "agents", "channels", "state", "runtime"],
+    tree.root.children.map((node) => node.name),
+    ["Overview", "Channels", "Agents", "Runtime", "Workspace"],
   );
 
-  const context = findNode(tree.root, "context/SYSTEM.md") as FileLeaf;
-  assert.equal(context.kind, "markdown");
-  assert.equal(context.readable, true);
-  const userContext = findNode(tree.root, "context/USER.md") as FileLeaf;
-  assert.equal(userContext.kind, "markdown");
-  assert.equal(userContext.readable, true);
-  const workspaceContext = findNode(tree.root, "context/WORKSPACE.md") as FileLeaf;
-  assert.equal(workspaceContext.kind, "markdown");
-  assert.equal(workspaceContext.readable, true);
+  const channels = tree.root.children[1];
+  assert.equal(channels?.type, "directory");
+  assert.equal(channels?.children[0]?.name, "home");
+  assert.equal(channels?.children[1]?.name, "ops");
+  assert.equal(channels?.children[0]?.type, "file");
+  if (channels?.children[0]?.type === "file") {
+    assert.equal(channels.children[0].kind, "channel");
+    assert.doesNotMatch(channels.children[0].id, /channels|home/);
+  }
 
-  const channel = findNode(tree.root, "channels/home.jsonl") as FileLeaf;
-  assert.equal(channel.kind, "channel");
+  const agents = tree.root.children[2];
+  assert.equal(agents?.type, "directory");
+  if (agents?.type === "directory") {
+    const shrimpy = agents.children[0];
+    assert.equal(shrimpy?.name, "shrimpy");
+    assert.match(JSON.stringify(shrimpy), /home/);
+    assert.match(JSON.stringify(shrimpy), /channel · default · active/);
+    assert.match(JSON.stringify(shrimpy), /Watches/);
+  }
 
-  const session = findNode(
-    tree.root,
-    "agents/shrimpy/sessions/channel/aG9tZQ/ZGVmYXVsdA/turn.jsonl",
-  ) as FileLeaf;
-  assert.equal(session.kind, "session");
-
-  const auth = findNode(tree.root, "state/pi/auth.json") as FileLeaf;
-  assert.equal(auth.kind, "private");
-  assert.equal(auth.readable, false);
-  const modelsStore = findNode(tree.root, "state/pi/models-store.json") as FileLeaf;
-  assert.equal(modelsStore.kind, "json");
-  assert.equal(modelsStore.readable, true);
+  const physical = tree.root.children[4];
+  assert.equal(physical?.type, "directory");
+  if (physical?.type === "directory") {
+    const config = physical.children.find((node) => node.name === "config");
+    assert.equal(config?.type, "directory");
+    if (config?.type === "directory") {
+      const secret = config.children.find((node) => node.name === "shrimpy.json");
+      assert.equal(secret?.type, "file");
+      if (secret?.type === "file") {
+        assert.equal(secret.kind, "private");
+        assert.equal(secret.readable, false);
+      }
+    }
+  }
 });
 
-test("web file classifier and text reader support non-jsonl workspace files", async () => {
-  assert.deepEqual(classifyWorkspaceFile("context/SYSTEM.md"), {
-    kind: "markdown",
-    readable: true,
-  });
-  assert.deepEqual(classifyWorkspaceFile("runtime/logs/gateway.log"), {
-    kind: "log",
-    readable: true,
-  });
-  assert.deepEqual(classifyWorkspaceFile("media/photo.png"), {
-    kind: "media",
+test("node readers expose structured current sessions and deny secrets", async () => {
+  const workspace = await fixture();
+  const channel = await readNode(
+    workspace,
+    encodeNodeId({ type: "channel", channel: "home" }),
+  );
+  assert.equal(channel.mode, "jsonl");
+  if (channel.mode === "jsonl") {
+    assert.equal(channel.events.length, 1);
+    assert.equal(channel.replace, true);
+  }
+
+  const configuredOnly = await readNode(
+    workspace,
+    encodeNodeId({ type: "channel", channel: "ops" }),
+  );
+  assert.equal(configuredOnly.mode, "overview");
+
+  await assert.rejects(
+    readNode(
+      workspace,
+      encodeNodeId({ type: "file", path: "state/pi/auth.json" }),
+    ),
+    /not readable/,
+  );
+  assert.deepEqual(classifyWorkspaceFile("state/pi/models-store.json"), {
+    kind: "private",
     readable: false,
   });
+});
 
-  const workspace = await mkdtemp(join(tmpdir(), "shrimpy-web-"));
-  const filePath = join(workspace, "note.md");
-  await writeFile(filePath, "hello\n");
-  const result = await readText(filePath);
-  assert.equal(result.text, "hello\n");
-  assert.equal(result.truncated, false);
+test("bounded JSONL reads support byte cursors", async () => {
+  const workspace = await fixture();
+  const path = join(workspace, "channels", "home.jsonl");
+  const first = await readJsonl(path);
+  await writeFile(path, "{\"text\":\"one\"}\n{\"text\":\"two\"}\n");
+  const appended = await readJsonl(path, first.cursor, first.anchor);
+  assert.equal(appended.replace, false);
+  assert.deepEqual(appended.events, [{ text: "two" }]);
+
+  await writeFile(path, "{\"text\":\"new\"}\n{\"text\":\"shape\"}\n");
+  const replaced = await readJsonl(path, appended.cursor, appended.anchor);
+  assert.equal(replaced.replace, true);
+  assert.deepEqual(replaced.events, [{ text: "new" }, { text: "shape" }]);
+
+  const text = await readText(join(workspace, "context", "SYSTEM.md"));
+  assert.equal(text.text, "# System\n");
+  assert.equal(text.truncated, false);
+});
+
+test("realpath containment rejects symlink escapes", async () => {
+  const workspace = await fixture();
+  const outside = await mkdtemp(join(tmpdir(), "shrimpy-web-outside-"));
+  await writeFile(join(outside, "secret.txt"), "nope\n");
+  await symlink(join(outside, "secret.txt"), join(workspace, "context", "escape.txt"));
+  assert.equal(
+    await resolveContainedFile(workspace, "context/escape.txt"),
+    null,
+  );
 });

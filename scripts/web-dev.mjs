@@ -21,7 +21,7 @@ function start(command, args) {
   });
 }
 
-const build = await runOnce("tsc", []);
+const build = await runOnce("tsc", ["-p", "web/tsconfig.server.json"]);
 if (build.code !== 0) {
   process.exit(build.code);
 }

@@ -15,8 +15,8 @@
   "scripts": {
     "build": "rm -rf dist && tsc && npm run build:web && chmod +x dist/cli.js dist/gateway.js dist/web/server.js && npm run build:skills",
     "build:skills": "node dist/skills/project-sync.js",
-    "build:web": "vite build --config web/vite.config.ts",
-    "lint": "eslint src test web/src --ext .ts",
+    "build:web": "vite build --config web/vite.config.ts && tsc -p web/tsconfig.server.json",
+    "lint": "eslint src test web --ext .ts",
     "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",
     "test:coverage": "npm run build && c8 --all --src src --reporter=text-summary --reporter=lcov node --test --experimental-strip-types test/*.test.ts",
     "dev": "npm run build && node dist/cli.js",

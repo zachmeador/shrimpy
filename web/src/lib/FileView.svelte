@@ -2,23 +2,23 @@
   import { tick } from "svelte";
   import ChannelRow from "./ChannelRow.svelte";
   import SessionRow from "./SessionRow.svelte";
-  import type { FileResponse } from "./types";
+  import type { NodeResponse } from "./types";
   import { formatBytes } from "./format";
 
   interface Props {
-    file: FileResponse | null;
+    node: NodeResponse | null;
     loading: boolean;
     error: string | null;
     followLatest: boolean;
-    onRefresh: () => void;
+    live: boolean;
     onToggleFollow: () => void;
   }
   let {
-    file,
+    node,
     loading,
     error,
     followLatest,
-    onRefresh,
+    live,
     onToggleFollow,
   }: Props = $props();
 
@@ -29,7 +29,7 @@
     const request = ++scrollRequest;
     void (async () => {
       await tick();
-      for (let i = 0; i < 8; i++) {
+      for (let index = 0; index < 4; index++) {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         if (request !== scrollRequest || !bodyEl) return;
         bodyEl.scrollTop = bodyEl.scrollHeight;
@@ -37,59 +37,48 @@
     })();
   }
 
-  function scrollToTop() {
-    scrollRequest++;
-    void tick().then(() => {
-      if (bodyEl) bodyEl.scrollTop = 0;
-    });
-  }
-
   function onLatestClick() {
-    const willEnable = !followLatest;
+    const enabling = !followLatest;
     onToggleFollow();
-    if (willEnable) {
-      scrollToLatest();
-    } else {
-      scrollToTop();
-    }
+    if (enabling) scrollToLatest();
   }
 
   $effect(() => {
-    if (!file || !followLatest || loading) return;
-    void file;
+    if (!node || node.mode !== "jsonl" || !followLatest || loading) return;
+    void node.events.length;
     scrollToLatest();
   });
 </script>
 
 <section class="view">
   <header class="header">
-    <div class="path">
-      {#if file}
-        <span class="kind">{file.kind}</span>
-        <span class="path-text">{file.path}</span>
+    <div class="identity">
+      {#if node}
+        <span class="kind">{node.kind}</span>
+        <strong>{node.label}</strong>
+        {#each node.metadata as item}
+          <span class="metadata"><span>{item.label}</span> {item.value}</span>
+        {/each}
       {:else}
-        <span class="muted">select a file</span>
+        <span class="muted">select a node</span>
       {/if}
     </div>
     <div class="meta">
-      {#if file}
-        {#if file.mode === "jsonl"}
-          <span>{file.events.length} events</span>
-          <span>·</span>
-        {/if}
-        <span>{formatBytes(file.totalSize)}</span>
-        {#if file.truncated}<span class="err">· truncated</span>{/if}
-        {#if file.mode === "jsonl" && file.parseErrors.length}
-          <span class="err">· {file.parseErrors.length} parse err</span>
-        {/if}
+      <span class:ok={live} class="connection">{live ? "live" : "reconnecting"}</span>
+      {#if node?.mode === "jsonl"}
+        <span>{node.events.length} events</span>
+        <span>{formatBytes(node.totalSize)}</span>
+        {#if node.truncated}<span class="err">tail</span>{/if}
+        {#if node.parseErrors.length}<span class="err">{node.parseErrors.length} parse err</span>{/if}
+        <button
+          class:on={followLatest}
+          class="toggle"
+          onclick={onLatestClick}
+        >↓ follow</button>
+      {:else if node?.mode === "text"}
+        <span>{formatBytes(node.totalSize)}</span>
+        {#if node.truncated}<span class="err">truncated</span>{/if}
       {/if}
-      <button
-        class="btn toggle"
-        class:on={followLatest}
-        onclick={onLatestClick}
-        title="Jump to latest entries when opening a file"
-      >↓ latest</button>
-      <button class="btn" onclick={onRefresh} disabled={loading}>⟳ refresh</button>
     </div>
   </header>
 
@@ -98,32 +87,43 @@
       <div class="status">loading…</div>
     {:else if error}
       <div class="status err">{error}</div>
-    {:else if !file}
-      <div class="status muted">Pick a file on the left.</div>
-    {:else if file.mode === "text"}
-      {#if file.text.length === 0}
+    {:else if !node}
+      <div class="status muted">Choose something from the tree.</div>
+    {:else if node.mode === "overview"}
+      <div class="overview">
+        {#each node.sections as section}
+          <section class="overview-section">
+            <h2>{section.title}</h2>
+            <dl>
+              {#each section.rows as row}
+                <dt>{row.label}</dt>
+                <dd class={row.tone ?? "normal"}>{row.value}</dd>
+              {/each}
+            </dl>
+          </section>
+        {/each}
+      </div>
+    {:else if node.mode === "text"}
+      {#if node.text.length === 0}
         <div class="status muted">(empty)</div>
       {:else}
-        <pre class="text-file">{file.text}</pre>
+        <pre class="text-file">{node.text}</pre>
       {/if}
+    {:else if node.events.length === 0}
+      <div class="status muted">(empty)</div>
+    {:else if node.kind === "channel"}
+      {#each node.events as event, index (`${node.cursor}:${index}`)}
+        <ChannelRow {event} />
+      {/each}
     {:else}
-      {#if file.events.length === 0}
-        <div class="status muted">(empty)</div>
-      {:else if file.kind === "channel"}
-        {#each file.events as ev, i (i)}
-          <ChannelRow event={ev} />
-        {/each}
-      {:else}
-        {#each file.events as ev, i (i)}
-          <SessionRow event={ev} />
-        {/each}
-      {/if}
+      {#each node.events as event, index (`${node.cursor}:${index}`)}
+        <SessionRow {event} />
+      {/each}
     {/if}
-    {#if file && file.mode === "jsonl" && file.parseErrors.length}
+    {#if node?.mode === "jsonl" && node.parseErrors.length}
       <div class="errors">
-        <strong>Parse errors:</strong>
-        {#each file.parseErrors as pe}
-          <div class="err">line {pe.line}: {pe.error}</div>
+        {#each node.parseErrors as parseError}
+          <div class="err">line {parseError.line}: {parseError.error}</div>
         {/each}
       </div>
     {/if}
@@ -131,98 +131,83 @@
 </section>
 
 <style>
-  .view {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    min-height: 0;
-    overflow: hidden;
-  }
+  .view { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; }
   .header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 10px;
+    gap: 10px;
+    min-height: 31px;
+    padding: 4px 9px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-raised);
   }
-  .path {
-    display: flex;
-    gap: 6px;
-    min-width: 0;
-    overflow: hidden;
-    align-items: baseline;
-  }
+  .identity, .meta { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  .identity { overflow: hidden; white-space: nowrap; }
+  .identity strong { color: var(--fg-strong); }
   .kind {
-    flex: 0 0 auto;
-    font-size: 10.5px;
     padding: 0 4px;
-    background: var(--bg-row);
-    color: var(--fg-dim);
     border-radius: 2px;
+    color: var(--accent);
+    background: rgba(107, 208, 176, .1);
+    font-size: 10px;
   }
-  .path-text {
-    display: block;
-    flex: 1 1 auto;
-    min-width: 0;
+  .metadata {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--fg);
-  }
-  .meta {
-    display: flex;
-    gap: 6px;
-    align-items: baseline;
-    justify-content: flex-end;
-    min-width: max-content;
     color: var(--fg-dim);
-    font-size: 10.5px;
+    font-size: 10px;
   }
-  .btn {
-    flex: 0 0 auto;
-    padding: 1px 6px;
+  .metadata span { color: var(--fg-muted); }
+  .meta { justify-content: flex-end; color: var(--fg-dim); font-size: 10px; }
+  .connection { color: var(--c-error); }
+  .connection.ok { color: var(--accent); }
+  .toggle {
+    padding: 1px 5px;
     border: 1px solid var(--border);
     border-radius: 2px;
-    color: var(--fg-dim);
-    white-space: nowrap;
   }
-  .btn:hover { background: var(--bg-hover); color: var(--fg); }
-  .btn.toggle.on {
-    background: rgba(107,208,176,0.14);
-    border-color: rgba(107,208,176,0.4);
-    color: var(--accent);
-  }
-  .body {
-    overflow-y: auto;
-    overflow-x: auto;
-  }
-  .status { padding: 16px; }
+  .toggle:hover { background: var(--bg-hover); }
+  .toggle.on { border-color: rgba(107, 208, 176, .45); color: var(--accent); }
+  .body { overflow: auto; }
+  .status { padding: 12px; }
   .text-file {
     margin: 0;
-    padding: 10px 12px;
+    padding: 9px 11px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    color: var(--fg);
     font: inherit;
   }
-  .errors {
-    padding: 8px 10px;
-    border-top: 1px solid var(--border);
-    background: rgba(255,122,122,0.06);
+  .overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1px;
+    padding: 1px;
+    background: var(--border);
   }
-
-  @media (max-width: 680px) {
-    .header {
-      grid-template-columns: 1fr;
-      gap: 4px;
-    }
-    .meta {
-      justify-content: flex-start;
-      min-width: 0;
-      overflow-x: auto;
-      scrollbar-width: thin;
-    }
+  .overview-section { padding: 10px 12px; background: var(--bg); }
+  .overview-section h2 {
+    margin: 0 0 7px;
+    color: var(--fg-strong);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  dl {
+    display: grid;
+    grid-template-columns: minmax(90px, .35fr) 1fr;
+    gap: 3px 10px;
+    margin: 0;
+  }
+  dt { color: var(--fg-muted); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+  dd.good { color: var(--accent); }
+  dd.warn { color: var(--c-user); }
+  dd.bad { color: var(--c-error); }
+  dd.dim { color: var(--fg-dim); }
+  .errors { padding: 7px 9px; border-top: 1px solid var(--border); }
+  @media (max-width: 720px) {
+    .header { grid-template-columns: 1fr; }
+    .meta { justify-content: flex-start; }
   }
 </style>
