@@ -80,4 +80,46 @@ describe("ChannelBus", () => {
     assert.deepEqual(messages[0].content.data.publication, { kind: "reply" });
   });
 
+  test("agent messages in direct-message channels address the other member", () => {
+    const channelBus = createChannelBus();
+
+    channelBus.publishAgentText({
+      channel: "dm~helper~shrimpy",
+      text: "can you take a look?",
+      actorId: "agent:shrimpy",
+    });
+    channelBus.publishAgentText({
+      channel: "dm~helper~shrimpy",
+      text: "yes",
+      actorId: "agent:helper",
+    });
+
+    const { messages } = readMessages(channelBus.path("dm~helper~shrimpy"));
+    assert.equal(messages[0].origin.addressedAgentId, "helper");
+    assert.equal(messages[1].origin.addressedAgentId, "shrimpy");
+  });
+
+  test("leaves room messages unaddressed and rejects non-member DM authors", () => {
+    const channelBus = createChannelBus();
+
+    channelBus.publishAgentText({
+      channel: "team",
+      text: "room update",
+      actorId: "agent:shrimpy",
+    });
+
+    assert.equal(
+      readMessages(channelBus.path("team")).messages[0].origin.addressedAgentId,
+      undefined,
+    );
+    assert.throws(
+      () => channelBus.publishAgentText({
+        channel: "dm~helper~shrimpy",
+        text: "out-of-band update",
+        actorId: "agent:career",
+      }),
+      /agent actor "agent:career" is not a member/,
+    );
+  });
+
 });

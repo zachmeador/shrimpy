@@ -9,6 +9,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Changed workspace knowledge search and automatic breadcrumbs to respect `agents[].knowledgeScope`: ordinary agents rank shared and agent-owned knowledge, explicitly global agents rank every agent corpus, and mechanic always has global knowledge visibility.
 - Added `--agent` and `--all-agents` selectors to `shrimpy workspace search`, with effective agent and knowledge scope included in search output.
 
+### Channels & Agent Policy
+
+- Changed two-agent DMs to address each member's messages to the other member automatically, so `send_message` wakes agents using `addressed` policy without mentions, policy edits, or CLI injection; non-member agents cannot publish into the DM.
+
 ## 🦐 0.6.0 - The Blue Hour - 2026-07-26
 
 ### Breaking Changes

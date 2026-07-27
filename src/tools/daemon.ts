@@ -219,7 +219,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
       throw new Error(`${intent.kind} requires an active publication channel`);
     }
 
-    channelBus.publishAgentText({
+    const message = channelBus.publishAgentText({
       channel: activePublicationChannel,
       text,
       actorId: resolvedSendMessageActorId,
@@ -232,6 +232,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
         text: publicationResult.render({
           intent: intent.kind,
           channel: activePublicationChannel,
+          addressedAgentId: message.origin.addressedAgentId,
         }),
       }],
       details: undefined,
@@ -357,7 +358,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
     },
     async execute(_toolCallId, params) {
       const resolvedChannel = resolveUserChannelAlias(userPresencePath, params.channel);
-      channelBus.publishAgentText({
+      const message = channelBus.publishAgentText({
         channel: resolvedChannel,
         text: params.text,
         actorId: resolvedSendMessageActorId,
@@ -369,6 +370,7 @@ export function createDaemonTools(deps: DaemonToolDeps): ToolDefinition[] {
           text: sendMessageResult.render({
             channel: resolvedChannel,
             waitForNewMessage: Boolean(activePublicationChannel),
+            addressedAgentId: message.origin.addressedAgentId,
           }),
         }],
         details: undefined,

@@ -119,7 +119,11 @@ describe("send_message", () => {
     assert.equal(result.content[0].type, "text");
     assert.equal(
       result.content[0].text,
-      "Logged to agent DM dm~helper~shrimpy. No external adapter is expected; gateway channel routing handles DM members.",
+      "Sent to helper in agent DM dm~helper~shrimpy. The message is internally addressed to helper.",
+    );
+    assert.equal(
+      channelBus.read("dm~helper~shrimpy").messages[0].origin.addressedAgentId,
+      "helper",
     );
   });
 

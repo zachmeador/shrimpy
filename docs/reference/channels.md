@@ -70,7 +70,7 @@ Membership means an agent can see the channel. It does not decide whether the ag
 Default membership is resolved at runtime for a few channel classes:
 
 - `home` includes the configured default agents from setup; when a channel is created without stored membership, Shrimpy falls back to the default agent or first configured agent.
-- `dm~agent-a~agent-b` includes those two agents when they exist.
+- `dm~agent-a~agent-b` includes those two agents when they exist. A message published by either named agent automatically carries `addressedAgentId` for the other member, so `send_message` and the active-channel publication helpers wake a recipient whose policy mode is `addressed`, `mentions`, or `all` after its sender filters pass.
 - surface channels may inherit a surface default agent from surface config.
 
 Use:
@@ -85,13 +85,15 @@ shrimpy channels dm <agent-a> <agent-b>
 
 ## Agent Channel Policy
 
-Wake policy is agent-owned config under `agents[].channelPolicy`, not channel membership. The default policy is:
+Wake policy is agent-owned config under `agents[].channelPolicy`, not channel membership. Omitting the policy resolves to:
 
 ```json
 {
   "mode": "all"
 }
 ```
+
+Setup gives the primary `shrimpy` agent this `all` policy and gives the bundled Mechanic an explicit `addressed` policy. Direct agent DMs supply that addressing automatically; shared channels require addressing metadata from their producer.
 
 Modes:
 
@@ -185,6 +187,8 @@ Gateway channel sessions do not automatically publish assistant text to a channe
 Those helpers append an agent message to the active channel. The gateway outbox delivers only outbound-eligible channel records externally when the channel manifest has a transport binding: agent text/media, command-watch text emissions, and operation-status acknowledgements. Message-watch instruction text, arbitrary system text, control records, system records, and informational statuses remain channel history for CLI inspection. Direct local `tui` and `run` sessions do not have an active publication channel, so these helpers are not registered there.
 
 `send_message(channel="...", text="...")` is the explicit lower-level routing tool. It can publish to any channel the agent intentionally names, including agent DMs. Agent DM channel names are canonical sorted names like `dm~agent-a~agent-b` and are internal channels unless they are deliberately bound to a transport. `user:<id>` is accepted as a send-time alias for the user's last active chat surface; the message is logged to the resolved concrete channel, not to a `user:<id>` channel file.
+
+In an agent DM, the sender must be one of the two agents named by the channel. Shrimpy addresses that message to the other member automatically. Agents do not need an `@mention`, a policy change, or a CLI-injected human message to wake each other through a DM.
 
 Use `shrimpy channels bind <channel> <adapter>/<instance>/<thread>` to attach a named Shrimpy channel such as `home` or `daily-practice` to an external transport. `unbind` removes the transport binding without renaming the channel or changing its history.
 

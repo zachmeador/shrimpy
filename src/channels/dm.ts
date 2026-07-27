@@ -28,6 +28,21 @@ export function parseAgentDmChannel(channel: string): string[] | null {
   return members;
 }
 
+export function resolveAgentDmRecipient(
+  channel: string,
+  senderActorId: string,
+): string | null {
+  const members = parseAgentDmChannel(channel);
+  if (!members) return null;
+
+  const senderIndex = members.findIndex(
+    (member) => senderActorId === `agent:${member}`,
+  );
+  if (senderIndex === -1) return null;
+
+  return members[senderIndex === 0 ? 1 : 0] ?? null;
+}
+
 export function resolveAgentDmMembers(
   channel: string,
   agents: ResolvedAgentConfig[],

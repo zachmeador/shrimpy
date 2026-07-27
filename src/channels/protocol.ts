@@ -1,6 +1,10 @@
 import type { ThinkingLevel } from "../config/thinking.js";
 import { isRecord } from "../util/record.js";
 import {
+  parseAgentDmChannel,
+  resolveAgentDmRecipient,
+} from "./dm.js";
+import {
   imageContent,
   imageGroupContent,
   isMessageContent,
@@ -224,6 +228,12 @@ export function humanTextMessageInput(
 export function agentTextMessageInput(
   input: PublishAgentTextInput,
 ): PublishChannelMessageInput {
+  const addressedAgentId = resolveAgentDmRecipient(input.channel, input.actorId);
+  if (parseAgentDmChannel(input.channel) && !addressedAgentId) {
+    throw new Error(
+      `agent actor "${input.actorId}" is not a member of direct message channel "${input.channel}"`,
+    );
+  }
   return {
     channel: input.channel,
     sender: {
@@ -233,6 +243,7 @@ export function agentTextMessageInput(
     origin: {
       transport: "internal",
       sourceChannel: input.sourceChannel ?? input.channel,
+      ...(addressedAgentId ? { addressedAgentId } : {}),
     },
     content: textContent(input.text, input.publication),
   };

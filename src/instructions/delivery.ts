@@ -14,7 +14,7 @@ interface ToolProseDefinitions {
 }
 
 const AGENT_DM_CHANNEL_DESCRIPTION =
-  'Direct agent DMs use channel names like "dm~agent-a~agent-b"; `shrimpy channels dm` creates the canonical sorted name. Agent DMs are internal channels, not external surface chats.';
+  'Direct agent DMs use channel names like "dm~agent-a~agent-b"; `shrimpy channels dm` creates the canonical sorted name. A message from either named member addresses and wakes the other member according to its channel policy. Agent DMs are internal channels, not external surface chats.';
 
 export const channelDeliveryGuidance = defineInstruction(
   "session.delivery.channel",
@@ -96,9 +96,18 @@ export function renderToolProse(toolId: ToolProseId): {
 
 export const sendMessageResult = defineInstruction(
   "tool.send-message.result",
-  ({ channel, waitForNewMessage }: { channel: string; waitForNewMessage?: boolean }) => {
+  (
+    { channel, waitForNewMessage, addressedAgentId }: {
+      channel: string;
+      waitForNewMessage?: boolean;
+      addressedAgentId?: string;
+    },
+  ) => {
     const suffix = waitForNewMessage ? " Wait until a new message is received." : "";
     if (isAgentDmChannel(channel)) {
+      if (addressedAgentId) {
+        return `Sent to ${addressedAgentId} in agent DM ${channel}. The message is internally addressed to ${addressedAgentId}.${suffix}`;
+      }
       return `Logged to agent DM ${channel}. No external adapter is expected; gateway channel routing handles DM members.${suffix}`;
     }
     return `Logged to ${channel} for outbound delivery.${suffix}`;
@@ -107,8 +116,17 @@ export const sendMessageResult = defineInstruction(
 
 export const publicationResult = defineInstruction(
   "tool.publication.result",
-  ({ intent, channel }: { intent: "reply" | "ask" | "notify" | "report"; channel: string }) => {
+  (
+    { intent, channel, addressedAgentId }: {
+      intent: "reply" | "ask" | "notify" | "report";
+      channel: string;
+      addressedAgentId?: string;
+    },
+  ) => {
     if (isAgentDmChannel(channel)) {
+      if (addressedAgentId) {
+        return `Sent ${intent} to ${addressedAgentId} in agent DM ${channel}. The message is internally addressed to ${addressedAgentId}. Wait until a new message is received.`;
+      }
       return `Logged ${intent} to agent DM ${channel}. No external adapter is expected; gateway channel routing handles DM members. Wait until a new message is received.`;
     }
     return `Logged ${intent} to ${channel} for outbound delivery. Wait until a new message is received.`;
