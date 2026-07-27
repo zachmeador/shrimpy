@@ -24,15 +24,17 @@ An agent currency would add a positive optimization target:
 
 In RL terms, this is interesting because the hard part is not only training. The hard part is defining reward signals that are local, private, inspectable, and connected to what the user actually cares about.
 
-## Budget, Currency, Reward
+## Budget, Allowance, Currency, Reward, Authority
 
 These should stay separate:
 
 - **Budget:** a quota or cap, such as tokens per day, tool calls per wake, max model class, or quiet-hours limits.
+- **Allowance:** a recurring spendable balance inside those caps, with a refill schedule, carryover policy, and a point where the agent must ask for more.
 - **Currency:** an accounting unit that records costs, credits, transfers, and evidence across agents, sessions, tools, and outcomes.
 - **Reward:** a training or eval signal derived from ledger entries under a versioned formula.
+- **Authority:** permission to perform an action. It is not money and must never become purchasable.
 
-Budget prevents runaway behavior. Currency makes tradeoffs visible. Reward is what a trainer or eval harness may eventually consume.
+Budget prevents runaway behavior. Allowance creates recurring choices and opportunity cost. Currency makes tradeoffs visible. Reward is what a trainer or eval harness may eventually consume. Authority stays outside the economy: a larger balance cannot make an unsafe or unauthorized action permissible.
 
 The important move is not inventing a perfect economy. It is making agent work quantifiable enough that policy can improve without turning into hidden magic.
 
@@ -192,3 +194,7 @@ The likely product insight is that the currency/control plane may matter more th
 - What should be deterministic from day one?
 - Which currency reports would change behavior before any RL exists?
 - How does the ledger avoid becoming another opaque memory system?
+
+## Research Follow-Up
+
+[Agent Allowances And Financial Stewardship](../research/agent-allowances-and-financial-stewardship.md) surveys current agent-payment standards, wallet controls, cost-aware agent research, payment-system risk analysis, and the human allowance analogy. Its strongest recommendation is to begin with a visible synthetic operating allowance, keep real money and impact rewards in separate purses, and let deterministic code enforce quotes, reservations, caps, authority, and settlement.

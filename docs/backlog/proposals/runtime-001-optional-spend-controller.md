@@ -65,7 +65,7 @@ The integration should support more than one spend mode because different action
 - **Reservation:** high-cost or open-ended actions reserve a maximum spend before execution, settle actual cost afterward, and refund the remainder.
 - **Hard denial:** frozen wallets, exhausted credit lines, or policy-forbidden actions are blocked before execution.
 
-Debt is a feature, not an accident. A useful agent can carry small debt and recover through later value. A reckless agent can become strained, delinquent, or frozen and lose discretionary privileges.
+Negative balances may be a useful explicit mode for a synthetic operating ledger or for interrupted postpaid settlement. Real financial credit is a different and much later capability: the first real-money integration should be prepaid, non-transferable, and debt-free. A reward or impact score must never automatically mint funds or expand an agent's credit.
 
 ## Pricing Sketch
 
@@ -79,7 +79,6 @@ bash_quote =
   + command_chars * char_rate
   + timeout_seconds * time_reserve_rate
   + max_output_bytes * output_reserve_rate
-  + risk_surcharge
 ```
 
 Example settlement:
@@ -91,10 +90,9 @@ bash_settlement =
   + wall_ms * runtime_rate
   + stdout_stderr_bytes * output_rate
   + failure_or_retry_penalty
-  + risk_surcharge
 ```
 
-Character length should not be the whole cost. Short commands can be expensive or risky, and long commands can be cheap but verbose. The better pressure is command length for intent complexity, runtime and output for actual resource use, and risk for policy-sensitive behavior.
+Character length should not be the whole cost. Short commands can be expensive or risky, and long commands can be cheap but verbose. The better cost pressure is command length for intent complexity and runtime/output for actual resource use. Risk and authority stay in policy: they may require approval, reservation, or denial, but must not become a surcharge that a well-funded agent can pay away.
 
 ## Build
 
@@ -129,12 +127,14 @@ Possible config shape:
 - Do not hardcode pricing formulas in core Shrimpy unless they are generic test fixtures.
 - Do not scatter `chargeX` calls across feature code. Use typed runtime action hooks at a few pressure points.
 - Do not make this a fake security boundary. It meters Shrimpy-controlled actions; anything outside Shrimpy's tool/runtime path must be described honestly.
+- Do not let balance expand session authority or turn a policy-forbidden action into an expensive permitted one.
 - Do not silently mutate prompts or policies based on wallet state. If spend state affects behavior, show the agent a compact runtime fact and inspect path.
 - Do not block ordinary Shrimpy usage when no spend controller is configured.
 
 ## Touches
 
-- [Agent Currency And Personal RL](../../musings/agent-currency-and-rl.md): keep the distinction between budget, currency, and reward, but let external wallet truth replace any local currency ledger.
+- [Agent Currency And Personal RL](../../musings/agent-currency-and-rl.md): keep operating allowance, external wallet truth, impact accounting, reward, and authority distinct.
+- [Agent Allowances And Financial Stewardship](../../research/agent-allowances-and-financial-stewardship.md): add allowance and authority as separate concepts, keep risk outside pricing, and stage synthetic operating credits before real money.
 - [Runtime](../../reference/runtime.md): hook points belong around gateway sessions, direct sessions, watches, and workers.
 - [Tools](../../reference/tools.md): daemon tools are the first Shrimpy-owned tool surface that can be wrapped cleanly.
 - [Channels](../../reference/channels.md): refusals and spend status need visible, inspectable channel records when they affect routed work.
