@@ -33,7 +33,7 @@ export async function cmdAgentList(
     console.log(
       `${accent(agent.id)}  ${
         dim(
-          `root=${agent.root}  cwd=${agent.cwd}  daemon_tools=${daemonTools}  pi_active=${piActiveTools}  disabled=${disabledTools}  thinking=${thinking}  model_policy=${modelPolicy}`,
+          `root=${agent.root}  cwd=${agent.cwd}  knowledge_scope=${agent.knowledgeScope}  daemon_tools=${daemonTools}  pi_active=${piActiveTools}  disabled=${disabledTools}  thinking=${thinking}  model_policy=${modelPolicy}`,
         )
       }`,
     );
@@ -84,6 +84,10 @@ export async function cmdAgentInspect(
   console.log(`resolved_cwd: ${view.cwdPath}`);
   console.log(`model_policy: ${modelPolicy}`);
   console.log(`thinking: ${thinking}`);
+  console.log(`knowledge_scope: ${view.knowledgeScope}`);
+  if (view.configuredKnowledgeScope !== undefined) {
+    console.log(`configured_knowledge_scope: ${view.configuredKnowledgeScope}`);
+  }
   console.log("tools:");
   console.log(`  active: ${formatToolList(active)}`);
   console.log(`  registered_inactive: ${formatToolList(registeredInactive)}`);

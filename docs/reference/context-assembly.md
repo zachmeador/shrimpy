@@ -111,7 +111,7 @@ Every model request places turn context before the associated user prompt. The t
 
 ### Workspace Knowledge
 
-Workspace knowledge breadcrumbs connect incoming message text to `shrimpy workspace search`. Results are deduplicated by path, and each item includes a path-and-line inspection pointer; document bodies never enter turn context.
+Workspace knowledge breadcrumbs connect incoming message text to `shrimpy workspace search`. The active agent's `knowledgeScope` filters the corpus before ranking, so ordinary agents receive shared and agent-owned suggestions while global agents receive suggestions from every agent corpus. Results are deduplicated by path, and each item includes a path-and-line inspection pointer; document bodies never enter turn context.
 
 The lookup uses the automatically maintained local index described in [workspace.md](workspace.md#search). See [configuration.md](configuration.md#workspace-knowledge-breadcrumbs) for workspace-wide ranking controls.
 

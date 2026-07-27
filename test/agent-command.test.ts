@@ -111,6 +111,47 @@ describe("cmdAgent lifecycle", () => {
     assert.equal(agent.thinking, "low");
   });
 
+  test("stores and reports explicit global knowledge scope", async () => {
+    await setupInit(workspace);
+
+    const code = await withMutedConsole(() =>
+      cmdAgent(
+        ["add", "researcher", "--knowledge-scope", "global"],
+        { workspace } as any,
+      )
+    );
+
+    assert.equal(code, 0);
+    const configJson = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    );
+    const researcher = configJson.agents.find((entry: any) =>
+      entry.id === "researcher"
+    );
+    assert.equal(researcher.knowledgeScope, "global");
+
+    const config = { ...configJson, workspace };
+    const inspected = await captureLogs(() =>
+      cmdAgent(["inspect", "researcher", "--json"], config as any)
+    );
+    const view = JSON.parse(inspected.lines.join("\n"));
+    assert.equal(view.configuredKnowledgeScope, "global");
+    assert.equal(view.knowledgeScope, "global");
+  });
+
+  test("does not allow mechanic knowledge scope to be narrowed", async () => {
+    await setupInit(workspace);
+
+    await assert.rejects(
+      () =>
+        cmdAgent(
+          ["set", "mechanic", "--knowledge-scope", "agent"],
+          { workspace } as any,
+        ),
+      /mechanic.*knowledgeScope must be "global"/,
+    );
+  });
+
   test("stores an agent model policy default when provided", async () => {
     await setupInit(workspace);
 

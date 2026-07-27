@@ -3,7 +3,10 @@ import {
   parseThinkingLevel,
   type ThinkingLevel,
 } from "../../config/thinking.js";
-import type { AgentChannelPolicyMode } from "../../config/agents.js";
+import type {
+  AgentChannelPolicyMode,
+  AgentKnowledgeScope,
+} from "../../config/agents.js";
 
 export const DEFAULT_AGENT_TOOLS = [
   "reply",
@@ -78,4 +81,12 @@ export function parseChannelPolicyMode(
     return value;
   }
   throw new Error("channel policy mode must be one of: all, mentions, addressed, none");
+}
+
+export function parseKnowledgeScope(
+  value?: string,
+): AgentKnowledgeScope | undefined {
+  if (value === undefined) return undefined;
+  if (value === "agent" || value === "global") return value;
+  throw new Error("knowledge scope must be one of: agent, global");
 }

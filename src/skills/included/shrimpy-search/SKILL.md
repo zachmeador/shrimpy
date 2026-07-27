@@ -21,7 +21,7 @@ Search before inventing, but keep searches bounded. Prefer one or two specific q
 ## Commands
 
 ```bash
-shrimpy workspace search "<query>" --limit 10
+shrimpy workspace search "<query>" --agent <agent-id> --limit 10
 shrimpy workspace index status
 shrimpy sessions search "<query>" --agent <agent-id> --limit 10
 shrimpy sessions search "<query>" --all-agents --limit 10
@@ -34,6 +34,8 @@ shrimpy context --agent <agent-id> --sections
 ```
 
 Use `--json` when you need exact paths, entry ids, timestamps, or machine-readable snippets. Use `--full` on `channels read` or `channels search` only when clipped output hides necessary detail.
+
+Workspace search defaults to shared workspace knowledge plus the selected agent's context, vault, and skills. Agents configured with global knowledge scope, including mechanic, search every agent corpus. Use `--all-agents` only for an intentional maintainer-wide search.
 
 ## How To Use Results
 

@@ -93,7 +93,89 @@ describe("workspace search", () => {
     assert.equal(oldAfterRewrite.lastModifiedAt, rewrittenMtime.toISOString());
     assert.equal(oldAfterRewrite.contentChangedAt, oldDate.toISOString());
   });
+
+  test("filters agent knowledge while shared, global, and mechanic searches see their intended corpus", async () => {
+    await setupInit(workspace);
+    writeMarkdown(
+      "context/shared.md",
+      "# Shared\n\nscopevisibleworkspace common reference.\n",
+    );
+    writeMarkdown(
+      "agents/shrimpy/context/private.md",
+      "# Shrimpy\n\nscopevisibleshrimpy private reference.\n",
+    );
+    writeMarkdown(
+      "agents/mechanic/context/private.md",
+      "# Mechanic\n\nscopevisiblemechanic private reference.\n",
+    );
+    const config = {
+      ...JSON.parse(
+        readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+      ),
+      workspace,
+    };
+    config.agents.push({
+      id: "researcher",
+      root: "agents/researcher",
+      knowledgeScope: "global",
+    });
+
+    const own = await searchJson(
+      ["search", "scopevisibleshrimpy", "--agent", "shrimpy", "--json"],
+      config,
+    );
+    const foreign = await searchJson(
+      ["search", "scopevisiblemechanic", "--agent", "shrimpy", "--json"],
+      config,
+    );
+    const shared = await searchJson(
+      ["search", "scopevisibleworkspace", "--agent", "shrimpy", "--json"],
+      config,
+    );
+    const mechanic = await searchJson(
+      ["search", "scopevisiblemechanic", "--agent", "mechanic", "--json"],
+      config,
+    );
+    const explicitGlobal = await searchJson(
+      ["search", "scopevisiblemechanic", "--agent", "researcher", "--json"],
+      config,
+    );
+
+    assert.equal(own.results[0].path, "agents/shrimpy/context/private.md");
+    assert.equal(foreign.returnedCount, 0);
+    assert.equal(shared.results[0].path, "context/shared.md");
+    assert.equal(mechanic.knowledgeScope, "global");
+    assert.equal(mechanic.results[0].path, "agents/mechanic/context/private.md");
+    assert.equal(explicitGlobal.knowledgeScope, "global");
+    assert.equal(
+      explicitGlobal.results[0].path,
+      "agents/mechanic/context/private.md",
+    );
+
+    const index = JSON.parse(
+      readFileSync(
+        join(workspace, "runtime", "search", "workspace-index.json"),
+        "utf-8",
+      ),
+    );
+    assert.deepEqual(
+      index.files.find((file: any) => file.path === "context/shared.md").visibility,
+      { scope: "workspace" },
+    );
+    assert.deepEqual(
+      index.files.find((file: any) =>
+        file.path === "agents/mechanic/context/private.md"
+      ).visibility,
+      { scope: "agents", agentIds: ["mechanic"] },
+    );
+  });
 });
+
+async function searchJson(argv: string[], config: any): Promise<any> {
+  const search = await captureLogs(() => cmdWorkspace(argv, config));
+  assert.equal(search.result, 0);
+  return JSON.parse(search.lines.join("\n"));
+}
 
 function writeMarkdown(path: string, content: string): string {
   const absolutePath = join(workspace, path);

@@ -22,8 +22,9 @@ import { listAssignedIncludedSkillDefinitions } from "../skills/included.js";
 import { prepareIncludedPackageSource } from "../skills/packages/sources.js";
 import { installIncludedSkillPackageCopy } from "../skills/packages/operations.js";
 import { loadSetupTemplate, stableDocsRoot } from "./templates.js";
+import { MECHANIC_AGENT_ID } from "../config/agents.js";
 
-export const MECHANIC_AGENT_ID = "mechanic";
+export { MECHANIC_AGENT_ID };
 
 const DEFAULT_AGENT_TOOLS = [
   "reply",
@@ -54,6 +55,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
         modelPolicy: DEFAULT_MODEL_POLICY,
         tools: DEFAULT_AGENT_TOOLS,
         thinking: "high",
+        knowledgeScope: "global",
         channelPolicy: {
           mode: "addressed",
         },

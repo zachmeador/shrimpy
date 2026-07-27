@@ -198,6 +198,7 @@ An agent config entry controls the runtime defaults for one agent. The agent's d
   "tools": ["reply", "ask", "notify", "report", "send_message", "read_channel"],
   "disabledTools": [],
   "thinking": "medium",
+  "knowledgeScope": "agent",
   "channelPolicy": {
     "mode": "all"
   }
@@ -211,6 +212,7 @@ An agent config entry controls the runtime defaults for one agent. The agent's d
 - `tools` — allowed Shrimpy daemon tools; omitted or empty means all of them. See [tools.md](tools.md).
 - `disabledTools` — effective tool names passed to Pi as `excludeTools`, including Pi built-ins such as `bash`.
 - `thinking` — default reasoning effort.
+- `knowledgeScope` — workspace-search visibility. `agent` sees shared workspace knowledge plus this agent's context, vault, and skills; `global` sees every indexed agent corpus. The default is `agent`. The `mechanic` agent always resolves to `global`.
 - `channelPolicy` — when visible channel messages become turns. Modes, sender filters, and per-channel overrides are documented in [channels.md](channels.md).
 
 Channel participation lives in `config/channels.json`, not in agent config.
@@ -220,6 +222,7 @@ Prefer command edits:
 ```bash
 shrimpy agent add <id>
 shrimpy agent set <id> --model-policy coding
+shrimpy agent set <id> --knowledge-scope global
 shrimpy agent channel-policy set <id> --channel maintenance --mode all --senders system
 shrimpy agent channel-policy explain <id> --channel home --sender human --text "@shrimpy hello"
 ```
@@ -369,7 +372,7 @@ Command watch emit policies are `never`, `always`, `on_output`, `on_change`, and
 
 ### Workspace Knowledge Breadcrumbs
 
-Workspace knowledge breadcrumbs are always active and configured once for the workspace. They do not have agent-level overrides.
+Workspace knowledge breadcrumbs are always active. Ranking thresholds are configured once for the workspace, while `agents[].knowledgeScope` determines which indexed documents participate in each agent's ranking.
 
 ```json
 {

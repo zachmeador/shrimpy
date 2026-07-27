@@ -68,6 +68,7 @@ export interface UpdateAgentInput {
   tools?: string[];
   disabledTools?: string[];
   thinking?: AgentConfig["thinking"];
+  knowledgeScope?: AgentConfig["knowledgeScope"];
   channelPolicy?: AgentConfig["channelPolicy"];
 }
 
@@ -239,6 +240,9 @@ function updateAgentInWorkspace(
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
     ...(input.disabledTools !== undefined ? { disabledTools: input.disabledTools } : {}),
     ...(input.thinking !== undefined ? { thinking: input.thinking } : {}),
+    ...(input.knowledgeScope !== undefined
+      ? { knowledgeScope: input.knowledgeScope }
+      : {}),
     ...(input.channelPolicy !== undefined ? { channelPolicy: input.channelPolicy } : {}),
   });
   persistAgentConfigs(
@@ -370,6 +374,7 @@ export function updateAgent(
       ...(input.tools !== undefined ? ["tools"] : []),
       ...(input.disabledTools !== undefined ? ["disabledTools"] : []),
       ...(input.thinking !== undefined ? ["thinking"] : []),
+      ...(input.knowledgeScope !== undefined ? ["knowledgeScope"] : []),
       ...(input.channelPolicy !== undefined ? ["channelPolicy"] : []),
     ],
   });

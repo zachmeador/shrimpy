@@ -2,6 +2,13 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 0.6.1 - The Blue Hour - Unreleased
+
+### Turn Context
+
+- Changed workspace knowledge search and automatic breadcrumbs to respect `agents[].knowledgeScope`: ordinary agents rank shared and agent-owned knowledge, explicitly global agents rank every agent corpus, and mechanic always has global knowledge visibility.
+- Added `--agent` and `--all-agents` selectors to `shrimpy workspace search`, with effective agent and knowledge scope included in search output.
+
 ## 🦐 0.6.0 - The Blue Hour - 2026-07-26
 
 ### Breaking Changes

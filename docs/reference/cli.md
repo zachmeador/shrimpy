@@ -42,7 +42,7 @@ TUI and run commands accept `--provider`, `--model`, `--model-policy`, `--thinki
 | `shrimpy update [--dry-run] [--json]` | Resolve the newest release tag and open a mechanic-led update; dry-run and JSON modes only inspect. |
 | `shrimpy update apply --tag <tag> --commit <sha> [--json]` | Apply an exact mechanic-approved tagged release with guarded app rollback. |
 | `shrimpy workspace track init\|status\|checkpoint` | Opt-in workspace git checkpoint tracking. |
-| `shrimpy workspace search <query>` | Search workspace context, skills, and vault Markdown. |
+| `shrimpy workspace search <query> [--agent <id>\|--all-agents]` | Search agent-visible workspace context, skills, and vault Markdown. |
 | `shrimpy workspace index status\|rebuild` | Inspect or rebuild the workspace search cache. |
 | `shrimpy watches [--agent <id>]` | Inspect configured watches, next runs, and recent history. |
 | `shrimpy watches add <id> --agent <id> (--cron <expr>\|--every <dur>) ...` | Add an agent-owned time watch (message or command action). |

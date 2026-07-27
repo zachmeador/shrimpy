@@ -59,6 +59,8 @@ async function cmdWorkspaceSearch(argv: string[], config: Parameters<CommandHand
     args: argv,
     options: {
       limit: { type: "string" },
+      agent: { type: "string", short: "a" },
+      "all-agents": { type: "boolean", default: false },
       json: { type: "boolean", default: false },
     },
     allowPositionals: true,
@@ -67,10 +69,15 @@ async function cmdWorkspaceSearch(argv: string[], config: Parameters<CommandHand
   });
   const query = positionals.join(" ").trim();
   requireArg(query, USAGE, "query");
+  if (values.agent && values["all-agents"]) {
+    throw new Error("--agent and --all-agents are mutually exclusive");
+  }
   const runtime = createAppRuntime(config);
   const result = await searchWorkspaceKnowledge(runtime, {
     query,
     limit: values.limit ? parsePositiveInt(values.limit, "--limit") : undefined,
+    agentId: values.agent,
+    allAgents: values["all-agents"],
   });
 
   if (values.json) {
@@ -223,7 +230,7 @@ export function printWorkspaceCheckpointStatus(status: WorkspaceCheckpointStatus
 
 export function printWorkspaceSearchResult(result: WorkspaceSearchResult): void {
   console.log(
-    `${label("workspace:")} ${result.matchedCount}/${result.indexedChunks} matches  ${dim(`files=${result.corpusFiles} showing=${result.returnedCount}`)}`,
+    `${label("workspace:")} ${result.matchedCount}/${result.indexedChunks} matches  ${dim(`agent=${result.agentId} scope=${result.knowledgeScope} files=${result.corpusFiles} showing=${result.returnedCount}`)}`,
   );
   if (result.embedding.enabled && !result.embedding.available) {
     console.log(`${label("embeddings:")} ${dim(result.embedding.note)}`);

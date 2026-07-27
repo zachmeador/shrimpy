@@ -256,6 +256,7 @@ describe("setupInit", () => {
     assert.equal(config.agents[1].cwd, ".");
     assert.equal(config.agents[1].modelPolicy, "coding");
     assert.equal(config.agents[1].thinking, "high");
+    assert.equal(config.agents[1].knowledgeScope, "global");
     assert.deepEqual(config.agents[1].tools, [
       "reply",
       "ask",

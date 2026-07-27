@@ -11,7 +11,7 @@ import type { AppRuntime } from "../app/runtime.js";
 import { writeJsonFileAtomic } from "../util/json-file.js";
 import { isRecord } from "../util/record.js";
 
-const INDEX_VERSION = 2;
+const INDEX_VERSION = 3;
 const SCORER_ID = "keyword-bm25-v1";
 const DEFAULT_LIMIT: number = 10;
 const MAX_SNIPPET_CHARS = 220;
@@ -28,6 +28,7 @@ export interface WorkspaceSearchChunk {
 
 export interface WorkspaceSearchIndexedFile {
   path: string;
+  visibility: WorkspaceKnowledgeVisibility;
   hash: string;
   mtimeMs: number;
   ctimeMs: number;
@@ -36,6 +37,10 @@ export interface WorkspaceSearchIndexedFile {
   contentChangedAt: string;
   chunks: WorkspaceSearchChunk[];
 }
+
+export type WorkspaceKnowledgeVisibility =
+  | { scope: "workspace" }
+  | { scope: "agents"; agentIds: string[] };
 
 export interface WorkspaceSearchIndex {
   version: number;
@@ -61,6 +66,8 @@ export interface WorkspaceSearchResultItem {
 export interface WorkspaceSearchResult {
   query: string;
   limit: number;
+  agentId: string;
+  knowledgeScope: "agent" | "global";
   indexPath: string;
   scorerId: string;
   embedding: WorkspaceEmbeddingStatus;
@@ -113,6 +120,7 @@ export interface WorkspaceEmbeddingStatus {
 interface CorpusFileMetadata {
   path: string;
   absolutePath: string;
+  visibility: WorkspaceKnowledgeVisibility;
   mtimeMs: number;
   ctimeMs: number;
   size: number;
@@ -137,13 +145,27 @@ export async function searchWorkspaceKnowledge(
   input: {
     query: string;
     limit?: number;
+    agentId?: string;
+    allAgents?: boolean;
   },
 ): Promise<WorkspaceSearchResult> {
   const query = input.query.trim();
   if (!query) throw new Error("query required");
+  if (input.agentId && input.allAgents) {
+    throw new Error("agentId and allAgents are mutually exclusive");
+  }
   const limit = input.limit ?? DEFAULT_LIMIT;
+  const agent = runtime.getAgent(input.agentId);
+  const knowledgeScope = input.allAgents || agent.knowledgeScope === "global"
+    ? "global"
+    : "agent";
   const refresh = refreshWorkspaceSearchIndex(runtime);
-  const chunks = refresh.index.files.flatMap((file) =>
+  const visibleFiles = refresh.index.files.filter((file) =>
+    knowledgeScope === "global" ||
+    file.visibility.scope === "workspace" ||
+    file.visibility.agentIds.includes(agent.id)
+  );
+  const chunks = visibleFiles.flatMap((file) =>
     file.chunks.map((chunk) => ({ file, chunk }))
   );
   const ranked = rankChunks(chunks, query);
@@ -152,10 +174,12 @@ export async function searchWorkspaceKnowledge(
   return {
     query,
     limit,
+    agentId: agent.id,
+    knowledgeScope,
     indexPath: workspaceSearchIndexPath(runtime),
     scorerId: SCORER_ID,
     embedding: workspaceEmbeddingStatus(runtime),
-    corpusFiles: refresh.corpusFiles,
+    corpusFiles: visibleFiles.length,
     indexedChunks: chunks.length,
     refreshedFiles: refresh.refreshedFiles,
     removedFiles: refresh.removedFiles,
@@ -184,7 +208,12 @@ export function inspectWorkspaceSearchIndex(runtime: AppRuntime): WorkspaceIndex
       unindexedFiles += 1;
       continue;
     }
-    if (indexed.hash !== snapshot.hash) staleFiles += 1;
+    if (
+      indexed.hash !== snapshot.hash ||
+      !sameVisibility(indexed.visibility, snapshot.visibility)
+    ) {
+      staleFiles += 1;
+    }
   }
 
   const removedFiles = [...indexedByPath.keys()]
@@ -262,6 +291,7 @@ export function refreshWorkspaceSearchIndex(
     const previous = existingByPath.get(metadata.path);
     if (
       previous &&
+      sameVisibility(previous.visibility, metadata.visibility) &&
       previous.mtimeMs === metadata.mtimeMs &&
       previous.ctimeMs === metadata.ctimeMs &&
       previous.size === metadata.size
@@ -270,11 +300,26 @@ export function refreshWorkspaceSearchIndex(
       continue;
     }
 
+    if (
+      previous &&
+      previous.mtimeMs === metadata.mtimeMs &&
+      previous.ctimeMs === metadata.ctimeMs &&
+      previous.size === metadata.size
+    ) {
+      indexChanged = true;
+      files.push({
+        ...previous,
+        visibility: metadata.visibility,
+      });
+      continue;
+    }
+
     const snapshot = readCorpusFileSnapshot(metadata);
     indexChanged = true;
     if (previous && previous.hash === snapshot.hash) {
       files.push({
         ...previous,
+        visibility: snapshot.visibility,
         mtimeMs: snapshot.mtimeMs,
         ctimeMs: snapshot.ctimeMs,
         size: snapshot.size,
@@ -286,6 +331,7 @@ export function refreshWorkspaceSearchIndex(
     refreshedFiles += 1;
     files.push({
       path: snapshot.path,
+      visibility: snapshot.visibility,
       hash: snapshot.hash,
       mtimeMs: snapshot.mtimeMs,
       ctimeMs: snapshot.ctimeMs,
@@ -453,11 +499,12 @@ function collectCorpusFileSnapshots(runtime: AppRuntime): CorpusFileSnapshot[] {
 }
 
 function collectCorpusFileMetadata(runtime: AppRuntime): CorpusFileMetadata[] {
-  return collectCorpusFiles(runtime).map((absolutePath) => {
+  return collectCorpusFiles(runtime).map(({ absolutePath, visibility }) => {
     const stats = statSync(absolutePath);
     return {
       path: relative(runtime.paths.workspace, absolutePath),
       absolutePath,
+      visibility,
       mtimeMs: stats.mtimeMs,
       ctimeMs: stats.ctimeMs,
       size: stats.size,
@@ -477,35 +524,85 @@ function readCorpusFileSnapshot(
   };
 }
 
-function collectCorpusFiles(runtime: AppRuntime): string[] {
-  const paths = new Set<string>();
-  addMarkdownTree(runtime.paths.workspace, runtime.paths.workspaceContextDir, paths);
-  addMarkdownTree(runtime.paths.workspace, join(runtime.paths.workspace, "skills"), paths);
+function collectCorpusFiles(runtime: AppRuntime): Array<{
+  absolutePath: string;
+  visibility: WorkspaceKnowledgeVisibility;
+}> {
+  const paths = new Map<string, WorkspaceKnowledgeVisibility>();
+  addMarkdownTree(
+    runtime.paths.workspace,
+    runtime.paths.workspaceContextDir,
+    paths,
+    { scope: "workspace" },
+  );
+  addMarkdownTree(
+    runtime.paths.workspace,
+    join(runtime.paths.workspace, "skills"),
+    paths,
+    { scope: "workspace" },
+  );
   for (const agent of runtime.resolved.agents) {
     const agentPaths = runtime.getAgentPaths(agent.id);
-    addMarkdownTree(runtime.paths.workspace, agentPaths.skillsDir, paths);
-    addMarkdownTree(runtime.paths.workspace, agentPaths.contextDir, paths);
-    addMarkdownTree(runtime.paths.workspace, agentPaths.vaultDir, paths);
+    const visibility: WorkspaceKnowledgeVisibility = {
+      scope: "agents",
+      agentIds: [agent.id],
+    };
+    addMarkdownTree(runtime.paths.workspace, agentPaths.skillsDir, paths, visibility);
+    addMarkdownTree(runtime.paths.workspace, agentPaths.contextDir, paths, visibility);
+    addMarkdownTree(runtime.paths.workspace, agentPaths.vaultDir, paths, visibility);
   }
-  return [...paths].sort();
+  return [...paths.entries()]
+    .map(([absolutePath, visibility]) => ({ absolutePath, visibility }))
+    .sort((a, b) => a.absolutePath.localeCompare(b.absolutePath));
 }
 
 function addMarkdownTree(
   workspace: string,
   root: string,
-  paths: Set<string>,
+  paths: Map<string, WorkspaceKnowledgeVisibility>,
+  visibility: WorkspaceKnowledgeVisibility,
 ): void {
   if (!existsSync(root)) return;
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     const path = join(root, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === ".git" || entry.name === "node_modules") continue;
-      addMarkdownTree(workspace, path, paths);
+      addMarkdownTree(workspace, path, paths, visibility);
       continue;
     }
     if (!entry.isFile() || extname(entry.name).toLowerCase() !== ".md") continue;
-    if (!relative(workspace, path).startsWith("..")) paths.add(path);
+    if (!relative(workspace, path).startsWith("..")) {
+      addCorpusPath(paths, path, visibility);
+    }
   }
+}
+
+function addCorpusPath(
+  paths: Map<string, WorkspaceKnowledgeVisibility>,
+  path: string,
+  visibility: WorkspaceKnowledgeVisibility,
+): void {
+  const existing = paths.get(path);
+  if (!existing || visibility.scope === "workspace") {
+    paths.set(path, visibility);
+    return;
+  }
+  if (existing.scope === "workspace") return;
+  paths.set(path, {
+    scope: "agents",
+    agentIds: [...new Set([...existing.agentIds, ...visibility.agentIds])].sort(),
+  });
+}
+
+function sameVisibility(
+  left: WorkspaceKnowledgeVisibility | undefined,
+  right: WorkspaceKnowledgeVisibility | undefined,
+): boolean {
+  if (!left || !right) return false;
+  if (left.scope !== right.scope) return false;
+  if (left.scope === "workspace" || right.scope === "workspace") return true;
+  return left.agentIds.length === right.agentIds.length &&
+    left.agentIds.every((agentId, index) => agentId === right.agentIds[index]);
 }
 
 function chunkMarkdownFile(path: string, content: string): WorkspaceSearchChunk[] {

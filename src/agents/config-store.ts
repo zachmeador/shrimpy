@@ -1,6 +1,7 @@
 import {
   type AgentChannelPolicyConfig,
   type AgentConfig,
+  type AgentKnowledgeScope,
   validateAgentsConfig,
 } from "../config/agents.js";
 import {
@@ -24,6 +25,7 @@ export interface AgentConfigDraft {
   tools: string[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
+  knowledgeScope?: AgentKnowledgeScope;
   channelPolicy?: AgentChannelPolicyConfig;
 }
 
@@ -34,6 +36,7 @@ export interface AgentConfigPatch {
   tools?: string[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
+  knowledgeScope?: AgentKnowledgeScope;
   channelPolicy?: AgentChannelPolicyConfig;
 }
 
@@ -63,6 +66,9 @@ export function createAgentConfig(input: AgentConfigDraft): AgentConfig {
       ? { disabledTools: [...new Set(input.disabledTools)] }
       : {}),
     ...(input.thinking !== undefined ? { thinking: input.thinking } : {}),
+    ...(input.knowledgeScope !== undefined
+      ? { knowledgeScope: input.knowledgeScope }
+      : {}),
     ...(input.channelPolicy !== undefined ? { channelPolicy: input.channelPolicy } : {}),
   };
   return agent;
@@ -108,6 +114,9 @@ export function patchStoredAgentConfig(
     }
   }
   if (patch.thinking !== undefined) next.thinking = patch.thinking;
+  if (patch.knowledgeScope !== undefined) {
+    next.knowledgeScope = patch.knowledgeScope;
+  }
   if (patch.channelPolicy !== undefined) next.channelPolicy = patch.channelPolicy;
   return next;
 }

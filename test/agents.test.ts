@@ -64,6 +64,20 @@ describe("resolveAgentsConfig", () => {
     assert.equal(agents[0].cwd, ".");
     assert.equal(agents[1].cwd, "/mnt/agents/external");
   });
+
+  test("defaults knowledge to the agent and keeps mechanic global", () => {
+    const agents = resolveAgentsConfig([
+      { id: "shrimpy" },
+      { id: "researcher", knowledgeScope: "global" },
+      { id: "mechanic" },
+    ]);
+
+    assert.equal(agents[0].knowledgeScope, "agent");
+    assert.equal(agents[1].knowledgeScope, "global");
+    assert.equal(agents[1].configuredKnowledgeScope, "global");
+    assert.equal(agents[2].knowledgeScope, "global");
+    assert.equal(agents[2].configuredKnowledgeScope, undefined);
+  });
 });
 
 describe("validateAgentsConfig", () => {
@@ -100,6 +114,17 @@ describe("validateAgentsConfig", () => {
     assert.throws(
       () => validateAgentsConfig([{ id: "shrimpy", tools: ["memory"] }]),
       /unknown daemon tool "memory"/,
+    );
+  });
+
+  test("rejects narrowing mechanic knowledge scope", () => {
+    assert.throws(
+      () =>
+        validateAgentsConfig([
+          { id: "shrimpy" },
+          { id: "mechanic", knowledgeScope: "agent" },
+        ]),
+      /mechanic.*knowledgeScope must be "global"/,
     );
   });
 });

@@ -8,6 +8,7 @@ import {
   DEFAULT_AGENT_TOOLS,
   parseChannelPolicyMode,
   parseCsv,
+  parseKnowledgeScope,
   parseThinking,
 } from "./helpers.js";
 import {
@@ -31,6 +32,7 @@ export async function cmdAgentAdd(
       tools: { type: "string" },
       "disable-tools": { type: "string" },
       thinking: { type: "string" },
+      "knowledge-scope": { type: "string" },
       "channel-policy": { type: "string" },
     },
     allowPositionals: true,
@@ -50,6 +52,7 @@ export async function cmdAgentAdd(
     tools: parseCsv(values.tools) ?? [...(defaultAgent.tools ?? DEFAULT_AGENT_TOOLS)],
     disabledTools: parseCsv(values["disable-tools"]) ?? [...(defaultAgent.disabledTools ?? [])],
     thinking: parseThinking(values.thinking),
+    knowledgeScope: parseKnowledgeScope(values["knowledge-scope"]),
     ...(values["channel-policy"] !== undefined
       ? { channelPolicy: { mode: parseChannelPolicyMode(values["channel-policy"]) } }
       : {}),
@@ -86,6 +89,7 @@ export async function cmdAgentSet(
       tools: { type: "string" },
       "disable-tools": { type: "string" },
       thinking: { type: "string" },
+      "knowledge-scope": { type: "string" },
       "channel-policy": { type: "string" },
     },
     allowPositionals: true,
@@ -102,6 +106,7 @@ export async function cmdAgentSet(
     && values.tools === undefined
     && values["disable-tools"] === undefined
     && values.thinking === undefined
+    && values["knowledge-scope"] === undefined
     && values["channel-policy"] === undefined
   ) {
     return printError("agent set requires at least one field to update");
@@ -118,6 +123,9 @@ export async function cmdAgentSet(
       ? { disabledTools: parseCsv(values["disable-tools"]) ?? [] }
       : {}),
     ...(values.thinking !== undefined ? { thinking: parseThinking(values.thinking) } : {}),
+    ...(values["knowledge-scope"] !== undefined
+      ? { knowledgeScope: parseKnowledgeScope(values["knowledge-scope"]) }
+      : {}),
     ...(values["channel-policy"] !== undefined
       ? { channelPolicy: { mode: parseChannelPolicyMode(values["channel-policy"]) } }
       : {}),

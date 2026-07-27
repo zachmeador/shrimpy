@@ -53,7 +53,7 @@ shrimpy agent add <id> \
   --json
 ```
 
-Use `shrimpy agent set <id>` for model policy, tools, disabled tools, thinking, root, or base channel policy changes. Use `shrimpy agent rename <old> <new>` for durable id changes. Use `shrimpy agent remove <id>` only when the user asked to remove an agent; add `--delete-files` only when they explicitly want files deleted.
+Use `shrimpy agent set <id>` for model policy, tools, disabled tools, thinking, knowledge scope, root, or base channel policy changes. Ordinary agents default to `--knowledge-scope agent`, which searches shared workspace knowledge plus their own context, vault, and skills. Grant `--knowledge-scope global` only when the agent should search every agent corpus. Mechanic always resolves to global knowledge scope. Use `shrimpy agent rename <old> <new>` for durable id changes. Use `shrimpy agent remove <id>` only when the user asked to remove an agent; add `--delete-files` only when they explicitly want files deleted.
 
 ## Model Policy Changes
 

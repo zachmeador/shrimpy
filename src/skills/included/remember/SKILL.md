@@ -43,7 +43,7 @@ Useful inspection before creating a new collection:
 
 ```bash
 shrimpy agent show <id>
-shrimpy workspace search "<topic>" --limit 10
+shrimpy workspace search "<topic>" --agent <agent-id> --limit 10
 shrimpy sessions search "<topic>" --agent <id>
 shrimpy channels search <channel> "<topic>"
 ```

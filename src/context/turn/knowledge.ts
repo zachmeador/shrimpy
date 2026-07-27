@@ -21,6 +21,7 @@ export async function buildKnowledgeBreadcrumbItems(
     results = (await searchWorkspaceKnowledge(input.runtime, {
       query,
       limit: config.maxItems * SEARCH_RESULT_MULTIPLIER,
+      agentId: input.descriptor.key.agentId,
     })).results;
   } catch {
     return [];

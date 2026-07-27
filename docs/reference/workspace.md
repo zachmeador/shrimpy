@@ -120,18 +120,21 @@ When the gateway is running and tracking is enabled, Shrimpy checks about every 
 
 ## Search
 
-`shrimpy workspace search <query> [--limit N] [--json]` searches the written workspace knowledge corpus:
+`shrimpy workspace search <query> [--agent <id>|--all-agents] [--limit N] [--json]` searches the written workspace knowledge visible to the selected agent. Without a selector, it uses the default agent.
 
 - workspace `context/**/*.md`
 - workspace skills
-- agent skills
-- `agents/<id>/context/`
-- `agents/<id>/vault/`
+- the selected agent's skills
+- the selected agent's `context/`
+- the selected agent's `vault/`
 
-Results include workspace-relative paths, heading trails, line numbers, scores, clipped snippets, last-modified time, and content-change time. The cache under `runtime/search/` is maintained lazily by both `shrimpy workspace search` and turn-context knowledge breadcrumbs. A missing, malformed, or incompatible index is rebuilt automatically. Unchanged files reuse indexed chunks without rereading their contents or rewriting the cache; changed files and corpus membership refresh before the current query is ranked.
+Agents with `knowledgeScope: "global"` search every agent corpus. The mechanic always has global knowledge scope. `--all-agents` provides an explicit maintainer-wide search.
+
+Results include the effective agent and knowledge scope, workspace-relative paths, heading trails, line numbers, scores, clipped snippets, last-modified time, and content-change time. One cache under `runtime/search/` indexes the complete workspace corpus and records each document's visibility. Search filters the corpus before ranking. The cache is maintained lazily by both `shrimpy workspace search` and turn-context knowledge breadcrumbs. A missing, malformed, or incompatible index is rebuilt automatically. Unchanged files reuse indexed chunks without rereading their contents or rewriting the cache; changed files, visibility, and corpus membership refresh before the current query is ranked.
 
 ```bash
-shrimpy workspace search "model policy"
+shrimpy workspace search "model policy" --agent shrimpy
+shrimpy workspace search "model policy" --all-agents
 shrimpy workspace index status --json
 shrimpy workspace index rebuild --json
 ```

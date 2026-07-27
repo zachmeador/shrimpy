@@ -218,6 +218,48 @@ describe("buildTurnContext", () => {
     );
   });
 
+  test("uses the active agent's knowledge scope for turn-context breadcrumbs", async () => {
+    writeKnowledgeFile(
+      "agents/mechanic/context/repairs.md",
+      "# Repairs\n\nscopedmechanicknowledge calibration notes.\n",
+    );
+    const runtime = createAppRuntime({
+      workspace,
+      agents: [
+        { id: "shrimpy" },
+        { id: "mechanic" },
+        { id: "researcher", knowledgeScope: "global" },
+      ],
+      context: {
+        turn: {
+          knowledge: {
+            minScore: 0.01,
+          },
+        },
+      },
+    });
+
+    const shrimpy = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("shrimpy", "tui"),
+      currentPrompt: "scopedmechanicknowledge",
+    });
+    const mechanic = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("mechanic", "tui"),
+      currentPrompt: "scopedmechanicknowledge",
+    });
+    const researcher = await buildTurnContext({
+      runtime,
+      descriptor: descriptor("researcher", "tui"),
+      currentPrompt: "scopedmechanicknowledge",
+    });
+
+    assert.doesNotMatch(renderTurnContext(shrimpy), /repairs\.md/);
+    assert.match(renderTurnContext(mechanic), /repairs\.md/);
+    assert.match(renderTurnContext(researcher), /repairs\.md/);
+  });
+
   test("refreshes changed workspace knowledge automatically", async () => {
     const sourcePath = writeKnowledgeFile(
       "agents/shrimpy/context/reef.md",

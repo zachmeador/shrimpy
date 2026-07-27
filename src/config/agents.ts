@@ -11,6 +11,8 @@ import {
 import { channelMatches } from "../util/channel-pattern.js";
 
 export type AgentChannelPolicyMode = "all" | "mentions" | "addressed" | "none";
+export type AgentKnowledgeScope = "agent" | "global";
+export const MECHANIC_AGENT_ID = "mechanic";
 
 export interface AgentChannelPolicyRule {
   mode?: AgentChannelPolicyMode;
@@ -28,6 +30,11 @@ const channelPolicyModeSchema = Type.Union([
   Type.Literal("mentions"),
   Type.Literal("addressed"),
   Type.Literal("none"),
+]);
+
+const knowledgeScopeSchema = Type.Union([
+  Type.Literal("agent"),
+  Type.Literal("global"),
 ]);
 
 const channelPolicyRuleSchema = Type.Object(
@@ -68,6 +75,7 @@ const agentSchema = Type.Object(
     tools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     disabledTools: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     thinking: Type.Optional(thinkingLevelSchema),
+    knowledgeScope: Type.Optional(knowledgeScopeSchema),
     channelPolicy: Type.Optional(channelPolicySchema),
   },
   { additionalProperties: false },
@@ -82,6 +90,8 @@ export type ResolvedAgentConfig = {
   tools?: DaemonToolName[];
   disabledTools?: string[];
   thinking?: ThinkingLevel;
+  configuredKnowledgeScope?: AgentKnowledgeScope;
+  knowledgeScope: AgentKnowledgeScope;
   channelPolicy: Required<AgentChannelPolicyConfig>;
 };
 export const DEFAULT_AGENT_ID = "shrimpy";
@@ -177,6 +187,11 @@ export function validateAgentsConfig(raw: unknown): AgentConfig[] {
         );
       }
     }
+    if (agent.id === MECHANIC_AGENT_ID && agent.knowledgeScope === "agent") {
+      throw new Error(
+        `agents["${MECHANIC_AGENT_ID}"].knowledgeScope must be "global"`,
+      );
+    }
   }
 
   return agents;
@@ -193,6 +208,7 @@ export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
       id: DEFAULT_AGENT_ID,
       root,
       cwd: root,
+      knowledgeScope: "agent",
       channelPolicy: resolveAgentChannelPolicy(),
     }];
   }
@@ -208,6 +224,10 @@ export function resolveAgentsConfig(raw: unknown): ResolvedAgentConfig[] {
         : undefined,
       disabledTools: uniqueStrings(agent.disabledTools),
       thinking: agent.thinking,
+      configuredKnowledgeScope: agent.knowledgeScope,
+      knowledgeScope: agent.id === MECHANIC_AGENT_ID
+        ? "global"
+        : agent.knowledgeScope ?? "agent",
       channelPolicy: resolveAgentChannelPolicy(agent.channelPolicy),
     };
   });
