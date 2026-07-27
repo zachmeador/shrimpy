@@ -11,7 +11,7 @@ interface AgentEndEvent {
   messages?: unknown[];
 }
 
-interface SessionTurnResult {
+export interface SessionTurnResult {
   messages: unknown[];
   assistantText: string;
 }

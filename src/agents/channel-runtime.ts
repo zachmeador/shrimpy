@@ -1,4 +1,5 @@
 import type { AppRuntime } from "../app/runtime.js";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ChannelMessage } from "../channels/protocol.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { buildTurnContext } from "../context/turn/builder.js";
@@ -15,6 +16,7 @@ import { SessionResolver } from "../sessions/resolver.js";
 import { createChannelSessionKey } from "../sessions/identity.js";
 import { publishTerminalCompactionFailureStatus } from "../sessions/compaction/channel-status.js";
 import type { GatewayLaneState } from "../gateway/runtime-state.js";
+import { reviewChannelReply } from "../sessions/channel-reply-watchdog.js";
 
 interface AgentChannelRuntimeOpts {
   runtime: AppRuntime;
@@ -91,6 +93,35 @@ export class AgentChannelRuntime {
         });
       },
       onLaneStateChange: opts.onLaneStateChange,
+      reviewCompletedTurn: async (
+        channel,
+        message,
+        turn,
+        session,
+        signal,
+      ) => {
+        if (message.sender.kind !== "human") return undefined;
+        const model = session.model as Model<Api> | undefined;
+        if (!model) return { replyRecovery: "failed" };
+        const review = await reviewChannelReply({
+          runtime: this.bootstrap.modelRuntime,
+          model,
+          channelBus: this.channelBus,
+          channel,
+          agentId: this.agent.id,
+          message,
+          turn,
+          signal,
+        });
+        if (review.kind === "skipped") return undefined;
+        if (review.kind === "reviewed") {
+          return { replyRecovery: "reviewed" };
+        }
+        return {
+          replyRecovery: "woke",
+          followUpPrompt: review.prompt,
+        };
+      },
     });
   }
 

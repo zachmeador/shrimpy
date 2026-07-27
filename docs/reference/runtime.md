@@ -45,6 +45,10 @@ surface / CLI channel post / watch
 
 Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.
 
+After a human-authored channel turn ends without writing a visible agent message to that channel, the gateway runs a bounded reply review against the active session model. This quick call receives a small fixed instruction, up to three recent human messages, and truncated private assistant text; it loads no agent identity, workspace context, skills, tools, or persistent transcript. `NO_WAKE` leaves the completed turn alone. `WAKE` supplies one brief reminder that the gateway records as a `[shrimpy:channel-reply-recovery]` prompt in the same channel session, giving the full agent one more turn to publish. Review and recovery each run at most once for the source message, and reviewer failures leave the original completed turn intact.
+
+Agent-authored and system-authored turns skip reply review. Direct and TUI sessions use the foreground path and never install the channel reply watchdog.
+
 Direct local sessions do not have an active publication channel, so `reply`, `ask`, `notify`, and `report` are not registered there. Local sessions answer with ordinary assistant text unless explicitly asked to send or read a Shrimpy channel.
 
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
@@ -74,6 +78,7 @@ Durable sessions persist under each agent workspace as manifested Pi `.jsonl` di
 
 - `shrimpy status` summarizes workspace and gateway activity.
 - `shrimpy gateway status` reports PID/heartbeat-backed gateway process health separately from service-manager state, followed by surface health, watch-run, watch clock, gateway lane, and loop-guard status. `shrimpy status` uses the same liveness collector.
+- Gateway lane outcomes include `reply-recovery=reviewed`, `woke`, or `failed` when the channel reply watchdog ran.
 - `shrimpy watches` reports source paths, load failures, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` inspects the assembled session prompt, per-turn context, and user message body for an agent/session/turn.

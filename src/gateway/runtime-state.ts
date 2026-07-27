@@ -6,6 +6,7 @@ import {
 } from "../util/json-file.js";
 
 export type GatewayLaneOutcome = "completed" | "errored" | "aborted";
+export type GatewayLaneReplyRecovery = "reviewed" | "woke" | "failed";
 
 export interface GatewayLaneTurnState {
   messageId: string;
@@ -17,6 +18,7 @@ export interface GatewayLaneOutcomeState {
   outcome: GatewayLaneOutcome;
   at: number;
   error?: string;
+  replyRecovery?: GatewayLaneReplyRecovery;
 }
 
 export interface GatewayLaneState {
@@ -238,7 +240,16 @@ function parseLastOutcome(raw: unknown): GatewayLaneOutcomeState | null {
     outcome: raw.outcome,
     at: raw.at,
     ...(typeof raw.error === "string" ? { error: raw.error } : {}),
+    ...(isGatewayLaneReplyRecovery(raw.replyRecovery)
+      ? { replyRecovery: raw.replyRecovery }
+      : {}),
   };
+}
+
+function isGatewayLaneReplyRecovery(
+  value: unknown,
+): value is GatewayLaneReplyRecovery {
+  return value === "reviewed" || value === "woke" || value === "failed";
 }
 
 function parseLoopGuards(raw: unknown): GatewayLoopGuardTrip[] {

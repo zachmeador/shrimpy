@@ -20,6 +20,8 @@ describe("product instruction catalog", () => {
     assert.ok(ids.includes("compaction.summary"));
     assert.ok(ids.includes("worker.coding.contract"));
     assert.ok(ids.includes("tool.reply.description"));
+    assert.ok(ids.includes("control.channel-reply-review.system"));
+    assert.ok(ids.includes("control.channel-reply-recovery.prompt"));
     assert.equal(productInstructionCatalog.every((instruction) => instruction.source === "shrimpy"), true);
   });
 
@@ -29,6 +31,13 @@ describe("product instruction catalog", () => {
       "Plain assistant text is private and never reaches the channel.",
       "Use reply(text) for a normal user-visible response; use ask(text), notify(text), or report(summary) when those intents fit.",
       "Use send_message(channel=\"home\", text=\"...\") only for explicit routing to another destination. A user:<id> alias targets that user's last active chat surface; agent DM channels are internal and have no external adapter by default.",
+      "After publishing, do not duplicate the message in plain assistant text; wait for another incoming message.",
+    ]);
+    assert.deepEqual(channelDeliveryGuidance.render({ channel: "dm~helper~shrimpy" }).split("\n"), [
+      "Plain assistant text is private and never reaches the channel.",
+      "Use reply(text) for a normal user-visible response; use ask(text), notify(text), or report(summary) when those intents fit.",
+      "Use send_message(channel=\"dm~helper~shrimpy\", text=\"...\") only for explicit routing to another destination. A user:<id> alias targets that user's last active chat surface; agent DM channels are internal and have no external adapter by default.",
+      "If the other agent's message only closes the exchange—for example, an acknowledgment, thanks, or sign-off—with no new question or task, do not publish a reply. End the turn silently.",
       "After publishing, do not duplicate the message in plain assistant text; wait for another incoming message.",
     ]);
     assert.equal(toolParameterInstructions.readChannelLimit.render(), "Max messages to return (default 20)");

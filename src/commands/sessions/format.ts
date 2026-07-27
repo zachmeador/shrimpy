@@ -207,7 +207,7 @@ function printGatewayLanes(lanes: GatewayLaneState[]): void {
       ? `running ${formatSessionAge(Date.now() - lane.currentTurn.startedAt)}`
       : "idle";
     const last = lane.lastOutcome
-      ? ` last=${lane.lastOutcome.outcome} ${formatSessionAge(Date.now() - lane.lastOutcome.at)} ago`
+      ? ` last=${lane.lastOutcome.outcome}${lane.lastOutcome.replyRecovery ? ` reply-recovery=${lane.lastOutcome.replyRecovery}` : ""} ${formatSessionAge(Date.now() - lane.lastOutcome.at)} ago`
       : "";
     console.log(
       `  ${accent(lane.agentId)} ${lane.channel}  ${running} queued=${lane.queueDepth}${dim(last)}`,

@@ -154,6 +154,16 @@ describe("resolveContextDefaultsConfig", () => {
     assert.match(section!.content, /do not duplicate the message/);
     assert.doesNotMatch(section!.content, /exactly one/);
   });
+
+  test("tells agents to leave closure messages unanswered in DMs", () => {
+    const section = buildSessionDeliverySection({
+      delivery: { kind: "channel", channel: "dm~helper~shrimpy" },
+    });
+
+    assert.match(section!.content, /message only closes the exchange/);
+    assert.match(section!.content, /do not publish a reply/);
+    assert.match(section!.content, /End the turn silently/);
+  });
 });
 
 describe("resolveContextConfig", () => {

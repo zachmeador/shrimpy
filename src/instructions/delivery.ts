@@ -22,6 +22,9 @@ export const channelDeliveryGuidance = defineInstruction(
     "Plain assistant text is private and never reaches the channel.",
     "Use reply(text) for a normal user-visible response; use ask(text), notify(text), or report(summary) when those intents fit.",
     `Use send_message(channel="${channel}", text="...") only for explicit routing to another destination. A user:<id> alias targets that user's last active chat surface; agent DM channels are internal and have no external adapter by default.`,
+    ...(isAgentDmChannel(channel)
+      ? ["If the other agent's message only closes the exchange—for example, an acknowledgment, thanks, or sign-off—with no new question or task, do not publish a reply. End the turn silently."]
+      : []),
     "After publishing, do not duplicate the message in plain assistant text; wait for another incoming message.",
   ].join("\n"),
 );

@@ -21,6 +21,11 @@ import {
 import { fallbackIdentity } from "./identity.js";
 import { turnContextLeading, turnContextTrailing } from "./turn.js";
 import { codingWorkerContract } from "./workers.js";
+import {
+  channelReplyRecoveryPrompt,
+  channelReplyReviewPrompt,
+  channelReplyReviewSystem,
+} from "./control.js";
 
 export * from "./definition.js";
 export * from "./identity.js";
@@ -28,6 +33,7 @@ export * from "./delivery.js";
 export * from "./turn.js";
 export * from "./compaction.js";
 export * from "./workers.js";
+export * from "./control.js";
 
 export const productInstructionCatalog = [
   fallbackIdentity,
@@ -53,4 +59,7 @@ export const productInstructionCatalog = [
   compactionChunk,
   compactionIntermediate,
   codingWorkerContract,
+  channelReplyReviewSystem,
+  channelReplyReviewPrompt,
+  channelReplyRecoveryPrompt,
 ] as const;

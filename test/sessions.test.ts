@@ -257,6 +257,7 @@ function createRegistry(
     turnContextForMessage?: ConstructorParameters<typeof SessionPool>[1]["turnContextForMessage"];
     startActivity?: ConstructorParameters<typeof SessionPool>[1]["startActivity"];
     onCompactionEnd?: ConstructorParameters<typeof SessionPool>[1]["onCompactionEnd"];
+    reviewCompletedTurn?: ConstructorParameters<typeof SessionPool>[1]["reviewCompletedTurn"];
   },
 ) {
   const bootstrap = createFakeBootstrap(workspacePath);
@@ -268,6 +269,7 @@ function createRegistry(
     turnContextForMessage: opts?.turnContextForMessage,
     startActivity: opts?.startActivity,
     onCompactionEnd: opts?.onCompactionEnd,
+    reviewCompletedTurn: opts?.reviewCompletedTurn,
   });
 }
 
@@ -884,6 +886,59 @@ describe("SessionPool", () => {
       formatChannelMessage("telegram~shrimpy~1", second),
       formatChannelMessage("telegram~shrimpy~1", third),
     ]);
+  });
+
+  test("runs one tagged follow-up when post-turn review requests recovery", async () => {
+    const sessionFactory = createSessionFactory();
+    let reviews = 0;
+    const message = humanText("hello");
+    const registry = createRegistry(sessionFactory, undefined, {
+      reviewCompletedTurn: async (_channel, _message, turn) => {
+        reviews += 1;
+        assert.equal(turn.assistantText, "");
+        return {
+          replyRecovery: "woke",
+          followUpPrompt: "[shrimpy:channel-reply-recovery]\nPublish the response.",
+        };
+      },
+    });
+
+    await registry.dispatch("telegram~shrimpy~1", message);
+
+    assert.equal(reviews, 1);
+    assert.deepEqual(sessionFactory.sessions[0].prompts, [
+      formatChannelMessage("telegram~shrimpy~1", message),
+      "[shrimpy:channel-reply-recovery]\nPublish the response.",
+    ]);
+    assert.equal(
+      registry.getLaneState("telegram~shrimpy~1").lastOutcome?.replyRecovery,
+      "woke",
+    );
+  });
+
+  test("records a failed review without failing the completed channel turn", async () => {
+    const sessionFactory = createSessionFactory();
+    const errors: string[] = [];
+    const originalError = console.error;
+    const registry = createRegistry(sessionFactory, undefined, {
+      reviewCompletedTurn: async () => {
+        throw new Error("review unavailable");
+      },
+    });
+
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((value) => String(value)).join(" "));
+    };
+    try {
+      await registry.dispatch("telegram~shrimpy~1", humanText("hello"));
+    } finally {
+      console.error = originalError;
+    }
+
+    const outcome = registry.getLaneState("telegram~shrimpy~1").lastOutcome;
+    assert.equal(outcome?.outcome, "completed");
+    assert.equal(outcome?.replyRecovery, "failed");
+    assert.match(errors.join("\n"), /channel reply review error/);
   });
 
   test("starts and stops channel activity around a dispatched turn", async () => {

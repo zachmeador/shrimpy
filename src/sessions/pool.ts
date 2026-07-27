@@ -8,6 +8,7 @@ import { renderTurnContext } from "../context/turn/render.js";
 import type { TurnContext } from "../context/turn/types.js";
 import type {
   GatewayLaneOutcome,
+  GatewayLaneReplyRecovery,
   GatewayLaneState,
 } from "../gateway/runtime-state.js";
 import type { SessionBootstrap } from "./bootstrap.js";
@@ -17,7 +18,10 @@ import { durableSessionDir } from "./spec.js";
 import { archiveActiveSession, restoreArchivedSession } from "./transcript-store.js";
 import type { ThinkingLevel } from "../config/thinking.js";
 import { toModelRef } from "../config/model.js";
-import { runSessionTurn } from "./turn-output.js";
+import {
+  runSessionTurn,
+  type SessionTurnResult,
+} from "./turn-output.js";
 import type { SessionCompactionEndEvent } from "./compaction/events.js";
 
 interface SessionLane {
@@ -55,6 +59,16 @@ interface SessionPoolOptions {
     event: SessionCompactionEndEvent,
   ) => void;
   onLaneStateChange?(state: GatewayLaneState): void;
+  reviewCompletedTurn?(
+    channel: string,
+    message: ChannelMessage,
+    turn: SessionTurnResult,
+    session: AgentSession,
+    signal: AbortSignal,
+  ): Promise<{
+    replyRecovery?: GatewayLaneReplyRecovery;
+    followUpPrompt?: string;
+  } | undefined>;
 }
 
 export class SessionPool {
@@ -237,13 +251,20 @@ export class SessionPool {
       const turnContextText = await this.turnContext(lane, message, prompt);
       const session = await this.session(lane);
       activity = await this.startActivity(lane.channel);
-      await runSessionTurn(session, prompt, {
+      const turn = await runSessionTurn(session, prompt, {
         signal: controller.signal,
         abortMessage: "session turn stopped by user",
         turnContextText,
         channelDelivery: true,
       });
-      this.record(lane, message.id, "completed");
+      const replyRecovery = await this.reviewAndRecover(
+        lane,
+        message,
+        turn,
+        session,
+        controller,
+      );
+      this.record(lane, message.id, "completed", undefined, replyRecovery);
     } catch (err) {
       const aborted = controller.signal.aborted;
       this.record(lane, message.id, aborted ? "aborted" : "errored", formatError(err));
@@ -277,13 +298,58 @@ export class SessionPool {
     messageId: string,
     outcome: GatewayLaneOutcome,
     error?: string,
+    replyRecovery?: GatewayLaneReplyRecovery,
   ): void {
     lane.lastOutcome = {
       messageId,
       outcome,
       at: Date.now(),
       ...(error ? { error } : {}),
+      ...(replyRecovery ? { replyRecovery } : {}),
     };
+  }
+
+  private async reviewAndRecover(
+    lane: SessionLane,
+    message: ChannelMessage,
+    turn: SessionTurnResult,
+    session: AgentSession,
+    controller: AbortController,
+  ): Promise<GatewayLaneReplyRecovery | undefined> {
+    if (!this.options.reviewCompletedTurn) return undefined;
+
+    let review:
+      | {
+        replyRecovery?: GatewayLaneReplyRecovery;
+        followUpPrompt?: string;
+      }
+      | undefined;
+    try {
+      review = await this.options.reviewCompletedTurn(
+        lane.channel,
+        message,
+        turn,
+        session,
+        controller.signal,
+      );
+    } catch (err) {
+      if (controller.signal.aborted) throw err;
+      console.error(`[session:${lane.channel}] channel reply review error:`, err);
+      return "failed";
+    }
+    if (!review?.followUpPrompt) return review?.replyRecovery;
+
+    try {
+      await runSessionTurn(session, review.followUpPrompt, {
+        signal: controller.signal,
+        abortMessage: "session turn stopped by user",
+      });
+      return review.replyRecovery;
+    } catch (err) {
+      if (controller.signal.aborted) throw err;
+      console.error(`[session:${lane.channel}] channel reply recovery error:`, err);
+      return "failed";
+    }
   }
 
   private snapshot(lane: SessionLane): GatewayLaneState {
