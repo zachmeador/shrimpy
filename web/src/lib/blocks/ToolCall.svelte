@@ -49,8 +49,10 @@
     white-space: nowrap;
   }
   .full {
+    min-width: 0;
     margin: 0;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
     color: var(--fg);
   }
   .id { margin-left: auto; font-size: 10.5px; }

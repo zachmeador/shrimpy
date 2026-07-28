@@ -3,28 +3,41 @@ export function tsHHMMSS(ms: number): string {
   const h = String(d.getHours()).padStart(2, "0");
   const m = String(d.getMinutes()).padStart(2, "0");
   const s = String(d.getSeconds()).padStart(2, "0");
-  const mi = String(d.getMilliseconds()).padStart(3, "0");
-  return `${h}:${m}:${s}.${mi}`;
+  return `${h}:${m}:${s}`;
 }
 
-function isSameLocalDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+export function formatEventTime(ms: number): string {
+  if (!ms) return "";
+  return tsHHMMSS(ms);
 }
 
-export function formatEventTime(ms: number, now = new Date()): string {
+export function formatEventDay(ms: number): string {
   if (!ms) return "";
   const d = new Date(ms);
-  if (isSameLocalDay(d, now)) return tsHHMMSS(ms);
+  const year = d.getFullYear();
   const mo = String(d.getMonth() + 1).padStart(2, "0");
   const da = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  const s = String(d.getSeconds()).padStart(2, "0");
-  return `${mo}/${da} ${h}:${m}:${s}`;
+  return `${year}-${mo}-${da}`;
+}
+
+export function eventTimestamp(event: unknown): number {
+  if (typeof event !== "object" || event === null || Array.isArray(event)) return 0;
+  const record = event as Record<string, unknown>;
+  const direct = timestampValue(record.timestamp);
+  if (direct) return direct;
+  if (typeof record.message === "object" && record.message !== null && !Array.isArray(record.message)) {
+    return timestampValue((record.message as Record<string, unknown>).timestamp);
+  }
+  return 0;
+}
+
+function timestampValue(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 export function tsFromIso(iso: string): number {

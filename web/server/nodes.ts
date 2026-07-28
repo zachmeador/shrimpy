@@ -1,4 +1,4 @@
-import { existsSync, promises as fs } from "node:fs";
+import { promises as fs } from "node:fs";
 import { basename, join } from "node:path";
 import type {
   JsonlNodeResponse,
@@ -7,6 +7,8 @@ import type {
   NodeResponse,
   OverviewNodeResponse,
   OverviewRow,
+  WatchRow,
+  WatchesNodeResponse,
 } from "../shared/types.js";
 import { decodeNodeId, type NodeDescriptor } from "./ids.js";
 import { readJsonl, readText } from "./read.js";
@@ -62,14 +64,7 @@ export async function readNode(
         anchor,
       );
     case "watch":
-      return readAgentFile(
-        workspace,
-        id,
-        descriptor.agentId,
-        "watches.json",
-        "Watches",
-        "watch",
-      );
+      return readWatches(workspace, id, descriptor.agentId);
     case "channel":
       return readChannel(workspace, id, descriptor.channel, cursor, anchor);
     case "runtime":
@@ -204,30 +199,79 @@ async function readChannel(
   };
 }
 
-async function readAgentFile(
+async function readWatches(
   workspace: string,
   id: string,
   agentId: string,
-  relativePath: string,
-  label: string,
-  kind: NodeKind,
 ): Promise<NodeResponse> {
   const agent = resolveAgents(workspace).find(
     (candidate) => candidate.id === agentId,
   );
   if (!agent) throw new NodeReadError(404, "agent no longer exists");
-  const path = await resolveContainedFile(agent.root, relativePath);
+  const path = await resolveContainedFile(agent.root, "watches.json");
   if (!path) throw new NodeReadError(404, "agent file no longer exists");
-  return readFileResponse(
+  const result = await readText(path);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.text) as unknown;
+  } catch {
+    parsed = undefined;
+  }
+  if (result.truncated || !Array.isArray(parsed)) {
+    return readFileResponse(
+      id,
+      "Watches",
+      "watch",
+      path,
+      `${agentId}/watches.json`,
+      undefined,
+      undefined,
+      [{ label: "agent", value: agentId }],
+    );
+  }
+
+  const stat = await fs.stat(path);
+  const watchClock = readJson(join(workspace, "state", "watch-clock.json"));
+  const watches = parsed.flatMap((value): WatchRow[] => {
+    if (!isRecord(value) || typeof value.id !== "string" || !value.id) return [];
+    const trigger = isRecord(value.trigger) ? value.trigger : {};
+    const clockKey = `${agentId}/${value.id}`;
+    const clock = isRecord(watchClock) && isRecord(watchClock[clockKey])
+      ? watchClock[clockKey]
+      : undefined;
+    const nextRunAtMs = clock && typeof clock.nextRunAtMs === "number"
+      && Number.isFinite(clock.nextRunAtMs)
+      ? clock.nextRunAtMs
+      : undefined;
+    return [{
+      id: value.id,
+      name: typeof value.name === "string" && value.name ? value.name : value.id,
+      triggerKind: typeof trigger.kind === "string" ? trigger.kind : "unknown",
+      schedule: watchSchedule(
+        trigger,
+        typeof value.timezone === "string" ? value.timezone : undefined,
+      ),
+      nextRunAtMs,
+      concurrencyPolicy: typeof value.concurrencyPolicy === "string"
+        ? value.concurrencyPolicy
+        : "forbid",
+      enabled: value.enabled !== false,
+      raw: value,
+    }];
+  });
+  return {
     id,
-    label,
-    kind,
-    path,
-    `${agentId}/${relativePath}`,
-    undefined,
-    undefined,
-    [{ label: "agent", value: agentId }],
-  );
+    label: "Watches",
+    kind: "watch",
+    metadata: [{ label: "agent", value: agentId }],
+    revision: revisionFor(stat),
+    sourcePath: `${agentId}/watches.json`,
+    mtimeMs: stat.mtimeMs,
+    mode: "watches",
+    watches,
+    truncated: false,
+    totalSize: stat.size,
+  } satisfies WatchesNodeResponse;
 }
 
 async function readWorkspaceBackedNode(
@@ -405,20 +449,54 @@ async function readAgent(
 ): Promise<OverviewNodeResponse> {
   const agent = resolveAgents(workspace).find((candidate) => candidate.id === agentId);
   if (!agent) throw new NodeReadError(404, "agent no longer exists");
+  const config = readJson(join(workspace, "config", "shrimpy.json"));
+  const rawAgents: unknown = isRecord(config) ? config.agents : undefined;
+  const configuredAgent: unknown = Array.isArray(rawAgents)
+    ? rawAgents.find(
+      (candidate) => isRecord(candidate) && candidate.id === agentId,
+    )
+    : undefined;
+  const channels = readJson(join(workspace, "config", "channels.json"));
+  const channelNames = isRecord(channels) && isRecord(channels.channels)
+    ? Object.entries(channels.channels).flatMap(([name, value]) =>
+      isRecord(value) && isRecord(value.agents) && agentId in value.agents
+        ? [name]
+        : []
+    )
+    : [];
+  const sessions = await sessionSummary(join(agent.root, "sessions"));
+  const rawWatches = readJson(join(agent.root, "watches.json"));
+  const watches = Array.isArray(rawWatches)
+    ? rawWatches.filter((watch) => isRecord(watch))
+    : [];
+  const enabledWatches = watches.filter((watch) => watch.enabled !== false).length;
+  const modelPolicy = isRecord(configuredAgent)
+    ? displayValue(configuredAgent.modelPolicy)
+    : "default";
   const sections = [{
     title: "Agent",
     rows: [
-      overviewRow("id", agent.id),
-      overviewRow("root", agent.root),
-      overviewRow("sessions", String(await countNestedJsonl(join(agent.root, "sessions")))),
       overviewRow(
-        "watches",
-        existsSync(join(agent.root, "watches.json")) ? "configured" : "none",
+        "last activity",
+        sessions.lastActivityMs
+          ? new Date(sessions.lastActivityMs).toISOString()
+          : "none",
+        sessions.lastActivityMs ? "normal" : "dim",
+      ),
+      overviewRow("model policy", modelPolicy),
+      overviewRow("channels", channelNames.join(", ") || "none"),
+      overviewRow(
+        "sessions",
+        ["local", "channel", "worker"]
+          .map((namespace) => `${namespace} ${sessions.counts[namespace] ?? 0}`)
+          .join(" · "),
       ),
       overviewRow(
-        "SOUL.md",
-        existsSync(join(agent.root, "SOUL.md")) ? "present" : "missing",
-        existsSync(join(agent.root, "SOUL.md")) ? "good" : "warn",
+        "watches",
+        watches.length > 0
+          ? `${enabledWatches}/${watches.length} enabled`
+          : "none",
+        enabledWatches > 0 ? "good" : "dim",
       ),
     ],
   }];
@@ -476,6 +554,45 @@ function formatTimestamp(value: string): string {
   return new Date(milliseconds).toISOString();
 }
 
+function watchSchedule(
+  trigger: Record<string, unknown>,
+  watchTimezone?: string,
+): string {
+  if (typeof trigger.cron === "string" && trigger.cron) {
+    const timezone = typeof trigger.timezone === "string" && trigger.timezone
+      ? trigger.timezone
+      : watchTimezone;
+    const timezoneSuffix = timezone
+      ? ` · ${timezone}`
+      : "";
+    return `${trigger.cron}${timezoneSuffix}`;
+  }
+  if (typeof trigger.everyMs === "number" && Number.isFinite(trigger.everyMs)) {
+    return formatDuration(trigger.everyMs);
+  }
+  return "—";
+}
+
+function formatDuration(milliseconds: number): string {
+  if (milliseconds % 86_400_000 === 0) return `${milliseconds / 86_400_000}d`;
+  if (milliseconds % 3_600_000 === 0) return `${milliseconds / 3_600_000}h`;
+  if (milliseconds % 60_000 === 0) return `${milliseconds / 60_000}m`;
+  if (milliseconds % 1_000 === 0) return `${milliseconds / 1_000}s`;
+  return `${milliseconds}ms`;
+}
+
+function displayValue(value: unknown): string {
+  if (value === undefined) return "default";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "configured";
+  }
+}
+
 async function countFiles(directory: string, extension: string): Promise<number> {
   try {
     return (await fs.readdir(directory)).filter((name) => name.endsWith(extension)).length;
@@ -502,6 +619,39 @@ async function countNestedJsonl(root: string): Promise<number> {
     }
   }
   return count;
+}
+
+async function sessionSummary(root: string): Promise<{
+  counts: Record<string, number>;
+  lastActivityMs: number;
+}> {
+  const counts: Record<string, number> = {};
+  let lastActivityMs = 0;
+  for (const namespace of ["local", "channel", "worker"]) {
+    const directory = join(root, namespace);
+    counts[namespace] = await countNestedJsonl(directory);
+    const pending = [directory];
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      let entries;
+      try {
+        entries = await fs.readdir(current, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const entry of entries) {
+        if (entry.isSymbolicLink()) continue;
+        const path = join(current, entry.name);
+        if (entry.isDirectory()) {
+          pending.push(path);
+        } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+          const stat = await fs.stat(path);
+          lastActivityMs = Math.max(lastActivityMs, stat.mtimeMs);
+        }
+      }
+    }
+  }
+  return { counts, lastActivityMs };
 }
 
 function decodeDirectory(value: string): string {

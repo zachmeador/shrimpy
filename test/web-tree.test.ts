@@ -63,7 +63,13 @@ async function fixture(): Promise<string> {
       join(workspace, "skills", "remember", "references", "format.md"),
       "# Format\n",
     ),
-    writeFile(join(workspace, "config", "shrimpy.json"), "{}\n"),
+    writeFile(join(workspace, "config", "shrimpy.json"), JSON.stringify({
+      agents: [{
+        id: "shrimpy",
+        root: "agents/shrimpy",
+        modelPolicy: "coding",
+      }],
+    })),
     writeFile(join(workspace, "config", "channels.json"), JSON.stringify({
       channels: {
         home: { agents: { shrimpy: {} } },
@@ -73,10 +79,31 @@ async function fixture(): Promise<string> {
     writeFile(join(workspace, "channels", "home.jsonl"), "{\"text\":\"one\"}\n"),
     writeFile(join(workspace, "state", "pi", "auth.json"), "{}\n"),
     writeFile(join(workspace, "state", "pi", "models-store.json"), "{}\n"),
+    writeFile(join(workspace, "state", "watch-clock.json"), JSON.stringify({
+      "shrimpy/pulse": {
+        nextRunAtMs: 1_800_000_000_000,
+        scheduleKey: "pulse",
+      },
+    })),
     writeFile(join(workspace, "runtime", "logs", "gateway.log"), "started\n"),
     writeFile(
       join(workspace, "agents", "shrimpy", "watches.json"),
-      JSON.stringify({ watches: [{ id: "pulse", enabled: true }] }),
+      JSON.stringify([
+        {
+          id: "pulse",
+          name: "Pulse check",
+          enabled: true,
+          trigger: { kind: "time", everyMs: 3_600_000 },
+          concurrencyPolicy: "allow",
+          action: { kind: "command", command: "true" },
+        },
+        {
+          id: "quiet",
+          enabled: false,
+          trigger: { kind: "time", cron: "0 8 * * *", timezone: "UTC" },
+          action: { kind: "command", command: "true" },
+        },
+      ]),
     ),
     writeFile(join(workspace, "agents", "shrimpy", "SOUL.md"), "# Soul\n"),
     writeFile(
@@ -294,6 +321,52 @@ test("node readers expose structured current sessions and deny secrets", async (
   ]);
   assert.match(session.sourcePath ?? "", /aG9tZQ\/ZGVmYXVsdA\/turn\.jsonl$/);
   assert.equal(typeof session.mtimeMs, "number");
+
+  const watches = await readNode(
+    workspace,
+    encodeNodeId({ type: "watch", agentId: "shrimpy" }),
+  );
+  assert.equal(watches.mode, "watches");
+  if (watches.mode === "watches") {
+    assert.deepEqual(watches.watches.map((watch) => ({
+      id: watch.id,
+      schedule: watch.schedule,
+      nextRunAtMs: watch.nextRunAtMs,
+      concurrencyPolicy: watch.concurrencyPolicy,
+      enabled: watch.enabled,
+    })), [
+      {
+        id: "pulse",
+        schedule: "1h",
+        nextRunAtMs: 1_800_000_000_000,
+        concurrencyPolicy: "allow",
+        enabled: true,
+      },
+      {
+        id: "quiet",
+        schedule: "0 8 * * * · UTC",
+        nextRunAtMs: undefined,
+        concurrencyPolicy: "forbid",
+        enabled: false,
+      },
+    ]);
+  }
+
+  const agent = await readNode(
+    workspace,
+    encodeNodeId({ type: "agent", agentId: "shrimpy" }),
+  );
+  assert.equal(agent.mode, "overview");
+  if (agent.mode === "overview") {
+    const rows = Object.fromEntries(
+      agent.sections[0]!.rows.map((row) => [row.label, row.value]),
+    );
+    assert.equal(rows["model policy"], "coding");
+    assert.equal(rows.channels, "home, ops");
+    assert.equal(rows.sessions, "local 0 · channel 3 · worker 0");
+    assert.equal(rows.watches, "1/2 enabled");
+    assert.match(rows["last activity"], /^\d{4}-\d{2}-\d{2}T/);
+  }
 
   const configuredOnly = await readNode(
     workspace,

@@ -68,7 +68,7 @@
     padding-left: 4px;
     border-left: 2px solid var(--border);
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
     color: var(--fg);
   }
   .tr.err .body { color: var(--c-error); border-color: var(--c-error); }

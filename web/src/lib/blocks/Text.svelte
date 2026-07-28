@@ -7,7 +7,9 @@
 
 <style>
   .text {
+    display: block;
+    max-width: 78ch;
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 </style>

@@ -1,9 +1,18 @@
 <script lang="ts">
   import { tick } from "svelte";
   import ChannelRow from "./ChannelRow.svelte";
+  import JsonViewer from "./JsonViewer.svelte";
+  import MarkdownViewer from "./MarkdownViewer.svelte";
+  import PathText from "./PathText.svelte";
   import SessionRow from "./SessionRow.svelte";
+  import WatchViewer from "./WatchViewer.svelte";
   import type { NodeResponse } from "./types";
-  import { formatBytes, tailPath } from "./format";
+  import {
+    eventTimestamp,
+    formatBytes,
+    formatEventDay,
+    tailPath,
+  } from "./format";
   import { summarizeNode } from "./summary";
 
   interface Props {
@@ -75,6 +84,15 @@
     if (enabling) scrollToLatest();
   }
 
+  function daySeparator(events: unknown[], index: number): string {
+    const day = formatEventDay(eventTimestamp(events[index]));
+    if (!day) return "";
+    const previousDay = index > 0
+      ? formatEventDay(eventTimestamp(events[index - 1]))
+      : "";
+    return day === previousDay ? "" : day;
+  }
+
   $effect(() => {
     if (!node || node.mode !== "jsonl" || !followLatest || loading) return;
     void node.events.length;
@@ -93,7 +111,11 @@
         {#each node.metadata as item}
           <span class="info" title={item.label === "path" ? item.value : undefined}>
             <span>{item.label}</span>
-            {item.label === "path" ? tailPath(item.value) : item.value}
+            {#if item.label === "path"}
+              <PathText path={tailPath(item.value)} />
+            {:else}
+              {item.value}
+            {/if}
           </span>
         {/each}
         {#if node.mode === "jsonl"}
@@ -105,7 +127,7 @@
           {#if node.parseErrors.length}
             <span class="err">{node.parseErrors.length} parse err</span>
           {/if}
-        {:else if node.mode === "text"}
+        {:else if node.mode === "text" || node.mode === "watches"}
           <span class="info"><span>size</span> {formatBytes(node.totalSize)}</span>
           {#if node.truncated}<span class="err">truncated</span>{/if}
         {/if}
@@ -164,15 +186,31 @@
             <dl>
               {#each section.rows as row}
                 <dt>{row.label}</dt>
-                <dd class={row.tone ?? "normal"}>{row.value}</dd>
+                <dd class={row.tone ?? "normal"}>
+                  {#if row.label === "path" || row.label === "root"}
+                    <PathText path={row.value} />
+                  {:else}
+                    {row.value}
+                  {/if}
+                </dd>
               {/each}
             </dl>
           </section>
         {/each}
       </div>
+    {:else if node.mode === "watches"}
+      {#if node.watches.length === 0}
+        <div class="status muted">(no watches)</div>
+      {:else}
+        <WatchViewer watches={node.watches} />
+      {/if}
     {:else if node.mode === "text"}
       {#if node.text.length === 0}
         <div class="status muted">(empty)</div>
+      {:else if node.kind === "markdown"}
+        <MarkdownViewer text={node.text} />
+      {:else if node.kind === "json" || node.sourcePath?.endsWith(".json")}
+        <JsonViewer text={node.text} />
       {:else}
         <pre class="text-file">{node.text}</pre>
       {/if}
@@ -180,10 +218,14 @@
       <div class="status muted">(empty)</div>
     {:else if node.kind === "channel"}
       {#each node.events as event, index (eventKey(event, index))}
+        {@const day = daySeparator(node.events, index)}
+        {#if day}<div class="day">{day}</div>{/if}
         <ChannelRow {event} {foldNoise} />
       {/each}
     {:else}
       {#each node.events as event, index (eventKey(event, index))}
+        {@const day = daySeparator(node.events, index)}
+        {#if day}<div class="day">{day}</div>{/if}
         <SessionRow {event} {foldNoise} {foldTools} />
       {/each}
     {/if}
@@ -252,7 +294,7 @@
     gap: 5px;
     min-width: 0;
   }
-  .connection { color: var(--c-error); }
+  .connection { color: var(--c-user); }
   .connection.ok { color: var(--accent); }
   .connection { margin-left: auto; font-size: 10px; }
   .toggle {
@@ -262,7 +304,12 @@
   }
   .toggle:hover { background: var(--bg-hover); }
   .toggle.on { border-color: rgba(107, 208, 176, .45); color: var(--accent); }
-  .body { min-height: 0; overflow: auto; }
+  .body {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
   .status { padding: 12px; }
   .text-file {
     margin: 0;
@@ -299,6 +346,17 @@
   dd.bad { color: var(--c-error); }
   dd.dim { color: var(--fg-dim); }
   .errors { padding: 7px 9px; border-top: 1px solid var(--border); }
+  .day {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 2px 8px 2px 68px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+    color: var(--fg-muted);
+    font-size: 10px;
+    letter-spacing: .06em;
+  }
   @media (max-width: 720px) {
     .header {
       grid-template-rows: 100px 30px;

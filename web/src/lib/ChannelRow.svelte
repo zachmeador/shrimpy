@@ -83,7 +83,13 @@
   let expanded = $state(false);
 </script>
 
-<div class="row" class:expanded>
+<div
+  class="row"
+  class:expanded
+  class:is-human={n.senderKind === "human"}
+  class:is-agent={n.senderKind === "agent"}
+  class:is-system={n.senderKind === "system"}
+>
   <span class="ts">{formatEventTime(n.timestamp)}</span>
   <span class="chip {chipClass(n.senderKind)}">{chipLetter(n.senderKind)}</span>
   <span class="actor">{n.actorId}</span>
@@ -109,11 +115,12 @@
 <style>
   .row {
     display: grid;
-    grid-template-columns: 104px 14px 140px minmax(90px, 160px) 1fr 18px;
+    grid-template-columns: 58px 14px 140px minmax(90px, 160px) 1fr 18px;
     gap: 6px;
-    padding: 2px 8px;
+    padding: 2px 8px 2px 6px;
     align-items: baseline;
-    border-bottom: 1px solid var(--bg-row);
+    border-bottom: 1px solid var(--border);
+    border-left: 2px solid transparent;
   }
   .row:hover { background: var(--bg-hover); }
   .ts { color: var(--fg-dim); font-size: 10.5px; }
@@ -129,8 +136,10 @@
     font-size: 10.5px;
   }
   .content {
+    min-width: 0;
+    max-width: 90ch;
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
   }
   .more {
     color: var(--fg-muted);
@@ -142,8 +151,11 @@
     padding: 4px 8px;
     background: var(--bg-row);
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
     font-size: 11px;
     color: var(--fg-dim);
   }
+  .is-human { border-left-color: var(--c-human); }
+  .is-agent { border-left-color: var(--c-agent); }
+  .is-system { border-left-color: var(--c-system); }
 </style>

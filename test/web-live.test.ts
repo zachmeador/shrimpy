@@ -24,11 +24,13 @@ test("workspace watcher invalidates scoped workspace and agent files", async () 
             "workspace-skill.md",
             "agent-note.md",
             "agent-skill.md",
+            "watches.json",
+            "watch-clock.json",
           ]) {
             if (path.includes(name)) seen.add(name);
           }
         }
-        if (seen.size < 4) return;
+        if (seen.size < 6) return;
         clearTimeout(timeout);
         unsubscribe();
         resolve([...seen]);
@@ -36,6 +38,7 @@ test("workspace watcher invalidates scoped workspace and agent files", async () 
     });
     await mkdir(join(workspace, "context"), { recursive: true });
     await mkdir(join(workspace, "skills", "test"), { recursive: true });
+    await mkdir(join(workspace, "state"), { recursive: true });
     await mkdir(
       join(workspace, "agents", "shrimpy", "context"),
       { recursive: true },
@@ -68,6 +71,14 @@ test("workspace watcher invalidates scoped workspace and agent files", async () 
         ),
         "live\n",
       ),
+      writeFile(
+        join(workspace, "agents", "shrimpy", "watches.json"),
+        "[]\n",
+      ),
+      writeFile(
+        join(workspace, "state", "watch-clock.json"),
+        "{}\n",
+      ),
     ]);
     await watcher.reconcileNow();
     assert.deepEqual(
@@ -75,6 +86,8 @@ test("workspace watcher invalidates scoped workspace and agent files", async () 
       [
         "agent-note.md",
         "agent-skill.md",
+        "watch-clock.json",
+        "watches.json",
         "workspace-note.md",
         "workspace-skill.md",
       ],

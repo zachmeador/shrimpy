@@ -119,6 +119,7 @@
     border-radius: 2px;
     font-size: 11px;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
     color: var(--fg);
   }
 </style>

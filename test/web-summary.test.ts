@@ -6,6 +6,9 @@ import {
   summarizeSession,
 } from "../web/src/lib/summary.ts";
 import {
+  eventTimestamp,
+  formatEventDay,
+  formatEventTime,
   formatRelativeTime,
   tailPath,
 } from "../web/src/lib/format.ts";
@@ -29,6 +32,17 @@ describe("web header summaries", () => {
     assert.equal(formatRelativeTime(now - 3 * 3_600_000, now), "3h");
     assert.equal(formatRelativeTime(now - 8 * 86_400_000, now), "8d");
     assert.equal(formatRelativeTime(now - 65 * 86_400_000, now), "2mo");
+  });
+
+  test("uses one transcript time format with separate local day labels", () => {
+    const timestamp = new Date(2026, 6, 27, 9, 8, 7, 654).getTime();
+    assert.equal(formatEventTime(timestamp), "09:08:07");
+    assert.equal(formatEventDay(timestamp), "2026-07-27");
+    assert.equal(eventTimestamp({ timestamp }), timestamp);
+    assert.equal(
+      eventTimestamp({ message: { timestamp: "2026-07-27T13:08:07.654Z" } }),
+      Date.parse("2026-07-27T13:08:07.654Z"),
+    );
   });
 
   test("summarizes the loaded session range from current transcript records", () => {

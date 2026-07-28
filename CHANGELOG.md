@@ -19,6 +19,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added a stable two-row inspector header with readable session scope, loaded-range session and channel summaries, node-specific fold/follow controls, and one live-status indicator.
 - Added a denser tree with relative modification times, meaningful session markers, keyboard filtering and four-arrow navigation, persisted expansion controls, and a hideable narrow-screen sidebar.
 - Added first-class workspace and per-agent Context and Skills tree groups, including agent `SOUL.md`, complete skill package contents, and workspace-contained scoped reads.
+- Added compact wrapping watch tables with next-run and enablement state, rendered Markdown with a raw view, color-coded JSON, more useful agent summaries, and clearer role, date, path, and prose treatment in transcripts.
 - Improved session and channel reading by folding generated context, system/tool metadata, custom records, channel state, and unknown payloads behind persisted noise and tool-I/O controls; tool results no longer render twice.
 
 ## 🦐 0.6.0 - The Blue Hour - 2026-07-26

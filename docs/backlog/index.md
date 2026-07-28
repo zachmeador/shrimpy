@@ -23,7 +23,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
 | [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
-| [WEB-004](proposals/web-004-node-viewers-and-legibility.md) | draft | P3 | Web | none | Specialized node viewers and transcript legibility pass |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |
 | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P3 | Context | none | Runtime context producers as CLI commands |
 | [AGENT-002](proposals/agent-002-parent-owned-tidepools.md) | draft | P3 | Agents | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | One-level child-agent tidepools owned by top-level agents |

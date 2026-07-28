@@ -54,7 +54,7 @@
     background: var(--bg-row);
     color: var(--fg-dim);
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
     font-size: 11px;
   }
 </style>

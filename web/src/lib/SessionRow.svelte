@@ -7,6 +7,7 @@
   import ToolsList from "./blocks/ToolsList.svelte";
   import CustomUnknown from "./blocks/CustomUnknown.svelte";
   import FoldedRecord from "./blocks/FoldedRecord.svelte";
+  import PathText from "./PathText.svelte";
   import { tsFromIso, formatEventTime } from "./format";
   import {
     classifySessionBlock,
@@ -61,7 +62,9 @@
 
   {#if type === "session"}
     <span class="tag">session</span>
-    <span class="content dim">v{event.version} · cwd={event.cwd} · id={(event.id as string)?.slice(0, 8)}</span>
+    <span class="content dim">
+      v{event.version} · cwd=<PathText path={event.cwd ?? ""} /> · id={(event.id as string)?.slice(0, 8)}
+    </span>
   {:else if type === "model_change"}
     <span class="tag">model</span>
     <span class="content">{event.provider}/<strong>{event.modelId}</strong></span>
@@ -173,23 +176,24 @@
 <style>
   .row {
     display: grid;
-    grid-template-columns: 104px 14px 1fr auto 18px;
+    grid-template-columns: 58px 14px 1fr auto 18px;
     gap: 6px;
-    padding: 2px 8px;
+    padding: 2px 8px 2px 6px;
     align-items: baseline;
-    border-bottom: 1px solid var(--bg-row);
+    border-bottom: 1px solid var(--border);
+    border-left: 2px solid transparent;
   }
   .row:hover { background: var(--bg-hover); }
   .row.type-session, .row.type-model_change, .row.type-thinking_level_change {
-    grid-template-columns: 104px auto 1fr 18px;
+    grid-template-columns: 58px auto 1fr 18px;
     color: var(--fg-dim);
   }
   .row.type-custom, .row.type-custom_message, .row.folded-event {
-    grid-template-columns: 104px 1fr 18px;
+    grid-template-columns: 58px 1fr 18px;
   }
   .row.type-session .tag { background: rgba(107,208,176,0.18); color: var(--accent); }
   .ts { color: var(--fg-dim); font-size: 10.5px; }
-  .content { min-width: 0; word-break: break-word; }
+  .content { min-width: 0; overflow-wrap: anywhere; }
   .blocks {
     display: flex;
     flex-direction: column;
@@ -209,11 +213,11 @@
     padding: 4px 8px;
     background: var(--bg-row);
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
     font-size: 11px;
     color: var(--fg-dim);
   }
-  .is-user { background: rgba(224,185,106,0.04); }
-  .is-assistant { }
-  .is-tool { background: rgba(212,138,107,0.04); }
+  .is-user { border-left-color: var(--c-user); }
+  .is-assistant { border-left-color: var(--c-agent); }
+  .is-tool { border-left-color: var(--c-tool); }
 </style>

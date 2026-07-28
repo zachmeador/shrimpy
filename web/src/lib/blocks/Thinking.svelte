@@ -31,6 +31,7 @@
   }
   .thinking.open .full {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .thinking .tag {
     background: rgba(138,138,160,0.18);

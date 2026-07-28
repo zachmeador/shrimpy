@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MarkdownIt from "markdown-it";
+  import Markdown from "../Markdown.svelte";
 
   interface Props { text: string; collapsed: boolean; }
   let { text, collapsed }: Props = $props();
@@ -11,9 +11,6 @@
     appliedCollapsed = collapsed;
     open = !collapsed;
   });
-
-  const md = new MarkdownIt({ html: false, linkify: false, breaks: false });
-  const rendered = $derived(md.render(text));
 
   const summary = $derived.by(() => {
     const headings = [...text.matchAll(/^#\s+(.+)$/gm)].map((m) => m[1].trim());
@@ -30,7 +27,7 @@
     <span class="caret">{open ? "▾" : "▸"}</span>
   </button>
   {#if open}
-    <div class="md">{@html rendered}</div>
+    <div class="markdown"><Markdown {text} /></div>
   {/if}
 </div>
 
@@ -62,7 +59,7 @@
     white-space: nowrap;
   }
   .caret { color: var(--fg-muted); }
-  .md {
+  .markdown {
     margin-top: 4px;
     padding: 6px 10px;
     background: var(--bg-row);
@@ -70,49 +67,4 @@
     max-height: 60vh;
     overflow-y: auto;
   }
-  .md :global(h1), .md :global(h2), .md :global(h3), .md :global(h4) {
-    margin: 10px 0 2px;
-    font-size: 12px;
-    color: var(--accent);
-    font-weight: 700;
-  }
-  .md :global(h1) { font-size: 13px; }
-  .md :global(p) { margin: 2px 0; }
-  .md :global(ul), .md :global(ol) {
-    margin: 2px 0;
-    padding-left: 18px;
-  }
-  .md :global(li) { margin: 0; }
-  .md :global(code) {
-    background: var(--bg);
-    padding: 0 3px;
-    border-radius: 2px;
-    font-size: 11px;
-    color: var(--fg);
-  }
-  .md :global(pre) {
-    margin: 4px 0;
-    padding: 6px 8px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    overflow-x: auto;
-  }
-  .md :global(pre code) {
-    background: transparent;
-    padding: 0;
-  }
-  .md :global(hr) {
-    border: 0;
-    border-top: 1px solid var(--border);
-    margin: 8px 0;
-  }
-  .md :global(blockquote) {
-    margin: 4px 0;
-    padding-left: 8px;
-    border-left: 2px solid var(--border);
-    color: var(--fg-dim);
-  }
-  .md :global(strong) { color: var(--fg); }
-  .md :global(a) { color: var(--c-agent); }
 </style>

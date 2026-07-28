@@ -14,4 +14,6 @@ export type {
   TreeLeaf,
   TreeNode,
   TreeResponse,
+  WatchesNodeResponse,
+  WatchRow,
 } from "../../shared/types";

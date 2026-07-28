@@ -101,10 +101,29 @@ export interface OverviewNodeResponse extends BaseNodeResponse {
   sections: OverviewSection[];
 }
 
+export interface WatchRow {
+  id: string;
+  name: string;
+  triggerKind: string;
+  schedule: string;
+  nextRunAtMs?: number;
+  concurrencyPolicy: string;
+  enabled: boolean;
+  raw: unknown;
+}
+
+export interface WatchesNodeResponse extends BaseNodeResponse {
+  mode: "watches";
+  watches: WatchRow[];
+  truncated: boolean;
+  totalSize: number;
+}
+
 export type NodeResponse =
   | JsonlNodeResponse
   | TextNodeResponse
-  | OverviewNodeResponse;
+  | OverviewNodeResponse
+  | WatchesNodeResponse;
 
 export interface ChangeEvent {
   revision: string;
