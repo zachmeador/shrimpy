@@ -30,8 +30,15 @@
   $effect(() => {
     if (!selected || !navEl) return;
     const escaped = CSS.escape(selected);
-    navEl.querySelector<HTMLElement>(`[data-id="${escaped}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+    const item = navEl.querySelector<HTMLElement>(`[data-id="${escaped}"]`);
+    if (!item) return;
+    const navBounds = navEl.getBoundingClientRect();
+    const itemBounds = item.getBoundingClientRect();
+    if (itemBounds.top < navBounds.top) {
+      navEl.scrollTop -= navBounds.top - itemBounds.top;
+    } else if (itemBounds.bottom > navBounds.bottom) {
+      navEl.scrollTop += itemBounds.bottom - navBounds.bottom;
+    }
   });
 
   function selectLeaf(leaf: TreeLeaf) {
@@ -96,6 +103,8 @@
     display: grid;
     grid-template-rows: 30px 22px minmax(0, 1fr);
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
     background: var(--bg-raised);
     border-right: 1px solid var(--border);
   }
@@ -129,7 +138,7 @@
     white-space: nowrap;
     font-size: 10px;
   }
-  .tree { overflow: auto; padding: 3px 0 18px; }
+  .tree { min-height: 0; overflow: auto; padding: 3px 0 18px; }
   .nodes { list-style: none; padding: 0; margin: 0; }
   .dir, .file {
     display: flex;

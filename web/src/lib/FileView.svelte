@@ -191,7 +191,7 @@
   }
   .toggle:hover { background: var(--bg-hover); }
   .toggle.on { border-color: rgba(107, 208, 176, .45); color: var(--accent); }
-  .body { overflow: auto; }
+  .body { min-height: 0; overflow: auto; }
   .status { padding: 12px; }
   .text-file {
     margin: 0;
