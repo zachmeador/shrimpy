@@ -113,8 +113,8 @@
     void loadNode(id);
   }
 
-  function onToggleFollow() {
-    followLatest = !followLatest;
+  function onFollowLatestChange(next: boolean) {
+    followLatest = next;
     try {
       localStorage.setItem("shrimpy-web:follow-latest", followLatest ? "1" : "0");
     } catch {}
@@ -198,7 +198,7 @@
     error={nodeError}
     {followLatest}
     {live}
-    {onToggleFollow}
+    {onFollowLatestChange}
   />
 {:else}
   <div class="status">loading workspace…</div>

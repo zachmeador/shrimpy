@@ -11,7 +11,7 @@
     error: string | null;
     followLatest: boolean;
     live: boolean;
-    onToggleFollow: () => void;
+    onFollowLatestChange: (next: boolean) => void;
   }
   let {
     node,
@@ -19,27 +19,49 @@
     error,
     followLatest,
     live,
-    onToggleFollow,
+    onFollowLatestChange,
   }: Props = $props();
 
   let bodyEl: HTMLDivElement | undefined = $state();
   let scrollRequest = 0;
+  const FOLLOW_BOTTOM_THRESHOLD = 24;
 
   function scrollToLatest() {
     const request = ++scrollRequest;
     void (async () => {
       await tick();
-      for (let index = 0; index < 4; index++) {
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        if (request !== scrollRequest || !bodyEl) return;
-        bodyEl.scrollTop = bodyEl.scrollHeight;
-      }
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (request !== scrollRequest || !bodyEl || !followLatest) return;
+      bodyEl.scrollTop = bodyEl.scrollHeight;
     })();
+  }
+
+  function onBodyScroll() {
+    if (
+      !followLatest
+      || !bodyEl
+      || bodyEl.scrollHeight - bodyEl.scrollTop - bodyEl.clientHeight
+        <= FOLLOW_BOTTOM_THRESHOLD
+    ) {
+      return;
+    }
+    scrollRequest++;
+    onFollowLatestChange(false);
+  }
+
+  function eventKey(event: unknown, index: number): string {
+    if (typeof event !== "object" || event === null || Array.isArray(event)) {
+      return `event:${index}`;
+    }
+    const id = (event as Record<string, unknown>).id;
+    return typeof id === "string" && id
+      ? `event:${index}:${id}`
+      : `event:${index}`;
   }
 
   function onLatestClick() {
     const enabling = !followLatest;
-    onToggleFollow();
+    onFollowLatestChange(enabling);
     if (enabling) scrollToLatest();
   }
 
@@ -82,7 +104,7 @@
     </div>
   </header>
 
-  <div class="body" bind:this={bodyEl}>
+  <div class="body" bind:this={bodyEl} onscroll={onBodyScroll}>
     {#if loading}
       <div class="status">loading…</div>
     {:else if error}
@@ -112,11 +134,11 @@
     {:else if node.events.length === 0}
       <div class="status muted">(empty)</div>
     {:else if node.kind === "channel"}
-      {#each node.events as event, index (`${node.cursor}:${index}`)}
+      {#each node.events as event, index (eventKey(event, index))}
         <ChannelRow {event} />
       {/each}
     {:else}
-      {#each node.events as event, index (`${node.cursor}:${index}`)}
+      {#each node.events as event, index (eventKey(event, index))}
         <SessionRow {event} />
       {/each}
     {/if}
