@@ -266,7 +266,7 @@
     padding: 0 4px;
     border-radius: 2px;
     color: var(--accent);
-    background: rgba(107, 208, 176, .1);
+    background: rgba(248, 131, 121, .1);
     font-size: 10px;
   }
   .info { color: var(--fg-dim); font-size: 10px; white-space: nowrap; }
@@ -303,7 +303,7 @@
     border-radius: 2px;
   }
   .toggle:hover { background: var(--bg-hover); }
-  .toggle.on { border-color: rgba(107, 208, 176, .45); color: var(--accent); }
+  .toggle.on { border-color: rgba(248, 131, 121, .45); color: var(--accent); }
   .body {
     min-width: 0;
     min-height: 0;

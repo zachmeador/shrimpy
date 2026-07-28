@@ -45,7 +45,7 @@
     text-align: left;
   }
   .tag {
-    background: rgba(107,208,176,0.18);
+    background: rgba(248,131,121,0.18);
     color: var(--accent);
     padding: 0 4px;
     border-radius: 2px;

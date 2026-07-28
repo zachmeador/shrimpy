@@ -191,7 +191,7 @@
   .row.type-custom, .row.type-custom_message, .row.folded-event {
     grid-template-columns: 58px 1fr 18px;
   }
-  .row.type-session .tag { background: rgba(107,208,176,0.18); color: var(--accent); }
+  .row.type-session .tag { background: rgba(248,131,121,0.18); color: var(--accent); }
   .ts { color: var(--fg-dim); font-size: 10.5px; }
   .content { min-width: 0; overflow-wrap: anywhere; }
   .blocks {
