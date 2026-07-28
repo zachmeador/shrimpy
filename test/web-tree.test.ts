@@ -14,15 +14,16 @@ import {
 
 async function fixture(): Promise<string> {
   const workspace = await mkdtemp(join(tmpdir(), "shrimpy-web-"));
-  const session = join(
+  const sessions = join(
     workspace,
     "agents",
     "shrimpy",
     "sessions",
     "channel",
     "aG9tZQ",
-    "ZGVmYXVsdA",
   );
+  const session = join(sessions, "ZGVmYXVsdA");
+  const researchSession = join(sessions, "cmVzZWFyY2g");
   await Promise.all([
     mkdir(join(workspace, "context"), { recursive: true }),
     mkdir(join(workspace, "config"), { recursive: true }),
@@ -31,6 +32,7 @@ async function fixture(): Promise<string> {
     mkdir(join(workspace, "runtime", "logs"), { recursive: true }),
     mkdir(join(workspace, "agents", "shrimpy", "vault"), { recursive: true }),
     mkdir(session, { recursive: true }),
+    mkdir(researchSession, { recursive: true }),
   ]);
   await Promise.all([
     writeFile(join(workspace, "context", "SYSTEM.md"), "# System\n"),
@@ -69,6 +71,30 @@ async function fixture(): Promise<string> {
       }),
       "",
     ].join("\n")),
+    writeFile(join(session, "archived.jsonl"), [
+      JSON.stringify({ type: "session", id: "archived" }),
+      JSON.stringify({
+        type: "custom",
+        customType: "shrimpy_lifecycle",
+        data: { state: "archived" },
+      }),
+      "",
+    ].join("\n")),
+    writeFile(join(researchSession, "session.json"), JSON.stringify({
+      version: 1,
+      key: {
+        agentId: "shrimpy",
+        namespace: "channel",
+        name: "home",
+        profileId: "research",
+      },
+      purpose: "interactive",
+      delivery: { kind: "channel", channel: "home" },
+    })),
+    writeFile(join(researchSession, "turn.jsonl"), [
+      JSON.stringify({ type: "session", id: "research" }),
+      "",
+    ].join("\n")),
   ]);
   return workspace;
 }
@@ -97,7 +123,9 @@ test("web tree combines useful menu nodes with the physical workspace", async ()
     const shrimpy = agents.children[0];
     assert.equal(shrimpy?.name, "shrimpy");
     assert.match(JSON.stringify(shrimpy), /home/);
-    assert.match(JSON.stringify(shrimpy), /channel · default · active/);
+    assert.doesNotMatch(JSON.stringify(shrimpy), /channel ·|default|active/);
+    assert.match(JSON.stringify(shrimpy), /archived/);
+    assert.match(JSON.stringify(shrimpy), /research/);
     assert.match(JSON.stringify(shrimpy), /Watches/);
   }
 

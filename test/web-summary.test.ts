@@ -5,7 +5,10 @@ import {
   summarizeNode,
   summarizeSession,
 } from "../web/src/lib/summary.ts";
-import { tailPath } from "../web/src/lib/format.ts";
+import {
+  formatRelativeTime,
+  tailPath,
+} from "../web/src/lib/format.ts";
 
 describe("web header summaries", () => {
   test("keeps path metadata to a trailing 50-character display", () => {
@@ -16,6 +19,16 @@ describe("web header summaries", () => {
     assert.equal(displayed.startsWith("…"), true);
     assert.equal(path.endsWith(displayed.slice(1)), true);
     assert.equal(tailPath("runtime/gateway-state.json"), "runtime/gateway-state.json");
+  });
+
+  test("keeps relative tree times compact across useful ranges", () => {
+    const now = Date.UTC(2026, 6, 27, 12);
+    assert.equal(formatRelativeTime(0, now), "—");
+    assert.equal(formatRelativeTime(now - 20_000, now), "now");
+    assert.equal(formatRelativeTime(now - 5 * 60_000, now), "5m");
+    assert.equal(formatRelativeTime(now - 3 * 3_600_000, now), "3h");
+    assert.equal(formatRelativeTime(now - 8 * 86_400_000, now), "8d");
+    assert.equal(formatRelativeTime(now - 65 * 86_400_000, now), "2mo");
   });
 
   test("summarizes the loaded session range from current transcript records", () => {

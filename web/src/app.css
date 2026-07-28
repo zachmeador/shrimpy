@@ -38,9 +38,6 @@ html, body {
 
 #app {
   height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -85,9 +82,3 @@ button {
 .dim { color: var(--fg-dim); }
 .muted { color: var(--fg-muted); }
 .err { color: var(--c-error); }
-
-@media (max-width: 720px) {
-  #app {
-    grid-template-columns: minmax(220px, 42vw) minmax(0, 1fr);
-  }
-}

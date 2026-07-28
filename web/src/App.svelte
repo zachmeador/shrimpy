@@ -6,8 +6,6 @@
   import type {
     JsonlNodeResponse,
     NodeResponse,
-    TreeLeaf,
-    TreeNode,
     TreeResponse,
   } from "./lib/types";
 
@@ -22,32 +20,41 @@
   let followLatest = $state(false);
   let foldNoise = $state(true);
   let foldTools = $state(false);
+  let sidebarHidden = $state(false);
   let requestSequence = 0;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function isOpen(key: string) {
-    return openGroups[key] ?? (key !== "directory:workspace");
-  }
-
   function onToggle(key: string) {
-    openGroups[key] = !isOpen(key);
+    onOpenGroupsChange({
+      ...openGroups,
+      [key]: !(openGroups[key] ?? key !== "directory:workspace"),
+    });
   }
 
-  const visibleLeaves = $derived.by<TreeLeaf[]>(() => {
-    if (!treeData) return [];
-    const leaves: TreeLeaf[] = [];
-    function visit(nodes: TreeNode[]) {
-      for (const item of nodes) {
-        if (item.type === "file") {
-          if (item.readable) leaves.push(item);
-        } else if (isOpen(item.id)) {
-          visit(item.children);
-        }
+  function onOpenGroupsChange(next: Record<string, boolean>) {
+    openGroups = next;
+    try {
+      localStorage.setItem("shrimpy-web:open-groups", JSON.stringify(next));
+    } catch {}
+  }
+
+  function readOpenGroups(): Record<string, boolean> {
+    try {
+      const stored = localStorage.getItem("shrimpy-web:open-groups");
+      if (!stored) return {};
+      const parsed: unknown = JSON.parse(stored);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        return {};
       }
+      return Object.fromEntries(
+        Object.entries(parsed).filter((entry): entry is [string, boolean] =>
+          typeof entry[1] === "boolean"
+        ),
+      );
+    } catch {
+      return {};
     }
-    visit(treeData.tree.root.children);
-    return leaves;
-  });
+  }
 
   async function loadTree() {
     try {
@@ -136,24 +143,11 @@
     } catch {}
   }
 
-  function moveSelection(delta: number) {
-    const leaves = visibleLeaves;
-    if (leaves.length === 0) return;
-    let index = leaves.findIndex((leaf) => leaf.id === selectedId);
-    if (index === -1) index = delta > 0 ? -1 : leaves.length;
-    const next = Math.max(0, Math.min(leaves.length - 1, index + delta));
-    const target = leaves[next];
-    if (target && target.id !== selectedId) onSelect(target.id);
-  }
-
-  function onKeydown(event: KeyboardEvent) {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const tag = (event.target as HTMLElement | null)?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA") return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      moveSelection(event.key === "ArrowDown" ? 1 : -1);
-    }
+  function onSidebarHiddenChange(next: boolean) {
+    sidebarHidden = next;
+    try {
+      localStorage.setItem("shrimpy-web:sidebar-hidden", next ? "1" : "0");
+    } catch {}
   }
 
   function scheduleRefresh() {
@@ -168,6 +162,11 @@
     followLatest = localStorage.getItem("shrimpy-web:follow-latest") === "1";
     foldNoise = localStorage.getItem("shrimpy-web:fold-noise") !== "0";
     foldTools = localStorage.getItem("shrimpy-web:fold-tools") === "1";
+    openGroups = readOpenGroups();
+    const storedSidebar = localStorage.getItem("shrimpy-web:sidebar-hidden");
+    sidebarHidden = storedSidebar === null
+      ? window.matchMedia("(max-width: 720px)").matches
+      : storedSidebar === "1";
     const initialId = window.location.hash.replace(/^#/, "") || null;
     void (async () => {
       await loadTree();
@@ -188,12 +187,10 @@
       if (id && id !== selectedId) void loadNode(id);
     };
     window.addEventListener("hashchange", onHashChange);
-    window.addEventListener("keydown", onKeydown);
     return () => {
       events.close();
       if (refreshTimer) clearTimeout(refreshTimer);
       window.removeEventListener("hashchange", onHashChange);
-      window.removeEventListener("keydown", onKeydown);
     };
   });
 </script>
@@ -201,31 +198,74 @@
 {#if treeError}
   <div class="fatal">failed to load workspace: {treeError}</div>
 {:else if treeData}
-  <Tree
-    tree={treeData.tree}
-    workspace={treeData.workspace}
-    selected={selectedId}
-    {openGroups}
-    {onSelect}
-    {onToggle}
-  />
-  <FileView
-    {node}
-    loading={nodeLoading}
-    error={nodeError}
-    {followLatest}
-    {foldNoise}
-    {foldTools}
-    {live}
-    {onFollowLatestChange}
-    {onFoldNoiseChange}
-    {onFoldToolsChange}
-  />
+  <main class="app-shell" class:sidebar-hidden={sidebarHidden}>
+    <Tree
+      tree={treeData.tree}
+      workspace={treeData.workspace}
+      selected={selectedId}
+      {openGroups}
+      hidden={sidebarHidden}
+      {onSelect}
+      {onToggle}
+      {onOpenGroupsChange}
+      onShow={() => onSidebarHiddenChange(false)}
+      onHide={() => onSidebarHiddenChange(true)}
+    />
+    <FileView
+      {node}
+      loading={nodeLoading}
+      error={nodeError}
+      {followLatest}
+      {foldNoise}
+      {foldTools}
+      {live}
+      {onFollowLatestChange}
+      {onFoldNoiseChange}
+      {onFoldToolsChange}
+    />
+    {#if sidebarHidden}
+      <button
+        class="show-sidebar"
+        onclick={() => onSidebarHiddenChange(false)}
+        title="Show sidebar"
+        aria-label="Show sidebar"
+      >▶</button>
+    {/if}
+  </main>
 {:else}
   <div class="status">loading workspace…</div>
 {/if}
 
 <style>
+  .app-shell {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .app-shell.sidebar-hidden { grid-template-columns: minmax(0, 1fr); }
+  .show-sidebar {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    z-index: 5;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    color: var(--fg-muted);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+  .show-sidebar:hover { color: var(--fg-strong); background: var(--bg-hover); }
   .fatal, .status { padding: 16px; color: var(--c-error); }
-  .fatal { grid-column: 1 / -1; }
+  @media (max-width: 720px) {
+    .app-shell:not(.sidebar-hidden) {
+      grid-template-columns: minmax(220px, 78vw) minmax(0, 1fr);
+    }
+  }
 </style>

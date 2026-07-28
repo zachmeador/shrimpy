@@ -37,6 +37,21 @@ export function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+export function formatRelativeTime(ms: number, now = Date.now()): string {
+  if (!ms) return "—";
+  const elapsed = Math.max(0, now - ms);
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo`;
+  return `${Math.floor(months / 12)}y`;
+}
+
 export function tailPath(path: string, maxLength = 50): string {
   if (path.length <= maxLength) return path;
   return `…${path.slice(-(maxLength - 1))}`;

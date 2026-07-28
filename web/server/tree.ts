@@ -163,7 +163,7 @@ async function buildSessions(
               file: fileEntry.name,
             }),
             name: displayName,
-            hint: `${namespaceEntry.name} · ${profile} · ${lifecycle}`,
+            hint: sessionHint(profile, lifecycle),
             size: stat.size,
             mtimeMs: stat.mtimeMs,
             kind: "session",
@@ -340,14 +340,14 @@ async function readSessionLifecycle(path: string): Promise<"active" | "archived"
     await handle.read(buffer, 0, length, stat.size - length);
     const lines = buffer.toString("utf8").split(/\r?\n/).reverse();
     for (const line of lines) {
-      if (!line.includes("shrimpy_session_lifecycle")) continue;
+      if (!line.includes("shrimpy_lifecycle")) continue;
       try {
         const value = JSON.parse(line) as {
           customType?: unknown;
           data?: { state?: unknown };
         };
         if (
-          value.customType === "shrimpy_session_lifecycle"
+          value.customType === "shrimpy_lifecycle"
           && value.data?.state === "archived"
         ) {
           return "archived";
@@ -360,6 +360,16 @@ async function readSessionLifecycle(path: string): Promise<"active" | "archived"
   } finally {
     await handle.close();
   }
+}
+
+function sessionHint(
+  profile: string,
+  lifecycle: "active" | "archived",
+): string | undefined {
+  const parts = [];
+  if (profile !== "default") parts.push(profile);
+  if (lifecycle === "archived") parts.push("archived");
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 function capitalize(value: string): string {
