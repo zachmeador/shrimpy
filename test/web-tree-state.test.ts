@@ -55,6 +55,9 @@ test("tree filtering keeps matching leaves and their ancestors", () => {
 test("tree state retains first-visit defaults and enumerates groups", () => {
   assert.equal(isGroupOpen({}, "sessions"), true);
   assert.equal(isGroupOpen({}, "directory:workspace"), false);
+  assert.equal(isGroupOpen({}, "scope:workspace:skills"), false);
+  assert.equal(isGroupOpen({}, "scope:agent:shrimpy:skills/tool"), false);
+  assert.equal(isGroupOpen({}, "scope:agent:skills:context"), true);
   assert.equal(isGroupOpen({ sessions: false }, "sessions"), false);
   assert.deepEqual(collectDirectoryIds(nodes), ["agents", "sessions"]);
 });

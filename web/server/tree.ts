@@ -6,7 +6,7 @@ import type {
   TreeLeaf,
   TreeNode,
 } from "../shared/types.js";
-import { encodeNodeId } from "./ids.js";
+import { encodeNodeId, type NodeDescriptor } from "./ids.js";
 import {
   classifyWorkspaceFile,
   normalizeRelativePath,
@@ -20,7 +20,21 @@ const ROOT_ORDER = new Map([
 ].map((name, index) => [name, index]));
 
 export async function buildTree(workspace: string): Promise<Tree> {
-  const [channels, agents, runtime, physical] = await Promise.all([
+  const [context, skills, channels, agents, runtime, physical] = await Promise.all([
+    buildScopedDirectory(
+      workspace,
+      "context",
+      "Context",
+      "scope:workspace",
+      (path) => ({ type: "file", path }),
+    ),
+    buildScopedDirectory(
+      workspace,
+      "skills",
+      "Skills",
+      "scope:workspace",
+      (path) => ({ type: "file", path }),
+    ),
     buildChannels(workspace),
     buildAgents(workspace),
     buildRuntime(workspace),
@@ -40,10 +54,18 @@ export async function buildTree(workspace: string): Promise<Tree> {
       type: "directory",
       id: "root",
       name: "Shrimpy",
-      fileCount: 1 + channels.fileCount + agents.fileCount
-        + runtime.fileCount + physical.fileCount,
+      fileCount: 1 + context.fileCount + skills.fileCount + channels.fileCount
+        + agents.fileCount + runtime.fileCount + physical.fileCount,
       synthetic: true,
-      children: [overview, channels, agents, runtime, physical],
+      children: [
+        overview,
+        context,
+        skills,
+        channels,
+        agents,
+        runtime,
+        physical,
+      ],
     },
   };
 }
@@ -92,6 +114,17 @@ async function buildChannels(workspace: string): Promise<DirectoryNode> {
 async function buildAgents(workspace: string): Promise<DirectoryNode> {
   const children: TreeNode[] = [];
   for (const agent of resolveAgents(workspace)) {
+    const [context, skills, sessions] = await Promise.all([
+      buildAgentContext(agent.id, agent.root),
+      buildScopedDirectory(
+        agent.root,
+        "skills",
+        "Skills",
+        `scope:agent:${agent.id}`,
+        (path) => ({ type: "agent-file", agentId: agent.id, path }),
+      ),
+      buildSessions(agent.id, agent.root),
+    ]);
     const agentChildren: TreeNode[] = [{
       type: "file",
       id: encodeNodeId({ type: "agent", agentId: agent.id }),
@@ -100,8 +133,7 @@ async function buildAgents(workspace: string): Promise<DirectoryNode> {
       mtimeMs: 0,
       kind: "agent",
       readable: true,
-    }];
-    const sessions = await buildSessions(agent.id, agent.root);
+    }, context, skills];
     if (sessions.fileCount > 0) agentChildren.push(sessions);
     const watchesPath = join(agent.root, "watches.json");
     if (existsSync(watchesPath)) {
@@ -124,6 +156,31 @@ async function buildAgents(workspace: string): Promise<DirectoryNode> {
     children.push(agentDirectory);
   }
   return syntheticDirectory("agents", "Agents", children);
+}
+
+async function buildAgentContext(
+  agentId: string,
+  agentRoot: string,
+): Promise<DirectoryNode> {
+  const descriptor = (path: string): NodeDescriptor => ({
+    type: "agent-file",
+    agentId,
+    path,
+  });
+  const context = await buildScopedDirectory(
+    agentRoot,
+    "context",
+    "Context",
+    `scope:agent:${agentId}`,
+    descriptor,
+  );
+  const soul = await buildReadableLeaf(agentRoot, "SOUL.md", descriptor);
+  if (!soul) return context;
+  return {
+    ...context,
+    fileCount: context.fileCount + 1,
+    children: [soul, ...context.children],
+  };
 }
 
 async function buildSessions(
@@ -254,6 +311,90 @@ async function buildDirectory(
     fileCount,
     children,
   };
+}
+
+type DescriptorForPath = (path: string) => NodeDescriptor;
+
+async function buildScopedDirectory(
+  root: string,
+  relativePath: string,
+  label: string,
+  idPrefix: string,
+  descriptorForPath: DescriptorForPath,
+  synthetic = true,
+): Promise<DirectoryNode> {
+  const children: TreeNode[] = [];
+  for (const entry of await safeReadDir(join(root, relativePath))) {
+    if (entry.isSymbolicLink()) continue;
+    const childRelative = normalizeRelativePath(
+      `${relativePath}/${entry.name}`,
+    );
+    if (entry.isDirectory()) {
+      const child = await buildScopedDirectory(
+        root,
+        childRelative,
+        entry.name,
+        idPrefix,
+        descriptorForPath,
+        false,
+      );
+      if (child.fileCount > 0) children.push(child);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    const child = await buildReadableLeaf(
+      root,
+      childRelative,
+      descriptorForPath,
+    );
+    if (child) children.push(child);
+  }
+  children.sort(compareScopedNodes);
+  return {
+    type: "directory",
+    id: `${idPrefix}:${relativePath}`,
+    name: label,
+    fileCount: children.reduce(
+      (count, node) => count + (node.type === "file" ? 1 : node.fileCount),
+      0,
+    ),
+    children,
+    ...(synthetic ? { synthetic: true } : {}),
+  };
+}
+
+async function buildReadableLeaf(
+  root: string,
+  relativePath: string,
+  descriptorForPath: DescriptorForPath,
+): Promise<TreeLeaf | null> {
+  const classified = classifyWorkspaceFile(relativePath);
+  if (!classified.readable) return null;
+  const path = join(root, relativePath);
+  let stat;
+  try {
+    stat = await fs.lstat(path);
+  } catch {
+    return null;
+  }
+  if (!stat.isFile() || stat.isSymbolicLink()) return null;
+  return {
+    type: "file",
+    id: encodeNodeId(descriptorForPath(relativePath)),
+    name: basename(relativePath),
+    size: stat.size,
+    mtimeMs: stat.mtimeMs,
+    kind: classified.kind,
+    readable: true,
+  };
+}
+
+function compareScopedNodes(left: TreeNode, right: TreeNode): number {
+  if (left.name === "SKILL.md" || right.name === "SKILL.md") {
+    return left.name === "SKILL.md" ? -1 : 1;
+  }
+  if (left.type !== right.type) return left.type === "directory" ? -1 : 1;
+  return left.name.localeCompare(right.name);
 }
 
 function compareNodes(parentPath: string): (a: TreeNode, b: TreeNode) => number {

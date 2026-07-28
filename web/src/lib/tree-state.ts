@@ -4,7 +4,14 @@ export function isGroupOpen(
   openGroups: Record<string, boolean>,
   key: string,
 ): boolean {
-  return openGroups[key] ?? key !== "directory:workspace";
+  return openGroups[key]
+    ?? (key !== "directory:workspace" && !isScopedSkillsGroup(key));
+}
+
+function isScopedSkillsGroup(key: string): boolean {
+  return key === "scope:workspace:skills"
+    || key.startsWith("scope:workspace:skills/")
+    || /^scope:agent:[^:]+:skills(?:\/|$)/.test(key);
 }
 
 export function filterTreeNodes(nodes: TreeNode[], value: string): TreeNode[] {

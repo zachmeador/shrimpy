@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { startWebServer } from "../dist/web/server.js";
 import { WorkspaceWatcher } from "../dist/web/server/watcher.js";
 
-test("workspace watcher invalidates changed files and new directories", async () => {
+test("workspace watcher invalidates scoped workspace and agent files", async () => {
   const workspace = await mkdtemp(join(tmpdir(), "shrimpy-web-live-"));
   await mkdir(join(workspace, "config"), { recursive: true });
   await writeFile(join(workspace, "config", "shrimpy.json"), "{}\n");
@@ -16,17 +16,69 @@ test("workspace watcher invalidates changed files and new directories", async ()
   try {
     const changed = new Promise<string[]>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("watch event timed out")), 3_000);
+      const seen = new Set<string>();
       const unsubscribe = watcher.subscribe((event) => {
-        if (!event.paths.some((path) => path.includes("note.md"))) return;
+        for (const path of event.paths) {
+          for (const name of [
+            "workspace-note.md",
+            "workspace-skill.md",
+            "agent-note.md",
+            "agent-skill.md",
+          ]) {
+            if (path.includes(name)) seen.add(name);
+          }
+        }
+        if (seen.size < 4) return;
         clearTimeout(timeout);
         unsubscribe();
-        resolve(event.paths);
+        resolve([...seen]);
       });
     });
     await mkdir(join(workspace, "context"), { recursive: true });
-    await writeFile(join(workspace, "context", "note.md"), "live\n");
+    await mkdir(join(workspace, "skills", "test"), { recursive: true });
+    await mkdir(
+      join(workspace, "agents", "shrimpy", "context"),
+      { recursive: true },
+    );
+    await mkdir(
+      join(workspace, "agents", "shrimpy", "skills", "test"),
+      { recursive: true },
+    );
+    await Promise.all([
+      writeFile(
+        join(workspace, "context", "workspace-note.md"),
+        "live\n",
+      ),
+      writeFile(
+        join(workspace, "skills", "test", "workspace-skill.md"),
+        "live\n",
+      ),
+      writeFile(
+        join(workspace, "agents", "shrimpy", "context", "agent-note.md"),
+        "live\n",
+      ),
+      writeFile(
+        join(
+          workspace,
+          "agents",
+          "shrimpy",
+          "skills",
+          "test",
+          "agent-skill.md",
+        ),
+        "live\n",
+      ),
+    ]);
     await watcher.reconcileNow();
-    assert.equal((await changed).some((path) => path.includes("note.md")), true);
+    assert.deepEqual(
+      (await changed).sort(),
+      [
+        "agent-note.md",
+        "agent-skill.md",
+        "workspace-note.md",
+        "workspace-skill.md",
+      ],
+    );
   } finally {
     watcher.stop();
   }

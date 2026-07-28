@@ -13,6 +13,7 @@ import { readJsonl, readText } from "./read.js";
 import {
   classifyWorkspaceFile,
   isRecord,
+  normalizeRelativePath,
   readJson,
   resolveAgents,
   resolveContainedFile,
@@ -51,6 +52,15 @@ export async function readNode(
       return readOverview(workspace, id);
     case "agent":
       return readAgent(workspace, id, descriptor.agentId);
+    case "agent-file":
+      return readAgentScopedFile(
+        workspace,
+        id,
+        descriptor.agentId,
+        descriptor.path,
+        cursor,
+        anchor,
+      );
     case "watch":
       return readAgentFile(
         workspace,
@@ -93,6 +103,49 @@ export async function readNode(
     case "session":
       return readSession(workspace, id, descriptor, cursor, anchor);
   }
+}
+
+async function readAgentScopedFile(
+  workspace: string,
+  id: string,
+  agentId: string,
+  requestedPath: string,
+  cursor?: number,
+  anchor?: string,
+): Promise<NodeResponse> {
+  const relativePath = normalizeRelativePath(requestedPath);
+  if (
+    relativePath !== requestedPath
+    || !isAgentScopedPath(relativePath)
+  ) {
+    throw new NodeReadError(403, "agent path is not exposed");
+  }
+  const classified = classifyWorkspaceFile(relativePath);
+  if (!classified.readable) {
+    throw new NodeReadError(403, `${classified.kind} files are not readable`);
+  }
+  const agent = resolveAgents(workspace).find(
+    (candidate) => candidate.id === agentId,
+  );
+  if (!agent) throw new NodeReadError(404, "agent no longer exists");
+  const path = await resolveContainedFile(agent.root, relativePath);
+  if (!path) throw new NodeReadError(404, "agent file no longer exists");
+  return readFileResponse(
+    id,
+    basename(relativePath),
+    classified.kind,
+    path,
+    `${agentId}/${relativePath}`,
+    cursor,
+    anchor,
+    [{ label: "agent", value: agentId }],
+  );
+}
+
+function isAgentScopedPath(path: string): boolean {
+  return path === "SOUL.md"
+    || path.startsWith("context/")
+    || path.startsWith("skills/");
 }
 
 async function readChannel(

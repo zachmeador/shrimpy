@@ -10,6 +10,7 @@ import {
   extname,
   isAbsolute,
   join,
+  posix,
   relative,
   resolve,
   sep,
@@ -89,7 +90,8 @@ export function readWorkspaceConfig(workspace: string): WorkspaceConfig {
 export function resolveAgents(workspace: string): WebAgent[] {
   const config = readWorkspaceConfig(workspace);
   if (!Array.isArray(config.agents)) {
-    return [agentFrom(workspace, "shrimpy", "agents/shrimpy")];
+    const defaultAgent = agentFrom(workspace, "shrimpy", "agents/shrimpy");
+    return defaultAgent ? [defaultAgent] : [];
   }
 
   const agents = config.agents.flatMap((value): WebAgent[] => {
@@ -100,24 +102,25 @@ export function resolveAgents(workspace: string): WebAgent[] {
     const configuredRoot = typeof value.root === "string" && value.root.trim()
       ? value.root.trim()
       : `agents/${id}`;
-    return [agentFrom(workspace, id, configuredRoot)];
+    const agent = agentFrom(workspace, id, configuredRoot);
+    return agent ? [agent] : [];
   });
-  return agents.length > 0
-    ? agents
-    : [agentFrom(workspace, "shrimpy", "agents/shrimpy")];
+  return agents;
 }
 
 function agentFrom(
   workspace: string,
   id: string,
   configuredRoot: string,
-): WebAgent {
+): WebAgent | null {
+  if (isAbsolute(configuredRoot)) return null;
+  const workspaceRoot = safeRealpath(workspace);
+  const root = safeRealpath(resolve(workspaceRoot, configuredRoot));
+  if (!isContained(workspaceRoot, root)) return null;
   return {
     id,
     configuredRoot,
-    root: isAbsolute(configuredRoot)
-      ? resolve(configuredRoot)
-      : resolve(workspace, configuredRoot),
+    root,
   };
 }
 
@@ -188,7 +191,9 @@ export function workspaceRelative(workspace: string, path: string): string {
 }
 
 export function normalizeRelativePath(path: string): string {
-  return path.split(sep).join("/").replace(/^\.\/+/, "");
+  const normalized = posix.normalize(path.replaceAll("\\", "/"))
+    .replace(/^\.\/+/, "");
+  return normalized === "." ? "" : normalized;
 }
 
 export function revisionFor(stat: { size: number; mtimeMs: number }): string {

@@ -3,6 +3,7 @@
   import Tree from "./lib/Tree.svelte";
   import FileView from "./lib/FileView.svelte";
   import { fetchNode, fetchTree } from "./lib/api";
+  import { isGroupOpen } from "./lib/tree-state";
   import type {
     JsonlNodeResponse,
     NodeResponse,
@@ -27,7 +28,7 @@
   function onToggle(key: string) {
     onOpenGroupsChange({
       ...openGroups,
-      [key]: !(openGroups[key] ?? key !== "directory:workspace"),
+      [key]: !isGroupOpen(openGroups, key),
     });
   }
 

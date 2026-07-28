@@ -1,6 +1,7 @@
 export type NodeDescriptor =
   | { type: "overview" }
   | { type: "agent"; agentId: string }
+  | { type: "agent-file"; agentId: string; path: string }
   | { type: "watch"; agentId: string }
   | { type: "channel"; channel: string }
   | {
@@ -31,6 +32,15 @@ export function decodeNodeId(id: string): NodeDescriptor | null {
       case "watch":
         return typeof value.agentId === "string"
           ? { type: value.type, agentId: value.agentId }
+          : null;
+      case "agent-file":
+        return typeof value.agentId === "string"
+          && typeof value.path === "string"
+          ? {
+              type: "agent-file",
+              agentId: value.agentId,
+              path: value.path,
+            }
           : null;
       case "channel":
         return typeof value.channel === "string"

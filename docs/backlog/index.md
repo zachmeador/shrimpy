@@ -14,7 +14,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [WEB-005](proposals/web-005-scoped-context-and-skill-navigation.md) | draft | P2 | Web | none | First-class workspace and agent context/skill navigation |
 | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | draft | P2 | Security | none | Generic session admission and named security profiles |
 | [SECURITY-003](proposals/security-003-public-chat-limited-sessions.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md), [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Public chat sender admission and limited sessions |
 | [SECURITY-004](proposals/security-004-path-bounded-file-tools.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Path-bounded replacement file tools for constrained profiles |
