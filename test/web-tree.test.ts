@@ -64,7 +64,7 @@ async function fixture(): Promise<string> {
       JSON.stringify({ type: "session", id: "one" }),
       JSON.stringify({
         type: "custom",
-        customType: "shrimpy_session_lifecycle",
+        customType: "shrimpy_lifecycle",
         data: { state: "active" },
       }),
       "",
@@ -129,6 +129,27 @@ test("node readers expose structured current sessions and deny secrets", async (
     assert.equal(channel.replace, true);
   }
 
+  const session = await readNode(
+    workspace,
+    encodeNodeId({
+      type: "session",
+      agentId: "shrimpy",
+      namespace: "channel",
+      nameDirectory: "aG9tZQ",
+      profileDirectory: "ZGVmYXVsdA",
+      file: "turn.jsonl",
+    }),
+  );
+  assert.equal(session.mode, "jsonl");
+  assert.equal(session.label, "home");
+  assert.deepEqual(session.metadata, [
+    { label: "agent", value: "shrimpy" },
+    { label: "namespace", value: "channel" },
+    { label: "profile", value: "default" },
+  ]);
+  assert.match(session.sourcePath ?? "", /aG9tZQ\/ZGVmYXVsdA\/turn\.jsonl$/);
+  assert.equal(typeof session.mtimeMs, "number");
+
   const configuredOnly = await readNode(
     workspace,
     encodeNodeId({ type: "channel", channel: "ops" }),
@@ -155,6 +176,7 @@ test("bounded JSONL reads support byte cursors", async () => {
   await writeFile(path, "{\"text\":\"one\"}\n{\"text\":\"two\"}\n");
   const appended = await readJsonl(path, first.cursor, first.anchor);
   assert.equal(appended.replace, false);
+  assert.equal(appended.truncated, false);
   assert.deepEqual(appended.events, [{ text: "two" }]);
 
   await writeFile(path, "{\"text\":\"new\"}\n{\"text\":\"shape\"}\n");

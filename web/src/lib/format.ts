@@ -37,6 +37,11 @@ export function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+export function tailPath(path: string, maxLength = 50): string {
+  if (path.length <= maxLength) return path;
+  return `…${path.slice(-(maxLength - 1))}`;
+}
+
 export function shortName(name: string): string {
   const m = name.match(/^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})-\d{3}Z_([0-9a-f]{8})/);
   if (m) return `${m[1].replace("T", " ")} ${m[2]}`;

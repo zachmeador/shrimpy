@@ -250,6 +250,7 @@ async function readSession(
           ?? decodeDirectory(descriptor.profileDirectory),
       },
     ],
+    false,
   );
 }
 
@@ -262,12 +263,12 @@ async function readFileResponse(
   cursor?: number,
   anchor?: string,
   extraMetadata: NodeMetadata[] = [],
+  includePathMetadata = true,
 ): Promise<NodeResponse> {
   const stat = await fs.stat(path);
   const metadata: NodeMetadata[] = [
     ...extraMetadata,
-    { label: "path", value: relativePath },
-    { label: "modified", value: new Date(stat.mtimeMs).toISOString() },
+    ...(includePathMetadata ? [{ label: "path", value: relativePath }] : []),
   ];
   const base = {
     id,
@@ -275,6 +276,8 @@ async function readFileResponse(
     kind,
     metadata,
     revision: revisionFor(stat),
+    sourcePath: relativePath,
+    mtimeMs: stat.mtimeMs,
   };
   const extension = basename(path).split(".").at(-1)?.toLowerCase();
   if (

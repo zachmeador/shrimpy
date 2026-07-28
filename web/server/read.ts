@@ -33,7 +33,7 @@ export async function readJsonl(
     let start = continuing
       ? requestedCursor!
       : Math.max(0, stat.size - MAX_JSONL_BYTES);
-    const truncated = start > 0;
+    const truncated = !continuing && start > 0;
     const length = Math.min(stat.size - start, MAX_JSONL_BYTES);
     const buffer = Buffer.alloc(length);
     const read = await handle.read(buffer, 0, length, start);

@@ -63,6 +63,8 @@ interface BaseNodeResponse {
   kind: NodeKind;
   metadata: NodeMetadata[];
   revision: string;
+  sourcePath?: string;
+  mtimeMs?: number;
 }
 
 export interface JsonlNodeResponse extends BaseNodeResponse {

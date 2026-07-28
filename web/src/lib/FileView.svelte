@@ -3,7 +3,8 @@
   import ChannelRow from "./ChannelRow.svelte";
   import SessionRow from "./SessionRow.svelte";
   import type { NodeResponse } from "./types";
-  import { formatBytes } from "./format";
+  import { formatBytes, tailPath } from "./format";
+  import { summarizeNode } from "./summary";
 
   interface Props {
     node: NodeResponse | null;
@@ -33,6 +34,7 @@
   let bodyEl: HTMLDivElement | undefined = $state();
   let scrollRequest = 0;
   const FOLLOW_BOTTOM_THRESHOLD = 24;
+  const summary = $derived(summarizeNode(node));
 
   function scrollToLatest() {
     const request = ++scrollRequest;
@@ -82,25 +84,43 @@
 
 <section class="view">
   <header class="header">
-    <div class="identity">
+    <div class="info-row" title={node?.sourcePath}>
       {#if node}
-        <span class="kind">{node.kind}</span>
-        <strong>{node.label}</strong>
+        <span class="identity">
+          <span class="kind">{node.kind}</span>
+          <strong>{node.label}</strong>
+        </span>
         {#each node.metadata as item}
-          <span class="metadata"><span>{item.label}</span> {item.value}</span>
+          <span class="info" title={item.label === "path" ? item.value : undefined}>
+            <span>{item.label}</span>
+            {item.label === "path" ? tailPath(item.value) : item.value}
+          </span>
+        {/each}
+        {#if node.mode === "jsonl"}
+          <span class="info"><span>events</span> {node.events.length}</span>
+          <span class="info"><span>size</span> {formatBytes(node.totalSize)}</span>
+          {#if summary.partial}
+            <span class="scope" title="Summary values cover only the loaded tail of this file">loaded tail</span>
+          {/if}
+          {#if node.parseErrors.length}
+            <span class="err">{node.parseErrors.length} parse err</span>
+          {/if}
+        {:else if node.mode === "text"}
+          <span class="info"><span>size</span> {formatBytes(node.totalSize)}</span>
+          {#if node.truncated}<span class="err">truncated</span>{/if}
+        {/if}
+        {#each summary.items as item}
+          <span class="info summary" title={item.title}>
+            <span>{item.label}</span> {item.value}
+          </span>
         {/each}
       {:else}
         <span class="muted">select a node</span>
       {/if}
     </div>
-    <div class="meta">
-      <span class:ok={live} class="connection">{live ? "live" : "reconnecting"}</span>
-      {#if node?.mode === "jsonl"}
-        <span>{node.events.length} events</span>
-        <span>{formatBytes(node.totalSize)}</span>
-        {#if node.truncated}<span class="err">tail</span>{/if}
-        {#if node.parseErrors.length}<span class="err">{node.parseErrors.length} parse err</span>{/if}
-        {#if node.kind === "session" || node.kind === "channel"}
+    <div class="control-row">
+      <div class="controls">
+        {#if node?.kind === "session" || node?.kind === "channel"}
           <button
             aria-pressed={foldNoise}
             class:on={foldNoise}
@@ -108,7 +128,7 @@
             onclick={() => onFoldNoiseChange(!foldNoise)}
           >fold noise</button>
         {/if}
-        {#if node.kind === "session"}
+        {#if node?.kind === "session"}
           <button
             aria-pressed={foldTools}
             class:on={foldTools}
@@ -116,15 +136,16 @@
             onclick={() => onFoldToolsChange(!foldTools)}
           >fold tool I/O</button>
         {/if}
-        <button
-          class:on={followLatest}
-          class="toggle"
-          onclick={onLatestClick}
-        >↓ follow</button>
-      {:else if node?.mode === "text"}
-        <span>{formatBytes(node.totalSize)}</span>
-        {#if node.truncated}<span class="err">truncated</span>{/if}
-      {/if}
+        {#if node?.mode === "jsonl"}
+          <button
+            aria-pressed={followLatest}
+            class:on={followLatest}
+            class="toggle"
+            onclick={onLatestClick}
+          >↓ follow latest</button>
+        {/if}
+      </div>
+      <span class:ok={live} class="connection">{live ? "live" : "reconnecting"}</span>
     </div>
   </header>
 
@@ -180,16 +201,24 @@
   .view { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; }
   .header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
-    min-height: 31px;
+    grid-template-rows: 36px 24px;
+    height: 69px;
     padding: 4px 9px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-raised);
+    overflow: hidden;
   }
-  .identity, .meta { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
-  .identity { overflow: hidden; white-space: nowrap; }
+  .info-row {
+    display: flex;
+    align-content: center;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 16px;
+  }
+  .identity { display: inline-flex; align-items: baseline; gap: 7px; }
   .identity strong { color: var(--fg-strong); }
   .kind {
     padding: 0 4px;
@@ -198,16 +227,34 @@
     background: rgba(107, 208, 176, .1);
     font-size: 10px;
   }
-  .metadata {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--fg-dim);
+  .info { color: var(--fg-dim); font-size: 10px; white-space: nowrap; }
+  .info span { color: var(--fg-muted); }
+  .summary { color: var(--fg); }
+  .scope {
+    padding: 0 4px;
+    border-radius: 2px;
+    color: var(--c-user);
+    background: rgba(224, 185, 106, .1);
     font-size: 10px;
+    white-space: nowrap;
   }
-  .metadata span { color: var(--fg-muted); }
-  .meta { justify-content: flex-end; color: var(--fg-dim); font-size: 10px; }
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    border-top: 1px solid var(--border);
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-width: 0;
+  }
   .connection { color: var(--c-error); }
   .connection.ok { color: var(--accent); }
+  .connection { margin-left: auto; font-size: 10px; }
   .toggle {
     padding: 1px 5px;
     border: 1px solid var(--border);
@@ -253,7 +300,16 @@
   dd.dim { color: var(--fg-dim); }
   .errors { padding: 7px 9px; border-top: 1px solid var(--border); }
   @media (max-width: 720px) {
-    .header { grid-template-columns: 1fr; }
-    .meta { justify-content: flex-start; }
+    .header {
+      grid-template-rows: 100px 30px;
+      height: 139px;
+    }
+    .control-row { flex-wrap: wrap; align-content: center; }
+  }
+  @media (max-width: 560px) {
+    .header {
+      grid-template-rows: 132px 50px;
+      height: 191px;
+    }
   }
 </style>

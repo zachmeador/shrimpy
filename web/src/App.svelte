@@ -206,7 +206,6 @@
     workspace={treeData.workspace}
     selected={selectedId}
     {openGroups}
-    {live}
     {onSelect}
     {onToggle}
   />

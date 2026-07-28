@@ -7,7 +7,6 @@
     workspace: string;
     selected: string | null;
     openGroups: Record<string, boolean>;
-    live: boolean;
     onSelect: (id: string) => void;
     onToggle: (key: string) => void;
   }
@@ -16,7 +15,6 @@
     workspace,
     selected,
     openGroups,
-    live,
     onSelect,
     onToggle,
   }: Props = $props();
@@ -50,7 +48,6 @@
   <header class="brand">
     <span class="mark">🦐</span>
     <span class="title">shrimpy</span>
-    <span class:online={live} class="live-dot" title={live ? "live" : "reconnecting"}></span>
   </header>
   <div class="workspace" title={workspace}>{workspace}</div>
   <nav class="tree" bind:this={navEl}>
@@ -117,18 +114,6 @@
   }
   .mark { font-size: 15px; }
   .title { color: var(--fg-strong); font-weight: 700; letter-spacing: .03em; }
-  .live-dot {
-    width: 6px;
-    height: 6px;
-    margin-left: auto;
-    border-radius: 50%;
-    background: var(--c-error);
-    box-shadow: 0 0 0 2px rgba(255, 122, 122, .1);
-  }
-  .live-dot.online {
-    background: var(--accent);
-    box-shadow: 0 0 0 2px rgba(107, 208, 176, .1);
-  }
   .workspace {
     padding: 3px 9px;
     color: var(--fg-muted);

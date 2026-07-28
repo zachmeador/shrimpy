@@ -16,6 +16,7 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 ### Web Inspector
 
+- Added a stable two-row inspector header with readable session scope, loaded-range session and channel summaries, node-specific fold/follow controls, and one live-status indicator.
 - Improved session and channel reading by folding generated context, system/tool metadata, custom records, channel state, and unknown payloads behind persisted noise and tool-I/O controls; tool results no longer render twice.
 
 ## 🦐 0.6.0 - The Blue Hour - 2026-07-26
