@@ -14,8 +14,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [WEB-001](proposals/web-001-record-rendering-and-folding.md) | todo | P1 | Web | none | Session and channel record rendering fixes with class-level folding |
-| [WEB-002](proposals/web-002-two-row-inspector-header.md) | todo | P2 | Web | [WEB-001](proposals/web-001-record-rendering-and-folding.md) | Two-row inspector header splitting node info from reading controls |
+| [WEB-002](proposals/web-002-two-row-inspector-header.md) | todo | P2 | Web | WEB-001 (complete) | Two-row inspector header splitting node info from reading controls |
 | [WEB-003](proposals/web-003-tree-navigation-density.md) | draft | P2 | Web | none | Tree row density, filtering, and persisted expansion |
 | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | draft | P2 | Security | none | Generic session admission and named security profiles |
 | [SECURITY-003](proposals/security-003-public-chat-limited-sessions.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md), [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Public chat sender admission and limited sessions |

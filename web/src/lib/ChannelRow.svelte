@@ -1,5 +1,10 @@
 <script lang="ts">
+  import FoldedRecord from "./blocks/FoldedRecord.svelte";
   import { formatEventTime } from "./format";
+  import {
+    classifyChannelRecord,
+    type RecordClassification,
+  } from "./records";
 
   interface Normalized {
     timestamp: number;
@@ -8,17 +13,19 @@
     provenance: string;
     contentType: string;
     text: string;
+    classified: RecordClassification;
     raw: any;
   }
 
-  interface Props { event: any; }
-  let { event }: Props = $props();
+  interface Props { event: any; foldNoise: boolean; }
+  let { event, foldNoise }: Props = $props();
 
   function normalize(e: any): Normalized {
     if (e.sender && e.content) {
+      const classified = classifyChannelRecord(e);
       const data = e.content?.data;
       const publication = data?.publication;
-      const text = formatContent(e.content?.type, data)
+      const text = (classified.text ?? classified.summary)
         + (publication?.kind
           ? ` · ${publication.kind}${publication.urgency ? `/${publication.urgency}` : ""}`
           : "");
@@ -41,31 +48,21 @@
         provenance,
         contentType: e.content?.type ?? "?",
         text: typeof text === "string" ? text : JSON.stringify(text),
+        classified,
         raw: e,
       };
     }
+    const classified = classifyChannelRecord(e);
     return {
       timestamp: e.timestamp ?? 0,
       senderKind: "unknown",
       actorId: "?",
       provenance: "unknown",
       contentType: e.type ?? "?",
-      text: JSON.stringify(e),
+      text: classified.summary,
+      classified,
       raw: e,
     };
-  }
-
-  function formatContent(type: unknown, data: any): string {
-    if (type === "text") return typeof data?.text === "string" ? data.text : JSON.stringify(data);
-    if (type === "image") return [data?.caption, data?.path].filter(Boolean).join(" · ");
-    if (type === "image_group") {
-      const paths = Array.isArray(data?.paths) ? data.paths.join(", ") : "";
-      return [data?.caption, paths].filter(Boolean).join(" · ");
-    }
-    if (type === "unsupported_media") {
-      return [data?.mediaKind, data?.caption, data?.fileName].filter(Boolean).join(" · ");
-    }
-    return JSON.stringify(data ?? {});
   }
 
   const n = $derived(normalize(event));
@@ -91,7 +88,18 @@
   <span class="chip {chipClass(n.senderKind)}">{chipLetter(n.senderKind)}</span>
   <span class="actor">{n.actorId}</span>
   <span class="transport dim" title={n.provenance}>{n.provenance}</span>
-  <span class="content">{n.text}</span>
+  <span class="content">
+    {#if n.classified.foldClass === "noise"}
+      <FoldedRecord
+        label={n.classified.label}
+        summary={n.classified.summary}
+        body={n.classified.body}
+        collapsed={foldNoise}
+      />
+    {:else}
+      {n.text}
+    {/if}
+  </span>
   <button class="more" onclick={() => (expanded = !expanded)} title="raw">{expanded ? "−" : "⋯"}</button>
   {#if expanded}
     <pre class="raw">{JSON.stringify(n.raw, null, 2)}</pre>

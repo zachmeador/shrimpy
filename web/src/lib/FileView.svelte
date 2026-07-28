@@ -10,16 +10,24 @@
     loading: boolean;
     error: string | null;
     followLatest: boolean;
+    foldNoise: boolean;
+    foldTools: boolean;
     live: boolean;
     onFollowLatestChange: (next: boolean) => void;
+    onFoldNoiseChange: (next: boolean) => void;
+    onFoldToolsChange: (next: boolean) => void;
   }
   let {
     node,
     loading,
     error,
     followLatest,
+    foldNoise,
+    foldTools,
     live,
     onFollowLatestChange,
+    onFoldNoiseChange,
+    onFoldToolsChange,
   }: Props = $props();
 
   let bodyEl: HTMLDivElement | undefined = $state();
@@ -92,6 +100,22 @@
         <span>{formatBytes(node.totalSize)}</span>
         {#if node.truncated}<span class="err">tail</span>{/if}
         {#if node.parseErrors.length}<span class="err">{node.parseErrors.length} parse err</span>{/if}
+        {#if node.kind === "session" || node.kind === "channel"}
+          <button
+            aria-pressed={foldNoise}
+            class:on={foldNoise}
+            class="toggle"
+            onclick={() => onFoldNoiseChange(!foldNoise)}
+          >fold noise</button>
+        {/if}
+        {#if node.kind === "session"}
+          <button
+            aria-pressed={foldTools}
+            class:on={foldTools}
+            class="toggle"
+            onclick={() => onFoldToolsChange(!foldTools)}
+          >fold tool I/O</button>
+        {/if}
         <button
           class:on={followLatest}
           class="toggle"
@@ -135,11 +159,11 @@
       <div class="status muted">(empty)</div>
     {:else if node.kind === "channel"}
       {#each node.events as event, index (eventKey(event, index))}
-        <ChannelRow {event} />
+        <ChannelRow {event} {foldNoise} />
       {/each}
     {:else}
       {#each node.events as event, index (eventKey(event, index))}
-        <SessionRow {event} />
+        <SessionRow {event} {foldNoise} {foldTools} />
       {/each}
     {/if}
     {#if node?.mode === "jsonl" && node.parseErrors.length}

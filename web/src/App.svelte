@@ -20,6 +20,8 @@
   let live = $state(false);
   let openGroups = $state<Record<string, boolean>>({});
   let followLatest = $state(false);
+  let foldNoise = $state(true);
+  let foldTools = $state(false);
   let requestSequence = 0;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -120,6 +122,20 @@
     } catch {}
   }
 
+  function onFoldNoiseChange(next: boolean) {
+    foldNoise = next;
+    try {
+      localStorage.setItem("shrimpy-web:fold-noise", next ? "1" : "0");
+    } catch {}
+  }
+
+  function onFoldToolsChange(next: boolean) {
+    foldTools = next;
+    try {
+      localStorage.setItem("shrimpy-web:fold-tools", next ? "1" : "0");
+    } catch {}
+  }
+
   function moveSelection(delta: number) {
     const leaves = visibleLeaves;
     if (leaves.length === 0) return;
@@ -150,6 +166,8 @@
 
   onMount(() => {
     followLatest = localStorage.getItem("shrimpy-web:follow-latest") === "1";
+    foldNoise = localStorage.getItem("shrimpy-web:fold-noise") !== "0";
+    foldTools = localStorage.getItem("shrimpy-web:fold-tools") === "1";
     const initialId = window.location.hash.replace(/^#/, "") || null;
     void (async () => {
       await loadTree();
@@ -197,8 +215,12 @@
     loading={nodeLoading}
     error={nodeError}
     {followLatest}
+    {foldNoise}
+    {foldTools}
     {live}
     {onFollowLatestChange}
+    {onFoldNoiseChange}
+    {onFoldToolsChange}
   />
 {:else}
   <div class="status">loading workspace…</div>

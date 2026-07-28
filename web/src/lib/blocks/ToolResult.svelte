@@ -6,9 +6,11 @@
     toolName?: string;
     content: unknown;
     isError?: boolean;
+    collapsed: boolean;
   }
-  let { toolCallId, toolName, content, isError }: Props = $props();
+  let { toolCallId, toolName, content, isError, collapsed }: Props = $props();
   let open = $state(false);
+  let appliedCollapsed = $state<boolean | undefined>();
 
   function extractText(c: unknown): string {
     if (typeof c === "string") return c;
@@ -28,19 +30,32 @@
   const previewData = $derived(firstLines(text, 3));
   const preview = $derived(previewData.preview);
   const more = $derived(previewData.more);
+  const summary = $derived(
+    `${text.length.toLocaleString()} chars${more ? " · multi-line" : ""}`,
+  );
+
+  $effect(() => {
+    if (collapsed === appliedCollapsed) return;
+    appliedCollapsed = collapsed;
+    open = !collapsed;
+  });
 </script>
 
-<button class="tr" class:open class:err={isError} onclick={() => more && (open = !open)}>
+<button class="tr" class:open class:err={isError} onclick={() => (open = !open)}>
   <span class="tag" class:err={isError}>{isError ? "tool-err" : "tool-res"}</span>
   {#if toolName}<span class="muted">{toolName}</span>{/if}
   {#if toolCallId}<span class="muted id">#{toolCallId.slice(-6)}</span>{/if}
-  <pre class="body">{open ? text : preview}{!open && more ? "\n…" : ""}</pre>
+  {#if collapsed && !open}
+    <span class="muted summary">{summary}</span>
+  {:else}
+    <pre class="body">{open ? text : preview}{!open && more ? "\n…" : ""}</pre>
+  {/if}
 </button>
 
 <style>
   .tr {
     display: grid;
-    grid-template-columns: auto auto auto 1fr;
+    grid-template-columns: auto auto auto minmax(0, 1fr);
     gap: 6px;
     align-items: baseline;
     width: 100%;
@@ -58,4 +73,9 @@
   }
   .tr.err .body { color: var(--c-error); border-color: var(--c-error); }
   .id { font-size: 10.5px; }
+  .summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 </style>

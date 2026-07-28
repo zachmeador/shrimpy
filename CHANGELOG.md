@@ -14,6 +14,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added a bounded channel reply watchdog for human-authored turns: when an agent finishes without writing back to the channel, a context-free quick model call can leave the turn alone or wake the same persistent session once with a visible recovery prompt; gateway lane status reports reviewed, woke, and failed outcomes.
 - Changed two-agent DMs to address each member's messages to the other member automatically, so `send_message` wakes agents using `addressed` policy without mentions, policy edits, or CLI injection; non-member agents cannot publish into the DM.
 
+### Web Inspector
+
+- Improved session and channel reading by folding generated context, system/tool metadata, custom records, channel state, and unknown payloads behind persisted noise and tool-I/O controls; tool results no longer render twice.
+
 ## 🦐 0.6.0 - The Blue Hour - 2026-07-26
 
 ### Breaking Changes

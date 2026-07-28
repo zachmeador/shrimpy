@@ -12,7 +12,7 @@ depends_on:
 
 The inspector header currently packs identity, metadata, derived statistics, connection status, and the follow-latest control into a single row. The two halves compete: node metadata truncates on the left while status text and the toggle hold fixed width on the right. On a session node the header shows a truncated `name prof…` and a base64url session path fragment, which is the least useful information available about that node.
 
-The header is also the only place in the inspector with room for summary information. A session's model, thinking level, message counts, cost, and time span are all derivable from records the view has already loaded, and none of it is shown. Splitting the header into an information row and a control row gives the summary somewhere to live and gives the fold controls from [WEB-001](web-001-record-rendering-and-folding.md) a home that does not squeeze it.
+The header is also the only place in the inspector with room for summary information. A session's model, thinking level, message counts, cost, and time span are all derivable from records the view has already loaded, and none of it is shown. Splitting the header into an information row and a control row gives the summary somewhere to live and gives the completed WEB-001 fold controls a home that does not squeeze it.
 
 ## Current State
 

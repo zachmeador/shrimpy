@@ -6,10 +6,17 @@
     sourceInfo?: { source?: string; scope?: string; path?: string; origin?: string };
   }
 
-  interface Props { tools: ToolSpec[]; }
-  let { tools }: Props = $props();
+  interface Props { tools: ToolSpec[]; collapsed: boolean; }
+  let { tools, collapsed }: Props = $props();
   let open = $state(false);
+  let appliedCollapsed = $state<boolean | undefined>();
   let expanded = $state<Record<string, boolean>>({});
+
+  $effect(() => {
+    if (collapsed === appliedCollapsed) return;
+    appliedCollapsed = collapsed;
+    open = !collapsed;
+  });
 
   const summary = $derived(
     tools

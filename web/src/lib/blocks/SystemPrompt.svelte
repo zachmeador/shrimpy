@@ -1,9 +1,16 @@
 <script lang="ts">
   import MarkdownIt from "markdown-it";
 
-  interface Props { text: string; }
-  let { text }: Props = $props();
+  interface Props { text: string; collapsed: boolean; }
+  let { text, collapsed }: Props = $props();
   let open = $state(false);
+  let appliedCollapsed = $state<boolean | undefined>();
+
+  $effect(() => {
+    if (collapsed === appliedCollapsed) return;
+    appliedCollapsed = collapsed;
+    open = !collapsed;
+  });
 
   const md = new MarkdownIt({ html: false, linkify: false, breaks: false });
   const rendered = $derived(md.render(text));

@@ -6,10 +6,19 @@
   import SystemPrompt from "./blocks/SystemPrompt.svelte";
   import ToolsList from "./blocks/ToolsList.svelte";
   import CustomUnknown from "./blocks/CustomUnknown.svelte";
+  import FoldedRecord from "./blocks/FoldedRecord.svelte";
   import { tsFromIso, formatEventTime } from "./format";
+  import {
+    classifySessionBlock,
+    classifySessionRecord,
+  } from "./records";
 
-  interface Props { event: any; }
-  let { event }: Props = $props();
+  interface Props {
+    event: any;
+    foldNoise: boolean;
+    foldTools: boolean;
+  }
+  let { event, foldNoise, foldTools }: Props = $props();
 
   const ts = $derived(
     typeof event.timestamp === "string"
@@ -18,6 +27,14 @@
   );
   const type = $derived(event.type as string);
   const role = $derived(event.message?.role as string | undefined);
+  const isFallback = $derived(
+    type !== "session"
+      && type !== "model_change"
+      && type !== "thinking_level_change"
+      && type !== "custom"
+      && type !== "custom_message"
+      && type !== "message",
+  );
 
   function roleChip(r: string | undefined): { cls: string; letter: string } {
     if (r === "user") return { cls: "u", letter: "U" };
@@ -28,6 +45,7 @@
   }
 
   const chip = $derived(roleChip(role));
+  const record = $derived(classifySessionRecord(event));
 
   let expanded = $state(false);
 
@@ -38,7 +56,7 @@
   }
 </script>
 
-<div class="row type-{type}" class:is-user={role === "user"} class:is-assistant={role === "assistant"} class:is-tool={role === "toolResult"}>
+<div class="row type-{type}" class:folded-event={isFallback} class:is-user={role === "user"} class:is-assistant={role === "assistant"} class:is-tool={role === "toolResult"}>
   <span class="ts">{formatEventTime(ts)}</span>
 
   {#if type === "session"}
@@ -53,43 +71,77 @@
   {:else if type === "custom"}
     <span class="content">
       {#if event.customType === "shrimpy_system_prompt" && typeof event.data === "string"}
-        <SystemPrompt text={event.data} />
+        <SystemPrompt text={event.data} collapsed={foldNoise} />
       {:else if event.customType === "shrimpy_tools" && Array.isArray(event.data)}
-        <ToolsList tools={event.data} />
+        <ToolsList tools={event.data} collapsed={foldNoise} />
       {:else}
-        <CustomUnknown customType={event.customType ?? "custom"} data={event.data} />
+        <CustomUnknown
+          customType={event.customType ?? "custom"}
+          data={event.data}
+          collapsed={foldNoise}
+        />
       {/if}
+    </span>
+  {:else if type === "custom_message"}
+    <span class="content">
+      <FoldedRecord
+        label={record.label}
+        summary={record.summary}
+        body={record.body}
+        collapsed={foldNoise}
+      />
     </span>
   {:else if type === "message"}
     <span class="chip {chip.cls}">{chip.letter}</span>
     <span class="content blocks">
-      {#each event.message?.content ?? [] as block, i}
-        {@const bt = block?.type}
-        {#if bt === "text"}
-          <Text text={block.text ?? ""} />
-        {:else if bt === "thinking"}
-          <Thinking text={block.thinking ?? ""} />
-        {:else if bt === "toolCall"}
-          <ToolCall name={block.name ?? "?"} id={block.id} args={block.arguments ?? {}} />
-        {:else if bt === "toolResult"}
-          <ToolResult
-            toolCallId={block.toolCallId ?? block.tool_call_id}
-            toolName={block.toolName}
-            content={block.content}
-            isError={block.isError}
-          />
-        {:else}
-          <span class="tag">{bt ?? "?"}</span>
-          <span class="dim">{JSON.stringify(block)}</span>
-        {/if}
-      {/each}
       {#if role === "toolResult"}
         <ToolResult
           toolCallId={event.message?.toolCallId}
           toolName={event.message?.toolName}
           content={event.message?.content}
           isError={event.message?.isError}
+          collapsed={foldTools}
         />
+      {:else}
+        {#each event.message?.content ?? [] as block, i}
+          {@const bt = block?.type}
+          {@const classified = classifySessionBlock(block)}
+          {#if bt === "text"}
+            {#if classified.context}
+              <FoldedRecord
+                label={classified.context.label}
+                summary={classified.context.summary}
+                body={classified.context.body}
+                collapsed={foldNoise}
+              />
+            {/if}
+            {#if classified.text}<Text text={classified.text} />{/if}
+          {:else if bt === "thinking"}
+            <Thinking text={block.thinking ?? ""} />
+          {:else if bt === "toolCall"}
+            <ToolCall
+              name={block.name ?? "?"}
+              id={block.id}
+              args={block.arguments ?? {}}
+              collapsed={foldTools}
+            />
+          {:else if bt === "toolResult"}
+            <ToolResult
+              toolCallId={block.toolCallId ?? block.tool_call_id}
+              toolName={block.toolName}
+              content={block.content}
+              isError={block.isError}
+              collapsed={foldTools}
+            />
+          {:else}
+            <FoldedRecord
+              label={classified.label}
+              summary={classified.summary}
+              body={classified.body}
+              collapsed={foldNoise}
+            />
+          {/if}
+        {/each}
       {/if}
     </span>
     {#if event.message?.usage}
@@ -102,8 +154,14 @@
       </span>
     {/if}
   {:else}
-    <span class="tag">{type ?? "?"}</span>
-    <span class="content dim">{JSON.stringify(event)}</span>
+    <span class="content">
+      <FoldedRecord
+        label={record.label}
+        summary={record.summary}
+        body={record.body}
+        collapsed={foldNoise}
+      />
+    </span>
   {/if}
 
   <button class="more" onclick={() => (expanded = !expanded)} title="raw">{expanded ? "−" : "⋯"}</button>
@@ -126,7 +184,7 @@
     grid-template-columns: 104px auto 1fr 18px;
     color: var(--fg-dim);
   }
-  .row.type-custom {
+  .row.type-custom, .row.type-custom_message, .row.folded-event {
     grid-template-columns: 104px 1fr 18px;
   }
   .row.type-session .tag { background: rgba(107,208,176,0.18); color: var(--accent); }

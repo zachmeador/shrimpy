@@ -4,10 +4,18 @@
     name: string;
     id?: string;
     args: unknown;
+    collapsed: boolean;
   }
-  let { name, id, args }: Props = $props();
+  let { name, id, args, collapsed }: Props = $props();
   let open = $state(false);
+  let appliedCollapsed = $state<boolean | undefined>();
   const oneLine = $derived(argsOneLine(args));
+
+  $effect(() => {
+    if (collapsed === appliedCollapsed) return;
+    appliedCollapsed = collapsed;
+    open = !collapsed;
+  });
 </script>
 
 <button class="tc" class:open onclick={() => (open = !open)}>
