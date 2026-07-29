@@ -7,11 +7,13 @@
   import ToolsList from "./blocks/ToolsList.svelte";
   import CustomUnknown from "./blocks/CustomUnknown.svelte";
   import FoldedRecord from "./blocks/FoldedRecord.svelte";
+  import ImageBlock from "./blocks/ImageBlock.svelte";
   import PathText from "./PathText.svelte";
   import { tsFromIso, formatEventTime } from "./format";
   import {
     classifySessionBlock,
     classifySessionRecord,
+    stringifyRecord,
   } from "./records";
 
   interface Props {
@@ -136,6 +138,11 @@
               isError={block.isError}
               collapsed={foldTools}
             />
+          {:else if bt === "image"}
+            <ImageBlock
+              data={typeof block.data === "string" ? block.data : ""}
+              mimeType={typeof block.mimeType === "string" ? block.mimeType : ""}
+            />
           {:else}
             <FoldedRecord
               label={classified.label}
@@ -169,7 +176,7 @@
 
   <button class="more" onclick={() => (expanded = !expanded)} title="raw">{expanded ? "−" : "⋯"}</button>
   {#if expanded}
-    <pre class="raw">{JSON.stringify(event, null, 2)}</pre>
+    <pre class="raw">{stringifyRecord(event)}</pre>
   {/if}
 </div>
 

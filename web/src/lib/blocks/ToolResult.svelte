@@ -1,5 +1,10 @@
 <script lang="ts">
   import { firstLines } from "../format";
+  import {
+    sessionImages,
+    stringifyRecord,
+  } from "../records";
+  import ImageBlock from "./ImageBlock.svelte";
 
   interface Props {
     toolCallId?: string;
@@ -18,20 +23,29 @@
       return c
         .map((p) => {
           if (p && typeof p === "object" && "text" in p) return String((p as any).text);
-          return JSON.stringify(p);
+          if (p && typeof p === "object" && "type" in p && (p as any).type === "image") {
+            return "";
+          }
+          return stringifyRecord(p);
         })
+        .filter(Boolean)
         .join("\n");
     }
     if (c == null) return "";
-    return JSON.stringify(c, null, 2);
+    return stringifyRecord(c);
   }
 
   const text = $derived(extractText(content));
+  const images = $derived(sessionImages(content));
   const previewData = $derived(firstLines(text, 3));
   const preview = $derived(previewData.preview);
   const more = $derived(previewData.more);
   const summary = $derived(
-    `${text.length.toLocaleString()} chars${more ? " · multi-line" : ""}`,
+    [
+      text ? `${text.length.toLocaleString()} chars` : "",
+      images.length ? `${images.length} image${images.length === 1 ? "" : "s"}` : "",
+      more ? "multi-line" : "",
+    ].filter(Boolean).join(" · ") || "empty",
   );
 
   $effect(() => {
@@ -48,7 +62,16 @@
   {#if collapsed && !open}
     <span class="muted summary">{summary}</span>
   {:else}
-    <pre class="body">{open ? text : preview}{!open && more ? "\n…" : ""}</pre>
+    {#if text}
+      <pre class="body">{open ? text : preview}{!open && more ? "\n…" : ""}</pre>
+    {/if}
+    {#if open}
+      {#each images as image}
+        <div class="image">
+          <ImageBlock {...image} />
+        </div>
+      {/each}
+    {/if}
   {/if}
 </button>
 
@@ -72,6 +95,10 @@
     color: var(--fg);
   }
   .tr.err .body { color: var(--c-error); border-color: var(--c-error); }
+  .image {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
   .id { font-size: 10.5px; }
   .summary {
     overflow: hidden;

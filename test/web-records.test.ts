@@ -3,7 +3,9 @@ import { describe, test } from "node:test";
 import {
   classifyChannelRecord,
   classifySessionRecord,
+  sessionImages,
   splitInjectedMessageText,
+  stringifyRecord,
 } from "../web/src/lib/records.ts";
 
 const turnInstruction =
@@ -36,6 +38,20 @@ describe("web record classification", () => {
     assert.equal(classified.foldClass, "tool");
     assert.equal(classified.body, "one result body");
     assert.equal(classified.body.match(/one result body/g)?.length, 1);
+  });
+
+  test("extracts session images while redacting their base64 from textual views", () => {
+    const content = [
+      { type: "text", text: "Read image file [image/jpeg]" },
+      { type: "image", data: "aGVsbG8=", mimeType: "image/jpeg" },
+    ];
+
+    assert.deepEqual(sessionImages(content), [
+      { data: "aGVsbG8=", mimeType: "image/jpeg" },
+    ]);
+    const rendered = stringifyRecord({ type: "message", content });
+    assert.doesNotMatch(rendered, /aGVsbG8=/);
+    assert.match(rendered, /base64 image omitted: 8 chars/);
   });
 
   test("separates a generated channel preamble from the human message", () => {

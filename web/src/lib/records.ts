@@ -9,6 +9,11 @@ export interface RecordClassification {
   context?: RecordClassification;
 }
 
+export interface SessionImageContent {
+  data: string;
+  mimeType: string;
+}
+
 const TURN_CONTEXT_INSTRUCTION =
   "The turn context above is background for the user message below. Answer the user message below using this context when relevant.";
 
@@ -20,11 +25,42 @@ export function stringifyRecord(value: unknown): string {
   if (typeof value === "string") return value;
   if (value === undefined) return "";
   try {
-    const encoded: unknown = JSON.stringify(value, null, 2);
+    const encoded: unknown = JSON.stringify(value, redactImageData, 2);
     return typeof encoded === "string" ? encoded : "";
   } catch {
     return "[unserializable value]";
   }
+}
+
+function redactImageData(
+  this: unknown,
+  key: string,
+  value: unknown,
+): unknown {
+  if (
+    key === "data"
+    && typeof value === "string"
+    && isRecord(this)
+    && this.type === "image"
+  ) {
+    return `[base64 image omitted: ${value.length.toLocaleString()} chars]`;
+  }
+  return value;
+}
+
+export function sessionImages(content: unknown): SessionImageContent[] {
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((part) => {
+    if (
+      !isRecord(part)
+      || part.type !== "image"
+      || typeof part.data !== "string"
+      || typeof part.mimeType !== "string"
+    ) {
+      return [];
+    }
+    return [{ data: part.data, mimeType: part.mimeType }];
+  });
 }
 
 function oneLine(value: unknown, max = 120): string {
@@ -47,6 +83,11 @@ function contentText(content: unknown): string {
   return content
     .map((part) => {
       if (isRecord(part) && typeof part.text === "string") return part.text;
+      if (isRecord(part) && part.type === "image") {
+        const mimeType =
+          typeof part.mimeType === "string" ? part.mimeType : "unknown image";
+        return `[${mimeType}]`;
+      }
       return stringifyRecord(part);
     })
     .join("\n");
