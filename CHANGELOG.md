@@ -2,17 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.6.1 - The Blue Hour - Unreleased
-
-### Turn Context
-
-- Changed workspace knowledge search and automatic breadcrumbs to respect `agents[].knowledgeScope`: ordinary agents rank shared and agent-owned knowledge, explicitly global agents rank every agent corpus, and mechanic always has global knowledge visibility.
-- Added `--agent` and `--all-agents` selectors to `shrimpy workspace search`, with effective agent and knowledge scope included in search output.
-
-### Channels & Agent Policy
-
-- Added a bounded channel reply watchdog for human-authored turns: when an agent finishes without writing back to the channel, a context-free quick model call can leave the turn alone or wake the same persistent session once with a visible recovery prompt; gateway lane status reports reviewed, woke, and failed outcomes.
-- Changed two-agent DMs to address each member's messages to the other member automatically, so `send_message` wakes agents using `addressed` policy without mentions, policy edits, or CLI injection; non-member agents cannot publish into the DM.
+## 🦐 0.6.1 - The Blue Hour - 2026-07-29
 
 ### Web Inspector
 
@@ -21,6 +11,24 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 - Added first-class workspace and per-agent Context and Skills tree groups, including agent `SOUL.md`, complete skill package contents, and workspace-contained scoped reads.
 - Added compact wrapping watch tables with next-run and enablement state, rendered Markdown with a raw view, color-coded JSON, more useful agent summaries, clearer role, date, path, and prose treatment in transcripts, and coral accents matching Shrimpy's TUI.
 - Improved session and channel reading by folding generated context, system/tool metadata, custom records, channel state, and unknown payloads behind persisted noise and tool-I/O controls; tool results no longer render twice.
+
+### Channels & Agent Policy
+
+- Added a bounded channel reply watchdog for human-authored turns: when an agent finishes without writing back to the channel, a context-free quick model call can leave the turn alone or wake the same persistent session once with a visible recovery prompt; gateway lane status reports reviewed, woke, and failed outcomes.
+- Changed two-agent DMs to address each member's messages to the other member automatically, so `send_message` wakes agents using `addressed` policy without mentions, policy edits, or CLI injection; non-member agents cannot publish into the DM.
+
+### Turn Context
+
+- Changed workspace knowledge search and automatic breadcrumbs to respect `agents[].knowledgeScope`: ordinary agents rank shared and agent-owned knowledge, explicitly global agents rank every agent corpus, and mechanic always has global knowledge visibility.
+- Added `--agent` and `--all-agents` selectors to `shrimpy workspace search`, with effective agent and knowledge scope included in search output.
+
+### Sessions, Models & TUI
+
+- Upgraded all Pi packages from `0.82.1` to `0.83.0` and aligned Pi-facing TypeBox schemas on `1.3.7`, adding safer active-response session replacement, preserved provider stop reasons, earlier OAuth refresh, headless OpenRouter login, Claude Opus 5 through GitHub Copilot, and upstream resource, model-selector, and terminal-image fixes.
+
+### Docs & Agent References
+
+- Added the `shrimpy-dev-web` developer skill for building, debugging, testing, and reviewing the separate web inspector and its gateway-managed sidecar.
 
 ## 🦐 0.6.0 - The Blue Hour - 2026-07-26
 

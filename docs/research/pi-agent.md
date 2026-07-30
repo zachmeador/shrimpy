@@ -1,8 +1,8 @@
 # 🦐 Pi Coding Agent
 
 Date: 2026-06-11
-Updated: 2026-07-25
-Status: Implemented; awaiting final review
+Updated: 2026-07-29
+Status: `0.83.0` implemented; manual smoke test passed
 
 Pi is Shrimpy's embedded agent and session engine. Shrimpy pins the registry-published `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` packages rather than depending on a local checkout or active fork.
 
@@ -16,9 +16,9 @@ A Pi package has a session-level lifecycle and contributes extensions, skills, p
 
 ## Current Shrimpy Integration
 
-- Shrimpy pins all four Pi packages at `0.82.1`.
+- Shrimpy pins all four Pi packages at `0.83.0`.
 - Shrimpy requires Node `>=22.19.0`, matching Pi's runtime requirement.
-- Pi-facing tool schemas use `typebox` 1.x. Shrimpy-owned configuration schemas can use a different schema library when their types never cross the Pi tool boundary.
+- Pi-facing tool schemas use `typebox` `1.3.7`, aligned with Pi. Shrimpy-owned configuration schemas remain on `@sinclair/typebox` `0.34.41` because those types never cross the Pi tool boundary.
 - The main host boundary uses `createAgentSession()`, `createAgentSessionRuntime()`, `SessionManager`, `SettingsManager`, and `DefaultResourceLoader`.
 - `SessionBootstrap` constructs one canonical `ModelRuntime` with workspace-local auth, custom-model, and dynamic-catalog paths and passes it through session creation and replacement.
 - Shrimpy extensions register tools, commands, headers, footers, custom UI, message renderers, lifecycle hooks, model-switch rendering, activity state, turn context, session leases, and compaction interception through public extension APIs.
@@ -31,81 +31,80 @@ Shrimpy deliberately creates Pi settings in memory and passes a fixed set of bun
 
 ## Latest Stable Pi
 
-The latest stable tag inspected on 2026-07-25 is `v0.82.1`. Shrimpy now pins that release after completing the required model-runtime migration.
+The latest stable tag inspected on 2026-07-29 is `v0.83.0` at `845d6ff1f6643aba440341cce877ce1c43ebbc39`. Shrimpy now pins that release after the dependency-only implementation described below.
 
-Upgrade-relevant changes after `0.80.6`:
+- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.83.0`.
+- Latest stable Pi version inspected: tag `v0.83.0`, commit `845d6ff1f6643aba440341cce877ce1c43ebbc39`.
+- Pi `0.83.0` upgrades its public and bundled TypeBox dependency from `1.1.38` to `1.3.7`. Removed deprecated APIs are the release's only declared breaking surface; Shrimpy uses none of them.
+- Provider/runtime additions include per-request `fetch`, partial-stream `stopReason: "pending"`, `AssistantMessage.rawStopReason`, automatic OAuth refresh with minimum-validity control, headless OpenRouter login, and Claude Opus 5 through GitHub Copilot.
+- Coding-agent fixes directly relevant to Shrimpy include settling an active response before session replacement, avoiding duplicate startup messages during extension-driven session switches, preserving resource provenance after reload, exposing `ctx.scopedModels`, and fixing nested-worktree context duplication.
+- TUI fixes improve image fallback paths and model-selector filtering. Pi's changed interactive internals did not break Shrimpy's five named compatibility seams in the disposable probe.
 
-- `0.80.7` adds deferred tool loading and changes session-affinity configuration.
-- `0.80.8` introduces canonical `ModelRuntime`, moves authentication and model catalogs under provider-owned runtime state, replaces the SDK's `authStorage` and `modelRegistry` options with `modelRuntime`, removes `AuthStorage` from the coding-agent root exports, and leaves `ModelRegistry` as a compatibility facade.
-- `0.81.0` adds provider extensions, llama.cpp support, generated provider catalogs, and broader usage accounting for tools, compaction, and branch summaries.
-- `0.81.1` adds bounded retry behavior and lifecycle events for compaction and branch summaries, plus a compatibility fix for custom stream functions.
-- `0.82.0` adds constrained tool sampling, OpenRouter and Kimi Code login, session metadata for bash tools, stricter generated reasoning-level metadata, and a required `outputPad` field in message-renderer options. Its breaking `AgentHarness` tool-context change does not affect Shrimpy's current `AgentMessage` and `ThinkingLevel` imports.
-- `0.82.1` adds ETag-backed model-catalog persistence, Anthropic gateway bearer auth, Claude Opus 5 metadata, and clearer model/auth errors.
+Pi's upstream `main` was one post-release `[Unreleased]` bookkeeping commit beyond `v0.83.0` during the assessment, at `71efc6f0c1909874ec8c944637a9ae7fc0e2d508`. The upgrade target is the stable tag and published packages, not unreleased branch state.
 
-Pi's upstream `main` was one post-release bookkeeping commit beyond `v0.82.1` during the assessment. The upgrade target is the stable tag and published packages, not unreleased branch state.
+## `0.83.0` Upgrade Assessment
 
-## `0.82.1` Upgrade Assessment
+Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`, clean `main` at `b70b8b69f6f5d38b23e6eef0bfbe6e5670bc7bb1`
 
-Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`, branch `codex/pi-0.82.1-upgrade`, based on commit `b115bc63d09cc61fe13ae6c89d5254019abeecb0`
-
-Pi clone: `/Users/zachmeador/gits/pi-mono`; stable tag `v0.82.1` at `b4f293684bba718d59cc1157679bcf6157b3a7f5`; inspected `main` at `5bc1c2c0a6f07e00e8c240304182f213ab8d311f`
+Pi clone: `/Users/zachmeador/gits/pi-mono`; stable tag `v0.83.0` at `845d6ff1f6643aba440341cce877ce1c43ebbc39`; inspected `main` at `71efc6f0c1909874ec8c944637a9ae7fc0e2d508`
 
 ### Summary
 
-Upgrade implemented on a focused branch with all four Pi packages pinned together. The result is ready for final review after the verification listed below. Confidence is high: the canonical runtime, setup login/refresh, session replacement, model resolution, dynamic catalog storage, and custom compaction paths have all been migrated and exercised by focused tests.
+The dependency-only upgrade is implemented and ready for manual smoke testing. Confidence is high: the unchanged Shrimpy source builds against all four `0.83.0` packages, the extension typecheck and lint pass, the 216-test focused Pi integration slice passes, and the complete 708-test suite passes. Shrimpy's direct Pi-facing `typebox` dependency is aligned to `1.3.7` so tool schemas and Pi's validator share one version.
 
 ### Versions
 
-- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.82.1`.
-- Latest stable Pi version inspected: tag `v0.82.1`, commit `b4f293684bba718d59cc1157679bcf6157b3a7f5`.
+- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.83.0`.
+- Latest stable Pi version inspected: tag `v0.83.0`, commit `845d6ff1f6643aba440341cce877ce1c43ebbc39`.
+- Current Shrimpy Pi-facing TypeBox package: `typebox` at exact `1.3.7`.
 
 ### Likely Breakage
 
-- The pre-migration build produced 19 errors in `src/app/pi-internals.ts`, `src/sessions/bootstrap.ts`, `src/sessions/open.ts`, `src/setup/coding-policy.ts`, and `src/setup/model-access.ts` because Pi removed the root `AuthStorage` export, replaced SDK `authStorage`/`modelRegistry` services with `modelRuntime`, and deleted the private provider-display-name module.
-- Setup model availability and provider login became asynchronous and provider-owned. Retaining synchronous setup casts would have produced stale availability and incomplete OAuth/API-key flows.
-- Session, footer, and resolver fixtures using `modelRegistry` failed at runtime because Pi reads `session.modelRuntime`.
-- The old custom compaction hook compiled through Pi's compatibility entrypoint but would have bypassed header-only and provider-environment auth, usage accounting, bounded retries, fresh routing IDs, and summary cache policy.
-- Pi's dynamic provider catalogs require a durable `models-store.json` path to retain refreshed model lists for offline startup.
+- No Shrimpy source breakage was found. The unchanged source and generated web/CLI builds pass against `0.83.0`.
+- Pi removed deprecated TypeBox APIs including `Type.Base`, `Type.Awaited`, `Type.Promise`, `Type.AsyncIterator`, `Type.Iterator`, `Type.Options`, and `Value.Mutate`. Searches across `src/` and `test/` found no Shrimpy use of those APIs.
+- `src/tools/daemon.ts` creates schemas with Shrimpy's direct `typebox` dependency and hands them to Pi's `ToolDefinition` and runtime validator. A split-version probe with Shrimpy on `1.1.38` and Pi on `1.3.7` built and validated representative valid and invalid calls correctly, but aligning the direct pin to `1.3.7` removes duplicate compiler copies and is the safer long-term boundary.
+- Pi now awaits `session.abort()` before session replacement and aborts active tree navigation responses. This changes timing around Shrimpy's `src/tui/session-target.ts` and `src/tui/session-navigator.ts`, but the focused replacement, navigator, runtime-lease, and archive tests pass unchanged.
+- Pi changed resource reload provenance, nested-worktree context discovery, extension contexts, interactive rebinding, model-selector filtering, tool-expansion status, and image fallback rendering. Shrimpy's resource override, session prompt, model selection, settings, inline command, theme, header/footer, compact-tool, and turn-context tests pass unchanged.
+- `StopReason` now includes `"pending"` and assistant messages may include `rawStopReason`. Shrimpy's inference, compaction, context, recording, and turn-output code compiles and passes without exhaustive-union changes.
 
 ### Required Shrimpy Changes
 
-- Replaced separate auth/model services with one offline-initialized `ModelRuntime` in `SessionBootstrap`, session creation, runtime replacement, commands, resolvers, context inspection, and tests.
-- Migrated setup listing, policy checks, explicit catalog refresh, API-key login, OAuth login, provider metadata, and prompt/event handling to public `ModelRuntime` and `AuthInteraction` APIs.
-- Added `state/pi/models-store.json` to workspace paths, setup development-state copying, tests, and reference docs.
-- Removed the deleted provider-display-name deep import and use public `Provider.name` and provider auth metadata.
-- Replaced the path-loaded compaction hook with a runtime-injected extension factory. Compaction calls `ModelRuntime.completeSimple()`, uses Pi retry policy, disables summary cache retention, creates a fresh routing id per summary request, and combines usage across split/chunk/merge calls.
-- Updated all runtime fixtures to use `modelRuntime` rather than recreating removed compatibility services.
-- Pinned all four packages and regenerated the lockfile at exact `0.82.1`.
+- Pinned `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` to exact `0.83.0` in `package.json`.
+- Pinned the Pi-facing `typebox` dependency to exact `1.3.7`; the isolated `@sinclair/typebox` configuration dependency remains unchanged.
+- Regenerated `package-lock.json`; `npm ls` confirms the four Pi packages at `0.83.0` and `typebox` deduped at `1.3.7`.
+- No source or test edits are currently required. Add a regression only if implementation or manual smoke testing reveals behavior not covered by the existing focused suite.
 
 ### Verification
 
-- Baseline disposable probe from clean Shrimpy commit `b01cd08f5840c89e4aaabb807ecfa172e70b9736`: exact `0.82.1` install passed; source build exposed the 19 expected migration errors; targeted candidate tests passed 29 of 34 before implementation.
-- `./node_modules/.bin/tsc --noEmit`: passed after implementation.
+- Disposable source: clean archive of Shrimpy commit `b70b8b69f6f5d38b23e6eef0bfbe6e5670bc7bb1` under `/tmp/pi083-probe/shrimpy`; no uncommitted Shrimpy changes were present or copied into the probe.
+- `npm install --save-exact @earendil-works/pi-agent-core@0.83.0 @earendil-works/pi-ai@0.83.0 @earendil-works/pi-coding-agent@0.83.0 @earendil-works/pi-tui@0.83.0`: passed in the disposable checkout.
+- `npm run build`: passed with unchanged Shrimpy source both before and after aligning direct `typebox` to `1.3.7`.
 - `./node_modules/.bin/tsc --noEmit --target ES2022 --module Node16 --moduleResolution Node16 --strict --skipLibCheck --allowImportingTsExtensions extensions/*.ts`: passed.
-- Focused migrated failure slice covering context inspection, model defaults, resources, session restore/resolution/tool policy, real session construction, setup, and footer activity: 64 tests, 64 passed after fixture migration.
-- Focused compaction/setup/catalog/workspace slice: 25 tests, 25 passed, including transient summary retry, aggregate usage, disabled cache retention, and distinct routing ids.
-- `npm run lint`: passed.
-- `npm test`: passed the complete build and all 657 tests. The first implementation run had passed 609 of 625 tests; all 16 failures were stale removed-service fixtures, which were migrated before the clean final run.
-- Live TUI smoke test: `/login` completed an Anthropic subscription account login successfully.
+- Focused Pi integration slice covering inference, models, setup, skills/resources, sessions, compaction, daemon tools, and TUI compatibility: 216 tests, 216 passed with all four Pi packages and direct `typebox` aligned to `1.3.7`.
+- Focused tool/resource/policy slice after TypeBox alignment: 24 tests, 24 passed; `npm ls typebox --all` showed `1.3.7` deduped across Shrimpy and Pi.
+- A direct cross-version validation probe also confirmed that Pi `0.83.0` could compile a Shrimpy `typebox@1.1.38` schema, accept a valid call, and reject an invalid call before the alignment recommendation was applied.
+- `npm run lint`: passed in the candidate checkout.
+- Main-checkout `npm run build`: passed and rebuilt the linked local CLI, gateway, web inspector, and generated skill mirrors.
+- Main-checkout focused Pi integration slice: 216 tests, 216 passed.
+- Main-checkout extension typecheck and `npm run lint`: passed.
+- Main-checkout `npm test`: passed the complete build and all 708 tests. The earlier sandboxed disposable run's watcher and checkout-name artifacts did not reproduce with normal filesystem permissions and the canonical checkout path.
+- User-reported manual smoke test: passed on 2026-07-29.
 
 ### Upgrade Steps
 
-1. Pin all four Pi packages to exact `0.82.1` and regenerate the npm lockfile.
-2. Add the dynamic catalog store path and construct the canonical runtime during bootstrap.
-3. Pass the runtime through every session, model-resolution, setup, command, and inspection boundary.
-4. Migrate setup login and refresh to provider-owned asynchronous APIs and remove the deleted private provider-name import.
-5. Route custom compaction through `ModelRuntime.completeSimple()` with retry, routing, cache, and usage parity.
-6. Replace stale service fixtures and extend compaction, workspace-path, catalog-store, and resource-loader coverage.
-7. Update current-behavior docs, the changelog, and this assessment.
-8. Run source and extension typechecks, focused tests, full tests/build, lint, and manual smoke checks where credentials and a TTY are available.
+1. Pinned all four Pi packages and direct `typebox` to exact `0.83.0` and `1.3.7` respectively and regenerated the lockfile.
+2. Completed the source build, extension typecheck, focused 216-test Pi slice, full 708-test suite, and lint.
+3. Updated `CHANGELOG.md` and this assessment.
+4. Completed the user-run manual smoke test successfully.
+5. Review and commit the coherent upgrade before release preparation.
 
 ### Risks And Unknowns
 
-- Setup-wizard login, API-key provider login, dynamic remote catalog refresh, live model calls, and live compaction require credentials/network and remain manual smoke-test surfaces. Anthropic subscription login through the TUI `/login` command passed.
-- Bootstrap is explicitly offline and setup's manual refresh is bounded at 15 seconds. Pi's TUI retains its own non-blocking background refresh unless `PI_OFFLINE` is set.
-- Private terminal theme and UX integration seams can still break without a semver-visible export change.
-- Pi `0.82.1` now passes `outputPad` to custom renderers, but `CustomMessageComponent` still adds an unconditional leading spacer, so `src/tui/turn-context-rendering.ts` remains necessary.
-- The available Node `23.6.0` satisfies Shrimpy's declared `>=22.19.0` range but is outside ESLint 10's supported engine range. A Node 22 LTS or Node 24+ lint run is the authoritative lint check.
+- The automated assessment did not independently exercise credential-backed provider calls, OAuth/API-key refresh, remote catalog refresh, live compaction, or interactive session replacement during streaming; the user-run manual smoke test passed.
+- Pi's session replacement fix is favorable for Shrimpy, but its extra awaited abort can expose timing assumptions only visible in a real streaming TUI.
+- `src/app/pi-internals.ts` and the five named private terminal compatibility seams remain outside Pi's semver contract even though their build and focused tests pass at `0.83.0`.
+- `src/tui/turn-context-rendering.ts` remains necessary because the upstream release does not remove `CustomMessageComponent`'s reserved collapsed spacer.
+- The available Node `23.6.0` satisfies Shrimpy's declared `>=22.19.0` range but is outside ESLint 10's supported engine range. Lint passed, but a Node 22 LTS or Node 24+ run remains the authoritative check.
 
 ## Extensibility Assessment
 
@@ -132,9 +131,9 @@ The hackier integration points are concentrated in terminal composition and a fe
 - `src/tui/model-selection.ts` patches private autocomplete, key handling, selectors, and model-selector internals to hide commands, disable cycling, and add favorites.
 - `src/tui/settings.ts` patches private settings and selector methods because Pi has no public settings-section composition API.
 - `src/tui/turn-context-rendering.ts` patches `CustomMessageComponent.prototype` because a renderer with no collapsed content still leaves a reserved spacer.
-- `src/app/pi-internals.ts` deep-imports theme registry, proxy, and automatic-theme helpers outside Pi's public export contract. The provider-display-name deep import is deleted in the candidate packages and can be replaced by public runtime metadata.
+- `src/app/pi-internals.ts` deep-imports theme registry, proxy, and automatic-theme helpers outside Pi's public export contract.
 - `src/sessions/open.ts` assigns `session.state.systemPrompt` after creation. The public per-turn containment hook remains authoritative, but a host setter or stronger initialization contract would be cleaner.
-- `src/sessions/compaction-runner.ts` owns a copy-like compaction path because `session_before_compact` can replace or cancel compaction but cannot augment the default instructions.
+- `src/sessions/compaction/runner.ts` owns a copy-like compaction path because `session_before_compact` can replace or cancel compaction but cannot augment the default instructions.
 
 These gaps justify narrow upstream API requests, not turning Shrimpy into a Pi package. The useful asks are built-in command interception, composable settings sections, model-selector decoration, ephemeral transcript components, no-spacer collapsed renderers, exported theme preparation, compaction-instruction augmentation, and canonical model access in extension context.
 
@@ -153,7 +152,7 @@ A Shrimpy-controlled package bridge should:
 5. Keep channels, watches, workers, surfaces, workspace state, and agent orchestration in Shrimpy core.
 6. Let packages contribute session-local tools, commands, providers, renderers, prompts, themes, and optional skills.
 
-This bridge should follow the `0.82.1` runtime migration rather than share its implementation.
+This bridge should follow the `0.83.0` dependency upgrade rather than share its implementation.
 
 ## Relevant Pi Runtime Surfaces
 
@@ -183,18 +182,13 @@ The upstream `packages/mom/` example demonstrates one external messaging channel
 
 ## Implementation Sequence
 
-1. Completed the implementation on `codex/pi-0.82.1-upgrade` from an intentional clean Shrimpy state.
-2. Added the dynamic model catalog store to Shrimpy's workspace paths, development-state copying, tests, and reference docs.
-3. Introduced one canonical `ModelRuntime` in bootstrap and migrated session services to it.
-4. Migrated model commands and setup flows, including asynchronous provider login and bounded explicit refresh.
-5. Removed the private provider-name import.
-6. Moved custom compaction off `/compat` and added canonical auth, usage, retry, routing, and cache behavior.
-7. Updated runtime, provider, setup, compaction, context-inspection, footer, and session-replacement tests.
-8. Installed all four exact `0.82.1` pins and updated the lockfile.
-9. Completed the clean source/extension typechecks, full suite/build, and lint verification recorded above.
-10. During final review, smoke setup-wizard and API-key login, dynamic and local providers, model selection and favorites, settings, automatic themes, session switching, compaction, and resume where the necessary TTY, credentials, and provider access are available. Anthropic subscription login through `/login` has passed.
-11. Design the package bridge separately after the runtime upgrade is stable.
+1. The `0.82.1` model-runtime, setup, dynamic-catalog, provider, session, and custom-compaction migration is complete on `main`.
+2. Implemented `0.83.0` as a focused dependency update: all four Pi packages are pinned together, direct `typebox` is aligned to `1.3.7`, and the lockfile is regenerated.
+3. Completed the source and extension typechecks, the focused Pi integration slice, the full suite/build, and lint.
+4. Completed the user-run manual smoke test successfully.
+5. Review and commit the changelog, dependency, lockfile, and research-note changes.
+6. Design the package bridge separately after the upgraded runtime is stable.
 
 ## Sources
 
-[Repository](https://github.com/earendil-works/pi) · [Coding agent README](https://github.com/earendil-works/pi/tree/main/packages/coding-agent#readme) · [SDK](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/sdk.md) · [Extensions](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/extensions.md) · [Models](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/models.md) · [Custom providers](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/custom-provider.md) · [Packages](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/packages.md) · [Themes](https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/themes.md)
+[Repository](https://github.com/earendil-works/pi) · [`v0.83.0` tag](https://github.com/earendil-works/pi/tree/v0.83.0) · [`v0.82.1...v0.83.0` comparison](https://github.com/earendil-works/pi/compare/v0.82.1...v0.83.0) · [Coding-agent changelog](https://github.com/earendil-works/pi/blob/v0.83.0/packages/coding-agent/CHANGELOG.md) · [AI changelog](https://github.com/earendil-works/pi/blob/v0.83.0/packages/ai/CHANGELOG.md) · [SDK](https://raw.githubusercontent.com/earendil-works/pi/v0.83.0/packages/coding-agent/docs/sdk.md) · [Extensions](https://raw.githubusercontent.com/earendil-works/pi/v0.83.0/packages/coding-agent/docs/extensions.md) · [Models](https://raw.githubusercontent.com/earendil-works/pi/v0.83.0/packages/coding-agent/docs/models.md) · [Custom providers](https://raw.githubusercontent.com/earendil-works/pi/v0.83.0/packages/coding-agent/docs/custom-provider.md) · [Packages](https://raw.githubusercontent.com/earendil-works/pi/v0.83.0/packages/coding-agent/docs/packages.md) · [Themes](https://raw.githubusercontent.com/earendil-works/pi/v0.83.0/packages/coding-agent/docs/themes.md)
