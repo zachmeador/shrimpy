@@ -79,7 +79,7 @@ function defaultShrimpyConfig(): Record<string, unknown> {
       env: [...DEFAULT_CONTEXT_ENV],
       channels: {},
       turn: {
-        maxChars: 2000,
+        maxChars: 6000,
         producers: [],
         channelUnread: {
           enabled: true,

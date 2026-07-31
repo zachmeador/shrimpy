@@ -224,7 +224,14 @@ async function openLeasedSessionWithRuntimeDeps(
     model: assembly.resolvedModel,
   });
   const turnContextController = createSessionTurnContextController({
-    prepare: effectivePlan.prepareTurnContext,
+    prepare: effectivePlan.prepareTurnContext
+      ? (prompt, images) =>
+        effectivePlan.prepareTurnContext?.(
+          prompt,
+          images,
+          sessionManager.getSessionId(),
+        )
+      : undefined,
   });
   const settingsManager = SettingsManager.inMemory({
     theme: bootstrap.runtimeConfig.theme,

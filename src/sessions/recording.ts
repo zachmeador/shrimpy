@@ -9,6 +9,7 @@ import {
   toModelRef,
   type ModelRef,
 } from "../config/model.js";
+import { recordSettledSessionActivity } from "../context/turn/activity.js";
 import type { SessionBootstrap } from "./bootstrap.js";
 import type { EffectiveCompactionPolicy } from "./compaction/policy.js";
 import type { ModelResolution } from "./model-types.js";
@@ -98,6 +99,23 @@ export function createSessionRecordingExtensionFactory(
   input: SessionRecordingContext,
 ): ExtensionFactory {
   return (pi) => {
+    let completedMessages: Parameters<typeof recordSettledSessionActivity>[0]["messages"]
+      | undefined;
+
+    pi.on("agent_end", (event) => {
+      completedMessages = event.messages;
+    });
+    pi.on("agent_settled", () => {
+      if (!completedMessages) return;
+      recordSettledSessionActivity({
+        workspacePath: input.bootstrap.workspacePath,
+        descriptor: input.plan.descriptor,
+        sessionInstanceId: input.sessionManager.getSessionId(),
+        messages: completedMessages,
+      });
+      completedMessages = undefined;
+    });
+
     pi.on("model_select", (event) => {
       if (event.source === "restore") return;
       appendSessionMetadata({

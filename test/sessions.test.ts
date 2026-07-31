@@ -129,6 +129,7 @@ function countMatches(value: string, pattern: string): number {
 function createMockSession(opts?: {
   turnDurationMs?: number;
   systemPrompt?: string;
+  sessionId?: string;
 }) {
   const turnDuration = opts?.turnDurationMs ?? 10;
   const listeners: Listener[] = [];
@@ -150,6 +151,9 @@ function createMockSession(opts?: {
     thinkingLevel: "off",
     model: undefined as Model<Api> | undefined,
     disposed: false,
+    sessionManager: {
+      getSessionId: () => opts?.sessionId ?? "mock-session",
+    },
     get listenerCount(): number {
       return listeners.length;
     },
@@ -255,6 +259,7 @@ function createRegistry(
   workspacePath?: string,
   opts?: {
     turnContextForMessage?: ConstructorParameters<typeof SessionPool>[1]["turnContextForMessage"];
+    markTurnContextDelivered?: ConstructorParameters<typeof SessionPool>[1]["markTurnContextDelivered"];
     startActivity?: ConstructorParameters<typeof SessionPool>[1]["startActivity"];
     onCompactionEnd?: ConstructorParameters<typeof SessionPool>[1]["onCompactionEnd"];
     reviewCompletedTurn?: ConstructorParameters<typeof SessionPool>[1]["reviewCompletedTurn"];
@@ -267,6 +272,7 @@ function createRegistry(
       descriptor: channelDescriptor(bootstrap.agentRootPath, channel),
     }),
     turnContextForMessage: opts?.turnContextForMessage,
+    markTurnContextDelivered: opts?.markTurnContextDelivered,
     startActivity: opts?.startActivity,
     onCompactionEnd: opts?.onCompactionEnd,
     reviewCompletedTurn: opts?.reviewCompletedTurn,
@@ -291,6 +297,7 @@ function createSessionFactory(opts?: {
     const session = createMockSession({
       turnDurationMs: opts?.turnDurationMs,
       systemPrompt: assembly?.systemPrompt,
+      sessionId: `mock-session-${calls}`,
     });
     sessions.push(session);
     return session as any;
@@ -1074,19 +1081,27 @@ describe("SessionPool", () => {
 
   test("persists turn context in the prompt sent to the model", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
+    let sessionsAtDelivery = 0;
+    let sessionInstanceIdAtContext: string | undefined;
     const registry = createRegistry(sessionFactory, undefined, {
-      turnContextForMessage: () => ({
-        agentId: "shrimpy",
-        channel: "telegram~shrimpy~1",
-        sessionType: "gateway",
-        capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
-        maxChars: 2000,
-        items: [{
-          id: "test",
-          summary: "prior thing happened",
-          inspect: "shrimpy channels read telegram~shrimpy~1",
-        }],
-      }),
+      turnContextForMessage: (_channel, _message, sessionInstanceId) => {
+        sessionInstanceIdAtContext = sessionInstanceId;
+        return {
+          agentId: "shrimpy",
+          channel: "telegram~shrimpy~1",
+          sessionType: "gateway",
+          capturedAt: "Wed, 04/29/2026, 00:00:00 EDT (America/New_York, UTC-04:00); UTC: 2026-04-29T04:00:00.000Z",
+          maxChars: 2000,
+          items: [{
+            id: "test",
+            summary: "prior thing happened",
+            inspect: "shrimpy channels read telegram~shrimpy~1",
+          }],
+        };
+      },
+      markTurnContextDelivered: () => {
+        sessionsAtDelivery = sessionFactory.sessions.length;
+      },
     });
     const message = humanText("hello");
 
@@ -1116,16 +1131,22 @@ describe("SessionPool", () => {
       /^\[turn-context\][\s\S]*prior thing happened[\s\S]*The turn context above/,
     );
     assert.doesNotMatch(modelBatch.join("\n"), /\[incoming\]/);
+    assert.equal(sessionsAtDelivery, 1);
+    assert.equal(sessionInstanceIdAtContext, "mock-session-1");
   });
 
   test("persists prepared session context through the same user message path", async () => {
     const sessionFactory = createSessionFactory({ turnDurationMs: 10 });
     const bootstrap = createFakeBootstrap();
+    let sessionInstanceIdAtContext: string | undefined;
     const registry = new SessionPool(bootstrap, {
       sessionFactory: sessionFactory.factory as any,
       planForChannel: (channel) => ({
         descriptor: channelDescriptor(bootstrap.agentRootPath, channel),
-        prepareTurnContext: async () => "prepared direct/TUI-style context",
+        prepareTurnContext: async (_prompt, _images, sessionInstanceId) => {
+          sessionInstanceIdAtContext = sessionInstanceId;
+          return "prepared direct/TUI-style context";
+        },
       }),
     });
     const message = humanText("hello");
@@ -1142,6 +1163,7 @@ describe("SessionPool", () => {
       session.llmPromptBatches[0][0],
       /\[channel: local, sender: human:alice\]\nhello$/,
     );
+    assert.equal(sessionInstanceIdAtContext, "mock-session-1");
   });
 
   test("keeps routed turn context out of the stable system prompt for prompt caching", async () => {

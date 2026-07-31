@@ -65,7 +65,7 @@ Shrimpy includes by default:
 - high-confidence workspace knowledge paths related to the incoming message
 - output from configured `context.turn.producers`
 
-Per-agent state under `runtime/context/` records channel-unread progress and cached producer output. Producer caches are isolated by producer id, channel, and session type.
+Per-agent state under `runtime/context/` records channel-unread progress, cached producer output, a bounded deterministic activity ledger, and per-session delivery progress. Producer caches are isolated by producer id, channel, and session type. Context-state updates are locked because foreground and gateway sessions may update the same agent concurrently.
 
 ### Delivery
 
@@ -80,7 +80,7 @@ Every model request places turn context before the associated user prompt. The t
 {
   "context": {
     "turn": {
-      "maxChars": 2000,
+      "maxChars": 6000,
       "producers": [
         {
           "id": "finance_alerts",
@@ -107,7 +107,7 @@ Every model request places turn context before the associated user prompt. The t
 }
 ```
 
-`context.turn.maxChars` is the total rendered budget. `context.turn.sessionStatus` controls watch-turn session recency pointers.
+`context.turn.maxChars` is the total rendered budget and defaults to 6,000 characters. Shrimpy tracks delivered item fingerprints and recent agent-activity progress per concrete Pi transcript ID, so an unchanged fact is omitted from later turns in that transcript and reappears when its underlying value changes. Resetting a stable address such as `local/main` or `channel/home` creates a new transcript ID and therefore fresh delivery state. Activity from other transcripts is rendered as deterministic short excerpts and tool-name facts with inspection pointers; no model-generated summary is involved. Context preview and inspection do not advance this delivery state. `context.turn.sessionStatus` controls watch-turn session recency pointers.
 
 ### Workspace Knowledge
 

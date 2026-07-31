@@ -569,7 +569,7 @@ export function resolveContextTurnConfig(
   raw?: ContextTurnConfig,
 ): ResolvedContextTurnConfig {
   return {
-    maxChars: raw?.maxChars ?? 2000,
+    maxChars: raw?.maxChars ?? 6000,
     channelUnread: {
       enabled: raw?.channelUnread?.enabled ?? true,
       channels: raw?.channelUnread?.channels ?? ["*"],

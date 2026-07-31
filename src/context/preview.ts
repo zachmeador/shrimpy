@@ -19,6 +19,7 @@ import {
   formatSessionId,
 } from "../sessions/identity.js";
 import { resolveSessionDescriptor } from "../sessions/inventory.js";
+import { findActiveSessionId } from "../sessions/transcript-store.js";
 import {
   assembleSessionPrompt,
   type SessionPromptAssembly,
@@ -231,6 +232,9 @@ export async function buildSessionContextPreview(
   const inspectionSessionManager = target.sourceDescriptor
     ? cloneSessionManagerForContextInspection(target.sourceDescriptor, target.cwd)
     : undefined;
+  const sourceSessionInstanceId = target.sourceDescriptor?.storage.kind === "durable"
+    ? findActiveSessionId(target.sourceDescriptor.storage.dir)
+    : undefined;
   const plan = await resolver.resolve({
     key: target.descriptor.key,
     purpose: target.sessionType,
@@ -256,6 +260,7 @@ export async function buildSessionContextPreview(
     ? await buildTurnContext({
       runtime,
       descriptor: target.descriptor,
+      sessionInstanceId: sourceSessionInstanceId,
       currentMessage: previewMessage,
       currentPrompt: prompt,
       preview: true,

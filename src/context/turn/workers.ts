@@ -52,6 +52,7 @@ export function buildWorkerContextItems(input: {
       id: "workers:owned:actionable",
       summary: `workers: ${formatWorkerOutcomeCounts(summarizeWorkerOutcomes(otherActionable))} owned worker${otherActionable.length === 1 ? "" : "s"} need review`,
       inspect: "shrimpy worker list",
+      revision: workerRevision(otherActionable),
     });
   }
 
@@ -69,6 +70,7 @@ export function buildWorkerSessionStatusItems(input: {
     id: "workers:status",
     summary: `workers: ${formatWorkerOutcomeCounts(summarizeWorkerOutcomes(actionable))} need review`,
     inspect: "shrimpy worker list",
+    revision: workerRevision(actionable),
   }];
 }
 
@@ -87,7 +89,22 @@ function workerItem(worker: WorkerRecord, relevance: string): TurnContextItem {
     id: `workers:${worker.id}`,
     summary: `worker ${worker.id} ${worker.status} (${relevance}) ${age} ago: ${clipOneLine(worker.goal, 80)}${suffix}`,
     inspect: `shrimpy worker read ${worker.id}`,
+    revision: JSON.stringify([
+      worker.status,
+      worker.updatedAt,
+      latest?.id ?? null,
+      result,
+      relevance,
+    ]),
   };
+}
+
+function workerRevision(workers: WorkerRecord[]): string {
+  return JSON.stringify(
+    workers
+      .map((worker) => [worker.id, worker.status, worker.updatedAt])
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
+  );
 }
 
 function relevanceLabel(

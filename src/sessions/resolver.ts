@@ -3,6 +3,7 @@ import type { AppRuntime } from "../app/runtime.js";
 import type { ChannelBus } from "../channels/bus.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
 import { buildTurnContext } from "../context/turn/builder.js";
+import { markTurnContextDelivered } from "../context/turn/delivery.js";
 import { renderTurnContext } from "../context/turn/render.js";
 import type { ThinkingLevel } from "../config/thinking.js";
 import type {
@@ -99,13 +100,16 @@ export class SessionResolver {
         appendSystemPrompt: input.appendSystemPrompt,
         skills: input.skills,
       },
-      prepareTurnContext: async (prompt) => {
+      prepareTurnContext: async (prompt, _images, sessionInstanceId) => {
         const turnContext = await buildTurnContext({
           runtime: this.runtime,
           descriptor,
+          sessionInstanceId,
           currentPrompt: prompt,
         });
-        return renderTurnContext(turnContext);
+        const rendered = renderTurnContext(turnContext);
+        markTurnContextDelivered(this.runtime, turnContext);
+        return rendered;
       },
       model: modelResolution.model,
       modelResolution,

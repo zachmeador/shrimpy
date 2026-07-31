@@ -6,6 +6,7 @@ export interface TurnContextItem {
   id: string;
   summary: string;
   inspect?: string;
+  revision?: string;
 }
 
 export type TurnProducerStatus = "matched" | "ran" | "cached" | "failed" | "skipped";
@@ -25,11 +26,21 @@ export interface TurnContext {
   maxChars: number;
   items: TurnContextItem[];
   producers?: TurnProducerReport[];
+  deliveryState?: TurnContextDeliveryState;
+}
+
+export interface TurnContextDeliveryState {
+  sessionId: string;
+  activityCursor?: number;
+  activityBaseCursor?: number;
+  activityItemSequences?: number[];
+  seenItems: Record<string, string>;
 }
 
 export interface TurnContextInput {
   runtime: AppRuntime;
   descriptor: SessionDescriptor;
+  sessionInstanceId?: string;
   currentMessage?: ChannelMessage;
   currentPrompt?: string;
   preview?: boolean;

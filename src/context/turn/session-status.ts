@@ -47,6 +47,11 @@ export function buildSessionStatusItems(input: {
     id: "sessions:status",
     summary: pieces.join("; "),
     inspect: "shrimpy sessions list",
+    revision: JSON.stringify(status.active.map((session) => [
+      session.sessionId,
+      session.updatedAtMs,
+      session.status,
+    ])),
   }, ...workerItems];
 }
 

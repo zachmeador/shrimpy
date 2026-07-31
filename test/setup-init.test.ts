@@ -272,7 +272,7 @@ describe("setupInit", () => {
       "agent:context/",
     ]);
     assert.deepEqual(config.context.turn, {
-      maxChars: 2000,
+      maxChars: 6000,
       producers: [],
       channelUnread: {
         enabled: true,

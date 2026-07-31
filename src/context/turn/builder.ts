@@ -19,8 +19,9 @@ import { buildKnowledgeBreadcrumbItems } from "./knowledge.js";
 import {
   contextTurnProducerStateKey,
   readContextState,
-  writeContextState,
+  updateContextState,
 } from "./state.js";
+import { selectSessionUnseenItems } from "./delivery.js";
 import { renderUnsupportedSurfaceMessage } from "./surface.js";
 import { formatAgentCurrentTime } from "../../util/time-format.js";
 import type {
@@ -46,7 +47,7 @@ export async function buildTurnContext(
     buildProducerContext(input),
     buildKnowledgeBreadcrumbItems(input),
   ]);
-  const items = [
+  const candidateItems = [
     ...buildTurnFactItems({
       runtime: input.runtime,
       descriptor: input.descriptor,
@@ -61,6 +62,7 @@ export async function buildTurnContext(
     ...buildChannelUnreadItems(input),
     ...produced.items,
   ];
+  const selected = selectSessionUnseenItems(input, candidateItems);
 
   return {
     agentId,
@@ -68,8 +70,9 @@ export async function buildTurnContext(
     sessionType,
     capturedAt,
     maxChars: input.runtime.resolved.context.turn.maxChars,
-    items,
+    items: selected.items,
     producers: produced.reports,
+    deliveryState: selected.deliveryState,
   };
 }
 
@@ -111,6 +114,11 @@ function buildGatewayStatusItems(input: TurnContextInput): TurnContextItem[] {
     id: "gateway:status",
     summary: `gateway status: ${pieces.join("; ")}`,
     inspect: "shrimpy gateway status",
+    revision: JSON.stringify([
+      activity.lastWatchRun?.message.timestamp ?? null,
+      watchClock.nextWatchRun?.nextRunAtMs ?? null,
+      activity.lastUserInteraction?.message.timestamp ?? null,
+    ]),
   }];
 }
 
@@ -228,16 +236,18 @@ async function buildProducerContext(input: TurnContextInput): Promise<{
     };
   }));
 
-  let stateChanged = false;
-  for (const result of results) {
-    if (!result.remember) continue;
-    state.producers[result.remember.stateKey] = {
-      lastRunAt: result.remember.lastRunAt,
-      items: result.remember.items,
-    };
-    stateChanged = true;
+  const stateChanged = results.some((result) => result.remember !== undefined);
+  if (stateChanged) {
+    updateContextState(input.runtime, agentId, (current) => {
+      for (const result of results) {
+        if (!result.remember) continue;
+        current.producers[result.remember.stateKey] = {
+          lastRunAt: result.remember.lastRunAt,
+          items: result.remember.items,
+        };
+      }
+    });
   }
-  if (stateChanged) writeContextState(input.runtime, agentId, state);
 
   return {
     items: results.flatMap((result) => result.items),

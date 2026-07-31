@@ -93,7 +93,7 @@ function workerRecord(overrides: any = {}) {
 describe("resolveContextTurnConfig", () => {
   test("returns small defaults", () => {
     assert.deepEqual(resolveContextTurnConfig(), {
-      maxChars: 2000,
+      maxChars: 6000,
       producers: [],
       channelUnread: {
         enabled: true,

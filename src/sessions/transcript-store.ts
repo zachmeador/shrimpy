@@ -26,6 +26,7 @@ interface SessionLifecycleData {
 }
 
 interface StoredSessionSummary {
+  id: string;
   path: string;
   updatedAtMs: number;
   state: SessionLifecycleState;
@@ -114,6 +115,12 @@ export function findActiveSessionFile(sessionDir: string): string | undefined {
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]?.path;
 }
 
+export function findActiveSessionId(sessionDir: string): string | undefined {
+  return listStoredSessions(sessionDir)
+    .filter((session) => session.state === "active")
+    .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]?.id;
+}
+
 export function findMostRecentSessionFile(sessionDir: string): string | undefined {
   return listStoredSessions(sessionDir)
     .sort((a, b) => b.updatedAtMs - a.updatedAtMs)[0]?.path;
@@ -152,6 +159,7 @@ function readStoredSession(path: string): StoredSessionSummary | null {
   if (!header || header.type !== "session" || typeof header.id !== "string") return null;
 
   return {
+    id: header.id,
     path,
     updatedAtMs: statSync(path).mtimeMs,
     state: readLifecycleState(entries),

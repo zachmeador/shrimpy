@@ -23,6 +23,7 @@ export interface SessionTurnContextController {
 export type PrepareSessionTurnContext = (
   prompt: string,
   images?: ImageContent[],
+  sessionInstanceId?: string,
 ) => Promise<string | undefined> | string | undefined;
 
 export function createSessionTurnContextController(opts?: {

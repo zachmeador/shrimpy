@@ -3,6 +3,7 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ChannelMessage } from "../channels/protocol.js";
 import type { ChannelBus } from "../channels/bus.js";
 import { buildTurnContext } from "../context/turn/builder.js";
+import { markTurnContextDelivered } from "../context/turn/delivery.js";
 import { markChannelSeen } from "../context/turn/state.js";
 import type { ResolvedAgentConfig } from "../config/agents.js";
 import type { ModelRef } from "../config/model.js";
@@ -68,17 +69,21 @@ export class AgentChannelRuntime {
         persistent: true,
         cwd: opts.runtime.getAgentCwd(this.agent.id),
       }),
-      turnContextForMessage: (channel, message) => buildTurnContext({
-        runtime: opts.runtime,
-        descriptor: resolver.descriptor({
-          key: createChannelSessionKey({ agentId: this.agent.id, channel }),
-          purpose: "channel",
-          delivery: { kind: "channel", channel },
-          persistent: true,
-          cwd: opts.runtime.getAgentCwd(this.agent.id),
+      turnContextForMessage: (channel, message, sessionInstanceId) =>
+        buildTurnContext({
+          runtime: opts.runtime,
+          descriptor: resolver.descriptor({
+            key: createChannelSessionKey({ agentId: this.agent.id, channel }),
+            purpose: "channel",
+            delivery: { kind: "channel", channel },
+            persistent: true,
+            cwd: opts.runtime.getAgentCwd(this.agent.id),
+          }),
+          sessionInstanceId,
+          currentMessage: message,
         }),
-        currentMessage: message,
-      }),
+      markTurnContextDelivered: (context) =>
+        markTurnContextDelivered(opts.runtime, context),
       markMessageHandled: (channel, message) =>
         Promise.resolve(markChannelSeen(opts.runtime, this.agent.id, channel, message.id))
           .then(() => opts.markMessageHandled?.(this.agent.id, channel, message)),

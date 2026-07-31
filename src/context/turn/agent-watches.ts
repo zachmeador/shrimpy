@@ -30,6 +30,7 @@ export function buildAgentWatchItems(input: {
       id: `watches:${input.agentId}:none`,
       summary: `watches: no configured watches for ${input.agentId}`,
       inspect: `shrimpy watches --agent ${input.agentId}`,
+      revision: "none",
     }];
   }
 
@@ -47,6 +48,18 @@ export function buildAgentWatchItems(input: {
       MAX_WATCHES_SUMMARY_CHARS,
     ),
     inspect: `shrimpy watches --agent ${input.agentId}`,
+    revision: JSON.stringify(watches.map((watch) => [
+      watch.id,
+      watch.enabled,
+      watch.triggerText,
+      watch.targetChannels,
+      watch.nextRunAtMs ?? null,
+      watch.lastRun?.status ?? null,
+      watch.lastRun?.finishedAtMs ?? null,
+      watch.activeRun?.runId ?? null,
+      watch.activeRun?.startedAtMs ?? null,
+      watch.diagnostics,
+    ])),
   }];
 }
 

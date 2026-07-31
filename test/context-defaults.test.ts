@@ -375,7 +375,7 @@ describe("resolveContextConfig", () => {
 
 function defaultTurnContextConfig() {
   return {
-    maxChars: 2000,
+    maxChars: 6000,
     producers: [],
     channelUnread: {
       enabled: true,

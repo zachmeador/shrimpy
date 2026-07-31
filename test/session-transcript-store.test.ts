@@ -10,7 +10,13 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { archiveActiveSession, archiveSessionFile, listArchivedSessionFiles, restoreArchivedSession } from "../dist/sessions/transcript-store.js";
+import {
+  archiveActiveSession,
+  archiveSessionFile,
+  findActiveSessionId,
+  listArchivedSessionFiles,
+  restoreArchivedSession,
+} from "../dist/sessions/transcript-store.js";
 
 let testDir: string;
 
@@ -23,6 +29,17 @@ afterEach(() => {
 });
 
 describe("session transcript store", () => {
+  test("reads the concrete id of the active transcript without opening it", () => {
+    const sessionDir = join(testDir, "sessions", "shrimpy", "tui");
+    mkdirSync(sessionDir, { recursive: true });
+    const sessionFile = join(sessionDir, "state.jsonl");
+    writeSessionFile(sessionFile);
+
+    assert.equal(findActiveSessionId(sessionDir), sessionFile);
+    archiveActiveSession(sessionDir);
+    assert.equal(findActiveSessionId(sessionDir), undefined);
+  });
+
   test("archives the active session JSONL in place", () => {
     const sessionDir = join(testDir, "sessions", "shrimpy", "tui");
     mkdirSync(sessionDir, { recursive: true });

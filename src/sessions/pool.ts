@@ -46,7 +46,9 @@ interface SessionPoolOptions {
   turnContextForMessage?(
     channel: string,
     message: ChannelMessage,
+    sessionInstanceId: string,
   ): TurnContext | undefined | Promise<TurnContext | undefined>;
+  markTurnContextDelivered?(context: TurnContext): void | Promise<void>;
   markMessageHandled?(
     channel: string,
     message: ChannelMessage,
@@ -248,13 +250,21 @@ export class SessionPool {
     let activity: ChannelActivityHandle | null = null;
     try {
       const prompt = formatChannelMessage(lane.channel, message);
-      const turnContextText = await this.turnContext(lane, message, prompt);
       const session = await this.session(lane);
+      const turnContext = await this.turnContext(
+        lane,
+        message,
+        prompt,
+        session.sessionManager.getSessionId(),
+      );
+      if (turnContext.context) {
+        await this.options.markTurnContextDelivered?.(turnContext.context);
+      }
       activity = await this.startActivity(lane.channel);
       const turn = await runSessionTurn(session, prompt, {
         signal: controller.signal,
         abortMessage: "session turn stopped by user",
-        turnContextText,
+        turnContextText: turnContext.text,
         channelDelivery: true,
       });
       const replyRecovery = await this.reviewAndRecover(
@@ -286,11 +296,31 @@ export class SessionPool {
     lane: SessionLane,
     message: ChannelMessage,
     prompt: string,
-  ): Promise<string | undefined> {
-    const context = await this.options.turnContextForMessage?.(lane.channel, message);
+    sessionInstanceId: string,
+  ): Promise<{
+    text?: string;
+    context?: TurnContext;
+  }> {
+    const context = await this.options.turnContextForMessage?.(
+      lane.channel,
+      message,
+      sessionInstanceId,
+    );
     const routed = normalize(context ? renderTurnContext(context) : undefined);
-    if (routed || prompt.startsWith("/")) return routed;
-    return normalize(await (await this.plan(lane)).prepareTurnContext?.(prompt));
+    if (routed || prompt.startsWith("/")) {
+      return {
+        ...(routed ? { text: routed } : {}),
+        ...(context ? { context } : {}),
+      };
+    }
+    const prepared = normalize(
+      await (await this.plan(lane)).prepareTurnContext?.(
+        prompt,
+        undefined,
+        sessionInstanceId,
+      ),
+    );
+    return prepared ? { text: prepared } : {};
   }
 
   private record(
