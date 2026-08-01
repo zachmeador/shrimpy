@@ -21,7 +21,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [WATCH-002](proposals/watch-002-watch-session-profiles.md) | draft | P2 | Watches | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Watch-owned sessions with named profiles and model policy |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Discord DM chat adapter |
 | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
-| [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | todo | P2 | Surfaces | none | Buzz chat adapter with mechanic-owned setup |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |
 | [CTX-008](proposals/ctx-008-runtime-context-producers.md) | draft | P3 | Context | none | Runtime context producers as CLI commands |
@@ -33,4 +32,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [SESSION-001](proposals/session-001-generation-throughput-metrics.md) | draft | P3 | Sessions | none | Provider-reported generation throughput in session JSONL |
 | [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) | draft | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](proposals/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
+| [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | draft | P3 | Surfaces | [SURFACE-010](proposals/surface-010-acp-agent-server.md) | Buzz integration through its custom ACP harness seam |
+| [SURFACE-010](proposals/surface-010-acp-agent-server.md) | draft | P3 | Surfaces | none | Expose a selected Shrimpy agent through stable ACP over stdio |
 | [WORKSPACE-002](proposals/workspace-002-tiered-checkpoint-retention.md) | draft | P3 | Workspace | workspace checkpoint tracking | Tiered workspace checkpoint retention |

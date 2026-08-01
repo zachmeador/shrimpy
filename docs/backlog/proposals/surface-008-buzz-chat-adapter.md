@@ -1,100 +1,74 @@
 ---
-status: todo
-priority: P2
+status: draft
+priority: P3
 area: Surfaces
-depends_on: []
+depends_on:
+  - SURFACE-010
 ---
 
-# 🦐 SURFACE-008: Buzz Chat Adapter
+# 🦐 SURFACE-008: Buzz ACP Harness Integration
 
 ## Why
 
-Buzz is a plausible primary human chat UX for Shrimpy: the user runs or joins a Buzz relay, Shrimpy connects to it as a normal Buzz identity, and Buzz messages become ordinary Shrimpy channel messages. Shrimpy remains the agent runtime and owns context, sessions, memory, tools, watches, and internal channel logs.
+Buzz remains a plausible primary human chat UX for Shrimpy, but its integration boundary has moved materially since this proposal was first written. Buzz v0.5.0 added Bring Your Own Harness support for arbitrary ACP-speaking agents, v0.5.1 made custom harnesses configurable from the agent dialogs, and v0.5.2 aligned CLI mention delivery with Desktop. The maintained `buzz-acp` harness now owns the low-level Nostr and chat-runtime work that the original proposal expected Shrimpy to implement.
 
-The accepted scope is only a chat surface. Buzz canvases, workflows, git hosting, search, memory, ACP harnesses, managed agents, and other workspace features are not integration opportunities for this item. See [buzz-shrimpy-environment.md](../../research/buzz-shrimpy-environment.md) for the protocol, deployment, identity, and security research behind this direction.
+The revised direction is to expose a selected Shrimpy agent through [SURFACE-010](surface-010-acp-agent-server.md) and register that command as a Buzz custom harness. Buzz should own relay connectivity, Nostr identity, channel discovery, membership, author gates, mention subscriptions, per-channel queues, reconnect/replay, and agent presentation. Shrimpy should own its agent profile, model runtime, context, tools, ACP sessions, and transcripts.
+
+See [buzz-shrimpy-environment.md](../../research/buzz-shrimpy-environment.md) for the earlier deployment and protocol research. Its native Nostr adapter recommendation predates Buzz's generic ACP runtime seam and should not be treated as the current implementation plan.
 
 ## Current State
 
-- Telegram is the only registered Shrimpy `ChatSurfaceModule`.
-- Buzz exposes signed Nostr events over WebSocket and agent-oriented HTTP/CLI operations, but Shrimpy has no Buzz client, surface config, replay cursor, egress, or gateway lifecycle.
-- Buzz identities are Nostr keypairs. A Shrimpy agent identity therefore needs stricter secret handling than a normal public transport id.
-- Buzz's packaged desktop client still needs a relay. The user may connect Shrimpy to an existing relay or ask the mechanic to install a pinned local Buzz environment.
+- Shrimpy has no ACP server, so Buzz cannot launch it as a custom ACP harness yet.
+- Pi 0.83.0 provides an embeddable `AgentSession` API and a Pi-specific JSONL RPC mode, but no built-in ACP mode. A standalone Pi ACP adapter would bypass Shrimpy's agent profiles and session ownership.
+- Buzz's `buzz-acp` can spawn any ACP agent command over stdio. It handles `initialize`, creates one ACP session per active Buzz channel, sends prompts and mid-turn input, cancels or rotates sessions, and expects the agent to reply through the Buzz CLI or configured Buzz tool boundary.
+- Buzz Desktop can register a custom harness command and arguments without a Buzz source change. Its managed agent flow supplies the relay identity and runtime environment.
 
 ## UX Implications
 
-The user asks the mechanic to install or connect Buzz. The mechanic discovers an existing relay or offers an approved pinned local install, provisions a dedicated Buzz identity for the Shrimpy surface, collects the authorized human public keys and channel ids, writes the adapter configuration, restarts the gateway when approved, and verifies a round trip.
+The user installs or connects Buzz, then chooses Shrimpy as the runtime for a Buzz agent and selects an existing Shrimpy agent id. A mention in an admitted Buzz room starts or continues a Shrimpy-backed ACP session for that room. The Shrimpy agent replies in the same Buzz room or thread through the Buzz-provided CLI/tool environment.
 
-There is no dedicated `shrimpy setup buzz` command. The mechanic skill is the setup experience. Allowed channels are mention-only by default: an authorized human kind-9 message must `p`-tag the configured Buzz bot identity to wake the instance's default Shrimpy agent. A channel may instead be placed in an explicit always-on subset, in which case every authorized kind-9 message wakes the agent. Messages that do not satisfy the configured wake policy remain in Buzz and do not create Shrimpy channel messages or turns. The agent's reply appears in the same Buzz channel or thread.
+Buzz remains the visible chat history and the place where the user manages room membership, mentions, cancel/rotate controls, and agent presentation. Shrimpy retains its normal session transcript for the work it performed, but the first version does not mirror every Buzz message into a second Shrimpy workspace channel. The user should not have to configure relay URLs, Nostr event kinds, replay cursors, or signing keys in Shrimpy.
 
-The first version is plain-text stream-channel chat using Buzz/NIP-29 kind `9`. Direct messages are not part of the first contract because Buzz's NIP-17 encrypted DM path has materially different discovery, encryption, and event semantics. Unsupported Buzz features remain visibly unsupported rather than being partially translated or silently treated as text.
-
-### Agent room membership
-
-Buzz already has a useful seam for making Shrimpy agents visibly land in its chatrooms: an external Nostr identity can be added to a channel with the `bot` role and later removed by public key. The current Buzz CLI exposes this as `buzz channels add-member --channel <uuid> --pubkey <hex> --role bot` and `buzz channels remove-member --channel <uuid> --pubkey <hex>`. Buzz should present that identity and its messages as a bot rather than an ordinary human member. This is channel membership and presentation, not agent execution or a Buzz-managed agent record; Shrimpy continues to own and run the agent.
-
-The mechanic skill should eventually make that lifecycle feel native. Given a request such as “put Scout in the research room,” it can resolve the Shrimpy agent and Buzz channel, provision a dedicated Buzz identity if Scout does not have one, admit that identity to a closed Buzz community when the acting owner has permission, publish its presentation metadata, add it to the channel as a bot, configure the corresponding Shrimpy surface binding, and verify membership and message delivery. “Remove Scout from research” should remove only that channel membership and binding while retaining Scout's identity and memberships in other rooms. Retiring the identity and destroying its credentials must be a separate deliberate action.
-
-This should not use Buzz's managed-agent or `agents draft-create` workflow. That workflow creates an owner-reviewed Buzz Desktop draft for a Buzz-managed agent; a Shrimpy bot should instead remain an externally operated Nostr identity. Automatic room placement may be offered as part of an explicit mechanic-guided Shrimpy agent creation or connection flow, but it must not silently publish identities or change external channel membership.
+The default interaction should preserve Buzz's conservative owner-only author gate and mention-only delivery. Broader author allowlists, always-on subscriptions, heartbeats, and parallel harness processes remain explicit Buzz configuration rather than implicit Shrimpy behavior.
 
 ## Build
 
-- Add a `buzz` chat surface module under `src/surfaces/buzz/` and register it in `src/surfaces/registry.ts`.
-- Add `buzz.instances.<id>` config with relay URL, `defaultAgentId`, required authorized human public keys, required allowed channel ids, an optional `alwaysOnChannelIds` subset, stable Shrimpy user mappings, and conservative reconnect/send policy. Every allowed channel not in `alwaysOnChannelIds` is mention-only.
-- Keep the Nostr private key and optional NIP-OA owner-authorization tag in an owner-only workspace state file such as `state/buzz/<instance-id>/credentials.json`; keep only non-secret instance configuration in `config/shrimpy.json`. Create credential files atomically with mode `0o600`. When NIP-OA is configured, inject its `auth` tag into signed Buzz events and send the raw tag JSON as the `x-auth-tag` header on authenticated HTTP requests.
-- Use a maintained Nostr implementation for event encoding, Schnorr signing, NIP-42 authentication, and NIP-98 HTTP authentication. Do not hand-roll cryptography.
-- Start one persistent WebSocket connection per configured instance, complete the relay's NIP-42 challenge with the surface identity, and create channel-scoped `REQ` subscriptions for kind `9` using each allowed channel UUID as the `#h` filter.
-- Use NIP-98-authenticated `POST /query` requests for historical replay and `POST /events` requests for outbound signed events. Treat WebSocket `EVENT`, `EOSE`, `OK`, `CLOSED`, `NOTICE`, repeated `AUTH` challenges, and ping/pong as explicit protocol states.
-- Accept kind `9` only in the first contract. Pin and record a tested Buzz version, capture fixtures produced by that version's desktop client and CLI, and fail closed on kind `40002` or any other message-looking event until its exact semantics are deliberately supported.
-- Accept only configured channel ids and authorized human public keys. In mention-only channels, additionally require a `p` tag for the configured bot public key. Drop self-authored, unauthorized, unaddressed, unsupported, malformed, and duplicate events before publishing to a Shrimpy channel or waking an agent.
-- Map accepted Buzz channels to stable Shrimpy channels named `buzz~<instance-id>~<channel-uuid>` with manifest bindings such as `buzz/<instance-id>/<channel-uuid>`.
-- Publish accepted text through the shared chat-surface path with `transport: "buzz"`, author public key as `transportUserId`, Buzz channel UUID as `transportChatId`, Buzz event id as `sourceId`, and Nostr kind as `sourceKind`.
-- Preserve NIP-10 thread reply provenance when Buzz provides it. Plain channel text must remain useful when a thread reference cannot be represented.
-- Persist a replay cursor under `state/buzz/<instance-id>/` using event time plus event id. Page Buzz HTTP queries with its composite `(until, before_id)` cursor, reconnect with a bounded overlap window, and deduplicate by event id so same-second events and uncertain disconnect boundaries do not lose or repeat messages.
-- Implement outbound egress that builds and signs kind-9 text events, includes the channel UUID in the `h` tag, preserves NIP-10 `root` and `reply` event tags when present, submits through `POST /events`, and records normal Shrimpy delivery receipts.
-- Expose redacted gateway health through the existing surface health path: connection state, last accepted event, last completed replay, consecutive failures, restart count, and bounded errors without keys, tokens, message text, public keys, or channel ids.
-- Add a mechanic-owned included skill for Buzz installation and adapter setup. It may connect an existing relay or perform an explicitly approved pinned local install, provision and securely store the surface identity, add it to the Buzz community, collect allowlists, write config, validate the relay and adapter, and verify a round trip.
-- Give the mechanic composable add/remove-room operations for a configured Shrimpy agent identity. Prefer Buzz's NIP-29 membership operations directly through the maintained client boundary; the Buzz CLI may be used during setup when pinned and available. Add with the channel role `bot`, verify the resulting roster, and keep channel removal separate from identity retirement and credential deletion.
-- Document the settled adapter behavior in `docs/reference/surfaces.md` when implemented.
+- Depend on a tested `shrimpy acp --agent <id>` entrypoint from SURFACE-010. Keep the selected Shrimpy agent fixed for the lifetime of the ACP process; Buzz channel sessions may not switch it through prompt content or client metadata.
+- Add a mechanic-owned setup path that detects a compatible released Buzz installation, verifies `buzz-acp` and `buzz` CLI availability, registers or explains the Shrimpy custom harness definition, selects the Shrimpy agent id, and performs a mention/reply round trip. Prefer Buzz Desktop's inline custom-harness UI when it is available instead of editing app data directly.
+- Use Buzz's custom runtime command and instance arguments to launch Shrimpy directly, for example command `shrimpy` with arguments `acp`, `--agent`, and the selected id. Do not insert Pi's RPC mode or the community `pi-acp` adapter between Buzz and Shrimpy.
+- Let Buzz provision and retain the Nostr identity, relay authentication, channel memberships, author gate, mention filter, replay state, queue, session rotation, and process supervision. Do not copy those values into `config/shrimpy.json` or Shrimpy state.
+- Preserve the Buzz-supplied runtime environment for the tools used by the ACP session so the agent can call the configured `buzz` CLI or Buzz tool server. Redact the environment from Shrimpy logs, diagnostics, transcripts, and error messages.
+- Treat Buzz-provided base, workspace, channel, and message context as external session input below Shrimpy's system, profile, and authority rules. Buzz presentation metadata must not replace the selected agent's `SOUL.md`, model policy, tools, or workspace boundaries.
+- Validate the smallest supported Buzz contract against a pinned released version: custom harness discovery, ACP initialization, channel-scoped `session/new`, text `session/prompt`, streamed updates, normal completion, cancellation, session rotation, child restart, and same-thread outbound publication.
+- Exercise Buzz's default owner-only and mention-only gates plus one explicit allowlist configuration. Authorization rejected by Buzz must never reach Shrimpy; ACP admission and Shrimpy tool authority remain independently enforced by SURFACE-010.
+- Document the supported Buzz version, the custom-harness setup, the ownership boundary, and the fact that Buzz is the authoritative chat log when the integration is implemented.
 
 ## Boundaries
 
-- Chat surface only. Do not integrate Buzz canvases, workflows, git hosting, search, memory, feeds, repos, media stores, huddles, ACP harnesses, managed agents, or agent personas.
-- Do not run Shrimpy behind `buzz-acp` or Buzz's agent runtime. Shrimpy owns agent sessions and lifecycle.
-- Do not create or manage Shrimpy agents through Buzz's managed-agent draft flow. Buzz bot membership is presentation and routing for an external Shrimpy-owned identity.
-- Do not add `shrimpy setup buzz`. Guided installation and connection belong to the mechanic-owned skill.
-- Do not make `buzz-cli` a runtime dependency of the adapter. It may be used by the mechanic for pinned-install diagnostics when available.
-- Do not store Nostr private keys or NIP-OA authorization tags in skills, prompt-loaded context, channel logs, git-tracked files, command history, diagnostics, or ordinary surface config.
-- Do not rely on Buzz relay membership as Shrimpy authorization. Enforce the configured human public-key and channel allowlists before channel publication.
-- Do not authorize by profile name, display name, NIP-05 handle, or other mutable presentation metadata.
-- Do not claim that signed channel events are end-to-end encrypted. Treat the relay operator as able to read ordinary workspace chat unless the exact supported path proves otherwise.
-- Do not ingest Buzz direct messages in the first version. NIP-17 gift wrapping and encrypted DM discovery belong in a separately designed follow-on.
-- Do not ingest edits, deletions, reactions, media, forums, workflow events, git events, presence, typing, or other Buzz kinds in the first version.
-- Do not build multi-agent shared-room routing in the first version. Start with one Buzz surface identity and one default Shrimpy agent per configured instance.
-- Do not add legacy config aliases, migration paths, or compatibility shims.
+- Do not add a `buzz` `ChatSurfaceModule` in the first version.
+- Do not implement a Nostr WebSocket client, NIP-42 or NIP-98 authentication, event signing, HTTP replay, event-kind parsing, cursor storage, or duplicate suppression in Shrimpy. Those belong to Buzz and `buzz-acp` on this path.
+- Do not store a Buzz Nostr private key, owner authorization tag, relay token, channel allowlist, or replay cursor in the Shrimpy workspace.
+- Do not make Buzz protocol crates, SDKs, or `buzz-cli` runtime libraries part of Shrimpy. Buzz remains an external, versioned product dependency.
+- Do not duplicate Buzz's author gate or room membership model as a second Shrimpy-specific Buzz authorization system. Shrimpy must still enforce its own ACP admission and tool authority.
+- Do not let a Buzz agent definition redefine the selected Shrimpy agent's durable persona, model policy, skills, or tools. Buzz-specific context is scoped to the ACP session.
+- Do not mirror Buzz traffic into Shrimpy channels until there is a separate product reason to maintain two chat logs and a clear deduplication contract.
+- Do not broaden this item into generic ACP client support, Buzz canvases, workflows, git hosting, search, memory, feeds, media, huddles, or direct Nostr interoperability.
+- Do not add legacy native-adapter config aliases, migration paths, or compatibility shims for the superseded proposal.
 
-## Shape
+## Touches
 
-Use the existing surface vertical:
-
-- `config.ts` validates and resolves non-secret instance configuration.
-- `credentials.ts` owns the restricted credential file and redacted inspection.
-- `client.ts` owns authenticated Buzz WebSocket and HTTP protocol calls.
-- `bridge.ts` authorizes, deduplicates, maps identity and provenance, and publishes typed channel messages.
-- `cursor.ts` owns replay overlap and durable event-id deduplication.
-- `outbound.ts` signs and sends Shrimpy replies.
-- `surface.ts` wires egress-only and gateway lifecycle classes.
-- `module.ts` exports the registered `ChatSurfaceModule`.
-
-Keep Buzz protocol details inside this vertical. Reuse existing shared surface publication, membership, addressing, user-presence, outbox, receipt, and health seams without growing `src/surfaces/shared/` around speculative future adapters.
+- `src/commands/` for the ACP entrypoint supplied by SURFACE-010
+- `src/skills/included/` for mechanic-guided Buzz connection and verification
+- `docs/reference/` for the settled external integration contract
+- Buzz Desktop custom harness configuration and the external `buzz-acp`/`buzz` executables
 
 ## Done
 
-- The mechanic can connect an existing Buzz relay or complete an explicitly approved pinned local Buzz install without a dedicated product setup command.
-- The mechanic provisions a dedicated surface identity, stores the private key and optional NIP-OA authorization in an owner-only state file, configures authorized human public keys and channel ids, and verifies a round trip.
-- The mechanic can add a configured Shrimpy agent identity to a Buzz channel with role `bot`, verify that Buzz Desktop presents it as a bot rather than an ordinary human or Buzz-managed agent, and remove it from that channel without deleting the identity or disturbing its other channel memberships.
-- An authorized human kind-9 text event that mentions the bot in a mention-only allowed channel, or any authorized kind-9 text event in an always-on allowed channel, is published once into the corresponding `buzz~<instance>~<channel>` Shrimpy channel and wakes the configured default agent.
-- Unauthorized authors, disallowed channels, unaddressed mention-only messages, self-authored events, direct messages, malformed events, unsupported kinds, and replay duplicates do not create Shrimpy messages or turns.
-- An agent reply through normal Shrimpy channel publication is delivered to the same Buzz channel with normal delivery receipts.
-- Gateway and relay restarts replay uncertain event boundaries through `(until, before_id)` pagination without losing or duplicating accepted messages.
-- Health and inspection output are useful and redact credentials, message content, public keys, and channel ids.
-- Tests cover config validation, mention-only and always-on wake policy, restricted credential storage, NIP-OA injection, NIP-42 authentication boundaries, NIP-98 query and submit authentication, required allowlists, kind-9 fixtures from the pinned Buzz version, inbound authorization, identity/provenance mapping, self-echo rejection, composite replay pagination, cursor overlap, event-id deduplication, NIP-10 outbound threads, receipt behavior, redacted health, and mechanic skill validation.
+- A compatible Buzz release can launch `shrimpy acp --agent <id>` as a custom harness without a Shrimpy Nostr client or a Buzz source patch.
+- An admitted mention creates or resumes the correct channel-scoped Shrimpy ACP session and reaches the selected Shrimpy agent exactly once.
+- Follow-up and mid-turn Buzz messages obey Buzz's queue/steer behavior, while `!cancel` and `!rotate` map to cancellation and a fresh Shrimpy session without corrupting the prior transcript.
+- The agent can reply through the Buzz-provided CLI/tool boundary, and the response appears in the correct Buzz room or thread under the Buzz-managed identity.
+- Disallowed authors and unmentioned messages under the default gate never reach Shrimpy.
+- Buzz or ACP child restarts recover according to Buzz's documented harness behavior without Shrimpy maintaining a second relay replay cursor.
+- Shrimpy diagnostics expose useful ACP/session failures without logging Buzz credentials, authorization material, environment values, or message contents.
+- Tests cover custom command construction, fixed agent selection, external-context precedence, environment redaction, multi-channel ACP session separation, cancellation/rotation, restart behavior, and a real Buzz mention/reply smoke test against the pinned release.
