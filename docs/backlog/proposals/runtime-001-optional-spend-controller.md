@@ -138,7 +138,7 @@ Possible config shape:
 - [Runtime](../../reference/runtime.md): hook points belong around gateway sessions, direct sessions, watches, and workers.
 - [Tools](../../reference/tools.md): daemon tools are the first Shrimpy-owned tool surface that can be wrapped cleanly.
 - [Channels](../../reference/channels.md): refusals and spend status need visible, inspectable channel records when they affect routed work.
-- [SECURITY-005](security-005-session-scoped-authority-architecture.md): spend policy and resolved session authority may share runtime action metadata, but they should remain separate capabilities.
+- [SECURITY-006](security-006-session-authority.md): spend policy and resolved session authority may share runtime action metadata, but they should remain separate capabilities.
 
 ## Done
 

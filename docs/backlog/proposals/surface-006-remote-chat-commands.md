@@ -31,7 +31,7 @@ Use a small permission vocabulary compatible with session admission:
 
 `read-only` is still an affirmative grant. An unknown, unmapped, blocked, malformed, or unverifiable sender receives `none`, not the limited profile by default. Transport allowlists, room membership, mentions, addressing, mutable display names, and command spelling are not command authorization.
 
-The first owner-only adapters may derive `full` from their existing required user allowlists. The service boundary should nevertheless require a typed authorization input so SECURITY-002 and SECURITY-003 can later supply the resolved Shrimpy command permission without replacing command semantics or adding a second permission system.
+The first owner-only adapters may derive `full` from their existing required user allowlists. The service boundary should nevertheless require a typed authorization input so SECURITY-006 admission can later supply the resolved Shrimpy command permission without replacing command semantics or adding a second permission system.
 
 ## Build
 

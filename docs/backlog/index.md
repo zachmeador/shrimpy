@@ -14,11 +14,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | draft | P2 | Security | none | Generic session admission and named security profiles |
-| [SECURITY-003](proposals/security-003-public-chat-limited-sessions.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md), [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Public chat sender admission and limited sessions |
-| [SECURITY-004](proposals/security-004-path-bounded-file-tools.md) | draft | P2 | Security | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Path-bounded replacement file tools for constrained profiles |
-| [SECURITY-005](proposals/security-005-session-scoped-authority-architecture.md) | draft | P2 | Security | none | Session-scoped authority architecture across admission, profiles, and runners |
-| [WATCH-002](proposals/watch-002-watch-session-profiles.md) | draft | P2 | Watches | [SECURITY-002](proposals/security-002-session-admission-security-profiles.md) | Watch-owned sessions with named profiles and model policy |
+| [SECURITY-006](proposals/security-006-session-authority.md) | draft | P2 | Security | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Per-agent per-channel session policy, admission, and sandboxed runners |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | Discord DM chat adapter |
 | [SURFACE-006](proposals/surface-006-remote-chat-commands.md) | todo | P2 | Surfaces | none | Small remote chat command and status service |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
