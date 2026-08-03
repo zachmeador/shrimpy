@@ -26,6 +26,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [MEM-001](proposals/mem-001-session-title-summarizer.md) | draft | P3 | Memory | TUI-004 | Validate and optionally generate canonical Pi session names |
 | [RUNTIME-001](proposals/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SESSION-001](proposals/session-001-generation-throughput-metrics.md) | draft | P3 | Sessions | none | Provider-reported generation throughput in session JSONL |
+| [SESSION-002](proposals/session-002-rename-foreground-session-host.md) | todo | P3 | Sessions | [SECURITY-006](proposals/security-006-session-authority.md) | Rename the foreground module to match the in-process runner vocabulary |
 | [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) | draft | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](proposals/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
 | [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | draft | P3 | Surfaces | [SURFACE-010](proposals/surface-010-acp-agent-server.md) | Buzz integration through its custom ACP harness seam |

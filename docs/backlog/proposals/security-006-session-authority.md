@@ -30,6 +30,7 @@ Four rules carry the design:
 - Agent tool policy is global: there is no way to narrow an agent's authority for one channel, so watch turns and public rooms get the agent's full power along with the channel's continuity.
 - `SessionPool` keys lanes by channel name rather than full session identity.
 - Command watches execute shell directly in the gateway process — the largest live authority hole in the system.
+- Workers already spawn detached child processes that host a session (`src/workers/runner.ts`): the child boots a full `AppRuntime` with workspace credentials and runs a `worker/<id>` session through the same foreground path the CLI uses, returning results through files with no IPC. The `codex` backend passes `sandbox_mode="danger-full-access"`. Workers are an unsandboxed proto-subprocess-runner with a parallel spawn path of their own.
 - Transport acceptance (for example Telegram `allowedChatIds`) admits whole rooms; surface user mappings and `state/users.json` provide stable identity but no permission semantics.
 - Sessions execute inside whichever trusted process opened them: the gateway daemon for channel and watch turns, the CLI process for foreground TUI sessions. A session's syscalls carry its host process's full authority.
 
@@ -88,6 +89,10 @@ The stdio RPC carries everything that crosses the trust boundary: channel delive
 
 Network egress policy is out of scope. Web capability comes from the tool allowlist: a session without Bash or web-capable tools has no web capability, and that is enough. A network field can join `SessionPolicy` later if a concrete workflow needs egress control on a session that legitimately holds network-capable tools.
 
+The subprocess runner absorbs the worker spawn machinery rather than growing beside it. The existing worker child already proves most of the shape — spawn a child, run one session turn, return results through files, no streaming RPC — so the runner starts from that pattern and adds containment. Workers keep their lifecycle, turns, and records as a consumer of the runner, not as a second way to spawn sessions.
+
+For external worker backends (`codex`, later `claude`), the runner maps `SessionPolicy` onto the backend's native sandbox flags instead of wrapping the backend in Seatbelt: one policy vocabulary, per-backend enforcement. The current `sandbox_mode="danger-full-access"` default is replaced by this mapping.
+
 Command watches become this runner's first non-model consumer: a policy with no tools and a command, replacing their current unrestricted shell path.
 
 ### Bounded file access
@@ -102,7 +107,9 @@ Command watches become this runner's first non-model consumer: a policy with no 
 
 **Public chat.** A public room maps to a channel, and the agent's per-channel policy for it is narrow — for example `reply` and `ask` only, `commandPermission: "read-only"` against the SURFACE-006 matrix. Everyone in the room, owner included, talks to the same limited session; privileged work belongs in another channel. Sender grants decide who may wake the agent versus being blocked, and per-sender command permission stays with SURFACE-006. For privileged presence inside a public room, use two agents: a restricted one that talks to everyone and a powerful one whose `channelPolicy` wakes only for the owner. Attention and per-agent policy compose; no per-sender sessions exist.
 
-**Explicit runs and workers.** A CLI run or future worker may opt into a validated inline policy through the same admission path. Opting in means the refusal rule applies: a requested `fileAccess` policy errors until a containing runner can honor it.
+**Workers.** Workers become the subprocess runner's first session consumer, and worker runs are **sandboxed by default** once the runner exists — an unsandboxed worker requires explicit configuration, inverting today's default. A worker's policy resolves through the same admission path; the `worker/<id>` session, lifecycle, turns, and records are unchanged.
+
+**Explicit runs.** A CLI run may opt into a validated inline policy through the same admission path. Opting in means the refusal rule applies: a requested `fileAccess` policy errors until a containing runner can honor it.
 
 ## UX Implications
 
@@ -116,7 +123,7 @@ In a room full of agents, inspection can explain per message why each agent woke
 
 Deliberately few; the rest of the note states decided positions.
 
-- The subprocess RPC protocol shape, driven by what Pi needs to host a session out-of-process. This is the largest engineering unknown in the note and may pull step 5 apart into its own follow-up once explored.
+- The credential story for detached children. The worker evidence narrows the old RPC unknown considerably: file-based results are enough, no streaming protocol is needed. What remains is that brokered model calls require a live parent, while today's worker children are detached and can outlive the CLI that spawned them. Either sandboxed workers require a running gateway to broker credentials and model traffic, or detached children keep credentials and settle for a filesystem-only sandbox as the weaker-but-honest default.
 
 ## Boundaries
 
@@ -135,9 +142,10 @@ Deliberately few; the rest of the note states decided positions.
 2. Remove `profileId` from `SessionKey`; key pool lanes by full key.
 3. Admission function before gateway session open; manifest records resolved policy; pinned-policy conflict handling.
 4. Name the in-process runner backend and its refusal rule.
-5. Subprocess runner: sandboxed child process hosting a Pi session, Seatbelt/bubblewrap profile generation from policy, stdio RPC to the gateway.
-6. Public room sender grants and SURFACE-006 command gating.
-7. Move command watches onto the subprocess runner.
+5. Subprocess runner: sandboxed child process hosting a Pi session, Seatbelt/bubblewrap profile generation from policy, results through files, absorbing the worker spawn path.
+6. Workers as runner consumers, sandboxed by default; external backends map policy to native sandbox flags.
+7. Public room sender grants and SURFACE-006 command gating.
+8. Move command watches onto the subprocess runner.
 
 ## Touches
 
@@ -146,6 +154,7 @@ Deliberately few; the rest of the note states decided positions.
 - `src/tools/policy.ts` for allowlist construction
 - `src/agents/channel-runtime.ts` for admission before dispatch
 - `src/surfaces/shared/` for authenticated sender facts and command permission
+- `src/workers/` for the runner-consumer refactor and backend sandbox-flag mapping
 - a new runner module for backend selection, sandbox profile generation, and the subprocess host
 - `docs/reference/security.md`, `sessions.md`, `tools.md`, `runtime.md`, `configuration.md`
 
@@ -156,5 +165,6 @@ Deliberately few; the rest of the note states decided positions.
 - Admission resolves policy before session open; failures are closed and explained.
 - A `fileAccess` policy is enforced by kernel sandboxing in a subprocess runner, or refused; no pseudo-bounded middle state exists.
 - Command watches no longer execute unrestricted shell in the gateway process.
+- Worker runs are sandboxed by default, there is one child-session spawn path, and no external backend runs with sandboxing disabled unless explicitly configured.
 - Inspection distinguishes in-process tool narrowing from subprocess containment.
 - Tests cover ceiling validation, per-channel policy resolution, full-key lanes, fail-closed admission, pinned-policy conflicts, sandbox profile generation, blocked senders, and mixed-agent rooms.
