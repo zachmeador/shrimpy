@@ -294,7 +294,7 @@ Telegram configuration lives under `telegram` in `config/shrimpy.json`. Every in
 }
 ```
 
-Stable human ids live in `state/users.json`. Telegram `users` mappings turn transport ids into stable Shrimpy ids such as `human:alice`. The optional top-level `owner` names the canonical workspace user; when set, CLI publishers stamp messages as that owner. Manage with `shrimpy users list|get-owner|set-owner`.
+Stable human ids live in `state/users.json`. Telegram `users` mappings turn transport ids into stable Shrimpy ids such as `human:alice` and authorize mapped users to run remote commands in allowed group chats. An allowed one-to-one private chat authorizes its matching Telegram user directly; see [surfaces.md](surfaces.md) for the transport boundary. The optional top-level `owner` names the canonical workspace user; when set, CLI publishers stamp messages as that owner. Manage workspace identities with `shrimpy users list|get-owner|set-owner`.
 
 ## Watches And Status
 

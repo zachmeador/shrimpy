@@ -24,7 +24,7 @@ export interface SurfaceModuleResolved<TInstance extends ResolvedSurfaceInstance
 export interface SurfaceRuntime {
   paths: Pick<
     WorkspacePaths,
-    "workspace" | "mediaDir" | "userPresencePath"
+    "workspace" | "mediaDir" | "userPresencePath" | "gatewayStatePath"
   >;
   resolved: {
     agents: Array<{ id: string }>;

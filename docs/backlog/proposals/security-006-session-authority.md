@@ -2,8 +2,7 @@
 status: draft
 priority: P2
 area: Security
-depends_on:
-  - SURFACE-006
+depends_on: []
 ---
 
 # 🦐 SECURITY-006: Session Authority
@@ -105,7 +104,7 @@ Command watches become this runner's first non-model consumer: a policy with no 
 
 **Watches.** Unchanged in shape: a message watch publishes to its target channel and wakes the handling agent's channel session, sharing that channel's continuity deliberately. Isolation and restriction come from channel choice — a narrow autonomous job gets its own channel, and each handling agent's per-channel policy and model policy make that session exactly as capable as the job needs. No watch session namespace, no per-watch session config. Command watches are unrelated to this path; they move onto the subprocess runner.
 
-**Public chat.** A public room maps to a channel, and the agent's per-channel policy for it is narrow — for example `reply` and `ask` only, `commandPermission: "read-only"` against the SURFACE-006 matrix. Everyone in the room, owner included, talks to the same limited session; privileged work belongs in another channel. Sender grants decide who may wake the agent versus being blocked, and per-sender command permission stays with SURFACE-006. For privileged presence inside a public room, use two agents: a restricted one that talks to everyone and a powerful one whose `channelPolicy` wakes only for the owner. Attention and per-agent policy compose; no per-sender sessions exist.
+**Public chat.** A public room maps to a channel, and the agent's per-channel policy for it is narrow — for example `reply` and `ask` only, `commandPermission: "read-only"` against the shared remote command matrix. Everyone in the room, owner included, talks to the same limited session; privileged work belongs in another channel. Sender grants decide who may wake the agent versus being blocked, and per-sender command permission stays with the remote command service. For privileged presence inside a public room, use two agents: a restricted one that talks to everyone and a powerful one whose `channelPolicy` wakes only for the owner. Attention and per-agent policy compose; no per-sender sessions exist.
 
 **Workers.** Workers become the subprocess runner's first session consumer, and worker runs are **sandboxed by default** once the runner exists — an unsandboxed worker requires explicit configuration, inverting today's default. A worker's policy resolves through the same admission path; the `worker/<id>` session, lifecycle, turns, and records are unchanged.
 
@@ -144,7 +143,7 @@ Deliberately few; the rest of the note states decided positions.
 4. Name the in-process runner backend and its refusal rule.
 5. Subprocess runner: sandboxed child process hosting a Pi session, Seatbelt/bubblewrap profile generation from policy, results through files, absorbing the worker spawn path.
 6. Workers as runner consumers, sandboxed by default; external backends map policy to native sandbox flags.
-7. Public room sender grants and SURFACE-006 command gating.
+7. Public room sender grants and remote command gating.
 8. Move command watches onto the subprocess runner.
 
 ## Touches

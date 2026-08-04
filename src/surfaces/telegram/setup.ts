@@ -167,6 +167,29 @@ async function askForChatIds(
   return [...new Set(retryParsed)];
 }
 
+async function askForCommandUserIds(
+  ask: (question: string) => Promise<string>,
+): Promise<number[]> {
+  const input = await ask(
+    "Enter Telegram user IDs allowed to use remote commands in group chats (comma-separated), or Enter for none: ",
+  );
+  if (!input) return [];
+  const parsed = parseChatIds(input);
+  if (parsed !== null) return [...new Set(parsed)];
+
+  console.log("Invalid input: Telegram user IDs must be numbers.");
+  const retry = await ask(
+    "Enter group command user IDs (comma-separated), or Enter to skip group command access: ",
+  );
+  if (!retry) return [];
+  const retryParsed = parseChatIds(retry);
+  if (retryParsed === null) {
+    console.log("Still invalid. Group commands will remain disabled for unmapped users.");
+    return [];
+  }
+  return [...new Set(retryParsed)];
+}
+
 async function discoverAllowedChatIds(
   token: string,
   ask: (question: string) => Promise<string>,
@@ -270,6 +293,10 @@ export async function setupTelegram(workspace: string): Promise<void> {
           token?: string;
           defaultAgentId?: string;
           allowedChatIds?: number[];
+          users?: Record<string, {
+            id: string;
+            displayName?: string;
+          }>;
         }>
       : {};
     const configuredAgentIds = Array.isArray(raw.agents)
@@ -389,10 +416,31 @@ export async function setupTelegram(workspace: string): Promise<void> {
     }
     console.log();
 
+    let users = structuredClone(existing?.users ?? {});
+    console.log("Allowed private DMs can use remote commands directly. Group-chat commands require an explicit Telegram user mapping.");
+    if (Object.keys(users).length > 0) {
+      console.log(`Existing command users: ${Object.keys(users).join(", ")}`);
+      if (!(await confirm("Keep existing command users?"))) {
+        users = {};
+      }
+    }
+    if (
+      Object.keys(users).length === 0
+      || await confirm("Add another command user?", false)
+    ) {
+      const commandUserIds = await askForCommandUserIds(ask);
+      for (const userId of commandUserIds) {
+        const key = String(userId);
+        users[key] ??= { id: `telegram:${key}` };
+      }
+    }
+    console.log();
+
     const telegramInstanceConfig: Record<string, unknown> = {
       token,
       defaultAgentId,
       allowedChatIds,
+      ...(Object.keys(users).length > 0 ? { users } : {}),
     };
     raw.telegram = {
       ...telegramRaw,

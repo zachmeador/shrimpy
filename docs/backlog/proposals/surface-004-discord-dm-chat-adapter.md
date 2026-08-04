@@ -2,8 +2,7 @@
 status: todo
 priority: P2
 area: Surfaces
-depends_on:
-  - SURFACE-006
+depends_on: []
 ---
 
 # 🦐 SURFACE-004: Discord DM Chat Adapter
@@ -21,7 +20,7 @@ An authorized user can talk privately to Shrimpy through a Discord bot and recei
 
 ## Build
 - Add a `discord` chat surface module under `src/surfaces/discord/`, following the current Telegram module shape.
-- Reuse `ChatSurfacePublisher`, identity resolution, thread state, membership, and the remote command service from [SURFACE-006](surface-006-remote-chat-commands.md). Extract any additional shared helper only after Telegram and Discord have the same concrete behavior; keep transport authorization, event filtering, and gateway lifecycle inside their adapters.
+- Reuse `ChatSurfacePublisher`, identity resolution, thread state, membership, and the shared remote command service. Extract any additional shared helper only after Telegram and Discord have the same concrete behavior; keep transport authorization, event filtering, and gateway lifecycle inside their adapters.
 - Add `discord.instances.<id>` config with bot token, `defaultAgentId`, required authorized Discord user ids, stable Shrimpy user mappings, and conservative message-formatting policy.
 - Register Discord surface egress for `discord/<instance>` bindings, and have inbound DMs write channel manifests with bindings such as `discord/<instance>/<thread>` while keeping stable generated channel names like `discord~<instance>~<thread>`.
 - Start a gateway listener for configured instances and accept only `MESSAGE_CREATE` events from one-on-one DM channels.

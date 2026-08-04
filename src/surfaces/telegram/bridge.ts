@@ -23,6 +23,11 @@ import {
 import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
 import type { UserPresenceStore } from "../shared/user-presence.js";
 import type {
+  RemoteCommandContext,
+  RemoteCommandPermission,
+  RemoteCommandStatusDetails,
+} from "../shared/remote-commands.js";
+import type {
   TelegramBotApiClient,
   TelegramMessage,
   TelegramUpdate,
@@ -48,6 +53,7 @@ type TelegramInboundContext = {
   chatKey: string;
   channel: string;
   messageBase: TelegramHumanMessageBase;
+  commandPermission: RemoteCommandPermission;
 };
 
 type PendingPhotoGroup = {
@@ -80,6 +86,9 @@ export interface TelegramChannelBridgeConfig {
     actorId: string;
     displayName?: string;
   }>;
+  readCommandStatus?: (
+    context: RemoteCommandContext,
+  ) => RemoteCommandStatusDetails | Promise<RemoteCommandStatusDetails>;
   textBurstWindowMs?: number;
   mediaGroupWindowMs?: number;
 }
@@ -125,9 +134,34 @@ export class TelegramChannelBridge {
     const msg = update.message;
     if (!msg) return;
 
-    const context = this.buildInboundContext(msg);
+    if (!this.config.allowedChatIds.includes(msg.chat.id)) return;
+    const commandPermission = this.resolveCommandPermission(msg);
+    if (
+      msg.text
+      && looksLikeTelegramCommand(msg.text)
+      && commandPermission === "none"
+    ) {
+      try {
+        await sendTelegramFormattedText(
+          this.client,
+          msg.chat.id,
+          "This remote command is not authorized.",
+        );
+      } catch (err) {
+        console.error("[telegram] failed to send remote command denial:", err);
+      }
+      return;
+    }
+
+    const context = this.buildInboundContext(msg, commandPermission);
     if (!context) return;
-    const { channel, chatId, chatKey, messageBase } = context;
+    const {
+      channel,
+      chatId,
+      chatKey,
+      messageBase,
+      commandPermission: effectiveCommandPermission,
+    } = context;
 
     if (msg.photo && msg.photo.length > 0) {
       await this.flushTextBurst(chatKey);
@@ -138,7 +172,13 @@ export class TelegramChannelBridge {
     if (msg.text) {
       if (looksLikeTelegramCommand(msg.text)) {
         await this.flushPendingForChat(chatKey);
-        if (await this.handleCommand(channel, messageBase, chatId, msg.text)) {
+        if (await this.handleCommand(
+          channel,
+          messageBase,
+          chatId,
+          msg.text,
+          effectiveCommandPermission,
+        )) {
           return;
         }
         this.appendText(
@@ -172,6 +212,7 @@ export class TelegramChannelBridge {
 
   private buildInboundContext(
     msg: TelegramMessage,
+    commandPermission: RemoteCommandPermission,
   ): TelegramInboundContext | null {
     const chatId = msg.chat.id;
     if (!this.config.allowedChatIds.includes(chatId)) {
@@ -209,6 +250,7 @@ export class TelegramChannelBridge {
       chatId,
       chatKey,
       channel,
+      commandPermission,
       messageBase: {
         sender: {
           kind: "human",
@@ -223,6 +265,18 @@ export class TelegramChannelBridge {
         },
       },
     };
+  }
+
+  private resolveCommandPermission(
+    msg: TelegramMessage,
+  ): RemoteCommandPermission {
+    if (msg.from?.id === undefined) return "none";
+
+    const transportUserId = String(msg.from.id);
+    const isMappedUser = this.config.users?.[transportUserId] !== undefined;
+    const isMatchingPrivateDm = msg.chat.type === "private"
+      && msg.chat.id === msg.from.id;
+    return isMappedUser || isMatchingPrivateDm ? "full" : "none";
   }
 
   private async flushPendingForChat(chatId: string): Promise<void> {
@@ -353,6 +407,7 @@ export class TelegramChannelBridge {
     messageBase: TelegramHumanMessageBase,
     chatId: number,
     text: string,
+    permission: RemoteCommandPermission,
   ): Promise<boolean> {
     return handleTelegramCommand(
       {
@@ -360,6 +415,12 @@ export class TelegramChannelBridge {
         surfaceId: this.config.surfaceId,
         defaultAgentId: this.config.defaultAgentId,
         threadStateStore: this.config.threadStateStore,
+        readStatus: this.config.readCommandStatus ?? (() => ({
+          lane: {
+            phase: "unknown",
+            queueDepth: 0,
+          },
+        })),
         sendText: async (targetChatId, replyText) => {
           await sendTelegramFormattedText(this.client, targetChatId, replyText);
         },
@@ -370,6 +431,7 @@ export class TelegramChannelBridge {
         text,
         sender: messageBase.sender,
         origin: messageBase.origin,
+        permission,
       },
     );
   }

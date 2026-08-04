@@ -2,6 +2,17 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 0.6.2 - The Blue Hour - Unreleased
+
+### Breaking Changes
+
+- Changed Telegram group-chat commands to require the sender's numeric Telegram user ID in `telegram.instances.<id>.users`; allowed one-to-one private chats authorize their matching Telegram user directly.
+- Removed Telegram `/restore`; use local CLI or TUI session recovery instead.
+
+### Channels & Surfaces
+
+- Added shared, adapter-neutral `/help`, `/status`, `/new`, `/clear`, `/stop`, and `/thinking <level>` semantics with exact argument validation, fail-closed authorization, permission-filtered help, observational lane status, and command-shaped input that never wakes an agent.
+
 ## 🦐 0.6.1 - The Blue Hour - 2026-07-29
 
 ### Web Inspector

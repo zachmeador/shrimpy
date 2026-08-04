@@ -13,6 +13,7 @@ import type { SurfaceThreadStateStore } from "../shared/thread-state-store.js";
 import type { SurfaceRuntime } from "../shared/module.js";
 import type { GatewaySurface, SurfaceEgress } from "../shared/types.js";
 import { UserPresenceStore } from "../shared/user-presence.js";
+import { readGatewayRemoteCommandStatus } from "../shared/remote-command-status.js";
 import { TelegramChannelBridge } from "./bridge.js";
 import {
   TelegramApiError,
@@ -179,6 +180,11 @@ class TelegramGatewaySurface
         userPresenceStore: new UserPresenceStore(runtime.paths.userPresencePath),
         allowedChatIds: instance.allowedChatIds,
         users: instance.users,
+        readCommandStatus: (context) =>
+          readGatewayRemoteCommandStatus(runtime.paths.gatewayStatePath, {
+            agentId: context.targetAgentId,
+            channel: context.channel,
+          }),
         textBurstWindowMs: instance.textBurstWindowMs,
         mediaGroupWindowMs: instance.mediaGroupWindowMs,
       },

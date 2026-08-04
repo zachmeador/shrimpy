@@ -11,6 +11,10 @@ import { IdentityStore } from "../dist/gateway/identity-store.js";
 import { listTelegramMenuCommands } from "../dist/surfaces/telegram/commands.js";
 import { SurfaceThreadStateStore } from "../dist/surfaces/shared/thread-state-store.js";
 import { UserPresenceStore } from "../dist/surfaces/shared/user-presence.js";
+import type {
+  RemoteCommandContext,
+  RemoteCommandStatusDetails,
+} from "../dist/surfaces/shared/remote-commands.js";
 
 let testDir: string;
 
@@ -33,6 +37,9 @@ function createBridge(overrides?: {
   textBurstWindowMs?: number;
   mediaGroupWindowMs?: number;
   users?: Record<string, { userId: string; actorId: string; displayName?: string }>;
+  readCommandStatus?: (
+    context: RemoteCommandContext,
+  ) => RemoteCommandStatusDetails | Promise<RemoteCommandStatusDetails>;
 }) {
   const channelsDir = join(testDir, "channels");
   const mediaDir = join(testDir, "media");
@@ -55,7 +62,14 @@ function createBridge(overrides?: {
       channelMemberships: overrides?.channelMemberships,
       userPresenceStore: overrides?.userPresenceStore,
       allowedChatIds: overrides?.allowedChatIds ?? [4242],
-      users: overrides?.users,
+      users: overrides?.users ?? {
+        "7": {
+          userId: "alice",
+          actorId: "human:alice",
+          displayName: "Alice",
+        },
+      },
+      readCommandStatus: overrides?.readCommandStatus,
       textBurstWindowMs: overrides?.textBurstWindowMs,
       mediaGroupWindowMs: overrides?.mediaGroupWindowMs,
     },
@@ -80,6 +94,13 @@ describe("TelegramChannelBridge", () => {
   test("does not advertise addressed-agent switching", () => {
     assert.equal(
       listTelegramMenuCommands().some((command) => command.command === "agent"),
+      false,
+    );
+  });
+
+  test("does not advertise remote session restore", () => {
+    assert.equal(
+      listTelegramMenuCommands().some((command) => command.command === "restore"),
       false,
     );
   });
@@ -121,6 +142,35 @@ describe("TelegramChannelBridge", () => {
     assert.equal(messages[0].sender.displayName, "Alice");
   });
 
+  test("authorizes the matching user in an allowed private DM", async () => {
+    const { bridge, channelBus } = createBridge({
+      allowedChatIds: [7],
+      users: {},
+    });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 7, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/new",
+      },
+    });
+
+    const { messages } = channelBus.read("telegram~main~7");
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0].content, {
+      type: "control",
+      data: {
+        kind: "session_reset",
+        targetAgentId: "shrimpy",
+        command: "/new",
+      },
+    });
+  });
+
   test("maps /new into a session reset control message", async () => {
     const { bridge, channelBus } = createBridge();
 
@@ -148,7 +198,7 @@ describe("TelegramChannelBridge", () => {
     });
   });
 
-  test("does not treat /agent as a surface command", async () => {
+  test("consumes unsupported command-shaped input without waking an agent", async () => {
     const memberships = new ChannelMembershipStore(
       join(testDir, "channels.json"),
       [{ id: "shrimpy" }, { id: "career" }] as any,
@@ -184,20 +234,15 @@ describe("TelegramChannelBridge", () => {
     });
     await bridge.flushPending();
 
-    assert.deepEqual(sent, []);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]?.text ?? "", /Unknown remote command/);
     assert.deepEqual(memberships.listAgentIds("telegram~main~4242"), ["shrimpy"]);
     assert.equal(
       threadStateStore.get("telegram.main", "4242").addressedAgentId,
       undefined,
     );
     const { messages } = channelBus.read("telegram~main~4242");
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0].content, {
-      type: "text",
-      data: {
-        text: "/agent career",
-      },
-    });
+    assert.equal(messages.length, 0);
   });
 
   test("records user presence for inbound Telegram chats", async () => {
@@ -320,8 +365,9 @@ describe("TelegramChannelBridge", () => {
     });
   });
 
-  test("maps /restore into a session restore control message", async () => {
-    const { bridge, channelBus } = createBridge();
+  test("consumes removed /restore without publishing a control or agent message", async () => {
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const { bridge, channelBus } = createBridge({ sent });
 
     await bridge.handleUpdate({
       update_id: 1,
@@ -335,16 +381,48 @@ describe("TelegramChannelBridge", () => {
     });
 
     const { messages } = channelBus.read("telegram~main~4242");
-    assert.equal(messages.length, 1);
-    assert.deepEqual(messages[0].content, {
-      type: "control",
-      data: {
-        kind: "session_restore",
-        targetAgentId: "shrimpy",
-        archiveName: "archive-2026-04-05",
-        command: "/restore",
+    assert.equal(messages.length, 0);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]?.text ?? "", /Unknown remote command/);
+  });
+
+  test("denies group commands from unmapped users before status collection", async () => {
+    let collected = false;
+    const memberships = new ChannelMembershipStore(
+      join(testDir, "channels.json"),
+      [{ id: "shrimpy" }] as any,
+    );
+    const presenceStore = new UserPresenceStore(join(testDir, "presence.json"));
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const { bridge, channelBus } = createBridge({
+      users: {},
+      sent,
+      channelMemberships: memberships,
+      userPresenceStore: presenceStore,
+      readCommandStatus: () => {
+        collected = true;
+        return { lane: { phase: "idle", queueDepth: 0 } };
       },
     });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "group" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/status",
+      },
+    });
+
+    assert.equal(collected, false);
+    assert.equal(channelBus.read("telegram~main~4242").messages.length, 0);
+    assert.deepEqual(memberships.read().channels, {});
+    assert.equal(presenceStore.get("alice"), undefined);
+    assert.equal(existsSync(join(testDir, "users.json")), false);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]?.text ?? "", /not authorized/);
   });
 
   test("maps /stop into a session stop control message", async () => {
@@ -493,9 +571,64 @@ describe("TelegramChannelBridge", () => {
     assert.equal(sent[0]?.parseMode, "HTML");
     assert.match(sent[0]?.text ?? "", /<b>Shrimpy Telegram Commands<\/b>/);
     assert.match(sent[0]?.text ?? "", /<code>\/new<\/code>/);
+    assert.doesNotMatch(sent[0]?.text ?? "", /restore/);
 
     const { messages } = channelBus.read("telegram~main~4242");
     assert.equal(messages.length, 0);
+  });
+
+  test("renders authorized observational /status without appending a channel message", async () => {
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const { bridge, channelBus } = createBridge({
+      sent,
+      readCommandStatus: (context) => {
+        assert.equal(context.targetAgentId, "shrimpy");
+        assert.equal(context.channel, "telegram~main~4242");
+        return {
+          lane: {
+            phase: "running",
+            queueDepth: 2,
+          },
+        };
+      },
+    });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/status",
+      },
+    });
+
+    assert.equal(channelBus.read("telegram~main~4242").messages.length, 0);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]?.text ?? "", /Shrimpy Remote Status/);
+    assert.match(sent[0]?.text ?? "", /running \(2 queued\)/);
+    assert.doesNotMatch(sent[0]?.text ?? "", /private-message-id/);
+  });
+
+  test("rejects extra arguments without publishing a control", async () => {
+    const sent: Array<{ chatId: number; text: string; parseMode?: string }> = [];
+    const { bridge, channelBus } = createBridge({ sent });
+
+    await bridge.handleUpdate({
+      update_id: 1,
+      message: {
+        message_id: 10,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: 4242, type: "private" },
+        from: { id: 7, is_bot: false, first_name: "Alice", username: "alice" },
+        text: "/new now",
+      },
+    });
+
+    assert.equal(channelBus.read("telegram~main~4242").messages.length, 0);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]?.text ?? "", /Usage/);
   });
 
   test("debounces rapid text bursts into one channel message", async () => {
