@@ -1,6 +1,6 @@
 ---
 status: todo
-priority: P1
+priority: P3
 area: Comms
 depends_on: []
 ---
