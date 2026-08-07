@@ -7,7 +7,7 @@ depends_on: []
 
 # 🦐 COMMS-001: Comms Plane Redesign
 
-One rule drives this redesign: **a channel log contains only what could be rendered in a chat transcript.** Conversation, media, and a few conversation-relevant markers. Everything else that currently rides the log — RPC controls, correlated acks, delivery-eligibility oracles, provenance-sniffed behavior — moves to an honest home. This note is self-contained: it carries the full diagnosis, the full target design, and the decisions already made, so the implementing agent does not need the originating conversation.
+Two rules drive this redesign. **A channel log contains only what could be rendered in a chat transcript** — conversation, media, and a few conversation-relevant markers; everything else that currently rides the log (RPC controls, correlated acks, delivery-eligibility oracles, provenance-sniffed behavior) moves to an honest home. And **anyone may read the log, but exactly one process — the comms host — writes it**; every other process asks the host, briefly becomes the host, or leaves intent in state it exclusively owns for the host to reconcile. This note is self-contained: it carries the full diagnosis, the full target design, and the decisions already made, so the implementing agent does not need the originating conversation.
 
 This is a single complete build on one branch. No phases, no partial landings, no compatibility shims. The old paths are deleted in the same branch that replaces them.
 
@@ -96,8 +96,36 @@ One typebox schema module (`src/channels/schema.ts` or equivalent) is the single
 ```
 
 - Channel names become opaque labels (existing charset validation in `src/channels/names.ts` stays). Conventional labels like `telegram~main~123` and `dm~a~b` survive as conventions only; nothing parses them. `deriveChannelManifest`, the manifest `kind` field, and `src/channels/dm.ts` are deleted.
-- `dm: true` marks direct-message channels. In a dm channel, dispatch stamps `facts.to` = the member agents other than the author. This replaces publish-time DM addressing inference and covers both agent↔agent and person↔agent DMs.
+- `dm: true` marks direct-message channels. In a dm channel, the publisher stamps `facts.to` = the member agents other than the author before appending. This replaces name-parsed DM addressing and covers both agent↔agent and person↔agent DMs.
+- DM charters come into existence three ways: `shrimpy channels dm <a> <b>`, surface ingress (person↔agent), or first contact via the `dm:<agent-id>` alias below. DM lookup is always by charter (`dm: true` plus member set), never by label; creation generates the conventional `dm~<a>~<b>` sorted label, and nothing ever parses it back.
 - People are members alongside agents. Surface ingress creates charters with the binding and default members at creation time (surface default agent + the resolved person).
+
+### Comms host and publisher
+
+Exactly one process per workspace holds the **comms host** role at any moment, claimed through a liveness-checked claim file — the generalization of the existing gateway PID claim (`src/gateway/pid-file.ts`). The host is the sole writer of channel files, the sole mediator of charter creation and changes, and the dispatcher for every lane it owns. The gateway is normally the host. A gateway starting while another process holds the claim waits and retries with visible logging rather than failing or stealing.
+
+Every other process is one of three client shapes:
+
+- **Socket clients** submit posts and operations over the front-door socket: the CLI while a host runs, the TUI while a gateway runs, and surface bridges (in-process with the gateway, so a direct call to the same publisher).
+- **Brief claimants** take the host claim when no host is running, do their work in-process, and release: the CLI posting offline, and a TUI session running with the gateway down (it holds the claim for its lifetime).
+- **State owners** never touch channels at all: the worker supervisor writes only its own worker record, and the watch clock runs inside the host. The host reconciles their state into the log.
+
+The publisher is host-internal. It reads the charter, normalizes defaults (dm `to` stamping, `audience`/`wake` defaults), validates against the schema, stamps the author from the authenticated request context — sessions and clients never self-declare authorship — and appends the finished record. Messages are immutable once appended: dispatch and egress read facts and never infer, rewrite, or re-derive them. Because there is exactly one writer, there are no file locks, no cross-process check-then-append races, no charter read-modify-write collisions, and no torn-line risk; concurrency correctness is by construction, not by mechanism.
+
+Posts may declare a deterministic id (wake firings: `wake/<watch-id>/<fire-at-ms>`; worker reports: `worker/<worker-id>/<turn-id>/report`). The host checks these against its bookkeeping index race-free: an identical retry is skipped, and a same-id request with different content fails loudly — a collision means the id scheme is broken, and silently treating it as a retry would bury the bug.
+
+### Authorization seam
+
+A future security layer (SECURITY-006's scope) will run sandboxed agents with partial comms restrictions — for example, permitted to post in exactly one channel. This build does not define grants or policy, but it must make that layer a natural fit, and the single-writer host is what makes comms authority enforceable at all: every post passes one attributed chokepoint.
+
+- Every publisher request carries authenticated attribution: the originating session identity for lane turns, the claim holder or socket peer for operator paths. The publisher consults a **comms grant hook** before acting, covering at minimum: post targets, alias resolution (`user:`, `dm:`), charter creation (dm first contact), wake scheduling, and `audience` use.
+- This build ships the hook with a default-allow grant, preserving current behavior exactly. A denied request fails loudly with the grant reason; denials are never silent drops.
+- Enforcement honesty follows SECURITY-006: for a kernel-contained agent, the sandbox denies direct access to `workspace/channels/` and the claim file, so its only comms path is its runner's RPC into the host — the grant is a real boundary. For trusted in-process sessions, the grant binds the tool path only (an agent with Bash can still read files); that limitation is stated, not papered over.
+- No comms path may bypass the host publisher. A direct channel-file write outside the host or a held claim is a defect, not a fallback.
+
+### Host bookkeeping
+
+The host owns one SQLite database, `runtime/comms.db` (WAL mode), for its private bookkeeping: the deterministic message-id index, outbox delivery receipts, dispatch seen/handled marks, and channel cursors — replacing the current scatter of JSON bookkeeping files and tail-scanning dedupe checks. Scope is deliberately minimal: **channel JSONL logs remain the sole source of message truth**, config stays human-editable JSON, worker records stay producer-owned files, and the db holds only host runtime state. Losing or deleting the db degrades to at-least-once behavior (possible duplicate egress or wake delivery, deduplicated where deterministic ids exist) and a cursor rebuild from the logs — never corruption, never lost history, never lost messages.
 
 ### Attention and dispatch
 
@@ -114,14 +142,14 @@ Per-channel policy overrides, `shrimpy agent channel-policy` inspection, and the
 
 The default follows the trigger's author:
 
-- A turn triggered by a **human-authored** message auto-posts its final assistant text to the channel when the turn published nothing to that channel and `hold` was not called. Explicit mid-turn posts suppress the auto-post (no duplication).
+- A turn triggered by a **human-authored** message auto-posts its final assistant text to the channel unless `hold` was called. `hold` is the only suppressor: a mid-turn progress post must never swallow the conclusion. The auto-post skips empty finals and final text that exactly matches text already posted to that channel during the turn; near-duplicates are a prompt-guidance concern, and an occasional visible duplicate is the preferred failure over a silently swallowed answer.
 - A turn triggered by an **agent- or service-authored** message keeps final text private; the agent posts explicitly when there is something to say.
 
 Both defaults match their common case, so both failure modes become rare and visible. The reply watchdog, its recovery prompts, and the `replyRecovery` lane states are deleted — human-triggered turns cannot end accidentally silent.
 
 Tool surface shrinks from six to four:
 
-- `post(text, {channel?, to?, notify?})` — publish to the active channel by default or an explicit channel; `user:<id>` presence alias still resolves. Replaces `reply`, `ask`, `notify`, `report`, and `send_message`.
+- `post(text, {channel?, to?, audience?, notify?})` — publish to the active channel by default or an explicit channel; `audience: "agents"` produces an aside. The channel parameter accepts two aliases resolved by the publisher at send time: `user:<id>` (that person's last active surface channel, as today) and `dm:<agent-id>` (the author's DM channel with that agent, charter created on first contact). Replaces `reply`, `ask`, `notify`, `report`, and `send_message`.
 - `hold()` — suppress the auto-post for this turn; the intentional-silence record is the tool call in the session transcript.
 - `wake(delaySeconds | at, note)` — see below.
 - `read_channel(channel, limit?)` — unchanged.
@@ -134,7 +162,14 @@ The async continuation story, first-class:
 
 - **`wake(delaySeconds | at, note)`** writes a one-shot, agent-owned, auto-expiring watch: `trigger: { kind: "once", at: <ms> }` in the existing watch schema, target = the current channel, `to` = self, `audience: agents`, `wake: live-only`. The existing clock machinery gives persistence across gateway restarts (missed one-shots fire on next start), FIFO queuing behind an in-flight user turn (same lane), and inspection (`shrimpy watches` lists pending one-shots; channel history shows fired ones). Auto-removed after firing. Cancellation is CLI-side (`shrimpy watches` removal); no agent-facing cancel tool in this build.
 - The note is load-bearing: the agent writes its own instruction ("codex run on auth refactor finished — read the result, report to the channel"), and it arrives in-context at the wake moment. Machinery-triggered turns default to hold, so the note is what carries the intent to speak.
-- **Worker reports:** when a worker turn finalizes (`src/workers/lifecycle.ts` / the supervisor path), append a report post into `WorkerRecord.relatedChannel`: author `{kind: "service", id: "worker/<id>"}`, `to` = `ownerAgent`, `audience: agents`, body text = summary plus artifact paths. Publish is file-append, so the detached supervisor needs no IPC. Normal dispatch wakes the owner in the same channel session with full conversational context; the owner reads the result and posts the human-facing report. Worker dispatch must record `relatedChannel` whenever the dispatching turn is a channel turn.
+- **Worker reports:** when a worker turn finalizes (`src/workers/lifecycle.ts` / the supervisor path), the supervisor writes only its own record — `report: {channel, status: "pending"}` on the turn when `relatedChannel` is set — so the detached child needs no IPC and never touches a channel. The host's reconcile sweep publishes the pending report: author `{kind: "service", id: "worker/<id>"}`, `to` = `ownerAgent`, `audience: agents`, body text = summary plus artifact paths, then marks it `sent`. Dispatch wakes the owner in the same channel session with full conversational context; the owner reads the result and posts the human-facing report. Worker dispatch must record `relatedChannel` whenever the dispatching turn is a channel turn.
+
+Continuation delivery is at-least-once with idempotent retry, and both paths run entirely inside the host's write discipline:
+
+- **Wake firings** append the post, then clear the clock entry. The clock entry is a schedule, not truth — a host crash between writes refires on restart, and the host's id index skips the duplicate race-free.
+- **Worker reports** follow the outbox shape because the worker record is authoritative state that `reconcileWorker` acts on (it already runs on every worker read and finalizes dead-pid turns). The supervisor finalizes with `report: pending`; the host sweep — on reconciliation and at startup — publishes through the deterministic id and marks `sent`. Every crash window yields a late-but-correct or deduplicated report, never a report that contradicts the record.
+
+Crashes injected between each write are tested for both paths.
 
 The chat-surface expectation this serves: a user on Telegram asks for a codex worker; the agent dispatches, answers "running — I'll report when it's done", and the completion post (or a self-set `wake`) brings the same session back to deliver the report. No polling, no special wake path.
 
@@ -142,9 +177,9 @@ The chat-surface expectation this serves: a user on Telegram asks for a codex wo
 
 The gateway gets a front door; the log stops being one.
 
-- Unix domain socket at `runtime/gateway.sock`, newline-delimited JSON, `{id, op, params}` → `{id, ok, result | error}`. Operations: `session.reset`, `session.restore`, `session.set`, `session.stop`, `session.status`, `gateway.status`, `surface.set-agent`, `surface.clear-agent`, `channel.activity`. Publishing is explicitly **not** a socket op — appending to channel files from any process remains the publish path.
+- Unix domain socket at `runtime/gateway.sock`, newline-delimited JSON, `{id, op, params}` → `{id, ok, result | error}`. Operations: `channel.post`, `session.reset`, `session.restore`, `session.set`, `session.stop`, `session.status`, `gateway.status`, `surface.set-agent`, `surface.clear-agent`, `channel.activity`. Posting goes through the host: socket when a host is running, a brief host claim otherwise. Reading channel files stays unmediated for trusted processes.
 - Ownership routing keeps today's shape with an honest transport: CLI commands use the socket when a gateway owns the session; unowned sessions fall back to direct file operations under the existing maintenance lease; foreground-owned sessions still reject external mutation ("use that host's controls").
-- One ops module replaces `SessionControlRuntime`: invoked by the socket server, by gateway-internal callers (surface commands), and mirrored by the CLI's lease fallback. Lifecycle operations write a `session_boundary` marker into the channel (the visible "— new session —" line the transcript should show) and the session store keeps its own `shrimpy_lifecycle` records as today.
+- One ops module replaces `SessionControlRuntime`: invoked by the socket server, by gateway-internal callers (surface commands), and mirrored by the CLI's lease fallback. Lifecycle operations write a `session_boundary` marker into the channel (the visible "— new session —" line the transcript should show) and the session store keeps its own `shrimpy_lifecycle` records as today. The lease governs session-store writes only; in the offline path the marker is still a channel write, so the CLI takes a brief host claim for it alongside the lease.
 - Surface state commands (`/new`, `/clear`, `/stop`, `/thinking`) call the ops module directly (they run inside the gateway process) and confirm directly on the transport, exactly like `/help` and `/status` already do. Symmetric commands, no control/ack message pairs, no outbox involvement.
 - Deleted outright: `control` and `status` content types, `SessionControlRuntime`, the correlated log-polling in `sessions/control.ts`, control replay dedupe in the gateway runtime state store, and the `[Control: ...]`/`[Status: ...]` renderings in `src/context/turn/channel-message.ts`.
 
@@ -171,14 +206,30 @@ One store, `config/people.json`:
 
 ### Egress
 
-The outbox keeps its tail/receipts/retry machinery and replaces the eligibility oracle with one rule: deliver when the channel has a binding AND `facts.audience` is `channel` AND `author.kind` is not `human` AND `body.type` is not `marker`. Command-watch emissions become service-authored `audience: channel` posts (they are user-facing output); message-watch trigger text becomes `audience: agents` (it is trigger material). The watch `emit` config gains `audience` and loses sender impersonation.
+The outbox runs inside the host, keeps its tail/retry machinery with receipts in the host bookkeeping db, and replaces the eligibility oracle with one rule: deliver when the channel has a binding AND `facts.audience` is `channel` AND `author.kind` is not `human` AND `body.type` is not `marker`. Command-watch emissions become service-authored `audience: channel` posts (they are user-facing output); message-watch trigger text becomes `audience: agents` (it is trigger material). The watch `emit` config gains `audience` and loses sender impersonation.
+
+### Where today's log riders go
+
+Every current producer of `control`/`status`/`system` records, and the new home for each. This inventory is exhaustive as of writing; if the build sweep finds another, decide its home by the same rule: user-relevant → service-authored channel text, conversation-relevant → marker, operational → runtime logs.
+
+| Today | Producer | New home |
+|---|---|---|
+| `control` session commands (surface `/new`/`/clear`/`/stop`/`/thinking`, CLI lifecycle) | `src/surfaces/shared/remote-commands.ts`, `src/sessions/control.ts` | Ops module via socket or in-process call; `session_boundary` marker on lifecycle success |
+| `operation_status` acks | `src/gateway/session-control-runtime.ts` | Socket replies and direct transport confirmations |
+| `operation_status` for terminal compaction failure | `src/sessions/compaction/channel-status.ts` | Service-authored `text` post, `audience: channel` — the alert must still reach the bound chat |
+| `surface_addressing` status | `src/surfaces/shared/addressing.ts` | `addressing` marker |
+| `agent_added`/`agent_updated`/`agent_removed` system events | `src/agents/operations.ts` | `agent_lifecycle` markers |
+| `telegram_update_error` system messages | `src/surfaces/telegram/surface.ts` | Gateway runtime logs; the surface health snapshot already tracks failure counts |
+| Message-watch trigger text | `src/watches/runner.ts` | Service-authored `text` post, `audience: agents`, `wake: live-only` |
+| Command-watch emissions | `src/watches/runner.ts` | Service-authored `text` post, `audience: channel` |
 
 ### TUI as a surface host
 
 The TUI never renders a channel log, so no custom TUI is built. It renders the session — and because a channel turn is a session turn, the Pi transcript for a solo channel is a strict superset of the channel log.
 
 - Bare `shrimpy` / `shrimpy chat <agent>` opens the owner↔agent DM channel (charter `dm: true`, members = the owner person + the agent; conventional label `dm~<person>~<agent>`), with session key `channel/<label>`. Keystrokes publish as human posts authored by the owner; the final assistant text auto-posts back (human-triggered default), which the TUI has already rendered natively as the assistant message.
-- The TUI process hosts dispatch for the lanes it owns: it runs the channel file watcher plus the same `AgentChannelRuntime`/`SessionPool` components the gateway uses (they are already host-agnostic). A watch note, worker report, or another agent's post into that channel dispatches into the TUI-owned lane and paints in the terminal as a turn.
+- The TUI process executes the lanes it owns: it runs the channel file watcher plus the same `AgentChannelRuntime`/`SessionPool` components the gateway uses (they are already host-agnostic). A watch note, worker report, or another agent's post into that channel dispatches into the TUI-owned lane and paints in the terminal as a turn.
+- The TUI's write path follows the comms-host rule: while a gateway is running, the TUI submits its posts (the user's keystrokes, the agent's replies) over the socket and the gateway appends; with the gateway down, the TUI takes the host claim for its lifetime and publishes in-process. Lane execution ownership and the host writing role are deliberately separate things — Pi must render turns in the process that runs them, but only one process ever writes the log.
 - The session-ownership record (`runtime/sessions/`) becomes the dispatcher election: the gateway delivery loop must skip lanes with a live foreground owner, and lane handoff on TUI exit/reclaim uses the existing per-agent per-channel seen/handled state so neither process replays turns the other already ran. Channel messages an agent's policy ignores do not paint in the TUI — the terminal is the mind's-eye view; `channels read` and the web inspector are the room's-eye view.
 - `shrimpy run` stays an ephemeral, channel-less escape hatch (an invocation, not a conversation). Setup stays `local/setup`. The `local` namespace shrinks to those uses; primary TUI chat lives in `channel/` sessions.
 - **Precondition to verify first:** Pi's interactive session must accept a programmatically injected turn while open (for messages arriving in the channel mid-session). Shrimpy pins its own Pi, so if the capability is missing, extend Pi at that seam — that is the expected pressure point, and it is far cheaper than a custom TUI (see `docs/musings/pi-tui-fork-tradeoffs.md`).
@@ -203,7 +254,9 @@ Agent-facing:
 
 Regressions to avoid:
 
-- No double replies: auto-post must fire only when the turn published nothing to the active channel.
+- No swallowed replies: `hold` is the only auto-post suppressor, so a progress post must never eat the conclusion. Exact-duplicate finals are skipped mechanically; occasional near-duplicates are visible and prompt-correctable, which is the preferred failure direction.
+- Terminal compaction failures must still reach the bound chat as service-authored text, not become invisible markers.
+- No comms path may bypass the host publisher; a denied grant-hook request must fail loudly with its reason, never drop silently.
 - No lost confirmations: every surface state command must produce a visible transport reply on success and failure.
 - No double dispatch or dropped turns across TUI/gateway lane handoff; ownership gating and seen-state dedupe must cover crash and reclaim paths.
 - Watch-driven agents that previously woke via impersonated human senders must be reachable via `to`, mentions, or explicit service-author filters; setup and docs must show the pattern.
@@ -223,17 +276,21 @@ The measure of the build. All removed in the same branch, per the no-legacy rule
 - Watch emit `senderKind`/`senderActorId`/`senderUserId` fields and their parsing in `src/watches/schema.ts`/`runner.ts`.
 - `[Control: ...]`/`[Status: ...]` renderings in `src/context/turn/channel-message.ts`.
 - `state/users.json` `IdentityStore` (`src/gateway/identity-store.ts`) and the Telegram per-instance `users` map, absorbed by `config/people.json`.
-- The `PublishXInput` builder layer in `src/channels/protocol.ts`, replaced by the schema module.
+- The `PublishXInput` builder layer in `src/channels/protocol.ts`, replaced by the schema module and the host publisher.
+- The `telegram_update_error` channel publication in `src/surfaces/telegram/surface.ts`, relocated to gateway runtime logs.
+- The JSON bookkeeping scatter — delivery-loop cursors, outbox cursors, delivery receipts, and per-agent seen/handled marks — consolidated into `runtime/comms.db`.
 
 ## Boundaries
 
 - One branch, complete. No migration or compatibility code: existing channel JSONL files stay on disk untouched but the new reader does not parse the old shape; fresh logs begin in the new schema. If the maintainer wants old-log migration, that is a separate explicit request.
 - No rename of the "channel" primitive, CLI nouns, or workspace paths.
-- SECURITY-006 (session authority, admission, sandboxed runners) is compatible but out of scope: its admission step slots after attention evaluation, and its sender grants align with the people store. Do not implement it here.
+- SECURITY-006 (session authority, admission, sandboxed runners) is compatible but out of scope: its admission step slots after attention evaluation, its sender grants align with the people store, and the comms host publisher is the enforcement point its comms grants will consume — a contained agent's only comms path is its runner's RPC into the host. Do not implement it here.
 - No network egress policy, no new surfaces, no web inspector work beyond whatever the schema change breaks.
 - `wake` is time-based one-shots only; no event/condition triggers beyond what worker-report posts already provide.
-- Publishing stays file-append from any process; the socket never becomes required for posting.
-- Agent-facing tools stay at the four listed; no cancel-wake tool, no channel-management tools for agents in this build.
+- Exactly one process writes channel files: the comms host, or a brief claimant when no host runs. Direct channel-file appends outside a held claim are defects. Reads stay unmediated for trusted processes.
+- SQLite is bounded to host bookkeeping (`runtime/comms.db`): no message content is served from it as a source of truth, config stays human-editable JSON, and the system must remain fully functional after deleting the db (at-least-once degradation only).
+- The comms grant schema and any real policy are out of scope: this build ships the attributed grant hook with default-allow. Defining authority, admission, and containment is SECURITY-006's scope; the hook is the seam it plugs into.
+- Agent-facing tools stay at the four listed; no cancel-wake tool, and no channel-management tools for agents in this build. The one agent-initiated creation path is the `dm:<agent-id>` alias, which creates only two-member DM charters between the author and a configured agent.
 
 ## Open Decisions
 
@@ -247,13 +304,13 @@ The measure of the build. All removed in the same branch, per the no-legacy rule
 ## Touches
 
 - `src/channels/` — schema module (new), store (kept), membership → charters, outbox facts rule, egress, inspection/classification, `bus.ts` slimmed; `dm.ts` and most of `messages.ts`/`protocol.ts` deleted.
-- `src/gateway/` — socket server (new), ops module (new), delivery loop (facts, ownership gating), runtime-state (control tracking removed), identity-store deleted.
-- `src/sessions/` — `control.ts` rewrite, `pool.ts` turn delivery state + auto-post, watchdog deleted, ownership/lane handoff dedupe.
+- `src/gateway/` — comms host claim generalized from `pid-file.ts`, socket server (new), ops module (new), host publisher with attribution and the grant hook (new), bookkeeping db (new), delivery loop (facts, ownership gating), runtime-state (control tracking removed), identity-store deleted.
+- `src/sessions/` — `control.ts` rewrite, `pool.ts` turn delivery state + auto-post, watchdog deleted, ownership/lane handoff dedupe, compaction failure alert rewritten as service-authored channel text (`compaction/channel-status.ts`).
 - `src/agents/` — `channel-policy.ts` single evaluation path, `channel-runtime.ts` plumbing, `operations.ts` lifecycle events → markers.
 - `src/tools/` — `post`/`hold`/`wake`, tool names/policy.
-- `src/surfaces/` — shared remote commands → ops calls with direct confirmation, chat bridge authoring via people, telegram outbound `notify` mapping, per-instance `users` removal, setup.
+- `src/surfaces/` — shared remote commands → ops calls with direct confirmation, chat bridge authoring via people, telegram outbound `notify` mapping, `telegram_update_error` relocated to runtime logs, per-instance `users` removal, setup.
 - `src/watches/` — one-shot trigger, emit `audience`, impersonation removal, runner authoring.
-- `src/workers/` — report post on finalize, `relatedChannel` recording at dispatch.
+- `src/workers/` — report outbox fields on the turn record, report append and `sent` marking, pending-report retry in the reconcile sweep and at gateway startup, `relatedChannel` recording at dispatch.
 - `src/context/turn/` — channel message formatting (author/to header, no control renderings).
 - `src/instructions/` — delivery guidance rewrite, watchdog prompts deleted.
 - `src/tui/` + `src/sessions/foreground.ts` — DM-channel sessions, in-process dispatch for owned lanes.
@@ -264,13 +321,17 @@ The measure of the build. All removed in the same branch, per the no-legacy rule
 ## Done
 
 - Channel logs contain only human/agent/service posts, media, and markers; `channels read` renders a clean transcript; no `control`/`status` records exist anywhere.
+- Exactly one process writes channel files at any moment; claim contention resolves to one winner, a gateway starting during a held claim waits visibly, and no code path appends outside the host or a held claim.
+- Every publish is attributed; the grant hook runs on every post, alias resolution, charter creation, and wake schedule; a stub deny grant fails loudly with its reason while the shipped default-allow leaves behavior unchanged.
+- Deleting `runtime/comms.db` loses no messages and no history: the host rebuilds cursors from logs and degrades to at-least-once delivery, deduplicated where deterministic ids exist.
 - Session control commands round-trip over the socket with real replies; lease fallback covers unowned sessions; no code polls a log for an ack.
-- Human-triggered channel turns auto-post final text; `hold` suppresses; explicit posts prevent duplication; the watchdog and its prompts are gone.
+- Human-triggered channel turns auto-post final text; `hold` is the only suppressor; a progress post followed by substantive final text delivers both; exact-duplicate finals are skipped; the watchdog and its prompts are gone.
 - `wake` one-shots fire into the same channel and session, survive gateway restarts, auto-expire, and are inspectable via `shrimpy watches` and channel history.
-- Worker completion posts a report into `relatedChannel` and wakes the owner agent; the chat-surface dispatch-and-report flow works end to end.
+- Worker completion posts a report into `relatedChannel` and wakes the owner agent; a pending report left by a crash is delivered on reconciliation without ever contradicting the worker record; the chat-surface dispatch-and-report flow works end to end.
 - Surface state commands confirm directly and leave markers; Telegram quiet delivery works; the outbox delivers exactly the facts rule.
 - `config/people.json` drives identity and grants across surfaces; the Telegram `users` map and `state/users.json` are gone.
+- An agent can open a DM with another agent via `dm:<agent-id>` without owner pre-wiring; the created charter has the right members and flag; both agents wake each other through charter-stamped `to` with their default policies; a watch can target the DM channel directly.
 - TUI chats are DM channels; an external post into an open TUI's channel paints as a turn; gateway and TUI never double-dispatch across handoff.
 - Attention is one function over declared facts; `channel-policy explain` reflects it; the agent-author default is documented.
 - One schema module validates every message; the hand-rolled guard/builder layers are deleted.
-- Docs updated; tests cover the dispatch matrix (author kind × mode × `to`), egress facts rule, socket ops and lease fallback, auto-post/hold/duplication, wake lifecycle across restart, worker report posting, DM addressing from charters, and TUI/gateway lane handoff dedupe.
+- Docs updated; tests cover the dispatch matrix (author kind × mode × `to`), egress facts rule, socket ops and lease fallback, host claim contention and gateway-start-during-held-claim, publisher attribution and normalization, host-local deterministic-id idempotency with same-id-different-content failing loudly, grant-hook default-allow and stub-deny paths, db deletion and rebuild, auto-post/hold/duplication including progress-post-then-final, wake firing and the worker report outbox with crashes injected between each write, wake lifecycle across restart, DM addressing from charters, and TUI/gateway lane handoff dedupe.

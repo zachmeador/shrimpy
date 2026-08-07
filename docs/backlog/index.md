@@ -14,7 +14,7 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [COMMS-001](proposals/comms-001-comms-plane-redesign.md) | todo | P1 | Comms | none | Comms plane redesign: channels carry only conversation; declared message facts, gateway control socket, reply defaults with self-wake, people as members, TUI as surface host |
+| [COMMS-001](proposals/comms-001-comms-plane-redesign.md) | todo | P1 | Comms | none | Comms plane redesign: channels carry only conversation; single-writer comms host with an authorization seam, declared message facts, reply defaults with self-wake, people as members, TUI as surface host |
 | [SECURITY-006](proposals/security-006-session-authority.md) | draft | P2 | Security | none | Per-agent per-channel session policy, admission, and sandboxed runners |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
