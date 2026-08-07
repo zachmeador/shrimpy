@@ -61,7 +61,7 @@ Prefer strengthening boundaries over threading new behavior through whatever cod
 - Default to wrapping Pi cleanly instead of rebuilding runtime concepts above it. Shrimpy should lean on Pi until Pi is the real constraint, then extend it at the specific pressure point rather than speculatively.
 - Channels are for routing and logs. Sessions carry instructions.
 - Skills are Markdown instruction bundles. Shrimpy adds trails for the visible skills to the agent's context, and Pi can load the selected skill text from those trails. Workflow execution, action choice, and scheduling live in sessions, tools, watches, and CLI commands.
-- If the user asks you to perform a workflow normally guided by an included Shrimpy skill, especially setup or workspace migration, read and follow its canonical `src/skills/included/<id>/SKILL.md` directly. The user may want the current coding agent to do the work instead of handing it to the mechanic.
+- If the user asks you to perform a workflow normally guided by an included Shrimpy skill, especially setup or update, read and follow its canonical `src/skills/included/<id>/SKILL.md` directly. The user may want the current coding agent to do the work instead of handing it to the mechanic.
 - Shrimpy should provide clean guardrails and comms patterns, not hardwire agent decision-making that can live in prompts, skills, or normal session logs.
 - Coverage is diagnostic, not a gate. Add tests for major seams, lifecycle behavior, and regressions; do not chase percentages with low-signal tests.
 

@@ -8,6 +8,11 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Changed Telegram group-chat commands to require the sender's numeric Telegram user ID in `telegram.instances.<id>.users`; allowed one-to-one private chats authorize their matching Telegram user directly.
 - Removed Telegram `/restore`; use local CLI or TUI session recovery instead.
+- Renamed the mechanic's `shrimpy-workspace-migration` skill to `shrimpy-update`. Fresh workspaces use the new package; existing workspaces keep an old installed copy until an approved update plan replaces or removes it.
+
+### Installation & Update
+
+- Added read-only update inventory and post-update verification scripts with concise JSON, Git and runtime compatibility checks, included-skill modification reporting, bounded gateway health polling, web probing, all-agent skill/context validation, and automatic gateway log tails on failure. The update mechanic refreshes Shrimpy's default skills, asks before resolving confirmed customizations, and either merges them onto the target package as authority or archives the old package in the nearby hidden `.archive/` directory before replacement.
 
 ### Channels & Surfaces
 

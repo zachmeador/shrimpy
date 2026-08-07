@@ -41,8 +41,8 @@ import { createShrimpyTuiCommand } from "./tui.js";
 const UPDATE_USAGE = renderCommandUsage(["update"]);
 const APPLY_USAGE = renderCommandUsage(["update", "apply"]);
 const CHECK_USAGE = renderCommandUsage(["update", "check-mechanic"]);
-const MIGRATION_SKILL = "shrimpy-workspace-migration";
-const MIGRATION_SKILL_RESOURCE = resolveMigrationSkillResource();
+const UPDATE_SKILL = "shrimpy-update";
+const UPDATE_SKILL_RESOURCE = resolveUpdateSkillResource();
 
 export interface UpdatePreflight {
   dryRun: boolean;
@@ -147,7 +147,7 @@ export async function cmdUpdateWithDeps(
     agentId: "mechanic",
     session: { namespace: "local", name: "main" },
     purpose: "interactive",
-    basePromptResources: [MIGRATION_SKILL_RESOURCE],
+    basePromptResources: [UPDATE_SKILL_RESOURCE],
     cwd: config.workspace,
     initialMessage: renderMechanicUpdateTask(preflight),
   });
@@ -247,7 +247,7 @@ export async function checkMechanicTuiBootstrap(
     session: { namespace: "local", name: "update-check" },
     purpose: "update-check",
     persistent: false,
-    basePromptResources: [MIGRATION_SKILL_RESOURCE],
+    basePromptResources: [UPDATE_SKILL_RESOURCE],
     cwd: config.workspace,
   });
 }
@@ -403,7 +403,7 @@ function renderMechanicUpdateTask(preflight: UpdatePreflight): string {
     `Gateway before update: ${preflight.gateway.processPid ? `running as PID ${preflight.gateway.processPid}` : "not running"}; service ${preflight.gateway.service.active} (${preflight.gateway.service.manager}, ${preflight.gateway.service.enabled})`,
     `Guarded apply command: ${preflight.applyCommand}`,
     "",
-    `Do this skill: ${join(MIGRATION_SKILL_RESOURCE.rootPath, MIGRATION_SKILL_RESOURCE.resourcePath)}`,
+    `Do this skill: ${join(UPDATE_SKILL_RESOURCE.rootPath, UPDATE_SKILL_RESOURCE.resourcePath)}`,
   ].join("\n");
 }
 
@@ -480,10 +480,10 @@ function unmanagedCheckoutMessage(
   return `Shrimpy checkout is not installer-managed: ${appRoot}. Install Shrimpy with scripts/install.sh before using shrimpy update.`;
 }
 
-function resolveMigrationSkillResource(): PromptResourceRef {
-  const definition = getIncludedSkillDefinition(MIGRATION_SKILL);
+function resolveUpdateSkillResource(): PromptResourceRef {
+  const definition = getIncludedSkillDefinition(UPDATE_SKILL);
   if (!definition) {
-    throw new Error(`included update skill is missing: ${MIGRATION_SKILL}`);
+    throw new Error(`included update skill is missing: ${UPDATE_SKILL}`);
   }
   return {
     rootPath: definition.rootPath,

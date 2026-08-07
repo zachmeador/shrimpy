@@ -129,11 +129,10 @@ describe("setupInit", () => {
       "shrimpy-hygiene-audit",
       "SKILL.md",
     );
-    const workspaceMigrationSkillPath = join(
+    const updateSkillRoot = join(
       mechanicRoot,
       "skills",
-      "shrimpy-workspace-migration",
-      "SKILL.md",
+      "shrimpy-update",
     );
     const agentVaultPath = join(agentRoot, "vault");
     const mechanicVaultPath = join(mechanicRoot, "vault");
@@ -182,7 +181,9 @@ describe("setupInit", () => {
     assert.equal(existsSync(skillsSkillPath), true);
     assert.equal(existsSync(securityAuditSkillPath), true);
     assert.equal(existsSync(hygieneAuditSkillPath), true);
-    assert.equal(existsSync(workspaceMigrationSkillPath), true);
+    assert.equal(existsSync(join(updateSkillRoot, "SKILL.md")), true);
+    assert.equal(existsSync(join(updateSkillRoot, "scripts", "inventory.mjs")), true);
+    assert.equal(existsSync(join(updateSkillRoot, "scripts", "verify.mjs")), true);
     assert.equal(existsSync(agentVaultPath), true);
     assert.equal(existsSync(mechanicVaultPath), true);
     assert.equal(existsSync(agentProjectsPath), true);

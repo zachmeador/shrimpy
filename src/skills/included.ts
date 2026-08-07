@@ -99,7 +99,7 @@ const INCLUDED_SKILLS: IncludedSkillDefinition[] = [
     category: "shrimpy-how-to",
     assignment: MECHANIC_ASSIGNMENT,
   }),
-  includedSkill("shrimpy-workspace-migration", {
+  includedSkill("shrimpy-update", {
     category: "shrimpy-how-to",
     assignment: MECHANIC_ASSIGNMENT,
   }),

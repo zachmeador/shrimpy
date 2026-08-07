@@ -135,7 +135,7 @@ describe("skill context inspection", () => {
     assert.match(parsed.systemPrompt, /<name>shrimpy-channels<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-watches<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-skills<\/name>/);
-    assert.match(parsed.systemPrompt, /<name>shrimpy-workspace-migration<\/name>/);
+    assert.match(parsed.systemPrompt, /<name>shrimpy-update<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-security-audit<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-hygiene-audit<\/name>/);
     assert.match(parsed.systemPrompt, /<name>shrimpy-coding-delegation<\/name>/);
@@ -574,7 +574,7 @@ describe("skill context inspection", () => {
     assert.match(lines.join("\n"), /shrimpy-watches-default-init \[agent package\]/);
     assert.match(lines.join("\n"), /shrimpy-skills \[workspace package\]/);
     assert.match(lines.join("\n"), /shrimpy-security-audit \[agent package\]/);
-    assert.match(lines.join("\n"), /shrimpy-workspace-migration \[agent package\]/);
+    assert.match(lines.join("\n"), /shrimpy-update \[agent package\]/);
     assert.match(lines.join("\n"), /shrimpy-search \[workspace package\]/);
     assert.match(lines.join("\n"), /Create, inspect, configure, rename, remove, or debug Shrimpy agents/);
     assert.match(lines.join("\n"), /memory-management \[workspace package\]/);
@@ -616,7 +616,7 @@ describe("skill context inspection", () => {
     assert.doesNotMatch(output, /mechanic \[agent\]/);
     assert.doesNotMatch(output, /shrimpy-hygiene-audit/);
     assert.doesNotMatch(output, /shrimpy-security-audit/);
-    assert.doesNotMatch(output, /shrimpy-workspace-migration/);
+    assert.doesNotMatch(output, /shrimpy-update/);
   });
 
   test("skills command can scaffold and validate a workspace skill", async () => {
@@ -1122,9 +1122,9 @@ describe("skill service", () => {
       "shrimpy-security-audit:agent",
       "shrimpy-setup:agent",
       "shrimpy-skills:workspace",
+      "shrimpy-update:agent",
       "shrimpy-watches:agent",
       "shrimpy-watches-default-init:agent",
-      "shrimpy-workspace-migration:agent",
     ]);
 
     const shrimpySkills = listSkillViews(runtime, "shrimpy");
@@ -1154,6 +1154,13 @@ describe("skill service", () => {
     const hygieneAudit = getSkillView(runtime, "shrimpy-hygiene-audit", "mechanic");
     assert.equal(hygieneAudit.loaded, true);
     assert.match(loadSkillPrompt(runtime, "shrimpy-hygiene-audit", "mechanic"), /checked, found nothing/);
+    const update = getSkillView(runtime, "shrimpy-update", "mechanic");
+    assert.equal(update.loaded, true);
+    const updatePrompt = loadSkillPrompt(runtime, "shrimpy-update", "mechanic");
+    assert.match(updatePrompt, /Keeping Shrimpy's installed default skill packages aligned with the target release is an important part of the update/);
+    assert.match(updatePrompt, /The target version dictates the skill/);
+    assert.match(updatePrompt, /skills\/\.archive\/<id>-before-<target-tag>-<timestamp>\//);
+    assert.match(updatePrompt, /do not claim that the workspace update is complete/);
     const codingDelegation = getSkillView(runtime, "shrimpy-coding-delegation", "shrimpy");
     assert.equal(codingDelegation.available, true);
     assert.equal(codingDelegation.sourceKind, "package");
@@ -1298,9 +1305,9 @@ describe("skill service", () => {
       "shrimpy-security-audit",
       "shrimpy-setup",
       "shrimpy-skills",
+      "shrimpy-update",
       "shrimpy-watches",
       "shrimpy-watches-default-init",
-      "shrimpy-workspace-migration",
     ]);
     assert.deepEqual(inspectSkills(runtime, "mechanic").warnings, []);
   });

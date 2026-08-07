@@ -56,7 +56,7 @@ describe("cmdUpdate", () => {
     assert.equal(payload.mechanic.usable, true);
   });
 
-  test("bare update opens a mechanic TUI with migration guidance and context", async () => {
+  test("bare update opens a mechanic TUI with update guidance and context", async () => {
     const result = await cmdUpdateWithDeps(
       [],
       { workspace } as any,
@@ -71,7 +71,7 @@ describe("cmdUpdate", () => {
     assert.equal(result.request.basePromptResources?.length, 1);
     assert.match(
       result.request.basePromptResources?.[0]?.rootPath ?? "",
-      /src\/skills\/included\/shrimpy-workspace-migration$/,
+      /src\/skills\/included\/shrimpy-update$/,
     );
     assert.equal(
       result.request.basePromptResources?.[0]?.resourcePath,
@@ -81,11 +81,11 @@ describe("cmdUpdate", () => {
     assert.match(result.request.initialMessage ?? "", /to v0\.6\.0/);
     assert.match(
       result.request.initialMessage ?? "",
-      /Do this skill: .*src\/skills\/included\/shrimpy-workspace-migration\/SKILL\.md/,
+      /Do this skill: .*src\/skills\/included\/shrimpy-update\/SKILL\.md/,
     );
     assert.doesNotMatch(
       result.request.initialMessage ?? "",
-      /present one concrete migration plan/i,
+      /present one concrete update plan/i,
     );
     assert.match(
       result.request.initialMessage ?? "",
@@ -190,7 +190,7 @@ describe("cmdUpdate", () => {
   test("check-mechanic reports bootstrap failures as JSON", async () => {
     const deps = updateDeps({
       checkMechanic: async () => {
-        throw new Error("missing migration skill");
+        throw new Error("missing update skill");
       },
     });
     const { result, lines } = await captureLogs(() =>
@@ -204,7 +204,7 @@ describe("cmdUpdate", () => {
     assert.equal(result, 1);
     const payload = JSON.parse(lines.join("\n"));
     assert.equal(payload.usable, false);
-    assert.match(payload.problems.join("\n"), /missing migration skill/);
+    assert.match(payload.problems.join("\n"), /missing update skill/);
   });
 });
 
