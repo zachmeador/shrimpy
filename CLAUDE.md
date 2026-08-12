@@ -67,7 +67,7 @@ Prefer strengthening boundaries over threading new behavior through whatever cod
 
 ## Writing
 
-Do not hard-wrap prose in Markdown docs, agent instructions, skills, backlog notes, musings, or research notes. Let paragraphs occupy normal long lines so the editor/viewer handles wrapping. Use manual line breaks only when Markdown structure requires them, such as tables, code blocks, lists whose readability depends on separate items, or deliberately formatted examples.
+Use the canonical [`shrimpy-dev-writing-guide`](skills/shrimpy-dev-writing-guide/SKILL.md) skill when writing or revising any project documentation or user-facing text. Use the relevant specialized skill too for reference docs, backlog notes, changelog entries, or skill packages.
 
 ## Legacy support policy
 
