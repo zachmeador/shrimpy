@@ -1,7 +1,6 @@
-
 ---
 status: draft
-priority: P1
+priority: P2
 area: Architecture
 depends_on: []
 ---
@@ -27,9 +26,9 @@ The implementation currently blurs these concepts. The gateway participates in m
 
 This makes changes locally understandable but globally risky. Features tend to be added wherever data already passes rather than behind the concept that should own the behavior.
 
-The goal is not to introduce more architectural nouns. The goal is to reduce Shrimpy to a small transactional state machine whose ownership and crash behavior are obvious.
+The goal is a small transactional state machine with obvious ownership and crash behavior, not more architectural nouns.
 
-## Architectural Thesis
+## Architectural thesis
 
 Shrimpy has one process-independent kernel used by every entry point:
 
@@ -50,7 +49,7 @@ The kernel exposes behavior, not storage internals. The TUI and gateway may inst
 
 The gateway provides background availability. It is not the source of truth and is not required for direct use of Shrimpy.
 
-## Core Invariants
+## Core invariants
 
 1. The TUI always works without a gateway.
 2. Killing the gateway affects background availability, not durable truth or direct agent sessions.
@@ -68,7 +67,7 @@ The gateway provides background availability. It is not the source of truth and 
 14. Every important state transition is inspectable without replaying model reasoning.
 15. Runtime code never depends on generated JSON or JSONL exports.
 
-## Concept Ownership
+## Concept ownership
 
 ### Agent
 
@@ -188,7 +187,7 @@ The scheduler understands time, persistence, claiming, and firing. It does not u
 
 A host is a process that can own and execute sessions.
 
-#### TUI Host
+#### TUI host
 
 The TUI:
 
@@ -203,7 +202,7 @@ The TUI does not start a miniature gateway. It does not need to run external sur
 
 If the TUI posts a durable message while the gateway is stopped, the post succeeds. Unattended recipients remain pending until a background host becomes available.
 
-#### Gateway Host
+#### Gateway host
 
 The gateway is a disposable supervisor for a small set of background loops:
 
@@ -215,9 +214,9 @@ The gateway is a disposable supervisor for a small set of background loops:
 
 The gateway does not implement agent policy or session semantics. It invokes kernel operations and manages component lifecycle.
 
-## Interaction Flows
+## Interaction flows
 
-### Direct TUI Turn
+### Direct TUI turn
 
 ```text
 user prompt
@@ -230,7 +229,7 @@ user prompt
 
 No gateway or comms round trip is required for the direct response.
 
-### External Human Message
+### External human message
 
 ```text
 surface adapter
@@ -246,7 +245,7 @@ surface adapter
   → surface adapter
 ```
 
-### Agent-to-Agent Message
+### Agent-to-agent message
 
 ```text
 agent session
@@ -257,7 +256,7 @@ agent session
   → optional recipient turn
 ```
 
-### Self-Wake
+### Self-wake
 
 ```text
 agent session
@@ -267,7 +266,7 @@ agent session
   → pending turn for the owning agent/session
 ```
 
-### Worker Completion
+### Worker completion
 
 ```text
 worker completes
@@ -302,11 +301,11 @@ Generated JSON or JSONL serves only as a portable content export and disaster-re
 
 A logical mutation and its pending export record are committed in the same SQLite transaction. A retryable exporter writes versioned, checksummed JSON records and marks the export complete. Failure to export does not affect runtime correctness.
 
-## Backup And Recovery
+## Backup and recovery
 
 Use SQLite’s supported online backup mechanism or `VACUUM INTO`; do not copy a live database file casually.
 
-Maintain:
+Backups include:
 
 - A backup before every schema migration.
 - Recent rolling hourly backups.
@@ -316,7 +315,7 @@ Maintain:
 - The last exported sequence or checkpoint.
 - Automated integrity verification.
 
-Recovery is:
+Recovery follows this path:
 
 ```text
 verify active database
@@ -329,11 +328,13 @@ verify active database
 
 A backup or export is not considered valid until it can be opened, checked, and identified by schema version.
 
-## Transactional Work
+## Transactional work
 
 Operations that cross conceptual boundaries are expressed as database state transitions rather than multi-file choreography.
 
-Accepting an external message may atomically:
+### Accepting an external message
+
+The comms transaction may atomically:
 
 - Insert the message.
 - Record its authenticated actor.
@@ -342,14 +343,18 @@ Accepting an external message may atomically:
 - Insert external delivery work when appropriate.
 - Insert a logical export event.
 
-Claiming a turn atomically records:
+### Claiming a turn
+
+The claim transaction records:
 
 - Claim token.
 - Owning process.
 - Lease deadline.
 - Attempt number.
 
-Completing a turn atomically records:
+### Completing a turn
+
+The completion transaction records:
 
 - Terminal outcome.
 - Final response.
@@ -392,7 +397,7 @@ Every capability request carries host-bound attribution. Denials fail explicitly
 - Users can inspect why an agent woke, which session ran, which process owned it, and where the result was delivered.
 - Generated JSON exports remain available for inspection and recovery but are never required for Shrimpy to function.
 
-Regressions to avoid:
+### Regressions to avoid
 
 - TUI startup or direct conversation must never wait for a gateway socket.
 - A progress post must not suppress the final response.
@@ -401,9 +406,9 @@ Regressions to avoid:
 - Pending work must not be silently discarded because no host was available.
 - Storage or export failure must fail visibly rather than acknowledge an undurable operation.
 
-## Build Shape
+## Build shape
 
-### Kernel Contracts
+### Kernel contracts
 
 Define host-independent domain types for:
 
@@ -419,31 +424,31 @@ Define host-independent domain types for:
 
 No kernel type may be named after the gateway, TUI, Telegram, or another host or adapter.
 
-### Structured Store
+### Structured store
 
 Introduce one transactional repository boundary over SQLite. Schema access remains private to the repository implementation. Other modules call domain operations rather than issue arbitrary SQL or open the database independently.
 
 Add integrity checking, migrations, online backups, logical exports, claim recovery, and inspection commands.
 
-### Session Engine
+### Session engine
 
 Extract one session engine shared by foreground, background, worker, and test hosts. Remove gateway status, channel persistence, surface activity, watchdog, and delivery concerns from session execution.
 
-### TUI Host
+### TUI host
 
 Make the TUI use the session engine directly with local state and scoped capabilities. Verify full operation with no gateway process, socket, PID file, or health record.
 
-### Gateway Host
+### Gateway host
 
 Reduce the gateway to lifecycle management for ingress, unattended dispatch, scheduling, delivery, reconciliation, health reporting, and optional sidecars.
 
 Each loop communicates through kernel operations and durable work records.
 
-### Agent Capabilities
+### Agent capabilities
 
 Replace ambient channel buses and self-declared message construction with bound comms and attention capabilities. Ordinary final responses flow through the invoking host.
 
-### Remove Superseded Paths
+### Remove superseded paths
 
 Delete direct structured-state file mutation, log-polled control RPC, provenance-based behavior inference, duplicate foreground/background session construction, and gateway-specific domain types. Do not retain compatibility wrappers or parallel runtime paths.
 
@@ -464,7 +469,7 @@ Delete direct structured-state file mutation, log-polled control RPC, provenance
 - Do not add a general-purpose event framework, dependency-injection container, actor framework, or distributed-systems protocol unless a demonstrated requirement cannot be met by transactions and explicit loops.
 - Do not introduce backward-compatibility or migration behavior without a separate explicit decision.
 
-## Open Decisions
+## Open decisions
 
 - Whether human-managed global configuration remains a validated file or becomes structured state edited exclusively through commands.
 - Whether logical recovery exports contain every structured mutation or only durable user content and reconstruction-critical records.

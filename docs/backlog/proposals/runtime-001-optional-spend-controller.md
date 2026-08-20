@@ -5,17 +5,17 @@ area: Runtime
 depends_on: []
 ---
 
-# RUNTIME-001: Optional Spend Controller
+# 🦐 RUNTIME-001: Optional Spend Controller
 
 ## Why
 
-Shrimpy may eventually support environments where agents have real spend pressure: model turns, tool calls, worker delegation, watch runs, and other scarce actions can cost an agent-owned currency. The interesting version is not a prompt convention. Agents should legitimately own wallets through an external system such as `shrimpychain`, and Shrimpy should consult that system for balance, debt, transfer, and settlement truth when the feature is enabled.
+Shrimpy may eventually support environments where model turns, tool calls, worker delegation, watch runs, and other scarce actions cost an agent-owned currency. This must be more than a prompt convention. An external system such as `shrimpychain` should own each wallet and remain authoritative for balances, debt, transfers, and settlement.
 
-This should stay optional and late. The goal is to define a clean runtime seam so the economy can exist without turning Shrimpy core into a wallet, blockchain, or pricing engine.
+This work should stay optional and late. Shrimpy only needs a clean runtime seam for an external economy; core should not become a wallet, blockchain, or pricing engine.
 
-## Shape
+## Runtime seam
 
-Shrimpy core should expose a generic spend/policy hook, not a `shrimpychain` subsystem. The hook sees typed runtime actions, can allow, deny, reserve, or mark them for postpaid settlement, and can report a compact context summary for agents. A `shrimpychain` package or plugin can implement that hook by calling the `shrimpychain` CLI or library.
+Shrimpy core exposes a generic spend-policy hook, not a `shrimpychain` subsystem. The hook receives typed runtime actions, can allow, deny, reserve, or mark them for postpaid settlement, and can give agents a compact context summary. An optional package or plugin implements the hook through the `shrimpychain` CLI or library.
 
 Possible core interface:
 
@@ -27,7 +27,7 @@ interface RuntimeSpendController {
 }
 ```
 
-The action/event vocabulary should be generic:
+The core action vocabulary is generic:
 
 - `agent_wake`
 - `model_turn`
@@ -36,28 +36,37 @@ The action/event vocabulary should be generic:
 - `worker_spawn`
 - `publication`
 
-Each event should include agent id, session or channel path, source message or watch id, model or tool name when relevant, estimated bounds when known, and evidence pointers that can be inspected later. Shrimpychain-specific values such as wallet address, chain transaction id, debt state, and pricing formula version belong in the integration result, not in the core action type.
+Each event includes the fields needed to price and inspect the action:
 
-## Shrimpychain Role
+- Agent ID.
+- Session or channel path.
+- Source message or watch ID.
+- Model or tool name when relevant.
+- Estimated bounds when known.
+- Evidence pointers for later inspection.
+
+Integration-specific values such as wallet addresses, chain transaction IDs, debt state, and pricing formula versions belong in the controller result, not the core action type.
+
+## Integration responsibilities
 
 `shrimpychain` owns:
 
-- wallet creation, wallet auth, signing, balances, transfers, debt, credit limits, reservations, settlement, and transaction history
-- pricing formulas when the feature is configured to delegate pricing externally
-- wallet truth for each agent, watch, worker, or task account
-- CLI commands agents can use to inspect balances, request funds, transfer funds, and understand debt
+- Wallet creation, authentication, signing, balances, transfers, debt, credit limits, reservations, settlement, and transaction history.
+- Pricing formulas when Shrimpy delegates pricing to the integration.
+- Authoritative wallet state for each agent, watch, worker, or task account.
+- CLI commands that let agents inspect balances, request or transfer funds, and understand debt.
 
 Shrimpy owns:
 
-- deciding where runtime spend checks happen
-- passing typed action metadata to the configured controller
-- turning denials into visible tool results, channel status records, or direct-session errors
-- recording evidence that links a Shrimpy action to external transaction ids
-- keeping the feature disabled unless explicitly configured
+- The runtime points where spend checks happen.
+- Typed action metadata passed to the configured controller.
+- Visible denials in tool results, channel status records, or direct-session errors.
+- Evidence that links a Shrimpy action to external transaction IDs.
+- A disabled default unless the user explicitly configures a controller.
 
 Shrimpy should store wallet addresses or key references at most. Private keys and signing should stay in `shrimpychain` or its keystore.
 
-## Spend Modes
+## Spend modes
 
 The integration should support more than one spend mode because different actions have different risk profiles.
 
@@ -65,11 +74,11 @@ The integration should support more than one spend mode because different action
 - **Reservation:** high-cost or open-ended actions reserve a maximum spend before execution, settle actual cost afterward, and refund the remainder.
 - **Hard denial:** frozen wallets, exhausted credit lines, or policy-forbidden actions are blocked before execution.
 
-Negative balances may be a useful explicit mode for a synthetic operating ledger or for interrupted postpaid settlement. Real financial credit is a different and much later capability: the first real-money integration should be prepaid, non-transferable, and debt-free. A reward or impact score must never automatically mint funds or expand an agent's credit.
+Negative balances may be useful in a synthetic operating ledger or after interrupted postpaid settlement. Real financial credit is a separate, much later capability. The first real-money integration should be prepaid, non-transferable, and debt-free. Reward or impact scores must never mint funds or expand an agent's credit automatically.
 
-## Pricing Sketch
+## Pricing sketch
 
-Pricing should be formula-versioned and inspectable. For a Bash-like tool call, command character length can be one useful input because it prices prompt/action complexity before execution.
+Pricing formulas should be versioned and inspectable. For a Bash-like tool call, command length is one useful input because it estimates action complexity before execution.
 
 Example quote:
 
@@ -92,17 +101,31 @@ bash_settlement =
   + failure_or_retry_penalty
 ```
 
-Character length should not be the whole cost. Short commands can be expensive or risky, and long commands can be cheap but verbose. The better cost pressure is command length for intent complexity and runtime/output for actual resource use. Risk and authority stay in policy: they may require approval, reservation, or denial, but must not become a surcharge that a well-funded agent can pay away.
+Character count cannot determine the whole cost: short commands can be expensive or risky, while long commands can be cheap but verbose. Command length can estimate intent complexity; runtime and output measure actual resource use. Risk and authority remain policy decisions. They may require approval, reservation, or denial, but must never become a surcharge that a well-funded agent can pay away.
+
+## UX Implications
+
+- With no spend controller configured, Shrimpy behaves exactly as it does today.
+- When a controller is enabled, agents receive a compact spend summary and a clear path to inspect balances, reservations, debt, and recent settlements.
+- A denied action fails where it was attempted, with a concise reason and a useful next step. Shrimpy never drops the action silently.
+- Reservations and settlements expose evidence IDs so users can trace a Shrimpy action to the external ledger.
+- Wallet secrets never appear in configuration, channel history, session transcripts, or turn context.
+
+### Regressions to avoid
+
+- With no controller configured, ordinary Shrimpy use must remain unchanged.
+- Spend state must not silently change prompts, session authority, or tool policy.
+- Wallet balance must not expand session authority or permit an otherwise forbidden action.
 
 ## Build
 
-- Define the generic runtime action/result types without mentioning currency, wallets, chains, or `shrimpychain`.
-- Add a disabled-by-default spend controller loader to runtime config.
-- Add hook points around agent wake, model turns, daemon tool calls, watch runs, worker spawn/amendment, and publication helpers.
-- Add refusal plumbing that can surface denied actions as compact tool results, operation/status channel messages, or direct-session errors depending on where the action was attempted.
-- Add compact turn-context reporting for enabled controllers, such as current spend state, debt state, and inspect commands, without dumping transaction history into the prompt.
-- Add evidence records that link Shrimpy action ids to external reservation or settlement ids.
-- Keep wallet ownership and signing outside Shrimpy. The first integration should call a `shrimpychain` CLI or package that already owns those semantics.
+- Define generic runtime action and result types without mentioning currency, wallets, chains, or `shrimpychain`.
+- Load the spend controller from runtime config and disable it by default.
+- Call the controller around agent wakes, model turns, daemon tool calls, watch runs, worker spawn and amendment, and publication helpers.
+- Surface denied actions where they were attempted: compact tool results, channel status records, or direct-session errors.
+- Give enabled controllers compact turn context with current spend state, debt state, and inspection commands. Do not inject transaction history into the prompt.
+- Record evidence that links Shrimpy action IDs to external reservation or settlement IDs.
+- Keep wallet ownership and signing outside Shrimpy. The first integration should use a `shrimpychain` CLI or package that already owns those semantics.
 - Document the optional config shape after the hook is real.
 
 Possible config shape:
@@ -122,11 +145,11 @@ Possible config shape:
 ## Boundaries
 
 - Do not make Shrimpy core the balance authority.
-- Do not put wallet private keys, seed phrases, signing prompts, or raw auth secrets in Shrimpy config, channel logs, session transcripts, or turn context.
+- Do not put wallet private keys, seed phrases, signing prompts, or raw authentication secrets in Shrimpy config, channel logs, session transcripts, or turn context.
 - Do not add `shrimpychain` as a required dependency.
 - Do not hardcode pricing formulas in core Shrimpy unless they are generic test fixtures.
 - Do not scatter `chargeX` calls across feature code. Use typed runtime action hooks at a few pressure points.
-- Do not make this a fake security boundary. It meters Shrimpy-controlled actions; anything outside Shrimpy's tool/runtime path must be described honestly.
+- Do not present this as a security boundary. It meters Shrimpy-controlled actions only; describe anything outside Shrimpy's tool and runtime paths honestly.
 - Do not let balance expand session authority or turn a policy-forbidden action into an expensive permitted one.
 - Do not silently mutate prompts or policies based on wallet state. If spend state affects behavior, show the agent a compact runtime fact and inspect path.
 - Do not block ordinary Shrimpy usage when no spend controller is configured.
@@ -146,5 +169,5 @@ Possible config shape:
 - An enabled spend controller can allow, deny, reserve, and settle typed runtime actions without Shrimpy core knowing about wallets or chains.
 - Agents can inspect their spend state through normal CLI/context paths without seeing private keys.
 - Denied actions produce useful refusals instead of silent drops.
-- Evidence records connect Shrimpy action outcomes to external transaction or settlement ids.
+- Evidence records connect Shrimpy action outcomes to external transaction or settlement IDs.
 - A `shrimpychain` integration can be built as an optional package or plugin that owns wallet truth, pricing, debt, and settlement.
