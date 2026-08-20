@@ -8,6 +8,7 @@ This directory holds source notes and comparison research that may inform future
 ## Notes
 
 - [bb-shrimpy-resident-agents.md](bb-shrimpy-resident-agents.md) — comparison of bb's thread-centered coding workspace with Shrimpy's resident-agent home, including ACP and CLI/SDK seams, overlap risks, authority questions, and research probes that avoid a dedicated integration.
+- [gooey-pi-desktop.md](gooey-pi-desktop.md) — source, history, security, slop, and architecture audit of GooeyPi as prior art for a Shrimpy desktop app, with a borrow-the-shell recommendation and bounded fork spike.
 - [buzz-shrimpy-environment.md](buzz-shrimpy-environment.md) — evaluation of Buzz as Shrimpy's main chat UX, including practical Nostr consequences, runtime overlap, deployment weight, a lightweight setup-skill proposal, and the native surface needed for live chat.
 - [discord-adapter-interface.md](discord-adapter-interface.md) — high-level interface notes for a Discord DM-only chat adapter, including API shape, Shrimpy surface mapping, auth boundaries, and lessons from Hermes/OpenClaw.
 - [bluebubbles-adapter-interface.md](bluebubbles-adapter-interface.md) — high-level interface notes for a BlueBubbles/iMessage chat adapter, including REST/webhook shape, Shrimpy surface mapping, webhook lifecycle, identity, auth, and lessons from Hermes/OpenClaw.
