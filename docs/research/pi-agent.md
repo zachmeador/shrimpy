@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Updated: 2026-08-30
-Status: `0.84.4` implemented; automated verification passed; manual smoke test pending
+Status: `0.84.4` committed; TUI `/thinking` collision found; cleanup required
 
 Pi is Shrimpy's embedded agent and session engine. Shrimpy pins the registry-published `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` packages rather than depending on a local checkout or active fork.
 
@@ -39,19 +39,20 @@ The latest stable tag inspected on 2026-08-30 is `v0.84.4` at `b79e4cc834970cca6
 - Declared breaking changes replace the agent-core harness session APIs, rename AI request-transform and Google thinking-level types, tighten dynamic-provider refresh and auth cancellation contracts, and change when `prepareNextTurn` hooks run. Shrimpy does not import those surfaces.
 - Coding-agent changes relevant to Shrimpy make credential mutations synchronize cache-only model state, make model and thinking selections session-scoped unless explicitly saved, add compaction-failure events, compact oversized tool results before the next model call, and improve nested skill discovery.
 - AI and tool changes add provider-neutral tool choice, strict-schema normalization, request cancellation, and many provider fixes. The focused tool, inference, compaction, and session probes pass against the published packages.
-- TUI changes are broad, including fullscreen search and layout work, model/thinking selectors, and subscription-aware footer rendering. Shrimpy's five named private compatibility seams still pass after updating one footer test double.
+- Pi `0.84.3` explicitly added a built-in `/thinking` selector, searchable thinking defaults, session-scoped selection, and Ctrl+S persistence. The original assessment noted the broader selector and persistence changes but failed to compare Pi's built-in command catalog with Shrimpy's registered extension commands.
+- Other TUI changes are broad, including fullscreen search and layout work and subscription-aware footer rendering. Shrimpy's five named private compatibility seams still pass after updating one footer test double.
 
 Pi's upstream `main` was one post-release `[Unreleased]` bookkeeping commit beyond `v0.84.4` during the assessment, at `853a80d26c90a14c1886f0ebb8ffaae133ca2185`. The upgrade target is the stable tag and published packages, not unreleased branch state.
 
 ## `0.84.4` Upgrade Assessment
 
-Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`; implementation based on `main` at `7e28527a6a617c4949ad31c086a26e373bd9f7cd`
+Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`; upgrade committed to `main` at `ad3b88e439e5eef5270f254d02d791dc891f24e2`
 
 Pi clone: `/Users/zachmeador/gits/pi-mono`; stable tag `v0.84.4` at `b79e4cc834970cca69daebffab7df1da7d1e52c4`; inspected `main` at `853a80d26c90a14c1886f0ebb8ffaae133ca2185`
 
 ### Summary
 
-The `0.84.4` upgrade is implemented as a small coordinated source-and-test change. Confidence is high for automated compatibility: the build, extension typecheck, lint, 191-test focused Pi slice, and complete 738-test suite pass in the main checkout. A manual provider and streaming-TUI smoke test remains necessary before release.
+The `0.84.4` packages are committed, but the upgrade is not clean. A live TUI launch exposed a bundled Shrimpy `/thinking` extension that conflicts with Pi's new built-in command. Pi's handler wins before extension dispatch, so the local handler is dead in the TUI and produces a startup warning. The build, extension typecheck, lint, 191-test focused Pi slice, and complete 738-test suite all passed without detecting this integration failure.
 
 ### Versions
 
@@ -61,6 +62,9 @@ The `0.84.4` upgrade is implemented as a small coordinated source-and-test chang
 
 ### Likely Breakage
 
+- `extensions/thinking.ts` registers `/thinking`, which Pi added to `BUILTIN_SLASH_COMMANDS` in `0.84.3`. Pi `0.84.4` omits the Shrimpy command from autocomplete, reports an extension conflict during interactive startup, and handles submitted `/thinking` input before extension dispatch. Remove the obsolete TUI extension rather than renaming or preserving a second command path.
+- `src/sessions/pi-resources.ts` still loads `extensions/thinking.ts`, while `test/thinking-extension.test.ts` proves a handler that the TUI cannot reach. Remove both and update `test/pi-resources.test.ts` to expect only active extensions.
+- Pi's native selector uses session-scoped changes by default and offers Ctrl+S persistence through `SettingsManager`. Shrimpy supplies an in-memory settings manager and stores durable thinking defaults in agent configuration, so the ordinary selector works but the native “save default” affordance is not durable Shrimpy configuration. Decide whether to suppress that affordance or bridge it explicitly without restoring a shadow `/thinking` command.
 - `src/sessions/context-inspection.ts` does not compile unchanged. `ModelRuntime.setRuntimeApiKey()` now accepts `AuthOperationOptions`, so its third argument may contain `signal` but not `{ allowNetwork: false }`; the unchanged build fails with `TS2353` at line 106. Remove the obsolete argument. Pi `0.84.4` synchronizes the affected provider's cache and availability without a network catalog refresh, preserving the inspection path's intent.
 - The same obsolete `setRuntimeApiKey()` option remains in `test/context-parity.test.ts` and twice in `test/sessions.test.ts`. Node's type-stripping test runner ignores the extra property at runtime, but those calls should be updated with the production code so the tests describe the current contract.
 - `test/tui-activity-indicator.test.ts` mocks `modelRuntime.isUsingOAuth()`. Pi's private `FooterComponent` now calls `isUsingSubscription()`, so the focused slice initially failed with `TypeError: this.session.modelRuntime.isUsingSubscription is not a function`. Change the test double to `isUsingSubscription: () => false`; production already uses Pi's real `ModelRuntime` and needs no matching source edit.
@@ -70,6 +74,9 @@ The `0.84.4` upgrade is implemented as a small coordinated source-and-test chang
 
 ### Required Shrimpy Changes
 
+- Remove the obsolete `extensions/thinking.ts` TUI adapter, its resource registration, and its dead handler tests.
+- Add an integration check that fails on new interactive startup diagnostics and bundled-extension command collisions. Extension-loader errors alone are insufficient because Pi creates built-in command conflict diagnostics in `InteractiveMode`.
+- Resolve the native selector's Ctrl+S persistence semantics against Shrimpy's in-memory Pi settings and agent-owned durable defaults.
 - Pinned `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` to exact `0.84.4` in `package.json` and regenerated `package-lock.json`.
 - Removed `{ allowNetwork: false }` from the `ModelRuntime.setRuntimeApiKey()` call in `src/sessions/context-inspection.ts`, `test/context-parity.test.ts`, and the two affected calls in `test/sessions.test.ts`.
 - Replaced the `isUsingOAuth` method in the `test/tui-activity-indicator.test.ts` model-runtime double with `isUsingSubscription`.
@@ -93,7 +100,9 @@ The `0.84.4` upgrade is implemented as a small coordinated source-and-test chang
 - Main-checkout extension typecheck and `npm run lint`: passed.
 - Main-checkout focused Pi integration slice: 191 tests, 191 passed.
 - Main-checkout `npm test` with normal filesystem and loopback permissions: passed the build and all 738 tests with no failures or skips.
-- Manual credential-backed provider and streaming-TUI smoke tests have not run.
+- A live TUI launch after commit reported `Extension command '/thinking' conflicts with built-in interactive command. Skipping in autocomplete.` Pi's `0.84.3` changelog explicitly announces the new `/thinking` selector in New Features and Added, then calls out its session-scoped persistence behavior in Fixed.
+- `test/pi-resources.test.ts` checked extension load errors but did not instantiate `InteractiveMode`, inspect startup warnings, or compare extension commands with `BUILTIN_SLASH_COMMANDS`. `test/thinking-extension.test.ts` exercised the Shrimpy handler directly and therefore gave false confidence about a handler Pi shadows before extension dispatch.
+- Manual credential-backed provider and streaming-session smoke tests have not run.
 
 ### Upgrade Steps
 
@@ -101,13 +110,16 @@ The `0.84.4` upgrade is implemented as a small coordinated source-and-test chang
 2. Removed the obsolete `allowNetwork` option from the four source and test `setRuntimeApiKey()` calls.
 3. Updated the footer test double to provide `isUsingSubscription()`.
 4. Passed the source build, extension typecheck, focused Pi integration slice, lint, and complete test suite.
-5. Manually smoke-test a credential-backed provider call, model and thinking selection, session replacement during streaming, footer rendering, and compaction after a large tool result.
-6. Review and commit the coherent upgrade, then record the smoke-test result before release.
+5. Remove the obsolete Shrimpy `/thinking` extension and add a regression check for Pi built-in command collisions and startup warnings.
+6. Verify the native selector through Shrimpy, including model-specific levels, session recording, changes during active work, and the Ctrl+S persistence affordance.
+7. Manually smoke-test a credential-backed provider call, session replacement during streaming, footer rendering, and compaction after a large tool result.
+8. Record the cleanup and smoke-test results before release.
 
 ### Risks And Unknowns
 
 - The automated assessment did not exercise credential-backed provider calls, OAuth refresh, remote catalog refresh, or provider-specific network adapters. Pi `0.84.x` changes cancellation and credential synchronization enough that these need a manual smoke test.
 - Pi now compacts oversized tool results before the next assistant call and changes model/thinking persistence in the interactive selector. The automated tests pass, but live streaming compaction and selector behavior remain unverified.
+- Pi's native Ctrl+S thinking-default action writes to Shrimpy's in-memory Pi settings manager, not directly to `agents[].thinking`; the TUI can therefore imply persistence that does not survive a new Shrimpy session.
 - `src/app/pi-internals.ts` and the five named private terminal compatibility seams remain outside Pi's semver contract even though their build and focused tests pass at `0.84.4`.
 - `src/tui/turn-context-rendering.ts` remains necessary because the upstream release does not remove `CustomMessageComponent`'s reserved collapsed spacer.
 - The probe used Node `26.7.0` and npm `11.19.0`. Both Shrimpy and Pi declare Node `>=22.19.0`; a supported Node 22 or 24 runtime smoke test would better match likely deployments.
@@ -192,9 +204,10 @@ The upstream `packages/mom/` example demonstrates one external messaging channel
 2. The `0.83.0` dependency update and `typebox` `1.3.7` alignment are implemented and manually smoke-tested.
 3. Implemented `0.84.4` as a coordinated package, lockfile, context-inspection API, and footer-fixture update.
 4. Passed the source build, extension typecheck, 191-test focused slice, lint, and 738-test full suite in the implementation checkout.
-5. Review and commit the coherent upgrade after automated verification.
-6. Complete the credential-backed provider and streaming-TUI smoke tests, then update the result in this note before release.
-7. Design the package bridge separately after the upgraded runtime is stable.
+5. Committed the package upgrade, then found the shadowed `/thinking` extension during live TUI startup.
+6. Remove that obsolete adapter, add command-collision and startup-diagnostic coverage, and resolve native thinking-default persistence.
+7. Complete the credential-backed provider and streaming-TUI smoke tests, then update the result in this note before release.
+8. Design the package bridge separately after the upgraded runtime is stable.
 
 ## Sources
 

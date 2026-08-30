@@ -1,6 +1,6 @@
 ---
 name: shrimpy-dev-pi-upgrade
-description: Use when evaluating whether Shrimpy can upgrade to the latest stable Pi packages from a local Pi git clone, identifying likely breakage, and updating the assessment in docs/research/pi-agent.md without applying the upgrade in the main checkout.
+description: Use when evaluating whether Shrimpy can upgrade to the latest stable Pi packages from a local Pi git clone, mapping upstream changes to Shrimpy integration points, identifying likely breakage, and updating docs/research/pi-agent.md without applying the upgrade in the main checkout.
 ---
 
 # Shrimpy Dev Pi Upgrade
@@ -30,13 +30,20 @@ Do not apply the upgrade to the main Shrimpy checkout unless the user explicitly
    - Read `package.json` and any lockfile for pinned `@earendil-works/pi-*` package versions.
    - Search source and tests for Pi imports, exported types, runtime adapters, and assumptions with `rg "@earendil-works/pi-|from \"pi|loadSkills|Pi" src test package.json`.
 5. Compare current Pi to latest stable Pi:
-   - Use the Pi clone's changelog, package manifests, exported type declarations, source diffs, and tests.
+   - Read the complete changelog sections for every release after Shrimpy's current version through the target version. Do not rely on breaking-change headings or a broad summary; added features can replace Shrimpy compatibility code just as easily as API removals can break it.
+   - Make an impact list for every changelog entry that names a surface Shrimpy imports, wraps, patches, suppresses, or exposes. For each entry, record the upstream change, the matching Shrimpy path or confirmed absence, the source diff or runtime probe used, and the result. Do not mark an entry covered until that mapping exists.
+   - Use the Pi clone's package manifests, exported type declarations, source diffs, and tests to verify the impact list.
    - Diff from the tag or commit matching Shrimpy's current Pi package version to the latest stable tag or commit.
+   - Compare named registries and user-facing surfaces, not only imported types: built-in slash commands, extension command names, keybindings, settings, selectors, events, tools, providers, resource discovery, CLI flags, and public exports.
+   - Search Shrimpy for every new or changed upstream command, setting, event, type, and component named in the changelog. Treat any upstream feature that overlaps a Shrimpy adapter as a deletion or simplification candidate and prove whether upstream dispatch shadows the local path.
    - Focus on APIs Shrimpy imports, CLI/runtime behavior Shrimpy wraps, skill loading, prompt/session behavior, TUI integration, model config, tool schemas, and filesystem expectations.
 6. Probe the upgrade in a disposable Shrimpy checkout when feasible:
    - Create a temporary `git worktree` or copy outside the main checkout.
    - Install the candidate Pi package versions there.
-   - Run the smallest useful checks first, usually `npm run build`, then targeted tests around affected areas. Run the full test suite only if it is useful and affordable.
+   - Run the smallest useful checks first, usually `npm run build`, then targeted tests around every affected entry in the impact list. Run the full test suite only if it is useful and affordable.
+   - Load all bundled Shrimpy extensions against the candidate and inspect warnings as well as errors. Compare their registered command names with Pi's built-in command catalog.
+   - Start the real interactive host far enough to collect startup diagnostics. Exercise each changed interactive surface named by Pi's changelog, including autocomplete, selectors, keybindings, session mutation, and persistence behavior. A unit test of an extension handler does not prove that Pi still dispatches to it.
+   - Treat any new startup warning, skipped registration, shadowed handler, or misleading persistence affordance as upgrade breakage. A clean build and full test suite do not override a failed integration or live-surface probe.
    - Keep command output concise; capture failures, not entire logs.
 7. Update `docs/research/pi-agent.md` with the result. Refresh its date, current integration facts, latest stable version, upgrade assessment, implementation sequence, and relevant sources without replacing unrelated architectural or ecosystem research.
 
@@ -83,3 +90,11 @@ Pi clone: <path and commit/tag>
 ```
 
 Use file paths and API names, not vague labels. Preserve checkout provenance, version evidence, commands, pass/fail outcomes, remaining uncertainty, and confidence even when the prose is reorganized to avoid duplicated sections. If no breaking changes are found, say what evidence supports that and still list the verification performed.
+
+Before recommending implementation or commit, answer these questions explicitly in the assessment:
+
+- Which Pi features in the upgrade range replace or overlap Shrimpy adapters?
+- Do any Shrimpy extension commands conflict with Pi built-ins?
+- Did the real interactive startup produce new diagnostics?
+- Was every changed selector, command, keybinding, and persistence path exercised through the host that owns it?
+- Which checks remain manual, and why is it safe to proceed without them? If a changed interactive surface has not been exercised, do not call the upgrade ready to commit.
