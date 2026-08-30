@@ -139,6 +139,7 @@ A room message is envelope plus body. Dispatch, replay, and delivery may read th
 - `audience` — `room` (default) or `agents` (an aside: visible in history, never delivered out a window)
 - `wake` — `normal` or `live-only` (skipped during backlog replay)
 - `notify` — `quiet`, `normal`, or `urgent` as a window hint
+- `verified` — how strongly the author's identity was checked at ingress; recorded honestly, scored by nobody (ARCH-003)
 
 On a DM charter, `kernel.post` stamps `to` to the member agents other than the author before attend runs. Labels such as `dm~person~agent` are conventions only. Nothing parses a room id to learn membership.
 
@@ -236,6 +237,8 @@ The last clause is the loop guard. It is documented default behavior, not a hidd
 Default mode is `all` with that guard. Agents may narrow mode and sender filters. They may not add impersonation. DM posts already stamp `to`, so a DM still wakes the other member under `addressed`.
 
 The enqueued session is `room/<room-id>` for that agent. Watches and jobs that need a turn without a room message use `wakeAt` or a job session, not a fake author.
+
+This ladder is the shipped default. Agents may own attention policies that refine it into ordered clauses over actors, rooms, and windows (ARCH-003); the default clause list reproduces exactly this ordering, so a household with no policies behaves as described here.
 
 ### Admit
 
@@ -351,6 +354,44 @@ Runners are how much of the host's authority the session inherits:
 
 Jobs, command watches, clients, terminal turns, and attendant turns are all consumers of this engine. They are not parallel session constructions.
 
+## Contained runners
+
+Containment is a property of where the process boundary sits, not of how tools are configured. Three tiers exist, and Shrimpy names them honestly:
+
+| Tier | Name | What enforces |
+|---|---|---|
+| 0 | Owner's hands | Nothing; the operator's ambient authority |
+| 1 | Tool narrowing | Allowlists and fixed-operation wrappers; advisory beyond the tool API |
+| 2 | Containment | An OS boundary around a child process |
+
+No feature may ship whose name implies Tier 2 while enforcing Tier 1. Narrowing is narrowing; containment is a process boundary; inspection always distinguishes them.
+
+The kernel boundary and the sandbox boundary are the same seam. A contained session:
+
+- Has **no kernel-store access**. The store is the authority: a process that can write it can stamp authorship, release leases, and grant comms rights. No store file appears inside any sandbox.
+- Holds **no credentials**. Provider traffic is brokered by the parent.
+- Touches **no home truth directly**. Its only door to the home is capability-scoped RPC through its parent: the bound `comms` and `attention` capabilities, plus explicitly granted work tools. The same interfaces trusted sessions use in-process; a different security claim.
+
+The division of labor:
+
+```text
+parent (trusted host)
+  holds the session lease
+  resolves admit and records the pinned permit
+  brokers model-provider traffic
+  receives the TurnResult over RPC and calls kernel.completeTurn
+  reconciles when the child dies
+
+child (contained)
+  hosts Pi for one turn or one job
+  sees only its permit roots, its scratch, and its own transcript area
+  speaks to the home exclusively through scoped RPC
+```
+
+A dead child strands nothing: the parent still holds the lease and records the failure or requeues the turn without guessing. Because brokering requires a live parent, contained execution always has a supervisor — the attendant for background turns and jobs, the terminal for foreground runs. Fully detached, unsupervised contained execution is out of scope until a concrete workflow demands it.
+
+First consumers, in order: command watches (shell leaves the daemon), then worker jobs, then narrowed public-room agents. The owner's interactive sessions remain Tier 0 forever. External backends such as coding agents map permits onto their own sandbox flags; one policy vocabulary drives every backend's translation.
+
 ## Hosts
 
 A host is a process that can hold a lease and run the turn engine. That is the whole category.
@@ -442,6 +483,8 @@ People are members of rooms. A window maps a transport user to a person at ingre
 Examples of windows: Telegram, Discord, an owner-local web console, the terminal when it is showing a DM. Each is a vertical translator. Shared code is for identity mapping and remote commands, not a transport-neutral bridge framework.
 
 A window-bound room delivers when `audience` is `room`, the author is not a human, and the body is not a marker.
+
+The thinness contract, actor verification classes, outbound agent transport identities, and credential custody are specified in ARCH-003 and apply to every window here; nothing in this note relaxes them.
 
 ## Storage
 
@@ -638,9 +681,9 @@ This is the target shape, not one branch. Sequence later work so each slice dele
 7. **Speech.** Auto-reply lives in `completeTurn`, not in hosts. Delete publication-tool swarms and reply-recovery watches.
 8. **Windows.** Translators over kernel.post / delivery. People as members. Envelope delivery rule.
 9. **Jobs and watches.** Completion and firings become service-authored stimuli. One child-session spawn path through the turn engine.
-10. **Permits and containment.** Ceiling validation, per-room permits, trusted vs contained runners. Command watches move onto the contained runner.
+10. **Permits and containment.** Ceiling validation, per-room permits, trusted vs contained runners, built to the contained-runners spec above. Command watches move onto the contained runner first.
 11. **Clients.** A local ACP host over the turn engine, capabilities advertised only when enforced.
-12. **Household.** Companions as ordinary agents with a parent pointer, after the kernel is real.
+12. **Household.** Companions as ordinary agents with a parent pointer, after the kernel is real and the contained runner exists. Work where household agents routinely execute outside content waits for Tier 2; do not promote multi-agent ambitions ahead of containment.
 
 Exact CLI spelling can follow these nouns in a later pass. Every feature still needs a `shrimpy <command>` path.
 
@@ -659,6 +702,8 @@ Exact CLI spelling can follow these nouns in a later pass. Every feature still n
 - Hosts do not apply speech policy. `completeTurn` does.
 - Attention does not grant communication authority. Communication authority does not force a wake.
 - The owner's terminal session skips admission. Other sessions do not.
+- Contained sessions speak scoped RPC and nothing else: no store access, no credentials, no home files beyond their permit. The parent holds the lease, brokers model traffic, and commits results.
+- No feature ships whose name implies OS containment while it enforces tool narrowing. Narrowing is narrowing; containment is a process boundary; inspection distinguishes them.
 - No profile ids, named permit registries, or sender impersonation.
 - No nested homes, companion attendants, or recursive ownership.
 - No general-purpose event bus, actor framework, or DI container.
@@ -700,6 +745,6 @@ Exact CLI spelling can follow these nouns in a later pass. Every feature still n
 
 ## Notes
 
-This is an independent architecture draft. It should not be edited to match other backlog notes, and those notes should not be edited to match it until a later reconciliation pass.
+This draft owns the kernel: facts, decisions, sessions, hosts, storage, and containment. ARCH-003 owns the edge — actors, windows, clients, response policy, turn-context facts — and depends on this note. SECURITY-006 builds its runners on the contained-runners spec here. Reconcile outward changes into this note rather than growing equivalents in the notes that depend on it.
 
 The kernel is small on purpose. If a change needs a new kind of daemon, a new kind of log, or a new kind of agent, it is probably in the wrong layer.

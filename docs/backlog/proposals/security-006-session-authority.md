@@ -2,7 +2,8 @@
 status: draft
 priority: P2
 area: Security
-depends_on: []
+depends_on:
+  - ARCH-002
 ---
 
 # 🦐 SECURITY-006: Session Authority
@@ -90,14 +91,16 @@ Durable sender grants keyed by stable `userId` or `actorId` decide whether a sen
 
 The `in-process` backend makes current behavior explicit: the session runs with the authority of the gateway or CLI process that opened it. This remains the default for trusted work. It refuses any policy with `fileAccess` because it cannot enforce filesystem containment.
 
-The `subprocess` backend starts a fresh sandboxed child process that hosts the Pi session and talks to the gateway over stdio RPC. It builds containment directly from the policy:
+The `subprocess` backend starts a fresh sandboxed child process that hosts the Pi session. It builds containment directly from the policy:
 
 - On macOS, use a Seatbelt profile with `deny default` and per-root `allow file-read*` or `allow file-write*` rules.
 - On Linux, use a bubblewrap mount namespace or Landlock ruleset with the same shape.
 
-The kernel resolves paths at syscall time, covering symlink escapes, traversal, and time-of-check/time-of-use races. Child processes, including Bash when allowed, inherit the same boundary.
+Kernel-enforced paths cover symlink escapes, traversal, and time-of-check/time-of-use races. Child processes, including Bash when allowed, inherit the same boundary.
 
-The stdio RPC carries channel delivery and model-provider calls across the trust boundary. The gateway brokers model traffic so provider credentials never enter the child. Session storage, workspace configuration, and credentials stay on the gateway side. The child sees only its working directory and the policy's `fileAccess` roots.
+The kernel boundary and the sandbox boundary are the same seam (see ARCH-002, Contained runners). The child talks to the home exclusively through scoped RPC with its parent. The parent holds the session lease, resolves admission, brokers model-provider traffic, and commits turn outcomes through kernel operations on the child's behalf. The child receives capability-bound tools — the comms and attention capabilities its grant allows, plus permitted work tools — and touches no kernel-store file, no credentials, and no home state beyond its `fileAccess` roots, its scratch, and its own transcript area.
+
+A dead child strands nothing. The parent still holds the lease, so reconciliation records the failure or requeues the turn without guessing. Because brokering requires a live parent, contained execution always has a supervisor: the attendant for background turns and jobs, the terminal for foreground runs.
 
 Network egress policy is out of scope. For now, the tool allowlist controls web capability: a session without Bash or web-capable tools cannot reach the web. Add a network field to `SessionPolicy` only when a concrete workflow needs egress control for an otherwise network-capable session.
 
@@ -149,12 +152,7 @@ When a public room needs privileged presence, use two agents: a restricted agent
 
 ### Credentials for detached children
 
-File-based results are enough; workers do not need a streaming protocol. The unresolved question is model access. Brokered model calls require a live parent, but today's detached workers can outlive the CLI that spawned them.
-
-Choose between two honest options:
-
-- Require a running gateway to broker credentials and model traffic for sandboxed workers.
-- Let detached workers keep credentials and provide filesystem-only sandboxing as the weaker default.
+Resolved: contained execution requires a live supervising host. The parent brokers model traffic and commits results, so provider credentials and kernel-store access never enter the child. A contained worker run is supervised while active; the attendant is the default supervisor for background work, and workers keep their lifecycle, turns, and records unchanged. Fully detached, unsupervised contained execution stays out of scope; if a concrete workflow ever demands it, it arrives as an explicit design decision, not a weaker default.
 
 ## Boundaries
 
@@ -164,6 +162,8 @@ Choose between two honest options:
 - No per-sender sessions or per-sender policy inside a channel; different needs get different channels or different agents.
 - Restricted policies never expose Bash, arbitrary subprocess execution, or a free-form Shrimpy CLI wrapper unless the sandbox is the boundary containing them.
 - No tool-level path checking, advisory or otherwise; only the subprocess runner may claim containment, and only for what it actually contains.
+- Contained children hold no store access and no credentials; the parent holds the lease, brokers provider traffic, and commits results.
+- No feature ships whose name implies OS containment while it enforces tool narrowing. Narrowing is narrowing; containment is a process boundary; inspection distinguishes them.
 - No legacy shims for `profileId` in keys, IDs, or storage paths; remove the segment instead of aliasing it.
 - Prompt-loaded workspace and agent context stay shared and non-sensitive across all sessions of an agent; there are no per-policy prompt permissions.
 
@@ -195,6 +195,7 @@ Choose between two honest options:
 - An agent's authority can differ per channel, bounded by its ceiling and visible in inspection, without any new session-identity machinery.
 - Admission resolves policy before session open; failures are closed and explained.
 - A `fileAccess` policy is enforced by kernel sandboxing in a subprocess runner, or refused; no pseudo-bounded middle state exists.
+- Contained children hold no store access and no credentials; the parent holds the lease, brokers provider traffic, and commits outcomes. Killing a child mid-turn leaves the lease with a live parent that reconciles cleanly.
 - Command watches no longer execute unrestricted shell in the gateway process.
 - Worker runs are sandboxed by default, there is one child-session spawn path, and no external backend runs with sandboxing disabled unless explicitly configured.
 - Inspection distinguishes in-process tool narrowing from subprocess containment.

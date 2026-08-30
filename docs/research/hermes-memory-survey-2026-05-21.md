@@ -1,9 +1,10 @@
-# Hermes Memory and Compaction Survey
+# 🦐 Hermes Memory and Compaction Survey
 
 Date: 2026-05-21
-Hermes source: local checkout of `sdfgeoff/hermes-agent`
-Hermes commit: `2fdefca570973eff014d60aa0904aa39396524d4`
-Commit subject: `Merge pull request #28269 from cresslank/chore/tui-remove-unused-babel-deps`
+Rechecked: 2026-08-21
+Hermes source: local checkout of `nousresearch/hermes-agent`
+Hermes commit: `ac8dff4fbcf47a392a3cddcbec068aa05930ab47`
+Commit subject: `fix(compression): auto-raise Daybreak Codex threshold`
 
 ## Executive Read
 
@@ -13,9 +14,9 @@ Hermes now has three separate memory surfaces that should not be collapsed toget
 - Session search: SQLite and FTS5 transcript recall for past work. This is the right path for task history, completed work, PR numbers, old command output, and other things that should not become durable memory.
 - External memory providers: one optional provider at a time, orchestrated by `MemoryManager`. This is where richer evolving user models now live, especially Honcho.
 
-The biggest evolution is that user modeling has moved out of the tiny built-in memory files and into provider lifecycle hooks. Honcho in particular builds a peer model over time from observed turns, then injects a compact context and dialectic user synthesis into the next model call. That provider context is not part of the cached system prompt. It is fenced and appended to the current turn's user message at API-call time.
+The biggest evolution is that user modeling has moved out of the tiny built-in memory files and into provider lifecycle hooks. Honcho in particular builds a peer model over time from observed turns, then injects a compact context and dialectic user synthesis into the next model call. That dynamic provider context is not part of the cached system prompt. It is fenced and appended to the current turn's model-bound user message. On the standard non-MoA, non-Codex-app-server path, Hermes preserves those bytes in an `api_content` sidecar for stable replay. Only the provider's static guidance block enters the frozen system prompt.
 
-Hermes compaction is a working-context feature, not a long-term memory feature. It prunes and summarizes the active message list, rotates the SQLite session id, rebuilds the system prompt, and notifies external memory providers about the compression boundary. Durable memory remains separate and is treated as authoritative over compaction summaries.
+Hermes compaction is a working-context feature, not a long-term memory feature. It prunes and summarizes the active message list, refreshes the system prompt when necessary, and notifies external memory providers about the compression boundary. The default in-place mode keeps the same SQLite session id and soft-archives the replaced turns; the optional legacy mode rotates to a linked child session. Durable memory remains separate and is treated as authoritative over compaction summaries.
 
 ## Built-In Memory
 
@@ -49,7 +50,7 @@ The prompt behavior is intentionally frozen:
 - `agent/system_prompt.py` injects that frozen snapshot into the volatile tier of the system prompt.
 - The full system prompt is cached for the life of the agent instance.
 - Mid-session memory writes update disk immediately but do not change the active prompt.
-- The snapshot refreshes on the next session start or after context compression invalidates and rebuilds the system prompt.
+- The snapshot refreshes on the next session start. Compression reloads built-in memory and rebuilds the prompt when the cached prompt no longer reflects it; otherwise Hermes can restore the byte-identical cached prompt. External memory providers keep compression on the conservative rebuild path because their static block may have changed.
 
 That frozen-snapshot pattern is mostly about prefix-cache stability. It also prevents the model from changing its own active instructions mid-turn by writing memory.
 
@@ -122,10 +123,21 @@ The static provider block from `system_prompt_block()` is included in the system
 2. `prefetch_all(original_user_message)` runs once before the tool loop.
 3. The combined provider output is wrapped in `<memory-context>` with a system note saying it is recalled memory context, not user input.
 4. That fenced context is appended to the current turn's user message only in the outgoing API request.
-5. The persisted `messages` list is not mutated by the injection.
+5. The clean user-message `content` stays unchanged. On the standard non-MoA, non-Codex-app-server path, an `api_content` sidecar stores the exact injected text sent to the model for later replay.
 6. At the end of a completed, non-interrupted turn, Hermes calls `sync_all()` and then `queue_prefetch_all()` for the next turn.
 
 `MemoryManager` strips nested `<memory-context>` blocks and system notes from provider output before injection. It also has a streaming scrubber that removes memory-context spans from model output even when tags are split across stream chunks.
+
+## General Per-Turn Context Injection
+
+Memory recall now shares its delivery path with Hermes' general `pre_llm_call` hook. This is the closest Hermes equivalent to Shrimpy's passive turn-context producers:
+
+- A shell hook can be declared under `hooks.pre_llm_call` in the active profile's `config.yaml`. Hermes runs the command once per user turn and reads a JSON `{"context": "..."}` result from stdout.
+- Python plugins can register the same hook. Multiple results are joined and appended to the current user message after preflight compression.
+- A selected context engine can implement `select_context()` to replace the request-only message list before every provider attempt, then observe completed turns through `on_turn_complete()`.
+- Internal gateway notes use the user-message injection channel for volatile must-deliver facts.
+
+These seams are modular, but they are not one unified context-source model. Profile homes provide per-agent configuration. Workspace context files provide project-local stable instructions, and trusted project-local plugins can add code, but Hermes has no Shrimpy-style list of bounded turn producers with item ids, revisions, inspect commands, cache settings, delivery deduplication, and first-class preview commands.
 
 ## Honcho
 
@@ -141,7 +153,7 @@ Honcho is the most relevant provider for Shrimpy's user-memory design. It is not
 
 Identity and scope:
 
-- Hermes maps the human to a Honcho peer. In gateway contexts it prefers the gateway user id unless `pinPeerName` is set; otherwise it falls back to configured peer names or channel/chat ids.
+- Hermes maps the human to a Honcho peer. In gateway contexts `pinUserPeer` can collapse users to the configured peer; otherwise aliases, runtime prefixes and ids, the configured peer, and session fallback participate in resolution. `pinPeerName` remains a legacy alias.
 - Hermes maps the assistant to an AI peer. Profiles can have separate AI peer identities.
 - The active Honcho host is profile-aware: `hermes` or `hermes.<profile>`.
 - Session scoping can be manual, title-based, gateway-session-key based, per-Hermes-session, per-repo, per-directory, or global. The default is effectively directory-scoped.
@@ -263,17 +275,16 @@ Failure behavior is nuanced:
 After successful compression, Hermes:
 
 - appends any todo snapshot;
-- invalidates and rebuilds the cached system prompt, reloading memory from disk;
-- commits the old session to memory providers and context engines;
-- ends the old SQLite session with reason `compression`;
-- creates a new session id with `parent_session_id` pointing to the old one;
-- propagates title lineage;
-- updates the new session row with the rebuilt system prompt;
-- calls context engine `on_session_start(..., boundary_reason="compression")`;
-- calls memory provider `on_session_switch(new_session_id, parent_session_id, reset=false, reason="compression")`;
+- reloads built-in memory and either preserves a matching cached system prompt or rebuilds it;
+- commits the pre-compaction transcript to memory providers and context engines;
+- by default, rewrites the live transcript on the same session id and soft-archives replaced rows;
+- in legacy rotation mode, ends the parent, creates a linked child session, and propagates title lineage;
+- persists the compacted transcript and active system prompt;
+- notifies the context engine about a compression boundary, using the same id for in-place mode and old/new ids for rotation;
+- calls memory provider `on_session_switch(..., reset=false, reason="compression")` in both modes, again using the same id as parent and child for in-place compaction;
 - clears file-read dedup state.
 
-One code caveat: `MemoryManager.on_pre_compress()` is documented as returning provider text to include in the compression summary prompt, and ByteRover uses the hook to flush pre-compression context. In `conversation_compression.py`, Hermes currently calls `agent._memory_manager.on_pre_compress(messages)` but does not use the returned text. So provider side effects happen, but provider text is not actually spliced into the compression prompt through that return path.
+The older handoff caveat is now resolved. Hermes captures text returned by `MemoryManager.on_pre_compress()`, redacts and bounds it, and passes it to compatible context engines as `memory_context`. The built-in compressor includes that text in the compaction summary prompt. A plugin engine that does not accept the parameter continues without it and emits a deduplicated warning.
 
 ## End-To-End Turn Flow
 
@@ -284,13 +295,15 @@ For a normal completed turn with built-in memory and an external provider:
 3. The memory-review cadence may set a background review flag.
 4. The current user message is appended to the persistent message list.
 5. The cached system prompt is built or reused. Built-in memory snapshots and the provider static prompt block are in that prompt.
-6. The external provider receives `on_turn_start`.
-7. The external provider is queried once with the original clean user message.
-8. Provider recall is fenced as `<memory-context>` and injected into the current user message only in the API request.
-9. The model/tool loop runs.
-10. Streaming output is scrubbed so memory-context tags cannot leak to the UI.
-11. The completed turn is synced to the provider, and next-turn prefetch is queued.
-12. If cadence fired, a background review agent may update built-in memory and skills.
+6. `pre_llm_call` plugin and shell hooks run once and contribute general per-turn context.
+7. The external provider receives `on_turn_start`.
+8. The external provider is queried once with the original clean user message.
+9. Hook context and fenced `<memory-context>` recall are appended to the model-bound user message and, on the standard transport path, persisted in its `api_content` sidecar.
+10. Before each provider attempt, the active context engine may replace the request-only message list through `select_context()`.
+11. The model/tool loop runs.
+12. Streaming output is scrubbed so memory-context tags cannot leak to the UI.
+13. The completed turn is synced to the provider, and next-turn prefetch is queued.
+14. If cadence fired, a background review agent may update built-in memory and skills.
 
 Interrupted turns are not synced to external memory providers. Hermes treats partial assistant output and aborted tool chains as non-durable conversational truth.
 
@@ -299,8 +312,7 @@ Interrupted turns are not synced to external memory providers. Hermes treats par
 Hermes' current source is stricter than parts of the docs:
 
 - `website/docs/user-guide/features/memory.md` still implies that task progress or completed work can be good memory. Current prompt/tool guidance explicitly says not to save that and to use `session_search` instead.
-- `tools/memory_tool.py`'s module header still mentions a `read` action, but the current schema and dispatcher expose only `add`, `replace`, and `remove`.
-- Some Honcho docs describe context as being injected into the system prompt. Current request assembly injects dynamic provider recall into the current user message at API-call time; only static provider guidance is in the system prompt.
+- The general memory-provider and Honcho docs still describe dynamic provider context as being injected into the system prompt. Current request assembly injects dynamic recall into the current user message; only static provider guidance is in the frozen system prompt.
 
 ## Shrimpy Design Takeaways
 
@@ -311,8 +323,9 @@ Hermes validates several directions already in Shrimpy's memory design docs:
 - Separate working-context compaction from durable memory.
 - Make memory writes explicit, inspectable, and reversible.
 - Keep provider recall fenced, labeled, and separate from user input.
-- Notify memory systems about session rotation and compression boundaries.
+- Notify memory systems about session and compression boundaries, even when compaction keeps the same session id.
 - Avoid saving completed-work logs as durable memory.
+- Keep passive per-turn facts out of the stable system prompt.
 
 Where Shrimpy likely should diverge:
 
@@ -327,6 +340,7 @@ Concrete ideas worth borrowing:
 - A clear split between `USER` profile facts and agent self/environment notes.
 - A session-search CLI before building heavier memory inference.
 - Provider-style lifecycle hooks even if the first provider is just local markdown upkeep: `prefetch`, `sync_turn`, `on_session_switch`, `on_pre_compress`.
+- A config-driven `pre_llm_call` command seam for small passive world-state adapters, while keeping Shrimpy's structured item and inspection contract.
 - Fenced memory-prefix text with sanitization and stream scrubbing.
 - Compression summaries that explicitly say they are reference-only and that persistent memory remains authoritative.
 - User-turn cadence hydration from persisted history so scheduled memory upkeep remains reliable across process restarts.
@@ -335,4 +349,4 @@ Open risks for Shrimpy:
 
 - If memory upkeep is only scheduled, very important explicit "remember this" instructions may feel delayed unless there is a foreground capture path.
 - If context files are free-form markdown, Shrimpy needs strong skill guidance for replacement and pruning so files do not become logs.
-- If Shrimpy adds provider hooks, returned context should have one obvious path into turn context. Hermes' unused `on_pre_compress` return is a useful warning against interface promises that are only partially wired.
+- If Shrimpy adds provider hooks, returned context should have one obvious path into turn context. Hermes' explicit `memory_context` handoff is a useful example: bound and sanitize the text, pass it only to supporting consumers, and warn when a selected engine cannot honor it.

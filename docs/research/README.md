@@ -16,6 +16,7 @@ This directory holds source notes and comparison research that may inform future
 - [in-os-agent-sandboxing-and-git.md](in-os-agent-sandboxing-and-git.md) — research on practical macOS/Linux in-OS sandboxing, current Codex/Claude patterns, and how sandboxed agent work can move through git or patch promotion.
 - [macos-seatbelt-helper.md](macos-seatbelt-helper.md) — high-level Seatbelt/App Sandbox notes and a small Mac helper shape for hosting Shrimpy with native per-agent sandboxing.
 - [pi-sandboxing-implementations.md](pi-sandboxing-implementations.md) — factual comparison of nono, pi-sandbox, and pi-permission-modes, including their enforcement boundaries, configuration behavior, and uncovered capabilities.
+- [sandbox-runtime-scout-2026-08-26.md](sandbox-runtime-scout-2026-08-26.md) — current sandbox-runtime scout covering Anthropic SRT, Microsandbox, Shuru, MXC, OpenShell, and newer local process and microVM options, with a recommended SECURITY-006 bake-off.
 - [shrimpy-constrained-tool-profile.md](shrimpy-constrained-tool-profile.md) — analysis of resolving the existing session `profileId` into a security policy with path-bounded file operations, no Bash, and narrowly typed wrappers for selected Shrimpy actions.
 - [facade-interactive-drama.md](facade-interactive-drama.md) — deep dive on Mateas and Stern's Façade, interactive drama mechanics, and lessons for Shrimpy story-agent architecture.
 - [pi-agent.md](pi-agent.md) — Pi architecture, Shrimpy's integration boundary, the latest stable upgrade assessment, and package-ecosystem opportunities.

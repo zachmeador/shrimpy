@@ -2,7 +2,7 @@
 
 `docs/backlog/*.md` is the deliberately small now/soon engineering queue. Everything not explicitly scheduled belongs in `docs/backlog/proposals/`, even when its direction is mature or accepted. Completed work belongs in git history and stable docs.
 
-Status `draft` means the product or implementation direction remains unsettled. Status `todo` means the direction is accepted enough to implement. Status `review` means an implementation is ready for maintainer review but not yet closed out. Status does not schedule an item; placement does.
+Status `draft` means the product or implementation direction remains unsettled. Status `todo` means the direction is accepted enough to implement. Status `review` means an implementation is ready for maintainer review but not yet closed out. Status `TO-BE-DELETED` is a maintainer marker for a note retained temporarily before removal. Status does not schedule an item; placement does.
 
 ## Now / Soon
 
@@ -14,10 +14,11 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [ARCH-001](proposals/arch-001-shrimpy-runtime-kernel.md) | draft | P2 | Architecture | none | Process-independent runtime kernel with transactional state, shared session execution, and optional hosts |
+| [ARCH-001](proposals/arch-001-shrimpy-runtime-kernel.md) | TO-BE-DELETED | P2 | Architecture | none | Process-independent runtime kernel with transactional state, shared session execution, and optional hosts |
 | [ARCH-002](proposals/arch-002-home-kernel.md) | draft | P2 | Architecture | none | Home kernel: in-process facts and decisions, one runtime store, thin hosts, optional attendant |
+| [ARCH-003](proposals/arch-003-edge-of-the-home.md) | draft | P2 | Architecture | none | The edge of the home: Shrimpy owns conversations as facts, the world owns transports, windows and clients stay thin |
 | [COMMS-001](proposals/comms-001-comms-plane-redesign.md) | todo | P3 | Comms | none | Comms plane redesign: channels carry only conversation; single-writer comms host with an authorization seam, declared message facts, reply defaults with self-wake, people as members, TUI as surface host |
-| [SECURITY-006](proposals/security-006-session-authority.md) | draft | P2 | Security | none | Per-agent per-channel session policy, admission, and sandboxed runners |
+| [SECURITY-006](proposals/security-006-session-authority.md) | draft | P2 | Security | [ARCH-002](proposals/arch-002-home-kernel.md) | Per-agent per-channel session policy, admission, and sandboxed runners |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |

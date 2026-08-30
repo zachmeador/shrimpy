@@ -1,10 +1,11 @@
-# Hermes Agent Harness Survey
+# 🦐 Hermes Agent Harness Survey
 
 Date: 2026-08-01
+Rechecked: 2026-08-21
 Status: Research
 Hermes source: local checkout of `nousresearch/hermes-agent`, `main` aligned with the local `origin/main` tracking ref
-Hermes commit: `50d4d25ca2245c806babbb10a05f758245a0e393`
-Commit subject: `fix(tests): stub the auth function doctor actually calls + restore dropped parametrize cases`
+Hermes commit: `ac8dff4fbcf47a392a3cddcbec068aa05930ab47`
+Commit subject: `fix(compression): auto-raise Daybreak Codex threshold`
 
 ## Executive Read
 
@@ -17,6 +18,8 @@ The claim that Hermes is "just a Python REPL" mixes up three different things:
 - The actual agent is an ordinary tool-calling loop: send messages and schemas to a model, normalize its response, execute requested tools, append tool results, and call the model again until it returns text or a stop condition fires.
 
 The historical answer needs one qualification. Hermes did use `mini-swe-agent` as the implementation behind some terminal execution environments from January to March 2026, and it carried a separate Mini-SWE trajectory runner for RL work. That dependency did not own Hermes' main `AIAgent` conversation loop. Hermes removed the submodule and inlined the terminal backends in March 2026, then removed the remaining Mini-SWE references. The present core is self-hosted.
+
+Hermes now has several ways to inject live context into a turn, including a profile-configured shell hook that is close to Shrimpy's automatic turn-context producers. They are separate extension seams rather than one typed, inspectable turn-context subsystem. Also, Hermes' `agent/turn_context.py` is named for the whole turn prologue; its `TurnContext` dataclass carries loop setup values and is not the equivalent of Shrimpy's rendered `[turn-context]` item model.
 
 ## The Core Harness
 
@@ -55,14 +58,14 @@ CLI, gateway, library, cron, or subagent
 The important seams are:
 
 - `run_agent.py`: public `AIAgent` façade and compatibility surface. Construction forwards to `agent/agent_init.py`; conversation execution forwards to `agent/conversation_loop.py`.
-- `agent/turn_context.py`: once-per-turn setup, including prompt restoration/building, input sanitation, preflight compression, external-memory prefetch, and crash-resilient persistence.
+- `agent/turn_context.py`: once-per-turn setup, including prompt restoration/building, input sanitation, preflight compression, `pre_llm_call` context collection, external-memory prefetch, and crash-resilient persistence.
 - `agent/conversation_loop.py`: the main bounded model/tool loop. It owns request construction, streaming/non-streaming calls, retries, fallback activation, response validation, tool-call repair, continuation behavior, context-pressure handling, verification nudges, and the decision to loop or stop.
 - `agent/transports/`: provider protocol adapters. Hermes keeps an OpenAI-shaped internal transcript and normalizes Chat Completions, Anthropic Messages, Bedrock Converse, and Codex Responses into shared `NormalizedResponse` and `ToolCall` types.
 - `model_tools.py`: tool definition assembly and the central named-tool dispatcher.
 - `agent/tool_executor.py`: sequential, concurrent, and dependency-aware segmented tool execution, plus result insertion and lifecycle callbacks.
 - `agent/turn_finalizer.py`: post-loop persistence, usage/lifecycle notification, memory sync, cleanup, and result assembly.
 
-The loop is bounded by both `max_iterations` and an `IterationBudget`; the normal `AIAgent` default is 90 model/tool iterations. A turn can consume additional bounded continuations for provider recovery, truncated output, verification, context compression, malformed tool calls, and similar cases. This is much more policy than a minimal function-calling sample, even though the irreducible center remains the familiar `model -> tool calls -> tool results -> model` loop.
+The loop checks both `max_iterations` and an `IterationBudget`. The public `AIAgent` default is now effectively unlimited (`sys.maxsize`), while hosts and delegated children can supply smaller budgets. A turn also has bounded continuation and recovery paths for truncated output, verification, context compression, malformed tool calls, provider failures, and similar cases. This is much more policy than a minimal function-calling sample, even though the irreducible center remains the familiar `model -> tool calls -> tool results -> model` loop.
 
 Hermes' provider layer is transport code, not a borrowed agent harness. The default dependencies include the OpenAI SDK and supporting HTTP/config/UI libraries. Native Anthropic and other provider packages are optional. Hermes formerly depended on LiteLLM indirectly around the Mini-SWE integration, but removed LiteLLM in March 2026; the current project metadata contains no general-purpose agent-framework dependency.
 
@@ -99,7 +102,26 @@ Hermes is therefore less "a REPL agent" than a vertically integrated Python agen
 
 The strength of this design is control. Hermes can normalize many provider quirks, preserve exact session semantics across messaging surfaces, stream intermediate state, run tools concurrently, steer or interrupt live turns, apply verification loops, and coordinate memory and compression without waiting for an upstream framework.
 
-The cost is visible in the code shape. At the inspected commit, `run_agent.py` is about 7,500 lines and `agent/conversation_loop.py` about 7,100 lines even after extraction work. Initialization, tool execution, and the classic CLI are also large. Many mature behaviors are encoded as special-case recovery branches inside the central turn path. Hermes is from scratch in the meaningful dependency sense, but it is no longer small or conceptually equivalent to a short REPL loop.
+The cost is visible in the code shape. At the inspected commit, `run_agent.py` is about 9,200 lines and `agent/conversation_loop.py` about 8,400 lines even after extraction work. Initialization, tool execution, and the classic CLI are also large. Many mature behaviors are encoded as special-case recovery branches inside the central turn path. Hermes is from scratch in the meaningful dependency sense, but it is no longer small or conceptually equivalent to a short REPL loop.
+
+## Passive Context Injection
+
+Hermes has substantial overlap with Shrimpy's turn context, but the capabilities live at different layers:
+
+| Surface | Scope and configuration | Delivery | Fit for passive world state |
+| --- | --- | --- | --- |
+| Shell `pre_llm_call` hooks | Declared in the active profile's `$HERMES_HOME/config.yaml`; the command can inspect its `cwd` and the JSON turn payload | Runs once per user turn after preflight compression. A JSON `{"context": "..."}` response is appended to the current user message sent to the model | Closest simple equivalent to a Shrimpy command producer |
+| Python plugin `pre_llm_call` hooks | User plugins are enabled by name in the active profile; project-local `.hermes/plugins/` are possible with an explicit trust environment flag | Same once-per-turn user-message injection. Multiple hook results are joined in plugin discovery order | Richer and composable, but requires plugin code |
+| External memory providers | One provider selected per profile with `memory.provider` | Nontrivial prompts trigger one prefetched, fenced `<memory-context>` block on the current user message; completed turns sync back to the provider | Passive evolving user and task recall, not a general world-state source registry |
+| Context engines | One engine selected per profile with `context.engine` | `select_context()` runs before every provider request and can replace the whole request-only message list; `on_turn_complete()` can ingest the finished turn | More powerful than turn-context injection, but exclusive, plugin-authored, and coupled to the context-engine slot |
+| Project context files | `.hermes.md`, `AGENTS.md`, `CLAUDE.md`, and related files are discovered from the working tree | Startup files enter the frozen system prompt; nested files discovered during tool use are appended to the triggering tool result | Workspace instructions, not refreshed world state |
+| Profile and session prompt state | Each Hermes profile has its own `SOUL.md`, `MEMORY.md`, `USER.md`, config, plugins, and optional personality/system-prompt overlay | Mostly frozen into the session prompt; personality is a session overlay | Good per-agent identity and durable facts, not live per-turn state |
+
+The shell-hook form is the most direct answer for a user who wants to inject a status file, current weekday, Git state, home-automation snapshot, or another small world-state view without editing Hermes. For example, a profile can configure a `pre_llm_call` command whose stdout is `{"context": "..."}`. Because the configuration lives under `HERMES_HOME`, a named profile gives it per-agent scope. The command can branch on `cwd` for workspace behavior, while a trusted project-local plugin is the code-native workspace-scoped option. Shell hooks require consent on first use unless the profile explicitly opts into automatic acceptance.
+
+On the standard non-MoA, non-Codex-app-server path, Hermes combines hook text and memory recall into the API copy of the current user message. The clean transcript content stays unchanged, but Hermes persists the exact model-bound text in an `api_content` sidecar and replays it later so prompt-cache prefixes remain byte-stable. Internal gateway must-deliver notes use the same channel. Static plugin guidance has a separate bounded `register_system_prompt_section()` API that is evaluated once for a new session and frozen with the rest of the system prompt.
+
+Shrimpy's distinction is product shape. Its `context.turn.producers` are bounded config objects with ids, channel conditions, timeouts, cache windows, character budgets, structured items, inspect commands, and per-transcript change delivery. The CLI can list, run, and preview sources without advancing delivery state. Hermes hooks return opaque text and normally repeat it on every matching turn; they do not provide per-item ids, revisions, inspection pointers, or delivered-item suppression. Hermes' context engine can do much more by replacing a request, but that is a single selected runtime plugin rather than a small additive source list.
 
 ## Shrimpy Takeaways
 
@@ -118,6 +140,7 @@ Current source inspected:
 - `run_agent.py`
 - `agent/agent_init.py`
 - `agent/turn_context.py`
+- `agent/context_engine.py`
 - `agent/conversation_loop.py`
 - `agent/transports/base.py`
 - `agent/transports/types.py`
@@ -126,6 +149,11 @@ Current source inspected:
 - `agent/codex_runtime.py`
 - `model_tools.py`
 - `tools/code_execution_tool.py`
+- `agent/shell_hooks.py`
+- `website/docs/user-guide/features/context-files.md`
+- `website/docs/user-guide/features/hooks.md`
+- `website/docs/user-guide/features/plugins.md`
+- `website/docs/user-guide/profiles.md`
 - `pyproject.toml`
 - `website/docs/user-guide/features/code-execution.md`
 - `website/docs/reference/cli-commands.md`
