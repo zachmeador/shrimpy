@@ -78,7 +78,6 @@ test("context inspection matches a live session turn", async () => {
   await bootstrap.modelRuntime.setRuntimeApiKey(
     model.provider,
     "test-api-key",
-    { allowNetwork: false },
   );
 
   const resolver = new SessionResolver({

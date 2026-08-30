@@ -610,7 +610,6 @@ describe("turn context Pi extension", () => {
     await modelRuntime.setRuntimeApiKey(
       model.provider,
       "test-api-key",
-      { allowNetwork: false },
     );
 
     const resourceLoader = createShrimpyResourceLoader({
@@ -695,7 +694,6 @@ describe("turn context Pi extension", () => {
     await modelRuntime.setRuntimeApiKey(
       model.provider,
       "test-api-key",
-      { allowNetwork: false },
     );
 
     const controller = createSessionTurnContextController({

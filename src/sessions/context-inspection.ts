@@ -103,7 +103,6 @@ export async function inspectSessionContext(input: {
   await modelRuntime.setRuntimeApiKey(
     captureModel.provider,
     "shrimpy-context-inspection",
-    { allowNetwork: false },
   );
 
   let session: AgentSession | undefined;

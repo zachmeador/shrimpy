@@ -18,6 +18,10 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 
 - Added shared, adapter-neutral `/help`, `/status`, `/new`, `/clear`, `/stop`, and `/thinking <level>` semantics with exact argument validation, fail-closed authorization, permission-filtered help, observational lane status, and command-shaped input that never wakes an agent.
 
+### Sessions, Models & TUI
+
+- Upgraded all Pi packages from `0.83.0` to `0.84.4`, bringing cancellation-aware model and authentication operations, session-scoped model and thinking selection, earlier compaction after large tool results, nested skill discovery fixes, subscription-aware TUI costs, and current provider/runtime fixes.
+
 ## 🦐 0.6.1 - The Blue Hour - 2026-07-29
 
 ### Web Inspector

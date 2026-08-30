@@ -1,6 +1,6 @@
 {
   "name": "shrimpy",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "a home agent",
   "license": "MIT",
   "type": "module",
@@ -31,10 +31,10 @@
     "web:dev": "node scripts/web-dev.mjs"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "0.83.0",
-    "@earendil-works/pi-ai": "0.83.0",
-    "@earendil-works/pi-coding-agent": "0.83.0",
-    "@earendil-works/pi-tui": "0.83.0",
+    "@earendil-works/pi-agent-core": "0.84.4",
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@earendil-works/pi-tui": "0.84.4",
     "@sinclair/typebox": "0.34.41",
     "cron-parser": "^5.5.0",
     "markdown-it": "^14.1.1",

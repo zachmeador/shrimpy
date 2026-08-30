@@ -2,7 +2,7 @@
 
 Date: 2026-06-11
 Updated: 2026-08-30
-Status: `0.83.0` current; `0.84.4` upgrade assessed and recommended with small compatibility edits
+Status: `0.84.4` implemented; automated verification passed; manual smoke test pending
 
 Pi is Shrimpy's embedded agent and session engine. Shrimpy pins the registry-published `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` packages rather than depending on a local checkout or active fork.
 
@@ -16,7 +16,7 @@ A Pi package has a session-level lifecycle and contributes extensions, skills, p
 
 ## Current Shrimpy Integration
 
-- Shrimpy pins all four Pi packages at `0.83.0`.
+- Shrimpy pins all four Pi packages at `0.84.4`.
 - Shrimpy requires Node `>=22.19.0`, matching Pi's runtime requirement.
 - Pi-facing tool schemas use `typebox` `1.3.7`, aligned with Pi. Shrimpy-owned configuration schemas remain on `@sinclair/typebox` `0.34.41` because those types never cross the Pi tool boundary.
 - The main host boundary uses `createAgentSession()`, `createAgentSessionRuntime()`, `SessionManager`, `SettingsManager`, and `DefaultResourceLoader`.
@@ -31,9 +31,9 @@ Shrimpy deliberately creates Pi settings in memory and passes a fixed set of bun
 
 ## Latest Stable Pi
 
-The latest stable tag inspected on 2026-08-30 is `v0.84.4` at `b79e4cc834970cca69daebffab7df1da7d1e52c4`. Shrimpy remains on `0.83.0`; `0.84.4` is the assessed upgrade target.
+The latest stable tag inspected on 2026-08-30 is `v0.84.4` at `b79e4cc834970cca69daebffab7df1da7d1e52c4`. Shrimpy now pins that release.
 
-- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.83.0`.
+- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.84.4`.
 - Latest stable Pi version inspected: tag `v0.84.4`, commit `b79e4cc834970cca69daebffab7df1da7d1e52c4`.
 - Pi retains Node `>=22.19.0` and `typebox` `1.3.7`, so Shrimpy's runtime and tool-schema dependency boundaries stay aligned.
 - Declared breaking changes replace the agent-core harness session APIs, rename AI request-transform and Google thinking-level types, tighten dynamic-provider refresh and auth cancellation contracts, and change when `prepareNextTurn` hooks run. Shrimpy does not import those surfaces.
@@ -45,17 +45,17 @@ Pi's upstream `main` was one post-release `[Unreleased]` bookkeeping commit beyo
 
 ## `0.84.4` Upgrade Assessment
 
-Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`, dirty `main` at `9307ed089f2238f0347d83915e3cb6c1cd403995`; the disposable probe used a clean archive of `HEAD`, and existing uncommitted documentation changes were not included
+Shrimpy checkout: `/Users/zachmeador/gits/shrimpy`; implementation based on `main` at `7e28527a6a617c4949ad31c086a26e373bd9f7cd`
 
 Pi clone: `/Users/zachmeador/gits/pi-mono`; stable tag `v0.84.4` at `b79e4cc834970cca69daebffab7df1da7d1e52c4`; inspected `main` at `853a80d26c90a14c1886f0ebb8ffaae133ca2185`
 
 ### Summary
 
-Upgrade to `0.84.4` as a small coordinated source-and-test change, not a dependency-only bump. Confidence is high for automated compatibility: after one production API adjustment and one TUI test-double adjustment, the build, extension typecheck, lint, 191-test focused Pi slice, and complete 738-test suite pass. A manual provider and streaming-TUI smoke test remains necessary before calling the upgrade complete.
+The `0.84.4` upgrade is implemented as a small coordinated source-and-test change. Confidence is high for automated compatibility: the build, extension typecheck, lint, 191-test focused Pi slice, and complete 738-test suite pass in the main checkout. A manual provider and streaming-TUI smoke test remains necessary before release.
 
 ### Versions
 
-- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.83.0`.
+- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.84.4`.
 - Latest stable Pi version inspected: tag `v0.84.4`, commit `b79e4cc834970cca69daebffab7df1da7d1e52c4`.
 - Current Shrimpy Pi-facing TypeBox package: `typebox` at exact `1.3.7`.
 
@@ -70,11 +70,11 @@ Upgrade to `0.84.4` as a small coordinated source-and-test change, not a depende
 
 ### Required Shrimpy Changes
 
-- Pin `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` to exact `0.84.4` in `package.json` and regenerate `package-lock.json`.
-- Remove `{ allowNetwork: false }` from the `ModelRuntime.setRuntimeApiKey()` call in `src/sessions/context-inspection.ts`, `test/context-parity.test.ts`, and the two affected calls in `test/sessions.test.ts`.
-- Replace the `isUsingOAuth` method in the `test/tui-activity-indicator.test.ts` model-runtime double with `isUsingSubscription`.
-- Keep direct `typebox` at `1.3.7` and `@sinclair/typebox` at `0.34.41`; neither needs an upgrade for Pi `0.84.4`.
-- Update `CHANGELOG.md` and this note when implementing the upgrade. No other source or test changes are supported by the probe.
+- Pinned `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` to exact `0.84.4` in `package.json` and regenerated `package-lock.json`.
+- Removed `{ allowNetwork: false }` from the `ModelRuntime.setRuntimeApiKey()` call in `src/sessions/context-inspection.ts`, `test/context-parity.test.ts`, and the two affected calls in `test/sessions.test.ts`.
+- Replaced the `isUsingOAuth` method in the `test/tui-activity-indicator.test.ts` model-runtime double with `isUsingSubscription`.
+- Kept direct `typebox` at `1.3.7` and `@sinclair/typebox` at `0.34.41`.
+- Updated `CHANGELOG.md` and this note. No other source or test changes were required.
 
 ### Verification
 
@@ -88,16 +88,21 @@ Upgrade to `0.84.4` as a small coordinated source-and-test change, not a depende
 - `npm run lint`: passed in the candidate checkout.
 - The first sandboxed full-suite run passed 734 of 738 tests, skipped one loopback test, and failed three environment-sensitive cases: two `fs.watch()` tests hit `EMFILE`, and one worker assertion rejected the disposable checkout's noncanonical directory name. The worker case passed after moving the probe under a `shrimpy/` directory, and the watcher file passed 17 of 17 tests outside the sandbox.
 - Final `npm test` in the corrected disposable checkout with normal filesystem permissions: passed the build and all 738 tests with no failures or skips.
-- No main-checkout build, dependency install, or manual smoke test was run; the local linked Shrimpy CLI and workspace were not changed.
+- Main-checkout `npm install --save-exact @earendil-works/pi-agent-core@0.84.4 @earendil-works/pi-ai@0.84.4 @earendil-works/pi-coding-agent@0.84.4 @earendil-works/pi-tui@0.84.4`: passed and updated the linked development dependency tree.
+- Main-checkout `npm run build`: the first sandboxed run passed TypeScript and the web build but failed generated-skill sync with `EPERM`; the same command passed with normal repository permissions.
+- Main-checkout extension typecheck and `npm run lint`: passed.
+- Main-checkout focused Pi integration slice: 191 tests, 191 passed.
+- Main-checkout `npm test` with normal filesystem and loopback permissions: passed the build and all 738 tests with no failures or skips.
+- Manual credential-backed provider and streaming-TUI smoke tests have not run.
 
 ### Upgrade Steps
 
-1. Pin all four Pi packages to exact `0.84.4` and regenerate the lockfile without changing either TypeBox dependency.
-2. Remove the obsolete `allowNetwork` option from the four source and test `setRuntimeApiKey()` calls.
-3. Update the footer test double to provide `isUsingSubscription()`.
-4. Run the source build, extension typecheck, focused Pi integration slice, lint, and complete test suite.
+1. Pinned all four Pi packages to exact `0.84.4` and regenerated the lockfile without changing either TypeBox dependency.
+2. Removed the obsolete `allowNetwork` option from the four source and test `setRuntimeApiKey()` calls.
+3. Updated the footer test double to provide `isUsingSubscription()`.
+4. Passed the source build, extension typecheck, focused Pi integration slice, lint, and complete test suite.
 5. Manually smoke-test a credential-backed provider call, model and thinking selection, session replacement during streaming, footer rendering, and compaction after a large tool result.
-6. Update `CHANGELOG.md` and this assessment with implementation and smoke-test results, then review and commit the coherent upgrade.
+6. Review and commit the coherent upgrade, then record the smoke-test result before release.
 
 ### Risks And Unknowns
 
@@ -185,10 +190,10 @@ The upstream `packages/mom/` example demonstrates one external messaging channel
 
 1. The `0.82.1` model-runtime, setup, dynamic-catalog, provider, session, and custom-compaction migration is complete on `main`.
 2. The `0.83.0` dependency update and `typebox` `1.3.7` alignment are implemented and manually smoke-tested.
-3. Implement `0.84.4` as a coordinated package, lockfile, context-inspection API, and footer-fixture update.
-4. Repeat the passing source build, extension typecheck, 191-test focused slice, lint, and 738-test full suite in the implementation checkout.
-5. Complete the credential-backed provider and streaming-TUI smoke tests before marking the upgrade implemented.
-6. Update the changelog and this note, then review and commit the coherent upgrade.
+3. Implemented `0.84.4` as a coordinated package, lockfile, context-inspection API, and footer-fixture update.
+4. Passed the source build, extension typecheck, 191-test focused slice, lint, and 738-test full suite in the implementation checkout.
+5. Review and commit the coherent upgrade after automated verification.
+6. Complete the credential-backed provider and streaming-TUI smoke tests, then update the result in this note before release.
 7. Design the package bridge separately after the upgraded runtime is stable.
 
 ## Sources
