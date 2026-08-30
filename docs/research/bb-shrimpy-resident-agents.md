@@ -1,9 +1,11 @@
-# bb and Shrimpy: Resident Agents in an Agentic IDE
+# 🦐 bb and Shrimpy: Resident Agents in an Agentic IDE
 
 Date: 2026-08-07
 Status: Research
 
 This note examines how Shrimpy could be interesting in or alongside [bb](https://github.com/get-bb/bb) without assuming that Shrimpy needs a dedicated bb integration. The useful question is not how to connect two agent runtimes for its own sake. It is whether their different core abstractions create a product shape that neither has alone.
+
+For ACP's protocol mechanics, stability, and limits, see the canonical [ACP explainer](acp-explainer.md). This note owns the bb-specific product and authority questions.
 
 Primary sources checked:
 
@@ -17,7 +19,7 @@ Primary sources checked:
 - [bb official Tasks plugin](https://github.com/get-bb/bb/tree/main/official-plugins/tasks)
 - [bb official Memory plugin](https://github.com/get-bb/bb/tree/main/official-plugins/memory)
 - local Shrimpy reference docs: [overview](../reference/overview.md), [runtime](../reference/runtime.md), [sessions](../reference/sessions.md), [channels](../reference/channels.md), and [tools](../reference/tools.md)
-- local Shrimpy ACP work: [SURFACE-010](../backlog/proposals/surface-010-acp-agent-server.md), [SURFACE-008](../backlog/proposals/surface-008-buzz-chat-adapter.md), and [Codex session-control research](codex-session-control.md)
+- local Shrimpy ACP work: [ACP explainer](acp-explainer.md), [SURFACE-010](../backlog/proposals/surface-010-acp-agent-server.md), and [SURFACE-008](../backlog/proposals/surface-008-buzz-chat-adapter.md)
 
 bb is in active development, and its own README says that workflows and surfaces are still evolving. This note describes the repository and documentation inspected on the date above, not a stable external contract.
 

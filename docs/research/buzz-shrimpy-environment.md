@@ -1,9 +1,11 @@
-# Buzz as a Shrimpy Chat Environment
+# 🦐 Buzz as a Shrimpy Chat Environment
 
 Date: 2026-07-25
 Status: Research
 
 This note evaluates [Block's Buzz](https://github.com/block/buzz) as the main human chat experience for a Shrimpy environment, with Shrimpy retaining responsibility for agent identity, context, sessions, memory, tools, and watches. It focuses on what Buzz's Nostr foundation means in practice, how much of Buzz would need to run, and the lightest honest way Shrimpy could package setup and integration.
+
+For ACP's generic protocol shape and status, see the canonical [ACP explainer](acp-explainer.md). This note covers only what Buzz's ACP harness means for the integration choice.
 
 Primary sources checked:
 

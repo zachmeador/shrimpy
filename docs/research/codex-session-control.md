@@ -1,9 +1,11 @@
-# 🦐 Codex Session Control and ACP
+# 🦐 Codex Session Control
 
 Date: 2026-07-26
 Status: Research update; implementation recommendation
 
 Shrimpy already lets an agent delegate work to Codex through `shrimpy worker`. The current implementation is a useful detached job runner, but it is not an interactive Codex session controller and it does not use the Agent Client Protocol (ACP).
+
+For the protocol's stable shape, capability model, limits, and v2 direction, see the canonical [ACP explainer](acp-explainer.md). This note keeps only the Codex-specific transport decision.
 
 The short recommendation is:
 
@@ -110,11 +112,9 @@ The stable local choice is stdio, or a local Unix transport if process architect
 
 The cost is real: Shrimpy must own initialization, request IDs, event routing, per-thread subscriptions, reconnect policy, approvals, compatible schema generation, and server-version testing. That work is justified by richer product behavior, not merely by aesthetic preference for JSON-RPC.
 
-## ACP
+## ACP as a Codex Control Surface
 
-ACP v1 is a credible, stable client-agent protocol rather than a speculative proposal. It standardizes client initialization, authentication, session creation/loading/resumption, prompts and streamed updates, permission requests, cancellation, filesystem and terminal collaboration, plans, tool calls, usage, and optional extensions. The stable transport is normally JSON-RPC over stdio; streamable HTTP remains draft.
-
-The protocol is explicitly cross-agent. A client can launch an agent subprocess and drive multiple concurrent sessions over one connection, while the agent can ask the client for permissions or access to editor-controlled filesystem, terminal, and MCP facilities. That direction is attractive for IDEs, chat clients, and orchestrators that need interchangeable coding-agent backends.
+ACP matters here when cross-agent uniformity is the goal. Its generic lifecycle and limits are described in the [ACP explainer](acp-explainer.md); the Codex-specific question is whether Shrimpy benefits from inserting an adapter in front of Codex App Server.
 
 For Codex, however, ACP is currently an adapter:
 
@@ -126,25 +126,7 @@ The maintained `agentclientprotocol/codex-acp` package starts Codex App Server a
 
 That adapter is useful when ACP uniformity is itself valuable. It is not a more native or more direct Codex interface, and a common protocol can omit or flatten provider-specific behavior. OpenAI's own harness guidance makes the same tradeoff explicit: cross-provider protocols reduce integration count but expose a common subset, whereas App Server exposes the complete Codex harness.
 
-ACP v2 was announced as a draft on 2026-07-20. It revisits prompt lifecycle, streamed messages and tool calls, diffs, and permissions. Production integration should target stable v1, keep protocol-specific data outside Shrimpy's durable worker schema, and treat v2 as an experiment until it stabilizes.
-
-### When ACP Would Be the Right Choice
-
-ACP becomes compelling if Shrimpy chooses one or more of these goals:
-
-- One worker-control API must cover Codex, Claude, Pi, and future coding agents with broadly equivalent UI and lifecycle behavior.
-- Shrimpy should act as an ACP client capable of launching third-party agents selected by a user.
-- Shrimpy should expose one of its own agents or workers as an ACP agent to editors and other ACP clients.
-- Client-provided terminal, filesystem, permission, and MCP capabilities should be shared across providers through one negotiated protocol.
-
-Even then, Shrimpy should retain a small native capability escape hatch. Its durable state should describe Shrimpy concepts such as worker, run, turn, backend identity, outcome, and artifacts rather than serializing ACP objects as the application model.
-
-### When ACP Would Be the Wrong Choice
-
-- The only intended backend is Codex and the goal is richer control of Codex.
-- Shrimpy needs a Codex feature not represented by ACP's stable common surface.
-- The immediate problem is merely brittle spawning, event parsing, or result classification; those can be fixed without another daemon and protocol.
-- Shrimpy is unwilling to pin and test the adapter, ACP SDK, and Codex compatibility matrix.
+For a Codex-only backend that needs rich control, App Server remains the shorter and more capable path. ACP becomes worth the extra layer when Shrimpy deliberately wants one client contract across Codex and other agents, or wants external ACP clients to drive Shrimpy agents. Brittle spawning, event parsing, and result classification do not require that product-level abstraction.
 
 ## Recommended Path
 
@@ -196,11 +178,5 @@ For that richer goal, direct Codex App Server integration is the best next archi
 - [OpenAI: Unlocking the Codex harness](https://openai.com/index/unlocking-the-codex-harness/)
 - [OpenAI Codex TypeScript SDK source](https://github.com/openai/codex/tree/main/sdk/typescript)
 - [OpenAI Codex Python SDK API reference](https://github.com/openai/codex/blob/main/sdk/python/docs/api-reference.md)
-- [ACP architecture](https://agentclientprotocol.com/get-started/architecture)
-- [ACP v1 overview](https://agentclientprotocol.com/protocol/v1/overview)
-- [ACP v1 session setup](https://agentclientprotocol.com/protocol/v1/session-setup)
-- [ACP v1 transports](https://agentclientprotocol.com/protocol/v1/transports)
-- [ACP v1 cancellation](https://agentclientprotocol.com/protocol/v1/cancellation)
-- [ACP protocol updates](https://agentclientprotocol.com/updates)
-- [ACP v2 draft announcement](https://agentclientprotocol.com/announcements/acp-v2-draft)
+- [ACP protocol background and status](acp-explainer.md)
 - [Codex ACP adapter](https://github.com/agentclientprotocol/codex-acp)

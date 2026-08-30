@@ -179,7 +179,7 @@ Electron main
     AppRuntime / gateway / workspace / Pi
 ```
 
-The proposed [`shrimpy acp --agent <id>`](../backlog/proposals/surface-010-acp-agent-server.md) is useful prior work but is not the complete desktop contract. ACP can prove that an external client can launch and stream one named resident without taking session ownership. A full Shrimpy desktop also needs agent discovery, channels, addressing, existing-session navigation, gateway state, and home-workspace views. Those may justify a separate Shrimpy-specific stdio protocol or a later authenticated desktop surface. They should not be smuggled into ACP extensions or the read-only inspector API.
+The proposed [`shrimpy acp --agent <id>`](../backlog/proposals/surface-010-acp-agent-server.md) is useful prior work but is not the complete desktop contract. [ACP](acp-explainer.md) can prove that an external client can launch and stream one named resident without taking session ownership. A full Shrimpy desktop also needs agent discovery, channels, addressing, existing-session navigation, gateway state, and home-workspace views. Those may justify a separate Shrimpy-specific stdio protocol or a later authenticated desktop surface. They should not be smuggled into ACP extensions or the read-only inspector API.
 
 Every mutating operation should first have a `shrimpy <command>` path. The desktop protocol may call the same application services directly, but it should expose no capability available only through hidden GUI code.
 
@@ -245,4 +245,4 @@ The repository was cloned and inspected at the commit named above, including cur
 - [RPC transport](https://github.com/am-will/gooey-pi/blob/cd5e0608f02d5d90058bc884a897e76e8caaa2c3/electron/main/agent-rpc/transport.ts) and [runtime manager](https://github.com/am-will/gooey-pi/blob/cd5e0608f02d5d90058bc884a897e76e8caaa2c3/electron/main/agent-rpc/manager.ts)
 - [`v0.1.3` release](https://github.com/am-will/gooey-pi/releases/tag/v0.1.3)
 - [`extract-zip` path-traversal advisory](https://github.com/advisories/GHSA-jmr9-qjv8-65gv)
-- Shrimpy [architecture](../reference/architecture.md), [design](../reference/design.md), [runtime](../reference/runtime.md), [development](../reference/development.md), and [ACP proposal](../backlog/proposals/surface-010-acp-agent-server.md)
+- Shrimpy [architecture](../reference/architecture.md), [design](../reference/design.md), [runtime](../reference/runtime.md), [development](../reference/development.md), [ACP explainer](acp-explainer.md), and [ACP proposal](../backlog/proposals/surface-010-acp-agent-server.md)

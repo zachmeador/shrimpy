@@ -7,6 +7,7 @@ This directory holds source notes and comparison research that may inform future
 
 ## Notes
 
+- [acp-explainer.md](acp-explainer.md) — canonical overview of ACP's stable v1 shape, negotiated capabilities, multimodal content, trust and product limits, and the direction and draft status of v2.
 - [bb-shrimpy-resident-agents.md](bb-shrimpy-resident-agents.md) — comparison of bb's thread-centered coding workspace with Shrimpy's resident-agent home, including ACP and CLI/SDK seams, overlap risks, authority questions, and research probes that avoid a dedicated integration.
 - [gooey-pi-desktop.md](gooey-pi-desktop.md) — source, history, security, slop, and architecture audit of GooeyPi as prior art for a Shrimpy desktop app, with a borrow-the-shell recommendation and bounded fork spike.
 - [buzz-shrimpy-environment.md](buzz-shrimpy-environment.md) — evaluation of Buzz as Shrimpy's main chat UX, including practical Nostr consequences, runtime overlap, deployment weight, a lightweight setup-skill proposal, and the native surface needed for live chat.
@@ -20,8 +21,9 @@ This directory holds source notes and comparison research that may inform future
 - [shrimpy-constrained-tool-profile.md](shrimpy-constrained-tool-profile.md) — analysis of resolving the existing session `profileId` into a security policy with path-bounded file operations, no Bash, and narrowly typed wrappers for selected Shrimpy actions.
 - [facade-interactive-drama.md](facade-interactive-drama.md) — deep dive on Mateas and Stern's Façade, interactive drama mechanics, and lessons for Shrimpy story-agent architecture.
 - [pi-agent.md](pi-agent.md) — Pi architecture, Shrimpy's integration boundary, the latest stable upgrade assessment, and package-ecosystem opportunities.
+- [oh-my-pi.md](oh-my-pi.md) — feature and architecture survey of the batteries-included Pi fork, including its coding tools, subagents, memory, protocols, trust boundaries, and the contracts worth studying without replacing Shrimpy's runtime.
 - [hermes-agent-harness.md](hermes-agent-harness.md) — source and history survey of Hermes Agent's custom Python model/tool harness, the narrower `execute_code` Python environment, former Mini-SWE integration, and implications for Shrimpy's Pi boundary.
-- [codex-session-control.md](codex-session-control.md) — current Shrimpy-to-Codex worker mechanics, limitations of the `codex exec` transport, and a comparison of direct App Server, ACP, the Codex SDK, and other control surfaces.
+- [codex-session-control.md](codex-session-control.md) — current Shrimpy-to-Codex worker mechanics, limitations of the `codex exec` transport, and a comparison of direct App Server, the Codex SDK, ACP adapters, and other control surfaces.
 - [pi-skill-handling.md](pi-skill-handling.md) — focused notes on Pi skill discovery, loading, slash commands, intelligent context-selection proposals, community routing extensions, and the Shrimpy integration gap.
 - [agent-loop-workflows.md](agent-loop-workflows.md) — taxonomy of agent loop and workflow shapes, what Pi makes easy or leaves to Shrimpy, and a possible path from goal-evaluated turns to scheduled and multi-agent runs.
 - [pufferlib-personal-rl.md](pufferlib-personal-rl.md) — research on how PufferLib/PufferPPO could inform a Shrimpy personal RL framework, especially environment design, trajectory capture, small policy training, and trainer export boundaries.
