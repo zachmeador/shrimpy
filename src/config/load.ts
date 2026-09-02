@@ -19,6 +19,7 @@ import {
 } from "./store.js";
 import { resolveWorkspacePath } from "../workspace/location.js";
 import type { WebConfig } from "./web.js";
+import type { PiConfig } from "./pi.js";
 
 export interface ShrimpyConfig {
   workspace: string;
@@ -31,6 +32,7 @@ export interface ShrimpyConfig {
   modelPolicies?: ModelPoliciesConfig;
   tools?: ToolRuntimeConfig;
   runtime?: RuntimeConfig;
+  pi?: PiConfig;
   status?: GatewayStatusConfig;
   web?: WebConfig;
   watchClock?: {

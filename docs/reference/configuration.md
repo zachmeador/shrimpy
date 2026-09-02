@@ -53,6 +53,7 @@ Use `--json` when the output feeds a script or another agent.
 - `modelPolicies` — named model policies with ordered provider/model candidates.
 - `agents` — agent ids, roots, session cwd, default model policy, tools, thinking default, and channel policy.
 - `runtime` — Pi/Shrimpy runtime behavior: theme, startup noise, prompt-template suppression, skill discovery, and compaction policy.
+- `pi` — durable Pi interaction preferences written by the native TUI settings menu.
 - `tools` — defaults for Shrimpy daemon tools.
 - `context` — stable prompt sources and live turn-context producers/settings. See [context-assembly.md](context-assembly.md).
 - `telegram` and other surface keys — configured surface instances, auth, allowlists, user mappings, default agent, and reliability policy.
@@ -83,6 +84,18 @@ Shrimpy keeps Pi's ambient discovery quiet by default: prompt-template discovery
 ```
 
 Compaction overrides can be scoped per agent, session type, channel pattern, or session name; the policy fields, precedence, and failure debugging live in [compaction.md](compaction.md).
+
+## Interactive Preferences
+
+`/settings` opens Pi's native preferences. Every displayed change applies to the current TUI and persists in `config/shrimpy.json` for later sessions and process starts. Shrimpy keeps each preference in its natural scope:
+
+- Theme, quiet startup, and auto-compaction live under `runtime`.
+- Ctrl+S in `/thinking` saves the active agent's default under `agents[].thinking`; Enter changes only the current session.
+- Pi display, input, transport, warning, and per-model thinking preferences live under `pi.settings`.
+
+`/shrimpy settings` contains the two Shrimpy-only session defaults: skill context and prompt templates. Those changes take effect when a session opens.
+
+Shrimpy neither reads nor writes user-global or project-local Pi `settings.json` files. Put Pi interaction preferences under `pi.settings`; keep theme, quiet startup, and compaction under `runtime`, and keep each agent's default thinking level under `agents[].thinking`.
 
 ## Web Inspector
 

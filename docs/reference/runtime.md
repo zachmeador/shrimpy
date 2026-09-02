@@ -4,7 +4,7 @@ Shrimpy has one Pi session core hosted by foreground commands, the gateway, setu
 
 ## Direct CLI Sessions
 
-- `shrimpy` opens the selected agent's durable `local/main` TUI session, running setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns the core renderer, tools, session state, and live Pi settings; Shrimpy layers its own indicator, footer, commands, `/thinking` adapter, post-`/new` archival, and a few narrow compatibility seams for UX that pinned Pi does not expose publicly.
+- `shrimpy` opens the selected agent's durable `local/main` TUI session, running setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns the core renderer, tools, session state, native `/thinking` selector, and `/settings` menu; Shrimpy supplies durable workspace and agent storage beneath those controls, then layers its indicator, footer, commands, post-`/new` archival, and a few narrow compatibility seams for UX that pinned Pi does not expose publicly.
 - `shrimpy "prompt"` opens the same TUI path with an initial prompt.
 - `shrimpy chat [agent]` opens the same TUI chat path for the default or selected agent without treating positionals as an initial prompt.
 - `shrimpy run "prompt"` opens an in-memory one-shot session and prints the final assistant text. `--session <canonical-id>` opts into a durable resumed session.
@@ -15,6 +15,8 @@ Shrimpy has one Pi session core hosted by foreground commands, the gateway, setu
 - Direct sessions start in the selected agent's configured `cwd`, defaulting to the agent root. Model selection follows the durable-session precedence in [sessions.md](sessions.md).
 
 Transcript-delivered foreground sessions do not first write user prompts to a channel log.
+
+`/settings` edits durable Pi preferences directly. `/shrimpy settings` holds only Shrimpy's skill-context and prompt-template defaults for future sessions. Read-only workspace and session facts live under `/status`; preference scopes and config locations are documented in [configuration.md](configuration.md#interactive-preferences).
 
 Setup model access uses a plain CLI wizard backed by Pi's `ModelRuntime` provider, login, availability, and refresh APIs, including a local OpenAI-compatible endpoint path that writes Pi `models.json`. Runtime bootstrap restores cached dynamic catalogs without network access; setup's explicit refresh action permits a bounded network refresh. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
 

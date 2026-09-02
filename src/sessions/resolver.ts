@@ -95,7 +95,6 @@ export class SessionResolver {
       restoreModelFromSession,
       allowMissingModel: input.allowMissingModel,
       thinking: input.thinking,
-      defaultThinking: this.agent.thinking,
       prompt: {
         appendSystemPrompt: input.appendSystemPrompt,
         skills: input.skills,

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { AgentSessionRuntime } from "@earendil-works/pi-coding-agent";
 import { createAppRuntime } from "../dist/app/runtime.js";
 import { ensureWorkspaceInitialized } from "../dist/setup/init.js";
@@ -65,5 +67,40 @@ test("durable runtime releases its lease when /new replaces the session", async 
     assert.equal(readSessionOwner(workspace, key), undefined);
   } finally {
     await runtime?.dispose();
+  }
+});
+
+test("Pi's native persistent thinking path survives /new", async () => {
+  const app = createAppRuntime({ workspace });
+  const prepared = await prepareForegroundSessionOpen({
+    runtime: app,
+    agentId: "shrimpy",
+    session: { namespace: "local", name: "main" },
+    purpose: "interactive",
+    persistent: true,
+    allowMissingModel: true,
+  });
+  let runtime: AgentSessionRuntime | undefined = await openSessionRuntime(
+    prepared.bootstrap,
+    prepared.plan,
+  );
+
+  try {
+    runtime.session.setThinkingLevel("high", { persist: true });
+    await runtime.session.settingsManager.flush();
+    const config = JSON.parse(
+      readFileSync(join(workspace, "config", "shrimpy.json"), "utf-8"),
+    ) as { agents?: Array<{ id: string; thinking?: string }> };
+    assert.equal(
+      config.agents?.find((agent) => agent.id === "shrimpy")?.thinking,
+      "high",
+    );
+
+    const result = await runtime.newSession();
+    assert.equal(result.cancelled, false);
+    assert.equal(runtime.session.settingsManager.getDefaultThinkingLevel(), "high");
+  } finally {
+    await runtime?.dispose();
+    runtime = undefined;
   }
 });

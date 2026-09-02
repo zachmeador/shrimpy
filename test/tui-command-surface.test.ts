@@ -33,7 +33,7 @@ test("Shrimpy keeps status and help output inline and blocks hidden sharing", as
   const chat = stripAnsi(harness.renderChat());
   assert.match(chat, /Agents/);
   assert.match(chat, /\* admin root=agents\/admin/);
-  assert.match(chat, /\/settings\s+Open unified Shrimpy and Pi settings/);
+  assert.match(chat, /\/settings\s+Edit durable Pi preferences/);
   assert.match(chat, /\/changelog\s+Show the Shrimpy changelog/);
   assert.deepEqual(harness.statuses, ["Share is hidden in Shrimpy for now"]);
   assert.deepEqual(harness.submissions, ["/hello"]);

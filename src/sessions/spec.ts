@@ -35,7 +35,6 @@ export interface SessionOpenPlan {
   restoreModelFromSession?: boolean;
   allowMissingModel?: boolean;
   thinking?: ThinkingLevel;
-  defaultThinking?: ThinkingLevel;
   tools?: ToolDefinition[];
   toolPolicy?: SessionToolPolicy;
   prompt?: {

@@ -9,7 +9,7 @@ import {
   type CreateAgentSessionRuntimeResult,
   type ExtensionFactory,
   type ResourceLoader,
-  SettingsManager,
+  type SettingsManager,
   SessionManager,
   type SessionStartEvent,
 } from "@earendil-works/pi-coding-agent";
@@ -45,6 +45,7 @@ import {
   createSessionTurnContextController,
   type SessionTurnContextController,
 } from "./turn-context.js";
+import { createSessionSettingsManager } from "./settings.js";
 
 const sessionLeases = new WeakMap<AgentSession, SessionLease>();
 
@@ -124,7 +125,7 @@ export async function openSessionRuntime(
           cwd,
           agentDir,
           modelRuntime: target.bootstrap.modelRuntime,
-          settingsManager: target.bootstrap.settingsManager,
+          settingsManager: session.settingsManager,
           resourceLoader,
           diagnostics: [],
         },
@@ -191,10 +192,6 @@ async function openLeasedSessionWithRuntimeDeps(
   session: AgentSession;
   resourceLoader: ResourceLoader;
 }> {
-  if (plan.defaultThinking !== undefined) {
-    bootstrap.settingsManager.setDefaultThinkingLevel(plan.defaultThinking);
-  }
-
   const cwd = plan.descriptor.cwd ?? bootstrap.agentRootPath;
   const sessionManager = opts?.sessionManager ??
     createDescriptorSessionManager(cwd, plan.descriptor);
@@ -233,18 +230,20 @@ async function openLeasedSessionWithRuntimeDeps(
         )
       : undefined,
   });
-  const settingsManager = SettingsManager.inMemory({
-    theme: bootstrap.runtimeConfig.theme,
-    quietStartup: bootstrap.runtimeConfig.quietStartup,
-    compaction: {
-      enabled: compactionPolicy.enabled,
-      reserveTokens: compactionPolicy.reserveTokens,
-      keepRecentTokens: compactionPolicy.keepRecentTokens,
+  const settingsManager = createSessionSettingsManager({
+    workspace: bootstrap.workspacePath,
+    agentId: bootstrap.agentId,
+    runtimeConfig: bootstrap.runtimeConfig,
+    settings: {
+      theme: bootstrap.runtimeConfig.theme,
+      quietStartup: bootstrap.runtimeConfig.quietStartup,
+      compaction: {
+        enabled: compactionPolicy.enabled,
+        reserveTokens: compactionPolicy.reserveTokens,
+        keepRecentTokens: compactionPolicy.keepRecentTokens,
+      },
     },
   });
-  if (plan.defaultThinking !== undefined) {
-    settingsManager.setDefaultThinkingLevel(plan.defaultThinking);
-  }
   const resourceLoader = await resolveSessionResourceLoader(
     bootstrap,
     assembly,

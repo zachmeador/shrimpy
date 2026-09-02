@@ -32,7 +32,6 @@ describe("session resolution", () => {
 
     assert.equal(restored.restoreModelFromSession, true);
     assert.equal(restored.modelResolution?.source, "policy");
-    assert.equal(restored.defaultThinking, "high");
     assert.equal(restored.descriptor.key.namespace, "local");
     assert.deepEqual(restored.descriptor.delivery, { kind: "transcript" });
     assert.equal(explicit.restoreModelFromSession, false);
@@ -69,7 +68,6 @@ describe("session resolution", () => {
       channel: "telegram~shrimpy~1",
     });
     assert.equal(plan.descriptor.cwd, "/tmp/shrimpy-cwd");
-    assert.equal(plan.defaultThinking, "high");
     assert.equal(plan.prompt?.extraResources, undefined);
     assert.equal(plan.prompt?.appendSystemPrompt, undefined);
   });

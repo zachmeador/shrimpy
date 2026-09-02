@@ -46,7 +46,7 @@ Every durable session restores the model recorded in its active Pi transcript wh
 
 Shrimpy gives Pi one stable system prompt when the session opens, and per-turn facts travel with the current user message, so the JSONL matches what the model saw. Channel turns use the formatted channel message as their prompt body; transcript turns use the caller's local prompt. See [context-assembly.md](context-assembly.md).
 
-Thinking defaults to the agent setting and can be overridden when a host opens the session. `shrimpy sessions set <session-id> --thinking <level>` changes a running gateway-owned session and waits for its correlated outcome.
+Thinking defaults to the agent setting and can be overridden when a host opens the session. In the TUI, Pi's native `/thinking` selector changes only the active session with Enter; Ctrl+S also saves the selected level to that agent's `agents[].thinking` default for later sessions. `shrimpy sessions set <session-id> --thinking <level>` changes a running gateway-owned session and waits for its correlated outcome.
 
 ## Ownership and Lifecycle
 
@@ -63,7 +63,7 @@ shrimpy sessions set <session-id> [--thinking <level>] [--model <provider/model>
 shrimpy sessions stop <session-id> [--agent <id>] [--no-wait] [--json]
 ```
 
-`new` and `clear` mark the active Pi JSONL archived with a `shrimpy_lifecycle` entry. `restore` marks an archive active and archives the previous active file. A model or thinking change applies to the session itself, not the agent default or channel configuration. Stop aborts the running turn without waiting behind it; queued turns remain in FIFO order.
+`new` and `clear` mark the active Pi JSONL archived with a `shrimpy_lifecycle` entry. `restore` marks an archive active and archives the previous active file. Session-control model and thinking changes apply to the session itself, not the agent default or channel configuration; the TUI thinking selector's explicit Ctrl+S action is the agent-default exception. Stop aborts the running turn without waiting behind it; queued turns remain in FIFO order.
 
 How a command reaches the session depends on who owns it:
 

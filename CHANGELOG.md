@@ -2,7 +2,7 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
-## 🦐 0.6.2 - The Blue Hour - Unreleased
+## 🦐 0.6.2 - The Blue Hour - 2026-09-02
 
 ### Breaking Changes
 
@@ -21,6 +21,9 @@ Public releases at `0.1.0` or later get a short lyrical aquatic release name/tag
 ### Sessions, Models & TUI
 
 - Upgraded all Pi packages from `0.83.0` to `0.84.4`, bringing cancellation-aware model and authentication operations, session-scoped model and thinking selection, earlier compaction after large tool results, nested skill discovery fixes, subscription-aware TUI costs, and current provider/runtime fixes.
+- Changed TUI `/thinking` to use Pi's native selector and argument handling. Enter remains session-scoped, while Ctrl+S now saves the selected agent's `agents[].thinking` default across new sessions and agent switches.
+- Removed the obsolete Shrimpy `/thinking` extension that Pi `0.84.4` shadows, eliminating its startup conflict warning and adding built-in-command collision coverage for every bundled extension.
+- Changed `/settings` to open Pi's native preferences directly and persist every displayed choice across sessions and restarts. Agent thinking stays under `agents[].thinking`, shared Pi preferences live under `pi.settings`, and `/shrimpy settings` contains only skill-context and prompt-template defaults.
 
 ## 🦐 0.6.1 - The Blue Hour - 2026-07-29
 

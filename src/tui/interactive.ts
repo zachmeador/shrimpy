@@ -21,10 +21,6 @@ import { createShrimpyTuiCommandExtensionFactory } from "./commands.js";
 import { createShrimpyFooterExtensionFactory } from "./footer.js";
 import { installShrimpyInlineCommands } from "./inline-commands.js";
 import { installShrimpyModelSelectionGuard } from "./model-selection.js";
-import {
-  createShrimpySettingsUiController,
-  installShrimpySettingsSelector,
-} from "./settings.js";
 import { installShrimpyTerminalTitle } from "./terminal-title.js";
 import { installShrimpyTurnContextRendering } from "./turn-context-rendering.js";
 import { TuiSessionTargetController } from "./session-target.js";
@@ -90,7 +86,6 @@ async function prepareAgentTuiSession(
 }> {
   const prepared = await prepareForegroundSessionOpen(input);
   const sessionRuntime: { current?: AgentSessionRuntime } = {};
-  const settingsUi = createShrimpySettingsUiController();
   const target = new TuiSessionTargetController(input.runtime, prepared);
   const commandOptions = {
     runtime: input.runtime,
@@ -121,7 +116,6 @@ async function prepareAgentTuiSession(
         }
         return sessionRuntime.current.session;
       }),
-      settingsUi.extensionFactory,
     ],
     runtimeFactory: target.createRuntime,
   });
@@ -139,23 +133,6 @@ async function prepareAgentTuiSession(
     installShrimpyInlineCommands(interactive, commandOptions);
     installShrimpyModelSelectionGuard(interactive, { runtime: input.runtime });
     installShrimpyTurnContextRendering();
-    installShrimpySettingsSelector(interactive, {
-      runtime: input.runtime,
-      get agentId() {
-        return target.getTarget().agentId;
-      },
-      get sessionId() {
-        return target.getTarget().sessionId;
-      },
-      get purpose() {
-        return target.getTarget().purpose;
-      },
-      get cwd() {
-        return target.getTarget().cwd;
-      },
-      getSession: () => runtime.session,
-      ui: settingsUi,
-    });
     return { runtime, interactive, target };
   } catch (error) {
     await runtime.dispose();

@@ -13,6 +13,7 @@ import { resolveRuntimeConfig } from "./runtime.js";
 import { resolveToolRuntimeConfig } from "./tools.js";
 import { surfaceModules } from "../surfaces/registry.js";
 import { resolveWebConfig } from "./web.js";
+import { validatePiConfig } from "./pi.js";
 
 interface ConfigFileEditOptions {
   missing?: "empty" | "error";
@@ -33,6 +34,7 @@ export function validateRawConfig(raw: Record<string, unknown>): void {
   if (raw.modelPolicies !== undefined) validateModelPoliciesConfig(raw.modelPolicies);
   if (raw.tools !== undefined) resolveToolRuntimeConfig(raw.tools);
   if (raw.runtime !== undefined) resolveRuntimeConfig(raw.runtime);
+  if (raw.pi !== undefined) validatePiConfig(raw.pi);
   if (raw.status !== undefined) resolveGatewayStatusConfig(raw.status);
   if (raw.web !== undefined) resolveWebConfig(raw.web);
   for (const module of surfaceModules) {

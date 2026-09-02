@@ -5,22 +5,19 @@ import assert from "node:assert/strict";
 
 const projectRoot = process.cwd();
 
-test("TUI launch limits private compatibility to five named UX seams", () => {
+test("TUI launch limits private compatibility to four named UX seams", () => {
   const interactive = read("src/tui/interactive.ts");
   const installers = [...interactive.matchAll(/installShrimpy\w+/gu)]
     .map((match) => match[0]);
   assert.deepEqual([...new Set(installers)], [
     "installShrimpyInlineCommands",
     "installShrimpyModelSelectionGuard",
-    "installShrimpySettingsSelector",
     "installShrimpyTerminalTitle",
     "installShrimpyTurnContextRendering",
   ]);
 
   const settings = read("src/tui/settings.ts");
-  assert.match(settings, /showSettingsSelector/);
-  assert.match(settings, /showSelector/);
-  assert.doesNotMatch(settings, /themeController|chatContainer|footer/);
+  assert.doesNotMatch(settings, /showSettingsSelector|showSelector|InteractiveMode/);
 
   const inlineCommands = read("src/tui/inline-commands.ts");
   assert.match(inlineCommands, /setupEditorSubmitHandler/);

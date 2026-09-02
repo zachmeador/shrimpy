@@ -21,7 +21,6 @@ const SHRIMPY_EXTENSION_PATHS = [
   join(projectRoot, "extensions", "archive-new-session.ts"),
   join(projectRoot, "extensions", "compact-tools.ts"),
   join(projectRoot, "extensions", "model-switch-renderer.ts"),
-  join(projectRoot, "extensions", "thinking.ts"),
 ];
 
 const SHRIMPY_THEME_PATHS = [join(projectRoot, "themes")];

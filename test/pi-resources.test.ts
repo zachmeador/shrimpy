@@ -4,12 +4,13 @@ import { basename, join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  InteractiveMode,
   ModelRuntime,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { createShrimpyResourceLoader } from "../dist/sessions/pi-resources.js";
 
-test("Shrimpy's configured Pi extensions all load", async () => {
+test("Shrimpy's configured Pi extensions load without built-in command conflicts", async () => {
   const root = mkdtempSync(join(tmpdir(), "shrimpy-pi-resources-"));
   const modelRuntime = await ModelRuntime.create({
     authPath: join(root, "auth.json"),
@@ -41,11 +42,28 @@ test("Shrimpy's configured Pi extensions all load", async () => {
       "archive-new-session.ts",
       "compact-tools.ts",
       "model-switch-renderer.ts",
-      "thinking.ts",
     ],
   );
   assert.equal(
     result.extensions.some((extension) => extension.path.startsWith("<inline:")),
     true,
+  );
+
+  const commands = result.extensions.flatMap((extension) =>
+    Array.from(extension.commands.values(), (command) => ({
+      ...command,
+      invocationName: command.name,
+    }))
+  );
+  const conflictProbe = InteractiveMode.prototype as unknown as {
+    getBuiltInCommandConflictDiagnostics(runner: {
+      getRegisteredCommands(): typeof commands;
+    }): Array<{ type: string; message: string; path?: string }>;
+  };
+  assert.deepEqual(
+    conflictProbe.getBuiltInCommandConflictDiagnostics({
+      getRegisteredCommands: () => commands,
+    }),
+    [],
   );
 });
