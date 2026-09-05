@@ -2,22 +2,7 @@
 
 Shrimpy uses Pi's native tool runtime and adds a small set of Shrimpy daemon tools for channels and publication. There is no separate Shrimpy tool-calling protocol.
 
-## Runtime Model
-
-Pi owns the tool loop:
-
-1. Active tool schemas are sent to the model provider as native tool definitions.
-2. The model emits a tool call.
-3. Pi validates the arguments against the tool's TypeBox schema.
-4. Pi runs the tool's `execute()` function.
-5. Pi appends the tool result back into the provider-facing message stream for that turn.
-
-Tool calls may run in parallel within a turn when the provider/model emits parallel calls. Tool output should stay bounded and prompt-safe.
-
-Shrimpy enters this model through Pi's SDK options:
-
-- `customTools` — additive Shrimpy daemon tools.
-- `excludeTools` — denied effective tool names, used for Pi built-ins, Shrimpy daemon tools, extension tools, or other registered custom tools.
+Pi validates and executes native tool calls and adds their results to model context. Shrimpy registers its channel tools through Pi's `customTools` SDK option.
 
 ## Native Pi Tools
 
@@ -57,35 +42,10 @@ Shrimpy daemon tools are Pi custom tools backed by Shrimpy runtime services. The
 
 ## Agent Policy
 
-Agent tool policy lives in `agents[]` inside `config/shrimpy.json`.
-
-```json
-{
-  "id": "shrimpy",
-  "tools": [
-    "reply",
-    "ask",
-    "notify",
-    "report",
-    "send_message",
-    "read_channel"
-  ],
-  "disabledTools": ["bash"]
-}
-```
-
-Policy fields:
-
-- `tools` selects allowed Shrimpy daemon tools. If omitted or empty, Shrimpy uses all built-in daemon tools.
-- `disabledTools` denies effective tool names by passing them to Pi as `excludeTools`. This is the field to use for Pi built-ins such as `bash`, and it can also name Shrimpy daemon tools or extension/custom tools.
-
-The effective capability view is inspectable:
+Configure an agent's allowed Shrimpy tools and excluded effective tools through [agents configuration](configuration.md#agents). Inspect the result with:
 
 ```bash
-shrimpy agent inspect <id>
 shrimpy agent inspect <id> --json
 ```
 
-The view distinguishes `pi built-in`, `shrimpy daemon`, and `unknown` names, and shows active, registered-inactive, and excluded tools.
-
-`shrimpy context --agent <id>` inspects the model-facing context for an agent; use `shrimpy agent inspect <id>` when you specifically need to debug effective tool policy.
+The view distinguishes Pi built-ins, Shrimpy daemon tools, and unknown names, and shows active, registered-inactive, and excluded tools.

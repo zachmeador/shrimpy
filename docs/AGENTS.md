@@ -1,7 +1,3 @@
 # 🦐 Docs Instructions
 
-- Treat `reference/` as the stable project reference surface.
-- Treat `tracking/` as active project state.
-- Treat `musings/` and `research/` as non-authoritative context.
-- If musings contradict reference docs, preserve the musing and update the reference doc only when the user or backlog makes the decision explicit.
-- When moving or renaming docs, update links in `docs/README.md`, `docs/reference/README.md`, `AGENTS.md`, setup templates if relevant, and nearby docs.
+Use [shrimpy-dev-docs](../skills/shrimpy-dev-docs/SKILL.md) for evidence, ownership, placement, and link maintenance, together with the [writing guide](../skills/shrimpy-dev-writing-guide/SKILL.md).

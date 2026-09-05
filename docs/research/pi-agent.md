@@ -33,9 +33,8 @@ Each Shrimpy session gives Pi a workspace-backed `SettingsManager`. Native `/set
 
 The latest stable tag inspected on 2026-08-30 is `v0.84.4` at `b79e4cc834970cca69daebffab7df1da7d1e52c4`. Shrimpy now pins that release.
 
-- Current Shrimpy Pi packages: `@earendil-works/pi-agent-core`, `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, and `@earendil-works/pi-tui` at exact `0.84.4`.
-- Latest stable Pi version inspected: tag `v0.84.4`, commit `b79e4cc834970cca69daebffab7df1da7d1e52c4`.
-- Pi retains Node `>=22.19.0` and `typebox` `1.3.7`, so Shrimpy's runtime and tool-schema dependency boundaries stay aligned.
+Version and dependency details are recorded in the [assessment](#versions).
+
 - Declared breaking changes replace the agent-core harness session APIs, rename AI request-transform and Google thinking-level types, tighten dynamic-provider refresh and auth cancellation contracts, and change when `prepareNextTurn` hooks run. Shrimpy does not import those surfaces.
 - Coding-agent changes relevant to Shrimpy make credential mutations synchronize cache-only model state, make model and thinking selections session-scoped unless explicitly saved, add compaction-failure events, compact oversized tool results before the next model call, and improve nested skill discovery.
 - AI and tool changes add provider-neutral tool choice, strict-schema normalization, request cancellation, and many provider fixes. The focused tool, inference, compaction, and session probes pass against the published packages.
@@ -116,6 +115,7 @@ The `0.84.4` package upgrade and follow-up cleanup are complete for Shrimpy `v0.
 6. Replaced the temporary thinking-only bridge with durable host storage for Pi preferences, removed the private settings landing page, and verified `/new`, process recreation, agent isolation, and clean interactive startup.
 7. Manually smoke-test a credential-backed provider call, session replacement during streaming, footer rendering, and compaction after a large tool result.
 8. Recorded the cleanup, smoke-test results, and remaining manual-validation gaps before release.
+9. Design the package bridge separately after runtime validation; the earlier `0.82.1` model-runtime migration and `0.83.0` dependency/TypeBox alignment are complete.
 
 ### Risks And Unknowns
 
@@ -197,17 +197,6 @@ The focused [Pi skill handling note](pi-skill-handling.md) covers skill discover
 Pi has no durable background daemon or native cross-agent orchestration layer. Extensions can schedule work inside one session, and external supervisors can prompt sessions or drive RPC, but Shrimpy's watches, channels, workers, and multi-agent routing remain application-level responsibilities.
 
 The upstream `packages/mom/` example demonstrates one external messaging channel driving queued Pi sessions. It is useful prior art for routing but is narrower than Shrimpy's multi-channel, multi-agent workspace.
-
-## Implementation Sequence
-
-1. The `0.82.1` model-runtime, setup, dynamic-catalog, provider, session, and custom-compaction migration is complete on `main`.
-2. The `0.83.0` dependency update and `typebox` `1.3.7` alignment are implemented and manually smoke-tested.
-3. Implemented `0.84.4` as a coordinated package, lockfile, context-inspection API, and footer-fixture update.
-4. Passed the source build, extension typecheck, 191-test focused slice, lint, and 738-test full suite in the implementation checkout.
-5. Committed the package upgrade, then found the shadowed `/thinking` extension during live TUI startup.
-6. Removed that obsolete adapter, added command-collision and startup-diagnostic coverage, and made native Pi preferences durable for `v0.6.2`.
-7. Kept credential-backed provider and streaming-TUI smoke tests as explicit follow-up validation rather than hiding the remaining unknowns.
-8. Design the package bridge separately after the upgraded runtime is stable.
 
 ## Sources
 

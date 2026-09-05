@@ -2,6 +2,12 @@
 
 Public releases at `0.1.0` or later get a short lyrical aquatic release name/tagline.
 
+## 🦐 Unreleased
+
+### Docs & Agent Guidance
+
+- Corrected setup and agent guidance for opt-in watch creation, local replies, session selection and persistence, and memory recovery; consolidated reference ownership and documentation-maintenance workflows.
+
 ## 🦐 0.6.2 - The Blue Hour - 2026-09-02
 
 ### Breaking Changes

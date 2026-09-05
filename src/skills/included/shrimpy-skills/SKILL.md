@@ -30,23 +30,11 @@ Prefer a skill over another persistent agent when the need is reusable research,
 
 Ask before broad skill installs or updates. Package copies are real files under `skills/` or `agents/<id>/skills/`; local edits are allowed and `shrimpy skills list` reports modified package copies.
 
-## Commands
+## Apply
 
-```bash
-shrimpy skills show <id> --agent <id>
-shrimpy skills new <id> --workspace --description "<when to use it>"
-shrimpy skills new <id> --agent <agent-id> --description "<when to use it>"
-shrimpy skills add included:<id> --workspace
-shrimpy skills add included:<id> --agent <agent-id>
-shrimpy skills add <source> --workspace --dry-run --json
-shrimpy skills add <source> --agent <agent-id> --path <skill-dir>
-shrimpy skills update <id> --workspace --dry-run
-shrimpy skills update <id> --agent <agent-id>
-shrimpy skills remove <id> --agent <agent-id>
-shrimpy skills validate [id] --agent <agent-id>
-```
+For a package install, inspect candidates with `shrimpy skills add <source> --agent <agent-id> --dry-run --json`, then apply to the selected scope. Use `--workspace` instead for shared behavior. `add` uses the package's own skill name as its ID; use `--path` for one candidate and `--all` only when the user wants all candidates.
 
-`add` uses the package's own Pi skill name as the id. Use `--path` to choose one candidate from a multi-skill GitHub repo, and `--all` only when the user really wants every discovered package.
+For updates, run `shrimpy skills update <id> --agent <agent-id> --dry-run` and review local modifications before applying. Use `shrimpy skills new <id>` to scaffold original behavior and subcommand `--help` for exact authoring and removal options.
 
 ## Author
 

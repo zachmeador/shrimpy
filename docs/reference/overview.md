@@ -34,7 +34,7 @@ Watches use the same channel path: the gateway advances them and posts their mes
 
 - [setup.md](setup.md) — install and first-run setup.
 - [design.md](design.md) — design principles and constraints.
-- [architecture.md](architecture.md) — primitives, layering, and system invariants.
+- [architecture.md](architecture.md) — implementation components and layering.
 - [cli.md](cli.md) — the command surface.
 - [configuration.md](configuration.md) — config files and fields.
 - [../backlog/index.md](../backlog/index.md) — active work.

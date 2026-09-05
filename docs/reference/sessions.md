@@ -52,15 +52,11 @@ Thinking defaults to the agent setting and can be overridden when a host opens t
 
 A durable session records its current owner under `runtime/sessions/`. That record acts as a lock: foreground, gateway, and maintenance processes cannot open or change the same transcript concurrently.
 
-Lifecycle and runtime controls use canonical ids:
+Lifecycle and runtime controls use canonical IDs. Use `shrimpy sessions --help` to discover controls and subcommand help for exact options:
 
 ```bash
-shrimpy sessions list [session-id] [--agent <id>|--all-agents] [--json]
-shrimpy sessions new <session-id> [--agent <id>] [--no-wait] [--json]
-shrimpy sessions clear <session-id> [--agent <id>] [--no-wait] [--json]
-shrimpy sessions restore <session-id> [--agent <id>] [--archive <name>] [--no-wait] [--json]
-shrimpy sessions set <session-id> [--thinking <level>] [--model <provider/model>|--model-policy <name>] [--agent <id>] [--no-wait] [--json]
-shrimpy sessions stop <session-id> [--agent <id>] [--no-wait] [--json]
+shrimpy sessions new local/main --agent shrimpy
+shrimpy sessions set --help
 ```
 
 `new` and `clear` mark the active Pi JSONL archived with a `shrimpy_lifecycle` entry. `restore` marks an archive active and archives the previous active file. Session-control model and thinking changes apply to the session itself, not the agent default or channel configuration; the TUI thinking selector's explicit Ctrl+S action is the agent-default exception. Stop aborts the running turn without waiting behind it; queued turns remain in FIFO order.

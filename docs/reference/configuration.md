@@ -4,20 +4,9 @@ Shrimpy config is file-backed and meant to be inspected through normal commands 
 
 ## Files
 
-```text
-~/.shrimpy-workspace.json               optional default workspace pointer
-config/shrimpy.json                     main workspace runtime config
-config/channels.json                    channel membership, manifests, and transport bindings
-agents/<id>/watches.json                agent-owned watches
-runtime/bin/                            workspace-local command shims
-state/pi/auth.json                      Pi provider auth
-state/pi/models.json                    Pi-visible provider/model registry
-state/pi/models-store.json              cached dynamic provider catalogs
-state/users.json                        stable user ids and optional workspace owner
-state/user-presence.json                last active chat surface per known user
-```
+Runtime configuration lives in `config/shrimpy.json`; channel configuration in `config/channels.json`; agent watches in `agents/<id>/watches.json`. The [workspace layout](workspace.md#layout) lists state and other files.
 
-The optional workspace pointer is:
+The optional default workspace pointer at `~/.shrimpy-workspace.json` is:
 
 ```json
 {
@@ -73,12 +62,7 @@ Shrimpy keeps Pi's ambient discovery quiet by default: prompt-template discovery
     "theme": "shrimpy",
     "quietStartup": true,
     "noPromptTemplates": true,
-    "noSkills": false,
-    "compaction": {
-      "enabled": true,
-      "reserveTokens": 32768,
-      "keepRecentTokens": 30000
-    }
+    "noSkills": false
   }
 }
 ```
@@ -111,6 +95,8 @@ The gateway starts the separate, read-only `shrimpy-web` process on loopback by 
 ```
 
 Set `web.enabled` to `false` when this gateway should not manage an inspector. `shrimpy-web --workspace /path --port 5174` remains available for direct development and diagnostics.
+
+## Tool Defaults
 
 Tool defaults live under `tools`:
 
@@ -312,23 +298,6 @@ Stable human ids live in `state/users.json`. Telegram `users` mappings turn tran
 ## Watches And Status
 
 Agent-owned watches live in `agents/<id>/watches.json`. A watch belongs to one agent, has a trigger, and either posts a watch-authored message to a channel or runs a command check that can emit to a channel. Current trigger kinds are `time` with `cron` and `time` with `everyMs`. `concurrencyPolicy` is `forbid` (the default) or `allow`.
-
-For normal edits:
-
-```bash
-shrimpy watches add morning-check \
-  --agent shrimpy \
-  --name "Morning check" \
-  --every 1h \
-  --channel maintenance \
-  --addressed shrimpy \
-  --message "Check the house."
-
-shrimpy watches show shrimpy/morning-check
-shrimpy watches history shrimpy/morning-check
-shrimpy watches enable shrimpy/morning-check
-shrimpy watches disable shrimpy/morning-check
-```
 
 `watchClock.defaultTimezone` sets the workspace default timezone for cron watches. Per-watch JSON can set root-level `timezone` or `trigger.timezone` for rare explicit overrides.
 

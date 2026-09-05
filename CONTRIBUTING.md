@@ -31,7 +31,7 @@ Security issues: use GitHub's private vulnerability reporting, not a public issu
 
 The ones that surprise people:
 
-- **No legacy paths.** Replace old behavior outright — no compat shims, deprecated stubs, or migration code. Live workspaces are migrated by the mechanic's [`workspace-migration`](src/setup/templates/mechanic/skills/workspace-migration/SKILL.md) skill, which reasons from git diffs; if your change to the workspace shape isn't obvious from the diff, leave that skill a note.
+- **No legacy paths.** Replace old behavior outright — no compat shims, deprecated stubs, or migration code. The mechanic's [update skill](src/skills/included/shrimpy-update/SKILL.md) guides approved workspace changes. Explain workspace impact in the change description and changelog, with durable behavior in the owning reference doc.
 - **CLI first.** Every feature is reachable via `shrimpy <command>` before it grows any other surface.
 - **No slop.** AI-assisted work is fine — Shrimpy is built that way — but you're responsible for every line. If you can't explain it, don't submit it.
 - **Don't hard-wrap prose.** Markdown paragraphs stay on one line.

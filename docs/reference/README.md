@@ -1,13 +1,13 @@
 # 🦐 Reference
 
-Current behavior of Shrimpy.
+Current behavior, operating reference, and the design principles that guide Shrimpy.
 
 ## Index
 
 - [overview.md](overview.md) — orientation: primitives and how work runs.
-- [design.md](design.md) — design principles and constraints.
+- [design.md](design.md) — design doctrine and intended constraints.
 - [setup.md](setup.md) — install and gateway service lifecycle.
-- [architecture.md](architecture.md) — primitives, layering, and system invariants.
+- [architecture.md](architecture.md) — implementation components and layering.
 - [runtime.md](runtime.md) — direct runs, gateway dispatch, watches, workers.
 - [channels.md](channels.md) — message protocol, membership, wake policy, addressing, and egress.
 - [sessions.md](sessions.md) — session identity, lifecycle, ownership, and inspection.

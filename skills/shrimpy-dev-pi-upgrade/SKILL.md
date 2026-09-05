@@ -3,7 +3,7 @@ name: shrimpy-dev-pi-upgrade
 description: Use when evaluating whether Shrimpy can upgrade to the latest stable Pi packages from a local Pi git clone, mapping upstream changes to Shrimpy integration points, identifying likely breakage, and updating docs/research/pi-agent.md without applying the upgrade in the main checkout.
 ---
 
-# Shrimpy Dev Pi Upgrade
+# 🦐 Shrimpy Dev Pi Upgrade
 
 Use this Shrimpy developer skill from the Shrimpy repository when the user wants an upgrade assessment for Pi dependencies.
 
@@ -45,19 +45,14 @@ Do not apply the upgrade to the main Shrimpy checkout unless the user explicitly
    - Start the real interactive host far enough to collect startup diagnostics. Exercise each changed interactive surface named by Pi's changelog, including autocomplete, selectors, keybindings, session mutation, and persistence behavior. A unit test of an extension handler does not prove that Pi still dispatches to it.
    - Treat any new startup warning, skipped registration, shadowed handler, or misleading persistence affordance as upgrade breakage. A clean build and full test suite do not override a failed integration or live-surface probe.
    - Keep command output concise; capture failures, not entire logs.
-7. Update `docs/research/pi-agent.md` with the result. Refresh its date, current integration facts, latest stable version, upgrade assessment, implementation sequence, and relevant sources without replacing unrelated architectural or ecosystem research.
+7. Update `docs/research/pi-agent.md` with the result. Refresh its date, current integration facts, inspected version, upgrade assessment, action sequence, and relevant sources without replacing unrelated architectural or ecosystem research.
 
 ## Report Shape
 
-The upgrade-assessment sections in `docs/research/pi-agent.md` should remain direct and actionable and preserve every field from the standalone plan contract. Integrate them with the broader research note instead of dropping detail:
+Keep one version block and one ordered action sequence in `docs/research/pi-agent.md`, alongside the evidence and broader research. Link to those sections instead of repeating them:
 
 ```markdown
 Updated: YYYY-MM-DD
-
-## Latest Stable Pi
-- Current Shrimpy Pi packages: <packages and versions>
-- Latest stable Pi version inspected: <version/tag/commit>
-<concise change summary>
 
 ## `<version>` Upgrade Assessment
 Shrimpy checkout: <path and commit>
@@ -85,8 +80,6 @@ Pi clone: <path and commit/tag>
 ### Risks And Unknowns
 - <remaining uncertainty>
 
-## Implementation Sequence
-<retain this broader sequence when the research note already uses it; keep it consistent with Upgrade Steps rather than letting the two disagree>
 ```
 
 Use file paths and API names, not vague labels. Preserve checkout provenance, version evidence, commands, pass/fail outcomes, remaining uncertainty, and confidence even when the prose is reorganized to avoid duplicated sections. If no breaking changes are found, say what evidence supports that and still list the verification performed.

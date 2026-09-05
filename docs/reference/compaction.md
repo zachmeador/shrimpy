@@ -1,4 +1,4 @@
-# Compaction
+# 🦐 Compaction
 
 Shrimpy uses Pi's session compaction to keep long-running sessions usable while keeping channel logs and session files as the records it can return to. See [sessions.md](sessions.md) for session files and lifecycle.
 
@@ -63,55 +63,11 @@ shrimpy sessions compaction <session-id> --agent <id> --json
 
 The command reports the effective policy, selected model metadata, the active session's recorded policy/runtime metadata when present, and whether a restart/reset is required.
 
-## Runtime Flow
+## Summary And Context
 
-Pi decides whether to compact after an agent turn completes. It uses the selected model, current compaction settings, recent assistant usage, and the active session branch.
+Pi chooses when to compact and which history to retain. Shrimpy summarizes the older entries using the session's model, system prompt, and compaction instructions. Pi persists the summary and rebuilds model context from it plus recent entries.
 
-When compaction starts:
-
-1. Pi prepares a cut plan: entries to summarize, entries to keep, optional split-turn prefix messages, previous compaction summary, token counts, and file operation details.
-2. Shrimpy's `session_before_compact` extension handles the prepared plan.
-3. The extension reads Shrimpy policy instructions from the branch entries.
-4. The extension reads the current session system prompt through Pi's extension context and passes it to Shrimpy's compaction runner, so the compaction request has the same parent agent identity, personality, voice, tone, and operating context as the session being compacted.
-5. The extension asks Shrimpy's compaction runner to summarize the prepared history with the session's selected model, retry policy, and cancellation signal.
-6. If the extension returns a compaction result, Pi persists it as a normal `compaction` entry with `fromHook: true`.
-7. If the extension does not return a compaction result, Pi falls back to its built-in compaction path.
-
-The compaction entry stores:
-
-- `summary`
-- `firstKeptEntryId`
-- `tokensBefore`
-- aggregate `usage` from every summary, chunk, and merge request
-- `details.readFiles`
-- `details.modifiedFiles`
-
-After the entry is appended, Pi rebuilds the session context. Future prompts see the compaction summary plus the kept recent entries.
-
-## Summary Shape
-
-Shrimpy asks the compaction model to write the kind of summary that fits the session rather than forcing one fixed template.
-
-For task or project work, a summary can use headings for goals, constraints, progress, decisions, blockers, next steps, and important files or commands when those are useful. For casual chat, the summary can instead be a short note with what they were talking about, facts that matter, loose ends, preferences, tone, and timestamps. Empty headings and filler should be omitted.
-
-When a compaction updates an earlier compaction, the summary prompt asks the model to keep useful old details, add new facts and decisions, update task status when there is task work, update the chat summary when there is chat, and keep exact file paths, function names, commands, dates, and error messages.
-
-Shrimpy also asks summaries to keep rough time clues and notes about the agent itself. Time clues matter because Shrimpy agents have tools to inspect original channel and session logs by date. Agent notes matter because the same agent resumes after compaction; the summary should carry forward who the agent is, how it talks, how it works, and relevant user/workspace preferences instead of turning the next turn into a generic assistant reply.
-
-If Pi cuts in the middle of a large turn, Shrimpy generates two summaries:
-
-- a history summary for older entries
-- a turn-prefix summary for the prefix of the current turn
-
-The final stored summary includes a `Turn Context (split turn)` section for that prefix. File operations are appended as `<read-files>` and `<modified-files>` tags.
-
-## Provider Request Path
-
-Compaction uses the same model/provider request path as normal turns, so it inherits the session's configured access and provider compatibility without maintaining a separate compaction-specific configuration.
-
-Each standalone summary request disables prompt-cache retention and receives a fresh routing session id. Transient failures use Pi's bounded retry classifier and the active session retry settings. Usage from split-turn, chunk, intermediate-merge, and final-merge calls is combined into the persisted compaction result.
-
-Compaction also caps summarization `maxTokens` to the selected model's `maxTokens`. Pi's requested summary budget can otherwise be much larger than the model's output limit.
+Summaries adapt to the conversation: task work retains progress, constraints, decisions, and next steps; casual chat retains useful facts, preferences, tone, and loose ends. Exact paths, commands, dates, and error messages remain useful inspection clues. A split turn gets a separate turn-prefix summary, and file-operation references remain in the stored result.
 
 ## Failures
 
@@ -146,11 +102,13 @@ Check these in order:
 
 If the active session recorded stale policy or model metadata, run `shrimpy sessions new <session-id> --agent <id>`. Shrimpy routes the request to a gateway owner or takes an exclusive maintenance lease when the session is unowned. The next message opens a fresh session under current policy.
 
-## Related Code
+## Maintainer Details
 
-- Compaction policy resolution: `src/sessions/compaction/policy.ts`
-- Session-open policy recording: `src/sessions/open.ts`
-- Shrimpy compaction hook: `src/sessions/compaction/extension.ts`
-- Provider-aware compaction runner: `src/sessions/compaction/runner.ts`
-- Compaction prompt text: `src/instructions/compaction.ts`
+The `session_before_compact` extension handles Pi's prepared cut plan and returns a result persisted with `fromHook: true`; Pi falls back to its built-in path if no result is returned. Stored results include the summary, first kept entry ID, prior token count, aggregate usage, and read/modified file references.
+
+Summary requests use the session's provider path and retry settings, a fresh routing session ID, no prompt-cache retention, and output limits capped to the model. Usage includes split-turn, chunk, and merge requests.
+
+- Policy and hook: `src/sessions/compaction/policy.ts`, `src/sessions/compaction/extension.ts`
+- Provider requests: `src/sessions/compaction/runner.ts`
+- Summary instructions: `src/instructions/compaction.ts`
 - Regression coverage: `test/compaction-runner.test.ts`

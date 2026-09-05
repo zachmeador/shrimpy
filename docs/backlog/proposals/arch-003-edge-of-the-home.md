@@ -16,6 +16,13 @@ The home does not move into another tool's house, and other tools do not get to 
 
 This note is about that edge: who may stand at it, how they prove who they are, how agents decide who is worth answering from which transport, what crosses in each direction, and what Shrimpy refuses to own. The kernel, the decision pipeline, leases, permits, and hosts are specified separately (currently ARCH-002). Where this note says "kernel," it means that library of durable facts and decisions. The two drafts reconcile later; neither absorbs the other yet.
 
+## Review Summary
+
+- **Proposal:** define ingress and egress commit points so Shrimpy owns durable conversation facts while transports stay outside the home.
+- **Boundary:** windows translate transport messages into room posts; clients drive minds through the turn engine. Kernel mechanics remain in [ARCH-002](arch-002-home-kernel.md).
+- **Decisions to review:** actor identity and authority, envelope normalization, credential custody, delivery/idempotency retention, and attention defaults. See [Open decisions](#open-decisions) for the unsettled choices.
+- **Scope:** this is an unscheduled draft defining the edge contract, not a commitment to implement each possible transport.
+
 ## Why
 
 Two pressures are converging on the current design.

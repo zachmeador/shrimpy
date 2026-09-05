@@ -62,20 +62,23 @@ If more than 20 visible compatible skills are effective for an agent, Shrimpy re
 
 ## CLI
 
+Use `shrimpy skills --help` and subcommand help for exact options. A typical package workflow is:
+
 ```bash
-shrimpy skills list [--agent <id>] [--json]
-shrimpy skills show <id> [--agent <id>]
-shrimpy skills add <source> [--agent <id>|--workspace] [--path <path>] [--ref <ref>] [--all] [--dry-run] [--force] [--json]
-shrimpy skills update <id> [--agent <id>|--workspace] [--dry-run] [--json]
-shrimpy skills remove <id> [--agent <id>|--workspace] [--json]
-shrimpy skills new <id> [--agent <id>|--workspace] [--description <text>] [--force]
-shrimpy skills validate [id] [--agent <id>] [--json]
+shrimpy skills list --agent shrimpy
+shrimpy skills add included:codex-web-search --workspace --dry-run --json
+shrimpy skills add included:codex-web-search --workspace
+shrimpy skills validate --agent shrimpy
 ```
 
-`add` accepts included Shrimpy packages with `included:<id>`, local directories, local `SKILL.md` files, direct `http(s)` `SKILL.md` URLs, and GitHub specs such as `owner/repo`, `owner/repo@main`, `owner/repo/path/to/skill`, `owner/repo@v1.0.0/path/to/skill`, and `https://github.com/owner/repo/tree/main/skills/foo`. Every package source copies into `skills/<id>/` or `agents/<id>/skills/<id>/`, using the package's Pi skill name as the id, and records source hash, installed path, assignment, installed hash, and modified status in `state/skills/packages.json`. Package records are keyed by install target, such as `workspace:<id>` or `agent:<agent-id>:<id>`, so the same skill id can be installed separately for multiple owners. If a GitHub repository contains multiple skill package candidates, non-interactive add fails unless `--path` selects one or `--all` selects every discovered package. `--dry-run` reports candidates and selected candidates without writing package state or skill files.
+`add` accepts included packages, local directories or `SKILL.md` files, direct HTTP(S) skill URLs, and GitHub sources such as `owner/repo@ref/path`. It copies the package into the chosen workspace or agent root and records provenance in `state/skills/packages.json`. Use `--path` to choose among multiple candidates; `--all` explicitly selects them all. `--dry-run` inspects candidates without writing files or package state.
 
-GitHub-backed packages record owner, repo, path, requested ref, resolved ref, resolved commit SHA, source revision, and source revision kind. For subdirectory skills, the source revision is the Git tree SHA for that directory. For root-level skills, it is the `SKILL.md` blob SHA. Local, included, and direct-URL packages use a package content hash. `shrimpy skills update <id>` rechecks the recorded source, reports update availability with `--dry-run`, and replaces only the managed installed copy when an update is applied. If more than one install has the same id, pass `--agent <id>` or `--workspace`. Package updates refuse to overwrite a locally modified installed copy without an explicit review decision. `shrimpy skills remove <id>` removes one managed installed copy and its package record, with the same target selection rule.
+`update` rechecks the recorded source; `--dry-run` reports availability. Updates refuse to overwrite locally modified packages without review. `remove` deletes the selected managed copy and its record. When an ID is installed for several owners, select the target with `--agent` or `--workspace`.
 
-Skill loading and `shrimpy skills validate` check structure, naming, paths, availability, and package state. Shrimpy does not perform a security review of instructions or bundled content during install, update, or validation. Treat third-party skill packages as untrusted code and review their `SKILL.md`, scripts, references, and assets before exposing them to a tool-capable agent.
+`new` scaffolds an original local skill. Manually authored skills remain local files unless explicitly installed as packages. `add` and `new` refuse replacement without `--force`.
 
-Managed package install/update never executes package scripts. Local directory package copies skip symlinks, hidden entries, and `node_modules`. `new` scaffolds a local skill under `skills/` or `agents/<id>/skills/`; manually placed skills in those roots remain additive and are not converted into managed packages unless the user explicitly installs a package. `add` and `new` refuse replacement unless `--force` is present.
+## Package Inspection
+
+Package records identify the source, revision, installed location, and content drift per owner. GitHub sources retain their requested/resolved ref and commit; local and URL sources use content hashes. Use `skills list`, `show`, and `update --dry-run` before deciding whether to refresh a copy.
+
+Validation checks structure, naming, paths, availability, and package state; it is not a security review. Review third-party instructions, scripts, references, and assets before exposing them to an agent. Install/update copies files without executing package scripts; local directory copies skip symlinks, hidden entries, and `node_modules`.

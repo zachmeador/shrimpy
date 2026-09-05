@@ -1,9 +1,6 @@
 # 🦐 Research Notes
 
-Date: --
-Status: Index
-
-This directory holds source notes and comparison research that may inform future Shrimpy work. These files are not the stable user-facing docs; promote settled decisions into reference docs when they become part of the project contract.
+This directory holds source notes and comparison research that may inform future Shrimpy work. Use these files for background evidence and comparisons; use reference docs for current Shrimpy behavior.
 
 ## Notes
 
@@ -32,6 +29,4 @@ This directory holds source notes and comparison research that may inform future
 - [temporal-awareness-prompting.md](temporal-awareness-prompting.md) — deep dive on prompt/context-side temporal awareness research, with implications for Shrimpy turn context, watches, freshness metadata, and urgency cues.
 - [web-search-providers.md](web-search-providers.md) — survey of web search API providers that can inform optional setup guidance for web lookup capability; also notes why answer engines like xAI/Perplexity are a different shape.
 
-## Promotion Rule
-
-When a research conclusion becomes a project decision, copy the durable part into the relevant reference doc such as [architecture.md](../reference/architecture.md), [runtime.md](../reference/runtime.md), [configuration.md](../reference/configuration.md), [workspace.md](../reference/workspace.md), or [surfaces.md](../reference/surfaces.md), then keep the research note as background.
+Documentation placement and promotion follow [shrimpy-dev-docs](../../skills/shrimpy-dev-docs/SKILL.md).

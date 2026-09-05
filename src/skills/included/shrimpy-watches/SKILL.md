@@ -24,46 +24,23 @@ Use the paths in `context/WORKSPACE.md`. For detail, use:
 6. Verify with `shrimpy watches show <agent-id>/<watch-id> --json`; check diagnostics, target channel, next run, and expected wake.
 7. If an immediate test is safe, run `shrimpy watches run <agent-id>/<watch-id> --json`, then inspect `shrimpy watches history <agent-id>/<watch-id>` and `shrimpy channels search <channel> --kind watch --limit 10`.
 
-## Scheduled Message Pattern
+## Create The Watch
 
-1. Pick a short watch id that names the job.
-2. Use `--channel <channel>` for the place the agent should wake; this need not be the final user-facing destination.
-3. Use `--addressed <agent>` when the channel has multiple possible agents or the route depends on addressed wake behavior.
-4. Write `--message` as a small runbook: do the requested task, use any needed context, and send one final message with `reply` to the active channel or `send_message` to the named user/channel destination.
-5. Tell the user the cadence, execution channel, delivery destination, and owner agent after verification.
+Choose a short ID and write the message as a small runbook: what to do, where to inspect, and where to publish. For example:
+
+```bash
+shrimpy watches add <id> --agent <agent-id> --cron "<expr>" --channel <execution-channel> --addressed <agent-id> --message "<instruction>"
+```
+
+Use `--every` for a fixed interval. For deterministic command checks, use `--command` with an explicit emit policy and destination. See `shrimpy watches add --help` for exact options. After verification, report the owner, cadence, execution channel, and delivery destination.
 
 ## Recurring Upkeep
 
-Shrimpy creates no watches by default. When the user asks the mechanic to establish recurring upkeep, treat each routine as a separate opt-in decision rather than a package to enable.
-
-For each approved routine, choose the responsible agent and write a small message watch that names the relevant skill. Common starting points are `memory-management` for durable memory review, `journal-daily` for activity-based daily notes, `journal-compact` for compacting journal breadcrumbs, `shrimpy-security-audit` for read-only security review, and `shrimpy-hygiene-audit` for read-only workspace hygiene review. Agree on cadence and execution channel with the user before creating it.
-
-Never create a watch merely because the corresponding skill is installed. Each watch must have an explicit purpose, owner, cadence, and user approval.
-
-## Commands
-
-```bash
-shrimpy watches --agent <id>
-shrimpy channels members <channel>
-shrimpy agent channel-policy <id> --channel <channel>
-shrimpy watches show <agent-id>/<watch-id>
-shrimpy watches history <agent-id>/<watch-id>
-shrimpy watches add <id> --agent <id> --cron "<expr>" --channel <channel> --addressed <id> --message "<instruction>"
-shrimpy watches add <id> --agent <id> --every 2h --channel <channel> --message "<instruction>"
-shrimpy watches add <id> --agent <id> --every 30m --command "<command>" --emit-policy on_failure --emit-channel <channel>
-shrimpy watches enable <agent-id>/<watch-id>
-shrimpy watches disable <agent-id>/<watch-id>
-shrimpy watches run <agent-id>/<watch-id>
-shrimpy users presence
-```
+Shrimpy creates no watches by default. Use `shrimpy-watches-default-init` when the user wants the optional standard routines; that skill owns their descriptions, cadences, and creation commands. Choose each routine explicitly rather than enabling a package of work merely because its skills are installed.
 
 ## Guardrails
 
-- Do not add recurring watches unless the user asked for recurring work.
 - Do not create broad catch-all upkeep watches when a focused watch or manual command is enough.
-- Do not assume a posted watch message wakes the owner agent; channel membership and agent channel policy both have to allow it.
 - Do not make up channel names that look like generated chat adapter names. Use the current channel, a channel shown by `shrimpy channels`, or a route created by the surface/channel CLI.
-- Do not write watch text as if the user will read it. Watch-origin text is internal trigger material; the agent should publish the user-facing message once per run.
-- Keep watch messages short and actionable. The watch should say what to do, where to inspect, and which skill to use if relevant.
 - Before changing an existing watch, inspect its history and explain any change that affects cadence, target channel, command execution, or user-visible messages.
 - Preserve the owner agent as the sender when an occasional report goes through another agent's primary chat. Do not rewrite identity to match the surface default; outbound attribution makes the cross-agent delivery legible.

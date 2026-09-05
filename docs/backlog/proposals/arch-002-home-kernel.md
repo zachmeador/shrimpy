@@ -13,6 +13,13 @@ The **kernel** is an in-process library that owns durable facts and the four dec
 
 This note is a target architecture. It names concepts from the jobs they do, not from the current tree. Other architecture notes should later be reconciled to this one; this note does not try to absorb them.
 
+## Review Summary
+
+- **Proposal:** one in-process kernel owns durable facts and authentication, authorization, attention, and admission; terminal and background hosts share the turn engine.
+- **Storage:** put transactional runtime facts in one kernel store while retaining authored files, Pi transcripts, and media in the home.
+- **Boundary:** the attendant is optional. Windows translate rooms to transports; clients drive minds through the engine.
+- **Open decisions:** stale leases, backup retention, envelope normalization, client persistence, and companion addressing. See [Open decisions](#open-decisions) and [Build](#build) before reviewing the detailed contracts.
+
 ## Vocabulary
 
 | Term | Meaning |

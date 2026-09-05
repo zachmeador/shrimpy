@@ -21,6 +21,16 @@
 
 ## Commands
 
+From a source checkout, install dependencies, build, and link the commands:
+
+```bash
+npm install
+npm run build
+npm link
+```
+
+Build and test commands:
+
 ```bash
 npm run build
 npm run build:skills

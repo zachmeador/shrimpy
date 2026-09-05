@@ -23,11 +23,13 @@ state/user-presence.json           last active chat surface channel per known us
 state/watch-clock.json             persisted watch next-run timestamps and schedule keys
 state/worker-backends.json         persisted worker backend availability
 state/workers.json                 coding worker records
+state/skills/packages.json         skill package provenance and drift tracking
 state/telegram/                    Telegram polling offsets
 runtime/cursors/channels.json      gateway channel cursors
 runtime/cursors/surface-threads.json addressed-agent state for surface threads
 runtime/bin/                       workspace-local command shims
 runtime/context/                   generated turn-context state
+runtime/sessions/                  session ownership records
 runtime/search/                    rebuildable workspace search cache
 runtime/watches/                   watch active-run state and run history
 runtime/workers/                   worker JSONL, stderr, and last-message artifacts
@@ -35,15 +37,6 @@ runtime/logs/gateway.log           gateway runtime log
 ```
 
 `state/` is durable machine state. `runtime/` is rebuildable or disposable process state. Channel logs and sessions are records, not prompt memory. Auth, custom model configuration, and cached dynamic provider catalogs stay under `state/pi/` so Shrimpy does not depend on a user's stock Pi config.
-
-## Context Directories
-
-`context/` directories are part of the workspace and agent contract. They are model-visible material, not general storage. Anything loaded from one of these directories goes into agent context for all or some sessions.
-
-- `context/` at the workspace root is shared prompt material. The default source list includes `workspace:context/`, so every Markdown file under this tree loads into normal sessions unless config narrows the source list.
-- `agents/<id>/context/` is the owning agent's prompt memory. The default source list includes `agent:context/`, so every Markdown file under this tree loads into normal sessions for that agent.
-
-These directories are intentionally open-ended. Add files, modify seeded files, and create subtrees when the context needs structure. Directory sources load Markdown recursively in deterministic path order.
 
 ## Agent Roots
 
@@ -61,13 +54,13 @@ sessions/                          Pi session transcripts and lifecycle entries
 
 `shrimpy agent add <id>` scaffolds an agent root with identity and working directories. `context/` is part of the expected agent root even when it starts empty. Setup creates default roots for `shrimpy` and `mechanic`; the mechanic gets default context such as `context/scope.md`. Agent `cwd` can point at the root, the workspace, or another absolute path while Shrimpy-owned files remain under the root.
 
-Agent-owned skills under `agents/<id>/skills/<skill-id>/SKILL.md` override workspace skills with the same id. Workspace skills live under `skills/<skill-id>/SKILL.md`. Managed package provenance and drift state live in `state/skills/packages.json`. See [skills.md](skills.md).
+Skill locations, precedence, and package provenance are described in [skills.md](skills.md#locations).
 
 ## Storage Rules
 
 Use the smallest directory that matches how the file will be used:
 
-- `context/` is prompt memory: facts, preferences, active references, and notes that should go to agents. Use workspace `context/` for shared configured sources and agent `context/` for one agent's memory. Keep it extremely character-count efficient because recursive Markdown under configured context directories is prompt-loaded.
+- `context/` is prompt memory. Use workspace context for shared guidance and agent context for one agent's facts, preferences, and active references. Keep it small; see [context-assembly.md](context-assembly.md#stable-sources) for loading and scoping.
 - `vault/` is saved material: reports, captures, journal entries, research notes, records, and other durable files that should not load by default.
 - `projects/` is working material: code, apps, generated tools, experiments, and focused project folders.
 - `sessions/` is Pi transcript persistence; do not hand-file user artifacts there.
@@ -75,22 +68,7 @@ Use the smallest directory that matches how the file will be used:
 
 Do not put channel logs, runtime state, sessions, auth, model metadata, media, or watch clock state under `vault/` or `projects/`. Reports belong in `vault/<kind>/`, for example `agents/mechanic/vault/audits/`. Journal bodies belong in `vault/journal/`, with only a tiny `context/journal.md` summary and breadcrumb when always-loaded journal memory is useful. Put only a short reference in `context/` when the agent should load that material every run.
 
-The included `remember` skill owns the capture/save workflow. The workspace doc only defines where saved material belongs.
-
-## Prompt Resources
-
-Baseline workspace prompt material lives under `context/`. `context/SYSTEM.md` carries short Shrimpy/Pi orientation, `context/USER.md` carries durable workspace-owner identity and hard preferences, and `context/WORKSPACE.md` carries local path breadcrumbs, storage notes, and CLI inspection breadcrumbs. The default context source list loads workspace `context/`, the agent's own `SOUL.md`, and all Markdown under `agents/<id>/context/`.
-
-Additional shared workspace memory can live under root `context/` when it should be available to more than one agent or context view. Select the relevant files or directories through context sources.
-
-Setup writes `context/SYSTEM.md`, `context/USER.md`, and `context/WORKSPACE.md` from `src/setup/templates/workspace/context/`; the workspace template fills in local paths. In an install-managed checkout, the app checkout is normally `~/.local/share/shrimpy/app`.
-
-Agent prompt resources live in the agent root:
-
-- `SOUL.md` defines who the agent is.
-- `context/**/*.md` is always-loaded agent memory for normal sessions when the default `agent:context/` source is active.
-
-See [memory.md](memory.md) and [context-assembly.md](context-assembly.md).
+Setup seeds workspace context from `src/setup/templates/workspace/context/`, filling `WORKSPACE.md` with local paths. The included `remember` skill guides capture and saving; [memory.md](memory.md) covers what deserves prompt memory.
 
 ## Checkpoints
 
@@ -140,16 +118,3 @@ shrimpy workspace index rebuild --json
 ```
 
 Workspace search excludes channel logs and session transcripts. Use `shrimpy channels search` for channel messages and `shrimpy sessions search` for transcript recall.
-
-## State And Logs
-
-- Channel logs live under `channels/`; see [channels.md](channels.md).
-- Agent memory lives under `agents/<id>/context/`; see [memory.md](memory.md).
-- Session transcripts live under `agents/<id>/sessions/`; see [sessions.md](sessions.md).
-- Gateway logs live at `runtime/logs/gateway.log`; read them with `shrimpy gateway logs`.
-- Watch run state lives under `runtime/watches/`; next-run timestamps live in `state/watch-clock.json`, keyed by schedule so they survive non-schedule watch edits and recompute when the schedule changes.
-- Worker records live in `state/workers.json`; detached worker artifacts live under `runtime/workers/`.
-- Identity links live in `state/users.json`; presence lives in `state/user-presence.json`; manage them with `shrimpy users ...`.
-- Auth, custom models, and cached provider catalogs live under `state/pi/`.
-
-Use `shrimpy status` for the current workspace/gateway summary before inspecting individual files.

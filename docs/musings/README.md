@@ -1,8 +1,5 @@
 # 🦐 Musings
 
-Date: --
-Status: Index
-
 This directory holds useful but non-authoritative material:
 
 - UX patterns

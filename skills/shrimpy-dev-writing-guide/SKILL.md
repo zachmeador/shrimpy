@@ -18,7 +18,7 @@ Make Shrimpy easy to understand on the first read. Write for a human skimming fo
 
 Use short paragraphs for explanation. Use descriptive headings for navigation and bullets or tables when readers need to scan distinct items. Do not pack a field inventory into a long sentence: group it, format it, or omit details that do not help answer the reader's question.
 
-Start every Markdown document title—the H1 line—with `# 🦐`. Elsewhere, use the shrimp emoji rarely and only when it adds a fitting touch of Shrimpy identity.
+Use `# 🦐` for titles of project docs and repository developer skills when creating or revising them. Runtime context templates, installed skill titles, and preserved source material may use their own titles. Elsewhere, use the shrimp emoji sparingly.
 
 Use normal Markdown and do not hard-wrap prose. Read the finished text once as a reader, then remove anything that makes the answer slower to find.
 

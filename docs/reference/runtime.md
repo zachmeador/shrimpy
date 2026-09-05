@@ -4,21 +4,9 @@ Shrimpy has one Pi session core hosted by foreground commands, the gateway, setu
 
 ## Direct CLI Sessions
 
-- `shrimpy` opens the selected agent's durable `local/main` TUI session, running setup onboarding first when `modelPolicies.coding` does not resolve or setup agent workspace files are missing. Pi's `InteractiveMode` owns the core renderer, tools, session state, native `/thinking` selector, and `/settings` menu; Shrimpy supplies durable workspace and agent storage beneath those controls, then layers its indicator, footer, commands, post-`/new` archival, and a few narrow compatibility seams for UX that pinned Pi does not expose publicly.
-- `shrimpy "prompt"` opens the same TUI path with an initial prompt.
-- `shrimpy chat [agent]` opens the same TUI chat path for the default or selected agent without treating positionals as an initial prompt.
-- `shrimpy run "prompt"` opens an in-memory one-shot session and prints the final assistant text. `--session <canonical-id>` opts into a durable resumed session.
-- `shrimpy chat mechanic` opens the same direct TUI chat path as the `mechanic` maintenance agent.
-- `shrimpy agent tui <id>` opens the same gated TUI launcher for an explicit agent. `shrimpy agent run <id>` runs a one-shot prompt as an explicit agent.
-- `/agents` opens a searchable, keyboard-navigable list of agents and local sessions. Selecting a session switches agents; selecting an agent with none opens a new `local/main`. The header shows the active agent, and a failed switch restores the previous session.
-- `--provider`, `--model`, `--model-policy`, `--thinking <off|minimal|low|medium|high|xhigh|max>`, and `--skill <id>` override one direct session where supported. `--skill <id>` preloads full skill context; the normal workspace/agent skill list still reaches Pi for `/skill:<name>` and prompt advertising.
-- Direct sessions start in the selected agent's configured `cwd`, defaulting to the agent root. Model selection follows the durable-session precedence in [sessions.md](sessions.md).
+`shrimpy` resumes terminal chat, `shrimpy chat <agent>` selects an agent, and `shrimpy run "prompt"` runs one prompt. Local sessions answer with ordinary assistant text. See [sessions.md](sessions.md) for selection, persistence, models, thinking, and TUI controls.
 
-Transcript-delivered foreground sessions do not first write user prompts to a channel log.
-
-`/settings` edits durable Pi preferences directly. `/shrimpy settings` holds only Shrimpy's skill-context and prompt-template defaults for future sessions. Read-only workspace and session facts live under `/status`; preference scopes and config locations are documented in [configuration.md](configuration.md#interactive-preferences).
-
-Setup model access uses a plain CLI wizard backed by Pi's `ModelRuntime` provider, login, availability, and refresh APIs, including a local OpenAI-compatible endpoint path that writes Pi `models.json`. Runtime bootstrap restores cached dynamic catalogs without network access; setup's explicit refresh action permits a bounded network refresh. Normal TUI launchers are blocked until setup is ready; non-interactive TUI commands print a setup hint instead of opening a session.
+Normal TUI launchers require a ready workspace; [setup.md](setup.md#setup) describes onboarding. Durable interactive preferences are documented in [configuration.md](configuration.md#interactive-preferences).
 
 ## Gateway Sessions
 
@@ -47,23 +35,9 @@ surface / CLI channel post / watch
 
 Channel sessions are Pi sessions attached to Shrimpy channels. The agent's assistant text stays in its private Pi transcript unless it calls a publication helper such as `reply`, `ask`, `notify`, or `report`. `send_message` remains the lower-level tool for explicit channel routing.
 
-After a human-authored channel turn ends without writing a visible agent message to that channel, the gateway runs a bounded reply review against the active session model. This quick call receives a small fixed instruction, up to three recent human messages, and truncated private assistant text; it loads no agent identity, workspace context, skills, tools, or persistent transcript. `NO_WAKE` leaves the completed turn alone. `WAKE` supplies one brief reminder that the gateway records as a `[shrimpy:channel-reply-recovery]` prompt in the same channel session, giving the full agent one more turn to publish. Review and recovery each run at most once for the source message, and reviewer failures leave the original completed turn intact.
-
-Agent-authored and system-authored turns skip reply review. Direct and TUI sessions use the foreground path and never install the channel reply watchdog.
-
-Direct local sessions do not have an active publication channel, so `reply`, `ask`, `notify`, and `report` are not registered there. Local sessions answer with ordinary assistant text unless explicitly asked to send or read a Shrimpy channel.
-
 For CLI-injected channel traffic: `shrimpy channels post <channel> <text>`. Add `--agent <id>` to stamp `origin.addressedAgentId`; the addressed agent still needs channel visibility and a policy that wakes for it.
 
-Gateway channel sessions use the same resolver and agent-configured `cwd` as foreground sessions. Like every durable session, they restore a recorded model when no explicit override is supplied. See [sessions.md](sessions.md).
-
-## Prompt Context
-
-Shrimpy passes Pi one explicit system prompt; Pi's cwd-discovered `AGENTS.md`, append-system prompts, and ambient skill roots are suppressed so session context stays inspectable and Shrimpy-controlled. Stable prompt assembly and per-turn context injection live in [context-assembly.md](context-assembly.md); skill advertising lives in [skills.md](skills.md).
-
-## Session Lifecycle
-
-Durable sessions persist under each agent workspace as manifested Pi `.jsonl` directories. `SessionPool` serializes each gateway lane and exposes lane state for gateway status. Owner leases prevent foreground, gateway, and maintenance hosts from opening or mutating the same transcript concurrently. Session lifecycle commands and live setting or stop controls route to the owner when possible; unowned lifecycle changes take a maintenance lease and apply directly. See [sessions.md](sessions.md).
+Gateway sessions use the same agent cwd, model resolution, context assembly, and owner leases as direct sessions. See [sessions.md](sessions.md) and [context-assembly.md](context-assembly.md).
 
 ## Background Work
 
@@ -73,7 +47,7 @@ Durable sessions persist under each agent workspace as manifested Pi `.jsonl` di
 - The gateway loads and reloads each agent's `watches.json` independently. An invalid file leaves that agent with no watches at startup; a failed reload keeps its last valid watches while other agents continue normally. Fixing the file applies it without a gateway restart, while an empty or removed file unregisters that agent's watches. Unchanged schedules retain their clock state.
 - `shrimpy watches` reports per-agent load failures with the agent ID and source path. Error details are sanitized so watch contents, commands, and secrets do not enter diagnostics. Active watch state and run history live under `runtime/watches/<agent-id>/`.
 - Next-run timestamps persist in `state/watch-clock.json`. A watch whose scheduled time passed while the gateway was down runs once on the next start, carrying its original fire time, then resumes its schedule. Missed runs do not stack up: a watch due several times during a long outage still runs once. This covers downtime only; a crash after a watch message reached its channel is covered in [channels.md](channels.md).
-- Fresh setup installs focused upkeep and audit watches disabled by default; the setup flow can enable selected watches with user approval.
+- Setup offers optional upkeep and audit routines through the included `shrimpy-watches-default-init` skill. It creates only selected watches, initially disabled, and enables only those the user approves.
 - Coding worker delegation runs through `shrimpy worker ...` commands and worker records.
 
 ## Observability
@@ -84,3 +58,9 @@ Durable sessions persist under each agent workspace as manifested Pi `.jsonl` di
 - `shrimpy watches` reports source paths, load failures, target channels, expected wake, next runs, active runs, and recent run history.
 - `shrimpy gateway logs` reads `workspace/runtime/logs/gateway.log`.
 - `shrimpy context` inspects the assembled session prompt, per-turn context, and user message body for an agent/session/turn.
+
+## Reply Recovery
+
+After a human-authored channel turn finishes without publishing a visible reply, the gateway makes one bounded review call using the active model. It can leave the turn alone or give the same session one reminder to publish, recorded as `[shrimpy:channel-reply-recovery]`. Review and recovery each run at most once for the source message; reviewer failure leaves the original turn intact.
+
+Agent- and system-authored turns skip review. Direct sessions answer locally and do not use reply recovery. Gateway lane diagnostics report whether review ran, woke the agent, or failed.

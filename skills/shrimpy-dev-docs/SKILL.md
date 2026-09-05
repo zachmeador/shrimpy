@@ -1,67 +1,39 @@
 ---
 name: shrimpy-dev-docs
-description: Use when updating Shrimpy docs after source changes, auditing docs/reference parity with the implementation, or pruning stale or redundant doc text, especially when src/ has changed more recently than docs/reference/.
+description: Use when updating Shrimpy docs after behavior changes, auditing doc/code parity, or pruning stale and redundant documentation.
 ---
 
-# Shrimpy Dev Docs
+# 🦐 Shrimpy Dev Docs
 
-Keep Shrimpy's docs describing what the code actually does now, in a form a human wants to read.
+Use the writing guide for prose; this skill owns documentation evidence, placement, and maintenance.
 
-## Reader Model
+## Authority And Placement
 
-Reference docs serve two readers: a human skimming to answer one question, and an agent building a working model of the framework. Write for the human first — prose that a human can skim is also what an agent parses best, and a doc optimized for machine completeness serves neither. Optimize time-to-answer, not completeness; completeness lives in `--help` output and source. Write like you're explaining the concept to a competent colleague, not drafting a contract against misreading. `docs/reference/design.md` is the register to match.
+- Implementation and tests establish current behavior. Explain it in `docs/reference/`; correct stale claims rather than retaining a history of replaced behavior.
+- `docs/reference/design.md` owns design principles and intended constraints, not claims that a feature exists.
+- Accepted but unimplemented behavior belongs in `docs/backlog/`. Use the backlog skill for status, placement, and completion.
+- `docs/musings/` and `docs/research/` preserve exploration and evidence. An accepted decision becomes behavioral reference only when implemented.
 
-## Source Of Truth Order
+## Find The Affected Docs
 
-1. Implementation and tests are the authority for current behavior.
-2. `docs/reference/` describes settled current behavior.
-3. `docs/backlog/` tracks planned work and known gaps.
-4. Musings, tracking notes, and research are context, not current-behavior docs.
-
-If code has a real gap versus project direction, update the backlog instead of pretending the feature exists. Do not promote exploratory notes into reference docs unless source code or an explicit user decision makes them settled.
-
-## Finding Stale Docs
-
-1. Check local state: `git status --short`, `git diff -- docs src`.
-2. Find the docs baseline: `git log -1 --format=%H -- docs/reference`, or the specific doc's baseline for a narrow pass.
-3. Diff source since then: `git log --oneline <baseline>..HEAD -- src`, `git diff <baseline>..HEAD -- src`, plus uncommitted `git diff -- src`.
-4. Map changes to docs: `rg "<command|config field|type|concept>" docs/reference` and the reverse against `src`. Use `docs/reference/README.md` to pick the owning doc.
-5. Update only docs whose current-behavior claims are stale, incomplete, or misleading. If the diff is internal plumbing with no stable external behavior, leave the docs alone and say why.
+1. Inspect `git status --short`, unstaged changes, and staged changes. Preserve unrelated edits.
+2. Start from the feature diff or an explicitly chosen source range, including source and docs changed in the same commit. A doc's last edit is a clue, not an audited source baseline.
+3. Map changed behavior to its owning page using `docs/reference/README.md`. Search for affected commands, fields, and concepts in entry pages, reference docs, included skills, and setup templates. Include relevant `web/`, `extensions/`, scripts, and configuration sources as well as `src/`.
+4. For an audit, check current claims against reachable implementation and tests even when no source commits follow the last doc edit. For internal plumbing with no external behavior change, leave user docs alone.
 
 ## Ownership
 
-Every behavior has one owning doc. Before adding text, decide which doc should explain it; other docs link or carry at most a one-line pointer. When the same fact, mode list, or JSON example already appears in two docs, pick the owner and delete the other copy. A new reference doc is a last resort for a stable concept with no home; link it from `docs/reference/README.md` and adjacent docs.
+Give each detailed explanation one owner. Workspace owns storage locations; context assembly owns loading and delivery; memory owns what to keep; configuration owns fields and links to specialized shapes. Design owns doctrine, architecture owns implementation boundaries, and generated CLI help owns exhaustive options.
 
-## Structure
+Keep short reminders and task-specific examples where readers or installed skills need them to act independently. Remove duplicate catalogs, schemas, and explanations. Skills should guide decisions and command sequencing, with links to feature reference.
 
-- Open each doc with two or three sentences: what the thing is and when a reader cares.
-- Common case first. Edge cases, failure semantics, and rare caveats go in a clearly labeled later section the reader can skip, never interleaved with the basics.
-- State each system invariant once, in its owning doc. No per-doc "Boundaries" recap sections; cross-cutting invariants live in `architecture.md` and `design.md`.
-- One canonical example per config shape, trimmed to the fields under discussion. Other docs link to it.
-
-## Writing Rules
-
-- Concrete paths, command names, config keys, file shapes, and lifecycle facts. Short declarative prose; dense enumerations become bullets or tables.
-- Do not hard-wrap prose.
-- Define a coined term ("contained system prompt", "lane") at first use in its owning doc; use plain words when a term is not pulling weight.
-- Avoid "not X" / "does not" sentences unless they guard a mistake a human reader would plausibly make. Preempting a model's misreading is not a reason to keep one.
-- Describe current behavior only: no history, intention, or release-note words such as "added", "now", "new", "previously", or "replaces the old". Delete stale claims instead of contrasting with them. No legacy or migration language unless explicitly requested.
-- Keep cross-links local and specific: `[sessions.md](sessions.md)`, not "see the docs".
-- Mention source modules only when the path itself is the documented surface, or in a short "Related Code" list for maintainers.
-
-## Deletion Pressure
-
-Docs must not only grow. When an edit adds a paragraph, look for one to remove. Keep concept docs roughly under 150 lines; past that, split by concept or cut detail that belongs in `--help` or code.
+Add a page only for a stable concept with no suitable home. When adding, moving, renaming, or removing a page or heading, update indexes and inbound links, including entry pages and skill/template breadcrumbs.
 
 ## Verification
 
-```bash
-git diff -- docs
-rg "added|now|new|previously|recently" docs/reference
-```
+- Review the diff, including staged changes. Check relative links and affected heading anchors.
+- Verify changed commands, defaults, and examples against the owning source and tests. Use read-only CLI help or inspection where useful; use an isolated workspace if validation needs writes.
+- Read changed pages as a reader: can someone find and act on the answer without reading another concept first? Cut repetition and move optional maintainer detail after the operational explanation.
+- For docs-only edits, skip builds and code tests. Skill changes follow `shrimpy-dev-skills` validation and mirror generation.
 
-Then read each changed doc top to bottom as prose: cut sentences that restate an invariant owned elsewhere, and check every "does not / is not / never" against the writing rules.
-
-For docs-only changes, report that no build or tests were needed. When documenting a command or generated output, validate the surface directly, for example `node dist/cli.js --help` or `node dist/cli.js skills list`.
-
-Report what source evidence informed the update, what changed, and any remaining doc/code gaps or intentional non-edits.
+Report the evidence checked, changes made, and any remaining gaps.

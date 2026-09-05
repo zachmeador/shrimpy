@@ -20,4 +20,4 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 - [musings/](musings/README.md) — design taste, product direction, and unfinished thinking.
 - [research/](research/README.md) — source notes and external comparison research.
 
-`reference/` is authoritative for current behavior. Musings and research are useful context, but they do not become reference docs until the behavior ships.
+Documentation maintenance follows [shrimpy-dev-docs](../skills/shrimpy-dev-docs/SKILL.md).

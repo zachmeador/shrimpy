@@ -1,4 +1,4 @@
-# Setup
+# 🦐 Setup
 
 Shrimpy supports Linux and macOS as local hosts. The same CLI commands work on both platforms; gateway service management uses `systemd --user` on Linux and a per-user LaunchAgent on macOS.
 
@@ -20,13 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/zachmeador/shrimpy/main/scripts/ins
 
 The installer creates an install-managed git checkout at `~/.local/share/shrimpy/app`, checks out the selected ref, installs dependencies, builds Shrimpy, prunes development dependencies, records the managed origin, ref, and commit in `~/.local/share/shrimpy/.shrimpy-install.json`, and links `shrimpy`, `shrimpy-gateway`, and `shrimpy-web` into `~/.local/bin`. Branch refs such as `main` are installed as local tracking branches; tag and commit refs are checked out detached. If an existing git-backed app checkout has local changes, the installer refuses to replace it unless `SHRIMPY_FORCE=1` is set.
 
-For source checkout development:
-
-```bash
-npm install
-npm run build
-npm link
-```
+For source checkout development, see [development.md](development.md#commands).
 
 ## Update
 
