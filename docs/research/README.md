@@ -2,6 +2,10 @@
 
 This directory holds source notes and comparison research that may inform future Shrimpy work. Use these files for background evidence and comparisons; use reference docs for current Shrimpy behavior.
 
+## Sandboxing refresh
+
+The [sandbox runtime scout](sandbox-runtime-scout-2026-08-26.md) is the starting point for the Sep 14 survey and Sep 16 networking follow-up: releases, SRT/nono and Smol/Microsandbox comparisons, published advisories, licenses, and the unrun acceptance suite. Its [networking comparison](sandbox-runtime-scout-2026-08-26.md#networking-comparison) covers defaults, enforcement, DNS/TLS, private services, and credential authority. The [OS and git](in-os-agent-sandboxing-and-git.md), [macOS helper](macos-seatbelt-helper.md), [Pi implementations](pi-sandboxing-implementations.md), and [constrained tools](shrimpy-constrained-tool-profile.md) notes provide focused background. These remain research; [SECURITY.md](../../SECURITY.md) owns current isolation guarantees.
+
 ## Notes
 
 - [acp-explainer.md](acp-explainer.md) — canonical overview of ACP's stable v1 shape, negotiated capabilities, multimodal content, trust and product limits, and the direction and draft status of v2.
@@ -14,7 +18,7 @@ This directory holds source notes and comparison research that may inform future
 - [in-os-agent-sandboxing-and-git.md](in-os-agent-sandboxing-and-git.md) — research on practical macOS/Linux in-OS sandboxing, current Codex/Claude patterns, and how sandboxed agent work can move through git or patch promotion.
 - [macos-seatbelt-helper.md](macos-seatbelt-helper.md) — high-level Seatbelt/App Sandbox notes and a small Mac helper shape for hosting Shrimpy with native per-agent sandboxing.
 - [pi-sandboxing-implementations.md](pi-sandboxing-implementations.md) — factual comparison of nono, pi-sandbox, and pi-permission-modes, including their enforcement boundaries, configuration behavior, and uncovered capabilities.
-- [sandbox-runtime-scout-2026-08-26.md](sandbox-runtime-scout-2026-08-26.md) — current sandbox-runtime scout covering Anthropic SRT, Microsandbox, Shuru, MXC, OpenShell, and newer local process and microVM options, with a recommended SECURITY-006 bake-off.
+- [sandbox-runtime-scout-2026-08-26.md](sandbox-runtime-scout-2026-08-26.md) — sandbox-runtime survey with a September 16 networking follow-up: SRT, nono, Smol Machines, Microsandbox, other process/VM candidates, advisories, licenses, and experiments.
 - [shrimpy-constrained-tool-profile.md](shrimpy-constrained-tool-profile.md) — analysis of resolving the existing session `profileId` into a security policy with path-bounded file operations, no Bash, and narrowly typed wrappers for selected Shrimpy actions.
 - [facade-interactive-drama.md](facade-interactive-drama.md) — deep dive on Mateas and Stern's Façade, interactive drama mechanics, and lessons for Shrimpy story-agent architecture.
 - [pi-agent.md](pi-agent.md) — Pi architecture, Shrimpy's integration boundary, the latest stable upgrade assessment, and package-ecosystem opportunities.

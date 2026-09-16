@@ -1,7 +1,8 @@
-# In-OS Agent Sandboxing And Git Workflows
+# 🦐 In-OS Agent Sandboxing And Git Workflows
 
-Date: 2026-06-01
-Status: Research
+Originally researched: 2026-06-01
+Last refreshed: 2026-09-14
+Status: Research; no runtime validation
 
 ## Question
 
@@ -16,12 +17,12 @@ The open questions are:
 
 ## Current Read
 
-Do not choose the default yet. First define the policy words and the inspection command. Keep the research focused on what Shrimpy can start and inspect directly.
+Compare whole-process SRT and nono first, then Smol Machines and Microsandbox where a separate guest kernel is needed. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns current versions, advisories, licenses, and the acceptance suite. This page owns OS primitives and git/workspace semantics. [SECURITY.md](../../SECURITY.md) still correctly describes Shrimpy as unsandboxed. No runner was installed or exercised for this refresh.
 
-- macOS: App Sandbox for a host app, Seatbelt/SBPL or equivalent runner policy for short-lived execution, XPC/bookmark brokers for dynamic host access;
+- macOS: App Sandbox for a host app, Seatbelt/SBPL or equivalent runner policy for an entire agent process, XPC/bookmark brokers for dynamic host access;
 - Linux: `bubblewrap`/namespaces plus seccomp as the most practical first runner shape, with Landlock worth studying for unprivileged filesystem and TCP restrictions;
 - systemd sandboxing for a long-running gateway service on Linux;
-- separate users as a blunt but understandable fallback.
+- separate users as an explicit deployment boundary, with filesystem and service permissions reviewed. Missing sandbox support must not silently select this or unrestricted host execution.
 
 Always ask:
 
@@ -33,11 +34,13 @@ Always ask:
 
 ## What Current Agent Products Suggest
 
-Codex: sandbox mode is the runner limit; approvals are the stop-and-ask layer. Local Codex defaults to workspace-write with network off. Spawned commands inherit the sandbox, including `git`, package managers, and tests. The local backends are Seatbelt on macOS and `bwrap` plus seccomp on Linux.
+The current [Codex sandbox documentation](https://learn.chatgpt.com/docs/sandboxing) separates OS enforcement from approval policy. Spawned git commands, tests, and package managers inherit the execution boundary. macOS uses Seatbelt; Linux uses bubblewrap and a bundled helper fallback. The documentation recommends a suitable AppArmor profile rather than globally disabling Ubuntu's user-namespace restriction. Do not infer identical defaults across local, cloud, and managed configurations.
 
-Claude Code: permissions and sandboxed Bash are separate. Its docs say Read/Edit deny rules do not stop arbitrary Python or Node subprocesses from opening files. The built-in Bash sandbox is the Claude-enforced option.
+[Claude Code's sandboxed Bash](https://code.claude.com/docs/en/sandboxing) remains distinct from its tool permissions. It supports approved outside-sandbox retries and excluded commands; strict settings must account for both. These are product choices, not suitable automatic fallbacks when Shrimpy promises that a resident agent is contained.
 
-Shrimpy takeaway: copy mechanisms, not marketing.
+For Shrimpy, the unit to constrain is the entire agent process. Permissions, OS policy, and authority of external MCP/ACP/browser services are separate layers. A successful permission response cannot widen an already-running OS sandbox.
+
+The Sep 16 [networking comparison](sandbox-runtime-scout-2026-08-26.md#networking-comparison) separates destination filtering, API-operation permissions, and credential handling. It also records differences in default LAN access, DNS enforcement, proxy bypass prevention, and host IPC across the four leading candidates.
 
 ## OS Primitive Notes
 
@@ -51,7 +54,7 @@ The existing [macos-seatbelt-helper.md](macos-seatbelt-helper.md) note remains t
 - Security-scoped bookmarks and picker flows are the user-consent story for folders selected at runtime.
 - Sandboxing should apply before loading Node or any large runtime where feasible, because already-open descriptors or inherited services can weaken a late sandbox.
 
-The likely Mac product shape is still a tiny signed helper or menu-bar app that launches Shrimpy turns/gateway processes under a policy and brokers the host things that should not be granted directly.
+The first Mac proof should use an existing CLI runner around the agent process. A signed helper or menu-bar app is later work for folder consent or native services, not a prerequisite for the experiment. See the [helper note](macos-seatbelt-helper.md).
 
 ### Linux
 
@@ -61,14 +64,14 @@ Linux is a toolkit rather than one sandbox:
 - Network namespaces isolate network devices, routing tables, firewall rules, ports, and related network state. A runner can block network entirely by giving the process no useful interface, or route through a proxy.
 - `bubblewrap` is a practical user-facing constructor for namespaces and bind mounts. It is not the security policy by itself; Shrimpy still has to decide what to mount read-only, what to mount writable, and whether to share network.
 - Seccomp filters reduce syscall surface. Kernel docs are explicit that seccomp filtering is not a sandbox by itself; it is a tool sandbox developers combine with other hardening.
-- Landlock restricts ambient rights for a process and its children. It supports filesystem rules and TCP network rules in newer ABI versions, and it is designed for unprivileged processes to restrict themselves. Any Shrimpy use would need runtime ABI detection and graceful degradation.
+- Landlock restricts ambient rights for a process and its children. The [current kernel documentation](https://www.kernel.org/doc/html/latest/userspace-api/landlock.html) distinguishes TCP port control (ABI 4), abstract Unix sockets/signals (ABI 6), thread synchronization (ABI 8), pathname Unix sockets (ABI 9), and UDP controls (ABI 10). These documented capabilities do not imply that a target distribution supplies them. Detect the running ABI and enabled LSM; refuse a launch when a required control is unavailable. Landlock port rules alone are not hostname authorization.
 - AppArmor/SELinux and systemd sandboxing can be strong but depend on distro, packaging, and service management. They may fit gateway/service deployment better than per-turn local CLI runs.
 
 The likely Linux first experiment is `bubblewrap` for the execution view, seccomp for syscall reduction, and possibly Landlock as an additional layer where the kernel supports the needed ABI.
 
 ## Git And Workspace Models
 
-This is the most important unresolved design area.
+Decide separately where writes land and which process enforces access. A writable host mount changes host files even when the writer lives in a microVM. A worktree or copy-on-write branch provides change separation, not complete host containment.
 
 ### 1. In-place bounded workspace
 
@@ -106,7 +109,7 @@ Risks:
 - `git status` and `git diff` are mostly read-only, but git has many flags and config mechanisms that can execute helpers or change state;
 - implementation can become a pile of fragile git command exceptions.
 
-Shrimpy implication: treat git write operations as a brokered capability: `status`, `diff`, and maybe `add` are lower risk; `commit`, `checkout`, `merge`, `rebase`, `push`, hook/config changes, and credentialed network operations need clear approval or a separate trusted path.
+Shrimpy implication: protect repository metadata and give any trusted git broker a fixed operation surface. `git add` writes the index and object database; it is not a read-only exception. Even inspection can invoke helpers through configuration: review [Git config](https://git-scm.com/docs/git-config), including external diff/textconv, fsmonitor, hooks, and credential helpers. Host-side git must not blindly trust agent-edited configuration.
 
 ### 3. Scratch workspace plus patch promotion
 
@@ -145,41 +148,20 @@ Risks:
 - commit operations still need controlled access to object storage, refs, and config;
 - setup is more complex for normal users.
 
-Shrimpy implication: promising for coding-agent delegation, but not a complete sandbox story by itself. It pairs well with OS sandboxing if Shrimpy creates a dedicated gitdir/worktree root and explicitly decides which git operations are allowed.
+Shrimpy implication: a worktree needs its own OS policy and explicit access to the required git directories. [Git documents](https://git-scm.com/docs/git-worktree) the split between per-worktree metadata and the shared common directory. A worktree of the live repository does not become independent just because its checkout lives under `/tmp`. Use a separate repository with its own metadata when isolation of history/configuration is required, and test that it has no object-store alternates back into the live repo. The current pi-permission-modes extension actually disables its Bash sandbox for real worktrees; see the [Pi survey](pi-sandboxing-implementations.md).
 
-## Small Shrimpy Policy
+## Bringing sandbox changes back into the workspace
 
-Before choosing a backend, Shrimpy should model what it wants to enforce:
+If an agent works in a temporary sandbox, check its changes before copying them into the real workspace. The code that copies them back must check for conflicts with newer edits and prevent paths or symlinks from writing outside the workspace. It also needs to handle renames, deletions, file permissions, and binary files correctly. Copying changes back must not run Git hooks or package scripts. Files produced inside a VM can still contain harmful code.
 
-```ts
-type SandboxPolicy = {
-  profile: "none" | "workspace-read" | "workspace-write" | "scratch-patch" | "gateway" | "browser";
-  backend: "none" | "seatbelt" | "bubblewrap";
-  readRoots: string[];
-  writeRoots: string[];
-  network: "blocked" | "proxy" | "client" | "host";
-  git: "read-only" | "worktree" | "brokered-commit" | "full";
-  secrets: "none" | "brokered" | "env-allowlist";
-  browser: "none" | "dedicated-profile" | "brokered";
-  promotion: "in-place" | "patch" | "branch" | "manual";
-};
-```
+Test this with disposable repositories: ordinary checkouts, worktrees, submodules, repositories whose Git metadata lives elsewhere, and repositories with agent-edited configuration. Include a case where the workspace changes while the agent is working. Check that useful Git operations still work with the chosen restrictions; blocking one file write proves very little. The [shared sandbox tests](sandbox-runtime-scout-2026-08-26.md#shared-acceptance-suite) cover the wider isolation checks.
 
-The value is not the TypeScript shape itself; it is the discipline of asking the same questions on every backend.
-
-## Likely First Experiments
-
-1. **Inspection only.** Add a CLI command or diagnostic check that says "no native sandbox active" and shows intended policy once configured.
-2. **Linux command runner prototype.** Use `bubblewrap` to run a benign command with a read-only project mount and writable scratch, then inspect whether writes, network, and `.git` behave as expected.
-3. **Mac command runner prototype.** Build or borrow a tiny Seatbelt runner that launches a command before Node initializes, with a narrow path profile.
-4. **Git policy tests.** Create fixtures for `.git` read-only, brokered commit, patch promotion, and worktree-per-run.
-5. **Violation diagnostics.** Capture denied filesystem/network/syscall events where the platform exposes them and translate them into user-facing recommendations.
-6. **Security-agent audit awareness.** Have the planned `security` agent report effective sandbox state and unmanaged broad-access paths, but not remediate.
+For the first experiment, run one agent process inside a sandbox, as proposed in the [runtime scout](sandbox-runtime-scout-2026-08-26.md). Sandboxing the shared gateway would still leave its agents together inside one boundary. Record the sandbox software version, host OS, and files and services the agent can access. After a crash, verify that the old agent and its child processes have stopped before starting a replacement.
 
 ## Open Questions
 
 - Can Shrimpy get enough macOS enforcement from a CLI helper, or does real UX require a signed app/XPC/bookmark stack?
-- Should the gateway be one sandboxed long-running process, or should each agent turn be a short-lived sandboxed worker?
+- Can the proposed per-agent resident process meet privacy and cleanup requirements without excessive idle cost?
 - Is `.git` writable access acceptable for trusted projects, or should commit and push always be brokered?
 - Is Landlock mature enough across target Linux distributions to be more than an optional hardening layer?
 - Can a local patch-promotion mode handle renames, deletes, symlinks, binary files, and executable bits well enough for normal coding work?
@@ -189,8 +171,9 @@ The value is not the TypeScript shape itself; it is the discipline of asking the
 ## Sources
 
 - Existing Shrimpy research: [macos-seatbelt-helper.md](macos-seatbelt-helper.md).
-- OpenAI Codex docs: [Sandbox](https://developers.openai.com/codex/concepts/sandboxing), [Agent approvals & security](https://developers.openai.com/codex/agent-approvals-security), [Shell tool](https://developers.openai.com/api/docs/guides/tools-shell).
+- OpenAI Codex docs: [Sandbox](https://learn.chatgpt.com/docs/sandboxing).
 - Anthropic Claude Code docs: [Security](https://code.claude.com/docs/en/security), [Permissions](https://code.claude.com/docs/en/permissions), [Sandboxed Bash tool](https://code.claude.com/docs/en/sandboxing), [Sandbox environments](https://code.claude.com/docs/en/sandbox-environments).
 - Linux kernel docs: [Landlock](https://www.kernel.org/doc/html/latest/userspace-api/landlock.html), [Seccomp BPF](https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html).
+- Git: [worktree metadata](https://git-scm.com/docs/git-worktree), [configuration and executable helpers](https://git-scm.com/docs/git-config).
 - Linux man-pages: [namespaces(7)](https://man7.org/linux/man-pages/man7/namespaces.7.html), [mount_namespaces(7)](https://man7.org/linux/man-pages/man7/mount_namespaces.7.html), [network_namespaces(7)](https://man7.org/linux/man-pages/man7/network_namespaces.7.html).
 - `bubblewrap`: [README](https://github.com/containers/bubblewrap/blob/main/README.md), [security policy](https://github.com/containers/bubblewrap/security).

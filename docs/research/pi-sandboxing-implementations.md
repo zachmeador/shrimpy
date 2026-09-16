@@ -1,124 +1,71 @@
-# Pi Sandboxing Implementations
+# 🦐 Pi Sandboxing Implementations
 
-Date: 2026-07-26
-Status: Research
+Originally researched: 2026-07-26
+Last refreshed: 2026-09-16 (nono networking/advisories; Pi and extension inspection Sep 14)
+Status: Research; source inspection, no runtime validation
 
-## Question
+## Current read
 
-What sandboxing implementations currently exist for Pi, what do they enforce, and where does each enforcement boundary end?
+**A sandbox around Pi constrains extension code and built-in tools together. A sandbox extension generally constrains only the operations it intercepts.** This distinction still determines whether a candidate can supply Shrimpy's process boundary.
 
-This note records the implementations as inspected on 2026-07-26. It does not select a Shrimpy backend.
+The current shortlist and release/security history live in the [runtime scout](sandbox-runtime-scout-2026-08-26.md). This page owns the Pi integration comparison. [SECURITY.md](../../SECURITY.md) owns Shrimpy's actual guarantees: there is no OS containment today.
 
-## Pi Baseline
+## Pi and Shrimpy baseline
 
-Pi `0.82.1` does not include a built-in permission system for filesystem, process, network, or credential access. The default process and built-in tools run with the permissions of the user that launched Pi.
+Shrimpy pins Pi `0.84.4` in [package.json](../../package.json). The [Pi SDK at that tag](https://github.com/earendil-works/pi/blob/v0.84.4/packages/coding-agent/src/core/sdk.ts) exposes `tools` as a name allowlist, `excludeTools` as a denylist, `customTools`, and `noTools` modes. These control tool availability. They do not create filesystem, network, or process isolation. The [Pi README](https://github.com/earendil-works/pi/blob/v0.84.4/packages/coding-agent/README.md) continues to delegate permissions and sandboxing to the embedding environment or extensions.
 
-Pi does expose the mechanisms needed for an embedding application or extension to change that behavior:
+Current [Shrimpy session construction](../../src/sessions/open.ts) passes custom tools and exclusions, but no explicit active-tool allowlist. [Tool policy](../../src/tools/policy.ts) resolves the configured daemon tools and disabled names; `SessionKey.profileId` remains an identity/storage partition rather than a security policy. A system-prompt containment hook also supplies instructions, not OS containment. The [constrained-tool proposal](shrimpy-constrained-tool-profile.md) describes that separate layer.
 
-- `createAgentSession()` accepts an active-tool allowlist, an excluded-tool denylist, and custom tool definitions;
-- custom tools with the same names as built-ins replace those built-ins;
-- `read`, `write`, `edit`, `bash`, `grep`, `find`, and `ls` expose pluggable operation interfaces;
-- extensions can intercept tool calls and user `!` commands.
+## Version and boundary comparison
 
-These are integration surfaces, not enforcement by themselves.
-
-## Implementations
-
-### nono
-
-[nono](https://github.com/nolabs-ai/nono) is a process launcher and Rust library for applying an OS policy before running an agent. Its [Pi package](https://github.com/always-further/nono-packs/tree/main/pi) supplies a Pi-specific profile.
-
-Observed enforcement shape:
-
-- the Pi process and its descendants inherit the policy;
-- macOS filesystem policy uses Seatbelt;
-- Linux filesystem policy uses Landlock;
-- network access is mediated through configured policy and proxy paths;
-- credential proxying can keep configured raw credentials outside the sandboxed process;
-- the CLI also exposes policy inspection, audit, snapshot, and rollback features.
-
-Because the process itself is constrained, Pi built-ins, direct Node filesystem access, Bash subprocesses, and in-process extension tools share the same OS boundary. Anything explicitly allowed to the process remains available to all code running inside that process.
-
-The project security policy labels the project alpha, says its guarantees are not yet stable, and lists a third-party security audit as future work before `v1.0`. Its current security claims therefore come from the project documentation and implementation rather than a published third-party audit.
-
-Operational facts relevant to Shrimpy:
-
-- Pi still needs readable runtime files, model configuration, session state, and the selected workspace paths;
-- a whole-process policy must account for Shrimpy's workspace state, channel logs, agent roots, and runtime writes, not only the current project directory;
-- irreversible kernel restrictions cannot be widened inside the already-constrained process; dynamic grants require a supervisor, restart, broker, or resource passed through a prearranged channel;
-- allowing a project directory read/write gives the process access to every file reachable through that allowed path, subject to the backend's path and symlink semantics.
-
-### pi-sandbox
-
-[pi-sandbox](https://github.com/carderne/pi-sandbox) is a Pi extension derived from Pi's example sandbox extension. It uses [`@carderne/sandbox-runtime`](https://github.com/carderne/sandbox-runtime), a fork of Anthropic's experimental sandbox runtime.
-
-Observed enforcement shape:
-
-- model `bash` calls and user `!` commands run through `sandbox-exec` on macOS or `bubblewrap` on Linux;
-- Bash filesystem and network restrictions are OS-enforced for the spawned process tree;
-- Pi `read`, `write`, and `edit` calls are checked in the host Pi process before their normal Node operations run;
-- blocked accesses can be granted for the session, project, or all projects;
-- project and global configuration are merged, and project configuration can add allowed paths and domains;
-- the extension displays whether its sandbox initialized.
-
-The enforcement boundary is split. Bash receives an OS boundary, while direct file-tool checks are application code running in the unconstrained Pi process. Other Pi built-ins and tools registered by other extensions are not automatically covered by the `read`/`write`/`edit` checks. Code inside the Pi process retains the launcher's ambient authority.
-
-Configuration facts relevant to untrusted projects:
-
-- `.pi/sandbox.json` is read from the project;
-- project path and domain arrays are combined with global arrays, so a project file can widen those arrays;
-- persisted approvals modify project or global configuration;
-- browser compatibility settings documented by the project widen process, socket, or network access and are called out by the project as security tradeoffs.
-
-### pi-permission-modes
-
-[pi-permission-modes](https://github.com/wynainfo/pi-permission-modes) is a Pi extension that combines named permission modes, tool-call policy, Bash parsing, and Pi's example OS sandbox runtime.
-
-Observed enforcement shape:
-
-- modes define `allow`, `ask`, or `deny` rules for Bash, file tools, paths, external directories, web search, extension tools, and skills;
-- Bash commands are parsed with tree-sitter, including nested shell constructs, before policy evaluation;
-- in-project Bash runs through `sandbox-exec` on macOS or `bubblewrap` on Linux when the runtime initializes;
-- file tools are enforced through tool policy and path checks in the Pi process rather than the OS sandbox;
-- extension tools and skills can be gated by name;
-- project configuration is tighten-only and cannot widen the global mode;
-- the footer and `/sandbox` report degraded or unavailable sandbox state;
-- missing sandbox support falls back to prompts rather than silently presenting the mode as sandboxed.
-
-Boundary and fallback facts:
-
-- only Bash receives the OS sandbox;
-- an allowed extension tool is not constrained according to its internal filesystem, process, or network effects;
-- a user-approved out-of-project or privilege-escalating Bash command runs outside the sandbox;
-- the documented current implementation disables OS sandboxing for Git worktrees and submodules whose `.git` is a pointer file, then falls back to prompting;
-- if tree-sitter cannot load, command analysis falls back to a token-scan heuristic;
-- the project was first published shortly before this inspection and has a short public history, so compatibility and security behavior have had limited time to stabilize.
-
-## Comparison
-
-| Property | nono | pi-sandbox | pi-permission-modes |
+| Candidate | Observed version and inspection date | OS boundary | Code outside that boundary |
 |---|---|---|---|
-| Unit receiving OS enforcement | Whole Pi process and descendants | Bash and `!` subprocess trees | In-project Bash subprocess trees |
-| Direct Pi file tools | Inherit process boundary | Host-side checks for `read`, `write`, `edit` | Host-side policy/path checks |
-| Arbitrary extension tools | Inherit process boundary | Not automatically constrained | Gated by name; allowed tool internals remain unconstrained |
-| Permission prompts | Supervisor/profile dependent | Session, project, or global grants | Once/session/persistent policy grants |
-| Project config can widen policy | Depends on selected profile loading | Yes, for merged path/domain arrays | No; project overlay is tighten-only |
-| Network enforcement | Process policy/proxy | Bash process tree | Sandboxed Bash process tree |
-| Explicit degraded-state reporting | CLI/policy diagnostics | Sandbox initialization status | Footer and `/sandbox` fallback reason |
-| Published third-party security audit | None identified | None identified | None identified |
+| [nono](https://github.com/nolabs-ai/nono/releases/tag/v0.78.0) | `0.78.0`; checked Sep 16 | Whole launched Pi process and descendants | Supervisor/proxy and explicitly granted host services |
+| [pi-sandbox](https://registry.npmjs.org/pi-sandbox/latest) | npm `0.6.8`; latest listed GitHub release `0.6.6`; checked Sep 14 | Bash; user `!` commands by default | Pi process, file-tool checks, arbitrary extension code |
+| [pi-permission-modes](https://github.com/wynainfo/pi-permission-modes/releases/tag/v2.2.0) | `2.2.0`; checked Sep 14 | Sandboxed Bash execution in eligible modes | Pi process, policy checks, allowed extension internals, approved outside-sandbox execution |
 
-## Shrimpy Integration Distinctions
+## nono
 
-The implementations occupy two different layers:
+[nono](https://github.com/nolabs-ai/nono) uses Seatbelt on macOS and Landlock plus additional process/network enforcement on Linux. Starting Pi inside it places direct Node access, extensions, file tools, Bash, and descendants inside the same OS policy. Every session in that process shares its authority.
 
-- `nono` constrains the host process. Shrimpy would need to describe every path and service required by that process.
-- `pi-sandbox` and `pi-permission-modes` run inside Pi. They can provide interactive tool policy while the containing Shrimpy/Pi process retains its normal OS authority.
+Current nono includes profile composition, proxies, credential injection, and policy inspection. Evaluate the current profile mechanism directly; the old Pi-pack example is not a sufficient description of the current integration. An inherited sandbox cannot simply widen itself on request: grants beyond its fixed rights require a trusted supervisor, restart, broker, or an already-authorized resource channel.
 
-Using an in-process extension does not prevent Shrimpy from also running under a process sandbox. If the two are combined, the OS boundary is the maximum ambient authority and the Pi extension can further reduce or prompt for use of the tools it understands.
+The [security policy](https://github.com/nolabs-ai/nono/blob/main/SECURITY.md) still describes unstable guarantees and discourages production use. Public proxy/DNS advisories credit an X41 audit sponsored by OSTIF, correcting this note's earlier incomplete audit observation. The [runtime scout](sandbox-runtime-scout-2026-08-26.md#nono-retain-as-a-serious-process-policy-comparison) owns the evidence, patched versions, and unresolved Sep 16 advisory qualifications. No Pi profile was exercised locally.
 
-## Sources
+nono does not restrict networking by default merely because Pi is launched under it. Configure the required network mode explicitly, and test Pi's actual provider client through it. The [networking comparison](sandbox-runtime-scout-2026-08-26.md#networking-comparison) covers proxy enforcement, private destinations, credentials, and the distinction between host and API-operation permissions.
 
-- Pi: [repository permission baseline](https://github.com/earendil-works/pi#permissions--containerization), [extension tool overrides and pluggable operations](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)
-- nono: [repository](https://github.com/nolabs-ai/nono), [security policy](https://github.com/nolabs-ai/nono/blob/main/SECURITY.md), [OS sandbox documentation](https://nono.sh/os-sandbox), [Pi package](https://github.com/always-further/nono-packs/tree/main/pi)
-- pi-sandbox: [repository and documentation](https://github.com/carderne/pi-sandbox), [sandbox runtime](https://github.com/carderne/sandbox-runtime)
-- pi-permission-modes: [repository and documentation](https://github.com/wynainfo/pi-permission-modes), [threat model](https://github.com/wynainfo/pi-permission-modes/blob/main/SECURITY.md)
+## pi-sandbox
+
+The inspected source is [`31fa506`](https://github.com/carderne/pi-sandbox/tree/31fa5060689624467c1aeace2664ce91784522ff), Sep 8. Its package manifest and npm metadata identify version `0.6.8`, depending on `@carderne/sandbox-runtime` `^0.0.72`. That fork's version is independent of Anthropic SRT's version: a matching or nearby number does not establish equivalent fixes.
+
+The [extension](https://github.com/carderne/pi-sandbox/blob/31fa5060689624467c1aeace2664ce91784522ff/src/extension.ts) wraps Bash with an OS sandbox and intercepts `read`, `write`, and `edit` tool calls inside the host Pi process. It has a `user_bash` hook, but `sandboxUserShell: false` bypasses that wrapping for `!` commands. The default remains enabled. Other built-ins and arbitrary extension internals do not inherit an OS boundary from these hooks.
+
+The [configuration merger](https://github.com/carderne/pi-sandbox/blob/31fa5060689624467c1aeace2664ce91784522ff/src/config.ts) unions project and global path/domain arrays. A project's `.pi/sandbox.json` can therefore add permissions; it must not be the trusted maximum grant for an untrusted repository. Persisted approvals also change configuration. The [README](https://github.com/carderne/pi-sandbox/blob/31fa5060689624467c1aeace2664ce91784522ff/README.md) warns that its browser compatibility options open substantial security holes.
+
+[0.6.6 release notes](https://github.com/carderne/pi-sandbox/releases/tag/v0.6.6) include a subprocess-hang fix, Linux seccomp-helper exposure, PTY forwarding, and the user-shell bypass option. The current [manifest](https://github.com/carderne/pi-sandbox/blob/31fa5060689624467c1aeace2664ce91784522ff/package.json) declares a Pi peer range of `^0.80.0`, which does not include Shrimpy's `0.84.4` under npm's pre-1.0 semver rules. Compatibility must be tested rather than inferred from similar extension APIs.
+
+## pi-permission-modes
+
+The [2.2.0 implementation](https://github.com/wynainfo/pi-permission-modes/blob/v2.2.0/src/index.ts) combines named modes, tool/path rules, shell parsing, and sandboxed Bash. Project configuration is tighten-only. This is a useful contrast with pi-sandbox's permission unions, but policy checks still run in an unconstrained Pi process.
+
+Its [documented fallback behavior](https://github.com/wynainfo/pi-permission-modes/blob/v2.2.0/README.md) remains important:
+
+- Worktrees/submodules with a real `.git` pointer file disable OS sandboxing and fall back to prompts.
+- Missing sandbox support is reported and falls back to the permission flow.
+- Approved out-of-project or privileged commands may execute outside the sandbox.
+- If tree-sitter cannot load, command analysis uses a weaker heuristic.
+
+The [manifest](https://github.com/wynainfo/pi-permission-modes/blob/v2.2.0/package.json) still pins Anthropic SRT `0.0.26`, far behind the current upstream. The advisory/history difference warrants inspection; it is not evidence that a particular newer vulnerability is present. Interactive fallback is incompatible with a Shrimpy launch contract that promises enforced containment and must fail closed.
+
+## What to borrow
+
+| Concern | Useful lesson |
+|---|---|
+| Whole-runtime containment | Launch Pi under a process sandbox; do not depend on tool hooks to contain arbitrary JavaScript |
+| Tool policy | An exact allowlist and bounded tool implementations can reduce model capabilities inside the OS boundary |
+| Configuration | Trusted launch grants define the maximum; project/session data may request or narrow access |
+| Inspection | Report which process is sandboxed, the effective grant, and any missing enforcement |
+| Compatibility | Pin Pi, extension, and backend separately; test noninteractive startup, ordinary file tools, Bash, cancellation, and restart |
+| Host tools | An allowed MCP/ACP/browser service can have authority outside the child's sandbox and needs its own authorization |
+
+nono and Anthropic SRT are Apache-2.0 at the project layer; pi-sandbox and pi-permission-modes are MIT, and pi-sandbox's runtime fork is Apache-2.0. See their linked repositories' license files. No extension was installed or tested during this refresh.

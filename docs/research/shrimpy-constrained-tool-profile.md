@@ -1,13 +1,20 @@
-# Shrimpy Session Security Profiles And Constrained Tools
+# 🦐 Shrimpy Session Security Profiles And Constrained Tools
 
-Date: 2026-07-26
-Status: Research
+Originally researched: 2026-07-26
+Last refreshed: 2026-09-14
+Status: Research; unimplemented proposal
 
 ## Question
 
 Can Shrimpy use its existing session profile identity to provide a simple, heavy-handed restricted session with only path-bounded file tools and a small set of fixed Shrimpy operations, with Bash disabled?
 
 Yes at the tool-capability layer. This would restrict what the model can invoke through a Shrimpy session. It would not apply an OS sandbox to the Shrimpy/Pi process.
+
+## Current evidence
+
+The refresh checked [session identity](../../src/sessions/identity.ts), [session construction](../../src/sessions/open.ts), [tool policy](../../src/tools/policy.ts), and the pinned Pi `0.84.4` dependency in [package.json](../../package.json). The central finding is unchanged: Shrimpy passes tool exclusions, but does not resolve a closed security policy from `profileId`. No implementation or runtime test was performed.
+
+This remains a possible application-level restriction. Under the resident-agent option in the [runtime scout](sandbox-runtime-scout-2026-08-26.md), all sessions inside one agent process share its OS authority. A session profile may narrow tool access inside that boundary; a different OS grant needs a separately launched process. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns current backend comparisons, and [SECURITY.md](../../SECURITY.md) owns implemented guarantees.
 
 ## Existing Profile Meaning
 
@@ -31,7 +38,7 @@ The current code already provides part of the shape:
 - agent `disabledTools` is passed to Pi as `excludeTools`, so an agent can disable `bash`;
 - agent `tools` selects which Shrimpy daemon tools are registered;
 - Shrimpy passes its daemon tools to Pi as custom tool definitions;
-- Pi `0.82.1` accepts both an explicit active-tool allowlist and custom tools;
+- Pi [`0.84.4`](https://github.com/earendil-works/pi/blob/v0.84.4/packages/coding-agent/src/core/sdk.ts) accepts both an explicit active-tool allowlist and custom tools;
 - a custom tool definition with the same name as a Pi built-in replaces the built-in;
 - Pi exports pluggable operations for `read`, `write`, `edit`, `grep`, `find`, and `ls`.
 
@@ -246,4 +253,4 @@ Session security profiles can exist independently of process sandboxing. If Shri
 - the OS policy limits the maximum authority of the process;
 - the session security profile limits which portions of that authority the model can invoke through registered tools.
 
-The separate [Pi sandboxing implementations](pi-sandboxing-implementations.md) note records current process- and extension-level implementations.
+The separate [Pi sandboxing implementations](pi-sandboxing-implementations.md) note records current process- and extension-level implementations. Do not treat provider-side redaction, a system prompt, a permission response, or a restricted tool name as an OS boundary. A permitted external tool also needs authorization at the service that performs the action.

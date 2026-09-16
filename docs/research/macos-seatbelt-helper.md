@@ -1,221 +1,71 @@
 # 🦐 macOS Seatbelt Sandboxing and a Tiny Shrimpy Helper
 
-Date: 2026-05-11
-Status: Research
+Originally researched: 2026-05-11
+Last refreshed: 2026-09-14
+Status: Research; helper and containment remain unimplemented
 
-This note looks at Apple's macOS sandboxing stack at a high level, then sketches what a small Mac helper could look like for hosting Shrimpy with native per-agent sandboxing.
+## Current read
 
-## Seatbelt in one page
+**Prove a CLI-launched, whole-agent sandbox before building a Mac app.** SRT and nono already provide macOS process runners worth testing; Shrimpy does not need to start by inventing an SBPL generator or menu-bar control plane. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns the candidate comparison and acceptance suite.
 
-Apple exposes two related but different sandboxing surfaces on macOS:
+A native app could later own folder selection, bookmarks, status, and narrowly scoped host services. It would not establish a separate sandbox for every Pi session merely by launching Shrimpy. Every session inside the same OS process shares that process's rights. [SECURITY.md](../../SECURITY.md) continues to state that current Shrimpy has no OS containment.
 
-- **App Sandbox** is the public app-developer feature. It is enabled with code-signing entitlements such as `com.apple.security.app-sandbox`, `com.apple.security.network.client`, and user-selected file access keys. It is the normal route for Mac App Store apps and sandboxed Developer ID apps.
-- **Seatbelt / `sandbox(7)`** is the lower-level policy system underneath the macOS sandbox. It uses sandbox profiles, often written in Sandbox Profile Language (SBPL), to allow or deny classes of operations for a process and its children. Chromium's macOS sandbox documentation explicitly distinguishes this lower-level sandbox from App Sandbox.
+## Apple's two sandbox surfaces
 
-At runtime, a process ends up with a policy attached to it. The kernel enforces that policy when the process tries to acquire resources: file paths, sockets, Mach services, IOKit objects, sysctls, process operations, and other system facilities. A typical hardened profile starts with:
+[App Sandbox](https://developer.apple.com/documentation/security/app-sandbox) is Apple's supported application feature, enabled through signing entitlements. It limits an application's access to resources and is required for Mac App Store distribution. Entitlements, user-selected files, and sandboxed helper packaging are the supported app-development surface.
 
-```scheme
-(version 1)
-(deny default)
-```
+Seatbelt is the lower-level policy mechanism. Its profiles restrict operations such as file access, sockets, Mach services, and process interaction. [Chromium's macOS sandbox design](https://chromium.googlesource.com/chromium/src/+/HEAD/sandbox/mac/seatbelt_sandbox_design.md) explains why it applies policy in a small helper before loading larger frameworks: resources acquired before lockdown can retain authority afterward. Audit inherited descriptors and services as carefully as path rules.
 
-Then it adds narrow `allow` rules for the resources the process needs:
+The lower-level `sandbox_init`/`sandbox-exec` interfaces have deprecation and API-stability caveats. Current [SRT](https://github.com/anthropics/sandbox-runtime/blob/v0.0.76/src/sandbox/macos-sandbox-utils.ts) still launches through `sandbox-exec`. That is evidence of current tooling practice, not a promise of future Apple support. Use a reviewed runner and platform regression tests; App Sandbox entitlements are not a drop-in replacement for arbitrary per-agent read/write path policies.
 
-```scheme
-(allow file-read* (subpath "/System/Library"))
-(allow file-read* (subpath "/usr/lib"))
-(allow file-read* (subpath (param "WORKSPACE_READ")))
-(allow file-write* (subpath (param "AGENT_SCRATCH")))
-(allow network-outbound)
-```
+| Surface | Suitable job | Limit to preserve |
+|---|---|---|
+| App Sandbox entitlements | Signed native app and fixed helper capabilities | Coarse application rights; not a dynamic per-agent policy language |
+| XPC service | Separate process for a narrow host operation | The service's authority and request authorization matter independently |
+| Inherited sandbox helper | Bundled command with inherited application restrictions | Do not assume arbitrary per-agent rights or dynamic grants transfer automatically |
+| Seatbelt runner | Restrict a whole agent process before Node/Pi starts | Policy details and platform support need direct validation |
+| MicroVM | Linux guest with its own kernel | Mounted paths, forwarded services, and guest images still require policy |
 
-SBPL is a Scheme-like policy language. Profiles can be parameterized, so the host can compile or apply one policy template with per-agent paths such as a workspace root, an agent root, a scratch directory, or a downloads directory.
+Apple's [helper-tool guide](https://developer.apple.com/documentation/xcode/embedding-a-helper-tool-in-a-sandboxed-app) describes the `app-sandbox` and `inherit` entitlement combination and recommends considering XPC for separate-process work. A Developer ID signature alone does not sandbox a program. An XPC connection alone does not authorize an operation.
 
-The critical behavioral detail is that sandboxing is usually enforced at **resource acquisition time**. If a process opens a file descriptor, Mach port, socket, or library before entering the sandbox, that handle may remain usable after lockdown. That is why sandboxed architectures try to apply the sandbox as early as possible and avoid linking or initializing large frameworks before the policy is active. Chromium's newer macOS design uses minimal helper executables that apply the sandbox before loading the real framework code.
+## Proposed Shrimpy seam
 
-Apple's older `sandbox_init()` API and `sandbox-exec` tooling are documented as deprecated, while App Sandbox is the supported public app model. In practice, the profile system is still important for browser-style helper processes and local developer tooling, but it should be treated as an implementation substrate rather than a polished public product API.
-
-## App Sandbox versus Seatbelt profiles
-
-For Shrimpy, the practical split is:
-
-| Surface | Strength | Weakness | Fit |
-|---|---|---|---|
-| App Sandbox entitlements | Supported, signable, app-distribution friendly | Coarse; not designed for arbitrary per-agent filesystem policies | Main Mac app, config UI, broker, persistent host |
-| XPC services | Good privilege separation; each service can have its own sandbox | Best when service jobs are static and app-bundled | Native brokers, credential or filesystem mediators |
-| Inherited App Sandbox child tool | Simple way for a sandboxed app to run a bundled CLI | Child inherits static rights only; not enough for dynamic per-agent policy | Tiny bundled commands with the same app-level rights |
-| Seatbelt/SBPL helper process | Fine-grained profile per agent or per turn | Deprecation caveats; profile syntax is not fully official public API | Agent execution sandbox, especially outside App Store constraints |
-
-Apple recommends XPC for privilege separation over plain child processes. Apple also notes that inherited sandbox child tools receive static entitlement rights, not dynamic access granted after launch, so a helper needs either passed data, security-scoped bookmarks, or a broker when user-selected paths are involved.
-
-## What native sandboxing should mean for Shrimpy
-
-Shrimpy's current architecture is CLI-first and Pi-backed: sessions are the execution unit, channels are logs/routing, and agent resources live in the workspace. A Mac helper should preserve that shape. It should not become a second runtime or policy brain.
-
-The native helper's job would be to launch Shrimpy/Pi turns under a per-agent macOS sandbox and broker the few host resources that cannot be safely granted directly.
-
-This should sit behind a Shrimpy sandbox abstraction, not leak Seatbelt concepts into the agent/runtime model. macOS and Linux have different primitives, but Shrimpy's policy vocabulary can be shared: readable roots, writable roots, network mode, environment allowlist, process lifetime, device access, browser profile access, and brokered capabilities.
+The resident-agent option considered in the [runtime scout](sandbox-runtime-scout-2026-08-26.md) uses a runner and supervisor per agent. This replaces the earlier research assumption that a Mac app should start the whole gateway inside one agent sandbox. It remains a proposal; the separation to test is:
 
 ```text
-Shrimpy policy
-  profile: agent-workspace-write
-  read: workspace, agent-root
-  write: agent-root, runtime, scratch
-  network: client | blocked | host
-  brokers: secrets, bookmarks, tcc
-        |
-        v
-Sandbox backend
-  macOS: Seatbelt/App Sandbox/XPC
-  Linux: bubblewrap namespaces + bind mounts
-  future: container runner, Windows AppContainer
-```
-
-On Linux, the obvious first backend is `bubblewrap` (`bwrap`). It is a low-level sandbox construction tool used by Flatpak and similar projects. It creates a new filesystem view with bind mounts and namespaces, then execs the target command. Like Seatbelt profiles, it is not a complete policy by itself: Shrimpy would be responsible for converting `read`, `write`, `network`, and environment policy into concrete `bwrap` arguments.
-
-That means Shrimpy should model sandboxing as an execution adapter:
-
-```ts
-type SandboxSpec = {
-  profile: "no-tools" | "workspace-read" | "agent-workspace-write" | "gateway" | "browser";
-  read: SandboxMount[];
-  write: SandboxMount[];
-  network: "blocked" | "client" | "host";
-  env: Record<string, string>;
-  command: string[];
-  cwd: string;
-};
-```
-
-Then each platform owns translation:
-
-| Backend | Translation job |
-|---|---|
-| `seatbelt` | Build/apply an SBPL profile, use bookmarks/XPC brokers for dynamic access, then launch Shrimpy. |
-| `bubblewrap` | Build a minimal root with `--ro-bind`, `--bind`, `/proc`, `/dev`, tmpfs scratch, PID/session isolation, and optional `--share-net`. |
-| `none` | Run directly, but still report that no native sandbox is active. Useful for unsupported platforms and debugging. |
-
-The important design point: agents and config should talk about Shrimpy capabilities, not macOS operations or Linux namespace flags.
-
-The useful security boundary is:
-
-```text
-ShrimpyMac.app
-  app sandbox + UI + config + launch control
-  owns user consent, bookmarks, status, logs
-  |
-  | XPC / local authenticated control channel
+trusted launch grant and supervisor
+  | owns policy, attachment, proxy lifetime, cleanup
+  | narrow control channel
   v
-ShrimpySandboxRunner
-  minimal native executable
-  applies Seatbelt profile before launching runtime
-  |
+whole Node/Pi agent process under Seatbelt
+  | sessions, tools, extensions, child commands
   v
-node dist/cli.js / shrimpy gateway / shrimpy run
-  Pi session + Shrimpy tools
-  restricted to per-agent workspace paths and declared network policy
+explicit file roots and service connections
 ```
 
-The runner should be deliberately boring:
+The runner constructs paths and environment from trusted configuration. Agent-writable preferences cannot enlarge those grants. SRT's module-global manager state means independent policies need independent manager processes; see the [source-based explanation](sandbox-runtime-scout-2026-08-26.md#srt-smallest-first-experiment).
 
-- Accept a structured launch request: agent id, session type, channel/session label, workspace paths, network mode, writable mounts, environment allowlist, command arguments.
-- Build or select a policy template: `readonly-workspace`, `agent-workspace-write`, `network-client`, `no-network`, `browser-automation`, etc.
-- Apply the sandbox before starting the expensive runtime.
-- Drop inherited environment variables that are not explicitly allowed.
-- Put each run in a per-agent scratch directory under the Shrimpy workspace.
-- Stream stdout/stderr and an exit record back to the app or Shrimpy logs.
+Required policy questions are concrete: which files can be read, which can be written, which network and IPC endpoints are reachable, which environment values and descriptors are inherited, and what happens when the parent dies. A profile named `workspace-write` answers none of those questions on its own.
 
-## Tiny helper product shape
+## Mac-specific gates
 
-A first version could be a small menu-bar app, not a full IDE:
+- **Private reads:** broad system access and a writable workspace must not imply readable home directories, sibling agents, credentials, or browser profiles. Test real paths, symlinks, new destinations, `/tmp` versus `/private/tmp`, and nested exceptions.
+- **Early enforcement:** apply policy before loading Node, Pi, or extensions. Inventory handles deliberately retained across launch.
+- **IPC and networking:** test unrelated loopback listeners, Unix sockets, Mach services, and proxy-only egress. A Unix socket to a privileged host service can confer more authority than an ordinary file grant.
+- **Application launch:** keep SRT's `allowAppleEvents` disabled for contained agents. Its [documentation](https://github.com/anthropics/sandbox-runtime/blob/v0.0.76/README.md) says this option permits application launches outside the sandbox. TCC consent for scripting does not make those launches contained.
+- **Lifecycle:** sandbox inheritance and process cleanup are separate properties. Test detached children and supervisor death. A parent exit or process-group signal is not sufficient proof that all work stopped.
+- **Resource limits:** file/network confinement does not imply CPU, memory, process-count, or disk quotas. Report what the selected runner actually enforces.
 
-- **Install/check Shrimpy**: find `shrimpy`, Node, model/auth files, and the workspace config.
-- **Run gateway**: start/stop/restart `shrimpy gateway` as a sandboxed child.
-- **Agent sandbox profiles**: show each configured agent and the effective local policy: writable roots, readable roots, network allowed/blocked, browser access allowed/blocked.
-- **Grant folders**: use `NSOpenPanel` and security-scoped bookmarks to add user-selected workspace or vault paths.
-- **Logs**: show gateway logs, sandbox violations, and recent run exits.
-- **CLI bridge**: expose equivalent commands first, for example `shrimpy mac profiles inspect`, `shrimpy mac run --agent <id>`, and `shrimpy mac gateway start`, with the app as a native wrapper around those mechanics.
+## When a native app is useful
 
-The Shrimpy-specific config could live in the workspace rather than app preferences:
+Add a small native surface only when a concrete workflow needs folder pickers, persisted security-scoped bookmarks, or native host integration. The CLI should expose the operation first. A broker should accept one typed request, authorize its target, and return bounded data or a narrow resource handle. Do not hand the agent a general host shell, unrestricted Apple Events, an SSH-agent socket, or an entire browser profile as a shortcut.
 
-```json
-{
-  "macSandbox": {
-    "defaultProfile": "agent-workspace-write",
-    "agents": {
-      "shrimpy": {
-        "network": "client",
-        "read": ["workspace", "agent-root"],
-        "write": ["agent-root", "runtime", "scratch"],
-        "browserAutomation": false
-      }
-    }
-  }
-}
-```
+For folder access, use Apple's [App Sandbox configuration guidance](https://developer.apple.com/documentation/xcode/configuring-the-macos-app-sandbox). Test access across helper launch and restart; opening a picker and storing a bookmark do not by themselves establish the desired child-process policy. A broker for Contacts, browser state, or credentials would need separate authorization and lifecycle evidence.
 
-That keeps policy inspectable by agents and humans, which matches Shrimpy's existing file-backed design.
+Apple's [Containerization source at `b44e17e`](https://github.com/apple/containerization/tree/b44e17e1a4c135bc0168e615bf6a8e3798d070c0) remains a possible Swift-based VM substrate. The current source also describes a Linux Cloud Hypervisor backend, so the older Mac-only description is incomplete. This is a source observation, not a verified released cross-platform Shrimpy dependency.
 
-## Policy model for agents
+## Evidence and remaining questions
 
-Start with coarse named profiles before trying to synthesize every SBPL rule:
+This refresh read Apple's App Sandbox and helper documentation, Chromium's design, current runner source, and Shrimpy's launch/tool-policy seams. It did not build a helper, run a sandbox, test TCC/bookmarks, or verify descendant cleanup. The next evidence should be one useful resident Pi process passing the [shared acceptance suite](sandbox-runtime-scout-2026-08-26.md#shared-acceptance-suite), with host OS and exact runner version recorded.
 
-| Profile | Intended use | Reads | Writes | Network |
-|---|---|---|---|---|
-| `no-tools` | passive summarization or memory work | Shrimpy config, agent identity/memory, channel logs | agent memory/runtime only | blocked |
-| `workspace-read` | answer questions over local context | workspace + agent root | agent runtime/scratch only | blocked or opt-in |
-| `agent-workspace-write` | normal coding/task execution | workspace + agent root | configured workspace roots + scratch | opt-in |
-| `gateway` | long-running surfaces and schedules | workspace state/config | channel logs, runtime logs, state | client/server as configured |
-| `browser` | local browser automation | browser profile dir, downloads scratch | browser profile/download scratch | client |
-
-The policy should be visible in Shrimpy's own capability inspection. If `TOOLS-001` adds effective Pi tool visibility, the Mac sandbox state should show up in the same mental model: not just "agent has shell", but "agent has shell inside profile X with writable roots Y".
-
-## Brokered access
-
-Some access should not be granted directly to the agent process:
-
-- Security-scoped bookmarks and PowerBox-selected folders.
-- Secrets, model provider tokens, and auth files.
-- Camera, microphone, Contacts, Calendar, Apple Events, and other TCC-protected resources.
-- Privileged host operations such as installing LaunchAgents or changing app settings.
-
-For these, the app or an XPC service should act as a broker with explicit request/approval semantics. The agent asks for a capability; the host evaluates policy, user consent, and audit logging; the sandboxed runner receives only the narrow result, such as a file descriptor, copied file, signed token, or temporary scratch path.
-
-## Implementation path
-
-1. **Document-only model.** Add config vocabulary for intended macOS profiles, but do not enforce it. This lets Shrimpy inspect and discuss desired policy.
-2. **CLI launcher prototype.** Build `shrimpy-mac-runner` as a tiny native executable that launches `shrimpy run` or `shrimpy gateway` under one static profile on macOS.
-3. **Per-agent profile selection.** Add named profile templates and workspace-path parameters.
-4. **Violation diagnostics.** Capture `sandboxd` logs relevant to the child pid and turn them into actionable Shrimpy diagnostics.
-5. **Menu-bar wrapper.** Add the smallest native app that manages bookmarks, starts the gateway, and displays status.
-6. **Brokers.** Add XPC services only when a concrete resource cannot be safely handled with static profile grants.
-
-## Design cautions
-
-- Do not make the Mac app a second Shrimpy control plane. The CLI remains the source of truth.
-- Apply the sandbox before loading Node or any large framework where feasible. If that is not feasible for the Node process itself, use a tiny native launcher that locks down first and then `exec`s Node.
-- Avoid broad home-directory read access. Agent memory and vaults should be explicit.
-- Treat network as a profile feature, not a default. Channel surfaces and model calls may need network; local code-reading agents often do not.
-- Expect compatibility churn. System frameworks may touch resources that were not obvious from app code, so profile work needs iterative diagnostics.
-- Keep App Store distribution out of the first milestone. Developer ID signed distribution is likely a better target while experimenting with Seatbelt profile enforcement.
-
-## Open questions
-
-- Should Shrimpy rely on macOS profiles directly, or should it delegate sandbox execution to Pi when Pi already has a macOS sandbox runner available?
-- Does the gateway need one sandbox for the whole process, or should individual agent turns run in separate short-lived sandboxed workers?
-- How should browser automation be isolated: separate browser profile per agent, separate Seatbelt profile, or both?
-- Should network policy distinguish model-provider egress from arbitrary internet egress?
-- How much TCC-brokered native access should Shrimpy ever expose to agents?
-
-## Sources
-
-- Apple Developer Documentation: [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox)
-- Apple Developer Documentation: [Configuring the macOS App Sandbox](https://developer.apple.com/documentation/xcode/configuring-the-macos-app-sandbox)
-- Apple Documentation Archive: [Enabling App Sandbox](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html)
-- Apple Developer Documentation: [Embedding a command-line tool in a sandboxed app](https://developer.apple.com/documentation/Xcode/embedding-a-helper-tool-in-a-sandboxed-app)
-- Apple Documentation Archive: [Creating XPC Services](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingXPCServices.html)
-- BSD man page mirror: [`sandbox_init(3)`](https://www.unix.com/man_page/osx/3/sandbox_init/)
-- Chromium: [The Mac Sandbox](https://chromium.googlesource.com/chromium/src/+/main/sandbox/mac/)
-- Chromium: [Mac Sandbox V2 Design Doc](https://chromium.googlesource.com/chromium/src/+/HEAD/sandbox/mac/seatbelt_sandbox_design.md)
-- containers: [bubblewrap README](https://github.com/containers/bubblewrap/blob/main/README.md)
-- containers: [bubblewrap security overview](https://github.com/containers/bubblewrap/security)
+A native UI, a custom SBPL compiler, and a general credential broker remain optional later work. If the process runners cannot meet private-read and lifecycle requirements, compare the microVM candidates before expanding the helper design.
