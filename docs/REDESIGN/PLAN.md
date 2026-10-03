@@ -460,7 +460,7 @@ src/
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
 
 - **Programs never import each other.** They talk only through `contracts/`, which are Chord services carried by `pi-server` and `pi-client`.
-- **Shared plumbing stays plumbing.** `lib/connection` and `lib/offer` wrap Pi's client and server once for all three contracts. They hold no registry, discovery or lifecycle of their own, which is what keeps them from becoming the service framework this plan doesn't build.
+- **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/connection` and `lib/offer` wrap Pi's client and server once for all three contracts. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `agent/sessions/` is the one place that turns Pi's records into the session view clients see. A Pi upgrade can then change the agent without touching a client.
 - **Only `clients/console/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports.
 
