@@ -566,11 +566,14 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - The wire-up: the agent registers with the gateway, joins chat as a member and reads its feed. It keeps one session per thread, posts its final text as the reply, leaves receipts, marks where it's working, and keeps an outbox for replies it couldn't post.
 - The first commands for talking: `shrimpy up <home>...` starts what's missing on this machine, `run <agent> <text>` says something in your DM with the agent and prints the reply, `threads <agent>` and `read <thread>` show what was said, and `gateway serve` and `chat serve <data-dir>` are foreground entrypoints like `agent serve`. In chat you are `person:<OS username>` unless you set otherwise. Machine-level data takes an explicit path until phase 6 picks a default, so nothing lands near a live workspace.
 - The foreground entrypoints that any supervisor or sandbox can run.
+- Sessions listed with the thread each is behind and whether it's working.
+- A thin terminal client on `pi-tui`'s public components: browse the agents on the network and their sessions, pick a thread or a session, talk, see replies and who is working, open the work behind a thread and watch it stream, stop it, start a new thread, and quit without stopping the work.
+
+**From another machine, last.** These wait until there's a VM on the LAN to test them on. Nothing built before them assumes one machine: every link between programs takes a transport, so the same code runs over a Unix socket or a network connection.
+
 - Joining the network: an agent authenticates to the gateway when it registers. On the gateway's own machine the socket's permissions are the check. From another machine the agent presents a token the gateway issued for it.
 - The gateway's network entry: it listens on an address you choose for agents and clients on other machines, and asks for a token.
 - Routing to an agent that only connects out: when a client asks for that agent, the gateway has the agent open one more connection and joins the two. A client then reaches a remote agent's sessions exactly as it reaches a local one, and the agent still needs no inbound listener.
-- Sessions listed with the thread each is behind and whether it's working.
-- A thin terminal client on `pi-tui`'s public components: browse the agents on the network and their sessions, pick a thread or a session, talk, see replies and who is working, open the work behind a thread and watch it stream, stop it, start a new thread, and quit without stopping the work.
 
 **Prove**
 
@@ -587,7 +590,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - An agent started on another machine, or in a container with no shared files, joins with its token, shows up in the terminal, answers in a thread, and has its session watched and stopped from here.
 - An agent with a missing or wrong token is refused, and a version that differs from the gateway's is reported.
 
-**Use it.** After the wire-up, try it from the command line. After the terminal client, use it for real conversations. What's rough goes on phase 3's list.
+**Use it.** After the wire-up, try it from the command line. After the terminal client, use it for real conversations. Neither waits for the pieces that cross machines. What's rough goes on phase 3's list.
 
 **Gate:** if the terminal client needs a large compatibility layer over `pi-tui`, stop and revisit with that evidence. Record the prototype's experience differences and its real code and dependency cost.
 
