@@ -9,6 +9,7 @@ import { startAgent } from "./index.ts";
 import {
   answered,
   assistantItems,
+  attachMain,
   type FauxScenario,
   fauxModels,
   toolItems,
@@ -73,6 +74,69 @@ test("abort stops a streaming answer and keeps what arrived", { timeout }, async
     const answer = assistantItems(view).at(-1);
     assert.equal(answer?.stopReason, "aborted");
     assert.ok(answer.text.startsWith("line 01"));
+  } finally {
+    await connection.close();
+    await agent.close();
+  }
+});
+
+test("a client waits for an input to end, and is told how it ended", { timeout }, async () => {
+  const { home, agent } = await start("chat");
+  const { connection, session } = await attachMain(home);
+  try {
+    const { submission } = await session.steer("say hello", "request-1");
+    const settled = await session.wait(submission);
+    assert.equal(settled.status, "answered");
+    assert.match(settled.text, /^You said: say hello\n\n- first point/);
+
+    // The ending is recorded: asking again gives it back, and the answer is the one in the session.
+    assert.deepEqual(await session.wait(submission), settled);
+    const view = await waitForView(session, answered);
+    assert.equal(assistantItems(view).at(-1)?.text, settled.text);
+  } finally {
+    await connection.close();
+    await agent.close();
+  }
+});
+
+test("an input that is stopped ends cancelled", { timeout }, async () => {
+  const { home, agent } = await start("stream", 40);
+  const { connection, session } = await attachMain(home);
+  try {
+    const { submission } = await session.steer("stream a long answer");
+    const waiting = session.wait(submission);
+    await waitForView(session, (view) => (assistantItems(view)[0]?.text.length ?? 0) > 20);
+
+    await session.abort();
+
+    assert.deepEqual(await waiting, { status: "cancelled" });
+  } finally {
+    await connection.close();
+    await agent.close();
+  }
+});
+
+test("an input the model could not answer ends unanswered, with the reason", { timeout }, async () => {
+  const { home, agent } = await start("fail");
+  const { connection, session } = await attachMain(home);
+  try {
+    const { submission } = await session.steer("hello");
+    assert.deepEqual(await session.wait(submission), {
+      status: "unanswered",
+      reason: "model_error",
+      detail: "The model refused the request.",
+    });
+  } finally {
+    await connection.close();
+    await agent.close();
+  }
+});
+
+test("a wait on a submission that does not exist is refused", { timeout }, async () => {
+  const { home, agent } = await start("chat");
+  const { connection, session } = await attachMain(home);
+  try {
+    await assert.rejects(session.wait(999), /Unknown submission: 999/);
   } finally {
     await connection.close();
     await agent.close();

@@ -1,5 +1,5 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
-import type { SessionSummary, SessionView } from "./view.ts";
+import type { SessionSummary, SessionView, Settlement } from "./view.ts";
 
 /** Agent scope: which sessions exist, and which one this connection watches. */
 export interface SessionDirectory {
@@ -17,6 +17,12 @@ export interface SessionService {
    * the same `requestId` returns the first submission instead of a second one.
    */
   steer(text: string, requestId: string | null, context: Context): Promise<{ submission: number }>;
+  /**
+   * Resolve when the input that `steer` accepted has ended. It works after a
+   * restart too. Giving up on the wait, or losing the connection, never stops
+   * the work.
+   */
+  wait(submission: number, context: Context): Promise<Settlement>;
   /** Stop the session's current work and withdraw input it has not picked up. */
   abort(context: Context): Promise<void>;
 }

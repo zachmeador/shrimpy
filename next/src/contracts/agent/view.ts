@@ -60,3 +60,14 @@ export interface SessionSummary {
   /** The session an agent always has. */
   main: boolean;
 }
+
+/**
+ * How an accepted input ended. `answered` is the agent's final answer, which
+ * may be empty. `cancelled` means someone stopped the work. `unanswered` is
+ * anything else that left the input without an answer: `reason` is a short
+ * code such as `model_error`, and `detail` says more when the agent knows more.
+ */
+export type Settlement =
+  | { status: "answered"; text: string }
+  | { status: "cancelled" }
+  | { status: "unanswered"; reason: string; detail: string | null };

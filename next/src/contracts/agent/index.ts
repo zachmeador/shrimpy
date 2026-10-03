@@ -14,5 +14,6 @@ export type {
   SessionStatus,
   SessionSummary,
   SessionView,
+  Settlement,
   ToolStatus,
 } from "./view.ts";

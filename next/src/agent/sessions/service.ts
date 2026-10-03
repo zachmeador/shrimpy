@@ -8,6 +8,7 @@ import {
 import type { SessionService, SessionSummary } from "../../contracts/agent/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
+import { waitForSettlement } from "./settlement.ts";
 
 /** A session being served: the contract's service, and a way to stop serving it. */
 export interface ServedSession {
@@ -30,6 +31,7 @@ export async function findSession(
 
 /** Serve one session: keep its view published, and route control to the engine. */
 export async function serveSession(
+  harness: Harness,
   conversation: Conversation,
   context: Context,
 ): Promise<ServedSession> {
@@ -48,6 +50,7 @@ export async function serveSession(
         );
         return { submission: submission.id };
       },
+      wait: (submission, callContext) => waitForSettlement(harness, conversation, submission, callContext),
       abort: (callContext) => conversation.abort(callContext),
     },
     close() {

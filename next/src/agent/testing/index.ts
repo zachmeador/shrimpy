@@ -19,10 +19,11 @@ import {
 } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
+export { attachMain } from "./attach.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { answered, assistantItems, toolItems, waitForView } from "./wait.ts";
 
-export type FauxScenario = "chat" | "stream" | "tool";
+export type FauxScenario = "chat" | "fail" | "stream" | "tool";
 
 type Script = (messages: readonly Message[]) => ReturnType<typeof fauxAssistantMessage>;
 
@@ -45,6 +46,9 @@ const LISTING_COMMAND = "printf 'listing the work directory\\n'; sleep 1; printf
 const SCRIPTS: Record<FauxScenario, Script> = {
   /** One long streamed answer, for interrupting the agent mid-stream. */
   stream: () => fauxAssistantMessage(LONG_TEXT),
+
+  /** A model that refuses every request, in a way the agent does not retry. */
+  fail: () => fauxAssistantMessage([], { stopReason: "error", errorMessage: "The model refused the request." }),
 
   /** A slow shell call, then an answer that quotes the tool result it was given. */
   tool: (messages) => {

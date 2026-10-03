@@ -80,7 +80,7 @@ function serverHost(host: Host): ServerHost {
     async openSession(metadata) {
       const conversation = await findSession(host.harness, metadata.id, context);
       if (conversation === undefined) throw new SessionNotFoundError(`Unknown session: ${metadata.id}`);
-      const served = await serveSession(conversation, context);
+      const served = await serveSession(host.harness, conversation, context);
       const provider = new RemoteServiceProvider([{ service: SessionService, mode: "singleton" }]);
       provider.provide(SessionService, served.service);
       return {

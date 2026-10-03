@@ -66,15 +66,22 @@ function toItems(entries: readonly EntryRecord[], live: LiveState): SessionItem[
 }
 
 function assistantItem(message: AssistantMessage, streaming: boolean): SessionItem {
-  let text = "";
   let thinking = "";
   for (const block of message.content) {
-    if (block.type === "text") text += block.text;
-    else if (block.type === "thinking") thinking += block.thinking;
+    if (block.type === "thinking") thinking += block.thinking;
   }
   // A partial answer has no stop reason yet.
   const stopReason = (message as { stopReason?: string }).stopReason ?? null;
-  return { type: "assistant", text, thinking, streaming, stopReason };
+  return { type: "assistant", text: assistantText(message), thinking, streaming, stopReason };
+}
+
+/** The words of an answer, without thinking or tool calls. */
+export function assistantText(message: AssistantMessage): string {
+  let text = "";
+  for (const block of message.content) {
+    if (block.type === "text") text += block.text;
+  }
+  return text;
 }
 
 function toolItems(message: AssistantMessage, live: LiveState): ToolItem[] {

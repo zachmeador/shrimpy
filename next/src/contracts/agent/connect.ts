@@ -6,7 +6,7 @@ import {
   createClientServiceTransport,
 } from "@earendil-works/pi-client";
 import { SessionDirectory, SessionService } from "./services.ts";
-import type { SessionSummary, SessionView } from "./view.ts";
+import type { SessionSummary, SessionView, Settlement } from "./view.ts";
 
 /** One attached session: its view, updates, and control. */
 export interface SessionHandle {
@@ -15,6 +15,8 @@ export interface SessionHandle {
   /** Calls `listener` with the current view, then after every change. */
   subscribe(listener: (view: SessionView) => void): () => void;
   steer(text: string, requestId?: string): Promise<{ submission: number }>;
+  /** Resolves when the submission has ended. Giving up on it does not stop the work. */
+  wait(submission: number): Promise<Settlement>;
   abort(): Promise<void>;
 }
 
@@ -84,6 +86,7 @@ export async function connectAgent(options: {
           return session.state.subscribe((value) => listener(value));
         },
         steer: (text, requestId) => session.steer(text, requestId ?? null, context),
+        wait: (submission) => session.wait(submission, context),
         abort: () => session.abort(context),
       };
     },
