@@ -1,10 +1,26 @@
+import type { TestContext } from "node:test";
 import type { ChatConnection, Message, Thread } from "../../contracts/chat/index.ts";
+import { startTestChat } from "./chat.ts";
+import { agent, person } from "./fixtures.ts";
 
 /** The main thread of a channel. */
 export async function mainThread(connection: ChatConnection, channelId: string): Promise<Thread> {
   const main = (await connection.chat.threads(channelId)).find((thread) => thread.main);
   if (main === undefined) throw new Error(`Channel ${channelId} has no main thread`);
   return main;
+}
+
+/**
+ * A chat server with Zach, a person, and Shrimpy, an agent, connected to it,
+ * and the main thread of the DM Zach opened with Shrimpy.
+ */
+export async function startDm(t: TestContext) {
+  const chat = await startTestChat(t);
+  const zach = await chat.join(person("Zach"));
+  const shrimpy = await chat.join(agent("Shrimpy"));
+  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const main = await mainThread(zach, dm.id);
+  return { chat, zach, shrimpy, dm, main };
 }
 
 export const texts = (messages: { text: string }[]): string[] => messages.map((message) => message.text);

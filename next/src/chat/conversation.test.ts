@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
 import { settle } from "../lib/testing/index.ts";
-import { agent, follow, mainThread, person, startTestChat, texts } from "./testing/index.ts";
+import {
+  agent,
+  follow,
+  mainThread,
+  person,
+  startDm,
+  startTestChat,
+  texts,
+} from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -61,11 +69,7 @@ test("a DM can be opened with a member who has not connected yet", { timeout }, 
 });
 
 test("a member's new name shows to the others", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { zach, shrimpy, main } = await startDm(t);
   await zach.chat.post(main.id, "hello", "zach-1");
 
   await zach.chat.identify({ id: "person:zach", kind: "person", name: "Zachariah" });
@@ -75,11 +79,7 @@ test("a member's new name shows to the others", { timeout }, async (t) => {
 });
 
 test("side threads keep their own conversations in the channel", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { zach, shrimpy, dm, main } = await startDm(t);
 
   const side = await zach.chat.createThread(dm.id, "Trip");
   await zach.chat.post(side.id, "Where to?", "zach-1");
@@ -142,11 +142,7 @@ test("a feed that starts at the head offers nothing from before", { timeout }, a
 });
 
 test("a feed pages through what it missed", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { zach, shrimpy, main } = await startDm(t);
   for (const number of [1, 2, 3, 4, 5]) await zach.chat.post(main.id, `m${number}`, `zach-${number}`);
 
   const firstPage = await shrimpy.chat.feed(0, 2);
@@ -159,11 +155,7 @@ test("a feed pages through what it missed", { timeout }, async (t) => {
 });
 
 test("a retried post returns the first message instead of posting twice", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { zach, shrimpy, main } = await startDm(t);
 
   const first = await zach.chat.post(main.id, "Once.", "request-1");
   const retry = await zach.chat.post(main.id, "Once.", "request-1");
@@ -200,11 +192,7 @@ test("a post whose acknowledgment was lost is not posted again by its retry", { 
 });
 
 test("a connection keeps working while its own feed waits", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { shrimpy, main } = await startDm(t);
   const start = await shrimpy.chat.head();
 
   const waiting = shrimpy.chat.feed(start, 10);
@@ -216,11 +204,7 @@ test("a connection keeps working while its own feed waits", { timeout }, async (
 });
 
 test("a waiting feed ends when its caller cancels it, and the connection carries on", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { zach, shrimpy, main } = await startDm(t);
   const start = await shrimpy.chat.head();
 
   const controller = new AbortController();

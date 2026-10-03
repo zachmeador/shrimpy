@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import { settle } from "../../lib/testing/index.ts";
-import { agent, countWatchers, follow, openTestDeps, person, refused } from "../testing/index.ts";
+import {
+  agent,
+  countWatchers,
+  follow,
+  openTestDeps,
+  person,
+  refused,
+  texts,
+} from "../testing/index.ts";
 import { createThread, identify, listThreads, openDm, post } from "../threads/index.ts";
 import { feed, head } from "./index.ts";
 
@@ -18,8 +26,6 @@ function setup(t: Parameters<typeof openTestDeps>[0]) {
   assert.ok(main && otherMain);
   return { deps, zach, shrimpy, other, dm, main, otherMain };
 }
-
-const texts = (messages: { text: string }[]): string[] => messages.map((message) => message.text);
 
 test("the head is where the log ends, across every channel", (t) => {
   const { deps, zach, main, otherMain } = setup(t);

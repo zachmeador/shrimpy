@@ -1,32 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { TestContext } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
-import { agent, openTestDeps, person, refused } from "../testing/index.ts";
-import {
-  createThread,
-  identify,
-  listThreads,
-  markSkipped,
-  openDm,
-  post,
-  readMessages,
-} from "./index.ts";
+import { agent, openTestDm, refused } from "../testing/index.ts";
+import { createThread, identify, listThreads, markSkipped, post, readMessages } from "./index.ts";
 import { previewOf } from "./messages.ts";
 
-function setup(t: TestContext) {
-  const { deps, clock } = openTestDeps(t);
-  const zach = identify(deps, person("Zach"));
-  const shrimpy = identify(deps, agent("Shrimpy"));
-  const alice = identify(deps, person("Alice"));
-  const dm = openDm(deps, zach, shrimpy);
-  const [main] = listThreads(deps, zach, dm.id);
-  if (main === undefined) throw new Error("the DM has no main thread");
-  return { deps, clock, zach, shrimpy, alice, dm, main };
-}
-
 test("a post is stored with its author, its time and who it is addressed to", (t) => {
-  const { deps, clock, zach, shrimpy, dm, main } = setup(t);
+  const { deps, clock, zach, shrimpy, dm, main } = openTestDm(t);
   clock.advance();
 
   const message = post(deps, zach, main.id, "Hello there", "request-1");
@@ -51,7 +31,7 @@ test("a post is stored with its author, its time and who it is addressed to", (t
 });
 
 test("a thread's preview is the start of its first message, and its time follows the newest", (t) => {
-  const { deps, clock, zach, shrimpy, dm, main } = setup(t);
+  const { deps, clock, zach, shrimpy, dm, main } = openTestDm(t);
   const side = createThread(deps, zach, dm.id, null);
 
   clock.advance();
@@ -76,7 +56,7 @@ test("a preview is one line of at most 80 characters", () => {
 });
 
 test("a retry gets the first message back, and does not post twice", (t) => {
-  const { deps, zach, shrimpy, main } = setup(t);
+  const { deps, zach, shrimpy, main } = openTestDm(t);
 
   const first = post(deps, zach, main.id, "once", "request-1");
   const retry = post(deps, zach, main.id, "once", "request-1");
@@ -88,7 +68,7 @@ test("a retry gets the first message back, and does not post twice", (t) => {
 });
 
 test("a request reused for a different message is refused, not mistaken for a retry", (t) => {
-  const { deps, zach, dm, main } = setup(t);
+  const { deps, zach, dm, main } = openTestDm(t);
   const side = createThread(deps, zach, dm.id, null);
   post(deps, zach, main.id, "the first one", "request-1");
 
@@ -105,7 +85,7 @@ test("a request reused for a different message is refused, not mistaken for a re
 });
 
 test("only a member of the channel posts to its threads or reads them", (t) => {
-  const { deps, zach, alice, main } = setup(t);
+  const { deps, zach, alice, main } = openTestDm(t);
   post(deps, zach, main.id, "private", "request-1");
 
   assert.throws(() => post(deps, alice, main.id, "let me in", "r"), refused(/^Unknown thread: th_/));
@@ -115,7 +95,7 @@ test("only a member of the channel posts to its threads or reads them", (t) => {
 });
 
 test("what a post is made of is checked", (t) => {
-  const { deps, zach, main } = setup(t);
+  const { deps, zach, main } = openTestDm(t);
 
   assert.throws(() => post(deps, zach, main.id, "", "r"), refused(/needs some text/));
   assert.throws(() => post(deps, zach, main.id, "x".repeat(MAX_MESSAGE_LENGTH + 1), "r"), refused(/at most 400000 characters/));
@@ -125,7 +105,7 @@ test("what a post is made of is checked", (t) => {
 });
 
 test("a thread is read a page at a time, oldest first, and a page has a size limit", (t) => {
-  const { deps, zach, main } = setup(t);
+  const { deps, zach, main } = openTestDm(t);
   for (let number = 1; number <= 205; number++) {
     post(deps, zach, main.id, `message ${number}`, `request-${number}`);
   }
@@ -146,7 +126,7 @@ test("a thread is read a page at a time, oldest first, and a page has a size lim
 });
 
 test("reading is checked", (t) => {
-  const { deps, zach, main } = setup(t);
+  const { deps, zach, main } = openTestDm(t);
 
   assert.throws(() => readMessages(deps, zach, main.id, null, 0), refused(/^limit must be a whole number/));
   assert.throws(() => readMessages(deps, zach, main.id, -1, 5), refused(/^beforeSeq must be a whole number/));
@@ -154,7 +134,7 @@ test("reading is checked", (t) => {
 });
 
 test("an agent can mark messages it had waiting as skipped", (t) => {
-  const { deps, zach, shrimpy, main } = setup(t);
+  const { deps, zach, shrimpy, main } = openTestDm(t);
   const first = post(deps, zach, main.id, "are you there", "r1");
   const second = post(deps, zach, main.id, "hello?", "r2");
 
@@ -168,7 +148,7 @@ test("an agent can mark messages it had waiting as skipped", (t) => {
 });
 
 test("skips are an agent's to mark, on messages it can see, all or none", (t) => {
-  const { deps, zach, shrimpy, main } = setup(t);
+  const { deps, zach, shrimpy, main } = openTestDm(t);
   const outsider = identify(deps, agent("Outsider"));
   const message = post(deps, zach, main.id, "are you there", "r1");
 

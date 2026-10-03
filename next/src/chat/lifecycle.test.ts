@@ -19,6 +19,7 @@ import {
   openTestStore,
   person,
   startChatChild,
+  startDm,
   startTestChat,
 } from "./testing/index.ts";
 import { createWorkingMarks } from "./threads/index.ts";
@@ -148,11 +149,7 @@ test("a restarted chat server keeps its ID, its messages and its positions", { t
 });
 
 test("nobody is working after a restart", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
+  const { chat, zach, shrimpy, dm, main } = await startDm(t);
   await shrimpy.chat.setWorking(main.id, true);
   assert.equal((await zach.chat.threads(dm.id))[0]?.working.length, 1);
 

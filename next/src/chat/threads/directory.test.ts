@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { TestContext } from "node:test";
-import { agent, openTestDeps, person, refused } from "../testing/index.ts";
+import { agent, openTestDm, refused } from "../testing/index.ts";
 import {
   archiveThread,
   createThread,
-  identify,
   listChannels,
   listThreads,
   openDm,
@@ -13,19 +11,8 @@ import {
   setWorking,
 } from "./index.ts";
 
-function setup(t: TestContext) {
-  const { deps, clock } = openTestDeps(t);
-  const zach = identify(deps, person("Zach"));
-  const shrimpy = identify(deps, agent("Shrimpy"));
-  const alice = identify(deps, person("Alice"));
-  const dm = openDm(deps, zach, shrimpy);
-  const [main] = listThreads(deps, zach, dm.id);
-  if (main === undefined) throw new Error("the DM has no main thread");
-  return { deps, clock, zach, shrimpy, alice, dm, main };
-}
-
 test("a DM is made once with its main thread, and each side sees it named for the other", (t) => {
-  const { deps, zach, shrimpy, dm, main } = setup(t);
+  const { deps, zach, shrimpy, dm, main } = openTestDm(t);
 
   assert.equal(dm.kind, "dm");
   assert.equal(dm.name, "Shrimpy");
@@ -51,13 +38,13 @@ test("a DM is made once with its main thread, and each side sees it named for th
 });
 
 test("a DM needs someone besides yourself", (t) => {
-  const { deps, zach } = setup(t);
+  const { deps, zach } = openTestDm(t);
 
   assert.throws(() => openDm(deps, zach, zach), refused(/needs someone besides yourself/));
 });
 
 test("a member the store has not met is recorded as described, and one it knows keeps its record", (t) => {
-  const { deps, zach, shrimpy } = setup(t);
+  const { deps, zach, shrimpy } = openTestDm(t);
 
   const withNewcomer = openDm(deps, zach, agent("Newcomer"));
   const withImpostor = openDm(deps, zach, { id: shrimpy.id, kind: "agent", name: "Impostor" });
@@ -69,7 +56,7 @@ test("a member the store has not met is recorded as described, and one it knows 
 });
 
 test("a member sees only the channels it belongs to", (t) => {
-  const { deps, alice, dm, main } = setup(t);
+  const { deps, alice, dm, main } = openTestDm(t);
 
   assert.deepEqual(listChannels(deps, alice), []);
   assert.throws(() => listThreads(deps, alice, dm.id), refused(/^Unknown channel: ch_/));
@@ -81,7 +68,7 @@ test("a member sees only the channels it belongs to", (t) => {
 });
 
 test("side threads can be started, named, archived and brought back", (t) => {
-  const { deps, clock, zach, shrimpy, dm, main } = setup(t);
+  const { deps, clock, zach, shrimpy, dm, main } = openTestDm(t);
   clock.advance();
 
   const named = createThread(deps, zach, dm.id, "  Plans  ");
@@ -106,7 +93,7 @@ test("side threads can be started, named, archived and brought back", (t) => {
 });
 
 test("thread names and archive flags are checked", (t) => {
-  const { deps, zach, dm, main } = setup(t);
+  const { deps, zach, dm, main } = openTestDm(t);
 
   assert.throws(() => createThread(deps, zach, dm.id, ""), refused(/^name must be/));
   assert.throws(() => createThread(deps, zach, dm.id, 7), refused(/^name must be/));
@@ -116,7 +103,7 @@ test("thread names and archive flags are checked", (t) => {
 });
 
 test("who is working shows in every thread the service returns, and does not touch updatedAt", (t) => {
-  const { deps, clock, zach, shrimpy, dm, main } = setup(t);
+  const { deps, clock, zach, shrimpy, dm, main } = openTestDm(t);
   const here = {};
   clock.advance(5000);
   setWorking(deps, here, shrimpy, main.id, true);
@@ -136,7 +123,7 @@ test("who is working shows in every thread the service returns, and does not tou
 });
 
 test("working needs a true or false and a thread the caller belongs to", (t) => {
-  const { deps, shrimpy, main } = setup(t);
+  const { deps, shrimpy, main } = openTestDm(t);
 
   assert.throws(() => setWorking(deps, {}, shrimpy, main.id, "yes"), refused(/^working must be true or false/));
   assert.throws(() => setWorking(deps, {}, shrimpy, 5, true), refused(/^threadId must be an ID/));

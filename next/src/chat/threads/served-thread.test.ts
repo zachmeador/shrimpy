@@ -2,14 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestContext } from "node:test";
 import { stopAfter } from "../../lib/testing/index.ts";
-import { agent, openTestDeps, person } from "../testing/index.ts";
+import { openTestDm } from "../testing/index.ts";
 import {
   archiveThread,
   createThread,
   identify,
-  listThreads,
   markSkipped,
-  openDm,
   post,
   renameThread,
   serveThread,
@@ -18,12 +16,7 @@ import {
 import { readThreadView } from "./thread-view.ts";
 
 function setup(t: TestContext) {
-  const { deps, clock } = openTestDeps(t);
-  const zach = identify(deps, person("Zach"));
-  const shrimpy = identify(deps, agent("Shrimpy"));
-  const dm = openDm(deps, zach, shrimpy);
-  const [main] = listThreads(deps, zach, dm.id);
-  if (main === undefined) throw new Error("the DM has no main thread");
+  const { deps, clock, zach, shrimpy, dm, main } = openTestDm(t);
   const served = serveThread(deps, main.id);
   stopAfter(t, () => served.close());
   return { deps, clock, zach, shrimpy, dm, main, served };

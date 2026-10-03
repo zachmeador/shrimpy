@@ -2,21 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ThreadView } from "../contracts/chat/index.ts";
 import { settle, waitForView } from "../lib/testing/index.ts";
-import { agent, follow, mainThread, person, startTestChat } from "./testing/index.ts";
+import { agent, follow, person, startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-async function talk(t: Parameters<typeof startTestChat>[0]) {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
-  return { chat, zach, shrimpy, dm, main };
-}
-
 test("an attached thread's view follows the thread as messages arrive", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await talk(t);
+  const { zach, shrimpy, main } = await startDm(t);
 
   const watching = await zach.attach(main.id);
   assert.equal(watching.id, main.id);
@@ -37,7 +28,7 @@ test("an attached thread's view follows the thread as messages arrive", { timeou
 });
 
 test("a view attached late already holds what was said", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await talk(t);
+  const { zach, shrimpy, main } = await startDm(t);
   const said = await zach.chat.post(main.id, "before you looked", "zach-1");
 
   const watching = await shrimpy.attach(main.id);
@@ -46,7 +37,7 @@ test("a view attached late already holds what was said", { timeout }, async (t) 
 });
 
 test("subscribing gives the current view first and then one view for each change", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await talk(t);
+  const { zach, shrimpy, main } = await startDm(t);
   const watching = await zach.attach(main.id);
   const views: ThreadView[] = [];
   const stop = watching.subscribe((view) => views.push(view));
@@ -65,7 +56,7 @@ test("subscribing gives the current view first and then one view for each change
 });
 
 test("the view follows renaming and archiving", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await talk(t);
+  const { zach, shrimpy, main } = await startDm(t);
   const watching = await zach.attach(main.id);
 
   await shrimpy.chat.renameThread(main.id, "Plans");
@@ -80,7 +71,7 @@ test("the view follows renaming and archiving", { timeout }, async (t) => {
 });
 
 test("an agent's skip shows on the message in the view", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await talk(t);
+  const { zach, shrimpy, main } = await startDm(t);
   const watching = await zach.attach(main.id);
   const asked = await zach.chat.post(main.id, "are you there", "zach-1");
 
@@ -91,7 +82,7 @@ test("an agent's skip shows on the message in the view", { timeout }, async (t) 
 });
 
 test("a long thread's view holds its newest 200 messages and counts the rest", { timeout }, async (t) => {
-  const { zach, main } = await talk(t);
+  const { zach, main } = await startDm(t);
   const watching = await zach.attach(main.id);
   for (let number = 1; number <= 205; number++) {
     await zach.chat.post(main.id, `message ${number}`, `zach-${number}`);
@@ -112,7 +103,7 @@ test("a long thread's view holds its newest 200 messages and counts the rest", {
 });
 
 test("several clients watch one thread and see the same view", { timeout }, async (t) => {
-  const { chat, zach, shrimpy, main } = await talk(t);
+  const { chat, zach, shrimpy, main } = await startDm(t);
   const another = await chat.join(person("Zach"));
   const watchers = await Promise.all([zach, shrimpy, another].map((connection) => connection.attach(main.id)));
 
@@ -124,7 +115,7 @@ test("several clients watch one thread and see the same view", { timeout }, asyn
 });
 
 test("a connection watches one thread at a time", { timeout }, async (t) => {
-  const { zach, shrimpy, dm, main } = await talk(t);
+  const { zach, shrimpy, dm, main } = await startDm(t);
   const side = await zach.chat.createThread(dm.id, "Side");
 
   await zach.attach(main.id);
@@ -139,7 +130,7 @@ test("a connection watches one thread at a time", { timeout }, async (t) => {
 });
 
 test("detaching stops the updates, and the connection can attach again", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await talk(t);
+  const { zach, shrimpy, main } = await startDm(t);
   const watching = await zach.attach(main.id);
   let views = 0;
   watching.subscribe(() => {
@@ -159,7 +150,7 @@ test("detaching stops the updates, and the connection can attach again", { timeo
 });
 
 test("a handle ends when its connection attaches another thread or closes", { timeout }, async (t) => {
-  const { zach, dm, main } = await talk(t);
+  const { zach, dm, main } = await startDm(t);
   const side = await zach.chat.createThread(dm.id, "Side");
   const first = await zach.attach(main.id);
 
@@ -172,7 +163,7 @@ test("a handle ends when its connection attaches another thread or closes", { ti
 });
 
 test("attaching the same thread again gives a fresh handle", { timeout }, async (t) => {
-  const { zach, main } = await talk(t);
+  const { zach, main } = await startDm(t);
 
   await zach.attach(main.id);
   const again = await zach.attach(main.id);
@@ -181,7 +172,7 @@ test("attaching the same thread again gives a fresh handle", { timeout }, async 
 });
 
 test("a thread that does not exist or that the caller cannot see cannot be attached", { timeout }, async (t) => {
-  const { chat, zach, main } = await talk(t);
+  const { chat, zach, main } = await startDm(t);
   const alice = await chat.join(person("Alice"));
 
   await assert.rejects(alice.attach(main.id), { code: "service_invalid_value", message: /^Unknown thread: th_/ });

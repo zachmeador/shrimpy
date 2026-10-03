@@ -5,8 +5,8 @@
  */
 export { startTestChat, type TestChat } from "./chat.ts";
 export { type ChatChild, joinEndpoint, startChatChild } from "./child.ts";
-export { openTestDeps } from "./deps.ts";
+export { openTestDeps, openTestDm } from "./deps.ts";
 export { agent, type Clock, fakeClock, person, refused } from "./fixtures.ts";
 export { openTestStore } from "./store.ts";
-export { mainThread, readAll, texts } from "./talk.ts";
+export { mainThread, readAll, startDm, texts } from "./talk.ts";
 export { countWatchers, follow, type Outcome } from "./watching.ts";
