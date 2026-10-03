@@ -6,6 +6,16 @@ export interface Member {
   name: string;
 }
 
+/** The member an agent is in chat. Every program names an agent this way, so they agree on who it is. */
+export function agentMember(name: string): Member {
+  return { id: `agent:${name}`, kind: "agent", name };
+}
+
+/** The member a person is in chat. */
+export function personMember(name: string): Member {
+  return { id: `person:${name}`, kind: "person", name };
+}
+
 /** A place where people and agents talk. */
 export interface Channel {
   id: string;
