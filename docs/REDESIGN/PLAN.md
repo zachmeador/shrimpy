@@ -22,7 +22,7 @@ Confirmed during review:
 - **Agents decide what wakes them.** The gateway offers each new channel message to member agents, and each agent's wake policy decides whether it starts a turn, as `channelPolicy` does today. Loop protection lives there too; the gateway doesn't filter conversation.
 - **Sandboxing is a deployment choice.** An agent runs the same with or without a sandbox. When it is sandboxed, the sandbox wraps the whole agent process. Shrimpy doesn't sandbox individual tools, so agents keep a real shell.
 
-This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. It differs in one place: watches stay in the agent's runtime instead of moving to OS schedulers ([see below](#delegation-and-recurring-work)).
+This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. It differs in one place: triggers, today's watches, stay in the agent's runtime instead of moving to OS schedulers ([see below](#delegation-and-recurring-work)).
 
 ## Plan at a glance
 
@@ -32,7 +32,7 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | [2. Context and tools](#2-context-tools-and-compaction) | See exactly what the model received and why; tools, skills and compaction run on durable | — | Old prompt, recording and compaction paths |
 | [3. Daily driver](#3-daily-driver) | Do normal daily work in the new terminal and web clients | A changed affordance has no decision | Private TUI patches, old transcript readers |
 | [4. Communication](#4-communication-and-the-gateway) | Chat through Telegram, the first chat provider, and between agents; attach to an agent through the gateway | — | Old channel loop, global turn and cursor state |
-| [5. Watches and delegation](#5-watches-and-delegation) | Run scheduled and delegated work that is honest about what a restart interrupted | A capability can't be kept: back to review | Old watch and worker stores |
+| [5. Triggers and delegation](#5-triggers-and-delegation) | Run triggered and delegated work that is honest about what a restart interrupted | A capability can't be kept: back to review | Old watch and worker stores |
 | [6. Candidate release](#6-candidate-release) | Install, update, stop and uninstall a release with one engine | Client complexity outweighs runtime savings | The rest of the old tree |
 | [7. Cutover](#7-cutover-and-rollback) | Run live homes on the new release, with a tested rollback | — | Nothing live |
 
@@ -120,9 +120,9 @@ If implementation finds another visible difference, add a row before shipping it
 |---|---|---|---|
 | Pi subagents | — | Foreground child conversations that join and abort with their parent. Detached helpers use background ownership. | Change |
 | Workers | Detach and outlive the caller | Same default. Codex keeps its real continue, send, wait and cancel protocol; after the owner dies it isn't a restored Pi child. Renaming or removing worker commands or backends needs review. | Keep |
-| Watches | A global gateway clock | A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#watches)). An invalid reload keeps the last valid definitions. Upkeep watches stay disabled when installed. A stopped agent runs no watches, and restart doesn't backfill. | Change |
-| Watches in the agent or the OS | — | In the agent's runtime, where durable tracks every run and you inspect them in one place. The `REDESIGN` branch had moved them to skills over launchd and systemd so they'd fire while the agent is down; a stopped agent now runs none. | Confirmed |
-| Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not schedules. Disabling stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Change |
+| Triggers | Watches, run by a global gateway clock | Renamed, because not everything that wakes an agent is a time. A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#triggers)). An invalid reload keeps the last valid definitions. Upkeep triggers stay disabled when installed. A stopped agent runs no triggers, and restart doesn't backfill. | Change |
+| Triggers in the agent or the OS | — | In the agent's runtime, where durable tracks every run and you inspect them in one place. The `REDESIGN` branch had moved them to skills over launchd and systemd so they'd fire while the agent is down; a stopped agent now runs none. | Confirmed |
+| Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not the triggers themselves. Disabling a trigger stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Change |
 
 ### Channels, chat providers and the web app
 
@@ -134,7 +134,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Chat behavior | Built into the Telegram surface: chat and sender restrictions, per-thread agent selection, `/new /clear /stop /thinking /status /help`, permission-filtered help, notices, typing, formatted and chunked output, quiet notices, sender labels, 500 ms burst grouping | Same behavior, moved into the gateway's shared chat layer so every provider gets it. Telegram keeps only what is Telegram's: its API, bot suffixes, message limits and formatting, and album order and captions. Received messages and batch membership are recorded before processing is acknowledged. | Keep |
 | Media | Telegram photos become local paths the read tool loads; other media is metadata | Same meaning for every provider: images arrive as files in the agent's home that the read tool loads, delivered through the API ([attachments](#sandboxed-and-remote-agents)). Inline vision bytes or transcription would be separate decisions. | Keep |
 | Delivery | Bounded retries, history skipped on first start, no sends to unbound destinations | Same for every provider, with recipients and batches fixed across retries. A lost send acknowledgment shows as uncertain. | Keep |
-| Web app | Read-only inspector | An interactive session client: browse agents and sessions, read history and live work, send input. Keeps the inspector views: files, tree, context, channels, watches, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
+| Web app | Read-only inspector | An interactive session client: browse agents and sessions, read history and live work, send input. Keeps the inspector views: files, tree, context, channels, triggers, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
 
 ### Sandboxed and remote agents
 
@@ -172,7 +172,7 @@ flowchart LR
     end
     subgraph Owner["Independent agent: one owner process per home"]
         Service["Application service"] --> Pi["Pi Harness"]
-        Pi --> Extensions["Durable context / tools / watches"]
+        Pi --> Extensions["Durable context / tools / triggers"]
     end
     Clients["Terminal / CLI / web"] --> Gateway
     Clients -. "direct local attachment" .-> Service
@@ -196,7 +196,7 @@ SOUL.md
 context/
 vault/
 skills/
-watches.json          optional
+triggers.json         optional
 state/pi/auth.json
 state/pi/models.json
 state/agent.sqlite
@@ -213,7 +213,7 @@ The host builds the model and credential runtime, the trusted durable registry, 
 
 Pi owns submissions, `InboxDoc`, `LiveDoc`, `UsageDoc`, conversation entries and configuration, generation, tool and compaction tasks, checkpoints, child ownership and structural watches. Shrimpy reads them directly. Query indexes and UI caches are disposable and name their source.
 
-Shrimpy's own documents hold only what Pi lacks: conversation names, archive state and category; immutable source and target provenance; source-to-conversation bindings; context-source evidence; and chat and watch receipts and policy. They are written through Harness commits. Pi's statuses are never copied into them.
+Shrimpy's own documents hold only what Pi lacks: conversation names, archive state and category; immutable source and target provenance; source-to-conversation bindings; context-source evidence; and chat and trigger receipts and policy. They are written through Harness commits. Pi's statuses are never copied into them.
 
 The host gives each conversation an `ExecutionEnv`. Replayable operations need a stable resource and cwd identity. Extension code is trusted host code and can bypass the environment, and process cleanup is a separate guarantee from containment.
 
@@ -228,7 +228,7 @@ Shrimpy's session API is a set of concrete operations, identical for local and g
 - provider login, relaying Pi's login prompts to the person's client
 - raw and effective context, entry queries and committed subscriptions
 - completion against the agent's filesystem
-- publication and chat-provider status, watch and delegation controls
+- publication and chat-provider status, trigger and delegation controls
 - attachment upload into the agent's home
 
 Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the gateway's chat layer, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not in phase 1. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge. The protocol makes no compatibility promises, so agents and clients run matching Pi versions and upgrade together.
@@ -289,13 +289,13 @@ How Pi recovers shapes these rules:
 
 Inspection shows raw entries, effective model messages, selected tools, source revisions, omissions and budgets, and the effective model and settings. Previews are labelled as previews; a captured request is the real evidence. Hidden context in the human transcript expands without blank rows.
 
-### Watches
+### Triggers
 
-- Schedules and occurrences are separate durable tasks owned by the conversation. Occurrences are marked `background: true`, so changing or cancelling a schedule doesn't cancel a running occurrence.
-- Persist the schedule revision, next occurrence and target. Admit prompt work with a stable watch and occurrence ID.
+- A trigger and each of its occurrences are separate durable tasks owned by the conversation. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
+- Persist the trigger revision, next occurrence and target. Admit prompt work with a stable trigger and occurrence ID.
 - Command occurrences record intent before running. If an unsafe command had started when the owner died, the occurrence reports interrupted and isn't rerun. A finished result and emission decision are kept, so an admission retry doesn't repeat the check.
 - The extension owns coalescing, overlap, timeouts, emission, reload and cancellation policy. Pi owns checkpoints, outcomes and observation. The host only installs code and seeds selected definitions.
-- Cancelling all work in a home includes running occurrences and helpers, not enabled schedules.
+- Cancelling all work in a home includes running occurrences and helpers, not enabled triggers.
 - Reuse the existing calendar and output-filter helpers.
 
 ### Effects, cancellation and storage
@@ -318,7 +318,7 @@ Reuse small filesystem, search, formatting, calendar, model-policy, transport an
 | `src/context/*`, resource loading, included instructions and skills | The durable home-context extension, producer helpers and committed provenance. Delete global-runtime dependencies and `ExtensionAPI` bindings. |
 | `src/tools/daemon.ts`; channel routing, bus, activity and outbox; `src/agents/channel-policy.ts` | Small durable publication tools, channels on the gateway, which own routing and delivery, and wake policy in each agent's service. Delete the shared bus and duplicate turn state; keep needed delivery receipts. |
 | `src/workers/*` | Pi child and background ownership for Pi work; a focused adapter or skill for Codex. Delete the universal worker supervisor and backend state. |
-| `src/watches/*`; gateway watch service and clock | The durable watch extension. Delete the global clock, execution history and orchestration state. |
+| `src/watches/*`; gateway watch service and clock | The durable trigger extension. Delete the global clock, execution history and orchestration state. |
 | `src/tui/*`, root UI extensions, `src/app/pi-internals.ts` | The attached console client on public components. Delete private `InteractiveMode` patches and runtime lifetime coupling. |
 | Telegram and shared surface code; `gateway/web-sidecar.ts`; web JSONL readers | The shared chat layer with Telegram as its first provider, and the API-backed web session client. Delete sidecar lifetime coupling and byte-cursor reading. |
 | `src/cli.ts`, commands, setup, update, service installers, help and completion | Commands over the new owners, per-home service installation, deterministic setup and update helpers. Delete obsolete registrations and aliases once coverage is reviewed. |
@@ -339,7 +339,7 @@ src/
   extensions/     durable extensions installed in the registry
     context/      prompt sections, turn facts, producers, memory breadcrumbs, compaction guidance
     tools/        publication, search, image reading, delegation
-    watches/      schedule and occurrence tasks
+    triggers/     trigger and occurrence tasks
   gateway/        discovery, access control, routing, agent registrations; hosts chat/
   chat/           channels: logs, membership, batching, commands, sender access, formatting rules, delivery receipts
     telegram/     Telegram's API: polling, message and media formats, sending
@@ -503,18 +503,18 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 
 **Deletes:** the global handled-turn, cursor and outcome state, and the old channel session and control loop.
 
-### 5. Watches and delegation
+### 5. Triggers and delegation
 
-**Outcome:** scheduled and delegated work runs, can be inspected from the CLI and clients, and is honest about what a restart interrupted.
+**Outcome:** triggered and delegated work runs, can be inspected from the CLI and clients, and is honest about what a restart interrupted.
 
 **Build**
 
-- The watch extension, following the [watch contract](#watches).
+- The trigger extension, following the [trigger contract](#triggers).
 - Pi delegation in the foreground and background, and the retained Codex workflow.
 
 **Prove**
 
-- Watches: cron with timezones, intervals, one overdue run, overlap skipping and opt-in overlap, invalid edits at startup and on reload, manual runs, disabling, removing or reloading mid-run, cancelling one occurrence, changed and unchanged output, timeouts, and restarts before and after a command's effect and its input admission.
+- Triggers: cron with timezones, intervals, one overdue run, overlap skipping and opt-in overlap, invalid edits at startup and on reload, manual runs, disabling, removing or reloading mid-run, cancelling one occurrence, changed and unchanged output, timeouts, and restarts before and after a command's effect and its input admission.
 - Deterministic checks make no model calls until they emit something.
 - Delegation through the real Codex backend: start, inspect, continue, wait, cancel, close and outputs, across caller disconnect and owner death. Pi task ownership never cancels detached external workers.
 
@@ -549,9 +549,9 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 
 - Keep the current release and home intact.
 - Seed approved identity, context, knowledge and skills into fresh homes with ordinary file operations, and configure credentials explicitly. Transcripts, tasks, manifests and clocks aren't migrated; history conversion would be separate work.
-- Schedules and chat providers start disabled until their definitions, bindings and destinations are reviewed.
+- Triggers and chat providers start disabled until their definitions, bindings and destinations are reviewed.
 - Stop the old poller before enabling the new one, so each home has one reader and one owner. Expect a brief interruption, and handle provider backlog per the chat layer's policy.
-- Cutover succeeds once a local turn, a real inbound and outbound message, a scheduled workflow, and detach and restart recovery all work.
+- Cutover succeeds once a local turn, a real inbound and outbound message, a triggered workflow, and detach and restart recovery all work.
 
 **Rollback:** stop the candidate, restore the previous binary and services, and resume the untouched old home. New history stays separate and isn't merged back. Never open a newer database with an older binary; if storage contracts change in a later upgrade, roll back to a compatible stopped backup. Live files are never deleted just because the candidate works.
 
@@ -569,7 +569,7 @@ The current catalog is [src/commands/catalog.ts](../../src/commands/catalog.ts).
 | Skills: list, show, add, update, remove, new, validate | Per-home instruction management and precedence. Pi extension and theme discovery follows its decision above. |
 | Channels: list, show, read, search, tail, create, post, bind, unbind, dm, members, join, leave | Reviewed routing, log and recipient operations owned by the gateway's channels. The internal bus is removed. |
 | Surfaces, users, presence, owner | Explicit provider bindings, authenticated sender and contact policy, and current presence. Owner fallback and last-active addressing aren't removed silently. |
-| Watches: list, add, enable, disable, show, history, run | Per-home schedule policy and durable occurrence observation. |
+| Watches: list, add, enable, disable, show, history, run | Renamed to `shrimpy triggers` with the same subcommands and no `watches` alias. Per-home trigger policy and durable occurrence observation. |
 | Workers: backends, start, list, status, read, send, tail, wait, cancel, close | Pi delegation and real external CLI workflows. Unsupported backends are proposed removals, not empty placeholders. |
 | Workspace: setup, tracking, search, index, status | Explicit home selection, ordinary file search and checkpoints, derived indexes with provenance. Shared global scope needs review. |
 | Gateway: install, start, stop, restart, status, logs, uninstall | Per-home owner and chat-provider service operations. Command names and independent shutdown need review. |
