@@ -10,6 +10,7 @@ export interface Member {
 export interface Channel {
   id: string;
   kind: "dm" | "room";
+  /** A room's name, or in a DM the other member's name: what the caller calls it. */
   name: string;
   members: Member[];
 }
@@ -31,7 +32,7 @@ export interface Thread {
   /** The start of the thread's first message, or null when it is empty. */
   preview: string | null;
   archived: boolean;
-  /** When the thread last got a message, in milliseconds since the epoch. */
+  /** When the thread last got a message, or was made if it has none, in milliseconds since the epoch. */
   updatedAt: number;
   /** Who is working in this thread right now, longest first. */
   working: Working[];
@@ -58,7 +59,7 @@ export interface Message {
  */
 export interface ThreadView {
   thread: Thread;
-  /** The newest messages, oldest first. */
+  /** The newest messages, oldest first: at most 200. */
   messages: Message[];
   /** How many older messages exist beyond `messages`. */
   earlier: number;

@@ -13,11 +13,12 @@ export interface Chat {
    */
   identify(member: Member, context: Context): Promise<void>;
 
-  /** The channels the caller belongs to. */
+  /** The channels the caller belongs to, oldest first. */
   channels(context: Context): Promise<Channel[]>;
   /** The DM between the caller and `other`, created on first use. */
   openDm(other: Member, context: Context): Promise<Channel>;
 
+  /** A channel's threads, archived ones too, the most recently updated first. */
   threads(channelId: string, context: Context): Promise<Thread[]>;
   createThread(channelId: string, name: string | null, context: Context): Promise<Thread>;
   renameThread(threadId: string, name: string, context: Context): Promise<Thread>;
@@ -25,7 +26,8 @@ export interface Chat {
 
   /**
    * Post to a thread. A retry with the same `requestId` from the same member
-   * returns the first message instead of posting twice.
+   * returns the first message instead of posting twice. A message holds at most
+   * 20,000 characters.
    */
   post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
   /** Up to `limit` messages older than `beforeSeq`, or the newest when it is null; oldest first. */
