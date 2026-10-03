@@ -19,13 +19,17 @@ export function parsing<T>(parse: () => T): T {
   }
 }
 
-/** The positional arguments, which must be exactly the ones `names` lists. */
+/** The positional arguments, which must be exactly the ones `names` lists, or none. */
+export function expectArguments(positionals: string[], names: []): [];
 export function expectArguments(positionals: string[], names: [string]): [string];
 export function expectArguments(positionals: string[], names: [string, string]): [string, string];
 export function expectArguments(positionals: string[], names: string[]): string[] {
   const missing = names[positionals.length];
   if (missing !== undefined) throw new UsageError(`Missing ${missing}.`);
   const extra = positionals[names.length];
-  if (extra !== undefined) throw new UsageError(`Unexpected argument: ${extra}. Put text with spaces in quotes.`);
+  if (extra !== undefined) {
+    const hint = names.length === 0 ? "" : " Put text with spaces in quotes.";
+    throw new UsageError(`Unexpected argument: ${extra}.${hint}`);
+  }
   return positionals;
 }

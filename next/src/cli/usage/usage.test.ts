@@ -24,8 +24,13 @@ test("a failure that is not about the arguments is left alone", () => {
 });
 
 test("arguments that are all there are handed back in order", () => {
+  assert.deepEqual(expectArguments([], []), []);
   assert.deepEqual(expectArguments(["home"], ["<home>"]), ["home"]);
   assert.deepEqual(expectArguments(["home", "text"], ["<home>", "<text>"]), ["home", "text"]);
+});
+
+test("a command with no arguments names the first one given, without advice about quotes", () => {
+  assert.throws(() => expectArguments(["now"], []), new UsageError("Unexpected argument: now."));
 });
 
 test("a missing argument is named, and so is the first one too many", () => {

@@ -60,6 +60,8 @@ The default model is `provider/id`. Its provider is either one of Pi's built-in 
 
 A server that needs no key still takes a placeholder, so `apiKey` is set. A key in `auth.json` is `{ "anthropic": { "type": "api_key", "key": "..." } }`. Keys are used as written and are only read from these two files: the environment is not consulted, and `!command` or `$NAME` values are refused.
 
+## Commands
+
 | Command | What it does |
 |---|---|
 | `agent init <home> --name <name> --model <provider/id>` | Creates the home. |
@@ -69,8 +71,13 @@ A server that needs no key still takes a placeholder, so `apiKey` is set. A key 
 | `sessions read <home> [--json]` | Shows the main session. |
 | `sessions steer <home> <text> [--request-id <id>] [--wait]` | Gives the main session input. A retry with the same request ID is the same input. |
 | `sessions stop <home>` | Cancels the main session's current work. The agent keeps running. |
+| `gateway serve [--web-port <port>] [--web-dir <dir>]` | Runs the gateway in the foreground. It prints one JSON line when it is listening. The browser entry opens on loopback only when a port is given, and 0 picks a free one. `--web-dir` serves the web client's files from a directory. |
+| `gateway status` | Lists the programs registered with this machine's gateway: kind, name, version and pid. A version that differs from the command's own is marked. Exits 1 if no gateway is running. |
+| `chat serve <data-dir>` | Runs the chat server in the foreground, with its store in the data directory, and registers it with the gateway. It prints one JSON line when it is listening. |
 
 `agent serve` stops on SIGTERM or Ctrl+C. It stops taking input, gives running turns up to five seconds to finish, then closes. Work that did not finish resumes at the next start. `--now`, or a second signal during the wait, skips the wait.
+
+`gateway serve` and `chat serve` stop on SIGTERM or Ctrl+C too, and exit 0. A second gateway on a machine, or a second chat server, is refused with its own message and exit code 1. A chat server works the same with no gateway running: it registers when it finds one, and again each time the gateway comes back.
 
 `sessions steer --wait` prints the answer, then exits 0 when the input was answered, 130 when it was cancelled, and 1 when it failed or ended without an answer. Any command exits 2 when it is used wrongly. The session commands talk to the running agent and never open the home's storage.
 

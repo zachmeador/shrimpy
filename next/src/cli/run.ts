@@ -42,14 +42,16 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
   }
 }
 
+/** How a command is typed: its name, then its arguments if it takes any. */
+function invocation(command: Command): string {
+  return command.usage === "" ? command.name : `${command.name} ${command.usage}`;
+}
+
 function describe(command: Command): string {
-  return `Usage: shrimpy ${command.name} ${command.usage}`;
+  return `Usage: shrimpy ${invocation(command)}`;
 }
 
 async function overview(): Promise<string> {
-  const lines = (await loadAll()).flatMap((command) => [
-    `  ${command.name} ${command.usage}`,
-    `      ${command.summary}`,
-  ]);
+  const lines = (await loadAll()).flatMap((command) => [`  ${invocation(command)}`, `      ${command.summary}`]);
   return ["Usage: shrimpy <command> [arguments]", "", "Commands:", ...lines].join("\n");
 }

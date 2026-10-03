@@ -21,9 +21,20 @@ test("with no command it prints the commands and exits with 2", async () => {
   const result = await run();
   assert.equal(result.code, 2);
   assert.match(result.err, /^Usage: shrimpy <command> \[arguments\]\n\nCommands:\n {2}agent init <home> --name <name> --model <provider\/id>\n/);
-  for (const command of ["agent serve", "agent status", "sessions list", "sessions read", "sessions steer", "sessions stop"]) {
+  for (const command of [
+    "agent serve",
+    "agent status",
+    "sessions list",
+    "sessions read",
+    "sessions steer",
+    "sessions stop",
+    "gateway serve",
+    "chat serve",
+  ]) {
     assert.ok(result.err.includes(`  ${command} `), command);
   }
+  // A command with no arguments is listed as its name alone.
+  assert.ok(result.err.includes("\n  gateway status\n      List the programs registered"));
 });
 
 test("help lists the commands on standard output and exits with 0", async () => {
@@ -57,6 +68,12 @@ test("a command's help names its usage and what it does", async () => {
   assert.match(result.out, /130 when it was cancelled\./);
 });
 
+test("a command that takes no arguments has a usage line that ends with its name", async () => {
+  const result = await run("gateway", "status", "--help");
+  assert.equal(result.code, 0);
+  assert.match(result.out, /^Usage: shrimpy gateway status\n\nList the programs registered with this machine's gateway/);
+});
+
 test("a command used wrongly exits with 2 and shows its usage", async () => {
   const cases: [string[], string][] = [
     [["agent", "init"], "Missing <home>."],
@@ -69,12 +86,21 @@ test("a command used wrongly exits with 2 and shows its usage", async () => {
     [["sessions", "steer", "h", "one", "two"], "Unexpected argument: two. Put text with spaces in quotes."],
     [["sessions", "steer", "h", "   "], "The text is empty."],
     [["sessions", "read", "h", "--json=yes"], "does not take an argument"],
+    [["gateway", "serve", "--web-dir", "site"], "--web-dir needs --web-port."],
+    [["gateway", "serve", "--web-port", "http"], '--web-port must be a port number from 0 to 65535, not "http".'],
+    [["gateway", "serve", "--web-port", "65536"], '--web-port must be a port number from 0 to 65535, not "65536".'],
+    [["gateway", "serve", "--web-port=-1"], '--web-port must be a port number from 0 to 65535, not "-1".'],
+    [["gateway", "serve", "--web-port"], "argument missing"],
+    [["gateway", "serve", "now"], "Unexpected argument: now."],
+    [["gateway", "status", "now"], "Unexpected argument: now."],
+    [["chat", "serve"], "Missing <data-dir>."],
+    [["chat", "serve", "a", "b"], "Unexpected argument: b."],
   ];
   for (const [args, expected] of cases) {
     const result = await run(...args);
     assert.equal(result.code, 2, args.join(" "));
     assert.ok(result.err.includes(expected), `${args.join(" ")} -> ${result.err}`);
-    assert.match(result.err, /\nUsage: shrimpy [a-z]+ [a-z]+ /);
+    assert.match(result.err, /\nUsage: shrimpy [a-z]+ [a-z]+/);
   }
 });
 

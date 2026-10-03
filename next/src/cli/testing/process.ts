@@ -61,22 +61,22 @@ export function shrimpyInBackground(args: string[]): RunningCommand {
   };
 }
 
-/** A `shrimpy agent serve` in its own process. */
-export interface ServedAgent {
+/** A `shrimpy` command that serves a program, in its own process. */
+export interface Served<Listening> {
   /** The line it printed when it began listening. */
-  readonly listening: { event: string; name: string; home: string; serverId: string; socket: string; pid: number };
+  readonly listening: Listening;
   /** Send `signal` (SIGTERM by default) and wait for the process to end. Safe to call again. */
   stop: (signal?: NodeJS.Signals) => Promise<CliResult>;
 }
 
 /**
- * Start `shrimpy agent serve <home>` and wait until it is listening. It gets
- * the test's runtime directory, which takes its socket away when the test
- * ends. If the agent is still running then, it is killed.
+ * Start `shrimpy` with `args`, which serve a program, and wait until it is
+ * listening. It gets the test's runtime directory, which takes its sockets away
+ * when the test ends. If it is still running then, it is killed.
  */
-export async function serve(t: TestContext, home: string, extra: string[] = []): Promise<ServedAgent> {
+async function serving<Listening>(t: TestContext, args: string[]): Promise<Served<Listening>> {
   useRuntimeDir(t);
-  const { child, closed, result } = launch(["agent", "serve", home, ...extra]);
+  const { child, closed, result } = launch(args);
   const stop = async (signal: NodeJS.Signals = "SIGTERM"): Promise<CliResult> => {
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
     await closed;
@@ -85,7 +85,37 @@ export async function serve(t: TestContext, home: string, extra: string[] = []):
   t.after(() => stop("SIGKILL"));
 
   const line = await firstLine(child).catch((error: unknown) => {
-    throw new Error(`shrimpy agent serve ended before it was listening:\n${result().stderr}`, { cause: error });
+    throw new Error(`shrimpy ${args.slice(0, 2).join(" ")} ended before it was listening:\n${result().stderr}`, {
+      cause: error,
+    });
   });
-  return { listening: JSON.parse(line) as ServedAgent["listening"], stop };
+  return { listening: JSON.parse(line) as Listening, stop };
+}
+
+export type ServedAgent = Served<{
+  event: string;
+  name: string;
+  home: string;
+  serverId: string;
+  socket: string;
+  pid: number;
+}>;
+
+/** Start `shrimpy agent serve <home>` and wait until it is listening. */
+export function serve(t: TestContext, home: string, extra: string[] = []): Promise<ServedAgent> {
+  return serving(t, ["agent", "serve", home, ...extra]);
+}
+
+export type ServedGateway = Served<{ event: string; socket: string; webPort: number | null; pid: number }>;
+
+/** Start `shrimpy gateway serve` and wait until it is listening. */
+export function serveGateway(t: TestContext, extra: string[] = []): Promise<ServedGateway> {
+  return serving(t, ["gateway", "serve", ...extra]);
+}
+
+export type ServedChat = Served<{ event: string; dataDir: string; serverId: string; socket: string; pid: number }>;
+
+/** Start `shrimpy chat serve <dataDir>` and wait until it is listening. */
+export function serveChat(t: TestContext, dataDir: string): Promise<ServedChat> {
+  return serving(t, ["chat", "serve", dataDir]);
 }
