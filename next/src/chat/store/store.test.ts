@@ -3,7 +3,8 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
-import { agent, openTestStore, person, stopAfter } from "../testing/index.ts";
+import { stopAfter } from "../../lib/testing/index.ts";
+import { agent, openTestStore, person } from "../testing/index.ts";
 import {
   type ChannelRecord,
   type Change,

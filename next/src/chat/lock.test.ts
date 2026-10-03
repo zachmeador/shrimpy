@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, takeChatLock } from "./lock.ts";
-import { useRuntimeDir } from "./testing/index.ts";
 
 test("one chat server holds a socket's lock at a time, and says which socket", (t) => {
   const socket = join(useRuntimeDir(t), "chat.sock");

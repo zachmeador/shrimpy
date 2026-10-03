@@ -3,20 +3,14 @@ import { test } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectGateway, type Registration } from "../contracts/gateway/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import { startGateway } from "./index.ts";
-import {
-  agentRegistration as agent,
-  eventually,
-  freshRuntime,
-  startChild,
-  startEchoProgram,
-  stop,
-} from "./testing/index.ts";
+import { agentRegistration as agent, startEchoProgram, startRegistrantChild } from "./testing/index.ts";
 
 const timeout = 30_000;
 
 test("a registration is listed to every client", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   const program = await connectLocalGateway();
   const observer = await connectLocalGateway();
@@ -36,7 +30,7 @@ test("a registration is listed to every client", { timeout }, async (t) => {
 });
 
 test("registering again on a connection replaces its entry", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   const first = await connectLocalGateway();
   const second = await connectLocalGateway();
@@ -58,7 +52,7 @@ test("registering again on a connection replaces its entry", { timeout }, async 
 });
 
 test("a registration lasts exactly as long as its connection", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   const first = await connectLocalGateway();
   const second = await connectLocalGateway();
@@ -88,10 +82,10 @@ test("a registration lasts exactly as long as its connection", { timeout }, asyn
 });
 
 test("a registration disappears when its process is killed", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   const observer = await connectLocalGateway();
-  const child = await startChild("registrant-child.ts", ["victim"]);
+  const child = await startRegistrantChild(t, "victim");
   try {
     const listed = await observer.list();
     assert.equal(listed.length, 1);
@@ -99,18 +93,17 @@ test("a registration disappears when its process is killed", { timeout }, async 
     assert.equal(victim?.name, "victim");
     assert.equal(victim.pid, child.pid);
 
-    await stop(child, "SIGKILL");
+    await child.kill("SIGKILL");
 
     await eventually(() => observer.list(), (list) => list.length === 0);
   } finally {
-    await stop(child, "SIGKILL");
     await observer.close();
     await gateway.close();
   }
 });
 
 test("a registration that cannot be accepted is refused with the reason", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   const program = await connectLocalGateway();
   const observer = await connectLocalGateway();
@@ -133,12 +126,12 @@ test("a registration that cannot be accepted is refused with the reason", { time
 });
 
 test("connecting fails when no gateway is running", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   await assert.rejects(connectLocalGateway(), /ENOENT/);
 });
 
 test("a gateway client refuses a server that is not the gateway", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const echo = await startEchoProgram("echo-agent");
   try {
     await assert.rejects(

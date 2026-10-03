@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { once } from "node:events";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { startChild, tempDir } from "../testing/index.ts";
 import { isLocked, takeLock } from "./index.ts";
 
 const lockModule = new URL("./index.ts", import.meta.url).href;
@@ -12,10 +10,8 @@ const lockModule = new URL("./index.ts", import.meta.url).href;
 class Taken extends Error {}
 const taken = (cause: Error): Error => new Taken("taken", { cause });
 
-function lockFile(t: TestContext, name = "x.lock"): string {
-  const directory = mkdtempSync(join(tmpdir(), "shrimpy-lock-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  return join(directory, name);
+function lockFile(t: TestContext): string {
+  return join(tempDir(t, "lock"), "x.lock");
 }
 
 test("one process holds a lock at a time, and releasing frees it", (t) => {
@@ -80,26 +76,17 @@ test("a lock that cannot be opened is not mistaken for one that is held", (t) =>
 
 test("a process that holds a lock keeps others out, and a killed one frees it", async (t) => {
   const file = lockFile(t);
-  const script = `
+  const source = `
     import { takeLock } from ${JSON.stringify(lockModule)};
     // Held in a global: a lock nothing refers to is closed when it is collected.
     globalThis.lock = takeLock(${JSON.stringify(file)}, (cause) => cause);
-    console.log("locked");
+    console.log(JSON.stringify({ event: "locked" }));
     setInterval(() => {}, 1000);
   `;
-  const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
-    stdio: ["ignore", "pipe", "inherit"],
-  });
-  t.after(async () => {
-    if (child.exitCode !== null || child.signalCode !== null) return;
-    child.kill("SIGKILL");
-    await once(child, "exit");
-  });
-  await once(child.stdout, "data");
+  const holder = await startChild(t, { source });
 
   assert.throws(() => takeLock(file, taken), Taken);
 
-  child.kill("SIGKILL");
-  await once(child, "exit");
+  await holder.kill("SIGKILL");
   takeLock(file, taken).release();
 });

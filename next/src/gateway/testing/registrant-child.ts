@@ -8,22 +8,22 @@
  */
 import { randomUUID } from "node:crypto";
 import { connectLocalGateway } from "../../contracts/gateway/node.ts";
+import { runUntilStopped } from "../../lib/testing/index.ts";
 
 const [name] = process.argv.slice(2);
 if (name === undefined) throw new Error("usage: registrant-child.ts <name>");
 
-const gateway = await connectLocalGateway();
-await gateway.register({
-  kind: "agent",
-  name,
-  serverId: randomUUID(),
-  socket: `/tmp/${name}.sock`,
-  pid: process.pid,
-});
-process.stdout.write(`${JSON.stringify({ event: "registered", pid: process.pid })}\n`);
-
-await new Promise<void>((resolve) => {
-  process.once("SIGTERM", resolve);
-  process.once("SIGINT", resolve);
-});
-await gateway.close();
+await runUntilStopped(
+  async () => {
+    const gateway = await connectLocalGateway();
+    await gateway.register({
+      kind: "agent",
+      name,
+      serverId: randomUUID(),
+      socket: `/tmp/${name}.sock`,
+      pid: process.pid,
+    });
+    return gateway;
+  },
+  () => ({ event: "registered", pid: process.pid }),
+);

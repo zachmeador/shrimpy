@@ -5,13 +5,10 @@
  *
  * Prints one JSON line when it is listening, then runs until SIGTERM.
  */
+import { runUntilStopped } from "../../lib/testing/index.ts";
 import { startGateway } from "../index.ts";
 
-const gateway = await startGateway();
-process.stdout.write(`${JSON.stringify({ event: "listening", socket: gateway.socket })}\n`);
-
-await new Promise<void>((resolve) => {
-  process.once("SIGTERM", resolve);
-  process.once("SIGINT", resolve);
-});
-await gateway.close();
+await runUntilStopped(
+  () => startGateway(),
+  (gateway) => ({ event: "listening", socket: gateway.socket }),
+);

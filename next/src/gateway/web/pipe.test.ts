@@ -5,19 +5,13 @@ import { connect, type Socket } from "node:net";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { WebSocket as WsClient } from "ws";
-import {
-  agentUrl,
-  eventually,
-  freshRuntime,
-  handshakeStatus,
-  openEntry,
-  startBytesTarget,
-} from "../testing/index.ts";
+import { eventually, useRuntimeDir } from "../../lib/testing/index.ts";
+import { agentUrl, handshakeStatus, openEntry, startBytesTarget } from "../testing/index.ts";
 
 const timeout = 30_000;
 
 test("bytes pass through unchanged in both directions, however they are split", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("bytes");
   const entry = await openEntry({ bytes: target.socket });
   const client = new WsClient(agentUrl(entry.port, "bytes"));
@@ -66,7 +60,7 @@ async function fillUntilStalled(connection: Socket, limit: number): Promise<numb
 }
 
 test("a client that stops reading slows the program instead of filling the gateway", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("flood");
   const entry = await openEntry({ flood: target.socket });
   const client = new WsClient(agentUrl(entry.port, "flood"));
@@ -97,7 +91,7 @@ test("a client that stops reading slows the program instead of filling the gatew
 });
 
 test("when the client closes, however it does it, the program's connection closes", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("closing");
   const entry = await openEntry({ closing: target.socket });
   try {
@@ -117,7 +111,7 @@ test("when the client closes, however it does it, the program's connection close
 });
 
 test("when the program closes, however it does it, the client closes", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("closing");
   const entry = await openEntry({ closing: target.socket });
   try {
@@ -143,7 +137,7 @@ test("when the program closes, however it does it, the client closes", { timeout
 });
 
 test("a handshake that fails leaves no connection to the program", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("known");
   const entry = await openEntry({ known: target.socket });
   try {
@@ -162,7 +156,7 @@ test("a handshake that fails leaves no connection to the program", { timeout }, 
 });
 
 test("clients that reset the connection mid-handshake do not take the entry down", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("known");
   const entry = await openEntry({ known: target.socket });
   try {
@@ -195,7 +189,7 @@ test("clients that reset the connection mid-handshake do not take the entry down
 });
 
 test("a message larger than a protocol frame closes the pipe", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const target = await startBytesTarget("known");
   const entry = await openEntry({ known: target.socket });
   const client = new WsClient(agentUrl(entry.port, "known"));

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
 import type { Message } from "../contracts/chat/index.ts";
+import { stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { startChat } from "./index.ts";
 import { StoreOwnedError } from "./store/index.ts";
 import {
@@ -11,18 +12,15 @@ import {
   person,
   readAll,
   startChatChild,
-  stopAfter,
-  tempDir,
-  useRuntimeDir,
 } from "./testing/index.ts";
 
 const timeout = 60_000;
 
 for (const signal of ["SIGKILL", "SIGTERM"] as const) {
   test(`messages, cursors and the server's ID survive it being stopped with ${signal}`, { timeout }, async (t) => {
-    const runtimeDir = useRuntimeDir(t);
+    useRuntimeDir(t);
     const dataDir = tempDir(t, "chat-data");
-    const first = await startChatChild(t, { dataDir, runtimeDir });
+    const first = await startChatChild(t, { dataDir });
     const zach = await joinEndpoint(t, first.endpoint, person("Zach"));
     const shrimpy = await joinEndpoint(t, first.endpoint, agent("Shrimpy"));
     const dm = await zach.chat.openDm(agent("Shrimpy"));
@@ -39,7 +37,7 @@ for (const signal of ["SIGKILL", "SIGTERM"] as const) {
     await first.kill(signal);
     await dropped;
     assert.equal(existsSync(first.endpoint.socket), signal === "SIGKILL");
-    const second = await startChatChild(t, { dataDir, runtimeDir });
+    const second = await startChatChild(t, { dataDir });
     const zachAgain = await joinEndpoint(t, second.endpoint, person("Zach"));
     const shrimpyAgain = await joinEndpoint(t, second.endpoint, agent("Shrimpy"));
 
@@ -63,9 +61,9 @@ for (const signal of ["SIGKILL", "SIGTERM"] as const) {
 }
 
 test("posts that were acknowledged survive a kill, and retrying every post leaves one of each", { timeout }, async (t) => {
-  const runtimeDir = useRuntimeDir(t);
+  useRuntimeDir(t);
   const dataDir = tempDir(t, "chat-data");
-  const first = await startChatChild(t, { dataDir, runtimeDir });
+  const first = await startChatChild(t, { dataDir });
   const zach = await joinEndpoint(t, first.endpoint, person("Zach"));
   const dm = await zach.chat.openDm(agent("Shrimpy"));
   const main = await mainThread(zach, dm.id);
@@ -88,7 +86,7 @@ test("posts that were acknowledged survive a kill, and retrying every post leave
   assert.ok(acknowledged.size >= 20);
   assert.ok(acknowledged.size < requests.length, "the kill came too late to interrupt anything");
 
-  const second = await startChatChild(t, { dataDir, runtimeDir });
+  const second = await startChatChild(t, { dataDir });
   const again = await joinEndpoint(t, second.endpoint, person("Zach"));
   const stored = await readAll(again, main.id);
   for (const message of acknowledged.values()) {
@@ -112,9 +110,9 @@ test("posts that were acknowledged survive a kill, and retrying every post leave
 });
 
 test("a chat server in another process keeps this one out, and a killed one frees the data", { timeout }, async (t) => {
-  const runtimeDir = useRuntimeDir(t);
+  useRuntimeDir(t);
   const dataDir = tempDir(t, "chat-data");
-  const child = await startChatChild(t, { dataDir, runtimeDir });
+  const child = await startChatChild(t, { dataDir });
 
   await assert.rejects(startChat({ dataDir }), StoreOwnedError);
 

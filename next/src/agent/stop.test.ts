@@ -1,29 +1,31 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
+import { tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { startAgent } from "./index.ts";
 import {
   answered,
   assistantItems,
   attachMain,
+  closeAfter,
   type FauxScenario,
   fauxModels,
   loggedRequests,
-  stopAfter,
   toolItems,
-  waitForView,
 } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-function tempHome(): string {
-  return mkdtempSync(join(tmpdir(), "shrimpy-stop-"));
+/** A home of its own, and a runtime directory of its own for the agents started on it. */
+function tempHome(t: TestContext): string {
+  useRuntimeDir(t);
+  return tempDir(t, "stop");
 }
 
 async function startOn(t: TestContext, home: string, scenario: FauxScenario, tokensPerSecond?: number) {
-  return stopAfter(t, await startAgent({ home, ...fauxModels({ home, scenario, tokensPerSecond }) }));
+  return closeAfter(t, await startAgent({ home, ...fauxModels({ home, scenario, tokensPerSecond }) }));
 }
 
 /** Attach to the home's agent for the rest of the test. The agent may be gone before the connection is closed. */
@@ -53,7 +55,7 @@ async function resumed(t: TestContext, home: string, scenario: FauxScenario, tok
 }
 
 test("stopping lets a running turn finish first", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const { agent } = await startStreaming(t, home, 400);
 
   await agent.close();
@@ -69,7 +71,7 @@ test("stopping lets a running turn finish first", { timeout }, async (t) => {
 });
 
 test("stopping at once pauses the turn, and the next start finishes it", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const { agent } = await startStreaming(t, home, 40);
 
   const started = Date.now();
@@ -91,7 +93,7 @@ test("stopping at once pauses the turn, and the next start finishes it", { timeo
 });
 
 test("a turn that outlasts the grace period is paused, not lost", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const { agent } = await startStreaming(t, home, 40);
 
   const started = Date.now();
@@ -105,7 +107,7 @@ test("a turn that outlasts the grace period is paused, not lost", { timeout }, a
 });
 
 test("input accepted before the stop is answered after the next start, and can be waited for then", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const { agent, session, submission: first } = await startStreaming(t, home, 40);
   const { submission: second } = await session.steer("and a second one", "request-2");
   assert.notEqual(first, second);
@@ -124,7 +126,7 @@ test("input accepted before the stop is answered after the next start, and can b
 });
 
 test("once stopping begins, new input is refused and the reason reaches the client", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const { agent, session } = await startStreaming(t, home, 40);
 
   const closing = agent.close({ graceMs: 60_000 });
@@ -136,7 +138,7 @@ test("once stopping begins, new input is refused and the reason reaches the clie
 });
 
 test("stopping twice stops once, and frees the home", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const agent = await startOn(t, home, "chat");
 
   await Promise.all([agent.close(), agent.close(), agent.close({ now: true })]);
@@ -146,7 +148,7 @@ test("stopping twice stops once, and frees the home", { timeout }, async (t) => 
 });
 
 test("stopping during a shell command ends the command, and the next start reports it as interrupted", { timeout }, async (t) => {
-  const home = tempHome();
+  const home = tempHome(t);
   const agent = await startOn(t, home, "tool", 400);
   const { session } = await attach(t, home);
   await session.steer("run the slow command", "request-1");
@@ -172,7 +174,7 @@ async function eventuallyGone(leader: number): Promise<void> {
     } catch {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await delay(50);
   }
   process.kill(-leader, "SIGKILL");
   assert.fail(`the shell command was still running 3 seconds after the agent stopped`);

@@ -1,34 +1,32 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { AgentConnectionLostError } from "../contracts/agent/index.ts";
 import { attachLocal } from "../contracts/agent/node.ts";
+import { tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { HomeOwnedError } from "./host/index.ts";
 import { startAgent } from "./index.ts";
 import {
   answered,
   assistantItems,
   attachMain,
+  closeAfter,
   type FauxScenario,
   fauxModels,
   toolItems,
-  waitForView,
 } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-function start(scenario: FauxScenario, tokensPerSecond?: number) {
-  const home = mkdtempSync(join(tmpdir(), "shrimpy-agent-"));
-  return startAgent({ home, ...fauxModels({ home, scenario, tokensPerSecond }) }).then((agent) => ({
-    home,
-    agent,
-  }));
+/** An agent on a home of its own, with a runtime directory of its own. The test ends it if it is still running. */
+async function start(t: TestContext, scenario: FauxScenario, tokensPerSecond?: number) {
+  useRuntimeDir(t);
+  const home = tempDir(t, "agent");
+  const agent = closeAfter(t, await startAgent({ home, ...fauxModels({ home, scenario, tokensPerSecond }) }));
+  return { home, agent };
 }
 
-test("a client attaches, steers the main session, and watches the turn", { timeout }, async () => {
-  const { home, agent } = await start("chat");
+test("a client attaches, steers the main session, and watches the turn", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "chat");
   const connection = await attachLocal(home);
   try {
     const sessions = await connection.sessions();
@@ -61,8 +59,8 @@ test("a client attaches, steers the main session, and watches the turn", { timeo
   }
 });
 
-test("abort stops a streaming answer and keeps what arrived", { timeout }, async () => {
-  const { home, agent } = await start("stream", 40);
+test("abort stops a streaming answer and keeps what arrived", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "stream", 40);
   const connection = await attachLocal(home);
   try {
     const session = await connection.attach((await connection.sessions())[0]?.id ?? "");
@@ -81,8 +79,8 @@ test("abort stops a streaming answer and keeps what arrived", { timeout }, async
   }
 });
 
-test("a client waits for an input to end, and is told how it ended", { timeout }, async () => {
-  const { home, agent } = await start("chat");
+test("a client waits for an input to end, and is told how it ended", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "chat");
   const { connection, session } = await attachMain(home);
   try {
     const { submission } = await session.steer("say hello", "request-1");
@@ -100,8 +98,8 @@ test("a client waits for an input to end, and is told how it ended", { timeout }
   }
 });
 
-test("several clients can wait for the same input, and are all told how it ended", { timeout }, async () => {
-  const { home, agent } = await start("stream", 400);
+test("several clients can wait for the same input, and are all told how it ended", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "stream", 400);
   const first = await attachMain(home);
   const second = await attachMain(home);
   try {
@@ -119,8 +117,8 @@ test("several clients can wait for the same input, and are all told how it ended
   }
 });
 
-test("a client that leaves while waiting does not stop the work, or wait for it", { timeout }, async () => {
-  const { home, agent } = await start("stream", 200);
+test("a client that leaves while waiting does not stop the work, or wait for it", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "stream", 200);
   const first = await attachMain(home);
   const second = await attachMain(home);
   try {
@@ -143,8 +141,8 @@ test("a client that leaves while waiting does not stop the work, or wait for it"
   }
 });
 
-test("an input that is stopped ends cancelled", { timeout }, async () => {
-  const { home, agent } = await start("stream", 40);
+test("an input that is stopped ends cancelled", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "stream", 40);
   const { connection, session } = await attachMain(home);
   try {
     const { submission } = await session.steer("stream a long answer");
@@ -160,8 +158,8 @@ test("an input that is stopped ends cancelled", { timeout }, async () => {
   }
 });
 
-test("an input the model could not answer ends unanswered, with the reason", { timeout }, async () => {
-  const { home, agent } = await start("fail");
+test("an input the model could not answer ends unanswered, with the reason", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "fail");
   const { connection, session } = await attachMain(home);
   try {
     const { submission } = await session.steer("hello");
@@ -176,8 +174,8 @@ test("an input the model could not answer ends unanswered, with the reason", { t
   }
 });
 
-test("a call waiting when the agent stops fails with a message a person can use", { timeout }, async () => {
-  const { home, agent } = await start("stream", 40);
+test("a call waiting when the agent stops fails with a message a person can use", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "stream", 40);
   const { connection, session } = await attachMain(home);
   try {
     const { submission } = await session.steer("stream a long answer");
@@ -199,8 +197,8 @@ test("a call waiting when the agent stops fails with a message a person can use"
   }
 });
 
-test("a wait on a submission that does not exist is refused", { timeout }, async () => {
-  const { home, agent } = await start("chat");
+test("a wait on a submission that does not exist is refused", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "chat");
   const { connection, session } = await attachMain(home);
   try {
     await assert.rejects(session.wait(999), /Unknown submission: 999/);
@@ -210,8 +208,8 @@ test("a wait on a submission that does not exist is refused", { timeout }, async
   }
 });
 
-test("a second agent cannot take a home that has an owner", { timeout }, async () => {
-  const { home, agent } = await start("chat");
+test("a second agent cannot take a home that has an owner", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "chat");
   try {
     await assert.rejects(
       startAgent({ home, ...fauxModels({ home, scenario: "chat" }) }),
@@ -222,8 +220,8 @@ test("a second agent cannot take a home that has an owner", { timeout }, async (
   }
 });
 
-test("an unknown session is refused", { timeout }, async () => {
-  const { home, agent } = await start("chat");
+test("an unknown session is refused", { timeout }, async (t) => {
+  const { home, agent } = await start(t, "chat");
   const connection = await attachLocal(home);
   try {
     await assert.rejects(connection.attach("999"));

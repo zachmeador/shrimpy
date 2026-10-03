@@ -1,6 +1,6 @@
 import type { TestContext } from "node:test";
+import { stopAfter, tempDir } from "../../lib/testing/index.ts";
 import { openStore, type Store, type StoreOptions } from "../store/index.ts";
-import { stopAfter, tempDir } from "./cleanup.ts";
 
 /** A store in a fresh data directory. It is closed, and the directory removed, when the test ends. */
 export function openTestStore(

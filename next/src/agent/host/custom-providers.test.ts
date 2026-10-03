@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
+import { tempDir } from "../../lib/testing/index.ts";
 import { readCustomProviders } from "./custom-providers.ts";
 
-function modelsFile(content: unknown): string {
-  const file = join(mkdtempSync(join(tmpdir(), "shrimpy-models-")), "models.json");
+function modelsFile(t: TestContext, content: unknown): string {
+  const file = join(tempDir(t, "models"), "models.json");
   writeFileSync(file, JSON.stringify(content));
   return file;
 }
@@ -19,8 +19,8 @@ const local = {
   models: [{ id: "qwen3.8-27b" }],
 };
 
-test("a provider is read with its models, and what a model leaves out has defaults", () => {
-  const [provider] = readCustomProviders(modelsFile({ providers: { local } }));
+test("a provider is read with its models, and what a model leaves out has defaults", (t) => {
+  const [provider] = readCustomProviders(modelsFile(t, { providers: { local } }));
 
   assert.equal(provider?.id, "local");
   assert.equal(provider.baseUrl, "http://messy:8090/v1");
@@ -42,9 +42,9 @@ test("a provider is read with its models, and what a model leaves out has defaul
   ]);
 });
 
-test("a model can set everything, and its compat flags add to the provider's", () => {
+test("a model can set everything, and its compat flags add to the provider's", (t) => {
   const [provider] = readCustomProviders(
-    modelsFile({
+    modelsFile(t, {
       providers: {
         local: {
           ...local,
@@ -80,14 +80,14 @@ test("a model can set everything, and its compat flags add to the provider's", (
   });
 });
 
-test("without flags a model carries no compat, so the library detects what it can", () => {
+test("without flags a model carries no compat, so the library detects what it can", (t) => {
   const { compat: _flags, ...bare } = local;
-  const [provider] = readCustomProviders(modelsFile({ providers: { local: bare } }));
+  const [provider] = readCustomProviders(modelsFile(t, { providers: { local: bare } }));
   assert.equal(provider?.models[0]?.compat, undefined);
   assert.equal(provider?.models[0] && "compat" in provider.models[0], false);
 });
 
-test("a models.json that today's Shrimpy wrote for a local server loads as it is", () => {
+test("a models.json that today's Shrimpy wrote for a local server loads as it is", (t) => {
   const written = {
     providers: {
       local: {
@@ -108,7 +108,7 @@ test("a models.json that today's Shrimpy wrote for a local server loads as it is
       },
     },
   };
-  const [provider] = readCustomProviders(modelsFile(written));
+  const [provider] = readCustomProviders(modelsFile(t, written));
 
   assert.equal(provider?.apiKey, "local");
   assert.equal(provider.models[0]?.id, "qwen3:8b");
@@ -116,12 +116,12 @@ test("a models.json that today's Shrimpy wrote for a local server loads as it is
   assert.deepEqual(provider.models[0].compat, written.providers.local.compat);
 });
 
-test("no file, or no providers, declares none", () => {
-  assert.deepEqual(readCustomProviders(join(tmpdir(), "shrimpy-no-such-models.json")), []);
-  assert.deepEqual(readCustomProviders(modelsFile({ providers: {} })), []);
+test("no file, or no providers, declares none", (t) => {
+  assert.deepEqual(readCustomProviders(join(tempDir(t, "models"), "no-such-models.json")), []);
+  assert.deepEqual(readCustomProviders(modelsFile(t, { providers: {} })), []);
 });
 
-test("a file that does not fit is reported with the file and the place in it", () => {
+test("a file that does not fit is reported with the file and the place in it", (t) => {
   const cases: [unknown, string][] = [
     [{}, "providers is required"],
     [{ providers: {}, extra: 1 }, "the file has unsupported keys: extra. Supported keys: providers"],
@@ -139,7 +139,7 @@ test("a file that does not fit is reported with the file and the place in it", (
     [{ providers: { local: { ...local, compat: "fast" } } }, "providers.local.compat must be a JSON object"],
   ];
   for (const [content, expected] of cases) {
-    const file = modelsFile(content);
+    const file = modelsFile(t, content);
     assert.throws(
       () => readCustomProviders(file),
       (error: Error) => error.message.startsWith(`${file}: ${expected}`),
@@ -148,9 +148,9 @@ test("a file that does not fit is reported with the file and the place in it", (
   }
 });
 
-test("a key is used as written, so a variable or command is refused", () => {
+test("a key is used as written, so a variable or command is refused", (t) => {
   for (const apiKey of ["$OPENAI_API_KEY", "!pass show key"]) {
-    const file = modelsFile({ providers: { local: { ...local, apiKey } } });
+    const file = modelsFile(t, { providers: { local: { ...local, apiKey } } });
     assert.throws(() => readCustomProviders(file), /providers\.local\.apiKey is used exactly as written/, apiKey);
   }
 });

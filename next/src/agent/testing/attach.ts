@@ -1,13 +1,14 @@
 import type { TestContext } from "node:test";
 import type { AgentConnection, SessionHandle } from "../../contracts/agent/index.ts";
 import { attachLocal } from "../../contracts/agent/node.ts";
+import { stopAfter } from "../../lib/testing/index.ts";
 
 /** Stop `agent` when the test ends, whether or not the test passed. Stopping twice is fine. */
-export function stopAfter<T extends { close(options?: { now?: boolean }): Promise<void> }>(
+export function closeAfter<T extends { close(options?: { now?: boolean }): Promise<void> }>(
   t: TestContext,
   agent: T,
 ): T {
-  t.after(() => agent.close({ now: true }));
+  stopAfter(t, () => agent.close({ now: true }));
   return agent;
 }
 

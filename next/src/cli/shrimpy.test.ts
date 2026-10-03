@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
+import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import {
   declareLocalModel,
-  eventually,
   serve,
   shrimpy,
   shrimpyInBackground,
@@ -24,8 +23,10 @@ import {
 const realUrl = process.env.SHRIMPY_TEST_MODEL_URL;
 const realModel = process.env.SHRIMPY_TEST_MODEL_ID;
 
-function tempHome(): string {
-  return join(mkdtempSync(join(tmpdir(), "shrimpy-process-")), "scout");
+/** A home of its own, and a runtime directory of its own for the processes that serve it. */
+function tempHome(t: TestContext): string {
+  useRuntimeDir(t);
+  return join(tempDir(t, "process"), "scout");
 }
 
 function isAlive(pid: number): boolean {
@@ -39,7 +40,7 @@ function isAlive(pid: number): boolean {
 
 /** Create a home, serve it, ask for a command to be run with the shell tool, read the session, and stop the agent. */
 async function turnWithShellTool(t: TestContext, target: { url: string; model: string; prompt: string }) {
-  const home = tempHome();
+  const home = tempHome(t);
   const init = await shrimpy(["agent", "init", home, "--name", "scout", "--model", `local/${target.model}`]);
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, target);
@@ -102,7 +103,7 @@ test(
 test("a command killed while it waits does not stop the work", { timeout: 60_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
-  const home = tempHome();
+  const home = tempHome(t);
   await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"]);
   declareLocalModel(home, { url: model.url, model: "test-model" });
   const agent = await serve(t, home);
@@ -113,13 +114,13 @@ test("a command killed while it waits does not stop the work", { timeout: 60_000
   };
 
   const waiting = shrimpyInBackground(["sessions", "steer", home, "go slow", "--wait"]);
-  await eventually(() => model.requests.length > 0, "the model to start answering");
+  await until(() => model.requests.length > 0, "the model to start answering");
   waiting.kill("SIGKILL");
   await waiting.finished;
 
   // The answer keeps growing with no one waiting for it, until someone stops the work.
   const before = await answerLength();
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  await delay(400);
   assert.ok((await answerLength()) > before, "the answer kept streaming");
   const stopped = await shrimpy(["sessions", "stop", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
@@ -129,7 +130,7 @@ test("a command killed while it waits does not stop the work", { timeout: 60_000
 test("a stop signal the moment the agent is listening stops it cleanly, and frees the home", { timeout: 60_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
-  const home = tempHome();
+  const home = tempHome(t);
   await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"]);
   declareLocalModel(home, { url: model.url, model: "test-model" });
 

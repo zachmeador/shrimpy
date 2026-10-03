@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
+import { tempDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import { captureIo } from "./testing/index.ts";
 
@@ -13,8 +13,8 @@ async function run(...args: string[]) {
   return { code, out: cli.out.join("\n"), err: cli.err.join("\n") };
 }
 
-function tempHome(): string {
-  return join(mkdtempSync(join(tmpdir(), "shrimpy-cli-")), "scout");
+function tempHome(t: TestContext): string {
+  return join(tempDir(t, "cli"), "scout");
 }
 
 test("with no command it prints the commands and exits with 2", async () => {
@@ -78,8 +78,8 @@ test("a command used wrongly exits with 2 and shows its usage", async () => {
   }
 });
 
-test("init creates a home and says what to do next, and running it again changes nothing", async () => {
-  const home = tempHome();
+test("init creates a home and says what to do next, and running it again changes nothing", async (t) => {
+  const home = tempHome(t);
 
   const first = await run("agent", "init", home, "--name", "scout", "--model", "local/qwen3.8-27b");
   assert.equal(first.code, 0);
@@ -97,23 +97,23 @@ test("init creates a home and says what to do next, and running it again changes
   assert.equal(again.out, `The agent scout is already set up in ${home}. Nothing was changed.`);
 });
 
-test("init refuses to change an agent, and refuses a name that cannot be used", async () => {
-  const home = tempHome();
+test("init refuses to change an agent, and refuses a name that cannot be used", async (t) => {
+  const home = tempHome(t);
   await run("agent", "init", home, "--name", "scout", "--model", "local/qwen");
 
   const renamed = await run("agent", "init", home, "--name", "other", "--model", "local/qwen");
   assert.equal(renamed.code, 1);
   assert.match(renamed.err, /already describes the agent "scout" with the model local\/qwen\. Init does not change an existing agent/);
 
-  const odd = tempHome();
+  const odd = tempHome(t);
   const bad = await run("agent", "init", odd, "--name", "has space", "--model", "local/qwen");
   assert.equal(bad.code, 1);
   assert.match(bad.err, /^The agent name "has space" must start with a letter or digit/);
   assert.equal(existsSync(odd), false);
 });
 
-test("status says no agent is running, and exits with 1", async () => {
-  const home = tempHome();
+test("status says no agent is running, and exits with 1", async (t) => {
+  const home = tempHome(t);
   await run("agent", "init", home, "--name", "scout", "--model", "local/qwen");
 
   const result = await run("agent", "status", home);
@@ -122,8 +122,8 @@ test("status says no agent is running, and exits with 1", async () => {
   assert.deepEqual(JSON.parse(result.out), { running: false, home });
 });
 
-test("session commands say how to start the agent when none is running", async () => {
-  const home = tempHome();
+test("session commands say how to start the agent when none is running", async (t) => {
+  const home = tempHome(t);
   await run("agent", "init", home, "--name", "scout", "--model", "local/qwen");
 
   for (const args of [["list"], ["read"], ["steer", "hello"], ["stop"]]) {
@@ -133,13 +133,13 @@ test("session commands say how to start the agent when none is running", async (
   }
 });
 
-test("serve refuses a folder that is not a home, and a model it cannot use, and says why", async () => {
-  const folder = mkdtempSync(join(tmpdir(), "shrimpy-cli-"));
+test("serve refuses a folder that is not a home, and a model it cannot use, and says why", async (t) => {
+  const folder = tempDir(t, "cli");
   const notHome = await run("agent", "serve", folder);
   assert.equal(notHome.code, 1);
   assert.match(notHome.err, /is not an agent home/);
 
-  const home = tempHome();
+  const home = tempHome(t);
   await run("agent", "init", home, "--name", "scout", "--model", "local/qwen");
   const noProvider = await run("agent", "serve", home);
   assert.equal(noProvider.code, 1);

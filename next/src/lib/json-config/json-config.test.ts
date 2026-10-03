@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testing/index.ts";
 import { ConfigError, parseConfig, readConfig } from "./index.ts";
 
 const file = "/home/a/config.json";
@@ -134,8 +134,8 @@ test("text that is not a JSON object is reported with the file", () => {
   assert.doesNotThrow(() => parseConfig('﻿{"a":1}', file));
 });
 
-test("a file that is missing is undefined, and one that cannot be read is an error", () => {
-  const dir = mkdtempSync(join(tmpdir(), "shrimpy-config-"));
+test("a file that is missing is undefined, and one that cannot be read is an error", (t) => {
+  const dir = tempDir(t, "config");
   assert.equal(readConfig(join(dir, "missing.json")), undefined);
 
   writeFileSync(join(dir, "ok.json"), '{"a":"b"}');

@@ -17,12 +17,3 @@ export function declareLocalModel(home: string, options: { url: string; model: s
   const models = JSON.stringify({ providers: { local: provider } }, null, 2);
   writeFileSync(join(home, "state", "pi", "models.json"), models);
 }
-
-/** Resolve once `done` is true, checking every 20 ms. */
-export async function eventually(done: () => boolean, what: string, timeoutMs = 10_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (!done()) {
-    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}`);
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-}

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestContext } from "node:test";
-import { agent, openTestDeps, person, stopAfter } from "../testing/index.ts";
+import { stopAfter } from "../../lib/testing/index.ts";
+import { agent, openTestDeps, person } from "../testing/index.ts";
 import {
   archiveThread,
   createThread,

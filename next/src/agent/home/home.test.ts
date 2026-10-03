@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { ConfigError } from "../../lib/json-config/index.ts";
+import { tempDir } from "../../lib/testing/index.ts";
 import { homePaths, initHome, loadHome, modelLabel, parseModelChoice } from "./index.ts";
 
 const model = { provider: "local", id: "qwen3.8-27b" };
 
-function tempHome(): string {
-  return join(mkdtempSync(join(tmpdir(), "shrimpy-home-")), "scout");
+function tempHome(t: TestContext): string {
+  return join(tempDir(t, "home"), "scout");
 }
 
 test("a home has the layout the plan describes", () => {
@@ -32,8 +32,8 @@ test("a relative home becomes an absolute path", () => {
   assert.equal(homePaths("some/home").root, join(process.cwd(), "some/home"));
 });
 
-test("init creates every file and folder, and the home loads", () => {
-  const home = tempHome();
+test("init creates every file and folder, and the home loads", (t) => {
+  const home = tempHome(t);
   const { paths, created } = initHome(home, { name: "scout", model });
 
   assert.deepEqual(created, [
@@ -64,13 +64,13 @@ test("init creates every file and folder, and the home loads", () => {
   assert.deepEqual(loaded.paths, paths);
 });
 
-test("the credential file is private to its owner", { skip: process.platform === "win32" }, () => {
-  const { paths } = initHome(tempHome(), { name: "scout", model });
+test("the credential file is private to its owner", { skip: process.platform === "win32" }, (t) => {
+  const { paths } = initHome(tempHome(t), { name: "scout", model });
   assert.equal(statSync(paths.auth).mode & 0o777, 0o600);
 });
 
-test("init again changes nothing, and only fills in what is missing", () => {
-  const home = tempHome();
+test("init again changes nothing, and only fills in what is missing", (t) => {
+  const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });
   writeFileSync(paths.soul, "Be brief.\n");
   writeFileSync(paths.models, '{"providers":{"local":{}}}\n');
@@ -85,8 +85,8 @@ test("init again changes nothing, and only fills in what is missing", () => {
   assert.equal(readFileSync(paths.soul, "utf8"), "Be brief.\n");
 });
 
-test("init does not change an agent that already exists", () => {
-  const home = tempHome();
+test("init does not change an agent that already exists", (t) => {
+  const home = tempHome(t);
   initHome(home, { name: "scout", model });
   const before = readFileSync(homePaths(home).config, "utf8");
 
@@ -101,8 +101,8 @@ test("init does not change an agent that already exists", () => {
   assert.equal(readFileSync(homePaths(home).config, "utf8"), before);
 });
 
-test("init refuses a name that cannot be an agent's name, before it writes anything", () => {
-  const home = tempHome();
+test("init refuses a name that cannot be an agent's name, before it writes anything", (t) => {
+  const home = tempHome(t);
   for (const name of ["", "..", "-x", "has space", "a/b"]) {
     assert.throws(
       () => initHome(home, { name, model }),
@@ -114,8 +114,8 @@ test("init refuses a name that cannot be an agent's name, before it writes anyth
   assert.equal(existsSync(home), false);
 });
 
-test("a home without agent.json says how to create one", () => {
-  const home = tempHome();
+test("a home without agent.json says how to create one", (t) => {
+  const home = tempHome(t);
   assert.throws(
     () => loadHome(home),
     (error: Error) =>
@@ -124,8 +124,8 @@ test("a home without agent.json says how to create one", () => {
   );
 });
 
-test("agent.json is checked, and an unknown key is an error that names it", () => {
-  const home = tempHome();
+test("agent.json is checked, and an unknown key is an error that names it", (t) => {
+  const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });
 
   writeFileSync(paths.config, JSON.stringify({ name: "scout", model, color: "teal" }));
@@ -152,8 +152,8 @@ test("agent.json is checked, and an unknown key is an error that names it", () =
   assert.throws(() => loadHome(home), /agent\.json: not valid JSON/);
 });
 
-test("instructions are the text of SOUL.md when it has any", () => {
-  const home = tempHome();
+test("instructions are the text of SOUL.md when it has any", (t) => {
+  const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });
 
   writeFileSync(paths.soul, "Answer in rhyme.\n");

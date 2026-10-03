@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type TestContext, test } from "node:test";
+import { tempDir } from "../../lib/testing/index.ts";
 import { rawRequest } from "../testing/index.ts";
 import { startWeb } from "./index.ts";
 
@@ -10,8 +10,7 @@ const timeout = 30_000;
 
 /** A site directory, with files beside it that must never be served. */
 function makeSite(t: TestContext): string {
-  const base = mkdtempSync(join(tmpdir(), "shrimpy-static-"));
-  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const base = tempDir(t, "static");
   const site = join(base, "public");
   mkdirSync(join(site, "assets"), { recursive: true });
   mkdirSync(join(site, "empty"));

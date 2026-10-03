@@ -1,24 +1,8 @@
 import type { TestContext } from "node:test";
 import type { ChatConnection, Member } from "../../contracts/chat/index.ts";
 import { connectLocal } from "../../contracts/chat/node.ts";
+import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { type RunningChat, startChat } from "../index.ts";
-import { stopAfter, tempDir } from "./cleanup.ts";
-
-/**
- * Give this test a runtime directory of its own, so the sockets of its servers
- * never meet another test's, or anything else on the machine. Its name is short
- * because a socket's whole path must fit in about a hundred bytes.
- */
-export function useRuntimeDir(t: TestContext): string {
-  const directory = tempDir(t, "rt");
-  const saved = process.env.SHRIMPY_RUNTIME_DIR;
-  process.env.SHRIMPY_RUNTIME_DIR = directory;
-  stopAfter(t, () => {
-    if (saved === undefined) delete process.env.SHRIMPY_RUNTIME_DIR;
-    else process.env.SHRIMPY_RUNTIME_DIR = saved;
-  });
-  return directory;
-}
 
 export interface TestChat {
   readonly chat: RunningChat;

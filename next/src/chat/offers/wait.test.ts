@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
-import {
-  agent,
-  countWatchers,
-  follow,
-  openTestDeps,
-  person,
-  settle,
-} from "../testing/index.ts";
+import { settle } from "../../lib/testing/index.ts";
+import { agent, countWatchers, follow, openTestDeps, person } from "../testing/index.ts";
 import { identify, listThreads, openDm, post, renameThread } from "../threads/index.ts";
 import { nextMessage } from "./wait.ts";
 

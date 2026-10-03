@@ -1,7 +1,7 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
- * server, both without a network, and helpers to attach to an agent and stop
- * it. Only tests and test fixtures import this.
+ * server, both without a network, and helpers to attach to an agent, stop it
+ * and read its views. Only tests and test fixtures import this.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
@@ -20,9 +20,10 @@ import {
 } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
-export { attachMain, stopAfter } from "./attach.ts";
+export { attachMain, closeAfter } from "./attach.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
-export { answered, assistantItems, toolItems, waitForView } from "./wait.ts";
+export { startAgentChild } from "./child.ts";
+export { answered, assistantItems, toolItems } from "./views.ts";
 
 export type FauxScenario = "chat" | "fail" | "stream" | "tool";
 

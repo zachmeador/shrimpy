@@ -3,6 +3,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import { test } from "node:test";
 import { WebSocketServer } from "ws";
+import { settle } from "../../lib/testing/index.ts";
 import { webSocketTransport } from "./web-socket.ts";
 
 const timeout = 10_000;
@@ -122,7 +123,7 @@ test("a connection that never opens rejects instead of reaching the handlers", {
       }),
     /WebSocket/,
   );
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.deepEqual(events, []);
 });
 

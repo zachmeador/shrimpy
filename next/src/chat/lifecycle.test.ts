@@ -7,6 +7,7 @@ import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectChat } from "../contracts/chat/index.ts";
 import { connectLocal, readChatEndpoint } from "../contracts/chat/node.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
+import { settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { startServer } from "./server.ts";
 import { openStore, StoreOwnedError } from "./store/index.ts";
@@ -17,13 +18,8 @@ import {
   mainThread,
   openTestStore,
   person,
-  settle,
   startChatChild,
   startTestChat,
-  stopAfter,
-  tempDir,
-  until,
-  useRuntimeDir,
 } from "./testing/index.ts";
 import { createWorkingMarks } from "./threads/index.ts";
 
@@ -100,8 +96,8 @@ test("chat servers started at the same moment cannot both run", { timeout }, asy
 });
 
 test("a chat server that was killed leaves a socket that the next one replaces", { timeout }, async (t) => {
-  const runtimeDir = useRuntimeDir(t);
-  const child = await startChatChild(t, { dataDir: tempDir(t, "chat-killed"), runtimeDir });
+  useRuntimeDir(t);
+  const child = await startChatChild(t, { dataDir: tempDir(t, "chat-killed") });
   await child.kill("SIGKILL");
   assert.ok(existsSync(child.endpoint.socket));
 

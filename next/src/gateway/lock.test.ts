@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { useRuntimeDir } from "../lib/testing/index.ts";
 import { GatewayRunningError, takeGatewayLock } from "./lock.ts";
-import { freshRuntime } from "./testing/index.ts";
 
 test("one gateway holds a socket's lock at a time, and says which socket", (t) => {
-  const socket = join(freshRuntime(t), "gateway.sock");
+  const socket = join(useRuntimeDir(t), "gateway.sock");
   const lock = takeGatewayLock(socket);
 
   assert.throws(
@@ -23,7 +23,7 @@ test("one gateway holds a socket's lock at a time, and says which socket", (t) =
 });
 
 test("the lock is a file beside the socket", (t) => {
-  const socket = join(freshRuntime(t), "gateway.sock");
+  const socket = join(useRuntimeDir(t), "gateway.sock");
   const lock = takeGatewayLock(socket);
 
   assert.ok(existsSync(`${socket}.lock`));

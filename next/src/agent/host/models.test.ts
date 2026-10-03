@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import type { Models } from "@earendil-works/pi-ai";
+import { tempDir } from "../../lib/testing/index.ts";
 import { stubChatCompletions } from "../testing/index.ts";
 import { buildModels, ModelSetupError } from "./index.ts";
 
@@ -22,8 +22,8 @@ interface Home {
   authFile: string;
 }
 
-function home(files: { models?: unknown; auth?: unknown } = {}): Home {
-  const dir = mkdtempSync(join(tmpdir(), "shrimpy-models-"));
+function home(t: TestContext, files: { models?: unknown; auth?: unknown } = {}): Home {
+  const dir = tempDir(t, "models");
   const modelsFile = join(dir, "models.json");
   const authFile = join(dir, "auth.json");
   writeFileSync(modelsFile, JSON.stringify(files.models ?? { providers: {} }));
@@ -40,7 +40,7 @@ function ask(models: Models, provider: string, id: string) {
 }
 
 test("a local server works with a placeholder key, and the flags in models.json shape the request", async (t) => {
-  const files = home({ models: { providers: { local: qwen, plain: { ...qwen, compat: undefined } } } });
+  const files = home(t, { models: { providers: { local: qwen, plain: { ...qwen, compat: undefined } } } });
   const models = await buildModels({ ...files, model: { provider: "local", modelId: "qwen" } });
   const requests = stubChatCompletions(t, "Hi there");
 
@@ -61,7 +61,7 @@ test("a local server works with a placeholder key, and the flags in models.json 
 });
 
 test("a hosted provider uses the key in auth.json", async (t) => {
-  const files = home({ auth: { groq: { type: "api_key", key: "gsk-from-the-home" } } });
+  const files = home(t, { auth: { groq: { type: "api_key", key: "gsk-from-the-home" } } });
   const models = await buildModels({ ...files, model: { provider: "groq", modelId: "llama-3.3-70b-versatile" } });
   const requests = stubChatCompletions(t, "Hi");
 
@@ -72,7 +72,7 @@ test("a hosted provider uses the key in auth.json", async (t) => {
 });
 
 test("a key stored for a custom provider wins over the one in models.json", async (t) => {
-  const files = home({
+  const files = home(t, {
     models: { providers: { local: qwen } },
     auth: { local: { type: "api_key", key: "real-key" } },
   });
@@ -90,7 +90,7 @@ test("building the models reaches for no network", async (t) => {
     reached.push(input instanceof Request ? input.url : String(input));
     return Promise.reject(new Error("no network in this test"));
   });
-  const files = home({ auth: { groq: { type: "api_key", key: "gsk-test" } }, models: { providers: { local: qwen } } });
+  const files = home(t, { auth: { groq: { type: "api_key", key: "gsk-test" } }, models: { providers: { local: qwen } } });
 
   await buildModels({ ...files, model: { provider: "groq", modelId: "llama-3.3-70b-versatile" } });
   await buildModels({ ...files, model: { provider: "local", modelId: "qwen" } });
@@ -98,8 +98,8 @@ test("building the models reaches for no network", async (t) => {
   assert.deepEqual(reached, []);
 });
 
-test("keys in the process environment are not used", async () => {
-  const files = home();
+test("keys in the process environment are not used", async (t) => {
+  const files = home(t);
   const before = process.env.GROQ_API_KEY;
   process.env.GROQ_API_KEY = "gsk-from-the-environment";
   try {
@@ -113,8 +113,8 @@ test("keys in the process environment are not used", async () => {
   }
 });
 
-test("a provider with no key says where to put one", async () => {
-  const files = home();
+test("a provider with no key says where to put one", async (t) => {
+  const files = home(t);
   await assert.rejects(
     buildModels({ ...files, model: { provider: "anthropic", modelId: "claude-sonnet-4-5" } }),
     new ModelSetupError(
@@ -123,7 +123,7 @@ test("a provider with no key says where to put one", async () => {
     ),
   );
 
-  const keyless = home({ models: { providers: { local: { ...qwen, apiKey: undefined } } } });
+  const keyless = home(t, { models: { providers: { local: { ...qwen, apiKey: undefined } } } });
   await assert.rejects(
     buildModels({ ...keyless, model: { provider: "local", modelId: "qwen" } }),
     new ModelSetupError(
@@ -138,8 +138,8 @@ test("a provider with no key says where to put one", async () => {
   );
 });
 
-test("an unknown provider or model says what is available", async () => {
-  const files = home({ models: { providers: { local: qwen } } });
+test("an unknown provider or model says what is available", async (t) => {
+  const files = home(t, { models: { providers: { local: qwen } } });
 
   await assert.rejects(
     buildModels({ ...files, model: { provider: "antropic", modelId: "x" } }),
@@ -164,7 +164,7 @@ test("an unknown provider or model says what is available", async () => {
 });
 
 test("a provider in models.json replaces a built-in one with the same ID", async (t) => {
-  const files = home({ models: { providers: { groq: qwen } } });
+  const files = home(t, { models: { providers: { groq: qwen } } });
   const models = await buildModels({ ...files, model: { provider: "groq", modelId: "qwen" } });
   const requests = stubChatCompletions(t, "Hi");
 
@@ -174,8 +174,8 @@ test("a provider in models.json replaces a built-in one with the same ID", async
   assert.equal(models.getModel("groq", "llama-3.3-70b-versatile"), undefined);
 });
 
-test("a file that does not fit stops the start, naming the file", async () => {
-  const files = home({ models: { providers: { local: { ...qwen, headers: {} } } } });
+test("a file that does not fit stops the start, naming the file", async (t) => {
+  const files = home(t, { models: { providers: { local: { ...qwen, headers: {} } } } });
   await assert.rejects(
     buildModels({ ...files, model: { provider: "local", modelId: "qwen" } }),
     new RegExp(`${files.modelsFile.replaceAll(".", "\\.")}: providers\\.local has unsupported keys: headers`),

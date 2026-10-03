@@ -1,15 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ThreadView } from "../contracts/chat/index.ts";
-import {
-  agent,
-  follow,
-  mainThread,
-  person,
-  settle,
-  startTestChat,
-  waitForView,
-} from "./testing/index.ts";
+import { settle, waitForView } from "../lib/testing/index.ts";
+import { agent, follow, mainThread, person, startTestChat } from "./testing/index.ts";
 
 const timeout = 30_000;
 

@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
+import { tempDir } from "../../lib/testing/index.ts";
 import { readCredentials } from "./credentials.ts";
 
-function authFile(content: unknown): string {
-  const file = join(mkdtempSync(join(tmpdir(), "shrimpy-auth-")), "auth.json");
+function authFile(t: TestContext, content: unknown): string {
+  const file = join(tempDir(t, "auth"), "auth.json");
   writeFileSync(file, typeof content === "string" ? content : JSON.stringify(content));
   return file;
 }
 
-test("keys in auth.json are read by provider", async () => {
+test("keys in auth.json are read by provider", async (t) => {
   const store = readCredentials(
-    authFile({
+    authFile(t, {
       anthropic: { type: "api_key", key: "sk-one" },
       cloudflare: { type: "api_key", key: "sk-two", env: { CLOUDFLARE_ACCOUNT_ID: "abc" } },
       codex: { type: "oauth", access: "a", refresh: "r", expires: 99, accountId: "acct" },
@@ -41,13 +41,13 @@ test("keys in auth.json are read by provider", async () => {
   ]);
 });
 
-test("a home without an auth.json has no credentials", async () => {
-  const store = readCredentials(join(tmpdir(), "shrimpy-no-such-auth.json"));
+test("a home without an auth.json has no credentials", async (t) => {
+  const store = readCredentials(join(tempDir(t, "auth"), "no-such-auth.json"));
   assert.deepEqual(await store.list(), []);
 });
 
-test("credentials cannot be changed through the store, and the message names the file", async () => {
-  const file = authFile({});
+test("credentials cannot be changed through the store, and the message names the file", async (t) => {
+  const file = authFile(t, {});
   const store = readCredentials(file);
   await assert.rejects(
     async () => store.modify("anthropic", () => Promise.resolve(undefined)),
@@ -56,9 +56,9 @@ test("credentials cannot be changed through the store, and the message names the
   await assert.rejects(async () => store.delete("anthropic"), /Edit .*auth\.json instead/);
 });
 
-test("a key is used as written, so a command or variable is refused", () => {
+test("a key is used as written, so a command or variable is refused", (t) => {
   for (const key of ["!pass show anthropic", "$ANTHROPIC_API_KEY", "${KEY}"]) {
-    const file = authFile({ anthropic: { type: "api_key", key } });
+    const file = authFile(t, { anthropic: { type: "api_key", key } });
     assert.throws(
       () => readCredentials(file),
       (error: Error) =>
@@ -69,7 +69,7 @@ test("a key is used as written, so a command or variable is refused", () => {
   }
 });
 
-test("an entry that does not fit is reported with its provider", () => {
+test("an entry that does not fit is reported with its provider", (t) => {
   const cases: [unknown, RegExp][] = [
     [{ anthropic: { key: "k" } }, /anthropic\.type is required/],
     [{ anthropic: { type: "token" } }, /anthropic\.type must be "api_key" or "oauth", not "token"/],
@@ -80,6 +80,6 @@ test("an entry that does not fit is reported with its provider", () => {
     ["{ nope", /not valid JSON/],
   ];
   for (const [content, expected] of cases) {
-    assert.throws(() => readCredentials(authFile(content)), expected);
+    assert.throws(() => readCredentials(authFile(t, content)), expected);
   }
 });

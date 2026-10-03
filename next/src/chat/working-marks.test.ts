@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agent, follow, mainThread, person, settle, startTestChat, waitForView } from "./testing/index.ts";
+import { setTimeout as wait } from "node:timers/promises";
+import { settle, waitForView } from "../lib/testing/index.ts";
+import { agent, follow, mainThread, person, startTestChat } from "./testing/index.ts";
 
 const timeout = 30_000;
-
-const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function talk(t: Parameters<typeof startTestChat>[0]) {
   const chat = await startTestChat(t);

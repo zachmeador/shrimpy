@@ -1,15 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
-import {
-  agent,
-  follow,
-  mainThread,
-  person,
-  settle,
-  startTestChat,
-  texts,
-} from "./testing/index.ts";
+import { settle } from "../lib/testing/index.ts";
+import { agent, follow, mainThread, person, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
 

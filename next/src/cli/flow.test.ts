@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { SessionView } from "../contracts/agent/index.ts";
+import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
-import { captureIo, declareLocalModel, eventually, type ModelServer, startModelServer } from "./testing/index.ts";
+import {
+  captureIo,
+  declareLocalModel,
+  type ModelServer,
+  startModelServer,
+} from "./testing/index.ts";
 
 const timeout = 60_000;
 
@@ -30,8 +34,9 @@ interface ServedHome {
  * (`agent serve <home> ...serveFlags`). Both stop when the test ends.
  */
 async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<ServedHome> {
+  useRuntimeDir(t);
   const model = await startModelServer();
-  const home = join(mkdtempSync(join(tmpdir(), "shrimpy-flow-")), "scout");
+  const home = join(tempDir(t, "flow"), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
   declareLocalModel(home, { url: model.url, model: "test-model" });
 
@@ -128,7 +133,7 @@ test("stopping the work makes the waiting command exit 130", { timeout }, async 
   const { home, model } = await servedHome(t);
 
   const waiting = run("sessions", "steer", home, "go slow", "--wait");
-  await eventually(() => model.requests.length > 0, "the model to start answering");
+  await until(() => model.requests.length > 0, "the model to start answering");
   const stopped = await run("sessions", "stop", home);
   const result = await waiting;
 
@@ -165,7 +170,7 @@ test("a second agent on a home is refused, and the first keeps serving", { timeo
 test("a waiting command says so when the agent stops under it", { timeout }, async (t) => {
   const { home, model, stopNow } = await servedHome(t);
   const waiting = run("sessions", "steer", home, "go slow", "--wait");
-  await eventually(() => model.requests.length > 0, "the model to start answering");
+  await until(() => model.requests.length > 0, "the model to start answering");
 
   assert.equal(await stopNow(), 0);
   const result = await waiting;
@@ -180,7 +185,7 @@ test("a waiting command says so when the agent stops under it", { timeout }, asy
 test("--now stops the agent without waiting for the running turn", { timeout }, async (t) => {
   const { home, model, stop } = await servedHome(t, "--now");
   const waiting = run("sessions", "steer", home, "go slow", "--wait");
-  await eventually(() => model.requests.length > 0, "the model to start answering");
+  await until(() => model.requests.length > 0, "the model to start answering");
 
   // The test model streams for ten seconds, and a stop that waits would give the turn five of them.
   const started = Date.now();

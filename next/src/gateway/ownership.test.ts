@@ -1,23 +1,17 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync } from "node:fs";
 import { type AddressInfo, createServer } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { useRuntimeDir } from "../lib/testing/index.ts";
 import { GatewayRunningError, startGateway } from "./index.ts";
-import {
-  agentRegistration as agent,
-  freshRuntime,
-  startChild,
-  stop,
-  webPortOf,
-} from "./testing/index.ts";
+import { agentRegistration as agent, startGatewayChild, webPortOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 
 test("a second gateway is refused and the first is undisturbed", { timeout }, async (t) => {
-  const runtime = freshRuntime(t);
+  const runtime = useRuntimeDir(t);
   const first = await startGateway({ web: { port: 0 } });
   const program = await connectLocalGateway();
   let dropped = false;
@@ -57,7 +51,7 @@ test("a second gateway is refused and the first is undisturbed", { timeout }, as
 });
 
 test("gateways started at the same moment cannot both run", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const results = await Promise.allSettled([startGateway(), startGateway(), startGateway()]);
   try {
     const started = results.filter((result) => result.status === "fulfilled");
@@ -80,9 +74,9 @@ test("gateways started at the same moment cannot both run", { timeout }, async (
 });
 
 test("a gateway that was killed leaves a socket that the next one replaces", { timeout }, async (t) => {
-  const runtime = freshRuntime(t);
-  const child = await startChild("gateway-child.ts");
-  await stop(child, "SIGKILL");
+  const runtime = useRuntimeDir(t);
+  const child = await startGatewayChild(t);
+  await child.kill("SIGKILL");
   assert.ok(existsSync(join(runtime, "gateway.sock")));
 
   const gateway = await startGateway();
@@ -96,7 +90,7 @@ test("a gateway that was killed leaves a socket that the next one replaces", { t
 });
 
 test("closing the gateway drops its connections and its socket, and another can start", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   const program = await connectLocalGateway();
   const ended = new Promise<void>((resolve) => program.onDisconnect(() => resolve()));
@@ -120,7 +114,7 @@ test("closing the gateway drops its connections and its socket, and another can 
 });
 
 test("a gateway without a browser entry opens no port", { timeout }, async (t) => {
-  freshRuntime(t);
+  useRuntimeDir(t);
   const gateway = await startGateway();
   try {
     assert.equal(gateway.webPort, undefined);
@@ -130,13 +124,13 @@ test("a gateway without a browser entry opens no port", { timeout }, async (t) =
 });
 
 test("a gateway whose browser entry cannot start gives the socket back", { timeout }, async (t) => {
-  freshRuntime(t);
+  const runtime = useRuntimeDir(t);
   const squatter = createServer();
   await new Promise<void>((resolve) => squatter.listen(0, "127.0.0.1", resolve));
   try {
     const { port } = squatter.address() as AddressInfo;
     await assert.rejects(startGateway({ web: { port } }), /EADDRINUSE/);
-    await assert.rejects(startGateway({ web: { port: 0, staticDir: join(tmpdir(), "no-such-site") } }), /ENOENT/);
+    await assert.rejects(startGateway({ web: { port: 0, staticDir: join(runtime, "no-such-site") } }), /ENOENT/);
 
     const gateway = await startGateway();
     await gateway.close();
