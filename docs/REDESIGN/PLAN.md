@@ -15,7 +15,7 @@ Confirmed during review:
 
 - **Agents run independently.** Each agent runs in its own process, outside any gateway, and keeps working when clients or the gateway go away.
 - **Every conversation is a thread in a channel.** A channel is a place: a DM with an agent, or a room with people and agents. It has a main thread, and side threads hold parallel topics. The console, the web app, Telegram and a future desktop app are all clients of channels; there's no separate way of talking to an agent from the console.
-- **Sessions sit behind threads.** Each agent taking part in a thread keeps one current session for it: its private work. Work with no thread, such as a subagent's, has a session too. Opening the terminal or web app, picking an authorized agent and entering any of its sessions to watch, steer or stop it is core UX, locally or through a gateway.
+- **Sessions sit behind threads.** Each agent taking part in a thread keeps one current session for it: its private work. Work with no thread, such as a helper's, has a session too. Opening the terminal or web app, picking an authorized agent and entering any of its sessions to watch, steer or stop it is core UX, locally or through a gateway.
 - **The gateway hosts channels, not agents.** It handles discovery, access and routing, and it hosts channels and their threads: the shared record of what was said, with chat providers bridged into them. Agents keep their sessions, their own private work. That's the split between channels and sessions Shrimpy has today. A gateway on Tailscale is the leading option for network identity and security.
 - **Shrimpy leaves Pi's terminal app.** Shrimpy owns its session-client contract and presentation, reusing public `pi-tui` components where they fit.
 - **Pi's durable runtime is the engine.** Shrimpy reshapes around it instead of wrapping it.
@@ -33,6 +33,7 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | Channel | A place where people and agents talk, such as a DM or a room, hosted on the gateway. |
 | Thread | One conversation inside a channel. Every channel has a main thread. |
 | Session | An agent's private work behind a thread, or behind work with no thread. Pi calls this a conversation. |
+| Helper | A child session an agent starts to split up its own work. Pi calls these subagents. |
 | Trigger | Anything other than a message that wakes an agent: a time, an interval or a check whose output changed. Today's watches. |
 | Chat provider | A bridge between a channel and an outside chat app, such as Telegram. |
 | Gateway | Hosts channels and workspace context, and routes clients and agents to each other. It never hosts agents. |
@@ -95,7 +96,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
 | Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | Keep before any visual redesign: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Ctrl+C doesn't exit immediately as Pi's demo does; Esc follows the stop decision. | Keep |
-| `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Pi child sessions appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
+| `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Helpers appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
 | Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current session's model and saves a one-candidate home default. Other sessions and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
 | Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
 | Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login works the same for [sandboxed and remote agents](#sandboxed-and-remote-agents). | Keep |
@@ -120,24 +121,24 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Publication rule | Assistant text in channel conversations is private; only tools publish | A turn's final assistant text goes to the thread its message came from, unless it is exactly `END`, it is empty, or the turn already posted to that thread through a tool. Text earlier in the turn stays private, and so does the final text of work with no thread, such as a subagent's. Many models forget to call a reply tool, so replying becomes the default, and `END` lets an agent stay silent, which also stops polite goodbye loops. Messages sent mid-turn or elsewhere use the [message tools](#tools-and-publication). | Confirmed |
+| Publication rule | Assistant text in channel conversations is private; only tools publish | A turn's final assistant text goes to the thread its message came from, unless it is exactly `END`, it is empty, or the turn already posted to that thread through a tool. Text earlier in the turn stays private, and so does the final text of work with no thread, such as a helper's. Many models forget to call a reply tool, so replying becomes the default, and `END` lets an agent stay silent, which also stops polite goodbye loops. Messages sent mid-turn or elsewhere use the [message tools](#tools-and-publication). | Confirmed |
 | Message tools | `reply`, `ask`, `notify`, `report`, `send_message({channel, text})` and `read_channel({channel, limit?})`. The first four only differ in a label nothing acts on, except that `quiet` or low-urgency `notify` delivers silently on Telegram; `batchable` is stored but unused. | Two tools. `send_message({text, to?, quiet?})` posts to this thread when `to` is omitted, or to `@agent` or `@person` for a DM, `#channel` for its main thread, or `#channel/thread`. A person is reached where they were last active, as `user:<id>` does today. `read_messages({from?, limit?, before?})` reads with the same addresses, defaulting to this thread. The final-text default covers what `reply`, `ask` and `report` did, and `quiet` covers `notify`. For example, `notify(text, urgency="low")` becomes `send_message(text, quiet: true)`, `send_message(channel="dm~mechanic~shrimpy", text)` becomes `send_message(text, to: "@mechanic")`, and `read_channel(channel)` becomes `read_messages(from: "#channel")`. | Confirmed |
 | Publication results | — | Success means the delivery owner accepted it. Pending, delivered, failed and uncertain are a separate status. A person's last-active destination is fixed when the message is accepted. A message that was accepted but later fails or becomes uncertain is noted in the agent's next turn, so it can fix and resend. | Confirmed |
 | Publishing while the gateway is unreachable | Replies append to the channel log on disk, and the gateway's outbox delivers them when it runs | The agent tracks whether it's connected. Publication tools fail with an explanation the model can act on: not sent because the gateway is unreachable, so try again later. A send that went out without confirmation reports itself as uncertain. Each publication carries its tool call's ID, so a retry never posts twice. A final message that can't be sent when a turn ends is recorded, and the agent's next turn includes a note so it can decide whether to resend. | Confirmed |
 | No-reply watchdog | An extra model call after silent human turns, which may inject a prompt | Removed. Sending the final message by default covers what it was for. | Confirmed |
 | Codemode | Not enabled | A later experiment, once the core tools work: a durable tool wrapping the standalone `pi-codemode` package. The model writes a short script that calls the agent's other tools in parallel, and only the script's output enters context. Nested calls get the same validation and tool policy as direct calls and show up in clients. Its small store lives in a session document. A crash mid-script reports the whole script as interrupted. MCP through the standalone `pi-mcp` package would build on it later. | Confirmed |
 | File tools | `read` (with images), `write`, `edit`, `bash`, `grep`, `find`, `ls` | Same surface. Durable's stock four tools lack image reading and search, so add focused durable tools. Side-effect tools stay unsafe. | Keep |
-| Pi extensions and themes | Discovered trusted extensions add tools, commands and renderers | They stop working because durable has a different API. Inventory each one and port it or propose removal. | Change |
+| Pi extensions and themes | Discovered trusted extensions add tools, commands and renderers | Shrimpy's four bundled extensions become console features, and its theme carries over if the console reuses `pi-tui` theming. Pi's extension and package discovery is dropped, since durable can't run those extensions. | Confirmed |
 
 ### Delegation and recurring work
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Pi subagents | — | Foreground child sessions that join and abort with their parent. Detached helpers use background ownership. | Change |
+| Helpers | — | An agent can start helpers: child sessions in its own process, with its home and authority. Foreground helpers join and stop with their parent. Background helpers outlive it and wake the parent with their result when they finish. Helpers appear in a work view and never become agents. Pi calls them subagents. | Confirmed |
 | Workers | Detach and outlive the caller | Same default. Codex keeps its real continue, send, wait and cancel protocol; after the owner dies it isn't a restored Pi child. Renaming or removing worker commands or backends needs review. | Keep |
-| Triggers | Watches, run by a global gateway clock | Renamed, because not everything that wakes an agent is a time. A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#triggers)). An invalid reload keeps the last valid definitions. Upkeep triggers stay disabled when installed. A stopped agent runs no triggers, and restart doesn't backfill. | Change |
+| Triggers | Watches, run by a global gateway clock | Renamed, because not everything that wakes an agent is a time. A trigger fires into a target thread, where it shows as a small trigger line with its prompt or output folded before the agent's reply, or into no thread for private background work. A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#triggers)). An invalid reload keeps the last valid definitions. Upkeep triggers stay disabled when installed. A stopped agent runs no triggers, and restart doesn't backfill. | Confirmed |
 | Triggers in the agent or the OS | — | In the agent's runtime, where durable tracks every run and you inspect them in one place. The `REDESIGN` branch had moved them to skills over launchd and systemd so they'd fire while the agent is down; a stopped agent now runs none. | Confirmed |
-| Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not the triggers themselves. Disabling a trigger stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Change |
+| Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not the triggers themselves. Disabling a trigger stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Confirmed |
 
 ### Channels, chat providers and the web app
 
@@ -318,7 +319,7 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 ### Triggers
 
 - A trigger and each of its occurrences are separate durable tasks owned by a session. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
-- Persist the trigger revision, next occurrence and target thread. Admit prompt work with a stable trigger and occurrence ID.
+- Persist the trigger revision, next occurrence and target thread, if any. Admit prompt work with a stable trigger and occurrence ID.
 - Command occurrences record intent before running. If an unsafe command had started when the owner died, the occurrence reports interrupted and isn't rerun. A finished result and emission decision are kept, so an admission retry doesn't repeat the check.
 - The extension owns coalescing, overlap, timeouts, emission, reload and cancellation policy. Pi owns checkpoints, outcomes and observation. The host only installs code and seeds selected definitions.
 - Cancelling all work in a home includes running occurrences and helpers, not enabled triggers.
@@ -343,7 +344,7 @@ Reuse small filesystem, search, formatting, calendar, model-policy, transport an
 | Session recording, manifest, transcript store, inventory and search; the copied compaction runner | Pi entries and projection, minimal session metadata and derived queries. Delete the second transcript lifecycle and compaction paths. |
 | `src/context/*`, resource loading, included instructions and skills | The durable home-context extension, producer helpers and committed provenance. Delete global-runtime dependencies and `ExtensionAPI` bindings. |
 | `src/tools/daemon.ts`; channel routing, bus, activity and outbox; `src/agents/channel-policy.ts` | Small durable publication tools, channels on the gateway, which own routing and delivery, and wake policy in each agent's service. Delete the shared bus and duplicate turn state; keep needed delivery receipts. |
-| `src/workers/*` | Pi child and background ownership for Pi work; a focused adapter or skill for Codex. Delete the universal worker supervisor and backend state. |
+| `src/workers/*` | Helpers on durable's child and background ownership; a focused adapter or skill for Codex. Delete the universal worker supervisor and backend state. |
 | `src/watches/*`; gateway watch service and clock | The durable trigger extension. Delete the global clock, execution history and orchestration state. |
 | `src/tui/*`, root UI extensions, `src/app/pi-internals.ts` | The attached console client on public components. Delete private `InteractiveMode` patches and runtime lifetime coupling. |
 | Telegram and shared surface code; `gateway/web-sidecar.ts`; web JSONL readers | The shared chat layer with Telegram as its first provider, and the API-backed web session client. Delete sidecar lifetime coupling and byte-cursor reading. |
@@ -539,13 +540,13 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 **Build**
 
 - The trigger extension, following the [trigger contract](#triggers).
-- Pi delegation in the foreground and background, and the retained Codex workflow.
+- Helpers in the foreground and background, and the retained Codex workflow.
 
 **Prove**
 
 - Triggers: cron with timezones, intervals, one overdue run, overlap skipping and opt-in overlap, invalid edits at startup and on reload, manual runs, disabling, removing or reloading mid-run, cancelling one occurrence, changed and unchanged output, timeouts, and restarts before and after a command's effect and its input admission.
 - Deterministic checks make no model calls until they emit something.
-- Delegation through the real Codex backend: start, inspect, continue, wait, cancel, close and outputs, across caller disconnect and owner death. Pi task ownership never cancels detached external workers.
+- Delegation through the real Codex backend: start, inspect, continue, wait, cancel, close and outputs, across caller disconnect and owner death. A background helper wakes its parent when it finishes, and Pi task ownership never cancels detached external workers.
 
 **Deletes:** the old watch and worker stores and supervisors.
 
@@ -599,7 +600,7 @@ The current catalog is [src/commands/catalog.ts](../../src/commands/catalog.ts).
 | Channels: list, show, read, search, tail, create, post, bind, unbind, dm, members, join, leave | Reviewed routing, log, thread and recipient operations owned by the gateway's channels. The internal bus is removed. |
 | Surfaces, users, presence, owner | Explicit provider bindings, authenticated sender and contact policy, and current presence. Owner fallback and last-active addressing aren't removed silently. |
 | Watches: list, add, enable, disable, show, history, run | Renamed to `shrimpy triggers` with the same subcommands and no `watches` alias. Per-home trigger policy and durable occurrence observation. |
-| Workers: backends, start, list, status, read, send, tail, wait, cancel, close | Pi delegation and real external CLI workflows. Unsupported backends are proposed removals, not empty placeholders. |
+| Workers: backends, start, list, status, read, send, tail, wait, cancel, close | Helpers and real external CLI workflows. Unsupported backends are proposed removals, not empty placeholders. |
 | Workspace: setup, tracking, search, index, status | Explicit home selection, ordinary file search and checkpoints, derived indexes with provenance. Shared global scope needs review. |
 | Gateway: install, start, stop, restart, status, logs, uninstall | Per-home owner and chat-provider service operations. Command names and independent shutdown need review. |
 | Telegram setup; update dry-run, exact tag or SHA apply, hidden `check-mechanic` | The reviewed preview, guide and apply workflow, and provider setup that preserves files. Mechanic-specific preflight is replaced. |
