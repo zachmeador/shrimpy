@@ -121,6 +121,29 @@ test("a channel has one main thread, and side threads are listed by recent use",
   });
 });
 
+test("threads updated in the same millisecond are listed in the order of their messages", (t) => {
+  const { store } = openTestStore(t);
+  const zach = person("Zach");
+  store.transaction((tx) => {
+    const channel = openDm(tx, zach, agent("Shrimpy"), 1000);
+    const main = mainThread(tx, channel.id);
+    const side = tx.addThread(channel.id, "side", 1000).id;
+
+    post(tx, side, zach, "first", 5000);
+    post(tx, main, zach, "second", 5000);
+    assert.deepEqual(
+      tx.threadsIn(channel.id).map((thread) => thread.id),
+      [main, side],
+    );
+
+    post(tx, side, zach, "third", 5000);
+    assert.deepEqual(
+      tx.threadsIn(channel.id).map((thread) => thread.id),
+      [side, main],
+    );
+  });
+});
+
 test("two members have one DM between them", (t) => {
   const { store } = openTestStore(t);
   const zach = person("Zach");

@@ -34,9 +34,10 @@ CREATE TABLE threads (
   archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
   preview TEXT,
   message_count INTEGER NOT NULL DEFAULT 0,
+  last_seq INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 ) STRICT;
-CREATE INDEX threads_by_channel ON threads (channel_id, updated_at DESC);
+CREATE INDEX threads_by_channel ON threads (channel_id, updated_at DESC, last_seq DESC);
 CREATE UNIQUE INDEX one_main_thread_per_channel ON threads (channel_id) WHERE main = 1;
 
 CREATE TABLE messages (

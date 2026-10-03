@@ -102,9 +102,11 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
       sql.run(
         `UPDATE threads
          SET message_count = message_count + 1,
+             last_seq = ?,
              updated_at = max(updated_at, ?),
              preview = coalesce(preview, ?)
          WHERE id = ?`,
+        inserted.seq,
         post.sentAt,
         post.preview,
         post.threadId,

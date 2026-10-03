@@ -30,7 +30,10 @@ const toThread = (row: ThreadRow): ThreadRecord => ({
 
 export interface ThreadOperations {
   thread(id: string): ThreadRecord | undefined;
-  /** A channel's threads, the most recently updated first. */
+  /**
+   * A channel's threads, the most recently updated first. Threads updated in the
+   * same millisecond go in the order of their newest messages.
+   */
   threadsIn(channelId: string): ThreadRecord[];
   /** Start a side thread. */
   addThread(channelId: string, name: string | null, now: number): ThreadRecord;
@@ -71,7 +74,8 @@ export function threadOperations(sql: Sql, report: ReportChange): ThreadOperatio
     thread: find,
     threadsIn(channelId) {
       const rows = sql.all(
-        `SELECT ${COLUMNS} FROM threads WHERE channel_id = ? ORDER BY updated_at DESC, rowid DESC`,
+        `SELECT ${COLUMNS} FROM threads WHERE channel_id = ?
+         ORDER BY updated_at DESC, last_seq DESC, rowid DESC`,
         channelId,
       ) as ThreadRow[];
       return rows.map(toThread);
