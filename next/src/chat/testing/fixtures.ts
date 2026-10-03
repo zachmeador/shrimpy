@@ -14,8 +14,20 @@ export const agent = (name: string): Member => ({
   name,
 });
 
+/** What `assert.throws` should find when the chat server refuses a call, whose reason matches `message`. */
+export const refused = (message: RegExp, code = "service_invalid_value") => ({
+  name: "Refusal",
+  code,
+  message,
+});
+
+export interface Clock {
+  readonly now: () => number;
+  advance(ms?: number): void;
+}
+
 /** A clock that only moves when told to, one second apart by default. */
-export function fakeClock(start = 1_700_000_000_000): { now(): number; advance(ms?: number): void } {
+export function fakeClock(start = 1_700_000_000_000): Clock {
   let time = start;
   return {
     now: () => time,

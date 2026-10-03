@@ -4,5 +4,6 @@
  * this.
  */
 export { stopAfter, tempDir } from "./cleanup.ts";
-export { agent, fakeClock, person } from "./fixtures.ts";
+export { openTestDeps } from "./deps.ts";
+export { agent, fakeClock, person, refused } from "./fixtures.ts";
 export { openTestStore } from "./store.ts";
