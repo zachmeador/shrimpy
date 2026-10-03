@@ -22,7 +22,7 @@ Confirmed during review:
 - **Agents decide what wakes them.** The gateway offers each new channel message to member agents, and each agent's wake policy decides whether it starts a turn, as `channelPolicy` does today. Loop protection lives there too; the gateway doesn't filter conversation.
 - **Sandboxing is a deployment choice.** An agent runs the same with or without a sandbox. When it is sandboxed, the sandbox wraps the whole agent process. Shrimpy doesn't sandbox individual tools, so agents keep a real shell.
 
-This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. One of its questions is still open: whether watches and workers stay in the agent or move to skills over OS schedulers ([see below](#delegation-and-recurring-work)).
+This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. It differs in one place: watches stay in the agent's runtime instead of moving to OS schedulers ([see below](#delegation-and-recurring-work)).
 
 ## Plan at a glance
 
@@ -110,7 +110,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Publication results | — | Success means the delivery owner accepted it. Pending, delivered, failed and uncertain are a separate status. `user:<id>` last-active recipients are fixed at acceptance. | Change |
 | Publishing while the gateway is unreachable | Replies append to the channel log on disk, and the gateway's outbox delivers them when it runs | The agent tracks whether it's connected. Publication tools fail with an explanation the model can act on: not sent because the gateway is unreachable, so try again later. A send that went out without confirmation reports itself as uncertain. Each publication carries its tool call's ID, so a retry never posts twice. | Confirmed |
 | No-reply watchdog | An extra model call after silent human turns, which may inject a prompt | Removed in favor of visible publication status and ordinary instructions. Affects responsiveness, silence and cost. | Change |
-| Codemode | Not enabled | A durable tool wrapping the standalone `pi-codemode` package. The model writes a short script that calls the agent's other tools in parallel, and only the script's output enters context. Nested calls get the same validation and tool policy as direct calls and show up in clients. Its small store lives in a conversation document. A crash mid-script reports the whole script as interrupted. MCP through the standalone `pi-mcp` package would build on it later. | Open |
+| Codemode | Not enabled | A later experiment, once the core tools work: a durable tool wrapping the standalone `pi-codemode` package. The model writes a short script that calls the agent's other tools in parallel, and only the script's output enters context. Nested calls get the same validation and tool policy as direct calls and show up in clients. Its small store lives in a conversation document. A crash mid-script reports the whole script as interrupted. MCP through the standalone `pi-mcp` package would build on it later. | Confirmed |
 | File tools | `read` (with images), `write`, `edit`, `bash`, `grep`, `find`, `ls` | Same surface. Durable's stock four tools lack image reading and search, so add focused durable tools. Side-effect tools stay unsafe. | Keep |
 | Pi extensions and themes | Discovered trusted extensions add tools, commands and renderers | They stop working because durable has a different API. Inventory each one and port it or propose removal. | Change |
 
@@ -121,7 +121,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Pi subagents | — | Foreground child conversations that join and abort with their parent. Detached helpers use background ownership. | Change |
 | Workers | Detach and outlive the caller | Same default. Codex keeps its real continue, send, wait and cancel protocol; after the owner dies it isn't a restored Pi child. Renaming or removing worker commands or backends needs review. | Keep |
 | Watches | A global gateway clock | A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#watches)). An invalid reload keeps the last valid definitions. Upkeep watches stay disabled when installed. A stopped agent runs no watches, and restart doesn't backfill. | Change |
-| Watches in the agent or the OS | — | The `REDESIGN` branch moved watches and workers to skills over launchd and systemd, which keep running while the agent is down. This plan keeps them in the agent for native task state and one place to inspect them. Decide before phase 5. | Open |
+| Watches in the agent or the OS | — | In the agent's runtime, where durable tracks every run and you inspect them in one place. The `REDESIGN` branch had moved them to skills over launchd and systemd so they'd fire while the agent is down; a stopped agent now runs none. | Confirmed |
 | Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not schedules. Disabling stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Change |
 
 ### Channels, chat providers and the web app
@@ -159,7 +159,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Automatic migration of old transcripts, tasks, manifests or clocks.
 - Model calls to route ordinary input.
 - Loop or flood control in the gateway. Agents' wake policies handle it.
-- Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode has its own [open row](#tools-and-publication).
+- Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](#tools-and-publication).
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
 
 ## Architecture
@@ -231,7 +231,7 @@ Shrimpy's session API is a set of concrete operations, identical for local and g
 - publication and chat-provider status, watch and delegation controls
 - attachment upload into the agent's home
 
-Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Decide in phase 1 whether the gateway-facing contract is Pi's protocol or plain HTTP with SSE, which shell tools, browsers and non-Pi agents can use directly.
+Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the gateway's chat layer, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not in phase 1. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge. The protocol makes no compatibility promises, so agents and clients run matching Pi versions and upgrade together.
 
 Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd. Clipboard files and images move into the agent's home through the API, with provenance and size limits.
 
@@ -408,7 +408,7 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 ## Phases
 
-Work in an isolated feature branch and checkout with fixture homes and separate build output. Never run the root build or tests in the live checkout: they rewrite the `dist/` that the installed CLI uses. Candidate services, sockets, binaries and home paths stay separate from the installed application. Each phase ends by adding its row to the [size log](#size-baseline).
+Work in an isolated feature branch and checkout with fixture homes and separate build output. Never run the root build or tests in the live checkout: they rewrite the `dist/` that the installed CLI uses. Candidate services, sockets, binaries and home paths stay separate from the installed application. Each phase ends by adding its row to the [size log](#size-baseline). `main` stays on Pi `0.84.4` until the candidate replaces it; there's no interim upgrade.
 
 ### 1. Standalone agent and attached clients
 
@@ -445,7 +445,6 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 - Request and context inspection, and explicit reload.
 - Ported skills and helper commands, with their tool requirements and precedence.
 - Native compaction with Shrimpy's guidance in place of the copied runner.
-- Codemode, if approved.
 
 **Prove**
 
@@ -455,7 +454,6 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 - Killing the owner around a producer's effect and result commit, and during blocking compaction. Failures and caching behave as specified.
 - Previews run no producers.
 - A model tool call spanning a resource reload and an attempted code or environment swap.
-- If codemode is in: nested calls respect disabled tools and policy, appear in clients, and a crash mid-script reports interruption.
 
 **Deletes:** the old prompt, resource, recording and compaction execution paths.
 
@@ -511,7 +509,7 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 
 **Build**
 
-- The watch extension, following the [watch contract](#watches). Settle the open agent-versus-OS question first.
+- The watch extension, following the [watch contract](#watches).
 - Pi delegation in the foreground and background, and the retained Codex workflow.
 
 **Prove**

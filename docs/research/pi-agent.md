@@ -88,6 +88,8 @@ Pi now defaults to fullscreen, adds a terminal-derived system theme, embeds prog
 
 ### Summary and versions
 
+Decision, 2026-10-02: Shrimpy skips this upgrade. `main` stays on `0.84.4` while Shrimpy is rebuilt on `pi-durable` per the [replacement plan](../REDESIGN/PLAN.md). The assessment below is kept as evidence.
+
 The stable upgrade is worth pursuing, but **it is not ready to land unchanged**. Source build failures and context-inspection regressions are demonstrated. Small disposable edits let the host build and start, but those edits are diagnostic accommodations, not a validated implementation.
 
 - Shrimpy source: clean `main`, `574bb2cb525e2fddabda7382c510ce048efd5b25`, `/Users/zachmeador/gits/shrimpy`.
