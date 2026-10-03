@@ -205,6 +205,22 @@ test("a post whose acknowledgment was lost is not posted again by its retry", { 
   assert.deepEqual(texts(await zach.chat.read(main.id, null, 10)), ["Did this arrive?"]);
 });
 
+test("a connection keeps working while its own feed waits", { timeout }, async (t) => {
+  const chat = await startTestChat(t);
+  const zach = await chat.join(person("Zach"));
+  const shrimpy = await chat.join(agent("Shrimpy"));
+  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const main = await mainThread(zach, dm.id);
+  const start = await shrimpy.chat.head();
+
+  const waiting = shrimpy.chat.feed(start, 10);
+  await shrimpy.chat.setWorking(main.id, true);
+  const reply = await shrimpy.chat.post(main.id, "Answering while I listen.", "shrimpy-1");
+
+  assert.equal(await shrimpy.chat.head(), reply.seq);
+  assert.deepEqual(await waiting, [reply]);
+});
+
 test("a waiting feed ends when its caller cancels it, and the connection carries on", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.join(person("Zach"));
