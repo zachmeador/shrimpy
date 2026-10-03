@@ -1,4 +1,5 @@
 import type { ThreadView } from "../../contracts/chat/index.ts";
+import { fitAnswer } from "../input/index.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
 
@@ -10,7 +11,7 @@ export function readThreadView(deps: ChatDeps, threadId: string): ThreadView {
   return deps.store.transaction((tx) => {
     const record = tx.thread(threadId);
     if (record === undefined) throw new Error(`Unknown thread ${threadId}`);
-    const messages = tx.messagesIn(threadId, null, VIEW_MESSAGES);
+    const messages = fitAnswer(tx.messagesIn(threadId, null, VIEW_MESSAGES), "newest");
     return {
       thread: withWorking(record, deps.working),
       messages,

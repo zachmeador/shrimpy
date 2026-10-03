@@ -26,11 +26,16 @@ export interface Chat {
 
   /**
    * Post to a thread. A retry with the same `requestId` from the same member
-   * returns the first message instead of posting twice. A message holds at most
-   * 20,000 characters.
+   * returns the first message instead of posting twice, and the same `requestId`
+   * with a different thread or text is refused. A message holds at most
+   * `MAX_MESSAGE_LENGTH` characters.
    */
   post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
-  /** Up to `limit` messages older than `beforeSeq`, or the newest when it is null; oldest first. */
+  /**
+   * Up to `limit` messages older than `beforeSeq`, or the newest when it is
+   * null; oldest first. A page of very long messages holds fewer, the newest of
+   * them.
+   */
   read(
     threadId: string,
     beforeSeq: number | null,
@@ -49,7 +54,8 @@ export interface Chat {
   head(context: Context): Promise<number>;
   /**
    * Messages after `cursor` in every channel the caller belongs to, oldest
-   * first, up to `limit`. Waits until there is at least one. This is how an
+   * first, up to `limit`, or fewer when they are very long. Waits until there
+   * is at least one. This is how an
    * agent is offered messages: it asks, so the chat server never has to reach
    * an agent, and a restarted agent catches up from its own cursor.
    */

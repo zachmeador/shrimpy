@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
 import {
   agent,
   follow,
@@ -266,10 +267,10 @@ test("a message of the longest allowed size makes it through, and a longer one d
   const dm = await zach.chat.openDm(agent("Shrimpy"));
   const main = await mainThread(zach, dm.id);
 
-  const longest = await zach.chat.post(main.id, "é".repeat(20_000), "zach-1");
+  const longest = await zach.chat.post(main.id, "é".repeat(MAX_MESSAGE_LENGTH), "zach-1");
 
-  assert.equal(longest.text.length, 20_000);
-  await assert.rejects(zach.chat.post(main.id, "é".repeat(20_001), "zach-2"), {
-    message: /at most 20000 characters/,
+  assert.equal(longest.text.length, MAX_MESSAGE_LENGTH);
+  await assert.rejects(zach.chat.post(main.id, "é".repeat(MAX_MESSAGE_LENGTH + 1), "zach-2"), {
+    message: /at most 400000 characters/,
   });
 });

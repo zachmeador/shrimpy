@@ -1,6 +1,6 @@
 import type { Context } from "@earendil-works/chord";
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { MAX_PAGE, refuse, whole } from "../input/index.ts";
+import { fitAnswer, MAX_PAGE, refuse, whole } from "../input/index.ts";
 import type { Store } from "../store/index.ts";
 import { nextMessage } from "./wait.ts";
 
@@ -32,7 +32,7 @@ export async function feed(
       if (after > newest) {
         refuse(`The cursor ${after} is past the newest message, ${newest}. Start again from head.`);
       }
-      return tx.messagesAfter(caller.id, after, count);
+      return fitAnswer(tx.messagesAfter(caller.id, after, count), "oldest");
     });
     if (messages.length > 0) return messages;
     // The read above and the watching below happen in one turn of the event

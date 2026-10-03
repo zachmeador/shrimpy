@@ -38,6 +38,12 @@ export interface Thread {
   working: Working[];
 }
 
+/**
+ * Characters one message can hold. It is far above any ordinary answer; an
+ * agent whose answer is longer posts it in parts.
+ */
+export const MAX_MESSAGE_LENGTH = 400_000;
+
 export interface Message {
   id: string;
   /** The message's position in the whole server's order. A member's feed cursor is one of these. */
@@ -59,7 +65,7 @@ export interface Message {
  */
 export interface ThreadView {
   thread: Thread;
-  /** The newest messages, oldest first: at most 200. */
+  /** The newest messages, oldest first: at most 200, and fewer when they are very long. */
   messages: Message[];
   /** How many older messages exist beyond `messages`. */
   earlier: number;

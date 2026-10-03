@@ -54,7 +54,7 @@ test("message text is kept exactly as sent, and must say something within the li
   for (const bad of ["", " \n\t", 3, null]) {
     assert.throws(() => messageText(bad), refused(/needs some text/));
   }
-  assert.throws(() => messageText("m".repeat(MAX_TEXT + 1)), refused(/at most 20000 characters/));
+  assert.throws(() => messageText("m".repeat(MAX_TEXT + 1)), refused(new RegExp(`at most ${String(MAX_TEXT)} characters`)));
 });
 
 test("a whole number has a least value", () => {

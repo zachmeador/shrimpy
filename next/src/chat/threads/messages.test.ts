@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestContext } from "node:test";
+import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { agent, openTestDeps, person, refused } from "../testing/index.ts";
 import {
   createThread,
@@ -117,7 +118,7 @@ test("what a post is made of is checked", (t) => {
   const { deps, zach, main } = setup(t);
 
   assert.throws(() => post(deps, zach, main.id, "", "r"), refused(/needs some text/));
-  assert.throws(() => post(deps, zach, main.id, "x".repeat(20_001), "r"), refused(/at most 20000 characters/));
+  assert.throws(() => post(deps, zach, main.id, "x".repeat(MAX_MESSAGE_LENGTH + 1), "r"), refused(/at most 400000 characters/));
   assert.throws(() => post(deps, zach, main.id, "hi", ""), refused(/^requestId must be an ID/));
   assert.throws(() => post(deps, zach, 5, "hi", "r"), refused(/^threadId must be an ID/));
   assert.equal(readMessages(deps, zach, main.id, null, 10).length, 0);

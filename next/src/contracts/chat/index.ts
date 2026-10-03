@@ -12,4 +12,5 @@ export {
 } from "./connect.ts";
 export { type ChatEndpoint, chatEndpointFile } from "./endpoint.ts";
 export { Chat, ThreadService } from "./services.ts";
+export { MAX_MESSAGE_LENGTH } from "./view.ts";
 export type { Channel, Member, Message, Thread, ThreadView, Working } from "./view.ts";

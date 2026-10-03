@@ -1,5 +1,6 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import {
+  fitAnswer,
   identifier,
   identifiers,
   MAX_PAGE,
@@ -66,7 +67,7 @@ export function readMessages(
   const count = Math.min(whole(limit, "limit", 1), MAX_PAGE);
   return deps.store.transaction((tx) => {
     visibleThread(tx, caller, id);
-    return tx.messagesIn(id, before, count);
+    return fitAnswer(tx.messagesIn(id, before, count), "newest");
   });
 }
 

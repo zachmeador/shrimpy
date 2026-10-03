@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
+import { ANSWER_BYTES } from "../input/index.ts";
 import { agent, openTestDeps, person } from "../testing/index.ts";
 import { identify, listThreads, openDm, post, setWorking } from "./index.ts";
 import { readThreadView, VIEW_MESSAGES } from "./thread-view.ts";
@@ -36,6 +38,22 @@ test("a view holds the thread, its newest messages oldest first, and how many co
   assert.equal(view.messages.at(-1)?.text, "message 205");
   assert.equal(view.thread.preview, "message 1");
   assert.equal(view.thread.updatedAt, clock.now());
+});
+
+test("a view of very long messages holds the newest that fit one answer, and counts the rest", (t) => {
+  const { deps, clock, zach, main } = setup(t);
+  const posted = 30;
+  for (let number = 1; number <= posted; number++) {
+    clock.advance();
+    post(deps, zach, main.id, `${number} ${"é".repeat(MAX_MESSAGE_LENGTH - 10)}`, `request-${number}`);
+  }
+
+  const view = readThreadView(deps, main.id);
+
+  assert.ok(view.messages.length > 1 && view.messages.length < posted, String(view.messages.length));
+  assert.equal(view.earlier, posted - view.messages.length);
+  assert.ok(view.messages.at(-1)?.text.startsWith(`${posted} `));
+  assert.ok(Buffer.byteLength(JSON.stringify(view.messages)) <= ANSWER_BYTES);
 });
 
 test("a view says who is working in the thread", (t) => {
