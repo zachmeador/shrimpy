@@ -204,6 +204,8 @@ The builders made these visible choices while implementing phase 1. None has shi
 | Names | Member and thread names hold up to 200 characters on one line. |
 | Gateway in a browser | `/ws/gateway` and `/ws/<kind>/<name>`, on IPv4 loopback only, with no default port yet. Static files have no fallback page and no cache or security headers, and dotfiles are served. |
 | Two programs with one name | The gateway doesn't refuse the second registration; the newest is the one reached. |
+| A second chat server | Refused with "A chat server is already running on `<socket>`. Use that one, or stop it before starting another." |
+| A lock that fails for another reason | An unwritable runtime folder shows the underlying error, not "Another process owns the agent home". |
 
 ## Not built
 
@@ -443,7 +445,8 @@ src/
     console/        terminal client
     web/            web client, replacing today's top-level web/
   cli/              the `shrimpy` command
-  lib/              small helpers with no domain knowledge, such as where sockets live
+  lib/              helpers with no knowledge of Shrimpy's domain: sockets, locks, retries, config checking,
+                    test support, and the plumbing every program repeats around Pi's client and server
 ```
 
 ### What may import what
@@ -457,6 +460,7 @@ src/
 | `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
 
 - **Programs never import each other.** They talk only through `contracts/`, which are Chord services carried by `pi-server` and `pi-client`.
+- **Shared plumbing stays plumbing.** `lib/connection` and `lib/offer` wrap Pi's client and server once for all three contracts. They hold no registry, discovery or lifecycle of their own, which is what keeps them from becoming the service framework this plan doesn't build.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `agent/sessions/` is the one place that turns Pi's records into the session view clients see. A Pi upgrade can then change the agent without touching a client.
 - **Only `clients/console/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports.
 
@@ -464,7 +468,7 @@ src/
 
 Keep this simple:
 
-- Every directory in the tree has one front door, `index.ts`. Code outside the directory imports only that.
+- Every module has one front door, `index.ts`. A file imports files in its own directory or another directory's front door, and nothing else. `contracts/`, `lib/` and `clients/` only group modules, so they have no door of their own.
 - Each front door opens with a short comment saying what the module is for and what it must not know about.
 - Tests sit next to the code they cover, as `*.test.ts`.
 - A module whose API partly needs Node offers that part through a second door, `node.ts`. Browser-safe code, meaning the web client and the contracts' main doors, can't import it.
@@ -583,7 +587,10 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - The chat contract has `skippedBy` and `markSkipped` where the plan has receipts.
 - Registrations carry no version.
 - OAuth sign-in isn't built. The plan keeps it.
-- `agent/sessions/` imports `pi-server` for an error type, though it's meant to know nothing about transports. The consolidation pass is fixing it.
+- The chat server and the gateway have no commands yet, so they're only reachable as libraries.
+- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes.
+- The lint doesn't check that a `lib/` module used by browser code is itself safe for browsers. Only the contracts' bundle tests would catch it.
+- `lib/connection` and `lib/offer` say "session" for what Pi routes to. This plan keeps that word for an agent's private work, and for the chat server the route is a thread.
 - Only `agent/sessions/` reads Pi's records, as the plan requires, but that holds by convention. The lint only keeps Pi's durable package inside `agent/`.
 - Not built yet from the layout: `agent/intake/`, `agent/extensions/`, `chat/providers/` and `clients/`.
 
@@ -756,6 +763,12 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
 - Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.
 
+**Phase 1 progress, 2026-10-03: the consolidation pass is in.** One builder moved what the three parallel builds had duplicated into `lib/`: the lock, test support, the client connection core, offering a service, refusals, and a listener helper. It fixed four defects in the agent's client and one in the chat's, and every test now cleans up after itself.
+
+- The total grew instead of shrinking. Program code fell by about 260 lines and their test support by about 220, but the shared modules and their tests are larger than the copies they replaced. `next/src/` now holds 5,492 lines of product code, 8,062 of tests and 1,478 of test support.
+- The import rule is simpler: a file imports its own directory or another directory's front door.
+- Earlier test runs left about 4,000 `shrimpy-*` directories in the OS temp directory. They haven't been removed.
+
 **Phase 1 progress, 2026-10-03: an agent runs from its home, with a CLI.** `shrimpy agent init`, `agent serve` and `agent status` create and run an agent, and `sessions list`, `read`, `steer` and `stop` talk to it. Run them from source in `next/` with `npm run shrimpy -- <command>`. Checked on macOS arm64 with Node 26.7.0.
 
 - A home holds `agent.json` (name and default model), `SOUL.md`, and Pi's `state/pi/models.json` and `auth.json`. `models.json` takes a strict subset of Pi's format, with `openai-completions` as the only API, and an unsupported key is an error.
@@ -769,11 +782,11 @@ After the three merges `next/src/` holds about 5,300 lines of product code, 7,00
 
 **Phase 1 progress, 2026-10-03: the chat server is in.** `next/src/chat/` keeps members, DMs, threads and messages in its own SQLite store and serves the chat contract on a Unix socket. About 1,750 lines of product code and 380 in its contract, checked on macOS arm64 with Node 26.7.0.
 
-- Opening the store is the single-owner check: a second chat server on the same data directory is refused, and a killed owner's lock goes with it. The store syncs fully on commit, so an accepted post survives a power cut.
+- Opening the store is the single-owner check for a data directory: a second chat server on it is refused, and a killed owner's lock goes with it. A lock beside the socket keeps one chat server per machine, because Pi's listener can't arbitrate simultaneous starts: three at once left no chat server in 16 of 40 rounds before the lock, and exactly one in 40 of 40 after. The store syncs fully on commit, so an accepted post survives a power cut.
 - A message holds up to 400,000 characters. Views, pages and feed batches are bounded by their encoded size, so an answer always fits one protocol frame; a page of very long messages holds fewer.
 - A feed cursor past the newest message is refused, so an agent whose chat store was replaced starts again from the head.
 - IDs look like `ch_`, `th_` and `msg_` plus 12 characters. A thread's preview is the first 80 characters of its first message on one line. A DM is named for the other member.
-- Refusals carry a message but no typed code yet. Thread rename and archive are plain set-to-value, so clients must not retry them automatically.
+- Refusals carry a message and one of Chord's two general codes, for wrong arguments or for something not allowed now. There are no codes of Shrimpy's own yet. Thread rename and archive are plain set-to-value, so clients must not retry them automatically.
 - A hosted thread's view stays in memory until the server stops, which is how `pi-server` holds sessions.
 - `head` is server-wide, so it shows how many messages exist in channels the caller isn't in.
 
