@@ -2,7 +2,8 @@
  * The chat server program: one process that keeps channels, threads and
  * messages in its own store and serves the chat API for everyone on this
  * machine. Other programs reach chat only through `contracts/chat`; they never
- * import this program's modules.
+ * import this program's modules. It must not know what a member does with a
+ * message, or anything about an agent's sessions.
  */
 import type { ChatEndpoint } from "../contracts/chat/index.ts";
 import { openStore } from "./store/index.ts";

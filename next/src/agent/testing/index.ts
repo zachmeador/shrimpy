@@ -1,7 +1,8 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
  * server, both without a network, and helpers to attach to an agent, stop it
- * and read its views. Only tests and test fixtures import this.
+ * and read its views. Only tests and test fixtures import this, and it must not
+ * know about any other program.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";

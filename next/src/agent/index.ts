@@ -2,7 +2,8 @@
  * The agent program: one process that owns one home and serves the agent API
  * for it. Other programs reach an agent only through `contracts/agent`; they
  * never import this program's modules, except that the CLI starts an agent and
- * creates a home through this door.
+ * creates a home through this door. It must not know who its clients are, or
+ * anything about the chat server and the gateway beyond their contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { loadHome } from "./home/index.ts";

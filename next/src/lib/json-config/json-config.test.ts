@@ -3,7 +3,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { tempDir } from "../testing/index.ts";
-import { ConfigError, parseConfig, readConfig } from "./index.ts";
+import { ConfigError, parseConfig } from "./index.ts";
+import { readConfig } from "./node.ts";
 
 const file = "/home/a/config.json";
 

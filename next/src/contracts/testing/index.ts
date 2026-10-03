@@ -1,6 +1,7 @@
 /**
  * Test support for contracts: checking that a front door can run in a
- * browser. Only tests import this.
+ * browser. Only tests import this, and it must not know any contract's
+ * services.
  */
 import { build, type BuildResult } from "esbuild";
 

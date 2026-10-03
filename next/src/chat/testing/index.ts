@@ -1,7 +1,7 @@
 /**
  * Test support for the chat server: temporary stores and servers that clean up
  * after themselves, and members to talk as. Only tests and test fixtures import
- * this.
+ * this, and it must not know about any other program.
  */
 export { startTestChat, type TestChat } from "./chat.ts";
 export { type ChatChild, joinEndpoint, startChatChild } from "./child.ts";

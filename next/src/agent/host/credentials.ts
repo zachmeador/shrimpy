@@ -1,5 +1,6 @@
 import type { Credential, CredentialStore } from "@earendil-works/pi-ai";
-import { type ConfigObject, readConfig } from "../../lib/json-config/index.ts";
+import type { ConfigObject } from "../../lib/json-config/index.ts";
+import { readConfig } from "../../lib/json-config/node.ts";
 
 /**
  * The credentials in a home's auth.json, read once when the store is made.

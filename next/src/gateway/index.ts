@@ -3,7 +3,7 @@
  * running programs and gives browsers a way in. It only connects things: it
  * never holds an agent's home, its work or a conversation. Other programs
  * reach it through `contracts/gateway`; they never import this program's
- * modules.
+ * modules. It must not know what the programs it connects say to each other.
  */
 import { createRegistry } from "./registry/index.ts";
 import { startServer } from "./server.ts";

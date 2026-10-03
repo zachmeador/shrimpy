@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   type RoutedServerServiceHost,
@@ -44,7 +44,10 @@ export async function startServer(host: Host): Promise<AgentServer> {
     onError: (error) => console.error("[agent]", error.message),
   });
   await server.start();
-  writeFileSync(endpointFile(host.home), JSON.stringify(endpoint));
+  // Written whole or not at all, so nobody reads half of it.
+  const unfinished = `${endpointFile(host.home)}.${String(process.pid)}`;
+  writeFileSync(unfinished, JSON.stringify(endpoint));
+  renameSync(unfinished, endpointFile(host.home));
   return {
     endpoint,
     stopIntake() {
