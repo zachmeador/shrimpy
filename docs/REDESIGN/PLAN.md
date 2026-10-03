@@ -1,9 +1,9 @@
 # 🦐 Pi Durable Replacement Plan
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 Status: proposal for review. Implementation has not started.
 
-Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage, and terminals, the web app, the CLI and chat providers such as Telegram connect to it. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
+Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads hosted on a gateway, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#experience-decisions).
 
@@ -14,8 +14,9 @@ This file owns the architecture, experience decisions, phases and progress for t
 Confirmed during review:
 
 - **Agents run independently.** Each agent runs in its own process, outside any gateway, and keeps working when clients or the gateway go away.
-- **Clients attach to any agent's sessions.** Opening the terminal or web app, picking an authorized agent, and entering any of its sessions is core UX. Both are session clients over the same API, used locally or routed through a gateway.
-- **The gateway hosts channels, not agents.** It handles discovery, access and routing, and it hosts channels: the shared record of what was said, with chat providers bridged into them. Agents keep their sessions, their own private work. That's the split between channels and sessions Shrimpy has today. A gateway on Tailscale is the leading option for network identity and security.
+- **Every conversation is a thread in a channel.** A channel is a place: a DM with an agent, or a room with people and agents. It has a main thread, and side threads hold parallel topics. The console, the web app, Telegram and a future desktop app are all clients of channels; there's no separate way of talking to an agent from the console.
+- **Sessions sit behind threads.** Each agent taking part in a thread keeps one current session for it: its private work. Work with no thread, such as a subagent's, has a session too. Opening the terminal or web app, picking an authorized agent and entering any of its sessions to watch, steer or stop it is core UX, locally or through a gateway.
+- **The gateway hosts channels, not agents.** It handles discovery, access and routing, and it hosts channels and their threads: the shared record of what was said, with chat providers bridged into them. Agents keep their sessions, their own private work. That's the split between channels and sessions Shrimpy has today. A gateway on Tailscale is the leading option for network identity and security.
 - **Shrimpy leaves Pi's terminal app.** Shrimpy owns its session-client contract and presentation, reusing public `pi-tui` components where they fit.
 - **Pi's durable runtime is the engine.** Shrimpy reshapes around it instead of wrapping it.
 - **Chat providers are interchangeable.** Telegram is one chat provider among possible others, such as Discord or iMessage. Shrimpy's chat behavior lives in one shared layer on the gateway, and each provider only translates its own API. A desktop chat app, possibly a fork Shrimpy maintains someday, would plug in the same way; it isn't part of this plan.
@@ -24,11 +25,23 @@ Confirmed during review:
 
 This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. It differs in one place: triggers, today's watches, stay in the agent's runtime instead of moving to OS schedulers ([see below](#delegation-and-recurring-work)).
 
+## Words
+
+| Word | Means here |
+|---|---|
+| Agent | An enduring identity with its own home. Pi uses "agent" for the configuration a conversation runs with. |
+| Channel | A place where people and agents talk, such as a DM or a room, hosted on the gateway. |
+| Thread | One conversation inside a channel. Every channel has a main thread. |
+| Session | An agent's private work behind a thread, or behind work with no thread. Pi calls this a conversation. |
+| Trigger | Anything other than a message that wakes an agent: a time, an interval or a check whose output changed. Today's watches. |
+| Chat provider | A bridge between a channel and an outside chat app, such as Telegram. |
+| Gateway | Hosts channels and routes clients and agents to each other. It never hosts agents. |
+
 ## Plan at a glance
 
 | Phase | Afterward you can… | Stop or decide if… | Deletes |
 |---|---|---|---|
-| [1. Standalone agent](#1-standalone-agent-and-attached-clients) | Run one agent as a service, natively or in a sandbox; use it from the CLI, terminal and a basic web view; detach, kill it, reattach and see what happened | Public Pi seams or terminal parity need a large compatibility layer: revisit durable | Nothing; new tree only |
+| [1. Standalone agent](#1-standalone-agent-and-attached-clients) | Run one agent as a service, natively or in a sandbox; talk to it in threads from the CLI, terminal and a basic web view; detach, kill it, reattach and see what happened | Public Pi seams or terminal parity need a large compatibility layer: revisit durable | Nothing; new tree only |
 | [2. Context and tools](#2-context-tools-and-compaction) | See exactly what the model received and why; tools, skills and compaction run on durable | — | Old prompt, recording and compaction paths |
 | [3. Daily driver](#3-daily-driver) | Do normal daily work in the new terminal and web clients | A changed affordance has no decision | Private TUI patches, old transcript readers |
 | [4. Communication](#4-communication-and-the-gateway) | Chat through Telegram, the first chat provider, and between agents; attach to an agent through the gateway | — | Old channel loop, global turn and cursor state |
@@ -51,20 +64,20 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Closing a client | The interactive session disposes its runtime on exit | The client detaches and accepted work keeps running. Quitting while the agent is busy prints one line saying the work continues and how to stop it. Reopening shows committed state, and a console conversation marks work that finished while you were away. | Confirmed |
-| Stopping and cancelling | — | Service stop halts execution and keeps records; restart follows the [recovery](#input-cancellation-and-recovery) rules. Cancelling work is a separate action, scoped to one conversation or the whole home, and the three controls are labelled so they can't be confused. Shutdown stops taking new work, gives running turns a short timeout to finish, then pauses the rest; `--now` skips the wait. | Confirmed |
-| Bare `shrimpy` | Most recent interactive agent and its main chat | Same, and it starts that agent's service on demand if installed. Startup failure is explicit and keeps the editor draft. Workspace-wide gateway controls become per-agent controls. | Confirmed |
-| Several clients | A second terminal fails because the first owns the transcript | Clients share the agent's process and Pi orders their input. The UI shows the selected agent, conversation and incoming input. Switching views mid-turn is immediate; the previous conversation keeps running and stays easy to find. Esc from any client stops the conversation for everyone. Typing in the console into a chat-bound conversation stays private: your message and the answer appear only in clients, though the conversation remembers them. | Confirmed |
-| Terminal and web session clients | Terminal only; the web app is a read-only inspector | Both browse agents and sessions and attach through the same API, locally or through the gateway. Opening a view never creates an execution owner. Offline agents, lost routes and rejected input show explicitly. Navigation, controls and permissions still need review. | Confirmed |
+| Closing a client | The interactive session disposes its runtime on exit | The client detaches and accepted work keeps running. Quitting while the agent is busy prints one line saying the work continues and how to stop it. Reopening shows committed state, and threads and sessions mark replies and work that arrived while you were away. | Confirmed |
+| Stopping and cancelling | — | Service stop halts execution and keeps records; restart follows the [recovery](#input-cancellation-and-recovery) rules. Cancelling work is a separate action, scoped to one session or the whole home, and the three controls are labelled so they can't be confused. Shutdown stops taking new work, gives running turns a short timeout to finish, then pauses the rest; `--now` skips the wait. | Confirmed |
+| Bare `shrimpy` | Most recent interactive agent and its main chat | Opens your most recent thread with the most recently used agent, and starts that agent's service on demand if installed. Startup failure is explicit and keeps the editor draft. Workspace-wide gateway controls become per-agent controls. | Confirmed |
+| Several clients | A second terminal fails because the first owns the transcript | Clients share the agent's process and Pi orders the input. The UI shows the selected agent, thread and incoming messages. Switching views mid-turn is immediate; the previous thread's work keeps running and stays easy to find. Esc from any client stops the session for everyone. What you type in any client posts to the thread, so every client of the channel sees it. | Confirmed |
+| Terminal and web clients | Terminal only; the web app is a read-only inspector | Both talk in threads and open the sessions behind them, locally or through the gateway. Opening a view never creates an execution owner. Offline agents, lost routes and rejected input show explicitly. Navigation, controls and permissions still need review. | Confirmed |
 
 ### Conversations and history
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Working contexts | One session per chat or binding | One conversation per chat or binding, with its own history and model settings and the home's shared resources. No master conversation and no shared transcripts. A new conversation isn't a new agent or a filesystem boundary. | Keep |
-| `shrimpy run` | Ephemeral; prints intermediate and final assistant text | Creates a retained conversation unless one is selected, and prints the final settled answer. Scripts that parse today's output or exit codes need updating. | Confirmed |
-| New, reset, archive, resume | New and restore wait behind running work and swap JSONL files | New creates a conversation; reset appends Pi's context boundary; archive hides without deleting; resume selects. A fresh chat starts at once, even while the agent is busy, because an agent runs its conversations side by side. On a channel it rebinds future input only; the earlier conversation finishes its accepted work, and a late reply from it still reaches the channel. | Confirmed |
-| Identifiers | Path-shaped session IDs | Agent-qualified conversation IDs with separate human labels. CLI JSON, search hits, anchors, URLs and copied links change. Choose a form that can gain a machine prefix later. | Change |
+| Working contexts | One session per agent for each chat or binding | One session per agent for each thread it takes part in, with its own history and model settings and the home's shared resources. No master session and no shared transcripts. A new thread isn't a new agent or a filesystem boundary. | Confirmed |
+| `shrimpy run` | Ephemeral; prints intermediate and final assistant text | Posts to a thread, a new one in your DM with the agent unless one is selected, and prints the final settled answer. Scripts that parse today's output or exit codes need updating. | Confirmed |
+| New, reset, archive, resume | New and restore wait behind running work and swap JSONL files | A new topic is a new thread, and the old one stays to come back to. Reset clears the agent's context for a thread, while the thread's messages and the agent's earlier work stay browsable; a chat app without threads, like a Telegram private chat, uses reset for `/new` as today. Archive hides a thread without deleting it, and resume reopens one. A new thread starts at once, even while the agent is busy, because an agent runs its sessions side by side, and late replies in the earlier thread still arrive there. | Confirmed |
+| Identifiers | Path-shaped session IDs | Channels, threads and sessions get short, stable IDs, and channels and threads have names you can change. A session is identified by its agent and thread. A new thread shows its first message until it's named. CLI JSON, search hits, anchors, URLs and copied links change. Choose a form that can gain a machine prefix later. | Change |
 | Old history | JSONL transcripts | Shrimpy converts nothing. Old transcripts stay in the old workspace, and each agent brings over whatever it wants from there itself. | Confirmed |
 
 ### Input, cancellation and recovery
@@ -72,7 +85,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
 | Busy external input | Queues as a follow-up; Telegram groups bursts | Same, with burst grouping shared by every chat provider. Steering stays an explicit action. | Keep |
-| Stop | Stops the current run; queued turns stay | Pi's conversation abort: cancels current work, withdraws queued input and aborts foreground children. The client that sent unconsumed input gets its drafts back; other callers see the cancellation. | Confirmed |
+| Stop | Stops the current run; queued turns stay | Pi's abort cancels the session's current work, withdraws messages still waiting for the agent and aborts foreground children. Those messages stay in the thread, marked as skipped, and the agent sees them as unread the next time it wakes. | Confirmed |
 | Completion | Inferred from the first `agent_end` | Submission settlement. Accepted, queued, running, answered, unanswered and cancelled are distinct, and an interrupted tool inside an answered submission shows both facts. `shrimpy run` waits for settlement and exits 0 when answered, including an agent that stays silent with `END` and prints nothing; 1 when it failed or ended without an answer; and 130 when cancelled. `--no-wait` returns once the message is accepted, with an ID to wait on. | Confirmed |
 | Recovery after a crash | — | Visible, not seamless. A partial model stream is kept as aborted and the request is sent again, which may cost again. An unsafe tool is reported as interrupted and isn't replayed. External processes may have kept running. Show a notice and keep diagnostics. Unfinished work resumes automatically, but a turn that has been resumed and crashed twice is stopped, marked failed and explained. | Confirmed |
 
@@ -80,12 +93,12 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | Keep before any visual redesign: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, queued-text editing, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Ctrl+C doesn't exit immediately as Pi's demo does; Esc follows the stop decision. | Keep |
-| `/agents` | Agent and chat navigation | Same. Pi child conversations appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
-| Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current conversation's model and saves a one-candidate home default. Other conversations and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
-| Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with conversation overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
+| Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | Keep before any visual redesign: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Ctrl+C doesn't exit immediately as Pi's demo does; Esc follows the stop decision. | Keep |
+| `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Pi child sessions appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
+| Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current session's model and saves a one-candidate home default. Other sessions and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
+| Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
 | Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login works the same for [sandboxed and remote agents](#sandboxed-and-remote-agents). | Keep |
-| `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary conversation. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. | Confirmed |
+| `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary thread. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. | Confirmed |
 
 [Command coverage](#command-coverage) lists every CLI family and inherited slash command. A command missing upstream isn't removed implicitly.
 
@@ -95,7 +108,7 @@ If implementation finds another visible difference, add a row before shipping it
 |---|---|---|---|
 | Instruction selection | Approved base context, `SOUL.md`, agent context, skill precedence and required-tool filtering; ambient `AGENTS.md` and global Pi skills and settings excluded | Same. Facts are captured when queued input is consumed, and later edits don't rewrite committed context. | Keep |
 | `/reload` | Refreshes skills and templates; base files load only at session open | Also rebuilds base instructions, for later inputs only. Code, tool or environment changes need a drain and restart. | Confirmed |
-| Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts, unread channel messages, and memory breadcrumbs. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other conversations, triggers and workers when they need to. Keep three breadcrumbs and the 6,000-character budget. | Confirmed |
+| Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts, the thread's unread messages, and memory breadcrumbs. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other threads and sessions, triggers and workers when they need to. Keep three breadcrumbs and the 6,000-character budget. | Confirmed |
 | Memory | Ordinary files; mechanic can search every agent | Same files. The mechanic reaches other agents' homes over SSH instead of a built-in all-agent search. | Change |
 | Context producers | Opt-in commands with channel matching, caching and bounds | Same features. Each preparation makes one attempt, checkpointed by Pi; a crash after it starts reports interruption instead of rerunning. A failure leaves a breadcrumb and the request continues. Previews never run producers. | Change |
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. | Change |
@@ -105,12 +118,12 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Publication rule | Assistant text in channel conversations is private; only tools publish | A turn's final assistant text goes to the channel its message came from, unless it is exactly `END`, it is empty, or the turn already posted to that channel through a tool. Text earlier in the turn stays private. Many models forget to call a reply tool, so replying becomes the default, and `END` lets an agent stay silent, which also stops polite goodbye loops. `ask` still publishes a question without blocking. | Confirmed |
-| Tool names and schemas | `reply({text})`, `ask({text})`, `notify({text, urgency?, quiet?, batchable?})`, `report({summary})`, `send_message({channel,text})`, `read_channel({channel,limit?})` | Same names, schemas, descriptions, availability and result meaning. Any consolidation needs a before-and-after example here first. | Keep |
+| Publication rule | Assistant text in channel conversations is private; only tools publish | A turn's final assistant text goes to the thread its message came from, unless it is exactly `END`, it is empty, or the turn already posted to that thread through a tool. Text earlier in the turn stays private, and so does the final text of work with no thread, such as a subagent's. Many models forget to call a reply tool, so replying becomes the default, and `END` lets an agent stay silent, which also stops polite goodbye loops. `ask` still publishes a question without blocking. | Confirmed |
+| Tool names and schemas | `reply({text})`, `ask({text})`, `notify({text, urgency?, quiet?, batchable?})`, `report({summary})`, `send_message({channel,text})`, `read_channel({channel,limit?})` | Same names, descriptions, availability and result meaning. `send_message` and `read_channel` gain an optional `thread`, defaulting to the main thread. Any other change needs a before-and-after example here first. | Change |
 | Publication results | — | Success means the delivery owner accepted it. Pending, delivered, failed and uncertain are a separate status. `user:<id>` last-active recipients are fixed at acceptance. A message that was accepted but later fails or becomes uncertain is noted in the agent's next turn, so it can fix and resend. | Confirmed |
 | Publishing while the gateway is unreachable | Replies append to the channel log on disk, and the gateway's outbox delivers them when it runs | The agent tracks whether it's connected. Publication tools fail with an explanation the model can act on: not sent because the gateway is unreachable, so try again later. A send that went out without confirmation reports itself as uncertain. Each publication carries its tool call's ID, so a retry never posts twice. A final message that can't be sent when a turn ends is recorded, and the agent's next turn includes a note so it can decide whether to resend. | Confirmed |
 | No-reply watchdog | An extra model call after silent human turns, which may inject a prompt | Removed. Sending the final message by default covers what it was for. | Confirmed |
-| Codemode | Not enabled | A later experiment, once the core tools work: a durable tool wrapping the standalone `pi-codemode` package. The model writes a short script that calls the agent's other tools in parallel, and only the script's output enters context. Nested calls get the same validation and tool policy as direct calls and show up in clients. Its small store lives in a conversation document. A crash mid-script reports the whole script as interrupted. MCP through the standalone `pi-mcp` package would build on it later. | Confirmed |
+| Codemode | Not enabled | A later experiment, once the core tools work: a durable tool wrapping the standalone `pi-codemode` package. The model writes a short script that calls the agent's other tools in parallel, and only the script's output enters context. Nested calls get the same validation and tool policy as direct calls and show up in clients. Its small store lives in a session document. A crash mid-script reports the whole script as interrupted. MCP through the standalone `pi-mcp` package would build on it later. | Confirmed |
 | File tools | `read` (with images), `write`, `edit`, `bash`, `grep`, `find`, `ls` | Same surface. Durable's stock four tools lack image reading and search, so add focused durable tools. Side-effect tools stay unsafe. | Keep |
 | Pi extensions and themes | Discovered trusted extensions add tools, commands and renderers | They stop working because durable has a different API. Inventory each one and port it or propose removal. | Change |
 
@@ -118,7 +131,7 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Pi subagents | — | Foreground child conversations that join and abort with their parent. Detached helpers use background ownership. | Change |
+| Pi subagents | — | Foreground child sessions that join and abort with their parent. Detached helpers use background ownership. | Change |
 | Workers | Detach and outlive the caller | Same default. Codex keeps its real continue, send, wait and cancel protocol; after the owner dies it isn't a restored Pi child. Renaming or removing worker commands or backends needs review. | Keep |
 | Triggers | Watches, run by a global gateway clock | Renamed, because not everything that wakes an agent is a time. A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#triggers)). An invalid reload keeps the last valid definitions. Upkeep triggers stay disabled when installed. A stopped agent runs no triggers, and restart doesn't backfill. | Change |
 | Triggers in the agent or the OS | — | In the agent's runtime, where durable tracks every run and you inspect them in one place. The `REDESIGN` branch had moved them to skills over launchd and systemd so they'd fire while the agent is down; a stopped agent now runs none. | Confirmed |
@@ -128,19 +141,21 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Where channels live | JSONL logs in the shared workspace | On the gateway, which keeps their logs and membership. Losing the gateway pauses chat; agents keep working and catch up on missed messages when they reconnect. | Confirmed |
+| Where channels live | JSONL logs in the shared workspace | On the gateway, which keeps their threads, logs and membership. Losing the gateway pauses chat; agents keep working and catch up on missed messages when they reconnect. | Confirmed |
+| Threads | A Telegram chat maps to one channel, with one session per agent | Every channel has a main thread, and side threads hold parallel topics. Chat apps without threads use only the main thread; Telegram topics and Discord or Slack threads map to threads. | Confirmed |
+| Bridged chats | A Telegram-bound channel carries only Telegram's messages and the agent's replies | Messages typed in another client are mirrored into the bridged chat, posted by the bot and labelled with who wrote them, so everyone there sees the whole thread. | Change |
 | Wake policy | Each agent's `channelPolicy` decides which visible messages start a turn: `all`, `mentions`, `addressed` or `none`, plus sender filters | Same, owned by the agent. Loop protection stays on the agent side: wake policies, instructions against banter, and `END` to stay silent. The gateway has no loop rules. | Keep |
 | Chat behavior | Built into the Telegram surface: chat and sender restrictions, per-thread agent selection, `/new /clear /stop /thinking /status /help`, permission-filtered help, notices, typing, formatted and chunked output, quiet notices, sender labels, 500 ms burst grouping | Same behavior, moved into the gateway's shared chat layer so every provider gets it. Telegram keeps only what is Telegram's: its API, bot suffixes, message limits and formatting, and album order and captions. Received messages and batch membership are recorded before processing is acknowledged. | Keep |
 | Media | Telegram photos become local paths the read tool loads; other media is only noted as unsupported | Every attachment from any provider, including images, documents, voice notes and video, arrives as a file in the agent's home up to a size limit, delivered through the API ([attachments](#sandboxed-and-remote-agents)). The read tool loads images, and other tools in the agent's environment can use the rest. Inline vision bytes or transcription would be separate decisions. | Confirmed |
 | Delivery | Bounded retries, history skipped on first start, no sends to unbound destinations | Same for every provider, with recipients and batches fixed across retries. A lost send acknowledgment shows as uncertain. | Keep |
-| Web app | Read-only inspector | An interactive session client: browse agents and sessions, read history and live work, send input. Keeps the inspector views: files, tree, context, channels, triggers, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
+| Web app | Read-only inspector | A client for talking and watching: browse channels, threads and agents, talk in threads, and open the work behind them. Keeps the inspector views: files, tree, context, channels, triggers, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
 
 ### Sandboxed and remote agents
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
 | Sandbox boundary | Agents aren't sandboxed | The whole agent process runs inside whatever sandbox or VM you pick, or none ([how](#sandboxing)). No per-tool sandboxing; `bash` stays available. | Confirmed |
-| Attachments | Telegram photos and clipboard images are paths on the same machine | Clients and chat providers upload every attachment through the API into the agent's home, up to a size limit, and the agent's tools use them from there. | Confirmed |
+| Attachments | Telegram photos and clipboard images are paths on the same machine | Attachments travel with their message. The gateway keeps them with the thread and copies each into an agent's home, up to a size limit, when it offers the message; the agent's tools use them from there. | Confirmed |
 | Home edits | The CLI edits workspace files directly | Homes live where their agent runs, and edits happen there: by the agent itself, by `shrimpy` run in that environment, or by the mechanic over SSH to the machine hosting it. Remote clients get session operations and reload, not file editing. | Confirmed |
 | Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. Shrimpy relays those prompts between the agent and the person's client. Sandboxes allow provider traffic, including login endpoints. | Confirmed |
 | Agent identity at the gateway | — | People's devices are identified by Tailscale, so clients need no Shrimpy login. Each agent gets a token from the gateway when it's registered and presents it when it connects, and the gateway checks that the connection comes from the expected machine. Giving an agent its own tailnet node, with Tailscale running inside its sandbox, stays optional. | Confirmed |
@@ -176,14 +191,15 @@ Work this plan defers on purpose, to pick up after cutover:
 flowchart LR
     subgraph GW["Gateway"]
         Gateway["Discovery / access / routing"]
-        Channels["Channels: logs and members"]
+        Channels["Channels and threads"]
     end
     subgraph Owner["Independent agent: one owner process per home"]
         Service["Application service"] --> Pi["Pi Harness"]
         Pi --> Extensions["Durable context / tools / triggers"]
     end
-    Clients["Terminal / CLI / web"] --> Gateway
-    Clients -. "direct local attachment" .-> Service
+    Clients["Console / web / CLI"] -->|"talk in threads"| Channels
+    Clients -->|"watch and control, remotely"| Gateway
+    Clients -. "watch and control, locally" .-> Service
     Providers["Chat providers: Telegram, …"] --> Channels
     Channels <--> Gateway
     Gateway <-->|"agent connection"| Service
@@ -213,7 +229,7 @@ runtime/              disposable endpoint and log files
 
 Shared resources are explicit references, never ancestor or global discovery. Development uses fresh fixture homes, and no existing user data is transformed for a proof.
 
-Homes under one OS user share that user's authority. Different permissions need a real OS environment boundary; a conversation, a home directory or a tool selection isn't one. Remote access distinguishes permission to message, observe, control and administer.
+Homes under one OS user share that user's authority. Different permissions need a real OS environment boundary; a session, a home directory or a tool selection isn't one. Remote access distinguishes permission to message, observe, control and administer.
 
 ### Host and Pi
 
@@ -221,31 +237,31 @@ The host builds the model and credential runtime, the trusted durable registry, 
 
 Pi owns submissions, `InboxDoc`, `LiveDoc`, `UsageDoc`, conversation entries and configuration, generation, tool and compaction tasks, checkpoints, child ownership and structural watches. Shrimpy reads them directly. Query indexes and UI caches are disposable and name their source.
 
-Shrimpy's own documents hold only what Pi lacks: conversation names, archive state and category; immutable source and target provenance; source-to-conversation bindings; context-source evidence; and chat and trigger receipts and policy. They are written through Harness commits. Pi's statuses are never copied into them.
+Shrimpy's own documents hold only what Pi lacks: the thread each session belongs to; immutable source and target provenance; context-source evidence; and chat and trigger receipts and policy. Thread names and archive state live with the threads on the gateway. They are written through Harness commits. Pi's statuses are never copied into them.
 
-The host gives each conversation an `ExecutionEnv`. Replayable operations need a stable resource and cwd identity. Extension code is trusted host code and can bypass the environment, and process cleanup is a separate guarantee from containment.
+The host gives each session an `ExecutionEnv`. Replayable operations need a stable resource and cwd identity. Extension code is trusted host code and can bypass the environment, and process cleanup is a separate guarantee from containment.
 
 ### API, clients, gateway and chat providers
 
-Shrimpy's session API is a set of concrete operations, identical for local and gateway-routed clients:
+Clients use two APIs, each the same for local and gateway-routed use. The gateway's channel API covers channels, threads, members, posting and reading messages with their attachments, and subscriptions. Each agent's API is a set of concrete operations:
 
-- agent and conversation inspection and selection
-- create, reset, archive and fork
-- submit, status, wait, withdraw and abort
+- session inspection and selection
+- reset, fork, steer, status, wait, withdraw and abort
+- admitting the messages the gateway offers
 - model, thinking, defaults and reload
 - provider login, relaying Pi's login prompts to the person's client
 - raw and effective context, entry queries and committed subscriptions
 - completion against the agent's filesystem
 - publication and chat-provider status, trigger and delegation controls
-- attachment upload into the agent's home
+- receiving attachments the gateway copies into the agent's home
 
 Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the gateway's chat layer, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not in phase 1. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge. The protocol makes no compatibility promises, so agents and clients run matching Pi versions and upgrade together.
 
-Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd. Clipboard files and images move into the agent's home through the API, with provenance and size limits.
+Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
 
-The gateway handles discovery, access and routing, and hosts channels: their logs, membership and chat providers. It keeps its own store for channels, agent registrations and tokens, but never agent homes, Pi storage or execution, and it reaches agents' sessions only through the API. Agents connect out to it and reconnect on their own, so they need no inbound listener. Losing the gateway pauses chat and remote access but never stops an agent, and agents catch up on missed channel messages when they reconnect. Using an agent directly on its own machine works without a gateway; chat needs one, and on a single machine it runs locally. The channel store is user data, so back it up like a home.
+The gateway handles discovery, access and routing, and hosts channels: their threads, logs, membership and chat providers. It keeps its own store for channels, agent registrations and tokens, but never agent homes, Pi storage or execution, and it reaches agents' sessions only through the API. Agents connect out to it and reconnect on their own, so they need no inbound listener. Losing the gateway pauses chat and remote access but never stops an agent, and agents catch up on missed channel messages when they reconnect. Watching and controlling an agent on its own machine works without a gateway; talking needs one, and on a single machine it runs locally. The channel store is user data, so back it up like a home.
 
-The gateway's chat layer owns what channels share: logs and membership, burst batching, chat commands, sender access, addressing and mentions, formatting and chunking rules, and delivery receipts. It offers each new message to the channel's member agents. Each agent owns the rest: its wake policy decides whether a message starts a turn, and it binds each channel to one of its own conversations. Each chat provider only translates its own API: authentication, polling or webhooks, message and media formats, and sending. Providers may keep their cursors and receipts, but not Pi queues or turn outcomes. Code outside a provider's own directory doesn't depend on which provider it is.
+The gateway's chat layer owns what channels share: logs and membership, burst batching, chat commands, sender access, addressing and mentions, formatting and chunking rules, and delivery receipts. It offers each new message to the channel's member agents. Each agent owns the rest: its wake policy decides whether a message starts a turn, and it keeps one session for each thread it takes part in. Each chat provider only translates its own API: authentication, polling or webhooks, message and media formats, and sending. Providers may keep their cursors and receipts, but not Pi queues or turn outcomes. Code outside a provider's own directory doesn't depend on which provider it is.
 
 ### Sandboxing
 
@@ -266,7 +282,7 @@ The [sandbox runtime scout](../research/sandbox-runtime-scout-2026-08-26.md) com
 
 ### Admission and retries
 
-Every incoming operation carries an authenticated source, a stable event or request ID, immutable payload and attachment references, and a target home. Its conversation comes from an explicit ID or a durable source binding, never from a model call.
+Every incoming operation carries an authenticated source, a stable event or request ID, immutable payload and attachment references, and a target home. Its session comes from the thread it belongs to, or an explicit session ID for steering and control, never from a model call.
 
 Pi deduplicates request IDs per conversation, but accepts a reused ID even when the content differs. So Shrimpy keeps a narrow receipt (source key, payload fingerprint and chosen conversation) that rejects conflicting reuse and pins the target. Pi's submission stays the only execution and settlement record.
 
@@ -278,15 +294,15 @@ Admission happens in order:
 
 A crash between steps 1 and 2 leaves an empty target that a retry completes. A crash after step 2 returns the original submission on retry. A later reset doesn't redirect old retries. Use only public APIs: no `submit()` inside a Harness commit, no private admission helpers and no raw `Tx.createSubmission()`.
 
-- **Channel messages:** the gateway stores each message, or burst batch, before advancing a provider's cursor, then offers it to member agents. An agent admits it using the channel and message IDs as the request ID, so a retry can't duplicate it or regroup a batch.
-- **Other sources:** peer messages and CLI submissions use their own source namespaces. Transport and status correlation numbers aren't deduplication IDs.
-- **Control changes:** create and fork commit the conversation together with its source-key mapping. Reset is a `write` submission containing a `ResetEntry` and a request ID. Archive, name and rebind are versioned set-to-value updates, so an old retry can't overwrite a later decision. Default and resource saves return a version or require a re-read after a lost acknowledgment. Clients never retry a change automatically without such a rule.
+- **Channel messages:** the gateway stores each message, or burst batch, before advancing a provider's cursor, then offers it to member agents. An agent admits it using the channel, thread and message IDs as the request ID, so a retry can't duplicate it or regroup a batch.
+- **Other sources:** trigger occurrences and steering input use their own source namespaces. Transport and status correlation numbers aren't deduplication IDs.
+- **Control changes:** creating or forking a session commits it together with its thread binding. Reset is a `write` submission containing a `ResetEntry` and a request ID. Thread names and archive state are versioned set-to-value updates, so an old retry can't overwrite a later decision. Default and resource saves return a version or require a re-read after a lost acknowledgment. Clients never retry a change automatically without such a rule.
 
 ### Prompt capture
 
 A durable extension supplies base instructions, skill trails, input facts, memory breadcrumbs and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
 
-**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, `SOUL.md` and skill trails. Durable appends a system delta whenever a section's rendered text changes, which invalidates provider prompt caches, so sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender, unread channel messages and memory breadcrumbs travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload costs one cache miss.
+**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, `SOUL.md` and skill trails. Durable appends a system delta whenever a section's rendered text changes, which invalidates provider prompt caches, so sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender, the thread's unread messages and memory breadcrumbs travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload costs one cache miss.
 
 How Pi recovers shapes these rules:
 
@@ -299,8 +315,8 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 
 ### Triggers
 
-- A trigger and each of its occurrences are separate durable tasks owned by the conversation. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
-- Persist the trigger revision, next occurrence and target. Admit prompt work with a stable trigger and occurrence ID.
+- A trigger and each of its occurrences are separate durable tasks owned by a session. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
+- Persist the trigger revision, next occurrence and target thread. Admit prompt work with a stable trigger and occurrence ID.
 - Command occurrences record intent before running. If an unsafe command had started when the owner died, the occurrence reports interrupted and isn't rerun. A finished result and emission decision are kept, so an admission retry doesn't repeat the check.
 - The extension owns coalescing, overlap, timeouts, emission, reload and cancellation policy. Pi owns checkpoints, outcomes and observation. The host only installs code and seeds selected definitions.
 - Cancelling all work in a home includes running occurrences and helpers, not enabled triggers.
@@ -311,7 +327,7 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 - **Unsafe by default.** Every built-in durable tool is unsafe; writes, edits, shell commands and unqualified sends stay that way. A custom `safe` declaration needs a stable target and proven deduplication by task or call ID. Deduplicating accepted sends still isn't exactly-once delivery, so uncertain results stay visible.
 - **Ownership.** Foreground ownership controls joins and abort; background ownership is explicit. A client disconnect, navigation or cancelled wait never aborts accepted work. Abort reports done only after cancellation settles. Controls never hold a transaction while waiting on their own running turn.
 - **Supervision.** Shutdown is bounded and accounts for tool descendants. Cooperative abort kills owned process groups, but killing the owner can leave detached processes running. Prove cleanup with a delayed-write child under the chosen supervisor before advertising it. If that can't be guaranteed, show possible continuing effects and flag the limit for review.
-- **Storage.** SQLite in WAL/NORMAL mode survives process crashes, not power loss. Back up from stopped snapshots that include the WAL. Pin Pi's package and task contracts. Before opening admission, the host checks extensions and pending task definitions and names affected conversations on failure, because Pi alone may drop a missing extension or block single tasks. Upgrading pending work needs compatible definitions or a reviewed disposition.
+- **Storage.** SQLite in WAL/NORMAL mode survives process crashes, not power loss. Back up from stopped snapshots that include the WAL. Pin Pi's package and task contracts. Before opening admission, the host checks extensions and pending task definitions and names affected sessions on failure, because Pi alone may drop a missing extension or block single tasks. Upgrading pending work needs compatible definitions or a reviewed disposition.
 
 ## Replacement map
 
@@ -322,7 +338,7 @@ Reuse small filesystem, search, formatting, calendar, model-policy, transport an
 | `src/app/runtime.ts`; `src/sessions/open.ts`, `bootstrap.ts`, `resolver.ts`, `spec.ts`, `foreground.ts` | Explicit home and host construction. Delete the global workspace composition and foreground session owner. |
 | `src/sessions/pool.ts`, `turn-output.ts`; gateway turn and runtime state | Pi admission, inbox, submission settlement and committed views. Delete lane promise chains, completion inference and parallel activity and outcome records. |
 | `src/sessions/ownership.ts`, `control.ts`; gateway control messages | One home lock and service operations. Delete competition for transcripts between foreground, gateway and maintenance, and channels used as control transport. |
-| Session recording, manifest, transcript store, inventory and search; the copied compaction runner | Pi entries and projection, minimal conversation metadata and derived queries. Delete the second transcript lifecycle and compaction paths. |
+| Session recording, manifest, transcript store, inventory and search; the copied compaction runner | Pi entries and projection, minimal session metadata and derived queries. Delete the second transcript lifecycle and compaction paths. |
 | `src/context/*`, resource loading, included instructions and skills | The durable home-context extension, producer helpers and committed provenance. Delete global-runtime dependencies and `ExtensionAPI` bindings. |
 | `src/tools/daemon.ts`; channel routing, bus, activity and outbox; `src/agents/channel-policy.ts` | Small durable publication tools, channels on the gateway, which own routing and delivery, and wake policy in each agent's service. Delete the shared bus and duplicate turn state; keep needed delivery receipts. |
 | `src/workers/*` | Pi child and background ownership for Pi work; a focused adapter or skill for Codex. Delete the universal worker supervisor and backend state. |
@@ -341,21 +357,21 @@ New code goes into this tree, not into the current directories. A current direct
 src/
   cli.ts          argv entry; dispatches to cli/
   home/           home layout, agent.json, resource and skill selection, model policy, credential paths
-  api/            session API contract: operations, errors, and the caller used by clients and tools
+  api/            channel and agent API contracts: operations, errors, and the callers used by clients and tools
   host/           owner process: lock, model runtime, registry, environment, Harness/SQLite, supervision, service install
-  service/        API operations over the Harness: admission receipts, channel bindings and wake policy, conversation metadata, control, queries, subscriptions
+  service/        API operations over the Harness: admission receipts, thread bindings and wake policy, session metadata, control, queries, subscriptions
   extensions/     durable extensions installed in the registry
     context/      prompt sections, turn facts, producers, memory breadcrumbs, compaction guidance
     tools/        publication, search, image reading, delegation
     triggers/     trigger and occurrence tasks
   gateway/        discovery, access control, routing, agent registrations; hosts chat/
-  chat/           channels: logs, membership, batching, commands, sender access, formatting rules, delivery receipts
+  chat/           channels and threads: logs, membership, batching, commands, sender access, formatting rules, delivery receipts
     telegram/     Telegram's API: polling, message and media formats, sending
   client/
-    console/      terminal session client
+    console/      terminal client for threads and sessions
   cli/            commands over api/, or home/ for offline home files
   util/
-web/              web session client over api/
+web/              web client for threads and sessions, over api/
 ```
 
 | Module | May import |
@@ -420,19 +436,21 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 
 ### 1. Standalone agent and attached clients
 
-**Outcome:** one agent runs as its own service. You use it from the CLI, the terminal and a basic web view, close them, kill the service, reopen, and get an honest account of what happened.
+**Outcome:** one agent runs as its own service, with a minimal local gateway. You talk to it in threads from the CLI, the terminal and a basic web view, close them, kill the service, reopen, and get an honest account of what happened.
 
 **Build**
 
 - Pin the durable, AI, Chord, server, client, protocol and TUI packages at `1.0.0`, align Pi-facing schemas, and record the installed versions. Use public exports only.
-- Home → model runtime, registry and environment → Harness on SQLite → service → CLI → terminal and basic web view. No gateway and no old session runtime.
+- Home → model runtime, registry and environment → Harness on SQLite → service → CLI → terminal and basic web view, with no old session runtime.
+- A minimal local gateway with channels and threads, so talking goes through threads from the start. No chat providers, rooms, remote routing or tokens yet.
 - The OS lock that makes one process the owner of a home.
 - The foreground entrypoint that any supervisor or sandbox can run.
 
 **Prove**
 
 - A real provider turn using file and shell tools.
-- Two conversations, streaming and tool progress, a draft kept on failure, and model selection.
+- Two threads in your DM with the agent, reset versus a new thread, streaming and tool progress, a draft kept on failure, and model selection.
+- Stopping with a message waiting: it stays in the thread as skipped, and the agent reads it next time.
 - Detach and reattach, and two clients at once. The web view uses the same operations as the terminal.
 - Killing the owner mid-turn, a lost admission reply, a reused request ID with the same and with different content, and close versus abort.
 - A second owner is refused, and a second home shares no defaults, credentials or history by accident.
@@ -471,10 +489,10 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 
 **Build**
 
-- Conversation operations on Pi records: new, reset, archive, resume, fork, labels, search, read and export.
+- Thread and session operations: new thread, reset, archive, resume, fork, names, search, read and export.
 - Model, defaults, settings, setup and auth as decided above; status and help come from the service.
-- Web agent and session navigation, history, live view and input, alongside the inspector views.
-- Attachment upload through the API, used for clipboard files and images.
+- Web navigation of channels, threads, agents and sessions, with history, live view and input, alongside the inspector views.
+- Attachments on messages, including clipboard files and images.
 
 **Prove**
 
@@ -496,7 +514,7 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 **Build**
 
 - Source bindings and publication and delivery operations.
-- Channels on the gateway with the shared chat layer, wake policies and channel bindings in each agent, then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per shared bot, and an explicit owner for cursors, batches and receipts.
+- The rest of the gateway's channels: rooms with several members, the shared chat layer, wake policies in each agent and mirroring into bridged chats, then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per shared bot, and an explicit owner for cursors, batches and receipts.
 - Gateway registration and routing, with agents connecting out to it.
 
 **Prove**
@@ -570,12 +588,12 @@ The current catalog is [src/commands/catalog.ts](../../src/commands/catalog.ts).
 | Current family | Outcome in the replacement |
 |---|---|
 | Bare launch, initial prompt, `chat`, `run`, `agent tui`, `agent run` | Select, start or attach the right home; reviewed run retention and output; explicit model, thinking and skill overrides. |
-| Sessions: new, clear, restore, set, stop, list, search, read, compaction | Reviewed history and control semantics, agent-qualified IDs, bounded raw and effective queries, and Pi submission status. Renamed aliases, `--no-wait` and JSON behavior need review. |
-| Models: inspect, resolve, policies, provider addition | Per-home credentials, candidate precedence, conversation choice versus saved defaults, favorites and local endpoints. |
+| Sessions: new, clear, restore, set, stop, list, search, read, compaction | Split between threads (new, archive, rename, read, search) and the sessions behind them (reset, stop, inspect, compaction), with the new IDs, bounded raw and effective queries, and Pi submission status. Renamed aliases and JSON behavior need review. |
+| Models: inspect, resolve, policies, provider addition | Per-home credentials, candidate precedence, session choice versus saved defaults, favorites and local endpoints. |
 | Context: composition, files, sources, producers, provenance | Captured requests and labelled previews, explicit producer runs and bounded source evidence. |
 | Agents: list, show, inspect, add, set, policy, rename, remove | Home registration, configuration and endpoint policy; registration isn't the runtime. Remove stays explicit and preserves data by default. |
 | Skills: list, show, add, update, remove, new, validate | Per-home instruction management and precedence. Pi extension and theme discovery follows its decision above. |
-| Channels: list, show, read, search, tail, create, post, bind, unbind, dm, members, join, leave | Reviewed routing, log and recipient operations owned by the gateway's channels. The internal bus is removed. |
+| Channels: list, show, read, search, tail, create, post, bind, unbind, dm, members, join, leave | Reviewed routing, log, thread and recipient operations owned by the gateway's channels. The internal bus is removed. |
 | Surfaces, users, presence, owner | Explicit provider bindings, authenticated sender and contact policy, and current presence. Owner fallback and last-active addressing aren't removed silently. |
 | Watches: list, add, enable, disable, show, history, run | Renamed to `shrimpy triggers` with the same subcommands and no `watches` alias. Per-home trigger policy and durable occurrence observation. |
 | Workers: backends, start, list, status, read, send, tail, wait, cancel, close | Pi delegation and real external CLI workflows. Unsupported backends are proposed removals, not empty placeholders. |
@@ -587,7 +605,7 @@ The current catalog is [src/commands/catalog.ts](../../src/commands/catalog.ts).
 Inherited terminal commands each need a disposition:
 
 - **Keep the intent:** `/settings /model /thinking /copy /name /session /changelog /hotkeys /login /logout /compact /reload /quit`, plus Shrimpy's `/agents /status /shrimpy`. Help, status and changelog stay presentation-only; default saving, reload and quit follow the decisions above.
-- **Keep the capability with a reviewed durable UX:** `/tree /fork /clone /new /resume`, using Pi's real conversation, fork and context semantics. A raw reset isn't presented as archive and restore.
+- **Keep the capability with a reviewed durable UX:** `/tree /fork /clone /new /resume`, using threads and Pi's real session, fork and context semantics. `/new` starts a thread, or resets the session in a chat app without threads. A reset isn't presented as archive and restore.
 - **Drop old-format `/import`** (pending review). `/export` stays as a readable export of current history, without promising Pi JSONL compatibility.
 - **Review `/trust`** against deliberate home resources; ambient project instructions stay off. `/share` and `/scoped-models` stay hidden as today.
 - **Keep** `/skill:name` and prompt-template expansion, the `!` and `!!` distinction, command completion and existing input shortcuts. The new work view is a reviewed addition.
