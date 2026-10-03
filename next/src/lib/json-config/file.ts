@@ -5,7 +5,8 @@ import { ConfigError, ConfigObject } from "./config-object.ts";
 export function parseConfig(text: string, file: string): ConfigObject {
   let value: unknown;
   try {
-    value = JSON.parse(text.replace(/^﻿/, ""));
+    // JSON.parse rejects a leading byte-order mark, which some editors add.
+    value = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch (error) {
     throw new ConfigError(`${file}: not valid JSON (${describe(error)}).`, { cause: error });
   }

@@ -131,7 +131,7 @@ test("text that is not a JSON object is reported with the file", () => {
     problem("[]", () => undefined),
     `${file}: the file must be a JSON object.`,
   );
-  assert.doesNotThrow(() => parseConfig('﻿{"a":1}', file));
+  assert.doesNotThrow(() => parseConfig('\uFEFF{"a":1}', file));
 });
 
 test("a file that is missing is undefined, and one that cannot be read is an error", (t) => {
