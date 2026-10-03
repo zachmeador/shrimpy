@@ -173,6 +173,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 
 - Sandboxing for individual tools. Agents keep a real shell.
 - A second run queue, transcript, task manager, outcome journal or activity cache beside Pi's.
+- A receipt store that compares the content of retried requests. A request ID's first use wins.
 - A compatibility layer for Pi's ordinary `ExtensionAPI`, or a generic service framework.
 - A controller lease between clients, unless a real need appears.
 - Heartbeat-based lock takeover or a PID ledger.
@@ -300,15 +301,15 @@ The [sandbox runtime scout](../research/sandbox-runtime-scout-2026-08-26.md) com
 
 Every incoming operation carries an authenticated source, a stable event or request ID, immutable payload and attachment references, and a target home. Its session comes from the thread it belongs to, or an explicit session ID for steering and control, never from a model call.
 
-Pi deduplicates request IDs per conversation, but accepts a reused ID even when the content differs. So Shrimpy keeps a narrow receipt (source key, payload fingerprint and chosen conversation) that rejects conflicting reuse and pins the target. Pi's submission stays the only execution and settlement record.
+A request ID names one request, and its first use wins. Pi returns the first submission when an ID is reused, even with different content, and the chat server does the same for posts. Shrimpy keeps no receipt of its own to compare content. A session never changes its thread and a reset stays inside its session, so a retry always lands in the same place. Pi's submission stays the only execution and settlement record.
 
 Admission happens in order:
 
-1. Commit the target and binding idempotently.
+1. Commit the thread's session, if it's new, and the message's outbox record.
 2. Call public `Conversation.submit()` with the stable request ID.
 3. Report acceptance only after admission succeeds.
 
-A crash between steps 1 and 2 leaves an empty target that a retry completes. A crash after step 2 returns the original submission on retry. A later reset doesn't redirect old retries. Use only public APIs: no `submit()` inside a Harness commit, no private admission helpers and no raw `Tx.createSubmission()`.
+A crash between steps 1 and 2 leaves a session or an outbox record with no submission, which a retry completes. A crash after step 2 returns the original submission on retry. Use only public APIs: no `submit()` inside a Harness commit, no private admission helpers and no raw `Tx.createSubmission()`.
 
 - **Channel messages:** the chat server stores each message, or burst batch, before advancing a provider's cursor, then offers it to member agents. An agent admits it using the channel, thread and message IDs as the request ID, so a retry can't duplicate it or regroup a batch.
 - **Replies:** the agent keeps a record of each message it admits until that message's reply is settled: posted, silent or unanswered. That record is the outbox. After a restart or a chat outage the agent goes through it and posts the replies that are due. A reply's request ID is made from its session and its answer, so a retry can't post twice, and several messages answered by one turn get one reply.
