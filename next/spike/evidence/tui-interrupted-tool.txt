@@ -1,0 +1,42 @@
+# --attach --home .tmp/home-int  (100x34, exit 0)
+# typed: 4.001s "\u0003"
+
+----- screen at 3s -----
+
+ run the slow command                                                                               
+
+ Running the slow command.                                                                          
+
+ bash $ echo "$$" > child.pid; echo "attempt $(date +%s)" >> runs.log; echo started; sleep 8; echo  
+ finished >> ru...  ⚠ interrupted, not rerun                                                        
+ started                                                                                            
+ · Tool bash was interrupted and may have partially run                                             
+
+ The model saw the tool result (isError=true): "started\n<harness>\n[error] Tool bash was           
+ interrupted and may have partially run\n</harness>"                                                
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 1458 out 75 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand ·       
+ ctrl+c quit                                                                                        
+[main screen, 17 lines]
+
+----- final screen -----
+
+ run the slow command                                                                               
+
+ Running the slow command.                                                                          
+
+ bash $ echo "$$" > child.pid; echo "attempt $(date +%s)" >> runs.log; echo started; sleep 8; echo  
+ finished >> ru...  ⚠ interrupted, not rerun                                                        
+ started                                                                                            
+ · Tool bash was interrupted and may have partially run                                             
+
+ The model saw the tool result (isError=true): "started\n<harness>\n[error] Tool bash was           
+ interrupted and may have partially run\n</harness>"                                                
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 1458 out 75 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand ·       
+ ctrl+c quit                                                                                        
+[main screen, 17 lines]

@@ -1,0 +1,49 @@
+Browser evidence, from the Browser pane of the coding agent's desktop app (a Chromium-based view of http://127.0.0.1:<port>/).
+The page is web/page.ts bundled by scripts/bundle-web.mjs. It reaches the server only through pi-client over a WebSocket.
+Screenshots were looked at but are not committed; the lines below are what the page reported about itself
+(`window.__spike.items()`, `document.body.dataset`, the console and the network log).
+
+1. Snapshot and a message sent from the page (faux provider, SPIKE_SCENARIO=chat)
+   - Loaded /, /page.js (472 KB, unminified, uncompressed) and /config.json. Header: "connected".
+   - Status line: "idle · faux/faux-1 · in 2331 out 190 $0.0000".
+   - The page opened onto the whole earlier thread: an exchange from before any client attached, and one sent by the Node
+     WebSocket client (user text, thinking, a finished bash tool card with its output, the answer). Console: no messages.
+   - Typed "now show me the files again, typed in the browser" into the input and pressed Enter.
+     About 1.5 s later the new tool card read "bash {} pending" (arguments still streaming in).
+     About 4 s later it read "done" with the output "listing the work directory / done", and the next answer was streaming
+     ("thinking: Composing a ...").
+   - Page state afterwards: connection "connected", busy "false", 10 items:
+     user, assistant, user, assistant, tool bash done, assistant, user (the one typed in the browser), assistant, tool bash done, assistant.
+
+2. Two clients at once
+   - With the page open, the terminal view (tui --attach, in a pty) typed "typed in the terminal while the browser watches".
+     The message and its whole answer appeared in the page without a reload.
+
+3. Server restarts with the page open (faux provider)
+   - Graceful stop (SIGTERM): header "failed", "connect failed: Failed to fetch", the old content stayed on screen.
+     After the server was started again the header returned to "connected" within about 3 s. The page's own retry loop did it:
+     pi-client never reconnects by itself.
+   - Sent "stream a long answer, then I will kill the server" from the page (slow stream, one line every ~0.65 s).
+     At "line 17: the qui" the server got SIGKILL. The header went "failed" and the page kept showing the last view,
+     including the stale status text "model is answering".
+   - After the restart (same home, same port, same server id) the page reconnected on its own and showed:
+     the interrupted partial ending "line 17: the qui", the marker "(answer interrupted)", then a complete answer, lines 01 to 40.
+   - Page state: user, assistant (228 chars), user, assistant (aborted, 864 chars), assistant (2119 chars). busy "false".
+   - Console: only "net::ERR_CONNECTION_REFUSED" lines, the page's own /config.json retries while the server was down.
+
+4. A real model through the whole path (qwen3.8-27b on a LAN server, fresh home)
+   - Typed "Run the bash tool with: uname -sm   then tell me, in one sentence, what machine this is."
+   - Header "connected", status "idle · local/qwen3.8-27b · in 2085 out 115 $0.0000".
+   - The page showed the model's thinking, "bash {"command":"uname -sm"} done" with the output "Darwin arm64", more thinking,
+     and the answer "This is an Apple Silicon Mac - macOS (Darwin) running on arm64, i.e. an M-series chip (M1 or newer)."
+     The whole turn took under 3 s.
+
+5. The final bundle (482,605 bytes, as scripts/bundle-web.mjs reported) against a seeded home
+   - Snapshot: 6 items. Typed "list the files please (final check from the browser)".
+     The tool card showed "running bash" with live output, then finished. 10 items. Console: no messages.
+   - Resources loaded: /page.js 482605 bytes, /config.json 74 bytes.
+
+6. A tool interrupted by a kill, seen after recovery (faux provider, SPIKE_SCENARIO=tool; evidence/tui-interrupted-tool.txt has the terminal view)
+   - The server was killed while bash ran, then restarted. A freshly loaded page showed:
+     tool bash, status "interrupted", output "started", note "Tool bash was interrupted and may have partially run",
+     followed by the model's answer ("The model saw the tool result (isError=true) ...").

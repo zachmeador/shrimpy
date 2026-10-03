@@ -1,0 +1,12 @@
+turn 1 (0.5s): "Three words received"
+turn 2 (0.4s, a new process, history read back from SQLite): "Understood"
+stored thinking block: signature "reasoning_content", 115 chars
+request 1 fields: model, messages, stream, stream_options, max_completion_tokens, tools
+  max_completion_tokens 65536, max_tokens undefined, store undefined, reasoning_effort undefined, tools read/write/edit/bash
+  roles system,user
+request 2 history roles system,user,assistant,user; assistant message keys: role, content, reasoning_content
+PASS: reasoning_content is echoed on earlier assistant messages, and the output budget is generous
+turn 3 (1.1s): "It printed two lines:\n\n```\nhello from the spike\nDarwin\n```\n\nSo `echo` output `hello from the spike`, and `uname -s` reported the kernel/OS as `Darwin` (macOS)."
+tool call: {"command":"echo hello from the spike && uname -s"} -> isError false, output "hello from the spike\nDarwin\n"
+PASS: the model made a well-formed tool call, durable ran it, and the model read the result
+usage per answer (input/output tokens): 987/31, 1035/24, 1097/62, 1181/71

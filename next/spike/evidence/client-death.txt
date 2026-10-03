@@ -1,0 +1,16 @@
+$ node scripts/headless-client.ts --home HOME --send '...' --quiet --die-after 2     # client A sends, then SIGKILLs itself at 2s of a ~9s answer
+[0.01s] attached over Unix socket; server 12f7231f-2f0e-440f-b155-566c7d3ebcea; attachment {"serverId":"12f7231f-2f0e-440f-b155-566c7d3ebcea","sessionId":"thread-1","attachmentId":"9c5da826-0d22-467c-8990-251252403ff9"}
+[0.01s] snapshot: 0 items, 0 committed entries, faux/faux-1
+[0.02s]   update #1 item 0: user: "stream a long answer, then this client dies"
+[0.02s] sent "stream a long answer, then this client dies" with request id smoke-1791041835139 -> submission 7
+[0.13s]   update #2 item 1: assistant (streaming): "line 01: the qui"
+[2.02s] SIGKILL to myself, mid-turn
+client exit code: 137
+
+(9 seconds later)
+$ node scripts/headless-client.ts --home HOME                  # client B attaches
+[0.01s] attached over Unix socket; server 12f7231f-2f0e-440f-b155-566c7d3ebcea; attachment {"serverId":"12f7231f-2f0e-440f-b155-566c7d3ebcea","sessionId":"thread-1","attachmentId":"dd0aa3a2-a67b-4415-b03a-8ef5e3edc9f3"}
+[0.01s] snapshot: 2 items, 3 committed entries, faux/faux-1
+[0.01s]   user: "stream a long answer, then this client dies"
+[0.01s]   assistant: " quick brown fox jumps over the lazy dog"
+[0.01s] closed in 0.00s

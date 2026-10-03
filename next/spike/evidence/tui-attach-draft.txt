@@ -1,0 +1,101 @@
+# --attach --home .tmp/home-ev-attach  (100x34, exit 0)
+# typed: 3.002s "first message, server is alive\r", 9.003s "second message after the server died\r", 12.003s "\u0003"
+
+----- screen at 5s -----
+
+ first message, server is alive                                                                     
+
+ thinking: Composing a short markdown reply with a list and a code block.                           
+ You said: first message, server is alive                                                           
+                                                                                                    
+ - first point, streamed token by token                                                             
+ - second point with inline code                                                                    
+ - third point                                                                                      
+                                                                                                    
+ ```ts                                                                                              
+   const answer = 42;                                                                               
+   console.log(answer);                                                                             
+ ```                                                                                                
+                                                                                                    
+ That is all for this turn.                                                                         
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 696 out 69 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c 
+ quit                                                                                               
+[main screen, 21 lines]
+
+----- screen at 7.5s -----
+
+ first message, server is alive                                                                     
+
+ thinking: Composing a short markdown reply with a list and a code block.                           
+ You said: first message, server is alive                                                           
+                                                                                                    
+ - first point, streamed token by token                                                             
+ - second point with inline code                                                                    
+ - third point                                                                                      
+                                                                                                    
+ ```ts                                                                                              
+   const answer = 42;                                                                               
+   console.log(answer);                                                                             
+ ```                                                                                                
+                                                                                                    
+ That is all for this turn.                                                                         
+ disconnected from the agent: Byte transport closed. Messages cannot be sent; ctrl+c quits.         
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 696 out 69 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c 
+ quit                                                                                               
+[main screen, 22 lines]
+
+----- screen at 10.5s -----
+
+ first message, server is alive                                                                     
+
+ thinking: Composing a short markdown reply with a list and a code block.                           
+ You said: first message, server is alive                                                           
+                                                                                                    
+ - first point, streamed token by token                                                             
+ - second point with inline code                                                                    
+ - third point                                                                                      
+                                                                                                    
+ ```ts                                                                                              
+   const answer = 42;                                                                               
+   console.log(answer);                                                                             
+ ```                                                                                                
+                                                                                                    
+ That is all for this turn.                                                                         
+ not sent: Remote service target is unavailable                                                     
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ second message after the server died                                                               
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 696 out 69 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c 
+ quit                                                                                               
+[main screen, 22 lines]
+
+----- final screen -----
+
+ first message, server is alive                                                                     
+
+ thinking: Composing a short markdown reply with a list and a code block.                           
+ You said: first message, server is alive                                                           
+                                                                                                    
+ - first point, streamed token by token                                                             
+ - second point with inline code                                                                    
+ - third point                                                                                      
+                                                                                                    
+ ```ts                                                                                              
+   const answer = 42;                                                                               
+   console.log(answer);                                                                             
+ ```                                                                                                
+                                                                                                    
+ That is all for this turn.                                                                         
+ not sent: Remote service target is unavailable                                                     
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ second message after the server died                                                               
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 696 out 69 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c 
+ quit                                                                                               
+[main screen, 22 lines]

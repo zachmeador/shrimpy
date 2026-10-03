@@ -1,0 +1,129 @@
+# --alt --home .tmp/home-ev-alt  (100x34, exit 0)
+# typed: 2.006s "first message\r", 4.517s "second message while busy\r", 6.517s "\u001b", 8.006s "\u000f", 9.515s "\u0003"
+
+----- screen at 3s -----
+
+ first message                                                                                      
+
+ line 01: the quick brown fox jumps over the lazy dog                                               
+ line 02: the quick brown fox ju                                                                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ⠹ model is answering  (esc to stop)                                                                
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 0 out 0 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c    
+ quit                                                                                               
+[alternate screen, 34 lines]
+
+----- screen at 5.5s -----
+
+ first message                                                                                      
+
+ line 01: the quick brown fox jumps over the lazy dog                                               
+ line 02: the quick brown fox jumps over the lazy dog                                               
+ line 03: the quick brown fox jumps over the lazy dog                                               
+ line 04: the quick brown fox jumps over the lazy dog                                               
+ line 05: the quick brown fox jumps over the lazy dog                                               
+ line 06: the quick brown fox jumps over the lazy dog                                               
+ line 07: the q                                                                                     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ⠸ model is answering  (esc to stop)                                                                
+ queued [followUp] second message while busy                                                        
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 0 out 0 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c    
+ quit                                                                                               
+[alternate screen, 34 lines]
+
+----- screen at 7.5s -----
+
+ first message                                                                                      
+
+ line 01: the quick brown fox jumps over the lazy dog                                               
+ line 02: the quick brown fox jumps over the lazy dog                                               
+ line 03: the quick brown fox jumps over the lazy dog                                               
+ line 04: the quick brown fox jumps over the lazy dog                                               
+ line 05: the quick brown fox jumps over the lazy dog                                               
+ line 06: the quick brown fox jumps over the lazy dog                                               
+ line 07: the quick brown fox jumps over the lazy dog                                               
+ line 08: the quick brown fox jumps over the lazy dog                                               
+ line 09: the qui                                                                                   
+ (answer interrupted)                                                                               
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────
+ faux/faux-1 · in 692 out 530 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand ·       
+ ctrl+c quit                                                                                        
+[alternate screen, 34 lines]
+
+----- final screen -----
+
+ first message                                                                                      
+
+ line 01: the quick brown fox jumps over the lazy dog                                               
+ line 02: the quick brown fox jumps over the lazy dog                                               
+ line 03: the quick brown fox jumps over the lazy dog                                               
+ line 04: the quick brown fox jumps over the lazy dog                                               
+ line 05: the quick brown fox jumps over the lazy dog                                               
+ line 06: the quick brown fox jumps over the lazy dog                                               
+ line 07: the quick brown fox jumps over the lazy dog                                               
+ line 08: the quick brown fox jumps over the lazy dog                                               
+ line 09: the qui                                                                                   
+ (answer interrupted)                                                                               
+[main screen, 13 lines]

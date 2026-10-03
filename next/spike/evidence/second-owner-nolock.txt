@@ -1,0 +1,8 @@
+owner lock: OFF; second process: another `serve`
+3 s into the owner's turn, tasks table (raw read-only SQL): ["pi.generation#8:running"]; provider requests so far: 1
+the second process exited with code 1: Unix listener is already running: s.sock
+tasks table now: ["pi.generation#8:running"]; provider requests so far: 2
+client: still waiting for the answer 25 s later (the answer needs ~9 s)
+the first owner reported: Error: Session is poisoned by a failed commit after storage admission; reopen it (cause: Error: ID 10 already belongs to entry)
+provider requests received in total: 2
+RESULT: a second owner reset the live owner's task, resumed it, sent the model request a second time, and left the first owner unable to commit

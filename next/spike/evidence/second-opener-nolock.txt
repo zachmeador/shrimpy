@@ -1,0 +1,8 @@
+owner lock: OFF; second process: `inspect`
+3 s into the owner's turn, tasks table (raw read-only SQL): ["pi.generation#8:running"]; provider requests so far: 1
+the second process exited with code 0
+tasks table now: ["pi.generation#8:pending"]; provider requests so far: 1
+client saw: [9.08s] idle. 84 item updates seen; the thread now has 1 user messages and 3 entries
+the first owner reported: nothing
+provider requests received in total: 1
+RESULT: opening the Harness from a second process rewrote the live owner's task from running to pending

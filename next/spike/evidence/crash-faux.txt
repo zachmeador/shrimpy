@@ -1,0 +1,21 @@
+
+== scenario 1: kill the host while the model is streaming (faux provider) ==
+first run                 pid 54821 submitted #7; committed partial of 60 chars; SIGKILL
+after kill, unfinished    {"submissions":[{"id":7,"status":"placed"}],"tasks":["pi.generation:ready"]}
+second run                pid 54824 reopened; submission #7 settled done
+entries                   pi.user pi.system pi.assistant(aborted) pi.assistant(stop)
+kept partial              "line 01: the quick brown fox jumps over the lazy dog\nline 02" (60 chars)
+model requests            ["pid 54821 2 msgs digest 42e83506dbdf","pid 54824 2 msgs digest 42e83506dbdf"]
+same messages in both     true
+PASS: the request was sent again; the partial stream is preserved; the input is not duplicated
+
+== scenario 2: kill the host while a shell tool runs (faux provider) ==
+first run                 pid 54826 submitted #7; bash printed "started"; SIGKILL
+shell child after kill    pid 54827 is still running (detached process group)
+after kill, unfinished    {"submissions":[{"id":7,"status":"placed"}],"tasks":["pi.tool:ready","pi.generation:waiting"]}
+second run                pid 54832 reopened; submission #7 settled done
+tool executions           1 (runs.log has 1 "attempt" line)
+tool result entry         {"isError":true,"text":"started\n<harness>\n[error] Tool bash was interrupted and may have partially run\n</harness>"}
+final answer              The model saw the tool result (isError=true): "started\n<harness>\n[error] Tool bash was interrupted and may have partially run\n</harness>"
+model requests            ["pid 54826 roles user,system","pid 54832 roles user,system,assistant,toolResult"]
+PASS: the tool was reported as interrupted with its partial output and was not rerun

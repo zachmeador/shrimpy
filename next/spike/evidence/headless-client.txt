@@ -1,0 +1,18 @@
+$ node scripts/headless-client.ts --home HOME                                   # Unix socket, snapshot only
+[0.03s] attached over Unix socket; server 9931c50d-5a2d-4adb-9d49-dfd2b6286fb6; attachment {"serverId":"9931c50d-5a2d-4adb-9d49-dfd2b6286fb6","sessionId":"thread-1","attachmentId":"63942eef-5f18-446d-a206-cb47fc9188a9"}
+[0.03s] snapshot: 2 items, 3 committed entries, faux/faux-1
+[0.03s]   user: "hello, this was said before any client attached"
+[0.03s]   assistant: [thinking 62 chars] "answer);\n```\n\nThat is all for this turn."
+[0.03s] closed in 0.00s
+
+$ node scripts/headless-client.ts --home HOME --ws --send 'please list the files' --twice --quiet   # WebSocket bridge
+[0.04s] attached over WebSocket; server 9931c50d-5a2d-4adb-9d49-dfd2b6286fb6; attachment {"serverId":"9931c50d-5a2d-4adb-9d49-dfd2b6286fb6","sessionId":"thread-1","attachmentId":"87dcf918-c2d4-4a04-94be-f85126d7ba91"}
+[0.04s] snapshot: 2 items, 3 committed entries, faux/faux-1
+[0.04s]   update #1 item 2: user: "please list the files"
+[0.04s] sent "please list the files" with request id smoke-1791041737157 -> submission 12
+[0.05s] sent again with the same request id -> submission 12 (same submission, admitted once)
+[0.15s]   update #2 item 3: assistant (streaming): [thinking 12 chars] ""
+[0.80s]   update #9 item 4: tool bash pending: ""
+[3.45s]   update #15 item 5: assistant (streaming): [thinking 8 chars] ""
+[5.07s] idle. 30 item updates seen; the thread now has 2 user messages and 7 entries
+[5.07s] closed in 0.00s

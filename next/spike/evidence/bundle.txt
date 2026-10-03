@@ -1,0 +1,21 @@
+entry          web/page.ts  (platform=browser, format=esm)
+bundle         482883 bytes  (minified 203133, gzip 53371)
+input modules  702
+by package (bytes in the unminified output):
+    338349  typebox
+     60375  @earendil-works/chord
+     23759  @earendil-works/pi-protocol
+     19290  @earendil-works/pi-client
+     10092  (spike source)
+
+external imports left in the bundle:    none
+node: built-in modules bundled:         none
+esbuild / @esbuild/* bundled:           no
+forbidden packages bundled:             none
+node-only strings in the output:        none
+PASS: browser-only bundle
+
+negative controls (entries that import a Node-only subpath):
+  @earendil-works/chord/bundler: FAILS to bundle for a browser (Could not resolve "node:crypto" | Could not resolve "node:fs/promises")
+  @earendil-works/chord/node: FAILS to bundle for a browser (Could not resolve "node:crypto" | Could not resolve "node:fs/promises")
+  @earendil-works/pi-client/unix: FAILS to bundle for a browser (Could not resolve "node:fs/promises" | Could not resolve "node:net")

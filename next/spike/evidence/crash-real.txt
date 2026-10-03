@@ -1,0 +1,25 @@
+
+== scenario 1: kill the host while the model is streaming (real model) ==
+first run                 pid 54852 submitted #7; committed partial of 62 chars; SIGKILL
+after kill, unfinished    {"submissions":[{"id":7,"status":"placed"}],"tasks":["pi.generation:ready"]}
+second run                pid 54854 reopened; submission #7 settled done
+entries                   pi.user pi.system pi.assistant(aborted) pi.assistant(stop)
+kept partial              "The user is asking to count from 1 to 60, one number per line," (62 chars)
+wire requests             2 POSTs from pids 54852, 54854
+same messages on the wire true
+PASS: the request was sent again; the partial stream is preserved; the input is not duplicated
+
+== scenario 2: kill the host while a shell tool runs (real model) ==
+first run                 pid 54856 submitted #7; bash printed "started"; SIGKILL
+shell child after kill    pid 54857 is still running (detached process group)
+after kill, unfinished    {"submissions":[{"id":7,"status":"placed"}],"tasks":["pi.tool:ready","pi.generation:waiting"]}
+second run                pid 54860 reopened; submission #7 settled done
+tool executions           1 (runs.log has 1 "attempt" line)
+tool result entry         {"isError":true,"text":"started\n<harness>\n[error] Tool bash was interrupted and may have partially run\n</harness>"}
+final answer              Let me analyze what happened:
+
+1. `echo "$$" > child.pid` — This succeeded, and the PID (54857) was written to child.pid
+2. `echo "attempt" >> runs.log` — This succeeded, and "attempt" was written to 
+wire requests             3 POSTs from pids 54856, 54860, 54860
+last request roles        system,user,assistant,tool,assistant,tool
+PASS: the tool was reported as interrupted with its partial output and was not rerun
