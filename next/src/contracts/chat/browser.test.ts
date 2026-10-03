@@ -3,7 +3,19 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { bundleForBrowser, nodeOnlyInputs } from "../testing/index.ts";
 
-test("the chat contract's front door bundles for a browser", async () => {
-  const bundle = await bundleForBrowser(fileURLToPath(new URL("./index.ts", import.meta.url)));
+const door = (name: string): string => fileURLToPath(new URL(`./${name}`, import.meta.url));
+
+test("the chat contract's front door bundles for a browser, client included", async () => {
+  const bundle = await bundleForBrowser(door("index.ts"));
+
   assert.deepEqual(nodeOnlyInputs(bundle), []);
+  assert.ok(
+    Object.keys(bundle.metafile.inputs).some((input) => input.includes("@earendil-works/pi-client")),
+  );
+  const exported = Object.values(bundle.metafile.outputs).flatMap((output) => output.exports);
+  assert.ok(exported.includes("connectChat"));
+});
+
+test("the Node-only door does not bundle for a browser", async () => {
+  await assert.rejects(bundleForBrowser(door("node.ts")), /node:fs/);
 });
