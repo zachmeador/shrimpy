@@ -14,6 +14,7 @@ These docs are the project map for Shrimpy. Current behavior lives in `reference
 ## Project State
 
 - [backlog/index.md](backlog/index.md) — active engineering work.
+- [REDESIGN/PLAN.md](REDESIGN/PLAN.md) — plan to rebuild Shrimpy around Pi's durable runtime, with experience decisions up for review.
 
 ## Background
 
