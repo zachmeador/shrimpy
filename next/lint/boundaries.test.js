@@ -29,6 +29,12 @@ tester.run("imports", importsRule, {
     allowed("contracts/agent/connect.ts", "../../lib/ids/index.ts"),
     // The CLI may start a program through the program's own front door.
     allowed("cli/commands/agent.ts", "../../agent/index.ts"),
+    // It reaches a running agent through the contract, including the Node-only door.
+    allowed("cli/commands/sessions.ts", "../../contracts/agent/node.ts"),
+    allowed("cli/commands/sessions.ts", "../../lib/json-config/index.ts"),
+    allowed("cli/flow.test.ts", "./testing/index.ts"),
+    // Programs share small helpers through lib/.
+    allowed("agent/home/agent-config.ts", "../../lib/json-config/index.ts"),
     // Only the agent knows the engine, and only the console knows pi-tui.
     allowed("agent/host/host.ts", "@earendil-works/pi-durable/env/node"),
     allowed("clients/console/screen.ts", "@earendil-works/pi-tui"),
@@ -54,6 +60,10 @@ tester.run("imports", importsRule, {
     refused("clients/console/screen.ts", "../../agent/sessions/index.ts", "program"),
     refused("clients/web/page.ts", "../console/index.ts", "program"),
     refused("cli/commands/agent.ts", "../../agent/host/index.ts", "program"),
+    refused("cli/commands/agent.ts", "../../agent/home/index.ts", "program"),
+    // Another program's test support is still another program.
+    refused("cli/flow.test.ts", "../agent/testing/index.ts", "program"),
+    refused("cli/commands/sessions.ts", "../../lib/json-config/config-object.ts", "frontDoor"),
     refused("gateway/routes.ts", "../cli/index.ts", "program"),
     refused("lib/ids/index.ts", "../../contracts/agent/index.ts", "shared"),
     refused("contracts/agent/connect.ts", "../../agent/index.ts", "shared"),

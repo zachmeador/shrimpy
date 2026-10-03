@@ -8,6 +8,7 @@
     "node": ">=22.19.0"
   },
   "scripts": {
+    "shrimpy": "node src/cli/main.ts",
     "check": "npm run typecheck && npm run lint && npm test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src lint",
