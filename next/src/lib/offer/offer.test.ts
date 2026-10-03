@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type Context, defineService } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { offerToConnection, offerToSession } from "./index.ts";
+import { offerToConnection, offerToRoute } from "./index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -49,10 +49,10 @@ test("letting go of a connection takes the offer back and then tells whoever ask
   );
 });
 
-test("a session is offered to every connection that attaches it, and they are told as they come and go", async () => {
+test("a route is offered to every connection that attaches it, and they are told as they come and go", async () => {
   const events: string[] = [];
   let attachments = 0;
-  const handle = offerToSession(
+  const handle = offerToRoute(
     Greeter,
     { greet: (name) => Promise.resolve(`hello, ${name}`) },
     {
@@ -78,8 +78,8 @@ test("a session is offered to every connection that attaches it, and they are to
   assert.deepEqual(events, ["attached 1", "attached 2", "let go 1", "closed", "let go 2"]);
 });
 
-test("a session with no hooks can still be attached and closed", async () => {
-  const handle = offerToSession(Greeter, { greet: () => Promise.resolve("") });
+test("a route with no hooks can still be attached and closed", async () => {
+  const handle = offerToRoute(Greeter, { greet: () => Promise.resolve("") });
 
   const attachment = await handle.attachClient(context);
   await attachment.release(context);

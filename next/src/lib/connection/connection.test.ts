@@ -17,7 +17,7 @@ interface Greeter {
 const Greeter = defineService<Greeter>("shrimpy.test.greeter");
 
 interface Directory {
-  attach(sessionId: string, context: Context): Promise<void>;
+  attach(routeId: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
 }
 const Directory = defineService<Directory>("shrimpy.test.directory");
@@ -116,39 +116,39 @@ test("closing without saying goodbye does not wait for a call that is waiting fo
 });
 
 /**
- * A program that routes connections to sessions: every session whose ID starts
- * with `room` is a room, and the rest do not exist. `attach` is what a client's
- * request to attach does, given the routing it can fall back on.
+ * A program that routes connections: every route whose ID starts with `room`
+ * is a room, and the rest do not exist. `attach` is what a client's request to
+ * attach does, given the routing it can fall back on.
  */
 async function startRooms(
   t: TestContext,
-  attach: (route: () => Promise<void>) => Promise<void> = (route) => route(),
+  attach: (send: () => Promise<void>) => Promise<void> = (send) => send(),
 ) {
   useRuntimeDir(t);
   let detached = 0;
   const standIn = await startStandIn(t, "rooms", {
     offer: (presentation) =>
       offer(Directory, {
-        attach: (sessionId, callContext) => attach(() => presentation.attachSession(sessionId, callContext)),
+        attach: (routeId, callContext) => attach(() => presentation.attachSession(routeId, callContext)),
         detach: (callContext) => {
           detached += 1;
           return presentation.detachSession(callContext);
         },
       }),
-    session: (sessionId) =>
-      sessionId.startsWith("room") ? offer(Room, { state: replicatedState({ topic: sessionId }) }) : undefined,
+    route: (routeId) =>
+      routeId.startsWith("room") ? offer(Room, { state: replicatedState({ topic: routeId }) }) : undefined,
   });
   const connection = await openRoutedConnection({
     serverId: standIn.serverId,
     transportFactory: transport(standIn),
     service: Directory,
-    session: Room,
+    route: Room,
   });
   stopAfter(t, () => connection.close());
   return { connection, standIn, detached: () => detached };
 }
 
-test("attaching binds the session's service, and the attachment lasts until it is let go", { timeout }, async (t) => {
+test("attaching binds the route's service, and the attachment lasts until it is let go", { timeout }, async (t) => {
   const { connection, detached } = await startRooms(t);
 
   const lobby = await connection.attach("room-lobby");
@@ -186,32 +186,32 @@ test("an attach the server refuses says why, leaves nothing listening for its ro
   });
   const { connection, detached } = await startRooms(t);
 
-  await assert.rejects(connection.attach("no-such-session"), /Unknown session: no-such-session/);
+  await assert.rejects(connection.attach("no-such-route"), /Unknown route: no-such-route/);
 
   assert.equal(listening.size, 0);
   assert.equal(detached(), 0);
   assert.equal((await connection.attach("room-lobby")).isCurrent(), true);
 });
 
-test("an attach whose session does not offer the service is let go of", { timeout }, async (t) => {
+test("an attach whose route does not offer the service is let go of", { timeout }, async (t) => {
   useRuntimeDir(t);
   let detached = 0;
   const standIn = await startStandIn(t, "rooms", {
     offer: (presentation) =>
       offer(Directory, {
-        attach: (sessionId, callContext) => presentation.attachSession(sessionId, callContext),
+        attach: (routeId, callContext) => presentation.attachSession(routeId, callContext),
         detach: (callContext) => {
           detached += 1;
           return presentation.detachSession(callContext);
         },
       }),
-    session: () => offer(Greeter, { greet: () => Promise.resolve(""), wait: () => Promise.resolve() }),
+    route: () => offer(Greeter, { greet: () => Promise.resolve(""), wait: () => Promise.resolve() }),
   });
   const connection = await openRoutedConnection({
     serverId: standIn.serverId,
     transportFactory: transport(standIn),
     service: Directory,
-    session: Room,
+    route: Room,
   });
   stopAfter(t, () => connection.close());
 

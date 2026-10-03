@@ -43,7 +43,7 @@ export async function until(
 
 /**
  * Resolve with the first view that satisfies `done`, from anything that can be
- * subscribed to, such as an attached session or thread.
+ * subscribed to.
  */
 export function waitForView<V>(
   handle: { subscribe(listener: (view: V) => void): () => void },

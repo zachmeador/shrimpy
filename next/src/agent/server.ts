@@ -14,7 +14,7 @@ import {
   SessionDirectory,
   SessionService,
 } from "../contracts/agent/index.ts";
-import { offerToConnection, offerToSession } from "../lib/offer/index.ts";
+import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
 import { socketPathFor } from "../lib/runtime/index.ts";
 import type { Host } from "./host/index.ts";
 import { findSession, listSessions, serveSession } from "./sessions/index.ts";
@@ -81,7 +81,7 @@ function serverHost(host: Host, takingInput: () => boolean): ServerHost {
       const conversation = await findSession(host.harness, metadata.id, context);
       if (conversation === undefined) throw new SessionNotFoundError(`Unknown session: ${metadata.id}`);
       const served = await serveSession(host.harness, conversation, context, takingInput);
-      return offerToSession(SessionService, served.service, { closed: () => served.close() });
+      return offerToRoute(SessionService, served.service, { closed: () => served.close() });
     },
   };
 }

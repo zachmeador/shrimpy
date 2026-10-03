@@ -45,7 +45,7 @@ export async function connectAgent(options: {
   const connection = await openRoutedConnection({
     ...options,
     service: SessionDirectory,
-    session: SessionService,
+    route: SessionService,
   });
   const directory = connection.service;
 

@@ -11,34 +11,35 @@ import { expectRoute } from "./route.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** What the service of a program that routes connections to sessions must offer. */
+/** What the service of a program that routes connections must offer. */
 export interface Routing {
-  attach(sessionId: string, context: Context): Promise<void>;
+  attach(routeId: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
 }
 
-/** A session the connection is attached to. */
+/** A route the connection is attached to. */
 export interface Attachment<T> {
-  /** The session's service, bound for as long as the attachment lasts. */
+  /** The route's service, bound for as long as the attachment lasts. */
   readonly service: T;
-  /** False once the connection has detached, attached another session or closed. */
+  /** False once the connection has detached, attached another route or closed. */
   isCurrent(): boolean;
 }
 
 export interface RoutedConnection<S, T> extends Connection<S> {
   /**
-   * Watch one session: ask the server to route this connection to it, wait for
-   * the route, and bind the session's service over it. A connection is attached
-   * to one session at a time, so attaching again lets go of the first.
+   * Attach to the route `routeId`: ask the server to send this connection
+   * there, wait for the server to announce it, and bind the route's service
+   * over it. A connection is attached to one route at a time, so attaching
+   * again lets go of the first.
    */
-  attach(sessionId: string): Promise<Attachment<T>>;
-  /** Let go of the attached session. Does nothing if there is none. */
+  attach(routeId: string): Promise<Attachment<T>>;
+  /** Let go of the attached route. Does nothing if there is none. */
   detach(): Promise<void>;
 }
 
-/** Connect to a program that routes connections to sessions, whose service is `session`. */
+/** Connect to a program that routes connections, whose routes all offer the service `route`. */
 export async function openRoutedConnection<S extends Routing, T>(
-  options: ConnectionOptions<S> & { session: Service<T> },
+  options: ConnectionOptions<S> & { route: Service<T> },
 ): Promise<RoutedConnection<S, T>> {
   const { client, connection } = await connect(options);
   let attached: { scope: RemoteServiceBinding } | undefined;
@@ -59,24 +60,24 @@ export async function openRoutedConnection<S extends Routing, T>(
       attached = undefined;
       await connection.close(closing);
     },
-    async attach(sessionId) {
+    async attach(routeId) {
       await detach();
-      const route = expectRoute(client);
+      const arrival = expectRoute(client);
       try {
-        await connection.service.attach(sessionId, context);
-        await route.arrived;
+        await connection.service.attach(routeId, context);
+        await arrival.arrived;
         const scope = createRemoteServiceBinding({
-          services: [options.session],
+          services: [options.route],
           transport: createClientServiceTransport(client, () => client.attachment),
           bound: true,
         });
         const held = { scope };
         attached = held;
-        const bound = scope.use(options.session);
+        const bound = scope.use(options.route);
         await scope.ready(context);
         return { service: bound, isCurrent: () => attached === held };
       } catch (error) {
-        route.cancel();
+        arrival.cancel();
         await detach();
         throw error;
       }

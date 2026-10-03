@@ -9,7 +9,7 @@ import {
   SessionNotFoundError,
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
-import { offerToConnection, offerToSession } from "../offer/index.ts";
+import { offerToConnection, offerToRoute } from "../offer/index.ts";
 import { namedSocketPath } from "../runtime/index.ts";
 import { stopAfter } from "./cleanup.ts";
 
@@ -25,10 +25,10 @@ export function offer<T>(service: Service<T>, implementation: NoInfer<T>): Offer
 }
 
 export interface StandInOptions {
-  /** The service each connection is offered. `presentation` routes the connection to a session. */
+  /** The service each connection is offered. `presentation` routes the connection to a route. */
   offer(presentation: RoutedServerPresentation): Offer;
-  /** The service of session `sessionId`, or undefined when there is no such session. */
-  session?(sessionId: string): Offer | undefined;
+  /** The service of route `routeId`, or undefined when there is no such route. */
+  route?(routeId: string): Offer | undefined;
 }
 
 export interface StandIn {
@@ -63,16 +63,16 @@ export async function startStandIn(
   };
   const host: ServerHost = {
     serverServices,
-    resolveSession(sessionId) {
-      if (options.session?.(sessionId) === undefined) {
-        return Promise.reject(new SessionNotFoundError(`Unknown session: ${sessionId}`));
+    resolveSession(routeId) {
+      if (options.route?.(routeId) === undefined) {
+        return Promise.reject(new SessionNotFoundError(`Unknown route: ${routeId}`));
       }
-      return Promise.resolve({ id: sessionId });
+      return Promise.resolve({ id: routeId });
     },
     openSession(metadata) {
-      const found = options.session?.(metadata.id);
-      if (found === undefined) return Promise.reject(new Error(`Unknown session: ${metadata.id}`));
-      return Promise.resolve(offerToSession(found.service, found.implementation));
+      const found = options.route?.(metadata.id);
+      if (found === undefined) return Promise.reject(new Error(`Unknown route: ${metadata.id}`));
+      return Promise.resolve(offerToRoute(found.service, found.implementation));
     },
   };
 

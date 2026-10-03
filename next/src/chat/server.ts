@@ -15,7 +15,7 @@ import {
   chatEndpointFile,
   ThreadService,
 } from "../contracts/chat/index.ts";
-import { offerToConnection, offerToSession } from "../lib/offer/index.ts";
+import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
 import { serveChat } from "./connection.ts";
 import { takeChatLock } from "./lock.ts";
@@ -90,7 +90,7 @@ function serverHost(deps: ChatDeps): ServerHost {
     openSession(metadata) {
       const served = serveThread(deps, metadata.id);
       return Promise.resolve(
-        offerToSession(
+        offerToRoute(
           ThreadService,
           { state: served.state },
           { attached: () => served.watch(), closed: () => served.close() },

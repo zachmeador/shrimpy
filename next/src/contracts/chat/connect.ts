@@ -56,7 +56,7 @@ export async function connectChat(options: {
   const connection = await openRoutedConnection({
     ...options,
     service: Chat,
-    session: ThreadService,
+    route: ThreadService,
   });
   const service = connection.service;
 

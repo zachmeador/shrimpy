@@ -32,18 +32,22 @@ export function offerToConnection<T>(
   };
 }
 
-export interface SessionOffer {
-  /** Runs when a connection attaches the session. Returns what runs when that connection lets go. */
+export interface RouteOffer {
+  /** Runs when a connection attaches the route. Returns what runs when that connection lets go. */
   attached?: () => () => void;
-  /** Runs when the session closes, before its offer is taken back. */
+  /** Runs when the route closes, before its offer is taken back. */
   closed?: () => void;
 }
 
-/** Offer `implementation` as `service` to every connection that attaches the session. */
-export function offerToSession<T>(
+/**
+ * Offer `implementation` as `service` to every connection that attaches the
+ * route. A route is where the server sends a connection that asks to watch
+ * something: Pi calls it a session.
+ */
+export function offerToRoute<T>(
   service: Service<T>,
   implementation: T,
-  hooks: SessionOffer = {},
+  hooks: RouteOffer = {},
 ): RoutedSessionHandle {
   const provider = providerFor(service, implementation);
   return {
