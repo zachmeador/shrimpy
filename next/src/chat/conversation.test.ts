@@ -185,6 +185,26 @@ test("a retried post returns the first message instead of posting twice", { time
   assert.equal((await zach.chat.read(main.id, null, 10)).length, 2);
 });
 
+test("a post whose acknowledgment was lost is not posted again by its retry", { timeout }, async (t) => {
+  const chat = await startTestChat(t);
+  const zach = await chat.join(person("Zach"));
+  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const main = await mainThread(zach, dm.id);
+  const sender = await chat.join(person("Zach"));
+
+  // The server gets the post, and the connection goes before the answer can be read.
+  const lost = sender.chat.post(main.id, "Did this arrive?", "zach-1");
+  lost.catch(() => undefined);
+  await sender.close();
+  const [arrived] = await zach.chat.read(main.id, null, 10);
+  assert.ok(arrived);
+
+  const retry = await zach.chat.post(main.id, "Did this arrive?", "zach-1");
+
+  assert.deepEqual(retry, arrived);
+  assert.deepEqual(texts(await zach.chat.read(main.id, null, 10)), ["Did this arrive?"]);
+});
+
 test("a waiting feed ends when its caller cancels it, and the connection carries on", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.join(person("Zach"));
