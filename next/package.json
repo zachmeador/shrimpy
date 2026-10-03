@@ -19,10 +19,12 @@
     "@earendil-works/pi-client": "1.0.0",
     "@earendil-works/pi-durable": "1.0.0",
     "@earendil-works/pi-protocol": "1.0.0",
-    "@earendil-works/pi-server": "1.0.0"
+    "@earendil-works/pi-server": "1.0.0",
+    "ws": "8.22.0"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
+    "@types/ws": "8.18.2",
     "esbuild": "0.28.2",
     "eslint": "^10.3.0",
     "typescript": "5.9.3",
