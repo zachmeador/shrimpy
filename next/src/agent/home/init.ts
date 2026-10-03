@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative } from "node:path";
 import {
   type AgentConfig,
+  checkAgentName,
   formatAgentConfig,
   type ModelChoice,
   modelLabel,
@@ -42,6 +43,7 @@ function startingSoul(name: string): string {
 export function initHome(home: string, options: InitOptions): InitResult {
   const paths = homePaths(home);
   const config: AgentConfig = { name: options.name, model: options.model };
+  checkAgentName(config.name);
   // Parsing first means init never writes an agent.json that cannot load.
   const text = formatAgentConfig(config);
   parseAgentConfig(text, paths.config);

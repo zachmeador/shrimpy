@@ -104,7 +104,12 @@ test("init does not change an agent that already exists", () => {
 test("init refuses a name that cannot be an agent's name, before it writes anything", () => {
   const home = tempHome();
   for (const name of ["", "..", "-x", "has space", "a/b"]) {
-    assert.throws(() => initHome(home, { name, model }), ConfigError, name);
+    assert.throws(
+      () => initHome(home, { name, model }),
+      new Error(
+        `The agent name "${name}" must start with a letter or digit and use only letters, digits, dots, hyphens and underscores.`,
+      ),
+    );
   }
   assert.equal(existsSync(home), false);
 });
@@ -134,6 +139,14 @@ test("agent.json is checked, and an unknown key is an error that names it", () =
 
   writeFileSync(paths.config, JSON.stringify({ model }));
   assert.throws(() => loadHome(home), new ConfigError(`${paths.config}: name is required.`));
+
+  writeFileSync(paths.config, JSON.stringify({ name: "has space", model }));
+  assert.throws(
+    () => loadHome(home),
+    new ConfigError(
+      `${paths.config}: name must start with a letter or digit and use only letters, digits, dots, hyphens and underscores.`,
+    ),
+  );
 
   writeFileSync(paths.config, "{ not json");
   assert.throws(() => loadHome(home), /agent\.json: not valid JSON/);

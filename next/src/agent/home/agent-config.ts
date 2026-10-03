@@ -14,16 +14,17 @@ export interface AgentConfig {
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const NAME_RULE = "must start with a letter or digit and use only letters, digits, dots, hyphens and underscores";
+
+/** For a name that comes from outside a file, such as a command line. */
+export function checkAgentName(name: string): void {
+  if (!NAME.test(name)) throw new Error(`The agent name "${name}" ${NAME_RULE}.`);
+}
 
 export function parseAgentConfig(text: string, file: string): AgentConfig {
   const root = parseConfig(text, file);
   const name = root.string("name");
-  if (!NAME.test(name)) {
-    throw root.problem(
-      "name",
-      "must start with a letter or digit and use only letters, digits, dots, hyphens and underscores",
-    );
-  }
+  if (!NAME.test(name)) throw root.problem("name", NAME_RULE);
   const model = root.object("model");
   const choice = { provider: model.string("provider"), id: model.string("id") };
   model.done();
