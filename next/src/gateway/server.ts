@@ -51,7 +51,7 @@ export async function startServer(registry: Registry): Promise<GatewayServer> {
   }
 }
 
-/** Each connection gets its own slot in the registry, which closes with the connection. */
+/** Each connection can hold one registration, which is dropped when the connection ends. */
 function serverHost(registry: Registry): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient() {

@@ -60,7 +60,7 @@ export function createRegistry(): Registry {
   };
 }
 
-/** Peers send JSON, so the contract's types promise nothing until this has looked. */
+/** A peer sends JSON, so the contract's types hold only once this has checked it. */
 function check(value: unknown): Registration {
   if (typeof value !== "object" || value === null) throw new InvalidRegistrationError("expected an object");
   const { kind, name, serverId, socket, pid } = value as Record<string, unknown>;
