@@ -17,14 +17,22 @@ import { stopAfter } from "./cleanup.ts";
 export interface Offer {
   readonly service: Service<any>;
   readonly implementation: unknown;
+  /** Runs when the connection it was offered to is let go of. */
+  readonly released?: () => void;
 }
 
-/** Offer `implementation` as `service`. Whether it fits the service is the test's business. */
-export function offer<T>(service: Service<T>, implementation: NoInfer<T>): Offer {
-  return { service, implementation };
+/**
+ * Offer `implementation` as `service`, and run `released` when the connection
+ * it is offered to is let go of. Whether it fits the service is the test's
+ * business.
+ */
+export function offer<T>(service: Service<T>, implementation: NoInfer<T>, released?: () => void): Offer {
+  return { service, implementation, released };
 }
 
 export interface StandInOptions {
+  /** The server ID it claims, a random one by default. A client that expects a fixed ID needs it. */
+  serverId?: string;
   /** The service each connection is offered. `presentation` routes the connection to a route. */
   offer(presentation: RoutedServerPresentation): Offer;
   /** The service of route `routeId`, or undefined when there is no such route. */
@@ -51,14 +59,14 @@ export async function startStandIn(
   name: string,
   options: StandInOptions,
 ): Promise<StandIn> {
-  const serverId = randomUUID();
+  const serverId = options.serverId ?? randomUUID();
   const socket = namedSocketPath(name);
   let connections = 0;
 
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
-      const { service, implementation } = options.offer(presentation);
-      return offerToConnection(service, implementation);
+      const { service, implementation, released } = options.offer(presentation);
+      return offerToConnection(service, implementation, released);
     },
   };
   const host: ServerHost = {

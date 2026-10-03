@@ -39,14 +39,13 @@ const needsNode = (path) => /(^|\/)node\.ts$|\.node\.ts$/.test(path);
 /**
  * Code that must also run in a browser: the web client, and the contracts and
  * lib/ modules apart from the files that say they need Node. In lib/ that makes
- * a module's index.ts door and everything behind it browser-safe. Test support
- * is never shipped, so it may use Node anywhere.
+ * a module's index.ts door and everything behind it browser-safe. Tests and
+ * test support are never shipped, so they may use Node anywhere.
  */
 function isBrowserSafe(path) {
-  if (isTest(path)) return false;
+  if (isTest(path) || isTestSupport(path)) return false;
   if (path.startsWith("clients/web/")) return true;
-  if (path.startsWith("contracts/")) return !needsNode(path);
-  return path.startsWith("lib/") && !needsNode(path) && !isTestSupport(path);
+  return (path.startsWith("contracts/") || path.startsWith("lib/")) && !needsNode(path);
 }
 
 const reachesNode = (specifier) => isBuiltin(specifier) || /^node:|\/unix$|\/node$/.test(specifier);

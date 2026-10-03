@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectGateway, type Registration } from "../contracts/gateway/index.ts";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, GatewayNotRunningError } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import { startGateway } from "./index.ts";
 import { agentRegistration as agent, startEchoProgram, startRegistrantChild } from "./testing/index.ts";
@@ -147,9 +147,15 @@ test("a registration that cannot be accepted is refused with the reason", { time
   }
 });
 
-test("connecting fails when no gateway is running", { timeout }, async (t) => {
+test("connecting fails when no gateway is running, and says so", { timeout }, async (t) => {
   useRuntimeDir(t);
-  await assert.rejects(connectLocalGateway(), /ENOENT/);
+  await assert.rejects(
+    connectLocalGateway(),
+    (error) =>
+      error instanceof GatewayNotRunningError &&
+      error.message === "No gateway is running on this machine." &&
+      /ENOENT/.test(String(error.cause)),
+  );
 });
 
 test("a gateway client refuses a server that is not the gateway", { timeout }, async (t) => {

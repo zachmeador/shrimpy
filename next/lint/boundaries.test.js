@@ -61,10 +61,13 @@ tester.run("imports", importsRule, {
     // Programs and the contracts' Node doors reach lib/'s Node doors.
     allowed("agent/server.ts", "../lib/runtime/node.ts"),
     allowed("contracts/gateway/node.ts", "../../lib/runtime/node.ts"),
-    // Test support is never shipped to a browser, even in lib/.
+    // Test support is never shipped to a browser, even in lib/ and the contracts.
     allowed("lib/testing/child.ts", "node:child_process"),
     allowed("lib/testing/stand-in.ts", "../runtime/node.ts"),
     allowed("lib/testing/stand-in.ts", "@earendil-works/pi-server/unix"),
+    allowed("contracts/gateway/testing/gateway.ts", "node:test"),
+    allowed("contracts/gateway/testing/gateway.ts", "../../../lib/testing/index.ts"),
+    allowed("contracts/gateway/testing/gateway.ts", "../index.ts"),
     // Test support is for tests and other test support.
     allowed("agent/agent.test.ts", "./testing/index.ts"),
     allowed("agent/testing/agent-child.ts", "../index.ts"),
