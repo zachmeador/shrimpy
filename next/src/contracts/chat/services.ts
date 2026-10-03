@@ -48,7 +48,8 @@ export interface Chat {
    * is the caller. Only an agent leaves receipts, only on messages in channels
    * it belongs to, and the call is all or nothing. A later receipt from the same
    * agent replaces its earlier one on a message, so a skipped message can be
-   * answered later.
+   * answered later, and leaving the receipt a message already has changes
+   * nothing, so a call whose answer was lost can be made again.
    *
    * `reply` is required for `answered`, refused for every other status, and must
    * be a message the caller wrote in the same thread as each message it answers.

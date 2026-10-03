@@ -77,7 +77,7 @@ A server that needs no key still takes a placeholder, so `apiKey` is set. A key 
 
 `agent serve` stops on SIGTERM or Ctrl+C. It stops taking input, gives running turns up to five seconds to finish, then closes. Work that did not finish resumes at the next start. `--now`, or a second signal during the wait, skips the wait.
 
-`gateway serve` and `chat serve` stop on SIGTERM or Ctrl+C too, and exit 0. A second gateway on a machine, or a second chat server, is refused with its own message and exit code 1. A chat server works the same with no gateway running: it registers when it finds one, and again each time the gateway comes back.
+`gateway serve` and `chat serve` stop on SIGTERM or Ctrl+C too, and exit 0. A second gateway on a machine, or a second chat server, is refused with its own message and exit code 1. A chat server works the same with no gateway running: it registers when it finds one, and again each time the gateway comes back. The line it prints says it is listening, not that it has registered.
 
 `sessions steer --wait` prints the answer, then exits 0 when the input was answered, 130 when it was cancelled, and 1 when it failed or ended without an answer. Any command exits 2 when it is used wrongly. The session commands talk to the running agent and never open the home's storage.
 

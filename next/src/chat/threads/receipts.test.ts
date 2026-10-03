@@ -91,6 +91,19 @@ test("a later receipt replaces the agent's earlier one, and a skipped message ca
   assert.deepEqual(latest(), mine({ status: "silent", reply: null, detail: null }));
 });
 
+test("leaving the receipt a message already has changes nothing, so a call whose answer was lost can be repeated", (t) => {
+  const { deps, zach, shrimpy, main } = openTestDm(t);
+  const asked = post(deps, zach, main.id, "what is 2 + 2", "r1");
+  const answer = post(deps, shrimpy, main.id, "4", "r2");
+  leaveReceipt(deps, shrimpy, [asked.id], outcome("answered", { reply: answer.id }));
+  const once = readMessages(deps, zach, main.id, null, 10);
+
+  leaveReceipt(deps, shrimpy, [asked.id], outcome("answered", { reply: answer.id }));
+
+  assert.deepEqual(readMessages(deps, zach, main.id, null, 10), once);
+  assert.equal(once[0]?.receipts.length, 1);
+});
+
 test("each agent has its own receipt on a message, listed in order of member ID", (t) => {
   const { deps } = openTestDm(t);
   const alpha = identify(deps, agent("Alpha"));

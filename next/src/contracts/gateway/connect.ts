@@ -13,8 +13,8 @@ export interface GatewayConnection {
   list(): Promise<Registration[]>;
   /**
    * Called once when the connection ends, whether the gateway went away or
-   * `close` was called. Nothing reconnects by itself, so a program that wants
-   * to stay registered connects and registers again.
+   * `close` was called. Nothing reconnects by itself: a program that wants to
+   * stay registered uses `keepRegistered`, from the Node door.
    */
   onDisconnect(listener: (reason: Error | undefined) => void): void;
   close(): Promise<void>;

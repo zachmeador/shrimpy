@@ -52,6 +52,21 @@ test("gateway status shows the chat server once both run, with its version and p
   assert.equal(gateway.listening.webPort, null);
 });
 
+test("stopping the chat server takes it off the gateway's list", { timeout }, async (t) => {
+  await serveGateway(t);
+  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  await statusWithChat();
+
+  assert.equal((await chat.stop()).code, 0);
+
+  const status = await eventually(
+    () => shrimpy(["gateway", "status"]),
+    (result) => result.stdout.includes("No programs are registered."),
+    { what: "the chat server to leave the gateway's list" },
+  );
+  assert.equal(status.code, 0);
+});
+
 test("a gateway that was killed and started again has the chat server registered again", { timeout }, async (t) => {
   const first = await serveGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
