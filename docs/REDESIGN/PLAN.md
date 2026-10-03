@@ -266,14 +266,15 @@ Every operation is reachable as `shrimpy <command>` before any UI uses it, and C
 
 Contracts carry Shrimpy-owned shapes only: the agent builds the session view that clients draw, so no client depends on Pi's record types. Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd, so an attached console asks the agent for completions instead of reading a local directory. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
 
-The gateway handles discovery, access and routing between clients, agents and the chat server. It keeps the workspace's configuration: agent registrations, tokens and workspace context. It never holds agent homes, Pi storage, execution or conversations, and it reaches agents' sessions only through their API. Agents connect out to it and reconnect on their own, so they need no inbound listener. Losing the gateway pauses chat and remote access but never stops an agent. Watching and controlling an agent on its own machine works without a gateway; talking needs the gateway and the chat server, and on a single machine both run locally.
+The gateway handles discovery, access and routing between clients, agents and the chat server. It keeps the workspace's configuration: agent registrations, tokens and workspace context. It never holds agent homes, Pi storage, execution or conversations, and it reaches agents' sessions only through their API. Agents connect out to it and reconnect on their own, so they need no inbound listener. A program registers over a connection it keeps open, and its registration lasts as long as that connection. On one machine, programs then reach each other's sockets directly, and a browser reaches them through the gateway's WebSocket entry. Losing the gateway pauses chat and remote access but never stops an agent. Watching and controlling an agent on its own machine works without a gateway; talking needs the gateway and the chat server, and on a single machine both run locally.
 
 ### Chat server
 
 The chat server is a service of its own, with its own store, so the gateway doesn't grow into one big service. It owns what channels share: threads, message logs, membership, attachments, burst batching, chat commands, sender access, addressing and mentions, formatting and chunking rules, mirroring into bridged chats, and delivery receipts. Each chat provider runs inside it and only translates its own API: authentication, polling or webhooks, message and media formats, and sending. Code outside a provider's own directory doesn't depend on which provider it is.
 
 - **Storage.** SQLite through Node's built-in `node:sqlite`, like the agents, with the chat server as its only writer. A message, its batch membership, its attachment references and the provider cursor that delivered it commit together. Attachments are files next to the database. The store is user data, so back it up like a home, from a stopped snapshot or with SQLite's backup.
-- **Offers.** After a message commits, the chat server offers it to each member agent through the gateway. Each agent's wake policy decides whether it starts a turn, and the agent keeps one session for each thread it takes part in.
+- **Offers.** An agent is a member like any other. It connects out to the chat server, through the gateway when they're on different machines, and asks for the messages after its own cursor. The chat server never has to reach an agent, an agent that was down catches up from where it stopped, and one with no cursor starts from now. Each agent's wake policy decides whether a message starts a turn, and the agent keeps one session for each thread it takes part in.
+- **Identity.** A connection says who it is before anything else. On one machine the chat server takes its word; the gateway verifies it once access crosses machines.
 - **Unread messages.** Each agent keeps a bounded copy of the messages it was offered, including ones that didn't wake it. It's a disposable cache whose source is the chat server. A turn's unread messages come from that copy, so they're captured when the message is consumed and still available while chat is unreachable. `read_messages` asks the chat server for anything older.
 
 ### Sandboxing
@@ -395,7 +396,7 @@ src/
     console/        terminal client
     web/            web client, replacing today's top-level web/
   cli/              the `shrimpy` command
-  lib/              small helpers with no domain knowledge
+  lib/              small helpers with no domain knowledge, such as where sockets live
 ```
 
 ### What may import what

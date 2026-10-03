@@ -1,7 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { userInfo } from "node:os";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRemoteServiceEndpoint, RemoteServiceProvider } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
@@ -17,6 +15,7 @@ import {
   SessionDirectory,
   SessionService,
 } from "../contracts/agent/index.ts";
+import { socketPathFor } from "../lib/runtime/index.ts";
 import type { Host } from "./host/index.ts";
 import { findSession, listSessions, serveSession } from "./sessions/index.ts";
 
@@ -31,7 +30,7 @@ const context = BACKGROUND_CONTEXT;
 export async function startServer(host: Host): Promise<AgentServer> {
   const endpoint: AgentEndpoint = {
     serverId: previousServerId(host.home) ?? randomUUID(),
-    socket: socketPath(host.home),
+    socket: socketPathFor(host.home),
     pid: process.pid,
   };
   // This process holds the home's lock, so a socket left at its path is stale.
@@ -106,17 +105,4 @@ function previousServerId(home: string): string | undefined {
   const file = endpointFile(home);
   if (!existsSync(file)) return undefined;
   return (JSON.parse(readFileSync(file, "utf8")) as AgentEndpoint).serverId;
-}
-
-/**
- * Unix socket paths are capped near 104 bytes, so sockets live in a short
- * per-user directory instead of inside the home, named after the home's path.
- */
-function socketPath(home: string): string {
-  const directory = process.env.XDG_RUNTIME_DIR
-    ? join(process.env.XDG_RUNTIME_DIR, "shrimpy")
-    : join("/tmp", `shrimpy-${userInfo().uid}`);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const name = createHash("sha256").update(home).digest("hex").slice(0, 16);
-  return join(directory, `${name}.sock`);
 }
