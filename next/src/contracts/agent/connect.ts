@@ -1,11 +1,6 @@
-import { createRemoteServiceBinding } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import {
-  type ByteTransportFactory,
-  Client,
-  createClientServiceTransport,
-  DisconnectedError,
-} from "@earendil-works/pi-client";
+import { type ByteTransportFactory, DisconnectedError } from "@earendil-works/pi-client";
+import { openRoutedConnection } from "../../lib/connection/index.ts";
 import { SessionDirectory, SessionService } from "./services.ts";
 import type { SessionSummary, SessionView, Settlement } from "./view.ts";
 
@@ -47,26 +42,18 @@ export async function connectAgent(options: {
   serverId: string;
   transportFactory: ByteTransportFactory;
 }): Promise<AgentConnection> {
-  const { serverId } = options;
-  const client = await Client.connect({ serverId, transportFactory: options.transportFactory });
-  const agentScope = createRemoteServiceBinding({
-    services: [SessionDirectory],
-    transport: createClientServiceTransport(client, () => ({ serverId })),
-    bound: true,
+  const connection = await openRoutedConnection({
+    ...options,
+    service: SessionDirectory,
+    session: SessionService,
   });
-  // ready() only waits for services already acquired, so acquire first.
-  const directory = agentScope.use(SessionDirectory);
-  await agentScope.ready(context);
+  const directory = connection.service;
 
-  let sessionScope: ReturnType<typeof createRemoteServiceBinding> | undefined;
   let lost = false;
   let closed = false;
   let calls = 0;
-  const disconnects: ((reason: Error | undefined) => void)[] = [];
-  client.onConnectionStateChange(({ state, error }) => {
-    if (state !== "disconnected") return;
+  connection.onDisconnect(() => {
     lost = true;
-    for (const listener of disconnects) listener(error);
   });
   // Calls that fail because the connection dropped fail the same way, with a message a person can use.
   const guarded = async <T>(call: () => Promise<T>): Promise<T> => {
@@ -81,70 +68,30 @@ export async function connectAgent(options: {
     }
   };
 
-  const releaseSession = async (): Promise<void> => {
-    const scope = sessionScope;
-    sessionScope = undefined;
-    if (scope === undefined) return;
-    await scope.dispose(context).catch(() => undefined);
-    await directory.detach(context).catch(() => undefined);
-  };
-
   return {
     sessions: () => guarded(() => directory.list(context)),
     attach: (sessionId) =>
       guarded(async () => {
-        await releaseSession();
-        const routed = waitForRoute(client);
-        await directory.attach(sessionId, context);
-        await routed;
-        const scope = createRemoteServiceBinding({
-          services: [SessionService],
-          transport: createClientServiceTransport(client, () => client.attachment),
-          bound: true,
-        });
-        sessionScope = scope;
-        const session = scope.use(SessionService);
-        await scope.ready(context);
+        const { service: session } = await connection.attach(sessionId);
         return {
           id: sessionId,
           get view() {
             return currentView(session.state.value);
           },
-          subscribe(listener) {
-            listener(currentView(session.state.value));
-            return session.state.subscribe((value) => listener(value));
-          },
+          subscribe: (listener) => session.state.subscribe((value) => listener(value)),
           steer: (text, requestId) => guarded(() => session.steer(text, requestId ?? null, context)),
           wait: (submission) => guarded(() => session.wait(submission, context)),
           abort: () => guarded(() => session.abort(context)),
         };
       }),
-    onDisconnect(listener) {
-      disconnects.push(listener);
-    },
+    onDisconnect: (listener) => connection.onDisconnect(listener),
     async close() {
+      closed = true;
       // Saying goodbye would wait behind a call that is still waiting for its answer, such as a `wait`.
       // The server lets go of what a dropped connection held, so with calls pending the connection is dropped.
-      const goodbye = calls === 0;
-      closed = true;
-      if (goodbye) {
-        await releaseSession();
-        await agentScope.dispose(context).catch(() => undefined);
-      }
-      await client.dispose();
+      await connection.close({ goodbye: calls === 0 });
     },
   };
-}
-
-/** The server announces the attached route out of band, after `attach` resolves or before. */
-function waitForRoute(client: Client): Promise<void> {
-  return new Promise((resolve) => {
-    const stop = client.onAttachmentChange((attachment) => {
-      if (attachment === undefined) return;
-      stop();
-      resolve();
-    });
-  });
 }
 
 function currentView(view: SessionView | undefined): SessionView {

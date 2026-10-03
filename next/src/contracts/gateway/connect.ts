@@ -1,10 +1,6 @@
-import { createRemoteServiceBinding } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import {
-  type ByteTransportFactory,
-  Client,
-  createClientServiceTransport,
-} from "@earendil-works/pi-client";
+import type { ByteTransportFactory } from "@earendil-works/pi-client";
+import { openConnection } from "../../lib/connection/index.ts";
 import { GATEWAY_SERVER_ID } from "./endpoint.ts";
 import { Gateway, type Registration } from "./services.ts";
 
@@ -29,37 +25,16 @@ const context = BACKGROUND_CONTEXT;
 export async function connectGateway(options: {
   transportFactory: ByteTransportFactory;
 }): Promise<GatewayConnection> {
-  const serverId = GATEWAY_SERVER_ID;
-  const client = await Client.connect({ serverId, transportFactory: options.transportFactory });
-  const scope = createRemoteServiceBinding({
-    services: [Gateway],
-    transport: createClientServiceTransport(client, () => ({ serverId })),
-    bound: true,
+  const connection = await openConnection({
+    serverId: GATEWAY_SERVER_ID,
+    transportFactory: options.transportFactory,
+    service: Gateway,
   });
-  try {
-    // ready() only waits for services already acquired, so acquire first.
-    const gateway = scope.use(Gateway);
-    await scope.ready(context);
-
-    const disconnects: ((reason: Error | undefined) => void)[] = [];
-    client.onConnectionStateChange(({ state, error }) => {
-      if (state !== "disconnected") return;
-      for (const listener of disconnects) listener(error);
-    });
-
-    return {
-      register: (registration) => gateway.register(registration, context),
-      list: () => gateway.list(context),
-      onDisconnect(listener) {
-        disconnects.push(listener);
-      },
-      async close() {
-        await scope.dispose(context).catch(() => undefined);
-        await client.dispose();
-      },
-    };
-  } catch (error) {
-    await client.dispose();
-    throw error;
-  }
+  const gateway = connection.service;
+  return {
+    register: (registration) => gateway.register(registration, context),
+    list: () => gateway.list(context),
+    onDisconnect: (listener) => connection.onDisconnect(listener),
+    close: () => connection.close(),
+  };
 }

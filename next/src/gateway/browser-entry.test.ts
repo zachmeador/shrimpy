@@ -21,7 +21,7 @@ const timeout = 30_000;
 test("a browser reads the registry and reaches a registered program through the web entry", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGateway({ web: { port: 0 } });
-  const echo = await startEchoProgram("echo-agent");
+  const echo = await startEchoProgram(t, "echo-agent");
   const program = await connectLocalGateway();
   // From here on, what a page would do: only the web entry.
   const base = `ws://127.0.0.1:${webPortOf(gateway)}`;
@@ -66,7 +66,7 @@ test("a browser can list programs but cannot register one", { timeout }, async (
 test("a program that leaves the registry can no longer be reached from a browser", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGateway({ web: { port: 0 } });
-  const echo = await startEchoProgram("echo-agent");
+  const echo = await startEchoProgram(t, "echo-agent");
   const program = await connectLocalGateway();
   try {
     const port = webPortOf(gateway);

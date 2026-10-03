@@ -132,7 +132,7 @@ test("connecting fails when no gateway is running", { timeout }, async (t) => {
 
 test("a gateway client refuses a server that is not the gateway", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const echo = await startEchoProgram("echo-agent");
+  const echo = await startEchoProgram(t, "echo-agent");
   try {
     await assert.rejects(
       connectGateway({ transportFactory: createUnixTransportFactory({ path: echo.socket }) }),

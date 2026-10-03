@@ -20,7 +20,7 @@ const timeout = 30_000;
 
 test("a client reaches a program through the pipe and makes a call", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const echo = await startEchoProgram("echo-agent");
+  const echo = await startEchoProgram(t, "echo-agent");
   const entry = await openEntry({ echo: echo.socket });
   const url = agentUrl(entry.port, "echo");
   const first = await connectEcho(echo.serverId, webSocketTransport(url));
@@ -126,7 +126,7 @@ test("it listens on loopback only", { timeout }, async (t) => {
 
 test("closing the entry closes every open pipe and frees the port", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const echo = await startEchoProgram("echo-agent");
+  const echo = await startEchoProgram(t, "echo-agent");
   const entry = await openEntry({ echo: echo.socket });
   const client = await connectEcho(echo.serverId, webSocketTransport(agentUrl(entry.port, "echo")));
   try {

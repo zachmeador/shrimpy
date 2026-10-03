@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { AgentConnectionLostError } from "../contracts/agent/index.ts";
+import { AgentConnectionLostError, type SessionView } from "../contracts/agent/index.ts";
 import { attachLocal } from "../contracts/agent/node.ts";
-import { tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
+import { settle, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import { HomeOwnedError } from "./host/index.ts";
 import { startAgent } from "./index.ts";
 import {
@@ -56,6 +56,30 @@ test("a client attaches, steers the main session, and watches the turn", { timeo
   } finally {
     await connection.close();
     await agent.close();
+  }
+});
+
+test("a handle's subscribe gives the listener the current view once, then each change", { timeout }, async (t) => {
+  const { home } = await start(t, "chat");
+  const { connection, session } = await attachMain(home);
+  try {
+    const seen: SessionView[] = [];
+    const stop = session.subscribe((view) => seen.push(view));
+    await settle();
+    assert.deepEqual(seen, [session.view]);
+
+    await session.steer("say hello");
+    const answer = await waitForView(session, answered);
+    assert.ok(seen.length > 1);
+    assert.deepEqual(seen.at(-1), answer);
+
+    stop();
+    const delivered = seen.length;
+    const { submission } = await session.steer("and again");
+    await session.wait(submission);
+    assert.equal(seen.length, delivered);
+  } finally {
+    await connection.close();
   }
 });
 

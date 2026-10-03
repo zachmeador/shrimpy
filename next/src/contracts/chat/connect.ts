@@ -1,15 +1,7 @@
-import {
-  type Context,
-  createRemoteServiceBinding,
-  type RemoteServiceBinding,
-} from "@earendil-works/chord";
+import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
-import {
-  type ByteTransportFactory,
-  Client,
-  createClientServiceTransport,
-  DisconnectedError,
-} from "@earendil-works/pi-client";
+import type { ByteTransportFactory } from "@earendil-works/pi-client";
+import { openRoutedConnection } from "../../lib/connection/index.ts";
 import { Chat, ThreadService } from "./services.ts";
 import type { ThreadView } from "./view.ts";
 
@@ -61,36 +53,12 @@ export async function connectChat(options: {
   serverId: string;
   transportFactory: ByteTransportFactory;
 }): Promise<ChatConnection> {
-  const { serverId } = options;
-  const client = await Client.connect({ serverId, transportFactory: options.transportFactory });
-  const chatScope = createRemoteServiceBinding({
-    services: [Chat],
-    transport: createClientServiceTransport(client, () => ({ serverId })),
-    bound: true,
+  const connection = await openRoutedConnection({
+    ...options,
+    service: Chat,
+    session: ThreadService,
   });
-  // ready() only waits for services already acquired, so acquire first.
-  const service = chatScope.use(Chat);
-  try {
-    await chatScope.ready(context);
-  } catch (error) {
-    await client.dispose();
-    throw error;
-  }
-
-  let threadScope: RemoteServiceBinding | undefined;
-  const disconnects: ((reason: Error | undefined) => void)[] = [];
-  client.onConnectionStateChange(({ state, error }) => {
-    if (state !== "disconnected") return;
-    for (const listener of disconnects) listener(error);
-  });
-
-  const releaseThread = async (): Promise<void> => {
-    const scope = threadScope;
-    threadScope = undefined;
-    if (scope === undefined) return;
-    await scope.dispose(context).catch(() => undefined);
-    await service.detach(context).catch(() => undefined);
-  };
+  const service = connection.service;
 
   const chat: ChatClient = {
     identify: (member, signal) => service.identify(member, contextFor(signal)),
@@ -117,74 +85,27 @@ export async function connectChat(options: {
   return {
     chat,
     async attach(threadId) {
-      await releaseThread();
-      const route = expectRoute(client);
-      try {
-        await service.attach(threadId, context);
-        await route.arrived;
-        const scope = createRemoteServiceBinding({
-          services: [ThreadService],
-          transport: createClientServiceTransport(client, () => client.attachment),
-          bound: true,
-        });
-        threadScope = scope;
-        const thread = scope.use(ThreadService);
-        await scope.ready(context);
-        const attached = (): void => {
-          if (threadScope !== scope) throw new Error(`Thread ${threadId} is no longer attached`);
-        };
-        return {
-          id: threadId,
-          get view() {
-            attached();
-            return currentView(thread.state.value);
-          },
-          subscribe(listener) {
-            attached();
-            return thread.state.subscribe((view) => listener(view));
-          },
-        };
-      } catch (error) {
-        route.cancel();
-        await releaseThread();
-        throw error;
-      }
+      const attachment = await connection.attach(threadId);
+      const thread = attachment.service;
+      const attached = (): void => {
+        if (!attachment.isCurrent()) throw new Error(`Thread ${threadId} is no longer attached`);
+      };
+      return {
+        id: threadId,
+        get view() {
+          attached();
+          return currentView(thread.state.value);
+        },
+        subscribe(listener) {
+          attached();
+          return thread.state.subscribe((view) => listener(view));
+        },
+      };
     },
-    detach: releaseThread,
-    onDisconnect(listener) {
-      disconnects.push(listener);
-    },
-    async close() {
-      await releaseThread();
-      await chatScope.dispose(context).catch(() => undefined);
-      await client.dispose();
-    },
+    detach: () => connection.detach(),
+    onDisconnect: (listener) => connection.onDisconnect(listener),
+    close: () => connection.close(),
   };
-}
-
-/**
- * The server announces the attached route out of band, after `attach` resolves
- * or before. Start listening before attaching, and stop if it never comes.
- */
-function expectRoute(client: Client): { arrived: Promise<void>; cancel(): void } {
-  let stop = (): void => {};
-  const arrived = new Promise<void>((resolve, reject) => {
-    const stopRoute = client.onAttachmentChange((attachment) => {
-      if (attachment === undefined) return;
-      stop();
-      resolve();
-    });
-    const stopConnection = client.onConnectionStateChange(({ state, error }) => {
-      if (state !== "disconnected") return;
-      stop();
-      reject(error ?? new DisconnectedError());
-    });
-    stop = () => {
-      stopRoute();
-      stopConnection();
-    };
-  });
-  return { arrived, cancel: () => stop() };
 }
 
 function currentView(view: ThreadView | undefined): ThreadView {
