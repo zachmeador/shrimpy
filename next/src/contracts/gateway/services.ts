@@ -9,6 +9,12 @@ export interface Registration {
   /** Absolute path of the program's Unix socket. */
   socket: string;
   pid: number;
+  /**
+   * The version of Shrimpy the program runs. Programs upgrade together, so this
+   * is how a mismatch between peers gets reported. The gateway lists it and
+   * never refuses a program for it.
+   */
+  version: string;
 }
 
 /**

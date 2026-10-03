@@ -29,6 +29,25 @@ test("a registration is listed to every client", { timeout }, async (t) => {
   }
 });
 
+test("every version is listed as it was given, and none is refused", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startGateway();
+  const first = await connectLocalGateway();
+  const second = await connectLocalGateway();
+  try {
+    const current = { ...agent("current"), version: "0.0.0" };
+    const ahead = { ...agent("ahead"), version: "99.0.0-next.1" };
+    await first.register(current);
+    await second.register(ahead);
+
+    assert.deepEqual(await first.list(), [current, ahead]);
+  } finally {
+    await first.close();
+    await second.close();
+    await gateway.close();
+  }
+});
+
 test("registering again on a connection replaces its entry", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGateway();

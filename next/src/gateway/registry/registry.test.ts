@@ -4,7 +4,7 @@ import type { Registration } from "../../contracts/gateway/index.ts";
 import { createRegistry, InvalidRegistrationError } from "./registry.ts";
 
 function agent(name: string, socket = `/run/shrimpy/${name}.sock`): Registration {
-  return { kind: "agent", name, serverId: `server-${name}`, socket, pid: 100 };
+  return { kind: "agent", name, serverId: `server-${name}`, socket, pid: 100, version: "1.2.3" };
 }
 
 const chat: Registration = {
@@ -13,6 +13,7 @@ const chat: Registration = {
   serverId: "server-chat",
   socket: "/run/shrimpy/chat.sock",
   pid: 200,
+  version: "1.2.3",
 };
 
 test("a new registry lists nothing", () => {
@@ -127,6 +128,9 @@ test("a registration that is not well formed is refused and changes nothing", ()
     ["pid", { ...good, pid: 1.5 }],
     ["pid", { ...good, pid: "100" }],
     ["pid", { ...good, pid: Number.NaN }],
+    ["version", { ...good, version: "" }],
+    ["version", { ...good, version: undefined }],
+    ["version", { ...good, version: 1 }],
   ];
 
   for (const [field, value] of refused) {

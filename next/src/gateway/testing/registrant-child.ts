@@ -9,6 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { connectLocalGateway } from "../../contracts/gateway/node.ts";
 import { runUntilStopped } from "../../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
 const [name] = process.argv.slice(2);
 if (name === undefined) throw new Error("usage: registrant-child.ts <name>");
@@ -22,6 +23,7 @@ await runUntilStopped(
       serverId: randomUUID(),
       socket: `/tmp/${name}.sock`,
       pid: process.pid,
+      version: SHRIMPY_VERSION,
     });
     return gateway;
   },

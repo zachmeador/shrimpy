@@ -63,7 +63,7 @@ export function createRegistry(): Registry {
 /** A peer sends JSON, so the contract's types hold only once this has checked it. */
 function check(value: unknown): Registration {
   if (typeof value !== "object" || value === null) throw new InvalidRegistrationError("expected an object");
-  const { kind, name, serverId, socket, pid } = value as Record<string, unknown>;
+  const { kind, name, serverId, socket, pid, version } = value as Record<string, unknown>;
   if (!isProgramKind(kind)) throw new InvalidRegistrationError('kind must be "agent" or "chat"');
   if (typeof name !== "string" || name === "") {
     throw new InvalidRegistrationError("name must be a non-empty string");
@@ -77,5 +77,9 @@ function check(value: unknown): Registration {
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
     throw new InvalidRegistrationError("pid must be a positive integer");
   }
-  return { kind, name, serverId, socket, pid };
+  // Only that there is one is checked: the gateway never refuses a program for which version it runs.
+  if (typeof version !== "string" || version === "") {
+    throw new InvalidRegistrationError("version must be a non-empty string");
+  }
+  return { kind, name, serverId, socket, pid, version };
 }
