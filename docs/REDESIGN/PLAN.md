@@ -521,6 +521,8 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 
 **No shortcuts reach a commit.** A boundary crossed for convenience, a missing front door, tests left for later and lint that isn't set up yet all get fixed before the commit, not after it. The quality work for a module, meaning its boundary lint, its front door and its tests, exists before that module's first commit. A shortcut found later is fixed before anything else is committed.
 
+**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided: it goes into [Introduced by the build, not yet reviewed](#introduced-by-the-build-not-yet-reviewed), and a known gap goes into the list under the phase being built.
+
 Each phase ends with a shape review against the [layout rules](#target-source-layout) and a new row in the [size log](#size-baseline).
 
 ### 0. Spike

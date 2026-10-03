@@ -2,6 +2,10 @@
 
 This is the new Shrimpy, built on Pi's durable runtime. It lives here until it replaces `src/`. The [replacement plan](../docs/REDESIGN/PLAN.md) owns the design, and its "Target source layout" section owns the rules below.
 
+## Stay aligned with the plan
+
+Build what the plan says. If the plan is wrong, unclear or silent, or the code can't follow it, stop and raise it with the user and the agent coordinating the build. Don't settle it quietly in the code: that is how slop piles up. Any visible choice you make that the plan doesn't cover goes in your report, so it can be reviewed.
+
 ## Check your work
 
 ```bash
