@@ -21,6 +21,8 @@ import { findSession, listSessions, serveSession } from "./sessions/index.ts";
 
 export interface AgentServer {
   readonly endpoint: AgentEndpoint;
+  /** Refuse new input from now on. Clients can still watch and stop work. */
+  stopIntake(): void;
   close(): Promise<void>;
 }
 
@@ -33,9 +35,10 @@ export async function startServer(host: Host): Promise<AgentServer> {
     socket: socketPathFor(host.home),
     pid: process.pid,
   };
+  let takingInput = true;
   // This process holds the home's lock, so a socket left at its path is stale.
   rmSync(endpoint.socket, { force: true });
-  const server = new Server(serverHost(host), {
+  const server = new Server(serverHost(host, () => takingInput), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
     onError: (error) => console.error("[agent]", error.message),
@@ -44,6 +47,9 @@ export async function startServer(host: Host): Promise<AgentServer> {
   writeFileSync(endpointFile(host.home), JSON.stringify(endpoint));
   return {
     endpoint,
+    stopIntake() {
+      takingInput = false;
+    },
     async close() {
       await server.close();
       rmSync(endpoint.socket, { force: true });
@@ -51,7 +57,7 @@ export async function startServer(host: Host): Promise<AgentServer> {
   };
 }
 
-function serverHost(host: Host): ServerHost {
+function serverHost(host: Host, takingInput: () => boolean): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
       const provider = new RemoteServiceProvider([{ service: SessionDirectory, mode: "singleton" }]);
@@ -80,7 +86,7 @@ function serverHost(host: Host): ServerHost {
     async openSession(metadata) {
       const conversation = await findSession(host.harness, metadata.id, context);
       if (conversation === undefined) throw new SessionNotFoundError(`Unknown session: ${metadata.id}`);
-      const served = await serveSession(host.harness, conversation, context);
+      const served = await serveSession(host.harness, conversation, context, takingInput);
       const provider = new RemoteServiceProvider([{ service: SessionService, mode: "singleton" }]);
       provider.provide(SessionService, served.service);
       return {

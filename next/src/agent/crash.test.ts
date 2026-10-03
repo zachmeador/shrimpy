@@ -6,11 +6,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { attachLocal } from "../contracts/agent/node.ts";
 import {
   answered,
   assistantItems,
+  attachMain,
   type FauxScenario,
+  loggedRequests,
   toolItems,
   waitForView,
 } from "./testing/index.ts";
@@ -37,26 +38,12 @@ async function kill(child: ChildProcess, signal: NodeJS.Signals): Promise<void> 
   await once(child, "exit");
 }
 
-async function mainSession(home: string) {
-  const connection = await attachLocal(home);
-  const sessions = await connection.sessions();
-  const session = await connection.attach(sessions[0]?.id ?? "");
-  return { connection, session };
-}
-
-function requests(home: string): { pid: number; digest: string }[] {
-  return readFileSync(join(home, "requests.jsonl"), "utf8")
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line) as { pid: number; digest: string });
-}
-
 test("killed while the model streams: the request is sent again", { timeout }, async () => {
   const home = mkdtempSync(join(tmpdir(), "shrimpy-crash-"));
   const first = await startChild(home, "stream", 40);
   let second: ChildProcess | undefined;
   try {
-    const before = await mainSession(home);
+    const before = await attachMain(home);
     await before.session.steer("stream a long answer", "request-1");
     await waitForView(
       before.session,
@@ -66,7 +53,7 @@ test("killed while the model streams: the request is sent again", { timeout }, a
     await before.connection.close().catch(() => undefined);
 
     second = await startChild(home, "stream", 4000);
-    const after = await mainSession(home);
+    const after = await attachMain(home);
     const view = await waitForView(after.session, answered);
     await after.connection.close();
 
@@ -79,7 +66,7 @@ test("killed while the model streams: the request is sent again", { timeout }, a
     assert.ok(partial.text.startsWith("line 01"));
     assert.ok(complete?.text.endsWith("line 40: the quick brown fox jumps over the lazy dog"));
 
-    const sent = requests(home);
+    const sent = loggedRequests(home);
     assert.equal(sent.length, 2);
     assert.notEqual(sent[0]?.pid, sent[1]?.pid);
     assert.equal(sent[0]?.digest, sent[1]?.digest);
@@ -94,7 +81,7 @@ test("killed while a tool runs: the tool is reported, not run again", { timeout 
   const first = await startChild(home, "tool", 400);
   let second: ChildProcess | undefined;
   try {
-    const before = await mainSession(home);
+    const before = await attachMain(home);
     await before.session.steer("run the slow command", "request-1");
     await waitForView(before.session, (view) => {
       const tool = toolItems(view)[0];
@@ -104,7 +91,7 @@ test("killed while a tool runs: the tool is reported, not run again", { timeout 
     await before.connection.close().catch(() => undefined);
 
     second = await startChild(home, "tool", 400);
-    const after = await mainSession(home);
+    const after = await attachMain(home);
     const view = await waitForView(after.session, answered);
     await after.connection.close();
 

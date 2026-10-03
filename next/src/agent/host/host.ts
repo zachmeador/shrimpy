@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { Models } from "@earendil-works/pi-ai";
 import {
   type Conversation,
@@ -18,8 +18,9 @@ export interface HostOptions {
   home: string;
   /** The model runtime, with its providers and credentials already set up. */
   models: Models;
-  /** The model the main session starts with. */
+  /** The model the main session uses. It is set again at every start. */
   model: ModelRef;
+  /** The main session's base instructions. They are set again at every start. */
   instructions?: string;
   /** Non-fatal failures the engine reports while it works. */
   onReport?: (error: unknown) => void;
@@ -31,6 +32,9 @@ export interface Host {
   readonly harness: Harness;
   /** The session every agent has. */
   readonly main: Conversation;
+  /** Wait until no session has work running, or until `signal` aborts. Work still running then is left for `close()` to pause. */
+  settle(signal: AbortSignal): Promise<void>;
+  /** Pause whatever is running, in a way the next start resumes, and release the home. */
   close(): Promise<void>;
 }
 
@@ -54,14 +58,24 @@ export async function openHost(options: HostOptions): Promise<Host> {
       },
       context,
     );
-    const main = await harness.root(context, {
-      agent: { model: options.model, cwd: home, instructions: options.instructions },
-    });
+    const main = await harness.root(context);
+    // The root keeps the choices it was made with, so every start sets them again from the home.
+    await main.configure(
+      { model: options.model, cwd: home, instructions: options.instructions ?? null },
+      context,
+    );
     harness.resume();
     return {
       home,
       harness,
       main,
+      async settle(signal) {
+        try {
+          await harness.waitForIdle(withAbortSignal(signal, context));
+        } catch (error) {
+          if (!signal.aborted) throw error;
+        }
+      },
       async close() {
         await harness.close(context);
         lock.release();

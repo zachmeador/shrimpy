@@ -5,6 +5,7 @@ import {
   type Harness,
   ROOT_CONVERSATION_ID,
 } from "@earendil-works/pi-durable";
+import { ServerError } from "@earendil-works/pi-server";
 import type { SessionService, SessionSummary } from "../../contracts/agent/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
@@ -29,11 +30,16 @@ export async function findSession(
   return harness.conversation(Number(sessionId) as ConversationId, context);
 }
 
-/** Serve one session: keep its view published, and route control to the engine. */
+/**
+ * Serve one session: keep its view published, and route control to the
+ * engine. `takingInput` says whether new input may still come in; stopping
+ * work and watching stay open either way.
+ */
 export async function serveSession(
   harness: Harness,
   conversation: Conversation,
   context: Context,
+  takingInput: () => boolean,
 ): Promise<ServedSession> {
   const committed = await conversation.viewState(context);
   const state = replicatedState(toSessionView(committed.value));
@@ -44,6 +50,10 @@ export async function serveSession(
     service: {
       state,
       async steer(text, requestId, callContext) {
+        // A ServerError is the kind of failure whose message reaches the client.
+        if (!takingInput()) {
+          throw new ServerError("server_draining", "The agent is stopping and is not taking new input.");
+        }
         const submission = await conversation.submit(
           { type: "input", content: text, whenBusy: "steer", requestId: requestId ?? undefined },
           callContext,

@@ -3,7 +3,7 @@
  * answers the same way every time. Only tests and test fixtures import this.
  */
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   createModels,
@@ -115,6 +115,14 @@ export function fauxModels(options: {
   models.setProvider(faux.provider);
   const model = faux.getModel();
   return { models, model: { provider: model.provider, modelId: model.id } };
+}
+
+/** The requests `fauxModels` logged for `home`, oldest first. The digest identifies the messages sent. */
+export function loggedRequests(home: string): { pid: number; digest: string }[] {
+  return readFileSync(join(home, "requests.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as { pid: number; digest: string });
 }
 
 function lastUserText(messages: readonly Message[]): string {
