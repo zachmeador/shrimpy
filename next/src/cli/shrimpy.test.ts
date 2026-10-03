@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
-import { declareLocalModel, serve, shrimpy, startModelServer } from "./testing/index.ts";
+import {
+  declareLocalModel,
+  eventually,
+  serve,
+  shrimpy,
+  shrimpyInBackground,
+  startModelServer,
+} from "./testing/index.ts";
 
 /*
  * These tests run the command as people do: every `shrimpy` is its own
@@ -91,6 +98,32 @@ test(
     });
   },
 );
+
+test("a command killed while it waits does not stop the work", { timeout: 60_000 }, async (t) => {
+  const model = await startModelServer();
+  t.after(() => model.close());
+  const home = tempHome();
+  await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"]);
+  declareLocalModel(home, { url: model.url, model: "test-model" });
+  await serve(t, home);
+  const answerLength = async (): Promise<number> => {
+    const read = await shrimpy(["sessions", "read", home, "--json"]);
+    const view = JSON.parse(read.stdout) as SessionView;
+    return view.items.reduce((length, item) => length + (item.type === "assistant" ? item.text.length : 0), 0);
+  };
+
+  const waiting = shrimpyInBackground(["sessions", "steer", home, "go slow", "--wait"]);
+  await eventually(() => model.requests.length > 0, "the model to start answering");
+  waiting.kill("SIGKILL");
+  await waiting.finished;
+
+  // The answer keeps growing with no one waiting for it, until someone stops the work.
+  const before = await answerLength();
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  assert.ok((await answerLength()) > before, "the answer kept streaming");
+  const stopped = await shrimpy(["sessions", "stop", home]);
+  assert.equal(stopped.code, 0, stopped.stderr);
+});
 
 test("a stop signal the moment the agent is listening stops it cleanly, and frees the home", { timeout: 60_000 }, async (t) => {
   const model = await startModelServer();

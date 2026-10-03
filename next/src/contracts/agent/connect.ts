@@ -27,7 +27,7 @@ export interface SessionHandle {
   /** Calls `listener` with the current view, then after every change. */
   subscribe(listener: (view: SessionView) => void): () => void;
   steer(text: string, requestId?: string): Promise<{ submission: number }>;
-  /** Resolves when the submission has ended. Giving up on it does not stop the work. */
+  /** Resolves when the submission has ended. A client that goes away while waiting does not stop the work. */
   wait(submission: number): Promise<Settlement>;
   abort(): Promise<void>;
 }
@@ -60,6 +60,8 @@ export async function connectAgent(options: {
 
   let sessionScope: ReturnType<typeof createRemoteServiceBinding> | undefined;
   let lost = false;
+  let closed = false;
+  let calls = 0;
   const disconnects: ((reason: Error | undefined) => void)[] = [];
   client.onConnectionStateChange(({ state, error }) => {
     if (state !== "disconnected") return;
@@ -67,10 +69,17 @@ export async function connectAgent(options: {
     for (const listener of disconnects) listener(error);
   });
   // Calls that fail because the connection dropped fail the same way, with a message a person can use.
-  const guarded = <T>(call: () => Promise<T>): Promise<T> =>
-    call().catch((error: unknown) => {
-      throw lost || error instanceof DisconnectedError ? new AgentConnectionLostError({ cause: error }) : error;
-    });
+  const guarded = async <T>(call: () => Promise<T>): Promise<T> => {
+    calls += 1;
+    try {
+      return await call();
+    } catch (error) {
+      const dropped = !closed && (lost || error instanceof DisconnectedError);
+      throw dropped ? new AgentConnectionLostError({ cause: error }) : error;
+    } finally {
+      calls -= 1;
+    }
+  };
 
   const releaseSession = async (): Promise<void> => {
     const scope = sessionScope;
@@ -114,8 +123,14 @@ export async function connectAgent(options: {
       disconnects.push(listener);
     },
     async close() {
-      await releaseSession();
-      await agentScope.dispose(context).catch(() => undefined);
+      // Saying goodbye would wait behind a call that is still waiting for its answer, such as a `wait`.
+      // The server lets go of what a dropped connection held, so with calls pending the connection is dropped.
+      const goodbye = calls === 0;
+      closed = true;
+      if (goodbye) {
+        await releaseSession();
+        await agentScope.dispose(context).catch(() => undefined);
+      }
       await client.dispose();
     },
   };

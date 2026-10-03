@@ -100,6 +100,49 @@ test("a client waits for an input to end, and is told how it ended", { timeout }
   }
 });
 
+test("several clients can wait for the same input, and are all told how it ended", { timeout }, async () => {
+  const { home, agent } = await start("stream", 400);
+  const first = await attachMain(home);
+  const second = await attachMain(home);
+  try {
+    const { submission } = await first.session.steer("stream a long answer");
+
+    const [one, two] = await Promise.all([first.session.wait(submission), second.session.wait(submission)]);
+
+    assert.equal(one.status, "answered");
+    assert.deepEqual(two, one);
+    assert.ok(one.text.endsWith("line 40: the quick brown fox jumps over the lazy dog"));
+  } finally {
+    await first.connection.close();
+    await second.connection.close();
+    await agent.close();
+  }
+});
+
+test("a client that leaves while waiting does not stop the work, or wait for it", { timeout }, async () => {
+  const { home, agent } = await start("stream", 200);
+  const first = await attachMain(home);
+  const second = await attachMain(home);
+  try {
+    const { submission } = await first.session.steer("stream a long answer");
+    const abandoned = assert.rejects(first.session.wait(submission), /Client is disposed/);
+    await waitForView(first.session, (view) => (assistantItems(view)[0]?.text.length ?? 0) > 20);
+
+    const started = Date.now();
+    await first.connection.close();
+    const left = Date.now() - started;
+    await abandoned;
+
+    assert.ok(left < 500, `leaving took ${left} ms, as long as the answer would have`);
+    const settled = await second.session.wait(submission);
+    assert.equal(settled.status, "answered");
+    assert.ok(settled.text.endsWith("line 40: the quick brown fox jumps over the lazy dog"));
+  } finally {
+    await second.connection.close();
+    await agent.close();
+  }
+});
+
 test("an input that is stopped ends cancelled", { timeout }, async () => {
   const { home, agent } = await start("stream", 40);
   const { connection, session } = await attachMain(home);
