@@ -60,14 +60,14 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | Phase | Afterward you can… | Stop or decide if… |
 |---|---|---|
 | [0. Spike](#0-spike) | Know whether durable, `pi-tui` and Pi's browser client fit, before building anything else | Done: all three fit |
-| [1. Talk to an agent](#1-talk-to-an-agent) | Start Shrimpy with one command and talk to an agent in threads from the terminal; watch its work, stop it, kill it and come back to an honest account. Then you start using it. | The terminal client needs a large layer over `pi-tui` |
+| [1. The MVP](#1-the-mvp) | Start Shrimpy with one command, open the terminal, browse the agents that have joined your Shrimpy network, see their sessions and talk to them in threads. An agent on another machine joins and looks the same. Then you start using it. | The terminal client needs a large layer over `pi-tui` |
 | [2. An agent worth using](#2-an-agent-worth-using) | See exactly what the model received and why, with context, tools, skills and compaction on durable. Then your dev agents move in. | — |
 | [3. What daily use asks for](#3-what-daily-use-asks-for) | Stop hitting the rough edges that using it showed you | An affordance from today's Shrimpy is missed |
 | [4. Triggers and helpers](#4-triggers-and-helpers) | Run triggered and delegated work that is honest about what a restart interrupted | A capability can't be kept: back to review |
-| [5. Agents everywhere](#5-agents-everywhere) | Run agents on other machines and in sandboxes, in rooms with several members, and reach them from outside chat apps | How peers stay compatible across machines isn't decided |
+| [5. Agents everywhere](#5-agents-everywhere) | Run agents in sandboxes and on Linux, in rooms with several members, and reach them from outside chat apps | How peers stay compatible across machines isn't decided |
 | [6. Release](#6-release) | Install, update, stop and uninstall a release with one engine, with the old tree gone | Client and framework complexity outweigh the runtime savings |
 
-Phases 3, 4 and 5 can swap. After phase 2, the order follows what daily use shows is rough or missing.
+The MVP is the end of phase 1. Phases 3, 4 and 5 can swap: after phase 2, the order follows what daily use shows is rough or missing.
 
 ## Experience decisions
 
@@ -552,9 +552,9 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 **Result:** done on 2026-10-03. All three questions fit; see the [spike report](spike/REPORT.md). Its proven parts were then realigned into `next/src/` as the seed of the real tree, and the spike's code was deleted. It stays in git at `a3c6ae4`.
 
-### 1. Talk to an agent
+### 1. The MVP
 
-**Outcome:** one command starts Shrimpy on this machine, and you talk to an agent in threads from the terminal. You watch its work, stop it, close the terminal, kill the agent and come back to an honest account of what happened.
+**Outcome:** one command starts Shrimpy on this machine. You open the terminal, browse the agents that have joined your Shrimpy network, see their sessions, and talk to any of them in threads. You watch an agent's work, stop it, close the terminal, kill the agent and come back to an honest account of what happened. An agent on another machine joins the same network and looks the same in the terminal.
 
 **Build**
 
@@ -566,7 +566,11 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - The wire-up: the agent registers with the gateway, joins chat as a member and reads its feed. It keeps one session per thread, posts its final text as the reply, leaves receipts, marks where it's working, and keeps an outbox for replies it couldn't post.
 - The first commands for talking: `shrimpy up <home>...` starts what's missing on this machine, `run <agent> <text>` says something in your DM with the agent and prints the reply, `threads <agent>` and `read <thread>` show what was said, and `gateway serve` and `chat serve <data-dir>` are foreground entrypoints like `agent serve`. In chat you are `person:<OS username>` unless you set otherwise. Machine-level data takes an explicit path until phase 6 picks a default, so nothing lands near a live workspace.
 - The foreground entrypoints that any supervisor or sandbox can run.
-- A thin terminal client on `pi-tui`'s public components: pick an agent and a thread, talk, see replies and who is working, open the work behind a thread and watch it stream, stop it, start a new thread, and quit without stopping the work.
+- Joining the network: an agent authenticates to the gateway when it registers. On the gateway's own machine the socket's permissions are the check. From another machine the agent presents a token the gateway issued for it.
+- The gateway's network entry: it listens on an address you choose for agents and clients on other machines, and asks for a token.
+- Routing to an agent that only connects out: when a client asks for that agent, the gateway has the agent open one more connection and joins the two. A client then reaches a remote agent's sessions exactly as it reaches a local one, and the agent still needs no inbound listener.
+- Sessions listed with the thread each is behind and whether it's working.
+- A thin terminal client on `pi-tui`'s public components: browse the agents on the network and their sessions, pick a thread or a session, talk, see replies and who is working, open the work behind a thread and watch it stream, stop it, start a new thread, and quit without stopping the work.
 
 **Prove**
 
@@ -580,6 +584,8 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Killing the owner mid-turn, a lost admission reply, a reused request ID with the same and with different content, and close versus stop.
 - A second owner is refused, and a second home shares no defaults, credentials or history by accident.
 - What the supervisor does with a shell child that was started before the kill and writes a file later.
+- An agent started on another machine, or in a container with no shared files, joins with its token, shows up in the terminal, answers in a thread, and has its session watched and stopped from here.
+- An agent with a missing or wrong token is refused, and a version that differs from the gateway's is reported.
 
 **Use it.** After the wire-up, try it from the command line. After the terminal client, use it for real conversations. What's rough goes on phase 3's list.
 
@@ -658,9 +664,9 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 ### 5. Agents everywhere
 
-**Outcome:** agents run on other machines and in sandboxes and network to a gateway, rooms hold several members, and chat reaches outside apps through providers, starting with Telegram.
+**Outcome:** agents run in sandboxes and on Linux, people's devices are identified by Tailscale, rooms hold several members, and chat reaches outside apps through providers, starting with Telegram. Joining from another machine and reaching an agent's sessions through the gateway are already in the MVP.
 
-**Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch.
+**Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch. The MVP takes the second: every program runs the same version, and a mismatch is reported.
 
 **Build**
 
@@ -668,7 +674,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent. Then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
 - Gateway registration and routing, with agents connecting out to it.
 - An included skill that teaches agents to set their own wake policy.
-- Tokens for agents and Tailscale identity for people, as decided.
+- Tailscale identity for people, and the gateway checking that an agent's token comes from the expected machine.
 - The programs and their locks qualified on Linux.
 
 **Prove**
