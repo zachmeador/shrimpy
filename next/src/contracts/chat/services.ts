@@ -43,10 +43,10 @@ export interface Chat {
     context: Context,
   ): Promise<Message[]>;
   /**
-   * Leave the caller's receipt on messages: what it did with them, once its turn
-   * for them ended. The receipt is `Receipt` without `memberId`, which is the
-   * caller. Only an agent leaves receipts, only on messages in channels it
-   * belongs to, and the call is all or nothing. A later receipt from the same
+   * Leave the caller's receipt on 1 to 200 messages: what it did with them, once
+   * its turn for them ended. The receipt is `Receipt` without `memberId`, which
+   * is the caller. Only an agent leaves receipts, only on messages in channels
+   * it belongs to, and the call is all or nothing. A later receipt from the same
    * agent replaces its earlier one on a message, so a skipped message can be
    * answered later.
    *

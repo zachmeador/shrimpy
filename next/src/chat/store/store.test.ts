@@ -467,17 +467,20 @@ test("a receipt shows on its message, and a later one from the same member repla
 
 test("receipts are listed in order of member ID, whoever left theirs first", (t) => {
   const { store } = openTestStore(t);
-  const { zach, shrimpy, asked } = askedAndAnswered(store);
+  const { zach, asked } = askedAndAnswered(store);
+  const others = ["Delta", "Bravo", "Charlie", "Alpha"].map((name) => agent(name));
+  store.transaction((tx) => others.forEach((other) => tx.saveMember(other)));
 
   store.transaction((tx) => {
-    tx.leaveReceipt(asked, zach.id, { status: "silent", reply: null, detail: null });
-    tx.leaveReceipt(asked, shrimpy.id, { status: "failed", reply: null, detail: "No answer came." });
+    for (const member of [others[0], zach, ...others.slice(1)]) {
+      if (member !== undefined) tx.leaveReceipt(asked, member.id, { status: "silent", reply: null, detail: null });
+    }
   });
 
   store.transaction((tx) => {
     assert.deepEqual(
       tx.message(asked.id)?.receipts.map((receipt) => receipt.memberId),
-      [shrimpy.id, zach.id],
+      ["agent:alpha", "agent:bravo", "agent:charlie", "agent:delta", "person:zach"],
     );
   });
 });

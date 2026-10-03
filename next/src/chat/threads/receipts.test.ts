@@ -161,6 +161,11 @@ test("the call is all or nothing", (t) => {
   );
   assert.throws(() => leaveReceipt(deps, shrimpy, [mine.id, "msg_nothing"], outcome("silent")), refused(/^Unknown/));
   assert.throws(() => leaveReceipt(deps, shrimpy, [], outcome("silent")), refused(/^messageIds must be a list/));
+  const tooMany = Array.from({ length: 201 }, () => mine.id);
+  assert.throws(
+    () => leaveReceipt(deps, shrimpy, tooMany, outcome("silent")),
+    refused(/^messageIds must be a list of 1 to 200 IDs/),
+  );
 
   assert.deepEqual(readMessages(deps, zach, main.id, null, 10)[0]?.receipts, []);
   assert.deepEqual(readMessages(deps, zach, elsewhere.id, null, 10)[0]?.receipts, []);
