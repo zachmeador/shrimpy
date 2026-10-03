@@ -254,7 +254,7 @@ Homes under one OS user share that user's authority. Different permissions need 
 
 ### Host and Pi
 
-The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands such as `log` and `inspect` go through the owner's API. The owner takes an exclusive lock on the home before anything else, including opening storage, starting servers or binding sockets, and holds it for its lifetime. The spike's 21-line lock on `node:sqlite` works on macOS; phase 1 qualifies it on Linux.
+The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands such as `log` and `inspect` go through the owner's API. The owner takes an exclusive lock on the home before anything that writes or serves, meaning opening storage, starting servers or binding sockets, and holds it for its lifetime. Reading the home's files comes first, so a home that doesn't load or names an unusable model fails without claiming it. The spike's 21-line lock on `node:sqlite` works on macOS; phase 1 qualifies it on Linux.
 
 Pi owns submissions, `InboxDoc`, `LiveDoc`, `UsageDoc`, conversation entries and configuration, generation, tool and compaction tasks, checkpoints, child ownership and structural watches. Shrimpy reads them directly. Query indexes and UI caches are disposable and name their source.
 
@@ -710,6 +710,17 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - Each agent process took about 0.6 s and 110 MB of memory to start cold.
 - The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
 - Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.
+
+**Phase 1 progress, 2026-10-03: an agent runs from its home, with a CLI.** `shrimpy agent init`, `agent serve` and `agent status` create and run an agent, and `sessions list`, `read`, `steer` and `stop` talk to it. Run them from source in `next/` with `npm run shrimpy -- <command>`. Checked on macOS arm64 with Node 26.7.0.
+
+- A home holds `agent.json` (name and default model), `SOUL.md`, and Pi's `state/pi/models.json` and `auth.json`. `models.json` takes a strict subset of Pi's format, with `openai-completions` as the only API, and an unsupported key is an error.
+- Keys come only from the home's files. The environment isn't read, so two homes can't share a key by accident, and a key written as a command or a variable is refused. OAuth sign-in isn't built yet.
+- A stop signal stops intake, gives running turns five seconds, then pauses the rest for the next start. `--now` or a second signal skips the wait.
+- Exit codes: 0 for success, 1 for failure, 2 for wrong use, and 130 for a cancelled `steer --wait`.
+- The home's model and instructions are applied to the main session at every start. That needs a rule once sessions can override them in phase 3.
+- The real-model test is written but hasn't run: `messy:8090` and `cashmoney:8090` both refused connections. With a server up, run `SHRIMPY_TEST_MODEL_URL=http://messy:8090/v1 SHRIMPY_TEST_MODEL_ID=qwen3.8-27b node --test --test-name-pattern="real model" src/cli/shrimpy.test.ts` in `next/`.
+
+After the three merges `next/src/` holds about 5,300 lines of product code, 7,000 of tests and 1,400 of test support. A consolidation pass is removing what the three parallel builds duplicated.
 
 **Phase 1 progress, 2026-10-03: the chat server is in.** `next/src/chat/` keeps members, DMs, threads and messages in its own SQLite store and serves the chat contract on a Unix socket. About 1,750 lines of product code and 380 in its contract, checked on macOS arm64 with Node 26.7.0.
 
