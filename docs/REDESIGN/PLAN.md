@@ -82,7 +82,7 @@ If implementation finds another visible difference, add a row before shipping it
 | `/agents` | Agent and chat navigation | Same. Pi child conversations appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
 | Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current conversation's model and saves a one-candidate home default. Other conversations and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Change |
 | Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with conversation overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Change |
-| Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login for sandboxed and remote agents is [still open](#sandboxed-and-remote-agents). | Keep |
+| Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login works the same for [sandboxed and remote agents](#sandboxed-and-remote-agents). | Keep |
 | `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary conversation. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. | Change |
 
 [Command coverage](#command-coverage) lists every CLI family and inherited slash command. A command missing upstream isn't removed implicitly.
@@ -94,7 +94,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Instruction selection | Approved base context, `SOUL.md`, agent context, skill precedence and required-tool filtering; ambient `AGENTS.md` and global Pi skills and settings excluded | Same. Facts are captured when queued input is consumed, and later edits don't rewrite committed context. | Keep |
 | `/reload` | Refreshes skills and templates; base files load only at session open | Also rebuilds base instructions, for later inputs only. Code, tool or environment changes need a drain and restart. | Change |
 | Automatic awareness | Sender, destination, time and session facts; channel unread summary; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep the first three. Drop the rest from every request; they stay available through commands and tools. Keep three breadcrumbs and the 6,000-character budget. | Change |
-| Memory | Ordinary files; mechanic can search every agent | Same files. Mechanic's all-agent search becomes explicitly selected resource roots. | Change |
+| Memory | Ordinary files; mechanic can search every agent | Same files. The mechanic reaches other agents' homes over SSH instead of a built-in all-agent search. | Change |
 | Context producers | Opt-in commands with channel matching, caching and bounds | Same features. Each preparation makes one attempt, checkpointed by Pi; a crash after it starts reports interruption instead of rerunning. A failure leaves a breadcrumb and the request continues. Previews never run producers. | Change |
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. | Change |
 | Skills | Trails, `/skill:name` and templates | Same, rewritten against the new CLI and tools. | Keep |
@@ -136,9 +136,9 @@ If implementation finds another visible difference, add a row before shipping it
 |---|---|---|---|
 | Sandbox boundary | Agents aren't sandboxed | The whole agent process runs inside whatever sandbox or VM you pick, or none ([how](#sandboxing)). No per-tool sandboxing; `bash` stays available. | Confirmed |
 | Attachments | Telegram photos and clipboard images are paths on the same machine | Clients and adapters upload attachments through the API into the agent's home, and the read tool loads them from there. | Change |
-| Home edits | The CLI edits workspace files directly | Edits run where the home lives: by the agent itself, by `shrimpy` run inside the sandbox, or through a mount. Remote clients get session operations and reload, not file editing. | Open |
-| Provider login | A browser callback on the same machine | Device-code login where the provider supports it. Otherwise a client runs the browser step and hands the result to the agent through the API. | Open |
-| Agent identity at the gateway | — | Several agents behind one host's Tailscale identity look identical, so either each sandboxed agent is its own tailnet node or it carries a token the gateway issued. | Open |
+| Home edits | The CLI edits workspace files directly | Homes live where their agent runs, and edits happen there: by the agent itself, by `shrimpy` run in that environment, or by the mechanic over SSH to the machine hosting it. Remote clients get session operations and reload, not file editing. | Confirmed |
+| Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. Shrimpy relays those prompts between the agent and the person's client. Sandboxes allow provider traffic, including login endpoints. | Confirmed |
+| Agent identity at the gateway | — | People's devices are identified by Tailscale, so clients need no Shrimpy login. Each agent gets a token from the gateway when it's registered and presents it when it connects, and the gateway checks that the connection comes from the expected machine. Giving an agent its own tailnet node, with Tailscale running inside its sandbox, stays optional. | Change |
 
 ## Not built
 
@@ -213,6 +213,7 @@ Shrimpy's session API is a set of concrete operations, identical for local and g
 - create, reset, archive and fork
 - submit, status, wait, withdraw and abort
 - model, thinking, defaults and reload
+- provider login, relaying Pi's login prompts to the person's client
 - raw and effective context, entry queries and committed subscriptions
 - completion against the agent's filesystem
 - publication and adapter status, watch and delegation controls
@@ -231,11 +232,12 @@ Adapters own provider authentication, polling, batching, recipient addressing an
 The agent process shares nothing with the outside except the network: no files, processes or `localhost`. Everything crosses the API. That keeps sandboxing a deployment choice, so the same agent runs natively, in a container, in a microVM or on another machine.
 
 - **Entrypoint.** Shrimpy ships a foreground command that runs one agent until told to stop. A container, a VM's init, launchd or systemd can supervise it. The service installers are conveniences for running without a sandbox.
-- **Network.** A sandboxed agent needs outbound access to the gateway and its model providers, plus whatever its work needs, such as git hosts or package registries. It needs nothing inbound. Egress beyond Shrimpy's own is each agent's policy. The gateway's authorization, not the firewall, limits who an agent can message.
+- **Network.** A sandboxed agent needs outbound access to the gateway and its model providers, including their login endpoints; Shrimpy assumes the sandbox allows provider traffic. It also needs whatever its work needs, such as git hosts or package registries. It needs nothing inbound. Egress beyond Shrimpy's own is each agent's policy. The gateway's authorization, not the firewall, limits who an agent can message.
 - **Credentials.** Keys live in the home, which puts them inside the sandbox. Sandboxes that inject keys through a proxy also work, because provider endpoints and keys stay plain configuration and placeholder keys are accepted.
 - **Easy-to-miss grants.** A model server on the host needs one, because `localhost` inside a sandbox is the sandbox. So does Tailscale's `100.64.0.0/10` range, which Microsandbox blocks by default.
 - **Cleanup.** Stopping a VM or container stops every process the agent started, which native mode can't promise.
 - **Local attachment.** A Unix socket works when the client shares the machine. A sandboxed agent is reached through the gateway or a socket the sandbox forwards.
+- **Administration.** The mechanic reaches its neighbors over SSH to the machine that hosts them, then edits their homes directly or through the sandbox's own exec or mount. The sandbox itself still accepts nothing inbound.
 - **Shared configuration.** A shared read-only config referenced by path needs a mount or a copy inside the sandbox.
 
 The [sandbox runtime scout](../research/sandbox-runtime-scout-2026-08-26.md) compares candidate sandboxes.
