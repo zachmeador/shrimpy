@@ -51,10 +51,10 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Closing a client | The interactive session disposes its runtime on exit | The client detaches and accepted work keeps running. Reopening shows committed state, including work that finished while detached. | Change |
-| Stopping and cancelling | — | Service stop halts execution and keeps records; restart follows the [recovery](#input-cancellation-and-recovery) rules. Cancelling work is a separate action, scoped to one conversation or the whole home. | Change |
+| Closing a client | The interactive session disposes its runtime on exit | The client detaches and accepted work keeps running. Quitting while the agent is busy prints one line saying the work continues and how to stop it. Reopening shows committed state, and a console conversation marks work that finished while you were away. | Confirmed |
+| Stopping and cancelling | — | Service stop halts execution and keeps records; restart follows the [recovery](#input-cancellation-and-recovery) rules. Cancelling work is a separate action, scoped to one conversation or the whole home, and the three controls are labelled so they can't be confused. Shutdown stops taking new work, gives running turns a short timeout to finish, then pauses the rest; `--now` skips the wait. | Confirmed |
 | Bare `shrimpy` | Most recent interactive agent and its main chat | Same, and it starts that agent's service on demand if installed. Startup failure is explicit and keeps the editor draft. Workspace-wide gateway controls become per-agent controls. | Confirmed |
-| Several clients | A second terminal fails because the first owns the transcript | Clients share the agent's process and Pi orders their input. The UI shows the selected agent, conversation and incoming input. Switching views mid-turn is immediate; the previous conversation keeps running and stays easy to find. | Change |
+| Several clients | A second terminal fails because the first owns the transcript | Clients share the agent's process and Pi orders their input. The UI shows the selected agent, conversation and incoming input. Switching views mid-turn is immediate; the previous conversation keeps running and stays easy to find. Esc from any client stops the conversation for everyone. Typing in the console into a chat-bound conversation stays private: your message and the answer appear only in clients, though the conversation remembers them. | Confirmed |
 | Terminal and web session clients | Terminal only; the web app is a read-only inspector | Both browse agents and sessions and attach through the same API, locally or through the gateway. Opening a view never creates an execution owner. Offline agents, lost routes and rejected input show explicitly. Navigation, controls and permissions still need review. | Confirmed |
 
 ### Conversations and history
@@ -160,6 +160,15 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Loop or flood control in the gateway. Agents' wake policies, instructions and `END` handle it.
 - Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](#tools-and-publication).
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
+
+## Later
+
+Work this plan defers on purpose, to pick up after cutover:
+
+- Notifications wherever you want them (desktop, chat or phone) when work finishes while you're away.
+- Codemode, as a [later experiment](#tools-and-publication).
+- A plain HTTP entry point, once a program that can't speak Pi's protocol needs in.
+- A desktop chat app as the native client for channels.
 
 ## Architecture
 
