@@ -1,13 +1,27 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: experience decisions reviewed on 2026-10-03, with one question about chat [waiting for your call](#waiting-for-your-call). Phase 0 is done and phase 1 is being built in `next/`. A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03. Phase 0 is done and phase 1 is being built in `next/`. A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#experience-decisions).
 
 This file owns the architecture, experience decisions, phases and progress for this change. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../reference/README.md) describe what ships today.
+
+## Why
+
+Old Shrimpy's shape was discovered, not designed. It found good UX along the way and mostly works. This redesign keeps that UX and changes two things the old shape can't reach:
+
+- **Agents everywhere.** Old Shrimpy needs its agents to share one runtime and one environment. The goal is lots of weird little agent friends on compute nearby and afar, united in Shrimpy land: each runs where it makes sense and networks to a gateway.
+- **An intentional shape.** The code should be small, in distinct separate pieces with clear separation of concerns. LLM agents do most of the development, and they handle monoliths badly.
+
+Four more reasons shape the design:
+
+- Opening a terminal or web app and jumping into any agent's sessions is core UX. Staying coupled to Pi's terminal app prevents it.
+- Pi's developers have more time for runtime architecture than Shrimpy does, so Shrimpy reshapes around their durable runtime.
+- Keep it shrimple: rely on agents and Markdown where possible, and don't invent every wheel.
+- Agents use chat rooms the way people do, and the end game is a real chat app.
 
 ## Direction
 
@@ -64,14 +78,6 @@ Each row has a decision status:
 - **Open:** not decided yet.
 
 If implementation finds another visible difference, add a row before shipping it. That covers tool text and results, prompts, defaults, keys, command names, JSON, context, lifetime, retention, delivery, timing and cost. A prototype may skip features to answer a narrow question, but it must list what it skipped. Live cutover needs every affected capability kept or explicitly changed.
-
-### Waiting for your call
-
-This came out of the contract review on 2026-10-03. Nothing in phase 1 depends on it.
-
-| Topic | In the plan now | Recommended | Why |
-|---|---|---|---|
-| Showing a silent receipt | Not decided | Decide when a client can show it | The receipt is recorded either way, because `shrimpy run` needs it. Whether a thread shows a quiet "seen" is easier to judge on screen. |
 
 ### Lifetime, launching and clients
 
@@ -162,7 +168,7 @@ This came out of the contract review on 2026-10-03. Nothing in phase 1 depends o
 | Reactions, edits and deletes | Not supported | Part of every thread: any member can react to a message, and edit or delete its own. Every client shows them, agents can use them, and a provider carries them to and from an outside app wherever that app's API allows. Where it doesn't, the bridge leaves them out and emulates nothing. | Confirmed |
 | Wake policy | Each agent's `channelPolicy` decides which visible messages start a turn: `all`, `mentions`, `addressed` or `none`, plus sender filters. An omitted policy means `all`, and setup gives the primary agent `all` | Owned by the agent. The default is `mentions`, so an agent wakes for DMs and messages that mention it, and setup gives no agent `all`. An included skill explains wake policies so agents can tune their own. Loop protection stays on the agent side: wake policies, instructions against banter, and `END` to stay silent. Neither the chat server nor the gateway has loop rules. | Confirmed |
 | Chat behavior | Built into the Telegram surface: chat and sender restrictions, per-thread agent selection, `/new /clear /stop /thinking /status /help`, permission-filtered help, notices, typing, formatted and chunked output, quiet notices, sender labels, 500 ms burst grouping | Sorted by owner. The agent runs chat commands: a command is a message, and the agent it addresses acts on it without a model call. The first set is `/new`, `/stop`, `/status` and `/help`. `/clear` goes, since it was an alias for `/new`, and `/thinking` waits. Each provider does its own translation, with shared helpers: allowed chats and sender mapping, merging bursts and albums, formatting and splitting, typing, quiet delivery and sender labels. The chat server keeps membership and where each person was last active. The per-chat choice of agent goes, replaced by separate bot accounts. Received messages and batch membership are recorded before processing is acknowledged. | Confirmed |
-| Message receipts | Nothing records what an agent did with a message; a client infers it | Each agent leaves a receipt on a message when its turn for it settles: answered, pointing at the reply; silent; stopped; skipped; or failed, with a short reason. A failed turn therefore leaves a trace, and a thread never just goes quiet. Receipts are thread data, so `shrimpy run`, every client, chat providers and other agents read the same fact, and the agent's API stays about sessions. | Confirmed |
+| Message receipts | Nothing records what an agent did with a message; a client infers it | Each agent leaves a receipt on a message when its turn for it settles: answered, pointing at the reply; silent; stopped; skipped; or failed, with a short reason. A failed turn therefore leaves a trace, and a thread never just goes quiet. Receipts are thread data, so `shrimpy run`, every client, chat providers and other agents read the same fact, and the agent's API stays about sessions. A silent receipt is recorded but shown to nobody by default, person or agent, and it's never sent to an outside chat app. | Confirmed |
 | Who is working | Telegram shows typing while a turn runs; nothing else shows it | An agent tells the chat server which threads it's working in, from picking a message up until its turn settles, and the chat server keeps who is working, and since when, with each thread. Clients show it and chat providers map it to their typing indicator. It's ordinary thread data, so other agents, status commands and later notifications can read it too. It clears when the agent disconnects. | Confirmed |
 | Media | Telegram photos become local paths the read tool loads; other media is only noted as unsupported | Every attachment from any provider, including images, documents, voice notes and video, arrives as a file in the agent's home up to a size limit, delivered through the API ([attachments](#sandboxed-and-remote-agents)). The read tool loads images, and other tools in the agent's environment can use the rest. Inline vision bytes or transcription would be separate decisions. | Confirmed |
 | Delivery | Bounded retries, history skipped on first start, no sends to unbound destinations | Same for every provider, with recipients and batches fixed across retries. A lost send acknowledgment shows as uncertain. | Keep |
@@ -291,6 +297,7 @@ The chat server is a service of its own, with its own store, so the gateway does
 - **Unread messages.** Each agent keeps a bounded copy of the messages it was offered, including ones that didn't wake it. It's a disposable cache whose source is the chat server. A turn's unread messages come from that copy, so they're captured when the message is consumed and still available while chat is unreachable. `read_messages` asks the chat server for anything older.
 - **Providers.** A provider gets five things from the chat server and nothing else: it posts for the people it maps, keyed by the outside message's ID; reads its bound threads from its own cursor; reports delivery; moves attachments; and sees who is working. That's a slice of the chat API, so a provider starts inside the chat server's process and can run on another machine later, as Signal and iMessage need. The [chat bridge scout](../research/chat-bridge-scout-2026-10-03.md) found nothing to adopt in place of this interface.
 - **Receipts.** A message carries what each agent did with it: answered, silent, stopped, skipped or failed. The agent reports it when its turn settles, after any reply is posted.
+- **Not everything is rendered.** A thread holds data for whoever asks. What a client draws, what an agent is shown and what a provider sends to an outside app are each a selection from it, and some of it stays invisible by default.
 - **Who is working.** Each thread carries who is working in it and since when. An agent reports it over its own connection, so the mark ends with the connection and a crashed agent never looks busy. It isn't stored and it isn't a message.
 
 ### Sandboxing
@@ -742,7 +749,7 @@ After the three merges `next/src/` holds about 5,300 lines of product code, 7,00
 - To review with the web client: the browser URLs `/ws/gateway` and `/ws/<kind>/<name>`, IPv4 loopback only, no default port yet, and the static file rules (no fallback page, no cache or security headers, dotfiles served).
 - A second program registering the same kind and name isn't refused; the newest one is the one reached.
 
-**Design review of the contracts and the message flow, 2026-10-03.** Confirmed: a session's address is its thread's ID, and there's no main session; receipts on messages replace the skipped mark and an agent-side wait; the contract says `stop` where it said `abort`; and registrations carry Shrimpy's version. Pi's session view holds only the active context, which compaction keeps inside the model's window, so it stays far below the protocol's 16 MiB frame. Also confirmed: the first command names, `person:<OS username>` as the default identity, explicit paths for machine-level data until phase 6, `/stop` among the first chat commands, and the five things a provider gets.
+**Design review of the contracts and the message flow, 2026-10-03.** Confirmed: a session's address is its thread's ID, and there's no main session; receipts on messages replace the skipped mark and an agent-side wait; the contract says `stop` where it said `abort`; and registrations carry Shrimpy's version. Pi's session view holds only the active context, which compaction keeps inside the model's window, so it stays far below the protocol's 16 MiB frame. Also confirmed: the agent's `react` tool and the `edit` option on `send_message`; silent receipts stay invisible by default; the first command names, `person:<OS username>` as the default identity, explicit paths for machine-level data until phase 6, `/stop` among the first chat commands, and the five things a provider gets.
 
 **Chat review, 2026-10-03.** Confirmed: each agent has its own bot account on an outside chat app, bridges only post as bots, and threads carry reactions, edits and deletes. The agent runs chat commands, starting with `/new`, `/status` and `/help`, and each provider does its own translation. Three recommendations are waiting for a decision. The [chat bridge scout](../research/chat-bridge-scout-2026-10-03.md) found nothing to adopt as the bridge layer.
 
