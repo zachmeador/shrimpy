@@ -38,8 +38,11 @@ export async function startServer(registry: Registry): Promise<GatewayServer> {
     return {
       socket,
       async close() {
-        await server.close();
-        lock.release();
+        try {
+          await server.close();
+        } finally {
+          lock.release();
+        }
       },
     };
   } catch (error) {

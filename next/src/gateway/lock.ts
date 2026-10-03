@@ -32,7 +32,11 @@ export function takeGatewayLock(socket: string): GatewayLock {
     db.exec("BEGIN EXCLUSIVE");
   } catch (error) {
     db.close();
-    throw new GatewayRunningError(socket, { cause: error });
+    // Anything but a held lock is the machine's problem, and says so itself.
+    if (error instanceof Error && error.message.includes("locked")) {
+      throw new GatewayRunningError(socket, { cause: error });
+    }
+    throw error;
   }
   let held = true;
   return {

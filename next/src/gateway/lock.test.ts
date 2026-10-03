@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { GatewayRunningError, takeGatewayLock } from "./lock.ts";
@@ -18,6 +19,16 @@ test("one gateway holds a socket's lock at a time, and releasing frees it", (t) 
   lock.release();
   assert.throws(() => takeGatewayLock(socket), GatewayRunningError);
   again.release();
+});
+
+test("a lock that cannot be opened is not mistaken for a running gateway", (t) => {
+  const socket = join(freshRuntime(t), "gateway.sock");
+  mkdirSync(`${socket}.lock`);
+
+  assert.throws(
+    () => takeGatewayLock(socket),
+    (error) => error instanceof Error && !(error instanceof GatewayRunningError),
+  );
 });
 
 test("different sockets have different locks", (t) => {

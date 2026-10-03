@@ -19,8 +19,9 @@ export function connectUpstream(path: string): Promise<Socket> {
 /**
  * Join a WebSocket and a program's socket into one byte stream. Each side
  * waits for the other to take what it sends, so a slow reader slows the
- * writer instead of filling the gateway's memory. When either side ends or
- * fails, what it already sent is delivered and then both are closed.
+ * writer instead of filling the gateway's memory. When either side closes,
+ * what it already sent is delivered and then the other side is closed; when
+ * either side fails, both are dropped at once.
  */
 export function bridge(ws: WebSocket, upstream: Socket): void {
   const stream = createWebSocketStream(ws);
