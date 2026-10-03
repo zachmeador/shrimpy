@@ -14,7 +14,10 @@ test("one gateway holds a socket's lock at a time, and releasing frees it", (t) 
   );
 
   lock.release();
-  takeGatewayLock(socket).release();
+  const again = takeGatewayLock(socket);
+  lock.release();
+  assert.throws(() => takeGatewayLock(socket), GatewayRunningError);
+  again.release();
 });
 
 test("different sockets have different locks", (t) => {

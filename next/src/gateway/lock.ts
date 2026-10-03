@@ -15,6 +15,7 @@ export class GatewayRunningError extends Error {
 }
 
 export interface GatewayLock {
+  /** Free the lock. Releasing again does nothing. */
   release(): void;
 }
 
@@ -33,5 +34,12 @@ export function takeGatewayLock(socket: string): GatewayLock {
     db.close();
     throw new GatewayRunningError(socket, { cause: error });
   }
-  return { release: () => db.close() };
+  let held = true;
+  return {
+    release() {
+      if (!held) return;
+      held = false;
+      db.close();
+    },
+  };
 }

@@ -1,17 +1,40 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { type AddressInfo, createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import type { Registration } from "../contracts/gateway/index.ts";
+import {
+  connectGateway,
+  type Registration,
+  webSocketPath,
+  webSocketTransport,
+} from "../contracts/gateway/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
-import { GatewayRunningError, startGateway } from "./index.ts";
-import { eventually, freshRuntime, startChild, stop } from "./testing/index.ts";
+import { GatewayRunningError, type RunningGateway, startGateway } from "./index.ts";
+import {
+  connectEcho,
+  type EchoClient,
+  eventually,
+  freshRuntime,
+  handshakeStatus,
+  rawRequest,
+  startChild,
+  startEchoProgram,
+  stop,
+} from "./testing/index.ts";
 
 const timeout = 30_000;
 
 function agent(name: string, socket = `/tmp/${name}.sock`): Registration {
   return { kind: "agent", name, serverId: randomUUID(), socket, pid: process.pid };
+}
+
+/** The port of a gateway that was started with a browser entry. */
+function webPortOf(gateway: RunningGateway): number {
+  assert.ok(gateway.webPort !== undefined, "the gateway has no browser entry");
+  return gateway.webPort;
 }
 
 test("a registration is listed to every client", { timeout }, async (t) => {
@@ -128,7 +151,7 @@ test("a registration that cannot be accepted is refused with the reason", { time
 
 test("a second gateway is refused and the first is undisturbed", { timeout }, async (t) => {
   const runtime = freshRuntime(t);
-  const first = await startGateway();
+  const first = await startGateway({ web: { port: 0 } });
   const program = await connectLocalGateway();
   let dropped = false;
   program.onDisconnect(() => {
@@ -138,8 +161,9 @@ test("a second gateway is refused and the first is undisturbed", { timeout }, as
     const one = agent("one");
     await program.register(one);
 
+    // Asking for the first gateway's own port would fail on the port, if the second tried it before the socket.
     await assert.rejects(
-      startGateway(),
+      startGateway({ web: { port: webPortOf(first) } }),
       (error) =>
         error instanceof GatewayRunningError &&
         error.socket === first.socket &&
@@ -223,5 +247,126 @@ test("closing the gateway drops its connections and its socket, and another can 
   } finally {
     await client.close();
     await again.close();
+  }
+});
+
+test("a browser reads the registry and reaches a registered program through the web entry", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway({ web: { port: 0 } });
+  const echo = await startEchoProgram("echo-agent");
+  const program = await connectLocalGateway();
+  // From here on, what a page would do: only the web entry.
+  const base = `ws://127.0.0.1:${webPortOf(gateway)}`;
+  const browser = await connectGateway({
+    transportFactory: webSocketTransport(`${base}${webSocketPath("gateway")}`),
+  });
+  let agentClient: EchoClient | undefined;
+  try {
+    await program.register({
+      kind: "agent",
+      name: "echo",
+      serverId: echo.serverId,
+      socket: echo.socket,
+      pid: process.pid,
+    });
+
+    const [found] = await browser.list();
+    assert.equal(found?.name, "echo");
+    agentClient = await connectEcho(found.serverId, webSocketTransport(`${base}${webSocketPath(found)}`));
+    assert.equal(await agentClient.echo("through the gateway"), "echo: through the gateway");
+  } finally {
+    await agentClient?.close();
+    await browser.close();
+    await program.close();
+    await echo.close();
+    await gateway.close();
+  }
+});
+
+test("a program that leaves the registry can no longer be reached from a browser", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway({ web: { port: 0 } });
+  const echo = await startEchoProgram("echo-agent");
+  const program = await connectLocalGateway();
+  try {
+    const port = webPortOf(gateway);
+    const path = webSocketPath({ kind: "agent", name: "echo" });
+    assert.equal(await handshakeStatus(port, path), 404);
+
+    await program.register({ ...agent("echo"), serverId: echo.serverId, socket: echo.socket });
+    assert.equal(await handshakeStatus(port, path), 101);
+
+    await program.close();
+    await eventually(() => handshakeStatus(port, path), (status) => status === 404);
+  } finally {
+    await program.close();
+    await echo.close();
+    await gateway.close();
+  }
+});
+
+test("closing the gateway closes the browser entry and every pipe through it", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway({ web: { port: 0 } });
+  const port = webPortOf(gateway);
+  const browser = await connectGateway({
+    transportFactory: webSocketTransport(`ws://127.0.0.1:${port}${webSocketPath("gateway")}`),
+  });
+  try {
+    assert.deepEqual(await browser.list(), []);
+    const ended = new Promise<void>((resolve) => browser.onDisconnect(() => resolve()));
+
+    await gateway.close();
+
+    await ended;
+    await assert.rejects(handshakeStatus(port, "/ws/gateway"), /ECONNREFUSED/);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a gateway serves its page and its pipes from one origin", { timeout }, async (t) => {
+  freshRuntime(t);
+  const site = mkdtempSync(join(tmpdir(), "shrimpy-site-"));
+  t.after(() => rmSync(site, { recursive: true, force: true }));
+  writeFileSync(join(site, "index.html"), "<h1>shrimpy</h1>");
+  const gateway = await startGateway({ web: { port: 0, staticDir: site } });
+  try {
+    const port = webPortOf(gateway);
+    const page = await rawRequest(port, "/");
+    assert.equal(page.status, 200);
+    assert.equal(page.body, "<h1>shrimpy</h1>");
+
+    // Browsers send the page's origin with the handshake.
+    assert.equal(await handshakeStatus(port, "/ws/gateway", { Origin: `http://127.0.0.1:${port}` }), 101);
+    assert.equal(await handshakeStatus(port, "/ws/gateway", { Origin: "https://evil.example" }), 403);
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("a gateway without a browser entry opens no port", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  try {
+    assert.equal(gateway.webPort, undefined);
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("a gateway whose browser entry cannot start gives the socket back", { timeout }, async (t) => {
+  freshRuntime(t);
+  const squatter = createServer();
+  await new Promise<void>((resolve) => squatter.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = squatter.address() as AddressInfo;
+    await assert.rejects(startGateway({ web: { port } }), /EADDRINUSE/);
+    await assert.rejects(startGateway({ web: { port: 0, staticDir: join(tmpdir(), "no-such-site") } }), /ENOENT/);
+
+    const gateway = await startGateway();
+    await gateway.close();
+  } finally {
+    await new Promise<void>((resolve) => squatter.close(() => resolve()));
   }
 });
