@@ -5,7 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type AttachmentChangeListener, Client } from "@earendil-works/pi-client";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { offer, settle, startStandIn, stopAfter, until, useRuntimeDir } from "../testing/index.ts";
-import { openConnection, openRoutedConnection } from "./index.ts";
+import { openConnection, openRoutedConnection, received } from "./index.ts";
 
 const timeout = 15_000;
 const context = BACKGROUND_CONTEXT;
@@ -268,4 +268,12 @@ test("closing without saying goodbye lets go of the attachment without asking th
 
   assert.equal(attachment.isCurrent(), false);
   assert.equal(detached(), 0);
+});
+
+test("a state that the server has not sent yet says what is missing", () => {
+  const empty = { value: undefined, subscribe: () => () => undefined } as unknown as ReplicatedState<{ topic: string }>;
+  const full = replicatedState({ topic: "lobby" });
+
+  assert.throws(() => received(empty, "room view"), new Error("The room view has not arrived yet"));
+  assert.deepEqual(received(full, "room view"), { topic: "lobby" });
 });

@@ -1,7 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { ByteTransportFactory } from "@earendil-works/pi-client";
-import { openRoutedConnection } from "../../lib/connection/index.ts";
+import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { Chat, ThreadService } from "./services.ts";
 import type { ThreadView } from "./view.ts";
 
@@ -94,7 +94,7 @@ export async function connectChat(options: {
         id: threadId,
         get view() {
           attached();
-          return currentView(thread.state.value);
+          return received(thread.state, "thread view");
         },
         subscribe(listener) {
           attached();
@@ -106,9 +106,4 @@ export async function connectChat(options: {
     onDisconnect: (listener) => connection.onDisconnect(listener),
     close: () => connection.close(),
   };
-}
-
-function currentView(view: ThreadView | undefined): ThreadView {
-  if (view === undefined) throw new Error("The thread view has not arrived yet");
-  return view;
 }

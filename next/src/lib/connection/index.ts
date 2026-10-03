@@ -6,4 +6,5 @@
  * browsers.
  */
 export { type Connection, type ConnectionOptions, openConnection } from "./connection.ts";
+export { received } from "./received.ts";
 export { type Attachment, openRoutedConnection, type RoutedConnection, type Routing } from "./routed.ts";

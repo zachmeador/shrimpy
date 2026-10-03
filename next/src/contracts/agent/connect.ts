@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ByteTransportFactory, DisconnectedError } from "@earendil-works/pi-client";
-import { openRoutedConnection } from "../../lib/connection/index.ts";
+import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { SessionDirectory, SessionService } from "./services.ts";
 import type { SessionSummary, SessionView, Settlement } from "./view.ts";
 
@@ -76,7 +76,7 @@ export async function connectAgent(options: {
         return {
           id: sessionId,
           get view() {
-            return currentView(session.state.value);
+            return received(session.state, "session view");
           },
           subscribe: (listener) => session.state.subscribe((value) => listener(value)),
           steer: (text, requestId) => guarded(() => session.steer(text, requestId ?? null, context)),
@@ -92,9 +92,4 @@ export async function connectAgent(options: {
       await connection.close({ goodbye: calls === 0 });
     },
   };
-}
-
-function currentView(view: SessionView | undefined): SessionView {
-  if (view === undefined) throw new Error("The session view has not arrived yet");
-  return view;
 }
