@@ -7,7 +7,7 @@
  * program.
  */
 export { stopAfter, tempDir } from "./cleanup.ts";
-export { type Child, type ChildProgram, startChild } from "./child.ts";
+export { type Child, type ChildProgram, firstLine, startChild } from "./child.ts";
 export { useRuntimeDir } from "./runtime.ts";
 export { runUntilStopped } from "./run-until-stopped.ts";
 export { offer, type Offer, type StandIn, type StandInOptions, startStandIn } from "./stand-in.ts";

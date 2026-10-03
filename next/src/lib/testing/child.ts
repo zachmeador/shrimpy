@@ -47,7 +47,11 @@ export async function startChild<Line = unknown>(
   }
 }
 
-function firstLine(child: ChildProcess): Promise<string> {
+/**
+ * The first line a child prints to standard output, without its line break.
+ * Rejects if the child ends before it prints one.
+ */
+export function firstLine(child: ChildProcess): Promise<string> {
   return new Promise((resolve, reject) => {
     let output = "";
     const ended = (code: number | null, signal: NodeJS.Signals | null): void => {

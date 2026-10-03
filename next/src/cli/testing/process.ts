@@ -1,8 +1,8 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
-import { rmSync } from "node:fs";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+import { firstLine, useRuntimeDir } from "../../lib/testing/index.ts";
 
 const main = fileURLToPath(new URL("../main.ts", import.meta.url));
 
@@ -70,33 +70,22 @@ export interface ServedAgent {
 }
 
 /**
- * Start `shrimpy agent serve <home>` and wait until it is listening. If the
- * test ends with the agent still running, it is killed and its socket removed.
+ * Start `shrimpy agent serve <home>` and wait until it is listening. It gets
+ * the test's runtime directory, which takes its socket away when the test
+ * ends. If the agent is still running then, it is killed.
  */
 export async function serve(t: TestContext, home: string, extra: string[] = []): Promise<ServedAgent> {
+  useRuntimeDir(t);
   const { child, closed, result } = launch(["agent", "serve", home, ...extra]);
-  let socket: string | undefined;
   const stop = async (signal: NodeJS.Signals = "SIGTERM"): Promise<CliResult> => {
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
     await closed;
-    // A killed agent cannot remove the socket it left.
-    if (socket !== undefined) rmSync(socket, { force: true });
     return result();
   };
   t.after(() => stop("SIGKILL"));
 
-  const listening = new Promise<ServedAgent["listening"]>((resolve, reject) => {
-    child.stdout.on("data", () => {
-      const { stdout } = result();
-      const end = stdout.indexOf("\n");
-      if (end === -1) return;
-      const line = JSON.parse(stdout.slice(0, end)) as ServedAgent["listening"];
-      socket = line.socket;
-      resolve(line);
-    });
-    void closed.then(() => {
-      reject(new Error(`shrimpy agent serve ended before it was listening:\n${result().stderr}`));
-    });
+  const line = await firstLine(child).catch((error: unknown) => {
+    throw new Error(`shrimpy agent serve ended before it was listening:\n${result().stderr}`, { cause: error });
   });
-  return { listening: await listening, stop };
+  return { listening: JSON.parse(line) as ServedAgent["listening"], stop };
 }
