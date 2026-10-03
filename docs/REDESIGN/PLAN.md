@@ -264,7 +264,7 @@ Clients use two APIs, each the same for local and gateway-routed use. The chat s
 
 Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the chat server, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not in phase 1. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge; the spike's was 69 lines. Sockets live in a short runtime directory, because macOS caps Unix socket paths at 104 bytes. `pi-client` never reconnects on its own, so clients reconnect with backoff and mark a disconnected view as stale. The browser bundle is about 200 KB minified and 53 KB gzipped, mostly TypeBox. The protocol makes no compatibility promises, so Shrimpy pins Pi exactly, agents and clients upgrade together, and a version mismatch between peers is reported clearly.
 
-Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd, so an attached console asks the agent for completions instead of reading a local directory. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
+Contracts carry Shrimpy-owned shapes only: the agent builds the session view that clients draw, so no client depends on Pi's record types. Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd, so an attached console asks the agent for completions instead of reading a local directory. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
 
 The gateway handles discovery, access and routing between clients, agents and the chat server. It keeps the workspace's configuration: agent registrations, tokens and workspace context. It never holds agent homes, Pi storage, execution or conversations, and it reaches agents' sessions only through their API. Agents connect out to it and reconnect on their own, so they need no inbound listener. Losing the gateway pauses chat and remote access but never stops an agent. Watching and controlling an agent on its own machine works without a gateway; talking needs the gateway and the chat server, and on a single machine both run locally.
 
@@ -364,41 +364,62 @@ A replaced slice removes its old imports, registrations, unused dependencies, fi
 
 ## Target source layout
 
-This is the layout after phase 6. Until then the new tree lives under `next/`, with its own build and tests, so it never collides with today's `src/` (both have a `gateway/`, a `util/` and a `cli.ts`) and never rewrites the live `dist/`. Phase 6 moves `next/` into `src/` and deletes the old tree, along with the old tests, which test old internals. The new `gateway/` and `extensions/` replace today's; they don't extend them.
+This is the layout after phase 6. Until then the new tree lives under `next/`, with its own build and tests, so it never collides with today's `src/` and never rewrites the live `dist/`. Phase 6 moves `next/` into `src/` and deletes the old tree, along with the old tests, which test old internals.
+
+The tree is organized by program. Shrimpy is three programs (an agent, the chat server and the gateway) plus the clients and the CLI, and the only code they share is their contracts.
 
 ```text
 src/
-  cli.ts          argv entry; dispatches to cli/
-  home/           home layout, agent.json, resource and skill selection, model policy, credential paths
-  api/            channel and agent API contracts: operations, errors, and the callers used by clients and tools
-  host/           owner process: lock, model runtime, registry, environment, Harness/SQLite, supervision, service install
-  service/        API operations over the Harness: admission receipts, thread bindings and wake policy, session metadata, control, queries, subscriptions
-  extensions/     durable extensions installed in the registry
-    context/      prompt sections, turn facts, producers, memory breadcrumbs, compaction guidance
-    tools/        message tools, search, image reading, helpers
-    triggers/     trigger and occurrence tasks
-  gateway/        discovery, access control, routing, registrations, tokens, workspace context
-  chat/           chat server: channels, threads, messages, attachments, batching, commands, sender access, mirroring, delivery receipts
-    telegram/     Telegram's API: polling, message and media formats, sending
-  client/
-    console/      terminal client for threads and sessions
-  cli/            commands over api/, or home/ for offline home files
-  util/
-web/              web client for threads and sessions, over api/
+  contracts/        the only code programs share
+    agent/          the agent API: sessions, control, offers, login prompts
+    chat/           the chat API: channels, threads, messages, attachments
+    gateway/        registration, discovery and routing
+  agent/            the agent program, one process per home
+    home/           home layout, agent.json, resource and skill selection, model policy, credential paths
+    host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
+    sessions/       session control and queries, and the session view that clients see
+    intake/         what arrives from chat: offers, wake policy, thread bindings, admission receipts, the unread cache
+    extensions/     durable extensions
+      context/      prompt sections, turn facts, producers, memory breadcrumbs, compaction guidance
+      tools/        message tools, search, image reading, helpers
+      triggers/     trigger and occurrence tasks
+  chat/             the chat server program
+    store/          SQLite schema and transactions
+    threads/        channels, threads, membership, messages, attachments
+    offers/         offering messages to member agents, delivery receipts
+    commands/       chat commands, burst batching, mirroring into bridged chats
+    providers/
+      telegram/     Telegram's API: polling, message and media formats, sending
+  gateway/          the gateway program: discovery, access, routing, registrations, tokens, workspace context
+  clients/
+    console/        terminal client
+    web/            web client, replacing today's top-level web/
+  cli/              the `shrimpy` command
+  lib/              small helpers with no domain knowledge
 ```
 
-| Module | May import |
-|---|---|
-| `util/` | nothing else in `src/` |
-| `api/`, `home/` | `util/` |
-| `extensions/*` | Pi durable extension API, `api/`, `home/`, `util/` |
-| `service/` | Pi durable, `api/`, `home/`, `util/` |
-| `host/` | Pi durable and server, `service/`, `extensions/`, `home/`, `util/` |
-| `gateway/`, `chat/`, `client/*`, `web/` | `api/`, `util/`, and their own configuration |
-| `chat/<provider>/` | `chat/`, `util/`, and its own configuration |
-| `cli/` | `api/`, `home/`, `util/`, `client/` to launch it, and `host/` only for commands that start or install the owner |
+### What may import what
 
-Only `host/`, `service/` and `extensions/` import Pi's durable runtime. Clients, chat providers and the gateway reach an agent only through `api/`. Enforce these rules with ESLint `no-restricted-imports` once the directories exist, including a ban on deep imports into Pi packages: `pi-tui` has no exports map to stop them.
+| Code | May import |
+|---|---|
+| `lib/` | nothing else in `src/` |
+| `contracts/` | `lib/` |
+| `agent/`, `chat/`, `gateway/`, `clients/console/`, `clients/web/` | its own code, `contracts/` and `lib/`, and never another program |
+| `chat/providers/<name>/` | the chat server's provider interface and `lib/` |
+| `cli/` | `contracts/` and `lib/`, plus each program's front door to start it |
+
+- **Programs never import each other.** They talk only through `contracts/`, which are Chord services carried by `pi-server` and `pi-client`.
+- **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `agent/sessions/` is the one place that turns Pi's records into the session view clients see. A Pi upgrade can then change the agent without touching a client.
+- **Only `clients/console/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports.
+
+### Inside each module
+
+Keep this simple:
+
+- Every directory in the tree has one front door, `index.ts`. Code outside the directory imports only that.
+- Each front door opens with a short comment saying what the module is for and what it must not know about.
+- Tests sit next to the code they cover, as `*.test.ts`.
+- Lint enforces the import table, the front doors and the ban on deep imports into Pi packages from a module's first commit. The spike's `scripts/check-boundaries.mjs` is the smallest version of that check.
 
 ### Size baseline
 
@@ -441,11 +462,15 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 | Phase | `src/` + `extensions/` | `web/` | `test/` | Net vs baseline |
 |---|---|---|---|---|
 | Baseline `574bb2c` | 45,536 | 3,099 | 27,026 | — |
-| 0. Spike `5c6184b` | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/spike/` adds 1,964 lines of probe code |
+| 0. Spike `a3c6ae4` | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/spike/` adds 2,054 lines of probe code |
 
 ## Phases
 
-Work in an isolated feature branch and checkout with fixture homes and separate build output. Never run the root build or tests in the live checkout: they rewrite the `dist/` that the installed CLI uses. Candidate services, sockets, binaries and home paths stay separate from the installed application. Each phase ends by adding its row to the [size log](#size-baseline). `main` stays on Pi `0.84.4` until the candidate replaces it; there's no interim upgrade.
+Work in an isolated feature branch and checkout with fixture homes and separate build output. Never run the root build or tests in the live checkout: they rewrite the `dist/` that the installed CLI uses. Candidate services, sockets, binaries and home paths stay separate from the installed application. `main` stays on Pi `0.84.4` until the candidate replaces it; there's no interim upgrade.
+
+**No shortcuts reach a commit.** A boundary crossed for convenience, a missing front door, tests left for later and lint that isn't set up yet all get fixed before the commit, not after it. The quality work for a module, meaning its boundary lint, its front door and its tests, exists before that module's first commit. A shortcut found later is fixed before anything else is committed.
+
+Each phase ends with a shape review against the [layout rules](#target-source-layout) and a new row in the [size log](#size-baseline).
 
 ### 0. Spike
 
@@ -654,6 +679,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - Crash recovery behaved as planned, killed mid-stream and mid-tool. A shell child kept running after its owner died, so supervision has to reap it.
 - The terminal view used only public `pi-tui` pieces, and the browser page bundled without Node built-ins or `esbuild` and recovered after server restarts.
 - Opening a home's storage is a write, which makes the owner lock mandatory; the rule is now under [Host and Pi](#host-and-pi).
+- The spike first sent Pi's record shapes to its clients. That shortcut was removed in `a3c6ae4`: the server builds a Shrimpy-owned thread view, and `npm run check` in `next/spike/` fails on a boundary violation.
 - Each agent process took about 0.6 s and 110 MB of memory to start cold.
 - The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
 - Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.
