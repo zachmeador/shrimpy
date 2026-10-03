@@ -9,3 +9,4 @@ export type { Change } from "./changes.ts";
 export { StoreOwnedError } from "./database.ts";
 export type { NewMessage } from "./messages.ts";
 export { openStore, type Store, type StoreOptions, type Transaction } from "./store.ts";
+export type { ThreadRecord } from "./threads.ts";

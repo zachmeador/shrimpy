@@ -5,4 +5,4 @@
  * safe for browsers.
  */
 export { Chat, ThreadService } from "./services.ts";
-export type { Channel, Member, Message, Thread, ThreadView } from "./view.ts";
+export type { Channel, Member, Message, Thread, ThreadView, Working } from "./view.ts";

@@ -37,6 +37,11 @@ export interface Chat {
   ): Promise<Message[]>;
   /** Record that the caller, an agent, had these messages waiting when its work was stopped. */
   markSkipped(messageIds: string[], context: Context): Promise<void>;
+  /**
+   * Say whether the caller is working in a thread. The mark ends when this
+   * connection does, so a member that crashes never looks busy forever.
+   */
+  setWorking(threadId: string, working: boolean, context: Context): Promise<void>;
 
   /** The newest message position on the server. A member with no cursor starts here. */
   head(context: Context): Promise<number>;

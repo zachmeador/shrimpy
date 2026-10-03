@@ -15,7 +15,10 @@ type ThreadRow = {
 
 const COLUMNS = "id, channel_id, main, name, preview, archived, updated_at";
 
-const toThread = (row: ThreadRow): Thread => ({
+/** A thread as stored. Who is working in it lives in memory, never in the store. */
+export type ThreadRecord = Omit<Thread, "working">;
+
+const toThread = (row: ThreadRow): ThreadRecord => ({
   id: row.id,
   channelId: row.channel_id,
   main: row.main === 1,
@@ -26,13 +29,13 @@ const toThread = (row: ThreadRow): Thread => ({
 });
 
 export interface ThreadOperations {
-  thread(id: string): Thread | undefined;
+  thread(id: string): ThreadRecord | undefined;
   /** A channel's threads, the most recently updated first. */
-  threadsIn(channelId: string): Thread[];
+  threadsIn(channelId: string): ThreadRecord[];
   /** Start a side thread. */
-  addThread(channelId: string, name: string | null, now: number): Thread;
-  renameThread(id: string, name: string): Thread;
-  archiveThread(id: string, archived: boolean): Thread;
+  addThread(channelId: string, name: string | null, now: number): ThreadRecord;
+  renameThread(id: string, name: string): ThreadRecord;
+  archiveThread(id: string, archived: boolean): ThreadRecord;
   /** How many messages the thread holds. */
   messageCount(id: string): number;
 }
@@ -55,11 +58,11 @@ export function insertThread(
 }
 
 export function threadOperations(sql: Sql, report: ReportChange): ThreadOperations {
-  const find = (id: string): Thread | undefined => {
+  const find = (id: string): ThreadRecord | undefined => {
     const row = sql.one(`SELECT ${COLUMNS} FROM threads WHERE id = ?`, id) as ThreadRow | undefined;
     return row === undefined ? undefined : toThread(row);
   };
-  const get = (id: string): Thread => {
+  const get = (id: string): ThreadRecord => {
     const thread = find(id);
     if (thread === undefined) throw new Error(`Unknown thread ${id}`);
     return thread;

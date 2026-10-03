@@ -14,6 +14,13 @@ export interface Channel {
   members: Member[];
 }
 
+/** A member at work in a thread, such as an agent from picking a message up until its turn settles. */
+export interface Working {
+  memberId: string;
+  /** When it started, in milliseconds since the epoch. */
+  since: number;
+}
+
 /** One conversation inside a channel. Every channel has a main thread. */
 export interface Thread {
   id: string;
@@ -26,6 +33,8 @@ export interface Thread {
   archived: boolean;
   /** When the thread last got a message, in milliseconds since the epoch. */
   updatedAt: number;
+  /** Who is working in this thread right now, longest first. */
+  working: Working[];
 }
 
 export interface Message {
