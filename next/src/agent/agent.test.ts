@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { AgentConnectionLostError } from "../contracts/agent/index.ts";
 import { attachLocal } from "../contracts/agent/node.ts";
 import { HomeOwnedError } from "./host/index.ts";
 import { startAgent } from "./index.ts";
@@ -129,6 +130,29 @@ test("an input the model could not answer ends unanswered, with the reason", { t
   } finally {
     await connection.close();
     await agent.close();
+  }
+});
+
+test("a call waiting when the agent stops fails with a message a person can use", { timeout }, async () => {
+  const { home, agent } = await start("stream", 40);
+  const { connection, session } = await attachMain(home);
+  try {
+    const { submission } = await session.steer("stream a long answer");
+    const waiting = assert.rejects(session.wait(submission), AgentConnectionLostError);
+    await waitForView(session, (view) => (assistantItems(view)[0]?.text.length ?? 0) > 20);
+
+    await agent.close({ now: true });
+
+    await waiting;
+    // Later calls fail the same way, instead of with the transport's own words.
+    await assert.rejects(session.steer("anyone there?"), AgentConnectionLostError);
+    await assert.rejects(
+      connection.sessions(),
+      /Lost the connection to the agent\. If it stopped, the work that was running resumes when it starts again\./,
+    );
+  } finally {
+    await connection.close().catch(() => undefined);
+    await agent.close({ now: true });
   }
 });
 

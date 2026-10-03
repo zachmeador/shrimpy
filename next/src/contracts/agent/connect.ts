@@ -4,9 +4,21 @@ import {
   type ByteTransportFactory,
   Client,
   createClientServiceTransport,
+  DisconnectedError,
 } from "@earendil-works/pi-client";
 import { SessionDirectory, SessionService } from "./services.ts";
 import type { SessionSummary, SessionView, Settlement } from "./view.ts";
+
+/** The connection to the agent dropped while a call was waiting for its answer. */
+export class AgentConnectionLostError extends Error {
+  constructor(options?: ErrorOptions) {
+    super(
+      "Lost the connection to the agent. If it stopped, the work that was running resumes when it starts again.",
+      options,
+    );
+    this.name = "AgentConnectionLostError";
+  }
+}
 
 /** One attached session: its view, updates, and control. */
 export interface SessionHandle {
@@ -47,11 +59,18 @@ export async function connectAgent(options: {
   await agentScope.ready(context);
 
   let sessionScope: ReturnType<typeof createRemoteServiceBinding> | undefined;
+  let lost = false;
   const disconnects: ((reason: Error | undefined) => void)[] = [];
   client.onConnectionStateChange(({ state, error }) => {
     if (state !== "disconnected") return;
+    lost = true;
     for (const listener of disconnects) listener(error);
   });
+  // Calls that fail because the connection dropped fail the same way, with a message a person can use.
+  const guarded = <T>(call: () => Promise<T>): Promise<T> =>
+    call().catch((error: unknown) => {
+      throw lost || error instanceof DisconnectedError ? new AgentConnectionLostError({ cause: error }) : error;
+    });
 
   const releaseSession = async (): Promise<void> => {
     const scope = sessionScope;
@@ -62,34 +81,35 @@ export async function connectAgent(options: {
   };
 
   return {
-    sessions: () => directory.list(context),
-    async attach(sessionId) {
-      await releaseSession();
-      const routed = waitForRoute(client);
-      await directory.attach(sessionId, context);
-      await routed;
-      const scope = createRemoteServiceBinding({
-        services: [SessionService],
-        transport: createClientServiceTransport(client, () => client.attachment),
-        bound: true,
-      });
-      sessionScope = scope;
-      const session = scope.use(SessionService);
-      await scope.ready(context);
-      return {
-        id: sessionId,
-        get view() {
-          return currentView(session.state.value);
-        },
-        subscribe(listener) {
-          listener(currentView(session.state.value));
-          return session.state.subscribe((value) => listener(value));
-        },
-        steer: (text, requestId) => session.steer(text, requestId ?? null, context),
-        wait: (submission) => session.wait(submission, context),
-        abort: () => session.abort(context),
-      };
-    },
+    sessions: () => guarded(() => directory.list(context)),
+    attach: (sessionId) =>
+      guarded(async () => {
+        await releaseSession();
+        const routed = waitForRoute(client);
+        await directory.attach(sessionId, context);
+        await routed;
+        const scope = createRemoteServiceBinding({
+          services: [SessionService],
+          transport: createClientServiceTransport(client, () => client.attachment),
+          bound: true,
+        });
+        sessionScope = scope;
+        const session = scope.use(SessionService);
+        await scope.ready(context);
+        return {
+          id: sessionId,
+          get view() {
+            return currentView(session.state.value);
+          },
+          subscribe(listener) {
+            listener(currentView(session.state.value));
+            return session.state.subscribe((value) => listener(value));
+          },
+          steer: (text, requestId) => guarded(() => session.steer(text, requestId ?? null, context)),
+          wait: (submission) => guarded(() => session.wait(submission, context)),
+          abort: () => guarded(() => session.abort(context)),
+        };
+      }),
     onDisconnect(listener) {
       disconnects.push(listener);
     },
