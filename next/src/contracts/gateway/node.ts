@@ -3,7 +3,7 @@
  * machine over its Unix socket. Browser code must not import this file.
  */
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
-import { namedSocketPath } from "../../lib/runtime/index.ts";
+import { namedSocketPath } from "../../lib/runtime/node.ts";
 import { connectGateway, type GatewayConnection } from "./connect.ts";
 import { GATEWAY_SOCKET_NAME } from "./endpoint.ts";
 

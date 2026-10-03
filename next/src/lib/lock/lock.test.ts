@@ -3,9 +3,9 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { startChild, tempDir } from "../testing/index.ts";
-import { isLocked, takeLock } from "./index.ts";
+import { isLocked, takeLock } from "./node.ts";
 
-const lockModule = new URL("./index.ts", import.meta.url).href;
+const lockModule = new URL("./node.ts", import.meta.url).href;
 
 class Taken extends Error {}
 const taken = (cause: Error): Error => new Taken("taken", { cause });

@@ -1,4 +1,4 @@
-import { type Lock, takeLock } from "../lib/lock/index.ts";
+import { type Lock, takeLock } from "../lib/lock/node.ts";
 
 /** Another gateway is already serving this machine's socket. */
 export class GatewayRunningError extends Error {

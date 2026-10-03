@@ -1,4 +1,4 @@
-import { type Lock, takeLock } from "../lib/lock/index.ts";
+import { type Lock, takeLock } from "../lib/lock/node.ts";
 
 /** Another chat server is already serving this machine's socket. */
 export class ChatRunningError extends Error {

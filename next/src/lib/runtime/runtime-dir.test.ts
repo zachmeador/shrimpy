@@ -3,7 +3,7 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { tempDir } from "../testing/index.ts";
-import { namedSocketPath, runtimeDir, socketPathFor } from "./runtime-dir.ts";
+import { namedSocketPath, runtimeDir, socketPathFor } from "./node.ts";
 
 const saved = { ...process.env };
 afterEach(() => {

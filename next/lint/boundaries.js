@@ -2,6 +2,7 @@
  * The import rules of the source layout, as one ESLint rule. See
  * docs/REDESIGN/PLAN.md, "Target source layout".
  */
+import { isBuiltin } from "node:module";
 import { posix } from "node:path";
 
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
@@ -20,7 +21,7 @@ const messages = {
   testing: "Only tests and test support import a testing/ module, not {{target}}.",
   durable: "Only agent/ imports Pi's durable runtime.",
   piTui: "Only clients/console/ imports pi-tui, and only from the package root.",
-  browser: "Browser-safe code must not import {{target}}.",
+  browser: "Browser-safe code must not import {{target}}: what needs Node sits behind a node.ts door.",
 };
 
 /** The program or shared area a path under src/ belongs to. */
@@ -32,14 +33,23 @@ function ownerOf(path) {
 
 const isTest = (path) => path.endsWith(".test.ts");
 const isTestSupport = (path) => path.split("/").includes("testing");
-const isNodeDoor = (path) => /(^|\/)node\.ts$|\.node\.ts$/.test(path);
+/** A Node door, or a file behind one: the files that say they need Node. */
+const needsNode = (path) => /(^|\/)node\.ts$|\.node\.ts$/.test(path);
 
-/** Code that must also run in a browser: the web client, and contracts apart from their Node doors. */
+/**
+ * Code that must also run in a browser: the web client, and the contracts and
+ * lib/ modules apart from the files that say they need Node. In lib/ that makes
+ * a module's index.ts door and everything behind it browser-safe. Test support
+ * is never shipped, so it may use Node anywhere.
+ */
 function isBrowserSafe(path) {
   if (isTest(path)) return false;
   if (path.startsWith("clients/web/")) return true;
-  return path.startsWith("contracts/") && !isNodeDoor(path);
+  if (path.startsWith("contracts/")) return !needsNode(path);
+  return path.startsWith("lib/") && !needsNode(path) && !isTestSupport(path);
 }
+
+const reachesNode = (specifier) => isBuiltin(specifier) || /^node:|\/unix$|\/node$/.test(specifier);
 
 function checkPackage(from, specifier) {
   const owner = ownerOf(from);
@@ -51,7 +61,7 @@ function checkPackage(from, specifier) {
       return { messageId: "piTui" };
     }
   }
-  if (isBrowserSafe(from) && /^node:|\/unix$|\/node$/.test(specifier)) {
+  if (isBrowserSafe(from) && reachesNode(specifier)) {
     return { messageId: "browser", data: { target: specifier } };
   }
   return undefined;
@@ -74,7 +84,7 @@ function checkRelative(from, specifier) {
   if (isTestSupport(target) && !isTest(from) && !isTestSupport(from)) {
     return { messageId: "testing", data: { target } };
   }
-  if (isBrowserSafe(from) && isNodeDoor(target)) {
+  if (isBrowserSafe(from) && needsNode(target)) {
     return { messageId: "browser", data: { target } };
   }
 

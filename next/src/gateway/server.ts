@@ -9,7 +9,7 @@ import { createUnixListener } from "@earendil-works/pi-server/unix";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
 import { offerToConnection } from "../lib/offer/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
-import { namedSocketPath } from "../lib/runtime/index.ts";
+import { namedSocketPath } from "../lib/runtime/node.ts";
 import { takeGatewayLock } from "./lock.ts";
 import { InvalidRegistrationError, type Registry } from "./registry/index.ts";
 

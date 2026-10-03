@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { type Lock, takeLock } from "../../lib/lock/index.ts";
+import { type Lock, takeLock } from "../../lib/lock/node.ts";
 import { homePaths } from "../home/index.ts";
 
 /**

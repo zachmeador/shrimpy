@@ -16,7 +16,7 @@ import {
   ThreadService,
 } from "../contracts/chat/index.ts";
 import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
-import { namedSocketPath } from "../lib/runtime/index.ts";
+import { namedSocketPath } from "../lib/runtime/node.ts";
 import { serveChat } from "./connection.ts";
 import { takeChatLock } from "./lock.ts";
 import { type ChatDeps, serveThread, threadExists } from "./threads/index.ts";

@@ -15,7 +15,7 @@ import {
   SessionService,
 } from "../contracts/agent/index.ts";
 import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
-import { socketPathFor } from "../lib/runtime/index.ts";
+import { socketPathFor } from "../lib/runtime/node.ts";
 import type { Host } from "./host/index.ts";
 import { findSession, listSessions, serveSession } from "./sessions/index.ts";
 

@@ -10,7 +10,7 @@ import {
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
 import { offerToConnection, offerToRoute } from "../offer/index.ts";
-import { namedSocketPath } from "../runtime/index.ts";
+import { namedSocketPath } from "../runtime/node.ts";
 import { stopAfter } from "./cleanup.ts";
 
 /** One service and what answers it. */

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectChat } from "../contracts/chat/index.ts";
 import { connectLocal, readChatEndpoint } from "../contracts/chat/node.ts";
-import { namedSocketPath } from "../lib/runtime/index.ts";
+import { namedSocketPath } from "../lib/runtime/node.ts";
 import { settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { startServer } from "./server.ts";

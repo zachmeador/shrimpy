@@ -1,5 +1,5 @@
 import { connect, createServer, type Socket } from "node:net";
-import { namedSocketPath } from "../../lib/runtime/index.ts";
+import { namedSocketPath } from "../../lib/runtime/node.ts";
 
 export interface BytesTarget {
   readonly socket: string;

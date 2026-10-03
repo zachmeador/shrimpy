@@ -49,6 +49,22 @@ tester.run("imports", importsRule, {
     allowed("contracts/agent/node.ts", "node:fs"),
     allowed("contracts/agent/browser.test.ts", "node:url"),
     allowed("contracts/agent/connect.ts", "@earendil-works/pi-client"),
+    // So do lib/ modules: Node sits behind a node.ts door, in the door or in a file named for it.
+    allowed("lib/json-config/node.ts", "node:fs"),
+    allowed("lib/json-config/node.ts", "./parse.ts"),
+    allowed("lib/lock/node.ts", "./lock.node.ts"),
+    allowed("lib/lock/lock.node.ts", "node:sqlite"),
+    allowed("lib/lock/lock.node.ts", "../runtime/node.ts"),
+    allowed("lib/offer/offer.ts", "@earendil-works/chord"),
+    allowed("lib/connection/connection.ts", "@earendil-works/pi-client"),
+    allowed("lib/lock/lock.test.ts", "node:fs"),
+    // Programs and the contracts' Node doors reach lib/'s Node doors.
+    allowed("agent/server.ts", "../lib/runtime/node.ts"),
+    allowed("contracts/gateway/node.ts", "../../lib/runtime/node.ts"),
+    // Test support is never shipped to a browser, even in lib/.
+    allowed("lib/testing/child.ts", "node:child_process"),
+    allowed("lib/testing/stand-in.ts", "../runtime/node.ts"),
+    allowed("lib/testing/stand-in.ts", "@earendil-works/pi-server/unix"),
     // Test support is for tests and other test support.
     allowed("agent/agent.test.ts", "./testing/index.ts"),
     allowed("agent/testing/agent-child.ts", "../index.ts"),
@@ -90,9 +106,24 @@ tester.run("imports", importsRule, {
     refused("clients/web/page.ts", "@earendil-works/pi-tui", "piTui"),
     refused("clients/console/screen.ts", "@earendil-works/pi-tui/dist/editor.js", "piTui"),
     refused("contracts/agent/connect.ts", "node:fs", "browser"),
+    refused("contracts/agent/connect.ts", "fs", "browser"),
     refused("contracts/agent/connect.ts", "@earendil-works/pi-client/unix", "browser"),
     refused("contracts/agent/index.ts", "./node.ts", "browser"),
     refused("clients/web/page.ts", "../../contracts/agent/node.ts", "browser"),
+    // A lib/ module's index.ts and everything behind it is browser-safe too.
+    refused("lib/retry/backoff.ts", "node:fs", "browser"),
+    refused("lib/retry/backoff.ts", "fs", "browser"),
+    refused("lib/retry/backoff.ts", "path/posix", "browser"),
+    refused("lib/connection/connection.ts", "@earendil-works/pi-client/unix", "browser"),
+    refused("lib/retry/index.ts", "./node.ts", "browser"),
+    refused("lib/uri/index.ts", "./decode.node.ts", "browser"),
+    refused("lib/offer/offer.ts", "../runtime/node.ts", "browser"),
+    refused("contracts/gateway/connect.ts", "../../lib/runtime/node.ts", "browser"),
+    // A file that needs Node says so in its name, and only then.
+    refused("lib/lock/lock.ts", "node:sqlite", "browser"),
+    refused("lib/lock/lock.ts", "../runtime/node.ts", "browser"),
+    // Only a door is open to other directories, so a file named for Node is not.
+    refused("lib/offer/offer.ts", "../lock/lock.node.ts", "frontDoor"),
     refused("agent/server.ts", "./testing/index.ts", "testing"),
     refused("chat/providers/telegram/poller.ts", "../../store/index.ts", "provider"),
     refused("chat/providers/telegram/poller.ts", "../../../contracts/chat/index.ts", "provider"),

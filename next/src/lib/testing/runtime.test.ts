@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
-import { runtimeDir } from "../runtime/index.ts";
+import { runtimeDir } from "../runtime/node.ts";
 import { useRuntimeDir } from "./index.ts";
 
 test("a test gets a runtime directory of its own, and the setting comes back after", async (t) => {

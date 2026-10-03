@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { isLocked } from "../../lib/lock/index.ts";
+import { isLocked } from "../../lib/lock/node.ts";
 import { SCHEMA, SCHEMA_VERSION } from "./schema.ts";
 
 export class StoreOwnedError extends Error {
