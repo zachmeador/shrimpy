@@ -25,15 +25,18 @@ interface ServedHome {
   stopNow: () => Promise<number>;
 }
 
-/** A home that talks to the test model, with its agent serving in this process. Both stop when the test ends. */
-async function servedHome(t: TestContext): Promise<ServedHome> {
+/**
+ * A home that talks to the test model, with its agent serving in this process
+ * (`agent serve <home> ...serveFlags`). Both stop when the test ends.
+ */
+async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<ServedHome> {
   const model = await startModelServer();
   const home = join(mkdtempSync(join(tmpdir(), "shrimpy-flow-")), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
   declareLocalModel(home, { url: model.url, model: "test-model" });
 
   const serving = captureIo();
-  const done = runCli(["agent", "serve", home], serving.io);
+  const done = runCli(["agent", "serve", home, ...serveFlags], serving.io);
   const stop = (): Promise<number> => {
     serving.requestStop();
     return done;
@@ -167,4 +170,16 @@ test("a waiting command says so when the agent stops under it", { timeout }, asy
   assert.deepEqual(result.err, [
     "Lost the connection to the agent. If it stopped, the work that was running resumes when it starts again.",
   ]);
+});
+
+test("--now stops the agent without waiting for the running turn", { timeout }, async (t) => {
+  const { home, model, stop } = await servedHome(t, "--now");
+  const waiting = run("sessions", "steer", home, "go slow", "--wait");
+  await eventually(() => model.requests.length > 0, "the model to start answering");
+
+  // The test model streams for ten seconds, and a stop that waits would give the turn five of them.
+  const started = Date.now();
+  assert.equal(await stop(), 0);
+  assert.ok(Date.now() - started < 3000, `stopping took ${Date.now() - started} ms`);
+  assert.equal((await waiting).code, 1);
 });

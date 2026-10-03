@@ -37,9 +37,9 @@ async function attach(t: TestContext, home: string) {
 async function startStreaming(t: TestContext, home: string, tokensPerSecond: number) {
   const agent = await startOn(t, home, "stream", tokensPerSecond);
   const attached = await attach(t, home);
-  await attached.session.steer("stream a long answer", "request-1");
+  const { submission } = await attached.session.steer("stream a long answer", "request-1");
   await waitForView(attached.session, (view) => (assistantItems(view).at(-1)?.text.length ?? 0) > 60);
-  return { agent, ...attached };
+  return { agent, submission, ...attached };
 }
 
 /** Start another agent on the home, and return the main session's view once it has answered. */
@@ -102,6 +102,25 @@ test("a turn that outlasts the grace period is paused, not lost", { timeout }, a
   const view = await resumed(t, home, "stream", 4000);
   assert.equal(assistantItems(view).at(-1)?.stopReason, "stop");
   assert.equal(loggedRequests(home).length, 2);
+});
+
+test("input accepted before the stop is answered after the next start, and can be waited for then", { timeout }, async (t) => {
+  const home = tempHome();
+  const { agent, session, submission: first } = await startStreaming(t, home, 40);
+  const { submission: second } = await session.steer("and a second one", "request-2");
+  assert.notEqual(first, second);
+
+  await agent.close({ now: true });
+
+  await startOn(t, home, "stream", 4000);
+  const restarted = await attach(t, home);
+  const settled = await Promise.all([restarted.session.wait(first), restarted.session.wait(second)]);
+  assert.deepEqual(
+    settled.map((settlement) => settlement.status),
+    ["answered", "answered"],
+  );
+  const view = await waitForView(restarted.session, answered);
+  assert.equal(view.items.filter((item) => item.type === "user").length, 2);
 });
 
 test("once stopping begins, new input is refused and the reason reaches the client", { timeout }, async (t) => {

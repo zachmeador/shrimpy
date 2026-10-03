@@ -84,6 +84,20 @@ test("a key stored for a custom provider wins over the one in models.json", asyn
   assert.equal(requests[0]?.headers.authorization, "Bearer real-key");
 });
 
+test("building the models reaches for no network", async (t) => {
+  const reached: string[] = [];
+  t.mock.method(globalThis, "fetch", (input: string | URL | Request) => {
+    reached.push(input instanceof Request ? input.url : String(input));
+    return Promise.reject(new Error("no network in this test"));
+  });
+  const files = home({ auth: { groq: { type: "api_key", key: "gsk-test" } }, models: { providers: { local: qwen } } });
+
+  await buildModels({ ...files, model: { provider: "groq", modelId: "llama-3.3-70b-versatile" } });
+  await buildModels({ ...files, model: { provider: "local", modelId: "qwen" } });
+
+  assert.deepEqual(reached, []);
+});
+
 test("keys in the process environment are not used", async () => {
   const files = home();
   const before = process.env.GROQ_API_KEY;

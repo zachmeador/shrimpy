@@ -53,8 +53,7 @@ export async function buildModels(options: ModelRuntimeOptions): Promise<Models>
   const models = createModels({ credentials: readCredentials(options.authFile), authContext: HOME_ONLY });
   // Loaded here because it brings in every provider's model list.
   const { builtinProviders } = await import("@earendil-works/pi-ai/providers/all");
-  const builtin = builtinProviders();
-  for (const provider of builtin) models.setProvider(provider);
+  for (const provider of builtinProviders()) models.setProvider(provider);
   const custom = readCustomProviders(options.modelsFile);
   for (const provider of custom) models.setProvider(customProvider(provider));
   await requireUsable(models, options, new Set(custom.map(({ id }) => id)));
