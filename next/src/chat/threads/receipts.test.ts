@@ -16,23 +16,21 @@ test("an agent leaves a receipt on a message, and both sides read it there", (t)
   assert.deepEqual(readMessages(deps, shrimpy, main.id, null, 10)[0]?.receipts, expected);
 });
 
-test("an answered receipt names its reply, and a failed one its reason or none", (t) => {
+test("an answered receipt names its reply, and a failed one its reason", (t) => {
   const { deps, zach, shrimpy, main } = openTestDm(t);
   const question = post(deps, zach, main.id, "what is 2 + 2", "r1");
   const answer = post(deps, shrimpy, main.id, "4", "r2");
   const trouble = post(deps, zach, main.id, "and 3 + 3", "r3");
-  const unexplained = post(deps, zach, main.id, "and 4 + 4", "r4");
 
   leaveReceipt(deps, shrimpy, [question.id], outcome("answered", { reply: answer.id }));
   leaveReceipt(deps, shrimpy, [trouble.id], outcome("failed", { detail: "The model timed out." }));
-  leaveReceipt(deps, shrimpy, [unexplained.id], outcome("failed"));
 
-  const [first, , second, third] = readMessages(deps, zach, main.id, null, 10);
+  const [first, , second] = readMessages(deps, zach, main.id, null, 10);
   assert.deepEqual(first?.receipts, [{ memberId: shrimpy.id, status: "answered", reply: answer.id, detail: null }]);
   assert.deepEqual(second?.receipts, [
     { memberId: shrimpy.id, status: "failed", reply: null, detail: "The model timed out." },
   ]);
-  assert.deepEqual(third?.receipts, [{ memberId: shrimpy.id, status: "failed", reply: null, detail: null }]);
+  assert.throws(() => leaveReceipt(deps, shrimpy, [trouble.id], outcome("failed")), /A failed receipt needs a detail/);
 });
 
 test("every status can be left", (t) => {

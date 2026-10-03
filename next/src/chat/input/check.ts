@@ -96,6 +96,9 @@ export function receipt(value: unknown, what: string): Omit<Receipt, "memberId">
   if (status !== "failed" && !absent(detail)) {
     refuse(`Only a failed receipt has a detail, and this one is ${status}.`);
   }
+  if (status === "failed" && absent(detail)) {
+    refuse("A failed receipt needs a detail: a short reason a person can read.");
+  }
   return {
     status,
     reply: status === "answered" ? identifier(reply, `${what}.reply`) : null,

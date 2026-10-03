@@ -100,8 +100,12 @@ test("a receipt is a status with the reply or reason that goes with it, and noth
   }
 });
 
-test("a reply or detail that is left out counts as null, and a failure may have no reason", () => {
-  assert.deepEqual(receipt({ status: "failed" }, "receipt"), { status: "failed", reply: null, detail: null });
+test("a reply or detail that is left out counts as null, and a failure needs its reason", () => {
+  assert.throws(() => receipt({ status: "failed" }, "receipt"), refused(/^A failed receipt needs a detail/));
+  assert.throws(
+    () => receipt({ status: "failed", detail: null }, "receipt"),
+    refused(/^A failed receipt needs a detail/),
+  );
   assert.deepEqual(receipt({ status: "silent", reply: undefined }, "receipt"), {
     status: "silent",
     reply: null,

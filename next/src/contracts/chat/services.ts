@@ -53,8 +53,8 @@ export interface Chat {
    *
    * `reply` is required for `answered`, refused for every other status, and must
    * be a message the caller wrote in the same thread as each message it answers.
-   * `detail` is for `failed` only, and holds at most `MAX_RECEIPT_DETAIL_LENGTH`
-   * characters.
+   * `detail` is required for `failed`, refused for every other status, and
+   * holds at most `MAX_RECEIPT_DETAIL_LENGTH` characters.
    *
    * A receipt is not a message: it changes the thread's live view, but not its
    * `updatedAt`, and `feed` never offers it.

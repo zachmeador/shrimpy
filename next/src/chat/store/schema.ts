@@ -60,7 +60,7 @@ CREATE TABLE receipts (
   detail TEXT,
   PRIMARY KEY (message_seq, member_id),
   CHECK ((status = 'answered') = (reply_seq IS NOT NULL)),
-  CHECK (detail IS NULL OR status = 'failed')
+  CHECK ((status = 'failed') = (detail IS NOT NULL))
 ) STRICT, WITHOUT ROWID;
 
 CREATE TABLE posts (
