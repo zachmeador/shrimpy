@@ -1,7 +1,7 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: experience decisions reviewed on 2026-10-03. Phase 0 is done and phase 1 is being built in `next/`. A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03. Phase 0 is done and phase 1 is being built in `next/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](#introduced-by-the-build-not-yet-reviewed), and where the code [trails this plan](#1-standalone-agent-and-attached-clients). A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
@@ -183,6 +183,27 @@ If implementation finds another visible difference, add a row before shipping it
 | Home edits | The CLI edits workspace files directly | Homes live where their agent runs, and edits happen there: by the agent itself, by `shrimpy` run in that environment, or by the mechanic over SSH to the machine hosting it. Remote clients get session operations and reload, not file editing. | Confirmed |
 | Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. Shrimpy relays those prompts between the agent and the person's client. Sandboxes allow provider traffic, including login endpoints. | Confirmed |
 | Agent identity at the gateway | — | People's devices are identified by Tailscale, so clients need no Shrimpy login. Each agent gets a token from the gateway when it's registered and presents it when it connects, and the gateway checks that the connection comes from the expected machine. An agent on the gateway's own machine connects locally, where socket permissions make that check. Giving an agent its own tailnet node, with Tailscale running inside its sandbox, stays optional. | Confirmed |
+
+### Introduced by the build, not yet reviewed
+
+The builders made these visible choices while implementing phase 1. None has shipped, and each is open until you've looked at it. A new one is added here when its code is merged.
+
+| Topic | What the build does |
+|---|---|
+| Exit codes | 0 for success, 1 for failure and 130 for a cancelled wait, as decided, plus 2 when a command is used wrongly. |
+| Command output | `agent serve` and `agent status` print one JSON line each. `sessions read --json` prints the whole session view. |
+| Stop grace period | Running turns get five seconds to finish. The plan said "short". |
+| Agent names | Letters, digits, dots, hyphens and underscores, starting with a letter or digit. |
+| `agent init` | Writes a starter `SOUL.md`, an empty `models.json` and an `auth.json` only its owner can read. It refuses to change an existing `agent.json`. |
+| Where keys come from | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. |
+| `models.json` | Takes the `openai-completions` API only, and an unsupported key is an error. A model that doesn't say gets a 128,000-token context and 16,384 output tokens. |
+| IDs | `ch_`, `th_` and `msg_` followed by 12 characters. |
+| Message length | Up to 400,000 characters. An answer longer than that is posted in parts. |
+| Thread list | Most recently updated first, archived threads included. An unnamed thread shows the first 80 characters of its first message. |
+| DMs | A DM is named for the other member. Its main thread can be archived like any other. |
+| Names | Member and thread names hold up to 200 characters on one line. |
+| Gateway in a browser | `/ws/gateway` and `/ws/<kind>/<name>`, on IPv4 loopback only, with no default port yet. Static files have no fallback page and no cache or security headers, and dotfiles are served. |
+| Two programs with one name | The gateway doesn't refuse the second registration; the newest is the one reached. |
 
 ## Not built
 
@@ -416,6 +437,8 @@ src/
     providers/      the provider interface and the helpers providers share
       telegram/     Telegram's API: polling, sender mapping, message and media formats, sending
   gateway/          the gateway program: discovery, access, routing, registrations, tokens, workspace context
+    registry/       the programs that are running, one registration per live connection
+    web/            the browser entry: WebSocket pipes and the web client's files
   clients/
     console/        terminal client
     web/            web client, replacing today's top-level web/
@@ -550,6 +573,17 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Early cost checks: image reading and context capture.
 
 **Gate:** if terminal parity needs a large compatibility layer, stop and revisit with that evidence. Record the prototype's experience differences and its real code and dependency cost.
+
+**Where the code trails this plan, as of 2026-10-03.** The list is empty before each review pause.
+
+- The agent contract says `abort` where the plan says `stop`.
+- The agent still has a main session, and sessions are numbered instead of being addressed by their thread.
+- The chat contract has `skippedBy` and `markSkipped` where the plan has receipts.
+- Registrations carry no version.
+- OAuth sign-in isn't built. The plan keeps it.
+- `agent/sessions/` imports `pi-server` for an error type, though it's meant to know nothing about transports. The consolidation pass is fixing it.
+- Only `agent/sessions/` reads Pi's records, as the plan requires, but that holds by convention. The lint only keeps Pi's durable package inside `agent/`.
+- Not built yet from the layout: `agent/intake/`, `agent/extensions/`, `chat/providers/` and `clients/`.
 
 ### 2. Context, tools and compaction
 
