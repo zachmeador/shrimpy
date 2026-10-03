@@ -240,7 +240,7 @@ Homes under one OS user share that user's authority. Different permissions need 
 
 ### Host and Pi
 
-The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Before opening storage it takes an OS-held advisory lock on the home and keeps it for its lifetime. Phase 1 qualifies the lock on macOS and Linux. Clients never open storage for writing.
+The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands such as `log` and `inspect` go through the owner's API. The owner takes an exclusive lock on the home before anything else, including opening storage, starting servers or binding sockets, and holds it for its lifetime. The spike's 21-line lock on `node:sqlite` works on macOS; phase 1 qualifies it on Linux.
 
 Pi owns submissions, `InboxDoc`, `LiveDoc`, `UsageDoc`, conversation entries and configuration, generation, tool and compaction tasks, checkpoints, child ownership and structural watches. Shrimpy reads them directly. Query indexes and UI caches are disposable and name their source.
 
@@ -262,9 +262,9 @@ Clients use two APIs, each the same for local and gateway-routed use. The chat s
 - publication and chat-provider status, trigger and delegation controls
 - receiving the attachments of offered messages into the agent's home
 
-Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the chat server, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not in phase 1. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge. The protocol makes no compatibility promises, so Shrimpy pins Pi exactly, agents and clients upgrade together, and a version mismatch between peers is reported clearly.
+Every operation is reachable as `shrimpy <command>` before any UI uses it, and CLI handlers and tools call the same operations. For transport, use `pi-server`, `pi-client` and `pi-protocol` over a restricted local Unix socket first, where their public APIs fit. Coding-agent's experimental controller isn't reused wholesale because it drops durable request IDs. Pi's protocol carries everything Shrimpy ships: the console, the web client, the CLI, the chat server, and each agent's link to the gateway. Plain HTTP is added only when a program that can't speak Pi's protocol needs in, and not in phase 1. Only a Unix socket transport ships, so the web client needs a small WebSocket bridge; the spike's was 69 lines. Sockets live in a short runtime directory, because macOS caps Unix socket paths at 104 bytes. `pi-client` never reconnects on its own, so clients reconnect with backoff and mark a disconnected view as stale. The browser bundle is about 200 KB minified and 53 KB gzipped, mostly TypeBox. The protocol makes no compatibility promises, so Shrimpy pins Pi exactly, agents and clients upgrade together, and a version mismatch between peers is reported clearly.
 
-Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
+Clients talk through threads and watch through sessions. Attaching straight to an agent covers watching, steering and stopping, including while the gateway is down. Clients render committed views. Help, status and editor state stay local and never enter the transcript. Completion and shell input run against the agent's paths, never the client's cwd, so an attached console asks the agent for completions instead of reading a local directory. Clipboard files and images attach to the message you send, like any other attachment, with provenance and size limits.
 
 The gateway handles discovery, access and routing between clients, agents and the chat server. It keeps the workspace's configuration: agent registrations, tokens and workspace context. It never holds agent homes, Pi storage, execution or conversations, and it reaches agents' sessions only through their API. Agents connect out to it and reconnect on their own, so they need no inbound listener. Losing the gateway pauses chat and remote access but never stops an agent. Watching and controlling an agent on its own machine works without a gateway; talking needs the gateway and the chat server, and on a single machine both run locally.
 
@@ -398,7 +398,7 @@ web/              web client for threads and sessions, over api/
 | `chat/<provider>/` | `chat/`, `util/`, and its own configuration |
 | `cli/` | `api/`, `home/`, `util/`, `client/` to launch it, and `host/` only for commands that start or install the owner |
 
-Only `host/`, `service/` and `extensions/` import Pi's durable runtime. Clients, chat providers and the gateway reach an agent only through `api/`. Enforce these rules with ESLint `no-restricted-imports` once the directories exist.
+Only `host/`, `service/` and `extensions/` import Pi's durable runtime. Clients, chat providers and the gateway reach an agent only through `api/`. Enforce these rules with ESLint `no-restricted-imports` once the directories exist, including a ban on deep imports into Pi packages: `pi-tui` has no exports map to stop them.
 
 ### Size baseline
 
@@ -441,6 +441,7 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 | Phase | `src/` + `extensions/` | `web/` | `test/` | Net vs baseline |
 |---|---|---|---|---|
 | Baseline `574bb2c` | 45,536 | 3,099 | 27,026 | — |
+| 0. Spike `5c6184b` | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/spike/` adds 1,964 lines of probe code |
 
 ## Phases
 
@@ -463,6 +464,8 @@ Work in an isolated feature branch and checkout with fixture homes and separate 
 - The browser page bundles `pi-client` and Chord without Node-only dependencies such as `esbuild`, gets a snapshot and live updates, and sends a message.
 
 **Gate:** if any of these needs a large compatibility layer, revisit durable before phase 1. The spike is a probe: phase 1 keeps what fits and deletes the rest.
+
+**Result:** done on 2026-10-03. All three questions fit; see the [spike report](../../next/spike/REPORT.md).
 
 ### 1. Standalone agent and attached clients
 
@@ -645,5 +648,14 @@ Inherited terminal commands each need a disposition:
 ## Status log
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**Phase 0, 2026-10-03: done.** All three questions fit, with no compatibility layer around Pi. The [spike report](../../next/spike/REPORT.md) and its evidence are in `next/spike/` (commits `5e0cc3c` and `5c6184b`). It ran on macOS arm64 with Node 26.7.0, the published `1.0.0` packages, pi-ai's faux provider and the LAN `qwen3.8-27b` model.
+
+- Crash recovery behaved as planned, killed mid-stream and mid-tool. A shell child kept running after its owner died, so supervision has to reap it.
+- The terminal view used only public `pi-tui` pieces, and the browser page bundled without Node built-ins or `esbuild` and recovered after server restarts.
+- Opening a home's storage is a write, which makes the owner lock mandatory; the rule is now under [Host and Pi](#host-and-pi).
+- Each agent process took about 0.6 s and 110 MB of memory to start cold.
+- The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
+- Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.
 
 Record review decisions, finished phases, commands and results, and blockers here. A phase is done when its Prove list has evidence from real candidate wiring, not equivalent mocks; a passing build or deleted files don't count. A newly found experience difference stays pending until reviewed.
