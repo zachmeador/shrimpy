@@ -19,7 +19,7 @@ import {
 } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
-export { attachMain } from "./attach.ts";
+export { attachMain, stopAfter } from "./attach.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { answered, assistantItems, toolItems, waitForView } from "./wait.ts";
 

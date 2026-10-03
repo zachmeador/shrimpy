@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/index.ts";
 import { initHome, parseModelChoice, startHomeAgent } from "./index.ts";
-import { attachMain, stubChatCompletions } from "./testing/index.ts";
+import { attachMain, stopAfter, stubChatCompletions } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -26,70 +26,94 @@ function newHome(providers: object = { local }) {
   return paths;
 }
 
+/** Start the home's agent and attach to it. Both are closed when the test ends. */
+async function startAttached(t: TestContext, home: string) {
+  const agent = stopAfter(t, await startHomeAgent(home));
+  const attached = await attachMain(home);
+  t.after(() => attached.connection.close().catch(() => undefined));
+  return { agent, ...attached };
+}
+
 test("an agent starts from a home alone, and talks to the model the home declares", { timeout }, async (t) => {
   const paths = newHome();
   const requests = stubChatCompletions(t, "Hello from qwen");
-  const agent = await startHomeAgent(paths.root);
-  const { connection, session } = await attachMain(paths.root);
-  try {
-    assert.equal(agent.name, "scout");
-    assert.equal(agent.home, paths.root);
+  const { agent, session } = await startAttached(t, paths.root);
 
-    const { submission } = await session.steer("hi");
-    assert.deepEqual(await session.wait(submission), { status: "answered", text: "Hello from qwen" });
-    assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
+  assert.equal(agent.name, "scout");
+  assert.equal(agent.home, paths.root);
 
-    const [sent] = requests;
-    assert.equal(sent?.url, "http://models.invalid/v1/chat/completions");
-    assert.equal(sent.headers.authorization, "Bearer local");
-    assert.equal(sent.body.model, "qwen");
-    const [system] = sent.body.messages;
-    assert.equal(system?.role, "system");
-    assert.match(String(system.content), /You are scout, a Shrimpy agent built on Pi\./);
-  } finally {
-    await connection.close();
-    await agent.close();
-  }
+  const { submission } = await session.steer("hi");
+  assert.deepEqual(await session.wait(submission), { status: "answered", text: "Hello from qwen" });
+  assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
+
+  const [sent] = requests;
+  assert.equal(sent?.url, "http://models.invalid/v1/chat/completions");
+  assert.equal(sent.headers.authorization, "Bearer local");
+  assert.equal(sent.body.model, "qwen");
+  const [system] = sent.body.messages;
+  assert.equal(system?.role, "system");
+  assert.match(String(system.content), /You are scout, a Shrimpy agent built on Pi\./);
 });
 
 test("editing the home takes effect at the next start", { timeout }, async (t) => {
   const paths = newHome();
   const requests = stubChatCompletions(t, "Ok");
 
-  const first = await startHomeAgent(paths.root);
-  const before = await attachMain(paths.root);
-  await before.session.wait((await before.session.steer("one")).submission);
-  await before.connection.close();
-  await first.close();
+  const first = await startAttached(t, paths.root);
+  await first.session.wait((await first.session.steer("one")).submission);
+  await first.connection.close();
+  await first.agent.close();
 
   writeFileSync(paths.soul, "Answer in rhyme.\n");
-  const second = await startHomeAgent(paths.root);
-  const after = await attachMain(paths.root);
-  try {
-    await after.session.wait((await after.session.steer("two")).submission);
-    const systemPrompt = (index: number): string => String(requests[index]?.body.messages[0]?.content);
-    assert.match(systemPrompt(0), /You are scout/);
-    assert.match(systemPrompt(1), /Answer in rhyme\./);
-    assert.doesNotMatch(systemPrompt(1), /You are scout/);
-  } finally {
-    await after.connection.close();
-    await second.close();
-  }
+  const second = await startAttached(t, paths.root);
+  await second.session.wait((await second.session.steer("two")).submission);
+
+  const systemPrompt = (index: number): string => String(requests[index]?.body.messages[0]?.content);
+  assert.match(systemPrompt(0), /You are scout/);
+  assert.match(systemPrompt(1), /Answer in rhyme\./);
+  assert.doesNotMatch(systemPrompt(1), /You are scout/);
 });
 
-test("a model that cannot be used stops the start before the home is claimed", { timeout }, async () => {
+test("two homes share no keys, instructions or history", { timeout }, async (t) => {
+  const one = newHome({ local: { ...local, apiKey: "key-one" } });
+  const two = newHome({ local: { ...local, apiKey: "key-two" } });
+  writeFileSync(two.soul, "You are the second agent.\n");
+  const requests = stubChatCompletions(t, "Ok");
+  const first = await startAttached(t, one.root);
+  const second = await startAttached(t, two.root);
+
+  await first.session.wait((await first.session.steer("hello from one")).submission);
+  await second.session.wait((await second.session.steer("hello from two")).submission);
+
+  const [fromOne, fromTwo] = requests;
+  assert.equal(fromOne?.headers.authorization, "Bearer key-one");
+  assert.equal(fromTwo?.headers.authorization, "Bearer key-two");
+  assert.match(String(fromOne.body.messages[0]?.content), /You are scout/);
+  assert.match(String(fromTwo.body.messages[0]?.content), /You are the second agent\./);
+  assert.doesNotMatch(String(fromTwo.body.messages[0]?.content), /You are scout/);
+  assert.deepEqual(
+    first.session.view.items.map((item) => item.type === "user" && item.text),
+    ["hello from one", false],
+  );
+  assert.deepEqual(
+    second.session.view.items.map((item) => item.type === "user" && item.text),
+    ["hello from two", false],
+  );
+});
+
+test("a model that cannot be used stops the start before the home is claimed", { timeout }, async (t) => {
   const paths = newHome({ local: { ...local, apiKey: undefined } });
 
-  await assert.rejects(startHomeAgent(paths.root), ModelSetupError);
+  await assert.rejects(startHomeAgent(paths.root).then((agent) => stopAfter(t, agent)), ModelSetupError);
 
   assert.equal(existsSync(join(paths.runtime, "owner.lock")), false);
   assert.equal(existsSync(paths.database), false);
 });
 
-test("a folder that is not a home is left alone", { timeout }, async () => {
+test("a folder that is not a home is left alone", { timeout }, async (t) => {
   const folder = mkdtempSync(join(tmpdir(), "shrimpy-not-a-home-"));
 
-  await assert.rejects(startHomeAgent(folder), /is not an agent home/);
+  await assert.rejects(startHomeAgent(folder).then((agent) => stopAfter(t, agent)), /is not an agent home/);
 
   assert.deepEqual(readdirSync(folder), []);
   assert.equal(existsSync(homePaths(folder).runtime), false);
@@ -98,10 +122,10 @@ test("a folder that is not a home is left alone", { timeout }, async () => {
 test("a home with an owner cannot be started again", { timeout }, async (t) => {
   const paths = newHome();
   stubChatCompletions(t, "Ok");
-  const agent = await startHomeAgent(paths.root);
-  try {
-    await assert.rejects(startHomeAgent(paths.root), /Another process owns the agent home/);
-  } finally {
-    await agent.close();
-  }
+  stopAfter(t, await startHomeAgent(paths.root));
+
+  await assert.rejects(
+    startHomeAgent(paths.root).then((agent) => stopAfter(t, agent)),
+    /Another process owns the agent home/,
+  );
 });

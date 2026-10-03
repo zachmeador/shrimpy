@@ -14,7 +14,7 @@ npm run check
 
 `check` runs the type check, lint and every test. Tests run straight from TypeScript with `node --test`, so there is no build step. Nothing here touches the root `dist/` that the installed `shrimpy` uses.
 
-Two tests run a turn against a model server and are skipped unless you point them at one. `SHRIMPY_TEST_MODEL_URL` is its OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
+One test runs a turn with the shell tool against a real model, and is skipped unless you point it at a server. `SHRIMPY_TEST_MODEL_URL` is the server's OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
 
 ```bash
 SHRIMPY_TEST_MODEL_URL=http://localhost:8090/v1 SHRIMPY_TEST_MODEL_ID=my-model npm test
