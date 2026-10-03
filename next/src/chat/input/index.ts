@@ -13,5 +13,5 @@ export {
   messageText,
   whole,
 } from "./check.ts";
-export { MAX_ID, MAX_NAME, MAX_PAGE, MAX_TEXT } from "./limits.ts";
+export { MAX_PAGE } from "./limits.ts";
 export { refuse, Refusal } from "./refusal.ts";

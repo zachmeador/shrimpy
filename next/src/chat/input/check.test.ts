@@ -6,14 +6,12 @@ import {
   identifier,
   identifiers,
   label,
-  MAX_ID,
-  MAX_NAME,
-  MAX_TEXT,
   member,
   messageText,
   Refusal,
   whole,
 } from "./index.ts";
+import { MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
 
 const refused = (message: RegExp) => ({
   name: "Refusal",
