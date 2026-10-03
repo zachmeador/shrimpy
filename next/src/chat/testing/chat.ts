@@ -2,7 +2,7 @@ import type { TestContext } from "node:test";
 import type { ChatConnection, Member } from "../../contracts/chat/index.ts";
 import { connectLocal } from "../../contracts/chat/node.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
-import { type RunningChat, startChat } from "../index.ts";
+import { type ChatOptions, type RunningChat, startChat } from "../index.ts";
 
 export interface TestChat {
   readonly chat: RunningChat;
@@ -15,12 +15,16 @@ export interface TestChat {
 
 /**
  * A chat server in this process, with a data directory and a runtime directory
- * of its own. It stops, with the connections made through it, when the test ends.
+ * of its own. It stops, with the connections made through it, when the test
+ * ends. It registers with a gateway only if `options.register` says so.
  */
-export async function startTestChat(t: TestContext): Promise<TestChat> {
+export async function startTestChat(
+  t: TestContext,
+  options: Pick<ChatOptions, "register"> = {},
+): Promise<TestChat> {
   useRuntimeDir(t);
   const dataDir = tempDir(t, "chat-data");
-  const chat = await startChat({ dataDir });
+  const chat = await startChat({ dataDir, ...options });
   stopAfter(t, () => chat.close());
   const connect = async (): Promise<ChatConnection> => {
     const connection = await connectLocal(chat.endpoint);
