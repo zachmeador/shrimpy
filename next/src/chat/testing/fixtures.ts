@@ -1,4 +1,4 @@
-import type { Member } from "../../contracts/chat/index.ts";
+import type { Member, Receipt } from "../../contracts/chat/index.ts";
 
 /** `person("Zach")` is `person:zach`. */
 export const person = (name: string): Member => ({
@@ -13,6 +13,12 @@ export const agent = (name: string): Member => ({
   kind: "agent",
   name,
 });
+
+/** What an agent gives `leaveReceipt`: `outcome("answered", { reply: message.id })`. */
+export const outcome = (
+  status: Receipt["status"],
+  given: { reply?: string; detail?: string } = {},
+): Omit<Receipt, "memberId"> => ({ status, reply: given.reply ?? null, detail: given.detail ?? null });
 
 /** What `assert.throws` should find when the chat server refuses a call in this process, whose reason matches `message`. */
 export const refused = (message: RegExp, code = "service_invalid_value") => ({

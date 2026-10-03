@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
-import { agent, openTestDm, refused } from "../testing/index.ts";
-import { createThread, identify, listThreads, markSkipped, post, readMessages } from "./index.ts";
+import { openTestDm, refused } from "../testing/index.ts";
+import { createThread, listThreads, post, readMessages } from "./index.ts";
 import { previewOf } from "./messages.ts";
 
 test("a post is stored with its author, its time and who it is addressed to", (t) => {
@@ -20,7 +20,7 @@ test("a post is stored with its author, its time and who it is addressed to", (t
     text: "Hello there",
     sentAt: clock.now(),
     addressed: [shrimpy.id],
-    skippedBy: [],
+    receipts: [],
   });
   assert.deepEqual(readMessages(deps, shrimpy, main.id, null, 10), [message]);
 
@@ -131,33 +131,4 @@ test("reading is checked", (t) => {
   assert.throws(() => readMessages(deps, zach, main.id, null, 0), refused(/^limit must be a whole number/));
   assert.throws(() => readMessages(deps, zach, main.id, -1, 5), refused(/^beforeSeq must be a whole number/));
   assert.throws(() => readMessages(deps, zach, main.id, "5", 5), refused(/^beforeSeq must be a whole number/));
-});
-
-test("an agent can mark messages it had waiting as skipped", (t) => {
-  const { deps, zach, shrimpy, main } = openTestDm(t);
-  const first = post(deps, zach, main.id, "are you there", "r1");
-  const second = post(deps, zach, main.id, "hello?", "r2");
-
-  markSkipped(deps, shrimpy, [first.id, second.id]);
-  markSkipped(deps, shrimpy, [first.id]);
-
-  assert.deepEqual(
-    readMessages(deps, zach, main.id, null, 10).map((message) => message.skippedBy),
-    [[shrimpy.id], [shrimpy.id]],
-  );
-});
-
-test("skips are an agent's to mark, on messages it can see, all or none", (t) => {
-  const { deps, zach, shrimpy, main } = openTestDm(t);
-  const outsider = identify(deps, agent("Outsider"));
-  const message = post(deps, zach, main.id, "are you there", "r1");
-
-  assert.throws(() => markSkipped(deps, zach, [message.id]), refused(/Only an agent/));
-  assert.throws(() => markSkipped(deps, outsider, [message.id]), refused(/^Unknown message: msg_/));
-  assert.throws(
-    () => markSkipped(deps, shrimpy, [message.id, "msg_nothing"]),
-    refused(/^Unknown message: msg_nothing/),
-  );
-  assert.throws(() => markSkipped(deps, shrimpy, []), refused(/^messageIds must be a list/));
-  assert.deepEqual(readMessages(deps, zach, main.id, null, 10)[0]?.skippedBy, []);
 });

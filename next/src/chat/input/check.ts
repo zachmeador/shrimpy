@@ -1,6 +1,6 @@
-import type { Member } from "../../contracts/chat/index.ts";
+import type { Member, Receipt } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
+import { MAX_DETAIL, MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
 // check refuses with a message that names the argument as `what`.
@@ -58,4 +58,56 @@ export function identifiers(value: unknown, what: string, most: number): string[
     refuse(`${what} must be a list of 1 to ${most} IDs.`);
   }
   return value.map((item) => identifier(item, `${what} item`));
+}
+
+// Written as a record so the compiler flags a status added to `Receipt` but not here.
+const STATUSES = {
+  answered: true,
+  silent: true,
+  stopped: true,
+  skipped: true,
+  failed: true,
+} satisfies Record<Receipt["status"], true>;
+
+const isStatus = (value: unknown): value is Receipt["status"] =>
+  typeof value === "string" && Object.hasOwn(STATUSES, value);
+
+const absent = (value: unknown): boolean => value === undefined || value === null;
+
+/**
+ * What an agent says it did with messages: a status, and the reply or reason
+ * that goes with it. Only an answered receipt has a reply and only a failed one
+ * a detail; the others carry null in both. A reply or detail left out counts as null.
+ */
+export function receipt(value: unknown, what: string): Omit<Receipt, "memberId"> {
+  if (typeof value !== "object" || value === null) {
+    refuse(`${what} must be a receipt: a status, a reply and a detail.`);
+  }
+  const { status, reply, detail } = value as Record<string, unknown>;
+  if (!isStatus(status)) {
+    refuse(`${what}.status must be "answered", "silent", "stopped", "skipped" or "failed".`);
+  }
+  if (status === "answered" && absent(reply)) {
+    refuse("An answered receipt needs a reply: the ID of the message that answers it.");
+  }
+  if (status !== "answered" && !absent(reply)) {
+    refuse(`Only an answered receipt has a reply, and this one is ${status}.`);
+  }
+  if (status !== "failed" && !absent(detail)) {
+    refuse(`Only a failed receipt has a detail, and this one is ${status}.`);
+  }
+  return {
+    status,
+    reply: status === "answered" ? identifier(reply, `${what}.reply`) : null,
+    detail: absent(detail) ? null : reason(detail, `${what}.detail`),
+  };
+}
+
+/** The reason a turn failed, as text a person can read. */
+function reason(value: unknown, what: string): string {
+  if (typeof value !== "string" || value.trim() === "") refuse(`${what} must be some text, or null.`);
+  if (value.length > MAX_DETAIL) {
+    refuse(`${what} holds at most ${MAX_DETAIL} characters, and this one has ${value.length}.`);
+  }
+  return value;
 }

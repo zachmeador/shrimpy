@@ -9,13 +9,13 @@ import {
   type ServiceProviderUpdate,
 } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type Message, ThreadService, type ThreadView } from "../../contracts/chat/index.ts";
+import { type Message, type Receipt, ThreadService, type ThreadView } from "../../contracts/chat/index.ts";
 import { agent, person } from "../testing/index.ts";
 import { publishThreadView } from "./publish.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-const message = (seq: number, skippedBy: string[] = []): Message => ({
+const message = (seq: number, receipts: Receipt[] = []): Message => ({
   id: `msg_${seq}`,
   seq,
   channelId: "ch_1",
@@ -24,8 +24,11 @@ const message = (seq: number, skippedBy: string[] = []): Message => ({
   text: `message ${seq}`,
   sentAt: 1000 + seq,
   addressed: [],
-  skippedBy,
+  receipts,
 });
+
+const silent: Receipt = { memberId: "agent:shrimpy", status: "silent", reply: null, detail: null };
+const answered = (reply: string): Receipt => ({ ...silent, status: "answered", reply });
 
 function view(
   messages: Message[],
@@ -65,7 +68,8 @@ test("the published view always equals the latest view", () => {
   const steps = [
     view([message(1)]),
     view([message(1), message(2)]),
-    view([message(1), message(2, ["agent:shrimpy"])]),
+    view([message(1), message(2, [silent])]),
+    view([message(1), message(2, [answered("msg_3")]), message(3)]),
     view(range(1, 3), { name: "Renamed" }),
     view(range(1, 3), { name: "Renamed", working: [{ memberId: "agent:shrimpy", since: 5000 }] }),
     view(range(2, 4), { earlier: 1, name: "Renamed" }),
@@ -118,7 +122,7 @@ test("a new message in a full view travels as a small update, not a copy of the 
   const updates = updatesTo(state);
 
   publishThreadView(state, view(range(2, 201), { earlier: 51 }), context);
-  publishThreadView(state, view([...range(2, 200), message(201, ["agent:shrimpy"])], { earlier: 51 }), context);
+  publishThreadView(state, view([...range(2, 200), message(201, [silent])], { earlier: 51 }), context);
 
   assert.equal(updates.length, 2);
   for (const update of updates) {

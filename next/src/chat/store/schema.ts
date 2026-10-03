@@ -1,5 +1,5 @@
-/** The tables' version. A store written by a newer version is refused, never changed. */
-export const SCHEMA_VERSION = 1;
+/** The tables' version. A store written by any other version is refused, never changed. */
+export const SCHEMA_VERSION = 2;
 
 /**
  * `messages.seq` is the server-wide order. AUTOINCREMENT keeps it from ever
@@ -52,10 +52,15 @@ CREATE TABLE messages (
 ) STRICT;
 CREATE INDEX messages_by_thread ON messages (thread_id, seq);
 
-CREATE TABLE skips (
+CREATE TABLE receipts (
   message_seq INTEGER NOT NULL REFERENCES messages (seq),
   member_id TEXT NOT NULL REFERENCES members (id),
-  PRIMARY KEY (message_seq, member_id)
+  status TEXT NOT NULL CHECK (status IN ('answered', 'silent', 'stopped', 'skipped', 'failed')),
+  reply_seq INTEGER REFERENCES messages (seq),
+  detail TEXT,
+  PRIMARY KEY (message_seq, member_id),
+  CHECK ((status = 'answered') = (reply_seq IS NOT NULL)),
+  CHECK (detail IS NULL OR status = 'failed')
 ) STRICT, WITHOUT ROWID;
 
 CREATE TABLE posts (

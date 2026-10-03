@@ -1,14 +1,7 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import {
-  fitAnswer,
-  identifier,
-  identifiers,
-  MAX_PAGE,
-  messageText,
-  whole,
-} from "../input/index.ts";
-import { isMember, visibleThread } from "./access.ts";
+import { fitAnswer, identifier, MAX_PAGE, messageText, whole } from "../input/index.ts";
+import { visibleThread } from "./access.ts";
 import { addressedMembers } from "./addressing.ts";
 import type { ChatDeps } from "./deps.ts";
 
@@ -68,21 +61,5 @@ export function readMessages(
   return deps.store.transaction((tx) => {
     visibleThread(tx, caller, id);
     return fitAnswer(tx.messagesIn(id, before, count), "newest");
-  });
-}
-
-/** Note that an agent had these messages waiting when its work was stopped. */
-export function markSkipped(deps: ChatDeps, caller: Member, messageIds: unknown): void {
-  if (caller.kind !== "agent") refuse("Only an agent can mark messages skipped.");
-  const ids = identifiers(messageIds, "messageIds", MAX_PAGE);
-  deps.store.transaction((tx) => {
-    for (const id of ids) {
-      const message = tx.message(id);
-      const channel = message === undefined ? undefined : tx.channel(message.channelId);
-      if (message === undefined || channel === undefined || !isMember(channel, caller.id)) {
-        refuse(`Unknown message: ${id}`);
-      }
-      tx.markSkipped(message, caller.id);
-    }
   });
 }

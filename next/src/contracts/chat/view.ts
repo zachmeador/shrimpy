@@ -44,6 +44,22 @@ export interface Thread {
  */
 export const MAX_MESSAGE_LENGTH = 400_000;
 
+/**
+ * Characters a failed receipt's detail can hold. It is a short reason a person
+ * can read, and an agent with a longer one shortens it.
+ */
+export const MAX_RECEIPT_DETAIL_LENGTH = 500;
+
+/** What one agent did with a message, left when its turn for that message ended. */
+export interface Receipt {
+  memberId: string;
+  status: "answered" | "silent" | "stopped" | "skipped" | "failed";
+  /** The ID of the message that answers it, when the status is `answered`; otherwise null. */
+  reply: string | null;
+  /** A short reason a person can read, when the status is `failed`; otherwise null. */
+  detail: string | null;
+}
+
 export interface Message {
   id: string;
   /** The message's position in the whole server's order. A member's feed cursor is one of these. */
@@ -55,8 +71,12 @@ export interface Message {
   sentAt: number;
   /** IDs of the members this message is meant for: the others in a DM, or those mentioned in a room. */
   addressed: string[];
-  /** IDs of agents that had this message waiting when their work was stopped, and so did not act on it. */
-  skippedBy: string[];
+  /**
+   * What each agent did with this message, in order of member ID. Silent
+   * receipts are here like any other: whether to show one is up to whoever
+   * draws the thread.
+   */
+  receipts: Receipt[];
 }
 
 /**

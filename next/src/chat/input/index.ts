@@ -11,6 +11,7 @@ export {
   label,
   member,
   messageText,
+  receipt,
   whole,
 } from "./check.ts";
 export { ANSWER_BYTES, fitAnswer, MAX_PAGE } from "./limits.ts";

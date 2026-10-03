@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestContext } from "node:test";
 import { stopAfter } from "../../lib/testing/index.ts";
-import { openTestDm } from "../testing/index.ts";
+import { openTestDm, outcome } from "../testing/index.ts";
 import {
   archiveThread,
   createThread,
   identify,
-  markSkipped,
+  leaveReceipt,
   post,
   renameThread,
   serveThread,
@@ -37,16 +37,18 @@ test("a served thread starts as the thread's view", (t) => {
   assert.deepEqual(served.state.value, readThreadView(deps, main.id));
 });
 
-test("while someone watches, the view follows messages, names, archiving, skips and work", (t) => {
+test("while someone watches, the view follows messages, names, archiving, receipts and work", (t) => {
   const { deps, clock, zach, shrimpy, main, served } = setup(t);
   served.watch();
   const here = {};
+  const first = (): string => readThreadView(deps, main.id).messages[0]?.id ?? "";
   const steps: (() => void)[] = [
     () => post(deps, zach, main.id, "hello", "r1"),
     () => post(deps, shrimpy, main.id, "hi", "r2"),
     () => renameThread(deps, zach, main.id, "Main"),
     () => archiveThread(deps, zach, main.id, true),
-    () => markSkipped(deps, shrimpy, [readThreadView(deps, main.id).messages[0]?.id ?? ""]),
+    () => leaveReceipt(deps, shrimpy, [first()], outcome("skipped")),
+    () => leaveReceipt(deps, shrimpy, [first()], outcome("failed", { detail: "Gave up." })),
     () => setWorking(deps, here, shrimpy, main.id, true),
     () => setWorking(deps, here, shrimpy, main.id, false),
     () => setWorking(deps, here, shrimpy, main.id, true),
@@ -58,7 +60,9 @@ test("while someone watches, the view follows messages, names, archiving, skips 
     step();
     assert.deepEqual(served.state.value, readThreadView(deps, main.id));
   }
-  assert.deepEqual(served.state.value.messages[0]?.skippedBy, [shrimpy.id]);
+  assert.deepEqual(served.state.value.messages[0]?.receipts, [
+    { memberId: shrimpy.id, status: "failed", reply: null, detail: "Gave up." },
+  ]);
   assert.deepEqual(served.state.value.thread.working, []);
 });
 
@@ -117,7 +121,16 @@ test("the view follows the thread through any mix of changes", (t) => {
     else if (choice === 15) {
       const messages = readThreadView(deps, main.id).messages;
       const picked = messages[next(Math.max(messages.length, 1))];
-      if (picked !== undefined) markSkipped(deps, shrimpy, [picked.id]);
+      const mine = messages.filter((candidate) => candidate.author.id === shrimpy.id);
+      const answer = mine[next(Math.max(mine.length, 1))];
+      const outcomes = [
+        outcome("silent"),
+        outcome("stopped"),
+        outcome("skipped"),
+        outcome("failed", { detail: `Failed at step ${step}.` }),
+        answer === undefined ? outcome("failed") : outcome("answered", { reply: answer.id }),
+      ];
+      if (picked !== undefined) leaveReceipt(deps, shrimpy, [picked.id], outcomes[next(outcomes.length)]!);
     } else if (choice < 19) setWorking(deps, connection, author, main.id, next(2) === 0);
     else if (choice === 19) deps.working.end(connection);
     else identify(deps, { ...author, name: `${author.name} ${step}` });

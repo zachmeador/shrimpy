@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ThreadView } from "../contracts/chat/index.ts";
 import { settle, waitForView } from "../lib/testing/index.ts";
-import { agent, follow, person, startDm } from "./testing/index.ts";
+import { follow, person, startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -68,17 +68,6 @@ test("the view follows renaming and archiving", { timeout }, async (t) => {
 
   assert.equal(archived.thread.name, "Plans");
   assert.deepEqual(archived.messages, []);
-});
-
-test("an agent's skip shows on the message in the view", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await startDm(t);
-  const watching = await zach.attach(main.id);
-  const asked = await zach.chat.post(main.id, "are you there", "zach-1");
-
-  await shrimpy.chat.markSkipped([asked.id]);
-
-  const view = await waitForView(watching, (current) => current.messages[0]?.skippedBy.length === 1);
-  assert.deepEqual(view.messages[0]?.skippedBy, [agent("Shrimpy").id]);
 });
 
 test("a long thread's view holds its newest 200 messages and counts the rest", { timeout }, async (t) => {

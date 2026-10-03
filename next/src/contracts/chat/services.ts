@@ -1,5 +1,5 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
-import type { Channel, Member, Message, Thread, ThreadView } from "./view.ts";
+import type { Channel, Member, Message, Receipt, Thread, ThreadView } from "./view.ts";
 
 /**
  * Connection scope: everything a member does in chat. People's clients and
@@ -42,8 +42,27 @@ export interface Chat {
     limit: number,
     context: Context,
   ): Promise<Message[]>;
-  /** Record that the caller, an agent, had these messages waiting when its work was stopped. */
-  markSkipped(messageIds: string[], context: Context): Promise<void>;
+  /**
+   * Leave the caller's receipt on messages: what it did with them, once its turn
+   * for them ended. The receipt is `Receipt` without `memberId`, which is the
+   * caller. Only an agent leaves receipts, only on messages in channels it
+   * belongs to, and the call is all or nothing. A later receipt from the same
+   * agent replaces its earlier one on a message, so a skipped message can be
+   * answered later.
+   *
+   * `reply` is required for `answered`, refused for every other status, and must
+   * be a message the caller wrote in the same thread as each message it answers.
+   * `detail` is for `failed` only, and holds at most `MAX_RECEIPT_DETAIL_LENGTH`
+   * characters.
+   *
+   * A receipt is not a message: it changes the thread's live view, but not its
+   * `updatedAt`, and `feed` never offers it.
+   */
+  leaveReceipt(
+    messageIds: string[],
+    receipt: Omit<Receipt, "memberId">,
+    context: Context,
+  ): Promise<void>;
   /**
    * Say whether the caller is working in a thread. The mark ends when this
    * connection does, so a member that crashes never looks busy forever.

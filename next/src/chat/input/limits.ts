@@ -1,8 +1,11 @@
 import { DEFAULT_MAX_FRAME_LENGTH } from "@earendil-works/pi-protocol";
-import { MAX_MESSAGE_LENGTH, type Message } from "../../contracts/chat/index.ts";
+import { MAX_MESSAGE_LENGTH, MAX_RECEIPT_DETAIL_LENGTH, type Message } from "../../contracts/chat/index.ts";
 
 /** Characters in one message. */
 export const MAX_TEXT = MAX_MESSAGE_LENGTH;
+
+/** Characters in the detail of a failed receipt. */
+export const MAX_DETAIL = MAX_RECEIPT_DETAIL_LENGTH;
 
 /** Messages in one page of `read` or `feed`. Larger requests get a page this size. */
 export const MAX_PAGE = 200;

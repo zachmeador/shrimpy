@@ -6,9 +6,9 @@ type Fields = Record<string, unknown>;
 /**
  * Publish `next` as one revision that touches only what changed. Messages that
  * fell out of the window leave from the front, new ones join at the back, and a
- * message that changed, such as one an agent skipped, is replaced where it
- * stands. A client that is watching gets a few small operations, not a copy of
- * the thread.
+ * message that changed, such as one an agent left a receipt on, is replaced
+ * where it stands. A client that is watching gets a few small operations, not a
+ * copy of the thread.
  */
 export function publishThreadView(
   state: MutableReplicatedState<ThreadView>,

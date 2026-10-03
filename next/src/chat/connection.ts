@@ -8,9 +8,9 @@ import {
   type ChatDeps,
   createThread,
   identify,
+  leaveReceipt,
   listChannels,
   listThreads,
-  markSkipped,
   openDm,
   post,
   readMessages,
@@ -70,8 +70,8 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
     async read(threadId, beforeSeq, limit) {
       return readMessages(deps, caller(), threadId, beforeSeq, limit);
     },
-    async markSkipped(messageIds) {
-      markSkipped(deps, caller(), messageIds);
+    async leaveReceipt(messageIds, receipt) {
+      leaveReceipt(deps, caller(), messageIds, receipt);
     },
     async setWorking(threadId, working) {
       setWorking(deps, connection, caller(), threadId, working);

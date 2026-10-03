@@ -1,6 +1,7 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import type { ReportChange } from "./changes.ts";
 import { newId } from "./ids.ts";
+import { parseReceipts, RECEIPTS_ON_MESSAGE } from "./receipts.ts";
 import type { Sql } from "./sql.ts";
 
 type MessageRow = {
@@ -14,14 +15,13 @@ type MessageRow = {
   author_id: string;
   author_kind: Member["kind"];
   author_name: string;
-  skipped_by: string;
+  receipts: string;
 };
 
 const SELECT = `
   SELECT m.seq, m.id, m.channel_id, m.thread_id, m.text, m.sent_at, m.addressed,
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
-         (SELECT json_group_array(member_id)
-            FROM (SELECT member_id FROM skips WHERE message_seq = m.seq ORDER BY member_id)) AS skipped_by
+         ${RECEIPTS_ON_MESSAGE} AS receipts
   FROM messages m
   JOIN members a ON a.id = m.author_id`;
 
@@ -34,7 +34,7 @@ const toMessage = (row: MessageRow): Message => ({
   text: row.text,
   sentAt: row.sent_at,
   addressed: JSON.parse(row.addressed) as string[],
-  skippedBy: JSON.parse(row.skipped_by) as string[],
+  receipts: parseReceipts(row.receipts),
 });
 
 export interface NewMessage {
@@ -59,8 +59,6 @@ export interface MessageOperations {
   messagesIn(threadId: string, before: number | null, limit: number): Message[];
   /** Up to `limit` messages after `cursor` in the channels a member belongs to; oldest first. */
   messagesAfter(memberId: string, cursor: number, limit: number): Message[];
-  /** Note that an agent had a message waiting when its work was stopped. */
-  markSkipped(message: Message, memberId: string): void;
   /** The newest message position, or 0 while there are no messages. */
   head(): number;
 }
@@ -139,14 +137,6 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         memberId,
         limit,
       ),
-    markSkipped(message, memberId) {
-      const added = sql.run(
-        "INSERT OR IGNORE INTO skips (message_seq, member_id) VALUES (?, ?)",
-        message.seq,
-        memberId,
-      );
-      if (added > 0) report({ kind: "thread", threadId: message.threadId });
-    },
     head() {
       const row = sql.one("SELECT coalesce(max(seq), 0) AS head FROM messages") as { head: number };
       return row.head;

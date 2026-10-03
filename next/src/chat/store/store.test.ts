@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
-import { statSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
-import { stopAfter } from "../../lib/testing/index.ts";
+import { stopAfter, tempDir } from "../../lib/testing/index.ts";
 import { agent, openTestStore, person } from "../testing/index.ts";
 import {
   type ChannelRecord,
   type Change,
   openStore,
+  type Store,
   type Transaction,
 } from "./index.ts";
 
@@ -193,7 +195,7 @@ test("posting gives increasing positions, and the thread keeps its preview, coun
     text: "Hello there",
     sentAt: 2000,
     addressed: [shrimpy.id],
-    skippedBy: [],
+    receipts: [],
   });
   store.transaction((tx) => {
     assert.equal(tx.messageCount(threadId), 2);
@@ -430,41 +432,137 @@ test("a member is offered messages after a cursor, in its own channels only", (t
   assert.deepEqual(texts.stranger, []);
 });
 
-test("skips are recorded once per agent and show on the message", (t) => {
-  const { store } = openTestStore(t);
+/** A DM between a person and an agent, with one message from the person and one reply from the agent. */
+function askedAndAnswered(store: Store) {
   const zach = person("Zach");
   const shrimpy = agent("Shrimpy");
+  return store.transaction((tx) => {
+    const channel = openDm(tx, zach, shrimpy);
+    const threadId = mainThread(tx, channel.id);
+    const asked = post(tx, threadId, zach, "are you there");
+    const answer = post(tx, threadId, shrimpy, "yes");
+    return { zach, shrimpy, asked, answer };
+  });
+}
+
+test("a receipt shows on its message, and a later one from the same member replaces it", (t) => {
+  const { store } = openTestStore(t);
+  const { shrimpy, asked, answer } = askedAndAnswered(store);
+
+  store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, { status: "skipped", reply: null, detail: null }));
+  store.transaction((tx) => {
+    assert.deepEqual(tx.message(asked.id)?.receipts, [
+      { memberId: shrimpy.id, status: "skipped", reply: null, detail: null },
+    ]);
+  });
+
+  store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, { status: "answered", reply: answer, detail: null }));
+  store.transaction((tx) => {
+    assert.deepEqual(tx.message(asked.id)?.receipts, [
+      { memberId: shrimpy.id, status: "answered", reply: answer.id, detail: null },
+    ]);
+    assert.deepEqual(tx.message(answer.id)?.receipts, []);
+  });
+});
+
+test("receipts are listed in order of member ID, whoever left theirs first", (t) => {
+  const { store } = openTestStore(t);
+  const { zach, shrimpy, asked } = askedAndAnswered(store);
+
+  store.transaction((tx) => {
+    tx.leaveReceipt(asked, zach.id, { status: "silent", reply: null, detail: null });
+    tx.leaveReceipt(asked, shrimpy.id, { status: "failed", reply: null, detail: "No answer came." });
+  });
+
+  store.transaction((tx) => {
+    assert.deepEqual(
+      tx.message(asked.id)?.receipts.map((receipt) => receipt.memberId),
+      [shrimpy.id, zach.id],
+    );
+  });
+});
+
+test("a receipt tells watchers the thread changed, but not when it is the receipt already there", (t) => {
+  const { store } = openTestStore(t);
+  const { shrimpy, asked } = askedAndAnswered(store);
   const heard: Change[] = [];
   store.subscribe((change) => heard.push(change));
+  const skipped = { status: "skipped", reply: null, detail: null } as const;
 
-  const message = store.transaction((tx) => {
-    const channel = openDm(tx, zach, shrimpy);
-    return post(tx, mainThread(tx, channel.id), zach, "are you there");
-  });
-  heard.length = 0;
+  store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, skipped));
+  assert.deepEqual(heard, [{ kind: "thread", threadId: asked.threadId }]);
 
-  store.transaction((tx) => {
-    tx.markSkipped(message, shrimpy.id);
-    tx.markSkipped(message, shrimpy.id);
-    tx.markSkipped(message, zach.id);
-  });
+  store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, skipped));
+  assert.equal(heard.length, 1);
 
-  store.transaction((tx) => {
-    assert.deepEqual(tx.message(message.id)?.skippedBy, [shrimpy.id, zach.id]);
-  });
-  assert.deepEqual(heard, [
-    { kind: "thread", threadId: message.threadId },
-    { kind: "thread", threadId: message.threadId },
-  ]);
+  store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, { ...skipped, status: "stopped" }));
+  assert.equal(heard.length, 2);
+});
+
+test("a receipt changes neither the thread's time and count nor the newest position", (t) => {
+  const { store } = openTestStore(t);
+  const { shrimpy, asked, answer } = askedAndAnswered(store);
+  const read = () =>
+    store.transaction((tx) => ({
+      thread: tx.thread(asked.threadId),
+      count: tx.messageCount(asked.threadId),
+      head: tx.head(),
+    }));
+  const before = read();
+
+  store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, { status: "answered", reply: answer, detail: null }));
+
+  assert.deepEqual(read(), before);
+});
+
+test("the store refuses a receipt that breaks the rules of one", (t) => {
+  const { store } = openTestStore(t);
+  const { shrimpy, asked, answer } = askedAndAnswered(store);
+  const broken = [
+    { status: "answered", reply: null, detail: null },
+    { status: "silent", reply: answer, detail: null },
+    { status: "stopped", reply: null, detail: "why" },
+    { status: "tidy", reply: null, detail: null },
+  ] as const;
+
+  for (const receipt of broken) {
+    assert.throws(
+      () => store.transaction((tx) => tx.leaveReceipt(asked, shrimpy.id, receipt as never)),
+      /constraint failed/,
+      JSON.stringify(receipt),
+    );
+  }
+  store.transaction((tx) => assert.deepEqual(tx.message(asked.id)?.receipts, []));
+});
+
+test("a store written by another version is refused and left as it is", (t) => {
+  const dataDir = tempDir(t, "chat-old");
+  mkdirSync(join(dataDir, "state"));
+  const file = join(dataDir, "state", "chat.sqlite");
+  const old = new DatabaseSync(file);
+  old.exec("CREATE TABLE skips (message_seq INTEGER, member_id TEXT); PRAGMA user_version = 1");
+  old.close();
+
+  assert.throws(() => openStore(dataDir), /version 1, and this chat server reads version 2/);
+
+  const after = new DatabaseSync(file);
+  const tables = after.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
+  after.close();
+  assert.deepEqual(
+    tables.map((table) => table.name),
+    ["skips"],
+  );
 });
 
 test("everything survives closing and reopening, and positions carry on", (t) => {
   const { store, dataDir } = openTestStore(t);
   const zach = person("Zach");
+  const shrimpy = agent("Shrimpy");
   const { channel, last } = store.transaction((tx) => {
-    const channel = openDm(tx, zach, agent("Shrimpy"));
+    const channel = openDm(tx, zach, shrimpy);
     const threadId = mainThread(tx, channel.id);
-    post(tx, threadId, zach, "one");
+    const one = post(tx, threadId, zach, "one");
+    tx.leaveReceipt(one, shrimpy.id, { status: "silent", reply: null, detail: null });
     return { channel, last: post(tx, threadId, zach, "two") };
   });
   store.close();
@@ -475,6 +573,9 @@ test("everything survives closing and reopening, and positions carry on", (t) =>
     assert.deepEqual(tx.channelsOf(zach.id), [channel]);
     assert.deepEqual(tx.message(last.id), last);
     assert.equal(tx.head(), last.seq);
+    assert.deepEqual(tx.messagesIn(last.threadId, null, 10)[0]?.receipts, [
+      { memberId: shrimpy.id, status: "silent", reply: null, detail: null },
+    ]);
     const next = post(tx, last.threadId, zach, "three");
     assert.equal(next.seq, last.seq + 1);
   });

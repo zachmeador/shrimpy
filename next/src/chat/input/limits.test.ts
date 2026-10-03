@@ -13,7 +13,7 @@ function message(seq: number, text: string): Message {
     text,
     sentAt: seq,
     addressed: [],
-    skippedBy: [],
+    receipts: [],
   };
 }
 

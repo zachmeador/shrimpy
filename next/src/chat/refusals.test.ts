@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Member } from "../contracts/chat/index.ts";
 import { settle } from "../lib/testing/index.ts";
-import { agent, follow, mainThread, person, startTestChat } from "./testing/index.ts";
+import { agent, follow, mainThread, outcome, person, startTestChat } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -18,7 +18,7 @@ test("before a connection says who it is, every call but identify is refused", {
     ["archiveThread", () => stranger.chat.archiveThread("th_1", true)],
     ["post", () => stranger.chat.post("th_1", "hello", "request-1")],
     ["read", () => stranger.chat.read("th_1", null, 10)],
-    ["markSkipped", () => stranger.chat.markSkipped(["msg_1"])],
+    ["leaveReceipt", () => stranger.chat.leaveReceipt(["msg_1"], outcome("silent"))],
     ["setWorking", () => stranger.chat.setWorking("th_1", true)],
     ["head", () => stranger.chat.head()],
     ["feed", () => stranger.chat.feed(0, 10)],
@@ -53,8 +53,12 @@ test("a member who is not in a channel cannot see or touch it", { timeout }, asy
     ["read", () => alice.chat.read(main.id, null, 10), /^Unknown thread: th_/],
     ["setWorking", () => alice.chat.setWorking(main.id, true), /^Unknown thread: th_/],
     ["attach", () => alice.attach(main.id), /^Unknown thread: th_/],
-    ["markSkipped by a person", () => alice.chat.markSkipped([said.id]), /^Only an agent/],
-    ["markSkipped by another agent", () => outsider.chat.markSkipped([said.id]), /^Unknown message: msg_/],
+    ["leaveReceipt by a person", () => alice.chat.leaveReceipt([said.id], outcome("silent")), /^Only an agent/],
+    [
+      "leaveReceipt by another agent",
+      () => outsider.chat.leaveReceipt([said.id], outcome("silent")),
+      /^Unknown message: msg_/,
+    ],
   ];
   for (const [name, call, reason] of refusals) {
     await assert.rejects(call(), { code: "service_invalid_value", message: reason }, name);
@@ -73,7 +77,7 @@ test("a channel that does not exist is refused the same way as one the caller ca
 
   await assert.rejects(zach.chat.threads("ch_nothing"), { message: "Unknown channel: ch_nothing" });
   await assert.rejects(zach.chat.read("th_nothing", null, 10), { message: "Unknown thread: th_nothing" });
-  await assert.rejects(zach.chat.markSkipped(["msg_nothing"]), { message: /Only an agent/ });
+  await assert.rejects(zach.chat.leaveReceipt(["msg_nothing"], outcome("silent")), { message: /Only an agent/ });
 });
 
 test("a connection is one member for as long as it lasts", { timeout }, async (t) => {

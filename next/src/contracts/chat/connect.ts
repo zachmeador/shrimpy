@@ -75,7 +75,8 @@ export async function connectChat(options: {
       service.post(threadId, text, requestId, contextFor(signal)),
     read: (threadId, beforeSeq, limit, signal) =>
       service.read(threadId, beforeSeq, limit, contextFor(signal)),
-    markSkipped: (messageIds, signal) => service.markSkipped(messageIds, contextFor(signal)),
+    leaveReceipt: (messageIds, receipt, signal) =>
+      service.leaveReceipt(messageIds, receipt, contextFor(signal)),
     setWorking: (threadId, working, signal) =>
       service.setWorking(threadId, working, contextFor(signal)),
     head: (signal) => service.head(contextFor(signal)),

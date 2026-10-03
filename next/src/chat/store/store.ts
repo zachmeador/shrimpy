@@ -4,13 +4,15 @@ import type { Change } from "./changes.ts";
 import { openDatabase } from "./database.ts";
 import { type MemberOperations, memberOperations } from "./members.ts";
 import { type MessageOperations, messageOperations } from "./messages.ts";
+import { type ReceiptOperations, receiptOperations } from "./receipts.ts";
 import { createSql, type Sql } from "./sql.ts";
 import { type ThreadOperations, threadOperations } from "./threads.ts";
 
 export type Transaction = MemberOperations &
   ChannelOperations &
   ThreadOperations &
-  MessageOperations;
+  MessageOperations &
+  ReceiptOperations;
 
 export interface Store {
   /**
@@ -82,6 +84,7 @@ function createTransaction(sql: Sql, report: (change: Change) => void): Transact
     ...channelOperations(sql),
     ...threadOperations(sql, report),
     ...messageOperations(sql, report),
+    ...receiptOperations(sql, report),
   };
 }
 

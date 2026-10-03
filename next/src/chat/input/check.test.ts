@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { refused } from "../testing/index.ts";
-import { flag, identifier, identifiers, label, member, messageText, whole } from "./index.ts";
-import { MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
+import { flag, identifier, identifiers, label, member, messageText, receipt, whole } from "./index.ts";
+import { MAX_DETAIL, MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
 
 test("an ID is one word of bounded length", () => {
   assert.equal(identifier("person:zach", "id"), "person:zach");
@@ -77,4 +77,88 @@ test("a list of IDs has at least one and at most a limit", () => {
   for (const bad of [[], ["a", "b", "c", "d"], "msg_1", null, ["has space"]]) {
     assert.throws(() => identifiers(bad, "messageIds", 3), refused(/^messageIds/));
   }
+});
+
+test("a receipt is a status with the reply or reason that goes with it, and nothing else is kept", () => {
+  assert.deepEqual(receipt({ status: "silent", reply: null, detail: null }, "receipt"), {
+    status: "silent",
+    reply: null,
+    detail: null,
+  });
+  assert.deepEqual(receipt({ status: "answered", reply: "msg_1", detail: null, memberId: "agent:x" }, "receipt"), {
+    status: "answered",
+    reply: "msg_1",
+    detail: null,
+  });
+  assert.deepEqual(receipt({ status: "failed", reply: null, detail: "The model timed out." }, "receipt"), {
+    status: "failed",
+    reply: null,
+    detail: "The model timed out.",
+  });
+  for (const status of ["stopped", "skipped"]) {
+    assert.equal(receipt({ status, reply: null, detail: null }, "receipt").status, status);
+  }
+});
+
+test("a reply or detail that is left out counts as null, and a failure may have no reason", () => {
+  assert.deepEqual(receipt({ status: "failed" }, "receipt"), { status: "failed", reply: null, detail: null });
+  assert.deepEqual(receipt({ status: "silent", reply: undefined }, "receipt"), {
+    status: "silent",
+    reply: null,
+    detail: null,
+  });
+});
+
+test("a receipt has a status the chat server knows, and a reply only when answered", () => {
+  for (const bad of ["tidy", "", 3, undefined, null, "__proto__", "toString"]) {
+    assert.throws(
+      () => receipt({ status: bad, reply: null, detail: null }, "receipt"),
+      refused(/^receipt.status must be "answered", "silent", "stopped", "skipped" or "failed"/),
+    );
+  }
+  for (const bad of ["status: silent", null, 7, undefined]) {
+    assert.throws(() => receipt(bad, "receipt"), refused(/^receipt must be a receipt/));
+  }
+  for (const missing of [null, undefined]) {
+    assert.throws(
+      () => receipt({ status: "answered", reply: missing, detail: null }, "receipt"),
+      refused(/^An answered receipt needs a reply/),
+    );
+  }
+  for (const status of ["silent", "stopped", "skipped", "failed"]) {
+    assert.throws(
+      () => receipt({ status, reply: "msg_1", detail: null }, "receipt"),
+      refused(new RegExp(`^Only an answered receipt has a reply, and this one is ${status}`)),
+    );
+  }
+  assert.throws(
+    () => receipt({ status: "answered", reply: "two words", detail: null }, "receipt"),
+    refused(/^receipt.reply must be an ID/),
+  );
+});
+
+test("a detail belongs to a failure, and is some text within the limit", () => {
+  for (const status of ["answered", "silent", "stopped", "skipped"]) {
+    assert.throws(
+      () => receipt({ status, reply: status === "answered" ? "msg_1" : null, detail: "why" }, "receipt"),
+      refused(new RegExp(`^Only a failed receipt has a detail, and this one is ${status}`)),
+    );
+  }
+  const longest = "d".repeat(MAX_DETAIL);
+  assert.equal(receipt({ status: "failed", reply: null, detail: longest }, "receipt").detail, longest);
+  assert.equal(
+    receipt({ status: "failed", reply: null, detail: "  two\nlines  " }, "receipt").detail,
+    "  two\nlines  ",
+  );
+
+  for (const bad of ["", "  \n", 5, {}]) {
+    assert.throws(
+      () => receipt({ status: "failed", reply: null, detail: bad }, "receipt"),
+      refused(/^receipt.detail must be some text, or null/),
+    );
+  }
+  assert.throws(
+    () => receipt({ status: "failed", reply: null, detail: "d".repeat(MAX_DETAIL + 1) }, "receipt"),
+    refused(new RegExp(`^receipt.detail holds at most ${String(MAX_DETAIL)} characters, and this one has ${String(MAX_DETAIL + 1)}`)),
+  );
 });
