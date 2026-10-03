@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { Gateway, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
-import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { offer, startStandIn, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { StoreOwnedError } from "./store/index.ts";
@@ -60,6 +61,22 @@ test("with no gateway running, the chat server starts, serves and closes quietly
   await chat.chat.close();
 
   assert.equal(reported.mock.callCount(), 0);
+});
+
+test("a registration that fails is reported on standard error, with what it was", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  // Something on the gateway's socket that answers as someone else.
+  await startStandIn(t, GATEWAY_SOCKET_NAME, {
+    offer: () => offer(Gateway, { register: () => Promise.resolve(), list: () => Promise.resolve([]) }),
+  });
+  const reported = t.mock.method(console, "error", () => undefined);
+
+  await startTestChat(t, { register: true });
+
+  await until(() => reported.mock.callCount() > 0, "the failure to be reported");
+  const first: unknown[] = reported.mock.calls[0]?.arguments ?? [];
+  assert.equal(first[0], "[chat]");
+  assert.match(String(first[1]), /^Could not register with the gateway: .*does not match/);
 });
 
 test("a chat server that started before the gateway registers once the gateway is up", { timeout }, async (t) => {

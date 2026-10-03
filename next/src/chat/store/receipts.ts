@@ -7,7 +7,8 @@ import type { Sql } from "./sql.ts";
  * order of member ID. A reply is named by its message's ID, not its position.
  */
 export const RECEIPTS_ON_MESSAGE = `
-  (SELECT json_group_array(json_object('memberId', member_id, 'status', status, 'reply', reply_id, 'detail', detail))
+  (SELECT json_group_array(
+            json_object('memberId', member_id, 'status', status, 'reply', reply_id, 'detail', detail))
      FROM (SELECT r.member_id, r.status, a.id AS reply_id, r.detail
              FROM receipts r LEFT JOIN messages a ON a.seq = r.reply_seq
             WHERE r.message_seq = m.seq

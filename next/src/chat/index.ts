@@ -51,7 +51,7 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       options.register === true
         ? keepRegistered(
             { kind: "chat", name: "chat", serverId, socket, pid, version: SHRIMPY_VERSION },
-            { onError },
+            { onError: (error) => onError(new Error(`Could not register with the gateway: ${error.message}`)) },
           )
         : undefined;
     return {

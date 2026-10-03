@@ -26,7 +26,10 @@ export interface KeptRegistration {
  * longer after each failure, and registers again once the gateway is back.
  * Starting never waits for the gateway.
  */
-export function keepRegistered(registration: Registration, options: KeepRegisteredOptions = {}): KeptRegistration {
+export function keepRegistered(
+  registration: Registration,
+  options: KeepRegisteredOptions = {},
+): KeptRegistration {
   const stopping = new AbortController();
   const running = keepRunning({
     signal: stopping.signal,

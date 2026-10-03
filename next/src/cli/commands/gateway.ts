@@ -29,7 +29,7 @@ const serve: Command = {
     return serveUntilStopped(
       io,
       () => startGateway({ web }),
-      (gateway) => ({ event: "listening", socket: gateway.socket, webPort: gateway.webPort ?? null, pid: process.pid }),
+      ({ socket, webPort }) => ({ event: "listening", socket, webPort: webPort ?? null, pid: process.pid }),
     );
   },
 };
@@ -50,8 +50,7 @@ const status: Command = {
   name: "gateway status",
   usage: "",
   summary: "List the programs registered with this machine's gateway: kind, name, version and pid.",
-  details:
-    "A version that differs from this command's own is marked. Exits 1 if no gateway is running.",
+  details: "A version that differs from this command's own is marked. Exits 1 if no gateway is running.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
@@ -82,8 +81,14 @@ function renderPrograms(programs: Registration[], own: string): string[] {
   if (programs.length === 0) return ["No programs are registered."];
   const header = ["kind", "name", "version", "pid"];
   const rows = programs.map((program) => [program.kind, program.name, program.version, String(program.pid)]);
-  const widths = header.map((title, column) => Math.max(title.length, ...rows.map((row) => row[column]?.length ?? 0)));
-  const line = (cells: string[]): string => cells.map((cell, column) => cell.padEnd(widths[column] ?? 0)).join("  ").trimEnd();
+  const widths = header.map((title, column) =>
+    Math.max(title.length, ...rows.map((row) => row[column]?.length ?? 0)),
+  );
+  const line = (cells: string[]): string =>
+    cells
+      .map((cell, column) => cell.padEnd(widths[column] ?? 0))
+      .join("  ")
+      .trimEnd();
   return [
     line(header),
     ...rows.map((row, index) => {
