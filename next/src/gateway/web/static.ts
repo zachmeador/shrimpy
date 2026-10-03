@@ -3,6 +3,7 @@ import { realpath, stat } from "node:fs/promises";
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pipeline } from "node:stream";
+import { decodeUri } from "../../lib/uri/index.ts";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -59,7 +60,7 @@ async function locate(
   root: string,
   url: string,
 ): Promise<{ path: string; size: number } | undefined> {
-  const requested = decode(url.split("?", 1)[0] ?? "");
+  const requested = decodeUri(url.split("?", 1)[0] ?? "");
   if (requested === undefined || requested.includes("\0")) return undefined;
   try {
     // The leading dot keeps even a path like `//etc/passwd` relative to the root.
@@ -80,12 +81,4 @@ async function locate(
 function isInside(root: string, path: string): boolean {
   const from = relative(root, path);
   return from !== ".." && !from.startsWith(`..${sep}`) && !isAbsolute(from);
-}
-
-function decode(path: string): string | undefined {
-  try {
-    return decodeURIComponent(path);
-  } catch {
-    return undefined;
-  }
 }

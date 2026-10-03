@@ -1,3 +1,4 @@
+import { decodeUri } from "../../lib/uri/index.ts";
 import type { Registration } from "./services.ts";
 
 /** Names the gateway's Unix socket in the runtime directory. A machine has one gateway. */
@@ -33,14 +34,6 @@ export function parseWebSocketPath(path: string): WebTarget | undefined {
   if (rest.length === 1 && rest[0] === "gateway") return "gateway";
   const [kind, encodedName] = rest;
   if (rest.length !== 2 || !isProgramKind(kind) || encodedName === undefined) return undefined;
-  const name = decode(encodedName);
+  const name = decodeUri(encodedName);
   return name === undefined || name === "" ? undefined : { kind, name };
-}
-
-function decode(segment: string): string | undefined {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return undefined;
-  }
 }
