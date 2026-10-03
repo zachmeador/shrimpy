@@ -1,7 +1,7 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: proposal for review. Implementation has not started.
+Status: experience decisions reviewed on 2026-10-03. Implementation has not started. A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads hosted on a gateway, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
