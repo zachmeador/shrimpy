@@ -47,6 +47,24 @@ test("a browser reads the registry and reaches a registered program through the 
   }
 });
 
+test("a browser can list programs but cannot register one", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway({ web: { port: 0 } });
+  const port = webPortOf(gateway);
+  const browser = await connectGateway({
+    transportFactory: webSocketTransport(`ws://127.0.0.1:${port}${webSocketPath("gateway")}`),
+  });
+  try {
+    await assert.rejects(browser.register(agent("planted")), /Only a program on the gateway's machine/);
+
+    assert.deepEqual(await browser.list(), []);
+    assert.equal(await handshakeStatus(port, webSocketPath({ kind: "agent", name: "planted" })), 404);
+  } finally {
+    await browser.close();
+    await gateway.close();
+  }
+});
+
 test("a program that leaves the registry can no longer be reached from a browser", { timeout }, async (t) => {
   freshRuntime(t);
   const gateway = await startGateway({ web: { port: 0 } });

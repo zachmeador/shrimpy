@@ -16,7 +16,11 @@ export interface Registration {
  * connects things; it never holds an agent's home, its work or a conversation.
  */
 export interface Gateway {
-  /** Announce this program. The registration lasts as long as this connection. */
+  /**
+   * Announce this program. The registration lasts as long as this connection.
+   * Only a program on the gateway's machine can register: a connection that
+   * came through the browser entry is refused.
+   */
   register(registration: Registration, context: Context): Promise<void>;
   list(context: Context): Promise<Registration[]>;
 }

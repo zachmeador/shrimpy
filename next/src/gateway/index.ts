@@ -38,7 +38,9 @@ export async function startGateway(options: GatewayOptions = {}): Promise<Runnin
       options.web === undefined
         ? undefined
         : await startWeb(options.web, (target) =>
-            target === "gateway" ? server.socket : registry.find(target.kind, target.name)?.socket,
+            target === "gateway"
+              ? server.listingSocket
+              : registry.find(target.kind, target.name)?.socket,
           );
     return {
       socket: server.socket,

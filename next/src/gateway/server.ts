@@ -19,46 +19,67 @@ import { InvalidRegistrationError, type Registry } from "./registry/index.ts";
 export interface GatewayServer {
   /** The Unix socket programs connect to. */
   readonly socket: string;
+  /**
+   * The socket the browser entry pipes to. A registration names a socket the
+   * entry will then pipe to, so a page that could register could reach any
+   * socket this user can. Connections here can list programs, never register.
+   */
+  readonly listingSocket: string;
   close(): Promise<void>;
 }
 
-/** Serve the gateway contract for `registry` on this machine's gateway socket. The lock comes first. */
+/** Who is on the other end: a program on this machine, or a page that came through the browser entry. */
+type Peer = "program" | "browser";
+
+/** Serve the gateway contract for `registry` on this machine's gateway sockets. The lock comes first. */
 export async function startServer(registry: Registry): Promise<GatewayServer> {
   const socket = namedSocketPath(GATEWAY_SOCKET_NAME);
+  const listingSocket = namedSocketPath(`${GATEWAY_SOCKET_NAME}-listing`);
   const lock = takeGatewayLock(socket);
+  const servers: Server[] = [];
+  const close = async (): Promise<void> => {
+    try {
+      await Promise.all(servers.splice(0).map((server) => server.close()));
+    } finally {
+      lock.release();
+    }
+  };
   try {
-    // This process holds the lock, so a socket left at its path is stale.
-    rmSync(socket, { force: true });
-    const server = new Server(serverHost(registry), {
-      serverId: GATEWAY_SERVER_ID,
-      listeners: [createUnixListener({ path: socket })],
-      onError: (error) => console.error("[gateway]", error.message),
-    });
-    await server.start();
-    return {
-      socket,
-      async close() {
-        try {
-          await server.close();
-        } finally {
-          lock.release();
-        }
-      },
-    };
+    servers.push(await serve(socket, serverHost(registry, "program")));
+    servers.push(await serve(listingSocket, serverHost(registry, "browser")));
+    return { socket, listingSocket, close };
   } catch (error) {
-    lock.release();
+    await close();
     throw error;
   }
 }
 
-/** Each connection can hold one registration, which is dropped when the connection ends. */
-function serverHost(registry: Registry): ServerHost {
+async function serve(path: string, host: ServerHost): Promise<Server> {
+  // This process holds the lock, so a socket left at this path is stale.
+  rmSync(path, { force: true });
+  const server = new Server(host, {
+    serverId: GATEWAY_SERVER_ID,
+    listeners: [createUnixListener({ path })],
+    onError: (error) => console.error("[gateway]", error.message),
+  });
+  await server.start();
+  return server;
+}
+
+/** A program's connection can hold one registration, which is dropped when the connection ends. */
+function serverHost(registry: Registry, peer: Peer): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient() {
-      const connection = registry.connect();
+      const connection = peer === "program" ? registry.connect() : undefined;
       const provider = new RemoteServiceProvider([{ service: Gateway, mode: "singleton" }]);
       provider.provide(Gateway, {
         register: async (registration) => {
+          if (connection === undefined) {
+            throw new RemoteServiceError(
+              "service_not_allowed",
+              "Only a program on the gateway's machine can register. A browser can list what is running.",
+            );
+          }
           try {
             connection.register(registration);
           } catch (error) {
@@ -75,7 +96,7 @@ function serverHost(registry: Registry): ServerHost {
       return {
         invokeService: (call, publish, callContext) => remote.invoke(call, publish, callContext),
         release() {
-          connection.close();
+          connection?.close();
           remote.dispose();
           provider.dispose();
         },

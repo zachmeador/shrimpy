@@ -37,8 +37,9 @@ test("a second gateway is refused and the first is undisturbed", { timeout }, as
         error.message.includes("already running"),
     );
 
+    // Only the first gateway's own files: its two sockets and its lock.
     assert.deepEqual(
-      readdirSync(runtime).filter((name) => !name.startsWith("gateway.sock")),
+      readdirSync(runtime).filter((name) => !name.startsWith("gateway")),
       [],
     );
     assert.deepEqual(await program.list(), [one]);
