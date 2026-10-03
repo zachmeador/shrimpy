@@ -54,6 +54,7 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | Chat server | Keeps channels, threads, messages and attachments, and bridges chat providers in. |
 | Gateway | Connects clients, agents and the chat server, and keeps the workspace's configuration. It never hosts agents or conversations. |
 | Workspace context | The shared `context/` files every agent reads, hosted by the gateway. |
+| Route | Where Pi's server sends a connection that asks to watch something: a thread on the chat server, a session on an agent. Pi calls it a session. |
 
 ## Plan at a glance
 
@@ -205,7 +206,12 @@ The builders made these visible choices while implementing phase 1. None has shi
 | Names | Member and thread names hold up to 200 characters on one line. |
 | Gateway in a browser | `/ws/gateway` and `/ws/<kind>/<name>`, on IPv4 loopback only, with no default port yet. Static files have no fallback page and no cache or security headers, and dotfiles are served. |
 | Two programs with one name | The gateway doesn't refuse the second registration; the newest is the one reached. |
-| A second chat server | Refused with "A chat server is already running on `<socket>`. Use that one, or stop it before starting another." |
+| A second chat server | Refused with "A chat server is already running on `<socket>`. Use that one, or stop it before starting another." On the same data directory the refusal is "Another chat server is using the data in …". |
+| Leaving a receipt | The call is `leaveReceipt`, for 1 to 200 messages at once. A failure's reason holds up to 500 characters. An agent can leave a receipt on its own message and in an archived thread. |
+| `gateway serve` | `--web-port` opens the browser entry and `--web-dir` serves files from a directory. It prints one JSON line when listening. |
+| `gateway status` | Lists registered programs as kind, name, version and pid, and marks a version that differs from the command's own. It exits 1 when no gateway is running. |
+| `chat serve` | Makes its data directory if it's missing and always registers with the gateway. A failed attempt to register prints one line each time. |
+| Shrimpy's version | `0.0.0`, the same as `next/package.json`. |
 | A lock that fails for another reason | An unwritable runtime folder shows the underlying error, not "Another process owns the agent home". |
 
 ## Not built
@@ -419,7 +425,8 @@ The tree is organized by program. Shrimpy is three programs (an agent, the chat 
 
 ```text
 src/
-  contracts/        the only code programs share
+  contracts/        the only code programs share: each contract's shapes and its client caller,
+                    and for the gateway, the loop that keeps a program registered
     agent/          the agent API: sessions, control, offers, login prompts
     chat/           the chat API: channels, threads, messages, attachments
     gateway/        registration, discovery and routing
@@ -472,7 +479,7 @@ Keep this simple:
 - Every module has one front door, `index.ts`. A file imports files in its own directory or another directory's front door, and nothing else. `contracts/`, `lib/` and `clients/` only group modules, so they have no door of their own.
 - Each front door opens with a short comment saying what the module is for and what it must not know about.
 - Tests sit next to the code they cover, as `*.test.ts`.
-- A module whose API partly needs Node offers that part through a second door, `node.ts`. Browser-safe code, meaning the web client and the contracts' main doors, can't import it.
+- A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the contracts' main doors, and every `lib/` module's main door with everything behind it.
 - Test support lives in a `testing/` module that only tests import.
 - ESLint enforces the import table, the front doors and the Pi package rules from a module's first commit, through one local rule in `next/lint/boundaries.js` with its own tests. `npm run check` in `next/` runs types, lint and tests.
 

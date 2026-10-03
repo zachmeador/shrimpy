@@ -10,19 +10,26 @@ As of 2026-10-03. The list is empty before each review pause.
 
 - The agent contract says `abort` where the plan says `stop`.
 - The agent still has a main session, and sessions are numbered instead of being addressed by their thread.
-- The chat contract has `skippedBy` and `markSkipped` where the plan has receipts.
-- Registrations carry no version.
 - OAuth sign-in isn't built. The plan keeps it.
-- The chat server and the gateway have no commands yet, so they're only reachable as libraries.
+- The commands for talking don't exist yet: `up`, `run`, `threads` and `read`.
+- A version mismatch is reported only by `gateway status`. Programs don't compare versions when they connect, and the gateway doesn't report its own.
+- A gateway that accepts a connection and then stops answering can hold up a chat server's shutdown.
+- A second chat server refused for the socket still creates an empty store in its own data directory first.
+- The loop that keeps a program registered only reaches a gateway on the same machine. It doesn't take a transport yet.
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes.
-- The lint doesn't check that a `lib/` module used by browser code is itself safe for browsers. Only the contracts' bundle tests would catch it.
-- `lib/connection` and `lib/offer` say "session" for what Pi routes to. This plan keeps that word for an agent's private work, and for the chat server the route is a thread.
 - Only `agent/sessions/` reads Pi's records, as the plan requires, but that holds by convention. The lint only keeps Pi's durable package inside `agent/`.
 - Not built yet from the layout: `agent/intake/`, `agent/extensions/`, `chat/providers/` and `clients/`.
 
 ## Log
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**Phase 1 progress, 2026-10-03: receipts, versions and the serve commands are in.** Agents leave receipts on messages in place of the skipped mark, registrations carry Shrimpy's version, the chat server stays registered with the gateway, and `shrimpy gateway serve`, `gateway status` and `chat serve` exist. `lib/` says "route" where it said "session", and the lint keeps every `lib/` main door safe for browsers.
+
+- A failed receipt must carry its reason. The builder had left it optional, which the plan didn't allow.
+- The loop that keeps a program registered lives in the gateway contract's Node door. The plan was silent on where it belongs; a contract's client caller is the closest home, since both the chat server and the agent need it.
+- A silent receipt reaches every reader in `Message.receipts`. Not drawing it is each client's job.
+- `next/src/` now holds 5,966 lines of product code, 9,432 of tests and 1,582 of test support.
 
 **The MVP, 2026-10-03.** A core part of it is opening the terminal, browsing the agents that have joined the Shrimpy network and seeing their sessions, along with talking in threads. Phase 1 is now the MVP, and it gained joining with a token, the gateway's network entry, and routing to an agent that only connects out. Joining from another machine is part of the MVP but comes last: it waits for a VM on the LAN to test on, and using the MVP on this machine doesn't wait for it.
 
