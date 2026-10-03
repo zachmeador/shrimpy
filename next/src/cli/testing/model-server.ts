@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 /** One chat-completions request that reached the server. */
 export interface ModelRequest {
   headers: IncomingMessage["headers"];
-  body: { model: string; messages: { role: string; content?: unknown }[] };
+  body: { model: string; messages: { role: string; content?: unknown; [field: string]: unknown }[] };
 }
 
 export interface ModelServer {
@@ -16,7 +16,8 @@ export interface ModelServer {
 
 /**
  * A model on a local port that speaks OpenAI's chat-completions protocol, for
- * tests that run the whole CLI. What it does depends on the latest user message:
+ * tests that run the whole CLI. It streams its thinking first, as reasoning
+ * models do. What it does after that depends on the latest user message:
  *
  * - "run": call the bash tool to echo `shrimpy-ok`, then report what it printed
  * - "slow": stream words for several seconds, until the client hangs up
@@ -73,8 +74,16 @@ function finish(response: ServerResponse, reason: string): void {
   response.end("data: [DONE]\n\n");
 }
 
+/** Like Qwen-style servers, think out loud in `reasoning_content` before answering. */
+function think(response: ServerResponse): void {
+  for (const words of ["Let me ", "think about it."]) {
+    chunk(response, [{ index: 0, delta: { role: "assistant", reasoning_content: words }, finish_reason: null }]);
+  }
+}
+
 function say(response: ServerResponse, text: string): void {
-  chunk(response, [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }]);
+  think(response);
+  chunk(response, [{ index: 0, delta: { content: text }, finish_reason: null }]);
   finish(response, "stop");
 }
 
@@ -85,7 +94,8 @@ function callTool(response: ServerResponse): void {
     type: "function",
     function: { name: "bash", arguments: JSON.stringify({ command: "echo shrimpy-ok" }) },
   };
-  chunk(response, [{ index: 0, delta: { role: "assistant", tool_calls: [call] }, finish_reason: null }]);
+  think(response);
+  chunk(response, [{ index: 0, delta: { tool_calls: [call] }, finish_reason: null }]);
   finish(response, "tool_calls");
 }
 

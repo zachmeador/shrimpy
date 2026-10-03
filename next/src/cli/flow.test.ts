@@ -88,14 +88,19 @@ test("a turn that uses a shell tool runs through the CLI from init to stop", { t
     ["user", "assistant", "tool", "assistant"],
   );
   assert.deepEqual(view.status.model, { provider: "local", id: "test-model" });
+  const thinking = view.items.flatMap((item) => (item.type === "assistant" ? [item.thinking] : []));
+  assert.deepEqual(thinking, ["Let me think about it.", "Let me think about it."]);
 
   // The placeholder key reached the server, and the flags in models.json shaped the request.
-  assert.ok(model.requests.length >= 2);
+  assert.equal(model.requests.length, 2);
   for (const request of model.requests) {
     assert.equal(request.headers.authorization, "Bearer local");
     assert.equal(request.body.model, "test-model");
     assert.equal(request.body.messages[0]?.role, "system");
   }
+  // The model's own thinking goes back to it with the history, from what the agent stored.
+  const earlierAnswer = model.requests[1]?.body.messages.find((message) => message.role === "assistant");
+  assert.equal(earlierAnswer?.reasoning_content, "Let me think about it.");
 
   assert.equal(await stop(), 0);
   const after = await run("agent", "status", home);
