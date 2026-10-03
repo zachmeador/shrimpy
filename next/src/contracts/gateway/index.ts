@@ -1,8 +1,10 @@
 /**
  * The gateway API: how programs find each other, and how a browser reaches
  * them through the gateway's WebSocket entry. It must not know what the
- * programs it connects say to each other. This door is safe for browsers.
+ * programs it connects say to each other. This door is safe for browsers;
+ * `node.ts` adds the part that needs Node.
  */
+export { connectGateway, type GatewayConnection } from "./connect.ts";
 export {
   GATEWAY_SERVER_ID,
   GATEWAY_SOCKET_NAME,

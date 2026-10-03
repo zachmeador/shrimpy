@@ -1,0 +1,227 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { test } from "node:test";
+import type { Registration } from "../contracts/gateway/index.ts";
+import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { GatewayRunningError, startGateway } from "./index.ts";
+import { eventually, freshRuntime, startChild, stop } from "./testing/index.ts";
+
+const timeout = 30_000;
+
+function agent(name: string, socket = `/tmp/${name}.sock`): Registration {
+  return { kind: "agent", name, serverId: randomUUID(), socket, pid: process.pid };
+}
+
+test("a registration is listed to every client", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  const program = await connectLocalGateway();
+  const observer = await connectLocalGateway();
+  try {
+    assert.deepEqual(await observer.list(), []);
+
+    const researcher = agent("researcher");
+    await program.register(researcher);
+
+    assert.deepEqual(await observer.list(), [researcher]);
+    assert.deepEqual(await program.list(), [researcher]);
+  } finally {
+    await program.close();
+    await observer.close();
+    await gateway.close();
+  }
+});
+
+test("registering again on a connection replaces its entry", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  const first = await connectLocalGateway();
+  const second = await connectLocalGateway();
+  try {
+    const one = agent("one");
+    const chat: Registration = { ...agent("chat"), kind: "chat" };
+    await first.register(one);
+    await second.register(chat);
+
+    const restarted = { ...one, socket: "/tmp/one-restarted.sock" };
+    await first.register(restarted);
+
+    assert.deepEqual(await second.list(), [chat, restarted]);
+  } finally {
+    await first.close();
+    await second.close();
+    await gateway.close();
+  }
+});
+
+test("a registration lasts exactly as long as its connection", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  const first = await connectLocalGateway();
+  const second = await connectLocalGateway();
+  const observer = await connectLocalGateway();
+  try {
+    const one = agent("one");
+    const two = agent("two");
+    await first.register(one);
+    await second.register(two);
+    assert.deepEqual(await observer.list(), [one, two]);
+
+    await first.close();
+
+    await eventually(() => observer.list(), (list) => list.length === 1);
+    assert.deepEqual(await observer.list(), [two]);
+  } finally {
+    await first.close();
+    await second.close();
+    await observer.close();
+    await gateway.close();
+  }
+});
+
+test("a registration disappears when its process is killed", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  const observer = await connectLocalGateway();
+  const child = await startChild("registrant-child.ts", ["victim"]);
+  try {
+    const listed = await observer.list();
+    assert.equal(listed.length, 1);
+    const [victim] = listed;
+    assert.equal(victim?.name, "victim");
+    assert.equal(victim.pid, child.pid);
+
+    await stop(child, "SIGKILL");
+
+    await eventually(() => observer.list(), (list) => list.length === 0);
+  } finally {
+    await stop(child, "SIGKILL");
+    await observer.close();
+    await gateway.close();
+  }
+});
+
+test("a registration that cannot be accepted is refused with the reason", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  const program = await connectLocalGateway();
+  const observer = await connectLocalGateway();
+  try {
+    const one = agent("one");
+    await assert.rejects(
+      program.register({ ...one, kind: "robot" } as unknown as Registration),
+      /kind must be "agent" or "chat"/,
+    );
+    await assert.rejects(program.register({ ...one, socket: "one.sock" }), /socket must be an absolute path/);
+    assert.deepEqual(await observer.list(), []);
+
+    await program.register(one);
+    assert.deepEqual(await observer.list(), [one]);
+  } finally {
+    await program.close();
+    await observer.close();
+    await gateway.close();
+  }
+});
+
+test("a second gateway is refused and the first is undisturbed", { timeout }, async (t) => {
+  const runtime = freshRuntime(t);
+  const first = await startGateway();
+  const program = await connectLocalGateway();
+  let dropped = false;
+  program.onDisconnect(() => {
+    dropped = true;
+  });
+  try {
+    const one = agent("one");
+    await program.register(one);
+
+    await assert.rejects(
+      startGateway(),
+      (error) =>
+        error instanceof GatewayRunningError &&
+        error.socket === first.socket &&
+        error.message.includes("already running"),
+    );
+
+    assert.deepEqual(
+      readdirSync(runtime).filter((name) => !name.startsWith("gateway.sock")),
+      [],
+    );
+    assert.deepEqual(await program.list(), [one]);
+    assert.equal(dropped, false);
+    const newcomer = await connectLocalGateway();
+    try {
+      assert.deepEqual(await newcomer.list(), [one]);
+    } finally {
+      await newcomer.close();
+    }
+  } finally {
+    await program.close();
+    await first.close();
+  }
+});
+
+test("gateways started at the same moment cannot both run", { timeout }, async (t) => {
+  freshRuntime(t);
+  const results = await Promise.allSettled([startGateway(), startGateway(), startGateway()]);
+  try {
+    const started = results.filter((result) => result.status === "fulfilled");
+    const refused = results.filter((result) => result.status === "rejected");
+    assert.equal(started.length, 1);
+    assert.equal(refused.length, 2);
+    for (const { reason } of refused) assert.ok(reason instanceof GatewayRunningError);
+
+    const client = await connectLocalGateway();
+    try {
+      assert.deepEqual(await client.list(), []);
+    } finally {
+      await client.close();
+    }
+  } finally {
+    for (const result of results) {
+      if (result.status === "fulfilled") await result.value.close();
+    }
+  }
+});
+
+test("a gateway that was killed leaves a socket that the next one replaces", { timeout }, async (t) => {
+  const runtime = freshRuntime(t);
+  const child = await startChild("gateway-child.ts");
+  await stop(child, "SIGKILL");
+  assert.ok(existsSync(join(runtime, "gateway.sock")));
+
+  const gateway = await startGateway();
+  const client = await connectLocalGateway();
+  try {
+    assert.deepEqual(await client.list(), []);
+  } finally {
+    await client.close();
+    await gateway.close();
+  }
+});
+
+test("closing the gateway drops its connections and its socket, and another can start", { timeout }, async (t) => {
+  freshRuntime(t);
+  const gateway = await startGateway();
+  const program = await connectLocalGateway();
+  const ended = new Promise<void>((resolve) => program.onDisconnect(() => resolve()));
+  await program.register(agent("one"));
+
+  await gateway.close();
+
+  await ended;
+  assert.equal(existsSync(gateway.socket), false);
+  await program.close();
+
+  const again = await startGateway();
+  const client = await connectLocalGateway();
+  try {
+    assert.deepEqual(await client.list(), []);
+  } finally {
+    await client.close();
+    await again.close();
+  }
+});
