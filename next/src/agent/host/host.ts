@@ -32,7 +32,10 @@ export interface Host {
   readonly harness: Harness;
   /** The session every agent has. */
   readonly main: Conversation;
-  /** Wait until no session has work running, or until `signal` aborts. Work still running then is left for `close()` to pause. */
+  /**
+   * Wait until no session has work running, or until `signal` aborts. Work
+   * still running then is left for `close()` to pause.
+   */
   settle(signal: AbortSignal): Promise<void>;
   /** Pause whatever is running, in a way the next start resumes, and release the home. */
   close(): Promise<void>;

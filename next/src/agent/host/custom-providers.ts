@@ -36,7 +36,8 @@ export function readCustomProviders(file: string): CustomProvider[] {
     if (!ID.test(id)) {
       throw declared.problem(
         id,
-        "is not a usable provider ID. Use letters, digits, dots, hyphens and underscores, starting with a letter or digit",
+        "is not a usable provider ID. Use letters, digits, dots, hyphens and underscores, " +
+          "starting with a letter or digit",
       );
     }
     return parseProvider(id, provider);
@@ -101,6 +102,9 @@ function parseCost(cost: ConfigObject | undefined): Model<"openai-completions">[
 function checkUrl(provider: ConfigObject, baseUrl: string): void {
   const url = URL.canParse(baseUrl) ? new URL(baseUrl) : undefined;
   if (url?.protocol !== "http:" && url?.protocol !== "https:") {
-    throw provider.problem("baseUrl", `must be an http or https URL, such as http://localhost:11434/v1, not "${baseUrl}"`);
+    throw provider.problem(
+      "baseUrl",
+      `must be an http or https URL, such as http://localhost:11434/v1, not "${baseUrl}"`,
+    );
   }
 }

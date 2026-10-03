@@ -36,7 +36,8 @@ const init: Command = {
     }
     io.out(`Created the agent ${values.name} in ${paths.root}, with the model ${modelLabel(model)}.`);
     io.out(
-      `Give it access to that model by declaring its provider in ${paths.models} or adding a key to ${paths.auth}. Then run:`,
+      "Give it access to that model by declaring its provider in " +
+        `${paths.models} or adding a key to ${paths.auth}. Then run:`,
     );
     io.out(`  shrimpy agent serve ${paths.root}`);
     return 0;
@@ -54,7 +55,11 @@ function modelFromFlag(flag: string): ModelChoice {
 const serve: Command = {
   name: "agent serve",
   usage: "<home> [--now]",
-  summary: "Run the agent in the foreground until it is told to stop, with SIGTERM or Ctrl+C.",
+  summary: "Run the agent in the foreground until it is told to stop.",
+  details:
+    "Prints one JSON line when it is listening. SIGTERM or Ctrl+C stops it: it stops taking input, gives " +
+    "running turns up to five seconds to finish, then closes, and work that did not finish resumes at the " +
+    "next start. --now skips the wait, and so does a second signal during it.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { now: { type: "boolean" } }, allowPositionals: true }),
@@ -90,7 +95,8 @@ const serve: Command = {
 const status: Command = {
   name: "agent status",
   usage: "<home>",
-  summary: "Print whether an agent is running at the home and how to reach it. Exits 1 if none is.",
+  summary: "Say whether an agent is running at the home, and how to reach it.",
+  details: "Prints one JSON line. Exits 0 if an agent is running and 1 if not.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [given] = expectArguments(positionals, ["<home>"]);

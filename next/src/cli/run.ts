@@ -25,7 +25,7 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     return 2;
   }
   if (rest.includes("--help") || rest.includes("-h")) {
-    io.out(`${describe(command)}\n  ${command.summary}`);
+    io.out([describe(command), "", command.summary, command.details].filter((line) => line !== undefined).join("\n"));
     return 0;
   }
 
@@ -47,6 +47,9 @@ function describe(command: Command): string {
 }
 
 async function overview(): Promise<string> {
-  const lines = (await loadAll()).flatMap((command) => [`  ${command.name} ${command.usage}`, `      ${command.summary}`]);
+  const lines = (await loadAll()).flatMap((command) => [
+    `  ${command.name} ${command.usage}`,
+    `      ${command.summary}`,
+  ]);
   return ["Usage: shrimpy <command> [arguments]", "", "Commands:", ...lines].join("\n");
 }

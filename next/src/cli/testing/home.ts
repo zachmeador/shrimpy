@@ -14,7 +14,8 @@ export function declareLocalModel(home: string, options: { url: string; model: s
     compat: { supportsDeveloperRole: false, supportsStore: false, supportsReasoningEffort: false },
     models: [{ id: options.model, reasoning: true, contextWindow: 262_144, maxTokens: 65_536 }],
   };
-  writeFileSync(join(home, "state", "pi", "models.json"), JSON.stringify({ providers: { local: provider } }, null, 2));
+  const models = JSON.stringify({ providers: { local: provider } }, null, 2);
+  writeFileSync(join(home, "state", "pi", "models.json"), models);
 }
 
 /** Resolve once `done` is true, checking every 20 ms. */

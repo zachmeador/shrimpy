@@ -10,14 +10,24 @@ import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { startServer } from "./server.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 
-export { type InitOptions, type InitResult, initHome, type ModelChoice, modelLabel, parseModelChoice } from "./home/index.ts";
+export {
+  type InitOptions,
+  type InitResult,
+  initHome,
+  type ModelChoice,
+  modelLabel,
+  parseModelChoice,
+} from "./home/index.ts";
 export type { CloseOptions } from "./stop.ts";
 
 export type AgentOptions = HostOptions;
 
 export interface RunningAgent {
   readonly endpoint: AgentEndpoint;
-  /** Stop taking input, let running turns finish for a short while, then close. Unfinished work resumes at the next start. */
+  /**
+   * Stop taking input, let running turns finish for a short while, then close.
+   * Unfinished work resumes at the next start.
+   */
   close(options?: CloseOptions): Promise<void>;
 }
 
@@ -49,7 +59,11 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
 export async function startHomeAgent(home: string): Promise<HomeAgent> {
   const loaded = loadHome(home);
   const model = { provider: loaded.model.provider, modelId: loaded.model.id };
-  const models = await buildModels({ modelsFile: loaded.paths.models, authFile: loaded.paths.auth, model });
+  const models = await buildModels({
+    modelsFile: loaded.paths.models,
+    authFile: loaded.paths.auth,
+    model,
+  });
   const agent = await startAgent({
     home: loaded.paths.root,
     models,

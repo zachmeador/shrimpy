@@ -143,8 +143,9 @@ export class ConfigObject {
     const unknown = Object.keys(this.#value).filter((key) => !this.#known.has(key));
     if (unknown.length === 0) return;
     const where = this.#path === "" ? "the file" : this.#path;
+    const supported = [...this.#known].join(", ");
     throw new ConfigError(
-      `${this.#file}: ${where} has unsupported keys: ${unknown.join(", ")}. Supported keys: ${[...this.#known].join(", ")}.`,
+      `${this.#file}: ${where} has unsupported keys: ${unknown.join(", ")}. Supported keys: ${supported}.`,
     );
   }
 

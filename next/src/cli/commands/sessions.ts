@@ -45,8 +45,10 @@ const read: Command = {
 const steer: Command = {
   name: "sessions steer",
   usage: "<home> <text> [--request-id <id>] [--wait]",
-  summary:
-    "Give the main session input; it joins work already running. With --wait, print the answer and exit 0 when answered, 1 when it failed or ended without an answer, 130 when cancelled.",
+  summary: "Give the main session input; it joins work already running.",
+  details:
+    "With --wait, print the answer and exit 0 when the input was answered, 1 when it failed or ended " +
+    "without an answer, and 130 when it was cancelled. A retry with the same --request-id is the same input.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -78,7 +80,8 @@ function report(settlement: Settlement, io: Io): number {
       io.err("The input was cancelled before it was answered.");
       return CANCELLED;
     case "unanswered": {
-      const why = settlement.detail === null ? settlement.reason : `${settlement.reason}: ${settlement.detail}`;
+      const why =
+        settlement.detail === null ? settlement.reason : `${settlement.reason}: ${settlement.detail}`;
       io.err(`The input ended without an answer (${why}).`);
       return 1;
     }
@@ -88,7 +91,8 @@ function report(settlement: Settlement, io: Io): number {
 const stop: Command = {
   name: "sessions stop",
   usage: "<home>",
-  summary: "Cancel the main session's current work and withdraw input it has not picked up. The agent keeps running.",
+  summary: "Cancel the main session's current work and withdraw input it has not picked up.",
+  details: "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [home] = expectArguments(positionals, ["<home>"]);

@@ -64,9 +64,12 @@ export async function serve(t: TestContext, home: string, extra: string[] = []):
   const listening = new Promise<ServedAgent["listening"]>((resolve, reject) => {
     child.stdout.on("data", () => {
       const { stdout } = result();
-      if (stdout.includes("\n")) resolve(JSON.parse(stdout.slice(0, stdout.indexOf("\n"))) as ServedAgent["listening"]);
+      const end = stdout.indexOf("\n");
+      if (end !== -1) resolve(JSON.parse(stdout.slice(0, end)) as ServedAgent["listening"]);
     });
-    void closed.then(() => reject(new Error(`shrimpy agent serve ended before it was listening:\n${result().stderr}`)));
+    void closed.then(() => {
+      reject(new Error(`shrimpy agent serve ended before it was listening:\n${result().stderr}`));
+    });
   });
   return { listening: await listening, stop };
 }

@@ -49,8 +49,9 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
   const asked = typeof user?.content === "string" ? user.content : "";
 
   if (asked.includes("refuse")) {
+    const error = { message: "The test model refuses this request.", type: "invalid_request_error" };
     response.writeHead(400, { "content-type": "application/json" });
-    response.end(JSON.stringify({ error: { message: "The test model refuses this request.", type: "invalid_request_error" } }));
+    response.end(JSON.stringify({ error }));
     return;
   }
   response.writeHead(200, { "content-type": "text/event-stream" });
@@ -62,7 +63,8 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
 }
 
 function chunk(response: ServerResponse, choices: object[], usage?: object): void {
-  response.write(`data: ${JSON.stringify({ id: "test", object: "chat.completion.chunk", created: 1, model: "test", choices, usage })}\n\n`);
+  const body = { id: "test", object: "chat.completion.chunk", created: 1, model: "test", choices, usage };
+  response.write(`data: ${JSON.stringify(body)}\n\n`);
 }
 
 function finish(response: ServerResponse, reason: string): void {
@@ -77,7 +79,12 @@ function say(response: ServerResponse, text: string): void {
 }
 
 function callTool(response: ServerResponse): void {
-  const call = { index: 0, id: "call_1", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: "echo shrimpy-ok" }) } };
+  const call = {
+    index: 0,
+    id: "call_1",
+    type: "function",
+    function: { name: "bash", arguments: JSON.stringify({ command: "echo shrimpy-ok" }) },
+  };
   chunk(response, [{ index: 0, delta: { role: "assistant", tool_calls: [call] }, finish_reason: null }]);
   finish(response, "tool_calls");
 }

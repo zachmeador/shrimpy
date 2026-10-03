@@ -50,7 +50,11 @@ test("an unknown command is refused with the list of commands", async () => {
 test("a command's help names its usage and what it does", async () => {
   const result = await run("sessions", "steer", "--help");
   assert.equal(result.code, 0);
-  assert.match(result.out, /^Usage: shrimpy sessions steer <home> <text> \[--request-id <id>\] \[--wait\]\n {2}Give the main session input/);
+  assert.match(
+    result.out,
+    /^Usage: shrimpy sessions steer <home> <text> \[--request-id <id>\] \[--wait\]\n\nGive the main session input; it joins work already running\.\nWith --wait, print the answer and exit 0 /,
+  );
+  assert.match(result.out, /130 when it was cancelled\./);
 });
 
 test("a command used wrongly exits with 2 and shows its usage", async () => {

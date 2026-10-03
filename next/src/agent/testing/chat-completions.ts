@@ -29,8 +29,10 @@ export function stubChatCompletions(t: TestContext, answer: string): ChatRequest
 }
 
 function stream(answer: string): Response {
-  const chunk = (choices: object[], usage?: object): string =>
-    `data: ${JSON.stringify({ id: "stub", object: "chat.completion.chunk", created: 1, model: "stub", choices, usage })}\n\n`;
+  const chunk = (choices: object[], usage?: object): string => {
+    const body = { id: "stub", object: "chat.completion.chunk", created: 1, model: "stub", choices, usage };
+    return `data: ${JSON.stringify(body)}\n\n`;
+  };
   const body =
     chunk([{ index: 0, delta: { role: "assistant", content: answer }, finish_reason: null }]) +
     chunk([{ index: 0, delta: {}, finish_reason: "stop" }]) +

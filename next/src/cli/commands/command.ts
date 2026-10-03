@@ -6,7 +6,10 @@ export interface Command {
   readonly name: string;
   /** The arguments after the name, such as "<home> [--now]". */
   readonly usage: string;
+  /** One line, for the list of commands. */
   readonly summary: string;
+  /** More, for the command's own help. */
+  readonly details?: string;
   /** Run with the arguments after the name. The result is the exit code. */
   run(args: string[], io: Io): Promise<number>;
 }

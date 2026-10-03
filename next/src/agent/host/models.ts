@@ -95,16 +95,21 @@ async function requireUsable(models: Models, options: ModelRuntimeOptions, custo
       .sort()
       .join(", ");
     throw new ModelSetupError(
-      `The model ${providerId}/${modelId} names the provider "${providerId}", which is not declared in ${options.modelsFile} ` +
-        `(declared there: ${declared}) and is not built in (built in: ${builtin}).`,
+      `The model ${providerId}/${modelId} names the provider "${providerId}", ` +
+        `which is not declared in ${options.modelsFile} (declared there: ${declared}) ` +
+        `and is not built in (built in: ${builtin}).`,
     );
   }
   if (models.getModel(providerId, modelId) === undefined) {
     const ids = models.getModels(providerId).map(({ id }) => id);
     const shown = ids.slice(0, LISTED_MODELS).join(", ");
     const more = ids.length > LISTED_MODELS ? ` and ${ids.length - LISTED_MODELS} more` : "";
-    const where = custom.has(providerId) ? ` Add it under providers.${providerId}.models in ${options.modelsFile}.` : "";
-    throw new ModelSetupError(`The provider "${providerId}" has no model "${modelId}". It has: ${shown}${more}.${where}`);
+    const where = custom.has(providerId)
+      ? ` Add it under providers.${providerId}.models in ${options.modelsFile}.`
+      : "";
+    throw new ModelSetupError(
+      `The provider "${providerId}" has no model "${modelId}". It has: ${shown}${more}.${where}`,
+    );
   }
   if ((await models.checkAuth(providerId)) !== undefined) return;
   throw new ModelSetupError(missingKey(provider, custom.has(providerId), options));

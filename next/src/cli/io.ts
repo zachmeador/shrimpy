@@ -4,7 +4,10 @@ export interface Io {
   out(line: string): void;
   /** Print a line to standard error. */
   err(line: string): void;
-  /** Call `listener` each time the process is asked to stop, as SIGTERM and Ctrl+C do. Returns a function that stops listening. */
+  /**
+   * Call `listener` each time the process is asked to stop, as SIGTERM and
+   * Ctrl+C do. Returns a function that stops listening.
+   */
   onStop(listener: () => void): () => void;
 }
 
