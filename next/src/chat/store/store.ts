@@ -1,3 +1,4 @@
+import { createListeners } from "../../lib/listeners/index.ts";
 import { type ChannelOperations, channelOperations } from "./channels.ts";
 import type { Change } from "./changes.ts";
 import { openDatabase } from "./database.ts";
@@ -37,7 +38,7 @@ export function openStore(dataDir: string, options: StoreOptions = {}): Store {
   const db = openDatabase(dataDir);
   const sql = createSql(db);
   const onError = options.onError ?? reportToStderr;
-  const watchers = new Set<(change: Change) => void>();
+  const watchers = createListeners<Change>(onError);
   // Read through a function, so the compiler does not assume the answer it saw first still holds.
   const inTransaction = (): boolean => db.isTransaction;
   let closed = false;
@@ -59,24 +60,13 @@ export function openStore(dataDir: string, options: StoreOptions = {}): Store {
     } finally {
       active = false;
     }
-    for (const change of changes) {
-      for (const watcher of [...watchers]) {
-        try {
-          watcher(change);
-        } catch (error) {
-          onError(error instanceof Error ? error : new Error(String(error)));
-        }
-      }
-    }
+    for (const change of changes) watchers.notify(change);
     return result;
   }
 
   return {
     transaction,
-    subscribe(listener) {
-      watchers.add(listener);
-      return () => watchers.delete(listener);
-    },
+    subscribe: (listener) => watchers.add(listener),
     close() {
       if (closed) return;
       closed = true;

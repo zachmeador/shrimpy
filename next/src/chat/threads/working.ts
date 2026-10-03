@@ -1,4 +1,5 @@
 import type { Thread, Working } from "../../contracts/chat/index.ts";
+import { createListeners } from "../../lib/listeners/index.ts";
 import type { ThreadRecord } from "../store/index.ts";
 
 interface Mark {
@@ -35,17 +36,8 @@ export interface WorkingMarksOptions {
 export function createWorkingMarks(options: WorkingMarksOptions = {}): WorkingMarks {
   const onError = options.onError ?? reportToStderr;
   const byThread = new Map<string, Map<string, Mark>>();
-  const watchers = new Set<(threadId: string) => void>();
-
-  const changed = (threadId: string): void => {
-    for (const watcher of [...watchers]) {
-      try {
-        watcher(threadId);
-      } catch (error) {
-        onError(error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-  };
+  const watchers = createListeners<string>(onError);
+  const changed = (threadId: string): void => watchers.notify(threadId);
 
   /** Take one connection's hold off a member's mark. True when that cleared the mark. */
   const release = (threadId: string, memberId: string, connection: object): boolean => {
@@ -89,10 +81,7 @@ export function createWorkingMarks(options: WorkingMarksOptions = {}): WorkingMa
         .map(([memberId, mark]) => ({ memberId, since: mark.since }))
         .sort((a, b) => a.since - b.since || (a.memberId < b.memberId ? -1 : 1));
     },
-    subscribe(listener) {
-      watchers.add(listener);
-      return () => watchers.delete(listener);
-    },
+    subscribe: (listener) => watchers.add(listener),
   };
 }
 
