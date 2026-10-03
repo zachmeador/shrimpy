@@ -364,7 +364,7 @@ A replaced slice removes its old imports, registrations, unused dependencies, fi
 
 ## Target source layout
 
-This is the layout after phase 6. Until then the new tree lives under `next/`, with its own build and tests, so it never collides with today's `src/` and never rewrites the live `dist/`. Phase 6 moves `next/` into `src/` and deletes the old tree, along with the old tests, which test old internals.
+This is the layout after phase 6. Until then the new tree lives under `next/src/`, in a package of its own with its own dependencies, lint and tests, so it never collides with today's `src/` and never rewrites the live `dist/`. Phase 6 moves it into `src/` and deletes the old tree, along with the old tests, which test old internals.
 
 The tree is organized by program. Shrimpy is three programs (an agent, the chat server and the gateway) plus the clients and the CLI, and the only code they share is their contracts.
 
@@ -419,7 +419,9 @@ Keep this simple:
 - Every directory in the tree has one front door, `index.ts`. Code outside the directory imports only that.
 - Each front door opens with a short comment saying what the module is for and what it must not know about.
 - Tests sit next to the code they cover, as `*.test.ts`.
-- Lint enforces the import table, the front doors and the ban on deep imports into Pi packages from a module's first commit. The spike's `scripts/check-boundaries.mjs` is the smallest version of that check.
+- A module whose API partly needs Node offers that part through a second door, `node.ts`. Browser-safe code, meaning the web client and the contracts' main doors, can't import it.
+- Test support lives in a `testing/` module that only tests import.
+- ESLint enforces the import table, the front doors and the Pi package rules from a module's first commit, through one local rule in `next/lint/boundaries.js` with its own tests. `npm run check` in `next/` runs types, lint and tests.
 
 ### Size baseline
 
@@ -463,6 +465,7 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 |---|---|---|---|---|
 | Baseline `574bb2c` | 45,536 | 3,099 | 27,026 | — |
 | 0. Spike `a3c6ae4` | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/spike/` adds 2,054 lines of probe code |
+| Seed: spike realigned | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/` holds 1,803 lines (about 800 of product code, 780 of tests and test support, 220 of lint) and the spike's code is gone |
 
 ## Phases
 
@@ -488,9 +491,9 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - The terminal view shows streaming text, tool calls and an editor without patching `pi-tui` internals.
 - The browser page bundles `pi-client` and Chord without Node-only dependencies such as `esbuild`, gets a snapshot and live updates, and sends a message.
 
-**Gate:** if any of these needs a large compatibility layer, revisit durable before phase 1. The spike is a probe: phase 1 keeps what fits and deletes the rest.
+**Gate:** if any of these needs a large compatibility layer, revisit durable before phase 1. The spike is a probe: what fits gets rebuilt in the real tree and the rest is deleted.
 
-**Result:** done on 2026-10-03. All three questions fit; see the [spike report](../../next/spike/REPORT.md).
+**Result:** done on 2026-10-03. All three questions fit; see the [spike report](spike/REPORT.md). Its proven parts were then realigned into `next/src/` as the seed of the real tree, and the spike's code was deleted. It stays in git at `a3c6ae4`.
 
 ### 1. Standalone agent and attached clients
 
@@ -498,7 +501,8 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 **Build**
 
-- Pin the durable, AI, Chord, server, client, protocol and TUI packages at `1.0.0`, align Pi-facing schemas, and record the installed versions. Use public exports only.
+- Start from the seed in `next/src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, crash and lock tests, and the boundary lint.
+- Keep the durable, AI, Chord, server, client and protocol packages pinned at `1.0.0`, and pin `pi-tui` the same way when the console arrives. Use public exports only.
 - Home → model runtime, registry and environment → Harness on SQLite → service → CLI → terminal and basic web view, with no old session runtime.
 - A minimal local gateway and chat server, so talking goes through threads from the start. No chat providers, rooms, remote routing or tokens yet.
 - The OS lock that makes one process the owner of a home.
@@ -674,12 +678,13 @@ Inherited terminal commands each need a disposition:
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
 
-**Phase 0, 2026-10-03: done.** All three questions fit, with no compatibility layer around Pi. The [spike report](../../next/spike/REPORT.md) and its evidence are in `next/spike/` (commits `5e0cc3c` and `5c6184b`). It ran on macOS arm64 with Node 26.7.0, the published `1.0.0` packages, pi-ai's faux provider and the LAN `qwen3.8-27b` model.
+**Phase 0, 2026-10-03: done.** All three questions fit, with no compatibility layer around Pi. The [spike report](spike/REPORT.md) and its evidence are in `docs/REDESIGN/spike/`; the spike's code is in git at `a3c6ae4` under `next/spike/`. It ran on macOS arm64 with Node 26.7.0, the published `1.0.0` packages, pi-ai's faux provider and the LAN `qwen3.8-27b` model.
 
 - Crash recovery behaved as planned, killed mid-stream and mid-tool. A shell child kept running after its owner died, so supervision has to reap it.
 - The terminal view used only public `pi-tui` pieces, and the browser page bundled without Node built-ins or `esbuild` and recovered after server restarts.
 - Opening a home's storage is a write, which makes the owner lock mandatory; the rule is now under [Host and Pi](#host-and-pi).
-- The spike first sent Pi's record shapes to its clients. That shortcut was removed in `a3c6ae4`: the server builds a Shrimpy-owned thread view, and `npm run check` in `next/spike/` fails on a boundary violation.
+- The spike first sent Pi's record shapes to its clients. That shortcut was removed in `a3c6ae4`: the server builds a Shrimpy-owned view, and a boundary check fails the build on a violation.
+- The spike was then realigned into the seed of the real tree under `next/src/`: `contracts/agent` (the session view, two services, the client caller and a Node-only door), `agent/host` (lock, storage, engine), `agent/sessions` (the one place that reads Pi's records) and the agent's server on a short Unix socket path. Direct input is now `steer`, a control action; talking arrives with the chat server. The terminal view, browser page and WebSocket listener were deleted, to be rebuilt in `clients/` and `gateway/` from the report.
 - Each agent process took about 0.6 s and 110 MB of memory to start cold.
 - The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
 - Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.

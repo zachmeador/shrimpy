@@ -1,0 +1,18 @@
+/**
+ * The agent API: what any client may ask of a running agent. It carries
+ * Shrimpy's own shapes and must not know the engine's record types or any
+ * program's internals. This door is safe for browsers; `node.ts` adds the
+ * parts that need Node.
+ */
+export { type AgentConnection, connectAgent, type SessionHandle } from "./connect.ts";
+export { type AgentEndpoint, endpointFile } from "./endpoint.ts";
+export { SessionDirectory, SessionService } from "./services.ts";
+export type {
+  QueuedInput,
+  SessionActivity,
+  SessionItem,
+  SessionStatus,
+  SessionSummary,
+  SessionView,
+  ToolStatus,
+} from "./view.ts";
