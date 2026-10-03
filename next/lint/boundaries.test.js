@@ -20,12 +20,19 @@ const refused = (path, specifier, messageId) => ({
 
 tester.run("imports", importsRule, {
   valid: [
-    // Inside one module, anything goes.
+    // A file reaches the files of its own directory.
     allowed("agent/host/host.ts", "./owner-lock.ts"),
-    // Other modules are reached through their front doors.
+    allowed("agent/host/host.test.ts", "./host.ts"),
+    allowed("cli/commands/agent.ts", "./command.ts"),
+    // Any other directory is reached through its front door, whether it sits below, beside or above.
     allowed("agent/server.ts", "./host/index.ts"),
+    allowed("agent/server.ts", "./home/node.ts"),
+    allowed("chat/threads/messages.ts", "../input/index.ts"),
+    allowed("cli/commands/sessions.ts", "../io/index.ts"),
+    allowed("cli/run.ts", "./commands/index.ts"),
     allowed("agent/sessions/service.ts", "../../contracts/agent/index.ts"),
     allowed("agent/crash.test.ts", "../contracts/agent/node.ts"),
+    allowed("cli/testing/io.ts", "../io/index.ts"),
     allowed("contracts/agent/connect.ts", "../../lib/ids/index.ts"),
     // The CLI may start a program through the program's own front door.
     allowed("cli/commands/agent.ts", "../../agent/index.ts"),
@@ -54,7 +61,17 @@ tester.run("imports", importsRule, {
     { filename: file("cli/main.ts"), code: 'await import("../agent/index.ts");' },
   ],
   invalid: [
+    // Below or beside a directory is not inside it: only its front door is open.
     refused("agent/server.ts", "./host/host.ts", "frontDoor"),
+    refused("agent/crash.test.ts", "./host/owner-lock.ts", "frontDoor"),
+    refused("chat/threads/messages.ts", "../store/store.ts", "frontDoor"),
+    refused("chat/threads/messages.ts", "../input/limits.ts", "frontDoor"),
+    // A directory's files are not open to the directories inside it, however deep, or to their tests and test support.
+    refused("cli/commands/agent.ts", "../io.ts", "parent"),
+    refused("cli/commands/render.test.ts", "../usage-error.ts", "parent"),
+    refused("cli/testing/io.ts", "../io.ts", "parent"),
+    refused("agent/sessions/deep/view.ts", "../../server.ts", "parent"),
+    refused("agent/sessions/deep/view.ts", "../service.ts", "parent"),
     refused("agent/sessions/service.ts", "../../contracts/agent/view.ts", "frontDoor"),
     refused("chat/threads/store.ts", "../../agent/index.ts", "program"),
     refused("clients/console/screen.ts", "../../agent/sessions/index.ts", "program"),

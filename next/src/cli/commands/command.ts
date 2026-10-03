@@ -1,4 +1,4 @@
-import type { Io } from "../io.ts";
+import type { Io } from "../io/index.ts";
 
 /** One `shrimpy` command: what it is called, how it is used, and what it does. */
 export interface Command {

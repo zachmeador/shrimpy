@@ -1,6 +1,6 @@
 import { type Command, loadAll, loadFamily } from "./commands/index.ts";
-import type { Io } from "./io.ts";
-import { UsageError } from "./usage-error.ts";
+import type { Io } from "./io/index.ts";
+import { UsageError } from "./usage/index.ts";
 
 /**
  * Run `shrimpy` with the arguments after its name. The result is the exit

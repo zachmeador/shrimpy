@@ -1,4 +1,4 @@
-import type { Io } from "../io.ts";
+import type { Io } from "../io/index.ts";
 
 /** An `Io` that records what is printed and lets a test send the stop request that a signal would. */
 export interface CapturedIo {

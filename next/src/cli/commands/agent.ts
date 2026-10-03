@@ -9,7 +9,7 @@ import {
   startHomeAgent,
 } from "../../agent/index.ts";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
-import { expectArguments, parsing, UsageError } from "../usage-error.ts";
+import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 
 const init: Command = {

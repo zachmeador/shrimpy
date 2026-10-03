@@ -2,8 +2,8 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { AgentConnection, SessionHandle, Settlement } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal } from "../../contracts/agent/node.ts";
-import type { Io } from "../io.ts";
-import { expectArguments, parsing, UsageError } from "../usage-error.ts";
+import type { Io } from "../io/index.ts";
+import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderSession } from "./render.ts";
 

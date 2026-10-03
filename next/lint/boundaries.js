@@ -10,6 +10,8 @@ const FRONT_DOORS = ["index.ts", "node.ts"];
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
   frontDoor: "Import {{module}}/ through its front door, not {{target}}.",
+  parent:
+    "This file sits inside {{module}}/ and can't reach its files, such as {{target}}: give what both need a directory of its own, with a front door.",
   program:
     "{{from}}/ must not import {{target}}: programs share only contracts/ and lib/.",
   shared: "{{from}}/ may import only {{allowed}}, not {{target}}.",
@@ -59,11 +61,12 @@ function checkRelative(from, specifier) {
   const target = posix.normalize(posix.join(posix.dirname(from), specifier));
   if (target.startsWith("..")) return { messageId: "outside", data: { target: specifier } };
 
+  // A file reaches the files of its own directory, and the front door of any other.
   const targetDir = posix.dirname(target);
   const fromDir = posix.dirname(from);
-  const inside = fromDir === targetDir || fromDir.startsWith(`${targetDir}/`);
-  if (!inside && !FRONT_DOORS.includes(posix.basename(target))) {
-    return { messageId: "frontDoor", data: { module: targetDir, target } };
+  if (fromDir !== targetDir && !FRONT_DOORS.includes(posix.basename(target))) {
+    const below = fromDir.startsWith(`${targetDir}/`);
+    return { messageId: below ? "parent" : "frontDoor", data: { module: targetDir, target } };
   }
 
   const owner = ownerOf(from);
