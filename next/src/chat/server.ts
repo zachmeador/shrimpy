@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { createRemoteServiceEndpoint, RemoteServiceProvider } from "@earendil-works/chord";
 import { isServerId } from "@earendil-works/pi-protocol";
 import {
   type RoutedServerServiceHost,
@@ -16,6 +15,7 @@ import {
   chatEndpointFile,
   ThreadService,
 } from "../contracts/chat/index.ts";
+import { offerToConnection, offerToSession } from "../lib/offer/index.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
 import { serveChat } from "./connection.ts";
 import { takeChatLock } from "./lock.ts";
@@ -76,17 +76,7 @@ function serverHost(deps: ChatDeps): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
       const served = serveChat(deps, presentation);
-      const provider = new RemoteServiceProvider([{ service: Chat, mode: "singleton" }]);
-      provider.provide(Chat, served.chat);
-      const remote = createRemoteServiceEndpoint(provider);
-      return {
-        invokeService: (call, publish, context) => remote.invoke(call, publish, context),
-        release() {
-          remote.dispose();
-          provider.dispose();
-          served.end();
-        },
-      };
+      return offerToConnection(Chat, served.chat, () => served.end());
     },
   };
   return {
@@ -99,26 +89,13 @@ function serverHost(deps: ChatDeps): ServerHost {
     },
     openSession(metadata) {
       const served = serveThread(deps, metadata.id);
-      const provider = new RemoteServiceProvider([{ service: ThreadService, mode: "singleton" }]);
-      provider.provide(ThreadService, { state: served.state });
-      return Promise.resolve({
-        attachClient() {
-          const stopWatching = served.watch();
-          const remote = createRemoteServiceEndpoint(provider);
-          return {
-            invokeService: (call, publish, context) => remote.invoke(call, publish, context),
-            release() {
-              remote.dispose();
-              stopWatching();
-            },
-          };
-        },
-        close() {
-          served.close();
-          provider.dispose();
-          return Promise.resolve();
-        },
-      });
+      return Promise.resolve(
+        offerToSession(
+          ThreadService,
+          { state: served.state },
+          { attached: () => served.watch(), closed: () => served.close() },
+        ),
+      );
     },
   };
 }

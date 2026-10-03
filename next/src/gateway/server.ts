@@ -1,5 +1,4 @@
 import { rmSync } from "node:fs";
-import { createRemoteServiceEndpoint, RemoteServiceProvider } from "@earendil-works/chord";
 import {
   type RoutedServerServiceHost,
   Server,
@@ -8,6 +7,7 @@ import {
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
+import { offerToConnection } from "../lib/offer/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
 import { takeGatewayLock } from "./lock.ts";
@@ -68,33 +68,27 @@ function serverHost(registry: Registry, peer: Peer): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient() {
       const connection = peer === "program" ? registry.connect() : undefined;
-      const provider = new RemoteServiceProvider([{ service: Gateway, mode: "singleton" }]);
-      provider.provide(Gateway, {
-        register: async (registration) => {
-          if (connection === undefined) {
-            refuse(
-              "Only a program on the gateway's machine can register. A browser can list what is running.",
-              "service_not_allowed",
-            );
-          }
-          try {
-            connection.register(registration);
-          } catch (error) {
-            if (error instanceof InvalidRegistrationError) refuse(error.message);
-            throw error;
-          }
+      return offerToConnection(
+        Gateway,
+        {
+          register: async (registration) => {
+            if (connection === undefined) {
+              refuse(
+                "Only a program on the gateway's machine can register. A browser can list what is running.",
+                "service_not_allowed",
+              );
+            }
+            try {
+              connection.register(registration);
+            } catch (error) {
+              if (error instanceof InvalidRegistrationError) refuse(error.message);
+              throw error;
+            }
+          },
+          list: async () => registry.list(),
         },
-        list: async () => registry.list(),
-      });
-      const remote = createRemoteServiceEndpoint(provider);
-      return {
-        invokeService: (call, publish, callContext) => remote.invoke(call, publish, callContext),
-        release() {
-          connection?.close();
-          remote.dispose();
-          provider.dispose();
-        },
-      };
+        () => connection?.close(),
+      );
     },
   };
   return {

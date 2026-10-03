@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRemoteServiceEndpoint, RemoteServiceProvider } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   type RoutedServerServiceHost,
@@ -15,6 +14,7 @@ import {
   SessionDirectory,
   SessionService,
 } from "../contracts/agent/index.ts";
+import { offerToConnection, offerToSession } from "../lib/offer/index.ts";
 import { socketPathFor } from "../lib/runtime/index.ts";
 import type { Host } from "./host/index.ts";
 import { findSession, listSessions, serveSession } from "./sessions/index.ts";
@@ -60,20 +60,11 @@ export async function startServer(host: Host): Promise<AgentServer> {
 function serverHost(host: Host, takingInput: () => boolean): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
-      const provider = new RemoteServiceProvider([{ service: SessionDirectory, mode: "singleton" }]);
-      provider.provide(SessionDirectory, {
+      return offerToConnection(SessionDirectory, {
         list: () => Promise.resolve(listSessions()),
         attach: (sessionId, callContext) => presentation.attachSession(sessionId, callContext),
         detach: (callContext) => presentation.detachSession(callContext),
       });
-      const remote = createRemoteServiceEndpoint(provider);
-      return {
-        invokeService: (call, publish, callContext) => remote.invoke(call, publish, callContext),
-        release() {
-          remote.dispose();
-          provider.dispose();
-        },
-      };
     },
   };
   return {
@@ -87,22 +78,7 @@ function serverHost(host: Host, takingInput: () => boolean): ServerHost {
       const conversation = await findSession(host.harness, metadata.id, context);
       if (conversation === undefined) throw new SessionNotFoundError(`Unknown session: ${metadata.id}`);
       const served = await serveSession(host.harness, conversation, context, takingInput);
-      const provider = new RemoteServiceProvider([{ service: SessionService, mode: "singleton" }]);
-      provider.provide(SessionService, served.service);
-      return {
-        attachClient() {
-          const remote = createRemoteServiceEndpoint(provider);
-          return {
-            invokeService: (call, publish, callContext) => remote.invoke(call, publish, callContext),
-            release: () => remote.dispose(),
-          };
-        },
-        close() {
-          served.close();
-          provider.dispose();
-          return Promise.resolve();
-        },
-      };
+      return offerToSession(SessionService, served.service, { closed: () => served.close() });
     },
   };
 }
