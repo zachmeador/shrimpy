@@ -1,7 +1,7 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: experience decisions reviewed on 2026-10-03, with four recommendations about the chat server [waiting for your call](#waiting-for-your-call). Phase 0 is done and phase 1 is being built in `next/`. A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03, with three recommendations about chat [waiting for your call](#waiting-for-your-call). Phase 0 is done and phase 1 is being built in `next/`. A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
@@ -67,14 +67,13 @@ If implementation finds another visible difference, add a row before shipping it
 
 ### Waiting for your call
 
-These came out of a look at what the chat server should own, on 2026-10-03. Until you decide, the rows further down stand. Nothing in phase 1 depends on them.
+These came out of a look at what the chat server should own, on 2026-10-03. Until you decide, the rows further down stand. Nothing in phase 1 depends on them, and the provider row also waits on a scout of existing bridge projects.
 
 | Topic | In the plan now | Recommended | Why |
 |---|---|---|---|
-| Chat commands | The chat server runs `/new /clear /stop /thinking /status /help` | The agent's intake runs them. A command is a message, and the agent it addresses acts on it without a model call. | They act on the agent's own session, so only the agent can carry them out. Otherwise the chat server needs a way to reach agents and authority to act for a person. A typed command then stays in the thread as a message. |
-| Translation | Shared behavior in the chat server: merging bursts and albums, formatting and splitting, typing, allowed chats and sender mapping | Each provider does its own, with shared helpers | It's translation between one outside app and a thread. The chat server stores text as written. |
 | What a provider can use | "The chat server's provider interface", not yet defined | Five things: post for the people it maps, keyed by the outside message's ID; read its bound threads from its own cursor; report delivery; move attachments; and see who is working. Providers start inside the chat server's process and can't tell. | It's a slice of the chat API, so the same provider code can later run on another machine, as an iMessage provider on a Mac would need. |
 | Agent tools for reactions and edits | Two message tools | Add `react({emoji, to?})`, which defaults to the message that woke the turn, and let `send_message` take `edit` with one of the agent's own messages | A reaction lets an agent acknowledge without posting, which fits beside `END`. |
+| `/stop` among the first commands | The first set is `/new`, `/status` and `/help` | Add `/stop` | From an outside chat app alone, it's the only way to halt a turn. |
 
 ### Lifetime, launching and clients
 
@@ -164,7 +163,7 @@ These came out of a look at what the chat server should own, on 2026-10-03. Unti
 | Bot accounts | One Telegram bot serves several agents, and each chat remembers which agent answers | Each agent has its own account on an outside chat app, so messaging a bot is messaging that agent, and in a group each agent speaks as itself. Agents never share an account, and the per-chat choice of agent goes away. A bridge only ever posts as a bot; it never acts as a person's own account. | Confirmed |
 | Reactions, edits and deletes | Not supported | Part of every thread: any member can react to a message, and edit or delete its own. Every client shows them, agents can use them, and a provider carries them to and from an outside app wherever that app's API allows. Where it doesn't, the bridge leaves them out and emulates nothing. | Confirmed |
 | Wake policy | Each agent's `channelPolicy` decides which visible messages start a turn: `all`, `mentions`, `addressed` or `none`, plus sender filters. An omitted policy means `all`, and setup gives the primary agent `all` | Owned by the agent. The default is `mentions`, so an agent wakes for DMs and messages that mention it, and setup gives no agent `all`. An included skill explains wake policies so agents can tune their own. Loop protection stays on the agent side: wake policies, instructions against banter, and `END` to stay silent. Neither the chat server nor the gateway has loop rules. | Confirmed |
-| Chat behavior | Built into the Telegram surface: chat and sender restrictions, per-thread agent selection, `/new /clear /stop /thinking /status /help`, permission-filtered help, notices, typing, formatted and chunked output, quiet notices, sender labels, 500 ms burst grouping | Same behavior, moved into the chat server so every provider gets it, except the per-chat choice of agent, which separate bot accounts replace. Telegram keeps only what is Telegram's: its API, bot suffixes, message limits and formatting, and album order and captions. Received messages and batch membership are recorded before processing is acknowledged. | Keep |
+| Chat behavior | Built into the Telegram surface: chat and sender restrictions, per-thread agent selection, `/new /clear /stop /thinking /status /help`, permission-filtered help, notices, typing, formatted and chunked output, quiet notices, sender labels, 500 ms burst grouping | Sorted by owner. The agent runs chat commands: a command is a message, and the agent it addresses acts on it without a model call. The first set is `/new`, `/status` and `/help`. `/clear` goes, since it was an alias for `/new`, and `/stop` and `/thinking` wait. Each provider does its own translation, with shared helpers: allowed chats and sender mapping, merging bursts and albums, formatting and splitting, typing, quiet delivery and sender labels. The chat server keeps membership and where each person was last active. The per-chat choice of agent goes, replaced by separate bot accounts. Received messages and batch membership are recorded before processing is acknowledged. | Confirmed |
 | Who is working | Telegram shows typing while a turn runs; nothing else shows it | An agent tells the chat server which threads it's working in, from picking a message up until its turn settles, and the chat server keeps who is working, and since when, with each thread. Clients show it and chat providers map it to their typing indicator. It's ordinary thread data, so other agents, status commands and later notifications can read it too. It clears when the agent disconnects. | Confirmed |
 | Media | Telegram photos become local paths the read tool loads; other media is only noted as unsupported | Every attachment from any provider, including images, documents, voice notes and video, arrives as a file in the agent's home up to a size limit, delivered through the API ([attachments](#sandboxed-and-remote-agents)). The read tool loads images, and other tools in the agent's environment can use the rest. Inline vision bytes or transcription would be separate decisions. | Confirmed |
 | Delivery | Bounded retries, history skipped on first start, no sends to unbound destinations | Same for every provider, with recipients and batches fixed across retries. A lost send acknowledgment shows as uncertain. | Keep |
@@ -285,7 +284,7 @@ The gateway handles discovery, access and routing between clients, agents and th
 
 ### Chat server
 
-The chat server is a service of its own, with its own store, so the gateway doesn't grow into one big service. It owns what channels share: threads, message logs, membership, attachments, burst batching, chat commands, sender access, addressing and mentions, formatting and chunking rules, mirroring into bridged chats, and delivery receipts. Each chat provider runs inside it and only translates its own API: authentication, polling or webhooks, message and media formats, and sending. Code outside a provider's own directory doesn't depend on which provider it is.
+The chat server is a service of its own, with its own store, so the gateway doesn't grow into one big service. It owns what channels share: threads, message logs, membership and access, attachments, addressing and mentions, reactions and edits, who is working, and delivery receipts. Each chat provider runs inside it and translates one outside app: authentication, polling or webhooks, sender mapping, merging bursts and albums, formatting and splitting, typing, and mirroring into the bridged chat. Providers share helpers for what they have in common. Chat commands aren't the chat server's: a command is a message, and the agent it addresses acts on it. Code outside a provider's own directory doesn't depend on which provider it is.
 
 - **Storage.** SQLite through Node's built-in `node:sqlite`, like the agents, with the chat server as its only writer. A message, its batch membership, its attachment references and the provider cursor that delivered it commit together. Attachments are files next to the database. The store is user data, so back it up like a home, from a stopped snapshot or with SQLite's backup.
 - **Offers.** An agent is a member like any other. It connects out to the chat server, through the gateway when they're on different machines, and asks for the messages after its own cursor. The chat server never has to reach an agent, an agent that was down catches up from where it stopped, and one with no cursor starts from now. Each agent's wake policy decides whether a message starts a turn, and the agent keeps one session for each thread it takes part in.
@@ -396,7 +395,7 @@ src/
     home/           home layout, agent.json, resource and skill selection, model policy, credential paths
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
     sessions/       session control and queries, and the session view that clients see
-    intake/         what arrives from chat: offers, wake policy, thread bindings, admission receipts, the unread cache
+    intake/         what arrives from chat: offers, wake policy, chat commands, thread bindings, the outbox, the unread cache
     extensions/     durable extensions
       context/      prompt sections, turn facts, producers, memory breadcrumbs, compaction guidance
       tools/        message tools, search, image reading, helpers
@@ -404,10 +403,10 @@ src/
   chat/             the chat server program
     store/          SQLite schema and transactions
     threads/        channels, threads, membership, messages, attachments
+    input/          what callers may send: limits and checks
     offers/         offering messages to member agents, delivery receipts
-    commands/       chat commands, burst batching, mirroring into bridged chats
-    providers/
-      telegram/     Telegram's API: polling, message and media formats, sending
+    providers/      the provider interface and the helpers providers share
+      telegram/     Telegram's API: polling, sender mapping, message and media formats, sending
   gateway/          the gateway program: discovery, access, routing, registrations, tokens, workspace context
   clients/
     console/        terminal client
@@ -598,7 +597,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 **Build**
 
 - Source bindings and publication and delivery operations.
-- The rest of the chat server: rooms with several members, the shared chat behavior, mirroring into bridged chats and wake policies in each agent, then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
+- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent. Then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
 - Gateway registration and routing, with agents connecting out to it.
 - An included skill that teaches agents to set their own wake policy.
 
@@ -720,7 +719,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - To review with the web client: the browser URLs `/ws/gateway` and `/ws/<kind>/<name>`, IPv4 loopback only, no default port yet, and the static file rules (no fallback page, no cache or security headers, dotfiles served).
 - A second program registering the same kind and name isn't refused; the newest one is the one reached.
 
-**Chat review, 2026-10-03.** Confirmed: each agent has its own bot account on an outside chat app, bridges only post as bots, and threads carry reactions, edits and deletes. Four recommendations about what the chat server owns are waiting for a decision.
+**Chat review, 2026-10-03.** Confirmed: each agent has its own bot account on an outside chat app, bridges only post as bots, and threads carry reactions, edits and deletes. The agent runs chat commands, starting with `/new`, `/status` and `/help`, and each provider does its own translation. Three recommendations are waiting for a decision, and a scout of existing bridge projects is running.
 
 **Reply review, 2026-10-03.** Four changes confirmed, and the rows above carry them: final text always posts unless it's `END` or empty; `END` is matched forgivingly; final replies wait in an agent-side outbox while chat is unreachable; and threads carry who is working in them.
 
