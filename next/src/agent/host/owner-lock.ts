@@ -1,30 +1,16 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { type Lock, takeLock } from "../../lib/lock/index.ts";
 import { homePaths } from "../home/index.ts";
 
-export interface OwnerLock {
-  release(): void;
-}
-
 /**
- * One owner per home, held by the OS: an exclusive lock on a SQLite file. The
- * kernel drops it when the process dies, so there is no heartbeat, pid file or
- * stale-lock takeover. Take it before opening storage: opening a home's
+ * One owner per home. Take it before opening storage: opening a home's
  * storage rewrites unfinished work, so a second opener corrupts the owner.
  */
-export function takeOwnerLock(home: string): OwnerLock {
+export function takeOwnerLock(home: string): Lock {
   const { runtime } = homePaths(home);
   mkdirSync(runtime, { recursive: true });
-  const db = new DatabaseSync(join(runtime, "owner.lock"));
-  try {
-    db.exec("PRAGMA locking_mode = EXCLUSIVE");
-    db.exec("BEGIN EXCLUSIVE");
-  } catch (error) {
-    db.close();
-    throw new HomeOwnedError(home, { cause: error });
-  }
-  return { release: () => db.close() };
+  return takeLock(join(runtime, "owner.lock"), (cause) => new HomeOwnedError(home, { cause }));
 }
 
 export class HomeOwnedError extends Error {

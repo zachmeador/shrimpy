@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { type Lock, takeLock } from "../lib/lock/index.ts";
 
 /** Another gateway is already serving this machine's socket. */
 export class GatewayRunningError extends Error {
@@ -14,36 +14,11 @@ export class GatewayRunningError extends Error {
   }
 }
 
-export interface GatewayLock {
-  /** Free the lock. Releasing again does nothing. */
-  release(): void;
-}
-
 /**
- * One gateway per socket, held by the OS: an exclusive lock on a SQLite file
- * beside the socket. The kernel drops it when the process dies, so a killed
- * gateway leaves nothing to clean up, and gateways that start at the same
- * moment cannot both get through. Take it before touching the socket.
+ * One gateway per socket, with the lock in a file beside the socket. Take it
+ * before touching the socket: gateways that start at the same moment cannot
+ * both get through, and a killed gateway leaves nothing to clean up.
  */
-export function takeGatewayLock(socket: string): GatewayLock {
-  const db = new DatabaseSync(`${socket}.lock`);
-  try {
-    db.exec("PRAGMA locking_mode = EXCLUSIVE");
-    db.exec("BEGIN EXCLUSIVE");
-  } catch (error) {
-    db.close();
-    // Any other failure has nothing to do with another gateway, and keeps its own message.
-    if (error instanceof Error && error.message.includes("locked")) {
-      throw new GatewayRunningError(socket, { cause: error });
-    }
-    throw error;
-  }
-  let held = true;
-  return {
-    release() {
-      if (!held) return;
-      held = false;
-      db.close();
-    },
-  };
+export function takeGatewayLock(socket: string): Lock {
+  return takeLock(`${socket}.lock`, (cause) => new GatewayRunningError(socket, { cause }));
 }

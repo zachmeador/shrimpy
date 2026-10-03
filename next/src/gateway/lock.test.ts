@@ -1,40 +1,31 @@
 import assert from "node:assert/strict";
-import { mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { GatewayRunningError, takeGatewayLock } from "./lock.ts";
 import { freshRuntime } from "./testing/index.ts";
 
-test("one gateway holds a socket's lock at a time, and releasing frees it", (t) => {
+test("one gateway holds a socket's lock at a time, and says which socket", (t) => {
   const socket = join(freshRuntime(t), "gateway.sock");
   const lock = takeGatewayLock(socket);
 
   assert.throws(
     () => takeGatewayLock(socket),
-    (error) => error instanceof GatewayRunningError && error.socket === socket,
+    (error) =>
+      error instanceof GatewayRunningError &&
+      error.socket === socket &&
+      error.message.startsWith(`A gateway is already running on ${socket}. `) &&
+      error.cause instanceof Error,
   );
 
   lock.release();
-  const again = takeGatewayLock(socket);
-  lock.release();
-  assert.throws(() => takeGatewayLock(socket), GatewayRunningError);
-  again.release();
+  takeGatewayLock(socket).release();
 });
 
-test("a lock that cannot be opened is not mistaken for a running gateway", (t) => {
+test("the lock is a file beside the socket", (t) => {
   const socket = join(freshRuntime(t), "gateway.sock");
-  mkdirSync(`${socket}.lock`);
+  const lock = takeGatewayLock(socket);
 
-  assert.throws(
-    () => takeGatewayLock(socket),
-    (error) => error instanceof Error && !(error instanceof GatewayRunningError),
-  );
-});
-
-test("different sockets have different locks", (t) => {
-  const runtime = freshRuntime(t);
-  const first = takeGatewayLock(join(runtime, "one.sock"));
-  const second = takeGatewayLock(join(runtime, "two.sock"));
-  first.release();
-  second.release();
+  assert.ok(existsSync(`${socket}.lock`));
+  lock.release();
 });

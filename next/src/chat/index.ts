@@ -9,6 +9,8 @@ import { openStore } from "./store/index.ts";
 import { startServer } from "./server.ts";
 import { type ChatDeps, createWorkingMarks } from "./threads/index.ts";
 
+export { ChatRunningError } from "./lock.ts";
+
 export interface ChatOptions {
   /** Where the chat server keeps its store and its endpoint. */
   dataDir: string;
@@ -19,7 +21,11 @@ export interface RunningChat {
   close(): Promise<void>;
 }
 
-/** Take the data directory, then start serving it. The store's lock comes first. */
+/**
+ * Take the data directory, then start serving it. The store's lock comes
+ * first, then the socket's, so a second chat server on this machine is
+ * refused with `StoreOwnedError` or `ChatRunningError`.
+ */
 export async function startChat(options: ChatOptions): Promise<RunningChat> {
   const onError = (error: Error): void => console.error("[chat]", error.message);
   const store = openStore(options.dataDir, { onError });

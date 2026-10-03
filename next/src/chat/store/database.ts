@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { isLocked } from "../../lib/lock/index.ts";
 import { SCHEMA, SCHEMA_VERSION } from "./schema.ts";
 
 export class StoreOwnedError extends Error {
@@ -51,9 +52,4 @@ function createTables(db: DatabaseSync, dataDir: string): void {
   }
   db.exec(SCHEMA);
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-}
-
-/** SQLITE_BUSY, in any of its extended forms. */
-function isLocked(error: unknown): boolean {
-  return error instanceof Error && "errcode" in error && Number(error.errcode) % 256 === 5;
 }

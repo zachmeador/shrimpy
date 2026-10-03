@@ -18,6 +18,7 @@ import {
 } from "../contracts/chat/index.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
 import { serveChat } from "./connection.ts";
+import { takeChatLock } from "./lock.ts";
 import { type ChatDeps, serveThread, threadExists } from "./threads/index.ts";
 
 export interface ChatServer {
@@ -25,7 +26,10 @@ export interface ChatServer {
   close(): Promise<void>;
 }
 
-/** Serve the chat API on this machine's chat socket, and record where to find it. */
+/**
+ * Serve the chat API on this machine's chat socket, and record where to find
+ * it. The socket's lock comes first.
+ */
 export async function startServer(
   deps: ChatDeps,
   dataDir: string,
@@ -36,21 +40,36 @@ export async function startServer(
     socket: namedSocketPath("chat"),
     pid: process.pid,
   };
-  // The listener refuses a socket another chat server is listening on, and
-  // replaces one left behind by a server that died.
+  const lock = takeChatLock(endpoint.socket);
+  // This process holds the lock, so no other chat server here is listening.
+  // The listener replaces a socket left behind by one that died.
   const server = new Server(serverHost(deps), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
     onError,
   });
-  await server.start();
   try {
-    writeEndpoint(dataDir, endpoint);
+    await server.start();
+    try {
+      writeEndpoint(dataDir, endpoint);
+    } catch (error) {
+      await server.close();
+      throw error;
+    }
   } catch (error) {
-    await server.close();
+    lock.release();
     throw error;
   }
-  return { endpoint, close: () => server.close() };
+  return {
+    endpoint,
+    async close() {
+      try {
+        await server.close();
+      } finally {
+        lock.release();
+      }
+    },
+  };
 }
 
 function serverHost(deps: ChatDeps): ServerHost {

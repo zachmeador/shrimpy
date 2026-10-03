@@ -6,4 +6,4 @@
  */
 export { type Host, type HostOptions, openHost } from "./host.ts";
 export { buildModels, type ModelRuntimeOptions, ModelSetupError } from "./models.ts";
-export { HomeOwnedError, type OwnerLock, takeOwnerLock } from "./owner-lock.ts";
+export { HomeOwnedError, takeOwnerLock } from "./owner-lock.ts";

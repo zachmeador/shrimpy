@@ -7,7 +7,7 @@ import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectChat } from "../contracts/chat/index.ts";
 import { connectLocal, readChatEndpoint } from "../contracts/chat/node.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
-import { startChat } from "./index.ts";
+import { ChatRunningError, startChat } from "./index.ts";
 import { startServer } from "./server.ts";
 import { openStore, StoreOwnedError } from "./store/index.ts";
 import {
@@ -18,6 +18,7 @@ import {
   openTestStore,
   person,
   settle,
+  startChatChild,
   startTestChat,
   stopAfter,
   tempDir,
@@ -58,11 +59,58 @@ test("a second chat server on the same socket is refused, and lets go of its dat
   const zach = await chat.join(person("Zach"));
   const elsewhere = tempDir(t, "chat-elsewhere");
 
-  await assert.rejects(startChat({ dataDir: elsewhere }), /already running/);
+  await assert.rejects(
+    startChat({ dataDir: elsewhere }),
+    (error) =>
+      error instanceof ChatRunningError &&
+      error.socket === chat.chat.endpoint.socket &&
+      error.message.includes("already running"),
+  );
 
   const reopened = openStore(elsewhere);
   reopened.close();
   assert.deepEqual(await zach.chat.channels(), []);
+});
+
+test("chat servers started at the same moment cannot both run", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  for (let round = 0; round < 10; round++) {
+    const dataDirs = [1, 2, 3].map((n) => tempDir(t, `chat-race-${n}`));
+    const results = await Promise.allSettled(dataDirs.map((dataDir) => startChat({ dataDir })));
+    const winners = results.filter((result) => result.status === "fulfilled");
+    try {
+      assert.equal(winners.length, 1, `round ${round}: ${winners.length} chat servers are running`);
+      for (const result of results) {
+        if (result.status === "rejected") assert.ok(result.reason instanceof ChatRunningError, String(result.reason));
+      }
+
+      const client = await connectLocal(winners[0]?.value.endpoint ?? assert.fail("no chat server started"));
+      try {
+        await client.chat.identify(person("Zach"));
+        assert.deepEqual(await client.chat.channels(), []);
+      } finally {
+        await client.close();
+      }
+    } finally {
+      for (const winner of winners) await winner.value.close();
+    }
+    // The servers that were refused let go of their stores.
+    for (const dataDir of dataDirs) openStore(dataDir).close();
+  }
+});
+
+test("a chat server that was killed leaves a socket that the next one replaces", { timeout }, async (t) => {
+  const runtimeDir = useRuntimeDir(t);
+  const child = await startChatChild(t, { dataDir: tempDir(t, "chat-killed"), runtimeDir });
+  await child.kill("SIGKILL");
+  assert.ok(existsSync(child.endpoint.socket));
+
+  const chat = await startChat({ dataDir: tempDir(t, "chat-next") });
+  stopAfter(t, () => chat.close());
+  const client = await connectLocal(chat.endpoint);
+  stopAfter(t, () => client.close());
+  await client.chat.identify(person("Zach"));
+  assert.deepEqual(await client.chat.channels(), []);
 });
 
 test("a chat server that cannot record its endpoint does not keep listening", { timeout }, async (t) => {
