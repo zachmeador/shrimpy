@@ -14,11 +14,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 
 | ID | Status | Priority | Area | Depends On | Note |
 |---|---|---|---|---|---|
-| [ARCH-001](proposals/arch-001-shrimpy-runtime-kernel.md) | TO-BE-DELETED | P2 | Architecture | none | Process-independent runtime kernel with transactional state, shared session execution, and optional hosts |
-| [ARCH-002](proposals/arch-002-home-kernel.md) | draft | P2 | Architecture | none | Home kernel: in-process facts and decisions, one runtime store, thin hosts, optional attendant |
-| [ARCH-003](proposals/arch-003-edge-of-the-home.md) | draft | P2 | Architecture | none | The edge of the home: Shrimpy owns conversations as facts, the world owns transports, windows and clients stay thin |
-| [COMMS-001](proposals/comms-001-comms-plane-redesign.md) | todo | P3 | Comms | none | Comms plane redesign: channels carry only conversation; single-writer comms host with an authorization seam, declared message facts, reply defaults with self-wake, people as members, TUI as surface host |
-| [SECURITY-006](proposals/security-006-session-authority.md) | draft | P2 | Security | [ARCH-002](proposals/arch-002-home-kernel.md) | Per-agent per-channel session policy, admission, and sandboxed runners |
 | [SURFACE-004](proposals/surface-004-discord-dm-chat-adapter.md) | todo | P2 | Surfaces | none | Discord DM chat adapter |
 | [SURFACE-009](proposals/surface-009-telegram-managed-bot-skill.md) | draft | P2 | Surfaces | none | Skill-guided Telegram managed bots for agents |
 | [PLATFORM-001](proposals/platform-001-native-windows-host-support.md) | draft | P3 | Platform | none | Native Windows host support |
@@ -29,7 +24,6 @@ Unscheduled problem definitions and solution sketches worth preserving. Some are
 | [MEM-001](proposals/mem-001-session-title-summarizer.md) | draft | P3 | Memory | TUI-004 | Validate and optionally generate canonical Pi session names |
 | [RUNTIME-001](proposals/runtime-001-optional-spend-controller.md) | draft | P3 | Runtime | none | Optional spend controller for external agent wallets |
 | [SESSION-001](proposals/session-001-generation-throughput-metrics.md) | draft | P3 | Sessions | none | Provider-reported generation throughput in session JSONL |
-| [SESSION-002](proposals/session-002-rename-foreground-session-host.md) | todo | P3 | Sessions | [SECURITY-006](proposals/security-006-session-authority.md) | Rename the foreground module to match the in-process runner vocabulary |
 | [SEARCH-003](proposals/search-003-workspace-search-embeddings.md) | draft | P3 | Search | workspace search | Optional local embeddings for workspace search |
 | [SURFACE-007](proposals/surface-007-web-chat-surface.md) | draft | P3 | Surfaces | none | Deferred owner-local web chat surface |
 | [SURFACE-008](proposals/surface-008-buzz-chat-adapter.md) | draft | P3 | Surfaces | [SURFACE-010](proposals/surface-010-acp-agent-server.md) | Buzz integration through its custom ACP harness seam |

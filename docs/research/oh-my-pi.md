@@ -54,7 +54,7 @@ The `task` tool is a full child-agent runtime, not a simple subprocess wrapper.
 - Optional task workspace isolation uses APFS clones, reflinks, overlay filesystems, ProjFS, git worktrees, or recursive copies, then returns a patch or branch result.
 - An optional advisor model watches the main agent on a separate context and injects concerns or blockers. Review, commit splitting, diagnostics cleanup, planning, and model handoff build on the same primitives.
 
-The word “isolation” needs care. `pi-iso` creates a separate writable workspace view and makes change capture cheap. It does not by itself restrict network access, credentials, process execution, or reads outside that workspace. Headless OMP subagents also force the approval mode to `yolo`; configured per-tool `deny` rules still apply, while `prompt` rules fail because no UI can answer them. This is useful conflict isolation, not the session security boundary described by Shrimpy's [SECURITY-006](../backlog/proposals/security-006-session-authority.md).
+The word “isolation” needs care. `pi-iso` creates a separate writable workspace view and makes change capture cheap. It does not by itself restrict network access, credentials, process execution, or reads outside that workspace. Headless OMP subagents also force the approval mode to `yolo`; configured per-tool `deny` rules still apply, while `prompt` rules fail because no UI can answer them. This is useful conflict isolation, not a security boundary. Shrimpy's [durable plan](../REDESIGN/PLAN.md#sandboxing) puts that boundary around the whole agent process.
 
 ### Sessions, context, and compaction
 
@@ -109,10 +109,10 @@ The useful pieces are narrower:
 
 | OMP idea | Shrimpy value | Recommendation |
 | --- | --- | --- |
-| RPC host tools and host URI schemes | Closely matches [ARCH-002](../backlog/proposals/arch-002-home-kernel.md)'s contained runner: credentials and authority stay with the parent while a child receives scoped capabilities over RPC | High-value design prior art. Borrow the correlated callback and cancellation shape for Shrimpy's runner boundary; keep Shrimpy's permit authoritative |
+| RPC host tools and host URI schemes | Credentials and authority stay with the parent while a child receives scoped capabilities over RPC | Prior art only. The [durable plan](../REDESIGN/PLAN.md#sandboxing) sandboxes the whole agent instead of a contained runner; revisit if a child process ever needs scoped host capabilities |
 | Typed child output, artifacts, lifecycle, and live supervision | Shrimpy workers already have durable records and follow-up commands, but structured yield and one coherent live supervisor would reduce prose parsing and make delegation easier to inspect | Add optional output schemas and attributable artifacts to the worker contract before considering more persistent child machinery |
 | Virtual resource schemes | `worker://`, `session://`, `channel://`, `skill://`, or `watch://` could make existing bounded facts composable through `read` without multiplying model tool schemas | Prototype only when every scheme delegates to the same service and authorization checks as its CLI command; URI access must not become a hidden second API |
-| Argument-aware tool policy | OMP's tier plus per-call policy function is more expressive than Shrimpy's current whole-tool `disabledTools` list | Feed the idea into SECURITY-006's `SessionPolicy`, but enforce it at the host/OS boundary and use safer defaults than OMP |
+| Argument-aware tool policy | OMP's tier plus per-call policy function is more expressive than Shrimpy's current whole-tool `disabledTools` list | A candidate for Shrimpy's tool policy through durable `beforeTool` hooks. Real limits still come from the agent's environment, and defaults should be safer than OMP's |
 | Memory provenance and mutation verbs | Freshness warnings, full-record reads before updates, explicit invalidation, scoping, and inspectable consolidation artifacts fit a resident agent better than opaque automatic memory | Borrow the contract and UX. Keep Shrimpy memory home- and identity-aware, file-inspectable, and subordinate to current channel/session facts |
 | Persistent eval that can call host tools | A concise program can coordinate data transforms and typed tools better than a long sequence of model calls | Interesting only inside a contained session profile. Do not expose a credential-bearing host Python kernel as a default home-agent capability |
 | Encrypted view/control links | Capability links and view-only sharing are useful prior art for a future owner-local Shrimpy chat surface | Borrow the link and authority model, not OMP's session replication or hosted relay dependency |
@@ -122,11 +122,10 @@ The useful pieces are narrower:
 
 ## Recommended Experiments
 
-No OMP code needs to enter Shrimpy yet. Three bounded probes would extract most of the signal:
+No OMP code needs to enter Shrimpy yet. Two bounded probes would extract most of the signal:
 
-1. **Contained-runner protocol review:** compare OMP's host-tool and host-URI RPC frames with the runner RPC proposed by ARCH-002 and SECURITY-006. Record the minimum request, progress, result, cancellation, and authorization fields Shrimpy needs without inheriting OMP session semantics.
-2. **External worker spike:** drive `omp --mode rpc --no-session` in a disposable repository as a possible coding-worker backend. Verify prompt, steer/follow-up, cancellation, event completion, tool denial, transcript ownership, and whether OMP's structured-result contract is usefully exposed over RPC. The outcome should be a backend comparison, not a runtime switch.
-3. **Structured worker result proposal:** add a design note for optional JSON Schema output, immutable worker artifacts, and source-attributed context inclusion using Shrimpy's existing worker records. OMP's `task` result shape is the reference case; Shrimpy's session and authority model remains the owner.
+1. **External worker spike:** drive `omp --mode rpc --no-session` in a disposable repository as a possible coding-worker backend. Verify prompt, steer/follow-up, cancellation, event completion, tool denial, transcript ownership, and whether OMP's structured-result contract is usefully exposed over RPC. The outcome should be a backend comparison, not a runtime switch.
+2. **Structured worker result proposal:** add a design note for optional JSON Schema output, immutable worker artifacts, and source-attributed context inclusion using Shrimpy's existing worker records. OMP's `task` result shape is the reference case; Shrimpy's session and authority model remains the owner.
 
 Memory and eval should wait behind the home-kernel and session-authority work. TTSR and snapcompact are watchlist items rather than roadmap candidates.
 
