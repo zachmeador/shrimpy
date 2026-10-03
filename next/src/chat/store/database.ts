@@ -23,7 +23,8 @@ export class StoreOwnedError extends Error {
  */
 export function openDatabase(dataDir: string): DatabaseSync {
   const directory = join(dataDir, "state");
-  mkdirSync(directory, { recursive: true });
+  // These are people's conversations: nobody else on the machine needs to see them.
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(join(directory, "chat.sqlite"), { enableForeignKeyConstraints: true });
   try {
     db.exec("PRAGMA locking_mode = EXCLUSIVE");

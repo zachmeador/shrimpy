@@ -88,7 +88,7 @@ export function openStore(dataDir: string, options: StoreOptions = {}): Store {
 
 function createTransaction(sql: Sql, report: (change: Change) => void): Transaction {
   return {
-    ...memberOperations(sql),
+    ...memberOperations(sql, report),
     ...channelOperations(sql),
     ...threadOperations(sql, report),
     ...messageOperations(sql, report),

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { statSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import type { Member } from "../../contracts/chat/index.ts";
 import { agent, openTestStore, person, stopAfter } from "../testing/index.ts";
@@ -282,6 +284,46 @@ test("watchers hear of a commit after it, and one that fails does not stop the o
   stop();
   store.transaction((tx) => post(tx, threadId, zach, "unheard"));
   assert.equal(seen.length, 2);
+});
+
+test("a member's new name is reported for the threads it is in, and only then", (t) => {
+  const { store } = openTestStore(t);
+  const zach = person("Zach");
+  const shrimpy = agent("Shrimpy");
+  const { mine, side, elsewhere } = store.transaction((tx) => {
+    const channel = openDm(tx, zach, shrimpy);
+    const other = openDm(tx, shrimpy, agent("Other"));
+    return {
+      mine: mainThread(tx, channel.id),
+      side: tx.addThread(channel.id, "side", 2000).id,
+      elsewhere: mainThread(tx, other.id),
+    };
+  });
+  const heard: Change[] = [];
+  store.subscribe((change) => heard.push(change));
+
+  store.transaction((tx) => {
+    tx.saveMember(zach);
+    tx.addMember({ ...zach, name: "Ignored" });
+    tx.saveMember(person("Newcomer"));
+  });
+  assert.equal(heard.length, 0);
+
+  store.transaction((tx) => tx.saveMember({ ...zach, name: "Zachariah" }));
+  assert.deepEqual(
+    heard.map((change) => [change.kind, change.threadId]).sort(),
+    [
+      ["thread", mine],
+      ["thread", side],
+    ].sort(),
+  );
+  assert.ok(!heard.some((change) => change.threadId === elsewhere));
+});
+
+test("the store's directory is private to its owner", (t) => {
+  const { dataDir } = openTestStore(t);
+
+  assert.equal(statSync(join(dataDir, "state")).mode & 0o777, 0o700);
 });
 
 test("renaming and archiving return the thread as it now is", (t) => {

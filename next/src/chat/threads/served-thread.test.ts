@@ -68,6 +68,21 @@ test("while someone watches, the view follows messages, names, archiving, skips 
   assert.deepEqual(served.state.value.thread.working, []);
 });
 
+test("the view follows a member's new name", (t) => {
+  const { deps, zach, shrimpy, main, served } = setup(t);
+  served.watch();
+  post(deps, zach, main.id, "hello", "r1");
+  post(deps, shrimpy, main.id, "hi", "r2");
+
+  identify(deps, { ...zach, name: "Zachariah" });
+
+  assert.deepEqual(served.state.value, readThreadView(deps, main.id));
+  assert.deepEqual(
+    served.state.value.messages.map((message) => message.author.name),
+    ["Zachariah", "Shrimpy"],
+  );
+});
+
 test("a long thread's view keeps its newest 200 messages and counts the rest", (t) => {
   const { deps, zach, main, served } = setup(t);
   served.watch();
@@ -99,7 +114,7 @@ test("the view follows the thread through any mix of changes", (t) => {
     clock.advance(next(3) * 1000);
     const author = next(2) === 0 ? zach : shrimpy;
     const connection = connections[next(2)] ?? {};
-    const choice = next(20);
+    const choice = next(22);
     const request = `request-${step}`;
     if (choice < 11) post(deps, author, main.id, `message ${step}`, request);
     else if (choice < 13) post(deps, author, side.id, `side ${step}`, request);
@@ -110,7 +125,8 @@ test("the view follows the thread through any mix of changes", (t) => {
       const picked = messages[next(Math.max(messages.length, 1))];
       if (picked !== undefined) markSkipped(deps, shrimpy, [picked.id]);
     } else if (choice < 19) setWorking(deps, connection, author, main.id, next(2) === 0);
-    else deps.working.end(connection);
+    else if (choice === 19) deps.working.end(connection);
+    else identify(deps, { ...author, name: `${author.name} ${step}` });
 
     assert.deepEqual(served.state.value, readThreadView(deps, main.id), `after step ${step}`);
   }
