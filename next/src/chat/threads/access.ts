@@ -1,5 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
-import { identifier, refuse } from "../input/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
+import { identifier } from "../input/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
 import type { ChatDeps } from "./deps.ts";
 

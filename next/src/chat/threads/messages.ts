@@ -1,11 +1,11 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import {
   fitAnswer,
   identifier,
   identifiers,
   MAX_PAGE,
   messageText,
-  refuse,
   whole,
 } from "../input/index.ts";
 import { isMember, visibleThread } from "./access.ts";

@@ -5,8 +5,8 @@ import {
   type Harness,
   ROOT_CONVERSATION_ID,
 } from "@earendil-works/pi-durable";
-import { ServerError } from "@earendil-works/pi-server";
 import type { SessionService, SessionSummary } from "../../contracts/agent/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
 import { waitForSettlement } from "./settlement.ts";
@@ -50,10 +50,7 @@ export async function serveSession(
     service: {
       state,
       async steer(text, requestId, callContext) {
-        // A ServerError is the kind of failure whose message reaches the client.
-        if (!takingInput()) {
-          throw new ServerError("server_draining", "The agent is stopping and is not taking new input.");
-        }
+        if (!takingInput()) refuse("The agent is stopping and is not taking new input.", "service_not_allowed");
         const submission = await conversation.submit(
           { type: "input", content: text, whenBusy: "steer", requestId: requestId ?? undefined },
           callContext,

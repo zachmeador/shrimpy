@@ -1,6 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
-import { refuse } from "./refusal.ts";
 
 // Arguments arrive off the wire, so their TypeScript types promise nothing. Each
 // check refuses with a message that names the argument as `what`.

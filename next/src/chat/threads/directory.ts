@@ -1,5 +1,6 @@
 import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
-import { flag, identifier, label, member as checkMember, refuse } from "../input/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
+import { flag, identifier, label, member as checkMember } from "../input/index.ts";
 import type { ChannelRecord } from "../store/index.ts";
 import { visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";

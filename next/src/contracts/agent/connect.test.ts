@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { type Context, defineService, RemoteServiceError } from "@earendil-works/chord";
+import { type Context, defineService } from "@earendil-works/chord";
 import { type AttachmentChangeListener, Client } from "@earendil-works/pi-client";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
+import { Refusal } from "../../lib/refusal/index.ts";
 import {
   offer,
   settle,
@@ -71,7 +72,7 @@ test("an attach the server refuses leaves nothing listening for its route", { ti
     };
   });
   const standIn = await standInAgent(t, () =>
-    Promise.reject(new RemoteServiceError("service_invalid_value", "Unknown session: 999")),
+    Promise.reject(new Refusal("Unknown session: 999")),
   );
   const connection = await connect(t, standIn);
 

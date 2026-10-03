@@ -1,32 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { RemoteServiceError } from "@earendil-works/chord";
-import {
-  flag,
-  identifier,
-  identifiers,
-  label,
-  member,
-  messageText,
-  Refusal,
-  whole,
-} from "./index.ts";
+import { refused } from "../testing/index.ts";
+import { flag, identifier, identifiers, label, member, messageText, whole } from "./index.ts";
 import { MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
-
-const refused = (message: RegExp) => ({
-  name: "Refusal",
-  code: "service_invalid_value",
-  message,
-});
-
-test("a refusal is a service error that carries its reason", () => {
-  const refusal = new Refusal("Not that.");
-
-  assert.ok(refusal instanceof RemoteServiceError);
-  assert.equal(refusal.message, "Not that.");
-  assert.equal(refusal.code, "service_invalid_value");
-  assert.equal(new Refusal("Who are you?", "service_not_allowed").code, "service_not_allowed");
-});
 
 test("an ID is one word of bounded length", () => {
   assert.equal(identifier("person:zach", "id"), "person:zach");

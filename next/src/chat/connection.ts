@@ -1,6 +1,7 @@
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import type { Chat, Member } from "../contracts/chat/index.ts";
-import { member as checkMember, refuse } from "./input/index.ts";
+import { refuse } from "../lib/refusal/index.ts";
+import { member as checkMember } from "./input/index.ts";
 import { feed, head } from "./offers/index.ts";
 import {
   archiveThread,

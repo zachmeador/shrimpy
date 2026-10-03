@@ -6,8 +6,8 @@ import type {
   SettledSubmissionRecord,
   SubmissionId,
 } from "@earendil-works/pi-durable";
-import { ServerError } from "@earendil-works/pi-server";
 import type { Settlement } from "../../contracts/agent/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
 import { assistantText } from "./session-view.ts";
 
 /** Wait for a submission of `conversation` to end, and say how it ended. */
@@ -20,7 +20,7 @@ export async function waitForSettlement(
   const submission = await harness.submission(submissionId as SubmissionId, context);
   // Submissions are numbered across the whole home, so check this one belongs to the session.
   if (submission === undefined || (await submission.status(context)).conversationId !== conversation.id) {
-    throw new ServerError("service_invalid_value", `Unknown submission: ${submissionId}`);
+    refuse(`Unknown submission: ${submissionId}`);
   }
   const settled = await submission.wait(context);
   if (settled.status !== "done") return toSettlement(settled, undefined);

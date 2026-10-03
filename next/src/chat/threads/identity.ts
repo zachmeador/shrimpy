@@ -1,5 +1,6 @@
 import type { Member } from "../../contracts/chat/index.ts";
-import { member as checkMember, refuse } from "../input/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
+import { member as checkMember } from "../input/index.ts";
 import type { ChatDeps } from "./deps.ts";
 
 /**

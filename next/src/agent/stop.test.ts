@@ -130,7 +130,10 @@ test("once stopping begins, new input is refused and the reason reaches the clie
   const { agent, session } = await startStreaming(t, home, 40);
 
   const closing = agent.close({ graceMs: 60_000 });
-  await assert.rejects(session.steer("one more thing"), /The agent is stopping and is not taking new input/);
+  await assert.rejects(session.steer("one more thing"), {
+    code: "service_not_allowed",
+    message: "The agent is stopping and is not taking new input.",
+  });
 
   // Asking again with `now` ends the wait.
   await agent.close({ now: true });

@@ -109,11 +109,14 @@ test("a registration that cannot be accepted is refused with the reason", { time
   const observer = await connectLocalGateway();
   try {
     const one = agent("one");
-    await assert.rejects(
-      program.register({ ...one, kind: "robot" } as unknown as Registration),
-      /kind must be "agent" or "chat"/,
-    );
-    await assert.rejects(program.register({ ...one, socket: "one.sock" }), /socket must be an absolute path/);
+    await assert.rejects(program.register({ ...one, kind: "robot" } as unknown as Registration), {
+      code: "service_invalid_value",
+      message: 'Invalid registration: kind must be "agent" or "chat"',
+    });
+    await assert.rejects(program.register({ ...one, socket: "one.sock" }), {
+      code: "service_invalid_value",
+      message: "Invalid registration: socket must be an absolute path",
+    });
     assert.deepEqual(await observer.list(), []);
 
     await program.register(one);

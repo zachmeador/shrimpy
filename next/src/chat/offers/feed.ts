@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import type { Member, Message } from "../../contracts/chat/index.ts";
-import { fitAnswer, MAX_PAGE, refuse, whole } from "../input/index.ts";
+import { refuse } from "../../lib/refusal/index.ts";
+import { fitAnswer, MAX_PAGE, whole } from "../input/index.ts";
 import type { Store } from "../store/index.ts";
 import { nextMessage } from "./wait.ts";
 

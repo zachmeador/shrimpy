@@ -1,9 +1,5 @@
 import { rmSync } from "node:fs";
-import {
-  createRemoteServiceEndpoint,
-  RemoteServiceError,
-  RemoteServiceProvider,
-} from "@earendil-works/chord";
+import { createRemoteServiceEndpoint, RemoteServiceProvider } from "@earendil-works/chord";
 import {
   type RoutedServerServiceHost,
   Server,
@@ -12,6 +8,7 @@ import {
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
+import { refuse } from "../lib/refusal/index.ts";
 import { namedSocketPath } from "../lib/runtime/index.ts";
 import { takeGatewayLock } from "./lock.ts";
 import { InvalidRegistrationError, type Registry } from "./registry/index.ts";
@@ -75,18 +72,15 @@ function serverHost(registry: Registry, peer: Peer): ServerHost {
       provider.provide(Gateway, {
         register: async (registration) => {
           if (connection === undefined) {
-            throw new RemoteServiceError(
-              "service_not_allowed",
+            refuse(
               "Only a program on the gateway's machine can register. A browser can list what is running.",
+              "service_not_allowed",
             );
           }
           try {
             connection.register(registration);
           } catch (error) {
-            // Only errors with a protocol code reach the peer with their message.
-            if (error instanceof InvalidRegistrationError) {
-              throw new RemoteServiceError("service_invalid_value", error.message);
-            }
+            if (error instanceof InvalidRegistrationError) refuse(error.message);
             throw error;
           }
         },

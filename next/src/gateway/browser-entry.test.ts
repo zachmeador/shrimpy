@@ -53,7 +53,10 @@ test("a browser can list programs but cannot register one", { timeout }, async (
     transportFactory: webSocketTransport(`ws://127.0.0.1:${port}${webSocketPath("gateway")}`),
   });
   try {
-    await assert.rejects(browser.register(agent("planted")), /Only a program on the gateway's machine/);
+    await assert.rejects(browser.register(agent("planted")), {
+      code: "service_not_allowed",
+      message: "Only a program on the gateway's machine can register. A browser can list what is running.",
+    });
 
     assert.deepEqual(await browser.list(), []);
     assert.equal(await handshakeStatus(port, webSocketPath({ kind: "agent", name: "planted" })), 404);

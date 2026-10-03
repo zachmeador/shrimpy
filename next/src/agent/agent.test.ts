@@ -225,7 +225,7 @@ test("a wait on a submission that does not exist is refused", { timeout }, async
   const { home, agent } = await start(t, "chat");
   const { connection, session } = await attachMain(home);
   try {
-    await assert.rejects(session.wait(999), /Unknown submission: 999/);
+    await assert.rejects(session.wait(999), { code: "service_invalid_value", message: "Unknown submission: 999" });
   } finally {
     await connection.close();
     await agent.close();

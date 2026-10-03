@@ -14,7 +14,7 @@ export const agent = (name: string): Member => ({
   name,
 });
 
-/** What `assert.throws` should find when the chat server refuses a call, whose reason matches `message`. */
+/** What `assert.throws` should find when the chat server refuses a call in this process, whose reason matches `message`. */
 export const refused = (message: RegExp, code = "service_invalid_value") => ({
   name: "Refusal",
   code,
