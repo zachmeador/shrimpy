@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { homePaths } from "../home/index.ts";
 
 export interface OwnerLock {
   release(): void;
@@ -13,9 +14,9 @@ export interface OwnerLock {
  * storage rewrites unfinished work, so a second opener corrupts the owner.
  */
 export function takeOwnerLock(home: string): OwnerLock {
-  const file = join(home, "runtime", "owner.lock");
-  mkdirSync(join(home, "runtime"), { recursive: true });
-  const db = new DatabaseSync(file);
+  const { runtime } = homePaths(home);
+  mkdirSync(runtime, { recursive: true });
+  const db = new DatabaseSync(join(runtime, "owner.lock"));
   try {
     db.exec("PRAGMA locking_mode = EXCLUSIVE");
     db.exec("BEGIN EXCLUSIVE");

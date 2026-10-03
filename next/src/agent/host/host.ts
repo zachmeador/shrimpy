@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname } from "node:path";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Models } from "@earendil-works/pi-ai";
 import {
@@ -11,6 +11,7 @@ import {
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
+import { homePaths } from "../home/index.ts";
 import { takeOwnerLock } from "./owner-lock.ts";
 
 export interface HostOptions {
@@ -37,13 +38,14 @@ const context = BACKGROUND_CONTEXT;
 
 export async function openHost(options: HostOptions): Promise<Host> {
   const { home } = options;
+  const { database } = homePaths(home);
   const lock = takeOwnerLock(home);
   try {
-    mkdirSync(join(home, "state"), { recursive: true });
+    mkdirSync(dirname(database), { recursive: true });
     const registry = createRegistry();
     registry.install(CodingTools);
     const harness = await Harness.open(
-      await openNodeSqliteStorage(join(home, "state", "agent.sqlite")),
+      await openNodeSqliteStorage(database),
       {
         models: options.models,
         registry,

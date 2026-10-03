@@ -19,6 +19,7 @@ import {
 } from "@earendil-works/pi-ai";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
+export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { answered, assistantItems, toolItems, waitForView } from "./wait.ts";
 
 export type FauxScenario = "chat" | "stream" | "tool";
