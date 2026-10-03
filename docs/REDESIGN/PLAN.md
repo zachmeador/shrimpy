@@ -1,7 +1,7 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: experience decisions reviewed on 2026-10-03. Implementation has not started. A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03, with four recommendations about replies [waiting for your call](#waiting-for-your-call). Phase 0 is done and phase 1 is being built in `next/`. A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
@@ -64,6 +64,17 @@ Each row has a decision status:
 - **Open:** not decided yet.
 
 If implementation finds another visible difference, add a row before shipping it. That covers tool text and results, prompts, defaults, keys, command names, JSON, context, lifetime, retention, delivery, timing and cost. A prototype may skip features to answer a narrow question, but it must list what it skipped. Live cutover needs every affected capability kept or explicitly changed.
+
+### Waiting for your call
+
+A second look at how an agent's replies reach a thread, on 2026-10-03, produced four recommendations. Until you decide, the rows further down stand as confirmed.
+
+| Topic | Confirmed now | Recommended | Why |
+|---|---|---|---|
+| Final text after a tool post | Final text stays private when the turn already posted to its thread through a tool | Final text always posts, unless it's `END` or empty | With the exception, an agent that sends a progress note and then answers in its final text loses the answer. Without it, the worst case is one extra short message, and the rule fits in one sentence of instructions. |
+| Matching `END` | The final text is exactly `END` | Ignore surrounding whitespace, quotes, backticks, asterisks and a final period. Text followed by a last line of `END` posts without that line. Phase 1 tests it with a small local model. | A final text of `END.` or `**END**` would otherwise be posted as a message. |
+| A reply that couldn't be sent | It's recorded, and the agent's next turn gets a note so it can resend | The agent keeps it and posts it once chat is reachable again | A person waiting for an answer gets it without anything else having to wake the agent. A reply whose turn finished just before a crash needs the same delivery, so this is one mechanism instead of two. |
+| Showing that an agent is working | Telegram shows typing; nothing is designed for other clients | An agent tells the chat server which threads it's working in, from picking a message up until its turn settles. Every client shows it, and chat providers map it to their typing indicator. It clears when the agent disconnects. | Without it, a thread shows nothing between your message and the reply unless you open the session behind it. |
 
 ### Lifetime, launching and clients
 
