@@ -185,7 +185,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 
 - Sandboxing for individual tools. Agents keep a real shell.
 - A second run queue, transcript, task manager, outcome journal or activity cache beside Pi's.
-- A receipt store that compares the content of retried requests. A request ID's first use wins.
+- A receipt store beside Pi's that compares the content of retried requests. A request ID's first use wins.
 - A compatibility layer for Pi's ordinary `ExtensionAPI`, or a generic service framework.
 - A controller lease between clients, unless a real need appears.
 - Heartbeat-based lock takeover or a PID ledger.
@@ -313,7 +313,7 @@ The [sandbox runtime scout](../research/sandbox-runtime-scout-2026-08-26.md) com
 
 Every incoming operation carries an authenticated source, a stable event or request ID, immutable payload and attachment references, and a target home. Its session comes from the thread it belongs to, or an explicit session ID for steering and control, never from a model call.
 
-A request ID names one request, and its first use wins. Pi returns the first submission when an ID is reused, even with different content, and the chat server does the same for posts. Shrimpy keeps no receipt of its own to compare content. A session never changes its thread and a reset stays inside its session, so a retry always lands in the same place. Pi's submission stays the only execution and settlement record.
+A request ID names one request, and its first use wins. Pi returns the first submission when an ID is reused, even with different content. The chat server has the first message to compare against, so it returns that message for a true retry and refuses an ID reused for a different thread or text. Shrimpy keeps no receipt of its own to compare content. A session never changes its thread and a reset stays inside its session, so a retry always lands in the same place. Pi's submission stays the only execution and settlement record.
 
 Admission happens in order:
 
@@ -710,6 +710,16 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - Each agent process took about 0.6 s and 110 MB of memory to start cold.
 - The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
 - Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.
+
+**Phase 1 progress, 2026-10-03: the chat server is in.** `next/src/chat/` keeps members, DMs, threads and messages in its own SQLite store and serves the chat contract on a Unix socket. About 1,750 lines of product code and 380 in its contract, checked on macOS arm64 with Node 26.7.0.
+
+- Opening the store is the single-owner check: a second chat server on the same data directory is refused, and a killed owner's lock goes with it. The store syncs fully on commit, so an accepted post survives a power cut.
+- A message holds up to 400,000 characters. Views, pages and feed batches are bounded by their encoded size, so an answer always fits one protocol frame; a page of very long messages holds fewer.
+- A feed cursor past the newest message is refused, so an agent whose chat store was replaced starts again from the head.
+- IDs look like `ch_`, `th_` and `msg_` plus 12 characters. A thread's preview is the first 80 characters of its first message on one line. A DM is named for the other member.
+- Refusals carry a message but no typed code yet. Thread rename and archive are plain set-to-value, so clients must not retry them automatically.
+- A hosted thread's view stays in memory until the server stops, which is how `pi-server` holds sessions.
+- `head` is server-wide, so it shows how many messages exist in channels the caller isn't in.
 
 **Phase 1 progress, 2026-10-03: the gateway is in.** `next/src/gateway/` keeps the registry of running programs on a Unix socket and opens a loopback browser entry that pipes a WebSocket to a registered program. About 540 lines of product code and 190 in its contract, checked on macOS arm64 with Node 26.7.0.
 
