@@ -1,13 +1,13 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: experience decisions reviewed on 2026-10-03. Phase 0 is done and phase 1 is being built in `next/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](#introduced-by-the-build-not-yet-reviewed), and where the code [trails this plan](#1-standalone-agent-and-attached-clients). A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03. Phase 0 is done and phase 1 is being built in `next/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](#introduced-by-the-build-not-yet-reviewed), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#experience-decisions).
 
-This file owns the architecture, experience decisions, phases and progress for this change. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../reference/README.md) describe what ships today.
+This file owns the architecture, experience decisions and phases for this change, and [STATUS.md](STATUS.md) logs progress. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../reference/README.md) describe what ships today.
 
 ## Why
 
@@ -57,16 +57,17 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 
 ## Plan at a glance
 
-| Phase | Afterward you can… | Stop or decide if… | Deletes |
-|---|---|---|---|
-| [0. Spike](#0-spike) | Know whether durable, `pi-tui` and Pi's browser client fit, before building anything else | One of them needs a large compatibility layer: revisit durable | Nothing |
-| [1. Standalone agent](#1-standalone-agent-and-attached-clients) | Run one agent as a service, natively or in a sandbox; talk to it in threads from the CLI, terminal and a basic web view; detach, kill it, reattach and see what happened | Terminal parity needs a large compatibility layer | Nothing; new tree only |
-| [2. Context and tools](#2-context-tools-and-compaction) | See exactly what the model received and why; tools, skills and compaction run on durable | — | Old prompt, recording and compaction paths |
-| [3. Daily driver](#3-daily-driver) | Do normal daily work in the new terminal and web clients | A changed affordance has no decision | Private TUI patches, old transcript readers |
-| [4. Communication](#4-communication-and-the-gateway) | Chat through Telegram, the first chat provider, and between agents; attach to an agent through the gateway | — | Old channel loop, global turn and cursor state |
-| [5. Triggers and delegation](#5-triggers-and-delegation) | Run triggered and delegated work that is honest about what a restart interrupted | A capability can't be kept: back to review | Old watch and worker stores |
-| [6. Candidate release](#6-candidate-release) | Install, update, stop and uninstall a release with one engine | Client complexity outweighs runtime savings | The rest of the old tree |
-| [7. Cutover](#7-cutover-and-rollback) | Run live homes on the new release, with a tested rollback | — | Nothing live |
+| Phase | Afterward you can… | Stop or decide if… |
+|---|---|---|
+| [0. Spike](#0-spike) | Know whether durable, `pi-tui` and Pi's browser client fit, before building anything else | Done: all three fit |
+| [1. Talk to an agent](#1-talk-to-an-agent) | Start Shrimpy with one command and talk to an agent in threads from the terminal; watch its work, stop it, kill it and come back to an honest account. Then you start using it. | The terminal client needs a large layer over `pi-tui` |
+| [2. An agent worth using](#2-an-agent-worth-using) | See exactly what the model received and why, with context, tools, skills and compaction on durable. Then your dev agents move in. | — |
+| [3. What daily use asks for](#3-what-daily-use-asks-for) | Stop hitting the rough edges that using it showed you | An affordance from today's Shrimpy is missed |
+| [4. Triggers and helpers](#4-triggers-and-helpers) | Run triggered and delegated work that is honest about what a restart interrupted | A capability can't be kept: back to review |
+| [5. Agents everywhere](#5-agents-everywhere) | Run agents on other machines and in sandboxes, in rooms with several members, and reach them from outside chat apps | How peers stay compatible across machines isn't decided |
+| [6. Release](#6-release) | Install, update, stop and uninstall a release with one engine, with the old tree gone | Client and framework complexity outweigh the runtime savings |
+
+Phases 3, 4 and 5 can swap. After phase 2, the order follows what daily use shows is rough or missing.
 
 ## Experience decisions
 
@@ -112,7 +113,7 @@ If implementation finds another visible difference, add a row before shipping it
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | Keep before any visual redesign: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Ctrl+C doesn't exit immediately as Pi's demo does; Esc follows the stop decision. | Keep |
+| Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | The terminal client starts thin: talk in threads, watch the work behind them and stop it. Today's affordances come back as daily use asks for them: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Any that hasn't come back by the release gets an explicit decision there. Ctrl+C doesn't exit immediately as Pi's demo does; Esc follows the stop decision. | Confirmed |
 | `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Helpers appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
 | Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current session's model and saves a one-candidate home default. Other sessions and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
 | Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
@@ -282,7 +283,7 @@ Homes under one OS user share that user's authority. Different permissions need 
 
 ### Host and Pi
 
-The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands such as `log` and `inspect` go through the owner's API. The owner takes an exclusive lock on the home before anything that writes or serves, meaning opening storage, starting servers or binding sockets, and holds it for its lifetime. Reading the home's files comes first, so a home that doesn't load or names an unusable model fails without claiming it. The spike's 21-line lock on `node:sqlite` works on macOS; phase 1 qualifies it on Linux.
+The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands such as `log` and `inspect` go through the owner's API. The owner takes an exclusive lock on the home before anything that writes or serves, meaning opening storage, starting servers or binding sockets, and holds it for its lifetime. Reading the home's files comes first, so a home that doesn't load or names an unusable model fails without claiming it. The spike's 21-line lock on `node:sqlite` works on macOS; phase 5 qualifies it on Linux.
 
 Pi owns submissions, `InboxDoc`, `LiveDoc`, `UsageDoc`, conversation entries and configuration, generation, tool and compaction tasks, checkpoints, child ownership and structural watches. Shrimpy reads them directly. Query indexes and UI caches are disposable and name their source.
 
@@ -521,13 +522,15 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 ## Phases
 
-Work in an isolated feature branch and checkout with fixture homes and separate build output. Never run the root build or tests in the live checkout: they rewrite the `dist/` that the installed CLI uses. Candidate services, sockets, binaries and home paths stay separate from the installed application. `main` stays on Pi `0.84.4` until the candidate replaces it; there's no interim upgrade.
+**Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. From the end of phase 1 the new Shrimpy is used for real conversations, and from the end of phase 2 it is the one in daily use. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
+
+Work in `next/`, with its own homes, sockets and data paths, so nothing touches the old tree, its workspace or the installed `shrimpy`. Never run the root build or tests: they rewrite the `dist/` that the installed CLI uses. `main` stays on Pi `0.84.4` until the release replaces it; there's no interim upgrade. The old tree is deleted in phase 6, and until then each phase only adds to `next/`.
 
 **No shortcuts reach a commit.** A boundary crossed for convenience, a missing front door, tests left for later and lint that isn't set up yet all get fixed before the commit, not after it. The quality work for a module, meaning its boundary lint, its front door and its tests, exists before that module's first commit. A shortcut found later is fixed before anything else is committed.
 
-**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided: it goes into [Introduced by the build, not yet reviewed](#introduced-by-the-build-not-yet-reviewed), and a known gap goes into the list under the phase being built.
+**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided: it goes into [Introduced by the build, not yet reviewed](#introduced-by-the-build-not-yet-reviewed), and a known gap goes into the list in [STATUS.md](STATUS.md).
 
-Each phase ends with a shape review against the [layout rules](#target-source-layout) and a new row in the [size log](#size-baseline).
+Each phase ends with a shape review against the [layout rules](#target-source-layout), a look at how large `lib/` has grown, and a new row in the [size log](#size-baseline). [STATUS.md](STATUS.md) logs progress and lists where the code trails this plan.
 
 ### 0. Spike
 
@@ -549,54 +552,42 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 **Result:** done on 2026-10-03. All three questions fit; see the [spike report](spike/REPORT.md). Its proven parts were then realigned into `next/src/` as the seed of the real tree, and the spike's code was deleted. It stays in git at `a3c6ae4`.
 
-### 1. Standalone agent and attached clients
+### 1. Talk to an agent
 
-**Outcome:** one agent runs as its own service, with a minimal local gateway and chat server. You talk to it in threads from the CLI, the terminal and a basic web view, close them, kill the service, reopen, and get an honest account of what happened.
+**Outcome:** one command starts Shrimpy on this machine, and you talk to an agent in threads from the terminal. You watch its work, stop it, close the terminal, kill the agent and come back to an honest account of what happened.
 
 **Build**
 
 - Start from the seed in `next/src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, crash and lock tests, and the boundary lint.
-- Keep the durable, AI, Chord, server, client and protocol packages pinned at `1.0.0`, and pin `pi-tui` the same way when the console arrives. Use public exports only.
-- Home → model runtime, registry and environment → Harness on SQLite → service → CLI → terminal and basic web view, with no old session runtime.
+- Keep the durable, AI, Chord, server, client and protocol packages pinned at `1.0.0`, and pin `pi-tui` the same way when the terminal client arrives. Use public exports only.
+- Home → model runtime, registry and environment → Harness on SQLite → service → CLI, with no old session runtime.
 - A minimal local gateway and chat server, so talking goes through threads from the start. No chat providers, rooms, remote routing or tokens yet.
 - The OS lock that makes one process the owner of a home.
+- The wire-up: the agent registers with the gateway, joins chat as a member and reads its feed. It keeps one session per thread, posts its final text as the reply, leaves receipts, marks where it's working, and keeps an outbox for replies it couldn't post.
 - The first commands for talking: `shrimpy up <home>...` starts what's missing on this machine, `run <agent> <text>` says something in your DM with the agent and prints the reply, `threads <agent>` and `read <thread>` show what was said, and `gateway serve` and `chat serve <data-dir>` are foreground entrypoints like `agent serve`. In chat you are `person:<OS username>` unless you set otherwise. Machine-level data takes an explicit path until phase 6 picks a default, so nothing lands near a live workspace.
-- The foreground entrypoint that any supervisor or sandbox can run.
+- The foreground entrypoints that any supervisor or sandbox can run.
+- A thin terminal client on `pi-tui`'s public components: pick an agent and a thread, talk, see replies and who is working, open the work behind a thread and watch it stream, stop it, start a new thread, and quit without stopping the work.
 
 **Prove**
 
 - A real provider turn using file and shell tools.
-- Two threads in your DM with the agent, reset versus a new thread, streaming and tool progress, a draft kept on failure, and model selection.
-- Stopping with a message waiting: it stays in the thread as skipped, and the agent reads it next time.
+- Two threads in your DM with the agent, with streaming and tool progress in the terminal.
+- Stopping with a message waiting: it stays in the thread with a skipped receipt, and the agent reads it next time.
 - A reply whose turn ended while chat was down, or just before the owner was killed, arrives exactly once when chat is back.
 - A small local model staying silent with `END`, wrapped forms included.
 - A thread shows that the agent is working, and stops when the turn settles or the agent dies.
-- Detach and reattach, and two clients at once. The web view uses the same operations as the terminal.
-- Killing the owner mid-turn, a lost admission reply, a reused request ID with the same and with different content, and close versus abort.
+- Detach and reattach, and two clients at once.
+- Killing the owner mid-turn, a lost admission reply, a reused request ID with the same and with different content, and close versus stop.
 - A second owner is refused, and a second home shares no defaults, credentials or history by accident.
 - What the supervisor does with a shell child that was started before the kill and writes a file later.
-- The same agent inside one real sandbox or VM, with the client outside and no shared files.
-- Early cost checks: image reading and context capture.
 
-**Gate:** if terminal parity needs a large compatibility layer, stop and revisit with that evidence. Record the prototype's experience differences and its real code and dependency cost.
+**Use it.** After the wire-up, try it from the command line. After the terminal client, use it for real conversations. What's rough goes on phase 3's list.
 
-**Where the code trails this plan, as of 2026-10-03.** The list is empty before each review pause.
+**Gate:** if the terminal client needs a large compatibility layer over `pi-tui`, stop and revisit with that evidence. Record the prototype's experience differences and its real code and dependency cost.
 
-- The agent contract says `abort` where the plan says `stop`.
-- The agent still has a main session, and sessions are numbered instead of being addressed by their thread.
-- The chat contract has `skippedBy` and `markSkipped` where the plan has receipts.
-- Registrations carry no version.
-- OAuth sign-in isn't built. The plan keeps it.
-- The chat server and the gateway have no commands yet, so they're only reachable as libraries.
-- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes.
-- The lint doesn't check that a `lib/` module used by browser code is itself safe for browsers. Only the contracts' bundle tests would catch it.
-- `lib/connection` and `lib/offer` say "session" for what Pi routes to. This plan keeps that word for an agent's private work, and for the chat server the route is a thread.
-- Only `agent/sessions/` reads Pi's records, as the plan requires, but that holds by convention. The lint only keeps Pi's durable package inside `agent/`.
-- Not built yet from the layout: `agent/intake/`, `agent/extensions/`, `chat/providers/` and `clients/`.
+### 2. An agent worth using
 
-### 2. Context, tools and compaction
-
-**Outcome:** for any request you can see exactly what the model received and why, and it matches what ran. Tools, skills and compaction run on durable.
+**Outcome:** the agent knows who it is and what it can do, and for any request you can see exactly what the model received and why. Then your dev agents move in, and the new Shrimpy is the one you use.
 
 **Build**
 
@@ -605,6 +596,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Request and context inspection, and explicit reload.
 - Ported skills and helper commands, with their tool requirements and precedence.
 - Native compaction with Shrimpy's guidance in place of the copied runner.
+- Workspace context hosted by the gateway, with each agent's cached copy.
 
 **Prove**
 
@@ -614,60 +606,38 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Killing the owner around a producer's effect and result commit, and during blocking compaction. Failures and caching behave as specified.
 - Previews run no producers.
 - A model tool call spanning a resource reload and an attempted code or environment swap.
+- Early cost checks: image reading and context capture.
 
-**Deletes:** the old prompt, resource, recording and compaction execution paths.
+**Move in.** Create homes for your dev agents, and let each bring over what it wants from the old workspace. Shrimpy converts nothing, and the old workspace stays untouched until you remove it. From here the new Shrimpy is in daily use.
 
-### 3. Daily driver
+**Replaces:** the old prompt, resource, recording and compaction execution paths.
 
-**Outcome:** you do normal daily work in the new terminal and web clients, without the old `InteractiveMode` host.
+### 3. What daily use asks for
 
-**Build**
+**Outcome:** the rough edges you found by using it are gone.
 
-- Thread and session operations: new thread, reset, archive, resume, fork, names, search, read and export.
-- Reactions, edits and deletes in threads: in the chat server, both clients and the agent's tools.
-- Model, defaults, settings, setup and auth as decided above; status and help come from the service.
-- Web navigation of channels, threads, agents and sessions, with history, live view and input, alongside the inspector views.
+This phase has no fixed scope. Its list comes from use, and its order is yours. The known candidates:
+
+- Thread and session operations: reset, archive, resume, fork, names, search, read and export.
+- Chat commands in a thread: `/new`, `/stop`, `/status` and `/help`.
+- Reactions, edits and deletes in threads: in the chat server, the clients and the agent's tools.
+- Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
 - Attachments on messages, including clipboard files and images.
+- Terminal affordances from today's client, listed under [terminal, models and settings](#terminal-models-and-settings).
+- A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views.
 
-**Prove**
+**Prove,** for whatever gets built:
 
-- Every inherited command's disposition in [command coverage](#command-coverage).
 - Keyboard, editor, file, image and shell interactions.
 - Agent navigation, preflight failure and several clients. A failed switch restores the previous view and draft.
-- Web queries and subscriptions, new IDs and anchors, and large transcripts.
+- Web queries and subscriptions, new IDs and anchors, and large transcripts. The web client uses the same operations as the terminal.
 - Presentation content never reaches provider input.
-- A side-by-side comparison with today's workflows in isolated homes; fixture tests don't prove usability.
 
-**Deletes:** private TUI patches, the old transcript readers and duplicated settings and lifecycle bindings.
+**Rule:** an affordance today's Shrimpy has comes back when it's missed. Whatever hasn't come back by the release gets an explicit decision there, with every inherited command's disposition in [command coverage](#command-coverage), so nothing is dropped silently.
 
-**Gate:** every changed or missing affordance has a decision.
+**Replaces:** private TUI patches, the old transcript readers and duplicated settings and lifecycle bindings.
 
-### 4. Communication and the gateway
-
-**Outcome:** chat through any provider, starting with Telegram, and agent-to-agent messages go through the same admission, and you can attach to an agent in another process through the gateway.
-
-**Build**
-
-- Source bindings and publication and delivery operations.
-- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent. Then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
-- Gateway registration and routing, with agents connecting out to it.
-- An included skill that teaches agents to set their own wake policy.
-
-**Prove**
-
-- An agent in a separate process from the gateway, with terminal and web attaching through it using the same contract as local use.
-- Switching agents and sessions; allowed and denied access; agent, gateway and client disconnects and reconnects; fixed-target retry; completion against the agent's filesystem; moving an attachment.
-- A gateway or chat server failure leaves accepted work with the agent; clients recover from committed state, and agents catch up on channel messages they missed.
-- Two homes talking in a channel with no provider at all: default wake policies and real models, including a small local one, that wind down instead of ping-ponging; mentions and broadcast, sender restrictions, final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status.
-- A sandboxed agent whose only outbound access is the gateway and its model provider.
-- A message typed in the console in a Telegram-bridged channel appears in Telegram, posted by the bot and labelled with your name.
-- A fake test provider drives the same chat contract, so nothing Telegram-specific leaks into the shared layer.
-- A reaction and an edit cross the bridge in both directions, and a feature the outside app lacks is left out.
-- Through Telegram: a reset between admission and retry, duplicate and batched updates, offline periods, first start, late replies, long formatted output, quiet notices, photos, documents, voice notes and video, and a lost send acknowledgment.
-
-**Deletes:** the global handled-turn, cursor and outcome state, and the old channel session and control loop.
-
-### 5. Triggers and delegation
+### 4. Triggers and helpers
 
 **Outcome:** triggered and delegated work runs, can be inspected from the CLI and clients, and is honest about what a restart interrupted.
 
@@ -682,42 +652,60 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Deterministic checks make no model calls until they emit something.
 - Delegation through the real Codex backend: start, inspect, continue, wait, cancel, close and outputs, across caller disconnect and owner death. A background helper wakes its parent when it finishes, and Pi task ownership never cancels detached external workers.
 
-**Deletes:** the old watch and worker stores and supervisors.
+**Replaces:** the old watch and worker stores and supervisors.
 
 **Gate:** a capability that can't be kept goes back to [experience decisions](#experience-decisions) before removal.
 
-### 6. Candidate release
+### 5. Agents everywhere
 
-**Outcome:** an installable release with one engine.
+**Outcome:** agents run on other machines and in sandboxes and network to a gateway, rooms hold several members, and chat reaches outside apps through providers, starting with Telegram.
+
+**Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch.
+
+**Build**
+
+- Source bindings and publication and delivery operations.
+- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent. Then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
+- Gateway registration and routing, with agents connecting out to it.
+- An included skill that teaches agents to set their own wake policy.
+- Tokens for agents and Tailscale identity for people, as decided.
+- The programs and their locks qualified on Linux.
+
+**Prove**
+
+- An agent in a separate process from the gateway, with terminal and web attaching through it using the same contract as local use.
+- Switching agents and sessions; allowed and denied access; agent, gateway and client disconnects and reconnects; fixed-target retry; completion against the agent's filesystem; moving an attachment.
+- A gateway or chat server failure leaves accepted work with the agent; clients recover from committed state, and agents catch up on channel messages they missed.
+- Two homes talking in a channel with no provider at all: default wake policies and real models, including a small local one, that wind down instead of ping-ponging; mentions and broadcast, sender restrictions, final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status.
+- The same agent inside one real sandbox or VM, with the client outside and no shared files.
+- A sandboxed agent whose only outbound access is the gateway and its model provider.
+- A message typed in the console in a Telegram-bridged channel appears in Telegram, posted by the bot and labelled with your name.
+- A fake test provider drives the same chat contract, so nothing Telegram-specific leaks into the shared layer.
+- A reaction and an edit cross the bridge in both directions, and a feature the outside app lacks is left out.
+- Through Telegram: a reset between admission and retry, duplicate and batched updates, offline periods, first start, late replies, long formatted output, quiet notices, photos, documents, voice notes and video, and a lost send acknowledgment.
+
+**Replaces:** the global handled-turn, cursor and outcome state, and the old channel session and control loop.
+
+### 6. Release
+
+**Outcome:** an installable release with one engine, and the old tree is gone.
 
 **Build**
 
 - Account for every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement. Help and completion come from the real command surface.
+- A decision for every command and affordance of today's Shrimpy that hasn't come back.
+- Default locations for machine-level data, and service installation for each program.
 - Move `next/` into `src/`, then remove what's left: `AppRuntime`, the session pool, leases, turn wrappers, gateway execution, control and watch state, private Pi imports, obsolete binaries, commands and dependencies, and candidate scaffolding.
 
 **Prove**
 
 - Build, lint, package, lifecycle and full test runs in the isolated checkout.
 - On macOS and Linux: install, first setup, tagged update, stop and restart, and uninstall without losing home data.
-- Code and dependency deletion, resource use at startup, idle and under load, and remaining deviations and evidence gaps, all recorded in the [status log](#status-log).
+- Code and dependency deletion, resource use at startup, idle and under load, and remaining deviations and evidence gaps, all recorded in [STATUS.md](STATUS.md).
 
 **Gate:** if client and framework complexity outweigh the runtime savings, revise before going live. Reference docs describe only what the candidate implements.
 
-### 7. Cutover and rollback
-
-**Outcome:** live homes run the new release, with a tested way back.
-
-**Prepare** before asking to cut over: the exact release, fresh homes, service definitions, configuration changes, a stopped backup, and validation and rollback commands. This plan doesn't authorize touching the live workspace, binaries, gateway, poller, credentials or schedules.
-
-**Cut over**
-
-- Keep the current release and home intact.
-- Create fresh homes and configure credentials explicitly. Each agent migrates its own data, reading what it wants from the old workspace; Shrimpy converts no transcripts, tasks, manifests or clocks.
-- Triggers and chat providers start disabled until their definitions, bindings and destinations are reviewed.
-- Stop the old poller before enabling the new one, so each home has one reader and one owner. Expect a brief interruption, and handle provider backlog per the chat layer's policy.
-- Cutover succeeds once a local turn, a real inbound and outbound message, a triggered workflow, and detach and restart recovery all work.
-
-**Rollback:** stop the candidate, restore the previous binary and services, and resume the untouched old home. New history stays separate and isn't merged back. Never open a newer database with an older binary; if storage contracts change in a later upgrade, roll back to a compatible stopped backup. Live files are never deleted just because the candidate works.
+**Moving from the old Shrimpy.** Create fresh homes and set up credentials explicitly. Each agent brings over its own data, reading what it wants from the old workspace; Shrimpy converts no transcripts, tasks, manifests or clocks. Triggers and chat providers start disabled until their definitions, bindings and destinations are reviewed, and an old poller is stopped before a new one starts on the same bot. Shrimpy never changes or deletes the old workspace. Never open a newer database with an older binary.
 
 ## Command coverage
 
@@ -747,61 +735,3 @@ Inherited terminal commands each need a disposition:
 - **Drop old-format `/import`** (pending review). `/export` stays as a readable export of current history, without promising Pi JSONL compatibility.
 - **Review `/trust`** against deliberate home resources; ambient project instructions stay off. `/share` and `/scoped-models` stay hidden as today.
 - **Keep** `/skill:name` and prompt-template expansion, the `!` and `!!` distinction, command completion and existing input shortcuts. The new work view is a reviewed addition.
-
-## Status log
-
-Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
-
-**Phase 0, 2026-10-03: done.** All three questions fit, with no compatibility layer around Pi. The [spike report](spike/REPORT.md) and its evidence are in `docs/REDESIGN/spike/`; the spike's code is in git at `a3c6ae4` under `next/spike/`. It ran on macOS arm64 with Node 26.7.0, the published `1.0.0` packages, pi-ai's faux provider and the LAN `qwen3.8-27b` model.
-
-- Crash recovery behaved as planned, killed mid-stream and mid-tool. A shell child kept running after its owner died, so supervision has to reap it.
-- The terminal view used only public `pi-tui` pieces, and the browser page bundled without Node built-ins or `esbuild` and recovered after server restarts.
-- Opening a home's storage is a write, which makes the owner lock mandatory; the rule is now under [Host and Pi](#host-and-pi).
-- The spike first sent Pi's record shapes to its clients. That shortcut was removed in `a3c6ae4`: the server builds a Shrimpy-owned view, and a boundary check fails the build on a violation.
-- The spike was then realigned into the seed of the real tree under `next/src/`: `contracts/agent` (the session view, two services, the client caller and a Node-only door), `agent/host` (lock, storage, engine), `agent/sessions` (the one place that reads Pi's records) and the agent's server on a short Unix socket path. Direct input is now `steer`, a control action; talking arrives with the chat server. The terminal view, browser page and WebSocket listener were deleted, to be rebuilt in `clients/` and `gateway/` from the report.
-- Each agent process took about 0.6 s and 110 MB of memory to start cold.
-- The local Qwen model works through pi-ai with a placeholder key `local`, `maxTokens` set high, and the compat flags `supportsDeveloperRole`, `supportsStore` and `supportsReasoningEffort` set to false. pi-ai sends earlier `reasoning_content` back.
-- Still untested: Linux, Node versions other than 26.7.0, hosted providers and OAuth, other terminals and browsers, authentication on the WebSocket, faults beyond SIGKILL, and sandboxing.
-
-**Phase 1 progress, 2026-10-03: the consolidation pass is in.** One builder moved what the three parallel builds had duplicated into `lib/`: the lock, test support, the client connection core, offering a service, refusals, and a listener helper. It fixed four defects in the agent's client and one in the chat's, and every test now cleans up after itself.
-
-- The total grew instead of shrinking. Program code fell by about 260 lines and their test support by about 220, but the shared modules and their tests are larger than the copies they replaced. `next/src/` now holds 5,492 lines of product code, 8,062 of tests and 1,478 of test support.
-- The import rule is simpler: a file imports its own directory or another directory's front door.
-- Earlier test runs left about 4,000 `shrimpy-*` directories in the OS temp directory. They haven't been removed.
-
-**Phase 1 progress, 2026-10-03: an agent runs from its home, with a CLI.** `shrimpy agent init`, `agent serve` and `agent status` create and run an agent, and `sessions list`, `read`, `steer` and `stop` talk to it. Run them from source in `next/` with `npm run shrimpy -- <command>`. Checked on macOS arm64 with Node 26.7.0.
-
-- A home holds `agent.json` (name and default model), `SOUL.md`, and Pi's `state/pi/models.json` and `auth.json`. `models.json` takes a strict subset of Pi's format, with `openai-completions` as the only API, and an unsupported key is an error.
-- Keys come only from the home's files. The environment isn't read, so two homes can't share a key by accident, and a key written as a command or a variable is refused. OAuth sign-in isn't built yet.
-- A stop signal stops intake, gives running turns five seconds, then pauses the rest for the next start. `--now` or a second signal skips the wait.
-- Exit codes: 0 for success, 1 for failure, 2 for wrong use, and 130 for a cancelled `steer --wait`.
-- The home's model and instructions are applied to the main session at every start. That needs a rule once sessions can override them in phase 3.
-- The real-model test passed against `qwen-3.8-flash-next-180b-a6b-nvfp4` on `cashmoney:8090`: init, serve, a turn that calls the shell tool, read and stop, each as its own process, in 4.4 seconds. To run it again, in `next/`: `SHRIMPY_TEST_MODEL_URL=http://cashmoney:8090/v1 SHRIMPY_TEST_MODEL_ID=qwen-3.8-flash-next-180b-a6b-nvfp4 node --test --test-name-pattern="real model" src/cli/shrimpy.test.ts`.
-
-After the three merges `next/src/` holds about 5,300 lines of product code, 7,000 of tests and 1,400 of test support. A consolidation pass is removing what the three parallel builds duplicated.
-
-**Phase 1 progress, 2026-10-03: the chat server is in.** `next/src/chat/` keeps members, DMs, threads and messages in its own SQLite store and serves the chat contract on a Unix socket. About 1,750 lines of product code and 380 in its contract, checked on macOS arm64 with Node 26.7.0.
-
-- Opening the store is the single-owner check for a data directory: a second chat server on it is refused, and a killed owner's lock goes with it. A lock beside the socket keeps one chat server per machine, because Pi's listener can't arbitrate simultaneous starts: three at once left no chat server in 16 of 40 rounds before the lock, and exactly one in 40 of 40 after. The store syncs fully on commit, so an accepted post survives a power cut.
-- A message holds up to 400,000 characters. Views, pages and feed batches are bounded by their encoded size, so an answer always fits one protocol frame; a page of very long messages holds fewer.
-- A feed cursor past the newest message is refused, so an agent whose chat store was replaced starts again from the head.
-- IDs look like `ch_`, `th_` and `msg_` plus 12 characters. A thread's preview is the first 80 characters of its first message on one line. A DM is named for the other member.
-- Refusals carry a message and one of Chord's two general codes, for wrong arguments or for something not allowed now. There are no codes of Shrimpy's own yet. Thread rename and archive are plain set-to-value, so clients must not retry them automatically.
-- A hosted thread's view stays in memory until the server stops, which is how `pi-server` holds sessions.
-- `head` is server-wide, so it shows how many messages exist in channels the caller isn't in.
-
-**Phase 1 progress, 2026-10-03: the gateway is in.** `next/src/gateway/` keeps the registry of running programs on a Unix socket and opens a loopback browser entry that pipes a WebSocket to a registered program. About 540 lines of product code and 190 in its contract, checked on macOS arm64 with Node 26.7.0.
-
-- One gateway per machine is held by an OS lock, because Pi's Unix listener can't arbitrate simultaneous starts: three at once left no gateway running in 21 of 40 rounds.
-- A browser can list programs but can't register one. A registration names a socket the entry then pipes to, so a page that could register could reach any socket the user can.
-- A WebSocket request with no `Origin` is accepted, since only non-browser clients send none. A foreign origin is refused.
-- To review with the web client: the browser URLs `/ws/gateway` and `/ws/<kind>/<name>`, IPv4 loopback only, no default port yet, and the static file rules (no fallback page, no cache or security headers, dotfiles served).
-- A second program registering the same kind and name isn't refused; the newest one is the one reached.
-
-**Design review of the contracts and the message flow, 2026-10-03.** Confirmed: a session's address is its thread's ID, and there's no main session; receipts on messages replace the skipped mark and an agent-side wait; the contract says `stop` where it said `abort`; and registrations carry Shrimpy's version. Pi's session view holds only the active context, which compaction keeps inside the model's window, so it stays far below the protocol's 16 MiB frame. Also confirmed: the agent's `react` tool and the `edit` option on `send_message`; silent receipts stay invisible by default; the first command names, `person:<OS username>` as the default identity, explicit paths for machine-level data until phase 6, `/stop` among the first chat commands, and the five things a provider gets.
-
-**Chat review, 2026-10-03.** Confirmed: each agent has its own bot account on an outside chat app, bridges only post as bots, and threads carry reactions, edits and deletes. The agent runs chat commands, starting with `/new`, `/status` and `/help`, and each provider does its own translation. Three recommendations are waiting for a decision. The [chat bridge scout](../research/chat-bridge-scout-2026-10-03.md) found nothing to adopt as the bridge layer.
-
-**Reply review, 2026-10-03.** Four changes confirmed, and the rows above carry them: final text always posts unless it's `END` or empty; `END` is matched forgivingly; final replies wait in an agent-side outbox while chat is unreachable; and threads carry who is working in them.
-
-Record review decisions, finished phases, commands and results, and blockers here. A phase is done when its Prove list has evidence from real candidate wiring, not equivalent mocks; a passing build or deleted files don't count. A newly found experience difference stays pending until reviewed.
