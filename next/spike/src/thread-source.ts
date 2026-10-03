@@ -1,5 +1,6 @@
 import type { ThreadSource } from "./contract.ts";
 import { ctx, openHost } from "./host.ts";
+import { toThreadView } from "./session-view.ts";
 
 /** The host and the client in one process, like coding-agent's local durable TUI. */
 export async function openLocalThread(home: string, onReport?: (error: unknown) => void): Promise<ThreadSource> {
@@ -7,11 +8,11 @@ export async function openLocalThread(home: string, onReport?: (error: unknown) 
 	const state = await host.conversation.viewState(ctx);
 	return {
 		get view() {
-			return state.value;
+			return toThreadView(state.value);
 		},
 		subscribe(listener) {
-			listener(state.value);
-			return state.subscribe((value) => listener(value));
+			listener(toThreadView(state.value));
+			return state.subscribe((value) => listener(toThreadView(value)));
 		},
 		async send(text, whenBusy, requestId) {
 			const submission = await host.conversation.submit({ type: "input", content: text, whenBusy, requestId }, ctx);

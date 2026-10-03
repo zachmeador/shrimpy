@@ -1,5 +1,5 @@
 import { connectThread, type RemoteThread, webSocketTransport } from "../src/remote.ts";
-import { type Item, toItems, toStatus } from "../src/view-model.ts";
+import type { Item } from "../src/contract.ts";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const chat = $("chat");
@@ -42,9 +42,8 @@ function draw(item: Item): HTMLElement {
 
 function render(): void {
 	if (thread === undefined) return;
-	const view = thread.view;
-	items = toItems(view);
-	const status = toStatus(view);
+	const status = thread.view.status;
+	items = thread.view.items;
 	busy = status.busy;
 	const nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
 	chat.replaceChildren(...items.map(draw));

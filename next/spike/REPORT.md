@@ -9,6 +9,8 @@ The spike also found one rule the plan should state outright: **opening a home's
 
 A Qwen 27B model on a LAN inference server (`qwen3.8-27b`) ran every check alongside pi-ai's faux provider. Crash tests kept the faux provider for deterministic timing and were repeated against the real model.
 
+**Follow-up, the same day.** The first version of the spike sent Pi's own record shapes to the terminal and the browser, and both mapped them with a shared view model. That tied every client to the engine. The server now builds a Shrimpy-owned thread view (`ThreadView` in `src/contract.ts`: items, status and an entry count) in `src/session-view.ts`, the one module that knows Pi's shapes, and publishes it as its own replicated state with small patches, including string appends for streaming text. Clients only draw it. `npm run check` type-checks and runs `scripts/check-boundaries.mjs`, which fails if a client imports the engine, the server side, a Node-only module in browser code, or `pi-tui` internals. The terminal view also takes its thread source as an argument instead of importing the in-process host. The bundle, headless, terminal, browser and crash checks were run again on this version; other evidence files predate it.
+
 Setup note: the worktree was cut from `main` (`574bb2c`) instead of `wip`. I fast-forwarded its branch to `wip` so `docs/REDESIGN/PLAN.md` was present. My commit touches only `next/spike/`.
 
 ## Verdicts
@@ -16,7 +18,7 @@ Setup note: the worktree was cut from `main` (`574bb2c`) instead of `wip`. I fas
 | # | Question | Verdict | Why |
 |---|---|---|---|
 | 1 | Durable host and crash recovery | **Fits** | SIGKILL mid-stream and mid-tool, with the faux provider and the real model. The request is sent again with identical messages. The tool is reported as interrupted and not rerun. |
-| 2 | Terminal view from public `pi-tui` | **Fits** | 298 lines plus a 114-line view model. Streaming text, tool cards and an editor that sends, captured in a real pseudo-terminal. |
+| 2 | Terminal view from public `pi-tui` | **Fits** | 292 lines, drawing a thread view the server builds. Streaming text, tool cards and an editor that sends, captured in a real pseudo-terminal. |
 | 3 | `pi-client` in a browser | **Fits** | The page loads a snapshot, updates live and sends, in the Browser pane. The bundle has no Node built-ins and no esbuild. |
 
 ## What was built
@@ -25,16 +27,16 @@ Everything is in `next/spike/`, with its own `package.json`. The seven Pi packag
 
 | Piece | Files | Lines |
 |---|---|---|
-| Durable host, CLI, owner lock | `src/host.ts`, `src/cli.ts`, `src/owner-lock.ts` | 293 |
-| Terminal view | `src/tui.ts`, `src/thread-source.ts` | 324 |
-| View model shared by terminal and browser | `src/view-model.ts` | 114 |
-| Server and client plumbing | `src/serve.ts`, `src/ws-listener.ts`, `src/contract.ts`, `src/remote.ts`, `src/remote-node.ts`, `src/endpoint.ts` | 323 |
-| Browser page | `web/page.ts`, `web/index.html` | 136 |
+| Durable host, CLI, owner lock | `src/host.ts`, `src/cli.ts`, `src/owner-lock.ts` | 298 |
+| Terminal view | `src/tui.ts`, `src/thread-source.ts` | 319 |
+| Thread view, built on the server | `src/session-view.ts` | 141 |
+| Server and client plumbing | `src/serve.ts`, `src/ws-listener.ts`, `src/contract.ts`, `src/remote.ts`, `src/remote-node.ts`, `src/endpoint.ts` | 355 |
+| Browser page | `web/page.ts`, `web/index.html` | 135 |
 | Scripted faux provider | `src/faux-script.ts` | 110 |
-| Test and evidence scripts | `scripts/*` | 664 |
-| **Total** | | **1,964** |
+| Test, evidence and boundary-check scripts | `scripts/*` | 696 |
+| **Total** | | **2,054** |
 
-About 1,190 lines are product-shaped. The rest is test scaffolding. `evidence/` holds the captured output of every run quoted below. Browser screenshots were viewed but are not committed; `evidence/browser.txt` records what the page reported about itself.
+About 1,250 lines are product-shaped. The rest is test scaffolding. `evidence/` holds the captured output of every run quoted below. Browser screenshots were viewed but are not committed; `evidence/browser.txt` records what the page reported about itself.
 
 ## 1. Durable host and crash recovery
 
@@ -105,9 +107,9 @@ Avoid:
 
 **Verdict: fits.**
 
-`src/tui.ts` renders the committed `ConversationView` with public components. Every `@earendil-works/pi-tui` import is from the package root, and nothing comes from coding-agent. Components used: `TuiMainScreen`, `TuiAltScreen`, `ProcessTerminal`, `Container`, `Box`, `Text`, `Spacer`, `Markdown`, `Loader`, `Editor`, `ScrollView`, `VStack` and `CombinedAutocompleteProvider`. The helpers are `matchesKey`, `parseColor`, `styleText`, `getTerminalColorMode` and `isViewportTUI`.
+`src/tui.ts` draws the thread view with public components. Every `@earendil-works/pi-tui` import is from the package root, and nothing comes from coding-agent. Components used: `TuiMainScreen`, `TuiAltScreen`, `ProcessTerminal`, `Container`, `Box`, `Text`, `Spacer`, `Markdown`, `Loader`, `Editor`, `ScrollView`, `VStack` and `CombinedAutocompleteProvider`. The helpers are `matchesKey`, `parseColor`, `styleText`, `getTerminalColorMode` and `isViewportTUI`.
 
-What each part reads from the view:
+What the server reads from the committed session to build each part of the thread view:
 
 | Shown | Source |
 |---|---|
@@ -174,7 +176,7 @@ Keep:
 
 - The main screen as the default and `TuiAltScreen` as the option.
 - `Editor` for history, paste handling and autocomplete.
-- A single view model shared by terminal and browser: committed view in, display items out.
+- One thread view built on the server from the committed session. Clients only draw it.
 - A console-owned theme.
 - Restoring the draft on a failed send.
 
@@ -193,22 +195,22 @@ The browser reaches the durable host through `pi-client`, a WebSocket and `pi-se
 
 - `src/ws-listener.ts` (69 lines) is a `ServerListener` over the `ws` package. Each binary frame is one chunk of the protocol's byte stream. The same HTTP server serves the page, so there is one origin.
 - `src/serve.ts` (117 lines) wires the Harness to `pi-server` on a Unix socket and the WebSocket.
-- `src/contract.ts` defines two Chord services, which are ours: `Sessions` (attach) and `Thread` (the committed view as replicated state, plus `send` and `abort`).
+- `src/contract.ts` defines two Chord services, which are ours: `Sessions` (attach) and `Thread` (the thread view as replicated state, plus `send` and `abort`). It imports no engine types.
 - `src/remote.ts` (72 lines) is the client, with no Node imports. Its `connectThread()` serves both the page and the Node clients: the terminal uses the Unix socket, and `scripts/headless-client.ts` uses either.
-- `web/page.ts` is 95 lines. It renders from the same view model as the terminal.
+- `web/page.ts` is 94 lines. It draws the same thread view as the terminal.
 
 ### Evidence
 
 **Bundle** (`npm run bundle`, `evidence/bundle.txt`), esbuild `platform=browser`:
 
 ```
-bundle         482883 bytes  (minified 203133, gzip 53371)
-input modules  702
+bundle         478806 bytes  (minified 200706, gzip 52384)
+input modules  701
     338349  typebox
      60375  @earendil-works/chord
      23759  @earendil-works/pi-protocol
      19290  @earendil-works/pi-client
-     10092  (spike source)
+      6037  (spike source)
 
 external imports left in the bundle:    none
 node: built-in modules bundled:         none
@@ -230,7 +232,7 @@ Three negative controls fail to bundle for a browser, which shows the check can 
 - *SIGKILL mid-stream, then restart:* the page reattached and showed the interrupted partial (`line 17: the qui`, then `(answer interrupted)`) followed by the complete re-requested answer.
 - Page state afterwards: user, assistant, user, **assistant (aborted, 864 chars)**, assistant (2,119 chars).
 
-**Headless** (`evidence/headless-client.txt`), over the Unix socket and over the WebSocket from Node: the snapshot was 2 items and 3 committed entries, and live updates followed. A message sent twice with one request ID returned the same submission (`same submission, admitted once`).
+**Headless** (`evidence/headless-client.txt`), over the Unix socket and over the WebSocket from Node: a client that sent a message saw 23 live updates, and a second client's snapshot held the finished thread: 4 items and 5 committed entries. A message sent twice with one request ID returned the same submission (`same submission, admitted once`).
 
 **Client death** (`evidence/client-death.txt`): a sending client SIGKILLed itself 2 seconds into a 9-second answer. Nine seconds later a second client attached and saw the complete answer in the thread. Accepted work does not depend on the client that sent it.
 
@@ -238,7 +240,7 @@ Three negative controls fail to bundle for a browser, which shows the check can 
 
 `@earendil-works/chord@1.0.0` lists `esbuild@0.28.2` under `dependencies`, so every install carries esbuild and its platform binary: `@esbuild/darwin-arm64` is 10 MB here. Only the `./bundler` subpath uses it. The root export that `pi-client` and the page import never reaches it: the metafile has no esbuild input, no `node:` import and no unresolved external. The cost is install weight, not bundle content.
 
-TypeBox is the real bundle cost. `pi-protocol` depends on it at runtime, and it accounts for 338 KB of the 483 KB unminified bundle.
+TypeBox is the real bundle cost. `pi-protocol` depends on it at runtime, and it accounts for 338 KB of the 479 KB unminified bundle.
 
 ### Surprises
 
@@ -256,7 +258,7 @@ Keep:
 
 - One Chord contract used by the terminal and the browser, over `pi-server` and `pi-client`.
 - The WebSocket as a first-class `ServerListener`.
-- Browser code that imports only package roots, with durable as types only.
+- Browser code that imports only package roots and no engine types.
 - A server ID that persists across restarts.
 
 Avoid:
@@ -264,7 +266,7 @@ Avoid:
 - Importing `@earendil-works/pi-client/unix` or `@earendil-works/chord/node` from shared code.
 - Sockets under a long home path.
 - Counting on client reconnect.
-- Expecting a small bundle. The budget is about 200 KB minified, 53 KB gzipped.
+- Expecting a small bundle. The budget is about 200 KB minified, 52 KB gzipped.
 - Binding anything other than loopback before there is an auth and origin policy. The spike has none.
 
 ## Real provider notes
@@ -331,7 +333,7 @@ I found no contradiction of the research note's findings.
 From `next/spike/` after `npm install --ignore-scripts`:
 
 ```bash
-npm run typecheck
+npm run check                               # types and boundaries
 node scripts/crash-test.ts                  # question 1, faux provider
 node scripts/second-opener.ts [--second-owner] [--no-lock]   # opening a live home
 npm run bundle                              # question 3, bundle check

@@ -1,12 +1,12 @@
 entry          web/page.ts  (platform=browser, format=esm)
-bundle         482883 bytes  (minified 203133, gzip 53371)
-input modules  702
+bundle         478806 bytes  (minified 200706, gzip 52384)
+input modules  701
 by package (bytes in the unminified output):
     338349  typebox
      60375  @earendil-works/chord
      23759  @earendil-works/pi-protocol
      19290  @earendil-works/pi-client
-     10092  (spike source)
+      6037  (spike source)
 
 external imports left in the bundle:    none
 node: built-in modules bundled:         none

@@ -11,7 +11,7 @@
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
 import { attachUnix, attachWebSocket } from "../src/remote-node.ts";
-import { type Item, toItems, toStatus } from "../src/view-model.ts";
+import type { Item } from "../src/contract.ts";
 
 const { values } = parseArgs({ options: { home: { type: "string" }, ws: { type: "boolean" }, send: { type: "string" }, twice: { type: "boolean" }, quiet: { type: "boolean" }, "die-after": { type: "string" } } });
 const home = resolve(values.home!);
@@ -29,8 +29,8 @@ const describe = (item: Item): string => {
 const thread = await (values.ws ? attachWebSocket(home) : attachUnix(home));
 say(`attached over ${values.ws ? "WebSocket" : "Unix socket"}; server ${thread.client.hello?.serverId}; attachment ${JSON.stringify(thread.client.attachment)}`);
 
-const snapshot = toItems(thread.view);
-say(`snapshot: ${snapshot.length} items, ${thread.view.entries.length} committed entries, ${toStatus(thread.view).model}`);
+const snapshot = thread.view.items;
+say(`snapshot: ${snapshot.length} items, ${thread.view.entries} committed entries, ${thread.view.status.model}`);
 if (!values.quiet) for (const item of snapshot) say(`  ${describe(item)}`);
 
 let last = snapshot.map(describe);
@@ -39,9 +39,8 @@ let sawBusy = false;
 let idle: () => void = () => {};
 const settled = new Promise<void>((resolve) => (idle = resolve));
 thread.subscribe((view) => {
-	const items = toItems(view);
-	const lines = items.map(describe);
-	const status = toStatus(view);
+	const lines = view.items.map(describe);
+	const status = view.status;
 	if (status.busy) sawBusy = true;
 	for (let i = 0; i < lines.length; i++) {
 		if (lines[i] !== last[i]) {
@@ -73,8 +72,8 @@ if (values.send !== undefined) {
 	}, 180_000);
 	await settled;
 	clearTimeout(timeout);
-	const users = toItems(thread.view).filter((item) => item.type === "user").length;
-	say(`idle. ${updates} item updates seen; the thread now has ${users} user messages and ${thread.view.entries.length} entries`);
+	const users = thread.view.items.filter((item) => item.type === "user").length;
+	say(`idle. ${updates} item updates seen; the thread now has ${users} user messages and ${thread.view.entries} entries`);
 }
 const closing = performance.now();
 await thread.close();

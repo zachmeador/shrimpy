@@ -24,9 +24,7 @@ import {
 	TuiMainScreen,
 	VStack,
 } from "@earendil-works/pi-tui";
-import type { ThreadSource } from "./contract.ts";
-import { openLocalThread } from "./thread-source.ts";
-import { type Item, toItems, toStatus } from "./view-model.ts";
+import type { Item, ThreadSource } from "./contract.ts";
 
 // Theme: pi-tui components take plain style functions, so the console owns its look.
 const mode = getTerminalColorMode();
@@ -160,12 +158,10 @@ function toolRow(expanded: () => boolean): Row {
 	};
 }
 
-export async function runTui(options: { home: string; attach: boolean; alt: boolean }): Promise<number> {
-	// Harness reports must not print over the screen; they become a notice once the screen exists.
+export async function runTui(options: { home: string; alt: boolean; open: (report: (error: unknown) => void) => Promise<ThreadSource> }): Promise<number> {
+	// Reports from the thread must not print over the screen; they become a notice once the screen exists.
 	let report: (error: unknown) => void = () => {};
-	const source: ThreadSource = options.attach
-		? await (await import("./remote-node.ts")).attachUnix(options.home)
-		: await openLocalThread(options.home, (error) => report(error));
+	const source = await options.open((error) => report(error));
 
 	const terminal = new ProcessTerminal();
 	const tui: TUI = options.alt ? new TuiAltScreen(terminal) : new TuiMainScreen(terminal);
@@ -190,8 +186,7 @@ export async function runTui(options: { home: string; attach: boolean; alt: bool
 		type === "user" ? userRow() : type === "assistant" ? assistantRow(isExpanded) : type === "tool" ? toolRow(isExpanded) : markerRow();
 
 	const apply = (): void => {
-		const view = source.view;
-		const items = toItems(view);
+		const { items, status: state } = source.view;
 		items.forEach((item, index) => {
 			if (rows[index]?.type !== item.type) {
 				rows.length = index;
@@ -209,7 +204,6 @@ export async function runTui(options: { home: string; attach: boolean; alt: bool
 			for (const row of rows) chat.addChild(row.component);
 		}
 
-		const state = toStatus(view);
 		busy = state.busy;
 		if (state.busy && loader === undefined) {
 			loader = new Loader(tui, c.accent, c.dim, state.label);

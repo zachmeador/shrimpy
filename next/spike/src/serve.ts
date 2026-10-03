@@ -3,12 +3,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRemoteServiceEndpoint, RemoteServiceProvider } from "@earendil-works/chord";
+import { createRemoteServiceEndpoint, RemoteServiceProvider, replicatedState } from "@earendil-works/chord";
 import { type RoutedServerServiceHost, Server, type ServerHost, SessionNotFoundError } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
 import { Sessions, THREAD_ID, Thread } from "./contract.ts";
 import { type Endpoint, endpointFile } from "./endpoint.ts";
 import { ctx, openHost } from "./host.ts";
+import { publishThreadView, toThreadView } from "./session-view.ts";
 import { createWsListener } from "./ws-listener.ts";
 
 const web = join(dirname(fileURLToPath(import.meta.url)), "..", "web");
@@ -25,11 +26,14 @@ export async function serve(options: { home: string; port?: number }): Promise<n
 
 	const host = await openHost(options.home);
 	const view = await host.conversation.viewState(ctx);
+	// Clients get the thread view, never the engine's own records.
+	const shown = replicatedState(toThreadView(view.value));
+	const stopPublishing = view.subscribe((value) => publishThreadView(shown, toThreadView(value), ctx));
 
 	// One provider for the session scope, shared by every attachment; each attachment gets its own endpoint over it.
 	const threadProvider = new RemoteServiceProvider([{ service: Thread, mode: "singleton" }]);
 	threadProvider.provide(Thread, {
-		state: view,
+		state: shown,
 		async send(text, whenBusy, requestId, context) {
 			const submission = await host.conversation.submit({ type: "input", content: text, whenBusy, requestId: requestId ?? undefined }, context);
 			return { submission: submission.id };
@@ -97,6 +101,7 @@ export async function serve(options: { home: string; port?: number }): Promise<n
 		await server.start();
 	} catch (error) {
 		// Without this the Harness keeps the process alive and working after the listener failed to bind.
+		stopPublishing();
 		view.dispose();
 		await host.close();
 		throw error;
@@ -110,6 +115,7 @@ export async function serve(options: { home: string; port?: number }): Promise<n
 		process.once("SIGTERM", resolve);
 	});
 	await server.close();
+	stopPublishing();
 	view.dispose();
 	await host.close();
 	process.stdout.write(`${JSON.stringify({ event: "closed" })}\n`);

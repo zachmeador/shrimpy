@@ -8,6 +8,7 @@
     "node": ">=22.19.0"
   },
   "scripts": {
+    "check": "tsc --noEmit && node scripts/check-boundaries.mjs",
     "typecheck": "tsc --noEmit",
     "bundle": "node scripts/bundle-web.mjs",
     "crash": "node scripts/crash-test.ts"

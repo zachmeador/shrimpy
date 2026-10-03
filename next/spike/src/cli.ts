@@ -133,7 +133,12 @@ async function main(): Promise<number> {
 		}
 		case "tui": {
 			const { runTui } = await import("./tui.ts");
-			return runTui({ home, attach: values.attach === true, alt: values.alt === true });
+			const attach = values.attach === true;
+			return runTui({
+				home,
+				alt: values.alt === true,
+				open: async (report) => (attach ? (await import("./remote-node.ts")).attachUnix(home) : (await import("./thread-source.ts")).openLocalThread(home, report)),
+			});
 		}
 		case "serve": {
 			const { serve } = await import("./serve.ts");

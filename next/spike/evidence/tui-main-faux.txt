@@ -1,13 +1,5 @@
-# tui --home .tmp/home-ev-main  (100x34, exit 0)
-# typed: 2.012s "hello, show me the files\r", 14.013s "\u0003"
-
------ screen at 1.5s -----
-────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                                                    
-────────────────────────────────────────────────────────────────────────────────────────────────────
- faux/faux-1 · in 0 out 0 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c    
- quit                                                                                               
-[main screen, 5 lines]
+# tui --home .tmp/spike-home-tui  (100x34, exit 0)
+# typed: 2.002s "hello, show me the files\r", 11.019s "\u0003"
 
 ----- screen at 4.5s -----
 
@@ -28,56 +20,7 @@
  quit                                                                                               
 [main screen, 16 lines]
 
------ screen at 6.2s -----
-
- hello, show me the files                                                                           
-
- thinking: The user wants a listing, so I will run a short shell command.                           
- Let me look at the work directory.                                                                 
-
- bash $ printf 'listing the work directory\n'; ls -1 | head -5; sleep 2; printf 'done\n'  ✓ done    
- listing the work directory                                                                         
- done                                                                                               
-
- thinking: Composing a short markdown reply with a list and                                         
-
-
- ⠙ model is answering  (esc to stop)                                                                
-────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                                                    
-────────────────────────────────────────────────────────────────────────────────────────────────────
- faux/faux-1 · in 695 out 50 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c 
- quit                                                                                               
-[main screen, 19 lines]
-
 ----- screen at 7.4s -----
-
- hello, show me the files                                                                           
-
- thinking: The user wants a listing, so I will run a short shell command.                           
- Let me look at the work directory.                                                                 
-
- bash $ printf 'listing the work directory\n'; ls -1 | head -5; sleep 2; printf 'done\n'  ✓ done    
- listing the work directory                                                                         
- done                                                                                               
-
- thinking: Composing a short markdown reply with a list and a code block.                           
- The command finished (isError=false).                                                              
-                                                                                                    
- - first point, streamed token by token                                                             
- - second point with inline code                                                                    
- - th                                                                                               
-
-
- ⠦ model is answering  (esc to stop)                                                                
-────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                                                    
-────────────────────────────────────────────────────────────────────────────────────────────────────
- faux/faux-1 · in 695 out 50 $0.0000 · enter send · /steer text · esc stop · ctrl+o expand · ctrl+c 
- quit                                                                                               
-[main screen, 24 lines]
-
------ screen at 10s -----
 
  hello, show me the files                                                                           
 

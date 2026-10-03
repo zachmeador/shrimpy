@@ -47,3 +47,12 @@ Screenshots were looked at but are not committed; the lines below are what the p
    - The server was killed while bash ran, then restarted. A freshly loaded page showed:
      tool bash, status "interrupted", output "started", note "Tool bash was interrupted and may have partially run",
      followed by the model's answer ("The model saw the tool result (isError=true) ...").
+
+7. Re-check after the contract fix (2026-10-03, later the same day)
+   - The Thread service now replicates a Shrimpy-owned thread view (items, status, entry count) that the server builds.
+     The page no longer imports the view model or any engine type.
+   - Loaded / with a thread already holding one exchange typed in the attached terminal: the page showed it. Console: no messages.
+   - Typed "show me the files, typed in the browser" and pressed Enter. Two seconds later: busy "true",
+     status "running bash · faux/faux-1 · in 1475 out 119 $0.0000", items user, assistant, user, assistant, tool bash running.
+   - Seven seconds later: busy "false", connection "connected", 6 items ending tool bash done
+     ("listing the work directory\ndone\n") and the finished answer.
