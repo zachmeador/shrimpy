@@ -105,7 +105,7 @@ test("a command killed while it waits does not stop the work", { timeout: 60_000
   const home = tempHome();
   await shrimpy(["agent", "init", home, "--name", "scout", "--model", "local/test-model"]);
   declareLocalModel(home, { url: model.url, model: "test-model" });
-  await serve(t, home);
+  const agent = await serve(t, home);
   const answerLength = async (): Promise<number> => {
     const read = await shrimpy(["sessions", "read", home, "--json"]);
     const view = JSON.parse(read.stdout) as SessionView;
@@ -123,6 +123,7 @@ test("a command killed while it waits does not stop the work", { timeout: 60_000
   assert.ok((await answerLength()) > before, "the answer kept streaming");
   const stopped = await shrimpy(["sessions", "stop", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
+  assert.equal((await agent.stop()).code, 0);
 });
 
 test("a stop signal the moment the agent is listening stops it cleanly, and frees the home", { timeout: 60_000 }, async (t) => {
