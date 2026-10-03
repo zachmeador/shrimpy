@@ -102,6 +102,7 @@ test("closing the gateway drops its connections and its socket, and another can 
   await program.register(agent("one"));
 
   await gateway.close();
+  await gateway.close();
 
   await ended;
   assert.equal(existsSync(gateway.socket), false);
