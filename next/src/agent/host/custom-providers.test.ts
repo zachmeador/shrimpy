@@ -87,6 +87,35 @@ test("without flags a model carries no compat, so the library detects what it ca
   assert.equal(provider?.models[0] && "compat" in provider.models[0], false);
 });
 
+test("a models.json that today's Shrimpy wrote for a local server loads as it is", () => {
+  const written = {
+    providers: {
+      local: {
+        baseUrl: "http://localhost:11434/v1",
+        apiKey: "local",
+        api: "openai-completions",
+        compat: { supportsDeveloperRole: false, supportsReasoningEffort: false, thinkingFormat: "qwen" },
+        models: [
+          {
+            id: "qwen3:8b",
+            reasoning: false,
+            input: ["text"],
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            contextWindow: 128000,
+            maxTokens: 8192,
+          },
+        ],
+      },
+    },
+  };
+  const [provider] = readCustomProviders(modelsFile(written));
+
+  assert.equal(provider?.apiKey, "local");
+  assert.equal(provider.models[0]?.id, "qwen3:8b");
+  assert.equal(provider.models[0].maxTokens, 8192);
+  assert.deepEqual(provider.models[0].compat, written.providers.local.compat);
+});
+
 test("no file, or no providers, declares none", () => {
   assert.deepEqual(readCustomProviders(join(tmpdir(), "shrimpy-no-such-models.json")), []);
   assert.deepEqual(readCustomProviders(modelsFile({ providers: {} })), []);
