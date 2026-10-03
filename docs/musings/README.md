@@ -11,8 +11,6 @@ Start with `docs/reference/` first, and use `docs/backlog/` for the now/soon que
 
 Current notes worth scanning:
 
-- [redesign.md](redesign.md) — resident-agent redesign saved for later; not being pursued right now
-
 - `app-habitats.md` — apps as durable habitats for code, channels, skills, state, resident agents, and self-maintaining loops
 - `app-config-patterns.md` — simple-to-complex app/config examples for setup skills, guided init, and consultative check-ins
 - `agent-specific-tui-surfaces.md` — agent-owned dashboards, themes, commands, and a career-agent spike to test Pi's TUI extension limits

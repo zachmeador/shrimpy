@@ -2,36 +2,29 @@
 status: draft
 priority: P3
 area: Sessions
-depends_on: []
+depends_on:
+  - Pi durable replacement
 ---
 
 # 🦐 SESSION-001: Generation Throughput Metrics
 
 ## Why
 
-Shrimpy session logs already preserve provider-reported token usage for each assistant message, but they do not preserve enough timing information to compare model generation speed across providers, models, machines, or periods of degraded service. A small generation-metrics record would make session JSONL useful for performance inspection without adding a tokenizer, a telemetry service, or provider-specific instrumentation.
+Comparing model speed across providers, models, machines, and bad days needs timing that Shrimpy doesn't keep. Provider-reported token usage is recorded for each response, but time to first output and stream duration are lost once the response ends.
 
-The remaining product decision is terminology: provider-reported output tokens can include hidden reasoning tokens, while the visible stream may contain text, thinking summaries, and tool-call deltas. The stored field should therefore describe provider output throughput rather than imply that it measures only visible text tokens.
+Provider output tokens can include hidden reasoning, and the stream can carry text, thinking summaries, and tool-call deltas. The metric therefore describes provider output throughput, not visible text speed.
 
-## Current State
+## Proposed Work
 
-- Pi emits `turn_start`, assistant `message_start`, streaming `message_update`, and assistant `message_end` lifecycle events.
-- Final assistant messages already contain provider-reported `usage.output` and, when available, `usage.reasoning`.
-- Shrimpy's session recording extension already writes custom JSONL entries that Pi excludes from model context.
-- Session logs preserve completed usage but cannot reconstruct time to first output or generation duration after the session ends.
+Build this on the [durable runtime](../../REDESIGN/PLAN.md), not today's JSONL session recording, which that plan deletes.
 
-## Build
+- Start by checking what durable already records for a model request: the generation task, its committed stream progress, and `UsageDoc`. Add only the timing it lacks.
+- Measure from the request start, the first streamed output, and the end of the model's response. Stop at the response, so tool execution never counts.
+- Keep the raw values: output tokens, reasoning tokens when reported, time to first output, stream duration, and total response duration. Derive output tokens per second from them.
+- Use provider-reported usage only. Don't estimate tokens from text length, chunks, or stream events.
+- Leave the rate out when usage or timing is missing, and record why, so it can't be mistaken for a real zero.
 
-- Extend the session recording extension in `src/sessions/recording.ts` with small per-turn timing state based on a monotonic clock.
-- Capture request start at `turn_start`, stream start at assistant `message_start`, first content arrival at the first assistant `message_update`, and completion at assistant `message_end`.
-- Stop timing at `message_end` even when the response requests tools. Tool execution time must not affect generation throughput.
-- Append one `shrimpy_generation_metrics` custom entry after the completed assistant message is safely persisted, using `turn_end` if necessary to preserve JSONL ordering.
-- Record raw values sufficient to reinterpret the metric later: output tokens, reasoning tokens when reported, time to first output, stream duration, total response duration, and derived output tokens per second.
-- Define `outputTokensPerSecond` from provider-reported `usage.output` and the documented stream-duration boundary. Do not estimate token counts from streamed string length.
-- Omit derived rates when usage is missing, timing boundaries are incomplete, duration is zero, or the response ends before meaningful streaming begins. Preserve enough status information to distinguish unsupported metrics from a genuine zero-token response.
-- Add focused tests for normal text responses, reasoning usage, tool-call responses, aborted or errored responses, and consecutive turns without timing-state leakage.
-
-Example custom-entry data:
+Example record:
 
 ```json
 {
@@ -46,30 +39,12 @@ Example custom-entry data:
 
 ## UX Implications
 
-Normal chat, TUI, Telegram, watch, and worker behavior remains unchanged. Session JSONL gains one compact diagnostic entry per assistant response, available to future session-inspection commands and ad hoc analysis without entering model context. No live tokens-per-second display, configuration switch, or new required CLI workflow is part of this item. Existing logs remain readable without migration.
-
-## Boundaries
-
-- Do not add a tokenizer solely for this metric.
-- Do not count characters, words, chunks, or streaming events as tokens.
-- Do not describe the metric as visible-text throughput when `usage.output` may include reasoning or other generated tokens.
-- Do not include tool execution time in generation duration.
-- Do not add remote telemetry, aggregation, retention policy, dashboards, or model benchmarking to this item.
-- Do not rewrite existing session files or add backward-compatibility paths for logs without generation metrics.
-- Keep timing and recording in the session-recording boundary rather than spreading performance state across surfaces.
-
-## Touches
-
-- `src/sessions/recording.ts`
-- `src/sessions/open.ts`
-- `test/sessions.test.ts` or a focused session-recording test
-- Session JSONL inspection and any future session-statistics CLI surface
+Chat, clients, Telegram, watches, and workers behave the same. Each model response gains a small diagnostic record that inspection commands can show and that never enters model context. This item adds no live speed display, configuration switch, remote telemetry, dashboards, or benchmarking.
 
 ## Done
 
-- Each completed assistant response can produce one context-excluded generation-metrics entry with raw timing and provider usage.
-- The documented duration boundary and rate formula are unambiguous.
-- Reasoning-inclusive output usage is labeled honestly.
-- Tool execution does not inflate generation duration.
-- Missing usage, errors, aborts, and non-streaming edge cases do not produce misleading rates.
-- Tests cover metric calculation, JSONL placement, and per-turn state isolation.
+- Each completed model response can carry one metrics record with raw timing and provider usage.
+- The duration boundaries and rate formula are documented, and reasoning-inclusive output is labeled honestly.
+- Tool execution never inflates generation duration.
+- Missing usage, errors, aborts, and responses without streaming produce no misleading rates.
+- Tests cover the calculation, the boundaries, and state isolation between consecutive responses.
