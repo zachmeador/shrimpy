@@ -34,7 +34,12 @@ export function takeLock(path: string, heldElsewhere: (cause: Error) => Error): 
   };
 }
 
-/** Whether SQLite refused because another connection holds the database: SQLITE_BUSY, in any of its extended forms. */
+/**
+ * Whether SQLite refused because another connection holds the database:
+ * SQLITE_BUSY, in any of its extended forms. An error that carries no code is
+ * judged by its message, which is all it has.
+ */
 export function isLocked(error: unknown): error is Error {
-  return error instanceof Error && "errcode" in error && Number(error.errcode) % 256 === 5;
+  if (!(error instanceof Error)) return false;
+  return "errcode" in error ? Number(error.errcode) % 256 === 5 : error.message.includes("locked");
 }

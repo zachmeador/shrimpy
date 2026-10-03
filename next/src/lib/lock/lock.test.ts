@@ -40,9 +40,16 @@ test("isLocked recognizes a busy database and nothing else", (t) => {
   lock.release();
 
   assert.equal(isLocked(busy), true);
-  assert.equal(isLocked(new Error("database is locked")), false);
+  assert.equal(isLocked(Object.assign(new Error("database is locked"), { errcode: 5 + 256 })), true);
+  assert.equal(isLocked(Object.assign(new Error("database table is locked"), { errcode: 6 })), false);
+  assert.equal(isLocked(Object.assign(new Error("unable to open database file"), { errcode: 14 })), false);
   assert.equal(isLocked("database is locked"), false);
   assert.equal(isLocked(undefined), false);
+});
+
+test("an error with no code is judged by its message", () => {
+  assert.equal(isLocked(new Error("database is locked")), true);
+  assert.equal(isLocked(new Error("unable to open database file")), false);
 });
 
 test("releasing twice does nothing, and does not free a lock someone else took since", (t) => {
