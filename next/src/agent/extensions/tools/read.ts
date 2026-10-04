@@ -32,6 +32,7 @@ export function readMessages(options: MessageToolsOptions) {
       if (live === undefined) return failure(words.READ_UNREACHABLE);
 
       const count = limit ?? DEFAULT_LIMIT;
+      const signal = callSignal(live, context);
       try {
         const place = await placeOf({
           argument: "from",
@@ -41,12 +42,12 @@ export function readMessages(options: MessageToolsOptions) {
           chat: live.chat,
           self: options.self,
           context,
-          signal: callSignal(live, context),
+          signal,
         });
         if ("problem" in place) return failure(place.problem);
 
         // One more than asked for shows whether there is anything older.
-        const found = await live.chat.read(place.threadId, before ?? null, count + 1, callSignal(live, context));
+        const found = await live.chat.read(place.threadId, before ?? null, count + 1, signal);
         const older = found.length > count;
         const shown = older ? found.slice(found.length - count) : found;
         const oldest = shown[0];
