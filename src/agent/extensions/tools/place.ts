@@ -59,7 +59,7 @@ export async function placeOf(find: Find): Promise<Place | Unusable> {
   const roster = await rosterOf(find.gateway);
   if (roster === undefined) return { problem: words.noRoster(name, argument) };
   const wanted = name.toLowerCase();
-  const member = roster.find((each) => each.id.toLowerCase() === wanted || each.name.toLowerCase() === wanted);
+  const member = roster.find((each) => each.name.toLowerCase() === wanted);
   if (member === undefined) return { problem: words.nobody(name, roster.map((each) => each.name)) };
   if (member.id === self.id) return { problem: words.yourself(name, argument) };
 

@@ -3,12 +3,13 @@ import type { Registration } from "../../contracts/gateway/index.ts";
 import { START_EVERYTHING } from "./hints.ts";
 
 /**
- * The member called `name` on the roster, whatever the case, or the one with
- * that ID. When nobody is, the error says who there is.
+ * The member called `name` on the roster, whatever the case. A name is the only
+ * thing that is looked up, so that a name always means one member. When nobody
+ * is called that, the error says who there is.
  */
 export function memberNamed(members: Member[], name: string): Member {
   const wanted = name.toLowerCase();
-  const found = members.find((member) => member.id === name || member.name.toLowerCase() === wanted);
+  const found = members.find((member) => member.name.toLowerCase() === wanted);
   if (found !== undefined) return found;
   const agents = members.filter((member) => member.kind === "agent").map((member) => member.name);
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
