@@ -6,6 +6,7 @@ import {
   type ModelChoice,
   modelLabel,
   parseModelChoice,
+  previewHomeContext,
   startHomeAgent,
 } from "../../agent/index.ts";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
@@ -124,4 +125,30 @@ async function answers(home: string): Promise<boolean> {
   }
 }
 
-export const agentCommands: Command[] = [init, serve, status];
+const context: Command = {
+  name: "agent context",
+  usage: "<home>",
+  summary: "Preview what the agent at a home would be told, from the home's files as they are now.",
+  details:
+    "Prints the sections the agent's instructions are made of, in order, as a model would get them. It " +
+    "reads the files and starts nothing, so it also works while an agent runs there. A running agent has " +
+    "what it read when it started or last reloaded: make it read again with shrimpy agent reload.",
+  async run(args, io) {
+    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
+    const [given] = expectArguments(positionals, ["<home>"]);
+    const home = resolve(given);
+
+    const { sections, leftOut } = await previewHomeContext(home);
+    io.out(
+      `Preview of what the agent would be told if it started now, from the files of ${home}. ` +
+        `A running agent has what it read when it started or last reloaded.\n`,
+    );
+    io.out(sections.map((section) => section.text).join("\n\n"));
+    if (leftOut.length > 0) {
+      io.out(`\nLeft out:\n${leftOut.map((each) => `  ${each.file}: ${each.reason}`).join("\n")}`);
+    }
+    return 0;
+  },
+};
+
+export const agentCommands: Command[] = [init, serve, status, context];

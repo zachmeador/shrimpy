@@ -3,11 +3,9 @@ import { agentMember } from "../contracts/chat/index.ts";
 import type { KeepRegisteredOptions } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { startIntake, type Turns } from "./intake/index.ts";
-import { joinGateway, type OpenChat, openChatLink, openChatLocally } from "./links/index.ts";
+import { joinGateway, type LiveChat, type OpenChat, openChatLink, openChatLocally } from "./links/index.ts";
 
 export interface JoinOptions {
-  /** The agent's name: who it is in chat, and what the gateway lists it as. */
-  name: string;
   /** How to reach the chat server. By default through this machine's gateway, over Unix sockets. */
   openChat?: OpenChat;
   /** Register with the gateway. On unless this says otherwise. */
@@ -22,6 +20,8 @@ export interface JoinOptions {
 
 /** The agent's part in the network, running. */
 export interface Joined {
+  /** The connection to chat that is up right now, if one is. The agent's tools talk to chat over it. */
+  chat(): LiveChat | undefined;
   /** Stop reading chat's feed. Turns already taken carry on. */
   stopTaking(): void;
   /** Wait until the turns that have ended have been told to chat, or `signal` aborts. */
@@ -31,23 +31,25 @@ export interface Joined {
 }
 
 /**
- * Take part in the network: register with the gateway, keep a connection to
- * chat, and turn the messages chat offers into turns. None of it delays the
- * agent's start or stops its sessions working: chat and the gateway may not be
- * there yet, or go away, and the agent finds them again.
+ * Take part in the network as the agent called `name`, which is who it is in
+ * chat and what the gateway lists it as: register with the gateway, keep a
+ * connection to chat, and turn the messages chat offers into turns. None of it
+ * delays the agent's start or stops its sessions working: chat and the gateway
+ * may not be there yet, or go away, and the agent finds them again.
  */
 export function join(
+  name: string,
   options: JoinOptions,
   endpoint: AgentEndpoint,
   turns: Turns,
   onError: (error: Error) => void,
 ): Joined {
-  const self = agentMember(options.name);
+  const self = agentMember(name);
   const backoff = options.backoff;
   const registration =
     options.register === false
       ? undefined
-      : joinGateway(options.name, endpoint, {
+      : joinGateway(name, endpoint, {
           onError: (error) => onError(new Error(`Could not register with the gateway: ${error.message}`)),
           ...(backoff === undefined ? {} : { backoff: backoff() }),
           ...(options.reachGateway === undefined ? {} : { transportFactory: options.reachGateway }),
@@ -68,6 +70,7 @@ export function join(
   });
 
   return {
+    chat: () => link.current(),
     stopTaking: () => intake.stopTaking(),
     drain: (signal) => intake.drain(signal),
     async close() {

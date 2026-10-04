@@ -17,7 +17,7 @@ export interface Sessions {
   has(threadId: string): Promise<boolean>;
   /** Serve the session behind a thread to the clients that watch it. `takingInput` says whether new input may still come in. */
   serve(threadId: string, takingInput: () => boolean): Promise<ServedSession>;
-  /** Make every session follow the home's model and instructions, as a new session does from the start. */
+  /** Make every session follow the home's model and working directory, as a new session does from the start. */
   applyDefaults(): Promise<void>;
   /** What intake hands chat messages to and keeps its records in. */
   readonly turns: Turns;

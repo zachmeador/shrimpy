@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { agentMember, type Member } from "../contracts/chat/index.ts";
@@ -9,7 +9,7 @@ import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/index.ts";
-import { initHome, parseModelChoice, startHomeAgent } from "./index.ts";
+import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
 import { attachThread, closeAfter, stubChatCompletions, zach } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -92,6 +92,41 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
 });
 
+test("the model gets the home's instructions as sections in a fixed order, exactly as the preview shows them", { timeout }, async (t) => {
+  const paths = newHome(t);
+  writeFileSync(paths.soul, "You are scout, who keeps the build green.\n");
+  mkdirSync(join(paths.context, "people"), { recursive: true });
+  writeFileSync(join(paths.context, "user.md"), "Zach likes short answers.\n");
+  writeFileSync(join(paths.context, "people", "alex.md"), "Alex owns the release.\n");
+  mkdirSync(join(paths.skills, "review"), { recursive: true });
+  writeFileSync(
+    join(paths.skills, "review", "SKILL.md"),
+    "---\nname: review\ndescription: Review a diff for bugs.\n---\nSteps.\n",
+  );
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  const thread = dmWith(chat, "scout");
+  await startHeard(t, paths.root, chat);
+
+  const asked = chat.chat.say(zach, thread.id, "hi");
+  await eventually(
+    () => chat.chat.messages().find((message) => message.id === asked.id)?.receipts[0],
+    (found) => found !== undefined,
+    { what: "a receipt on the message" },
+  );
+
+  const preview = await previewHomeContext(paths.root);
+  assert.deepEqual(preview.sections.map((section) => section.key), ["shrimpy", "soul", "context", "skills"]);
+  assert.deepEqual(preview.leftOut, []);
+  const [sent] = requests;
+  const system = sent?.body.messages[0];
+  assert.equal(system?.role, "system");
+  assert.equal(system.content, preview.sections.map((section) => section.text).join("\n\n"));
+  assert.match(system.content, /<soul>\nYou are scout, who keeps the build green\.\n<\/soul>/);
+  assert.match(system.content, /<file path="context\/people\/alex\.md">\nAlex owns the release\.\n<\/file>/);
+  assert.match(system.content, new RegExp(`- review: Review a diff for bugs\\.\\n  ${join(paths.skills, "review", "SKILL.md").replaceAll("/", "\\/")}`));
+});
+
 test("editing the home takes effect at the next start, in sessions made before it too", { timeout }, async (t) => {
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Ok");
@@ -109,9 +144,9 @@ test("editing the home takes effect at the next start, in sessions made before i
   await eventually(() => chat.chat.messages().find((m) => m.id === two.id)?.receipts[0], (r) => r !== undefined, { what: "the second answer" });
 
   const systemPrompt = (index: number): string => String(requests[index]?.body.messages[0]?.content);
-  assert.match(systemPrompt(0), /You are scout/);
+  assert.match(systemPrompt(0), /You are scout, a Shrimpy agent built on Pi\./);
   assert.match(systemPrompt(1), /Answer in rhyme\./);
-  assert.doesNotMatch(systemPrompt(1), /You are scout/);
+  assert.doesNotMatch(systemPrompt(1), /a Shrimpy agent built on Pi/);
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {

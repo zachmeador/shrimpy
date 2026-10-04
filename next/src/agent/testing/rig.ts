@@ -64,6 +64,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
     t,
     await startAgent({
       home,
+      name: scout.name,
       ...fauxModels({
         home,
         scenario: options.scenario ?? (options.script === undefined ? "mixed" : undefined),
@@ -73,7 +74,6 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       }),
       onReport: (error) => reports.push(error),
       join: {
-        name: scout.name,
         register: false,
         openChat: () => connectLocal(chat.endpoint),
         backoff: () => backoff({ firstMs: 5, maxMs: 20 }),

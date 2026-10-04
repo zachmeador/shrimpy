@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { AgentConnectionLostError, type SessionView } from "../contracts/agent/index.ts";
 import { attachLocal } from "../contracts/agent/node.ts";
-import { eventually, settle, until, waitForView } from "../lib/testing/index.ts";
+import { eventually, settle, tempDir, until, waitForView } from "../lib/testing/index.ts";
 import { HomeOwnedError } from "./host/index.ts";
 import { startAgent } from "./index.ts";
 import {
@@ -267,7 +269,7 @@ test("a wait on a submission that does not exist is refused", { timeout }, async
 test("a second agent cannot take a home that has an owner", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
 
-  await assert.rejects(startAgent({ home: rig.home, ...fauxModels({ home: rig.home, scenario: "chat" }) }), HomeOwnedError);
+  await assert.rejects(startAgent({ home: rig.home, name: "scout", ...fauxModels({ home: rig.home, scenario: "chat" }) }), HomeOwnedError);
 });
 
 test("a thread the agent has no session for yet is refused, with a message that says so", { timeout }, async (t) => {
@@ -284,4 +286,18 @@ test("a thread the agent has no session for yet is refused, with a message that 
   await assert.rejects(attachThread(rig.home, "constructor"), /This agent has no session for thread constructor yet\./);
   // And the connection is still good for a thread it does have.
   assert.equal((await connection.attach(rig.thread.id)).threadId, rig.thread.id);
+});
+
+test("a file of the home that can't be used is left out and reported when the agent starts, and the agent starts anyway", { timeout }, async (t) => {
+  const home = tempDir(t, "agent");
+  mkdirSync(join(home, "skills", "broken"), { recursive: true });
+  writeFileSync(join(home, "skills", "broken", "SKILL.md"), "# no front matter\n");
+
+  const rig = await startAgentRig(t, { home });
+
+  assert.deepEqual(
+    rig.reports.map((report) => (report as Error).message),
+    ["skills/broken/SKILL.md was left out: it does not start with a front matter block, between --- lines."],
+  );
+  await rig.receiptOn(rig.say("hello"));
 });

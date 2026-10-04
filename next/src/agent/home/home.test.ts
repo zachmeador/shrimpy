@@ -66,7 +66,6 @@ test("init creates every file and folder, and the home loads", (t) => {
   const loaded = loadHome(home);
   assert.equal(loaded.name, "scout");
   assert.deepEqual(loaded.model, model);
-  assert.match(loaded.instructions ?? "", /^# SOUL/);
   assert.deepEqual(loaded.paths, paths);
 });
 
@@ -156,20 +155,6 @@ test("agent.json is checked, and an unknown key is an error that names it", (t) 
 
   writeFileSync(paths.config, "{ not json");
   assert.throws(() => loadHome(home), /agent\.json: not valid JSON/);
-});
-
-test("instructions are the text of SOUL.md when it has any", (t) => {
-  const home = tempHome(t);
-  const { paths } = initHome(home, { name: "scout", model });
-
-  writeFileSync(paths.soul, "Answer in rhyme.\n");
-  assert.equal(loadHome(home).instructions, "Answer in rhyme.\n");
-
-  writeFileSync(paths.soul, "  \n");
-  assert.equal(loadHome(home).instructions, undefined);
-
-  rmSync(paths.soul);
-  assert.equal(loadHome(home).instructions, undefined);
 });
 
 test("a model is written provider/id, and the ID may contain slashes", () => {

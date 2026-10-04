@@ -7,8 +7,6 @@ export interface LoadedHome {
   readonly name: string;
   /** The model a new session starts with. */
   readonly model: ModelChoice;
-  /** The text of SOUL.md, when the home has any. */
-  readonly instructions: string | undefined;
   readonly paths: HomePaths;
 }
 
@@ -21,11 +19,5 @@ export function loadHome(home: string): LoadedHome {
     );
   }
   const config = parseAgentConfig(readFileSync(paths.config, "utf8"), paths.config);
-  return { name: config.name, model: config.model, instructions: readInstructions(paths), paths };
-}
-
-function readInstructions(paths: HomePaths): string | undefined {
-  if (!existsSync(paths.soul)) return undefined;
-  const text = readFileSync(paths.soul, "utf8");
-  return text.trim() === "" ? undefined : text;
+  return { name: config.name, model: config.model, paths };
 }

@@ -25,6 +25,7 @@ await runUntilStopped(
   () =>
     startAgent({
       home,
+      name: scout.name,
       ...fauxModels({
         home,
         scenario: scenario as FauxScenario,
@@ -34,7 +35,6 @@ await runUntilStopped(
         ? {}
         : {
             join: {
-              name: scout.name,
               register: false,
               openChat: () => connectLocal(chat),
               backoff: () => backoff({ firstMs: 20, maxMs: 100 }),

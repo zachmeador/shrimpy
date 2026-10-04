@@ -57,6 +57,16 @@ tester.run("imports", importsRule, {
     allowed("agent/sessions/session-view.ts", "@earendil-works/pi-durable"),
     allowed("agent/sessions/turns.ts", "@earendil-works/pi-durable"),
     allowed("agent/extensions/context/sections.ts", "@earendil-works/pi-durable"),
+    allowed("agent/extensions/tools/send.ts", "@earendil-works/pi-durable"),
+    allowed("agent/extensions/tools/send.test.ts", "@earendil-works/pi-durable"),
+    // Each extension is a module with a door, and what it needs from the rest of the agent it takes through their doors.
+    allowed("agent/extensions/index.ts", "./context/index.ts"),
+    allowed("agent/extensions/context/home-context.ts", "../../home/index.ts"),
+    allowed("agent/extensions/tools/send.ts", "../../links/index.ts"),
+    allowed("agent/extensions/tools/send.ts", "../../sessions/index.ts"),
+    allowed("agent/extensions/tools/send.ts", "../../../contracts/chat/index.ts"),
+    allowed("agent/host/host.ts", "../extensions/index.ts"),
+    allowed("agent/index.ts", "./extensions/index.ts"),
     // Contracts have a Node-only door, and tests may use Node anywhere.
     allowed("contracts/agent/node.ts", "node:fs"),
     allowed("contracts/agent/browser.test.ts", "node:url"),
@@ -109,6 +119,14 @@ tester.run("imports", importsRule, {
     refused("clients/web/page.ts", "../console/index.ts", "program"),
     refused("cli/commands/agent.ts", "../../agent/host/index.ts", "program"),
     refused("cli/commands/agent.ts", "../../agent/home/index.ts", "program"),
+    // The extensions are closed to what is beside them and what is around them, as every module is, and are not another program's.
+    refused("agent/host/host.ts", "../extensions/context/home-context.ts", "frontDoor"),
+    refused("agent/index.ts", "./extensions/context/home-context.ts", "frontDoor"),
+    refused("agent/extensions/context/sections.ts", "../../home/snapshot.ts", "frontDoor"),
+    refused("agent/extensions/tools/send.ts", "../context/base.ts", "frontDoor"),
+    refused("agent/extensions/tools/send.ts", "../../links/chat.ts", "frontDoor"),
+    refused("agent/extensions/context/sections.ts", "../../../chat/index.ts", "program"),
+    refused("cli/commands/agent.ts", "../../agent/extensions/index.ts", "program"),
     // Another program's test support is still another program.
     refused("cli/flow.test.ts", "../agent/testing/index.ts", "program"),
     refused("cli/commands/sessions.ts", "../../lib/json-config/config-object.ts", "frontDoor"),

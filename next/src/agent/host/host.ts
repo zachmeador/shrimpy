@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { Models } from "@earendil-works/pi-ai";
-import { createRegistry, Harness } from "@earendil-works/pi-durable";
+import { createRegistry, type Extension, Harness } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
@@ -34,7 +34,12 @@ export interface Host {
 
 const context = BACKGROUND_CONTEXT;
 
-export async function openHost(options: HostOptions): Promise<Host> {
+/**
+ * Take ownership of a home and open its storage and engine. `extensions` are
+ * installed after the stock coding tools, in order, and every session uses all
+ * of them.
+ */
+export async function openHost(options: HostOptions, extensions: readonly Extension[] = []): Promise<Host> {
   const { home } = options;
   const { database } = homePaths(home);
   const lock = takeOwnerLock(home);
@@ -42,6 +47,7 @@ export async function openHost(options: HostOptions): Promise<Host> {
     mkdirSync(dirname(database), { recursive: true });
     const registry = createRegistry();
     registry.install(CodingTools);
+    for (const extension of extensions) registry.install(extension);
     const harness = await Harness.open(
       await openNodeSqliteStorage(database),
       {

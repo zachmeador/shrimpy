@@ -22,13 +22,12 @@ function draft(n: number, thread = "th_1", channel = "ch_1", text?: string): Omi
 }
 
 interface Options {
-  instructions?: string;
   tokensPerSecond?: number;
 }
 
 /** An agent's host and sessions on `home`. They are closed when the test ends. */
 async function open(t: TestContext, home: string, scenario: FauxScenario, options: Options = {}) {
-  const { instructions, tokensPerSecond = 4000 } = options;
+  const { tokensPerSecond = 4000 } = options;
   const { models, model } = fauxModels({ home, scenario, tokensPerSecond });
   const host = await openHost({ home, models });
   let closed = false;
@@ -39,7 +38,7 @@ async function open(t: TestContext, home: string, scenario: FauxScenario, option
     await host.close();
   };
   stopAfter(t, close);
-  const sessions = createSessions(host.harness, { model, cwd: home, ...(instructions === undefined ? {} : { instructions }) });
+  const sessions = createSessions(host.harness, { model, cwd: home });
   await sessions.applyDefaults();
   host.resume();
   return { host, sessions, close };
@@ -352,11 +351,10 @@ test("sessions, the outbox, unacted messages and the cursor are all there after 
   assert.deepEqual((await after.sessions.turns.record(draft(3)))?.earlier, [snapshot(2)]);
 });
 
-test("every session follows the home's model and instructions: when it is made, and again at each start", { timeout }, async (t) => {
+test("no session keeps instructions of its own, and any an earlier start stored are cleared at the next start", { timeout }, async (t) => {
   const home = tempDir(t, "turns");
-  const before = await open(t, home, "mixed", { instructions: "Answer in rhyme." });
+  const before = await open(t, home, "mixed");
   await before.sessions.turns.record(draft(1));
-  await before.sessions.turns.record(draft(2, "th_2", "ch_2"));
   const instructionsOf = async (host: typeof before.host): Promise<(string | undefined)[]> => {
     const threads = (await host.harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
     const agents = await Promise.all(
@@ -366,14 +364,16 @@ test("every session follows the home's model and instructions: when it is made, 
     );
     return agents.map((agent) => agent?.instructions);
   };
-  assert.deepEqual(await instructionsOf(before.host), ["Answer in rhyme.", "Answer in rhyme."]);
+  assert.deepEqual(await instructionsOf(before.host), [undefined], "a new session has none");
+  const threads = (await before.host.harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
+  const stored = await before.host.harness.conversation(threads.th_1?.conversationId as ConversationId, context);
+  await stored?.configure({ instructions: "Answer in rhyme." }, context);
+  assert.deepEqual(await instructionsOf(before.host), ["Answer in rhyme."]);
   await before.close();
 
-  const after = await open(t, home, "mixed", { instructions: "Answer in haiku." });
+  const after = await open(t, home, "mixed");
 
-  assert.deepEqual(await instructionsOf(after.host), ["Answer in haiku.", "Answer in haiku."]);
-  await after.sessions.turns.record(draft(3, "th_3", "ch_3"));
-  assert.deepEqual(await instructionsOf(after.host), ["Answer in haiku.", "Answer in haiku.", "Answer in haiku."]);
+  assert.deepEqual(await instructionsOf(after.host), [undefined]);
 });
 
 test("a session for a thread works in the home, with the model the home names", { timeout }, async (t) => {
