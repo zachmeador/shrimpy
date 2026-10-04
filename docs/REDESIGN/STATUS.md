@@ -22,7 +22,10 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
 - Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
-- Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
+- A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
+- Promises in phase 1's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
+- The terminal client's tests still run on a 350-line stand-in for the chat server that repeats two of its rules. The agent's and the CLI's tests run on the real one.
+- Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
 **Core contracts, before rooms**
 
@@ -101,9 +104,10 @@ Two were left until something forces them: giving every session an ID of its own
 
 - What went: tests of test support, of trivial helpers and of each rule in a validation table, tests that pinned how a screen looks or a sentence reads, tests of internals, and lower-layer copies of what a test through a real socket already covers.
 - What stayed: seams over real sockets, locks, kills and restarts, the plan's promises, the terminal's defence against hostile text, the browser entry's origin check, and bugs that were seen.
-- `agent/` and `cli/` get the same pass once the build in flight there has landed.
-- The pass raised one design question: `contracts/chat/testing/` holds a 607-line stand-in for the chat server that repeats its rules, so that the agent's and the CLI's tests never import another program. A rule then lives in two places, and those tests prove behavior against the copy. The next pass replaces it with the real chat server run as a process of its own, wherever a test only needs chat to behave.
-- `next/src/` now holds 11,889 lines of product code, 13,250 of tests and 3,957 of test support.
+- A second pass did the same for `agent/` and `cli/`: 8,488 lines of tests became 3,951, and the lint rule's test went from one case for each module to one for each rule. The whole suite is 423 tests, down from 1,122, and takes the same 22 seconds.
+- The agent's and the CLI's tests ran against a 607-line stand-in for the chat server that repeated its rules. They now start the real chat server as a process of its own, and faults are injected at the agent's end of the connection. What is left of the stand-in serves only the terminal client's tests.
+- The builder checked its cuts by breaking the code: removing the step that takes back waiting messages, or making a reply's request ID random, each fails a test that stayed.
+- After both passes `src/` holds 12,021 lines of product code, 8,815 of tests and 3,810 of test support. It was 11,895, 18,370 and 4,021 before them.
 
 **Phase 2 progress, 2026-10-04: an agent is told how Shrimpy works, and has the message tools.** Every session gets four sections of instructions from its home: what every agent is told, `SOUL.md`, the context files and the skills. `shrimpy agent context` previews them, `shrimpy agent reload` makes a running agent read them again, and `send_message` and `read_messages` are in. Checked on macOS arm64 with Node 26.7.0: 1,122 tests pass.
 
