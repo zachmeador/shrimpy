@@ -6,19 +6,25 @@ Record review decisions, finished phases, commands and results, and blockers her
 
 ## Where the code trails the plan
 
-As of 2026-10-03. The list is empty before each review pause.
+As of 2026-10-03. Before each review pause, everything under "still open in phase 1" is fixed or raised with the user.
 
-- OAuth sign-in isn't built. The plan keeps it.
-- The agent is never told how replying works, or that `END` keeps it silent. That comes with the base instructions in phase 2.
+**Still open in phase 1**
+
+- The terminal client, and with it bare `shrimpy` opening your latest thread. Today it prints usage.
+- Joining from another machine, which waits for a VM on the LAN to test on.
 - A turn that was resumed and crashed twice isn't stopped and marked failed yet.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
-- Nothing lets you set who you are in chat: it is always `person:<OS username>`.
-- Bare `shrimpy` prints usage. Opening your latest thread comes with the terminal client.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, and two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`.
-- Not built yet from the layout: `agent/extensions/`, `chat/providers/` and `clients/`. In `agent/intake/`, chat commands, wake policies and the unread cache for rooms come later.
+
+**Planned for a later phase**
+
+- The agent is never told how replying works, or that `END` keeps it silent. That comes with the base instructions in phase 2.
+- OAuth sign-in, and a way to set who you are in chat, which is always `person:<OS username>` today: phase 3.
+- `agent/extensions/` in phase 2, a web client in phase 3, and `chat/providers/` in phase 5.
+- In `agent/intake/`: chat commands, wake policies and the unread cache for rooms.
 
 ## Log
 

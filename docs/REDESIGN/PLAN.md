@@ -219,6 +219,7 @@ The builders made these visible choices while implementing phase 1. None has shi
 | What the model sees for a message | A line such as `Zach wrote at 2026-10-03T14:05:22Z:`, then the text as written. Earlier messages it hasn't acted on come first, each the same way. |
 | Why a turn failed | The receipt says "The model failed: …", "The agent has no model it can use.", "The agent hit an internal error: …" or "The turn ended without an answer (…)", cut to 500 characters. |
 | `END` in detail | Case-sensitive. Straight or curly quotes, backticks and asterisks around it and one final period are ignored. Only the last line counts. |
+| A reply's edges | Blank lines before a reply and whitespace after it are dropped. The rest is posted as written. |
 | An answer in parts | Split at line breaks where it can be, and the receipt points at the first part. `run` prints only that part. |
 | `shrimpy up` | Says what it started and how to talk to it, and prefixes each program's own lines with its name. A program that's already running is used and left running. A second Ctrl+C stops agents without waiting and a third kills everything. Closing the terminal leaves the programs running. |
 | `shrimpy run` | Starts a new thread each time unless `--thread` is given, prints the reply on standard output and the thread's ID on standard error. It exits 0 for an answer or silence, 1 for a failure and 130 when the work was stopped or skipped or the command was interrupted. |
