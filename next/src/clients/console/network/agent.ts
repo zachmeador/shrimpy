@@ -4,6 +4,7 @@ import {
   type SessionHandle,
   type SessionView,
 } from "../../../contracts/agent/index.ts";
+import { isNotListening } from "../../../lib/connection/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { converge } from "./converge.ts";
 import { keepConnection } from "./keep.ts";
@@ -116,6 +117,8 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
       } catch (error) {
         void connecting.then((late) => late.close()).catch(() => undefined);
         if (signal.aborted) throw error;
+        // Nothing listening where the gateway says the agent is, is the agent having gone away.
+        if (isNotListening(error)) throw new Down({ kind: "lost" }, { cause: error });
         throw new Down(
           { kind: "unreachable", message: `Could not reach the agent ${options.name} at ${registration.socket}: ${(error as Error).message}` },
           { cause: error },

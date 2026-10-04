@@ -5,6 +5,7 @@ import {
   type Member,
   type ThreadView,
 } from "../../../contracts/chat/index.ts";
+import { isNotListening } from "../../../lib/connection/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { converge } from "./converge.ts";
 import { keepConnection } from "./keep.ts";
@@ -95,6 +96,8 @@ export function keepChat(options: ChatLinkOptions): ChatLink {
         signal,
       }).catch((error: unknown) => {
         if (signal.aborted) throw error;
+        // Nothing listening where the gateway says the chat server is, is the chat server having gone away.
+        if (isNotListening(error)) throw new Down({ kind: "lost" }, { cause: error });
         throw new Down(
           { kind: "unreachable", message: `Could not reach the chat server at ${registration.socket}: ${(error as Error).message}` },
           { cause: error },
