@@ -6,7 +6,7 @@ Record review decisions, finished phases, commands and results, and blockers her
 
 ## Where the code trails the plan
 
-As of 2026-10-03. Before each review pause, everything under "still open in phase 1" is fixed or raised with the user.
+As of 2026-10-04. Before each review pause, everything under "still open in phase 1" is fixed or raised with the user.
 
 **Still open in phase 1**
 
@@ -15,7 +15,6 @@ As of 2026-10-03. Before each review pause, everything under "still open in phas
 - A terminal started with no gateway can't reach a running agent, and an agent that isn't running isn't listed.
 - The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
-- `up` now and then prints `write EPIPE` from the chat server as it stops, which fails one test about once in many runs.
 - Joining from another machine, which waits for a VM on the LAN to test on.
 - A turn that was resumed and crashed twice isn't stopped and marked failed yet.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
@@ -48,6 +47,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**A client that leaves mid-answer, 2026-10-04.** The `up` test that failed now and then is fixed. When a client dropped its connection while a server was writing to it, the gateway, the chat server and the agent each printed `write EPIPE` as an error. A client may leave at any moment, so they no longer report it. A test for each program reproduces the line with the fix switched off. 1,023 tests pass.
 
 **First use, 2026-10-03.** A fresh home and chat store were set up outside the repo, `shrimpy up` was started, and the first `run` got its answer from the local Qwen model. The old command links were removed at the user's request, and `shrimpy` on the PATH now runs the new command from source through `next/bin/shrimpy.js`.
 
