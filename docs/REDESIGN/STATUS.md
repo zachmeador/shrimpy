@@ -10,14 +10,19 @@ As of 2026-10-03. Before each review pause, everything under "still open in phas
 
 **Still open in phase 1**
 
-- The terminal client, and with it bare `shrimpy` opening your latest thread. Today it prints usage.
+- Bare `shrimpy` opens the list of agents, or your threads with the only agent. It doesn't remember your latest thread, start programs on demand, or mark what arrived while you were away.
+- The terminal lists your threads with an agent, not the agent's sessions, so a session that isn't behind one of your threads can't be reached from it.
+- A terminal started with no gateway can't reach a running agent, and an agent that isn't running isn't listed.
+- The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
+- `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
+- `up` now and then prints `write EPIPE` from the chat server as it stops, which fails one test about once in many runs.
 - Joining from another machine, which waits for a VM on the LAN to test on.
 - A turn that was resumed and crashed twice isn't stopped and marked failed yet.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
-- Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, and two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`.
+- Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
 **Planned for a later phase**
 
@@ -37,6 +42,12 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - Three behaviors were decided during the merge and wait for review in the plan's table: queued messages are answered together, a failed turn takes back what waits behind it, and a new agent reads its channels from the start.
 - A lost chat connection is retried quietly. A message is handed to its session once, even when both the outbox and the feed bring it up after a restart.
 - `next/src/` now holds 8,420 lines of product code, 14,007 of tests and 3,091 of test support.
+
+**Phase 1 progress, 2026-10-04: the terminal client is in.** Bare `shrimpy` at a terminal opens it: the agents on the network, your threads with one, a thread to talk in, and the agent's work shown live under the messages, with Esc to stop it. 1,017 tests pass.
+
+- The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
+- `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
+- `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
 **First use, 2026-10-03.** A fresh home and chat store were set up outside the repo, `shrimpy up` was started, and the first `run` got its answer from the local Qwen model. The old command links were removed at the user's request, and `shrimpy` on the PATH now runs the new command from source through `next/bin/shrimpy.js`.
 

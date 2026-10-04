@@ -226,6 +226,13 @@ The builders made these visible choices while implementing phase 1. None has shi
 | `shrimpy threads` and `read` | `threads` prints a table of ID, last update, who is working and name. `read` prints who said what and when, with a note under a message whose turn failed, was stopped or was skipped. `--json` prints the data. |
 | `sessions` commands | They take a home and a thread ID. `sessions list` prints each thread, its channel and `working` or `idle`. |
 | Runtime directory length | A socket path over 104 bytes fails at start with a message saying what to shorten. |
+| The terminal: what opens | Bare `shrimpy` opens the list of agents, or your threads with the only agent. It doesn't remember where you were. |
+| The terminal: keys | Up, Down and Enter in lists. `n` starts a thread from the list, and Esc goes back to the agents. In a thread, Enter sends, Shift+Enter adds a line, Esc stops the work, Ctrl+T goes to the threads and Ctrl+N starts a new one. Ctrl+C clears what's typed, and pressed twice within two seconds it quits. |
+| The terminal: a thread | Each message shows who and when, then the text; an agent's text is drawn as Markdown. Failed, stopped and skipped receipts show under the message. The live work sits under a bar below the messages: the last two lines of thinking, each tool call with its last six lines of output, and the answer so far. |
+| The terminal: times | Local time: `23:34` today, `Oct 3 23:34` this year, `2026-10-03 23:34` before that. |
+| The terminal: losing a connection | It says which program it lost, marks what's shown as possibly out of date, keeps the draft and reconnects by itself. A send waits 20 seconds for chat, and a failed one puts the text back in the editor. |
+| The terminal: lists | Agents and thread lists refresh every two seconds. Only running agents are listed, and "working" means working in one of your threads. A thread shows its newest 200 messages and points to `shrimpy read` for the rest. |
+| The terminal: leaving | Quitting while an agent works prints one line naming the thread and how to stop it. |
 | A lock that fails for another reason | An unwritable runtime folder shows the underlying error, not "Another process owns the agent home". |
 
 ## Not built
@@ -468,6 +475,10 @@ src/
     web/            the browser entry: WebSocket pipes and the web client's files
   clients/
     console/        terminal client
+      network/      links to the gateway, the chat server and an agent, kept across losses
+      state/        where the person is and what they can do, with no terminal in it
+      screen/       what is shown, as plain text and facts, with foreign text made harmless
+      draw/         the only code that imports `pi-tui`
     web/            web client, replacing today's top-level web/
   cli/              the `shrimpy` command
   lib/              helpers with no knowledge of Shrimpy's domain: sockets, locks, retries, config checking,
@@ -487,7 +498,7 @@ src/
 - **Programs never import each other.** They talk only through `contracts/`, which are Chord services carried by `pi-server` and `pi-client`.
 - **Shared plumbing stays plumbing.** Shared code may remove repetition around Pi, but it adds no concepts of its own: no registry, discovery or lifecycle. `lib/connection` and `lib/offer` wrap Pi's client and server once for all three contracts. The test is whether a module could be deleted and inlined into its callers in an hour with no change in behavior. If deleting it would mean redesigning the programs, it has become the service framework this plan doesn't build. Check `lib/`'s size at each review pause.
 - **Contracts carry Shrimpy's own shapes, never Pi's.** Only `agent/` imports Pi's durable runtime, and `agent/sessions/` is the one place that turns Pi's records into the session view clients see. A Pi upgrade can then change the agent without touching a client.
-- **Only `clients/console/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports.
+- **Only `clients/console/draw/` imports `pi-tui`,** and only from the package root, because `pi-tui` has no exports map to stop deep imports. Nothing else in the console imports the drawing, so its state and its words are tested without a terminal.
 
 ### Inside each module
 
