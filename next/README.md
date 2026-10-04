@@ -18,7 +18,7 @@ npm run check
 
 `check` runs the type check, lint and every test. Tests run straight from TypeScript with `node --test`, so there is no build step. Nothing here touches the root `dist/` that the installed `shrimpy` uses.
 
-Two tests use a real model, and are skipped unless you point them at a server. One asks the agent in a thread to run a command with the shell tool. The other checks that the agent stays silent with `END` when told to say nothing, and answers otherwise. `SHRIMPY_TEST_MODEL_URL` is the server's OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
+Five tests use a real model, and are skipped unless you point them at a server. They ask the agent in a thread to run a command with the shell tool, to stay silent with `END` when told to say nothing and to answer otherwise, to stay silent when a conversation has plainly ended, to say it has started with `send_message` before it replies, and to look back with `read_messages`. `SHRIMPY_TEST_MODEL_URL` is the server's OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
 
 ```bash
 SHRIMPY_TEST_MODEL_URL=http://localhost:8090/v1 SHRIMPY_TEST_MODEL_ID=my-model npm test
@@ -34,8 +34,10 @@ npm run shrimpy -- agent init ~/agents/scout --name scout --model local/qwen3.8-
 
 ```text
 agent.json            the agent's name and its default model
-SOUL.md               its instructions
-context/ vault/ skills/
+SOUL.md               its own instructions
+context/              Markdown notes, shown to the agent in every conversation
+skills/               one folder for each skill, with a SKILL.md in it
+vault/                longer notes the agent reads when it needs them
 state/pi/models.json  providers you declare, with their models
 state/pi/auth.json    API keys, by provider
 state/agent.sqlite    the engine's storage, made by the first start
@@ -59,6 +61,14 @@ The default model is `provider/id`. Its provider is either one of Pi's built-in 
 ```
 
 A server that needs no key still takes a placeholder, so `apiKey` is set. A key in `auth.json` is `{ "anthropic": { "type": "api_key", "key": "..." } }`. Keys are used as written and are only read from these two files: the environment is not consulted, and `!command` or `$NAME` values are refused.
+
+## What an agent is told
+
+Every session gets the same four sections of instructions, in this order: what every Shrimpy agent is told (how its reply works, what `END` does, the message tools and the home), `SOUL.md`, the Markdown files of `context/` and the folders under it, and the skills of `skills/`, each as its name, a one-line description and where its `SKILL.md` is. A skill's text is not loaded; the agent reads it when the task calls for it. A section with nothing in it is left out.
+
+The files are read when the agent starts and when it is told to `reload`, and never in between: editing one changes nothing for a running agent until then. Each session uses the change with its next request, and what it already holds is not rewritten. A file that can't be read, or a skill whose `SKILL.md` has no front matter with a description, is left out and named, and the rest is read. Facts about one message travel with it and are not part of the instructions: the thread and channel it is in, who wrote it and when, and any earlier messages in the thread the agent hasn't acted on.
+
+The agent has two tools for chat. `send_message` posts a message now, without ending the turn: to the thread the turn came from, or to `@name` for its DM with that member. `read_messages` reads a thread the same way. A turn's final text is still its reply, so `send_message` is for telling someone something before the turn ends, or somewhere else. The tools use the connection to chat that the agent already has. With chat unreachable they say so and don't wait, and a text too long for one message is posted in parts.
 
 ## Talk to an agent
 
@@ -105,6 +115,8 @@ Quitting stops no work. If the agent is still working, one line says so and how 
 | `agent init <home> --name <name> --model <provider/id>` | Creates the home. |
 | `agent serve <home> [--now]` | Runs the agent in the foreground, which is what a supervisor or sandbox runs. It prints one JSON line when it is listening. |
 | `agent status <home>` | Prints whether an agent is running there and how to reach it. Exits 1 if none is. |
+| `agent reload <home>` | Makes the agent running there read `SOUL.md`, `context/` and `skills/` again. Each session uses the change with its next request. Files it couldn't use are named. |
+| `agent context <home>` | Prints what an agent at the home would be told if it started now, read from the files and labelled as a preview. It starts nothing, and works while an agent runs there. A running agent has what it read when it started or last reloaded. |
 | `sessions list <home>` | Lists the agent's sessions: the thread and channel each is behind, and whether it is working. |
 | `sessions read <home> <thread> [--json]` | Shows the session behind a thread. |
 | `sessions steer <home> <thread> <text> [--request-id <id>] [--wait]` | Gives that session input. A retry with the same request ID is the same input. |

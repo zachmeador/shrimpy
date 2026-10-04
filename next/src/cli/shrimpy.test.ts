@@ -148,6 +148,73 @@ test(
   },
 );
 
+test(
+  "an agent on a real model stays silent when the conversation has plainly ended, without being told to",
+  { timeout: 300_000, skip: skipWithoutRealModel },
+  async (t) => {
+    const { talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
+
+    const asked = await talk.say("What is two plus two? Answer in one short sentence.");
+    const answered = await talk.receiptOn(asked, 240_000);
+    assert.equal(answered.status, "answered", JSON.stringify(answered));
+    const before = (await talk.replies()).length;
+
+    const goodbye = await talk.say("Great, thanks. That's all I needed. Bye!");
+
+    const silent = await talk.receiptOn(goodbye, 240_000);
+    assert.equal(silent.status, "silent", JSON.stringify({ receipt: silent, replies: (await talk.replies()).map((reply) => reply.text) }));
+    await delay(500);
+    assert.equal((await talk.replies()).length, before, "and nothing was posted");
+  },
+);
+
+/** The tool calls the agent made in a thread's session, by name, with how each ended. */
+async function toolCallsIn(home: string, thread: string): Promise<[string, string][]> {
+  const read = await shrimpy(["sessions", "read", home, thread, "--json"]);
+  assert.equal(read.code, 0, read.stderr);
+  const view = JSON.parse(read.stdout) as SessionView;
+  return view.items.flatMap((item) => (item.type === "tool" ? [[item.name, item.status] as [string, string]] : []));
+}
+
+test(
+  "an agent on a real model tells the thread it has started with send_message, and the final text is still its reply",
+  { timeout: 300_000, skip: skipWithoutRealModel },
+  async (t) => {
+    const { home, talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
+
+    const asked = await talk.say(
+      "Run `uname -s` with your shell tool. First tell me right away that you have started, then give me the result.",
+    );
+
+    const receipt = await talk.receiptOn(asked, 240_000);
+    assert.equal(receipt.status, "answered", JSON.stringify(receipt));
+    const replies = await talk.replies();
+    assert.ok(replies.length >= 2, "something was said along the way, and then the reply");
+    assert.equal(receipt.reply, replies.at(-1)?.id, "the receipt points at the final text, not at what was sent along the way");
+    assert.match(replies.at(-1)?.text ?? "", /Darwin|Linux/i);
+    const calls = await toolCallsIn(home, talk.thread.id);
+    assert.ok(calls.some(([name, status]) => name === "send_message" && status === "done"), JSON.stringify(calls));
+  },
+);
+
+test(
+  "an agent on a real model reads the thread back with read_messages when asked what was said before",
+  { timeout: 300_000, skip: skipWithoutRealModel },
+  async (t) => {
+    const { home, talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
+    await talk.receiptOn(await talk.say("My favourite colour is teal. Just say OK."), 240_000);
+    await talk.receiptOn(await talk.say("My favourite number is 42. Just say OK."), 240_000);
+
+    const asked = await talk.say("Use your read_messages tool to look back at this thread, then tell me my favourite colour.");
+
+    const receipt = await talk.receiptOn(asked, 240_000);
+    assert.equal(receipt.status, "answered", JSON.stringify(receipt));
+    assert.match((await talk.replies()).at(-1)?.text ?? "", /teal/i);
+    const calls = await toolCallsIn(home, talk.thread.id);
+    assert.ok(calls.some(([name, status]) => name === "read_messages" && status === "done"), JSON.stringify(calls));
+  },
+);
+
 test("a command killed while it waits does not stop the work", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
