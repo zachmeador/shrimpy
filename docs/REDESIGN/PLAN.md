@@ -189,6 +189,17 @@ If implementation finds another visible difference, add a row before shipping it
 | Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. Shrimpy relays those prompts between the agent and the person's client. Sandboxes allow provider traffic, including login endpoints. | Confirmed |
 | Agent identity at the gateway | — | People's devices are identified by Tailscale, so clients need no Shrimpy login. Each agent gets a token from the gateway when it's registered and presents it when it connects, and the gateway checks that the connection comes from the expected machine. An agent on the gateway's own machine connects locally, where socket permissions make that check. Giving an agent its own tailnet node, with Tailscale running inside its sandbox, stays optional. | Confirmed |
 
+### Identity and addressing
+
+The thinnest of the [six core pieces](#phases). The first column is what the new Shrimpy does today, on one machine with one person. Each row is a recommendation waiting for your call.
+
+| Topic | Built today | Proposed | Decision |
+|---|---|---|---|
+| Who exists | The gateway lists the programs connected right now and forgets one when it disconnects. The chat server remembers whoever has identified. Nothing answers "who can I talk to", so an agent can't start a DM and the terminal lists only running agents. | The gateway keeps a roster: every member of the network, person or agent, with its name and how it is recognized. It survives restarts and says who is reachable now. It is the one list that clients and agents read to find someone. The chat server keeps which members are in which channel, by the roster's IDs. | Change |
+| Names | An agent is whoever registers its name, and of two with one name the newest is reached. A person and an agent can share a name. | A name is claimed once, by the first member to join with it, and one set of names covers people and agents, so `@name` always means one member. A second claim is refused, with what to do about it. | Change |
+| How a member is recognized | A connection says who it is and is believed. | As already confirmed: on the gateway's machine by the OS user, and from another machine an agent by the token the gateway issued for its name and a person by their Tailscale login. New here: the roster is where those bindings are kept, and the chat server believes an identity the gateway vouches for. | Change |
+| Who may do what | Everyone under the OS user can do everything. | The four permissions (message, watch, control, administer) are checked where access crosses a boundary: the gateway before it routes a client to an agent's sessions, the chat server for channel membership, and the OS for an agent's own socket. Which person gets which permission isn't modelled until there is a second person. | Change |
+
 ### Introduced by the build, not yet reviewed
 
 The builders made these visible choices while implementing phase 1. None has shipped, and each is open until you've looked at it. A new one is added here when its code is merged.
