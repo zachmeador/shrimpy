@@ -42,6 +42,23 @@ export async function until(
 }
 
 /**
+ * Resolve with what `work` resolves with, or fail naming `what` if it takes
+ * longer than `ms`. A test of something that must not hang fails with this
+ * instead of waiting for the test's own timeout.
+ */
+export async function within<T>(ms: number, work: Promise<T>, what: string): Promise<T> {
+  const timer = new AbortController();
+  const late = Symbol("late");
+  try {
+    const outcome = await Promise.race([work, delay(ms, late, { signal: timer.signal })]);
+    if (outcome === late) throw new Error(`${what} did not finish within ${ms} ms`);
+    return outcome as T;
+  } finally {
+    timer.abort();
+  }
+}
+
+/**
  * Resolve with the first view that satisfies `done`, from anything that can be
  * subscribed to.
  */

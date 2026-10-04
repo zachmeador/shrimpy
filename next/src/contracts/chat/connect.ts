@@ -52,6 +52,8 @@ const contextFor = (signal: AbortSignal | undefined): Context =>
 export async function connectChat(options: {
   serverId: string;
   transportFactory: ByteTransportFactory;
+  /** Abort to give up while connecting, even on a server that stopped answering. */
+  signal?: AbortSignal;
 }): Promise<ChatConnection> {
   const connection = await openRoutedConnection({
     ...options,

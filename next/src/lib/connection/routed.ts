@@ -7,6 +7,7 @@ import {
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createClientServiceTransport } from "@earendil-works/pi-client";
 import { type Connection, type ConnectionOptions, connect } from "./connection.ts";
+import { politely } from "./goodbye.ts";
 import { expectRoute } from "./route.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -56,9 +57,10 @@ export async function openRoutedConnection<S extends Routing, T>(
     ...connection,
     detach,
     async close(closing) {
-      if (closing?.goodbye !== false) await detach();
+      // A goodbye that ran out of time has no use for a second one.
+      const goodbye = closing?.goodbye !== false && (await politely(detach()));
       attached = undefined;
-      await connection.close(closing);
+      await connection.close({ ...closing, goodbye });
     },
     async attach(routeId) {
       await detach();

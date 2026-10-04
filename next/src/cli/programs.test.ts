@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { connectLocal } from "../contracts/chat/node.ts";
-import { eventually, stopAfter, tempDir } from "../lib/testing/index.ts";
+import { eventually, stopAfter, tempDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { type CliResult, serveChat, serveGateway, shrimpy } from "./testing/index.ts";
 
@@ -81,6 +82,35 @@ test("a gateway that was killed and started again has the chat server registered
   const again = await statusWithChat();
   assert.deepEqual(listed(again), [["chat", "chat", SHRIMPY_VERSION, String(chat.listening.pid)]]);
   assert.notEqual(second.listening.pid, first.listening.pid);
+});
+
+/** How long stopping may take before it counts as held up by a gateway that is not answering. */
+const PROMPT_MS = 5000;
+
+test("a chat server stops promptly when the gateway it is registered with has stopped answering", { timeout }, async (t) => {
+  const gateway = await serveGateway(t);
+  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  await statusWithChat();
+
+  // A stopped process still holds its sockets open, and answers nothing.
+  process.kill(gateway.listening.pid, "SIGSTOP");
+  const stopped = await within(PROMPT_MS, chat.stop(), "the chat server stopping");
+
+  assert.equal(stopped.code, 0, stopped.stderr);
+  assert.equal(isAlive(chat.listening.pid), false);
+});
+
+test("a chat server that started while the gateway was not answering stops promptly too", { timeout }, async (t) => {
+  const gateway = await serveGateway(t);
+  process.kill(gateway.listening.pid, "SIGSTOP");
+  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  // Long enough for it to have connected to the gateway and be waiting for its answer.
+  await delay(300);
+
+  const stopped = await within(PROMPT_MS, chat.stop(), "the chat server stopping");
+
+  assert.equal(stopped.code, 0, stopped.stderr);
+  assert.equal(isAlive(chat.listening.pid), false);
 });
 
 test("a chat server with no gateway running serves, and stops with 0", { timeout }, async (t) => {

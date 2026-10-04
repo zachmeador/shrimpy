@@ -12,10 +12,14 @@ export function readChatEndpoint(dataDir: string): ChatEndpoint {
   return JSON.parse(readFileSync(chatEndpointFile(dataDir), "utf8")) as ChatEndpoint;
 }
 
-/** Connect to a chat server on this machine. Fails if none is listening at the endpoint. */
-export function connectLocal(endpoint: ChatEndpoint): Promise<ChatConnection> {
+/**
+ * Connect to a chat server on this machine. Fails if none is listening at the
+ * endpoint. Aborting `signal` gives up on a server that is not answering.
+ */
+export function connectLocal(endpoint: ChatEndpoint, options: { signal?: AbortSignal } = {}): Promise<ChatConnection> {
   return connectChat({
     serverId: endpoint.serverId,
     transportFactory: createUnixTransportFactory({ path: endpoint.socket }),
+    signal: options.signal,
   });
 }

@@ -2,9 +2,19 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { type Context, defineService, type ReplicatedState, replicatedState } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type AttachmentChangeListener, Client } from "@earendil-works/pi-client";
+import { type AttachmentChangeListener, type ByteTransportFactory, Client } from "@earendil-works/pi-client";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
-import { offer, settle, startStandIn, stopAfter, until, useRuntimeDir } from "../testing/index.ts";
+import {
+  type Freezable,
+  freezable,
+  offer,
+  settle,
+  startStandIn,
+  stopAfter,
+  until,
+  useRuntimeDir,
+  within,
+} from "../testing/index.ts";
 import { openConnection, openRoutedConnection, received } from "./index.ts";
 
 const timeout = 15_000;
@@ -115,6 +125,86 @@ test("closing without saying goodbye does not wait for a call that is waiting fo
   await waiting;
 });
 
+/** A connection that is made, and then the server stops answering. */
+async function startFrozenGreeter(t: TestContext) {
+  useRuntimeDir(t);
+  const standIn = await startStandIn(t, "greeter", {
+    offer: () => offer(Greeter, { greet: (name) => Promise.resolve(`hello, ${name}`), wait: () => Promise.resolve() }),
+  });
+  const reachable = freezable(transport(standIn));
+  return { standIn, reachable };
+}
+
+/** More than a goodbye gets, and well under what a goodbye that is waited for forever would take. */
+const GOODBYE_BOUND_MS = 4000;
+
+test("connecting can be given up on while the server takes the connection and never answers", { timeout }, async (t) => {
+  const { standIn, reachable } = await startFrozenGreeter(t);
+  reachable.freeze();
+  const giveUp = new AbortController();
+
+  const connecting = openConnection({
+    serverId: standIn.serverId,
+    transportFactory: reachable.transportFactory,
+    service: Greeter,
+    signal: giveUp.signal,
+  });
+  const failed = assert.rejects(connecting, { name: "AbortError" });
+  await until(() => standIn.connections() === 1, "the server to take the connection");
+  giveUp.abort();
+
+  await within(GOODBYE_BOUND_MS, failed, "connecting giving up");
+  await until(() => standIn.connections() === 0, "the half-made connection to be dropped");
+});
+
+test("connecting with a signal that has already been aborted makes no connection", { timeout }, async (t) => {
+  const { standIn } = await startFrozenGreeter(t);
+  const giveUp = new AbortController();
+  giveUp.abort(new Error("changed my mind"));
+
+  await assert.rejects(
+    openConnection({
+      serverId: standIn.serverId,
+      transportFactory: transport(standIn),
+      service: Greeter,
+      signal: giveUp.signal,
+    }),
+    /changed my mind/,
+  );
+
+  assert.equal(standIn.connections(), 0);
+});
+
+test("a signal does nothing once the connection is made", { timeout }, async (t) => {
+  const { standIn } = await startFrozenGreeter(t);
+  const giveUp = new AbortController();
+  const connection = await openConnection({
+    serverId: standIn.serverId,
+    transportFactory: transport(standIn),
+    service: Greeter,
+    signal: giveUp.signal,
+  });
+  stopAfter(t, () => connection.close());
+
+  giveUp.abort();
+
+  assert.equal(await connection.service.greet("Zach", context), "hello, Zach");
+});
+
+test("saying goodbye to a server that has stopped answering is given up on, and the connection is dropped", { timeout }, async (t) => {
+  const { standIn, reachable } = await startFrozenGreeter(t);
+  const connection = await openConnection({
+    serverId: standIn.serverId,
+    transportFactory: reachable.transportFactory,
+    service: Greeter,
+  });
+  reachable.freeze();
+
+  await within(GOODBYE_BOUND_MS, connection.close(), "closing");
+
+  await until(() => standIn.connections() === 0, "the connection to be dropped");
+});
+
 /**
  * A program that routes connections: every route whose ID starts with `room`
  * is a room, and the rest do not exist. `attach` is what a client's request to
@@ -123,6 +213,7 @@ test("closing without saying goodbye does not wait for a call that is waiting fo
 async function startRooms(
   t: TestContext,
   attach: (send: () => Promise<void>) => Promise<void> = (send) => send(),
+  via: (factory: ByteTransportFactory) => ByteTransportFactory = (factory) => factory,
 ) {
   useRuntimeDir(t);
   let detached = 0;
@@ -140,7 +231,7 @@ async function startRooms(
   });
   const connection = await openRoutedConnection({
     serverId: standIn.serverId,
-    transportFactory: transport(standIn),
+    transportFactory: via(transport(standIn)),
     service: Directory,
     route: Room,
   });
@@ -268,6 +359,24 @@ test("closing without saying goodbye lets go of the attachment without asking th
 
   assert.equal(attachment.isCurrent(), false);
   assert.equal(detached(), 0);
+});
+
+test("closing an attached connection to a server that has stopped answering does not wait for it", { timeout }, async (t) => {
+  let reachable: Freezable | undefined;
+  const { connection, standIn } = await startRooms(t, undefined, (factory) => {
+    reachable = freezable(factory);
+    return reachable.transportFactory;
+  });
+  const attachment = await connection.attach("room-lobby");
+  reachable?.freeze();
+  const started = Date.now();
+
+  await within(GOODBYE_BOUND_MS, connection.close(), "closing");
+
+  assert.equal(attachment.isCurrent(), false);
+  // A goodbye that ran out of time is not followed by a second one that would take as long again.
+  assert.ok(Date.now() - started < 1800, `closing took ${Date.now() - started} ms`);
+  await until(() => standIn.connections() === 0, "the connection to be dropped");
 });
 
 test("a state that the server has not sent yet says what is missing", () => {

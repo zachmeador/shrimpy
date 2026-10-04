@@ -2,9 +2,19 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { Refusal } from "../../lib/refusal/index.ts";
 import { backoff } from "../../lib/retry/index.ts";
-import { offer, startStandIn, stopAfter, until, useRuntimeDir } from "../../lib/testing/index.ts";
+import { namedSocketPath } from "../../lib/runtime/node.ts";
+import {
+  freezable,
+  offer,
+  startStandIn,
+  stopAfter,
+  until,
+  useRuntimeDir,
+  within,
+} from "../../lib/testing/index.ts";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME, type Registration } from "./index.ts";
 import { type KeepRegisteredOptions, keepRegistered } from "./node.ts";
 import { startStandInGateway } from "./testing/index.ts";
@@ -151,4 +161,90 @@ test("stopping straight away registers nothing", { timeout }, async (t) => {
 
   assert.deepEqual(gateway.received, []);
   await until(() => gateway.connections() === 0, "the connection to close");
+});
+
+/**
+ * How long stopping may take before it counts as held up. A stop takes
+ * milliseconds, and this is less than the moment a goodbye is given, so waiting
+ * for a gateway that has stopped answering is caught too.
+ */
+const PROMPT_MS = 900;
+
+test("a gateway that takes the connection and never answers does not hold up stopping", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startStandInGateway(t);
+  const silent = freezable(createUnixTransportFactory({ path: gateway.socket }));
+  silent.freeze();
+  const kept = keep(t, { transportFactory: silent.transportFactory });
+  await until(() => gateway.connections() === 1, "the gateway to take the connection");
+
+  await within(PROMPT_MS, kept.stop(), "stopping");
+
+  await until(() => gateway.connections() === 0, "the connection to close");
+  assert.deepEqual(gateway.received, []);
+});
+
+test("a gateway that stops answering after the registration does not hold up stopping", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startStandInGateway(t);
+  const reachable = freezable(createUnixTransportFactory({ path: gateway.socket }));
+  const kept = keep(t, { transportFactory: reachable.transportFactory });
+  await until(() => gateway.registered().length === 1, "the registration to arrive");
+
+  reachable.freeze();
+  await within(PROMPT_MS, kept.stop(), "stopping");
+
+  await until(() => gateway.connections() === 0, "the connection to close");
+  assert.deepEqual(gateway.registered(), []);
+});
+
+test("a gateway that never answers the registration does not hold up stopping", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  let asked = false;
+  const gateway = await startStandIn(t, GATEWAY_SOCKET_NAME, {
+    serverId: GATEWAY_SERVER_ID,
+    offer: () =>
+      offer(Gateway, {
+        register: () => {
+          asked = true;
+          return new Promise<void>(() => undefined);
+        },
+        list: () => Promise.resolve([]),
+        version: () => Promise.resolve(registration.version),
+      }),
+  });
+  const kept = keep(t);
+  await until(() => asked, "the registration to be asked for");
+
+  await within(PROMPT_MS, kept.stop(), "stopping");
+
+  await until(() => gateway.connections() === 0, "the connection to close");
+});
+
+test("it can be given the way to reach a gateway that is not this machine's", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const local = await startStandInGateway(t);
+  const elsewhere = await startStandInGateway(t, { socketName: "gateway-elsewhere" });
+
+  const kept = keep(t, { transportFactory: createUnixTransportFactory({ path: elsewhere.socket }) });
+
+  await until(() => elsewhere.registered().length === 1, "the registration to arrive");
+  assert.deepEqual(elsewhere.registered(), [registration]);
+  await kept.stop();
+  await until(() => elsewhere.connections() === 0, "the connection to close");
+  assert.deepEqual(local.received, []);
+  assert.equal(local.connections(), 0);
+});
+
+test("a gateway elsewhere that is not running is waited for quietly, like a local one", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const errors: Error[] = [];
+  const nowhere = createUnixTransportFactory({ path: namedSocketPath("gateway-elsewhere") });
+  keep(t, { transportFactory: nowhere, onError: (error) => errors.push(error) });
+  await delay(100);
+
+  const elsewhere = await startStandInGateway(t, { socketName: "gateway-elsewhere" });
+
+  await until(() => elsewhere.registered().length === 1, "the registration to arrive");
+  assert.deepEqual(errors, []);
 });

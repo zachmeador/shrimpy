@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { eventually, settle, until, waitForView } from "./index.ts";
+import { eventually, settle, until, waitForView, within } from "./index.ts";
 
 test("settle lets what is ready to run, run", async () => {
   let ran = false;
@@ -47,6 +47,16 @@ test("until waits for a condition, and says what it was waiting for when it fail
     until(() => false, "the model to start answering", 30),
     /Gave up waiting for the model to start answering after 30 ms; the last value was false/,
   );
+});
+
+test("within passes on what the work resolves with, and fails naming the work when it is late", async () => {
+  assert.equal(await within(1000, Promise.resolve("done"), "the work"), "done");
+
+  await assert.rejects(
+    within(30, new Promise<void>(() => undefined), "stopping"),
+    /^Error: stopping did not finish within 30 ms$/,
+  );
+  await assert.rejects(within(1000, Promise.reject(new Error("it failed")), "the work"), /it failed/);
 });
 
 function watchable<V>(initial: V) {

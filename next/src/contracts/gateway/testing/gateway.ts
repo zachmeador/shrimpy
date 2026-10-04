@@ -13,6 +13,12 @@ export interface StandInGateway extends StandIn {
 export interface StandInGatewayOptions {
   /** The version it reports for itself. The version of Shrimpy by default. */
   version?: string;
+  /**
+   * The name of the socket it listens on in the runtime directory. By default
+   * that is the machine's gateway socket; another name makes a gateway
+   * somewhere else.
+   */
+  socketName?: string;
 }
 
 /**
@@ -27,7 +33,7 @@ export async function startStandInGateway(
 ): Promise<StandInGateway> {
   const live = new Map<object, Registration>();
   const received: Registration[] = [];
-  const standIn = await startStandIn(t, GATEWAY_SOCKET_NAME, {
+  const standIn = await startStandIn(t, options.socketName ?? GATEWAY_SOCKET_NAME, {
     serverId: GATEWAY_SERVER_ID,
     offer() {
       // Stands for this connection in the registrations it makes.

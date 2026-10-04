@@ -19,6 +19,11 @@ export interface GatewayConnection {
    * stay registered uses `keepRegistered`, from the Node door.
    */
   onDisconnect(listener: (reason: Error | undefined) => void): void;
+  /**
+   * Hang up. The gateway drops a connection's registration when the connection
+   * ends, so there is nothing to say goodbye to, and a gateway that has stopped
+   * answering cannot hold this up.
+   */
   close(): Promise<void>;
 }
 
@@ -26,11 +31,14 @@ const context = BACKGROUND_CONTEXT;
 
 export async function connectGateway(options: {
   transportFactory: ByteTransportFactory;
+  /** Abort to give up while connecting, even on a gateway that stopped answering. */
+  signal?: AbortSignal;
 }): Promise<GatewayConnection> {
   const connection = await openConnection({
     serverId: GATEWAY_SERVER_ID,
     transportFactory: options.transportFactory,
     service: Gateway,
+    signal: options.signal,
   });
   const gateway = connection.service;
   return {
@@ -38,6 +46,6 @@ export async function connectGateway(options: {
     list: () => gateway.list(context),
     version: () => gateway.version(context),
     onDisconnect: (listener) => connection.onDisconnect(listener),
-    close: () => connection.close(),
+    close: () => connection.close({ goodbye: false }),
   };
 }
