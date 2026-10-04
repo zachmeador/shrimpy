@@ -97,7 +97,7 @@ const stop: Command = {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [home] = expectArguments(positionals, ["<home>"]);
     return withMainSession(home, async (session) => {
-      await session.abort();
+      await session.stop();
       io.out("Cancelled the work in the main session.");
       return 0;
     });

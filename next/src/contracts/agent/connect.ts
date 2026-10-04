@@ -24,7 +24,7 @@ export interface SessionHandle {
   steer(text: string, requestId?: string): Promise<{ submission: number }>;
   /** Resolves when the submission has ended. A client that goes away while waiting does not stop the work. */
   wait(submission: number): Promise<Settlement>;
-  abort(): Promise<void>;
+  stop(): Promise<void>;
 }
 
 export interface AgentConnection {
@@ -81,7 +81,7 @@ export async function connectAgent(options: {
           subscribe: (listener) => session.state.subscribe((value) => listener(value)),
           steer: (text, requestId) => guarded(() => session.steer(text, requestId ?? null, context)),
           wait: (submission) => guarded(() => session.wait(submission, context)),
-          abort: () => guarded(() => session.abort(context)),
+          stop: () => guarded(() => session.stop(context)),
         };
       }),
     onDisconnect: (listener) => connection.onDisconnect(listener),

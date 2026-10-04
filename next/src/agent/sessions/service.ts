@@ -58,7 +58,7 @@ export async function serveSession(
         return { submission: submission.id };
       },
       wait: (submission, callContext) => waitForSettlement(harness, conversation, submission, callContext),
-      abort: (callContext) => conversation.abort(callContext),
+      stop: (callContext) => conversation.abort(callContext),
     },
     close() {
       stopPublishing();

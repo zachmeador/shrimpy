@@ -83,7 +83,7 @@ test("a handle's subscribe gives the listener the current view once, then each c
   }
 });
 
-test("abort stops a streaming answer and keeps what arrived", { timeout }, async (t) => {
+test("stop stops a streaming answer and keeps what arrived", { timeout }, async (t) => {
   const { home, agent } = await start(t, "stream", 40);
   const connection = await attachLocal(home);
   try {
@@ -91,7 +91,7 @@ test("abort stops a streaming answer and keeps what arrived", { timeout }, async
     await session.steer("stream a long answer");
     await waitForView(session, (view) => (assistantItems(view)[0]?.text.length ?? 0) > 20);
 
-    await session.abort();
+    await session.stop();
 
     const view = await waitForView(session, (current) => !current.status.busy);
     const answer = assistantItems(view).at(-1);
@@ -173,7 +173,7 @@ test("an input that is stopped ends cancelled", { timeout }, async (t) => {
     const waiting = session.wait(submission);
     await waitForView(session, (view) => (assistantItems(view)[0]?.text.length ?? 0) > 20);
 
-    await session.abort();
+    await session.stop();
 
     assert.deepEqual(await waiting, { status: "cancelled" });
   } finally {

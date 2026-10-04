@@ -23,6 +23,6 @@ export interface SessionService {
    */
   wait(submission: number, context: Context): Promise<Settlement>;
   /** Stop the session's current work and withdraw input it has not picked up. */
-  abort(context: Context): Promise<void>;
+  stop(context: Context): Promise<void>;
 }
 export const SessionService = defineService<SessionService>("shrimpy.agent.session");
