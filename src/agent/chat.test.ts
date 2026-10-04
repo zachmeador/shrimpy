@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
-import { tempDir, until, waitForView } from "../lib/testing/index.ts";
+import { eventually, tempDir, until, waitForView } from "../lib/testing/index.ts";
 import { answered, assistantItems, releaseGate, type Script, startAgentRig, talkTo, untilReleased } from "./testing/index.ts";
 
 /*
@@ -237,6 +237,24 @@ test("while chat is unreachable the sessions keep working, and clients can still
   const after = await rig.say("welcome back");
   assert.equal((await rig.receiptOn(after)).status, "answered");
   assert.equal((await rig.replies()).length, 2, "nothing was posted for the input that came by way of the console");
+});
+
+test("a gateway that went away and came back finds the agent signed in and registered again, as the same member", { timeout }, async (t) => {
+  const rig = await startAgentRig(t);
+  await rig.receiptOn(await rig.say("before"));
+
+  await rig.chat.gateway.outage();
+  await rig.chat.gateway.recover();
+
+  const observer = await rig.chat.gateway.connect();
+  const roster = await eventually(
+    () => observer.members(),
+    (members) => members.some((member) => member.id === rig.partner.id && member.reachable),
+    { what: "the agent to be reachable again" },
+  );
+  assert.deepEqual(roster.filter((member) => member.kind === "agent").map((member) => member.id), [rig.partner.id]);
+  assert.equal((await rig.receiptOn(await rig.say("after"))).status, "answered");
+  assert.deepEqual(rig.reports, []);
 });
 
 test("a reply whose turn ended while chat was unreachable is posted once chat is back, and only once", { timeout }, async (t) => {

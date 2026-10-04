@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
-import type { Registration } from "../contracts/gateway/index.ts";
+import type { Registration, RosterEntry } from "../contracts/gateway/index.ts";
 import type { TestGateway } from "../contracts/gateway/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
@@ -34,7 +34,8 @@ function newHome(t: TestContext, providers: object = { local }, name = "scout") 
 /** A gateway and the chat server on this machine. The chat server lists itself with the gateway. */
 async function startNetwork(t: TestContext) {
   const chat = await startChatServer(t);
-  await eventually(() => registered(chat.gateway), (programs) => programs.length === 1, {
+  // An agent that was started first may be listed already, so chat is looked for by its kind.
+  await eventually(() => registered(chat.gateway), (programs) => programs.some((program) => program.kind === "chat"), {
     what: "chat to be listed with the gateway",
   });
   return { gateway: chat.gateway, chat };
@@ -53,6 +54,26 @@ async function registered(gateway: TestGateway): Promise<Registration[]> {
 /** The agents among them. */
 const agentsOf = async (gateway: TestGateway): Promise<Registration[]> =>
   (await registered(gateway)).filter((program) => program.kind === "agent");
+
+/** The roster, asked over a connection of its own. */
+async function rosterOf(gateway: TestGateway): Promise<RosterEntry[]> {
+  const observer = await gateway.connect();
+  try {
+    return await observer.members();
+  } finally {
+    await observer.close();
+  }
+}
+
+/** The names of the agents on the roster, in order. */
+const agentNames = async (gateway: TestGateway): Promise<string[]> =>
+  (await rosterOf(gateway)).filter((member) => member.kind === "agent").map((member) => member.name).sort();
+
+/** Change the name a home's `agent.json` gives its agent, as a person does with an editor. */
+function renameHome(paths: ReturnType<typeof newHome>, name: string): void {
+  const config = JSON.parse(readFileSync(paths.config, "utf8")) as object;
+  writeFileSync(paths.config, JSON.stringify({ ...config, name }));
+}
 
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -202,6 +223,73 @@ test("an agent that starts before the gateway and chat finds them when they come
   const { receipt } = await person.ask("are you there?", 30_000);
 
   assert.equal(receipt.status, "answered");
+});
+
+test("an agent and the gateway that both start again are the same member as before, in the same DM with what was said in it", { timeout }, async (t) => {
+  const paths = newHome(t);
+  stubChatCompletions(t, "Hello");
+  const { gateway, chat } = await startNetwork(t);
+  const first = await startAt(t, paths.root);
+  const before = await talkToAgent(chat, "scout");
+  await before.ask("first hello");
+  await first.close();
+  await gateway.outage();
+  await gateway.recover();
+
+  await startAt(t, paths.root);
+  const after = await talkToAgent(chat, "scout");
+  const { receipt } = await after.ask("second hello");
+
+  assert.deepEqual([after.partner.id, after.thread.id], [before.partner.id, before.thread.id]);
+  assert.equal(receipt.status, "answered");
+  assert.deepEqual((await after.replies()).map((reply) => reply.text), ["Hello", "Hello"], "the first exchange is still there");
+  assert.deepEqual(await agentNames(gateway), ["scout"]);
+});
+
+test("a home whose name another member has is refused and told which file to change, and joins once the name is changed", { timeout }, async (t) => {
+  const one = newHome(t);
+  const two = newHome(t);
+  stubChatCompletions(t, "Hello");
+  const reported: string[] = [];
+  t.mock.method(console, "error", (...lines: unknown[]) => void reported.push(lines.join(" ")));
+  const { gateway } = await startNetwork(t);
+  await startAt(t, one.root);
+  const refused = await startAt(t, two.root);
+
+  await eventually(async () => reported.find((report) => report.includes(two.config)), (found) => found !== undefined, {
+    what: "the second agent to say which file to change",
+  });
+  assert.deepEqual(await agentNames(gateway), ["scout"], "the first keeps the name");
+  assert.equal(existsSync(two.member), false, "and the second has no place on the roster");
+
+  await refused.close();
+  renameHome(two, "scout-two");
+  await startAt(t, two.root);
+  await eventually(() => agentNames(gateway), (names) => names.length === 2, { what: "the second agent to join" });
+  assert.deepEqual(await agentNames(gateway), ["scout", "scout-two"]);
+});
+
+test("a home whose name was changed is the same member under the new name, in the same DM with what was said in it", { timeout }, async (t) => {
+  const paths = newHome(t);
+  stubChatCompletions(t, "Hello");
+  const { gateway, chat } = await startNetwork(t);
+  const first = await startAt(t, paths.root);
+  const before = await talkToAgent(chat, "scout");
+  await before.ask("first hello");
+  await first.close();
+
+  renameHome(paths, "skipper");
+  await startAt(t, paths.root);
+  const after = await talkToAgent(chat, "skipper");
+  const { receipt } = await after.ask("second hello");
+
+  assert.deepEqual([after.partner.id, after.thread.id], [before.partner.id, before.thread.id]);
+  assert.equal(receipt.status, "answered");
+  assert.deepEqual((await after.replies()).map((reply) => [reply.text, reply.author.name]), [
+    ["Hello", "skipper"],
+    ["Hello", "skipper"],
+  ]);
+  assert.deepEqual(await agentNames(gateway), ["skipper"]);
 });
 
 test("a model that cannot be used stops the start before the home is claimed", { timeout }, async (t) => {
