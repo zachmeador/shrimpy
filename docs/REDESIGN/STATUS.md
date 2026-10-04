@@ -68,6 +68,14 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
+**Tests pruned, 2026-10-04.** The new tree had grown 18,370 lines of tests around 11,895 lines of product code, more per line than old Shrimpy. The plan now says what a test is for ("Tests earn their place"), and a first pass cut the tests in `lib/`, `contracts/`, `gateway/`, `chat/` and `clients/` from 9,984 lines to 4,864, 555 tests to 226, without touching product code. 793 tests pass.
+
+- What went: tests of test support, of trivial helpers and of each rule in a validation table, tests that pinned how a screen looks or a sentence reads, tests of internals, and lower-layer copies of what a test through a real socket already covers.
+- What stayed: seams over real sockets, locks, kills and restarts, the plan's promises, the terminal's defence against hostile text, the browser entry's origin check, and bugs that were seen.
+- `agent/` and `cli/` get the same pass once the build in flight there has landed.
+- The pass raised one design question: `contracts/chat/testing/` holds a 607-line stand-in for the chat server that repeats its rules, so that the agent's and the CLI's tests never import another program. A rule then lives in two places, and those tests prove behavior against the copy. The next pass replaces it with the real chat server run as a process of its own, wherever a test only needs chat to behave.
+- `next/src/` now holds 11,889 lines of product code, 13,250 of tests and 3,957 of test support.
+
 **Phase 2 progress, 2026-10-04: an agent is told how Shrimpy works, and has the message tools.** Every session gets four sections of instructions from its home: what every agent is told, `SOUL.md`, the context files and the skills. `shrimpy agent context` previews them, `shrimpy agent reload` makes a running agent read them again, and `send_message` and `read_messages` are in. Checked on macOS arm64 with Node 26.7.0: 1,122 tests pass.
 
 - Against `qwen-3.8-flash-next-180b-a6b-nvfp4` on `cashmoney:8090`, five real-model tests pass: the shell tool, `END` when told, silence after a plain goodbye without being told, `send_message` before the reply, and `read_messages`.
