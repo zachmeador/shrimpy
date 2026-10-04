@@ -26,7 +26,7 @@ export interface RunningUp extends RunningCommand {
  */
 export function launchUp(t: TestContext, args: string[]): RunningUp {
   useRuntimeDir(t);
-  const command = shrimpyInBackground(["up", ...args]);
+  const command = shrimpyInBackground(["up", ...args], { untilStopped: true });
   const programs = (): number[] =>
     [...command.output().stdout.matchAll(/^Started .* \(pid (\d+)\)/gm)].map((found) => Number(found[1]));
   stopAfter(t, async () => {

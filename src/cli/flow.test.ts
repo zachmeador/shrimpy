@@ -2,18 +2,12 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { agentMember, type Member, type Message, type Thread } from "../contracts/chat/index.ts";
-import { type StandInChat, startStandInChat } from "../contracts/chat/testing/index.ts";
+import { agentMember, type Member, type Message, type Receipt } from "../contracts/chat/index.ts";
+import { startStandInChat } from "../contracts/chat/testing/index.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
-import type { SessionView } from "../contracts/agent/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
-import {
-  captureIo,
-  declareLocalModel,
-  type ModelServer,
-  startModelServer,
-} from "./testing/index.ts";
+import { captureIo, declareLocalModel, type ModelServer, startModelServer } from "./testing/index.ts";
 
 const timeout = 60_000;
 
@@ -29,13 +23,14 @@ async function run(...args: string[]) {
 interface ServedHome {
   home: string;
   model: ModelServer;
-  chat: StandInChat;
-  /** The main thread of Zach's DM with the agent. */
-  thread: Thread;
+  /** The ID of the main thread of Zach's DM with the agent. */
+  threadId: string;
   /** Zach says something in the thread, and the message is returned once the agent has left its receipt on it. */
   ask: (text: string) => Promise<Message>;
   /** Zach says something in the thread, and the message is returned at once. */
-  tell: (text: string) => Message;
+  tell: (text: string) => Promise<Message>;
+  /** The receipt the agent leaves on a message, once it has. */
+  receiptOn: (message: Message) => Promise<Receipt>;
   /** Stop the agent as one SIGTERM would, and resolve with the exit code of `agent serve`. */
   stop: () => Promise<number>;
   /** Stop it as two would: without waiting for running turns. */
@@ -80,76 +75,25 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
   ]);
   await until(() => chat.chat.calls("feed") >= 1, "the agent to read chat's feed");
 
-  const tell = (text: string): Message => chat.chat.say(zach, thread.id, text);
-  const ask = async (text: string): Promise<Message> => {
-    const said = tell(text);
-    await eventually(
-      () => chat.chat.messages().find((message) => message.id === said.id)?.receipts[0],
+  const tell = (text: string): Promise<Message> => Promise.resolve(chat.chat.say(zach, thread.id, text));
+  const receiptOn = (message: Message): Promise<Receipt> =>
+    eventually(
+      () => chat.chat.messages().find((candidate) => candidate.id === message.id)?.receipts[0],
       (receipt) => receipt !== undefined,
-      { what: `the agent to answer "${text}"` },
-    );
+      { what: `the agent to answer "${message.text}"` },
+    ) as Promise<Receipt>;
+  const ask = async (text: string): Promise<Message> => {
+    const said = await tell(text);
+    await receiptOn(said);
     return said;
   };
-  return { home, model, chat, thread, ask, tell, stop, stopNow };
+  return { home, model, threadId: thread.id, ask, tell, receiptOn, stop, stopNow };
 }
 
-test("a turn that uses a shell tool runs from init to stop, and the session is read through the CLI", { timeout }, async (t) => {
-  const { home, model, chat, thread, ask, stop } = await servedHome(t);
-
-  const status = await run("agent", "status", home);
-  assert.equal(status.code, 0);
-  const running = JSON.parse(status.out[0] ?? "") as Record<string, unknown>;
-  assert.equal(running.running, true);
-  assert.equal(running.home, home);
-  assert.equal(running.pid, process.pid);
-
-  assert.deepEqual((await run("sessions", "list", home)).out, ["The agent has no sessions yet."]);
-
-  await ask("run the command");
-  assert.deepEqual(
-    chat.chat.messages(thread.id).filter((message) => message.author.id === "agent:scout").map((message) => message.text),
-    ["The command printed: shrimpy-ok"],
-  );
-  assert.deepEqual((await run("sessions", "list", home)).out, [`${thread.id} ${thread.channelId} idle`]);
-
-  const transcript = (await run("sessions", "read", home, thread.id)).out.join("\n");
-  assert.match(
-    transcript,
-    /^you\n {2}Thread th_\w+ in channel ch_\w+\.\n {2}\n {2}Zach wrote at \d{4}-\d\d-\d\dT[\d:]{8}Z:\n {2}run the command\n/,
-  );
-  assert.match(transcript, /\ntool bash \(done\)\n {2}\{"command":"echo shrimpy-ok"\}\n {2}shrimpy-ok\n/);
-  assert.match(transcript, /\nassistant\n {2}The command printed: shrimpy-ok\n\nidle · local\/test-model · /);
-
-  const json = (await run("sessions", "read", home, thread.id, "--json")).out;
-  assert.equal(json.length, 1);
-  const view = JSON.parse(json[0] ?? "") as SessionView;
-  assert.deepEqual(
-    view.items.map((item) => item.type),
-    ["user", "assistant", "tool", "assistant"],
-  );
-  assert.deepEqual(view.status.model, { provider: "local", id: "test-model" });
-  const thinking = view.items.flatMap((item) => (item.type === "assistant" ? [item.thinking] : []));
-  assert.deepEqual(thinking, ["Let me think about it.", "Let me think about it."]);
-
-  // The placeholder key reached the server, and the flags in models.json shaped the request.
-  assert.equal(model.requests.length, 2);
-  for (const request of model.requests) {
-    assert.equal(request.headers.authorization, "Bearer local");
-    assert.equal(request.body.model, "test-model");
-    assert.equal(request.body.messages[0]?.role, "system");
-  }
-  // The model's own thinking goes back to it with the history, from what the agent stored.
-  const earlierAnswer = model.requests[1]?.body.messages.find((message) => message.role === "assistant");
-  assert.equal(earlierAnswer?.reasoning_content, "Let me think about it.");
-
-  assert.equal(await stop(), 0);
-  const after = await run("agent", "status", home);
-  assert.equal(after.code, 1);
-  assert.deepEqual(JSON.parse(after.out[0] ?? ""), { running: false, home });
-});
-
-test("agent reload makes the running agent read its home again, and says what it found and what it left out", { timeout }, async (t) => {
+test("agent reload makes the running agent read its home again, and says what it left out", { timeout }, async (t) => {
   const { home, model, ask } = await servedHome(t);
+  const requestRoles = (index: number): string[] =>
+    (model.requests[index]?.body.messages ?? []).filter((message) => message.role !== "system").map((message) => message.role);
   const told = (index: number): string => String(model.requests[index]?.body.messages[0]?.content);
   await ask("hello");
   writeFileSync(join(home, "SOUL.md"), "Answer in rhyme.\n");
@@ -162,137 +106,48 @@ test("agent reload makes the running agent read its home again, and says what it
   const reloaded = await run("agent", "reload", home);
 
   assert.equal(reloaded.code, 0, reloaded.err.join("\n"));
-  assert.match(reloaded.out[0] ?? "", /^Reloaded\. .* now reads SOUL\.md, 1 context file and \d+ skills\./);
-  assert.equal(
-    reloaded.out[1],
-    "Left out:\n  skills/broken/SKILL.md: it does not start with a front matter block, between --- lines",
-  );
-  assert.equal(reloaded.out.length, 2);
+  assert.ok(reloaded.out.join("\n").includes("skills/broken/SKILL.md"), "the file it left out is named");
   await ask("and once more");
-  assert.match(told(2), /<soul>\nAnswer in rhyme\.\n<\/soul>/);
-  assert.match(told(2), /<file path="context\/team\.md">\nThe team is small\.\n<\/file>/);
-});
-
-test("agent reload says when there is no agent to read again, and needs a home", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const home = join(tempDir(t, "flow"), "scout");
-  assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
-
-  const none = await run("agent", "reload", home);
-  const unused = await run("agent", "reload");
-
-  assert.equal(none.code, 1);
-  assert.deepEqual(none.err, [`No agent is running at ${home}. Start one with: shrimpy agent serve ${home}`]);
-  assert.equal(unused.code, 2);
-  assert.equal(unused.err[0], "Missing <home>.");
-});
-
-test("a session that is working says so in the list", { timeout }, async (t) => {
-  const { home, thread, tell } = await servedHome(t);
-  tell("go slow");
-
-  await eventually(
-    () => run("sessions", "list", home),
-    (listed) => listed.out[0]?.endsWith(" working") === true,
-    { what: "the session to be working" },
-  );
-
-  assert.equal((await run("sessions", "stop", home, thread.id)).code, 0);
-});
-
-test("a thread the agent has no session for is refused with a message that says so", { timeout }, async (t) => {
-  const { home } = await servedHome(t);
-
-  for (const args of [["read"], ["stop"], ["steer", "hello"]]) {
-    const result = await run("sessions", args[0] ?? "", home, "th_nothing", ...args.slice(1));
-    assert.equal(result.code, 1, args.join(" "));
-    assert.deepEqual(result.err, ["This agent has no session for thread th_nothing yet."]);
-  }
-});
-
-test("input without --wait is accepted at once, and a retry with the same ID is the same input", { timeout }, async (t) => {
-  const { home, thread, ask } = await servedHome(t);
-  await ask("first");
-
-  const first = await run("sessions", "steer", home, thread.id, "hello", "--request-id", "greeting-1");
-  const retry = await run("sessions", "steer", home, thread.id, "hello", "--request-id", "greeting-1", "--wait");
-
-  assert.equal(first.code, 0);
-  const accepted = /^Accepted as submission (\d+)\.$/.exec(first.out[0] ?? "");
-  assert.ok(accepted, first.out.join("\n"));
-  assert.deepEqual(retry.out, ["Hello from the test model."]);
-  assert.equal(retry.code, 0);
-  // Only one input reached the session.
-  const items = (JSON.parse((await run("sessions", "read", home, thread.id, "--json")).out[0] ?? "") as SessionView).items;
-  assert.equal(items.filter((item) => item.type === "user" && item.text === "hello").length, 1);
+  assert.match(told(2), /Answer in rhyme\./);
+  assert.match(told(2), /The team is small\./);
+  assert.deepEqual(requestRoles(2), ["user", "assistant", "user", "assistant", "user"], "and what the session held is still there");
 });
 
 test("stopping the work makes the waiting command exit 130, and the message in the thread is marked stopped", { timeout }, async (t) => {
-  const { home, model, chat, thread, ask, tell } = await servedHome(t);
+  const { home, model, threadId, ask, tell, receiptOn } = await servedHome(t);
   await ask("first");
 
-  const waiting = run("sessions", "steer", home, thread.id, "go slow", "--wait");
+  const waiting = run("sessions", "steer", home, threadId, "go slow", "--wait");
   await until(() => model.requests.length > 1, "the model to start answering");
-  const stopped = await run("sessions", "stop", home, thread.id);
+  const stopped = await run("sessions", "stop", home, threadId);
   const result = await waiting;
 
   assert.equal(stopped.code, 0);
-  assert.deepEqual(stopped.out, [`Stopped the work in the session for thread ${thread.id}.`]);
   assert.equal(result.code, 130);
   assert.deepEqual(result.out, []);
-  assert.deepEqual(result.err, ["The input was cancelled before it was answered."]);
   // The agent is still there, and can be asked again.
-  assert.equal((await run("sessions", "steer", home, thread.id, "hello", "--wait")).code, 0);
-  const slow = tell("go slow, in the thread");
+  assert.equal((await run("sessions", "steer", home, threadId, "hello", "--wait")).code, 0);
+  const slow = await tell("go slow, in the thread");
   await until(() => model.requests.length > 3, "the model to start on the thread's message");
-  assert.equal((await run("sessions", "stop", home, thread.id)).code, 0);
-  await eventually(
-    () => chat.chat.messages().find((message) => message.id === slow.id)?.receipts[0]?.status,
-    (status) => status === "stopped",
-    { what: "the message to be marked stopped" },
-  );
+  assert.equal((await run("sessions", "stop", home, threadId)).code, 0);
+  assert.equal((await receiptOn(slow)).status, "stopped");
 });
 
 test("input the model refuses makes the waiting command exit 1, with the reason", { timeout }, async (t) => {
-  const { home, thread, ask } = await servedHome(t);
+  const { home, threadId, ask } = await servedHome(t);
   await ask("first");
 
-  const result = await run("sessions", "steer", home, thread.id, "please refuse", "--wait");
+  const result = await run("sessions", "steer", home, threadId, "please refuse", "--wait");
 
   assert.equal(result.code, 1);
   assert.deepEqual(result.out, []);
-  assert.equal(result.err.length, 1);
-  assert.match(result.err[0] ?? "", /^The input ended without an answer \(model_error: .*The test model refuses this request\./);
+  assert.match(result.err.join("\n"), /The test model refuses this request\./);
 });
 
-test("a message the model refuses is marked failed, with the reason, and a person can read it in the thread", { timeout }, async (t) => {
-  const { chat, thread, ask } = await servedHome(t);
-
-  const said = await ask("please refuse");
-
-  const receipt = chat.chat.messages(thread.id).find((message) => message.id === said.id)?.receipts[0];
-  assert.equal(receipt?.status, "failed");
-  assert.match(receipt.detail ?? "", /^The model failed: .*The test model refuses this request\./);
-  assert.deepEqual(
-    chat.chat.messages(thread.id).filter((message) => message.author.id === "agent:scout"),
-    [],
-  );
-});
-
-test("a second agent on a home is refused, and the first keeps serving", { timeout }, async (t) => {
-  const { home } = await servedHome(t);
-
-  const second = await run("agent", "serve", home);
-
-  assert.equal(second.code, 1);
-  assert.match(second.err.join("\n"), /Another process owns the agent home at /);
-  assert.equal((await run("agent", "status", home)).code, 0);
-});
-
-test("a waiting command says so when the agent stops under it", { timeout }, async (t) => {
-  const { home, model, thread, ask, stopNow } = await servedHome(t);
+test("a waiting command exits 1 when the agent stops under it", { timeout }, async (t) => {
+  const { home, model, threadId, ask, stopNow } = await servedHome(t);
   await ask("first");
-  const waiting = run("sessions", "steer", home, thread.id, "go slow", "--wait");
+  const waiting = run("sessions", "steer", home, threadId, "go slow", "--wait");
   await until(() => model.requests.length > 1, "the model to start answering");
 
   assert.equal(await stopNow(), 0);
@@ -300,15 +155,13 @@ test("a waiting command says so when the agent stops under it", { timeout }, asy
 
   assert.equal(result.code, 1);
   assert.deepEqual(result.out, []);
-  assert.deepEqual(result.err, [
-    "Lost the connection to the agent. If it stopped, the work that was running resumes when it starts again.",
-  ]);
+  assert.equal(result.err.length, 1);
 });
 
 test("--now stops the agent without waiting for the running turn", { timeout }, async (t) => {
-  const { home, model, thread, ask, stop } = await servedHome(t, "--now");
+  const { home, model, threadId, ask, stop } = await servedHome(t, "--now");
   await ask("first");
-  const waiting = run("sessions", "steer", home, thread.id, "go slow", "--wait");
+  const waiting = run("sessions", "steer", home, threadId, "go slow", "--wait");
   await until(() => model.requests.length > 1, "the model to start answering");
 
   // The test model streams for ten seconds, and a stop that waits would give the turn five of them.

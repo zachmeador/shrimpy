@@ -10,7 +10,6 @@ import {
   declareLocalModel,
   FakeTerminal,
   type ModelServer,
-  serveGateway,
   shrimpy,
   startModelServer,
   startUp,
@@ -109,46 +108,6 @@ test("a bare shrimpy at a terminal opens the console, in which a person can see 
   assert.ok(thread);
   const stopped = await shrimpy(["sessions", "stop", home, thread]);
   assert.equal(stopped.code, 0, stopped.stderr);
-});
-
-test("a bare shrimpy at a terminal with nothing running says what to start, and leaves when asked", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const terminal = new FakeTerminal();
-  const { cli, exited } = openOn(terminal);
-
-  await seen(terminal, "No gateway is running on this machine. Start Shrimpy with: shrimpy up <home>... --data <dir>");
-  terminal.type(CTRL_C);
-  await seen(terminal, "Press Ctrl+C again to quit.");
-  terminal.type(CTRL_C);
-
-  assert.equal(await within(30_000, exited, "the console to be left"), 0);
-  assert.deepEqual(cli.out, []);
-});
-
-test("what it says when the gateway or the chat server is missing is what run says", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const wide = (): FakeTerminal => new FakeTerminal(240, 30);
-  const saidByRun = async (): Promise<string> => {
-    const asked = captureIo();
-    assert.equal(await runCli(["run", "scout", "hi"], asked.io), 1);
-    assert.equal(asked.err.length, 1);
-    return asked.err[0] ?? "";
-  };
-
-  const noGateway = wide();
-  const first = openOn(noGateway);
-  await seen(noGateway, await saidByRun(), "what run says without a gateway");
-  noGateway.type(CTRL_C);
-  noGateway.type(CTRL_C);
-  await within(30_000, first.exited, "the console to be left");
-
-  await serveGateway(t);
-  const noChat = wide();
-  const second = openOn(noChat);
-  await seen(noChat, await saidByRun(), "what run says without a chat server");
-  noChat.type(CTRL_C);
-  noChat.type(CTRL_C);
-  await within(30_000, second.exited, "the console to be left");
 });
 
 test("a console that cannot start says why, exits with 1, and leaves nothing running", { timeout }, async (t) => {

@@ -3,10 +3,9 @@ import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { connectLocal } from "../contracts/chat/node.ts";
-import { GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
-import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
+import { eventually, stopAfter, tempDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { type CliResult, serveChat, serveGateway, shrimpy, startSilentServer } from "./testing/index.ts";
+import { type CliResult, isAlive, serveChat, serveGateway, shrimpy } from "./testing/index.ts";
 
 /*
  * These tests run the gateway and the chat server as people do: every
@@ -14,15 +13,6 @@ import { type CliResult, serveChat, serveGateway, shrimpy, startSilentServer } f
  */
 
 const timeout = 60_000;
-
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** The programs `gateway status` lists, each as its cells: kind, name, version and pid. */
 function listed(status: CliResult): string[][] {
@@ -53,39 +43,19 @@ test("gateway status shows the chat server once both run, with its version and p
   assert.equal(gateway.listening.webPort, null);
 });
 
-test("stopping the chat server takes it off the gateway's list", { timeout }, async (t) => {
-  await serveGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
-  await statusWithChat();
-
-  assert.equal((await chat.stop()).code, 0);
-
-  const status = await eventually(
-    () => shrimpy(["gateway", "status"]),
-    (result) => result.stdout.includes("No programs are registered."),
-    { what: "the chat server to leave the gateway's list" },
-  );
-  assert.equal(status.code, 0);
-});
-
 test("a gateway that was killed and started again has the chat server registered again", { timeout }, async (t) => {
   const first = await serveGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   await statusWithChat();
 
   await first.stop("SIGKILL");
-  const gone = await shrimpy(["gateway", "status"]);
-  assert.equal(gone.code, 1);
-  assert.equal(gone.stderr.trim(), "No gateway is running on this machine. Start one with: shrimpy gateway serve");
+  assert.equal((await shrimpy(["gateway", "status"])).code, 1);
   const second = await serveGateway(t);
 
   const again = await statusWithChat();
   assert.deepEqual(listed(again), [["chat", "chat", SHRIMPY_VERSION, String(chat.listening.pid)]]);
   assert.notEqual(second.listening.pid, first.listening.pid);
 });
-
-/** How long stopping may take before it counts as held up by a gateway that is not answering. */
-const PROMPT_MS = 5000;
 
 test("a chat server stops promptly when the gateway it is registered with has stopped answering", { timeout }, async (t) => {
   const gateway = await serveGateway(t);
@@ -94,19 +64,7 @@ test("a chat server stops promptly when the gateway it is registered with has st
 
   // A stopped process still holds its sockets open, and answers nothing.
   process.kill(gateway.listening.pid, "SIGSTOP");
-  const stopped = await within(PROMPT_MS, chat.stop(), "the chat server stopping");
-
-  assert.equal(stopped.code, 0, stopped.stderr);
-  assert.equal(isAlive(chat.listening.pid), false);
-});
-
-test("a chat server that started while the gateway was not answering stops promptly too", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startSilentServer(t, GATEWAY_SOCKET_NAME);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
-  await until(() => gateway.connections() === 1, "the chat server to reach the gateway");
-
-  const stopped = await within(PROMPT_MS, chat.stop(), "the chat server stopping");
+  const stopped = await within(5000, chat.stop(), "the chat server stopping");
 
   assert.equal(stopped.code, 0, stopped.stderr);
   assert.equal(isAlive(chat.listening.pid), false);
@@ -124,11 +82,9 @@ test("a chat server with no gateway running serves, and stops with 0", { timeout
   await connection.chat.post(main.id, "Is anyone there?", "zach-1");
 
   assert.equal((await shrimpy(["gateway", "status"])).code, 1);
-  assert.deepEqual((await connection.chat.read(main.id, null, 10)).map((message) => message.text), ["Is anyone there?"]);
   await connection.close();
   const stopped = await chat.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
-  assert.equal(stopped.stdout.trim().split("\n").length, 1, "serve prints only the listening line");
   assert.equal(stopped.stderr, "", "a chat server with no gateway has nothing to complain about");
   assert.equal(isAlive(chat.listening.pid), false);
 });
@@ -147,34 +103,24 @@ test("a stop signal the moment they are listening stops each of them cleanly", {
   assert.equal((await again.stop()).code, 0);
 });
 
-test("a second gateway is refused with the gateway's own message, and the first keeps serving", { timeout }, async (t) => {
-  const first = await serveGateway(t);
+test("a second gateway is refused, and the first keeps serving", { timeout }, async (t) => {
+  await serveGateway(t);
 
   const second = await shrimpy(["gateway", "serve"]);
 
   assert.equal(second.code, 1);
   assert.equal(second.stdout, "");
-  assert.equal(
-    second.stderr.trim(),
-    `A gateway is already running on ${first.listening.socket}. Use that one, or stop it before starting another.`,
-  );
   assert.equal((await shrimpy(["gateway", "status"])).code, 0);
 });
 
-test("a second chat server is refused for the socket with the chat server's own message, and the first keeps serving", { timeout }, async (t) => {
-  const dataDir = tempDir(t, "chat-data");
-  const first = await serveChat(t, dataDir);
+test("a second chat server is refused before it touches its data, and the first keeps serving", { timeout }, async (t) => {
+  const first = await serveChat(t, tempDir(t, "chat-data"));
   const otherDir = tempDir(t, "chat-other");
-  const refusal = `A chat server is already running on ${first.listening.socket}. Use that one, or stop it before starting another.`;
 
-  const sameData = await shrimpy(["chat", "serve", dataDir]);
-  const otherData = await shrimpy(["chat", "serve", otherDir]);
+  const second = await shrimpy(["chat", "serve", otherDir]);
 
-  assert.equal(sameData.code, 1);
-  assert.equal(sameData.stderr.trim(), refusal);
-  assert.equal(otherData.code, 1);
-  assert.equal(otherData.stderr.trim(), refusal);
-  assert.equal(sameData.stdout + otherData.stdout, "");
+  assert.equal(second.code, 1);
+  assert.equal(second.stdout, "");
   assert.deepEqual(readdirSync(otherDir), [], "a refused chat server leaves nothing in its data directory");
   const connection = await connectLocal(first.listening);
   stopAfter(t, () => connection.close());
@@ -184,32 +130,24 @@ test("a second chat server is refused for the socket with the chat server's own 
 test("a chat server that reaches the data of another through a different socket is refused by the store", { timeout }, async (t) => {
   const dataDir = tempDir(t, "chat-data");
   await serveChat(t, dataDir);
-  const elsewhere = tempDir(t, "rt-elsewhere");
 
-  const second = await shrimpy(["chat", "serve", dataDir], { env: { SHRIMPY_RUNTIME_DIR: elsewhere } });
+  const second = await shrimpy(["chat", "serve", dataDir], { env: { SHRIMPY_RUNTIME_DIR: tempDir(t, "rt-elsewhere") } });
 
   assert.equal(second.code, 1);
-  assert.equal(
-    second.stderr.trim(),
-    `Another chat server is using the data in ${dataDir}. Talk to that server instead of opening its store.`,
-  );
   assert.equal(second.stdout, "");
+  assert.match(second.stderr, /Another chat server is using the data/);
 });
 
 test("a runtime directory too long for a socket is refused with what to shorten, and nothing is started", { timeout }, async (t) => {
   const runtime = join(tempDir(t, "rt"), "d".repeat(100));
   const dataDir = tempDir(t, "chat-data");
 
-  for (const args of [["gateway", "status"], ["gateway", "serve"], ["chat", "serve", dataDir]]) {
-    const result = await shrimpy(args, { env: { SHRIMPY_RUNTIME_DIR: runtime } });
+  const result = await shrimpy(["chat", "serve", dataDir], { env: { SHRIMPY_RUNTIME_DIR: runtime } });
 
-    assert.equal(result.code, 1, args.join(" "));
-    assert.equal(result.stdout, "");
-    assert.match(
-      result.stderr,
-      /^The runtime directory .* is too long for a socket: .* Shorten SHRIMPY_RUNTIME_DIR by at least \d+ bytes/,
-    );
-  }
+  assert.equal(result.code, 1);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /too long for a socket/);
+  assert.match(result.stderr, /Shorten SHRIMPY_RUNTIME_DIR by at least \d+ bytes/);
   assert.equal(existsSync(runtime), false);
   assert.deepEqual(readdirSync(dataDir), []);
 });

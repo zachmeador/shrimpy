@@ -6,7 +6,7 @@ import { firstLine, useRuntimeDir } from "../../lib/testing/index.ts";
 
 const main = fileURLToPath(new URL("../main.ts", import.meta.url));
 
-/** A command that has not ended by now is stuck, and is killed so that the test fails instead of hanging. */
+/** A command that is meant to finish and has not by now is stuck, and is killed so that the test fails instead of hanging. */
 const LONGEST_COMMAND_MS = 120_000;
 
 const running = new Set<ChildProcess>();
@@ -24,6 +24,12 @@ export interface CliResult {
 /** How a test starts `shrimpy`: the environment it adds to this process's own. */
 export interface LaunchOptions {
   env?: Record<string, string>;
+  /**
+   * The command runs until it is stopped, as a server or `up` does, so it is
+   * not held to the time a command that is meant to finish gets. The test
+   * stops it.
+   */
+  untilStopped?: boolean;
 }
 
 function launch(args: string[], options: LaunchOptions = {}) {
@@ -32,7 +38,7 @@ function launch(args: string[], options: LaunchOptions = {}) {
     env: { ...process.env, ...options.env },
   });
   running.add(child);
-  const stuck = setTimeout(() => child.kill("SIGKILL"), LONGEST_COMMAND_MS);
+  const stuck = options.untilStopped === true ? undefined : setTimeout(() => child.kill("SIGKILL"), LONGEST_COMMAND_MS);
   let stdout = "";
   let stderr = "";
   child.stdout.on("data", (data: Buffer) => void (stdout += data.toString()));
@@ -91,7 +97,7 @@ async function serving<Listening>(
   options?: LaunchOptions,
 ): Promise<Served<Listening>> {
   useRuntimeDir(t);
-  const { child, closed, result } = launch(args, options);
+  const { child, closed, result } = launch(args, { ...options, untilStopped: true });
   const stop = async (signal: NodeJS.Signals = "SIGTERM"): Promise<CliResult> => {
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
     await closed;
