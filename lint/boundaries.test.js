@@ -44,9 +44,10 @@ tester.run("imports", importsRule, {
     // piTui, piTuiDraw and drawing: only the console's drawing knows pi-tui, and the top of the console starts the drawing.
     allowed("clients/console/draw/screen.ts", "@earendil-works/pi-tui"),
     allowed("clients/console/console.ts", "./draw/index.ts"),
-    // browser: a Node door may use Node, and so may test support, which is never shipped.
+    // browser: a Node door may use Node, and so may tests and test support, which are never shipped.
     allowed("contracts/agent/node.ts", "node:fs"),
     allowed("lib/testing/child.ts", "node:child_process"),
+    allowed("contracts/agent/browser.test.ts", "node:url"),
     // Files outside src/ are not this rule's business.
     { filename: "/repo/lint/boundaries.js", code: 'import x from "../src/agent/host/host.ts";' },
   ],
