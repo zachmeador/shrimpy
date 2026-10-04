@@ -1,12 +1,13 @@
-import { MAX_MESSAGE_LENGTH, type Message } from "../../contracts/chat/index.ts";
+import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import type { ChatLink } from "../links/index.ts";
 import { deliver } from "./deliver.ts";
 import { readFeed } from "./feed.ts";
 import { pause, untilAborted } from "./pause.ts";
-import { promptFor, snapshotOf } from "./prompt.ts";
+import { promptFor } from "./prompt.ts";
 import type { Outstanding, Turn, TurnOutcome, Turns } from "./turns.ts";
+import type { Taken } from "./wake.ts";
 import { workingMarks } from "./working.ts";
 
 export interface IntakeOptions {
@@ -31,7 +32,7 @@ export interface Intake {
   close(): Promise<void>;
 }
 
-/** A message being followed from its turn to its receipt. */
+/** An event being followed from its turn to its receipt. */
 interface Followed {
   outstanding: Outstanding;
   /** Resolves when its receipt is left and it is out of the outbox, or when following it stops. */
@@ -41,11 +42,13 @@ interface Followed {
 }
 
 /**
- * Take the messages that wake the agent from chat's feed, hand each to its
+ * Take the events that wake the agent from chat's feed, hand each to its
  * session, and when its turn ends post the reply and leave the receipt. Each
- * step is safe to repeat after a crash: taking a message is recorded before it
+ * step is safe to repeat after a crash: taking an event is recorded before it
  * is handed over, and the record is kept until the receipt is left, so after a
  * restart, or once chat comes back, whatever is unfinished is picked up again.
+ * Events are named by their own IDs, which chat does not reuse even when it
+ * starts again with an empty store.
  */
 export function startIntake(options: IntakeOptions): Intake {
   const { link, turns } = options;
@@ -56,25 +59,21 @@ export function startIntake(options: IntakeOptions): Intake {
   const closed = (): boolean => closing.signal.aborted;
   const taking = new AbortController();
   const followed = new Map<string, Followed>();
-  /** Messages being handed over right now, so the outbox and the feed bringing up the same one hand it over once. */
+  /** Events being handed over right now, so the outbox and the feed bringing up the same one hand it over once. */
   const handing = new Set<string>();
   const marks = workingMarks(link, onError);
 
-  /** Record the message, hand it over, and follow it; the feed moves past it once this returns. */
-  const admit = async (message: Message): Promise<void> => {
-    const outstanding = await turns.record({
-      message: snapshotOf(message),
-      threadId: message.threadId,
-      channelId: message.channelId,
-    });
-    // A message whose receipt was left before a crash needs nothing more.
+  /** Record the event, hand it over, and follow it; the feed moves past it once this returns. */
+  const admit = async (taken: Taken): Promise<void> => {
+    const outstanding = await turns.record(taken);
+    // An event whose receipt was left before a crash needs nothing more.
     if (outstanding === undefined) return;
     await take(outstanding);
   };
 
-  /** Hand a recorded message to its session and follow it. */
+  /** Hand a recorded event to its session and follow it. */
   async function take(outstanding: Outstanding): Promise<void> {
-    const id = outstanding.message.id;
+    const id = outstanding.event.id;
     if (handing.has(id) || followed.has(id)) return;
     handing.add(id);
     try {
@@ -85,7 +84,7 @@ export function startIntake(options: IntakeOptions): Intake {
   }
 
   function follow(outstanding: Outstanding, turn: Turn): void {
-    const id = outstanding.message.id;
+    const id = outstanding.event.id;
     if (followed.has(id)) return;
     const state: Followed = { outstanding, ended: false, done: Promise.resolve() };
     marks.add(outstanding.threadId);
@@ -111,13 +110,13 @@ export function startIntake(options: IntakeOptions): Intake {
 
   /**
    * A turn that failed ends its thread's queue. Nothing would start the
-   * messages waiting behind it until someone wrote again, so they are taken
+   * events waiting behind it until someone wrote again, so they are taken
    * back: each is marked skipped and shown at the next turn in the thread.
    */
   async function withdrawWaiting(failed: Outstanding): Promise<void> {
     for (const entry of [...followed.values()]) {
       if (entry.ended || entry.outstanding.threadId !== failed.threadId) continue;
-      if (entry.outstanding.message.id === failed.message.id) continue;
+      if (entry.outstanding.event.id === failed.event.id) continue;
       await turns.withdraw(entry.outstanding);
     }
   }
@@ -134,7 +133,7 @@ export function startIntake(options: IntakeOptions): Intake {
         if (isRefusal(error)) {
           onError(
             new Error(
-              `Chat refused what the agent had to say about ${outstanding.message.id}, so it was dropped: ${error.message}`,
+              `Chat refused what the agent had to say about ${outstanding.event.id}, so it was dropped: ${error.message}`,
             ),
           );
           return;

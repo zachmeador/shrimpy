@@ -7,12 +7,12 @@ import {
 import { clip, inParts, readFinalText, replyRequestId } from "./reply.ts";
 import type { Outstanding, TurnOutcome } from "./turns.ts";
 
-/** Messages one receipt call takes, as the chat contract describes. */
+/** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
 
 /**
- * Tell chat how a message's turn ended: post the reply if there is one, then
- * leave the receipt on the message and on the earlier messages that were shown
+ * Tell chat how an event's turn ended: post the reply if there is one, then
+ * leave the receipt on the event and on the earlier events that were shown
  * with it. Every step names itself, so doing all of it again after a failure
  * or a crash posts nothing twice and changes no receipt.
  */
@@ -24,7 +24,7 @@ export async function deliver(
   signal: AbortSignal,
 ): Promise<void> {
   const receipt = await postReply(chat, outstanding, outcome, messageLimit, signal);
-  const ids = [...outstanding.earlier, outstanding.message].map((message) => message.id);
+  const ids = [...outstanding.earlier, outstanding.event].map((event) => event.id);
   for (let from = 0; from < ids.length; from += RECEIPTS_AT_ONCE) {
     await chat.leaveReceipt(ids.slice(from, from + RECEIPTS_AT_ONCE), receipt, signal);
   }
@@ -37,7 +37,7 @@ async function postReply(
   outcome: TurnOutcome,
   messageLimit: number,
   signal: AbortSignal,
-): Promise<Omit<Receipt, "memberId">> {
+): Promise<Omit<Receipt, "memberId" | "event">> {
   switch (outcome.kind) {
     case "answered": {
       const reading = readFinalText(outcome.text);

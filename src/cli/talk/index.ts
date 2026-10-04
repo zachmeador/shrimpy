@@ -4,7 +4,7 @@
  * the roster, reaching the chat server through it with a ticket, so that the
  * gateway says who is talking, finding the member a name means and your DM with
  * it, and watching a thread for what an agent did with a message. It must not know how a command prints, or how an agent works:
- * what became of a message is read from its receipts in the thread, never
+ * what became of a message is read from the receipts on its events in the thread, never
  * asked of the agent.
  */
 export { agentNamed, memberNamed, runningAgent } from "./agents.ts";

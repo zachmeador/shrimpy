@@ -1,13 +1,20 @@
 /**
  * The tables' version. A store written by any other version is refused, never
- * changed. Version 3 is the first whose member IDs are the roster's: an ID in
- * an earlier store holds a name and means nothing to the gateway.
+ * changed. Version 4 is the first that keeps a log of events: an earlier
+ * store's messages have no events behind them, and its receipts name messages.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
- * `messages.seq` is the server-wide order. AUTOINCREMENT keeps it from ever
- * being reused, so a cursor stays meaningful for the life of the store.
+ * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
+ * keeps `seq` from ever being reused, so a cursor stays meaningful for the life
+ * of the store. Every change to a message writes its event in the same
+ * transaction as the change, and the events are never deleted.
+ *
+ * A message is what its events add up to, kept folded in `messages`. It takes
+ * the position of the event that posted it, which is why a post has no
+ * `target_seq`: it names the message it makes. `message_seq` is the message an
+ * event names, either way.
  */
 export const SCHEMA = `
 CREATE TABLE members (
@@ -44,25 +51,53 @@ CREATE TABLE threads (
 CREATE INDEX threads_by_channel ON threads (channel_id, updated_at DESC, last_seq DESC);
 CREATE UNIQUE INDEX one_main_thread_per_channel ON threads (channel_id) WHERE main = 1;
 
-CREATE TABLE messages (
+CREATE TABLE events (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  id TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL CHECK (kind IN ('posted', 'edited', 'deleted', 'reacted', 'unreacted')),
+  channel_id TEXT NOT NULL REFERENCES channels (id),
+  target_seq INTEGER REFERENCES messages (seq),
+  message_seq INTEGER GENERATED ALWAYS AS (coalesce(target_seq, seq)) VIRTUAL,
+  actor_id TEXT NOT NULL REFERENCES members (id),
+  at INTEGER NOT NULL,
+  text TEXT,
+  emoji TEXT,
+  CHECK ((kind = 'posted') = (target_seq IS NULL)),
+  CHECK ((kind IN ('posted', 'edited')) = (text IS NOT NULL)),
+  CHECK ((kind IN ('reacted', 'unreacted')) = (emoji IS NOT NULL))
+) STRICT;
+CREATE INDEX events_by_message ON events (message_seq, seq);
+
+CREATE TABLE messages (
+  seq INTEGER PRIMARY KEY REFERENCES events (seq),
   id TEXT NOT NULL UNIQUE,
   channel_id TEXT NOT NULL REFERENCES channels (id),
   thread_id TEXT NOT NULL REFERENCES threads (id),
   author_id TEXT NOT NULL REFERENCES members (id),
   text TEXT NOT NULL,
+  preview TEXT NOT NULL,
   sent_at INTEGER NOT NULL,
+  edited_at INTEGER,
+  deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
   addressed TEXT NOT NULL
 ) STRICT;
 CREATE INDEX messages_by_thread ON messages (thread_id, seq);
 
-CREATE TABLE receipts (
+CREATE TABLE reactions (
   message_seq INTEGER NOT NULL REFERENCES messages (seq),
+  member_id TEXT NOT NULL REFERENCES members (id),
+  emoji TEXT NOT NULL,
+  event_seq INTEGER NOT NULL REFERENCES events (seq),
+  PRIMARY KEY (message_seq, member_id, emoji)
+) STRICT, WITHOUT ROWID;
+
+CREATE TABLE receipts (
+  event_seq INTEGER NOT NULL REFERENCES events (seq),
   member_id TEXT NOT NULL REFERENCES members (id),
   status TEXT NOT NULL CHECK (status IN ('answered', 'silent', 'stopped', 'skipped', 'failed')),
   reply_seq INTEGER REFERENCES messages (seq),
   detail TEXT,
-  PRIMARY KEY (message_seq, member_id),
+  PRIMARY KEY (event_seq, member_id),
   CHECK ((status = 'answered') = (reply_seq IS NOT NULL)),
   CHECK ((status = 'failed') = (detail IS NOT NULL))
 ) STRICT, WITHOUT ROWID;
@@ -71,6 +106,7 @@ CREATE TABLE posts (
   author_id TEXT NOT NULL REFERENCES members (id),
   request_id TEXT NOT NULL,
   message_seq INTEGER NOT NULL UNIQUE REFERENCES messages (seq),
+  digest TEXT NOT NULL,
   PRIMARY KEY (author_id, request_id)
 ) STRICT, WITHOUT ROWID;
 `;

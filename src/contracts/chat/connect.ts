@@ -75,6 +75,10 @@ export async function connectChat(options: {
       service.archiveThread(threadId, archived, contextFor(signal)),
     post: (threadId, text, requestId, signal) =>
       service.post(threadId, text, requestId, contextFor(signal)),
+    edit: (messageId, text, signal) => service.edit(messageId, text, contextFor(signal)),
+    delete: (messageId, signal) => service.delete(messageId, contextFor(signal)),
+    react: (messageId, emoji, signal) => service.react(messageId, emoji, contextFor(signal)),
+    unreact: (messageId, emoji, signal) => service.unreact(messageId, emoji, contextFor(signal)),
     read: (threadId, beforeSeq, limit, signal) =>
       service.read(threadId, beforeSeq, limit, contextFor(signal)),
     leaveReceipt: (messageIds, receipt, signal) =>

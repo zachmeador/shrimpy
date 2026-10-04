@@ -3,8 +3,8 @@
  * what they care about; the change only says where to look.
  */
 export interface Change {
-  /** A message arrived, or something about the thread itself changed. */
-  kind: "message" | "thread";
+  /** An event was added to the log, or something about the thread itself changed. */
+  kind: "event" | "thread";
   threadId: string;
 }
 

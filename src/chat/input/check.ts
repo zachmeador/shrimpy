@@ -31,6 +31,22 @@ export function messageText(value: unknown): string {
   return value;
 }
 
+// Built from a string because TypeScript's target does not know the `v` flag; the runtime does.
+const ONE_EMOJI = new RegExp("^\\p{RGI_Emoji}$", "v");
+
+/**
+ * A reaction: one emoji. The same emoji is always the same reaction, so one
+ * written without its variation selector, such as a bare heart, is kept in
+ * the form with it.
+ */
+export function emoji(value: unknown, what: string): string {
+  if (typeof value === "string") {
+    if (ONE_EMOJI.test(value)) return value;
+    if (ONE_EMOJI.test(`${value}️`)) return `${value}️`;
+  }
+  return refuse(`${what} must be one emoji.`);
+}
+
 export function whole(value: unknown, what: string, least: number): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < least) {
     refuse(`${what} must be a whole number, ${least} or more.`);
@@ -70,7 +86,7 @@ const absent = (value: unknown): boolean => value === undefined || value === nul
  * that goes with it. Only an answered receipt has a reply and only a failed one
  * a detail; the others carry null in both. A reply or detail left out counts as null.
  */
-export function receipt(value: unknown, what: string): Omit<Receipt, "memberId"> {
+export function receipt(value: unknown, what: string): Omit<Receipt, "memberId" | "event"> {
   if (typeof value !== "object" || value === null) {
     refuse(`${what} must be a receipt: a status, a reply and a detail.`);
   }

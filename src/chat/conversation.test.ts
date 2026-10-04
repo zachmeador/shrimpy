@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
 import { settle } from "../lib/testing/index.ts";
-import { follow, mainThread, startDm, startTestChat, texts } from "./testing/index.ts";
+import { follow, mainThread, posted, startDm, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -29,12 +29,16 @@ test("two members talk in a DM", { timeout }, async (t) => {
   const question = await zach.chat.post(main.id, "Are you there?", "zach-1");
   assert.deepEqual(question.addressed, [shrimpy.me.id]);
   assert.deepEqual(question.author, zach.me);
-  assert.deepEqual(await offered, [question]);
+  const [asked, ...others] = await offered;
+  assert.deepEqual(others, []);
+  assert.ok(asked?.kind === "posted");
+  assert.deepEqual([asked.id, asked.seq, asked.text], [question.event, question.seq, "Are you there?"]);
+  assert.deepEqual([asked.actor, asked.message.id, asked.message.addressed], [zach.me, question.id, [shrimpy.me.id]]);
 
   const answer = await shrimpy.chat.post(main.id, "Yes.", "shrimpy-1");
   assert.deepEqual(answer.addressed, [zach.me.id]);
-  assert.deepEqual(await zach.chat.feed(question.seq, 10), [answer]);
-  assert.deepEqual(await shrimpy.chat.feed(question.seq, 10), [answer], "a member is offered its own messages too");
+  assert.deepEqual(posted(await zach.chat.feed(question.seq, 10)), ["Yes."]);
+  assert.deepEqual(posted(await shrimpy.chat.feed(question.seq, 10)), ["Yes."], "a member is offered its own events too");
   assert.deepEqual(await zach.chat.read(main.id, null, 10), [question, answer]);
   assert.deepEqual(await shrimpy.chat.read(main.id, answer.seq, 10), [question]);
 
@@ -103,11 +107,11 @@ test("a feed catches up after a reconnect", { timeout }, async (t) => {
   const second = await chat.agent("Shrimpy");
 
   const missed = await second.chat.feed(seen.seq, 10);
-  assert.deepEqual(texts(missed), ["two", "three"]);
+  assert.deepEqual(posted(missed), ["two", "three"]);
 
   const waiting = second.chat.feed(missed.at(-1)?.seq ?? 0, 10);
   await zach.chat.post(main.id, "four", "zach-4");
-  assert.deepEqual(texts(await waiting), ["four"]);
+  assert.deepEqual(posted(await waiting), ["four"]);
 });
 
 test("a feed pages through what it missed", { timeout }, async (t) => {
@@ -118,9 +122,9 @@ test("a feed pages through what it missed", { timeout }, async (t) => {
   const secondPage = await shrimpy.chat.feed(firstPage.at(-1)?.seq ?? 0, 2);
   const lastPage = await shrimpy.chat.feed(secondPage.at(-1)?.seq ?? 0, 2);
 
-  assert.deepEqual(texts(firstPage), ["m1", "m2"]);
-  assert.deepEqual(texts(secondPage), ["m3", "m4"]);
-  assert.deepEqual(texts(lastPage), ["m5"]);
+  assert.deepEqual(posted(firstPage), ["m1", "m2"]);
+  assert.deepEqual(posted(secondPage), ["m3", "m4"]);
+  assert.deepEqual(posted(lastPage), ["m5"]);
 });
 
 test("a retried post returns the first message instead of posting twice", { timeout }, async (t) => {
@@ -169,7 +173,7 @@ test("a connection keeps working while its own feed waits", { timeout }, async (
   const reply = await shrimpy.chat.post(main.id, "Answering while I listen.", "shrimpy-1");
 
   assert.equal(await shrimpy.chat.head(), reply.seq);
-  assert.deepEqual(await waiting, [reply]);
+  assert.deepEqual(posted(await waiting), [reply.text]);
 });
 
 test("a waiting feed ends when its caller cancels it, and the connection carries on", { timeout }, async (t) => {
@@ -184,7 +188,7 @@ test("a waiting feed ends when its caller cancels it, and the connection carries
 
   const waiting = shrimpy.chat.feed(start, 10);
   await zach.chat.post(main.id, "still listening", "zach-1");
-  assert.deepEqual(texts(await waiting), ["still listening"]);
+  assert.deepEqual(posted(await waiting), ["still listening"]);
 });
 
 test("a waiting feed ends when its connection drops, and the server carries on", { timeout }, async (t) => {
@@ -204,7 +208,7 @@ test("a waiting feed ends when its connection drops, and the server carries on",
   const stays = await chat.agent("Shrimpy");
   const waiting = stays.chat.feed(start, 10);
   await zach.chat.post(main.id, "anyone there?", "zach-1");
-  assert.deepEqual(texts(await waiting), ["anyone there?"]);
+  assert.deepEqual(posted(await waiting), ["anyone there?"]);
 });
 
 test("a message of the longest allowed size makes it through, and a longer one does not", { timeout }, async (t) => {

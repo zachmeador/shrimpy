@@ -6,14 +6,14 @@ import type { Outstanding, Turn, TurnOutcome, Turns } from "../index.ts";
  * agent would find, so one of these can be handed to a second intake.
  */
 export interface ScriptedTurns extends Turns {
-  /** The text each message was handed to its session as, by message ID. */
+  /** The text each event was handed to its session as, by event ID. */
   readonly handed: ReadonlyMap<string, string>;
   /** What was settled, in the order it was. */
-  readonly settled: { messageId: string; outcome: TurnOutcome }[];
+  readonly settled: { eventId: string; outcome: TurnOutcome }[];
   /** The calls made, in order, each as the method, and what it was about when it was about something. */
   readonly calls: string[];
-  /** End the turns of these messages with `outcome`, as their session would. */
-  end(outcome: TurnOutcome, ...messageIds: string[]): void;
+  /** End the turns of these events with `outcome`, as their session would. */
+  end(outcome: TurnOutcome, ...eventIds: string[]): void;
 }
 
 interface Ending {
@@ -66,16 +66,16 @@ export function scriptedTurns(): ScriptedTurns {
       cursor = seq;
     },
     async record(draft) {
-      call("record", draft.message.id);
-      const existing = outbox.get(draft.message.id);
+      call("record", draft.event.id);
+      const existing = outbox.get(draft.event.id);
       if (existing !== undefined) return existing;
-      if (delivered.has(draft.message.id)) return undefined;
+      if (delivered.has(draft.event.id)) return undefined;
       const outstanding: Outstanding = { ...draft, earlier: [] };
-      outbox.set(draft.message.id, outstanding);
+      outbox.set(draft.event.id, outstanding);
       return outstanding;
     },
     async start(outstanding, text) {
-      const id = outstanding.message.id;
+      const id = outstanding.event.id;
       call("start", id);
       handed.set(id, text);
       const ending = endingOf(id);
@@ -95,22 +95,22 @@ export function scriptedTurns(): ScriptedTurns {
       return turn;
     },
     async withdraw(outstanding) {
-      call("withdraw", outstanding.message.id);
+      call("withdraw", outstanding.event.id);
       // A turn that has already ended keeps the way it ended.
-      endingOf(outstanding.message.id).finish({ kind: "skipped" });
+      endingOf(outstanding.event.id).finish({ kind: "skipped" });
     },
     async outstanding() {
       call("outstanding");
-      return [...outbox.values()].sort((a, b) => a.message.seq - b.message.seq);
+      return [...outbox.values()].sort((a, b) => a.event.seq - b.event.seq);
     },
     async settle(outstanding, outcome) {
-      call("settle", outstanding.message.id);
-      outbox.delete(outstanding.message.id);
-      delivered.add(outstanding.message.id);
-      settled.push({ messageId: outstanding.message.id, outcome });
+      call("settle", outstanding.event.id);
+      outbox.delete(outstanding.event.id);
+      delivered.add(outstanding.event.id);
+      settled.push({ eventId: outstanding.event.id, outcome });
     },
-    end(outcome, ...messageIds) {
-      for (const id of messageIds) endingOf(id).finish(outcome);
+    end(outcome, ...eventIds) {
+      for (const id of eventIds) endingOf(id).finish(outcome);
     },
   };
 }

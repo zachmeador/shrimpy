@@ -5,6 +5,7 @@
  * store, what a member may see, or how a refusal travels.
  */
 export {
+  emoji,
   flag,
   identifier,
   identifiers,

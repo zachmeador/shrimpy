@@ -33,9 +33,10 @@ export interface ScriptedChatOptions {
  * them. It is a stand-in for what the console needs and nothing more: it takes
  * the calls the console makes, keeps what was posted once however often the
  * same request is sent, and publishes a thread's view as it changes. What an
- * agent does with a feed, receipts and the limits of the chat server are not
- * here, because nothing that uses this makes those calls; whatever tests that
- * need chat to behave as it does run the chat server itself.
+ * agent does with a feed, receipts, edits, deletes and reactions, and the limits
+ * of the chat server are not here, because nothing that uses this makes those
+ * calls; whatever tests that need chat to behave as it does run the chat server
+ * itself.
  */
 export interface ScriptedChat {
   /**
@@ -152,12 +153,16 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     const message: Message = {
       id: nextId("msg"),
       seq: log.length + 1,
+      event: nextId("evt"),
       channelId: thread.channelId,
       threadId: thread.id,
       author: clone(me),
       text,
       sentAt: now(),
+      editedAt: null,
+      deleted: false,
       addressed: (channel?.members ?? []).filter((member) => member.id !== me.id).map((member) => member.id),
+      reactions: [],
       receipts: [],
     };
     log.push(message);
@@ -220,6 +225,18 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       async post(threadId, text, requestId) {
         gate("post");
         return append(caller(), threadId, text, requestId);
+      },
+      async edit() {
+        return unsupported();
+      },
+      async delete() {
+        return unsupported();
+      },
+      async react() {
+        return unsupported();
+      },
+      async unreact() {
+        return unsupported();
       },
       async read() {
         return unsupported();

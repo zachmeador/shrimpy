@@ -1,47 +1,35 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Message } from "../../contracts/chat/index.ts";
 import { fitAnswer } from "./limits.ts";
 
-function message(seq: number, text: string): Message {
-  return {
-    id: `msg_${String(seq)}`,
-    seq,
-    channelId: "ch_1",
-    threadId: "th_1",
-    author: { id: "mem_zach", kind: "person", name: "Zach" },
-    text,
-    sentAt: seq,
-    addressed: [],
-    receipts: [],
-  };
-}
+/** Anything that is sent as JSON will do: a message or an event. */
+const item = (seq: number, text: string): { seq: number; text: string } => ({ seq, text });
 
-const sizeOf = (one: Message): number => Buffer.byteLength(JSON.stringify(one));
-const seqs = (messages: Message[]): number[] => messages.map((one) => one.seq);
+const sizeOf = (one: { seq: number; text: string }): number => Buffer.byteLength(JSON.stringify(one));
+const seqs = (items: { seq: number }[]): number[] => items.map((one) => one.seq);
 
 test("past the budget, the kept end stays and the other end goes", () => {
-  const messages = [1, 2, 3, 4].map((seq) => message(seq, "x".repeat(100)));
-  const budget = sizeOf(message(1, "x".repeat(100))) * 2;
+  const items = [1, 2, 3, 4].map((seq) => item(seq, "x".repeat(100)));
+  const budget = sizeOf(item(1, "x".repeat(100))) * 2;
 
-  assert.deepEqual(seqs(fitAnswer(messages, "newest", budget)), [3, 4]);
-  assert.deepEqual(seqs(fitAnswer(messages, "oldest", budget)), [1, 2]);
+  assert.deepEqual(seqs(fitAnswer(items, "newest", budget)), [3, 4]);
+  assert.deepEqual(seqs(fitAnswer(items, "oldest", budget)), [1, 2]);
 });
 
 test("size is counted in bytes as sent, so wide and escaped characters count for more", () => {
-  const plain = [1, 2].map((seq) => message(seq, "x".repeat(100)));
-  const wide = [1, 2].map((seq) => message(seq, "é".repeat(100)));
-  const escaped = [1, 2].map((seq) => message(seq, "\u0001".repeat(100)));
-  const budget = sizeOf(message(1, "x".repeat(100))) * 2;
+  const plain = [1, 2].map((seq) => item(seq, "x".repeat(100)));
+  const wide = [1, 2].map((seq) => item(seq, "é".repeat(100)));
+  const escaped = [1, 2].map((seq) => item(seq, "\u0001".repeat(100)));
+  const budget = sizeOf(item(1, "x".repeat(100))) * 2;
 
   assert.equal(fitAnswer(plain, "newest", budget).length, 2);
   assert.equal(fitAnswer(wide, "newest", budget).length, 1);
   assert.equal(fitAnswer(escaped, "newest", budget).length, 1);
 });
 
-test("one message is always kept, even alone over the budget", () => {
-  const messages = [message(1, "x".repeat(100)), message(2, "y".repeat(100))];
+test("one item is always kept, even alone over the budget", () => {
+  const items = [item(1, "x".repeat(100)), item(2, "y".repeat(100))];
 
-  assert.deepEqual(seqs(fitAnswer(messages, "newest", 1)), [2]);
-  assert.deepEqual(seqs(fitAnswer(messages, "oldest", 1)), [1]);
+  assert.deepEqual(seqs(fitAnswer(items, "newest", 1)), [2]);
+  assert.deepEqual(seqs(fitAnswer(items, "oldest", 1)), [1]);
 });

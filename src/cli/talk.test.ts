@@ -65,7 +65,9 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
   assert.equal(asked.author.id, you.me.id, "the command spoke as the person who runs it");
   const scout = await memberNamed(t, "scout");
   assert.equal(reply.author.id, scout.id);
-  assert.deepEqual(asked.receipts, [{ memberId: scout.id, status: "answered", reply: reply.id, detail: null }]);
+  assert.deepEqual(asked.receipts, [
+    { memberId: scout.id, event: asked.event, status: "answered", reply: reply.id, detail: null },
+  ]);
   assert.equal(agent.offered.length, 1);
 });
 
@@ -204,6 +206,10 @@ test("stopping run while its message is still being sent says it may have been p
           sending.resolve(undefined);
           return new Promise(() => undefined);
         },
+        edit: unsupported,
+        delete: unsupported,
+        react: unsupported,
+        unreact: unsupported,
         read: unsupported,
         leaveReceipt: unsupported,
         setWorking: unsupported,

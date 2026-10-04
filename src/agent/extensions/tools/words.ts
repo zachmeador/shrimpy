@@ -17,7 +17,8 @@ export const SEND_TO =
   "Leave it out to post to this thread.";
 
 export const READ_DESCRIPTION =
-  "Read the newest messages of a thread, oldest first. Use it to see what was said earlier, in this thread " +
+  "Read the newest messages of a thread, oldest first, as they stand now: edited ones say so, deleted ones " +
+  "have lost their text, and reactions are listed. Use it to see what was said earlier, in this thread " +
   "or in your DM with someone.";
 export const READ_FROM =
   "Which thread to read: @name for your DM with that person or agent. Leave it out to read this thread.";

@@ -11,11 +11,11 @@ const timeout = 30_000;
 const never = new AbortController().signal;
 
 function snapshot(n: number): Snapshot {
-  return { id: `msg_${String(n)}`, seq: n, author: "Zach", text: `message ${String(n)}`, sentAt: 1_700_000_000_000 + n * 1000 };
+  return { kind: "posted", id: `evt_${String(n)}`, seq: n, author: "Zach", text: `message ${String(n)}`, sentAt: 1_700_000_000_000 + n * 1000 };
 }
 
 function draft(n: number, thread = "th_1", channel = "ch_1"): Omit<Outstanding, "earlier"> {
-  return { message: snapshot(n), threadId: thread, channelId: channel };
+  return { event: snapshot(n), threadId: thread, channelId: channel };
 }
 
 /** An agent's host and sessions on `home`. They are closed when the test ends. */
@@ -45,7 +45,7 @@ async function run(sessions: Awaited<ReturnType<typeof open>>["sessions"], n: nu
   return { recorded, turn, outcome: await turn.outcome() };
 }
 
-test("recording a message makes its thread's session and writes the message to the outbox in one commit, and recording it again gives the same record", { timeout }, async (t) => {
+test("recording an event makes its thread's session and writes the event to the outbox in one commit, and recording it again gives the same record", { timeout }, async (t) => {
   const { host, sessions } = await open(t, tempDir(t, "turns"), "mixed");
   const published: CommitPublication[] = [];
   host.harness.subscribeCommits((publication) => published.push(publication));
@@ -61,7 +61,7 @@ test("recording a message makes its thread's session and writes the message to t
   assert.deepEqual(await sessions.list(), [{ threadId: "th_1", channelId: "ch_1", working: false }]);
 });
 
-test("a message handed over is answered by its session, and handing it over again is the same input", { timeout }, async (t) => {
+test("an event handed over is answered by its session, and handing it over again is the same input", { timeout }, async (t) => {
   const home = tempDir(t, "turns");
   const { sessions } = await open(t, home, "mixed");
   const recorded = await sessions.turns.record(draft(1));
@@ -95,7 +95,7 @@ test("an input found waiting with nothing running, as after a restart, is taken 
   assert.deepEqual(await again.outcome(), { kind: "skipped" });
 });
 
-test("a message that was settled is not recorded again, however often chat offers it", { timeout }, async (t) => {
+test("an event that was settled is not recorded again, however often chat offers it", { timeout }, async (t) => {
   const home = tempDir(t, "turns");
   const { sessions } = await open(t, home, "mixed");
   const { recorded, outcome } = await run(sessions, 1);
@@ -107,7 +107,7 @@ test("a message that was settled is not recorded again, however often chat offer
   assert.equal(loggedRequests(home).length, 1);
 });
 
-test("sessions, the outbox, unacted messages and the cursor are all there after a restart", { timeout }, async (t) => {
+test("sessions, the outbox, unacted events and the cursor are all there after a restart", { timeout }, async (t) => {
   const home = tempDir(t, "turns");
   const before = await open(t, home, "mixed");
   const { recorded, outcome } = await run(before.sessions, 1);

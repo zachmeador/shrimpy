@@ -6,11 +6,15 @@ import { know, openTestDm, outcome } from "../testing/index.ts";
 import {
   archiveThread,
   createThread,
+  deleteMessage,
+  editMessage,
   leaveReceipt,
   post,
+  react,
   renameThread,
   serveThread,
   setWorking,
+  unreact,
 } from "./index.ts";
 import { readThreadView } from "./thread-view.ts";
 
@@ -37,7 +41,7 @@ test("the view follows the thread through any mix of changes", async (t) => {
     clock.advance(next(3) * 1000);
     const author = next(2) === 0 ? zach : shrimpy;
     const connection = connections[next(2)] ?? {};
-    const choice = next(22);
+    const choice = next(30);
     const request = `request-${step}`;
     if (choice < 11) post(deps, author, main.id, `message ${step}`, request);
     else if (choice < 13) post(deps, author, side.id, `side ${step}`, request);
@@ -55,10 +59,27 @@ test("the view follows the thread through any mix of changes", async (t) => {
         outcome("failed", { detail: `Failed at step ${step}.` }),
         answer === undefined ? outcome("failed") : outcome("answered", { reply: answer.id }),
       ];
-      if (picked !== undefined) leaveReceipt(deps, shrimpy, [picked.id], outcomes[next(outcomes.length)]!);
+      if (picked !== undefined) leaveReceipt(deps, shrimpy, [picked.event], outcomes[next(outcomes.length)]!);
     } else if (choice < 19) setWorking(deps, connection, author, main.id, next(2) === 0);
     else if (choice === 19) deps.working.end(connection);
-    else know(deps, { ...author, name: `${author.name} ${step}` });
+    else if (choice < 22) know(deps, { ...author, name: `${author.name} ${step}` });
+    else {
+      // The rest change messages that are there: edit, delete, react and take a reaction back.
+      const messages = readThreadView(deps, main.id).messages;
+      const picked = messages[next(Math.max(messages.length, 1))];
+      const emoji = next(2) === 0 ? "\u{1F44D}" : "\u{1F389}";
+      if (picked !== undefined) {
+        try {
+          if (choice < 24) editMessage(deps, picked.author, picked.id, `edit ${step}`);
+          else if (choice === 24) deleteMessage(deps, picked.author, picked.id);
+          else if (choice < 28) react(deps, author, picked.id, emoji);
+          else unreact(deps, author, picked.id, emoji);
+        } catch (error) {
+          // A deleted message takes no edit and no reaction; that is the rule, not a failure of the view.
+          if (!(error instanceof Error && /was deleted/.test(error.message))) throw error;
+        }
+      }
+    }
 
     assert.deepEqual(served.state.value, readThreadView(deps, main.id), `after step ${step}`);
   }

@@ -8,14 +8,15 @@ export type Waited =
   | { kind: "moved-on" };
 
 /**
- * Watch a thread until `memberId` leaves a receipt on the message
- * `messageId`, and say what it was. The receipt is thread data like any other,
- * so this reads what the agent did from the thread, never from the agent.
- * Rejects when `signal` aborts, and stops watching either way.
+ * Watch a thread until `memberId` leaves a receipt on the post of `message`,
+ * and say what it was. A receipt on a later edit of the message is another
+ * receipt, and not the one waited for. The receipt is thread data like any
+ * other, so this reads what the agent did from the thread, never from the
+ * agent. Rejects when `signal` aborts, and stops watching either way.
  */
 export function waitForReceipt(
   handle: Pick<ThreadHandle, "subscribe">,
-  messageId: string,
+  message: Pick<Message, "id" | "event">,
   memberId: string,
   signal: AbortSignal,
 ): Promise<Waited> {
@@ -36,17 +37,17 @@ export function waitForReceipt(
     if (signal.aborted) return abandon();
     signal.addEventListener("abort", abandon, { once: true });
     watching.stop = handle.subscribe((view) => {
-      const waited = lookFor(view, messageId, memberId);
+      const waited = lookFor(view, message, memberId);
       if (waited !== undefined) finish(() => resolve(waited));
     });
     if (watching.done) watching.stop();
   });
 }
 
-function lookFor(view: ThreadView, messageId: string, memberId: string): Waited | undefined {
-  const message = view.messages.find((candidate) => candidate.id === messageId);
+function lookFor(view: ThreadView, wanted: Pick<Message, "id" | "event">, memberId: string): Waited | undefined {
+  const message = view.messages.find((candidate) => candidate.id === wanted.id);
   if (message === undefined) return { kind: "moved-on" };
-  const receipt = message.receipts.find((candidate) => candidate.memberId === memberId);
+  const receipt = message.receipts.find((candidate) => candidate.memberId === memberId && candidate.event === wanted.event);
   if (receipt === undefined) return undefined;
   const reply = receipt.reply === null ? undefined : view.messages.find((candidate) => candidate.id === receipt.reply);
   return { kind: "receipt", receipt, reply };

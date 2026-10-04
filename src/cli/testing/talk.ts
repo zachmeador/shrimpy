@@ -15,7 +15,7 @@ export interface Talk {
   said(): Promise<Message[]>;
   /** What the agent said in the thread, oldest first. */
   replies(): Promise<Message[]>;
-  /** The receipt the agent leaves on a message, once it has. */
+  /** The receipt the agent leaves on the post of a message, once it has. */
   receiptOn(message: Message, timeoutMs?: number): Promise<Receipt>;
 }
 
@@ -33,7 +33,7 @@ export async function talkTo(t: TestContext, chat: ServedChat["listening"], agen
 
   const said = (): Promise<Message[]> => connection.chat.read(thread.id, null, 200);
   const receiptOf = async (message: Message): Promise<Receipt | undefined> =>
-    (await said()).find((candidate) => candidate.id === message.id)?.receipts[0];
+    (await said()).find((candidate) => candidate.id === message.id)?.receipts.find((receipt) => receipt.event === message.event);
   const talk: Talk = {
     thread,
     say: (text) => connection.chat.post(thread.id, text, `talk-${randomUUID()}`),

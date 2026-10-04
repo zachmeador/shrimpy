@@ -2,11 +2,12 @@ import type { Context } from "@earendil-works/chord";
 import type { Store } from "../store/index.ts";
 
 /**
- * Wait until a message is posted anywhere. The wait ends in a rejection if the
- * context is cancelled, which is how the server ends it when the caller gives
- * up or its connection drops. Either way it stops watching the store.
+ * Wait until an event is added to the log, anywhere. The wait ends in a
+ * rejection if the context is cancelled, which is how the server ends it when
+ * the caller gives up or its connection drops. Either way it stops watching
+ * the store.
  */
-export function nextMessage(store: Store, context: Context): Promise<void> {
+export function nextEvent(store: Store, context: Context): Promise<void> {
   const signal = context.abortSignal;
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) {
@@ -22,7 +23,7 @@ export function nextMessage(store: Store, context: Context): Promise<void> {
       return true;
     };
     const stopWatching = store.subscribe((change) => {
-      if (change.kind === "message" && finish()) resolve();
+      if (change.kind === "event" && finish()) resolve();
     });
     function cancel(): void {
       if (finish()) reject(cancellation(signal));

@@ -101,19 +101,23 @@ export function aMessage(id: string, author: Member, text: string, parts: Partia
   return {
     id,
     seq: Number(id.replace(/\D/g, "")) || 1,
+    event: `evt_${id.replace(/\D/g, "") || "1"}`,
     channelId: "ch_1",
     threadId: "th_1",
     author,
     text,
     sentAt: 0,
+    editedAt: null,
+    deleted: false,
     addressed: [],
+    reactions: [],
     receipts: [],
     ...parts,
   };
 }
 
 export function aReceipt(agent: string, status: Receipt["status"], detail: string | null = null): Receipt {
-  return { memberId: agentMember(agent).id, status, reply: null, detail };
+  return { memberId: agentMember(agent).id, event: "evt_1", status, reply: null, detail };
 }
 
 export function aThreadView(thread: Thread, messages: Message[], earlier = 0): ThreadView {

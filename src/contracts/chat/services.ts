@@ -1,5 +1,5 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
-import type { Channel, Member, Message, Receipt, Thread, ThreadView } from "./view.ts";
+import type { Channel, ChatEvent, Member, Message, Receipt, Thread, ThreadView } from "./view.ts";
 
 /**
  * Connection scope: everything a member does in chat. People's clients and
@@ -33,15 +33,44 @@ export interface Chat {
 
   /**
    * Post to a thread. A retry with the same `requestId` from the same member
-   * returns the first message instead of posting twice, and the same `requestId`
-   * with a different thread or text is refused. A message holds at most
+   * returns the first message, as it stands now, instead of posting twice, even
+   * if it has been edited or deleted since; the same `requestId` with a
+   * different thread or text is refused. A message holds at most
    * `MAX_MESSAGE_LENGTH` characters.
    */
   post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
   /**
-   * Up to `limit` messages older than `beforeSeq`, or the newest when it is
-   * null; oldest first. A page of very long messages holds fewer, the newest of
-   * them.
+   * Change what a message says. Only its author may; for anyone else in the
+   * channel the call is refused, and for someone outside it the message does
+   * not exist. A deleted message cannot be edited. Editing to the text the
+   * message already has changes nothing and adds no event, so a call whose
+   * answer was lost can be made again. Answers with the message as it now
+   * stands.
+   */
+  edit(messageId: string, text: string, context: Context): Promise<Message>;
+  /**
+   * Delete a message. Only its author may. It keeps its place in the thread and
+   * loses its text, its reactions, and the text that its earlier events carried.
+   * Deleting a deleted message changes nothing and adds no event. Answers with
+   * the message as it now stands.
+   */
+  delete(messageId: string, context: Context): Promise<Message>;
+  /**
+   * Put an emoji on a message, as any member of the channel it is in. `emoji`
+   * is one emoji. Reacting twice with the same emoji is one reaction, and the
+   * second call changes nothing and adds no event. A deleted message takes no
+   * reactions. Answers with the message as it now stands.
+   */
+  react(messageId: string, emoji: string, context: Context): Promise<Message>;
+  /**
+   * Take back the caller's own reaction. Taking back one that is not there
+   * changes nothing and adds no event. Answers with the message as it now stands.
+   */
+  unreact(messageId: string, emoji: string, context: Context): Promise<Message>;
+  /**
+   * Messages as they now stand: up to `limit` of a thread older than
+   * `beforeSeq`, or the newest when it is null; oldest first. A page of very
+   * long messages holds fewer, the newest of them.
    */
   read(
     threadId: string,
@@ -50,25 +79,26 @@ export interface Chat {
     context: Context,
   ): Promise<Message[]>;
   /**
-   * Leave the caller's receipt on 1 to 200 messages: what it did with them, once
+   * Leave the caller's receipt on 1 to 200 events: what it did with them, once
    * its turn for them ended. The receipt is `Receipt` without `memberId`, which
-   * is the caller. Only an agent leaves receipts, only on messages in channels
-   * it belongs to, and the call is all or nothing. A later receipt from the same
-   * agent replaces its earlier one on a message, so a skipped message can be
-   * answered later, and leaving the receipt a message already has changes
-   * nothing, so a call whose answer was lost can be made again.
+   * is the caller, and without `event`, which is each ID given. Only an agent
+   * leaves receipts, only on events in channels it belongs to, and the call is
+   * all or nothing. A later receipt from the same agent replaces its earlier
+   * one on an event, so a skipped event can be answered later, and leaving the
+   * receipt an event already has changes nothing, so a call whose answer was
+   * lost can be made again.
    *
    * `reply` is required for `answered`, refused for every other status, and must
-   * be a message the caller wrote in the same thread as each message it answers.
-   * `detail` is required for `failed`, refused for every other status, and
-   * holds at most `MAX_RECEIPT_DETAIL_LENGTH` characters.
+   * be a message the caller wrote in the same thread as the message each event
+   * names. `detail` is required for `failed`, refused for every other status,
+   * and holds at most `MAX_RECEIPT_DETAIL_LENGTH` characters.
    *
-   * A receipt is not a message: it changes the thread's live view, but not its
-   * `updatedAt`, and `feed` never offers it.
+   * A receipt is not an event: it changes the thread's live view, but not its
+   * `updatedAt`, and `feed` never offers it as one.
    */
   leaveReceipt(
-    messageIds: string[],
-    receipt: Omit<Receipt, "memberId">,
+    eventIds: string[],
+    receipt: Omit<Receipt, "memberId" | "event">,
     context: Context,
   ): Promise<void>;
   /**
@@ -77,16 +107,18 @@ export interface Chat {
    */
   setWorking(threadId: string, working: boolean, context: Context): Promise<void>;
 
-  /** The newest message position on the server. A member with no cursor starts here. */
+  /** The position of the newest event on the server, or 0 when there is none. */
   head(context: Context): Promise<number>;
   /**
-   * Messages after `cursor` in every channel the caller belongs to, oldest
+   * Events after `cursor` in every channel the caller belongs to, oldest
    * first, up to `limit`, or fewer when they are very long. Waits until there
-   * is at least one. This is how an
-   * agent is offered messages: it asks, so the chat server never has to reach
-   * an agent, and a restarted agent catches up from its own cursor.
+   * is at least one. Every event is offered, the caller's own included, and
+   * what to do with each is the caller's call: the chat server leaves nothing
+   * out. This is how an agent is offered what happens: it asks, so the chat
+   * server never has to reach an agent, and a restarted agent catches up from
+   * its own cursor. A cursor past `head` is refused.
    */
-  feed(cursor: number, limit: number, context: Context): Promise<Message[]>;
+  feed(cursor: number, limit: number, context: Context): Promise<ChatEvent[]>;
 
   /** Watch one thread. A connection watches one at a time. */
   attach(threadId: string, context: Context): Promise<void>;

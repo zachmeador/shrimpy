@@ -7,13 +7,13 @@ import { turnOf } from "./turn.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** The input a message becomes is named for the message, so handing the same message over twice is one input. */
-const requestIdOf = (messageId: string): string => `chat:${messageId}`;
+/** The input an event becomes is named for the event, so handing the same event over twice is one input. */
+const requestIdOf = (eventId: string): string => `chat:${eventId}`;
 
 /**
  * Intake's view of the agent's sessions and records, over the engine. Each
- * thread has one session, made when the first message in it is taken, in the
- * same commit that records the message. The record, the hand-over and the
+ * thread has one session, made when the first event in it is taken, in the
+ * same commit that records the event. The record, the hand-over and the
  * settling are separate commits, in that order, and each can be repeated.
  */
 export function createTurns(harness: Harness, defaults: SessionDefaults): Turns {
@@ -29,7 +29,7 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
     },
 
     record(draft) {
-      const id = draft.message.id;
+      const id = draft.event.id;
       return harness.commit(async (tx) => {
         const threads = (await tx.doc(ThreadsDoc)).sessions;
         const outbox = (await tx.doc(OutboxDoc)).entries;
@@ -60,7 +60,7 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
       const conversation = await harness.conversation(session.conversationId as ConversationId, context);
       if (conversation === undefined) throw new Error(`The session for thread ${outstanding.threadId} is gone.`);
       const submission = await conversation.submit(
-        { type: "input", content: text, whenBusy: "followUp", requestId: requestIdOf(outstanding.message.id) },
+        { type: "input", content: text, whenBusy: "followUp", requestId: requestIdOf(outstanding.event.id) },
         context,
       );
       // An input that waits with nothing running ahead of it was left behind by a turn that failed, and nothing
@@ -76,7 +76,7 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
       if (session === undefined) return;
       const conversationId = session.conversationId as ConversationId;
       const handed = await harness.commit(
-        (tx) => tx.submissionByRequest(conversationId, requestIdOf(outstanding.message.id)),
+        (tx) => tx.submissionByRequest(conversationId, requestIdOf(outstanding.event.id)),
         context,
       );
       // The engine only takes back an input that is still waiting, and says so for one that is not.
@@ -85,11 +85,11 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
 
     async outstanding() {
       const entries = (await harness.snapshot(OutboxDoc, context))?.entries ?? {};
-      return plain(Object.values(entries)).sort((a, b) => a.message.seq - b.message.seq);
+      return plain(Object.values(entries)).sort((a, b) => a.event.seq - b.event.seq);
     },
 
     settle(outstanding, outcome) {
-      const id = outstanding.message.id;
+      const id = outstanding.event.id;
       return harness.commit(async (tx) => {
         const outbox = (await tx.doc(OutboxDoc)).entries;
         // Already settled, by an earlier try whose acknowledgment was lost.
@@ -98,7 +98,7 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
         if (outcome.kind !== "skipped") return;
         const session = (await tx.doc(ThreadsDoc)).sessions[outstanding.threadId];
         if (session === undefined) return;
-        session.unacted = inOrder([...plain(session.unacted), ...outstanding.earlier, outstanding.message]);
+        session.unacted = inOrder([...plain(session.unacted), ...outstanding.earlier, outstanding.event]);
       }, context);
     },
   };
@@ -112,8 +112,8 @@ async function waitsBehindNothing(harness: Harness, conversationId: Conversation
   return mine?.status === "queued" && !inputs.some((entry) => entry.status === "placed");
 }
 
-/** Messages by position in chat's order, each once. */
-function inOrder(messages: Snapshot[]): Snapshot[] {
-  const byId = new Map(messages.map((message) => [message.id, message]));
+/** Events by position in chat's order, each once. */
+function inOrder(events: Snapshot[]): Snapshot[] {
+  const byId = new Map(events.map((event) => [event.id, event]));
   return [...byId.values()].sort((a, b) => a.seq - b.seq);
 }

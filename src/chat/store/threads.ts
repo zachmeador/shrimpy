@@ -60,6 +60,20 @@ export function insertThread(
   return id;
 }
 
+/**
+ * Make a thread's preview the preview of its first message that is still
+ * there, or nothing when it has none. A message is what its events add up to,
+ * so the preview follows its edits and a deleted message leaves no trace in it.
+ */
+export function refreshPreview(sql: Sql, threadId: string): void {
+  sql.run(
+    `UPDATE threads
+     SET preview = (SELECT m.preview FROM messages m WHERE m.thread_id = threads.id AND m.deleted = 0 ORDER BY m.seq LIMIT 1)
+     WHERE id = ?`,
+    threadId,
+  );
+}
+
 export function threadOperations(sql: Sql, report: ReportChange): ThreadOperations {
   const find = (id: string): ThreadRecord | undefined => {
     const row = sql.one(`SELECT ${COLUMNS} FROM threads WHERE id = ?`, id) as ThreadRow | undefined;

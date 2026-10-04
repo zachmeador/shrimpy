@@ -1,31 +1,19 @@
-import type { Member, Message } from "../../contracts/chat/index.ts";
+import type { ChatEvent } from "../../contracts/chat/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import { pause } from "./pause.ts";
 import type { Turns } from "./turns.ts";
+import { type Taken, takeUp } from "./wake.ts";
 
-/** Messages asked for at a time. */
+/** Events asked for at a time. */
 const FEED_LIMIT = 50;
-
-/**
- * Whether a message starts a turn. Today a message does when it is addressed to
- * the agent, which in a DM is every message from the other member. The agent's
- * own messages come back in its feed and are never one. Neither is a message
- * that already carries the agent's receipt: it was dealt with, perhaps by an
- * agent that has lost its records since. Rooms and the agent's own wake policy
- * come later and belong here.
- */
-export function wakes(self: Member, message: Message): boolean {
-  if (message.author.id === self.id || !message.addressed.includes(self.id)) return false;
-  return !message.receipts.some((receipt) => receipt.memberId === self.id);
-}
 
 export interface FeedOptions {
   link: ChatLink;
   turns: Turns;
-  /** Take a message that wakes the agent. The agent's place in the feed moves past it only once this returns. */
-  admit(message: Message): Promise<void>;
+  /** Take an event that wakes the agent. The agent's place in the feed moves past it only once this returns. */
+  admit(taken: Taken): Promise<void>;
   /** Told of failures, each time one ends an attempt to read. */
   onError(error: Error): void;
   /** Abort to stop reading. */
@@ -64,9 +52,9 @@ export async function readFeed(options: FeedOptions): Promise<void> {
   const follow = async ({ chat, self }: LiveChat, signal: AbortSignal): Promise<void> => {
     let at = cursor ?? 0;
     for (;;) {
-      let messages: Message[];
+      let events: ChatEvent[];
       try {
-        messages = await chat.feed(at, FEED_LIMIT, signal);
+        events = await chat.feed(at, FEED_LIMIT, signal);
       } catch (error) {
         const head = isRefusal(error) ? await chat.head(signal) : at;
         // Any other refusal, or a failure of any other kind, is the next attempt's to report.
@@ -80,12 +68,13 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         at = await moveTo(0);
         continue;
       }
-      for (const message of messages) {
-        if (wakes(self, message)) {
-          await options.admit(message);
-          at = await moveTo(message.seq);
+      for (const event of events) {
+        const taken = takeUp(self, event);
+        if (taken !== undefined) {
+          await options.admit(taken);
+          at = await moveTo(event.seq);
         } else {
-          at = message.seq;
+          at = event.seq;
         }
       }
       at = await moveTo(at);

@@ -18,8 +18,12 @@ test("before a connection has come in with a ticket, every call but enter is ref
     ["renameThread", () => stranger.chat.renameThread("th_1", "Name")],
     ["archiveThread", () => stranger.chat.archiveThread("th_1", true)],
     ["post", () => stranger.chat.post("th_1", "hello", "request-1")],
+    ["edit", () => stranger.chat.edit("msg_1", "hello")],
+    ["delete", () => stranger.chat.delete("msg_1")],
+    ["react", () => stranger.chat.react("msg_1", "\u{1F44D}")],
+    ["unreact", () => stranger.chat.unreact("msg_1", "\u{1F44D}")],
     ["read", () => stranger.chat.read("th_1", null, 10)],
-    ["leaveReceipt", () => stranger.chat.leaveReceipt(["msg_1"], outcome("silent"))],
+    ["leaveReceipt", () => stranger.chat.leaveReceipt(["evt_1"], outcome("silent"))],
     ["setWorking", () => stranger.chat.setWorking("th_1", true)],
     ["head", () => stranger.chat.head()],
     ["feed", () => stranger.chat.feed(0, 10)],
@@ -60,11 +64,11 @@ test("a member who is not in a channel cannot see or touch it", { timeout }, asy
     ["read", () => alice.chat.read(main.id, null, 10), /^Unknown thread: th_/],
     ["setWorking", () => alice.chat.setWorking(main.id, true), /^Unknown thread: th_/],
     ["attach", () => alice.attach(main.id), /^Unknown thread: th_/],
-    ["leaveReceipt by a person", () => zach.chat.leaveReceipt([said.id], outcome("silent")), /^Only an agent/],
+    ["leaveReceipt by a person", () => zach.chat.leaveReceipt([said.event], outcome("silent")), /^Only an agent/],
     [
       "leaveReceipt by another agent",
-      () => alice.chat.leaveReceipt([said.id], outcome("silent")),
-      /^Unknown message: msg_/,
+      () => alice.chat.leaveReceipt([said.event], outcome("silent")),
+      /^Unknown event: evt_/,
     ],
   ];
   for (const [name, call, reason] of refusals) {
@@ -112,7 +116,8 @@ test("arguments of the wrong kind are refused with a reason", { timeout }, async
     [() => zach.chat.post(main.id, "", "zach-1"), /needs some text/],
     [() => zach.chat.post(main.id, "hi", wrong("")), /^requestId must be an ID/],
     [() => zach.chat.read(main.id, null, 0), /^limit must be a whole number/],
-    [() => zach.chat.feed(99, 10), /past the newest message/],
+    [() => zach.chat.react("msg_1", "thumbs up"), /^emoji must be one emoji/],
+    [() => zach.chat.feed(99, 10), /past the newest event/],
   ];
   for (const [call, reason] of refusals) {
     await assert.rejects(call(), { code: "service_invalid_value", message: reason }, String(reason));

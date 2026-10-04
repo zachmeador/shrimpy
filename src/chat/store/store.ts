@@ -2,8 +2,10 @@ import { createListeners } from "../../lib/listeners/index.ts";
 import { type ChannelOperations, channelOperations } from "./channels.ts";
 import type { Change } from "./changes.ts";
 import { openDatabase } from "./database.ts";
+import { type EventOperations, eventOperations } from "./events.ts";
 import { type MemberOperations, memberOperations } from "./members.ts";
 import { type MessageOperations, messageOperations } from "./messages.ts";
+import { type ReactionOperations, reactionOperations } from "./reactions.ts";
 import { type ReceiptOperations, receiptOperations } from "./receipts.ts";
 import { createSql, type Sql } from "./sql.ts";
 import { type ThreadOperations, threadOperations } from "./threads.ts";
@@ -12,6 +14,8 @@ export type Transaction = MemberOperations &
   ChannelOperations &
   ThreadOperations &
   MessageOperations &
+  ReactionOperations &
+  EventOperations &
   ReceiptOperations;
 
 export interface Store {
@@ -84,6 +88,8 @@ function createTransaction(sql: Sql, report: (change: Change) => void): Transact
     ...channelOperations(sql),
     ...threadOperations(sql, report),
     ...messageOperations(sql, report),
+    ...reactionOperations(sql, report),
+    ...eventOperations(sql),
     ...receiptOperations(sql, report),
   };
 }

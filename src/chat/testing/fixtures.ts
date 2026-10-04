@@ -28,7 +28,7 @@ export const agent = (name: string): Member => member("agent", name);
 export const outcome = (
   status: Receipt["status"],
   given: { reply?: string; detail?: string } = {},
-): Omit<Receipt, "memberId"> => ({ status, reply: given.reply ?? null, detail: given.detail ?? null });
+): Omit<Receipt, "memberId" | "event"> => ({ status, reply: given.reply ?? null, detail: given.detail ?? null });
 
 export interface Clock {
   readonly now: () => number;

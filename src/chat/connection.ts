@@ -6,15 +6,19 @@ import {
   archiveThread,
   type ChatDeps,
   createThread,
+  deleteMessage,
+  editMessage,
   enter,
   leaveReceipt,
   listChannels,
   listThreads,
   openDm,
   post,
+  react,
   readMessages,
   renameThread,
   setWorking,
+  unreact,
   watchableThread,
 } from "./threads/index.ts";
 
@@ -70,11 +74,23 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
     async post(threadId, text, requestId) {
       return post(deps, caller(), threadId, text, requestId);
     },
+    async edit(messageId, text) {
+      return editMessage(deps, caller(), messageId, text);
+    },
+    async delete(messageId) {
+      return deleteMessage(deps, caller(), messageId);
+    },
+    async react(messageId, emoji) {
+      return react(deps, caller(), messageId, emoji);
+    },
+    async unreact(messageId, emoji) {
+      return unreact(deps, caller(), messageId, emoji);
+    },
     async read(threadId, beforeSeq, limit) {
       return readMessages(deps, caller(), threadId, beforeSeq, limit);
     },
-    async leaveReceipt(messageIds, receipt) {
-      leaveReceipt(deps, caller(), messageIds, receipt);
+    async leaveReceipt(eventIds, receipt) {
+      leaveReceipt(deps, caller(), eventIds, receipt);
     },
     async setWorking(threadId, working) {
       setWorking(deps, connection, caller(), threadId, working);

@@ -15,6 +15,8 @@ export interface ChatServer {
   readonly endpoint: ChatEndpoint;
   /** The real gateway it is registered with, which runs as a process of its own too. */
   readonly gateway: TestGateway;
+  /** Where its store is now. */
+  readonly dataDir: string;
   /** Come in as the person who runs the gateway. The connection is closed when the test ends. */
   person(): Promise<Entered>;
   /** Come in as the agent called `name`, which joins the roster the first time. The connection is closed when the test ends. */
@@ -50,6 +52,9 @@ export async function startChatServer(t: TestContext): Promise<ChatServer> {
       return endpoint;
     },
     gateway,
+    get dataDir() {
+      return dataDir;
+    },
     person: () => enterAsPerson(t, endpoint),
     agent: (name) => enterAsAgent(t, endpoint, name),
     member: (name) => memberNamed(t, name),

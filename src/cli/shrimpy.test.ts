@@ -279,8 +279,8 @@ test("a shrimpy command in an agent's shell speaks as that agent, and the same c
 
   assert.equal(posted.code, 0, posted.stderr);
   const [fromAgent, fromPerson] = mechanic.offered;
-  assert.deepEqual([fromAgent?.text, fromAgent?.author.id], ["hello from my shell", scout.id]);
-  assert.deepEqual([fromPerson?.text, fromPerson?.author.id], ["hello from my shell", person.id]);
+  assert.deepEqual([fromAgent?.text, fromAgent?.actor.id], ["hello from my shell", scout.id]);
+  assert.deepEqual([fromPerson?.text, fromPerson?.actor.id], ["hello from my shell", person.id]);
   assert.notEqual(scout.id, person.id);
 });
 

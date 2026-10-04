@@ -1,5 +1,5 @@
 import type { TestContext } from "node:test";
-import type { ChatConnection, Message, Thread } from "../../contracts/chat/index.ts";
+import type { ChatConnection, ChatEvent, Message, Thread } from "../../contracts/chat/index.ts";
 import { startTestChat } from "./chat.ts";
 
 /** The main thread of a channel. */
@@ -24,6 +24,17 @@ export async function startDm(t: TestContext) {
 }
 
 export const texts = (messages: { text: string }[]): string[] => messages.map((message) => message.text);
+
+/** What the posts among some events said, in order. */
+export const posted = (events: ChatEvent[]): string[] =>
+  events.flatMap((event) => (event.kind === "posted" ? [event.text] : []));
+
+/** The log as lines, each an event's kind and what it carries: "edited: new text", "reacted: 👍", "deleted". */
+export const logOf = (events: ChatEvent[]): string[] =>
+  events.map((event) => {
+    const carried = "text" in event ? event.text : "emoji" in event ? event.emoji : "";
+    return carried === "" ? event.kind : `${event.kind}: ${carried}`;
+  });
 
 /** Every message of a thread, oldest first, read a page at a time. */
 export async function readAll(connection: ChatConnection, threadId: string): Promise<Message[]> {

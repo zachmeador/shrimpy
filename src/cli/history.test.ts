@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Message, Thread } from "../contracts/chat/index.ts";
 import { joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
-import { type Outcome, shrimpy, startScriptedAgent, startTalking } from "./testing/index.ts";
+import { type Outcome, type Posted, shrimpy, startScriptedAgent, startTalking } from "./testing/index.ts";
 
 /*
  * These tests look back at conversations as people do: every `shrimpy` is its
@@ -83,7 +83,7 @@ test("threads with an agent you have never talked to lists nothing, and makes no
 });
 
 /** What the scripted agent does with a message, by what it says. */
-const byText = (message: Message): Outcome => {
+const byText = (message: Posted): Outcome => {
   switch (message.text) {
     case "q1":
       return answered("a1");
@@ -129,7 +129,9 @@ test("read --json prints the thread and every message with all its receipts, sil
   const data = JSON.parse(result.stdout) as { thread: Thread; messages: Message[] };
   assert.equal(data.thread.id, thread);
   assert.deepEqual(data.messages.map((message) => message.text), ["q1", "a1", "q2"]);
-  assert.deepEqual(data.messages[2]?.receipts, [{ memberId: scout.id, status: "silent", reply: null, detail: null }]);
+  assert.deepEqual(data.messages[2]?.receipts, [
+    { memberId: scout.id, event: data.messages[2]?.event, status: "silent", reply: null, detail: null },
+  ]);
   assert.equal(data.messages[0]?.receipts[0]?.status, "answered");
 });
 

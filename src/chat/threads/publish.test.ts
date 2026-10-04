@@ -15,19 +15,24 @@ import { publishThreadView } from "./publish.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-const message = (seq: number, receipts: Receipt[] = []): Message => ({
+const message = (seq: number, receipts: Receipt[] = [], parts: Partial<Message> = {}): Message => ({
   id: `msg_${seq}`,
   seq,
+  event: `evt_${seq}`,
   channelId: "ch_1",
   threadId: "th_1",
   author: seq % 2 === 0 ? agent("Shrimpy") : person("Zach"),
   text: `message ${seq}`,
   sentAt: 1000 + seq,
+  editedAt: null,
+  deleted: false,
   addressed: [],
+  reactions: [],
   receipts,
+  ...parts,
 });
 
-const silent: Receipt = { memberId: "mem_shrimpy", status: "silent", reply: null, detail: null };
+const silent: Receipt = { memberId: "mem_shrimpy", event: "evt_2", status: "silent", reply: null, detail: null };
 const answered = (reply: string): Receipt => ({ ...silent, status: "answered", reply });
 
 function view(
@@ -70,6 +75,9 @@ test("the published view always equals the latest view", () => {
     view([message(1), message(2)]),
     view([message(1), message(2, [silent])]),
     view([message(1), message(2, [answered("msg_3")]), message(3)]),
+    view([message(1), message(2, [answered("msg_3")], { text: "message 2, edited", editedAt: 5000 }), message(3)]),
+    view([message(1), message(2, [answered("msg_3")], { text: "", deleted: true, editedAt: 5000 }), message(3)]),
+    view([message(1, [], { reactions: [{ emoji: "👍", memberIds: ["mem_shrimpy"] }] }), message(2), message(3)]),
     view(range(1, 3), { name: "Renamed" }),
     view(range(1, 3), { name: "Renamed", working: [{ memberId: "mem_shrimpy", since: 5000 }] }),
     view(range(2, 4), { earlier: 1, name: "Renamed" }),

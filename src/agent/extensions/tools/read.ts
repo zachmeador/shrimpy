@@ -1,6 +1,7 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool } from "@earendil-works/pi-durable";
-import { written } from "../../intake/index.ts";
+import type { ChatClient, Message } from "../../../contracts/chat/index.ts";
+import { standing } from "../../intake/index.ts";
 import type { MessageToolsOptions } from "./options.ts";
 import { placeOf } from "./place.ts";
 import { answer, callSignal, chatFailure, failure } from "./results.ts";
@@ -11,8 +12,8 @@ const MOST = 100;
 
 /**
  * `read_messages`: read the newest messages of a thread, oldest first, each as
- * a message is shown to the model when it arrives. With nothing said about
- * which thread, it is the one the turn came from.
+ * it now stands: edited, deleted or reacted to as it may be. With nothing said
+ * about which thread, it is the one the turn came from.
  */
 export function readMessages(options: MessageToolsOptions) {
   return defineTool({
@@ -55,9 +56,8 @@ export function readMessages(options: MessageToolsOptions) {
         const oldest = shown[0];
         if (oldest === undefined) return answer(words.nothingToRead(place.label, before !== undefined));
 
-        const text = shown
-          .map((message) => written({ author: message.author.name, sentAt: message.sentAt, text: message.text }))
-          .join("\n\n");
+        const nameOf = await namer(live.chat, shown, signal);
+        const text = shown.map((message) => standing(message, nameOf)).join("\n\n");
         const lines = [words.readHeader(place.label), "", text];
         if (older) lines.push("", words.olderMessages(oldest.seq, from));
         return answer(lines.join("\n"));
@@ -67,4 +67,16 @@ export function readMessages(options: MessageToolsOptions) {
       }
     },
   });
+}
+
+/**
+ * What the members who reacted are called. Reactions name members by ID, and
+ * the channel knows their names, so it is asked only when there is a reaction.
+ */
+async function namer(chat: ChatClient, messages: Message[], signal: AbortSignal): Promise<(memberId: string) => string> {
+  const first = messages[0];
+  if (first === undefined || messages.every((message) => message.reactions.length === 0)) return (memberId) => memberId;
+  const channel = (await chat.channels(signal)).find((each) => each.id === first.channelId);
+  const names = new Map(channel?.members.map((member) => [member.id, member.name]));
+  return (memberId) => names.get(memberId) ?? memberId;
 }

@@ -7,8 +7,24 @@ const scout: Member = { id: "mem_a", kind: "agent", name: "scout" };
 const zach: Member = { id: "mem_b", kind: "person", name: "zach" };
 
 function message(id: string, seq: number, receipts: Receipt[] = []): Message {
-  return { id, seq, channelId: "ch_1", threadId: "th_1", author: zach, text: id, sentAt: seq, addressed: [], receipts };
+  return {
+    id,
+    seq,
+    event: `evt_${seq}`,
+    channelId: "ch_1",
+    threadId: "th_1",
+    author: zach,
+    text: id,
+    sentAt: seq,
+    editedAt: null,
+    deleted: false,
+    addressed: [],
+    reactions: [],
+    receipts,
+  };
 }
+
+const left = (event: string, status: Receipt["status"]): Receipt => ({ memberId: scout.id, event, status, reply: null, detail: null });
 
 function view(...messages: Message[]): ThreadView {
   const thread = { id: "th_1", channelId: "ch_1", main: false, name: null, preview: null, archived: false, updatedAt: 0, working: [] };
@@ -32,19 +48,32 @@ function watchable(first: ThreadView) {
 }
 
 test("a receipt that is there already is found at once", async () => {
-  const silent: Receipt = { memberId: scout.id, status: "silent", reply: null, detail: null };
-  const thread = watchable(view(message("msg_1", 1, [silent])));
+  const sent = message("msg_1", 1);
+  const thread = watchable(view({ ...sent, receipts: [left(sent.event, "silent")] }));
 
-  const waited = await waitForReceipt(thread.handle, "msg_1", scout.id, new AbortController().signal);
+  const waited = await waitForReceipt(thread.handle, sent, scout.id, new AbortController().signal);
 
   assert.ok(waited.kind === "receipt");
   assert.equal(waited.receipt.status, "silent");
   assert.equal(thread.listeners.size, 0, "and it stopped watching");
 });
 
+test("the receipt waited for is the one on the message's post, not one on a later edit", async () => {
+  const sent = message("msg_1", 1);
+  const thread = watchable(view({ ...sent, receipts: [left("evt_9", "failed")] }));
+  const waiting = waitForReceipt(thread.handle, sent, scout.id, new AbortController().signal);
+
+  thread.publish(view({ ...sent, receipts: [left(sent.event, "answered"), left("evt_9", "failed")] }));
+
+  const waited = await waiting;
+  assert.ok(waited.kind === "receipt");
+  assert.equal(waited.receipt.status, "answered");
+});
+
 test("a message the live view has moved past is reported, so the wait does not go on for nothing", async () => {
-  const thread = watchable(view(message("msg_1", 1)));
-  const waiting = waitForReceipt(thread.handle, "msg_1", scout.id, new AbortController().signal);
+  const sent = message("msg_1", 1);
+  const thread = watchable(view(sent));
+  const waiting = waitForReceipt(thread.handle, sent, scout.id, new AbortController().signal);
 
   thread.publish(view(message("msg_300", 300)));
 

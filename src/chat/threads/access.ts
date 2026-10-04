@@ -1,4 +1,4 @@
-import type { Member } from "../../contracts/chat/index.ts";
+import type { ChatEvent, Member, Message } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { identifier } from "../input/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
@@ -29,6 +29,30 @@ export function visibleThread(
     refuse(`Unknown thread: ${threadId}`);
   }
   return { thread, channel };
+}
+
+/** A message in a channel the caller belongs to, with that channel. */
+export function visibleMessage(
+  tx: Transaction,
+  caller: Member,
+  messageId: string,
+): { message: Message; channel: ChannelRecord } {
+  const message = tx.message(messageId);
+  const channel = message === undefined ? undefined : tx.channel(message.channelId);
+  if (message === undefined || channel === undefined || !isMember(channel, caller.id)) {
+    refuse(`Unknown message: ${messageId}`);
+  }
+  return { message, channel };
+}
+
+/** An event in a channel the caller belongs to. */
+export function visibleEvent(tx: Transaction, caller: Member, eventId: string): ChatEvent {
+  const event = tx.event(eventId);
+  const channel = event === undefined ? undefined : tx.channel(event.message.channelId);
+  if (event === undefined || channel === undefined || !isMember(channel, caller.id)) {
+    refuse(`Unknown event: ${eventId}`);
+  }
+  return event;
 }
 
 /** Check that the caller may watch a thread, and give back its ID. */

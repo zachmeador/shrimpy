@@ -9,5 +9,5 @@ export { type ChatChild, startChatChild } from "./child.ts";
 export { identityOf, know, openTestDeps, openTestDm } from "./deps.ts";
 export { agent, type Clock, fakeClock, outcome, person } from "./fixtures.ts";
 export { openTestStore } from "./store.ts";
-export { mainThread, readAll, startDm, texts } from "./talk.ts";
+export { logOf, mainThread, posted, readAll, startDm, texts } from "./talk.ts";
 export { countWatchers, follow, type Outcome } from "./watching.ts";

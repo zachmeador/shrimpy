@@ -14,6 +14,7 @@ export { type ModelRequest, type ModelServer, startModelServer } from "./model-s
 export { untilRegistered } from "./registered.ts";
 export {
   type Outcome,
+  type Posted,
   type ScriptedAgent,
   type ScriptedAgentOptions,
   startScriptedAgent,

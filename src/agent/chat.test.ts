@@ -46,7 +46,7 @@ test("a message in a DM becomes a turn, and only the turn's final text is the re
   const [reply, ...others] = await rig.replies();
   assert.ok(reply);
   assert.deepEqual(others, []);
-  assert.deepEqual(receipt, { memberId: rig.partner.id, status: "answered", reply: reply.id, detail: null });
+  assert.deepEqual(receipt, { memberId: rig.partner.id, event: asked.event, status: "answered", reply: reply.id, detail: null });
   assert.ok(reply.text.startsWith("The command finished.\n\n- first point"), "not what it said while it worked");
   assert.doesNotMatch(reply.text, /Let me look at the work directory/);
   assert.deepEqual(rig.reports, []);

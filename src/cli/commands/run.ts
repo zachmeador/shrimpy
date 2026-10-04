@@ -76,7 +76,7 @@ async function say(io: Io, request: Request): Promise<number> {
     }
     const watched = await reached.connection.attach(thread.id);
     const waiting = AbortSignal.any([signal, lost.signal]);
-    const waited = await waitForReceipt(watched, message.id, agent.id, waiting);
+    const waited = await waitForReceipt(watched, message, agent.id, waiting);
     return report(io, request.agent, thread.id, waited);
   } catch (error) {
     if (signal.aborted) return interrupted(io, request.agent, progress);
