@@ -87,6 +87,14 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
+**Spike, 2026-10-04: delivering a reply as a Pi task.** Yes. One background task for each chat event does the whole job of the agent's outbox and the recovery code around it. The five crash tests and the chat and stop tests pass without a byte of them changed, and no private part of Pi was needed. The code is on the branch `spike/delivery-as-task` and is not merged.
+
+- How it works: taking up an event is one commit that makes the session if the thread is new, moves the feed's cursor and creates the task. The task hands the input over, waits for it to settle, posts the reply and leaves the receipt. After a restart Pi resumes it where it was, and nothing of Shrimpy's replays anything.
+- The saving in lines is small: 4% of `intake/` and `sessions/`, 11% of the part that changed. The gain is that recovery stops being Shrimpy's code, the flow is five steps where it was nine, and triggers and asking another agent would use the same kind of task.
+- The builder killed the agent at random 180 times across 60 rounds, and at five chosen points between steps: every message got one reply and one receipt.
+- What it costs is depending on Pi's rules for tasks. A phase that throws ends its task for good, with no receipt and nothing reported, so every phase has to catch its own failures. Pi promises no order between tasks, so events in a thread are taken in order only because Pi happens to run tasks first in, first out; none came out of order in 300 events, but it is not a promise. And Pi keeps every finished task's record, with the event's text, for good.
+- Who is working, and waiting for work to drain at a stop, stayed in memory. A real build would read them from Pi's list of tasks.
+
 **Spike, 2026-10-04: asking another agent and carrying on with the answer.** Partly. An agent can ask a second agent something and be woken with the answer in the session that asked, with the chat server as the only transport and nothing outside the agent changed. The code is on the branch `spike/ask-and-resume` and is not merged.
 
 - How it works: an `ask` tool posts the question in the two agents' DM and starts a Pi background task in the asking session. The task waits on a document, the agent's intake settles that document when it sees the asked agent's receipt, and the task hands the result to the asking session as new input.
