@@ -32,7 +32,7 @@ All three are built: the roster, member IDs and tickets; the feed of events; and
 
 Left open by the roster and by connecting by name:
 
-- A browser can list the programs and the roster and nothing more. It can't get a ticket, so it can't reach the chat server or an agent. How a page is recognized is not decided, and a web client waits on it.
+- A browser can list the programs and the roster and nothing more. It can't get a ticket, so it can't reach the chat server or an agent. How a page is recognized was decided on 2026-10-04 and gets built with the web client.
 - Nothing removes a member, replaces a token or renames a person.
 - A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
 - A copied home is two live connections with one member, and nothing chooses between them.
