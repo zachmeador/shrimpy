@@ -22,7 +22,6 @@ export {
   type InitOptions,
   type InitResult,
   initHome,
-  type LeftOut,
   type ModelChoice,
   modelLabel,
   parseModelChoice,
@@ -64,19 +63,15 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
   const context = await homeContext({ name: options.name, home: options.home });
-  // The message tools are installed with the engine, before the agent has a link to chat: they ask for the one it has when they run.
+  // The message tools are installed with the engine, before the agent has a link to chat: they ask for the one it
+  // has when they run. An agent that takes no part in chat has none, and they say chat is unreachable.
   let joined: Joined | undefined;
-  const messages =
-    options.join === undefined
-      ? []
-      : [
-          messageTools({
-            self: agentMember(options.name),
-            chat: () => joined?.chat(),
-            ...(options.join.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
-          }),
-        ];
-  const host = await openHost(options, [context.extension, ...messages]);
+  const messages = messageTools({
+    self: agentMember(options.name),
+    chat: () => joined?.chat(),
+    ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
+  });
+  const host = await openHost(options, [context.extension, messages]);
   try {
     const report = reporter(options);
     for (const { file, reason } of context.report.leftOut) report(new Error(`${file} was left out: ${reason}.`));
