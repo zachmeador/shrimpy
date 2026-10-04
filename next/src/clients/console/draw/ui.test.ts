@@ -489,11 +489,12 @@ test("the editor's draft survives the chat server being lost and found, and the 
 
   state.show({ ...conversation(), chat: { state: "down", why: { kind: "lost" } }, agent: { state: "down", why: { kind: "lost" } } });
   assert.match(lines().join("\n"), /\n half a thought\n/);
-  assert.match(lines()[0] ?? "", /\(out of date\)$/);
+  assert.match(lines().join("\n"), /\nLost the connection to the chat server\. What is shown may be out of date/);
+  assert.equal(lines()[0], "scout · Check the disk usage", "the title, which a long conversation scrolls away, does not change");
   state.show(conversation());
 
   assert.match(lines().join("\n"), /\n half a thought\n/);
-  assert.doesNotMatch(lines()[0] ?? "", /out of date/);
+  assert.doesNotMatch(lines().join("\n"), /out of date/);
 });
 
 test("it works with the agent as the one thing in the world", (t) => {

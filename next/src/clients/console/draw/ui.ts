@@ -189,7 +189,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     const { parts, focus: next } = body(screen);
 
     page.clear();
-    const stale = screen.stale ? `  ${theme.warn(`(${OUT_OF_DATE})`)}` : "";
+    const stale = screen.kind !== "thread" && screen.stale ? `  ${theme.warn(`(${OUT_OF_DATE})`)}` : "";
     page.addChild(new TruncatedText(theme.title(screen.title) + stale, 0, 0));
     if (screen.kind !== "thread") page.addChild(new Spacer(1));
     for (const part of parts) page.addChild(part);

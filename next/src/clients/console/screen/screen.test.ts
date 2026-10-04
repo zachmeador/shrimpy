@@ -164,7 +164,6 @@ test("a thread shows who said what and when, oldest first, as themselves or as s
   assert.equal(screen.lead, undefined);
   assert.equal(screen.working, undefined);
   assert.equal(screen.work, undefined);
-  assert.equal(screen.stale, false);
 });
 
 test("a message an agent failed, stopped or skipped says so, and one it answered or kept silent about says nothing", () => {
@@ -322,9 +321,7 @@ test("while chat or the agent is lost, what is shown is marked, and the notes sa
   const chatLost = thread(screenOf({ ...base, chat: { state: "down", why: { kind: "lost" } } }, { now }));
   const agentLost = thread(screenOf({ ...base, agent: { state: "down", why: { kind: "lost" } } }, { now }));
 
-  assert.equal(chatLost.stale, true);
   assert.equal(chatLost.workStale, false);
-  assert.equal(agentLost.stale, false);
   assert.equal(agentLost.workStale, true);
   assert.equal(agentLost.messages.length, 1);
   assert.notEqual(agentLost.work, undefined, "the work stays");

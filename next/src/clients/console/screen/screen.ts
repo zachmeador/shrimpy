@@ -81,9 +81,12 @@ export interface MessageRow {
 
 export interface ThreadScreen extends Chrome {
   kind: "thread";
+  /**
+   * The title does not say when what was said may be out of date: a long
+   * conversation has scrolled it away, and changing a line that far up repaints
+   * the whole screen. The notes by the editor say so.
+   */
   title: string;
-  /** What was said may be out of date: chat is not being reached. */
-  stale: boolean;
   /** Said when there are older messages than the ones shown, or when there are none to show. */
   lead: string | undefined;
   messages: MessageRow[];
@@ -177,7 +180,6 @@ function threadScreen(model: Model, agent: string, threadId: string | undefined,
   return {
     kind: "thread",
     title: threadTitle(oneLine(agent), thread === undefined ? threadId : titleOf(thread)),
-    stale: model.chat.state === "down",
     lead,
     messages,
     working,
