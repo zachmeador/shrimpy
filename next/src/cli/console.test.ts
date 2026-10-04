@@ -10,6 +10,7 @@ import {
   declareLocalModel,
   FakeTerminal,
   type ModelServer,
+  serveGateway,
   shrimpy,
   startModelServer,
   startUp,
@@ -122,6 +123,44 @@ test("a bare shrimpy at a terminal with nothing running says what to start, and 
 
   assert.equal(await within(30_000, exited, "the console to be left"), 0);
   assert.deepEqual(cli.out, []);
+});
+
+test("what it says when the gateway or the chat server is missing is what run says", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const wide = (): FakeTerminal => new FakeTerminal(240, 30);
+  const saidByRun = async (): Promise<string> => {
+    const asked = captureIo();
+    assert.equal(await runCli(["run", "scout", "hi"], asked.io), 1);
+    assert.equal(asked.err.length, 1);
+    return asked.err[0] ?? "";
+  };
+
+  const noGateway = wide();
+  const first = openOn(noGateway);
+  await seen(noGateway, await saidByRun(), "what run says without a gateway");
+  noGateway.type(CTRL_C);
+  noGateway.type(CTRL_C);
+  await within(30_000, first.exited, "the console to be left");
+
+  await serveGateway(t);
+  const noChat = wide();
+  const second = openOn(noChat);
+  await seen(noChat, await saidByRun(), "what run says without a chat server");
+  noChat.type(CTRL_C);
+  noChat.type(CTRL_C);
+  await within(30_000, second.exited, "the console to be left");
+});
+
+test("a console that cannot start says why, exits with 1, and leaves nothing running", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const terminal = new FakeTerminal();
+  terminal.start = () => {
+    throw new Error("The terminal could not be set up.");
+  };
+  const { cli, exited } = openOn(terminal);
+
+  assert.equal(await within(30_000, exited, "the console to give up"), 1);
+  assert.deepEqual(cli.err, ["The terminal could not be set up."]);
 });
 
 test("a stop request, as SIGTERM is, leaves the console as the keys do", { timeout }, async (t) => {

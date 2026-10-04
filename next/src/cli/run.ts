@@ -21,7 +21,7 @@ export interface RunOptions {
 export async function runCli(argv: string[], io: Io, options: RunOptions = {}): Promise<number> {
   const [family] = argv;
   if (family === undefined) {
-    if (io.terminal) return (options.openConsole ?? openTheConsole)(io);
+    if (io.terminal) return runConsole(io, options.openConsole ?? openTheConsole);
     io.err(await overview());
     return 2;
   }
@@ -55,15 +55,20 @@ export async function runCli(argv: string[], io: Io, options: RunOptions = {}): 
   }
 }
 
-/** The console is only loaded when it is opened, so no other command loads the terminal library. */
-async function openTheConsole(io: Io): Promise<number> {
-  const { openConsole } = await import("../clients/console/index.ts");
+/** The console, as a command: a failure to open it is said on standard error and is exit code 1, like any other command's. */
+async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<number> {
   try {
-    return await openConsole({ me: currentPerson(), io });
+    return await open(io);
   } catch (error) {
     io.err(error instanceof Error ? error.message : String(error));
     return 1;
   }
+}
+
+/** The console is only loaded when it is opened, so no other command loads the terminal library. */
+async function openTheConsole(io: Io): Promise<number> {
+  const { openConsole } = await import("../clients/console/index.ts");
+  return openConsole({ me: currentPerson(), io });
 }
 
 /** The words that select a command: one for `up`, two for `agent serve`. */

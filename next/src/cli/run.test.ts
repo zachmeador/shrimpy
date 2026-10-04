@@ -58,6 +58,14 @@ test("with no command at a terminal it opens the console instead, and its result
   }
 });
 
+test("a console that cannot be opened is said on standard error and exits with 1, like any command that fails", async () => {
+  const cli = captureIo({ terminal: true });
+
+  const result = await runCli([], cli.io, { openConsole: () => Promise.reject(new Error("There is no terminal here.")) });
+
+  assert.deepEqual([result, cli.err, cli.out], [1, ["There is no terminal here."], []]);
+});
+
 test("at a terminal, a command is still that command, and help still lists the commands", async () => {
   let opened = 0;
   const openConsole = (): Promise<number> => {

@@ -7,7 +7,6 @@
  * the network.
  */
 export { farewellLine, hiddenLines, OUT_OF_DATE, QUIT_AGAIN } from "./words.ts";
-export { oneLine, plain } from "./plain.ts";
 export {
   type AgentsScreen,
   type MessageRow,

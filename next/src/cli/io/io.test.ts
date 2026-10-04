@@ -19,6 +19,24 @@ test("a command prints a line to standard output or standard error", (t) => {
   );
 });
 
+test("a person is at a terminal when both input and output are one", () => {
+  const before = { stdin: process.stdin.isTTY, stdout: process.stdout.isTTY };
+  const terminalWith = (stdin: boolean, stdout: boolean): boolean => {
+    process.stdin.isTTY = stdin;
+    process.stdout.isTTY = stdout;
+    return processIo().terminal;
+  };
+  try {
+    assert.deepEqual(
+      [terminalWith(true, true), terminalWith(true, false), terminalWith(false, true), terminalWith(false, false)],
+      [true, false, false, false],
+    );
+  } finally {
+    process.stdin.isTTY = before.stdin;
+    process.stdout.isTTY = before.stdout;
+  }
+});
+
 test("a command hears SIGTERM and SIGINT until it stops listening", () => {
   const listener = (): void => undefined;
 
