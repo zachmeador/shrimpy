@@ -6,17 +6,20 @@ export function snapshotOf(message: Message): Snapshot {
 }
 
 /**
- * What the model is shown for a message: its text under a line that says who
+ * What the model is shown for a message, and the one place that decides: the
+ * thread and channel it is in, then the message under a line that says who
  * wrote it and when, after any earlier messages of the thread the agent has not
- * acted on, each the same way and oldest first. The final format belongs to the
- * work on what the model receives; this is the least that tells it who is
- * speaking, and it is the one place that decides.
+ * acted on, each the same way and oldest first. These facts travel with the
+ * input and are never part of the prompt sections, which stay the same on every
+ * request. The final format belongs to the work on what the model receives.
  */
 export function promptFor(outstanding: Outstanding): string {
-  return [...outstanding.earlier, outstanding.message].map(written).join("\n\n");
+  const messages = [...outstanding.earlier, outstanding.message].map(written).join("\n\n");
+  return `Thread ${outstanding.threadId} in channel ${outstanding.channelId}.\n\n${messages}`;
 }
 
-function written(message: Snapshot): string {
+/** One message as the model reads it: who wrote it and when, then the text as written. */
+export function written(message: Pick<Snapshot, "author" | "sentAt" | "text">): string {
   return `${message.author} wrote at ${time(message.sentAt)}:\n${message.text}`;
 }
 

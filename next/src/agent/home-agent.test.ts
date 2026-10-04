@@ -87,7 +87,10 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   const [system, user] = sent.body.messages;
   assert.equal(system?.role, "system");
   assert.match(String(system.content), /You are scout, a Shrimpy agent built on Pi\./);
-  assert.match(String(user?.content), /^Zach wrote at \d{4}-\d\d-\d\dT[\d:]{8}Z:\nhi$/);
+  assert.match(
+    String(user?.content),
+    new RegExp(`^Thread ${thread.id} in channel ${thread.channelId}\\.\\n\\nZach wrote at \\d{4}-\\d\\d-\\d\\dT[\\d:]{8}Z:\\nhi$`),
+  );
   const { connection, session } = await attachThread(paths.root, thread.id);
   t.after(() => connection.close());
   assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
@@ -222,7 +225,7 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   const texts = async (home: string, thread: string): Promise<string[]> => {
     const { connection, session } = await attachThread(home, thread);
     t.after(() => connection.close());
-    return session.view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n")[1] ?? ""] : []));
+    return session.view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n").at(-1) ?? ""] : []));
   };
   assert.deepEqual(await texts(one.root, scoutThread.id), ["hello from one"]);
   assert.deepEqual(await texts(two.root, otherThread.id), ["hello from two"]);

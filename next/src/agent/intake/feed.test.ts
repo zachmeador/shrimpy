@@ -42,14 +42,17 @@ test("anything else is left alone: the agent's own messages, and messages meant 
   assert.equal(wakes(scout, message({ addressed: ["person:alice", "agent:other"] })), false);
 });
 
-test("a message in a DM is handed to its session as its text under a line that says who wrote it and when", { timeout }, async (t) => {
+test("a message in a DM is handed to its session with where it is, and its text under a line that says who wrote it and when", { timeout }, async (t) => {
   const rig = await startIntakeRig(t);
 
   const said = rig.say("Is the build green?");
 
   await until(() => rig.turns.handed.has(said.id), "the message to be handed over");
   const when = new Date(said.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z");
-  assert.equal(rig.turns.handed.get(said.id), `Zach wrote at ${when}:\nIs the build green?`);
+  assert.equal(
+    rig.turns.handed.get(said.id),
+    `Thread ${rig.thread.id} in channel ${rig.thread.channelId}.\n\nZach wrote at ${when}:\nIs the build green?`,
+  );
 });
 
 test("the agent's own reply comes back in its feed and is not a message to answer", { timeout }, async (t) => {

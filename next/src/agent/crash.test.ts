@@ -134,7 +134,7 @@ test("killed between the turn ending and the reply being posted: the reply arriv
   assert.equal((await receipt(parts.chat, asked.id))?.status, "answered");
   const replies = parts.chat.chat.messages(parts.thread.id).filter((message) => message.author.id === scout.id);
   assert.equal(replies.length, 1);
-  assert.match(replies[0]?.text ?? "", /^You said: Zach wrote at /);
+  assert.match(replies[0]?.text ?? "", /^You said: Thread th_\w+ in channel ch_\w+\.\n\nZach wrote at /);
   assert.equal(loggedRequests(parts.home).length, 1, "the model was not asked again");
 });
 

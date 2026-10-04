@@ -113,7 +113,10 @@ test("a turn that uses a shell tool runs from init to stop, and the session is r
   assert.deepEqual((await run("sessions", "list", home)).out, [`${thread.id} ${thread.channelId} idle`]);
 
   const transcript = (await run("sessions", "read", home, thread.id)).out.join("\n");
-  assert.match(transcript, /^you\n {2}Zach wrote at \d{4}-\d\d-\d\dT[\d:]{8}Z:\n {2}run the command\n/);
+  assert.match(
+    transcript,
+    /^you\n {2}Thread th_\w+ in channel ch_\w+\.\n {2}\n {2}Zach wrote at \d{4}-\d\d-\d\dT[\d:]{8}Z:\n {2}run the command\n/,
+  );
   assert.match(transcript, /\ntool bash \(done\)\n {2}\{"command":"echo shrimpy-ok"\}\n {2}shrimpy-ok\n/);
   assert.match(transcript, /\nassistant\n {2}The command printed: shrimpy-ok\n\nidle · local\/test-model · /);
 

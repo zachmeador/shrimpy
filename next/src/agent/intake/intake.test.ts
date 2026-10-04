@@ -103,11 +103,11 @@ test("earlier messages that were shown with a message get its receipt too, and a
   const rig = await startIntakeRig(t, { chat, turns });
 
   const said = await sayAndWait(rig, "and this one came after");
-  assert.equal(
-    rig.turns.handed.get(said.id)?.split("\n\n").length,
-    2,
-    "the model is shown the earlier message and then this one",
-  );
+  const blocks = rig.turns.handed.get(said.id)?.split("\n\n") ?? [];
+  assert.equal(blocks.length, 3, "the model is shown where it is, then the earlier message, then this one");
+  assert.equal(blocks[0], `Thread ${thread.id} in channel ${thread.channelId}.`);
+  assert.match(blocks[1] ?? "", /\nthis one was skipped when work was stopped$/);
+  assert.match(blocks[2] ?? "", /\nand this one came after$/);
   rig.turns.end({ kind: "answered", answer: "5", text: "Both answered." }, said.id);
 
   await receiptOn(rig, said);

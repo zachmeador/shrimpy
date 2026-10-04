@@ -48,12 +48,12 @@ test("each thread has a session with a history of its own", { timeout }, async (
   const other = await rig.attach(side.id);
 
   const said = (view: SessionView): string[] =>
-    view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n")[1] ?? ""] : []));
+    view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n").at(-1) ?? ""] : []));
   assert.deepEqual(said(main.session.view), ["only in the main thread"]);
   assert.deepEqual(said(other.session.view), ["only in the side thread"]);
   assert.deepEqual(
     rig.replies(side.id).map((reply) => reply.text.split("\n")[0]),
-    [`You said: Zach wrote at ${new Date(two.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z")}:`],
+    [`You said: Thread ${side.id} in channel ${side.channelId}.`],
   );
 });
 
@@ -74,7 +74,10 @@ test("a client attaches to the session behind a thread, steers it, and watches t
   );
   const written = view.items[0];
   assert.ok(written?.type === "user");
-  assert.match(written.text, /^Zach wrote at \d{4}-\d\d-\d\dT[\d:]{8}Z:\nshow me the files$/);
+  assert.match(
+    written.text,
+    /^Thread th_\w+ in channel ch_\w+\.\n\nZach wrote at \d{4}-\d\d-\d\dT[\d:]{8}Z:\nshow me the files$/,
+  );
   assert.deepEqual(toolItems(view)[0]?.status, "done");
   assert.equal(toolItems(view)[0]?.output, "listing the work directory\ndone\n");
   assert.deepEqual(view.status.activity, { kind: "idle" });
@@ -170,8 +173,10 @@ test("input steered into a session is not a message, so nothing is posted for it
 
   await settle();
   assert.deepEqual(
-    rig.replies().map((reply) => reply.text.split("\n")[0]),
-    [`You said: Zach wrote at ${new Date(asked.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z")}:`],
+    rig.replies().map((reply) => reply.text.split("\n").slice(0, 3).join("\n")),
+    [
+      `You said: Thread ${rig.thread.id} in channel ${rig.thread.channelId}.\n\nZach wrote at ${new Date(asked.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z")}:`,
+    ],
   );
 });
 

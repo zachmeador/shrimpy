@@ -101,7 +101,7 @@ test("messages taken before the stop are answered after the next start, one repl
   assert.equal((await next.receiptOn(first)).status, "answered");
   assert.equal((await next.receiptOn(second)).status, "answered");
   assert.deepEqual(
-    next.replies().map((reply) => reply.text.includes("You said: Zach wrote at") || reply.text.endsWith(LAST_LINE)),
+    next.replies().map((reply) => reply.text.includes("\n\nZach wrote at") || reply.text.endsWith(LAST_LINE)),
     [true, true],
   );
 });

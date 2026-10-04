@@ -82,7 +82,7 @@ test("a stop with a message waiting: the message is skipped, and the next turn i
     `Zach wrote at ${written(new Date(message.sentAt).toISOString())}:\n${message.text}`;
   assert.equal(
     reply?.text.split("\n\n- first point")[0],
-    `You said: ${prompt(waiting)}\n\n${prompt(next)}`,
+    `You said: Thread ${rig.thread.id} in channel ${rig.thread.channelId}.\n\n${prompt(waiting)}\n\n${prompt(next)}`,
     "the skipped message, as written, then the new one",
   );
   // The turn that answered the new message answered the skipped one too, and the receipts say so.
