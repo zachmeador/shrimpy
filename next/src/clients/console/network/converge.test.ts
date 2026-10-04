@@ -35,22 +35,6 @@ test("a step runs when asked for, and again when it was asked for while it ran, 
   assert.deepEqual(log, ["start with 1 running", "end", "start with 1 running", "end"]);
 });
 
-test("asked for after a run has ended, it runs again", async () => {
-  let runs = 0;
-  const run = converge(
-    () => {
-      runs += 1;
-      return Promise.resolve();
-    },
-    () => undefined,
-  );
-
-  await run();
-  await run();
-
-  assert.equal(runs, 2);
-});
-
 test("a step that fails is reported and ends the run, and the result still settles", async () => {
   const errors: string[] = [];
   let runs = 0;

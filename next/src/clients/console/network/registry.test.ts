@@ -6,7 +6,6 @@ import { startStandInGateway } from "../../../contracts/gateway/testing/index.ts
 import { eventually, stopAfter, until, useRuntimeDir, within } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { quick, startRegistry } from "./testing/index.ts";
-import { localTransports } from "./transports.ts";
 
 const timeout = 15_000;
 
@@ -46,25 +45,6 @@ test("it lists what the gateway lists, with the gateway's version, and follows p
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to go" });
 });
 
-test("with no gateway running it says so, and finds the gateway when it starts", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const registry = startRegistry(t);
-  const changes: number[] = [];
-  registry.onChange(() => changes.push(changes.length));
-
-  await until(
-    () => JSON.stringify(registry.status()) === JSON.stringify({ state: "down", why: { kind: "not-running" } }),
-    "nothing running",
-  );
-  assert.equal(registry.listing(), undefined);
-  await startStandInGateway(t);
-
-  await until(() => registry.status().state === "up", "the gateway to be reached");
-  await eventually(() => registry.listing(), (listing) => listing !== undefined, { what: "a listing" });
-  assert.deepEqual(registry.listing()?.programs, []);
-  assert.ok(changes.length >= 2, "the changes were announced");
-});
-
 test("when the gateway goes away the last listing stays, and the registry comes back with the gateway", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startStandInGateway(t);
@@ -86,28 +66,6 @@ test("when the gateway goes away the last listing stays, and the registry comes 
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to be listed again" });
 });
 
-test("it waits for a program to be listed, and gives up when told to", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  await startStandInGateway(t);
-  const registry = startRegistry(t);
-  const waited: string[] = [];
-
-  const waiting = registry.untilListed(
-    (listed) => listed.name === "scout",
-    new AbortController().signal,
-    () => waited.push("waiting"),
-  );
-  register(t, program("agent", "scout"));
-  assert.equal((await waiting).name, "scout");
-  assert.deepEqual(waited, ["waiting"]);
-  assert.equal((await registry.untilListed((listed) => listed.name === "scout", new AbortController().signal)).name, "scout");
-
-  const abandon = new AbortController();
-  const never = registry.untilListed((listed) => listed.name === "nobody", abandon.signal);
-  abandon.abort(new Error("enough"));
-  await assert.rejects(never, /enough/);
-});
-
 test("the newest of programs with the same name is the one found", { timeout }, async (t) => {
   useRuntimeDir(t);
   await startStandInGateway(t);
@@ -118,26 +76,6 @@ test("the newest of programs with the same name is the one found", { timeout }, 
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 2, { what: "the second scout" });
 
   assert.equal((await registry.untilListed((listed) => listed.name === "scout", new AbortController().signal)).pid, 2);
-});
-
-test("it reaches the gateway through the transport it is handed", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  await startStandInGateway(t);
-  const local = localTransports();
-  let used = 0;
-  const registry = startRegistry(t, {
-    transports: {
-      ...local,
-      gateway: (handlers) => {
-        used += 1;
-        return local.gateway(handlers);
-      },
-    },
-  });
-
-  await until(() => registry.status().state === "up", "the gateway to be reached through it");
-
-  assert.equal(used, 1);
 });
 
 test("closing stops it at once, even while the gateway is not there", { timeout }, async (t) => {

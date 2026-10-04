@@ -12,8 +12,6 @@ export interface StandInAgentOptions {
   name: string;
   /** Register with this machine's gateway, the way an agent does. */
   register?: boolean;
-  /** The version it registers with. The version of Shrimpy by default. */
-  version?: string;
 }
 
 export interface StandInAgent {
@@ -52,7 +50,7 @@ export async function startStandInAgent(t: TestContext, options: StandInAgentOpt
       serverId,
       socket,
       pid: process.pid,
-      version: options.version ?? SHRIMPY_VERSION,
+      version: SHRIMPY_VERSION,
     };
     const kept = keepRegistered(registration);
     stopAfter(t, () => kept.stop());

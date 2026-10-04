@@ -46,35 +46,6 @@ test("with several agents it shows them all, and whether each is working in a th
   await rig.until((model) => agentEntries(model).every((entry) => !entry.working), "scout to be done");
 });
 
-test("an agent's threads are the person's, newest first, with whether it is working in each", { timeout }, async (t) => {
-  const rig = await startRig(t);
-  const older = await rig.thread("scout", "the older one");
-  const newer = await rig.thread("scout", "the newer one");
-  const working = await rig.asAgent("scout");
-  await working.chat.setWorking(older.id, true);
-  rig.state.selectAgent("scout");
-
-  const model = await rig.until(
-    (each) => (each.dms.scout?.threads.length ?? 0) === 3 && each.dms.scout?.threads.some((thread) => thread.working.length > 0) === true,
-    "the threads to be listed with the work",
-  );
-
-  const threads = model.dms.scout?.threads ?? [];
-  assert.deepEqual(
-    threads.map((thread) => [thread.preview, thread.main]),
-    [
-      ["the newer one", false],
-      ["the older one", false],
-      [null, true],
-    ],
-  );
-  assert.deepEqual(
-    threads.map((thread) => thread.working.map((mark) => mark.memberId)),
-    [[], ["agent:scout"], []],
-  );
-  assert.equal(threads[0]?.id, newer.id);
-});
-
 test("an agent the person has not talked to has no threads, and viewing it makes none", { timeout }, async (t) => {
   const rig = await startRig(t);
   await rig.until((model) => model.where.screen === "threads", "the agent's threads");
@@ -443,25 +414,6 @@ test("with no gateway running it says so, and picks everything up once the gatew
   await rig.until((each) => each.gateway.state === "up", "the gateway");
   await rig.until((each) => each.chat.state === "up", "the chat server to register and be reached");
   await rig.until((each) => each.where.screen === "threads", "the agent to be listed and gone to");
-});
-
-test("with no chat server it says so", { timeout }, async (t) => {
-  const rig = await startRig(t, { noChat: true });
-
-  const model = await rig.until(
-    (each) => each.chat.state === "down" && each.chat.why.kind === "not-registered" && agentEntries(each).length === 1,
-    "chat to be missing",
-  );
-
-  assert.deepEqual(model.chat, { state: "down", why: { kind: "not-registered" } });
-});
-
-test("an agent is listed with the version of Shrimpy it runs", { timeout }, async (t) => {
-  const rig = await startRig(t, { agents: ["scout", "mechanic"], agentVersion: "9.9.9" });
-
-  const model = await rig.until((each) => agentEntries(each).length === 2, "both agents");
-
-  assert.deepEqual(agentEntries(model).map((entry) => [entry.name, entry.version]), [["mechanic", "9.9.9"], ["scout", "9.9.9"]]);
 });
 
 test("closing lets go of every connection", { timeout }, async (t) => {

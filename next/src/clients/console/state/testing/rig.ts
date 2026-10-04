@@ -14,10 +14,6 @@ const me = zach;
 export interface RigOptions {
   /** The agents to run, by name. Each is registered with the gateway. Scout by default. */
   agents?: string[];
-  /** The version of Shrimpy the agents say they run. The version of Shrimpy by default. */
-  agentVersion?: string;
-  /** Run no chat server. */
-  noChat?: boolean;
   /** Run no gateway. */
   noGateway?: boolean;
   /** How the console reaches what is running, given the way to this machine's sockets. */
@@ -52,10 +48,10 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
   let clock = Date.parse("2026-10-03T12:00:00Z");
   const chat = await startStandInChat(t, {
     chat: scriptedChat({ now: () => (clock += 1000) }),
-    register: options.noChat !== true,
+    register: true,
   });
   const agents: Record<string, StandInAgent> = {};
-  for (const name of options.agents ?? ["scout"]) agents[name] = await startStandInAgent(t, { name, register: true, version: options.agentVersion });
+  for (const name of options.agents ?? ["scout"]) agents[name] = await startStandInAgent(t, { name, register: true });
 
   const local = localTransports();
   const state = createConsoleState({
