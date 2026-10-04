@@ -8,7 +8,7 @@ import { UsageError } from "./usage/index.ts";
  * other failure. A command may use other codes for results it reports.
  */
 export async function runCli(argv: string[], io: Io): Promise<number> {
-  const [family, name, ...rest] = argv;
+  const [family] = argv;
   if (family === undefined) {
     io.err(await overview());
     return 2;
@@ -18,12 +18,13 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     return 0;
   }
 
-  const command = (await loadFamily(family))?.find((candidate) => candidate.name === `${family} ${name}`);
+  const command = (await loadFamily(family))?.find((candidate) => selects(candidate, argv));
   if (command === undefined) {
     io.err(`Unknown command: ${argv.filter((word) => !word.startsWith("-")).slice(0, 2).join(" ")}`);
     io.err(await overview());
     return 2;
   }
+  const rest = argv.slice(words(command).length);
   if (rest.includes("--help") || rest.includes("-h")) {
     io.out([describe(command), "", command.summary, command.details].filter((line) => line !== undefined).join("\n"));
     return 0;
@@ -41,6 +42,13 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     return 1;
   }
 }
+
+/** The words that select a command: one for `up`, two for `agent serve`. */
+const words = (command: Command): string[] => command.name.split(" ");
+
+/** Whether the arguments start with the words of the command's name. */
+const selects = (command: Command, argv: string[]): boolean =>
+  words(command).every((word, index) => argv[index] === word);
 
 /** How a command is typed: its name, then its arguments if it takes any. */
 function invocation(command: Command): string {

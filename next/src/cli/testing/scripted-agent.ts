@@ -1,0 +1,105 @@
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import type { TestContext } from "node:test";
+import { agentMember, type ChatEndpoint, type Message } from "../../contracts/chat/index.ts";
+import { connectLocal } from "../../contracts/chat/node.ts";
+import { connectLocalGateway } from "../../contracts/gateway/node.ts";
+import { runtimeDir } from "../../lib/runtime/node.ts";
+import { stopAfter } from "../../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+
+/** What a scripted agent did with a message: the receipt it leaves, and the reply it posts first if it answered. */
+export type Outcome =
+  | { status: "answered"; text: string }
+  | { status: "silent" }
+  | { status: "stopped" }
+  | { status: "skipped" }
+  | { status: "failed"; detail: string };
+
+export interface ScriptedAgentOptions {
+  name: string;
+  /** The chat server it joins. */
+  chat: ChatEndpoint;
+  /**
+   * What it does with each message it is offered, one at a time. It is marked
+   * as working in the message's thread until this settles, so a test can hold
+   * the work by returning a promise it settles later.
+   */
+  handle(message: Message): Outcome | Promise<Outcome>;
+  /** The version in its registration. The version of Shrimpy by default. */
+  version?: string;
+  /** Leave the gateway alone, as an agent that is not running would. */
+  register?: false;
+}
+
+export interface ScriptedAgent {
+  /** Every message it has been offered, oldest first. */
+  readonly offered: Message[];
+}
+
+/**
+ * Stand in for an agent whose side of chat is not under test: it joins the chat
+ * server as the agent called `name`, registers with the gateway as that agent,
+ * and for each message others post it works as `handle` says and leaves the
+ * receipt. It needs the test's runtime directory, with the gateway running if
+ * it is to register, and it leaves when the test ends.
+ */
+export async function startScriptedAgent(t: TestContext, options: ScriptedAgentOptions): Promise<ScriptedAgent> {
+  const self = agentMember(options.name);
+  const connection = await connectLocal(options.chat);
+  stopAfter(t, () => connection.close());
+  await connection.chat.identify(self);
+  if (options.register !== false) {
+    const gateway = await connectLocalGateway();
+    stopAfter(t, () => gateway.close());
+    await gateway.register({
+      kind: "agent",
+      name: options.name,
+      serverId: randomUUID(),
+      socket: join(runtimeDir(), `${options.name}.sock`),
+      pid: process.pid,
+      version: options.version ?? SHRIMPY_VERSION,
+    });
+  }
+
+  const offered: Message[] = [];
+  const leaving = new AbortController();
+  const work = async (message: Message): Promise<void> => {
+    await connection.chat.setWorking(message.threadId, true);
+    try {
+      const outcome = await options.handle(message);
+      const reply =
+        outcome.status === "answered"
+          ? await connection.chat.post(message.threadId, outcome.text, `${self.id}-reply-${message.id}`)
+          : undefined;
+      await connection.chat.leaveReceipt([message.id], {
+        status: outcome.status,
+        reply: reply?.id ?? null,
+        detail: outcome.status === "failed" ? outcome.detail : null,
+      });
+    } finally {
+      await connection.chat.setWorking(message.threadId, false);
+    }
+  };
+  // Read through a function, so the compiler does not assume the answer it saw first still holds.
+  const hasLeft = (): boolean => leaving.signal.aborted;
+  let cursor = await connection.chat.head();
+  const listening = (async () => {
+    while (!hasLeft()) {
+      for (const message of await connection.chat.feed(cursor, 50, leaving.signal)) {
+        if (hasLeft()) return;
+        cursor = message.seq;
+        if (message.author.id === self.id) continue;
+        offered.push(message);
+        await work(message);
+      }
+    }
+  })().catch((error: unknown) => {
+    if (!hasLeft()) throw error;
+  });
+  stopAfter(t, async () => {
+    leaving.abort();
+    await listening;
+  });
+  return { offered };
+}

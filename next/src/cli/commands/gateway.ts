@@ -8,6 +8,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { serveUntilStopped } from "./serve.ts";
+import { renderTable } from "./table.ts";
 
 const serve: Command = {
   name: "gateway serve",
@@ -85,22 +86,13 @@ async function inspectGateway(): Promise<{ programs: Registration[]; version: st
 /** The programs as a table, each one whose version is not `own` followed by a note saying so. */
 function renderPrograms(programs: Registration[], own: string): string[] {
   if (programs.length === 0) return ["No programs are registered."];
-  const header = ["kind", "name", "version", "pid"];
   const rows = programs.map((program) => [program.kind, program.name, program.version, String(program.pid)]);
-  const widths = header.map((title, column) =>
-    Math.max(title.length, ...rows.map((row) => row[column]?.length ?? 0)),
-  );
-  const line = (cells: string[]): string =>
-    cells
-      .map((cell, column) => cell.padEnd(widths[column] ?? 0))
-      .join("  ")
-      .trimEnd();
+  const [header, ...lines] = renderTable(["kind", "name", "version", "pid"], rows);
   return [
-    line(header),
-    ...rows.map((row, index) => {
-      const differs = programs[index]?.version !== own;
-      return differs ? `${line(row)}  (differs from this command's ${own})` : line(row);
-    }),
+    header ?? "",
+    ...lines.map((line, index) =>
+      programs[index]?.version === own ? line : `${line}  (differs from this command's ${own})`,
+    ),
   ];
 }
 

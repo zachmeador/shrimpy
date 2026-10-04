@@ -56,6 +56,7 @@ function describe(activity: SessionActivity): string {
   }
 }
 
-function indent(text: string): string[] {
+/** The lines of `text`, each indented two spaces; no lines for no text. */
+export function indent(text: string): string[] {
   return text === "" ? [] : text.split("\n").map((line) => `  ${line}`);
 }

@@ -20,8 +20,12 @@ function tempHome(t: TestContext): string {
 test("with no command it prints the commands and exits with 2", async () => {
   const result = await run();
   assert.equal(result.code, 2);
-  assert.match(result.err, /^Usage: shrimpy <command> \[arguments\]\n\nCommands:\n {2}agent init <home> --name <name> --model <provider\/id>\n/);
+  assert.match(result.err, /^Usage: shrimpy <command> \[arguments\]\n\nCommands:\n {2}run <agent> "<text>" \[--thread <id>\] \[--no-wait\]\n/);
   for (const command of [
+    "run",
+    "threads",
+    "read",
+    "agent init",
     "agent serve",
     "agent status",
     "sessions list",
@@ -69,6 +73,16 @@ test("a command's help names its usage and what it does", async () => {
   assert.match(result.out, /130 when it was cancelled\./);
 });
 
+test("a command of one word is selected by it, and its help names its usage", async () => {
+  const result = await run("run", "--help");
+
+  assert.equal(result.code, 0);
+  assert.match(
+    result.out,
+    /^Usage: shrimpy run <agent> "<text>" \[--thread <id>\] \[--no-wait\]\n\nSay something to an agent and print its reply\.\nPosts the text in your DM with the agent/,
+  );
+});
+
 test("a command that takes no arguments has a usage line that ends with its name", async () => {
   const result = await run("gateway", "status", "--help");
   assert.equal(result.code, 0);
@@ -99,12 +113,22 @@ test("a command used wrongly exits with 2 and shows its usage", async () => {
     [["gateway", "status", "now"], "Unexpected argument: now."],
     [["chat", "serve"], "Missing <data-dir>."],
     [["chat", "serve", "a", "b"], "Unexpected argument: b."],
+    [["run"], "Missing <agent>."],
+    [["run", "scout"], "Missing <text>."],
+    [["run", "scout", "hello", "there"], "Unexpected argument: there. Put text with spaces in quotes."],
+    [["run", "scout", "   "], "The text is empty."],
+    [["run", "scout", "hello", "--thread"], "argument missing"],
+    [["run", "scout", "hello", "--wait"], "Unknown option '--wait'"],
+    [["threads"], "Missing <agent>."],
+    [["threads", "scout", "rex"], "Unexpected argument: rex."],
+    [["read"], "Missing <thread>."],
+    [["read", "th_a", "th_b"], "Unexpected argument: th_b."],
   ];
   for (const [args, expected] of cases) {
     const result = await run(...args);
     assert.equal(result.code, 2, args.join(" "));
     assert.ok(result.err.includes(expected), `${args.join(" ")} -> ${result.err}`);
-    assert.match(result.err, /\nUsage: shrimpy [a-z]+ [a-z]+/);
+    assert.match(result.err, /\nUsage: shrimpy [a-z]+/);
   }
 });
 
