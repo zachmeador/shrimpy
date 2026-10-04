@@ -71,6 +71,12 @@ export interface Turns {
    * repeating this for the same message changes nothing.
    */
   start(outstanding: Outstanding, text: string): Promise<Turn>;
+  /**
+   * Take back a message that is still waiting for its turn, as a stop does, so
+   * its turn ends as skipped. One whose turn is running or has ended is left
+   * alone.
+   */
+  withdraw(outstanding: Outstanding): Promise<void>;
   /** The messages recorded and not yet settled, oldest first. */
   outstanding(): Promise<Outstanding[]>;
   /**

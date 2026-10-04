@@ -96,7 +96,7 @@ test("a stop with a message waiting: the message is skipped, and the next turn i
   assert.doesNotMatch(rig.replies()[1]?.text ?? "", /this one waits behind the first/, "it is not shown twice");
 });
 
-test("messages that arrive while the agent is busy are answered in order, one reply each", { timeout }, async (t) => {
+test("messages that arrive while the agent is busy are answered together, by one reply", { timeout }, async (t) => {
   const rig = await startAgentRig(t, { scenario: "gated" });
   const messages = ["first", "second", "third"].map((text) => rig.say(text));
   await until(() => rig.chat.chat.working(rig.thread.id).length === 1, "the thread to be marked");
@@ -104,14 +104,16 @@ test("messages that arrive while the agent is busy are answered in order, one re
   releaseGate(rig.home);
 
   for (const message of messages) await rig.receiptOn(message);
-  assert.deepEqual(
-    rig.replies().map((reply) => /(first|second|third)\n\n- first point/.exec(reply.text)?.[1]),
-    ["first", "second", "third"],
-  );
+  // The first was being answered when the other two arrived, so those two are picked up together.
+  const [first, together] = rig.replies();
+  assert.ok(first && together);
+  assert.equal(rig.replies().length, 2);
+  assert.match(first.text, /first\n\n- first point/);
+  assert.match(together.text, /third\n\n- first point/);
   const receipts = await Promise.all(messages.map((message) => rig.receiptOn(message)));
   assert.deepEqual(
     receipts.map((receipt) => receipt.reply),
-    rig.replies().map((reply) => reply.id),
+    [first.id, together.id, together.id],
   );
 });
 
@@ -185,7 +187,7 @@ test("an answer longer than one message is posted in parts, and the receipt poin
   assert.deepEqual(rig.reports, []);
 });
 
-test("a chat server whose store was replaced under the agent sends it back to the head of the log", { timeout }, async (t) => {
+test("a chat server whose store was replaced under the agent makes it read the new log from the start", { timeout }, async (t) => {
   const rig = await startAgentRig(t);
   await rig.receiptOn(rig.say("before"));
   await rig.receiptOn(rig.say("before again"));

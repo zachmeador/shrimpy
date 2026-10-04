@@ -81,7 +81,6 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       },
     }),
   );
-  // An agent with no place in the feed starts from its head, and what was said before that is not its to answer.
   await eventually(() => chat.chat.calls("feed"), (calls) => calls > reading, {
     what: "the agent to start reading the feed",
   });

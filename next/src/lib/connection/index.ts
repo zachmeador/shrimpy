@@ -8,6 +8,6 @@
  * Safe for browsers.
  */
 export { type Connection, type ConnectionOptions, openConnection } from "./connection.ts";
-export { isNotListening } from "./not-listening.ts";
+export { isDisconnected, isNotListening } from "./not-listening.ts";
 export { received } from "./received.ts";
 export { type Attachment, openRoutedConnection, type RoutedConnection, type Routing } from "./routed.ts";

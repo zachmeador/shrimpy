@@ -34,7 +34,7 @@ export interface IntakeRigOptions extends Partial<Pick<IntakeOptions, "messageLi
 
 /**
  * An intake for the agent Scout, wired to a scripted chat and scripted turns,
- * with Zach to talk to it. It returns once the agent has its place in the feed.
+ * with Zach to talk to it. It returns once the agent is reading its feed.
  * Pauses between retries are a few milliseconds. The intake and its link are
  * stopped when the test ends.
  */
@@ -43,6 +43,7 @@ export async function startIntakeRig(t: TestContext, options: IntakeRigOptions =
   const turns = options.turns ?? scriptedTurns();
   const errors: Error[] = [];
   const { thread } = chat.dm(zach, scout);
+  const reading = chat.calls("feed");
 
   const link = openChatLink({
     self: scout,
@@ -61,8 +62,7 @@ export async function startIntakeRig(t: TestContext, options: IntakeRigOptions =
   // Stops run newest first: the intake stops before the link it uses.
   stopAfter(t, () => link.close());
   stopAfter(t, () => intake.close());
-  // An agent with no place in the feed takes the head when it first connects, and what was said before that is not its to answer.
-  await eventually(() => turns.cursor(), (cursor) => cursor !== undefined, { what: "the agent to take its place in the feed" });
+  await eventually(() => chat.calls("feed"), (calls) => calls > reading, { what: "the agent to start reading the feed" });
 
   return {
     chat,

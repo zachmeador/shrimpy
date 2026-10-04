@@ -1,6 +1,6 @@
 import type { Outstanding, Snapshot, Turn, TurnOutcome, Turns } from "../index.ts";
 
-type Method = "cursor" | "setCursor" | "record" | "start" | "outstanding" | "settle";
+type Method = "cursor" | "setCursor" | "record" | "start" | "withdraw" | "outstanding" | "settle";
 
 /**
  * The agent's sessions and records as a test scripts them: nothing is stored
@@ -107,6 +107,11 @@ export function scriptedTurns(): ScriptedTurns {
         },
       };
       return turn;
+    },
+    async withdraw(outstanding) {
+      call("withdraw", outstanding.message.id);
+      // A turn that has already ended keeps the way it ended.
+      endingOf(outstanding.message.id).finish({ kind: "skipped" });
     },
     async outstanding() {
       call("outstanding");

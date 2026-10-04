@@ -144,6 +144,79 @@ test("the session's input is queued behind work already there, and the session i
   assert.match(b.text, /second/);
 });
 
+test("inputs that queued up while the session was busy are answered together, by one answer", { timeout }, async (t) => {
+  const home = tempDir(t, "turns");
+  const { sessions } = await open(t, home, "gated");
+  const recorded = [await sessions.turns.record(draft(1)), await sessions.turns.record(draft(2)), await sessions.turns.record(draft(3))];
+  const [one, two, three] = recorded;
+  assert.ok(one && two && three);
+
+  const turns = [
+    await sessions.turns.start(one, "first"),
+    await sessions.turns.start(two, "second"),
+    await sessions.turns.start(three, "third"),
+  ];
+  releaseGate(home);
+  for (const turn of turns) await turn.ended(never);
+
+  const [a, b, c] = await Promise.all(turns.map((turn) => turn.outcome()));
+  assert.ok(a?.kind === "answered" && b?.kind === "answered" && c?.kind === "answered");
+  assert.notEqual(a.answer, b.answer, "the first was already being answered");
+  assert.equal(b.answer, c.answer, "the two that waited share an answer");
+  assert.match(b.text, /third/);
+});
+
+test("nothing starts what waits behind a turn that failed, and withdrawing it ends it as skipped", { timeout }, async (t) => {
+  const home = tempDir(t, "turns");
+  const { sessions } = await open(t, home, "gatedFail");
+  const one = await sessions.turns.record(draft(1));
+  const two = await sessions.turns.record(draft(2));
+  assert.ok(one && two);
+  const first = await sessions.turns.start(one, "first");
+  const second = await sessions.turns.start(two, "second");
+  releaseGate(home);
+  await first.ended(never);
+  assert.equal((await first.outcome()).kind, "failed");
+  assert.deepEqual((await sessions.list()).map((session) => session.working), [true], "the second is still waiting");
+
+  await sessions.turns.withdraw(two);
+
+  await second.ended(never);
+  assert.deepEqual(await second.outcome(), { kind: "skipped" });
+  await eventually(() => sessions.list(), (listed) => listed[0]?.working === false, { what: "the session to be idle" });
+});
+
+test("withdrawing leaves a turn that is running alone", { timeout }, async (t) => {
+  const home = tempDir(t, "turns");
+  const { sessions } = await open(t, home, "gated");
+  const one = await sessions.turns.record(draft(1));
+  assert.ok(one);
+  const running = await sessions.turns.start(one, "first");
+
+  await sessions.turns.withdraw(one);
+  releaseGate(home);
+
+  await running.ended(never);
+  assert.equal((await running.outcome()).kind, "answered");
+});
+
+test("an input found waiting with nothing running, as after a restart, is taken back when it is handed over again", { timeout }, async (t) => {
+  const home = tempDir(t, "turns");
+  const { sessions } = await open(t, home, "gatedFail");
+  const one = await sessions.turns.record(draft(1));
+  const two = await sessions.turns.record(draft(2));
+  assert.ok(one && two);
+  const first = await sessions.turns.start(one, "first");
+  await sessions.turns.start(two, "second");
+  releaseGate(home);
+  await first.ended(never);
+
+  const again = await sessions.turns.start(two, "second");
+
+  await again.ended(never);
+  assert.deepEqual(await again.outcome(), { kind: "skipped" });
+});
+
 test("stopping a session ends the input it was working on as stopped, and withdraws what waited as skipped", { timeout }, async (t) => {
   const home = tempDir(t, "turns");
   const { sessions } = await open(t, home, "mixed", { tokensPerSecond: 40 });

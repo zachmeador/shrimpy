@@ -199,6 +199,23 @@ test("a turn that failed leaves a failed receipt with its reason, cut to the mos
   assert.deepEqual(posted(rig), []);
 });
 
+test("a turn that failed takes back the messages waiting behind it in its thread, so each is marked skipped", { timeout }, async (t) => {
+  const rig = await startIntakeRig(t);
+  const first = await sayAndWait(rig, "first");
+  const second = await sayAndWait(rig, "second");
+
+  rig.turns.end({ kind: "failed", reason: "The model failed." }, first.id);
+
+  assert.equal((await receiptOn(rig, first)).status, "failed");
+  assert.equal((await receiptOn(rig, second)).status, "skipped");
+  assert.deepEqual(
+    rig.turns.calls.filter((call) => call.startsWith("withdraw")),
+    [`withdraw ${second.id}`],
+  );
+  await until(() => rig.turns.settled.length === 2, "both messages to be settled");
+  assert.deepEqual(posted(rig), []);
+});
+
 test("an answer longer than one message is posted in parts, in order, and the receipt points at the first", { timeout }, async (t) => {
   const rig = await startIntakeRig(t, { messageLimit: 40 });
   const said = await sayAndWait(rig, "tell me everything");

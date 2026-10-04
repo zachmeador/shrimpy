@@ -47,6 +47,8 @@ export async function openHost(options: HostOptions): Promise<Host> {
       {
         models: options.models,
         registry,
+        // Messages that queued up while a session was busy are picked up together, so they get one answer.
+        settings: { followUpMode: "all" },
         env: () => new NodeExecutionEnv({ cwd: home }),
         onReport: options.onReport ?? reportToStderr,
       },

@@ -47,8 +47,8 @@ function isAlive(pid: number): boolean {
 
 /**
  * A home whose model is the one at `url`, with the gateway, the chat server and
- * the agent each serving in a process of their own, and a person who has talked
- * to the agent enough to know it is there. Everything stops when the test ends.
+ * the agent each serving in a process of their own, and a person in a DM with
+ * the agent. Everything stops when the test ends.
  */
 async function agentOnTheNetwork(t: TestContext, target: { url: string; model: string }) {
   const home = tempHome(t);
@@ -59,7 +59,6 @@ async function agentOnTheNetwork(t: TestContext, target: { url: string; model: s
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   const agent = await serve(t, home);
   const talk = await talkTo(t, chat.listening, "scout");
-  await talk.awaitAgent();
   return { home, chat, agent, talk };
 }
 
@@ -159,6 +158,8 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
     const view = JSON.parse(read.stdout) as SessionView;
     return view.items.reduce((length, item) => length + (item.type === "assistant" ? item.text.length : 0), 0);
   };
+  // Steering needs a session, and the agent makes one for a thread when its first message arrives.
+  await talk.receiptOn(await talk.say("hello"));
   const asked = model.requests.length;
 
   const waiting = shrimpyInBackground(["sessions", "steer", home, thread, "go slow", "--wait"]);

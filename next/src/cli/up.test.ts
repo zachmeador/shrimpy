@@ -71,6 +71,8 @@ test("up starts the gateway, the chat server and an agent per home, says how to 
   const status = await shrimpy(["gateway", "status"]);
   assert.equal(status.code, 0, status.stderr);
   assert.match(status.stdout, new RegExp(`\\nchat +chat +${SHRIMPY_VERSION.replaceAll(".", "\\.")} +${chat}\\n`));
+  await untilRegistered("agent", "scout");
+  assert.match((await shrimpy(["gateway", "status"])).stdout, new RegExp(`\\nagent +scout +${SHRIMPY_VERSION.replaceAll(".", "\\.")} +${agent}\\n`));
   const agentStatus = JSON.parse((await shrimpy(["agent", "status", home])).stdout) as { running: boolean; pid: number };
   assert.deepEqual([agentStatus.running, agentStatus.pid], [true, agent]);
   assert.ok(existsSync(join(data, "state", "chat.sqlite")), "the chat server keeps its store in the data directory");
@@ -94,7 +96,8 @@ test("up stops agents first, gives a running turn the time agent serve does, and
   const up = await startUp(t, [home, "--data", tempDir(t, "up-data")]);
   const [gateway, chat, agent] = up.programs();
   assert.ok(gateway && chat && agent);
-  assert.equal((await shrimpy(["sessions", "steer", home, "go slow"])).code, 0);
+  await untilRegistered("agent", "scout");
+  assert.equal((await shrimpy(["run", "scout", "go slow", "--no-wait"])).code, 0);
   await until(() => model.requests.length > 0, "the model to start answering");
 
   up.kill("SIGTERM");
@@ -227,6 +230,19 @@ test("what up starts is what run talks through", { timeout }, async (t) => {
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout, "hello from scout\n");
   assert.equal(chat.pid, up.programs()[1], "the chat server it talked through is the one up started");
+});
+
+test("run right after up gets its reply from the agent up started, even one sent before the agent has joined chat", { timeout }, async (t) => {
+  const home = await agentHome(t, await testModel(t));
+  await startUp(t, [home, "--data", tempDir(t, "up-data")]);
+  // The agent is registered before it has connected to chat, so this message can arrive first.
+  await untilRegistered("agent", "scout");
+
+  const result = await shrimpy(["run", "scout", "hi"]);
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout, "Hello from the test model.\n");
+  assert.match(result.stderr, /^Thread th_\w+ started\. Continue it with: shrimpy run scout "<text>" --thread th_\w+\n$/);
 });
 
 test("each program's own lines carry its name, so they can be told apart", { timeout }, async (t) => {

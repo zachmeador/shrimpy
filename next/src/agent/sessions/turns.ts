@@ -63,7 +63,24 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
         { type: "input", content: text, whenBusy: "followUp", requestId: requestIdOf(outstanding.message.id) },
         context,
       );
+      // An input that waits with nothing running ahead of it was left behind by a turn that failed, and nothing
+      // would ever start it. That is only found here after a restart; it is taken back, as it would have been then.
+      if (await waitsBehindNothing(harness, conversation.id, submission.id)) {
+        await harness.abortSubmission(submission.id, context, conversation.id);
+      }
       return turnOf(conversation, submission);
+    },
+
+    async withdraw(outstanding) {
+      const session = (await harness.snapshot(ThreadsDoc, context))?.sessions[outstanding.threadId];
+      if (session === undefined) return;
+      const conversationId = session.conversationId as ConversationId;
+      const handed = await harness.commit(
+        (tx) => tx.submissionByRequest(conversationId, requestIdOf(outstanding.message.id)),
+        context,
+      );
+      // The engine only takes back an input that is still waiting, and says so for one that is not.
+      if (handed !== undefined) await harness.abortSubmission(handed.id, context, conversationId);
     },
 
     async outstanding() {
@@ -85,6 +102,14 @@ export function createTurns(harness: Harness, defaults: SessionDefaults): Turns 
       }, context);
     },
   };
+}
+
+/** Whether an input is waiting in a session that has no input being worked on. */
+async function waitsBehindNothing(harness: Harness, conversationId: ConversationId, submissionId: number): Promise<boolean> {
+  const { submissions } = await harness.inspect(context);
+  const inputs = submissions.filter((entry) => entry.conversationId === conversationId && entry.type === "input");
+  const mine = inputs.find((entry) => entry.id === submissionId);
+  return mine?.status === "queued" && !inputs.some((entry) => entry.status === "placed");
 }
 
 /** Messages by position in chat's order, each once. */

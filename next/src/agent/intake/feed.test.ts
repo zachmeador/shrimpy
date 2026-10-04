@@ -28,6 +28,13 @@ test("a message addressed to the agent wakes it, from a person or another agent"
   assert.equal(wakes(scout, message({ author: agentMember("helper") })), true);
 });
 
+test("a message that already carries the agent's receipt is passed over, whatever the receipt says", () => {
+  const receipt = { memberId: "agent:scout", status: "skipped" as const, reply: null, detail: null };
+
+  assert.equal(wakes(scout, message({ receipts: [receipt] })), false);
+  assert.equal(wakes(scout, message({ receipts: [{ ...receipt, memberId: "agent:other" }] })), true);
+});
+
 test("anything else is left alone: the agent's own messages, and messages meant for someone else", () => {
   assert.equal(wakes(scout, message({ author: scout, addressed: ["person:zach"] })), false);
   assert.equal(wakes(scout, message({ author: scout, addressed: ["agent:scout"] })), false);
@@ -71,18 +78,17 @@ test("the cursor moves past each message that is taken, after it is handed over"
   assert.deepEqual(order, [`record ${said.id}`, `start ${said.id}`, `setCursor ${String(said.seq)}`]);
 });
 
-test("with no cursor the agent starts from the head: what was said before is left alone, and the place is kept", { timeout }, async (t) => {
+test("with no cursor the agent reads its channels from the start: what was said before it first connected is taken", { timeout }, async (t) => {
   const chat = scriptedChat();
   const { thread } = chat.dm(zach, scout);
   const before = chat.say(zach, thread.id, "said before the agent ever started");
   const turns = scriptedTurns();
 
   const rig = await startIntakeRig(t, { chat, turns });
-  await eventually(() => turns.cursor(), (cursor) => cursor === before.seq, { what: "the cursor to be set to the head" });
   const after = rig.say("said after");
 
-  await until(() => turns.handed.has(after.id), "the new message to be handed over");
-  assert.equal(turns.handed.has(before.id), false);
+  await until(() => turns.handed.has(before.id) && turns.handed.has(after.id), "both messages to be handed over");
+  await eventually(() => turns.cursor(), (cursor) => cursor === after.seq, { what: "the cursor to reach the newest message" });
 });
 
 test("a restarted agent catches up from its cursor: what it missed is taken once, and what it took is not taken again", { timeout }, async (t) => {
@@ -104,7 +110,7 @@ test("a restarted agent catches up from its cursor: what it missed is taken once
   assert.deepEqual(second.errors, []);
 });
 
-test("a cursor the chat server refuses as past its end sends the agent back to the head, with a report", { timeout }, async (t) => {
+test("a cursor the chat server refuses as past its end makes the agent read the log from the start, with a report", { timeout }, async (t) => {
   const chat = scriptedChat();
   const { thread } = chat.dm(zach, scout);
   const old = chat.say(zach, thread.id, "already in the log");
@@ -112,15 +118,13 @@ test("a cursor the chat server refuses as past its end sends the agent back to t
   await turns.setCursor(old.seq + 40);
 
   const rig = await startIntakeRig(t, { chat, turns });
-  await eventually(() => turns.cursor(), (cursor) => cursor === old.seq, { what: "the cursor to go back to the head" });
   const fresh = rig.say("said after the store was replaced");
 
-  await until(() => turns.handed.has(fresh.id), "the new message to be handed over");
-  assert.equal(turns.handed.has(old.id), false);
+  await until(() => turns.handed.has(old.id) && turns.handed.has(fresh.id), "both messages to be handed over");
   assert.equal(rig.errors.length, 1);
   assert.match(
     rig.errors[0]?.message ?? "",
-    new RegExp(`^Chat's log ends at ${String(old.seq)}, before the agent's place in it at ${String(old.seq + 40)}\\. .*starts again from the head`),
+    new RegExp(`^Chat's log ends at ${String(old.seq)}, before the agent's place in it at ${String(old.seq + 40)}\\. .*reads the new log from the start`),
   );
 });
 
@@ -135,7 +139,7 @@ test("a store that was replaced under a running agent is noticed the next time t
   const { thread } = chat.dm(zach, scout);
   chat.down();
   chat.up();
-  await eventually(() => turns.cursor(), (cursor) => cursor === 0, { what: "the cursor to go back to the new log's head" });
+  await eventually(() => turns.cursor(), (cursor) => cursor === 0, { what: "the cursor to go back to the start of the new log" });
   const fresh = chat.say(zach, thread.id, "first message of the new store");
 
   await until(() => turns.handed.has(fresh.id), "the new message to be handed over");

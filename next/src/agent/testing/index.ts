@@ -35,9 +35,10 @@ export { answered, assistantItems, toolItems } from "./views.ts";
  * thing. `mixed` picks one of them by what the latest message says: "stream"
  * streams a long answer, "refuse" fails, "slow command" runs the slow shell
  * call, and anything else is answered as `chat` answers. `gated` answers as
- * `chat` does once `releaseGate` has been called for its home.
+ * `chat` does once `releaseGate` has been called for its home, and `gatedFail`
+ * fails as `fail` does once it has.
  */
-export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "mixed" | "gated";
+export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "mixed" | "gated" | "gatedFail";
 
 /** What the model answers to the messages it is sent, so far. It may take its time. */
 export type Script = (
@@ -130,6 +131,11 @@ const SCRIPTS: Record<FauxScenario, Script> = {
   gated: async (messages, home) => {
     await untilReleased(home);
     return SCRIPTS.chat(messages, home);
+  },
+
+  gatedFail: async (messages, home) => {
+    await untilReleased(home);
+    return SCRIPTS.fail(messages, home);
   },
 };
 

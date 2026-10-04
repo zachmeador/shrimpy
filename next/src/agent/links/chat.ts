@@ -1,5 +1,5 @@
 import type { ChatClient, ChatConnection, Member } from "../../contracts/chat/index.ts";
-import { isNotListening } from "../../lib/connection/index.ts";
+import { isDisconnected } from "../../lib/connection/index.ts";
 import { createListeners } from "../../lib/listeners/index.ts";
 import { type Backoff, keepRunning } from "../../lib/retry/index.ts";
 import { ChatUnavailableError } from "./unavailable.ts";
@@ -60,7 +60,8 @@ export function openChatLink(options: ChatLinkOptions): ChatLink {
     signal: stopping.signal,
     backoff: options.backoff,
     onError(error) {
-      if (error instanceof ChatUnavailableError || isNotListening(error)) return;
+      // Chat not being there, or going away, is an ordinary state: the link just tries again.
+      if (error instanceof ChatUnavailableError || isDisconnected(error)) return;
       options.onError?.(error instanceof Error ? error : new Error(String(error)));
     },
     async attempt(established, signal) {
@@ -114,7 +115,12 @@ export function openChatLink(options: ChatLinkOptions): ChatLink {
         try {
           return await use(current.chat, AbortSignal.any([signal, current.lost]));
         } catch (error) {
-          if (signal.aborted || !current.lost.aborted) throw error;
+          // Read through functions: both change while this waits.
+          const cancelled = (): boolean => signal.aborted;
+          const lost = (): boolean => current.lost.aborted;
+          // A call can fail for the lost connection a moment before the loss is known here.
+          if (!cancelled() && !lost() && isDisconnected(error)) await ended(current.lost, signal);
+          if (cancelled() || !lost()) throw error;
         }
       }
     },
