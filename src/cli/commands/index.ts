@@ -7,6 +7,10 @@ import type { Command } from "./command.ts";
 
 export type { Command } from "./command.ts";
 
+/** One of the commands for changing a message, each a family of its own: they share a file, not a first word. */
+const messageCommand = (name: string) => async (): Promise<Command[]> =>
+  (await import("./messages.ts")).messageCommands.filter((command) => command.name === name);
+
 // A family is named by the first word of its commands. The commands for running
 // Shrimpy and talking to agents come first, as the ones people use most.
 const FAMILIES = new Map<string, () => Promise<Command[]>>([
@@ -14,6 +18,10 @@ const FAMILIES = new Map<string, () => Promise<Command[]>>([
   ["run", async () => (await import("./run.ts")).runCommands],
   ["threads", async () => (await import("./threads.ts")).threadsCommands],
   ["read", async () => (await import("./read.ts")).readCommands],
+  ["edit", messageCommand("edit")],
+  ["delete", messageCommand("delete")],
+  ["react", messageCommand("react")],
+  ["unreact", messageCommand("unreact")],
   ["agent", async () => (await import("./agent.ts")).agentCommands],
   ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
   ["gateway", async () => (await import("./gateway.ts")).gatewayCommands],

@@ -11,11 +11,13 @@ const PAGE = 200;
 const read: Command = {
   name: "read",
   usage: "<thread> [--json]",
-  summary: "Show a thread: who said what and when, oldest first.",
+  summary: "Show a thread: who said what and when, oldest first, with the message IDs that edit, delete and react take.",
   details:
-    "Where an agent failed, stopped or skipped a message, a line below it says so. A silent receipt is not " +
-    "shown. --json prints the thread and every message with all its receipts, silent ones included. Exits 1 " +
-    "if no gateway or chat server is running, or the thread is not one of yours.",
+    "Messages are shown as they now stand: an edited one says when, a deleted one says it was deleted, and the " +
+    "emoji on a message are listed with who put them there. Where an agent failed, stopped or skipped a message, " +
+    "a line below it says so. A silent receipt is not shown. --json prints the thread and every message with " +
+    "all its receipts, silent ones included. Exits 1 if no gateway or chat server is running, or the thread is " +
+    "not one of yours.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),

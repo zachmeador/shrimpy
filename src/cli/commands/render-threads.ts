@@ -38,10 +38,13 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
 }
 
 /**
- * A thread to read: who said what and when, oldest first. Below a message, a
- * line for each agent that failed, stopped or skipped it. An answer is the
- * message that follows, and a silent receipt is data nobody is shown, so
- * neither gets a line. At the end, a line for each member working in it now.
+ * A thread to read, with its messages as they now stand, oldest first: who said
+ * what and when, and the ID that edit, delete and react take. An edited message
+ * says when, a deleted one says it was deleted, and the emoji on a message are
+ * listed with who put them there. Below a message, a line for each agent that
+ * failed, stopped or skipped it. An answer is the message that follows, and a
+ * silent receipt is data nobody is shown, so neither gets a line. At the end, a
+ * line for each member working in it now.
  */
 export function renderThread(thread: Thread, messages: Message[], channel: Channel): string[] {
   const nameOf = namer(channel);
@@ -49,7 +52,16 @@ export function renderThread(thread: Thread, messages: Message[], channel: Chann
   const lines = [`Thread ${thread.id} in ${where}: ${titleOf(thread)}`];
   if (messages.length === 0) lines.push("", "(no messages yet)");
   for (const message of messages) {
-    lines.push("", `${message.author.name}  ${formatTime(message.sentAt)}`, ...indent(message.text.trimEnd()));
+    const edited = message.editedAt === null || message.deleted ? "" : `  edited ${formatTime(message.editedAt)}`;
+    lines.push(
+      "",
+      `${message.author.name}  ${formatTime(message.sentAt)}  ${message.id}${edited}`,
+      ...indent(message.deleted ? "(deleted)" : message.text.trimEnd()),
+    );
+    if (message.reactions.length > 0) {
+      const reactions = message.reactions.map((reaction) => `${reaction.emoji} ${reaction.memberIds.map(nameOf).join(", ")}`);
+      lines.push(...indent(reactions.join("  ")));
+    }
     for (const receipt of message.receipts) {
       const note = receiptNote(receipt, nameOf(receipt.memberId));
       if (note !== undefined) lines.push(note);

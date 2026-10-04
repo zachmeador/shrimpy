@@ -163,6 +163,28 @@ test("a thread shows who said what, oldest first, as themselves or as someone el
   assert.equal(screen.work, undefined);
 });
 
+test("a message shows as it now stands: marked when it was edited, as deleted when it was, with the emoji on it and who put them there", () => {
+  const open = aThread("th_1", { preview: "go" });
+  const view = aThreadView(open, [
+    aMessage("msg_1", zach, "typo fixed", {
+      sentAt: at(10, 3, 14, 5),
+      editedAt: at(10, 3, 14, 9),
+      reactions: [
+        { emoji: "\u{1F44D}", memberIds: [scout.id, zach.id] },
+        { emoji: "\u{1F389}", memberIds: [zach.id] },
+      ],
+    }),
+    aMessage("msg_2", zach, "", { deleted: true, editedAt: at(10, 3, 14, 9) }),
+    aMessage("msg_3", scout, "as written"),
+  ]);
+
+  const [edited, deleted, plain] = thread(screenOf(onThread("scout", open, view), { now })).messages;
+
+  assert.deepEqual([edited?.edited, edited?.reactions], ["edited 14:09", "\u{1F44D} scout, zach  \u{1F389} zach"]);
+  assert.deepEqual([deleted?.deleted, deleted?.text, deleted?.edited, deleted?.reactions], [true, "This message was deleted.", undefined, undefined]);
+  assert.deepEqual([plain?.deleted, plain?.edited, plain?.reactions, plain?.text], [false, undefined, undefined, "as written"]);
+});
+
 test("a message an agent failed, stopped or skipped says so, and one it answered or kept silent about says nothing", () => {
   const open = aThread("th_1", { preview: "go" });
   const view = aThreadView(open, [
@@ -395,7 +417,7 @@ test("text from other members and from tools can't act on a terminal, wherever i
   const open = aThread("th_1", { name: `Name${hostile}`, preview: `Preview${hostile}`, working: [{ memberId: scout.id, since: now }] });
   const view = aThreadView(open, [
     aMessage("msg_1", stranger, `text${hostile}`, { receipts: [aReceipt("scout", "failed", `detail${hostile}`)] }),
-    aMessage("msg_2", scout, `reply${hostile}`),
+    aMessage("msg_2", scout, `reply${hostile}`, { reactions: [{ emoji: `\u{1F44D}${hostile}`, memberIds: [stranger.id] }] }),
   ]);
   const session = workingView(
     [

@@ -7,6 +7,8 @@ const timeout = 30_000;
 
 const THUMBS_UP = "\u{1F44D}";
 const PARTY = "\u{1F389}";
+// A heart is an emoji with a bare form and a longer one, which chat keeps as one reaction.
+const HEART = "\u2764\uFE0F";
 
 test("only the author can edit or delete a message, and only a member of its channel can react to it", { timeout }, async (t) => {
   const { chat, zach, shrimpy, main } = await startDm(t);
@@ -38,7 +40,7 @@ test("only the author can edit or delete a message, and only a member of its cha
   assert.equal((await zach.chat.read(main.id, null, 10))[0]?.deleted, true);
 });
 
-test("a retry of an edit, a delete, a reaction or taking one back changes nothing and adds no event", { timeout }, async (t) => {
+test("a retry of a post, an edit, a delete, a reaction or taking one back changes nothing and adds no event", { timeout }, async (t) => {
   const { zach, shrimpy, main } = await startDm(t);
   const said = await zach.chat.post(main.id, "Original.", "zach-1");
   const length = async (): Promise<number> => (await zach.chat.feed(0, 50)).length;
@@ -47,8 +49,8 @@ test("a retry of an edit, a delete, a reaction or taking one back changes nothin
   const steps: [string, () => Promise<unknown>][] = [
     ["edit", () => zach.chat.edit(said.id, "Edited.")],
     ["react", () => shrimpy.chat.react(said.id, THUMBS_UP)],
-    ["react with the bare form of an emoji that has a longer one", () => shrimpy.chat.react(said.id, "❤")],
-    ["the same emoji in its longer form", () => shrimpy.chat.react(said.id, "❤️")],
+    ["react with the bare form of an emoji that has a longer one", () => shrimpy.chat.react(said.id, "\u2764")],
+    ["the same emoji in its longer form", () => shrimpy.chat.react(said.id, HEART)],
     ["unreact", () => shrimpy.chat.unreact(said.id, THUMBS_UP)],
     ["delete", () => zach.chat.delete(said.id)],
   ];
@@ -60,6 +62,12 @@ test("a retry of an edit, a delete, a reaction or taking one back changes nothin
     assert.equal(await length(), logged, `${what} added an event again`);
   }
 
+  // A post retried after the message was edited and deleted is a retry still, and the message comes back as it stands.
+  const retried = await zach.chat.post(main.id, "Original.", "zach-1");
+  assert.equal(retried.id, said.id);
+  assert.equal(retried.deleted, true);
+  await assert.rejects(zach.chat.post(main.id, "Something else.", "zach-1"), { message: /already posted a different message/ });
+
   // Taking back what was never there, and a deleted message: nothing to change for the one, a refusal for the others.
   const gone = await zach.chat.read(main.id, null, 10);
   assert.deepEqual(await shrimpy.chat.unreact(said.id, PARTY), gone[0]);
@@ -70,25 +78,10 @@ test("a retry of an edit, a delete, a reaction or taking one back changes nothin
     "posted",
     "edited",
     `reacted: ${THUMBS_UP}`,
-    "reacted: ❤️",
+    `reacted: ${HEART}`,
     `unreacted: ${THUMBS_UP}`,
     "deleted",
   ]);
-});
-
-test("a post retried after the message was edited gives the message back as it stands, and a different request under the same ID is still refused", { timeout }, async (t) => {
-  const { zach, main } = await startDm(t);
-  const first = await zach.chat.post(main.id, "Once.", "request-1");
-  await zach.chat.edit(first.id, "Once, edited.");
-
-  const retry = await zach.chat.post(main.id, "Once.", "request-1");
-
-  assert.equal(retry.id, first.id);
-  assert.equal(retry.text, "Once, edited.");
-  await assert.rejects(zach.chat.post(main.id, "Something else.", "request-1"), {
-    message: /already posted a different message/,
-  });
-  assert.equal((await zach.chat.read(main.id, null, 10)).length, 1);
 });
 
 test("the feed is a log of what happened to messages, in order, and reading a thread gives the messages as they now stand", { timeout }, async (t) => {

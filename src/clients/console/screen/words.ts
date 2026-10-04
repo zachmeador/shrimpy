@@ -125,6 +125,16 @@ export function farewellLine(agentName: string, threadId: string): string {
 export const AGENTS_EMPTY = `No agent has joined this machine's roster yet. Start one with: shrimpy agent serve <home>, or start everything with: ${START_EVERYTHING}`;
 export const THREAD_EMPTY = "No messages yet.";
 export const NO_TITLE = "(no messages yet)";
+export const DELETED = "This message was deleted.";
+
+/** What marks a message that was edited, with when. */
+export const editedAt = (when: string): string => `edited ${when}`;
+
+/** The emoji on a message and who put each there, on one line, or nothing when there are none. */
+export function reactionsLine(reactions: { emoji: string; by: string[] }[]): string | undefined {
+  if (reactions.length === 0) return undefined;
+  return reactions.map(({ emoji, by }) => `${oneLine(emoji)} ${by.join(", ")}`).join("  ");
+}
 
 export const agentsTitle = (): string => "Agents";
 export const threadsTitle = (agent: string): string => `${oneLine(agent)} · your threads`;

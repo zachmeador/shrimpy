@@ -367,7 +367,9 @@ test("text from other members and from tools can't reach the terminal, wherever 
     thread,
     aThreadView(thread, [
       aMessage("msg_1", stranger, `text${hostile}`, { receipts: [aReceipt("scout", "failed", `detail${hostile}`)] }),
-      aMessage("msg_2", scout, `reply [a link](https://evil.example/${hostile}) ${hostile}`),
+      aMessage("msg_2", scout, `reply [a link](https://evil.example/${hostile}) ${hostile}`, {
+        reactions: [{ emoji: `\u{1F44D}${hostile}`, memberIds: [stranger.id] }],
+      }),
     ]),
     {
       session: workingView(
@@ -394,7 +396,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
   const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:c\\u0007", "g");
   const text = drawn.join("\n").replace(own, "");
   assert.doesNotMatch(text, new RegExp("[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]"));
-  for (const wanted of ["Evil", "text", "detail", "reply", "answer", "thinking", "output", "note", "said"]) assert.ok(text.includes(wanted), wanted);
+  for (const wanted of ["Evil", "text", "detail", "reply", "\u{1F44D}", "answer", "thinking", "output", "note", "said"]) assert.ok(text.includes(wanted), wanted);
   const written = terminal.output();
   for (const payload of ["pwned", "999;999H", "cHduZWQ", "]52;", "]0;"]) assert.ok(!written.includes(payload), `${payload} reached the terminal`);
 });

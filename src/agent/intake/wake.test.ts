@@ -42,7 +42,7 @@ function anEvent({ kind = "posted", actor = zach, author = actor, addressed = [s
 
 const wakes = (event: ChatEvent): boolean => takeUp(scout, event) !== undefined;
 
-test("a post or an edit addressed to the agent wakes it, and nothing else does but a reaction to a message the agent wrote", () => {
+test("the default wake policy: a post or an edit addressed to the agent, and a reaction to a message it wrote, and nothing else", () => {
   assert.equal(wakes(anEvent({ kind: "posted" })), true);
   assert.equal(wakes(anEvent({ kind: "posted", actor: helper })), true);
   assert.equal(wakes(anEvent({ kind: "edited" })), true);
@@ -56,12 +56,11 @@ test("a post or an edit addressed to the agent wakes it, and nothing else does b
   assert.equal(wakes(anEvent({ kind: "reacted", author: helper, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "unreacted", author: scout, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "deleted" })), false);
-});
 
-test("what the agent does itself never wakes it, nor does an event of a message that was deleted since, nor one it already left a receipt on", () => {
-  // The agent's own reply comes back in its feed, and answering it would never end.
+  // What the agent does itself never wakes it: its own reply comes back in its feed, and answering it would never end.
   assert.equal(wakes(anEvent({ kind: "posted", actor: scout, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "reacted", actor: scout, author: scout, addressed: [zach.id] })), false);
+  // Nor does an event of a message that was deleted since, or one the agent already left a receipt on.
   for (const kind of ["posted", "edited", "reacted"] as const) {
     assert.equal(wakes(anEvent({ kind, author: kind === "reacted" ? scout : zach, deleted: true })), false, kind);
   }

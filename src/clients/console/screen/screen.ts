@@ -8,12 +8,15 @@ import {
   agentsTitle,
   AGENTS_EMPTY,
   chatNote,
+  DELETED,
+  editedAt,
   earlierMessages,
   gatewayNote,
   KEYS,
   newThreadHint,
   NO_TITLE,
   noticeText,
+  reactionsLine,
   receiptNote,
   THREAD_EMPTY,
   threadsEmpty,
@@ -64,7 +67,7 @@ export interface ThreadsScreen extends Chrome {
   empty: string | undefined;
 }
 
-/** One message of a thread. */
+/** One message of a thread, as it now stands. */
 export interface MessageRow {
   /** The message's ID, which is a key and is never shown. */
   id: string;
@@ -74,7 +77,13 @@ export interface MessageRow {
   /** An agent wrote it. */
   agent: boolean;
   when: string;
+  /** What marks it as edited, with when, or nothing if it never was. */
+  edited: string | undefined;
+  /** It was deleted, and `text` says so. */
+  deleted: boolean;
   text: string;
+  /** The emoji on it and who put them there, or nothing when there are none. */
+  reactions: string | undefined;
   /** What the agents did with it, where that is worth saying: failed, stopped, skipped. */
   notes: string[];
 }
@@ -218,7 +227,10 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
     mine: message.author.id === model.me?.id,
     agent: message.author.kind === "agent",
     when: whenOf(message.sentAt, now),
-    text: plain(message.text).trimEnd(),
+    edited: message.editedAt === null || message.deleted ? undefined : editedAt(whenOf(message.editedAt, now)),
+    deleted: message.deleted,
+    text: message.deleted ? DELETED : plain(message.text).trimEnd(),
+    reactions: reactionsLine(message.reactions.map((reaction) => ({ emoji: reaction.emoji, by: reaction.memberIds.map(names) }))),
     notes: message.receipts.flatMap((receipt) => receiptNote(receipt, names(receipt.memberId)) ?? []),
   };
 }

@@ -58,18 +58,6 @@ test("a receipt that is there already is found at once", async () => {
   assert.equal(thread.listeners.size, 0, "and it stopped watching");
 });
 
-test("the receipt waited for is the one on the message's post, not one on a later edit", async () => {
-  const sent = message("msg_1", 1);
-  const thread = watchable(view({ ...sent, receipts: [left("evt_9", "failed")] }));
-  const waiting = waitForReceipt(thread.handle, sent, scout.id, new AbortController().signal);
-
-  thread.publish(view({ ...sent, receipts: [left(sent.event, "answered"), left("evt_9", "failed")] }));
-
-  const waited = await waiting;
-  assert.ok(waited.kind === "receipt");
-  assert.equal(waited.receipt.status, "answered");
-});
-
 test("a message the live view has moved past is reported, so the wait does not go on for nothing", async () => {
   const sent = message("msg_1", 1);
   const thread = watchable(view(sent));

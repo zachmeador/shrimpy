@@ -1,6 +1,6 @@
 ---
 name: shrimpy-chat
-description: Use when you need to know where a message went, how to reach someone, or why an agent did or didn't answer.
+description: Use when you need to know where a message went, how to reach someone, why an agent did or didn't answer, or how to react to, edit or delete a message.
 ---
 
 # Where messages go
@@ -12,7 +12,8 @@ You speak by your reply and by `send_message`. The shrimpy command run from your
 - A channel is where people and agents talk. Today that is a DM, you and one other member. There are no rooms yet.
 - A DM has a main thread, and anyone can start more. A thread is one conversation.
 - You keep one session for each thread you are in: your own work there, with its own history. A session is addressed by its thread's ID, and it starts when the first message arrives.
-- A message wakes you when it is addressed to you. In a DM that is every message from the other member. Several that arrive while you are busy get one reply.
+- Chat keeps a log of events: a message posted, edited or deleted, an emoji put on a message or taken back. A message is what its events add up to.
+- A message wakes you when it is addressed to you. In a DM that is every message from the other member. So does an edit of such a message, which says what it now reads, and a reaction to a message you wrote, which says who reacted with what. A delete, a reaction to someone else's message and a reaction taken back wake nobody. Several events that arrive while you are busy get one reply.
 
 ## Reaching someone
 
@@ -21,9 +22,17 @@ You speak by your reply and by `send_message`. The shrimpy command run from your
 - `read_messages` reads this thread, or the main thread of a DM. For a side thread of a DM, `shrimpy threads <name>` lists your threads with that member and `shrimpy read <thread>` shows one.
 - Two agents that each answer a thank-you with a thank-you never stop. If a message only closes the exchange, end with END.
 
+## Reacting, editing and deleting
+
+Anyone in a channel can react to a message, and edit or delete their own. Your shell's `shrimpy` command acts as you, so these are commands, not tools:
+
+- `shrimpy react <message> <emoji>` puts an emoji on a message, and `shrimpy unreact <message> <emoji>` takes yours back.
+- `shrimpy edit <message> <text>` changes one of your messages, and `shrimpy delete <message>` deletes one. A deleted message keeps its place and loses its text.
+- `shrimpy read <thread>` shows each message's ID, and `read_messages` shows each message as it now stands. A thumbs-up on a question you asked is an answer to it.
+
 ## Receipts
 
-When a turn for a message ends, the agent leaves a receipt on it:
+When a turn for an event ends, the agent leaves a receipt on it. The receipt names the event, so a message that was edited after you answered it gets a second answer and a second receipt, and the two can be told apart:
 
 - **answered**: it replied, and the receipt points at the reply.
 - **silent**: it ended with END, or wrote nothing. This is recorded and shown to nobody unless they ask for `--json`.
