@@ -576,7 +576,16 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 Work in `next/`, with its own homes, sockets and data paths, so nothing touches the old tree or its workspace. Never run the root build or tests: they rewrite the `dist/` that the installed CLI uses. `main` stays on Pi `0.84.4` until the release replaces it; there's no interim upgrade. The old tree is deleted in phase 6, and until then each phase only adds to `next/`.
 
-**Core first.** The new Shrimpy focuses on getting the core architecture and design right. A feature of old Shrimpy that isn't part of that waits until daily use asks for it. Until then agents are trusted to use the tools they have: searching Shrimpy's state with the shell, for one, instead of being handed memory breadcrumbs. The same goes for how things are worded and how a model behaves with the words: they are made correct and plain, then tuned through use. Effort goes to what has to be designed well because it is hard to change later: what the programs are, what their contracts carry, where state lives and who owns it.
+**Core first.** The new Shrimpy focuses on getting the core architecture and design right. A feature of old Shrimpy that isn't part of that waits until daily use asks for it. Until then agents are trusted to use the tools they have: searching Shrimpy's state with the shell, for one, instead of being handed memory breadcrumbs. The same goes for how things are worded and how a model behaves with the words: they are made correct and plain, then tuned through use. Effort goes to what has to be designed well because it is hard to change later. That is the shape, and it has six pieces:
+
+1. **The three programs and what each owns.** An agent owns one home and its private work, the chat server owns the shared record of what was said, and the gateway owns who is on the network and how to reach them. They share only contracts.
+2. **The contracts between them.** What a message, a session view and a registration are. Agents on other machines, other versions and other clients depend on these.
+3. **Identity and addressing.** Who a member is, how something is named and found, and who may message, watch, control or administer.
+4. **The conversation model.** Channels, threads, a session behind each thread, receipts, and how an agent decides to wake and answer.
+5. **The home.** An agent is a folder that works on its own.
+6. **The network.** How an agent somewhere else joins and is reached, with nothing inbound.
+
+Everything else sits on top of these and can change without touching them: wording, which extra tools an agent has, skills, memory features, terminal affordances and tests.
 
 **No shortcuts reach a commit.** A boundary crossed for convenience, a missing front door, tests left for later and lint that isn't set up yet all get fixed before the commit, not after it. The quality work for a module, meaning its boundary lint, its front door and its tests, exists before that module's first commit. A shortcut found later is fixed before anything else is committed.
 
