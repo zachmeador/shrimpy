@@ -44,7 +44,7 @@ async function agentHome(t: TestContext, model: ModelServer, name = "scout"): Pr
 
 test("up starts the gateway, the chat server and an agent per home, says how to reach them, and stops them", { timeout }, async (t) => {
   const home = await agentHome(t, await testModel(t));
-  const data = join(tempDir(t, "up-data"), "chat");
+  const data = tempDir(t, "up-data");
 
   const up = await startUp(t, [home, "--data", data]);
 
@@ -56,7 +56,8 @@ test("up starts the gateway, the chat server and an agent per home, says how to 
   assert.ok(up.output().stdout.includes('shrimpy run scout "<text>"'), "it says how to talk to the agent");
   const agentStatus = JSON.parse((await shrimpy(["agent", "status", home])).stdout) as { running: boolean; pid: number };
   assert.deepEqual([agentStatus.running, agentStatus.pid], [true, agent]);
-  assert.ok(existsSync(join(data, "state", "chat.sqlite")), "the chat server keeps its store in the data directory");
+  assert.ok(existsSync(join(data, "chat", "state", "chat.sqlite")), "the chat server keeps its store in a folder of its own");
+  assert.ok(existsSync(join(data, "gateway", "state", "roster.json")), "and the gateway its roster");
 
   up.kill("SIGTERM");
   const stopped = await up.finished;

@@ -11,8 +11,8 @@ export class InvalidRegistrationError extends Error {
 
 /** What one connection may register. */
 export interface Registrant {
-  /** Register this connection's program. Registering again replaces the earlier entry. */
-  register(registration: unknown): void;
+  /** Register this connection's program, and say what was registered. Registering again replaces the earlier entry. */
+  register(registration: unknown): Registration;
   /** The connection is gone: drop its entry. */
   close(): void;
 }
@@ -43,6 +43,7 @@ export function createRegistry(): Registry {
           const checked = check(registration);
           entries.delete(registrant);
           entries.set(registrant, checked);
+          return { ...checked };
         },
         close() {
           closed = true;

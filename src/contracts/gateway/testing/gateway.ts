@@ -2,6 +2,7 @@ import type { TestContext } from "node:test";
 import { offer, type StandIn, startStandIn } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME, type Registration } from "../index.ts";
+import { gatewayThatDoes } from "./partial.ts";
 
 export interface StandInGateway extends StandIn {
   /** Every registration it was sent, oldest first, including those whose connection has ended. */
@@ -40,7 +41,7 @@ export async function startStandInGateway(
       const connection = {};
       return offer(
         Gateway,
-        {
+        gatewayThatDoes({
           register(registration) {
             received.push(registration);
             live.delete(connection);
@@ -48,8 +49,9 @@ export async function startStandInGateway(
             return Promise.resolve();
           },
           list: () => Promise.resolve([...live.values()]),
+          members: () => Promise.resolve([]),
           version: () => Promise.resolve(options.version ?? SHRIMPY_VERSION),
-        },
+        }),
         () => live.delete(connection),
       );
     },

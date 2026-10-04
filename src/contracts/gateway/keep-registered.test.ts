@@ -16,7 +16,7 @@ import {
 } from "../../lib/testing/index.ts";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME, type Registration } from "./index.ts";
 import { type KeepRegisteredOptions, keepRegistered } from "./node.ts";
-import { startStandInGateway } from "./testing/index.ts";
+import { gatewayThatDoes, startStandInGateway } from "./testing/index.ts";
 
 const timeout = 15_000;
 
@@ -96,11 +96,14 @@ test("a registration the gateway refuses is reported with its reason, and tried 
   const gateway = await startStandIn(t, GATEWAY_SOCKET_NAME, {
     serverId: GATEWAY_SERVER_ID,
     offer: () =>
-      offer(Gateway, {
-        register: () => Promise.reject(new Refusal("Invalid registration: pid must be a positive integer")),
-        list: () => Promise.resolve([]),
-        version: () => Promise.resolve(registration.version),
-      }),
+      offer(
+        Gateway,
+        gatewayThatDoes({
+          register: () => Promise.reject(new Refusal("Invalid registration: pid must be a positive integer")),
+          list: () => Promise.resolve([]),
+          version: () => Promise.resolve(registration.version),
+        }),
+      ),
   });
   const errors: Error[] = [];
   const kept = keep(t, { onError: (error) => errors.push(error) });

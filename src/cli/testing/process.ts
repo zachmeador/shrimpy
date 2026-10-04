@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
-import { firstLine, useRuntimeDir } from "../../lib/testing/index.ts";
+import { firstLine, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 
 const main = fileURLToPath(new URL("../main.ts", import.meta.url));
 
@@ -132,11 +132,24 @@ export function serve(
   return serving(t, ["agent", "serve", home, ...extra], options);
 }
 
-export type ServedGateway = Served<{ event: string; socket: string; webPort: number | null; pid: number }>;
+export type ServedGateway = Served<{
+  event: string;
+  dataDir: string;
+  socket: string;
+  webPort: number | null;
+  pid: number;
+}>;
 
-/** Start `shrimpy gateway serve` and wait until it is listening. */
-export function serveGateway(t: TestContext, extra: string[] = []): Promise<ServedGateway> {
-  return serving(t, ["gateway", "serve", ...extra]);
+/**
+ * Start `shrimpy gateway serve` and wait until it is listening. It keeps its
+ * roster in `dataDir`, or in a directory of its own when the test gives none.
+ */
+export function serveGateway(
+  t: TestContext,
+  extra: string[] = [],
+  dataDir: string = tempDir(t, "gateway-data"),
+): Promise<ServedGateway> {
+  return serving(t, ["gateway", "serve", "--data", dataDir, ...extra]);
 }
 
 export type ServedChat = Served<{ event: string; dataDir: string; serverId: string; socket: string; pid: number }>;

@@ -2,7 +2,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ByteTransportFactory } from "@earendil-works/pi-client";
 import { openConnection } from "../../lib/connection/index.ts";
 import { GATEWAY_SERVER_ID } from "./endpoint.ts";
-import { Gateway, type Registration } from "./services.ts";
+import { Gateway, type Joined, type Member, type ProgramName, type Registration, type RosterEntry } from "./services.ts";
 
 export interface GatewayConnection {
   /**
@@ -13,6 +13,16 @@ export interface GatewayConnection {
   list(): Promise<Registration[]>;
   /** The version of Shrimpy the gateway runs. */
   version(): Promise<string>;
+  /** Make a new agent member called `name`, and be it from now on. See `Gateway.join`. */
+  join(name: string): Promise<Joined>;
+  /** Be the member that holds `token` from now on, renamed to `name` unless it is null. See `Gateway.signIn`. */
+  signIn(token: string, name: string | null): Promise<Member>;
+  /** Everyone on the roster, oldest first. */
+  members(): Promise<RosterEntry[]>;
+  /** A ticket for `target`, to hand to it. See `Gateway.ticket`. */
+  ticket(target: ProgramName): Promise<string>;
+  /** Whose a ticket is. See `Gateway.redeem`. */
+  redeem(ticket: string): Promise<Member>;
   /**
    * Called once when the connection ends, whether the gateway went away or
    * `close` was called. Nothing reconnects by itself: a program that wants to
@@ -45,6 +55,11 @@ export async function connectGateway(options: {
     register: (registration) => gateway.register(registration, context),
     list: () => gateway.list(context),
     version: () => gateway.version(context),
+    join: (name) => gateway.join(name, context),
+    signIn: (token, name) => gateway.signIn(token, name, context),
+    members: () => gateway.members(context),
+    ticket: (target) => gateway.ticket(target, context),
+    redeem: (ticket) => gateway.redeem(ticket, context),
     onDisconnect: (listener) => connection.onDisconnect(listener),
     close: () => connection.close({ goodbye: false }),
   };

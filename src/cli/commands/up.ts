@@ -1,4 +1,4 @@
-import { basename, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
 import type { Io } from "../io/index.ts";
@@ -14,7 +14,8 @@ const up: Command = {
   summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and an agent per home.",
   details:
     "Each program runs as a process of its own, the same one that gateway serve, chat serve and agent serve " +
-    "start, and the chat server keeps its store in the data directory, which is made if it is missing. A " +
+    "start. The data directory is made if it is missing, and the gateway keeps its roster in a folder of its " +
+    "own in it, gateway/, and the chat server its store in chat/. A " +
     "gateway, chat server or agent that is already running is used as it is, and left running when this stops. " +
     "Ctrl+C or SIGTERM stops what this started, agents first, and exits 0 once they have stopped; a second " +
     "request tells the agents to stop without waiting for running turns, and a third ends everything at " +
@@ -99,9 +100,9 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Pro
 async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Promise<void> {
   const found = await askGateway(stop.signal);
   if (found === undefined) {
-    const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve"]);
+    const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve", "--data", join(plan.data, "gateway")]);
     crew.push({ role: "gateway", what: "the gateway", program });
-    io.out(`Started the gateway (pid ${program.pid}).`);
+    io.out(`Started the gateway (pid ${program.pid}), keeping its roster in ${join(plan.data, "gateway")}.`);
   } else {
     warnIfVersionDiffers(io, "the gateway", found.version);
     io.out("The gateway is already running; using it as it is.");
@@ -110,9 +111,9 @@ async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch
 
   const chat = found?.programs.findLast((program) => program.kind === "chat");
   if (chat === undefined) {
-    const program = await launch(io, { text: "chat" }, "the chat server", ["chat", "serve", plan.data]);
+    const program = await launch(io, { text: "chat" }, "the chat server", ["chat", "serve", join(plan.data, "chat")]);
     crew.push({ role: "chat", what: "the chat server", program });
-    io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${plan.data}.`);
+    io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${join(plan.data, "chat")}.`);
   } else {
     warnIfVersionDiffers(io, "the chat server", chat.version);
     io.out(`The chat server is already running (pid ${chat.pid}); using it as it is.`);

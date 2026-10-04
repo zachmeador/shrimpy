@@ -4,3 +4,4 @@
  * tests and test fixtures import this, and it must not know about any program.
  */
 export { type StandInGateway, type StandInGatewayOptions, startStandInGateway } from "./gateway.ts";
+export { gatewayThatDoes } from "./partial.ts";

@@ -4,14 +4,13 @@ import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectGateway, type Registration } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, GatewayNotRunningError } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
-import { startGateway } from "./index.ts";
-import { agentRegistration as agent, startEchoProgram, startRegistrantChild } from "./testing/index.ts";
+import { agentRegistration as agent, startEchoProgram, startRegistrantChild, startTestGateway } from "./testing/index.ts";
 
 const timeout = 30_000;
 
 test("a registration is listed to every client", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startGateway();
+  const gateway = await startTestGateway(t);
   const program = await connectLocalGateway();
   const observer = await connectLocalGateway();
   try {
@@ -31,7 +30,7 @@ test("a registration is listed to every client", { timeout }, async (t) => {
 
 test("every version is listed as it was given, and none is refused", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startGateway();
+  const gateway = await startTestGateway(t);
   const first = await connectLocalGateway();
   const second = await connectLocalGateway();
   try {
@@ -50,7 +49,7 @@ test("every version is listed as it was given, and none is refused", { timeout }
 
 test("a registration lasts as long as its connection: it is gone when its process is killed, and the others stay", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startGateway();
+  const gateway = await startTestGateway(t);
   const observer = await connectLocalGateway();
   const stays = await connectLocalGateway();
   const child = await startRegistrantChild(t, "victim");
@@ -74,7 +73,7 @@ test("a registration lasts as long as its connection: it is gone when its proces
 
 test("a registration that cannot be accepted is refused with the reason", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startGateway();
+  const gateway = await startTestGateway(t);
   const program = await connectLocalGateway();
   const observer = await connectLocalGateway();
   try {

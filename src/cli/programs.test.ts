@@ -16,10 +16,11 @@ const timeout = 60_000;
 
 /** The programs `gateway status` lists, each as its cells: kind, name, version and pid. */
 function listed(status: CliResult): string[][] {
-  return status.stdout
+  const programs = status.stdout.split("\n\n")[0] ?? "";
+  return programs
     .trim()
     .split("\n")
-    .slice(1)
+    .slice(2)
     .map((line) => line.split(/\s{2,}/));
 }
 
@@ -106,7 +107,7 @@ test("a stop signal the moment they are listening stops each of them cleanly", {
 test("a second gateway is refused, and the first keeps serving", { timeout }, async (t) => {
   await serveGateway(t);
 
-  const second = await shrimpy(["gateway", "serve"]);
+  const second = await shrimpy(["gateway", "serve", "--data", tempDir(t, "gateway-other")]);
 
   assert.equal(second.code, 1);
   assert.equal(second.stdout, "");

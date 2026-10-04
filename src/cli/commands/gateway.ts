@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { GatewayConnection, Registration } from "../../contracts/gateway/index.ts";
+import type { GatewayConnection, Registration, RosterEntry } from "../../contracts/gateway/index.ts";
 import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
 import { startGateway, type WebOptions } from "../../gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
@@ -12,26 +12,30 @@ import { renderTable } from "./table.ts";
 
 const serve: Command = {
   name: "gateway serve",
-  usage: "[--web-port <port>] [--web-dir <dir>]",
+  usage: "--data <dir> [--web-port <port>] [--web-dir <dir>]",
   summary: "Run the gateway in the foreground until it is told to stop.",
   details:
-    "Prints one JSON line when it is listening. SIGTERM or Ctrl+C stops it. The browser entry opens, on " +
-    "loopback only, when --web-port is given; 0 picks a free port, and the JSON line says which. " +
+    "The gateway keeps the roster of who is on the network in the data directory, which is made if it does " +
+    "not exist. Prints one JSON line when it is listening. SIGTERM or Ctrl+C stops it. The browser entry " +
+    "opens, on loopback only, when --web-port is given; 0 picks a free port, and the JSON line says which. " +
     "--web-dir serves the web client's files from that directory.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
         args,
-        options: { "web-port": { type: "string" }, "web-dir": { type: "string" } },
+        options: { data: { type: "string" }, "web-port": { type: "string" }, "web-dir": { type: "string" } },
         allowPositionals: true,
       }),
     );
     expectArguments(positionals, []);
+    if (values.data === undefined) throw new UsageError("Missing --data.");
+    if (values.data === "") throw new UsageError("--data needs a directory.");
+    const dataDir = resolve(values.data);
     const web = webOptions(values["web-port"], values["web-dir"]);
     return serveUntilStopped(
       io,
-      () => startGateway({ web }),
-      ({ socket, webPort }) => ({ event: "listening", socket, webPort: webPort ?? null, pid: process.pid }),
+      () => startGateway({ dataDir, web }),
+      ({ socket, webPort }) => ({ event: "listening", dataDir, socket, webPort: webPort ?? null, pid: process.pid }),
     );
   },
 };
@@ -51,33 +55,37 @@ function webOptions(port: string | undefined, dir: string | undefined): WebOptio
 const status: Command = {
   name: "gateway status",
   usage: "",
-  summary: "List the programs registered with this machine's gateway: kind, name, version and pid.",
+  summary: "List the programs registered with this machine's gateway, and the members on its roster.",
   details:
-    "A version that differs from this command's own is marked, and so is the gateway's, on standard error. " +
-    "Exits 1 if no gateway is running.",
+    "The programs are listed by kind, name, version and pid. The members are everyone the gateway knows, " +
+    "people and agents, by ID, kind and name, with whether a program is registered as each. A version that " +
+    "differs from this command's own is marked, and so is the gateway's, on standard error. Exits 1 if no " +
+    "gateway is running.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
-    const { programs, version } = await inspectGateway();
+    const { programs, members, version } = await inspectGateway();
     warnIfVersionDiffers(io, "the gateway", version);
     for (const line of renderPrograms(programs, SHRIMPY_VERSION)) io.out(line);
+    io.out("");
+    for (const line of renderMembers(members)) io.out(line);
     return 0;
   },
 };
 
-/** The programs this machine's gateway lists, and the version it runs. */
-async function inspectGateway(): Promise<{ programs: Registration[]; version: string }> {
+/** What this machine's gateway says is running and who is on its roster, and the version it runs. */
+async function inspectGateway(): Promise<{ programs: Registration[]; members: RosterEntry[]; version: string }> {
   let gateway: GatewayConnection;
   try {
     gateway = await connectLocalGateway();
   } catch (error) {
     if (error instanceof GatewayNotRunningError) {
-      throw new Error(`${error.message} Start one with: shrimpy gateway serve`, { cause: error });
+      throw new Error(`${error.message} Start one with: shrimpy gateway serve --data <dir>`, { cause: error });
     }
     throw error;
   }
   try {
-    return { programs: await gateway.list(), version: await gateway.version() };
+    return { programs: await gateway.list(), members: await gateway.members(), version: await gateway.version() };
   } finally {
     await gateway.close().catch(() => undefined);
   }
@@ -85,15 +93,22 @@ async function inspectGateway(): Promise<{ programs: Registration[]; version: st
 
 /** The programs as a table, each one whose version is not `own` followed by a note saying so. */
 function renderPrograms(programs: Registration[], own: string): string[] {
-  if (programs.length === 0) return ["No programs are registered."];
+  if (programs.length === 0) return ["Programs:", "No programs are registered."];
   const rows = programs.map((program) => [program.kind, program.name, program.version, String(program.pid)]);
   const [header, ...lines] = renderTable(["kind", "name", "version", "pid"], rows);
   return [
+    "Programs:",
     header ?? "",
     ...lines.map((line, index) =>
       programs[index]?.version === own ? line : `${line}  (differs from this command's ${own})`,
     ),
   ];
+}
+
+/** The roster as a table: ID, kind, name, and whether a program is registered as the member. */
+function renderMembers(members: RosterEntry[]): string[] {
+  const rows = members.map((member) => [member.id, member.kind, member.name, member.reachable ? "yes" : "no"]);
+  return ["Members:", ...renderTable(["id", "kind", "name", "reachable"], rows)];
 }
 
 export const gatewayCommands: Command[] = [serve, status];
