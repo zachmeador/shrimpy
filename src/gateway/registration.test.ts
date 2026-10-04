@@ -114,6 +114,30 @@ test("a registration lasts as long as its connection: it is gone when its proces
   }
 });
 
+test("a copied home is two live connections with one ID: both are listed, and the member is reachable until both are gone", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startGatewayInProcess(t);
+  const [original, copy, observer] = await Promise.all([1, 2, 3].map(() => connectLocalGateway()));
+  try {
+    const { member, token } = await original!.join("scout");
+    await original!.register(agent("scout"));
+    await copy!.signIn(token, "scout");
+    await copy!.register(agent("scout"));
+
+    assert.deepEqual((await observer!.list()).map((program) => program.memberId), [member.id, member.id]);
+    assert.equal((await observer!.members()).filter((each) => each.id === member.id).length, 1);
+
+    await original!.close();
+    await eventually(() => observer!.list(), (list) => list.length === 1);
+    assert.equal((await observer!.members()).find((each) => each.id === member.id)?.reachable, true);
+    await copy!.close();
+    await eventually(() => observer!.members(), (members) => members.find((each) => each.id === member.id)?.reachable === false);
+  } finally {
+    for (const connection of [original, copy, observer]) await connection?.close();
+    await gateway.close();
+  }
+});
+
 test("a registration that cannot be accepted is refused with the reason", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGatewayInProcess(t);
