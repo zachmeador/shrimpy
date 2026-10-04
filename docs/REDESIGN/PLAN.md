@@ -196,13 +196,13 @@ If implementation finds another visible difference, add a row before shipping it
 
 ### Identity and addressing
 
-The thinnest of the [six core pieces](#phases). The first column is what the new Shrimpy does today, on one machine with one person. Three rows were sharpened by a second opinion from another model, and all but the last two were confirmed on 2026-10-04. They are built before rooms: the roster and IDs first, then the feed of events, then connecting to a name.
+The thinnest of the [six core pieces](#phases). The first column is what the new Shrimpy does today, on one machine with one person. Three rows were sharpened by a second opinion from another model, and all but the last two were confirmed on 2026-10-04. They are built before rooms: the roster and IDs first, then the feed of events, then connecting to a name. The first was built on 2026-10-04, so the "built today" column describes what it replaced.
 
 | Topic | Built today | Proposed | Decision |
 |---|---|---|---|
 | Who exists | The gateway lists the programs connected right now and forgets one when it disconnects. The chat server remembers whoever has identified. Nothing answers "who can I talk to", so an agent can't start a DM and the terminal lists only running agents. | The gateway keeps a roster: every member of the network, person or agent, with its name and how it is recognized. It survives restarts and says who is reachable now. It is the one list that clients and agents read to find someone. The chat server keeps which members are in which channel, by the roster's IDs. | Confirmed |
 | Names | An agent's ID is `agent:<name>`, so the name is the identity: a renamed agent is a new member, and a new agent with an old name inherits its DMs, receipts and cursors. Of two agents with one name, the newest is reached. A person and an agent can share a name. | A member's ID is minted once, means nothing and never changes. Its name is a label the roster binds to that ID: one set of names covers people and agents, so `@name` always means one member, and a name can change without the member becoming someone else. A second claim to a name in use is refused. IDs are written into every message, receipt and cursor in the chat store, which is why this is decided before rooms. | Confirmed |
-| How a member is recognized | A connection says who it is and is believed. | A connection never says who it is; the gateway decides. One that presents an agent's token is that agent, on this machine or another. One without a token, on the gateway's own socket, is the OS user's person. From another machine a person is their Tailscale login. An agent gets its token when it first joins, keeps it in its home, and its launcher gives it to the agent's shell. A program learns who is on a connection from the gateway, by a ticket, so `identify` goes, and every chat connection comes through the gateway, on one machine too. A copied home shows up as two live connections with one ID. Under one OS user this stops accidents, not attacks, as the plan already accepts. | Confirmed |
+| How a member is recognized | A connection says who it is and is believed. | A connection never says who it is; the gateway decides. One that presents an agent's token is that agent, on this machine or another. One without a token, on the gateway's own socket, is the OS user's person. From another machine a person is their Tailscale login. An agent gets its token when it first joins and keeps it in its home. Its launcher tells the agent's shell which home it is, and a command run there reads the token from the home, so the token never sits in the environment. A program learns who is on a connection from the gateway, by a ticket, so `identify` goes, and every chat connection comes through the gateway, on one machine too. A copied home shows up as two live connections with one ID. Under one OS user this stops accidents, not attacks, as the plan already accepts. | Confirmed |
 | Reaching a program | The gateway hands out each program's socket path and pid, and a client on the same machine connects to it directly. Reaching an agent on another machine would be a second path. | One call: connect to a name. A connection made by name always goes through the gateway, on one machine too, so the path that agents on other machines depend on is the one used every day. Clients never see a socket or a pid. A connection made by a home's path goes straight to that agent's socket, which is how an agent is watched and stopped while the gateway is down. A request that goes through the gateway carries who is asking, and the agent enforces what they may do. | Confirmed |
 | Who the CLI speaks as | The person, whoever runs it. An agent that runs `shrimpy run` posts as its owner, and can't read its own threads with `threads` or `read`. | In an agent's shell the CLI speaks as that agent: the launcher that puts `shrimpy` on its path also says who is running it. In a person's terminal it speaks as the person. Then an agent can read its own threads and talk from a script, and can't post as its owner by accident. | Confirmed |
 | How the gateway vouches | Nothing vouches: a connection says who it is. | With a ticket. A client asks the gateway to connect it to a name and gets a ticket. It connects through the gateway, hands the ticket to the program, and the program asks the gateway whose it is. Nobody says who they are, an agent's token is shown only to the gateway, and nothing is parsed ahead of Pi's protocol. | Confirmed |
@@ -221,17 +221,17 @@ The builders made these visible choices while implementing phase 1. None has shi
 | `agent init` | Writes a starter `SOUL.md`, an empty `models.json` and an `auth.json` only its owner can read. It refuses to change an existing `agent.json`. |
 | Where keys come from | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. |
 | `models.json` | Takes the `openai-completions` API only, and an unsupported key is an error. A model that doesn't say gets a 128,000-token context and 16,384 output tokens. |
-| IDs | `ch_`, `th_` and `msg_` followed by 12 characters. |
+| IDs | `ch_`, `th_`, `msg_` and `mem_` followed by 12 characters. |
 | Message length | Up to 400,000 characters. An answer longer than that is posted in parts. |
 | Thread list | Most recently updated first, archived threads included. An unnamed thread shows the first 80 characters of its first message. |
 | DMs | A DM is named for the other member. Its main thread can be archived like any other. |
 | Names | Member and thread names hold up to 200 characters on one line. |
-| Gateway in a browser | `/ws/gateway` and `/ws/<kind>/<name>`, on IPv4 loopback only, with no default port yet. Static files have no fallback page and no cache or security headers, and dotfiles are served. |
-| Two programs with one name | The gateway doesn't refuse the second registration; the newest is the one reached. |
+| Gateway in a browser | `/ws/gateway` and `/ws/<kind>/<name>`, on IPv4 loopback only, with no default port yet. A page can list the programs and the roster, and can't join, sign in, register or get a ticket, so it can't enter chat yet. Static files have no fallback page and no cache or security headers, and dotfiles are served. |
+| A copied home | Names are unique on the roster, so two agents can't share one. A home copied with its token is two live connections with one member, and nothing chooses between them yet. |
 | A second chat server | Refused with "A chat server is already running on `<socket>`. Use that one, or stop it before starting another." On the same data directory the refusal is "Another chat server is using the data in …". |
 | Leaving a receipt | The call is `leaveReceipt`, for 1 to 200 messages at once. A failure's reason holds up to 500 characters. An agent can leave a receipt on its own message and in an archived thread. |
-| `gateway serve` | `--web-port` opens the browser entry and `--web-dir` serves files from a directory. It prints one JSON line when listening. |
-| `gateway status` | Lists registered programs as kind, name, version and pid, and marks a version that differs from the command's own. It exits 1 when no gateway is running. |
+| `gateway serve` | `--data <dir>` is required and is where the roster is kept. `--web-port` opens the browser entry and `--web-dir` serves files from a directory. It prints one JSON line when listening. |
+| `gateway status` | Lists the programs that are running as kind, name, version and pid, then the roster as ID, kind, name and whether each member is reachable. It marks a version that differs from the command's own, and exits 1 when no gateway is running. |
 | `chat serve` | Makes its data directory if it's missing and always registers with the gateway. A failed attempt to register prints one line each time. |
 | Shrimpy's version | `0.0.0`, the same as `package.json`. A command that goes through the gateway warns when a program's version differs from its own, and carries on. |
 | Messages sent while an agent is busy | They queue, and the agent's next turn answers them together with one reply. Each gets a receipt pointing at it. |
@@ -242,7 +242,7 @@ The builders made these visible choices while implementing phase 1. None has shi
 | `END` in detail | Case-sensitive. Straight or curly quotes, backticks and asterisks around it and one final period are ignored. Only the last line counts. |
 | A reply's edges | Blank lines before a reply and whitespace after it are dropped. The rest is posted as written. |
 | An answer in parts | Split at line breaks where it can be, and the receipt points at the first part. `run` prints only that part. |
-| `shrimpy up` | Says what it started and how to talk to it, and prefixes each program's own lines with its name. A program that's already running is used and left running. A second Ctrl+C stops agents without waiting and a third kills everything. Closing the terminal leaves the programs running. |
+| `shrimpy up` | Says what it started and how to talk to it, and prefixes each program's own lines with its name. Under `--data` the gateway and the chat server each get a folder of their own. A program that's already running is used and left running. A second Ctrl+C stops agents without waiting and a third kills everything. Closing the terminal leaves the programs running. |
 | `shrimpy run` | Starts a new thread each time unless `--thread` is given, prints the reply on standard output and the thread's ID on standard error. It exits 0 for an answer or silence, 1 for a failure and 130 when the work was stopped or skipped or the command was interrupted. |
 | `shrimpy threads` and `read` | `threads` prints a table of ID, last update, who is working and name. `read` prints who said what and when, with a note under a message whose turn failed, was stopped or was skipped. `--json` prints the data. |
 | `sessions` commands | They take a home and a thread ID. `sessions list` prints each thread, its channel and `working` or `idle`. |
@@ -252,19 +252,25 @@ The builders made these visible choices while implementing phase 1. None has shi
 | The terminal: a thread | Each message shows who and when, then the text; an agent's text is drawn as Markdown. Failed, stopped and skipped receipts show under the message. The live work sits under a bar below the messages: the last two lines of thinking, each tool call with its last six lines of output, and the answer so far. |
 | The terminal: times | Local time: `23:34` today, `Oct 3 23:34` this year, `2026-10-03 23:34` before that. |
 | The terminal: losing a connection | It says which program it lost, marks what's shown as possibly out of date, keeps the draft and reconnects by itself. A send waits 20 seconds for chat, and a failed one puts the text back in the editor. |
-| The terminal: lists | Agents and thread lists refresh every two seconds. Only running agents are listed, and "working" means working in one of your threads. A thread shows its newest 200 messages and points to `shrimpy read` for the rest. |
+| The terminal: lists | Agents and thread lists refresh every two seconds. Agents come from the roster, and one that isn't running is marked so. "Working" means working in one of your threads. A thread shows its newest 200 messages and points to `shrimpy read` for the rest. |
 | The terminal: leaving | Quitting while an agent works prints one line naming the thread and how to stop it. |
 | A lock that fails for another reason | An unwritable runtime folder shows the underlying error, not "Another process owns the agent home". |
 | What an agent is told | Four sections, in this order, each in its own tag: `<shrimpy>`, which every agent gets (how its reply works, `END`, the two message tools, how to look things up with its tools and the `shrimpy` command, what its home holds, and the motto); `<soul>`, its `SOUL.md`; `<context>`, each file of `context/` in a `<file path="…">` tag; and `<skills>`, each skill as its name, a one-line description and the path of its `SKILL.md`. An empty section is left out. The words are in `src/agent/extensions/context/base.ts`, 328 of them. |
 | When the home's files are read | When the agent starts and when it is told to reload, never in between. A file that can't be read, or a skill whose `SKILL.md` has no front matter with a description, is left out and named: on standard error at start, in the reload's answer and in the preview. The rest is read. |
 | Which files count | In `context/`, every `.md` file, in folders too, in path order. Hidden and blank files are skipped and links are followed. A skill is a folder of `skills/` with a `SKILL.md`; its name comes from the front matter or else the folder. The skills that ship with Shrimpy are read the same way, and a home's skill of the same name replaces one. Nothing limits how long any of it is. |
 | `agent context` and `agent reload` | `agent context <home>` prints a one-line label saying it is a preview, then the sections as a model gets them, then what was left out. It starts nothing. `agent reload <home>` answers "Reloaded. The agent at … now reads SOUL.md, 2 context files and 1 skill." Both exit 0 when files were left out. |
-| `send_message` | Takes `text`, and `to` as `@name` for a DM the agent already has; without `to` it posts to the turn's thread. `@name` matches a name in any case or a full ID such as `@person:zach`. It posts at once, in parts when the text is long, and one call at a time. With chat unreachable it says nothing was sent; when the connection drops mid-post it says the message may or may not have been posted. After a post to the turn's thread it reminds the model that its reply is posted too. It isn't run again after a crash. |
+| `send_message` | Takes `text`, and `to` as `@name` for the agent's DM with that member, which is started if there isn't one; without `to` it posts to the turn's thread. `@name` matches a member's name on the roster, in any case, and never an ID. It posts at once, in parts when the text is long, and one call at a time. With chat unreachable it says nothing was sent; when the connection drops mid-post it says the message may or may not have been posted. After a post to the turn's thread it reminds the model that its reply is posted too. It isn't run again after a crash. |
 | `read_messages` | Takes `from` as `@name`, `limit` (20, at most 100) and `before`. It returns the newest messages, oldest first, each as an arriving message reads, and says how to read older ones. It's run again after a crash. |
+| The roster on disk | One JSON file, `state/roster.json` in the gateway's data folder, readable only by its owner and written whole or not at all. Each member has its ID, kind, name and how it is recognized: a person by the OS user, an agent by the hash of its token. A second gateway on the same folder is refused. |
+| A member's token and ticket | A token is 32 random bytes. An agent keeps its member ID and token in `state/member.json` in its home, readable only by its owner. A ticket lasts 30 seconds, works once, and is kept in memory, so a gateway that restarts forgets the ones in flight and whoever held one asks again. |
+| People on the roster | The person is made when the gateway starts, from the OS user, and is named for it. A person is never shown as reachable, since no program registers as one. |
+| An agent the gateway turns away | It keeps running with its sessions, outside chat. It says why once, on standard error, and keeps trying: "The name "scout" is taken: it belongs to the agent "scout"… Change the name in …/agent.json and start the agent again." |
+| A rename | Changing the name in `agent.json` and restarting renames the member, which keeps its ID, DMs and history. The chat server shows the old name until that member next enters chat. |
+| Old chat data | A chat store from before member IDs is refused, with its version and the one this chat server reads. Nothing converts it. |
 | Who gets the message tools | Every agent, including one that takes no part in chat, so the instructions are always true. There they answer that chat is unreachable. |
-| Shrimpy's own skills | Four ship, in `skills/`: `shrimpy-setup`, `shrimpy-agents`, `shrimpy-chat` and `shrimpy-skills`, 39 to 53 lines each. Every agent is shown all of them, and none is selected for one agent yet. A test holds every `shrimpy` command and flag they name, and the base instructions name, to the commands the CLI has. |
-| `shrimpy` in an agent's shell | `agent serve` writes a launcher at `runtime/bin/shrimpy` in the home and puts that folder first on the shell's `PATH`, so the agent's shell runs the same Shrimpy as the agent whatever else is installed. A home whose path has a colon in it is refused. |
-| Who the CLI speaks as | A command an agent runs acts as the person, `person:<OS username>`: `run` would post as them, and `threads` and `read` show their threads. The instructions and the skills tell agents to speak only by their reply and `send_message`. The [identity table](#identity-and-addressing) recommends changing this. |
+| Shrimpy's own skills | Four ship, in `skills/`: `shrimpy-setup`, `shrimpy-agents`, `shrimpy-chat` and `shrimpy-skills`, 39 to 57 lines each. Every agent is shown all of them, and none is selected for one agent yet. A test holds every `shrimpy` command and flag they name, and the base instructions name, to the commands the CLI has. |
+| `shrimpy` in an agent's shell | `agent serve` writes a launcher at `runtime/bin/shrimpy` in the home and puts that folder first on the shell's `PATH`, so the agent's shell runs the same Shrimpy as the agent whatever else is installed. The launcher also names the home, in `SHRIMPY_AGENT_HOME`, and a command run there signs in with that home's token. The token itself is never put in the environment. A home whose path has a colon in it is refused. |
+| Who the CLI speaks as | In an agent's shell, the agent: `run` posts as it, and `threads` and `read` show its threads. In a person's terminal, the person. `threads` takes any member's name and `run` takes an agent's. |
 | The starter `SOUL.md` | Three short paragraphs for the model, with no heading: be direct, calm and useful; check before anything that can't be undone; answer briefly; "You enjoy the shrimp emoji 🦐." On the small local model the emoji costs some silence after a goodbye: it answered "Bye! 🦐" in about a third of tries. |
 | `agent init` | Prints three next steps: give the agent access to its model, say who it is in `SOUL.md`, and the command that starts it. |
 | Real-model tests | The agent under test gets a temporary `HOME`, so `~` in the model's shell is empty. Its shell can still name any absolute path. |
@@ -490,13 +496,14 @@ src/
                     and for the gateway, the loop that keeps a program registered
     agent/          the agent API: sessions, control, offers, login prompts
     chat/           the chat API: channels, threads, messages, attachments
-    gateway/        registration, discovery and routing
+    gateway/        the roster as clients see it, joining and signing in, tickets, registration and routing
   agent/            the agent program, one process per home
     home/           home layout, agent.json, resource and skill selection, model policy, credential paths
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
     sessions/       session control and queries, the session view that clients see, and Shrimpy's own documents:
                     the thread each session is behind, the outbox and the feed cursor
-    links/          reaching the gateway and chat: registering, finding chat, keeping the connection
+    links/          reaching the gateway and chat: joining and signing in, registering, entering chat with a ticket,
+                    keeping the connection
     intake/         what arrives from chat and what goes back: the feed, waking, how a message reads to the model,
                     replies, receipts and working marks; later chat commands, wake policy and the unread cache
     extensions/     durable extensions
@@ -508,9 +515,12 @@ src/
     threads/        channels, threads, membership, messages, attachments
     input/          what callers may send: limits and checks
     offers/         offering messages to member agents, delivery receipts
+    identity/       asking the gateway whose a ticket is, and about a member chat hasn't met
     providers/      the provider interface and the helpers providers share
       telegram/     Telegram's API: polling, sender mapping, message and media formats, sending
-  gateway/          the gateway program: discovery, access, routing, registrations, tokens, workspace context
+  gateway/          the gateway program: discovery, access, routing, the roster, workspace context
+    roster/         every member, with its name and how it is recognized, in one file
+    tickets/        tickets in flight
     registry/       the programs that are running, one registration per live connection
     web/            the browser entry: WebSocket pipes and the web client's files
   clients/
@@ -521,7 +531,7 @@ src/
       draw/         the only code that imports `pi-tui`
     web/            web client, replacing today's top-level web/
   cli/              the `shrimpy` command
-  lib/              helpers with no knowledge of Shrimpy's domain: sockets, locks, retries, config checking,
+  lib/              helpers with no knowledge of Shrimpy's domain: sockets, locks, retries, IDs, refusals, config checking,
                     test support, and the plumbing every program repeats around Pi's client and server
 ```
 
@@ -653,17 +663,17 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Start from the seed in `src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, crash and lock tests, and the boundary lint.
 - Keep the durable, AI, Chord, server, client and protocol packages pinned at `1.0.0`, and pin `pi-tui` the same way when the terminal client arrives. Use public exports only.
 - Home → model runtime, registry and environment → Harness on SQLite → service → CLI, with no old session runtime.
-- A minimal local gateway and chat server, so talking goes through threads from the start. No chat providers, rooms, remote routing or tokens yet.
+- A minimal local gateway and chat server, so talking goes through threads from the start. No chat providers, rooms or remote routing yet.
 - The OS lock that makes one process the owner of a home.
 - The wire-up: the agent registers with the gateway, joins chat as a member and reads its feed. It keeps one session per thread, posts its final text as the reply, leaves receipts, marks where it's working, and keeps an outbox for replies it couldn't post.
-- The first commands for talking: `shrimpy up <home>...` starts what's missing on this machine, `run <agent> <text>` says something in your DM with the agent and prints the reply, `threads <agent>` and `read <thread>` show what was said, and `gateway serve` and `chat serve <data-dir>` are foreground entrypoints like `agent serve`. In chat you are `person:<OS username>` unless you set otherwise. Machine-level data takes an explicit path until phase 6 picks a default, so nothing lands near a live workspace.
+- The first commands for talking: `shrimpy up <home>...` starts what's missing on this machine, `run <agent> <text>` says something in your DM with the agent and prints the reply, `threads <agent>` and `read <thread>` show what was said, and `gateway serve` and `chat serve <data-dir>` are foreground entrypoints like `agent serve`. In chat you are the person the gateway makes for your OS user. Machine-level data takes an explicit path until phase 6 picks a default, so nothing lands near a live workspace.
 - The foreground entrypoints that any supervisor or sandbox can run.
 - Sessions listed with the thread each is behind and whether it's working.
 - A thin terminal client on `pi-tui`'s public components: browse the agents on the network and their sessions, pick a thread or a session, talk, see replies and who is working, open the work behind a thread and watch it stream, stop it, start a new thread, and quit without stopping the work.
 
 **Core contracts, before rooms.** Decided on 2026-10-04 with the [identity table](#identity-and-addressing), and built in this order, because each one is written into the chat store or into every client:
 
-- The roster and member IDs. The gateway keeps every member with an ID minted once, a unique name and how it is recognized. An agent gets its token the first time it joins and keeps it in its home; a person is the OS user on the gateway's socket. A ticket replaces `identify`. A `shrimpy` command run from an agent's shell speaks as that agent. `@name` resolves through the roster, so a member can start a DM with any other.
+- Built on 2026-10-04: the roster and member IDs. The gateway keeps every member with an ID minted once, a unique name and how it is recognized. An agent gets its token the first time it joins and keeps it in its home; a person is the OS user on the gateway's socket. A ticket replaces `identify`. A `shrimpy` command run from an agent's shell speaks as that agent. `@name` resolves through the roster, so a member can start a DM with any other.
 - The feed of events: posted, edited, deleted and reacted, with one cursor. An agent admits an event, and its receipt names the event it answered.
 - Connecting by name through the gateway, on one machine too, and by a home's path straight to its socket.
 
