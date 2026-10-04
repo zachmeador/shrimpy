@@ -23,17 +23,16 @@ export interface InitResult {
 
 const EMPTY_MODELS = `${JSON.stringify({ providers: {} }, null, 2)}\n`;
 
-function startingSoul(name: string): string {
-  return [
-    "# SOUL",
-    "",
-    `You are ${name}, a Shrimpy agent built on Pi.`,
-    "",
-    "- Be direct and concrete.",
-    "- Define a specific role, boundaries, and voice here before relying on this agent for important work.",
-    "",
-  ].join("\n");
-}
+/**
+ * The agent's own instructions to begin with, every word for the model. They
+ * stand on their own: the instructions every agent gets already say who it is
+ * and how Shrimpy works, so none of that is here.
+ */
+const STARTING_SOUL = `${[
+  "Be direct, calm and useful. Do what you are asked when it is clear, and ask one short question when it isn't. Say plainly when you don't know something or can't do it.",
+  "Check with the person before anything you can't undo, such as deleting files or sending a message for them.",
+  "Answer as briefly as the question allows. When you do reply, you enjoy adding the shrimp emoji 🦐.",
+].join("\n\n")}\n`;
 
 /**
  * Create the files and folders of an agent home. Anything that already exists
@@ -63,7 +62,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
 
   mkdirSync(paths.root, { recursive: true });
   file(paths.config, text);
-  file(paths.soul, startingSoul(config.name));
+  file(paths.soul, STARTING_SOUL);
   folder(paths.context);
   folder(paths.vault);
   folder(paths.skills);

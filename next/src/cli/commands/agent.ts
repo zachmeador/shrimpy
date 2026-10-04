@@ -39,11 +39,17 @@ const init: Command = {
       return 0;
     }
     io.out(`Created the agent ${values.name} in ${paths.root}, with the model ${modelLabel(model)}.`);
+    io.out("");
+    io.out("Next:");
     io.out(
-      "Give it access to that model by declaring its provider in " +
-        `${paths.models} or adding a key to ${paths.auth}. Then run:`,
+      `  1. Give ${values.name} access to that model. Declare its provider in ${paths.models}, ` +
+        `or add a key to ${paths.auth}.`,
     );
-    io.out(`  shrimpy agent serve ${paths.root}`);
+    io.out(`  2. Say who ${values.name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`);
+    io.out("  3. Start it, with the chat server's data in a folder of your choice:");
+    io.out(`       shrimpy up ${paths.root} --data <dir>`);
+    io.out("     Or, if Shrimpy is already running, add the agent to it:");
+    io.out(`       shrimpy agent serve ${paths.root}`);
     return 0;
   },
 };

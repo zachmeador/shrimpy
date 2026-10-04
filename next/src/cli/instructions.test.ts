@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { test } from "node:test";
+import { previewHomeContext } from "../agent/index.ts";
+import { tempDir } from "../lib/testing/index.ts";
+import { loadAll } from "./commands/index.ts";
+import { runCli } from "./index.ts";
+import { captureIo, commandLines, whyNotACommand } from "./testing/index.ts";
+
+/*
+ * What agents are told about Shrimpy's commands has to stay true of the commands
+ * there are. This reads the instructions, each skill that ships and what
+ * `agent init` prints, finds every `shrimpy` command line in them, and holds each
+ * to the CLI's own catalog of commands and flags.
+ */
+test("every shrimpy command line in what an agent is told is a command the CLI has", async (t) => {
+  const home = join(tempDir(t, "instructions"), "scout");
+  const init = captureIo();
+  assert.equal(await runCli(["agent", "init", home, "--name", "scout", "--model", "local/test-model"], init.io), 0);
+
+  const { sections, leftOut } = await previewHomeContext(home);
+  assert.deepEqual(leftOut, [], "every skill that ships is written right");
+  const texts = new Map<string, string>([["what agent init prints", init.out.join("\n")]]);
+  texts.set("the instructions", sections.find((section) => section.key === "shrimpy")?.text ?? "");
+  const trails = sections.find((section) => section.key === "skills")?.text ?? "";
+  for (const [, file = ""] of trails.matchAll(/^ {2}(\/\S.*SKILL\.md)$/gm)) texts.set(file, await readFile(file, "utf8"));
+  assert.equal(texts.size, 6, "the instructions, what init prints and the four skills");
+
+  const commands = await loadAll();
+  const problems: string[] = [];
+  for (const [where, text] of texts) {
+    const lines = commandLines(text);
+    assert.notEqual(lines.length, 0, `${where} names no command, so there is nothing to check`);
+    for (const line of lines) {
+      const why = whyNotACommand(line, commands);
+      if (why !== undefined) problems.push(`${where}: ${line} (${why})`);
+    }
+  }
+  assert.deepEqual(problems, []);
+});

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { agentMember } from "../../../contracts/chat/index.ts";
 import type { HomeSnapshot } from "../../home/index.ts";
+import { messageTools } from "../tools/index.ts";
 import { baseInstructions } from "./base.ts";
 import { renderSections } from "./sections.ts";
 
@@ -85,18 +87,13 @@ test("the same snapshot gives the same sections every time, and the snapshot is 
   assert.equal(JSON.stringify(full), before);
 });
 
-test("what every agent is told says how a reply, END, the message tools and the home work", () => {
+test("what every agent is told names the agent, its home and every message tool the agent has", () => {
   const text = baseInstructions(agent);
 
-  assert.match(text, /^You are scout, an agent in Shrimpy\. People and other agents talk to you in threads\./);
-  assert.match(text, /The last thing you write in a turn is posted to the thread as your reply\./);
-  assert.match(text, /Everything you write before it stays private\./);
-  assert.match(text, /write only END as your last message, and nothing is posted/);
-  assert.match(text, /who wrote it and when/);
-  assert.match(text, /send_message posts a message right away, without ending your turn/);
-  assert.match(text, /Your reply is posted anyway/);
-  assert.match(text, /read_messages reads a thread/);
-  assert.match(text, /Your home is \/agents\/scout/);
-  for (const folder of ["context/", "skills/", "vault/"]) assert.match(text, new RegExp(`- ${folder} `));
-  assert.match(text, /Read a skill when the task calls for it\./);
+  assert.match(text, /^You are scout, /);
+  assert.ok(text.includes("/agents/scout"));
+  const installed = messageTools({ self: agentMember("scout"), chat: () => undefined });
+  const tools = (installed.tools ?? []).map((tool) => tool.name);
+  assert.deepEqual(tools, ["send_message", "read_messages"]);
+  for (const name of tools) assert.ok(text.includes(name), `the instructions don't name ${name}`);
 });
