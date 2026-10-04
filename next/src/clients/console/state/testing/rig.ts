@@ -1,14 +1,15 @@
 import type { TestContext } from "node:test";
 import { type StandInAgent, startStandInAgent } from "../../../../contracts/agent/testing/index.ts";
-import { agentMember, type ChatConnection, personMember, type Thread } from "../../../../contracts/chat/index.ts";
+import { agentMember, type ChatConnection, type Thread } from "../../../../contracts/chat/index.ts";
 import { scriptedChat, type StandInChat, startStandInChat } from "../../../../contracts/chat/testing/index.ts";
 import { type StandInGateway, startStandInGateway } from "../../../../contracts/gateway/testing/index.ts";
 import { backoff } from "../../../../lib/retry/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../../../../lib/testing/index.ts";
 import { localTransports, type Transports } from "../../network/index.ts";
 import { type ConsoleState, createConsoleState, type Model } from "../index.ts";
+import { zach } from "./data.ts";
 
-export const me = personMember("zach");
+const me = zach;
 
 export interface RigOptions {
   /** The agents to run, by name. Each is registered with the gateway. Scout by default. */
