@@ -28,6 +28,14 @@ export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { startAgentChild } from "./child.ts";
 export { scout, zach } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
+export {
+  callingTools,
+  systemPromptOf,
+  type ToolAnswer,
+  type ToolCall,
+  type ToolScript,
+  toolsOf,
+} from "./tools.ts";
 export { answered, assistantItems, toolItems } from "./views.ts";
 
 /**

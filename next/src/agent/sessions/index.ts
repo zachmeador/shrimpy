@@ -9,3 +9,4 @@
 export type { SessionDefaults } from "./defaults.ts";
 export type { ServedSession } from "./service.ts";
 export { createSessions, type Sessions } from "./sessions.ts";
+export { type SessionThread, threadOfSession } from "./thread-of.ts";

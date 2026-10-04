@@ -7,7 +7,7 @@ import { openHost } from "../host/index.ts";
 import type { Outstanding, Snapshot, Turn, TurnOutcome } from "../intake/index.ts";
 import { type FauxScenario, fauxModels, loggedRequests, releaseGate } from "../testing/index.ts";
 import { ThreadsDoc } from "./documents.ts";
-import { createSessions } from "./index.ts";
+import { createSessions, threadOfSession } from "./index.ts";
 
 const timeout = 30_000;
 const context = BACKGROUND_CONTEXT;
@@ -374,6 +374,23 @@ test("no session keeps instructions of its own, and any an earlier start stored 
   const after = await open(t, home, "mixed");
 
   assert.deepEqual(await instructionsOf(after.host), [undefined]);
+});
+
+test("the thread a session is behind is found from the engine's number for the session, and a number no thread owns has none", { timeout }, async (t) => {
+  const { host, sessions } = await open(t, tempDir(t, "turns"), "mixed");
+  await sessions.turns.record(draft(1));
+  await sessions.turns.record(draft(2, "th_2", "ch_2"));
+  const threads = (await host.harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
+
+  assert.deepEqual(await threadOfSession(host.harness, threads.th_1?.conversationId ?? -1, context), {
+    threadId: "th_1",
+    channelId: "ch_1",
+  });
+  assert.deepEqual(await threadOfSession(host.harness, threads.th_2?.conversationId ?? -1, context), {
+    threadId: "th_2",
+    channelId: "ch_2",
+  });
+  assert.equal(await threadOfSession(host.harness, 9999, context), undefined);
 });
 
 test("a session for a thread works in the home, with the model the home names", { timeout }, async (t) => {

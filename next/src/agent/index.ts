@@ -7,11 +7,12 @@
  * about the chat server and the gateway beyond their contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
+import { agentMember } from "../contracts/chat/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
-import { type ContextPreview, homeContext, previewContext } from "./extensions/index.ts";
+import { type ContextPreview, homeContext, messageTools, previewContext } from "./extensions/index.ts";
 import { loadHome } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
-import { join, type JoinOptions } from "./join.ts";
+import { type Joined, join, type JoinOptions } from "./join.ts";
 import { startServer } from "./server.ts";
 import { createSessions, type SessionDefaults } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
@@ -63,7 +64,19 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
   const context = await homeContext({ name: options.name, home: options.home });
-  const host = await openHost(options, [context.extension]);
+  // The message tools are installed with the engine, before the agent has a link to chat: they ask for the one it has when they run.
+  let joined: Joined | undefined;
+  const messages =
+    options.join === undefined
+      ? []
+      : [
+          messageTools({
+            self: agentMember(options.name),
+            chat: () => joined?.chat(),
+            ...(options.join.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
+          }),
+        ];
+  const host = await openHost(options, [context.extension, ...messages]);
   try {
     const report = reporter(options);
     for (const { file, reason } of context.report.leftOut) report(new Error(`${file} was left out: ${reason}.`));
@@ -73,10 +86,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     host.resume();
     const server = await startServer(host, sessions, context);
     try {
-      const joined =
-        options.join === undefined
-          ? undefined
-          : join(options.name, options.join, server.endpoint, sessions.turns, report);
+      if (options.join !== undefined) joined = join(options.name, options.join, server.endpoint, sessions.turns, report);
       return { endpoint: server.endpoint, close: stopper({ host, server, joined }) };
     } catch (error) {
       await server.close();
