@@ -66,6 +66,14 @@ export function releaseGate(home: string): void {
   writeFileSync(join(home, "release"), "");
 }
 
+/**
+ * Wait until `releaseGate` has been called for `home`. The home going away ends
+ * the wait too, so a model nobody released does not outlive its test.
+ */
+export async function untilReleased(home: string): Promise<void> {
+  while (existsSync(home) && !existsSync(join(home, "release"))) await delay(10);
+}
+
 const SCRIPTS: Record<FauxScenario, Script> = {
   /** One long streamed answer, for interrupting the agent mid-stream. */
   stream: () => fauxAssistantMessage(LONG_TEXT),
@@ -120,8 +128,7 @@ const SCRIPTS: Record<FauxScenario, Script> = {
   },
 
   gated: async (messages, home) => {
-    // The home going away ends the wait, so a model nobody released does not outlive its test.
-    while (existsSync(home) && !existsSync(join(home, "release"))) await delay(10);
+    await untilReleased(home);
     return SCRIPTS.chat(messages, home);
   },
 };
@@ -135,11 +142,13 @@ export function fauxModels(options: {
   scenario?: FauxScenario;
   script?: Script;
   tokensPerSecond?: number;
+  /** How many characters a streamed piece holds. Long answers need big pieces to arrive in a reasonable time. */
+  tokenSize?: { min: number; max: number };
 }): { models: Models; model: AgentOptions["model"] } {
   const script = options.script ?? SCRIPTS[options.scenario ?? "chat"];
   const faux = fauxProvider({
     tokensPerSecond: options.tokensPerSecond ?? 400,
-    tokenSize: { min: 1, max: 2 },
+    tokenSize: options.tokenSize ?? { min: 1, max: 2 },
   });
   mkdirSync(options.home, { recursive: true });
   const respond: FauxResponseFactory = (request) => {

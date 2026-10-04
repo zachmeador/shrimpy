@@ -15,6 +15,7 @@ export interface AgentRigOptions {
   scenario?: FauxScenario;
   script?: Script;
   tokensPerSecond?: number;
+  tokenSize?: { min: number; max: number };
   /** A home that already has an agent's history, for a second agent on it. */
   home?: string;
   /** A stand-in chat that already has things said in it, for a second agent on it. */
@@ -68,6 +69,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
         scenario: options.scenario ?? (options.script === undefined ? "mixed" : undefined),
         script: options.script,
         tokensPerSecond: options.tokensPerSecond,
+        tokenSize: options.tokenSize,
       }),
       onReport: (error) => reports.push(error),
       join: {
