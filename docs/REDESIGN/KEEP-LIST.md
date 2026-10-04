@@ -1,6 +1,6 @@
 # 🦐 Keep List
 
-Status: in review. Compiled on 2026-10-04 by a read-only pass over today's docs, skills, agent instructions and the words in the product. Your first answers are under [Decided so far](#decided-so-far); every item not named there is still waiting.
+Status: in review. Compiled on 2026-10-04 by a read-only pass over today's docs, skills, agent instructions and the words in the product. Your first answers are under [Decided so far](#decided-so-far). An item not named there is kept unless you say otherwise.
 
 The docs, skills and agent instructions get [rewritten from scratch](PLAN.md#instructions-memory-and-skills) for the new Shrimpy, keeping the charming parts of today's. This is the list of those parts, quoted as they stand, for you to cut from or add to before anything is rewritten. A ★ marks the twelve the pass would least want to lose. Skill paths are under `src/skills/included/`, and template paths are under `src/setup/templates/workspace/`.
 
