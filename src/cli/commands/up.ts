@@ -116,7 +116,7 @@ async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch
     io.out(`Started the chat server (pid ${program.pid}), keeping its data in ${join(plan.data, "chat")}.`);
   } else {
     warnIfVersionDiffers(io, "the chat server", chat.version);
-    io.out(`The chat server is already running (pid ${chat.pid}); using it as it is.`);
+    io.out("The chat server is already running; using it as it is.");
   }
   if (stop.requests() > 0) return;
 

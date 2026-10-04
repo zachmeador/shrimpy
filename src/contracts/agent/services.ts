@@ -1,8 +1,22 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
-import type { Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
+import type { Member, Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
 
 /** Agent scope: which sessions exist, which one this connection watches, and the agent's home. */
 export interface SessionDirectory {
+  /**
+   * Come in, before anything else, with a ticket the gateway made for this
+   * agent. Nobody says who they are: the agent asks the gateway whose the ticket
+   * is, keeps the answer with the connection, and answers with that member as
+   * the roster has it now. What the member may do is the agent's to decide. A
+   * ticket works once, so a caller that is refused gets another. While the
+   * agent cannot reach the gateway it refuses to let anyone in, saying so.
+   *
+   * Only a connection that came through the gateway comes in this way, and it
+   * must. A connection made by the home's path is the person who owns the home,
+   * which the operating system has already decided, so it needs no ticket and
+   * is refused if it offers one.
+   */
+  enter(ticket: string, context: Context): Promise<Member>;
   list(context: Context): Promise<SessionSummary[]>;
   /**
    * Watch the session behind a thread: the thread's ID is its address. A

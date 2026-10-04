@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import type { Member } from "../../../contracts/chat/index.ts";
 import { joinRoster, startStandInChat } from "../../../contracts/chat/testing/index.ts";
+import type { Transports } from "../../../contracts/gateway/index.ts";
+import { localTransports } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, stopAfter, until, useRuntimeDir } from "../../../lib/testing/index.ts";
 import { type ChatLink, keepChat, type ThreadUpdate } from "./chat.ts";
 import { Down } from "./status.ts";
 import { POLL_MS, quick, startRegistry } from "./testing/index.ts";
-import { localTransports, type Transports } from "./transports.ts";
 
 const timeout = 15_000;
 
@@ -76,9 +77,9 @@ test("it reaches the chat server through the transports it is handed", { timeout
   const reached: string[] = [];
   const { link } = startLink(t, {
     ...local,
-    program(registration) {
-      reached.push(`${registration.kind} ${registration.name}`);
-      return local.program(registration);
+    program(target) {
+      reached.push(`${target.kind} ${target.name}`);
+      return local.program(target);
     },
   });
 

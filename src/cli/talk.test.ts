@@ -48,7 +48,7 @@ async function scoutsThreads(you: ChatConnection) {
 
 test("run posts to a new thread, prints the agent's reply, and puts the thread's ID on standard error", { timeout }, async (t) => {
   const talking = await startTalking(t);
-  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => answered("Three emails.") });
+  const agent = await startScriptedAgent(t, { name: "scout", handle: () => answered("Three emails.") });
 
   const result = await shrimpy(["run", "scout", "what is in my inbox?"]);
 
@@ -72,10 +72,9 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
 });
 
 test("the exit code says how the agent dealt with the message: 0 for an answer or for silence, 1 for a failure with its reason, 130 for stopped work", { timeout }, async (t) => {
-  const talking = await startTalking(t);
+  await startTalking(t);
   await startScriptedAgent(t, {
     name: "scout",
-    chat: talking.chat.listening,
     handle: (message): Outcome => {
       if (message.text === "silent") return { status: "silent" };
       if (message.text === "fail") return { status: "failed", detail: "the model refused the request" };
@@ -97,7 +96,7 @@ test("the exit code says how the agent dealt with the message: 0 for an answer o
 
 test("--thread continues a thread, and a thread that is not in your DM with the agent gets nothing posted", { timeout }, async (t) => {
   const talking = await startTalking(t);
-  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: (m) => answered(`ack: ${m.text}`) });
+  const agent = await startScriptedAgent(t, { name: "scout", handle: (m) => answered(`ack: ${m.text}`) });
   const first = await shrimpy(["run", "scout", "first"]);
   const thread = startedThread(first.stderr);
 
@@ -122,7 +121,7 @@ test("--thread continues a thread, and a thread that is not in your DM with the 
 test("--no-wait exits once the message is posted and prints the IDs to follow up with", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const finish = deferred<Outcome>();
-  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => finish.promise });
+  const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
 
   const result = await shrimpy(["run", "scout", "when you can", "--no-wait"]);
 
@@ -144,7 +143,7 @@ test("--no-wait exits once the message is posted and prints the IDs to follow up
 test("stopping run while it waits leaves the message and the agent's work alone, and exits 130", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const finish = deferred<Outcome>();
-  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => finish.promise });
+  const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
   const waiting = shrimpyInBackground(["run", "scout", "take your time"]);
   await until(() => agent.offered.length === 1, "the agent to be offered the message");
 
@@ -167,7 +166,7 @@ test("stopping run while it waits leaves the message and the agent's work alone,
 test("run says so when the chat server goes away while it waits, instead of waiting for nothing", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const finish = deferred<Outcome>();
-  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => finish.promise });
+  const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
   const waiting = shrimpyInBackground(["run", "scout", "take your time"]);
   await until(() => agent.offered.length === 1, "the agent to be offered the message");
   await until(() => waiting.output().stderr.includes(" started."), "run to say which thread it started");
@@ -221,7 +220,7 @@ test("stopping run while its message is still being sent says it may have been p
   });
   const registrations = await connectLocalGateway();
   stopAfter(t, () => registrations.close());
-  const program = { serverId: chat.serverId, socket: chat.socket, pid: process.pid, version: SHRIMPY_VERSION };
+  const program = { serverId: chat.serverId, socket: chat.socket, version: SHRIMPY_VERSION };
   await registrations.register({ kind: "chat", ...program });
   const agents = await connectLocalGateway();
   stopAfter(t, () => agents.close());
@@ -250,8 +249,8 @@ test("with no gateway running it says what to start, and exits 1", { timeout }, 
 
 test("an agent that is not registered can't answer, so nothing is posted and it says what to start", { timeout }, async (t) => {
   const talking = await startTalking(t);
-  await startScriptedAgent(t, { name: "rex", chat: talking.chat.listening, handle: () => answered("woof") });
-  await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => answered("hi"), register: false });
+  await startScriptedAgent(t, { name: "rex", handle: () => answered("woof") });
+  await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), register: false });
 
   const result = await shrimpy(["run", "scout", "hello"]);
 
@@ -262,8 +261,8 @@ test("an agent that is not registered can't answer, so nothing is posted and it 
 });
 
 test("a program of another version is named on standard error, and the command carries on", { timeout }, async (t) => {
-  const talking = await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => answered("hi"), version: "9.9.9" });
+  await startTalking(t);
+  await startScriptedAgent(t, { name: "scout", handle: () => answered("hi"), version: "9.9.9" });
 
   const result = await shrimpy(["run", "scout", "hello"]);
 

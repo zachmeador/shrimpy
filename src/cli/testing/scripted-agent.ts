@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { TestContext } from "node:test";
-import type { ChatEndpoint, ChatEvent } from "../../contracts/chat/index.ts";
+import type { ChatEvent } from "../../contracts/chat/index.ts";
 import { enterAsAgent, gatewayAsAgent } from "../../contracts/chat/testing/index.ts";
 import { runtimeDir } from "../../lib/runtime/node.ts";
 import { stopAfter, within } from "../../lib/testing/index.ts";
@@ -20,8 +20,6 @@ export type Outcome =
 
 export interface ScriptedAgentOptions {
   name: string;
-  /** The chat server it joins. */
-  chat: ChatEndpoint;
   /**
    * What it does with each post it is offered, one at a time. It is marked
    * as working in the post's thread until this settles, so a test can hold
@@ -46,9 +44,10 @@ export interface ScriptedAgent {
 /**
  * Stand in for an agent whose side of chat is not under test: it joins the
  * gateway's roster as the agent called `name`, registers there as that agent,
- * comes in to the chat server with a ticket, and for each post others make it
- * works as `handle` says and leaves the receipt. It needs the test's runtime
- * directory, with the gateway running, and it leaves when the test ends.
+ * comes in to the chat server by its name through the gateway, and for each
+ * post others make it works as `handle` says and leaves the receipt. It needs
+ * the test's runtime directory, with the gateway and the chat server running,
+ * and it leaves when the test ends.
  */
 export async function startScriptedAgent(t: TestContext, options: ScriptedAgentOptions): Promise<ScriptedAgent> {
   // Joined first, so that it is a member of the roster whether it registers or not.
@@ -58,11 +57,10 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
       kind: "agent",
       serverId: randomUUID(),
       socket: join(runtimeDir(), `${options.name}.sock`),
-      pid: process.pid,
       version: options.version ?? SHRIMPY_VERSION,
     });
   }
-  const connection = await enterAsAgent(t, options.chat, options.name);
+  const connection = await enterAsAgent(t, options.name);
   const self = connection.me;
 
   const offered: Posted[] = [];

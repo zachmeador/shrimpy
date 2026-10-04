@@ -22,7 +22,6 @@ await runUntilStopped(
       kind: "agent",
       serverId: randomUUID(),
       socket: `/tmp/${name}.sock`,
-      pid: process.pid,
       version: SHRIMPY_VERSION,
     });
     return gateway;

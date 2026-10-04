@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
-import { type Announcement, isProgramKind, type Registration } from "../../contracts/gateway/index.ts";
+import { isServerId } from "@earendil-works/pi-protocol";
+import { type Announcement, isProgramKind, type ProgramName, type Registration } from "../../contracts/gateway/index.ts";
 
 /** A peer sent something that is not a registration. */
 export class InvalidRegistrationError extends Error {
@@ -9,6 +10,16 @@ export class InvalidRegistrationError extends Error {
   }
 }
 
+/**
+ * A registered program with what only the gateway is told: the server ID it
+ * answers as and the socket the gateway pipes connections to. The registry's
+ * list never shows these.
+ */
+export interface Registered extends Registration {
+  serverId: string;
+  socket: string;
+}
+
 /** What one connection may register. */
 export interface Registrant {
   /**
@@ -16,7 +27,7 @@ export interface Registrant {
    * chat server, as nobody. Registering again replaces the earlier entry. Says
    * what was registered.
    */
-  register(announcement: unknown, memberId: string | null): Registration;
+  register(announcement: unknown, memberId: string | null): Registered;
   /** The connection is gone: drop its entry. */
   close(): void;
 }
@@ -24,10 +35,12 @@ export interface Registrant {
 export interface Registry {
   /** Start tracking one connection. */
   connect(): Registrant;
-  /** The live registrations, oldest first. */
+  /** The live registrations, oldest first, as clients are told of them. */
   list(): Registration[];
+  /** The name of each program that is registered, once. */
+  names(): ProgramName[];
   /** The newest live registration of a program. */
-  find(kind: Registration["kind"], name: string): Registration | undefined;
+  find(kind: Registration["kind"], name: string): Registered | undefined;
 }
 
 export interface RegistryOptions {
@@ -51,12 +64,15 @@ interface Entry {
 export function createRegistry(options: RegistryOptions): Registry {
   // A replaced entry moves to the end, so the map's order is oldest first.
   const entries = new Map<Registrant, Entry>();
-  const describe = ({ announcement, memberId }: Entry): Registration => ({
-    ...announcement,
+  const describe = ({ announcement, memberId }: Entry): Registered => ({
+    kind: announcement.kind,
     name: memberId === null ? CHAT_NAME : (options.nameOf(memberId) ?? memberId),
     memberId,
+    version: announcement.version,
+    serverId: announcement.serverId,
+    socket: announcement.socket,
   });
-  const list = (): Registration[] => [...entries.values()].map(describe);
+  const all = (): Registered[] => [...entries.values()].map(describe);
   return {
     connect() {
       let closed = false;
@@ -75,28 +91,28 @@ export function createRegistry(options: RegistryOptions): Registry {
       };
       return registrant;
     },
-    list,
-    find: (kind, name) => list().findLast((entry) => entry.kind === kind && entry.name === name),
+    list: () => all().map(({ kind, name, memberId, version }) => ({ kind, name, memberId, version })),
+    names() {
+      const seen = new Map<string, ProgramName>();
+      for (const { kind, name } of all()) seen.set(`${kind}\0${name}`, { kind, name });
+      return [...seen.values()];
+    },
+    find: (kind, name) => all().findLast((entry) => entry.kind === kind && entry.name === name),
   };
 }
 
 /** A peer sends JSON, so the contract's types hold only once this has checked it. */
 export function checkAnnouncement(value: unknown): Announcement {
   if (typeof value !== "object" || value === null) throw new InvalidRegistrationError("expected an object");
-  const { kind, serverId, socket, pid, version } = value as Record<string, unknown>;
+  const { kind, serverId, socket, version } = value as Record<string, unknown>;
   if (!isProgramKind(kind)) throw new InvalidRegistrationError('kind must be "agent" or "chat"');
-  if (typeof serverId !== "string" || serverId === "") {
-    throw new InvalidRegistrationError("serverId must be a non-empty string");
-  }
+  if (!isServerId(serverId)) throw new InvalidRegistrationError("serverId must be a lowercase UUID, version 4");
   if (typeof socket !== "string" || !isAbsolute(socket)) {
     throw new InvalidRegistrationError("socket must be an absolute path");
-  }
-  if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0) {
-    throw new InvalidRegistrationError("pid must be a positive integer");
   }
   // Only that there is one is checked: the gateway never refuses a program for which version it runs.
   if (typeof version !== "string" || version === "") {
     throw new InvalidRegistrationError("version must be a non-empty string");
   }
-  return { kind, serverId, socket, pid, version };
+  return { kind, serverId, socket, version };
 }

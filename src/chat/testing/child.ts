@@ -1,12 +1,13 @@
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
-import type { ChatEndpoint } from "../../contracts/chat/index.ts";
 import { startChild } from "../../lib/testing/index.ts";
 
 const childScript = fileURLToPath(new URL("./chat-child.ts", import.meta.url));
 
 export interface ChatChild {
-  readonly endpoint: ChatEndpoint;
+  /** The socket it listens on, which it told the gateway. */
+  readonly socket: string;
+  readonly pid: number;
   /** Stop the process with `signal`, and wait until it has gone. */
   kill(signal: NodeJS.Signals): Promise<void>;
 }
@@ -18,10 +19,9 @@ export interface ChatChild {
  * killed when the test ends if it is still running.
  */
 export async function startChatChild(t: TestContext, options: { dataDir: string }): Promise<ChatChild> {
-  const child = await startChild<ChatEndpoint & { event: string }>(t, {
+  const child = await startChild<{ event: string; socket: string; pid: number }>(t, {
     file: childScript,
     args: [options.dataDir],
   });
-  const { event: _event, ...endpoint } = child.line;
-  return { endpoint, kill: child.kill };
+  return { socket: child.line.socket, pid: child.line.pid, kill: child.kill };
 }

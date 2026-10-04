@@ -26,7 +26,6 @@ const announcement: Announcement = {
   kind: "chat",
   serverId: randomUUID(),
   socket: "/tmp/chat.sock",
-  pid: process.pid,
   version: "0.0.0",
 };
 
@@ -112,7 +111,7 @@ test("a registration the gateway refuses is reported with its reason, and tried 
       offer(
         Gateway,
         gatewayThatDoes({
-          register: () => Promise.reject(new Refusal("Invalid registration: pid must be a positive integer")),
+          register: () => Promise.reject(new Refusal("Invalid registration: version must be a non-empty string")),
         }),
       ),
   });
@@ -122,7 +121,7 @@ test("a registration the gateway refuses is reported with its reason, and tried 
   await until(() => errors.length >= 2, "two attempts to fail");
   await kept.stop();
 
-  assert.equal(errors[0]?.message, "Invalid registration: pid must be a positive integer");
+  assert.equal(errors[0]?.message, "Invalid registration: version must be a non-empty string");
   await until(() => gateway.connections() === 0, "the connections to close");
 });
 

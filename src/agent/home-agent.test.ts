@@ -111,7 +111,7 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.equal(agent.name, "scout");
   assert.equal(agent.home, paths.root);
   assert.deepEqual(await agentsOf(gateway), [
-    { kind: "agent", name: "scout", memberId: person.partner.id, ...agent.endpoint, version: SHRIMPY_VERSION },
+    { kind: "agent", name: "scout", memberId: person.partner.id, version: SHRIMPY_VERSION },
   ]);
   assert.equal(receipt.status, "answered");
   assert.deepEqual((await person.replies()).map((reply) => reply.text), ["Hello from qwen"]);

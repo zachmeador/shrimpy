@@ -9,6 +9,7 @@ import {
   type ProgramName,
   type Registration,
   type RosterEntry,
+  type Ticket,
 } from "./services.ts";
 
 export interface GatewayConnection {
@@ -27,8 +28,8 @@ export interface GatewayConnection {
   signIn(token: string, name: string | null): Promise<Member>;
   /** Everyone on the roster, oldest first. */
   members(): Promise<RosterEntry[]>;
-  /** A ticket for `target`, to hand to it. See `Gateway.ticket`. */
-  ticket(target: ProgramName): Promise<string>;
+  /** A ticket for `target`, to hand to it, with the server ID it answers as. See `Gateway.ticket`, and `reachProgram` for using one. */
+  ticket(target: ProgramName): Promise<Ticket>;
   /** Whose a ticket is. See `Gateway.redeem`. */
   redeem(ticket: string): Promise<Member>;
   /**

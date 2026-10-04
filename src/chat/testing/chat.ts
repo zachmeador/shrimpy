@@ -1,6 +1,7 @@
 import type { TestContext } from "node:test";
 import type { ChatConnection, Member } from "../../contracts/chat/index.ts";
 import {
+  connectToSocket,
   type Entered,
   enterAsAgent,
   enterAsPerson,
@@ -8,7 +9,6 @@ import {
   renameAgent,
   ticketForPerson,
 } from "../../contracts/chat/testing/index.ts";
-import { connectLocal } from "../../contracts/chat/node.ts";
 import { startTestGateway, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { backoff } from "../../lib/retry/index.ts";
@@ -19,9 +19,9 @@ export interface TestChat {
   readonly dataDir: string;
   /** The real gateway the chat server is registered with. */
   readonly gateway: TestGateway;
-  /** A connection that has not come in. */
+  /** A connection straight to the chat server's own socket, which has not come in: no client makes one, and a test of the chat server needs it. */
   connect(): Promise<ChatConnection>;
-  /** Come in as the person who runs the gateway. */
+  /** Come in as the person who runs the gateway, by the chat server's name through the gateway. */
   person(): Promise<Entered>;
   /** Come in as the agent called `name`. It joins the roster the first time, and is the same member each time after. */
   agent(name: string): Promise<Entered>;
@@ -49,12 +49,12 @@ export async function startTestChat(t: TestContext): Promise<TestChat> {
     dataDir,
     gateway,
     async connect() {
-      const connection = await connectLocal(chat.endpoint);
+      const connection = await connectToSocket(chat);
       stopAfter(t, () => connection.close());
       return connection;
     },
-    person: () => enterAsPerson(t, chat.endpoint),
-    agent: (name) => enterAsAgent(t, chat.endpoint, name),
+    person: () => enterAsPerson(t),
+    agent: (name) => enterAsAgent(t, name),
     member: (name) => joinRoster(t, name),
     rename: (name, renamed) => renameAgent(t, name, renamed),
     ticket: () => ticketForPerson(t),

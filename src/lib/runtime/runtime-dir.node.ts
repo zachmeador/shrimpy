@@ -52,10 +52,13 @@ function socketIn(file: string): string {
   return path;
 }
 
-/** A socket path for the thing identified by `key`, such as a home's path. */
-export function socketPathFor(key: string): string {
+/**
+ * A socket path for the thing identified by `key`, such as a home's path. A
+ * `role` gives it another socket, beside the first and named after it.
+ */
+export function socketPathFor(key: string, role?: string): string {
   const name = createHash("sha256").update(key).digest("hex").slice(0, 16);
-  return socketIn(`${name}.sock`);
+  return socketIn(role === undefined ? `${name}.sock` : `${name}-${role}.sock`);
 }
 
 /** A socket path with a fixed name, for the one program of its kind on this machine. */

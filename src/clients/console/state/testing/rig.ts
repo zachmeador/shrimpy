@@ -2,10 +2,11 @@ import type { TestContext } from "node:test";
 import { type StandInAgent, startStandInAgent } from "../../../../contracts/agent/testing/index.ts";
 import type { Member, Thread } from "../../../../contracts/chat/index.ts";
 import { type Entered, scriptedChat, type StandInChat, startStandInChat } from "../../../../contracts/chat/testing/index.ts";
+import type { Transports } from "../../../../contracts/gateway/index.ts";
+import { localTransports } from "../../../../contracts/gateway/node.ts";
 import { startTestGateway, type TestGateway } from "../../../../contracts/gateway/testing/index.ts";
 import { backoff } from "../../../../lib/retry/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../../../../lib/testing/index.ts";
-import { localTransports, type Transports } from "../../network/index.ts";
 import { type ConsoleState, createConsoleState, type Model } from "../index.ts";
 
 export interface RigOptions {
@@ -13,7 +14,7 @@ export interface RigOptions {
   agents?: string[];
   /** Run no gateway. */
   noGateway?: boolean;
-  /** How the console reaches what is running, given the way to this machine's sockets. */
+  /** How the console reaches what is running, given the way to this machine's gateway and the programs registered with it. */
   transports?: (local: Transports) => Transports;
   /** How long a notice stays, in milliseconds. */
   noticeMs?: number;

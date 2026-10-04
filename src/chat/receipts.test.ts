@@ -78,7 +78,7 @@ test("a receipt survives the chat server restarting", { timeout }, async (t) => 
   await chat.chat.close();
   const restarted = await startChat({ dataDir: chat.dataDir });
   stopAfter(t, () => restarted.close());
-  const again = await enterAsPerson(t, restarted.endpoint);
+  const again = await enterAsPerson(t);
 
   const [message] = await again.chat.read(main.id, null, 10);
   assert.deepEqual(message?.receipts, [

@@ -1,5 +1,6 @@
+import type { Transports } from "../../contracts/gateway/index.ts";
+import { localTransports } from "../../contracts/gateway/node.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
-import { localTransports, type Transports } from "./network/index.ts";
 import { farewellLine } from "./screen/index.ts";
 import { createConsoleState } from "./state/index.ts";
 
@@ -13,7 +14,7 @@ export interface ConsoleIo {
 
 export interface ConsoleOptions {
   io: ConsoleIo;
-  /** How to reach the gateway and the programs it lists. This machine's sockets by default. */
+  /** How to reach the gateway, and the programs registered with it by their names. This machine's sockets by default. */
   transports?: Transports;
   /** The terminal to draw on. The person's by default. */
   terminal?: ConsoleTerminal;

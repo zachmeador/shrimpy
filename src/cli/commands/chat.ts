@@ -21,7 +21,7 @@ const serve: Command = {
     return serveUntilStopped(
       io,
       () => startChat({ dataDir }),
-      (chat) => ({ event: "listening", dataDir, ...chat.endpoint }),
+      (chat) => ({ event: "listening", dataDir, serverId: chat.serverId, socket: chat.socket, pid: process.pid }),
     );
   },
 };

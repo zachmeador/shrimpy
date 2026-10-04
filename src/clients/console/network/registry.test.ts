@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test, type TestContext } from "node:test";
 import type { Announcement } from "../../../contracts/gateway/index.ts";
 import { keepRegistered, newToken } from "../../../contracts/gateway/node.ts";
@@ -9,12 +10,11 @@ import { quick, startRegistry } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-const announce = (kind: "agent" | "chat", name: string, pid = 4242): Announcement => ({
+const announce = (kind: "agent" | "chat", name: string, version = SHRIMPY_VERSION): Announcement => ({
   kind,
-  serverId: `${name}-id`,
+  serverId: randomUUID(),
   socket: `/tmp/${name}.sock`,
-  pid,
-  version: SHRIMPY_VERSION,
+  version,
 });
 
 /** The chat server registers; it is gone when `stop` is called or the test ends. */
@@ -29,9 +29,9 @@ function registerChat(t: TestContext) {
  * registers when it has one, as the same agent does again after the gateway has
  * been away. It is gone when `stop` is called or the test ends.
  */
-function registerAgent(t: TestContext, name: string, options: { token?: string; pid?: number } = {}) {
+function registerAgent(t: TestContext, name: string, options: { token?: string; version?: string } = {}) {
   let token = options.token;
-  const kept = keepRegistered(announce("agent", name, options.pid), {
+  const kept = keepRegistered(announce("agent", name, options.version), {
     backoff: quick(),
     async signIn(gateway) {
       if (token === undefined) {
@@ -106,7 +106,7 @@ test("a ticket for the chat server comes from the gateway, for the person who ru
 
   const ticket = await registry.ticket({ kind: "chat", name: "chat" });
 
-  assert.ok(ticket.length > 10);
+  assert.ok(ticket.value.length > 10);
   await gateway.outage();
   await until(() => registry.status().state === "down", "the loss to be noticed");
   await assert.rejects(registry.ticket({ kind: "chat", name: "chat" }), { name: "Down" });
@@ -116,13 +116,13 @@ test("the newest of programs with the same name is the one found", { timeout }, 
   useRuntimeDir(t);
   await startTestGateway(t);
   const registry = startRegistry(t);
-  const first = registerAgent(t, "scout", { pid: 1 });
+  const first = registerAgent(t, "scout", { version: "1.0.0" });
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "the first scout" });
   // A copy of the same agent, with the same token, is the same member twice.
-  registerAgent(t, "scout", { token: first.token(), pid: 2 });
+  registerAgent(t, "scout", { token: first.token(), version: "2.0.0" });
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 2, { what: "the second scout" });
 
-  assert.equal((await registry.untilListed((listed) => listed.name === "scout", new AbortController().signal)).pid, 2);
+  assert.equal((await registry.untilListed((listed) => listed.name === "scout", new AbortController().signal)).version, "2.0.0");
 });
 
 test("closing stops it at once, even while the gateway is not there", { timeout }, async (t) => {

@@ -1,8 +1,8 @@
 import type { TestContext } from "node:test";
 import { DisconnectedError } from "@earendil-works/pi-client";
-import type { ChatConnection } from "../../../contracts/chat/index.ts";
-import { connectLocal } from "../../../contracts/chat/node.ts";
+import { type ChatConnection, connectChat } from "../../../contracts/chat/index.ts";
 import { gatewayAsAgent } from "../../../contracts/chat/testing/index.ts";
+import { localTransports } from "../../../contracts/gateway/node.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import { openChatLink } from "../../links/index.ts";
@@ -57,7 +57,8 @@ export async function startIntakeRig(t: TestContext, options: IntakeRigOptions =
 
   const link = openChatLink({
     gateway: { untilUp: () => Promise.resolve(gateway) },
-    connect: async (registered) => faulty(await connectLocal(registered), faults),
+    transports: localTransports(),
+    connect: async (options) => faulty(await connectChat(options), faults),
     onError: (error) => errors.push(error),
     backoff: backoff({ firstMs: 5, maxMs: 20 }),
   });

@@ -2,10 +2,10 @@ import { createServer, type IncomingMessage, type Server, STATUS_CODES } from "n
 import type { AddressInfo, Socket } from "node:net";
 import type { Duplex } from "node:stream";
 import { DEFAULT_MAX_FRAME_LENGTH } from "@earendil-works/pi-protocol";
-import { WebSocketServer } from "ws";
+import { createWebSocketStream, WebSocketServer } from "ws";
 import { parseWebSocketPath, type WebTarget } from "../../contracts/gateway/index.ts";
+import { bridge, connectUpstream } from "../pipe/index.ts";
 import { isOwnOrigin } from "./origin.ts";
-import { bridge, connectUpstream } from "./pipe.ts";
 import { staticFiles } from "./static.ts";
 
 /** Loopback only. Nothing authenticates a connection to the browser entry yet. */
@@ -69,7 +69,7 @@ export async function startWeb(
     upstream.once("close", () => upstreams.delete(upstream));
     // The handshake can still fail, and then no bridge ever owns the upstream.
     socket.once("close", () => upstream.destroy());
-    webSockets.handleUpgrade(request, socket, head, (ws) => bridge(ws, upstream));
+    webSockets.handleUpgrade(request, socket, head, (ws) => bridge(createWebSocketStream(ws), upstream));
   }
 
   http.on("upgrade", (request, socket, head) => {

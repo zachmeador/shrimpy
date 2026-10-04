@@ -15,11 +15,11 @@ export interface HomePaths {
   readonly auth: string;
   /** Pi's model file for this home: custom providers and their models. */
   readonly models: string;
-  /** The agent's ID in the gateway's roster and its token, kept after it first joins the network. */
+  /** The agent's token, made before it first joins the network, and its ID in the gateway's roster once it has joined. */
   readonly member: string;
   /** The engine's storage. Only the owner process opens it. */
   readonly database: string;
-  /** Disposable files: the owner lock, the endpoint, sockets and logs. */
+  /** Disposable files: the owner lock, where to find the agent by this home's path, and the shrimpy command below. */
   readonly runtime: string;
   /** Where the owner puts the `shrimpy` command its agent's shell runs. */
   readonly bin: string;

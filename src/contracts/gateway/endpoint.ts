@@ -1,5 +1,5 @@
 import { decodeUri } from "../../lib/uri/index.ts";
-import type { Registration } from "./services.ts";
+import type { ProgramName, Registration } from "./services.ts";
 
 /** Names the gateway's Unix socket in the runtime directory. A machine has one gateway. */
 export const GATEWAY_SOCKET_NAME = "gateway";
@@ -19,7 +19,7 @@ export function isProgramKind(value: unknown): value is Registration["kind"] {
 }
 
 /** A byte pipe a browser can open: to the gateway itself, or to a registered program. */
-export type WebTarget = "gateway" | Pick<Registration, "kind" | "name">;
+export type WebTarget = "gateway" | ProgramName;
 
 /** The path of the WebSocket that pipes to `target` on the gateway's browser entry. */
 export function webSocketPath(target: WebTarget): string {

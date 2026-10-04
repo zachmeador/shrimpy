@@ -32,7 +32,7 @@ test("a browser reads the registry and reaches a registered program through the 
 
     const [found] = await browser.list();
     assert.equal(found?.name, "echo");
-    agentClient = await connectEcho(found.serverId, webSocketTransport(`${base}${webSocketPath(found)}`));
+    agentClient = await connectEcho(echo.serverId, webSocketTransport(`${base}${webSocketPath(found)}`));
     assert.equal(await agentClient.echo("through the gateway"), "echo: through the gateway");
   } finally {
     await agentClient?.close();

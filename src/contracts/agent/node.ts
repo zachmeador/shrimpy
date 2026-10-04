@@ -1,7 +1,7 @@
 /**
- * The Node-only door of the agent contract: reaching an agent on this machine
- * over its Unix socket, and reading and keeping the membership its home holds.
- * Browser code must not import this file.
+ * The Node-only door of the agent contract: reaching the agent of a home by
+ * the home's path, over the agent's socket for it, and reading and keeping the
+ * membership the home holds. Browser code must not import this file.
  */
 import { readFileSync } from "node:fs";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
@@ -33,7 +33,10 @@ export function readEndpoint(home: string): AgentEndpoint | undefined {
   }
 }
 
-/** Connect to the agent that owns `home`. Fails with `AgentNotRunningError` if none is listening. */
+/**
+ * Connect straight to the agent that owns `home`, by the home's path, with no
+ * gateway and no ticket. Fails with `AgentNotRunningError` if none is listening.
+ */
 export async function attachLocal(home: string): Promise<AgentConnection> {
   const endpoint = readEndpoint(home);
   if (endpoint === undefined) throw new AgentNotRunningError(home);

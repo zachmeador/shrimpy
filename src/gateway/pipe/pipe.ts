@@ -1,6 +1,5 @@
 import { createConnection, type Socket } from "node:net";
-import { pipeline } from "node:stream";
-import { createWebSocketStream, type WebSocket } from "ws";
+import { type Duplex, pipeline } from "node:stream";
 
 /** Connect to a program's Unix socket. Rejects when nothing is listening there. */
 export function connectUpstream(path: string): Promise<Socket> {
@@ -17,16 +16,16 @@ export function connectUpstream(path: string): Promise<Socket> {
 }
 
 /**
- * Join a WebSocket and a program's socket into one byte stream. Each side
- * waits for the other to take what it sends, so a slow reader slows the
+ * Join a client's stream and a program's stream into one byte stream. Each
+ * side waits for the other to take what it sends, so a slow reader slows the
  * writer instead of filling the gateway's memory. When either side closes,
  * what it already sent is delivered and then the other side is closed; when
- * either side fails, both are dropped at once.
+ * either side fails, both are dropped at once. The program's stream is
+ * wherever the program is reached from, such as its Unix socket.
  */
-export function bridge(ws: WebSocket, upstream: Socket): void {
-  const stream = createWebSocketStream(ws);
-  pipeline(stream, upstream, stream, () => {
-    stream.destroy();
+export function bridge(client: Duplex, upstream: Duplex): void {
+  pipeline(client, upstream, client, () => {
+    client.destroy();
     upstream.destroy();
   });
 }

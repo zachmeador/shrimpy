@@ -3,10 +3,14 @@ import { type Context, defineService } from "@earendil-works/chord";
 /** What a program says about itself when it registers. */
 export interface Announcement {
   kind: "agent" | "chat";
+  /** The server ID the program answers as. A client needs it to speak to the program, and gets it with its ticket. */
   serverId: string;
-  /** Absolute path of the program's Unix socket. */
+  /**
+   * Absolute path of the Unix socket the gateway pipes connections to. Only the
+   * gateway is told: the gateway's list never shows it, and a client reaches the
+   * program through the gateway by its name.
+   */
   socket: string;
-  pid: number;
   /**
    * The version of Shrimpy the program runs. Programs upgrade together, so this
    * is how a mismatch between peers gets reported. The gateway lists it and
@@ -15,16 +19,29 @@ export interface Announcement {
   version: string;
 }
 
-/** A program other programs can reach on this machine, as the gateway lists it. */
-export interface Registration extends Announcement {
+/** A program other programs can reach through the gateway, as the gateway lists it. */
+export interface Registration {
+  kind: Announcement["kind"];
   /** An agent's name as the roster has it now, or `chat` for the chat server. */
   name: string;
   /** The member an agent is. The chat server is a program and not a member, so it has none. */
   memberId: string | null;
+  version: Announcement["version"];
 }
 
-/** Which program a ticket is for. */
+/** A program is reached by its name. */
 export type ProgramName = Pick<Registration, "kind" | "name">;
+
+/** What a client is given to be let in to a program. */
+export interface Ticket {
+  /**
+   * To hand to the program, which asks the gateway whose it is. It is good
+   * once, for a short time, and for that program only.
+   */
+  value: string;
+  /** The server ID the program answers as, which the client needs to speak to it. */
+  serverId: string;
+}
 
 /** Someone on the network: a person or an agent. */
 export interface Member {
@@ -45,9 +62,9 @@ export interface RosterEntry extends Member {
 }
 
 /**
- * Connection scope: finding the programs that are running and knowing who is
- * on the network. The gateway only connects things; it never holds an agent's
- * home, its work or a conversation.
+ * Connection scope: finding the programs that are running, knowing who is on
+ * the network, and being let in to a program. The gateway only connects things;
+ * it never holds an agent's home, its work or a conversation.
  *
  * Nobody says who they are: a connection that signed in with an agent's token
  * is that agent, and one that did not, on the gateway's own socket, is the
@@ -94,12 +111,14 @@ export interface Gateway {
 
   /**
    * A ticket for one program, to hand to it so that it can ask who the caller
-   * is. The caller is the member this connection signed in as, or the person who
-   * runs the gateway when it did not sign in. A ticket is good once, for a short
-   * time, and for `target` only, which must be registered. Today the only
-   * target is the chat server. Only a program on the gateway's machine can ask.
+   * is, with the server ID the program answers as. A client connects to a
+   * program through the gateway by its name, and the ticket is the first thing
+   * it hands over. The caller is the member this connection signed in as, or the
+   * person who runs the gateway when it did not sign in. A ticket is good once,
+   * for a short time, and for `target` only, which must be registered. Only a
+   * program on the gateway's machine can ask.
    */
-  ticket(target: ProgramName, context: Context): Promise<string>;
+  ticket(target: ProgramName, context: Context): Promise<Ticket>;
   /**
    * Whose a ticket is, as the roster has the member now. Only the registered
    * program the ticket was made for can ask, and a ticket answers once.

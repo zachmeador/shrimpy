@@ -14,5 +14,5 @@ if (dataDir === undefined) throw new Error("usage: chat-child.ts <dataDir>");
 
 await runUntilStopped(
   () => startChat({ dataDir }),
-  (chat) => ({ event: "listening", ...chat.endpoint }),
+  (chat) => ({ event: "listening", serverId: chat.serverId, socket: chat.socket, pid: process.pid }),
 );

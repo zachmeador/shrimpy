@@ -5,13 +5,14 @@ import {
   type Member,
   type ThreadView,
 } from "../../../contracts/chat/index.ts";
-import { isNotListening } from "../../../lib/connection/index.ts";
+import { reachProgram, type Transports } from "../../../contracts/gateway/index.ts";
+import { isDisconnected } from "../../../lib/connection/index.ts";
+import { isRefusal } from "../../../lib/refusal/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { converge } from "./converge.ts";
 import { keepConnection } from "./keep.ts";
 import type { RegistryLink } from "./registry.ts";
 import { Down, type LinkStatus, type Problem, problemOf } from "./status.ts";
-import type { Transports } from "./transports.ts";
 
 /** What the followed thread looks like now, or why it could not be followed. */
 export type ThreadUpdate = { threadId: string; view: ThreadView } | { threadId: string; problem: Problem };
@@ -46,9 +47,9 @@ export interface ChatLink {
 }
 
 /**
- * Keep a connection to the chat server the gateway lists: take a ticket from
- * the gateway, connect, come in with it, hold the connection, and keep
- * following the thread that is wanted across losses. Nobody says who the
+ * Keep a connection to the chat server the gateway lists: reach it by its name
+ * through the gateway, with a ticket to come in with, hold the connection, and
+ * keep following the thread that is wanted across losses. Nobody says who the
  * console is: the gateway does, and chat says it back.
  */
 export function keepChat(options: ChatLinkOptions): ChatLink {
@@ -92,28 +93,26 @@ export function keepChat(options: ChatLinkOptions): ChatLink {
         () => waiting({ kind: "not-registered" }),
       );
       waiting({ kind: "connecting" });
-      const connection = await connectChat({
-        serverId: registration.serverId,
-        transportFactory: options.transports.program(registration),
-        signal,
-      }).catch((error: unknown) => {
-        if (signal.aborted) throw error;
-        // Nothing listening where the gateway says the chat server is, is the chat server having gone away.
-        if (isNotListening(error)) throw new Down({ kind: "lost" }, { cause: error });
+      try {
+        const { connection, entered } = await reachProgram({
+          gateway: options.registry,
+          transports: options.transports,
+          target: { kind: registration.kind, name: registration.name },
+          connect: connectChat,
+          enter: (opened, ticket, enterSignal) => opened.chat.enter(ticket, enterSignal),
+          signal,
+        });
+        options.onEntered(entered);
+        return connection;
+      } catch (error) {
+        if (signal.aborted || error instanceof Down || isRefusal(error)) throw error;
+        // A connection that ends at once, or a way in that is gone, is the chat server having gone away.
+        if (isDisconnected(error)) throw new Down({ kind: "lost" }, { cause: error });
         throw new Down(
-          { kind: "unreachable", message: `Could not reach the chat server at ${registration.socket}: ${(error as Error).message}` },
+          { kind: "unreachable", message: `Could not reach the chat server through the gateway: ${(error as Error).message}` },
           { cause: error },
         );
-      });
-      try {
-        // A ticket is good once and for a short time, so it is asked for when there is a connection to hand it to.
-        const ticket = await options.registry.ticket({ kind: registration.kind, name: registration.name });
-        options.onEntered(await connection.chat.enter(ticket, signal));
-      } catch (error) {
-        await connection.close().catch(() => undefined);
-        throw error;
       }
-      return connection;
     },
     onUp() {
       refused = undefined;

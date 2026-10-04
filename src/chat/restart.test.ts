@@ -12,13 +12,13 @@ import { mainThread, readAll, startChatChild } from "./testing/index.ts";
 const timeout = 60_000;
 
 for (const signal of ["SIGKILL", "SIGTERM"] as const) {
-  test(`messages, cursors and the server's ID survive it being stopped with ${signal}`, { timeout }, async (t) => {
+  test(`messages and cursors survive the chat server being stopped with ${signal}`, { timeout }, async (t) => {
     useRuntimeDir(t);
     await startTestGateway(t);
     const dataDir = tempDir(t, "chat-data");
     const first = await startChatChild(t, { dataDir });
-    const zach = await enterAsPerson(t, first.endpoint);
-    const shrimpy = await enterAsAgent(t, first.endpoint, "Shrimpy");
+    const zach = await enterAsPerson(t);
+    const shrimpy = await enterAsAgent(t, "Shrimpy");
     const dm = await zach.chat.openDm(shrimpy.me.id);
     const main = await mainThread(zach, dm.id);
     const one = await zach.chat.post(main.id, "one", "zach-1");
@@ -32,15 +32,13 @@ for (const signal of ["SIGKILL", "SIGTERM"] as const) {
 
     await first.kill(signal);
     await dropped;
-    assert.equal(existsSync(first.endpoint.socket), signal === "SIGKILL");
+    assert.equal(existsSync(first.socket), signal === "SIGKILL");
     const second = await startChatChild(t, { dataDir });
-    const zachAgain = await enterAsPerson(t, second.endpoint);
-    const shrimpyAgain = await enterAsAgent(t, second.endpoint, "Shrimpy");
+    const zachAgain = await enterAsPerson(t);
+    const shrimpyAgain = await enterAsAgent(t, "Shrimpy");
     assert.equal(shrimpyAgain.me.id, shrimpy.me.id, "the agent is the same member");
 
-    assert.equal(second.endpoint.serverId, first.endpoint.serverId);
-    assert.equal(second.endpoint.socket, first.endpoint.socket);
-    assert.notEqual(second.endpoint.pid, first.endpoint.pid);
+    assert.notEqual(second.pid, first.pid);
     assert.deepEqual(await zachAgain.chat.channels(), [dm]);
     assert.deepEqual(await zachAgain.chat.read(main.id, null, 10), [one, two]);
     assert.equal(await shrimpyAgain.chat.head(), two.seq);
@@ -62,7 +60,7 @@ test("posts that were acknowledged survive a kill, and retrying every post leave
   await startTestGateway(t);
   const dataDir = tempDir(t, "chat-data");
   const first = await startChatChild(t, { dataDir });
-  const zach = await enterAsPerson(t, first.endpoint);
+  const zach = await enterAsPerson(t);
   const dm = await zach.chat.openDm((await joinRoster(t, "Shrimpy")).id);
   const main = await mainThread(zach, dm.id);
   const requests = Array.from({ length: 300 }, (_, index) => ({ id: `zach-${index}`, text: `message ${index}` }));
@@ -84,8 +82,8 @@ test("posts that were acknowledged survive a kill, and retrying every post leave
   assert.ok(acknowledged.size >= 20);
   assert.ok(acknowledged.size < requests.length, "the kill came too late to interrupt anything");
 
-  const second = await startChatChild(t, { dataDir });
-  const again = await enterAsPerson(t, second.endpoint);
+  await startChatChild(t, { dataDir });
+  const again = await enterAsPerson(t);
   const stored = await readAll(again, main.id);
   for (const message of acknowledged.values()) {
     assert.deepEqual(stored.find((candidate) => candidate.id === message.id), message);
@@ -118,6 +116,5 @@ test("a chat server in another process keeps this one out, and a killed one free
   await child.kill("SIGKILL");
   const taken = await startChat({ dataDir });
   stopAfter(t, () => taken.close());
-  assert.equal(taken.endpoint.serverId, child.endpoint.serverId);
-  assert.equal(taken.endpoint.pid, process.pid);
+  assert.equal(taken.socket, child.socket);
 });

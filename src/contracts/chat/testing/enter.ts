@@ -1,10 +1,10 @@
 import type { TestContext } from "node:test";
+import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { stopAfter } from "../../../lib/testing/index.ts";
-import type { GatewayConnection } from "../../gateway/index.ts";
-import { newToken } from "../../gateway/node.ts";
+import { type GatewayConnection, reachProgram, type Ticket } from "../../gateway/index.ts";
+import { localTransports, newToken } from "../../gateway/node.ts";
 import { startTestGateway } from "../../gateway/testing/index.ts";
-import type { ChatConnection, ChatEndpoint, Member } from "../index.ts";
-import { connectLocal } from "../node.ts";
+import { type ChatConnection, connectChat, type Member } from "../index.ts";
 
 /** A connection to the chat server that has come in, and who the gateway says it is. */
 export interface Entered extends ChatConnection {
@@ -13,15 +13,16 @@ export interface Entered extends ChatConnection {
 
 const tokens = new WeakMap<TestContext, Map<string, string>>();
 
+const CHAT = { kind: "chat", name: "chat" } as const;
+
 /**
- * Come in to the chat server at `endpoint` as the person who runs the gateway:
- * a ticket from the gateway, which has no one signed in on this connection to
- * say otherwise, handed to the chat server. The test needs the gateway the chat
- * server is registered with, which is the test's own. The connection is closed
- * when the test ends.
+ * Come in to the chat server as the person who runs the gateway: by its name
+ * through the gateway, which has no one signed in on this connection to say
+ * otherwise. The test needs the gateway the chat server is registered with,
+ * which is the test's own. The connection is closed when the test ends.
  */
-export async function enterAsPerson(t: TestContext, endpoint: ChatEndpoint): Promise<Entered> {
-  return enterWith(t, endpoint, await (await startTestGateway(t)).connect());
+export async function enterAsPerson(t: TestContext): Promise<Entered> {
+  return enterWith(t, await (await startTestGateway(t)).connect());
 }
 
 /**
@@ -30,13 +31,8 @@ export async function enterAsPerson(t: TestContext, endpoint: ChatEndpoint): Pro
  * gateway's roster with that name, and after that it signs in with the token
  * that gave it, so it is the same member each time.
  */
-export async function enterAsAgent(
-  t: TestContext,
-  endpoint: ChatEndpoint,
-  name: string,
-  given?: string,
-): Promise<Entered> {
-  return enterWith(t, endpoint, await gatewayAsAgent(t, name, given));
+export async function enterAsAgent(t: TestContext, name: string, given?: string): Promise<Entered> {
+  return enterWith(t, await gatewayAsAgent(t, name, given));
 }
 
 /**
@@ -89,7 +85,7 @@ export async function memberNamed(t: TestContext, name: string): Promise<Member>
 
 /**
  * Rename the agent called `name` at the gateway, as an agent that starts again
- * under another name is. It is `renamed` from then on, to this helper and to
+ * under another name does. It is `renamed` from then on, to this helper and to
  * the ones that come in as an agent.
  */
 export async function renameAgent(t: TestContext, name: string, renamed: string): Promise<Member> {
@@ -102,21 +98,16 @@ export async function renameAgent(t: TestContext, name: string, renamed: string)
   return member;
 }
 
-/** A ticket for the chat server, for the person who runs the gateway, once the chat server is registered. */
-export async function ticketForPerson(t: TestContext): Promise<string> {
-  return chatTicket(await (await startTestGateway(t)).connect());
-}
-
 /**
  * Ask the gateway for a ticket for the chat server. The chat server may be a
  * moment from being registered, so a refusal is tried again for a few seconds
  * before it is reported.
  */
-async function chatTicket(gateway: GatewayConnection): Promise<string> {
+async function chatTicket(gateway: GatewayConnection): Promise<Ticket> {
   const deadline = Date.now() + 10_000;
   for (;;) {
     try {
-      return await gateway.ticket({ kind: "chat", name: "chat" });
+      return await gateway.ticket(CHAT);
     } catch (error) {
       if (Date.now() > deadline) throw new Error("The chat server did not register with the gateway", { cause: error });
       await new Promise((resolve) => setTimeout(resolve, 25));
@@ -124,25 +115,43 @@ async function chatTicket(gateway: GatewayConnection): Promise<string> {
   }
 }
 
+/** A ticket for the chat server, for the person who runs the gateway, once the chat server is registered. */
+export async function ticketForPerson(t: TestContext): Promise<string> {
+  return (await chatTicket(await (await startTestGateway(t)).connect())).value;
+}
+
 /**
- * Ask the gateway for a ticket and hand it to the chat server. The chat server
- * may be a moment from being able to ask the gateway, so a refusal is tried
- * again for a few seconds before it is reported.
+ * Connect straight to a chat server's own socket, which no client does and a
+ * test of the chat server itself must: it shows what the chat server does with
+ * a connection that has not come in, or cannot be told who it is. The test
+ * closes the connection.
  */
-async function enterWith(t: TestContext, endpoint: ChatEndpoint, gateway: GatewayConnection): Promise<Entered> {
+export function connectToSocket(program: { serverId: string; socket: string }): Promise<ChatConnection> {
+  return connectChat({
+    serverId: program.serverId,
+    transportFactory: createUnixTransportFactory({ path: program.socket }),
+  });
+}
+
+/**
+ * Reach the chat server by its name through the gateway and come in with the
+ * ticket. The chat server may be a moment from being able to ask the gateway
+ * whose a ticket is, so a refusal is tried again for a few seconds before it is
+ * reported.
+ */
+async function enterWith(t: TestContext, gateway: GatewayConnection): Promise<Entered> {
   const deadline = Date.now() + 10_000;
   for (;;) {
     try {
-      const ticket = await chatTicket(gateway);
-      const connection = await connectLocal(endpoint);
-      try {
-        const me = await connection.chat.enter(ticket);
-        stopAfter(t, () => connection.close());
-        return { ...connection, me };
-      } catch (error) {
-        await connection.close().catch(() => undefined);
-        throw error;
-      }
+      const { connection, entered } = await reachProgram({
+        gateway,
+        transports: localTransports(),
+        target: CHAT,
+        connect: connectChat,
+        enter: (opened, ticket) => opened.chat.enter(ticket),
+      });
+      stopAfter(t, () => connection.close());
+      return { ...connection, me: entered };
     } catch (error) {
       if (Date.now() > deadline) throw new Error("Could not come in to chat", { cause: error });
       await new Promise((resolve) => setTimeout(resolve, 25));

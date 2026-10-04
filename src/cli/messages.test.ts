@@ -14,7 +14,7 @@ const THUMBS_UP = "\u{1F44D}";
 
 test("edit, delete, react and unreact change a message as whoever runs them, and read shows it as it now stands", { timeout }, async (t) => {
   const talking = await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => ({ status: "answered", text: "Noted." }) });
+  await startScriptedAgent(t, { name: "scout", handle: () => ({ status: "answered", text: "Noted." }) });
   const started = await shrimpy(["run", "scout", "first draft"]);
   const thread = /^Thread (th_\w+) started\./m.exec(started.stderr)?.[1] ?? "";
   const you = await talking.you();

@@ -1,4 +1,4 @@
-import type { AgentEndpoint, Membership } from "../../contracts/agent/index.ts";
+import type { Membership } from "../../contracts/agent/index.ts";
 import type { GatewayConnection } from "../../contracts/gateway/index.ts";
 import {
   type KeepRegisteredOptions,
@@ -19,8 +19,12 @@ export interface MembershipStore {
 export interface GatewayLinkOptions extends Pick<KeepRegisteredOptions, "transportFactory" | "backoff"> {
   /** The name the agent asks the roster to call it. */
   name: string;
-  /** Where the agent is listening. */
-  endpoint: AgentEndpoint;
+  /**
+   * What the agent tells the gateway about where it listens: the server ID it
+   * answers as and the socket the gateway pipes connections to, which is the
+   * one that asks for a ticket.
+   */
+  listening: { serverId: string; socket: string };
   membership: MembershipStore;
   /** The file that says what the agent is called and the file that holds its token, for telling a person which to look at. */
   files: { name: string; membership: string };
@@ -74,9 +78,8 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
   return keepRegistered(
     {
       kind: "agent",
-      serverId: options.endpoint.serverId,
-      socket: options.endpoint.socket,
-      pid: options.endpoint.pid,
+      serverId: options.listening.serverId,
+      socket: options.listening.socket,
       version: SHRIMPY_VERSION,
     },
     {

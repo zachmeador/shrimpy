@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { connectLocal } from "../contracts/chat/node.ts";
+import { connectToSocket } from "../contracts/chat/testing/index.ts";
 import { eventually, stopAfter, tempDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { type CliResult, isAlive, serveChat, serveGateway, shrimpy } from "./testing/index.ts";
@@ -14,7 +14,7 @@ import { type CliResult, isAlive, serveChat, serveGateway, shrimpy } from "./tes
 
 const timeout = 60_000;
 
-/** The programs `gateway status` lists, each as its cells: kind, name, version and pid. */
+/** The programs `gateway status` lists, each as its cells: kind, name and version. */
 function listed(status: CliResult): string[][] {
   const programs = status.stdout.split("\n\n")[0] ?? "";
   return programs
@@ -33,20 +33,20 @@ function statusWithChat(): Promise<CliResult> {
   );
 }
 
-test("gateway status shows the chat server once both run, with its version and pid", { timeout }, async (t) => {
+test("gateway status shows the chat server once both run, with its version and nothing of where it listens", { timeout }, async (t) => {
   const gateway = await serveGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  await serveChat(t, tempDir(t, "chat-data"));
 
   const status = await statusWithChat();
 
   assert.equal(status.code, 0, status.stderr);
-  assert.deepEqual(listed(status), [["chat", "chat", SHRIMPY_VERSION, String(chat.listening.pid)]]);
+  assert.deepEqual(listed(status), [["chat", "chat", SHRIMPY_VERSION]]);
   assert.equal(gateway.listening.webPort, null);
 });
 
 test("a gateway that was killed and started again has the chat server registered again", { timeout }, async (t) => {
   const first = await serveGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  await serveChat(t, tempDir(t, "chat-data"));
   await statusWithChat();
 
   await first.stop("SIGKILL");
@@ -54,7 +54,7 @@ test("a gateway that was killed and started again has the chat server registered
   const second = await serveGateway(t);
 
   const again = await statusWithChat();
-  assert.deepEqual(listed(again), [["chat", "chat", SHRIMPY_VERSION, String(chat.listening.pid)]]);
+  assert.deepEqual(listed(again), [["chat", "chat", SHRIMPY_VERSION]]);
   assert.notEqual(second.listening.pid, first.listening.pid);
 });
 
@@ -73,7 +73,7 @@ test("a chat server stops promptly when the gateway it is registered with has st
 
 test("a chat server with no gateway running serves, refuses to let anyone in and says why, and stops with 0", { timeout }, async (t) => {
   const chat = await serveChat(t, tempDir(t, "chat-data"));
-  const connection = await connectLocal(chat.listening);
+  const connection = await connectToSocket(chat.listening);
   stopAfter(t, () => connection.close());
 
   await assert.rejects(connection.chat.enter("a-ticket"), { message: /can't reach the gateway/ });
@@ -119,7 +119,7 @@ test("a second chat server is refused before it touches its data, and the first 
   assert.equal(second.code, 1);
   assert.equal(second.stdout, "");
   assert.deepEqual(readdirSync(otherDir), [], "a refused chat server leaves nothing in its data directory");
-  const connection = await connectLocal(first.listening);
+  const connection = await connectToSocket(first.listening);
   stopAfter(t, () => connection.close());
   await assert.rejects(connection.chat.channels(), { code: "service_not_allowed" }, "the first still answers");
 });
@@ -147,6 +147,16 @@ test("a runtime directory too long for a socket is refused with what to shorten,
   assert.match(result.stderr, /Shorten SHRIMPY_RUNTIME_DIR by at least \d+ bytes/);
   assert.equal(existsSync(runtime), false);
   assert.deepEqual(readdirSync(dataDir), []);
+
+  // The gateway's sockets fit in a directory that its longest, the way in to a program, does not.
+  const base = tempDir(t, "rt");
+  const almost = join(base, "d".repeat(80 - base.length - 1));
+  const gateway = await shrimpy(["gateway", "serve", "--data", tempDir(t, "gateway-data")], {
+    env: { SHRIMPY_RUNTIME_DIR: almost },
+  });
+  assert.equal(gateway.code, 1);
+  assert.match(gateway.stderr, /too long for a socket/);
+  assert.equal(existsSync(almost), false);
 });
 
 test("the browser entry opens only when a port is given, and serves the web client's files", { timeout }, async (t) => {

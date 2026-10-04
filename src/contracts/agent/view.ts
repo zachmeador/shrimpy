@@ -1,3 +1,13 @@
+/**
+ * Who a connection to the agent is, as the gateway's roster has them: a person
+ * or an agent. The ID is the roster's and never changes.
+ */
+export interface Member {
+  id: string;
+  kind: "person" | "agent";
+  name: string;
+}
+
 /** One thing a client draws for a session. */
 export type SessionItem =
   | { type: "user"; text: string }

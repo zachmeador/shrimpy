@@ -1,7 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { isServerId } from "@earendil-works/pi-protocol";
 import {
   type RoutedServerServiceHost,
   Server,
@@ -9,52 +6,38 @@ import {
   SessionNotFoundError,
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
-import {
-  Chat,
-  type ChatEndpoint,
-  chatEndpointFile,
-  ThreadService,
-} from "../contracts/chat/index.ts";
+import { Chat, ThreadService } from "../contracts/chat/index.ts";
 import { isClientGone, offerToConnection, offerToRoute } from "../lib/offer/index.ts";
 import { serveChat } from "./connection.ts";
 import { type ChatDeps, serveThread, threadExists } from "./threads/index.ts";
 
 export interface ChatServer {
-  readonly endpoint: ChatEndpoint;
+  /** The server ID it answers as, which the gateway gives to whoever is let in. */
+  readonly serverId: string;
   close(): Promise<void>;
 }
 
 /**
- * Serve the chat API on `socket`, and record where to find it. The caller
- * holds the socket's lock, so no other chat server here is listening, and the
- * listener replaces a socket left behind by one that died.
+ * Serve the chat API on `socket`. The caller holds the socket's lock, so no
+ * other chat server here is listening, and the listener replaces a socket left
+ * behind by one that died. Nobody is told where the socket is but the gateway,
+ * which the caller registers it with: clients reach chat by its name.
  */
 export async function startServer(
   deps: ChatDeps,
-  dataDir: string,
   socket: string,
   onError: (error: Error) => void,
 ): Promise<ChatServer> {
-  const endpoint: ChatEndpoint = {
-    serverId: previousServerId(dataDir) ?? randomUUID(),
-    socket,
-    pid: process.pid,
-  };
+  const serverId = randomUUID();
   const server = new Server(serverHost(deps), {
-    serverId: endpoint.serverId,
-    listeners: [createUnixListener({ path: endpoint.socket })],
+    serverId,
+    listeners: [createUnixListener({ path: socket })],
     onError(error) {
       if (!isClientGone(error)) onError(error);
     },
   });
   await server.start();
-  try {
-    writeEndpoint(dataDir, endpoint);
-  } catch (error) {
-    await server.close();
-    throw error;
-  }
-  return { endpoint, close: () => server.close() };
+  return { serverId, close: () => server.close() };
 }
 
 function serverHost(deps: ChatDeps): ServerHost {
@@ -83,24 +66,4 @@ function serverHost(deps: ChatDeps): ServerHost {
       );
     },
   };
-}
-
-/** The ID the last chat server here used, so clients reconnecting after a restart find the same one. */
-function previousServerId(dataDir: string): string | undefined {
-  try {
-    const { serverId } = JSON.parse(readFileSync(chatEndpointFile(dataDir), "utf8")) as Partial<ChatEndpoint>;
-    return isServerId(serverId) ? serverId : undefined;
-  } catch {
-    // No endpoint yet, or one that was never finished: start with a new ID.
-    return undefined;
-  }
-}
-
-/** Written whole or not at all, so nobody reads half of it. */
-function writeEndpoint(dataDir: string, endpoint: ChatEndpoint): void {
-  const file = chatEndpointFile(dataDir);
-  mkdirSync(dirname(file), { recursive: true });
-  const unfinished = `${file}.${process.pid}`;
-  writeFileSync(unfinished, JSON.stringify(endpoint));
-  renameSync(unfinished, file);
 }

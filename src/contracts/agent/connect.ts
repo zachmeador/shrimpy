@@ -2,7 +2,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ByteTransportFactory, DisconnectedError } from "@earendil-works/pi-client";
 import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { SessionDirectory, SessionService } from "./services.ts";
-import type { Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
+import type { Member, Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
 
 /** The connection to the agent dropped while a call was waiting for its answer. */
 export class AgentConnectionLostError extends Error {
@@ -29,6 +29,12 @@ export interface SessionHandle {
 }
 
 export interface AgentConnection {
+  /**
+   * Come in with a ticket from the gateway, before anything else. A connection
+   * made through the gateway by the agent's name must, and `reachProgram` does
+   * it; one made by the home's path needs none. See `SessionDirectory.enter`.
+   */
+  enter(ticket: string): Promise<Member>;
   sessions(): Promise<SessionSummary[]>;
   /**
    * Watch the session behind a thread. A thread the agent has no session for
@@ -47,6 +53,8 @@ const context = BACKGROUND_CONTEXT;
 export async function connectAgent(options: {
   serverId: string;
   transportFactory: ByteTransportFactory;
+  /** Abort to give up while connecting, even on an agent that stopped answering. */
+  signal?: AbortSignal;
 }): Promise<AgentConnection> {
   const connection = await openRoutedConnection({
     ...options,
@@ -75,6 +83,7 @@ export async function connectAgent(options: {
   };
 
   return {
+    enter: (ticket) => guarded(() => directory.enter(ticket, context)),
     sessions: () => guarded(() => directory.list(context)),
     reload: () => guarded(() => directory.reload(context)),
     attach: (threadId) =>

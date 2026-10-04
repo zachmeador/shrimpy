@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
+import { isRefusal, refuse } from "../../../lib/refusal/index.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { offer, type StandIn, startStandIn, stopAfter } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
-import type { Member } from "../../gateway/index.ts";
-import { keepRegistered, newToken } from "../../gateway/node.ts";
-import { SessionDirectory } from "../index.ts";
+import { keepRegistered, type KeptRegistration, newToken } from "../../gateway/node.ts";
+import { type Member, SessionDirectory } from "../index.ts";
 import { type ScriptedAgent, scriptedAgent } from "./scripted.ts";
 
 export interface StandInAgentOptions {
@@ -37,10 +37,20 @@ export interface StandInAgent {
 export async function startStandInAgent(t: TestContext, options: StandInAgentOptions): Promise<StandInAgent> {
   const agent = scriptedAgent();
   const serverId = randomUUID();
+  const registered: { kept?: KeptRegistration } = {};
+  // The stand-in lets people in the way an agent does: the gateway says whose a ticket is.
+  const whose = async (ticket: string): Promise<Member> => {
+    const gateway = registered.kept?.current() ?? refuse("The stand-in agent can't reach the gateway.", "service_not_allowed");
+    const { id, kind, name } = await gateway.redeem(ticket).catch((error: unknown) => {
+      if (isRefusal(error)) refuse(error.message);
+      throw error;
+    });
+    return { id, kind, name };
+  };
   const listen = (): Promise<StandIn> =>
     startStandIn(t, `agent-${options.name}`, {
       serverId,
-      offer: (presentation) => offer(SessionDirectory, agent.serve(presentation)),
+      offer: (presentation) => offer(SessionDirectory, agent.serve(presentation, whose)),
       route: (threadId) => agent.route(threadId),
     });
 
@@ -55,7 +65,7 @@ export async function startStandInAgent(t: TestContext, options: StandInAgentOpt
     resolveJoined = resolve;
   });
   const kept = keepRegistered(
-    { kind: "agent", serverId, socket, pid: process.pid, version: SHRIMPY_VERSION },
+    { kind: "agent", serverId, socket, version: SHRIMPY_VERSION },
     {
       backoff: backoff({ firstMs: 5, maxMs: 20 }),
       async signIn(gateway) {
@@ -68,6 +78,7 @@ export async function startStandInAgent(t: TestContext, options: StandInAgentOpt
       },
     },
   );
+  registered.kept = kept;
   stopAfter(t, () => kept.stop());
 
   return {

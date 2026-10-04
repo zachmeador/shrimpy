@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
-import { type SessionDirectory, SessionService, type SessionView } from "../index.ts";
+import { type Member, type SessionDirectory, SessionService, type SessionView } from "../index.ts";
 import { sessionView } from "./views.ts";
 
 /** One session of a scripted agent: what its clients see, and what they did to it. */
@@ -28,8 +28,13 @@ export interface ScriptedSession {
  * the same refusal for a thread it has no session for.
  */
 export interface ScriptedAgent {
-  /** What one connection talks to. Given the connection's presentation, the connection can attach a session. */
-  serve(presentation: RoutedServerPresentation): SessionDirectory;
+  /**
+   * What one connection talks to. Given the connection's presentation, the
+   * connection can attach a session. It comes in with a ticket before anything
+   * else, as a connection through the gateway does, and `whose` says whose a
+   * ticket is.
+   */
+  serve(presentation: RoutedServerPresentation, whose: (ticket: string) => Promise<Member>): SessionDirectory;
   /** The session behind a thread, for a server that sends a connection that attaches it there: undefined when there is none. */
   route(threadId: string): Offer | undefined;
 
@@ -87,22 +92,37 @@ export function scriptedAgent(): ScriptedAgent {
   }
 
   return {
-    serve(presentation) {
+    serve(presentation, whose) {
+      let entered = false;
+      const admitted = <T>(call: () => Promise<T>): Promise<T> =>
+        entered
+          ? call()
+          : Promise.resolve().then(() =>
+              refuse("Come in with a ticket from the gateway, with enter, before anything else.", "service_not_allowed"),
+            );
       return {
-        list: () =>
-          Promise.resolve(
-            [...held.values()].map(({ session: each }) => ({
-              threadId: each.threadId,
-              channelId: each.channelId,
-              working: working(each.view),
-            })),
-          ),
-        async attach(threadId, context) {
-          if (!held.has(threadId)) refuse(`This agent has no session for thread ${threadId} yet.`);
-          await presentation.attachSession(threadId, context);
+        async enter(ticket) {
+          const member = await whose(ticket);
+          entered = true;
+          return member;
         },
-        detach: (context) => presentation.detachSession(context),
-        reload: () => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] }),
+        list: () =>
+          admitted(() =>
+            Promise.resolve(
+              [...held.values()].map(({ session: each }) => ({
+                threadId: each.threadId,
+                channelId: each.channelId,
+                working: working(each.view),
+              })),
+            ),
+          ),
+        attach: (threadId, context) =>
+          admitted(async () => {
+            if (!held.has(threadId)) refuse(`This agent has no session for thread ${threadId} yet.`);
+            await presentation.attachSession(threadId, context);
+          }),
+        detach: (context) => admitted(() => presentation.detachSession(context)),
+        reload: () => admitted(() => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] })),
       };
     },
     route(threadId) {

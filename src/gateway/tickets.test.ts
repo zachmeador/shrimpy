@@ -29,27 +29,38 @@ test("a ticket says who asked, is good once and only for the program it was made
     const forPerson = await person.ticket(chat);
     const forAgent = await agent.ticket(chat);
 
-    await assert.rejects(bystander.redeem(forPerson), /made for another program/);
-    await assert.rejects(person.redeem(forPerson), /Only a registered program/, "nor can whoever asked for it");
-    const who = await server.redeem(forPerson);
+    await assert.rejects(bystander.redeem(forPerson.value), /made for another program/);
+    await assert.rejects(person.redeem(forPerson.value), /Only a registered program/, "nor can whoever asked for it");
+    const who = await server.redeem(forPerson.value);
     assert.equal(who.kind, "person");
     assert.equal(who.name, userInfo().username);
-    await assert.rejects(server.redeem(forPerson), /not good/, "a ticket answers once");
+    await assert.rejects(server.redeem(forPerson.value), /not good/, "a ticket answers once");
     await assert.rejects(server.redeem("made-up"), /not good/);
-    assert.deepEqual(await server.redeem(forAgent), joined);
+    assert.deepEqual(await server.redeem(forAgent.value), joined);
   } finally {
     await gateway.close();
   }
 });
 
-test("a ticket is made for a program that is registered, and only the chat server is one today", { timeout }, async (t) => {
+test("a ticket is made for a program that is registered, chat server or agent, and comes with the server ID that program answers as", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGatewayInProcess(t);
   const client = await connectLocalGateway();
-  stopAfter(t, () => client.close());
+  const server = await connectLocalGateway();
+  const scout = await connectLocalGateway();
+  for (const connection of [client, server, scout]) stopAfter(t, () => connection.close());
   try {
-    await assert.rejects(client.ticket(chat), /not registered/);
-    await assert.rejects(client.ticket({ kind: "agent", name: "scout" }), /chat server only/);
+    await assert.rejects(client.ticket(chat), /no chat server registered/);
+    await assert.rejects(client.ticket({ kind: "agent", name: "scout" }), /no agent called scout registered/);
+
+    const chatServer = chatRegistration();
+    const scouting = agentAnnouncement("scout");
+    await server.register(chatServer);
+    await scout.join("scout", newToken());
+    await scout.register(scouting);
+
+    assert.equal((await client.ticket(chat)).serverId, chatServer.serverId);
+    assert.equal((await client.ticket({ kind: "agent", name: "scout" })).serverId, scouting.serverId);
   } finally {
     await gateway.close();
   }

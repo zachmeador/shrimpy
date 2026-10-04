@@ -2,12 +2,13 @@
  * The chat server program: one process that keeps channels, threads, the log of
  * events and the messages they add up to in its own store and serves the chat
  * API for everyone on this machine. Other programs reach chat only through
- * `contracts/chat`; they never import this program's modules. It must not know
- * what a member does with an event, or anything about an agent's sessions. Of the gateway it knows only
- * its contract: it registers there, and asks it who a ticket belongs to, over
- * the one connection it keeps.
+ * `contracts/chat`, by its name through the gateway; they never import this
+ * program's modules. It must not know what a member does with an event, or
+ * anything about an agent's sessions. Of the gateway it knows only its
+ * contract: it registers there with the one socket it listens on, which only
+ * the gateway is told, and asks it who a ticket belongs to, over the one
+ * connection it keeps.
  */
-import type { ChatEndpoint } from "../contracts/chat/index.ts";
 import { type KeptRegistration, keepRegistered } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
@@ -28,7 +29,10 @@ export interface ChatOptions {
 }
 
 export interface RunningChat {
-  readonly endpoint: ChatEndpoint;
+  /** The Unix socket it listens on, which it tells the gateway and no one else. */
+  readonly socket: string;
+  /** The server ID it answers as, which the gateway gives to whoever is let in. */
+  readonly serverId: string;
   close(): Promise<void>;
 }
 
@@ -50,7 +54,8 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
   try {
     const chat = await serveStore(options, socket);
     return {
-      endpoint: chat.endpoint,
+      socket,
+      serverId: chat.serverId,
       async close() {
         try {
           await chat.close();
@@ -77,10 +82,9 @@ async function serveStore(options: ChatOptions, socket: string): Promise<Running
       identity: identityFromGateway(() => gateway.kept?.current()),
       now: () => Date.now(),
     };
-    const server = await startServer(deps, options.dataDir, socket, onError);
-    const { serverId, pid } = server.endpoint;
+    const server = await startServer(deps, socket, onError);
     const kept = keepRegistered(
-      { kind: "chat", serverId, socket, pid, version: SHRIMPY_VERSION },
+      { kind: "chat", serverId: server.serverId, socket, version: SHRIMPY_VERSION },
       {
         backoff: options.backoff,
         onError: (error) => onError(new Error(`Could not register with the gateway: ${error.message}`)),
@@ -88,7 +92,8 @@ async function serveStore(options: ChatOptions, socket: string): Promise<Running
     );
     gateway.kept = kept;
     return {
-      endpoint: server.endpoint,
+      socket,
+      serverId: server.serverId,
       async close() {
         try {
           // The registration goes first, so the gateway stops pointing at a server that is closing.

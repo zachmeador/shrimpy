@@ -1,14 +1,17 @@
 /**
  * The gateway program: one process per machine that keeps the roster of who is
- * on the network, the registry of programs that are running, and the tickets
- * that tell a program who a client is, and gives browsers a way in. It only
- * connects things: it never holds an agent's home, its work or a conversation.
- * Other programs reach it through `contracts/gateway`; they never import this
- * program's modules. It must not know what the programs it connects say to
- * each other.
+ * on the network, the registry of programs that are running, the tickets that
+ * tell a program who a client is, and a way in to each registered program, and
+ * gives browsers a way in too. A program is reached by its name through the
+ * gateway, which pipes the connection to the program's socket and does not look
+ * at it. It only connects things: it never holds an agent's home, its work or a
+ * conversation. Other programs reach it through `contracts/gateway`; they never
+ * import this program's modules. It must not know what the programs it connects
+ * say to each other.
  */
 import { userInfo } from "node:os";
 import { GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
+import { wayInSocket } from "../contracts/gateway/node.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
 import { takeGatewayLock } from "./lock.ts";
 import { createRegistry } from "./registry/index.ts";
@@ -16,6 +19,7 @@ import { openRoster } from "./roster/index.ts";
 import { startServer } from "./server.ts";
 import { createTickets } from "./tickets/index.ts";
 import { startWeb, type WebOptions } from "./web/index.ts";
+import { createWays } from "./ways/index.ts";
 
 export { GatewayRunningError } from "./lock.ts";
 export { RosterOwnedError } from "./roster/index.ts";
@@ -24,7 +28,7 @@ export type { WebOptions } from "./web/index.ts";
 export interface GatewayOptions {
   /** Where the gateway keeps the roster. It is made if it is missing. */
   dataDir: string;
-  /** Open the browser entry on loopback. Without it the gateway listens only on its Unix socket. */
+  /** Open the browser entry on loopback. Without it the gateway listens only on its Unix sockets. */
   web?: WebOptions;
 }
 
@@ -44,6 +48,8 @@ export interface RunningGateway {
  * as it starts, so no agent can take their name before they are first seen.
  */
 export async function startGateway(options: GatewayOptions): Promise<RunningGateway> {
+  // The longest path this gateway makes, so that a runtime directory too long for it is refused before anything is made.
+  wayInSocket({ kind: "agent", name: "" });
   const socket = namedSocketPath(GATEWAY_SOCKET_NAME);
   const lock = takeGatewayLock(socket);
   const open: (() => void | Promise<void>)[] = [() => lock.release()];
@@ -59,6 +65,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1) throw new AggregateError(errors, "The gateway did not close cleanly");
   };
+  const onError = (error: Error): void => console.error("[gateway]", error.message);
 
   try {
     const osUser = userInfo().username;
@@ -66,7 +73,13 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     open.push(() => roster.close());
     roster.ensurePerson(osUser);
     const registry = createRegistry({ nameOf: (memberId) => roster.member(memberId)?.name });
-    const server = await startServer({ roster, registry, tickets: createTickets(), osUser }, socket);
+    const ways = createWays({
+      names: () => registry.names(),
+      resolve: (target) => registry.find(target.kind, target.name)?.socket,
+      onError,
+    });
+    open.push(() => ways.close());
+    const server = await startServer({ roster, registry, tickets: createTickets(), ways, osUser, onError }, socket);
     open.push(() => server.close());
     const web =
       options.web === undefined

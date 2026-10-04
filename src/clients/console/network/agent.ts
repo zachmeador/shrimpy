@@ -4,13 +4,14 @@ import {
   type SessionHandle,
   type SessionView,
 } from "../../../contracts/agent/index.ts";
-import { isNotListening } from "../../../lib/connection/index.ts";
+import { reachProgram, type Transports } from "../../../contracts/gateway/index.ts";
+import { isDisconnected } from "../../../lib/connection/index.ts";
+import { isRefusal } from "../../../lib/refusal/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import { converge } from "./converge.ts";
 import { keepConnection } from "./keep.ts";
 import type { RegistryLink } from "./registry.ts";
 import { Down, type LinkStatus, type Problem, problemOf } from "./status.ts";
-import type { Transports } from "./transports.ts";
 
 /** What the watched session looks like now, or why it could not be watched. */
 export type SessionUpdate = { threadId: string; view: SessionView } | { threadId: string; problem: Problem };
@@ -51,6 +52,12 @@ export interface AgentLink {
   close(): Promise<void>;
 }
 
+/**
+ * Keep a connection to the agent called `name`: reach it by its name through
+ * the gateway, with a ticket to come in with, hold the connection, and keep
+ * watching the session that is wanted across losses. The work in the agent goes
+ * on whether or not this link is up.
+ */
 export function keepAgent(options: AgentLinkOptions): AgentLink {
   let wanted: string | undefined;
   let watching: { id: string; connection: AgentConnection; handle: SessionHandle; stop: () => void } | undefined;
@@ -101,26 +108,22 @@ export function keepAgent(options: AgentLinkOptions): AgentLink {
         () => waiting({ kind: "not-registered" }),
       );
       waiting({ kind: "connecting" });
-      const connecting = connectAgent({
-        serverId: registration.serverId,
-        transportFactory: options.transports.program(registration),
-      });
-      // Connecting has no signal of its own, so giving up leaves it to finish by itself and let go.
-      const abandoned = new Promise<never>((_resolve, reject) => {
-        const give = (): void => reject(signal.reason instanceof Error ? signal.reason : new Error("Connecting was abandoned"));
-        if (signal.aborted) give();
-        else signal.addEventListener("abort", give, { once: true });
-      });
-      abandoned.catch(() => undefined);
       try {
-        return await Promise.race([connecting, abandoned]);
+        const { connection } = await reachProgram({
+          gateway: options.registry,
+          transports: options.transports,
+          target: { kind: registration.kind, name: registration.name },
+          connect: connectAgent,
+          enter: (opened, ticket) => opened.enter(ticket),
+          signal,
+        });
+        return connection;
       } catch (error) {
-        void connecting.then((late) => late.close()).catch(() => undefined);
-        if (signal.aborted) throw error;
-        // Nothing listening where the gateway says the agent is, is the agent having gone away.
-        if (isNotListening(error)) throw new Down({ kind: "lost" }, { cause: error });
+        if (signal.aborted || error instanceof Down || isRefusal(error)) throw error;
+        // A connection that ends at once, or a way in that is gone, is the agent having gone away.
+        if (isDisconnected(error)) throw new Down({ kind: "lost" }, { cause: error });
         throw new Down(
-          { kind: "unreachable", message: `Could not reach the agent ${options.name} at ${registration.socket}: ${(error as Error).message}` },
+          { kind: "unreachable", message: `Could not reach the agent ${options.name} through the gateway: ${(error as Error).message}` },
           { cause: error },
         );
       }

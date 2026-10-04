@@ -2,7 +2,7 @@ import type { ByteTransportFactory } from "@earendil-works/pi-client";
 import { isNotListening } from "../../lib/connection/index.ts";
 import { type Backoff, keepRunning } from "../../lib/retry/index.ts";
 import { connectGateway, type GatewayConnection } from "./connect.ts";
-import { localGatewayTransport } from "./local.node.ts";
+import { localTransports } from "./local.node.ts";
 import type { Announcement } from "./services.ts";
 
 export interface KeepRegisteredOptions {
@@ -55,7 +55,7 @@ export function keepRegistered(
   announcement: Announcement,
   options: KeepRegisteredOptions = {},
 ): KeptRegistration {
-  const transportFactory = options.transportFactory ?? localGatewayTransport();
+  const transportFactory = options.transportFactory ?? localTransports().gateway;
   const stopping = new AbortController();
   let live: GatewayConnection | undefined;
   const waiting = new Set<(gateway: GatewayConnection) => void>();

@@ -1,13 +1,14 @@
-import type { ChatConnection, Member } from "../../contracts/chat/index.ts";
-import { connectLocal } from "../../contracts/chat/node.ts";
-import type { Registration, RosterEntry } from "../../contracts/gateway/index.ts";
+import { type ChatConnection, connectChat, type Member } from "../../contracts/chat/index.ts";
+import { reachProgram, type Registration, type RosterEntry } from "../../contracts/gateway/index.ts";
+import { localTransports } from "../../contracts/gateway/node.ts";
+import { isRefusal } from "../../lib/refusal/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import { view, withGateway } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { signInAsTheShellsAgent } from "./shell.ts";
 
-/** A connection to the chat server on this machine, found through the gateway, as whoever the gateway says this is. */
+/** A connection to the chat server on this machine, made through the gateway, as whoever the gateway says this is. */
 export interface Reached {
   /** You, as the chat server knows you. */
   readonly me: Member;
@@ -22,16 +23,17 @@ export interface Reached {
 
 /**
  * Reach the chat server on this machine the way every command that talks does:
- * ask the machine's gateway where it is and for a ticket to hand it, connect, and
- * come in with the ticket. Nobody says who they are: the gateway decides. A
- * command run from an agent's shell signs in with that agent's token and is
- * the agent; any other is the person who runs the gateway. A gateway or chat server of another
- * version than this command is named on standard error, and the command
- * carries on. When nothing is running the error says what to start. Aborting
- * `signal` gives up, even on a server that is not answering.
+ * by its name through this machine's gateway, which gives a ticket to hand it,
+ * so that the chat server asks the gateway who is talking. Nobody says who they
+ * are: the gateway decides. A command run from an agent's shell signs in with
+ * that agent's token and is the agent; any other is the person who runs the
+ * gateway. A gateway or chat server of another version than this command is
+ * named on standard error, and the command carries on. When nothing is running
+ * the error says what to start. Aborting `signal` gives up, even on a server
+ * that is not answering.
  */
 export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> {
-  const found = await withGateway(signal, async (gateway) => {
+  const reached = await withGateway(signal, async (gateway) => {
     await signInAsTheShellsAgent(gateway);
     const listing = await view(gateway);
     warnIfVersionDiffers(io, "the gateway", listing.version);
@@ -43,27 +45,27 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
       );
     }
     warnIfVersionDiffers(io, "the chat server", chat.version);
-    return { listing, chat, ticket: await gateway.ticket({ kind: chat.kind, name: chat.name }) };
+    try {
+      const { connection, entered } = await reachProgram({
+        gateway,
+        transports: localTransports(),
+        target: { kind: chat.kind, name: chat.name },
+        connect: connectChat,
+        enter: (opened, ticket, enterSignal) => opened.chat.enter(ticket, enterSignal),
+        signal,
+      });
+      return { connection, me: entered, listing };
+    } catch (error) {
+      // A refusal says what to do, and an abort is the caller's own doing.
+      if (signal?.aborted === true || isRefusal(error)) throw error;
+      throw new Error(`Could not reach the chat server through the gateway: ${(error as Error).message}`, {
+        cause: error,
+      });
+    }
   });
-  if (found === undefined) {
+  if (reached === undefined) {
     throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
   }
-  const { listing, chat, ticket } = found;
-
-  let connection: ChatConnection;
-  try {
-    connection = await connectLocal(chat, { signal });
-  } catch (error) {
-    if (signal?.aborted === true) throw error;
-    throw new Error(`Could not reach the chat server at ${chat.socket}: ${(error as Error).message}`, {
-      cause: error,
-    });
-  }
-  try {
-    const me = await connection.chat.enter(ticket, signal);
-    return { me, connection, programs: listing.programs, members: listing.members, close: () => connection.close() };
-  } catch (error) {
-    await connection.close();
-    throw error;
-  }
+  const { connection, me, listing } = reached;
+  return { me, connection, programs: listing.programs, members: listing.members, close: () => connection.close() };
 }

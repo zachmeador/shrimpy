@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import type { SessionView } from "../contracts/agent/index.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import {
   captureIo,
@@ -52,7 +53,7 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
   useRuntimeDir(t);
   const model = await startModelServer();
   await startTestGateway(t);
-  const chat = await serveChat(t, tempDir(t, "chat-data"));
+  await serveChat(t, tempDir(t, "chat-data"));
   await untilRegistered("chat", "chat");
   const home = join(tempDir(t, "flow"), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
@@ -78,7 +79,7 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
       throw new Error(`agent serve ended with ${code}: ${serving.err.join("\n")}`);
     }),
   ]);
-  const talk = await talkTo(t, chat.listening, "scout");
+  const talk = await talkTo(t, "scout");
 
   const ask = async (text: string): Promise<Message> => {
     const said = await talk.say(text);
@@ -154,6 +155,30 @@ test("a waiting command exits 1 when the agent stops under it", { timeout }, asy
   assert.equal(result.code, 1);
   assert.deepEqual(result.out, []);
   assert.equal(result.err.length, 1);
+});
+
+test("with the gateway gone, the agent is still watched and stopped by its home's path, and tells chat what became of the message once the gateway is back", { timeout }, async (t) => {
+  const { home, model, threadId, ask, tell } = await servedHome(t);
+  const gateway = await startTestGateway(t);
+  await ask("first");
+  const slow = await tell("go slow, in the thread");
+  await until(() => model.requests.length > 1, "the model to start on the thread's message");
+
+  await gateway.outage();
+
+  const watched = await run("sessions", "read", home, threadId, "--json");
+  assert.equal(watched.code, 0, watched.err.join("\n"));
+  assert.equal((JSON.parse(watched.out[0] ?? "{}") as SessionView).status.busy, true, "it is at work");
+  assert.equal((await run("sessions", "stop", home, threadId)).code, 0);
+
+  await gateway.recover();
+  const statusOf = async (): Promise<string | undefined> => {
+    const read = await run("read", threadId, "--json");
+    if (read.code !== 0) return undefined;
+    const { messages } = JSON.parse(read.out[0] ?? "{}") as { messages: Message[] };
+    return messages.find((message) => message.id === slow.id)?.receipts[0]?.status;
+  };
+  assert.equal(await eventually(statusOf, (status) => status !== undefined, { what: "the agent's receipt", timeoutMs: 40_000 }), "stopped");
 });
 
 test("--now stops the agent without waiting for the running turn", { timeout }, async (t) => {

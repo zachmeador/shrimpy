@@ -1,11 +1,12 @@
 /**
  * The agent program: one process that owns one home, serves the agent API for
- * it, and takes part in the network as a member and in chat. Other programs
- * reach an agent only through `contracts/agent`; they never import this
- * program's modules, except that the CLI starts an agent, creates a home and
- * previews what a home would tell an agent through this door. It must not know
- * who its clients are, or anything about the chat server and the gateway
- * beyond their contracts.
+ * it on two sockets (the home's own, and the one the gateway pipes connections
+ * made by its name to), and takes part in the network as a member and in chat.
+ * Other programs reach an agent only through `contracts/agent`; they never
+ * import this program's modules, except that the CLI starts an agent, creates a
+ * home and previews what a home would tell an agent through this door. It must
+ * not know who its clients are beyond who it is told they are, or anything
+ * about the chat server and the gateway beyond their contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
@@ -13,6 +14,7 @@ import { type ContextPreview, homeContext, messageTools, previewContext } from "
 import { loadHome } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
+import { whoseTicket } from "./links/index.ts";
 import { startServer } from "./server.ts";
 import { createSessions, type SessionDefaults } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
@@ -66,6 +68,7 @@ export interface HomeAgent extends RunningAgent {
 export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
+  socketPathFor(options.home, "gw");
   const context = await homeContext({ name: options.name, home: options.home });
   // The message tools are installed with the engine, before the agent has a link to chat: they ask for the ones it
   // has when they run. An agent that takes no part in the network has none, and they say chat is unreachable.
@@ -83,11 +86,20 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
     host.resume();
-    const server = await startServer(host, sessions, context);
+    // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
+    const server = await startServer(host, sessions, context, {
+      whose: (ticket) => whoseTicket(() => joined?.gateway(), ticket),
+    });
     try {
       if (options.join !== undefined) {
         joined = join(
-          { name: options.name, home: options.home, endpoint: server.endpoint, turns: sessions.turns, onError: report },
+          {
+            name: options.name,
+            home: options.home,
+            listening: { serverId: server.endpoint.serverId, socket: server.gatewaySocket },
+            turns: sessions.turns,
+            onError: report,
+          },
           options.join,
         );
       }

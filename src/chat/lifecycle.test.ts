@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
 import { test } from "node:test";
-import { connectLocal } from "../contracts/chat/node.ts";
+import { connectToSocket } from "../contracts/chat/testing/index.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
 import { inRuntimeDir, leaveUnanswered, settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
@@ -27,7 +26,7 @@ test("a second chat server on this machine is refused for the socket, even on th
 
   await assert.rejects(
     startChat({ dataDir: chat.dataDir }),
-    (error) => error instanceof ChatRunningError && error.socket === chat.chat.endpoint.socket,
+    (error) => error instanceof ChatRunningError && error.socket === chat.chat.socket,
   );
 
   assert.deepEqual(await zach.chat.channels(), []);
@@ -61,7 +60,7 @@ test("chat servers started at the same moment cannot both run", { timeout }, asy
       }
 
       // The one that runs answers on its socket.
-      await (await connectLocal(winners[0]?.value.endpoint ?? assert.fail("no chat server started"))).close();
+      await (await connectToSocket(winners[0]?.value ?? assert.fail("no chat server started"))).close();
     } finally {
       for (const winner of winners) await winner.value.close();
     }
@@ -78,24 +77,11 @@ test("a chat server that was killed leaves a socket that the next one replaces",
   useRuntimeDir(t);
   const child = await startChatChild(t, { dataDir: tempDir(t, "chat-killed") });
   await child.kill("SIGKILL");
-  assert.ok(existsSync(child.endpoint.socket));
+  assert.ok(existsSync(child.socket));
 
   const chat = await startChat({ dataDir: tempDir(t, "chat-next") });
   stopAfter(t, () => chat.close());
-  await (await connectLocal(chat.endpoint)).close();
-});
-
-test("a chat server that cannot record its endpoint does not keep listening", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const dataDir = tempDir(t, "chat-data");
-  writeFileSync(join(dataDir, "runtime"), "a file where the directory should be");
-
-  await assert.rejects(startChat({ dataDir }));
-
-  assert.equal(existsSync(namedSocketPath("chat")), false);
-  rmSync(join(dataDir, "runtime"));
-  const again = await startChat({ dataDir });
-  stopAfter(t, () => again.close());
+  await (await connectToSocket(chat)).close();
 });
 
 test("stopping the server ends its connections and removes its socket", { timeout }, async (t) => {
@@ -112,14 +98,14 @@ test("stopping the server ends its connections and removes its socket", { timeou
 
   assert.equal(reasons.length, 1);
   await assert.rejects(waiting);
-  assert.equal(existsSync(chat.chat.endpoint.socket), false);
+  assert.equal(existsSync(chat.chat.socket), false);
 });
 
 test("a client that is gone before the chat server's answer reaches it is not reported", { timeout }, async (t) => {
   const reported = t.mock.method(console, "error", () => undefined);
   const chat = await startTestChat(t);
 
-  await leaveUnanswered(chat.chat.endpoint.socket);
+  await leaveUnanswered(chat.chat.socket);
   // By the time the server has answered this one, it is done with the one that left.
   await chat.person();
   await settle();
@@ -129,17 +115,17 @@ test("a client that is gone before the chat server's answer reaches it is not re
 
 test("a feed that is waiting is forgotten when its connection drops", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const { store, dataDir } = openTestStore(t);
+  const { store } = openTestStore(t);
   const counted = countWatchers(store);
   const shrimpy = agent("Shrimpy");
+  const socket = namedSocketPath("chat");
   const server = await startServer(
     { store: counted.store, working: createWorkingMarks(), identity: identityOf(shrimpy), now: () => Date.now() },
-    dataDir,
-    namedSocketPath("chat"),
+    socket,
     () => undefined,
   );
   stopAfter(t, () => server.close());
-  const connection = await connectLocal(server.endpoint);
+  const connection = await connectToSocket({ serverId: server.serverId, socket });
   stopAfter(t, () => connection.close());
   await connection.chat.enter("any-ticket");
   follow(connection.chat.feed(0, 10));

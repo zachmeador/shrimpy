@@ -34,7 +34,7 @@ const threadsOf = async (agent: string): Promise<Thread[]> =>
 
 test("threads lists your threads with an agent, the most recently updated first, archived ones included", { timeout }, async (t) => {
   const talking = await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => answered("ok") });
+  await startScriptedAgent(t, { name: "scout", handle: () => answered("ok") });
   const first = startedThread((await shrimpy(["run", "scout", "one"])).stderr);
   await shrimpy(["run", "scout", "two"]);
   await (await talking.you()).chat.archiveThread(first, true);
@@ -49,9 +49,9 @@ test("threads lists your threads with an agent, the most recently updated first,
 });
 
 test("threads says who is working in a thread right now, and stops saying so when they are done", { timeout }, async (t) => {
-  const talking = await startTalking(t);
+  await startTalking(t);
   const finish = deferred<Outcome>();
-  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => finish.promise });
+  const agent = await startScriptedAgent(t, { name: "scout", handle: () => finish.promise });
   const asked = await shrimpy(["run", "scout", "take your time", "--no-wait"]);
   const thread = /in thread (th_\w+)\./.exec(asked.stdout)?.[1] ?? "";
   await eventually(() => Promise.resolve(agent.offered.length), (offered) => offered === 1);
@@ -99,8 +99,8 @@ const byText = (message: Posted): Outcome => {
 };
 
 test("read shows who said what, and where an agent failed, stopped or skipped a message, but not where it was silent", { timeout }, async (t) => {
-  const talking = await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: byText });
+  await startTalking(t);
+  await startScriptedAgent(t, { name: "scout", handle: byText });
   const thread = startedThread((await shrimpy(["run", "scout", "q1"])).stderr);
   for (const text of ["q2", "q3", "q4", "q5"]) await shrimpy(["run", "scout", text, "--thread", thread]);
 
@@ -117,8 +117,8 @@ test("read shows who said what, and where an agent failed, stopped or skipped a 
 });
 
 test("read --json prints the thread and every message with all its receipts, silent ones included", { timeout }, async (t) => {
-  const talking = await startTalking(t);
-  await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: byText });
+  await startTalking(t);
+  await startScriptedAgent(t, { name: "scout", handle: byText });
   const scout = await memberNamed(t, "scout");
   const thread = startedThread((await shrimpy(["run", "scout", "q1"])).stderr);
   await shrimpy(["run", "scout", "q2", "--thread", thread]);

@@ -1,9 +1,10 @@
 /**
  * Talking to agents the way a person does, or as the agent whose shell the
  * command runs in: asking this machine's gateway what is running and who is on
- * the roster, reaching the chat server through it with a ticket, so that the
- * gateway says who is talking, finding the member a name means and your DM with
- * it, and watching a thread for what an agent did with a message. It must not know how a command prints, or how an agent works:
+ * the roster, reaching the chat server by its name through the gateway with a
+ * ticket, so that the gateway says who is talking, finding the member a name
+ * means and your DM with it, and watching a thread for what an agent did with
+ * a message. It must not know how a command prints, or how an agent works:
  * what became of a message is read from the receipts on its events in the thread, never
  * asked of the agent.
  */

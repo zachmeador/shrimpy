@@ -13,6 +13,7 @@ async function standInAgent(t: TestContext, attach: (threadId: string) => Promis
   return startStandIn(t, "agent", {
     offer: () =>
       offer(SessionDirectory, {
+        enter: () => Promise.resolve({ id: "mem_you", kind: "person", name: "you" }),
         list: () => Promise.resolve([{ threadId: "th_1", channelId: "ch_1", working: false }]),
         attach: (threadId) => attach(threadId),
         detach: () => Promise.resolve(),

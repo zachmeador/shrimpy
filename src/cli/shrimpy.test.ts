@@ -59,7 +59,7 @@ async function agentOnTheNetwork(t: TestContext, target: { url: string; model: s
   await startTestGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   const agent = await serve(t, home, [], { env: { HOME: tempDir(t, "user-home"), ...launch?.env } });
-  const talk = await talkTo(t, chat.listening, "scout");
+  const talk = await talkTo(t, "scout");
   return { home, chat, agent, talk };
 }
 
@@ -259,15 +259,15 @@ test("the agent's shell finds shrimpy, though the PATH the agent was started wit
   );
   assert.equal(tool?.status, "done");
   assert.equal(tool.output.split("\n")[0], join(home, "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
-  assert.match(tool.output, /^agent\s+scout\s+0\.0\.0\s+\d+$/m, "and it reaches this machine's gateway, which lists the agent");
+  assert.match(tool.output, /^agent\s+scout\s+0\.0\.0$/m, "and it reaches this machine's gateway, which lists the agent");
 });
 
 test("a shrimpy command in an agent's shell speaks as that agent, and the same command in a person's terminal speaks as the person", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
-  const { home, chat, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
-  const mechanic = await startScriptedAgent(t, { name: "mechanic", chat: chat.listening, handle: () => ({ status: "silent" }) });
-  const person = (await enterAsPerson(t, chat.listening)).me;
+  const { home, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
+  const mechanic = await startScriptedAgent(t, { name: "mechanic", handle: () => ({ status: "silent" }) });
+  const person = (await enterAsPerson(t)).me;
   const scout = await memberNamed(t, "scout");
 
   // The test model has the agent run `shrimpy run mechanic "hello from my shell" --no-wait` in its shell.

@@ -57,7 +57,8 @@ const status: Command = {
   usage: "",
   summary: "List the programs registered with this machine's gateway, and the members on its roster.",
   details:
-    "The programs are listed by kind, name, version and pid. The members are everyone the gateway knows, " +
+    "The programs are listed by kind, name and version: where a program listens is told to the gateway alone. " +
+    "The members are everyone the gateway knows, " +
     "people and agents, by ID, kind and name, with whether a program is registered as each. A version that " +
     "differs from this command's own is marked, and so is the gateway's, on standard error. Exits 1 if no " +
     "gateway is running.",
@@ -94,8 +95,8 @@ async function inspectGateway(): Promise<{ programs: Registration[]; members: Ro
 /** The programs as a table, each one whose version is not `own` followed by a note saying so. */
 function renderPrograms(programs: Registration[], own: string): string[] {
   if (programs.length === 0) return ["Programs:", "No programs are registered."];
-  const rows = programs.map((program) => [program.kind, program.name, program.version, String(program.pid)]);
-  const [header, ...lines] = renderTable(["kind", "name", "version", "pid"], rows);
+  const rows = programs.map((program) => [program.kind, program.name, program.version]);
+  const [header, ...lines] = renderTable(["kind", "name", "version"], rows);
   return [
     "Programs:",
     header ?? "",

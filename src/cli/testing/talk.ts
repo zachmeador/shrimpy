@@ -3,7 +3,6 @@ import type { TestContext } from "node:test";
 import type { Message, Receipt, Thread } from "../../contracts/chat/index.ts";
 import { enterAsPerson, memberNamed } from "../../contracts/chat/testing/index.ts";
 import { eventually } from "../../lib/testing/index.ts";
-import type { ServedChat } from "./process.ts";
 
 /** The person's DM with an agent on a real chat server, and what they can do in it. */
 export interface Talk {
@@ -20,12 +19,12 @@ export interface Talk {
 }
 
 /**
- * The person who runs the gateway, connected to the chat server `chat`, in a DM
- * with the agent called `agentName`, once that has joined the roster. The
- * connection is closed when the test ends.
+ * The person who runs the gateway, connected to the chat server by its name
+ * through the gateway, in a DM with the agent called `agentName`, once that has
+ * joined the roster. The connection is closed when the test ends.
  */
-export async function talkTo(t: TestContext, chat: ServedChat["listening"], agentName: string): Promise<Talk> {
-  const connection = await enterAsPerson(t, chat);
+export async function talkTo(t: TestContext, agentName: string): Promise<Talk> {
+  const connection = await enterAsPerson(t);
   const agent = await memberNamed(t, agentName);
   const dm = await connection.chat.openDm(agent.id);
   const thread = (await connection.chat.threads(dm.id)).find((candidate) => candidate.main);

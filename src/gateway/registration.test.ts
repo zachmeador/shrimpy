@@ -92,7 +92,6 @@ test("a registration lasts as long as its connection: it is gone when its proces
     const staying = await joinAndRegister(stays, "stays");
     const listed = await observer.list();
     assert.deepEqual(listed.map((program) => program.name), ["victim", "stays"]);
-    assert.equal(listed[0]?.pid, child.pid);
 
     await child.kill("SIGKILL");
 
@@ -150,6 +149,9 @@ test("a registration that cannot be accepted is refused with the reason", { time
     await assert.rejects(program.register({ ...one, kind: "robot" } as unknown as Announcement), {
       code: "service_invalid_value",
       message: 'Invalid registration: kind must be "agent" or "chat"',
+    });
+    await assert.rejects(program.register({ ...one, serverId: "not-a-uuid" }), {
+      message: "Invalid registration: serverId must be a lowercase UUID, version 4",
     });
     await assert.rejects(program.register({ ...one, socket: "one.sock" }), {
       code: "service_invalid_value",

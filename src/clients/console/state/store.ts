@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Transports } from "../../../contracts/gateway/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import {
@@ -13,7 +14,6 @@ import {
   problemOf,
   type SessionUpdate,
   type ThreadUpdate,
-  type Transports,
 } from "../network/index.ts";
 import { readDms } from "./directory.ts";
 import {
@@ -27,7 +27,7 @@ import {
 } from "./model.ts";
 
 export interface ConsoleStateOptions {
-  /** How the console reaches the gateway, and the programs it lists. */
+  /** How the console reaches the gateway, and the programs registered with it by their names. */
   transports: Transports;
   /** How often what has no subscription is asked for again: what is running, and the threads in the person's DMs. 2 seconds by default. */
   pollMs?: number;

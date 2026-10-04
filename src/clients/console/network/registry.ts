@@ -5,12 +5,13 @@ import {
   type ProgramName,
   type Registration,
   type RosterEntry,
+  type Ticket,
+  type Transports,
 } from "../../../contracts/gateway/index.ts";
 import { isDisconnected, isNotListening } from "../../../lib/connection/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import { type Backoff, keepRunning } from "../../../lib/retry/index.ts";
 import { CONNECTING, Down, type LinkStatus, type Why } from "./status.ts";
-import type { Transports } from "./transports.ts";
 
 /** What the gateway says is running and who is on its roster. */
 export interface Listing {
@@ -44,11 +45,12 @@ export interface RegistryLink {
    */
   untilListed(match: (program: Registration) => boolean, signal: AbortSignal, waiting?: () => void): Promise<Registration>;
   /**
-   * A ticket from the gateway for `target`, to hand to it. The console never
-   * signs in, so the gateway says the ticket is for the person who runs it. Fails
-   * with `Down`, saying why, when the gateway is not being reached.
+   * A ticket from the gateway for `target`, to hand to it, with the server ID it
+   * answers as. The console never signs in, so the gateway says the ticket is
+   * for the person who runs it. Fails with `Down`, saying why, when the gateway
+   * is not being reached.
    */
-  ticket(target: ProgramName): Promise<string>;
+  ticket(target: ProgramName): Promise<Ticket>;
   /** Hang up and stop asking. */
   close(): Promise<void>;
 }

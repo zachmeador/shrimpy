@@ -1,5 +1,5 @@
-import type { ChatClient, ChatConnection, Member } from "../../contracts/chat/index.ts";
-import type { Registration } from "../../contracts/gateway/index.ts";
+import { type ChatClient, type ChatConnection, connectChat, type Member } from "../../contracts/chat/index.ts";
+import { reachProgram, type Transports } from "../../contracts/gateway/index.ts";
 import type { KeptRegistration } from "../../contracts/gateway/node.ts";
 import { isDisconnected, isNotListening } from "../../lib/connection/index.ts";
 import { createListeners } from "../../lib/listeners/index.ts";
@@ -8,12 +8,15 @@ import { ChatUnavailableError } from "./unavailable.ts";
 
 export interface ChatLinkOptions {
   /**
-   * The agent's connection to the gateway, which says where the chat server is
-   * and makes the tickets the agent comes in with, as the member it signed in as.
+   * The agent's connection to the gateway, which says whether the chat server is
+   * registered and makes the tickets the agent comes in with, as the member it
+   * signed in as.
    */
   gateway: Pick<KeptRegistration, "untilUp">;
-  /** Connect to the chat server the gateway lists. Called again after each loss. */
-  connect(registered: Registration, signal: AbortSignal): Promise<ChatConnection>;
+  /** How to reach the chat server through the gateway, by its name. */
+  transports: Pick<Transports, "program">;
+  /** Open a connection to the chat server over what the gateway offers. `connectChat`, unless a test wraps it. */
+  connect?: typeof connectChat;
   /** Told of failures worth knowing about. It is not told that chat is not there: that is an ordinary state. */
   onError?: (error: Error) => void;
   /** The pauses between attempts to reach chat. Tests shorten them. */
@@ -141,9 +144,9 @@ export function openChatLink(options: ChatLinkOptions): ChatLink {
 }
 
 /**
- * One way in: ask the gateway where chat is and for a ticket for it, connect,
- * and hand chat the ticket. Whoever the agent is comes from chat's answer and
- * from nothing the agent says.
+ * One way in: find the chat server in the gateway's list, then reach it by its
+ * name through the gateway and hand it a ticket. Whoever the agent is comes
+ * from chat's answer and from nothing the agent says.
  */
 async function comeIn(
   options: ChatLinkOptions,
@@ -152,22 +155,19 @@ async function comeIn(
   const gateway = await options.gateway.untilUp(signal);
   const registered = (await gateway.list()).findLast((program) => program.kind === "chat");
   if (registered === undefined) throw new ChatUnavailableError("The gateway lists no chat server.");
-  const ticket = await gateway.ticket({ kind: registered.kind, name: registered.name });
-
-  let connection: ChatConnection;
   try {
-    connection = await options.connect(registered, signal);
+    const { connection, entered } = await reachProgram({
+      gateway,
+      transports: options.transports,
+      target: { kind: registered.kind, name: registered.name },
+      connect: options.connect ?? connectChat,
+      enter: (opened, ticket, enterSignal) => opened.chat.enter(ticket, enterSignal),
+      signal,
+    });
+    return { connection, self: entered };
   } catch (error) {
     if (!isNotListening(error)) throw error;
-    throw new ChatUnavailableError(`The chat server the gateway lists is not answering on ${registered.socket}.`, {
-      cause: error,
-    });
-  }
-  try {
-    return { connection, self: await connection.chat.enter(ticket, signal) };
-  } catch (error) {
-    await connection.close().catch(() => undefined);
-    throw error;
+    throw new ChatUnavailableError("The gateway lists the chat server, but its way in is not there.", { cause: error });
   }
 }
 

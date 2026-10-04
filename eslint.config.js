@@ -40,6 +40,25 @@ export default tseslint.config(
     },
   },
   {
+    // A client reaches a program by its name, and never works out a path to it.
+    files: ["src/**/*.ts"],
+    ignores: ["src/gateway/**", "src/contracts/gateway/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/contracts/gateway/node.ts"],
+              importNames: ["wayInSocket", "waysDirectory"],
+              message: "Only the gateway and contracts/gateway know where a way in is. Reach a program by its name with reachProgram.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: tests,
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

@@ -6,7 +6,7 @@ import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
 /** A valid announcement for an agent. The socket does not have to exist unless a test connects to it. */
 export function agentAnnouncement(name: string, socket = `/tmp/${name}.sock`): Announcement {
-  return { kind: "agent", serverId: randomUUID(), socket, pid: process.pid, version: SHRIMPY_VERSION };
+  return { kind: "agent", serverId: randomUUID(), socket, version: SHRIMPY_VERSION };
 }
 
 /**
@@ -20,7 +20,7 @@ export async function joinAndRegister(
 ): Promise<Registration> {
   const member = await connection.join(name, newToken());
   await connection.register(announcement);
-  return { ...announcement, name, memberId: member.id };
+  return { kind: announcement.kind, name, memberId: member.id, version: announcement.version };
 }
 
 /** The port of a gateway that was started with a browser entry. */

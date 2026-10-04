@@ -5,9 +5,10 @@
  * must not know how anything is drawn.
  */
 import type { TestContext } from "node:test";
+import { localTransports } from "../../../../contracts/gateway/node.ts";
 import { type Backoff, backoff } from "../../../../lib/retry/index.ts";
 import { stopAfter } from "../../../../lib/testing/index.ts";
-import { keepRegistry, localTransports, type RegistryLink, type RegistryOptions } from "../index.ts";
+import { keepRegistry, type RegistryLink, type RegistryOptions } from "../index.ts";
 
 /** How often a test's links look again at what they are polling. */
 export const POLL_MS = 15;

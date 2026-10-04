@@ -8,7 +8,7 @@ import { untilRegistered } from "./registered.ts";
 export interface Talking {
   readonly gateway: TestGateway;
   readonly chat: ServedChat;
-  /** A connection to the chat server as the person who runs the commands, closed when the test ends. */
+  /** A connection to the chat server, by its name through the gateway, as the person who runs the commands, closed when the test ends. */
   you(): Promise<Entered>;
 }
 
@@ -22,5 +22,5 @@ export async function startTalking(t: TestContext): Promise<Talking> {
   const gateway = await startTestGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   await untilRegistered("chat", "chat");
-  return { gateway, chat, you: () => enterAsPerson(t, chat.listening) };
+  return { gateway, chat, you: () => enterAsPerson(t) };
 }

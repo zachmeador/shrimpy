@@ -9,8 +9,7 @@
  * the reply is out, and the receipt is on its way for as long as the agent
  * lives. Prints one JSON line when it is listening, then runs until SIGTERM.
  */
-import { connectLocal } from "../../contracts/chat/node.ts";
-import type { ChatConnection } from "../../contracts/chat/index.ts";
+import { type ChatConnection, connectChat } from "../../contracts/chat/index.ts";
 import { backoff } from "../../lib/retry/index.ts";
 import { runUntilStopped } from "../../lib/testing/index.ts";
 import { startAgent } from "../index.ts";
@@ -47,8 +46,8 @@ await runUntilStopped(
         tokensPerSecond: tokensPerSecond === undefined ? undefined : Number(tokensPerSecond),
       }),
       join: {
-        reachChat: (registered) =>
-          connectLocal(registered).then((connection) => (hold === "hold-receipts" ? holdingReceipts(connection) : connection)),
+        connectChat: (options) =>
+          connectChat(options).then((connection) => (hold === "hold-receipts" ? holdingReceipts(connection) : connection)),
         backoff: () => backoff({ firstMs: 20, maxMs: 100 }),
       },
     }),

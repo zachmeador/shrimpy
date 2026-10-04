@@ -5,7 +5,7 @@ import { backoff } from "../../../lib/retry/index.ts";
 import { offer, type StandIn, startStandIn, stopAfter } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { keepRegistered, type KeptRegistration } from "../../gateway/node.ts";
-import { Chat, type ChatEndpoint } from "../index.ts";
+import { Chat } from "../index.ts";
 import { type Entered, enterAsAgent, enterAsPerson } from "./enter.ts";
 import { type ScriptedChat, scriptedChat, type ScriptedIdentity } from "./scripted.ts";
 
@@ -37,10 +37,10 @@ export interface StandInChat {
  * A stand-in for the chat server as a real server on a real socket, for the
  * tests of the console. It answers with a scripted chat in memory, not the chat
  * server's code, but it lets people in the way the chat server does: it is
- * registered with the gateway, which is the real one, and asks it whose a
- * ticket is. It listens where the chat server does, so the test needs a
- * runtime directory of its own and a gateway, and it is closed when the test
- * ends.
+ * registered with the gateway, which is the real one and pipes connections made
+ * by its name to it, and asks the gateway whose a ticket is. It listens where
+ * the chat server does, so the test needs a runtime directory of its own and a
+ * gateway, and it is closed when the test ends.
  */
 export async function startStandInChat(t: TestContext, options: StandInChatOptions = {}): Promise<StandInChat> {
   const chat = options.chat ?? scriptedChat();
@@ -75,9 +75,8 @@ export async function startStandInChat(t: TestContext, options: StandInChatOptio
 
   let listening: StandIn | undefined = await listen();
   const { socket } = listening;
-  const endpoint: ChatEndpoint = { serverId, socket, pid: process.pid };
   const kept = keepRegistered(
-    { kind: "chat", serverId, socket, pid: process.pid, version: SHRIMPY_VERSION },
+    { kind: "chat", serverId, socket, version: SHRIMPY_VERSION },
     { backoff: backoff({ firstMs: 5, maxMs: 20 }) },
   );
   registered.kept = kept;
@@ -86,8 +85,8 @@ export async function startStandInChat(t: TestContext, options: StandInChatOptio
   return {
     chat,
     connections: () => listening?.connections() ?? 0,
-    asPerson: () => enterAsPerson(t, endpoint),
-    asAgent: (name, token) => enterAsAgent(t, endpoint, name, token),
+    asPerson: () => enterAsPerson(t),
+    asAgent: (name, token) => enterAsAgent(t, name, token),
     async outage() {
       const stopped = listening;
       listening = undefined;

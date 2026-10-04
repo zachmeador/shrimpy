@@ -51,9 +51,6 @@ export function anAgent(name: string, version = SHRIMPY_VERSION): Registration {
     kind: "agent",
     name,
     memberId: agentMember(name).id,
-    serverId: `${name}-id`,
-    socket: `/tmp/${name}.sock`,
-    pid: 100,
     version,
   };
 }
@@ -74,7 +71,7 @@ export function aListing(programs: Registration[], version = SHRIMPY_VERSION, id
 }
 
 export function aChatServer(version = SHRIMPY_VERSION): Registration {
-  return { kind: "chat", name: "chat", memberId: null, serverId: "chat-id", socket: "/tmp/chat.sock", pid: 101, version };
+  return { kind: "chat", name: "chat", memberId: null, version };
 }
 
 /** A thread, with the fields a test cares about; the rest are plain. */

@@ -4,14 +4,19 @@ import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { checkAnnouncement, InvalidRegistrationError, type Registry } from "./registry/index.ts";
 import type { Roster } from "./roster/index.ts";
 import type { Tickets } from "./tickets/index.ts";
+import type { Ways } from "./ways/index.ts";
 
 /** What every connection to the gateway shares. */
 export interface GatewayDeps {
   roster: Roster;
   registry: Registry;
   tickets: Tickets;
+  /** The ways in to the programs that are registered, kept to match the registry. */
+  ways: Ways;
   /** The operating system user who runs the gateway, which is who a connection that signed in as nobody is. */
   osUser: string;
+  /** Told of what goes wrong that belongs to no call. */
+  onError(error: Error): void;
 }
 
 /** Who is on the other end: a program on this machine, or a page that came through the browser entry. */
@@ -30,7 +35,7 @@ export interface ServedGateway {
  * connection: a registration lasts as long as the connection that made it.
  */
 export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
-  const { roster, registry, tickets } = deps;
+  const { roster, registry, tickets, ways } = deps;
   const registrant = peer === "program" ? registry.connect() : undefined;
   let signedIn: string | undefined;
   let registered: ProgramName | undefined;
@@ -53,6 +58,15 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     if (registered !== undefined) refuse(`This connection has registered already, so it can't ${what}.`);
   };
 
+  /** Make the ways in match what is registered. A way that cannot be made is the caller's to be told of, not an internal error. */
+  const openWays = async (): Promise<void> => {
+    try {
+      await ways.sync();
+    } catch (error) {
+      refuse(`The gateway could not open a way in to the program: ${(error as Error).message}`);
+    }
+  };
+
   const gateway: Gateway = {
     async register(announcement) {
       onThisMachine("register");
@@ -71,6 +85,14 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
         registered = { kind: entry.kind, name: entry.name };
       } catch (error) {
         if (error instanceof InvalidRegistrationError) refuse(error.message);
+        throw error;
+      }
+      // The call ends once the program can be reached by its name, or else the program is not registered.
+      try {
+        await openWays();
+      } catch (error) {
+        registrant.close();
+        registered = undefined;
         throw error;
       }
     },
@@ -98,6 +120,8 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       const wanted: unknown = name;
       const signed = wanted === null || wanted === undefined ? member : roster.rename(member.id, wanted as string);
       signedIn = signed.id;
+      // A rename moves the registrations of that member to the new name, and their ways in with them.
+      if (signed.name !== member.name) await openWays();
       return signed;
     },
     async members() {
@@ -107,12 +131,18 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
 
     async ticket(target) {
       onThisMachine("ask for a ticket");
-      const kind: unknown = target.kind;
-      if (kind !== "chat") refuse("Tickets are for the chat server only, for now.");
-      if (!registry.list().some((program) => program.kind === "chat" && program.name === target.name)) {
-        refuse("The chat server is not registered with the gateway, so there is nobody to give a ticket for.");
+      // A program that has just registered may not have its way in yet, and a ticket is for one that has.
+      await openWays();
+      const found = registry.find(target.kind, target.name);
+      if (found === undefined) {
+        refuse(
+          `There is no ${target.kind === "chat" ? "chat server" : `${target.kind} called ${target.name}`} registered with the gateway, so there is nobody to give a ticket for.`,
+        );
       }
-      return tickets.issue(caller().id, { kind: "chat", name: target.name });
+      return {
+        value: tickets.issue(caller().id, { kind: found.kind, name: found.name }),
+        serverId: found.serverId,
+      };
     },
     async redeem(ticket) {
       if (registered === undefined) refuse("Only a registered program can redeem a ticket.", "service_not_allowed");
@@ -127,5 +157,14 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       return roster.member(result.memberId) ?? refuse("The member that ticket was made for is no longer on the roster.");
     },
   };
-  return { gateway, end: () => registrant?.close() };
+  return {
+    gateway,
+    end() {
+      registrant?.close();
+      // Its way in goes with it, unless another program has the same name.
+      ways.sync().catch((error: unknown) => {
+        deps.onError(error instanceof Error ? error : new Error(String(error)));
+      });
+    },
+  };
 }

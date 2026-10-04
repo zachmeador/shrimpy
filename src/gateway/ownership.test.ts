@@ -6,7 +6,13 @@ import { test } from "node:test";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { leaveUnanswered, settle, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { GatewayRunningError } from "./index.ts";
-import { joinAndRegister, startGatewayChild, startGatewayInProcess, webPortOf } from "./testing/index.ts";
+import {
+  joinAndRegister,
+  startGatewayChild,
+  startGatewayInProcess,
+  startRegistrantChild,
+  webPortOf,
+} from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -30,9 +36,9 @@ test("a second gateway is refused and the first is undisturbed", { timeout }, as
         error.message.includes("already running"),
     );
 
-    // Only the first gateway's own files: its two sockets and its lock.
+    // Only the first gateway's own files: its two sockets and its lock, and its ways in.
     assert.deepEqual(
-      readdirSync(runtime).filter((name) => !name.startsWith("gateway")),
+      readdirSync(runtime).filter((name) => !name.startsWith("gateway") && name !== "ways"),
       [],
     );
     assert.deepEqual(await program.list(), [one]);
@@ -72,13 +78,18 @@ test("gateways started at the same moment cannot both run", { timeout }, async (
   }
 });
 
-test("a gateway that was killed leaves a socket that the next one replaces", { timeout }, async (t) => {
+test("a gateway that was killed leaves its sockets, which the next one replaces or removes", { timeout }, async (t) => {
   const runtime = useRuntimeDir(t);
   const child = await startGatewayChild(t, tempDir(t, "gateway-data"));
+  await startRegistrantChild(t, "victim");
+  const ways = join(runtime, "ways");
+  assert.equal(readdirSync(ways).length, 1, "the registered program has a way in");
   await child.kill("SIGKILL");
   assert.ok(existsSync(join(runtime, "gateway.sock")));
+  assert.equal(readdirSync(ways).length, 1, "and it is left behind");
 
   const gateway = await startGatewayInProcess(t);
+  assert.deepEqual(readdirSync(ways), [], "the next gateway starts with none");
   const client = await connectLocalGateway();
   try {
     assert.deepEqual(await client.list(), []);
