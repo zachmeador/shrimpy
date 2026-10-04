@@ -1,9 +1,9 @@
 import type { ChatConnection, Member } from "../../contracts/chat/index.ts";
 import { connectLocal } from "../../contracts/chat/node.ts";
-import type { GatewayConnection, Registration } from "../../contracts/gateway/index.ts";
-import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
+import type { Registration } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
+import { askGateway } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { currentPerson } from "./user.ts";
 
@@ -27,9 +27,12 @@ export interface Reached {
  * even on a server that is not answering.
  */
 export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> {
-  const { programs, gatewayVersion } = await askGateway(signal);
-  warnIfVersionDiffers(io, "the gateway", gatewayVersion);
-  const chat = programs.findLast((program) => program.kind === "chat");
+  const gateway = await askGateway(signal);
+  if (gateway === undefined) {
+    throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
+  }
+  warnIfVersionDiffers(io, "the gateway", gateway.version);
+  const chat = gateway.programs.findLast((program) => program.kind === "chat");
   if (chat === undefined) {
     throw new Error(
       "No chat server is registered with this machine's gateway. " +
@@ -54,27 +57,5 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
     await connection.close();
     throw error;
   }
-  return { me, connection, programs, close: () => connection.close() };
-}
-
-/** What this machine's gateway lists and the version it runs. */
-async function askGateway(signal?: AbortSignal): Promise<{ programs: Registration[]; gatewayVersion: string }> {
-  let gateway: GatewayConnection;
-  try {
-    gateway = await connectLocalGateway({ signal });
-  } catch (error) {
-    if (error instanceof GatewayNotRunningError) {
-      throw new Error(`${error.message} Start Shrimpy with: ${START_EVERYTHING}`, { cause: error });
-    }
-    throw error;
-  }
-  // Hanging up ends a question the gateway has stopped answering.
-  const hangUp = (): void => void gateway.close();
-  signal?.addEventListener("abort", hangUp, { once: true });
-  try {
-    return { programs: await gateway.list(), gatewayVersion: await gateway.version() };
-  } finally {
-    signal?.removeEventListener("abort", hangUp);
-    await gateway.close();
-  }
+  return { me, connection, programs: gateway.programs, close: () => connection.close() };
 }

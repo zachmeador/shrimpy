@@ -56,15 +56,18 @@ export async function shrimpy(args: string[], options?: LaunchOptions): Promise<
 export interface RunningCommand {
   /** Send `signal` to the process. */
   kill: (signal: NodeJS.Signals) => void;
+  /** What it has printed so far. The code is null until it has ended. */
+  output: () => CliResult;
   /** Resolves when the process has ended. */
   finished: Promise<CliResult>;
 }
 
 /** Start `shrimpy` with `args` as its own process, and return at once. */
-export function shrimpyInBackground(args: string[]): RunningCommand {
-  const { child, closed, result } = launch(args);
+export function shrimpyInBackground(args: string[], options?: LaunchOptions): RunningCommand {
+  const { child, closed, result } = launch(args, options);
   return {
     kill: (signal) => void child.kill(signal),
+    output: result,
     finished: closed.then(result),
   };
 }

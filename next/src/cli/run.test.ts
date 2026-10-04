@@ -20,8 +20,9 @@ function tempHome(t: TestContext): string {
 test("with no command it prints the commands and exits with 2", async () => {
   const result = await run();
   assert.equal(result.code, 2);
-  assert.match(result.err, /^Usage: shrimpy <command> \[arguments\]\n\nCommands:\n {2}run <agent> "<text>" \[--thread <id>\] \[--no-wait\]\n/);
+  assert.match(result.err, /^Usage: shrimpy <command> \[arguments\]\n\nCommands:\n {2}up <home>\.\.\. --data <dir>\n/);
   for (const command of [
+    "up",
     "run",
     "threads",
     "read",
