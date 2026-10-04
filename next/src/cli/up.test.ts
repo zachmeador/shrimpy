@@ -18,6 +18,7 @@ import {
   serveGateway,
   shrimpy,
   startModelServer,
+  startScriptedAgent,
   startUp,
   untilRegistered,
 } from "./testing/index.ts";
@@ -214,6 +215,18 @@ test("with no homes it starts the gateway and the chat server", { timeout }, asy
 
   assert.equal(up.programs().length, 2);
   assert.ok(up.output().stdout.includes('Talk to an agent with: shrimpy run <agent> "<text>"'));
+});
+
+test("what up starts is what run talks through", { timeout }, async (t) => {
+  const up = await startUp(t, ["--data", tempDir(t, "up-data")]);
+  const chat = await untilRegistered("chat", "chat");
+  await startScriptedAgent(t, { name: "scout", chat, handle: () => ({ status: "answered", text: "hello from scout" }) });
+
+  const result = await shrimpy(["run", "scout", "hi"]);
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stdout, "hello from scout\n");
+  assert.equal(chat.pid, up.programs()[1], "the chat server it talked through is the one up started");
 });
 
 test("each program's own lines carry its name, so they can be told apart", { timeout }, async (t) => {
