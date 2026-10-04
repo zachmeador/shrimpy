@@ -21,7 +21,11 @@ const threads: Command = {
 
     const reached = await reachChat(io);
     try {
-      const dm = dmWith(await reached.connection.chat.channels(), memberNamed(reached.members, name));
+      const member = memberNamed(reached.members, name);
+      if (member.id === reached.me.id) {
+        throw new Error(`${member.name} is you. Name the person or agent you have threads with.`);
+      }
+      const dm = dmWith(await reached.connection.chat.channels(), member);
       if (dm === undefined) {
         io.out(json ? "[]" : `You have not talked to ${name} yet. Start with: shrimpy run ${name} "<text>"`);
         return 0;

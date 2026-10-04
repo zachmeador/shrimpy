@@ -65,18 +65,21 @@ test("threads says who is working in a thread right now, and stops saying so whe
   await eventually(workingIn, (working) => working.length === 0);
 });
 
-test("threads with an agent you have never talked to lists nothing, and makes nothing, and with nobody on the roster it says so", { timeout }, async (t) => {
+test("threads with an agent you have never talked to lists nothing, and makes nothing, and with nobody on the roster or with yourself it says so", { timeout }, async (t) => {
   const talking = await startTalking(t);
   await joinRoster(t, "rex");
 
   const result = await shrimpy(["threads", "rex", "--json"]);
   const nobody = await shrimpy(["threads", "nobody"]);
+  const yourself = await shrimpy(["threads", (await talking.you()).me.name]);
 
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), []);
   assert.deepEqual(await (await talking.you()).chat.channels(), []);
   assert.equal(nobody.code, 1);
   assert.match(nobody.stderr, /Nobody called nobody is on this machine's roster/);
+  assert.equal(yourself.code, 1);
+  assert.match(yourself.stderr, /is you/);
 });
 
 /** What the scripted agent does with a message, by what it says. */
