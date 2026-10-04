@@ -48,13 +48,15 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
+**Core first, 2026-10-04.** The new Shrimpy focuses on getting the core architecture and design right, and a feature that isn't part of that waits until daily use asks for it. Memory breadcrumbs, their search index and the `memory-management` skill moved from phase 2 to phase 3's candidates: agents are trusted to search Shrimpy's state with the tools they have.
+
 **A client that leaves mid-answer, 2026-10-04.** The `up` test that failed now and then is fixed. When a client dropped its connection while a server was writing to it, the gateway, the chat server and the agent each printed `write EPIPE` as an error. A client may leave at any moment, so they no longer report it. A test for each program reproduces the line with the fix switched off. 1,023 tests pass.
 
 **First use, 2026-10-03.** A fresh home and chat store were set up outside the repo, `shrimpy up` was started, and the first `run` got its answer from the local Qwen model. The old command links were removed at the user's request, and `shrimpy` on the PATH now runs the new command from source through `next/bin/shrimpy.js`.
 
 **The old dev workspace moved, 2026-10-03.** It was moved out of the checkout to a sibling directory, untouched, so the new Shrimpy starts fresh and things are brought over from it as wanted. Its location is in the private notes. Nothing of old Shrimpy is running.
 
-**Docs, skills and agent instructions, 2026-10-03.** They get rewritten from scratch for the new Shrimpy, keeping the charming parts of today's. Agent instructions and included skills come in phase 2, and reference and developer docs at the release. The [keep list](KEEP-LIST.md) of those parts was compiled on 2026-10-04. Your first answers: the habits to drop are purged, the footer shrimp and the journal skills wait, and setup leans toward one admin agent named `mechanic`. Two rows in the plan wait for your call: first setup, and which skills phase 2 rewrites.
+**Docs, skills and agent instructions, 2026-10-03.** They get rewritten from scratch for the new Shrimpy, keeping the charming parts of today's. Agent instructions and included skills come in phase 2, and reference and developer docs at the release. The [keep list](KEEP-LIST.md) of those parts was compiled on 2026-10-04. Your answers: the habits to drop are purged from the rewrite and the musings stay as they are for now, the footer shrimp waits, and phase 2 rewrites four skills: setup, agents, where messages go, and skills. Setup leans toward one agent, named `shrimpy`, with the admin role the mechanic had; that row in the plan is open.
 
 **Phase 1 progress, 2026-10-03: receipts, versions and the serve commands are in.** Agents leave receipts on messages in place of the skipped mark, registrations carry Shrimpy's version, the chat server stays registered with the gateway, and `shrimpy gateway serve`, `gateway status` and `chat serve` exist. `lib/` says "route" where it said "session", and the lint keeps every `lib/` main door safe for browsers.
 

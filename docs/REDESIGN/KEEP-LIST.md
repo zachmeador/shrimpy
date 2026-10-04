@@ -8,10 +8,10 @@ The docs, skills and agent instructions get [rewritten from scratch](PLAN.md#ins
 
 From your review on 2026-10-04:
 
-- **Habits to drop: purge them.** "mostly llm slop-speak that made its way in over time." None of it goes into the rewrite. Whether to also purge the musings, where most of it lives and which the rewrite doesn't cover, is not decided.
+- **Habits to drop: purge them.** "mostly llm slop-speak that made its way in over time." None of it goes into the rewrite. The musings, where most of it lives and which the rewrite doesn't cover, stay as they are for now.
 - **3, the footer shrimp: not for now.** The new terminal's working line is good enough.
-- **5, the starter agents: one, not two.** New agents enjoy the shrimp emoji by default. Your leaning is that setup begins with you setting up one admin agent, named `mechanic` by default, and makes no second agent. It's in the plan as an [open decision](PLAN.md#terminal-models-and-settings).
-- **17, the journal skills: not in the MVP.** Skills like them wait until they're wanted.
+- **5, the starter agents: one, not two.** New agents enjoy the shrimp emoji by default. Your leaning is that setup makes one agent, named `shrimpy`, which has the admin role the mechanic had. It's in the plan as an [open decision](PLAN.md#terminal-models-and-settings).
+- **16 and 17, the memory and journal skills: not in the MVP.** They come back with the features they depend on. Phase 2 rewrites four skills: setup, agents, where messages go, and skills.
 
 ## Names and motifs
 

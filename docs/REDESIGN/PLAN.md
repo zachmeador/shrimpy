@@ -118,7 +118,7 @@ If implementation finds another visible difference, add a row before shipping it
 | `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Helpers appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
 | Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current session's model and saves a one-candidate home default. Other sessions and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
 | Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
-| First setup | Setup makes two agents, `shrimpy` and `mechanic`, and opens a session with the mechanic to finish | Setup begins with you setting up one admin agent, named `mechanic` unless you choose otherwise. No second agent is made by default: you ask the mechanic for more when you want them. Every new agent's starter `SOUL.md` says it enjoys the shrimp emoji, as today's `shrimpy` agent does. Admin is a role its instructions and skills give it; under one OS user it has no permission the other agents lack. | Open: your leaning on 2026-10-04 |
+| First setup | Setup makes two agents, `shrimpy` and `mechanic`, and opens a session with the mechanic to finish | Setup makes one agent, named `shrimpy` unless you choose otherwise, and you finish setup by talking to it. It has the admin role by default: the instructions and skills for setting up and repairing a Shrimpy setup, which old Shrimpy gave to the mechanic. No second agent is made by default; you ask for more when you want them. Admin is a role and not a permission: under one OS user it can do nothing the other agents can't, and the role moves to another agent by moving its skills. Every new agent's starter `SOUL.md` says it enjoys the shrimp emoji, as today's `shrimpy` agent does. Where this plan says "the mechanic", it means the agent with the admin role. | Open: your leaning on 2026-10-04 |
 | Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login works the same for [sandboxed and remote agents](#sandboxed-and-remote-agents). | Keep |
 | `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary thread. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. | Confirmed |
 
@@ -130,13 +130,13 @@ If implementation finds another visible difference, add a row before shipping it
 |---|---|---|---|
 | Instruction selection | Approved base context, `SOUL.md`, agent context, skill precedence and required-tool filtering; ambient `AGENTS.md` and global Pi skills and settings excluded | Same, with the workspace's shared `context/` files coming from the gateway. Facts are captured when queued input is consumed, and later edits don't rewrite committed context. | Keep |
 | `/reload` | Refreshes skills and templates; base files load only at session open | Also rebuilds base instructions, for later inputs only. Code, tool or environment changes need a drain and restart. | Confirmed |
-| Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts, the thread's unread messages, and memory breadcrumbs. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other threads and sessions, triggers and workers when they need to. Keep three breadcrumbs and the 6,000-character budget. | Confirmed |
+| Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts and the thread's unread messages. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other threads and sessions, triggers and workers when they need to. Keep the 6,000-character budget. Memory breadcrumbs wait until daily use asks for them: they need a search index, and until then agents are trusted to search their own files and Shrimpy's state with the tools they have. | Confirmed |
 | Workspace context | Shared `context/` files in the workspace that every agent reads | The gateway hosts the workspace's `context/` files, and agents receive them through the API. Each agent keeps a cached copy for when the gateway is unreachable and picks up changes on reload, at the cost of one prompt-cache miss. You or the mechanic edit them in one place. | Confirmed |
 | Memory | Ordinary files; mechanic can search every agent | Same files. The mechanic reaches other agents' homes over SSH instead of a built-in all-agent search. | Confirmed |
 | Context producers | Opt-in commands with channel matching, caching and bounds | Same features. Each preparation makes one attempt, checkpointed by Pi; a crash after it starts reports interruption instead of rerunning. A failure leaves a breadcrumb and the request continues. Previews never run producers. | Confirmed |
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. Compaction only shrinks the session, so agents are told they can re-read the thread when a detail went missing. | Confirmed |
-| Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next row says. | Keep |
-| Which skills come first | 16 included skills, rewritten together | Phase 2 rewrites the four an agent needs to look after a Shrimpy setup: setting it up, making and maintaining agents, where messages go, and making skills. `memory-management` joins them if memory is part of phase 2. A skill for a feature that comes later is rewritten with that feature: watches and the default watches, coding delegation, update, and the journals and audits, which run from watches. `remember`, search and web search wait until they're wanted. | Change |
+| Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next two rows say. | Keep |
+| Which skills come first | 16 included skills, rewritten together | Phase 2 rewrites the four an agent needs to look after a Shrimpy setup: setting it up, making and maintaining agents, where messages go, and making skills. A skill for a feature that comes later is rewritten with that feature: watches and the default watches, coding delegation, update, the journals and audits, which run from watches, and `memory-management`, which comes with memory breadcrumbs. `remember`, search and web search wait until they're wanted. | Confirmed |
 | Docs, skills and agent instructions | Written for old Shrimpy and grown along with it | Rewritten from scratch for the new Shrimpy: the reference docs, the included skills, the base instructions and starter files agents get, and the developer docs. The charming parts of today's are kept, starting from the [keep list](KEEP-LIST.md), which you review before anything is rewritten. Keep it shrimple is the standard they're written to. | Confirmed |
 
 ### Tools and publication
@@ -391,9 +391,9 @@ A crash between steps 1 and 2 leaves a session or an outbox record with no submi
 
 ### Prompt capture
 
-A durable extension supplies base instructions, skill trails, input facts, memory breadcrumbs and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
+A durable extension supplies base instructions, skill trails, input facts and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
 
-**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, workspace context, `SOUL.md` and skill trails. Durable appends a system delta whenever a section's rendered text changes, which invalidates provider prompt caches, so sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender, the thread's unread messages and memory breadcrumbs travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload costs one cache miss.
+**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, workspace context, `SOUL.md` and skill trails. Durable appends a system delta whenever a section's rendered text changes, which invalidates provider prompt caches, so sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender and the thread's unread messages travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload costs one cache miss.
 
 How Pi recovers shapes these rules:
 
@@ -462,7 +462,7 @@ src/
     intake/         what arrives from chat and what goes back: the feed, waking, replies, receipts and working marks;
                     later chat commands, wake policy and the unread cache
     extensions/     durable extensions
-      context/      prompt sections, turn facts, producers, memory breadcrumbs, compaction guidance
+      context/      prompt sections, turn facts, producers, compaction guidance
       tools/        message tools, search, image reading, helpers
       triggers/     trigger and occurrence tasks
   chat/             the chat server program
@@ -563,6 +563,8 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 Work in `next/`, with its own homes, sockets and data paths, so nothing touches the old tree or its workspace. Never run the root build or tests: they rewrite the `dist/` that the installed CLI uses. `main` stays on Pi `0.84.4` until the release replaces it; there's no interim upgrade. The old tree is deleted in phase 6, and until then each phase only adds to `next/`.
 
+**Core first.** The new Shrimpy focuses on getting the core architecture and design right. A feature of old Shrimpy that isn't part of that waits until daily use asks for it. Until then agents are trusted to use the tools they have: searching Shrimpy's state with the shell, for one, instead of being handed memory breadcrumbs.
+
 **No shortcuts reach a commit.** A boundary crossed for convenience, a missing front door, tests left for later and lint that isn't set up yet all get fixed before the commit, not after it. The quality work for a module, meaning its boundary lint, its front door and its tests, exists before that module's first commit. A shortcut found later is fixed before anything else is committed.
 
 **The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided: it goes into [Introduced by the build, not yet reviewed](#introduced-by-the-build-not-yet-reviewed), and a known gap goes into the list in [STATUS.md](STATUS.md).
@@ -637,7 +639,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 **Build**
 
-- The home-context extension: base instructions, skill trails, input facts, memory breadcrumbs and compaction guidance.
+- The home-context extension: base instructions, skill trails, input facts and compaction guidance.
 - The two message tools, search and image reading.
 - Request and context inspection, and explicit reload.
 - Agent instructions and the first included skills rewritten from scratch against the new commands and tools: the base instructions, the starter `SOUL.md`, and each of the [skills that come first](#instructions-memory-and-skills) with its helper commands, tool requirements and precedence. First comes the [keep list](KEEP-LIST.md) of what's charming in today's, for you to review.
@@ -669,6 +671,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Reactions, edits and deletes in threads: in the chat server, the clients and the agent's tools.
 - Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
 - Attachments on messages, including clipboard files and images.
+- Memory breadcrumbs, with the search index behind them and the `memory-management` skill.
 - Terminal affordances from today's client, listed under [terminal, models and settings](#terminal-models-and-settings).
 - A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views.
 
