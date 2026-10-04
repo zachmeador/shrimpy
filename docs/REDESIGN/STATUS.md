@@ -66,7 +66,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The builder raised fifteen mismatches. The ones that change what the plan says are in its `/reload` row and its layout; the rest are in the list above.
 - `next/src/` now holds 11,895 lines of product code, 18,370 of tests and 4,021 of test support.
 
-**Core first, 2026-10-04.** The new Shrimpy focuses on getting the core architecture and design right, and a feature that isn't part of that waits until daily use asks for it. Memory breadcrumbs, their search index and the `memory-management` skill moved from phase 2 to phase 3's candidates: agents are trusted to search Shrimpy's state with the tools they have.
+**Core first, 2026-10-04.** The new Shrimpy focuses on getting the core architecture and design right, and a feature that isn't part of that waits until daily use asks for it. Memory breadcrumbs, their search index and the `memory-management` skill moved from phase 2 to phase 3's candidates: agents are trusted to search Shrimpy's state with the tools they have. The search and image tools moved there too: the shell covers search, and you confirmed that a picture goes to the model with its message, which durable takes as input, so it needs no tool.
 
 **A client that leaves mid-answer, 2026-10-04.** The `up` test that failed now and then is fixed. When a client dropped its connection while a server was writing to it, the gateway, the chat server and the agent each printed `write EPIPE` as an error. A client may leave at any moment, so they no longer report it. A test for each program reproduces the line with the fix switched off. 1,023 tests pass.
 
