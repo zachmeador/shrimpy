@@ -87,6 +87,15 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
+**Spike, 2026-10-04: asking another agent and carrying on with the answer.** Partly. An agent can ask a second agent something and be woken with the answer in the session that asked, with the chat server as the only transport and nothing outside the agent changed. The code is on the branch `spike/ask-and-resume` and is not merged.
+
+- How it works: an `ask` tool posts the question in the two agents' DM and starts a Pi background task in the asking session. The task waits on a document, the agent's intake settles that document when it sees the asked agent's receipt, and the task hands the result to the asking session as new input.
+- Proved through real processes, with sixteen tests: a person asks scout, scout asks maya, maya answers in their DM, and scout tells the person once. It holds when either agent is killed in between and when chat goes away and comes back. Staying silent, failing and being stopped are each told to the asker at once, and an agent that isn't running is told after a time limit.
+- Not being woken twice needs a rule: while an ask is open, what the asked agent posts in that DM belongs to the ask and wakes no turn there. With the rule switched off, the asker's session behind the DM answered the reply, which is how two agents start talking in circles.
+- First awkward seam: a receipt is not an event, so the feed never brings one. The agent has to hold a second connection to chat for each DM with an open ask, to watch the thread for the receipt. Receipts as events in the feed would remove that and make the rule exact.
+- Second awkward seam: the answer re-enters the session outside the agent's outbox, so the turn it starts posts no final text, shows no working mark, and is dropped by a stop while it waits.
+- Nothing in Pi was impossible. The one thing it lacks is a way for anything outside a task to signal it, so a document the task watches is the way.
+
 **Core contracts, 2026-10-04: a program is reached by its name, through the gateway.** A client asks the gateway for a ticket for a program, connects through a way in that the gateway keeps for it, and hands the ticket over. The gateway's list no longer says where anything listens. This is the third of the three core contract changes, and 456 tests pass.
 
 - An agent has two sockets: the one in its home, reached by the home's path with no ticket, and one only the gateway is told of, where a ticket comes first. With the gateway down, an agent is still watched and stopped by its home's path, and there is a test for it.
