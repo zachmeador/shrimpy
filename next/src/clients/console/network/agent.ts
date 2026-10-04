@@ -1,0 +1,162 @@
+import {
+  type AgentConnection,
+  connectAgent,
+  type SessionHandle,
+  type SessionView,
+} from "../../../contracts/agent/index.ts";
+import type { Backoff } from "../../../lib/retry/index.ts";
+import { converge } from "./converge.ts";
+import { keepConnection } from "./keep.ts";
+import type { RegistryLink } from "./registry.ts";
+import { Down, type LinkStatus, type Problem, problemOf } from "./status.ts";
+import type { Transports } from "./transports.ts";
+
+/** What the watched session looks like now, or why it could not be watched. */
+export type SessionUpdate = { threadId: string; view: SessionView } | { threadId: string; problem: Problem };
+
+export interface AgentLinkOptions {
+  /** The agent's name as the gateway lists it. */
+  name: string;
+  registry: RegistryLink;
+  transports: Transports;
+  /** Told of each view of the watched session, from the first, and of a session that could not be watched. */
+  onSession(update: SessionUpdate): void;
+  /** How often to look for the session behind the watched thread while the agent has none yet. */
+  pollMs: number;
+  /** The pauses between attempts to reach the agent. Tests shorten them. */
+  backoff?: Backoff;
+}
+
+/** The console's way to one agent, whether or not it is reachable right now. */
+export interface AgentLink {
+  readonly name: string;
+  status(): LinkStatus;
+  /** Tell `listener` each time the status changes. Returns what stops that. */
+  onStatus(listener: (status: LinkStatus) => void): () => void;
+  /**
+   * Watch the session behind a thread: its view is passed on from now on, and
+   * again after each time the connection comes back. An agent with no session
+   * for the thread yet has nothing to watch, and is looked at again until it
+   * has one. Watching another thread, or none, lets go of this one.
+   */
+  watch(threadId: string | undefined): void;
+  /**
+   * Stop the work in the session being watched, for everyone. Resolves false
+   * when there is no session to stop. Fails with `Down` when the agent is not
+   * reachable.
+   */
+  stop(): Promise<boolean>;
+  /** Hang up and stop trying to reach the agent. */
+  close(): Promise<void>;
+}
+
+export function keepAgent(options: AgentLinkOptions): AgentLink {
+  let wanted: string | undefined;
+  let watching: { id: string; connection: AgentConnection; handle: SessionHandle; stop: () => void } | undefined;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let reported: string | undefined;
+  let closed = false;
+
+  const later = (): void => {
+    clearTimeout(retry);
+    if (!closed) retry = setTimeout(() => void settle(), options.pollMs);
+  };
+
+  const settle = converge(
+    async () => {
+      clearTimeout(retry);
+      const connection = keeper.current();
+      if (connection === undefined) return;
+      const attached = watching;
+      if (attached !== undefined && attached.id === wanted && attached.connection === connection) return;
+      attached?.stop();
+      watching = undefined;
+      if (wanted === undefined) return;
+      const id = wanted;
+      try {
+        if (!(await connection.sessions()).some((session) => session.threadId === id)) return later();
+        const handle = await connection.attach(id);
+        if (wanted !== id || keeper.current() !== connection) return;
+        const stop = handle.subscribe((view) => options.onSession({ threadId: id, view }));
+        watching = { id, connection, handle, stop };
+        reported = undefined;
+      } catch (error) {
+        // Whichever it is, look again later. A lost connection is the link's to report, and any other trouble is reported once.
+        const problem = problemOf(error);
+        if ("said" in problem && reported !== problem.said) options.onSession({ threadId: id, problem });
+        reported = "said" in problem ? problem.said : reported;
+        later();
+      }
+    },
+    (error) => options.onSession({ threadId: wanted ?? "", problem: problemOf(error) }),
+  );
+
+  const keeper = keepConnection<AgentConnection>({
+    backoff: options.backoff,
+    async open(signal, waiting) {
+      const registration = await options.registry.untilListed(
+        (program) => program.kind === "agent" && program.name === options.name,
+        signal,
+        () => waiting({ kind: "not-registered" }),
+      );
+      waiting({ kind: "connecting" });
+      const connecting = connectAgent({
+        serverId: registration.serverId,
+        transportFactory: options.transports.program(registration),
+      });
+      // Connecting has no signal of its own, so giving up leaves it to finish by itself and let go.
+      const abandoned = new Promise<never>((_resolve, reject) => {
+        const give = (): void => reject(signal.reason instanceof Error ? signal.reason : new Error("Connecting was abandoned"));
+        if (signal.aborted) give();
+        else signal.addEventListener("abort", give, { once: true });
+      });
+      abandoned.catch(() => undefined);
+      try {
+        return await Promise.race([connecting, abandoned]);
+      } catch (error) {
+        void connecting.then((late) => late.close()).catch(() => undefined);
+        if (signal.aborted) throw error;
+        throw new Down(
+          { kind: "unreachable", message: `Could not reach the agent ${options.name} at ${registration.socket}: ${(error as Error).message}` },
+          { cause: error },
+        );
+      }
+    },
+    onUp() {
+      reported = undefined;
+      void settle();
+      return () => {
+        clearTimeout(retry);
+        watching?.stop();
+        watching = undefined;
+      };
+    },
+  });
+
+  return {
+    name: options.name,
+    status: () => keeper.status(),
+    onStatus: (listener) => keeper.onStatus(listener),
+    watch(threadId) {
+      wanted = threadId;
+      reported = undefined;
+      void settle();
+    },
+    async stop() {
+      if (keeper.current() === undefined) {
+        const status = keeper.status();
+        throw new Down(status.state === "down" ? status.why : { kind: "lost" });
+      }
+      await settle();
+      const attached = watching;
+      if (attached === undefined || attached.id !== wanted) return false;
+      await attached.handle.stop();
+      return true;
+    },
+    async close() {
+      closed = true;
+      clearTimeout(retry);
+      await keeper.close();
+    },
+  };
+}
