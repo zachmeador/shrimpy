@@ -1,9 +1,5 @@
-/**
- * The tables' version. A store written by any other version is refused, never
- * changed. Version 4 is the first that keeps a log of events: an earlier
- * store's messages have no events behind them, and its receipts name messages.
- */
-export const SCHEMA_VERSION = 4;
+/** The tables' version. A store written by any other version is refused, never changed. */
+export const SCHEMA_VERSION = 5;
 
 /**
  * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
@@ -15,6 +11,11 @@ export const SCHEMA_VERSION = 4;
  * the position of the event that posted it, which is why a post has no
  * `target_seq`: it names the message it makes. `message_seq` is the message an
  * event names, either way.
+ *
+ * A receipt is an event too. It names the message of the event it answers, and
+ * carries the receipt in `answers_seq`, `status`, `reply_seq` and `detail`.
+ * `receipts` keeps the one that stands for each member and event, as
+ * `reactions` keeps the emoji that stand.
  */
 export const SCHEMA = `
 CREATE TABLE members (
@@ -54,7 +55,7 @@ CREATE UNIQUE INDEX one_main_thread_per_channel ON threads (channel_id) WHERE ma
 CREATE TABLE events (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
   id TEXT NOT NULL UNIQUE,
-  kind TEXT NOT NULL CHECK (kind IN ('posted', 'edited', 'deleted', 'reacted', 'unreacted')),
+  kind TEXT NOT NULL CHECK (kind IN ('posted', 'edited', 'deleted', 'reacted', 'unreacted', 'receipted')),
   channel_id TEXT NOT NULL REFERENCES channels (id),
   target_seq INTEGER REFERENCES messages (seq),
   message_seq INTEGER GENERATED ALWAYS AS (coalesce(target_seq, seq)) VIRTUAL,
@@ -62,9 +63,17 @@ CREATE TABLE events (
   at INTEGER NOT NULL,
   text TEXT,
   emoji TEXT,
+  answers_seq INTEGER REFERENCES events (seq),
+  status TEXT CHECK (status IN ('answered', 'silent', 'stopped', 'skipped', 'failed')),
+  reply_seq INTEGER REFERENCES messages (seq),
+  detail TEXT,
   CHECK ((kind = 'posted') = (target_seq IS NULL)),
   CHECK ((kind IN ('posted', 'edited')) = (text IS NOT NULL)),
-  CHECK ((kind IN ('reacted', 'unreacted')) = (emoji IS NOT NULL))
+  CHECK ((kind IN ('reacted', 'unreacted')) = (emoji IS NOT NULL)),
+  CHECK ((kind = 'receipted') = (answers_seq IS NOT NULL)),
+  CHECK ((kind = 'receipted') = (status IS NOT NULL)),
+  CHECK ((kind = 'receipted' AND status = 'answered') = (reply_seq IS NOT NULL)),
+  CHECK ((kind = 'receipted' AND status = 'failed') = (detail IS NOT NULL))
 ) STRICT;
 CREATE INDEX events_by_message ON events (message_seq, seq);
 

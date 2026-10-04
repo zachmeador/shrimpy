@@ -1,4 +1,5 @@
 import type { ChatEvent, Message, Receipt } from "../../contracts/chat/index.ts";
+import { appendEvent } from "./append.ts";
 import type { ReportChange } from "./changes.ts";
 import type { Sql } from "./sql.ts";
 
@@ -40,14 +41,17 @@ export interface NewReceipt {
 export interface ReceiptOperations {
   /**
    * Leave `memberId`'s receipt on an event, in place of the one it left
-   * before. Leaving the receipt it already has changes nothing and tells nobody.
+   * before, and write the event that records it. Leaving the receipt it
+   * already has changes nothing, writes no event and tells nobody. The event
+   * must not be a receipt's own.
    */
-  leaveReceipt(event: ChatEvent, memberId: string, receipt: NewReceipt): void;
+  leaveReceipt(event: ChatEvent, memberId: string, receipt: NewReceipt, at: number): void;
 }
 
 export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperations {
   return {
-    leaveReceipt(event, memberId, receipt) {
+    leaveReceipt(event, memberId, receipt, at) {
+      if (event.kind === "receipted") throw new Error(`Event ${event.id} is a receipt and takes none`);
       const changed = sql.run(
         `INSERT INTO receipts (event_seq, member_id, status, reply_seq, detail)
          VALUES (?, ?, ?, ?, ?)
@@ -62,7 +66,20 @@ export function receiptOperations(sql: Sql, report: ReportChange): ReceiptOperat
         receipt.reply?.seq ?? null,
         receipt.detail,
       );
-      if (changed > 0) report({ kind: "thread", threadId: event.message.threadId });
+      if (changed === 0) return;
+      const named = sql.one("SELECT message_seq FROM events WHERE seq = ?", event.seq) as { message_seq: number };
+      appendEvent(sql, {
+        kind: "receipted",
+        channelId: event.message.channelId,
+        targetSeq: named.message_seq,
+        actorId: memberId,
+        at,
+        answers: event.seq,
+        status: receipt.status,
+        replySeq: receipt.reply?.seq ?? null,
+        detail: receipt.detail,
+      });
+      report({ kind: "event", threadId: event.message.threadId });
     },
   };
 }

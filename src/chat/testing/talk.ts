@@ -29,10 +29,10 @@ export const texts = (messages: { text: string }[]): string[] => messages.map((m
 export const posted = (events: ChatEvent[]): string[] =>
   events.flatMap((event) => (event.kind === "posted" ? [event.text] : []));
 
-/** The log as lines, each an event's kind and what it carries: "edited: new text", "reacted: 👍", "deleted". */
+/** The log as lines, each an event's kind and what it carries: "edited: new text", "reacted: 👍", "receipted: silent", "deleted". */
 export const logOf = (events: ChatEvent[]): string[] =>
   events.map((event) => {
-    const carried = "text" in event ? event.text : "emoji" in event ? event.emoji : "";
+    const carried = "text" in event ? event.text : "emoji" in event ? event.emoji : "status" in event ? event.status : "";
     return carried === "" ? event.kind : `${event.kind}: ${carried}`;
   });
 

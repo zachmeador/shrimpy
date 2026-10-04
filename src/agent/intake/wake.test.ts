@@ -37,6 +37,8 @@ function anEvent({ kind = "posted", actor = zach, author = actor, addressed = [s
     case "reacted":
     case "unreacted":
       return { ...base, kind, emoji: "👍" };
+    case "receipted":
+      return { ...base, kind, event: "evt_0", status: "silent", reply: null, detail: null };
   }
 }
 
@@ -56,6 +58,9 @@ test("the default wake policy: a post or an edit addressed to the agent, and a r
   assert.equal(wakes(anEvent({ kind: "reacted", author: helper, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "unreacted", author: scout, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "deleted" })), false);
+  // A receipt wakes nobody: not another member's on a message the agent wrote, nor one on a message meant for it.
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id] })), false);
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: zach })), false);
 
   // What the agent does itself never wakes it: its own reply comes back in its feed, and answering it would never end.
   assert.equal(wakes(anEvent({ kind: "posted", actor: scout, addressed: [zach.id] })), false);

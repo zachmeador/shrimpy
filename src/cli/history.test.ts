@@ -98,8 +98,8 @@ const byText = (message: Posted): Outcome => {
   }
 };
 
-test("read shows who said what, and where an agent failed, stopped or skipped a message, but not where it was silent", { timeout }, async (t) => {
-  await startTalking(t);
+test("read shows who said what, and where an agent failed, stopped or skipped a message, but not where it was silent, which chat offers all the same", { timeout }, async (t) => {
+  const talking = await startTalking(t);
   await startScriptedAgent(t, { name: "scout", handle: byText });
   const thread = startedThread((await shrimpy(["run", "scout", "q1"])).stderr);
   for (const text of ["q2", "q3", "q4", "q5"]) await shrimpy(["run", "scout", text, "--thread", thread]);
@@ -114,6 +114,13 @@ test("read shows who said what, and where an agent failed, stopped or skipped a 
   assert.match(noteAfter("q4") ?? "", /stopped/);
   assert.match(noteAfter("q5") ?? "", /skipped/);
   assert.equal(lines.filter((line) => line.startsWith("--")).length, 3, "the silent receipt is shown to nobody");
+
+  // Shown to nobody is what the reader chooses. The silent receipt is an event in the feed like the others.
+  const feed = await (await talking.you()).chat.feed(0, 100);
+  assert.deepEqual(
+    feed.flatMap((event) => (event.kind === "receipted" ? [event.status] : [])),
+    ["answered", "silent", "failed", "stopped", "skipped"],
+  );
 });
 
 test("read --json prints the thread and every message with all its receipts, silent ones included", { timeout }, async (t) => {

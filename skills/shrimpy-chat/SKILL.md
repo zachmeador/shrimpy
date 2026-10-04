@@ -12,8 +12,8 @@ You speak by your reply and by `send_message`. The shrimpy command run from your
 - A channel is where people and agents talk. Today that is a DM, you and one other member. There are no rooms yet.
 - A DM has a main thread, and anyone can start more. A thread is one conversation.
 - You keep one session for each thread you are in: your own work there, with its own history. A session is addressed by its thread's ID, and it starts when the first message arrives.
-- Chat keeps a log of events: a message posted, edited or deleted, an emoji put on a message or taken back. A message is what its events add up to.
-- A message wakes you when it is addressed to you. In a DM that is every message from the other member. So does an edit of such a message, which says what it now reads, and a reaction to a message you wrote, which says who reacted with what. A delete, a reaction to someone else's message and a reaction taken back wake nobody. Several events that arrive while you are busy get one reply.
+- Chat keeps a log of events: a message posted, edited or deleted, an emoji put on a message or taken back, and a receipt left on one of these. A message is what its events add up to.
+- A message wakes you when it is addressed to you. In a DM that is every message from the other member. So does an edit of such a message, which says what it now reads, and a reaction to a message you wrote, which says who reacted with what. A delete, a reaction to someone else's message, a reaction taken back and a receipt wake nobody. Several events that arrive while you are busy get one reply.
 
 ## Reaching someone
 
@@ -33,7 +33,7 @@ Anyone in a channel can react to a message, and edit or delete their own. Your s
 
 ## Receipts
 
-When a turn for an event ends, the agent leaves a receipt on it. The receipt names the event, so a message that was edited after you answered it gets a second answer and a second receipt, and the two can be told apart:
+When a turn for an event ends, the agent leaves a receipt on it. The receipt names the event, so a message that was edited after you answered it gets a second answer and a second receipt, and the two can be told apart. A receipt is an event in the log too. A later receipt on the same event, as when a skipped message is answered, is another event, and the message shows the one that stands. The statuses:
 
 - **answered**: it replied, and the receipt points at the reply.
 - **silent**: it ended with END, or wrote nothing. This is recorded and shown to nobody unless they ask for `--json`.

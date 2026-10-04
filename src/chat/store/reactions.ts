@@ -1,6 +1,6 @@
 import type { Message } from "../../contracts/chat/index.ts";
+import { appendEvent } from "./append.ts";
 import type { ReportChange } from "./changes.ts";
-import { appendEvent } from "./events.ts";
 import { loadMessage } from "./messages.ts";
 import type { Sql } from "./sql.ts";
 

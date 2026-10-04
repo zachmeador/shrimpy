@@ -13,7 +13,8 @@ export type Taken = Omit<Outstanding, "earlier">;
  * It wakes for a post addressed to it, which in a DM is every post from the
  * other member; for an edit of a message addressed to it; and for a reaction
  * to a message it wrote, which is an answer to it. Deletes, reactions taken
- * back and reactions to anyone else's message wake it for nothing.
+ * back, reactions to anyone else's message and receipts, whoever left them and
+ * whatever message they name, wake it for nothing.
  */
 export function takeUp(self: Member, event: ChatEvent): Taken | undefined {
   const { message } = event;
@@ -55,6 +56,7 @@ export function takeUp(self: Member, event: ChatEvent): Taken | undefined {
       });
     case "deleted":
     case "unreacted":
+    case "receipted":
       return undefined;
   }
 }

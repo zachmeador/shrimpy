@@ -82,19 +82,22 @@ export interface Chat {
    * Leave the caller's receipt on 1 to 200 events: what it did with them, once
    * its turn for them ended. The receipt is `Receipt` without `memberId`, which
    * is the caller, and without `event`, which is each ID given. Only an agent
-   * leaves receipts, only on events in channels it belongs to, and the call is
-   * all or nothing. A later receipt from the same agent replaces its earlier
-   * one on an event, so a skipped event can be answered later, and leaving the
-   * receipt an event already has changes nothing, so a call whose answer was
-   * lost can be made again.
+   * leaves receipts, only on events in channels it belongs to, and never on the
+   * event of a receipt. The call is all or nothing. A later receipt from the
+   * same agent replaces its earlier one on an event, so a skipped event can be
+   * answered later, and leaving the receipt an event already has changes
+   * nothing, so a call whose answer was lost can be made again.
    *
    * `reply` is required for `answered`, refused for every other status, and must
    * be a message the caller wrote in the same thread as the message each event
    * names. `detail` is required for `failed`, refused for every other status,
    * and holds at most `MAX_RECEIPT_DETAIL_LENGTH` characters.
    *
-   * A receipt is not an event: it changes the thread's live view, but not its
-   * `updatedAt`, and `feed` never offers it as one.
+   * Each receipt that is new or differs from the one before is written as a
+   * `receipted` event, in the order the IDs were given and in the same
+   * transaction as the receipt, and `feed` offers it like any other event. A
+   * receipt that changes nothing writes none. It changes the thread's live view,
+   * but not its `updatedAt`.
    */
   leaveReceipt(
     eventIds: string[],

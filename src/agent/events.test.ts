@@ -2,11 +2,21 @@ import assert from "node:assert/strict";
 import { cpSync } from "node:fs";
 import { test, type TestContext } from "node:test";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
+import { attachLocal } from "../contracts/agent/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
-import { type AgentRig, loggedRequests, releaseGate, type Script, startAgentRig, talkTo, untilReleased } from "./testing/index.ts";
+import {
+  type AgentRig,
+  callingTools,
+  loggedRequests,
+  releaseGate,
+  type Script,
+  startAgentRig,
+  talkTo,
+  untilReleased,
+} from "./testing/index.ts";
 
 /*
- * An agent admitting events: what edits and reactions do to it, with the real
+ * An agent admitting events: what edits, reactions and receipts do to it, with the real
  * engine under it and the real chat server. The model answers with everything
  * it was shown since its last answer, so a test reads what reached it from the
  * reply.
@@ -181,4 +191,31 @@ test("a chat store restored from an older copy gives new events the positions of
   assert.notEqual(restored.event, lost.event, "another event");
   assert.equal((await fresh.receiptOn(restored)).status, "answered");
   assert.equal((await fresh.replies()).filter((reply) => reply.text.includes("came back")).length, 1);
+});
+
+test("a receipt another member leaves on a message the agent wrote is offered to the agent and wakes nobody", { timeout }, async (t) => {
+  const model = callingTools([[{ name: "send_message", args: { text: "Is the disk full?", to: "@mechanic" } }]], "I asked.");
+  const rig = await startAgentRig(t, { script: model.script });
+  const mechanic = await rig.chat.agent("mechanic");
+  await rig.receiptOn(await rig.say("Ask the mechanic about the disk."));
+  const [channel] = await mechanic.chat.channels();
+  const [main] = await mechanic.chat.threads(channel?.id ?? "");
+  const [question] = await mechanic.chat.read(main?.id ?? "", null, 10);
+  assert.ok(question);
+
+  // The agent wrote the question, so the mechanic's receipt on it is an event about a message of the agent's own.
+  await mechanic.chat.leaveReceipt([question.event], { status: "failed", reply: null, detail: "No model was reachable." });
+  const [receipt] = (await mechanic.chat.feed(question.seq, 10)).filter((event) => event.kind === "receipted");
+  assert.deepEqual([receipt?.actor.id, receipt?.message.author.id], [mechanic.me.id, rig.partner.id]);
+  // Everything is taken in order, so once the agent has answered this it has been past the receipt.
+  await rig.receiptOn(await rig.say("The last word."));
+
+  const connection = await attachLocal(rig.home);
+  t.after(() => connection.close());
+  assert.deepEqual(
+    (await connection.sessions()).map((session) => session.threadId),
+    [rig.thread.id],
+    "the receipt started no session behind the mechanic's thread",
+  );
+  assert.deepEqual(rig.reports, []);
 });

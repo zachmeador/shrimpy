@@ -149,16 +149,24 @@ interface EventBase {
 /**
  * One thing that happened to a message, in the order it did. The feed is a log
  * of these, and a message is what they add up to. An event carries what it
- * added: the text of a post or an edit, the emoji of a reaction. Once a message
- * is deleted, its posts and edits carry no text: a delete takes the text out
- * of the log too.
+ * added: the text of a post or an edit, the emoji of a reaction, the receipt of
+ * an agent. Once a message is deleted, its posts and edits carry no text: a
+ * delete takes the text out of the log too.
+ *
+ * A `receipted` event is a receipt an agent left. Its `actor` is that agent, its
+ * `message` is the one the answered event names, and the rest is the receipt:
+ * `event` is the ID of the event it answers. A receipt that replaces an earlier
+ * one on the same event is an event of its own, and the message shows the one
+ * that stands. Nothing is left on a receipt's own event, so its `receipts` are
+ * always empty.
  */
 export type ChatEvent =
   | (EventBase & { kind: "posted"; text: string })
   | (EventBase & { kind: "edited"; text: string })
   | (EventBase & { kind: "deleted" })
   | (EventBase & { kind: "reacted"; emoji: string })
-  | (EventBase & { kind: "unreacted"; emoji: string });
+  | (EventBase & { kind: "unreacted"; emoji: string })
+  | (EventBase & Omit<Receipt, "memberId"> & { kind: "receipted" });
 
 /**
  * A thread as clients show it. Values are strict JSON: absent facts are null,
