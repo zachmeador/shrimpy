@@ -134,7 +134,8 @@ If implementation finds another visible difference, add a row before shipping it
 | Memory | Ordinary files; mechanic can search every agent | Same files. The mechanic reaches other agents' homes over SSH instead of a built-in all-agent search. | Confirmed |
 | Context producers | Opt-in commands with channel matching, caching and bounds | Same features. Each preparation makes one attempt, checkpointed by Pi; a crash after it starts reports interruption instead of rerunning. A failure leaves a breadcrumb and the request continues. Previews never run producers. | Confirmed |
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. Compaction only shrinks the session, so agents are told they can re-read the thread when a detail went missing. | Confirmed |
-| Skills | Trails, `/skill:name` and templates | Same, rewritten against the new CLI and tools. | Keep |
+| Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next row says. | Keep |
+| Docs, skills and agent instructions | Written for old Shrimpy and grown along with it | Rewritten from scratch for the new Shrimpy: the reference docs, the included skills, the base instructions and starter files agents get, and the developer docs. The charming parts of today's are kept, starting from a list of them that you review before anything is rewritten. Keep it shrimple is the standard they're written to. | Confirmed |
 
 ### Tools and publication
 
@@ -610,7 +611,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - The home-context extension: base instructions, skill trails, input facts, memory breadcrumbs and compaction guidance.
 - The two message tools, search and image reading.
 - Request and context inspection, and explicit reload.
-- Ported skills and helper commands, with their tool requirements and precedence.
+- Agent instructions and included skills rewritten from scratch against the new commands and tools: the base instructions, the starter `SOUL.md`, and each skill with its helper commands, tool requirements and precedence. First comes a list of what's charming in today's, for you to review.
 - Native compaction with Shrimpy's guidance in place of the copied runner.
 - Workspace context hosted by the gateway, with each agent's cached copy.
 
@@ -709,6 +710,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 **Build**
 
 - Account for every CLI entry, slash command, export, setup and update recipe, service definition, template, skill, test, doc and security statement. Help and completion come from the real command surface.
+- Reference docs, the README and the developer docs and skills rewritten from scratch for what the release ships, keeping the charming parts of today's.
 - A decision for every command and affordance of today's Shrimpy that hasn't come back.
 - Default locations for machine-level data, and service installation for each program.
 - Move `next/` into `src/`, then remove what's left: `AppRuntime`, the session pool, leases, turn wrappers, gateway execution, control and watch state, private Pi imports, obsolete binaries, commands and dependencies, and candidate scaffolding.
