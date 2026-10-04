@@ -1,0 +1,62 @@
+{
+  "name": "shrimpy",
+  "version": "0.6.2",
+  "description": "a home agent",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "shrimpy": "./dist/cli.js",
+    "shrimpy-gateway": "./dist/gateway.js",
+    "shrimpy-web": "./dist/web/server.js"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc && npm run build:web && chmod +x dist/cli.js dist/gateway.js dist/web/server.js && npm run build:skills",
+    "build:skills": "node dist/skills/project-sync.js",
+    "build:web": "vite build --config web/vite.config.ts && tsc -p web/tsconfig.server.json",
+    "lint": "eslint src test web --ext .ts",
+    "test": "npm run build && node --test --experimental-strip-types test/*.test.ts",
+    "test:coverage": "npm run build && c8 --all --src src --reporter=text-summary --reporter=lcov node --test --experimental-strip-types test/*.test.ts",
+    "dev": "npm run build && node dist/cli.js",
+    "dev:setup": "node scripts/dev-setup.mjs",
+    "dev:setup:clean": "node scripts/dev-setup.mjs clean",
+    "dev:setup:init": "node scripts/dev-setup.mjs init",
+    "dev:setup:shell": "node scripts/dev-setup.mjs shell",
+    "dev:setup:status": "node scripts/dev-setup.mjs status",
+    "dev:setup:tui": "node scripts/dev-setup.mjs setup --copy-pi-state",
+    "gateway": "npm run build && node dist/gateway.js",
+    "web": "npm run build && node dist/web/server.js",
+    "web:dev": "node scripts/web-dev.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.84.4",
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@earendil-works/pi-tui": "0.84.4",
+    "@sinclair/typebox": "0.34.41",
+    "cron-parser": "^5.5.0",
+    "markdown-it": "^14.1.1",
+    "proper-lockfile": "4.1.2",
+    "typebox": "1.3.7"
+  },
+  "piConfig": {
+    "name": "shrimpy",
+    "configDir": ".shrimpy"
+  },
+  "shrimpy": {
+    "releaseName": "The Blue Hour"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/proper-lockfile": "4.1.4",
+    "c8": "^11.0.0",
+    "eslint": "^10.3.0",
+    "svelte": "^5.0.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.59.1",
+    "vite": "^5.4.0"
+  }
+}
