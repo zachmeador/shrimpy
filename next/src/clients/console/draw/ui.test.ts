@@ -160,6 +160,23 @@ test("a thread shows who said what, the editor, and the keys, with what an agent
   ]);
 });
 
+test("a note is drawn by the editor at the bottom, so a long conversation does not push it out of sight", (t) => {
+  const messages = Array.from({ length: 40 }, (_, index) => aMessage(`msg_${String(index + 1)}`, zach, `message ${String(index + 1)}`, { sentAt: at(14, 5) }));
+  const long = onThread("scout", open, aThreadView(open, messages), { notice: { kind: "stopped" } });
+  const { lines } = start(t, long);
+
+  const shown = lines();
+
+  assert.deepEqual(shown.slice(-6), [
+    "",
+    "Stopped scout's work in this thread.",
+    "─".repeat(80),
+    "",
+    "─".repeat(80),
+    "enter send · esc stop · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
+  ]);
+});
+
 test("what is typed goes to the editor, enter sends it, and the editor is empty again", (t) => {
   const { terminal, state, lines } = start(t, conversation());
 

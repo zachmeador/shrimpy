@@ -77,6 +77,23 @@ npm run shrimpy -- threads scout
 npm run shrimpy -- read th_4k9x2m7q0b3d
 ```
 
+## The terminal
+
+`shrimpy` with no command, at a terminal, opens the console. It asks this machine's gateway what is running, and shows the agents. With one agent it goes straight to that agent's threads. Pick a thread, or start one with `n`, and talk: what you type goes to the thread, so `run`, `read` and every other client see it too, and what the agent and others say appears as it arrives. While the agent works in the open thread, its answer, thinking and tool calls stream below the conversation, apart from it. When the turn settles, the reply is a message like any other.
+
+It is a client of the chat server and of agents, and nothing more. Anything it can't reach is named on screen with what to start, and it keeps trying; what you typed stays in the editor.
+
+| Key | What it does |
+|---|---|
+| `↑` `↓`, Enter | Choose and open an agent or a thread. |
+| `n` | In the threads of an agent: start a thread. |
+| Esc | In the threads of an agent: go back to the agents. In a thread: stop the agent's work in this thread, for everyone. |
+| Enter | In a thread: send what you typed. Shift+Enter or Ctrl+J starts a new line. |
+| Ctrl+T, Ctrl+N | In a thread: go to the threads, or start a thread. |
+| Ctrl+C | Clears what you typed. Pressed again with nothing typed, it quits. |
+
+Quitting stops no work. If the agent is still working, one line says so and how to stop it. With nothing running at a terminal, `shrimpy` shows what to start and picks everything up once it is running. Anywhere but a terminal, `shrimpy` with no command lists the commands and exits 2, as `shrimpy help` does with 0.
+
 ## Commands
 
 | Command | What it does |
@@ -120,6 +137,7 @@ A gateway, chat server or agent of another version than the command is named on 
 - Tests sit beside the code as `*.test.ts`. Test support lives in a `testing/` module that only tests import.
 - Only `agent/` imports Pi's durable runtime. Inside it, only `host/`, `sessions/` and `extensions/` do, and the code that takes messages in (`intake/`) sees nothing of it: it works with Shrimpy's own types and a `Turns` it is handed. `agent/sessions/` is the one place that reads Pi's records, and it writes Shrimpy's own documents (which thread a session belongs to, the outbox, the feed cursor) in the same commits as the work they belong to.
 - The agent reaches the gateway and the chat server through `agent/links/`, which is handed how to reach each, so nothing there assumes either is on this machine. The defaults reach both over their Unix sockets.
+- The console works the same way: `clients/console/network/` is its links, each handed a transport, `state/` is what it knows and does, `screen/` is what it shows as plain text and facts, with every sentence in `words.ts` and everything foreign made harmless for a terminal, and `draw/` is the only code that imports `pi-tui`. The lint keeps the other three free of it.
 
 `lint/boundaries.js` enforces these rules, so a violation fails `npm run check`.
 

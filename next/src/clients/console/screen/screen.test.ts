@@ -412,7 +412,7 @@ test("every screen names the keys that do something there", () => {
 test("the line for leaving names the agent and the thread, says the work continues, and says how to stop it", () => {
   assert.equal(
     farewellLine("scout", "th_4k9x2m7q0b3d"),
-    "scout is still working in thread th_4k9x2m7q0b3d, and the work continues. To stop it, open the thread again and press Esc, or run: shrimpy sessions stop <home> th_4k9x2m7q0b3d",
+    "scout is still working in thread th_4k9x2m7q0b3d, and the work continues. To stop it, open the thread and press Esc, or run: shrimpy sessions stop <home> th_4k9x2m7q0b3d",
   );
   assert.equal(farewellLine("sc\u001b[2Jout", "th_\u0007x"), farewellLine("scout", "th_x"));
 });

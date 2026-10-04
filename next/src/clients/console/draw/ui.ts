@@ -9,6 +9,7 @@ import {
   Spacer,
   Text,
   type Terminal,
+  TruncatedText,
   TuiMainScreen,
 } from "@earendil-works/pi-tui";
 import { OUT_OF_DATE, QUIT_AGAIN, type MessageRow, type Screen, screenOf, type ThreadScreen } from "../screen/index.ts";
@@ -136,13 +137,14 @@ export function startDrawing(options: DrawingOptions): Drawing {
   };
 
   let chosen: string | undefined;
-  let focus: Component | undefined;
+  let focus: Component | null | undefined;
   const rows = (): number => tui.terminal.rows;
 
-  function body(screen: Screen): { parts: Component[]; focus: Component } {
+  /** What the screen holds between its title and its notes, and what the keys go to. */
+  function body(screen: Screen): { parts: Component[]; focus: Component | null } {
     if (screen.kind !== "thread") {
       if (screen.rows.length === 0) {
-        return { parts: screen.empty === undefined ? [] : [new Text(theme.dim(screen.empty), 0, 0)], focus: editor };
+        return { parts: screen.empty === undefined ? [] : [new Text(theme.dim(screen.empty), 0, 0)], focus: null };
       }
       const list = listOf({
         rows: screen.rows,
@@ -175,7 +177,6 @@ export function startDrawing(options: DrawingOptions): Drawing {
     const line = working(screen.working);
     if (line !== undefined) parts.push(line);
     editor.borderColor = screen.working === undefined ? theme.editor.borderColor : theme.editorBusy;
-    parts.push(editor);
     return parts;
   }
 
@@ -187,10 +188,13 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
     page.clear();
     const stale = screen.stale ? `  ${theme.warn(`(${OUT_OF_DATE})`)}` : "";
-    page.addChild(new Text(theme.title(screen.title) + stale, 0, 0));
-    for (const note of screen.notes) page.addChild(new Text(note.tone === "warn" ? theme.warn(note.text) : theme.dim(note.text), 0, 0));
+    page.addChild(new TruncatedText(theme.title(screen.title) + stale, 0, 0));
     if (screen.kind !== "thread") page.addChild(new Spacer(1));
     for (const part of parts) page.addChild(part);
+    // The notes sit by what the person is doing, at the bottom, where a long conversation has not pushed them out of sight.
+    if (screen.notes.length > 0 && (screen.kind === "thread" || parts.length > 0)) page.addChild(new Spacer(1));
+    for (const note of screen.notes) page.addChild(new Text(note.tone === "warn" ? theme.warn(note.text) : theme.dim(note.text), 0, 0));
+    if (screen.kind === "thread") page.addChild(editor);
     page.addChild(new Text(waitingForSecondPress ? theme.warn(QUIT_AGAIN) : theme.dim(screen.keys), 0, 0));
 
     if (focus !== next) {
