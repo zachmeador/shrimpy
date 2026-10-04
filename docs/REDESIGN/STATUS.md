@@ -12,7 +12,6 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 - Bare `shrimpy` opens the list of agents, or your threads with the only agent. It doesn't remember your latest thread, start programs on demand, or mark what arrived while you were away.
 - The terminal lists your threads with an agent, not the agent's sessions, so a session that isn't behind one of your threads can't be reached from it.
-- A terminal started with no gateway can't reach a running agent.
 - The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
 - Joining from another machine, which waits for a VM on the LAN to test on.
@@ -25,21 +24,21 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
 - Promises in phase 1's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
 - The terminal client's tests still run on a 350-line stand-in for the chat server that repeats two of its rules. The agent's and the CLI's tests run on the real one.
-- The README's command table is written by hand, so every new command edits the same file. It gets generated from the commands the CLI already knows, once the build now editing it has landed.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
 **Core contracts, before rooms**
 
-The roster, member IDs and tickets are built, and so is the feed of events. One is left:
+All three are built: the roster, member IDs and tickets; the feed of events; and connecting by name through the gateway.
 
-- Connecting by name through the gateway: today the gateway still lists socket paths, and clients connect to the chat server directly after getting a ticket.
+Left open by the roster and by connecting by name:
 
-Left open by the roster:
-
-- An agent that crashes between the gateway answering its first join and the home saving the token leaves its name taken, and nothing removes a member, replaces a token or renames a person. Having the home make its token before it joins would close the gap.
+- A browser can list the programs and the roster and nothing more. It can't get a ticket, so it can't reach the chat server or an agent. How a page is recognized is not decided, and a web client waits on it.
+- Nothing removes a member, replaces a token or renames a person.
 - A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
 - A copied home is two live connections with one member, and nothing chooses between them.
-- A browser can list the roster and can't enter chat, since a person from another device has nothing to be recognized by yet.
+- The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
+- `up` stops the agents it started when its gateway ends by itself, though losing the gateway is never meant to stop an agent.
+- To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine.
 
 Left open by the feed of events, to settle before rooms and chat providers:
 
@@ -49,7 +48,6 @@ Left open by the feed of events, to settle before rooms and chat providers:
 - In a room, every reaction wakes the message's author, and an edit that newly mentions someone wakes them.
 - The log never shrinks, and nothing shows a message's earlier versions.
 - An agent home made before events is refused at start with the engine's own words, which don't say what to do.
-- The chat server now and then prints "Unix connection is closed", which is a client that left and not an error.
 
 **Still open in phase 2**
 
@@ -88,6 +86,16 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Core contracts, 2026-10-04: a program is reached by its name, through the gateway.** A client asks the gateway for a ticket for a program, connects through a way in that the gateway keeps for it, and hands the ticket over. The gateway's list no longer says where anything listens. This is the third of the three core contract changes, and 456 tests pass.
+
+- An agent has two sockets: the one in its home, reached by the home's path with no ticket, and one only the gateway is told of, where a ticket comes first. With the gateway down, an agent is still watched and stopped by its home's path, and there is a test for it.
+- With the gateway killed while an agent works, the turn finishes, the reply is posted once when the gateway is back, and the terminal recovers by itself.
+- An agent learns who is asking on every connection that came through the gateway. Its check lets everyone do everything for now.
+- A home makes its own token before it joins, so a crash between joining and saving no longer leaves a name taken.
+- A client that leaves while a program is writing to it is no longer printed as an error in its second form, "Unix connection is closed".
+- The README's command table is generated from the commands the CLI knows.
+- `src/` holds 14,493 lines of product code, 10,285 of tests and 4,269 of test support.
 
 **Core contracts, 2026-10-04: the feed is a log of events.** The chat server keeps a log of what happens to messages: posted, edited, deleted, reacted and a reaction taken back, each with a position and an ID of its own. A message is what its events add up to. An agent admits an event by its ID and leaves its receipt on that event. 446 tests pass.
 
