@@ -139,8 +139,8 @@ test("a chat server that is already running is used as it is too", { timeout }, 
     `Started the agent scout (pid <pid>) from ${home}.`,
   ]);
   assert.match(up.output().stdout, new RegExp(`The chat server is already running \\(pid ${chat.listening.pid}\\)`));
-  up.kill("SIGTERM");
-  assert.equal((await up.finished).code, 0);
+  up.kill("SIGINT");
+  assert.equal((await up.finished).code, 0, "Ctrl+C stops it as SIGTERM does");
   assert.ok(isAlive(chat.listening.pid));
 });
 

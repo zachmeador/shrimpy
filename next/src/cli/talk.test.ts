@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { userInfo } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { startChat } from "../chat/index.ts";
-import type { ChatConnection } from "../contracts/chat/index.ts";
+import { agentMember, Chat, type ChatConnection, personMember } from "../contracts/chat/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import {
+  eventually,
+  offer,
+  startStandIn,
+  stopAfter,
+  tempDir,
+  until,
+  useRuntimeDir,
+  within,
+} from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import {
   type Outcome,
@@ -233,6 +245,85 @@ test("run says so when the thread moves on past its message, instead of waiting 
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /\nThe thread has moved on past your message, so what scout did with it can't be followed from here\. Read the thread with: shrimpy read th_\w+\n$/);
   finish.resolve(answered("late"));
+});
+
+test("stopping run while the gateway is not answering says nothing was sent, and exits 130", { timeout }, async (t) => {
+  const gateway = await serveGateway(t);
+  process.kill(gateway.listening.pid, "SIGSTOP");
+  const waiting = shrimpyInBackground(["run", "scout", "hello"]);
+  // Long enough for it to have connected to the gateway and be waiting for its answer.
+  await delay(500);
+
+  waiting.kill("SIGINT");
+  const result = await within(5000, waiting.finished, "run stopping");
+
+  assert.equal(result.code, 130);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "Stopped before anything was sent.\n");
+});
+
+test("stopping run while its message is still being sent says it may have been posted, and exits 130", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  await startStandInGateway(t);
+  const sending = deferred<undefined>();
+  const unsupported = (): Promise<never> => Promise.reject(new Error("this chat server only takes a post"));
+  const channel = { id: "ch_one", kind: "dm", name: "scout", members: [agentMember("scout"), personMember("you")] } as const;
+  const thread = { id: "th_one", channelId: "ch_one", main: false, name: null, preview: null, archived: false, updatedAt: 0, working: [] };
+  // A chat server that takes a post and never answers it.
+  const chat = await startStandIn(t, "chat", {
+    offer: () =>
+      offer(Chat, {
+        identify: () => Promise.resolve(),
+        channels: unsupported,
+        openDm: () => Promise.resolve({ ...channel, members: [...channel.members] }),
+        threads: unsupported,
+        createThread: () => Promise.resolve(thread),
+        renameThread: unsupported,
+        archiveThread: unsupported,
+        post: () => {
+          sending.resolve(undefined);
+          return new Promise(() => undefined);
+        },
+        read: unsupported,
+        leaveReceipt: unsupported,
+        setWorking: unsupported,
+        head: unsupported,
+        feed: unsupported,
+        attach: unsupported,
+        detach: unsupported,
+      }),
+  });
+  const registrations = await connectLocalGateway();
+  stopAfter(t, () => registrations.close());
+  const program = { serverId: chat.serverId, socket: chat.socket, pid: process.pid, version: SHRIMPY_VERSION };
+  await registrations.register({ kind: "chat", name: "chat", ...program });
+  const agents = await connectLocalGateway();
+  stopAfter(t, () => agents.close());
+  await agents.register({ kind: "agent", name: "scout", ...program });
+  const waiting = shrimpyInBackground(["run", "scout", "hello"]);
+  await sending.promise;
+
+  waiting.kill("SIGINT");
+  const result = await within(5000, waiting.finished, "run stopping");
+
+  assert.equal(result.code, 130);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr, "Stopped while your message was being sent. It may have been posted; check with: shrimpy threads scout\n");
+});
+
+test("a chat server that is registered but not there is named with where it was looked for", { timeout }, async (t) => {
+  const runtime = useRuntimeDir(t);
+  await startStandInGateway(t);
+  const gateway = await connectLocalGateway();
+  stopAfter(t, () => gateway.close());
+  const socket = join(runtime, "nowhere.sock");
+  await gateway.register({ kind: "chat", name: "chat", serverId: randomUUID(), socket, pid: process.pid, version: SHRIMPY_VERSION });
+
+  const result = await shrimpy(["threads", "scout"]);
+
+  assert.equal(result.code, 1);
+  assert.equal(result.stdout, "");
+  assert.ok(result.stderr.startsWith(`Could not reach the chat server at ${socket}: `), result.stderr);
 });
 
 test("with no gateway running it says what to start, and exits 1", { timeout }, async (t) => {
