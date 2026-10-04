@@ -8,21 +8,31 @@ Record review decisions, finished phases, commands and results, and blockers her
 
 As of 2026-10-03. The list is empty before each review pause.
 
-- The agent contract says `abort` where the plan says `stop`.
-- The agent still has a main session, and sessions are numbered instead of being addressed by their thread.
 - OAuth sign-in isn't built. The plan keeps it.
-- The commands for talking don't exist yet: `up`, `run`, `threads` and `read`.
-- A version mismatch is reported only by `gateway status`. Programs don't compare versions when they connect, and the gateway doesn't report its own.
-- A gateway that accepts a connection and then stops answering can hold up a chat server's shutdown.
-- A second chat server refused for the socket still creates an empty store in its own data directory first.
-- The loop that keeps a program registered only reaches a gateway on the same machine. It doesn't take a transport yet.
-- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes.
-- Only `agent/sessions/` reads Pi's records, as the plan requires, but that holds by convention. The lint only keeps Pi's durable package inside `agent/`.
-- Not built yet from the layout: `agent/intake/`, `agent/extensions/`, `chat/providers/` and `clients/`.
+- The agent is never told how replying works, or that `END` keeps it silent. That comes with the base instructions in phase 2.
+- A turn that was resumed and crashed twice isn't stopped and marked failed yet.
+- Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
+- `--no-wait` prints the IDs to follow up with, but no command waits on one.
+- Nothing lets you set who you are in chat: it is always `person:<OS username>`.
+- Bare `shrimpy` prints usage. Opening your latest thread comes with the terminal client.
+- `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
+- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
+- Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, and two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`.
+- Not built yet from the layout: `agent/extensions/`, `chat/providers/` and `clients/`. In `agent/intake/`, chat commands, wake policies and the unread cache for rooms come later.
 
 ## Log
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**Phase 1 progress, 2026-10-03: the wire-up is in, and an agent answers in a thread.** `shrimpy up` starts the gateway, the chat server and an agent, and `shrimpy run` gets a reply. The agent registers with the gateway, joins chat, turns a message into a turn and its final text into a reply, and leaves a receipt. `threads` and `read` show what was said. Checked on macOS arm64 with Node 26.7.0: 852 tests pass.
+
+- Against `qwen-3.8-flash-next-180b-a6b-nvfp4` on `cashmoney:8090`, a message in a thread became a turn that used the shell tool and came back as a reply, and the agent stayed silent with `END` when told to say nothing.
+- Shrimpy's own documents (the thread each session is behind, the outbox and the feed cursor) live in `agent/sessions/`, because the code that takes messages in must not touch Pi, and the lint now enforces that. The agent's links to the gateway and chat got a module of their own, `agent/links/`. The plan's layout was updated to match.
+- Three behaviors were decided during the merge and wait for review in the plan's table: queued messages are answered together, a failed turn takes back what waits behind it, and a new agent reads its channels from the start.
+- A lost chat connection is retried quietly. A message is handed to its session once, even when both the outbox and the feed bring it up after a restart.
+- `next/src/` now holds 8,420 lines of product code, 14,007 of tests and 3,091 of test support.
+
+**The old dev workspace moved, 2026-10-03.** It was moved out of the checkout to a sibling directory, untouched, so the new Shrimpy starts fresh and things are brought over from it as wanted. Its location is in the private notes. Nothing of old Shrimpy is running.
 
 **Docs, skills and agent instructions, 2026-10-03.** They get rewritten from scratch for the new Shrimpy, keeping the charming parts of today's. Agent instructions and included skills come in phase 2, and reference and developer docs at the release.
 
