@@ -548,7 +548,7 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 **Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. From the end of phase 1 the new Shrimpy is used for real conversations, and from the end of phase 2 it is the one in daily use. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
 
-Work in `next/`, with its own homes, sockets and data paths, so nothing touches the old tree, its workspace or the installed `shrimpy`. Never run the root build or tests: they rewrite the `dist/` that the installed CLI uses. `main` stays on Pi `0.84.4` until the release replaces it; there's no interim upgrade. The old tree is deleted in phase 6, and until then each phase only adds to `next/`.
+Work in `next/`, with its own homes, sockets and data paths, so nothing touches the old tree or its workspace. Never run the root build or tests: they rewrite the `dist/` that the installed CLI uses. `main` stays on Pi `0.84.4` until the release replaces it; there's no interim upgrade. The old tree is deleted in phase 6, and until then each phase only adds to `next/`.
 
 **No shortcuts reach a commit.** A boundary crossed for convenience, a missing front door, tests left for later and lint that isn't set up yet all get fixed before the commit, not after it. The quality work for a module, meaning its boundary lint, its front door and its tests, exists before that module's first commit. A shortcut found later is fixed before anything else is committed.
 

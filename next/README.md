@@ -26,7 +26,7 @@ SHRIMPY_TEST_MODEL_URL=http://localhost:8090/v1 SHRIMPY_TEST_MODEL_ID=my-model n
 
 ## Run an agent
 
-`npm run shrimpy -- <command>` runs the command line from source. Each agent is a home folder, and `agent init` creates one. It never overwrites a file that exists.
+`npm run shrimpy -- <command>` runs the command line from source. For a `shrimpy` command that works from any directory, link `bin/shrimpy.js` into a directory on your PATH. Each agent is a home folder, and `agent init` creates one. It never overwrites a file that exists.
 
 ```bash
 npm run shrimpy -- agent init ~/agents/scout --name scout --model local/qwen3.8-27b
