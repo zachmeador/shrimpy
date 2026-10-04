@@ -312,9 +312,52 @@ Work this plan defers on purpose, to pick up after cutover:
 - Codemode, as a [later experiment](#tools-and-publication).
 - A plain HTTP entry point, once a program that can't speak Pi's protocol needs in.
 - A desktop chat app as the native client for channels.
-- Awareness that is told once, when it changes. A prompt section in Pi can render from a durable document, and Pi stores sections as entries at their place in the transcript and sends only what changed. So slow-changing facts about an agent's world, such as who is reachable, which threads have something unread, what triggers are set or what questions are open, could sit in a section over a document that the agent's intake keeps, in place of old Shrimpy's turn context, which repeated them with every turn. Facts that change every turn stay with the message. A change wakes nobody: it is seen at the next turn. How a change reaches the model depends on the provider: the OpenAI-compatible one was seen to send the whole leading system message again.
+- Facts an agent keeps in view, told once when they change. It is an early thought and not a decision: see [early thinking](#early-thinking).
 - Seams that would let more of Shrimpy be built in parallel, to look at once the core contracts have settled: extensions in the agent as folders with one entry point that are handed the same few things; the chat provider interface with a fake provider as its reference; a client core that the terminal and the web client share; and landing a contract change on its own before the programs that follow it. No seam where only one thing will ever plug in: the gateway stays one piece.
 - Events from outside apps, such as MCP events or webhooks. They would arrive as a chat provider's messages, not as triggers, so agents keep taking nothing inbound. The [research note](../research/mcp-events-and-triggers-2026-10-04.md) says why not yet, and when to look again.
+
+## Early thinking
+
+Ideas that are not decisions. Nothing here is scheduled, and nothing gets built from it until it has been through review.
+
+### What an agent keeps in view
+
+**State:** an early thought from 2026-10-04. You haven't yet worked out when an agent needs this and when it is more than an agent needs. That question comes before any design.
+
+**The thought,** in your words: "most context can live in static markdowns but it feels like sometimes dynamic info that only appears when it's changed could be useful". Your example is a finance agent with passive access to things like balance changes. It is one piece of the app-agents idea: an agent whose identity is one application-like vertical, and whose `context/` is about that vertical and nothing else. Live facts would be the part of that context that moves.
+
+**Where it comes from.** Old Shrimpy had turn context: facts placed in front of every turn within a 6,000-character budget. Some came from producers, which were bounded commands run before a turn, and its example was a finance alerts command. It kept track of what it had shown, so an unchanged fact was left out and came back when its value changed. Its own advice was to keep producers for "bounded facts the model must see before it can decide what to inspect", and otherwise to let the agent run a command when it decides live data matters.
+
+**What Pi brings.** A prompt section can render from a durable document. Pi stores sections as entries at their place in the transcript and sends only what changed. Old Shrimpy built that tracking by hand; in Pi it is how sections work. A section can't run a command, so something else has to keep the document current. A change wakes nobody: it is seen at the agent's next turn. With the OpenAI-compatible adapter a changed section was seen to send the whole leading system message again, so that model gets the new state and not what changed.
+
+**Three ways a fact reaches an agent.** This is a framing offered for review, not a decision.
+
+- It looks it up when it needs it, with its shell and its files. This is the default and needs no mechanism.
+- It is kept in view: small, current, in the prompt, told once when it changes, waking nobody.
+- It is told now: an event or a trigger starts a turn.
+
+The design question for any one fact is which of the three it belongs to.
+
+**Shapes it could take,** cheapest first.
+
+- A Markdown file in `context/` that something keeps current, a check command or the agent itself, with the agent reading its files again when one changes. Facts stay files a person can open, and almost nothing is new: a file in `context/` already reaches every session after `shrimpy agent reload`.
+- A document behind a section, for facts only Shrimpy knows: who is reachable, which threads have something unread, which questions to other agents are open.
+- A check with two outcomes: wake the agent, or just keep a fact current. That would make this the quiet half of triggers and not a second system.
+
+**Candidate tests for whether a fact earns a place in view.** None is settled.
+
+- The agent would need it on most turns, or wouldn't know to ask.
+- It is small, and it changes slowly.
+- Acting on a stale value would cost more than keeping it there does.
+- It isn't something that should wake the agent. If it is, it is an event.
+
+**Open.**
+
+- When an agent needs this and when it is more than it needs. Your question, and the first one.
+- How much may sit in view. Old Shrimpy had a budget and the new one has none.
+- Sections belong to an agent, not to a thread, so a change reaches every session of that agent at its next request, and each pays for it once.
+- Whether a fact should say when it was last true, so the model can tell a fresh value from a stale one.
+- What becomes of the [context producers](#instructions-memory-and-skills) row, which was confirmed with old Shrimpy's shape and isn't built.
 
 ## Architecture
 
