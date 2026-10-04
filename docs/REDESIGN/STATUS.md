@@ -30,17 +30,26 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 **Core contracts, before rooms**
 
-The roster, member IDs and tickets are built. Two are left:
+The roster, member IDs and tickets are built, and so is the feed of events. One is left:
 
-- The feed of events: today the feed offers messages, and an edit couldn't reach an agent.
 - Connecting by name through the gateway: today the gateway still lists socket paths, and clients connect to the chat server directly after getting a ticket.
 
-Left open by the first:
+Left open by the roster:
 
 - An agent that crashes between the gateway answering its first join and the home saving the token leaves its name taken, and nothing removes a member, replaces a token or renames a person. Having the home make its token before it joins would close the gap.
-- A rename reaches the chat server only when that member next enters chat.
+- A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
 - A copied home is two live connections with one member, and nothing chooses between them.
 - A browser can list the roster and can't enter chat, since a person from another device has nothing to be recognized by yet.
+
+Left open by the feed of events, to settle before rooms and chat providers:
+
+- Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
+- An agent notices a replaced chat store only when its cursor is past the newest position. A store that has grown past the cursor makes it skip events. A store's ID in the cursor would close that. Event IDs already stop a new store's event being taken for an answered one.
+- Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
+- In a room, every reaction wakes the message's author, and an edit that newly mentions someone wakes them.
+- The log never shrinks, and nothing shows a message's earlier versions.
+- An agent home made before events is refused at start with the engine's own words, which don't say what to do.
+- The chat server now and then prints "Unix connection is closed", which is a client that left and not an error.
 
 **Still open in phase 2**
 
@@ -79,6 +88,15 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Core contracts, 2026-10-04: the feed is a log of events.** The chat server keeps a log of what happens to messages: posted, edited, deleted, reacted and a reaction taken back, each with a position and an ID of its own. A message is what its events add up to. An agent admits an event by its ID and leaves its receipt on that event. 446 tests pass.
+
+- An edit of a message an agent already answered reaches it and gets an answer of its own, and the two receipts name different events. An edit that arrives while the original waits is shown with it, in one turn.
+- By default a post or an edit addressed to an agent wakes it, and so does a reaction to a message it wrote. A delete, a reaction taken back and a reaction to someone else's message wake nobody.
+- `shrimpy edit`, `delete`, `react` and `unreact` reach the new operations, as whoever runs them, so an agent uses them from its shell with no new tool.
+- The builder broke the code three ways to check its tests: waking on any reaction, waking on a delete, and keying work by position instead of event ID each fail a test.
+- Chat data and agent homes from before this don't open, and nothing converts them.
+- `src/` holds 13,846 lines of product code, 9,844 of tests and 4,236 of test support.
 
 **Core contracts, 2026-10-04: the roster, member IDs and tickets are in.** A member has an ID that never changes and a name that can. The gateway keeps the roster in a file, an agent gets a token the first time it joins, and a program learns who is on a connection by a ticket the gateway vouches for. `identify` is gone. 434 tests pass.
 
