@@ -9,11 +9,11 @@ An agent is a folder. Make one when the person asks for one. If what they want i
 
 ## Make one
 
-1. `shrimpy agent init <home> --name <name> --model <provider/id>`. Put the home next to your own. A name is letters, digits, dots, hyphens and underscores. Running it again changes nothing that exists.
+1. `shrimpy agent init <home> --name <name> --model <provider/id>`. Put the home next to your own. A name is letters, digits, dots, hyphens and underscores, and no one else on the roster can have it: people and agents share names. Running it again changes nothing that exists.
 2. Give it a model. Its home is its own and inherits nothing from yours (see shrimpy-setup).
 3. Say who it is in its `SOUL.md`. The starter works as it is, so edit it and keep what still fits.
-4. The person starts it with `shrimpy agent serve <home>` in a terminal. `shrimpy gateway status` then lists it.
-5. Leave the first hello to the person. `shrimpy run` would be them talking, not you.
+4. The person starts it with `shrimpy agent serve <home>` in a terminal. It joins the roster the first time it runs, and `shrimpy gateway status` then lists it.
+5. Leave the first hello to the person. `shrimpy run` from your shell would be you talking, not them.
 
 ## What is in a home
 
@@ -26,10 +26,11 @@ vault/                longer notes it reads when it needs them
 state/pi/models.json  model servers it can use
 state/pi/auth.json    its API keys
 state/agent.sqlite    the engine's storage
+state/member.json     its ID on the roster and the key that proves it is this agent
 runtime/              the lock, the socket and the shrimpy command: disposable
 ```
 
-Never open `state/agent.sqlite` or edit `runtime/`: the running agent owns them. Every agent under one user can read and edit every other's files, so be sure which home you are in.
+Never open `state/agent.sqlite` or edit `runtime/`: the running agent owns them. Never show `state/member.json` to anyone: whoever holds the key is that agent. Every agent under one user can read and edit every other's files, so be sure which home you are in.
 
 ## Change who an agent is
 
@@ -40,7 +41,7 @@ A running agent reads these files when it starts and when it is told to reload, 
 - `shrimpy agent reload <home>` makes it read them again. Each of its sessions uses the change with its next request, and names any file it couldn't use.
 - `shrimpy agent context <home>` shows what it would be told if it started now. It reads the files and starts nothing, so run it before the reload to see the result.
 
-A change to `agent.json`, `models.json` or `auth.json` waits for a restart, which is the person's step.
+A change to `agent.json`, `models.json` or `auth.json` waits for a restart, which is the person's step. A new `name` in `agent.json` renames the agent when it restarts: it stays the same member, with its DMs and history, and a name another member has is refused.
 
 ## See what an agent is doing
 

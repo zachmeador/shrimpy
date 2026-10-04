@@ -9,7 +9,7 @@ You can check things and edit files. Starting programs is the person's step: `sh
 
 ## What runs
 
-- **The gateway**, one per machine. It knows which programs are running and connects them.
+- **The gateway**, one per machine. It knows which programs are running and connects them, and it keeps the roster in its data directory: every person and agent on the network, by a name and an ID of its own. Nobody says who they are: the gateway decides. Never delete that directory.
 - **The chat server**, one per machine. It keeps every channel, thread and message in its data directory. Never delete that directory.
 - **An agent for each home.** One process that owns the home's files and answers in threads.
 
@@ -21,7 +21,7 @@ There is no setup command yet. A new setup is `shrimpy agent init`, a model for 
 
 ## See what is running
 
-- `shrimpy gateway status` lists the registered programs: kind, name, version and pid. An agent that isn't listed isn't running.
+- `shrimpy gateway status` lists the registered programs (kind, name, version and pid) and the roster (ID, kind, name, and whether it is reachable now). An agent that isn't listed among the programs isn't running.
 - `shrimpy agent status <home>` says whether the agent at a home is running.
 - `shrimpy sessions list <home>` lists the threads that agent is working in.
 
@@ -39,7 +39,11 @@ Signing in with OAuth doesn't work yet.
 ## When a command says
 
 - **No gateway is running**, or **no chat server is registered**: nothing is up. The person runs `shrimpy up <home>... --data <data-dir>`.
-- **No agent named X is registered**: that agent isn't running. The person runs `shrimpy agent serve <home>`.
+- **The agent X is on the roster but is not running**: the person runs `shrimpy agent serve <home>`.
+- **Nobody called X is on this machine's roster**: the name is wrong, or that agent hasn't run yet. An agent joins the roster the first time it runs, and the message lists the agents there are.
+- **The name "X" is taken**: another member has the name, and people and agents share names. Change `name` in the agent's `agent.json` to one nobody has. The person starts the agent again.
+- **The gateway does not know that token**: the gateway's roster was replaced since this home joined. The message names the file in the home to delete so that the agent joins again as a new member. A new member has none of the old one's DMs, so leave that to the person.
+- **The chat server can't reach the gateway**: nobody can come in to chat until the gateway is back, and programs find it again when it is. If it stays down, the person runs `shrimpy up <home>... --data <data-dir>`.
 - **Another process owns the agent home**: an agent already runs there. Use it.
 - **A gateway is already running**, **a chat server is already running**, or **another chat server is using the data**: one is up already. Use it.
 - **names the provider "p", which is not declared**: declare `p` in `models.json`, or correct the model in `agent.json`.
