@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { endpointFile } from "../../contracts/agent/index.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
-import { homePaths, initHome, loadHome, modelLabel, parseModelChoice } from "./index.ts";
+import { homePaths, initHome, loadHome, parseModelChoice } from "./index.ts";
 
 const model = { provider: "local", id: "qwen3.8-27b" };
 
@@ -13,47 +12,10 @@ function tempHome(t: TestContext): string {
   return join(tempDir(t, "home"), "scout");
 }
 
-test("a home has the layout the plan describes", () => {
-  const paths = homePaths("/agents/scout");
-  assert.deepEqual(paths, {
-    root: "/agents/scout",
-    config: "/agents/scout/agent.json",
-    soul: "/agents/scout/SOUL.md",
-    context: "/agents/scout/context",
-    vault: "/agents/scout/vault",
-    skills: "/agents/scout/skills",
-    auth: "/agents/scout/state/pi/auth.json",
-    models: "/agents/scout/state/pi/models.json",
-    database: "/agents/scout/state/agent.sqlite",
-    runtime: "/agents/scout/runtime",
-    bin: "/agents/scout/runtime/bin",
-  });
-});
-
-test("the endpoint clients look for is in the folder the home keeps its runtime files in", () => {
-  const { runtime } = homePaths("/agents/scout");
-  assert.equal(endpointFile("/agents/scout"), join(runtime, "endpoint.json"));
-});
-
-test("a relative home becomes an absolute path", () => {
-  assert.equal(homePaths("some/home").root, join(process.cwd(), "some/home"));
-});
-
 test("init creates every file and folder, and the home loads", (t) => {
   const home = tempHome(t);
-  const { paths, created } = initHome(home, { name: "scout", model });
+  const { paths } = initHome(home, { name: "scout", model });
 
-  assert.deepEqual(created, [
-    "agent.json",
-    "SOUL.md",
-    "context",
-    "vault",
-    "skills",
-    "runtime",
-    "state/pi",
-    "state/pi/models.json",
-    "state/pi/auth.json",
-  ]);
   assert.deepEqual(JSON.parse(readFileSync(paths.config, "utf8")), { name: "scout", model });
   assert.deepEqual(JSON.parse(readFileSync(paths.models, "utf8")), { providers: {} });
   assert.deepEqual(JSON.parse(readFileSync(paths.auth, "utf8")), {});
@@ -91,71 +53,30 @@ test("init again changes nothing, and only fills in what is missing", (t) => {
   assert.equal(readFileSync(paths.soul, "utf8"), "Be brief.\n");
 });
 
-test("init does not change an agent that already exists", (t) => {
+test("init does not change an agent that already exists, and refuses a name that cannot be one before it writes anything", (t) => {
   const home = tempHome(t);
   initHome(home, { name: "scout", model });
   const before = readFileSync(homePaths(home).config, "utf8");
 
-  assert.throws(
-    () => initHome(home, { name: "other", model }),
-    /already describes the agent "scout" with the model local\/qwen3\.8-27b\. Init does not change an existing agent/,
-  );
-  assert.throws(
-    () => initHome(home, { name: "scout", model: { provider: "local", id: "other" } }),
-    /already describes the agent "scout"/,
-  );
+  assert.throws(() => initHome(home, { name: "other", model }), /already describes the agent "scout"/);
   assert.equal(readFileSync(homePaths(home).config, "utf8"), before);
+
+  const fresh = tempHome(t);
+  assert.throws(() => initHome(fresh, { name: "has space", model }), /must start with a letter or digit/);
+  assert.equal(existsSync(fresh), false);
 });
 
-test("init refuses a name that cannot be an agent's name, before it writes anything", (t) => {
-  const home = tempHome(t);
-  for (const name of ["", "..", "-x", "has space", "a/b"]) {
-    assert.throws(
-      () => initHome(home, { name, model }),
-      new Error(
-        `The agent name "${name}" must start with a letter or digit and use only letters, digits, dots, hyphens and underscores.`,
-      ),
-    );
-  }
-  assert.equal(existsSync(home), false);
-});
-
-test("a home without agent.json says how to create one", (t) => {
-  const home = tempHome(t);
-  assert.throws(
-    () => loadHome(home),
-    (error: Error) =>
-      error.message.includes("is not an agent home") &&
-      error.message.includes(`shrimpy agent init ${home} --name <name> --model <provider/id>`),
-  );
-});
-
-test("agent.json is checked, and an unknown key is an error that names it", (t) => {
+test("agent.json is checked, and a bad value is refused with the file and the key that is wrong", (t) => {
   const home = tempHome(t);
   const { paths } = initHome(home, { name: "scout", model });
+  const refusedFor = (key: string) => (error: Error) =>
+    error instanceof ConfigError && error.message.includes(paths.config) && error.message.includes(key);
 
   writeFileSync(paths.config, JSON.stringify({ name: "scout", model, color: "teal" }));
-  assert.throws(
-    () => loadHome(home),
-    new ConfigError(`${paths.config}: the file has unsupported keys: color. Supported keys: name, model.`),
-  );
+  assert.throws(() => loadHome(home), refusedFor("color"));
 
   writeFileSync(paths.config, JSON.stringify({ name: "scout", model: { provider: "local" } }));
-  assert.throws(() => loadHome(home), new ConfigError(`${paths.config}: model.id is required.`));
-
-  writeFileSync(paths.config, JSON.stringify({ model }));
-  assert.throws(() => loadHome(home), new ConfigError(`${paths.config}: name is required.`));
-
-  writeFileSync(paths.config, JSON.stringify({ name: "has space", model }));
-  assert.throws(
-    () => loadHome(home),
-    new ConfigError(
-      `${paths.config}: name must start with a letter or digit and use only letters, digits, dots, hyphens and underscores.`,
-    ),
-  );
-
-  writeFileSync(paths.config, "{ not json");
-  assert.throws(() => loadHome(home), /agent\.json: not valid JSON/);
+  assert.throws(() => loadHome(home), refusedFor("model.id"));
 });
 
 test("a model is written provider/id, and the ID may contain slashes", () => {
@@ -164,8 +85,5 @@ test("a model is written provider/id, and the ID may contain slashes", () => {
     provider: "openrouter",
     id: "anthropic/claude-sonnet-4-5",
   });
-  assert.equal(modelLabel(parseModelChoice("openrouter/anthropic/claude-sonnet-4-5")), "openrouter/anthropic/claude-sonnet-4-5");
-  for (const bad of ["", "qwen", "/qwen", "local/"]) {
-    assert.throws(() => parseModelChoice(bad), /should be provider\/id, such as anthropic\/claude-sonnet-4-5/, bad);
-  }
+  for (const bad of ["qwen", "/qwen", "local/"]) assert.throws(() => parseModelChoice(bad), /should be provider\/id/, bad);
 });

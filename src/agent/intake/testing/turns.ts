@@ -1,6 +1,4 @@
-import type { Outstanding, Snapshot, Turn, TurnOutcome, Turns } from "../index.ts";
-
-type Method = "cursor" | "setCursor" | "record" | "start" | "withdraw" | "outstanding" | "settle";
+import type { Outstanding, Turn, TurnOutcome, Turns } from "../index.ts";
 
 /**
  * The agent's sessions and records as a test scripts them: nothing is stored
@@ -14,12 +12,8 @@ export interface ScriptedTurns extends Turns {
   readonly settled: { messageId: string; outcome: TurnOutcome }[];
   /** The calls made, in order, each as the method, and what it was about when it was about something. */
   readonly calls: string[];
-  /** Make the next message recorded in a thread take these earlier ones along. */
-  takeAlong(threadId: string, earlier: Snapshot[]): void;
   /** End the turns of these messages with `outcome`, as their session would. */
   end(outcome: TurnOutcome, ...messageIds: string[]): void;
-  /** Make the next `times` calls of `method` fail with `error`. */
-  fail(method: Method, error: Error, times?: number): void;
 }
 
 interface Ending {
@@ -33,8 +27,6 @@ export function scriptedTurns(): ScriptedTurns {
   const outbox = new Map<string, Outstanding>();
   const delivered = new Set<string>();
   const endings = new Map<string, Ending>();
-  const along = new Map<string, Snapshot[]>();
-  const failures = new Map<Method, { error: Error; times: number }>();
   const handed = new Map<string, string>();
   const settled: ScriptedTurns["settled"] = [];
   const calls: string[] = [];
@@ -57,12 +49,8 @@ export function scriptedTurns(): ScriptedTurns {
     return made;
   };
 
-  const call = (method: Method, about?: string): void => {
+  const call = (method: string, about?: string): void => {
     calls.push(about === undefined ? method : `${method} ${about}`);
-    const failure = failures.get(method);
-    if (failure === undefined || failure.times === 0) return;
-    failure.times -= 1;
-    throw failure.error;
   };
 
   return {
@@ -82,9 +70,7 @@ export function scriptedTurns(): ScriptedTurns {
       const existing = outbox.get(draft.message.id);
       if (existing !== undefined) return existing;
       if (delivered.has(draft.message.id)) return undefined;
-      const earlier = along.get(draft.threadId) ?? [];
-      along.delete(draft.threadId);
-      const outstanding: Outstanding = { ...draft, earlier };
+      const outstanding: Outstanding = { ...draft, earlier: [] };
       outbox.set(draft.message.id, outstanding);
       return outstanding;
     },
@@ -123,14 +109,8 @@ export function scriptedTurns(): ScriptedTurns {
       delivered.add(outstanding.message.id);
       settled.push({ messageId: outstanding.message.id, outcome });
     },
-    takeAlong(threadId, earlier) {
-      along.set(threadId, earlier);
-    },
     end(outcome, ...messageIds) {
       for (const id of messageIds) endingOf(id).finish(outcome);
-    },
-    fail(method, error, times = 1) {
-      failures.set(method, { error, times });
     },
   };
 }

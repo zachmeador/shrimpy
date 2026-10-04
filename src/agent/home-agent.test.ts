@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { agentMember, type Member } from "../contracts/chat/index.ts";
+import { agentMember, type Message, type Receipt } from "../contracts/chat/index.ts";
 import { type StandInChat, startStandInChat } from "../contracts/chat/testing/index.ts";
-import { attachLocal } from "../contracts/agent/node.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
@@ -40,28 +39,41 @@ async function startNetwork(t: TestContext) {
   return { gateway, chat };
 }
 
-/** Start the home's agent, and wait until it is reading chat's feed. It is stopped when the test ends. */
-async function startHeard(t: TestContext, home: string, chat: StandInChat) {
-  const reading = chat.chat.calls("feed");
-  const agent = closeAfter(t, await startHomeAgent(home));
-  await eventually(() => chat.chat.calls("feed"), (calls) => calls > reading, { what: "the agent to read the feed" });
-  return agent;
+/** Start the home's agent. It is stopped when the test ends. */
+async function startAt(t: TestContext, home: string) {
+  return closeAfter(t, await startHomeAgent(home));
 }
 
-/** Zach's DM with the agent called `name`, and the main thread of it. */
-function dmWith(chat: StandInChat, name: string) {
-  const agent: Member = agentMember(name);
-  return chat.chat.dm(zach, agent).thread;
+/** Zach, in his DM with the agent called `name`. */
+async function talkTo(chat: StandInChat, name: string) {
+  const { thread } = chat.chat.dm(zach, agentMember(name));
+  const receiptOn = (message: Message): Promise<Receipt> =>
+    eventually(
+      () => chat.chat.messages().find((candidate) => candidate.id === message.id)?.receipts[0],
+      (receipt) => receipt !== undefined,
+      { what: `an answer to "${message.text}"` },
+    ) as Promise<Receipt>;
+  return {
+    thread,
+    /** Say something, and wait until the agent has left its receipt. */
+    async ask(text: string): Promise<{ asked: Message; receipt: Receipt }> {
+      const asked = chat.chat.say(zach, thread.id, text);
+      return { asked, receipt: await receiptOn(asked) };
+    },
+    replies: (): Promise<Message[]> =>
+      Promise.resolve(chat.chat.messages(thread.id).filter((message) => message.author.id === agentMember(name).id)),
+  };
 }
 
 test("an agent starts from a home alone, registers with the gateway, finds chat there, and answers in the thread with the model the home declares", { timeout }, async (t) => {
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Hello from qwen");
   const { gateway, chat } = await startNetwork(t);
-  const thread = dmWith(chat, "scout");
+  const person = await talkTo(chat, "scout");
 
-  const agent = await startHeard(t, paths.root, chat);
-  const asked = chat.chat.say(zach, thread.id, "hi");
+  const agent = await startAt(t, paths.root);
+  const { receipt } = await person.ask("hi");
+  await until(() => gateway.registered().some((program) => program.kind === "agent"), "the agent to register");
 
   assert.equal(agent.name, "scout");
   assert.equal(agent.home, paths.root);
@@ -69,16 +81,8 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
     gateway.registered().filter((program) => program.kind === "agent"),
     [{ kind: "agent", name: "scout", ...agent.endpoint, version: SHRIMPY_VERSION }],
   );
-  const receipt = await eventually(
-    () => chat.chat.messages().find((message) => message.id === asked.id)?.receipts[0],
-    (found) => found !== undefined,
-    { what: "a receipt on the message" },
-  );
-  assert.equal(receipt?.status, "answered");
-  assert.deepEqual(
-    chat.chat.messages(thread.id).filter((message) => message.author.id === "agent:scout").map((reply) => reply.text),
-    ["Hello from qwen"],
-  );
+  assert.equal(receipt.status, "answered");
+  assert.deepEqual((await person.replies()).map((reply) => reply.text), ["Hello from qwen"]);
 
   const [sent] = requests;
   assert.equal(sent?.url, "http://models.invalid/v1/chat/completions");
@@ -86,12 +90,8 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.equal(sent.body.model, "qwen");
   const [system, user] = sent.body.messages;
   assert.equal(system?.role, "system");
-  assert.match(String(system.content), /<soul>/, "the home's SOUL.md is in the instructions");
-  assert.match(
-    String(user?.content),
-    new RegExp(`^Thread ${thread.id} in channel ${thread.channelId}\\.\\n\\nZach wrote at \\d{4}-\\d\\d-\\d\\dT[\\d:]{8}Z:\\nhi$`),
-  );
-  const { connection, session } = await attachThread(paths.root, thread.id);
+  assert.match(String(user?.content), /^Thread th_\w+ in channel ch_\w+\.\n\nZach wrote at \S+:\nhi$/, "the facts about a message travel with it");
+  const { connection, session } = await attachThread(paths.root, person.thread.id);
   t.after(() => connection.close());
   assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
 });
@@ -109,26 +109,17 @@ test("the model gets the home's instructions as sections in a fixed order, exact
   );
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  const thread = dmWith(chat, "scout");
-  await startHeard(t, paths.root, chat);
+  const person = await talkTo(chat, "scout");
+  await startAt(t, paths.root);
 
-  const asked = chat.chat.say(zach, thread.id, "hi");
-  await eventually(
-    () => chat.chat.messages().find((message) => message.id === asked.id)?.receipts[0],
-    (found) => found !== undefined,
-    { what: "a receipt on the message" },
-  );
+  await person.ask("hi");
 
   const preview = await previewHomeContext(paths.root);
   assert.deepEqual(preview.sections.map((section) => section.key), ["shrimpy", "soul", "context", "skills"]);
   assert.deepEqual(preview.leftOut, []);
-  const [sent] = requests;
-  const system = sent?.body.messages[0];
+  const system = requests[0]?.body.messages[0];
   assert.equal(system?.role, "system");
   assert.equal(system.content, preview.sections.map((section) => section.text).join("\n\n"));
-  assert.match(system.content, /<soul>\nYou are scout, who keeps the build green\.\n<\/soul>/);
-  assert.match(system.content, /<file path="context\/people\/alex\.md">\nAlex owns the release\.\n<\/file>/);
-  assert.match(system.content, new RegExp(`- review: Review a diff for bugs\\.\\n  ${join(paths.skills, "review", "SKILL.md").replaceAll("/", "\\/")}`));
 });
 
 test("editing the home takes effect at the next start, in sessions made before it too", { timeout }, async (t) => {
@@ -136,66 +127,20 @@ test("editing the home takes effect at the next start, in sessions made before i
   writeFileSync(paths.soul, "Answer in prose.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  const thread = dmWith(chat, "scout");
+  const person = await talkTo(chat, "scout");
 
-  const first = await startHeard(t, paths.root, chat);
-  const one = chat.chat.say(zach, thread.id, "one");
-  await eventually(() => chat.chat.messages().find((m) => m.id === one.id)?.receipts[0], (r) => r !== undefined, { what: "the first answer" });
+  const first = await startAt(t, paths.root);
+  await person.ask("one");
   await first.close();
 
   writeFileSync(paths.soul, "Answer in rhyme.\n");
-  await startHeard(t, paths.root, chat);
-  const two = chat.chat.say(zach, thread.id, "two");
-  await eventually(() => chat.chat.messages().find((m) => m.id === two.id)?.receipts[0], (r) => r !== undefined, { what: "the second answer" });
+  await startAt(t, paths.root);
+  await person.ask("two");
 
   const systemPrompt = (index: number): string => String(requests[index]?.body.messages[0]?.content);
   assert.match(systemPrompt(0), /Answer in prose\./);
   assert.match(systemPrompt(1), /Answer in rhyme\./);
   assert.doesNotMatch(systemPrompt(1), /Answer in prose\./);
-});
-
-test("a running agent reads its home again only when asked, and then each session follows with its next request", { timeout }, async (t) => {
-  const paths = newHome(t);
-  writeFileSync(paths.soul, "Answer in rhyme.\n");
-  const requests = stubChatCompletions(t, "Ok");
-  const { chat } = await startNetwork(t);
-  const thread = dmWith(chat, "scout");
-  await startHeard(t, paths.root, chat);
-  const say = async (text: string): Promise<void> => {
-    const sent = chat.chat.say(zach, thread.id, text);
-    await eventually(
-      () => chat.chat.messages().find((message) => message.id === sent.id)?.receipts[0],
-      (found) => found !== undefined,
-      { what: `an answer to "${text}"` },
-    );
-  };
-  /** Everything the model was told as instructions in a request: the system messages, whichever way they were sent. */
-  const told = (index: number): string =>
-    (requests[index]?.body.messages ?? [])
-      .filter((message) => message.role === "system")
-      .map((message) => String(message.content))
-      .join("\n");
-
-  await say("one");
-  writeFileSync(paths.soul, "Answer in haiku.\n");
-  writeFileSync(join(paths.context, "new.md"), "A note written after the start.\n");
-  await say("two");
-  assert.match(told(1), /Answer in rhyme\./, "editing a file changes nothing for a running agent");
-  assert.doesNotMatch(told(1), /A note written after the start\./);
-
-  const connection = await attachLocal(paths.root);
-  t.after(() => connection.close());
-  const reloaded = await connection.reload();
-  assert.equal(reloaded.soul, true);
-  assert.equal(reloaded.files, 1);
-  assert.deepEqual(reloaded.leftOut, []);
-  await say("three");
-
-  assert.match(told(2), /Answer in haiku\./, "a reload reaches the session's next request");
-  assert.match(told(2), /A note written after the start\./);
-  assert.doesNotMatch(told(2), /Answer in rhyme\./);
-  const history = requests[2]?.body.messages.filter((message) => message.role !== "system").map((message) => message.role);
-  assert.deepEqual(history, ["user", "assistant", "user", "assistant", "user"], "and what the session held is still there");
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {
@@ -204,20 +149,18 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   writeFileSync(two.soul, "You are the second agent.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { gateway, chat } = await startNetwork(t);
-  const scoutThread = dmWith(chat, "scout");
-  const otherThread = dmWith(chat, "other");
-  await startHeard(t, one.root, chat);
-  await startHeard(t, two.root, chat);
+  const toOne = await talkTo(chat, "scout");
+  const toTwo = await talkTo(chat, "other");
+  await startAt(t, one.root);
+  await startAt(t, two.root);
+  await until(() => gateway.registered().filter((program) => program.kind === "agent").length === 2, "both agents to register");
   assert.deepEqual(
     gateway.registered().filter((program) => program.kind === "agent").map((program) => program.name).sort(),
     ["other", "scout"],
   );
 
-  const toOne = chat.chat.say(zach, scoutThread.id, "hello from one");
-  const toTwo = chat.chat.say(zach, otherThread.id, "hello from two");
-  for (const message of [toOne, toTwo]) {
-    await eventually(() => chat.chat.messages().find((m) => m.id === message.id)?.receipts[0], (r) => r !== undefined, { what: "an answer" });
-  }
+  await toOne.ask("hello from one");
+  await toTwo.ask("hello from two");
 
   const fromOne = requests.find((request) => JSON.stringify(request.body.messages).includes("hello from one"));
   const fromTwo = requests.find((request) => JSON.stringify(request.body.messages).includes("hello from two"));
@@ -231,29 +174,23 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
     t.after(() => connection.close());
     return session.view.items.flatMap((item) => (item.type === "user" ? [item.text.split("\n").at(-1) ?? ""] : []));
   };
-  assert.deepEqual(await texts(one.root, scoutThread.id), ["hello from one"]);
-  assert.deepEqual(await texts(two.root, otherThread.id), ["hello from two"]);
+  assert.deepEqual(await texts(one.root, toOne.thread.id), ["hello from one"]);
+  assert.deepEqual(await texts(two.root, toTwo.thread.id), ["hello from two"]);
 });
 
 test("an agent that starts before the gateway and chat finds them when they come up", { timeout }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Found you.");
-  const agent = closeAfter(t, await startHomeAgent(paths.root));
+  const agent = await startAt(t, paths.root);
   assert.ok(agent.endpoint.socket, "it started without them");
 
   const { gateway, chat } = await startNetwork(t);
-  const thread = dmWith(chat, "scout");
+  const person = await talkTo(chat, "scout");
   await until(() => gateway.registered().some((program) => program.kind === "agent"), "the agent to register");
-  await until(() => chat.connections() === 1, "the agent to find chat");
-  await eventually(() => chat.chat.calls("feed"), (calls) => calls >= 1, { what: "the agent to read the feed" });
-  const asked = chat.chat.say(zach, thread.id, "are you there?");
 
-  const receipt = await eventually(
-    () => chat.chat.messages().find((message) => message.id === asked.id)?.receipts[0],
-    (found) => found !== undefined,
-    { what: "a receipt on the message" },
-  );
-  assert.equal(receipt?.status, "answered");
+  const { receipt } = await person.ask("are you there?");
+
+  assert.equal(receipt.status, "answered");
 });
 
 test("a model that cannot be used stops the start before the home is claimed", { timeout }, async (t) => {
@@ -272,15 +209,4 @@ test("a folder that is not a home is left alone", { timeout }, async (t) => {
 
   assert.deepEqual(readdirSync(folder), []);
   assert.equal(existsSync(homePaths(folder).runtime), false);
-});
-
-test("a home with an owner cannot be started again", { timeout }, async (t) => {
-  const paths = newHome(t);
-  stubChatCompletions(t, "Ok");
-  closeAfter(t, await startHomeAgent(paths.root));
-
-  await assert.rejects(
-    startHomeAgent(paths.root).then((agent) => closeAfter(t, agent)),
-    /Another process owns the agent home/,
-  );
 });

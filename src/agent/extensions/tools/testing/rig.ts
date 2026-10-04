@@ -33,8 +33,6 @@ export interface ToolRig {
     args: Record<string, unknown>,
     call?: { taskId?: number; callId?: string; signal?: AbortSignal },
   ): Promise<ToolRun>;
-  /** Make the tools find chat unreachable, or reachable again. It is reachable to begin with. */
-  reachable(reachable: boolean): void;
   /** The connection the tools use. */
   readonly live: LiveChat;
 }
@@ -52,10 +50,9 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
   connection.onDisconnect((reason) => lost.abort(reason ?? new Error("The connection to chat was closed.")));
   const live: LiveChat = { chat: options.through?.(connection.chat, chat) ?? connection.chat, lost: lost.signal };
 
-  let reachable = true;
   const extension = messageTools({
     self: scout,
-    chat: () => (reachable && !live.lost.aborted ? live : undefined),
+    chat: () => (live.lost.aborted ? undefined : live),
     ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),
   });
   const tool = (name: string): ToolRegistration => {
@@ -70,9 +67,6 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
     chat,
     thread,
     live,
-    reachable: (value) => {
-      reachable = value;
-    },
     async call(name, args, call = {}) {
       const api = {
         conversationId: 1,

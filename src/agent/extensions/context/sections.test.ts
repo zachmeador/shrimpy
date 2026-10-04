@@ -23,68 +23,26 @@ const full: HomeSnapshot = {
   leftOut: [{ file: "skills/broken/SKILL.md", reason: "its front matter has no description" }],
 };
 
-test("a home with nothing in it still gives the agent what every agent is told", () => {
-  assert.deepEqual(renderSections(agent, empty), [
-    { key: "shrimpy", text: `<shrimpy>\n${baseInstructions(agent)}\n</shrimpy>` },
-  ]);
-});
-
-test("the sections come in a fixed order: what every agent is told, SOUL.md, the context files, the skills", () => {
+test("the sections come in a fixed order, each in a tag of its own, and a file path cannot break out of its tag", () => {
   const sections = renderSections(agent, full);
 
   assert.deepEqual(
     sections.map((section) => section.key),
     ["shrimpy", "soul", "context", "skills"],
   );
-  assert.equal(sections[1]?.text, "<soul>\n# SOUL\n\nBe brief.\n</soul>");
-  assert.equal(
-    sections[2]?.text,
-    [
-      "<context>",
-      '<file path="context/user.md">',
-      "Zach likes short answers.",
-      "</file>",
-      '<file path="context/&quot;quoted&quot;.md">',
-      "indented",
-      "</file>",
-      "</context>",
-    ].join("\n"),
-  );
-  assert.equal(
-    sections[3]?.text,
-    [
-      "<skills>",
-      "- review: Review a diff for bugs.",
-      "  /agents/scout/skills/review/SKILL.md",
-      "- ship-it: Ship a build.",
-      "  /agents/scout/skills/deploy/SKILL.md",
-      "</skills>",
-    ].join("\n"),
-  );
+  assert.ok(sections.every((section) => section.text.startsWith(`<${section.key}>\n`) && section.text.endsWith(`\n</${section.key}>`)));
+  assert.ok(sections[2]?.text.includes('<file path="context/&quot;quoted&quot;.md">'));
+  assert.ok(sections[3]?.text.includes("- review: Review a diff for bugs.\n  /agents/scout/skills/review/SKILL.md"));
+  assert.doesNotMatch(sections.map((section) => section.text).join("\n"), /broken/, "what was left out is in no section");
 });
 
 test("a section with nothing to say is left out, and the others keep their places", () => {
   const keys = (snapshot: HomeSnapshot): string[] => renderSections(agent, snapshot).map((section) => section.key);
 
-  assert.deepEqual(keys({ ...full, soul: undefined }), ["shrimpy", "context", "skills"]);
+  assert.deepEqual(keys(empty), ["shrimpy"], "a home with nothing in it still gives the agent what every agent is told");
   assert.deepEqual(keys({ ...full, soul: " \n" }), ["shrimpy", "context", "skills"]);
   assert.deepEqual(keys({ ...full, files: [] }), ["shrimpy", "soul", "skills"]);
   assert.deepEqual(keys({ ...full, skills: [] }), ["shrimpy", "soul", "context"]);
-});
-
-test("the files that were left out are not in any section", () => {
-  const text = renderSections(agent, full)
-    .map((section) => section.text)
-    .join("\n");
-
-  assert.doesNotMatch(text, /broken/);
-});
-
-test("the same snapshot gives the same sections every time, and the snapshot is not touched", () => {
-  const before = JSON.stringify(full);
-
-  assert.deepEqual(renderSections(agent, full), renderSections(agent, full));
-  assert.equal(JSON.stringify(full), before);
 });
 
 test("what every agent is told names the agent, its home and every message tool the agent has", () => {

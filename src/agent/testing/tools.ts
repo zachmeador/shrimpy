@@ -1,26 +1,23 @@
-import { fauxAssistantMessage, fauxToolCall, type Message, type Tool } from "@earendil-works/pi-ai";
-import { getCurrentSystemPrompt, getCurrentTools } from "@earendil-works/pi-ai/utils/transcript";
+import { fauxAssistantMessage, fauxToolCall, type Message } from "@earendil-works/pi-ai";
 import type { Script } from "./index.ts";
 
 /** A tool call the scripted model makes. */
-export interface ToolCall {
+interface ToolCall {
   name: string;
   args: Parameters<typeof fauxToolCall>[1];
 }
 
 /** What a tool answered the scripted model. */
-export interface ToolAnswer {
+interface ToolAnswer {
   name: string;
   isError: boolean;
   text: string;
 }
 
-export interface ToolScript {
+interface ToolScript {
   readonly script: Script;
   /** What each tool answered, in the order they were called, for every turn that ended. */
   readonly answers: ToolAnswer[];
-  /** The messages of every request the model was sent, oldest request first. */
-  readonly requests: (readonly Message[])[];
 }
 
 /**
@@ -32,9 +29,7 @@ export interface ToolScript {
  */
 export function callingTools(turns: ToolCall[][], final = "Done."): ToolScript {
   const answers: ToolAnswer[] = [];
-  const requests: (readonly Message[])[] = [];
   const script: Script = (messages) => {
-    requests.push(messages);
     const turn = messages.filter((message) => message.role === "user").length - 1;
     const calls = turns[turn] ?? [];
     const results = resultsAfterLastUser(messages);
@@ -53,14 +48,8 @@ export function callingTools(turns: ToolCall[][], final = "Done."): ToolScript {
     );
     return fauxAssistantMessage(final);
   };
-  return { script, answers, requests };
+  return { script, answers };
 }
-
-/** The instructions a request gives the model: its system messages replayed into the one text they make. */
-export const systemPromptOf = (messages: readonly Message[]): string => getCurrentSystemPrompt(messages);
-
-/** The tools a request offers the model, in order. */
-export const toolsOf = (messages: readonly Message[]): Tool[] => getCurrentTools(messages);
 
 function resultsAfterLastUser(messages: readonly Message[]) {
   const results = [];

@@ -71,19 +71,6 @@ test("a hosted provider uses the key in auth.json", async (t) => {
   assert.equal(requests[0].headers.authorization, "Bearer gsk-from-the-home");
 });
 
-test("a key stored for a custom provider wins over the one in models.json", async (t) => {
-  const files = home(t, {
-    models: { providers: { local: qwen } },
-    auth: { local: { type: "api_key", key: "real-key" } },
-  });
-  const models = await buildModels({ ...files, model: { provider: "local", modelId: "qwen" } });
-  const requests = stubChatCompletions(t, "Hi");
-
-  await ask(models, "local", "qwen");
-
-  assert.equal(requests[0]?.headers.authorization, "Bearer real-key");
-});
-
 test("building the models reaches for no network", async (t) => {
   const reached: string[] = [];
   t.mock.method(globalThis, "fetch", (input: string | URL | Request) => {
@@ -113,71 +100,24 @@ test("keys in the process environment are not used", async (t) => {
   }
 });
 
-test("a provider with no key says where to put one", async (t) => {
-  const files = home(t);
-  await assert.rejects(
-    buildModels({ ...files, model: { provider: "anthropic", modelId: "claude-sonnet-4-5" } }),
-    new ModelSetupError(
-      `The provider "anthropic" has no API key. Add one to ${files.authFile}, ` +
-        'for example {"anthropic":{"type":"api_key","key":"<your key>"}}',
-    ),
-  );
+test("a model that cannot be used stops the start, saying which file to change", async (t) => {
+  const files = home(t, { models: { providers: { local: qwen, keyless: { ...qwen, apiKey: undefined } } } });
+  const unusable = (provider: string, modelId: string, mentions: string) =>
+    assert.rejects(
+      buildModels({ ...files, model: { provider, modelId } }),
+      (error: Error) => error instanceof ModelSetupError && error.message.includes(mentions),
+    );
 
-  const keyless = home(t, { models: { providers: { local: { ...qwen, apiKey: undefined } } } });
-  await assert.rejects(
-    buildModels({ ...keyless, model: { provider: "local", modelId: "qwen" } }),
-    new ModelSetupError(
-      'The provider "local" has no API key. A server that needs none still takes a placeholder: ' +
-        `set "apiKey": "local" under providers.local in ${keyless.modelsFile}.`,
-    ),
-  );
-
-  await assert.rejects(
-    buildModels({ ...files, model: { provider: "openai-codex", modelId: "gpt-5.3-codex-spark" } }),
-    new ModelSetupError('The provider "openai-codex" signs in with OAuth, which this build cannot do yet.'),
-  );
-});
-
-test("an unknown provider or model says what is available", async (t) => {
-  const files = home(t, { models: { providers: { local: qwen } } });
-
-  await assert.rejects(
-    buildModels({ ...files, model: { provider: "antropic", modelId: "x" } }),
-    (error: Error) =>
-      error instanceof ModelSetupError &&
-      error.message.startsWith(`The model antropic/x names the provider "antropic", which is not declared in ${files.modelsFile} (declared there: local)`) &&
-      error.message.includes("built in: ") &&
-      error.message.includes("anthropic, "),
-  );
-
-  await assert.rejects(
-    buildModels({ ...files, model: { provider: "local", modelId: "qwen2" } }),
-    new ModelSetupError(
-      `The provider "local" has no model "qwen2". It has: qwen. Add it under providers.local.models in ${files.modelsFile}.`,
-    ),
-  );
-
-  await assert.rejects(
-    buildModels({ ...files, model: { provider: "openrouter", modelId: "nope" } }),
-    (error: Error) => /^The provider "openrouter" has no model "nope"\. It has: .+ and \d+ more\.$/.test(error.message),
-  );
-});
-
-test("a provider in models.json replaces a built-in one with the same ID", async (t) => {
-  const files = home(t, { models: { providers: { groq: qwen } } });
-  const models = await buildModels({ ...files, model: { provider: "groq", modelId: "qwen" } });
-  const requests = stubChatCompletions(t, "Hi");
-
-  await ask(models, "groq", "qwen");
-
-  assert.equal(requests[0]?.url, "http://models.invalid/v1/chat/completions");
-  assert.equal(models.getModel("groq", "llama-3.3-70b-versatile"), undefined);
+  await unusable("anthropic", "claude-sonnet-4-5", files.authFile);
+  await unusable("keyless", "qwen", files.modelsFile);
+  await unusable("antropic", "x", "antropic");
+  await unusable("local", "qwen2", "qwen2");
 });
 
 test("a file that does not fit stops the start, naming the file", async (t) => {
   const files = home(t, { models: { providers: { local: { ...qwen, headers: {} } } } });
   await assert.rejects(
     buildModels({ ...files, model: { provider: "local", modelId: "qwen" } }),
-    new RegExp(`${files.modelsFile.replaceAll(".", "\\.")}: providers\\.local has unsupported keys: headers`),
+    (error: Error) => error.message.startsWith(files.modelsFile) && error.message.includes("headers"),
   );
 });

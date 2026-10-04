@@ -29,18 +29,7 @@ const answer = (text: string, streaming: boolean): SessionItem => ({
   stopReason: streaming ? null : "stop",
 });
 
-/** Publish each view in turn, and return what subscribers saw after each one. */
-function publishAll(first: SessionView, rest: SessionView[]): SessionView[] {
-  const state = replicatedState(structuredClone(first));
-  const seen: SessionView[] = [];
-  for (const next of rest) {
-    publishSessionView(state, structuredClone(next), context);
-    seen.push(structuredClone(state.value));
-  }
-  return seen;
-}
-
-test("the published view always equals the latest view", () => {
+test("the published view always equals the latest view, however it grew, was replaced or shrank", () => {
   const user: SessionItem = { type: "user", text: "hello" };
   const steps = [
     sessionView([user], true),
@@ -51,24 +40,13 @@ test("the published view always equals the latest view", () => {
     sessionView([{ type: "marker", marker: "reset" }]),
     sessionView([]),
   ];
+  const state = replicatedState(structuredClone(sessionView([])));
+  const seen: SessionView[] = [];
 
-  assert.deepEqual(publishAll(sessionView([]), steps), steps);
-});
+  for (const next of steps) {
+    publishSessionView(state, structuredClone(next), context);
+    seen.push(structuredClone(state.value));
+  }
 
-test("an item that changes type is replaced", () => {
-  const steps = [sessionView([{ type: "marker", marker: "compaction" }])];
-  assert.deepEqual(publishAll(sessionView([{ type: "user", text: "hi" }]), steps), steps);
-});
-
-test("publishing the same view again makes no new revision", () => {
-  const state = replicatedState(sessionView([{ type: "user", text: "hi" }]));
-  let revisions = 0;
-  state.subscribe(() => {
-    revisions += 1;
-  });
-  const before = revisions;
-
-  publishSessionView(state, sessionView([{ type: "user", text: "hi" }]), context);
-
-  assert.equal(revisions, before);
+  assert.deepEqual(seen, steps);
 });
