@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import type { Announcement } from "../../../contracts/gateway/index.ts";
-import { keepRegistered } from "../../../contracts/gateway/node.ts";
+import { keepRegistered, newToken } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, stopAfter, until, useRuntimeDir, within } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
@@ -34,8 +34,10 @@ function registerAgent(t: TestContext, name: string, options: { token?: string; 
   const kept = keepRegistered(announce("agent", name, options.pid), {
     backoff: quick(),
     async signIn(gateway) {
-      if (token === undefined) token = (await gateway.join(name)).token;
-      else await gateway.signIn(token, name);
+      if (token === undefined) {
+        token = newToken();
+        await gateway.join(name, token);
+      } else await gateway.signIn(token, name);
     },
   });
   stopAfter(t, () => kept.stop());

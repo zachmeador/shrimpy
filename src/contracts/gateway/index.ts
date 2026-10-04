@@ -17,10 +17,10 @@ export {
 export {
   type Announcement,
   Gateway,
-  type Joined,
   type Member,
   type ProgramName,
   type Registration,
   type RosterEntry,
 } from "./services.ts";
+export { isToken } from "./token.ts";
 export { webSocketTransport } from "./web-socket.ts";

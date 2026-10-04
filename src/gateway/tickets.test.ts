@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
 import type { Announcement } from "../contracts/gateway/index.ts";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
 import { stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
 import { agentAnnouncement, startGatewayInProcess } from "./testing/index.ts";
 
@@ -22,9 +22,9 @@ test("a ticket says who asked, is good once and only for the program it was made
   try {
     const [server, bystander, person, agent] = await Promise.all([connect(), connect(), connect(), connect()]);
     await server.register(chatRegistration());
-    await bystander.join("scout");
+    await bystander.join("scout", newToken());
     await bystander.register(agentAnnouncement("scout"));
-    const joined = await agent.join("scout-too");
+    const joined = await agent.join("scout-too", newToken());
 
     const forPerson = await person.ticket(chat);
     const forAgent = await agent.ticket(chat);
@@ -36,7 +36,7 @@ test("a ticket says who asked, is good once and only for the program it was made
     assert.equal(who.name, userInfo().username);
     await assert.rejects(server.redeem(forPerson), /not good/, "a ticket answers once");
     await assert.rejects(server.redeem("made-up"), /not good/);
-    assert.deepEqual(await server.redeem(forAgent), joined.member);
+    assert.deepEqual(await server.redeem(forAgent), joined);
   } finally {
     await gateway.close();
   }

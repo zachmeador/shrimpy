@@ -7,7 +7,7 @@
  * Prints one JSON line when it is registered, then runs until SIGTERM.
  */
 import { randomUUID } from "node:crypto";
-import { connectLocalGateway } from "../../contracts/gateway/node.ts";
+import { connectLocalGateway, newToken } from "../../contracts/gateway/node.ts";
 import { runUntilStopped } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
@@ -17,7 +17,7 @@ if (name === undefined) throw new Error("usage: registrant-child.ts <name>");
 await runUntilStopped(
   async () => {
     const gateway = await connectLocalGateway();
-    await gateway.join(name);
+    await gateway.join(name, newToken());
     await gateway.register({
       kind: "agent",
       serverId: randomUUID(),

@@ -3,8 +3,8 @@ import type { TestContext } from "node:test";
 import { backoff } from "../../../lib/retry/index.ts";
 import { offer, type StandIn, startStandIn, stopAfter } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
-import type { Joined } from "../../gateway/index.ts";
-import { keepRegistered } from "../../gateway/node.ts";
+import type { Member } from "../../gateway/index.ts";
+import { keepRegistered, newToken } from "../../gateway/node.ts";
 import { SessionDirectory } from "../index.ts";
 import { type ScriptedAgent, scriptedAgent } from "./scripted.ts";
 
@@ -15,7 +15,7 @@ export interface StandInAgentOptions {
 
 export interface StandInAgent {
   /** Who the agent is on the roster, and the token that makes it so. It joins when it first reaches the gateway, so this settles once the gateway is there. */
-  readonly joined: Promise<Joined>;
+  readonly joined: Promise<{ member: Member; token: string }>;
   /** Its sessions and how they are scripted. They live through outages. */
   readonly agent: ScriptedAgent;
   /** How many connections are open right now. */
@@ -48,9 +48,10 @@ export async function startStandInAgent(t: TestContext, options: StandInAgentOpt
   const { socket } = listening;
 
   // The agent joins the first time it connects, and signs in with its token each time after.
-  let membership: Joined | undefined;
-  let resolveJoined: (joined: Joined) => void = () => undefined;
-  const joined = new Promise<Joined>((resolve) => {
+  const token = newToken();
+  let member: Member | undefined;
+  let resolveJoined: (joined: { member: Member; token: string }) => void = () => undefined;
+  const joined = new Promise<{ member: Member; token: string }>((resolve) => {
     resolveJoined = resolve;
   });
   const kept = keepRegistered(
@@ -58,11 +59,11 @@ export async function startStandInAgent(t: TestContext, options: StandInAgentOpt
     {
       backoff: backoff({ firstMs: 5, maxMs: 20 }),
       async signIn(gateway) {
-        if (membership === undefined) {
-          membership = await gateway.join(options.name);
-          resolveJoined(membership);
+        if (member === undefined) {
+          member = await gateway.join(options.name, token);
+          resolveJoined({ member, token });
         } else {
-          await gateway.signIn(membership.token, options.name);
+          await gateway.signIn(token, options.name);
         }
       },
     },

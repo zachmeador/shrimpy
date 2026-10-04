@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Chat, type ChatConnection } from "../contracts/chat/index.ts";
 import { memberNamed } from "../contracts/chat/testing/index.ts";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, offer, startStandIn, stopAfter, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -225,7 +225,7 @@ test("stopping run while its message is still being sent says it may have been p
   await registrations.register({ kind: "chat", ...program });
   const agents = await connectLocalGateway();
   stopAfter(t, () => agents.close());
-  await agents.join("scout");
+  await agents.join("scout", newToken());
   await agents.register({ kind: "agent", ...program });
   const waiting = shrimpyInBackground(["run", "scout", "hello"]);
   await sending.promise;

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../contracts/gateway/index.ts";
+import { newToken } from "../contracts/gateway/node.ts";
 import type { TestGateway } from "../contracts/gateway/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
@@ -260,13 +262,33 @@ test("a home whose name another member has is refused and told which file to cha
     what: "the second agent to say which file to change",
   });
   assert.deepEqual(await agentNames(gateway), ["scout"], "the first keeps the name");
-  assert.equal(existsSync(two.member), false, "and the second has no place on the roster");
+  assert.equal(readMembership(two.root)?.memberId, undefined, "and the second has no place on the roster");
 
   await refused.close();
   renameHome(two, "scout-two");
   await startAt(t, two.root);
   await eventually(() => agentNames(gateway), (names) => names.length === 2, { what: "the second agent to join" });
   assert.deepEqual(await agentNames(gateway), ["scout", "scout-two"]);
+});
+
+test("a home that kept its token but never heard it had joined joins again as the same member", { timeout }, async (t) => {
+  const paths = newHome(t);
+  stubChatCompletions(t, "Hello");
+  const { gateway, chat } = await startNetwork(t);
+  // A first start that made and kept its token, joined, and ended before it wrote down the gateway's answer.
+  const token = newToken();
+  saveMembership(paths.root, { token });
+  const observer = await gateway.connect();
+  const joined = await observer.join("scout", token);
+
+  await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
+  const { receipt } = await person.ask("hello");
+
+  assert.equal(person.partner.id, joined.id);
+  assert.equal(receipt.status, "answered");
+  assert.deepEqual(await agentNames(gateway), ["scout"], "and the name is not taken by a second member");
+  assert.deepEqual(readMembership(paths.root), { memberId: joined.id, token });
 });
 
 test("a home whose name was changed is the same member under the new name, in the same DM with what was said in it", { timeout }, async (t) => {

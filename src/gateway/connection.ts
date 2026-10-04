@@ -77,13 +77,13 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     list: async () => registry.list(),
     version: async () => SHRIMPY_VERSION,
 
-    async join(name) {
+    async join(name, token) {
       onThisMachine("join");
       beforeRegistering("join");
       if (signedIn !== undefined) refuse(`This connection is already signed in as ${caller().name}.`);
-      const joined = roster.join(name);
-      signedIn = joined.member.id;
-      return joined;
+      const member = roster.join(name, token);
+      signedIn = member.id;
+      return member;
     },
     async signIn(token, name) {
       onThisMachine("sign in");

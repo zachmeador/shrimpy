@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { Announcement, GatewayConnection, Registration } from "../../contracts/gateway/index.ts";
+import { newToken } from "../../contracts/gateway/node.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
 /** A valid announcement for an agent. The socket does not have to exist unless a test connects to it. */
@@ -17,7 +18,7 @@ export async function joinAndRegister(
   name: string,
   announcement: Announcement = agentAnnouncement(name),
 ): Promise<Registration> {
-  const { member } = await connection.join(name);
+  const member = await connection.join(name, newToken());
   await connection.register(announcement);
   return { ...announcement, name, memberId: member.id };
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { type Announcement, connectGateway, type Registration } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, GatewayNotRunningError } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, GatewayNotRunningError, newToken } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import {
   agentAnnouncement as agent,
@@ -45,11 +45,11 @@ test("an agent registers as the member it signed in as, and the chat server as i
   );
   try {
     await assert.rejects(stranger!.register(agent("nobody")), /join or sign in first/);
-    const { member: scout } = await agentConnection!.join("scout");
+    const scout = await agentConnection!.join("scout", newToken());
     await agentConnection!.register(agent("scout"));
-    await assert.rejects(agentConnection!.join("another"), /registered already/);
+    await assert.rejects(agentConnection!.join("another", newToken()), /registered already/);
     await chatConnection!.register(chatAnnouncement());
-    await member!.join("signed-in");
+    await member!.join("signed-in", newToken());
     await assert.rejects(member!.register(chatAnnouncement()), /Only an agent is a member/);
 
     assert.deepEqual(
@@ -119,7 +119,8 @@ test("a copied home is two live connections with one ID: both are listed, and th
   const gateway = await startGatewayInProcess(t);
   const [original, copy, observer] = await Promise.all([1, 2, 3].map(() => connectLocalGateway()));
   try {
-    const { member, token } = await original!.join("scout");
+    const token = newToken();
+    const member = await original!.join("scout", token);
     await original!.register(agent("scout"));
     await copy!.signIn(token, "scout");
     await copy!.register(agent("scout"));
@@ -144,7 +145,7 @@ test("a registration that cannot be accepted is refused with the reason", { time
   const program = await connectLocalGateway();
   const observer = await connectLocalGateway();
   try {
-    await program.join("one");
+    await program.join("one", newToken());
     const one = agent("one");
     await assert.rejects(program.register({ ...one, kind: "robot" } as unknown as Announcement), {
       code: "service_invalid_value",

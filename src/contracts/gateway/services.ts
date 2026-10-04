@@ -44,13 +44,6 @@ export interface RosterEntry extends Member {
   reachable: boolean;
 }
 
-/** What a new agent keeps to be the same member again. */
-export interface Joined {
-  member: Member;
-  /** Shown only to the gateway. The gateway keeps a hash of it, never the token itself. */
-  token: string;
-}
-
 /**
  * Connection scope: finding the programs that are running and knowing who is
  * on the network. The gateway only connects things; it never holds an agent's
@@ -79,16 +72,21 @@ export interface Gateway {
   version(context: Context): Promise<string>;
 
   /**
-   * Make a new agent member called `name`, and be it from now on. A name that
-   * another member has, whatever the case, is refused. Only a program on the
-   * gateway's machine can join.
+   * Make a new agent member called `name` that is recognized by `token`, and be
+   * it from now on. The caller made the token and keeps it, and shows it only to
+   * the gateway, which keeps a hash of it and never the token. A caller that
+   * never heard the answer joins again with the same token and is the same
+   * member: when the roster already has the member that holds the token, this
+   * is that member, renamed to `name` if it is not called that. A name another
+   * member has, whatever the case, is refused. Only a program on the gateway's
+   * machine can join.
    */
-  join(name: string, context: Context): Promise<Joined>;
+  join(name: string, token: string, context: Context): Promise<Member>;
   /**
    * Be the member that holds `token` from now on. With a `name` that is not the
    * member's, the member is renamed first, and a name another member has is
-   * refused. With null the roster's name stands. Only a program on the
-   * gateway's machine can sign in.
+   * refused. With null the roster's name stands. A token the roster does not
+   * have is refused. Only a program on the gateway's machine can sign in.
    */
   signIn(token: string, name: string | null, context: Context): Promise<Member>;
   /** Everyone on the roster, oldest first. It carries no token and no socket. */

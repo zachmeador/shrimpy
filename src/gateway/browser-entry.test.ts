@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { connectGateway, webSocketPath, webSocketTransport } from "../contracts/gateway/index.ts";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import {
   agentAnnouncement as agent,
@@ -52,7 +52,7 @@ test("a browser can list programs and the roster, but cannot register a program,
   });
   try {
     await assert.rejects(browser.register(agent("planted")), { code: "service_not_allowed" });
-    await assert.rejects(browser.join("planted"), { code: "service_not_allowed" });
+    await assert.rejects(browser.join("planted", newToken()), { code: "service_not_allowed" });
     await assert.rejects(browser.signIn("a-token", null), { code: "service_not_allowed" });
     await assert.rejects(browser.ticket({ kind: "chat", name: "chat" }), { code: "service_not_allowed" });
 

@@ -1,7 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Joined, Member } from "../../contracts/gateway/index.ts";
+import { isToken, type Member } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { type Lock, takeLock } from "../../lib/lock/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
@@ -36,8 +36,12 @@ export interface Roster {
   person(osUser: string): Member | undefined;
   /** Make the person for `osUser` if there is none yet. */
   ensurePerson(osUser: string): Member;
-  /** Make a new agent called `name`, with a token that only the caller will ever see. */
-  join(name: string): Joined;
+  /**
+   * Make a new agent called `name` that is recognized by `token`, which the
+   * caller made. When the roster has the member that holds the token already,
+   * that is the member, renamed to `name` if it is not called that.
+   */
+  join(name: string, token: string): Member;
   /** Give a member a new name. The name it has already, or a change of case in it, is fine. */
   rename(id: string, name: string): Member;
   /** Let go of the data directory. */
@@ -114,13 +118,26 @@ function keep(file: string, lock: Lock): Roster {
   const person = (osUser: string): Member | undefined =>
     find((record) => "osUser" in record.recognizedBy && record.recognizedBy.osUser === osUser);
 
+  const memberWithToken = (token: string): Member | undefined => {
+    const hash = hashOf(token);
+    return find((record) => "tokenHash" in record.recognizedBy && record.recognizedBy.tokenHash === hash);
+  };
+
+  const rename = (id: string, name: string): Member => {
+    const label = checked(name);
+    const current = records.find((record) => record.id === id);
+    if (current === undefined) refuse(`There is no member ${id}.`);
+    if (current.name === label) return publicly(current);
+    available(label, id);
+    const renamed = { ...current, name: label };
+    save(records.map((record) => (record.id === id ? renamed : record)));
+    return publicly(renamed);
+  };
+
   return {
     members: () => records.map(publicly),
     member: (id) => find((record) => record.id === id),
-    memberWithToken(token) {
-      const hash = hashOf(token);
-      return find((record) => "tokenHash" in record.recognizedBy && record.recognizedBy.tokenHash === hash);
-    },
+    memberWithToken,
     person,
     ensurePerson(osUser) {
       const existing = person(osUser);
@@ -130,10 +147,14 @@ function keep(file: string, lock: Lock): Roster {
       save([...records, record]);
       return publicly(record);
     },
-    join(name) {
+    join(name, token) {
+      if (!isToken(token)) {
+        refuse("A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.");
+      }
+      const holder = memberWithToken(token);
+      if (holder !== undefined) return rename(holder.id, name);
       const label = checked(name);
       available(label);
-      const token = randomBytes(32).toString("base64url");
       const record: MemberRecord = {
         id: newId("mem"),
         kind: "agent",
@@ -141,18 +162,9 @@ function keep(file: string, lock: Lock): Roster {
         recognizedBy: { tokenHash: hashOf(token) },
       };
       save([...records, record]);
-      return { member: publicly(record), token };
+      return publicly(record);
     },
-    rename(id, name) {
-      const label = checked(name);
-      const current = records.find((record) => record.id === id);
-      if (current === undefined) refuse(`There is no member ${id}.`);
-      if (current.name === label) return publicly(current);
-      available(label, id);
-      const renamed = { ...current, name: label };
-      save(records.map((record) => (record.id === id ? renamed : record)));
-      return publicly(renamed);
-    },
+    rename,
     close: () => lock.release(),
   };
 }

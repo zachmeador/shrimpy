@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "node:fs";
 import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { connectLocalGateway } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
 import { inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { RosterOwnedError } from "./index.ts";
 import { startGatewayInProcess } from "./testing/index.ts";
@@ -17,7 +17,8 @@ test("an agent that joins is the same member when it signs in again, also after 
   const dataDir = tempDir(t, "gateway-data");
   const first = await startGatewayInProcess(t, { dataDir });
   const joining = await connectLocalGateway();
-  const { member, token } = await joining.join("scout");
+  const token = newToken();
+  const member = await joining.join("scout", token);
   assert.equal(member.kind, "agent");
   assert.equal(member.name, "scout");
   assert.match(member.id, /^mem_[0-9a-z]{12}$/);
@@ -63,13 +64,15 @@ test("a name another member has is refused, whatever the case, and a rename keep
   const [scout, other, renamer, later] = await Promise.all([1, 2, 3, 4].map(() => connectLocalGateway()));
   for (const connection of [scout, other, renamer, later]) stopAfter(t, () => connection?.close());
   try {
-    const { member, token } = await scout!.join("scout");
+    const token = newToken();
+    const member = await scout!.join("scout", token);
 
-    await assert.rejects(other!.join("SCOUT"), /"SCOUT" is taken: it belongs to the agent "scout".*Choose another/);
-    await assert.rejects(other!.join(userInfo().username), /belongs to the person/);
-    const mechanic = await other!.join("mechanic");
+    await assert.rejects(other!.join("SCOUT", newToken()), /"SCOUT" is taken: it belongs to the agent "scout".*Choose another/);
+    await assert.rejects(other!.join(userInfo().username, newToken()), /belongs to the person/);
+    const mechanicToken = newToken();
+    const mechanic = await other!.join("mechanic", mechanicToken);
     await assert.rejects(
-      other!.signIn(mechanic.token, "Scout"),
+      other!.signIn(mechanicToken, "Scout"),
       /"Scout" is taken/,
       "a member cannot take a name by renaming either",
     );
@@ -80,7 +83,7 @@ test("a name another member has is refused, whatever the case, and a rename keep
       agents.map((each) => [each.id, each.name]),
       [
         [member.id, "scout2"],
-        [mechanic.member.id, "mechanic"],
+        [mechanic.id, "mechanic"],
       ],
     );
     assert.equal((await later!.signIn(token, null)).name, "scout2", "no name keeps the roster's");

@@ -5,7 +5,6 @@ import { GATEWAY_SERVER_ID } from "./endpoint.ts";
 import {
   type Announcement,
   Gateway,
-  type Joined,
   type Member,
   type ProgramName,
   type Registration,
@@ -22,8 +21,8 @@ export interface GatewayConnection {
   list(): Promise<Registration[]>;
   /** The version of Shrimpy the gateway runs. */
   version(): Promise<string>;
-  /** Make a new agent member called `name`, and be it from now on. See `Gateway.join`. */
-  join(name: string): Promise<Joined>;
+  /** Make a new agent member called `name`, recognized by the token the caller made, and be it from now on. See `Gateway.join`. */
+  join(name: string, token: string): Promise<Member>;
   /** Be the member that holds `token` from now on, renamed to `name` unless it is null. See `Gateway.signIn`. */
   signIn(token: string, name: string | null): Promise<Member>;
   /** Everyone on the roster, oldest first. */
@@ -64,7 +63,7 @@ export async function connectGateway(options: {
     register: (announcement) => gateway.register(announcement, context),
     list: () => gateway.list(context),
     version: () => gateway.version(context),
-    join: (name) => gateway.join(name, context),
+    join: (name, token) => gateway.join(name, token, context),
     signIn: (token, name) => gateway.signIn(token, name, context),
     members: () => gateway.members(context),
     ticket: (target) => gateway.ticket(target, context),

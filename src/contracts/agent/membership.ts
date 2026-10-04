@@ -4,10 +4,15 @@
  * agent's shell can act as it.
  */
 export interface Membership {
-  /** The agent's ID in the gateway's roster. It never changes. */
-  memberId: string;
-  /** What the gateway gave the agent when it joined. Only the gateway is shown it. */
+  /**
+   * What the agent is recognized by. The home makes it and keeps it before it
+   * asks the gateway to let it join, so that an answer that never arrived
+   * leaves the home able to join again as the same member. Only the gateway is
+   * shown it.
+   */
   token: string;
+  /** The agent's ID in the gateway's roster, once the gateway has said it is a member. It never changes. */
+  memberId?: string;
 }
 
 /** Where a home keeps its membership, inside the home. */

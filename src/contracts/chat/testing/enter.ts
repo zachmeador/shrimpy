@@ -1,6 +1,7 @@
 import type { TestContext } from "node:test";
 import { stopAfter } from "../../../lib/testing/index.ts";
 import type { GatewayConnection } from "../../gateway/index.ts";
+import { newToken } from "../../gateway/node.ts";
 import { startTestGateway } from "../../gateway/testing/index.ts";
 import type { ChatConnection, ChatEndpoint, Member } from "../index.ts";
 import { connectLocal } from "../node.ts";
@@ -48,8 +49,11 @@ export async function gatewayAsAgent(t: TestContext, name: string, given?: strin
   const known = tokens.get(t) ?? new Map<string, string>();
   tokens.set(t, known);
   const token = given ?? known.get(name);
-  if (token === undefined) known.set(name, (await gateway.join(name)).token);
-  else await gateway.signIn(token, name);
+  if (token === undefined) {
+    const made = newToken();
+    await gateway.join(name, made);
+    known.set(name, made);
+  } else await gateway.signIn(token, name);
   return gateway;
 }
 
@@ -59,11 +63,12 @@ export async function gatewayAsAgent(t: TestContext, name: string, given?: strin
  */
 export async function joinRoster(t: TestContext, name: string): Promise<Member> {
   const gateway = await (await startTestGateway(t)).connect();
-  const joined = await gateway.join(name);
+  const token = newToken();
+  const member = await gateway.join(name, token);
   const known = tokens.get(t) ?? new Map<string, string>();
   tokens.set(t, known);
-  known.set(name, joined.token);
-  return joined.member;
+  known.set(name, token);
+  return member;
 }
 
 /**
