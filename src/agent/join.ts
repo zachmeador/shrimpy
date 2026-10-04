@@ -48,7 +48,7 @@ export interface Participant {
 /**
  * Take part in the network as the agent called `name`: be a member of the
  * roster and register with the gateway, keep a connection to chat, and turn the
- * messages chat offers into turns. Who the agent is comes from the gateway and
+ * events chat offers that wake the agent into turns. Who the agent is comes from the gateway and
  * from nothing the agent says. None of it delays the agent's start or stops
  * its sessions working: the gateway and chat may not be there yet, or go away,
  * and the agent finds them again.

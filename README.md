@@ -92,7 +92,7 @@ npm run shrimpy -- threads scout
 npm run shrimpy -- read th_4k9x2m7q0b3d
 ```
 
-Anyone in a thread can react to a message, and edit or delete their own. `read` shows each message's ID for these commands, and shows a message as it now stands: an edited one says when, a deleted one has lost its text, and the emoji on a message are listed.
+Any member of a channel can react to a message in it, and edit or delete their own. `read` shows each message's ID for these commands, and shows a message as it now stands: an edited one says when, a deleted one has lost its text, and the emoji on a message are listed.
 
 ```bash
 npm run shrimpy -- edit msg_7q2m4x9c1b0d "what is in my inbox from today?"

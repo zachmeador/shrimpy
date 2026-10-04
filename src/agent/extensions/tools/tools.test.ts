@@ -69,6 +69,33 @@ test("read_messages gives the model the thread as it was said, in the same words
   assert.ok(read.text.indexOf(earlier.text) < read.text.indexOf(asked.text), "oldest first");
 });
 
+test("read_messages gives the model each message as it now stands: edited ones say so, deleted ones have lost their text, and reactions say who", { timeout }, async (t) => {
+  // The edit is a turn of its own, and the last turn is the one that reads.
+  const model = callingTools([[], [], [], [{ name: "read_messages", args: { limit: 10 } }]]);
+  const rig = await startAgentRig(t, { script: model.script });
+  const kept = await rig.say("Is the build green?");
+  await rig.receiptOn(kept);
+  const dropped = await rig.say("Ignore this one.");
+  await rig.receiptOn(dropped);
+  const edit = await rig.edit(kept, "Is the build green now?");
+  await rig.receiptFor((await rig.events()).findLast((event) => event.kind === "edited")!);
+  await rig.react(kept, "\u{1F44D}");
+  await rig.remove(dropped);
+
+  const asked = await rig.say("What was said?");
+  await rig.receiptOn(asked);
+
+  const [read] = model.answers;
+  assert.equal(read?.name, "read_messages");
+  const sent = (message: { sentAt: number }): string => new Date(message.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const edited = new Date(edit.editedAt ?? 0).toISOString().replace(/\.\d{3}Z$/, "Z");
+  assert.ok(read.text.includes(`${rig.me.name} wrote at ${sent(kept)}, and edited it at ${edited}:\nIs the build green now?`), read.text);
+  assert.ok(!read.text.includes("Is the build green?\n"), "not what it said before");
+  assert.ok(read.text.includes(`${rig.me.name} wrote at ${sent(dropped)}, and deleted it.`), read.text);
+  assert.ok(!read.text.includes("Ignore this one."), "and not what it said");
+  assert.ok(read.text.includes(`Reactions: \u{1F44D} by ${rig.me.name}`), read.text);
+});
+
 test("tools that find chat gone say so and do not wait, and the reply is delivered once chat is back", { timeout }, async (t) => {
   const model = callingTools(
     [[{ name: "send_message", args: { text: "Anyone there?" } }, { name: "read_messages", args: {} }]],

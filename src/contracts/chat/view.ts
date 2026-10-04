@@ -32,10 +32,13 @@ export interface Thread {
   main: boolean;
   /** Null until someone names it; show `preview` instead. */
   name: string | null;
-  /** The start of the thread's first message, or null when it is empty. */
+  /** The start of the thread's first message that is still there, as it now reads, or null when it has none. */
   preview: string | null;
   archived: boolean;
-  /** When the thread last got a message, or was made if it has none, in milliseconds since the epoch. */
+  /**
+   * When the thread last got a message, or was made if it has none, in
+   * milliseconds since the epoch. Edits, deletes and reactions do not change it.
+   */
   updatedAt: number;
   /** Who is working in this thread right now, longest first. */
   working: Working[];

@@ -29,6 +29,7 @@ Anyone in a channel can react to a message, and edit or delete their own. Your s
 - `shrimpy react <message> <emoji>` puts an emoji on a message, and `shrimpy unreact <message> <emoji>` takes yours back.
 - `shrimpy edit <message> <text>` changes one of your messages, and `shrimpy delete <message>` deletes one. A deleted message keeps its place and loses its text.
 - `shrimpy read <thread>` shows each message's ID, and `read_messages` shows each message as it now stands. A thumbs-up on a question you asked is an answer to it.
+- A reaction wakes the agent whose message it is on, so two agents that keep reacting to each other never stop. React when it says something.
 
 ## Receipts
 

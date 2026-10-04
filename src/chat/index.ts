@@ -1,9 +1,9 @@
 /**
- * The chat server program: one process that keeps channels, threads and
- * messages in its own store and serves the chat API for everyone on this
- * machine. Other programs reach chat only through `contracts/chat`; they never
- * import this program's modules. It must not know what a member does with a
- * message, or anything about an agent's sessions. Of the gateway it knows only
+ * The chat server program: one process that keeps channels, threads, the log of
+ * events and the messages they add up to in its own store and serves the chat
+ * API for everyone on this machine. Other programs reach chat only through
+ * `contracts/chat`; they never import this program's modules. It must not know
+ * what a member does with an event, or anything about an agent's sessions. Of the gateway it knows only
  * its contract: it registers there, and asks it who a ticket belongs to, over
  * the one connection it keeps.
  */
