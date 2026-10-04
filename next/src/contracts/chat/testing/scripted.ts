@@ -1,7 +1,9 @@
-import type { Context } from "@earendil-works/chord";
+import { type Context, type MutableReplicatedState, replicatedState } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import { DisconnectedError } from "@earendil-works/pi-client";
+import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
+import { offer, type Offer } from "../../../lib/testing/index.ts";
 import {
   type Channel,
   type Chat,
@@ -13,6 +15,8 @@ import {
   type Message,
   type Receipt,
   type Thread,
+  ThreadService,
+  type ThreadView,
   type Working,
 } from "../index.ts";
 
@@ -33,8 +37,18 @@ export interface ScriptedChatOptions {
  * and it can be told to fail, to hold a call, to go down or to forget everything.
  */
 export interface ScriptedChat {
-  /** The `Chat` one connection talks to, and what to run when that connection is over. For offering over a socket. */
-  serve(): { chat: Chat; end: () => void };
+  /**
+   * The `Chat` one connection talks to, and what to run when that connection is
+   * over. For offering over a socket. Given the connection's presentation, the
+   * connection can attach a thread and watch its live view, which `route` offers.
+   */
+  serve(presentation?: RoutedServerPresentation): { chat: Chat; end: () => void };
+  /**
+   * The live view of a thread, for a server that sends a connection that
+   * attaches the thread there: undefined when there is no such thread. The view
+   * is published again as messages, receipts and working marks change.
+   */
+  route(threadId: string): Offer | undefined;
   /** A connection in this process, with no socket. While the chat is down it fails as a connection to nothing does. */
   connect(): Promise<ChatConnection>;
   /** `connect`, then say who you are. */
@@ -97,6 +111,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
   let log: Message[] = [];
   let posts = new Map<string, Message>();
   let marks = new Map<string, Map<string, Mark>>();
+  let views = new Map<string, MutableReplicatedState<ThreadView>>();
   let counter = 0;
   let position = 0;
   let reachable = true;
@@ -130,6 +145,17 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       updatedAt: record.updatedAt,
       working,
     };
+  };
+  const toView = (record: ThreadRecord): ThreadView => {
+    const inThread = log.filter((message) => message.threadId === record.id);
+    const messages = inThread.slice(-PAGE);
+    return clone({ thread: toThread(record), messages, earlier: inThread.length - messages.length });
+  };
+  /** Publish a thread's view again, if anyone has asked to watch it. */
+  const publish = (threadId: string): void => {
+    const state = views.get(threadId);
+    const record = threads.find((thread) => thread.id === threadId);
+    if (state !== undefined && record !== undefined) state.replace(BACKGROUND_CONTEXT, toView(record));
   };
   const toChannel = (record: ChannelRecord, viewer: Member): Channel => ({
     id: record.id,
@@ -248,11 +274,12 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     log.push(message);
     posts.set(`${me.id} ${requestId}`, message);
     thread.updatedAt = Math.max(thread.updatedAt, message.sentAt);
+    publish(thread.id);
     for (const wake of [...waiting]) wake();
     return clone(message);
   }
 
-  function serve(): { chat: Chat; end: () => void } {
+  function serve(presentation?: RoutedServerPresentation): { chat: Chat; end: () => void } {
     let who: Member | undefined;
     const connection = {};
     const caller = (): Member =>
@@ -361,6 +388,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
             (a, b) => (a.memberId < b.memberId ? -1 : 1),
           );
         }
+        for (const threadId of new Set(targets.map((message) => message.threadId))) publish(threadId);
       },
       async setWorking(threadId, working, context) {
         await gate("setWorking", context);
@@ -375,6 +403,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
         } else if (mark?.holders.delete(connection) === true && mark.holders.size === 0) {
           byMember.delete(me.id);
         }
+        publish(thread.id);
       },
       async head(context) {
         await gate("head", context);
@@ -393,12 +422,15 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
           await nextMessage(context);
         }
       },
-      attach() {
+      async attach(threadId, context) {
         caller();
-        return Promise.reject(new Refusal("The scripted chat does not serve thread views."));
+        threadFor(threadId);
+        if (presentation === undefined) throw new Refusal("This scripted chat connection does not serve thread views.");
+        await presentation.attachSession(threadId, context);
       },
-      async detach() {
+      async detach(context) {
         caller();
+        await presentation?.detachSession(context);
       },
     };
 
@@ -406,10 +438,15 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       chat,
       end() {
         for (const [threadId, byMember] of [...marks]) {
+          let changed = false;
           for (const [memberId, mark] of [...byMember]) {
-            if (mark.holders.delete(connection) && mark.holders.size === 0) byMember.delete(memberId);
+            if (mark.holders.delete(connection) && mark.holders.size === 0) {
+              byMember.delete(memberId);
+              changed = true;
+            }
           }
           if (byMember.size === 0) marks.delete(threadId);
+          if (changed) publish(threadId);
         }
       },
     };
@@ -421,6 +458,16 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
 
   const scripted: ScriptedChat = {
     serve,
+    route(threadId) {
+      const record = threads.find((thread) => thread.id === threadId);
+      if (record === undefined) return undefined;
+      let state = views.get(threadId);
+      if (state === undefined) {
+        state = replicatedState(toView(record));
+        views.set(threadId, state);
+      }
+      return offer(ThreadService, { state });
+    },
     async connect() {
       if (!reachable) {
         throw lost(Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }));
@@ -469,7 +516,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       };
       return {
         chat,
-        attach: () => Promise.reject(new Error("The scripted chat does not serve thread views.")),
+        attach: () => Promise.reject(new Error("A scripted chat connection in this process does not serve thread views.")),
         detach: () => Promise.resolve(),
         onDisconnect: (listener) => void listeners.push(listener),
         close() {
@@ -508,6 +555,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       log = [];
       posts = new Map();
       marks = new Map();
+      views = new Map();
       position = 0;
     },
     fail(method, error, times = 1) {

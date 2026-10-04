@@ -49,10 +49,11 @@ export async function startStandInChat(t: TestContext, options: StandInChatOptio
   const listen = (): Promise<StandIn> =>
     startStandIn(t, "chat", {
       serverId,
-      offer() {
-        const served = chat.serve();
+      offer(presentation) {
+        const served = chat.serve(presentation);
         return offer(Chat, served.chat, served.end);
       },
+      route: (threadId) => chat.route(threadId),
     });
 
   let listening: StandIn | undefined = await listen();

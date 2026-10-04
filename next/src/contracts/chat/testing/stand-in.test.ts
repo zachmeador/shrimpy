@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isNotListening } from "../../../lib/connection/index.ts";
-import { eventually, settle, until, useRuntimeDir } from "../../../lib/testing/index.ts";
+import { eventually, settle, until, useRuntimeDir, waitForView } from "../../../lib/testing/index.ts";
 import { agentMember, personMember } from "../index.ts";
 import { scriptedChat, startStandInChat } from "./index.ts";
 
@@ -114,6 +114,73 @@ test("a member is working in a thread until it says it is not, or its connection
   await agent.chat.setWorking(thread.id, true);
   await agent.close();
   await until(() => stand.chat.working(thread.id).length === 0, "the mark to end with its connection");
+});
+
+test("an attached thread's live view follows what is posted, receipted and worked on, over the socket", { timeout }, async (t) => {
+  const { stand, person, agent, thread } = await startDm(t);
+  const first = await person.chat.post(thread.id, "hello", "zach-1");
+
+  const watched = await person.attach(thread.id);
+
+  assert.deepEqual(
+    watched.view.messages.map((message) => message.text),
+    ["hello"],
+  );
+  assert.equal(watched.view.earlier, 0);
+  assert.equal(watched.view.thread.preview, "hello");
+
+  const seen = waitForView(watched, (view) => view.messages.length === 2);
+  const reply = await agent.chat.post(thread.id, "hi", "reply-1");
+  assert.deepEqual(
+    (await seen).messages.map((message) => message.id),
+    [first.id, reply.id],
+  );
+
+  const receipted = waitForView(watched, (view) => view.messages[0]?.receipts.length === 1);
+  await agent.chat.leaveReceipt([first.id], { status: "answered", reply: reply.id, detail: null });
+  assert.equal((await receipted).messages[0]?.receipts[0]?.status, "answered");
+
+  const working = waitForView(watched, (view) => view.thread.working.length === 1);
+  await agent.chat.setWorking(thread.id, true);
+  assert.deepEqual(
+    (await working).thread.working.map((mark) => mark.memberId),
+    ["agent:scout"],
+  );
+
+  const idle = waitForView(watched, (view) => view.thread.working.length === 0);
+  await agent.close();
+  await idle;
+  assert.deepEqual(stand.chat.working(thread.id), []);
+});
+
+test("a view holds the newest 200 messages and counts the earlier ones", { timeout }, async (t) => {
+  const { stand, person, thread } = await startDm(t);
+  for (let number = 1; number <= 205; number++) stand.chat.say(zach, thread.id, `message ${number}`);
+
+  const { view } = await person.attach(thread.id);
+
+  assert.equal(view.messages.length, 200);
+  assert.equal(view.messages[0]?.text, "message 6");
+  assert.equal(view.earlier, 5);
+});
+
+test("a thread the caller is not in, or that does not exist, cannot be attached", { timeout }, async (t) => {
+  const { stand, person } = await startDm(t);
+  const outsider = await stand.join(personMember("kit"));
+
+  await assert.rejects(outsider.attach("th_nothing"), /Unknown thread: th_nothing/);
+  const { thread } = stand.chat.dm(zach, scout);
+  await assert.rejects(outsider.attach(thread.id), /Unknown thread/);
+  assert.equal((await person.attach(thread.id)).id, thread.id);
+});
+
+test("a connection in this process has no thread views to attach", { timeout }, async () => {
+  const chat = scriptedChat();
+  const person = await chat.join(zach);
+  await chat.join(scout);
+  const { thread } = chat.dm(zach, scout);
+
+  await assert.rejects(person.attach(thread.id), /does not serve thread views/);
 });
 
 test("an outage cuts the connections and keeps what was said, and the chat comes back as the same server", { timeout }, async (t) => {
