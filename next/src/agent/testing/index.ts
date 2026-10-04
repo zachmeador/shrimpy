@@ -19,7 +19,7 @@ import {
   type Models,
   type ToolResultMessage,
 } from "@earendil-works/pi-ai";
-import type { ModelRef } from "@earendil-works/pi-durable";
+import type { HostOptions } from "../host/index.ts";
 
 export { attachMain, closeAfter } from "./attach.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
@@ -97,7 +97,7 @@ export function fauxModels(options: {
   home: string;
   scenario: FauxScenario;
   tokensPerSecond?: number;
-}): { models: Models; model: ModelRef } {
+}): { models: Models; model: HostOptions["model"] } {
   const script = SCRIPTS[options.scenario];
   const faux = fauxProvider({
     tokensPerSecond: options.tokensPerSecond ?? 400,

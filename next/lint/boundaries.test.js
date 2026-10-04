@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import { RuleTester } from "eslint";
+import tseslint from "typescript-eslint";
 import { importsRule } from "./boundaries.js";
 
 RuleTester.describe = describe;
@@ -45,6 +46,11 @@ tester.run("imports", importsRule, {
     // Only the agent knows the engine, and only the console knows pi-tui.
     allowed("agent/host/host.ts", "@earendil-works/pi-durable/env/node"),
     allowed("clients/console/screen.ts", "@earendil-works/pi-tui"),
+    // Inside the agent, the engine belongs to the host, the sessions and the durable extensions, tests of theirs included.
+    allowed("agent/host/models.test.ts", "@earendil-works/pi-durable"),
+    allowed("agent/sessions/session-view.ts", "@earendil-works/pi-durable"),
+    allowed("agent/sessions/records/outbox.ts", "@earendil-works/pi-durable"),
+    allowed("agent/extensions/context/sections.ts", "@earendil-works/pi-durable"),
     // Contracts have a Node-only door, and tests may use Node anywhere.
     allowed("contracts/agent/node.ts", "node:fs"),
     allowed("contracts/agent/browser.test.ts", "node:url"),
@@ -106,6 +112,16 @@ tester.run("imports", importsRule, {
     refused("agent/host/host.ts", "../../../test/helper.ts", "outside"),
     refused("contracts/agent/view.ts", "@earendil-works/pi-durable", "durable"),
     refused("clients/console/screen.ts", "@earendil-works/pi-durable", "durable"),
+    // Nothing else in the agent does, and the code that takes messages in not even for a type.
+    refused("agent/intake/feed.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/intake/feed.ts", "@earendil-works/pi-durable/storage/sqlite/node", "durableInAgent"),
+    refused("agent/intake/testing/turns.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/links/chat.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/home/load.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/testing/index.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/server.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/index.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    refused("agent/agent.test.ts", "@earendil-works/pi-durable", "durableInAgent"),
     refused("clients/web/page.ts", "@earendil-works/pi-tui", "piTui"),
     refused("clients/console/screen.ts", "@earendil-works/pi-tui/dist/editor.js", "piTui"),
     refused("contracts/agent/connect.ts", "node:fs", "browser"),
@@ -139,6 +155,35 @@ tester.run("imports", importsRule, {
       filename: file("clients/web/page.ts"),
       code: 'await import("../../agent/index.ts");',
       errors: [{ messageId: "program" }],
+    },
+  ],
+});
+
+// A type is still the engine's: the code that takes messages in imports none of it, even for a type.
+const typed = new RuleTester({
+  languageOptions: { parser: tseslint.parser, ecmaVersion: 2023, sourceType: "module" },
+});
+
+typed.run("imports of types", importsRule, {
+  valid: [
+    { filename: file("agent/sessions/service.ts"), code: 'import type { Harness } from "@earendil-works/pi-durable";' },
+    { filename: file("agent/intake/feed.ts"), code: 'import type { Message } from "../../contracts/chat/index.ts";' },
+  ],
+  invalid: [
+    {
+      filename: file("agent/intake/feed.ts"),
+      code: 'import type { Harness } from "@earendil-works/pi-durable";',
+      errors: [{ messageId: "durableInAgent" }],
+    },
+    {
+      filename: file("agent/intake/feed.ts"),
+      code: 'import { type Tx } from "@earendil-works/pi-durable";',
+      errors: [{ messageId: "durableInAgent" }],
+    },
+    {
+      filename: file("agent/intake/feed.ts"),
+      code: 'export type { Tx } from "@earendil-works/pi-durable";',
+      errors: [{ messageId: "durableInAgent" }],
     },
   ],
 });

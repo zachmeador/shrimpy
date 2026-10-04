@@ -7,6 +7,8 @@ import { posix } from "node:path";
 
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
 const FRONT_DOORS = ["index.ts", "node.ts"];
+/** The parts of the agent that may import Pi's durable runtime. Everything else sees only Shrimpy's own types. */
+const DURABLE_IN_AGENT = ["host", "sessions", "extensions"];
 
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
@@ -20,6 +22,8 @@ const messages = {
     "A chat provider may import only chat/providers/index.ts and lib/, not {{target}}.",
   testing: "Only tests and test support import a testing/ module, not {{target}}.",
   durable: "Only agent/ imports Pi's durable runtime.",
+  durableInAgent:
+    "Inside agent/, only host/, sessions/ and extensions/ import Pi's durable runtime, not {{part}}: the rest, intake/ included, sees only Shrimpy's own types.",
   piTui: "Only clients/console/ imports pi-tui, and only from the package root.",
   browser: "Browser-safe code must not import {{target}}: what needs Node sits behind a node.ts door.",
 };
@@ -52,8 +56,10 @@ const reachesNode = (specifier) => isBuiltin(specifier) || /^node:|\/unix$|\/nod
 
 function checkPackage(from, specifier) {
   const owner = ownerOf(from);
-  if (/^@earendil-works\/pi-durable(\/|$)/.test(specifier) && owner !== "agent") {
-    return { messageId: "durable" };
+  if (/^@earendil-works\/pi-durable(\/|$)/.test(specifier)) {
+    if (owner !== "agent") return { messageId: "durable" };
+    const part = from.split("/")[1];
+    if (!DURABLE_IN_AGENT.includes(part)) return { messageId: "durableInAgent", data: { part } };
   }
   if (/^@earendil-works\/pi-tui(\/|$)/.test(specifier)) {
     if (owner !== "clients/console" || specifier !== "@earendil-works/pi-tui") {
