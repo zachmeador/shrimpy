@@ -15,7 +15,7 @@ import {
   chatEndpointFile,
   ThreadService,
 } from "../contracts/chat/index.ts";
-import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
+import { isClientGone, offerToConnection, offerToRoute } from "../lib/offer/index.ts";
 import { serveChat } from "./connection.ts";
 import { type ChatDeps, serveThread, threadExists } from "./threads/index.ts";
 
@@ -43,7 +43,9 @@ export async function startServer(
   const server = new Server(serverHost(deps), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
-    onError,
+    onError(error) {
+      if (!isClientGone(error)) onError(error);
+    },
   });
   await server.start();
   try {

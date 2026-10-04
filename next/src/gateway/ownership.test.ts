@@ -4,7 +4,7 @@ import { type AddressInfo, createServer } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
-import { useRuntimeDir } from "../lib/testing/index.ts";
+import { leaveUnanswered, settle, useRuntimeDir } from "../lib/testing/index.ts";
 import { GatewayRunningError, startGateway } from "./index.ts";
 import { agentRegistration as agent, startGatewayChild, webPortOf } from "./testing/index.ts";
 
@@ -110,6 +110,24 @@ test("closing the gateway drops its connections and its socket, and another can 
   } finally {
     await client.close();
     await again.close();
+  }
+});
+
+test("a client that is gone before the gateway's answer reaches it is not reported", { timeout }, async (t) => {
+  const reported = t.mock.method(console, "error", () => undefined);
+  useRuntimeDir(t);
+  const gateway = await startGateway();
+  try {
+    await leaveUnanswered(gateway.socket);
+    // By the time the gateway has answered this one, it is done with the one that left.
+    const client = await connectLocalGateway();
+    await client.list();
+    await client.close();
+    await settle();
+
+    assert.deepEqual(reported.mock.calls.map((call) => call.arguments), []);
+  } finally {
+    await gateway.close();
   }
 });
 

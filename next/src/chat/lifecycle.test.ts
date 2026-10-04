@@ -7,7 +7,7 @@ import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectChat } from "../contracts/chat/index.ts";
 import { connectLocal, readChatEndpoint } from "../contracts/chat/node.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
-import { inRuntimeDir, settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { inRuntimeDir, leaveUnanswered, settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { startServer } from "./server.ts";
 import { openStore, StoreOwnedError } from "./store/index.ts";
@@ -209,6 +209,18 @@ test("stopping the server ends its connections and removes its socket", { timeou
   assert.equal(reasons.length, 1);
   await assert.rejects(waiting);
   assert.equal(existsSync(chat.chat.endpoint.socket), false);
+});
+
+test("a client that is gone before the chat server's answer reaches it is not reported", { timeout }, async (t) => {
+  const reported = t.mock.method(console, "error", () => undefined);
+  const chat = await startTestChat(t);
+
+  await leaveUnanswered(chat.chat.endpoint.socket);
+  // By the time the server has answered this one, it is done with the one that left.
+  await chat.join(person("Zach"));
+  await settle();
+
+  assert.deepEqual(reported.mock.calls.map((call) => call.arguments), []);
 });
 
 test("a feed that is waiting is forgotten when its connection drops", { timeout }, async (t) => {

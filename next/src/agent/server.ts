@@ -13,7 +13,7 @@ import {
   SessionDirectory,
   SessionService,
 } from "../contracts/agent/index.ts";
-import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
+import { isClientGone, offerToConnection, offerToRoute } from "../lib/offer/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import type { Host } from "./host/index.ts";
@@ -39,7 +39,9 @@ export async function startServer(host: Host, sessions: Sessions): Promise<Agent
   const server = new Server(serverHost(sessions, () => takingInput), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
-    onError: (error) => console.error("[agent]", error.message),
+    onError(error) {
+      if (!isClientGone(error)) console.error("[agent]", error.message);
+    },
   });
   await server.start();
   // Written whole or not at all, so nobody reads half of it.

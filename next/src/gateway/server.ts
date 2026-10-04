@@ -7,7 +7,7 @@ import {
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
-import { offerToConnection } from "../lib/offer/index.ts";
+import { isClientGone, offerToConnection } from "../lib/offer/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
@@ -58,7 +58,9 @@ async function serve(path: string, host: ServerHost): Promise<Server> {
   const server = new Server(host, {
     serverId: GATEWAY_SERVER_ID,
     listeners: [createUnixListener({ path })],
-    onError: (error) => console.error("[gateway]", error.message),
+    onError(error) {
+      if (!isClientGone(error)) console.error("[gateway]", error.message);
+    },
   });
   await server.start();
   return server;
