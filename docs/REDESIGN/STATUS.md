@@ -30,6 +30,8 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 All three are built: the roster, member IDs and tickets; the feed of events; and connecting by name through the gateway.
 
+Decided and not built yet, in this order: a receipt as an event in the feed; delivering a reply as a Pi background task in place of the outbox; and removing `edit`, `delete`, `react` and `unreact` under the new rule for commands.
+
 Left open by the roster and by connecting by name:
 
 - A browser can list the programs and the roster and nothing more. It can't get a ticket, so it can't reach the chat server or an agent. How a page is recognized was decided on 2026-10-04 and gets built with the web client.
