@@ -177,3 +177,18 @@ test("a call can be made to fail, or to wait until the test lets it go", { timeo
   assert.equal((await posting).text, "one");
   assert.equal(chat.calls("post"), 3);
 });
+
+test("a person can be made to say something without a connection, while the chat is down too", { timeout }, () => {
+  const chat = scriptedChat();
+  const { thread } = chat.dm(zach, scout);
+
+  chat.down();
+  const said = chat.say(zach, thread.id, "said into the void");
+
+  assert.deepEqual(said.addressed, ["agent:scout"]);
+  assert.deepEqual(
+    chat.messages(thread.id).map((message) => [message.id, message.text]),
+    [[said.id, "said into the void"]],
+  );
+  assert.equal(chat.calls("post"), 0, "it was not a call, so a failure scripted for post does not touch it");
+});

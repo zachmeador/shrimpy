@@ -42,6 +42,8 @@ export interface ScriptedChat {
 
   /** The main thread of the DM between two members, made if need be, without going through a connection. */
   dm(a: Member, b: Member): { channel: Channel; thread: Thread };
+  /** Say something in a thread as a member, without a connection to do it over, so an outage cannot get in the way. */
+  say(author: Member, threadId: string, text: string): Message;
   /** Every message, oldest first, or those of one thread. The copies are the test's to keep. */
   messages(threadId?: string): Message[];
   /** Who is working in a thread now. */
@@ -212,6 +214,44 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     });
   };
 
+  /** Post as `me`. A retry with the request ID of an earlier post gives back that post. */
+  function append(me: Member, threadId: string, text: string, requestId: string): Message {
+    if (typeof text !== "string" || text.trim() === "") refuse("A message needs some text.");
+    if (text.length > MAX_MESSAGE_LENGTH) {
+      refuse(`A message holds at most ${MAX_MESSAGE_LENGTH} characters, and this one has ${text.length}.`);
+    }
+    if (typeof requestId !== "string" || requestId === "" || /[\s\p{Cc}]/u.test(requestId)) {
+      refuse("requestId must be an ID of 1 to 200 characters with no spaces.");
+    }
+    const earlier = posts.get(`${me.id} ${requestId}`);
+    if (earlier !== undefined) {
+      if (earlier.threadId !== threadId || earlier.text !== text) {
+        refuse(`Request ${requestId} already posted a different message.`);
+      }
+      return clone(earlier);
+    }
+    const thread = threads.find((candidate) => candidate.id === threadId);
+    const channel = thread === undefined ? undefined : channelOf(thread.channelId);
+    if (thread === undefined || channel === undefined || !isIn(channel, me.id)) refuse(`Unknown thread: ${threadId}`);
+    position += 1;
+    const message: Message = {
+      id: nextId("msg"),
+      seq: position,
+      channelId: channel.id,
+      threadId: thread.id,
+      author: clone(me),
+      text,
+      sentAt: now(),
+      addressed: channel.members.filter((member) => member.id !== me.id).map((member) => member.id),
+      receipts: [],
+    };
+    log.push(message);
+    posts.set(`${me.id} ${requestId}`, message);
+    thread.updatedAt = Math.max(thread.updatedAt, message.sentAt);
+    for (const wake of [...waiting]) wake();
+    return clone(message);
+  }
+
   function serve(): { chat: Chat; end: () => void } {
     let who: Member | undefined;
     const connection = {};
@@ -292,39 +332,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       },
       async post(threadId, text, requestId, context) {
         await gate("post", context);
-        const me = caller();
-        if (typeof text !== "string" || text.trim() === "") refuse("A message needs some text.");
-        if (text.length > MAX_MESSAGE_LENGTH) {
-          refuse(`A message holds at most ${MAX_MESSAGE_LENGTH} characters, and this one has ${text.length}.`);
-        }
-        if (typeof requestId !== "string" || requestId === "" || /[\s\p{Cc}]/u.test(requestId)) {
-          refuse("requestId must be an ID of 1 to 200 characters with no spaces.");
-        }
-        const earlier = posts.get(`${me.id} ${requestId}`);
-        if (earlier !== undefined) {
-          if (earlier.threadId !== threadId || earlier.text !== text) {
-            refuse(`Request ${requestId} already posted a different message.`);
-          }
-          return clone(earlier);
-        }
-        const { thread, channel } = threadFor(threadId);
-        position += 1;
-        const message: Message = {
-          id: nextId("msg"),
-          seq: position,
-          channelId: channel.id,
-          threadId: thread.id,
-          author: clone(me),
-          text,
-          sentAt: now(),
-          addressed: channel.members.filter((member) => member.id !== me.id).map((member) => member.id),
-          receipts: [],
-        };
-        log.push(message);
-        posts.set(`${me.id} ${requestId}`, message);
-        thread.updatedAt = Math.max(thread.updatedAt, message.sentAt);
-        for (const wake of [...waiting]) wake();
-        return clone(message);
+        return append(caller(), threadId, text, requestId);
       },
       async read(threadId, beforeSeq, limit, context) {
         await gate("read", context);
@@ -483,6 +491,9 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     dm(a, b) {
       const { channel, thread } = makeDm(a, b);
       return { channel: toChannel(channel, a), thread: toThread(thread) };
+    },
+    say(author, threadId, text) {
+      return append(remember(author), threadId, text, nextId("said"));
     },
     messages: (threadId) => clone(threadId === undefined ? log : log.filter((message) => message.threadId === threadId)),
     working: (threadId) => toThread(threads.find((thread) => thread.id === threadId)!).working,
