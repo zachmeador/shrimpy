@@ -4,7 +4,9 @@ import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
 import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { loadAll } from "./commands/index.ts";
 import {
+  commandLines,
   declareLocalModel,
   type LaunchOptions,
   serve,
@@ -14,6 +16,7 @@ import {
   shrimpyInBackground,
   startModelServer,
   talkTo,
+  whyNotACommand,
 } from "./testing/index.ts";
 
 /*
@@ -50,7 +53,9 @@ function isAlive(pid: number): boolean {
  * A home whose model is the one at `url`, with the gateway, the chat server and
  * the agent each serving in a process of their own, and a person in a DM with
  * the agent. Everything stops when the test ends. The agent is started with the
- * environment `launch` adds to the test's own.
+ * environment `launch` adds to the test's own, and with a user directory of its
+ * own: its shell is a real one, and a model that looks around with `~` should
+ * find nothing of the person's.
  */
 async function agentOnTheNetwork(t: TestContext, target: { url: string; model: string }, launch?: LaunchOptions) {
   const home = tempHome(t);
@@ -59,7 +64,7 @@ async function agentOnTheNetwork(t: TestContext, target: { url: string; model: s
   declareLocalModel(home, target);
   await serveGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
-  const agent = await serve(t, home, [], launch);
+  const agent = await serve(t, home, [], { env: { HOME: tempDir(t, "user-home"), ...launch?.env } });
   const talk = await talkTo(t, chat.listening, "scout");
   return { home, chat, agent, talk };
 }
@@ -170,12 +175,17 @@ test(
   },
 );
 
-/** The tool calls the agent made in a thread's session, by name, with how each ended. */
-async function toolCallsIn(home: string, thread: string): Promise<[string, string][]> {
+/** The tool calls the agent made in a thread's session, with their arguments and how each ended. */
+async function toolItemsIn(home: string, thread: string): Promise<Extract<SessionItem, { type: "tool" }>[]> {
   const read = await shrimpy(["sessions", "read", home, thread, "--json"]);
   assert.equal(read.code, 0, read.stderr);
   const view = JSON.parse(read.stdout) as SessionView;
-  return view.items.flatMap((item) => (item.type === "tool" ? [[item.name, item.status] as [string, string]] : []));
+  return view.items.flatMap((item) => (item.type === "tool" ? [item] : []));
+}
+
+/** The tool calls the agent made in a thread's session, by name, with how each ended. */
+async function toolCallsIn(home: string, thread: string): Promise<[string, string][]> {
+  return (await toolItemsIn(home, thread)).map((item) => [item.name, item.status]);
 }
 
 test(
@@ -214,6 +224,27 @@ test(
     assert.match((await talk.replies()).at(-1)?.text ?? "", /teal/i);
     const calls = await toolCallsIn(home, talk.thread.id);
     assert.ok(calls.some(([name, status]) => name === "read_messages" && status === "done"), JSON.stringify(calls));
+  },
+);
+
+test(
+  "an agent on a real model reads the skill for making an agent, and answers with commands that exist",
+  { timeout: 300_000, skip: skipWithoutRealModel },
+  async (t) => {
+    const { home, talk } = await agentOnTheNetwork(t, { url: realUrl ?? "", model: realModel ?? "" });
+
+    const asked = await talk.say("How do I make another agent, one called maya? Just tell me the commands, don't run anything.");
+
+    const receipt = await talk.receiptOn(asked, 240_000);
+    assert.equal(receipt.status, "answered", JSON.stringify(receipt));
+    const reply = (await talk.replies()).at(-1)?.text ?? "";
+    const tools = await toolItemsIn(home, talk.thread.id);
+    const readIt = tools.some((tool) => tool.args.includes("shrimpy-agents/SKILL.md"));
+    assert.ok(readIt, `it never read the skill. It did: ${JSON.stringify(tools.map((tool) => [tool.name, tool.args]))}\nand answered: ${reply}`);
+    const lines = commandLines(reply);
+    const commands = await loadAll();
+    assert.ok(lines.some((line) => line.startsWith("shrimpy agent init")), `no agent init in the answer: ${reply}`);
+    assert.deepEqual(lines.flatMap((line) => whyNotACommand(line, commands) ?? []), [], reply);
   },
 );
 
