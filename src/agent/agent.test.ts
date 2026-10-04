@@ -99,7 +99,7 @@ test("a client waits for an input to end, and is told how it ended", { timeout }
 });
 
 test("a client that leaves while waiting does not stop the work, or wait for it", { timeout }, async (t) => {
-  const rig = await startAgentRig(t, { tokensPerSecond: 200 });
+  const rig = await startAgentRig(t);
   await rig.receiptOn(await rig.say("first"));
   const first = await rig.attach();
   const second = await rig.attach();

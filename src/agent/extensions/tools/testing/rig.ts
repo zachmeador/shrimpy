@@ -1,20 +1,20 @@
+import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { ToolExecutionApi, ToolRegistration } from "@earendil-works/pi-durable";
-import type { ChatClient, Thread } from "../../../../contracts/chat/index.ts";
-import { type ScriptedChat, scriptedChat } from "../../../../contracts/chat/testing/index.ts";
-import { stopAfter } from "../../../../lib/testing/index.ts";
+import type { ChatClient } from "../../../../contracts/chat/index.ts";
 import type { LiveChat } from "../../../links/index.ts";
-import { scout, zach } from "../../../testing/index.ts";
+import { scout, startChatServer, type Talk, talkTo } from "../../../testing/index.ts";
 import { messageTools } from "../index.ts";
 
 export interface ToolRigOptions {
   /** Characters in the longest message the agent posts. */
   messageLimit?: number;
-  /** Whether the session is behind Zach's main thread. Yes, unless this says otherwise. */
-  inThread?: boolean;
-  /** Stand between the tools and chat's calls, to make some of them go wrong. */
-  through?: (chat: ChatClient, scripted: ScriptedChat) => ChatClient;
+  /**
+   * Stand between the tools and chat's calls, to make some of them go wrong.
+   * `lose` ends the connection, as chat going away does.
+   */
+  through?: (chat: ChatClient, lose: () => void) => ChatClient;
 }
 
 /** What a tool answered. */
@@ -23,32 +23,32 @@ export interface ToolRun {
   isError: boolean;
 }
 
-export interface ToolRig {
-  readonly chat: ScriptedChat;
-  /** The main thread of the DM between Zach and the agent, which is where the session is. */
-  readonly thread: Thread;
+/** The message tools for the agent Scout, and Zach to talk to it. */
+export interface ToolRig extends Talk {
+  /** Scout posts in the main thread of the DM, as the agent does over the connection the tools use. */
+  postAsScout(text: string): Promise<void>;
+  /** The connection the tools use is lost. */
+  lose(): void;
   /** Run a tool as the engine does. Calls with the same `taskId` and `callId` are the same call run again. */
   call(
     name: "send_message" | "read_messages",
     args: Record<string, unknown>,
     call?: { taskId?: number; callId?: string; signal?: AbortSignal },
   ): Promise<ToolRun>;
-  /** The connection the tools use. */
-  readonly live: LiveChat;
 }
 
 /**
- * The message tools for the agent Scout, wired to a scripted chat where Zach
- * has a DM with it, over a connection that is closed when the test ends.
+ * The message tools for the agent Scout, wired to the real chat server where
+ * Zach has a DM with it, over a connection that is closed when the test ends.
  */
 export async function startToolRig(t: TestContext, options: ToolRigOptions = {}): Promise<ToolRig> {
-  const chat = scriptedChat();
-  const { thread } = chat.dm(zach, scout);
+  const chat = await startChatServer(t);
+  const talk = await talkTo(chat);
   const connection = await chat.join(scout);
-  stopAfter(t, () => connection.close());
   const lost = new AbortController();
+  const lose = (): void => lost.abort(new Error("The connection to chat was closed."));
   connection.onDisconnect((reason) => lost.abort(reason ?? new Error("The connection to chat was closed.")));
-  const live: LiveChat = { chat: options.through?.(connection.chat, chat) ?? connection.chat, lost: lost.signal };
+  const live: LiveChat = { chat: options.through?.(connection.chat, lose) ?? connection.chat, lost: lost.signal };
 
   const extension = messageTools({
     self: scout,
@@ -61,12 +61,14 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
     return found;
   };
 
-  // The engine's number for the session, and the one document that says which thread it is behind.
-  const sessions = options.inThread === false ? {} : { [thread.id]: { conversationId: 1, channelId: thread.channelId, unacted: [] } };
+  // The engine's number for the session, and the one document that says it is behind Zach's main thread.
+  const sessions = { [talk.thread.id]: { conversationId: 1, channelId: talk.thread.channelId, unacted: [] } };
   return {
-    chat,
-    thread,
-    live,
+    ...talk,
+    lose,
+    async postAsScout(text) {
+      await connection.chat.post(talk.thread.id, text, randomUUID());
+    },
     async call(name, args, call = {}) {
       const api = {
         conversationId: 1,

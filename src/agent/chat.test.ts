@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
-import { until, waitForView } from "../lib/testing/index.ts";
-import { answered, assistantItems, releaseGate, type Script, startAgentRig, untilReleased } from "./testing/index.ts";
+import { tempDir, until, waitForView } from "../lib/testing/index.ts";
+import { answered, assistantItems, releaseGate, type Script, startAgentRig, talkTo, untilReleased } from "./testing/index.ts";
 
 /*
  * An agent taking part in chat, with the real engine under it: what a message
@@ -67,7 +67,7 @@ test("the agent is working in the thread from picking a message up until its rep
 });
 
 test("a stop with a message waiting: the message is skipped, and the next turn in the thread shows it", { timeout }, async (t) => {
-  const rig = await startAgentRig(t, { tokensPerSecond: 40 });
+  const rig = await startAgentRig(t, { tokensPerSecond: 200 });
   const running = await rig.say("stream a long answer");
   await rig.untilWorking();
   const { session } = await rig.attach();
@@ -206,18 +206,17 @@ test("a chat server whose store was replaced under the agent makes it read the n
   await rig.receiptOn(await rig.say("before"));
   await rig.receiptOn(await rig.say("before again"));
 
-  rig.chat.chat.replace();
-  const { thread } = rig.chat.chat.dm({ id: "person:zach", kind: "person", name: "Zach" }, { id: "agent:scout", kind: "agent", name: "scout" });
   await rig.chat.outage();
-  await rig.chat.recover();
+  await rig.chat.recover({ dataDir: tempDir(t, "chat-data") });
   await until(
     () => rig.reports.some((report) => /^Chat's log ends at 0, before the agent's place in it at \d+\./.test((report as Error).message)),
     "the agent to say its place in the log was lost",
   );
-  const fresh = await rig.say("first message of the new store", thread.id);
+  const fresh = await talkTo(rig.chat);
+  const message = await fresh.say("first message of the new store");
 
-  assert.equal((await rig.receiptOn(fresh)).status, "answered");
-  assert.equal(fresh.seq, 1);
+  assert.equal((await fresh.receiptOn(message)).status, "answered");
+  assert.equal(message.seq, 1);
 });
 
 test("while chat is unreachable the sessions keep working, and clients can still watch, steer and stop them", { timeout }, async (t) => {

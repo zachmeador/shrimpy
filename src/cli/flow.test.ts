@@ -2,16 +2,13 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { agentMember, type Member, type Message, type Receipt } from "../contracts/chat/index.ts";
-import { startStandInChat } from "../contracts/chat/testing/index.ts";
+import type { Message, Receipt } from "../contracts/chat/index.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
-import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
-import { captureIo, declareLocalModel, type ModelServer, startModelServer } from "./testing/index.ts";
+import { captureIo, declareLocalModel, type ModelServer, serveChat, startModelServer, talkTo } from "./testing/index.ts";
 
 const timeout = 60_000;
-
-const zach: Member = { id: "person:zach", kind: "person", name: "Zach" };
 
 /** Run `shrimpy` with `args` in this process and return the code with what it printed. */
 async function run(...args: string[]) {
@@ -39,19 +36,20 @@ interface ServedHome {
 
 /**
  * A home that talks to the test model, with its agent serving in this process
- * (`agent serve <home> ...serveFlags`) and finding chat through a gateway. All
- * of it stops when the test ends.
+ * (`agent serve <home> ...serveFlags`) and finding the chat server, which runs
+ * in a process of its own, through a gateway. All of it stops when the test
+ * ends.
  */
 async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<ServedHome> {
   useRuntimeDir(t);
   const model = await startModelServer();
   const gateway = await startStandInGateway(t);
-  const chat = await startStandInChat(t, { register: true });
+  const chat = await serveChat(t, tempDir(t, "chat-data"));
   await until(() => gateway.registered().length === 1, "chat to be listed with the gateway");
   const home = join(tempDir(t, "flow"), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
   declareLocalModel(home, { url: model.url, model: "test-model" });
-  const { thread } = chat.chat.dm(zach, agentMember("scout"));
+  const talk = await talkTo(t, chat.listening, "scout");
 
   const serving = captureIo();
   const done = runCli(["agent", "serve", home, ...serveFlags], serving.io);
@@ -73,21 +71,13 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
       throw new Error(`agent serve ended with ${code}: ${serving.err.join("\n")}`);
     }),
   ]);
-  await until(() => chat.chat.calls("feed") >= 1, "the agent to read chat's feed");
 
-  const tell = (text: string): Promise<Message> => Promise.resolve(chat.chat.say(zach, thread.id, text));
-  const receiptOn = (message: Message): Promise<Receipt> =>
-    eventually(
-      () => chat.chat.messages().find((candidate) => candidate.id === message.id)?.receipts[0],
-      (receipt) => receipt !== undefined,
-      { what: `the agent to answer "${message.text}"` },
-    ) as Promise<Receipt>;
   const ask = async (text: string): Promise<Message> => {
-    const said = await tell(text);
-    await receiptOn(said);
+    const said = await talk.say(text);
+    await talk.receiptOn(said);
     return said;
   };
-  return { home, model, threadId: thread.id, ask, tell, receiptOn, stop, stopNow };
+  return { home, model, threadId: talk.thread.id, ask, tell: (text) => talk.say(text), receiptOn: (message) => talk.receiptOn(message), stop, stopNow };
 }
 
 test("agent reload makes the running agent read its home again, and says what it left out", { timeout }, async (t) => {

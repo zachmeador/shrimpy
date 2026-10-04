@@ -3,14 +3,13 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { agentMember, type Message, type Receipt } from "../contracts/chat/index.ts";
-import { type StandInChat, startStandInChat } from "../contracts/chat/testing/index.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/index.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
-import { attachThread, closeAfter, stubChatCompletions, zach } from "./testing/index.ts";
+import { attachThread, type ChatServer, closeAfter, startChatServer, stubChatCompletions, talkTo } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -31,10 +30,10 @@ function newHome(t: TestContext, providers: object = { local }, name = "scout") 
   return paths;
 }
 
-/** A gateway and a chat server on this machine, the chat server listed with the gateway. */
+/** A gateway and the chat server on this machine. The chat server lists itself with the gateway. */
 async function startNetwork(t: TestContext) {
   const gateway = await startStandInGateway(t);
-  const chat = await startStandInChat(t, { register: true });
+  const chat = await startChatServer(t);
   await until(() => gateway.registered().length === 1, "chat to be listed with the gateway");
   return { gateway, chat };
 }
@@ -44,24 +43,16 @@ async function startAt(t: TestContext, home: string) {
   return closeAfter(t, await startHomeAgent(home));
 }
 
-/** Zach, in his DM with the agent called `name`. */
-async function talkTo(chat: StandInChat, name: string) {
-  const { thread } = chat.chat.dm(zach, agentMember(name));
-  const receiptOn = (message: Message): Promise<Receipt> =>
-    eventually(
-      () => chat.chat.messages().find((candidate) => candidate.id === message.id)?.receipts[0],
-      (receipt) => receipt !== undefined,
-      { what: `an answer to "${message.text}"` },
-    ) as Promise<Receipt>;
+/** Zach, in his DM with the agent called `name`, who says something and waits until the agent has left its receipt. */
+async function talkToAgent(chat: ChatServer, name: string) {
+  const talk = await talkTo(chat, agentMember(name));
   return {
-    thread,
-    /** Say something, and wait until the agent has left its receipt. */
-    async ask(text: string): Promise<{ asked: Message; receipt: Receipt }> {
-      const asked = chat.chat.say(zach, thread.id, text);
-      return { asked, receipt: await receiptOn(asked) };
+    thread: talk.thread,
+    replies: () => talk.replies(),
+    async ask(text: string, timeoutMs?: number): Promise<{ asked: Message; receipt: Receipt }> {
+      const asked = await talk.say(text);
+      return { asked, receipt: await talk.receiptOn(asked, timeoutMs) };
     },
-    replies: (): Promise<Message[]> =>
-      Promise.resolve(chat.chat.messages(thread.id).filter((message) => message.author.id === agentMember(name).id)),
   };
 }
 
@@ -69,7 +60,7 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Hello from qwen");
   const { gateway, chat } = await startNetwork(t);
-  const person = await talkTo(chat, "scout");
+  const person = await talkToAgent(chat, "scout");
 
   const agent = await startAt(t, paths.root);
   const { receipt } = await person.ask("hi");
@@ -109,7 +100,7 @@ test("the model gets the home's instructions as sections in a fixed order, exact
   );
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  const person = await talkTo(chat, "scout");
+  const person = await talkToAgent(chat, "scout");
   await startAt(t, paths.root);
 
   await person.ask("hi");
@@ -127,7 +118,7 @@ test("editing the home takes effect at the next start, in sessions made before i
   writeFileSync(paths.soul, "Answer in prose.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  const person = await talkTo(chat, "scout");
+  const person = await talkToAgent(chat, "scout");
 
   const first = await startAt(t, paths.root);
   await person.ask("one");
@@ -149,8 +140,8 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   writeFileSync(two.soul, "You are the second agent.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { gateway, chat } = await startNetwork(t);
-  const toOne = await talkTo(chat, "scout");
-  const toTwo = await talkTo(chat, "other");
+  const toOne = await talkToAgent(chat, "scout");
+  const toTwo = await talkToAgent(chat, "other");
   await startAt(t, one.root);
   await startAt(t, two.root);
   await until(() => gateway.registered().filter((program) => program.kind === "agent").length === 2, "both agents to register");
@@ -178,17 +169,18 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   assert.deepEqual(await texts(two.root, toTwo.thread.id), ["hello from two"]);
 });
 
-test("an agent that starts before the gateway and chat finds them when they come up", { timeout }, async (t) => {
+test("an agent that starts before the gateway and chat finds them when they come up", { timeout: 60_000 }, async (t) => {
   const paths = newHome(t);
   stubChatCompletions(t, "Found you.");
   const agent = await startAt(t, paths.root);
   assert.ok(agent.endpoint.socket, "it started without them");
 
   const { gateway, chat } = await startNetwork(t);
-  const person = await talkTo(chat, "scout");
-  await until(() => gateway.registered().some((program) => program.kind === "agent"), "the agent to register");
+  const person = await talkToAgent(chat, "scout");
+  // The agent looks again after growing pauses, so a slow machine can make it a while.
+  await until(() => gateway.registered().some((program) => program.kind === "agent"), "the agent to register", 30_000);
 
-  const { receipt } = await person.ask("are you there?");
+  const { receipt } = await person.ask("are you there?", 30_000);
 
   assert.equal(receipt.status, "answered");
 });

@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { scout, zach } from "../../testing/index.ts";
 import { startToolRig } from "./testing/index.ts";
 
 const timeout = 15_000;
 
 test("a long thread is read a page at a time, newest first, and each page says which number reads the one before it", { timeout }, async (t) => {
   const rig = await startToolRig(t);
-  for (let n = 1; n <= 25; n++) rig.chat.say(n % 2 === 1 ? zach : scout, rig.thread.id, `message ${String(n)}`);
+  for (let n = 1; n <= 25; n++) {
+    if (n % 2 === 1) await rig.say(`message ${String(n)}`);
+    else await rig.postAsScout(`message ${String(n)}`);
+  }
   const lines = (text: string): string[] => text.split("\n").filter((line) => line.startsWith("message "));
-  const messages = rig.chat.messages(rig.thread.id);
+  const messages = await rig.said();
 
   const newest = await rig.call("read_messages", { limit: 10 });
   assert.deepEqual(lines(newest.text), Array.from({ length: 10 }, (_, i) => `message ${String(16 + i)}`));

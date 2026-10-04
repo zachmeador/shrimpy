@@ -1,9 +1,10 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
- * server, both without a network, an agent wired to a stand-in chat with a
- * person to talk to it, and helpers to attach to an agent, stop it and read its
- * views. Only tests and test fixtures import this, and it must not know about
- * any other program.
+ * server, both without a network, the real chat server started through the
+ * command, an agent taking part in it with a person to talk to it, and helpers
+ * to attach to an agent, stop it and read its views. Only tests and test
+ * fixtures import this. The one thing it knows of another program is the
+ * command that starts it.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,10 +25,12 @@ import {
 import type { AgentOptions } from "../index.ts";
 
 export { attachThread, closeAfter } from "./attach.ts";
+export { type ChatServer, startChatServer } from "./chat-server.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { startAgentChild } from "./child.ts";
 export { scout, zach } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
+export { type Talk, talkTo } from "./talk.ts";
 export { callingTools } from "./tools.ts";
 export { answered, assistantItems, toolItems } from "./views.ts";
 
@@ -61,7 +64,7 @@ const SLOW_COMMAND = [
   "echo finished >> runs.log",
 ].join("; ");
 
-const LISTING_COMMAND = "printf 'listing the work directory\\n'; sleep 1; printf 'done\\n'";
+const LISTING_COMMAND = "printf 'listing the work directory\\n'; sleep 0.2; printf 'done\\n'";
 
 /** Let the answers of a `gated` model through. */
 export function releaseGate(home: string): void {

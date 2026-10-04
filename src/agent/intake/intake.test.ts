@@ -1,122 +1,74 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { scriptedChat } from "../../contracts/chat/testing/index.ts";
-import type { Message, Receipt } from "../../contracts/chat/index.ts";
-import { Refusal } from "../../lib/refusal/index.ts";
-import { eventually, until } from "../../lib/testing/index.ts";
+import { ServerError } from "@earendil-works/pi-client";
+import type { Message } from "../../contracts/chat/index.ts";
+import { until } from "../../lib/testing/index.ts";
+import { startChatServer, talkTo } from "../testing/index.ts";
 import { snapshotOf } from "./prompt.ts";
-import { type IntakeRig, scout, scriptedTurns, startIntakeRig, zach } from "./testing/index.ts";
+import { type IntakeRig, scriptedTurns, startIntakeRig } from "./testing/index.ts";
 
 const timeout = 15_000;
 
 /** Say something and wait until it has been handed to its session. */
 async function sayAndWait(rig: IntakeRig, text: string): Promise<Message> {
-  const said = rig.say(text);
+  const said = await rig.say(text);
   await until(() => rig.turns.handed.has(said.id), `"${text}" to be handed over`);
   return said;
-}
-
-/** What the agent has posted in the thread, oldest first. */
-const posted = (rig: IntakeRig): Message[] => rig.said().filter((message) => message.author.id === scout.id);
-
-/** The receipt the agent left on a message, once it has. */
-async function receiptOn(rig: IntakeRig, message: Message): Promise<Receipt> {
-  return eventually(
-    () => rig.said().find((candidate) => candidate.id === message.id)?.receipts[0],
-    (receipt) => receipt !== undefined,
-    { what: `the receipt on "${message.text}"` },
-  ) as Promise<Receipt>;
 }
 
 test("the step order of a message is the plan's: recorded, handed over, then the cursor moves, then the reply, the receipt and the settling", { timeout }, async (t) => {
   const rig = await startIntakeRig(t);
   const said = await sayAndWait(rig, "hello");
   rig.turns.end({ kind: "answered", answer: "1", text: "Hi." }, said.id);
-  await receiptOn(rig, said);
+  await rig.receiptOn(said);
   await until(() => rig.turns.settled.length === 1, "the message to be settled");
 
   const mine = rig.turns.calls.filter((call) => call.includes(said.id) || call === `setCursor ${String(said.seq)}`);
   assert.deepEqual(mine, [`record ${said.id}`, `start ${said.id}`, `setCursor ${String(said.seq)}`, `settle ${said.id}`]);
 });
 
-test("a connection lost while the reply is being posted does not post it twice", { timeout }, async (t) => {
+test("a reply is posted once however delivery goes wrong: a post that fails, one whose answer is lost, and receipts that fail", { timeout }, async (t) => {
   const rig = await startIntakeRig(t);
   const said = await sayAndWait(rig, "hello");
-  const held = rig.chat.hold("post");
+  rig.faults.fail("post", new Error("overloaded"));
+  rig.faults.loseAnswerToNextPost();
+  rig.faults.fail("leaveReceipt", new Error("chat hiccuped"), 2);
 
   rig.turns.end({ kind: "answered", answer: "1", text: "Only once." }, said.id);
-  await eventually(() => held.arrived(), (arrived) => arrived === 1, { what: "the post to arrive" });
-  rig.chat.down();
-  rig.chat.up();
-  await eventually(() => held.arrived(), (arrived) => arrived === 2, { what: "the post to be tried again" });
-  held.release();
 
-  await receiptOn(rig, said);
-  assert.deepEqual(
-    posted(rig).map((reply) => reply.text),
-    ["Only once."],
-  );
-});
-
-test("a receipt that fails is tried again without posting the reply a second time", { timeout }, async (t) => {
-  const rig = await startIntakeRig(t);
-  const said = await sayAndWait(rig, "hello");
-  rig.chat.fail("leaveReceipt", new Error("chat hiccuped"), 2);
-
-  rig.turns.end({ kind: "answered", answer: "1", text: "Once is enough." }, said.id);
-
-  await receiptOn(rig, said);
-  assert.equal(posted(rig).length, 1);
-  assert.equal(rig.chat.calls("post"), 3, "the reply was asked for each time, and posted once");
+  const receipt = await rig.receiptOn(said);
+  const replies = await rig.replies();
+  assert.deepEqual(replies.map((reply) => reply.text), ["Only once."]);
+  assert.deepEqual([receipt.status, receipt.reply], ["answered", replies[0]?.id]);
   assert.deepEqual(
     rig.errors.map((error) => error.message),
-    ["chat hiccuped", "chat hiccuped"],
+    ["overloaded", "chat hiccuped", "chat hiccuped"],
+    "each failure was reported, and a lost connection is not one",
   );
-});
-
-test("a failure that is not a refusal is tried again until it works", { timeout }, async (t) => {
-  const rig = await startIntakeRig(t);
-  const said = await sayAndWait(rig, "hello");
-  rig.chat.fail("post", new Error("overloaded"), 3);
-
-  rig.turns.end({ kind: "answered", answer: "1", text: "Got there." }, said.id);
-
-  await receiptOn(rig, said);
-  assert.deepEqual(
-    posted(rig).map((reply) => reply.text),
-    ["Got there."],
-  );
-  assert.equal(rig.errors.length, 3);
+  await until(() => rig.turns.settled.length === 1, "the message to be settled");
 });
 
 test("a reply that chat refuses for good is dropped with a report, and the message is settled", { timeout }, async (t) => {
   const rig = await startIntakeRig(t);
   const said = await sayAndWait(rig, "hello");
-  rig.chat.fail("post", new Refusal("Unknown thread: th_gone"), 10);
+  rig.faults.fail("post", new ServerError({ code: "service_invalid_value", message: "Unknown thread: th_gone" }), 10);
 
   rig.turns.end({ kind: "answered", answer: "1", text: "Too late." }, said.id);
 
   await until(() => rig.turns.settled.length === 1, "the message to be settled");
-  assert.deepEqual(posted(rig), []);
+  assert.deepEqual(await rig.replies(), []);
   assert.equal(rig.errors.length, 1);
-  assert.equal(
-    rig.errors[0]?.message,
-    `Chat refused what the agent had to say about ${said.id}, so it was dropped: Unknown thread: th_gone`,
-  );
-  assert.equal(rig.chat.calls("post"), 1, "and it was not asked again");
+  assert.ok(rig.errors[0]?.message.includes(said.id) && rig.errors[0].message.includes("Unknown thread: th_gone"));
+  assert.equal(rig.faults.calls("post"), 1, "and it was not asked again");
 });
 
 test("a restarted agent finds a message that was recorded but never handed over, and hands it over", { timeout }, async (t) => {
-  const chat = scriptedChat();
-  const { thread } = chat.dm(zach, scout);
+  const chat = await startChatServer(t);
+  const person = await talkTo(chat);
   const turns = scriptedTurns();
-  const said = chat.say(zach, thread.id, "recorded, then the agent died");
+  const said = await person.say("recorded, then the agent died");
   await turns.setCursor(said.seq - 1);
-  await turns.record({
-    message: snapshotOf(said),
-    threadId: thread.id,
-    channelId: said.channelId,
-  });
+  await turns.record({ message: snapshotOf(said), threadId: said.threadId, channelId: said.channelId });
 
   const rig = await startIntakeRig(t, { chat, turns });
 
