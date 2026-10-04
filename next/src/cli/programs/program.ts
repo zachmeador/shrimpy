@@ -6,6 +6,15 @@ import { fileURLToPath } from "node:url";
 /** The entry point of the CLI, which every program is started through. */
 const main = fileURLToPath(new URL("../main.ts", import.meta.url));
 
+/**
+ * The program and arguments that run this same `shrimpy`: the node that is
+ * running it, and its entry point. A shell with no `shrimpy` on its PATH can
+ * run this, and so does every program this command starts.
+ */
+export function shrimpyCommand(): string[] {
+  return [process.execPath, main];
+}
+
 /** The programs still running, so that a process that ends without stopping them takes them down. */
 const running = new Set<ChildProcess>();
 process.once("exit", () => {
@@ -57,7 +66,8 @@ export type Say = (stream: "out" | "err", line: string) => void;
  * not reach it: that command stops it, in the order it chooses.
  */
 export async function startProgram<Listening>(args: string[], say: Say): Promise<Program<Listening>> {
-  const child = spawn(process.execPath, [main, ...args], { stdio: ["ignore", "pipe", "pipe"], detached: true });
+  const [node = process.execPath, ...entry] = shrimpyCommand();
+  const child = spawn(node, [...entry, ...args], { stdio: ["ignore", "pipe", "pipe"], detached: true });
   running.add(child);
   const ended = once(child, "close").then(([code, signal]): Ended => {
     running.delete(child);

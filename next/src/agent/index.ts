@@ -106,9 +106,11 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * agent its `agent.json` names. Its name and model come from that file, and
  * its instructions from the files of the home. Reading `agent.json` takes no
  * lock and changes nothing, so a home that does not load, or a model that
- * cannot be used, fails before the agent claims the home.
+ * cannot be used, fails before the agent claims the home. `shrimpy` is the
+ * program and arguments that run Shrimpy, which the agent's shell finds as the
+ * `shrimpy` command.
  */
-export async function startHomeAgent(home: string): Promise<HomeAgent> {
+export async function startHomeAgent(home: string, options: { shrimpy?: readonly string[] } = {}): Promise<HomeAgent> {
   const loaded = loadHome(home);
   const model = { provider: loaded.model.provider, modelId: loaded.model.id };
   const models = await buildModels({
@@ -116,7 +118,14 @@ export async function startHomeAgent(home: string): Promise<HomeAgent> {
     authFile: loaded.paths.auth,
     model,
   });
-  const agent = await startAgent({ home: loaded.paths.root, name: loaded.name, models, model, join: {} });
+  const agent = await startAgent({
+    home: loaded.paths.root,
+    name: loaded.name,
+    models,
+    model,
+    join: {},
+    ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
+  });
   return { ...agent, name: loaded.name, home: loaded.paths.root };
 }
 

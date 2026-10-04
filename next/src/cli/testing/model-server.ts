@@ -20,6 +20,7 @@ export interface ModelServer {
  * models do. What it does after that depends on the latest user message:
  *
  * - "run": call the bash tool to echo `shrimpy-ok`, then report what it printed
+ * - "which shrimpy": call the bash tool to find `shrimpy` and list what is running, then report what it printed
  * - "slow": stream words for several seconds, until the client hangs up
  * - "refuse": answer with an HTTP 400 error
  * - anything else: say hello
@@ -56,10 +57,15 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
     return;
   }
   response.writeHead(200, { "content-type": "text/event-stream" });
+  const command = asked.includes("which shrimpy")
+    ? "command -v shrimpy && shrimpy gateway status"
+    : asked.includes("run")
+      ? "echo shrimpy-ok"
+      : undefined;
   if (asked.includes("slow")) streamWords(response);
-  else if (asked.includes("run") && last?.role === "tool") {
+  else if (command !== undefined && last?.role === "tool") {
     say(response, `The command printed: ${String(last.content).trim()}`);
-  } else if (asked.includes("run")) callTool(response);
+  } else if (command !== undefined) callTool(response, command);
   else say(response, "Hello from the test model.");
 }
 
@@ -87,12 +93,12 @@ function say(response: ServerResponse, text: string): void {
   finish(response, "stop");
 }
 
-function callTool(response: ServerResponse): void {
+function callTool(response: ServerResponse, command: string): void {
   const call = {
     index: 0,
     id: "call_1",
     type: "function",
-    function: { name: "bash", arguments: JSON.stringify({ command: "echo shrimpy-ok" }) },
+    function: { name: "bash", arguments: JSON.stringify({ command }) },
   };
   think(response);
   chunk(response, [{ index: 0, delta: { tool_calls: [call] }, finish_reason: null }]);

@@ -19,6 +19,8 @@ export interface HomePaths {
   readonly database: string;
   /** Disposable files: the owner lock, the endpoint, sockets and logs. */
   readonly runtime: string;
+  /** Where the owner puts the `shrimpy` command its agent's shell runs. */
+  readonly bin: string;
 }
 
 export function homePaths(home: string): HomePaths {
@@ -35,5 +37,6 @@ export function homePaths(home: string): HomePaths {
     models: join(pi, "models.json"),
     database: join(root, "state", "agent.sqlite"),
     runtime: join(root, AGENT_RUNTIME_DIR),
+    bin: join(root, AGENT_RUNTIME_DIR, "bin"),
   };
 }

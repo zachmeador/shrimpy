@@ -6,6 +6,7 @@ import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
 import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import {
   declareLocalModel,
+  type LaunchOptions,
   serve,
   serveChat,
   serveGateway,
@@ -48,16 +49,17 @@ function isAlive(pid: number): boolean {
 /**
  * A home whose model is the one at `url`, with the gateway, the chat server and
  * the agent each serving in a process of their own, and a person in a DM with
- * the agent. Everything stops when the test ends.
+ * the agent. Everything stops when the test ends. The agent is started with the
+ * environment `launch` adds to the test's own.
  */
-async function agentOnTheNetwork(t: TestContext, target: { url: string; model: string }) {
+async function agentOnTheNetwork(t: TestContext, target: { url: string; model: string }, launch?: LaunchOptions) {
   const home = tempHome(t);
   const init = await shrimpy(["agent", "init", home, "--name", "scout", "--model", `local/${target.model}`]);
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, target);
   await serveGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
-  const agent = await serve(t, home);
+  const agent = await serve(t, home, [], launch);
   const talk = await talkTo(t, chat.listening, "scout");
   return { home, chat, agent, talk };
 }
@@ -214,6 +216,24 @@ test(
     assert.ok(calls.some(([name, status]) => name === "read_messages" && status === "done"), JSON.stringify(calls));
   },
 );
+
+test("the agent's shell finds shrimpy, though the PATH the agent was started with has none, and it is this Shrimpy", { timeout: 120_000 }, async (t) => {
+  const model = await startModelServer();
+  t.after(() => model.close());
+  const { home, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" }, { env: { PATH: "/usr/bin:/bin" } });
+
+  const asked = await talk.say("which shrimpy");
+
+  const receipt = await talk.receiptOn(asked);
+  assert.equal(receipt.status, "answered", JSON.stringify(receipt));
+  const read = await shrimpy(["sessions", "read", home, talk.thread.id, "--json"]);
+  const tool = (JSON.parse(read.stdout) as SessionView).items.find(
+    (item): item is Extract<SessionItem, { type: "tool" }> => item.type === "tool",
+  );
+  assert.equal(tool?.status, "done");
+  assert.equal(tool.output.split("\n")[0], join(home, "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
+  assert.match(tool.output, /^agent\s+scout\s+0\.0\.0\s+\d+$/m, "and it reaches this machine's gateway, which lists the agent");
+});
 
 test("a command killed while it waits does not stop the work", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();

@@ -26,6 +26,7 @@ test("a home has the layout the plan describes", () => {
     models: "/agents/scout/state/pi/models.json",
     database: "/agents/scout/state/agent.sqlite",
     runtime: "/agents/scout/runtime",
+    bin: "/agents/scout/runtime/bin",
   });
 });
 

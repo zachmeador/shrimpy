@@ -85,9 +85,13 @@ export interface Served<Listening> {
  * listening. It gets the test's runtime directory, which takes its sockets away
  * when the test ends. If it is still running then, it is killed.
  */
-async function serving<Listening>(t: TestContext, args: string[]): Promise<Served<Listening>> {
+async function serving<Listening>(
+  t: TestContext,
+  args: string[],
+  options?: LaunchOptions,
+): Promise<Served<Listening>> {
   useRuntimeDir(t);
-  const { child, closed, result } = launch(args);
+  const { child, closed, result } = launch(args, options);
   const stop = async (signal: NodeJS.Signals = "SIGTERM"): Promise<CliResult> => {
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
     await closed;
@@ -113,8 +117,13 @@ export type ServedAgent = Served<{
 }>;
 
 /** Start `shrimpy agent serve <home>` and wait until it is listening. */
-export function serve(t: TestContext, home: string, extra: string[] = []): Promise<ServedAgent> {
-  return serving(t, ["agent", "serve", home, ...extra]);
+export function serve(
+  t: TestContext,
+  home: string,
+  extra: string[] = [],
+  options?: LaunchOptions,
+): Promise<ServedAgent> {
+  return serving(t, ["agent", "serve", home, ...extra], options);
 }
 
 export type ServedGateway = Served<{ event: string; socket: string; webPort: number | null; pid: number }>;

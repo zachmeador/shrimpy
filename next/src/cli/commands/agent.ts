@@ -11,6 +11,7 @@ import {
 } from "../../agent/index.ts";
 import type { Reloaded } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
+import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
@@ -84,7 +85,7 @@ const serve: Command = {
       else void agent?.close({ now: true });
     });
     try {
-      agent = await startHomeAgent(resolve(home));
+      agent = await startHomeAgent(resolve(home), { shrimpy: shrimpyCommand() });
       io.out(JSON.stringify({ event: "listening", name: agent.name, home: agent.home, ...agent.endpoint }));
       await requested;
       await agent.close({ now: values.now === true });

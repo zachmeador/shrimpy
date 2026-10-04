@@ -7,12 +7,18 @@ import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 import { homePaths } from "../home/index.ts";
+import { shellWithShrimpy } from "./launcher.ts";
 import { takeOwnerLock } from "./owner-lock.ts";
 
 export interface HostOptions {
   home: string;
   /** The model runtime, with its providers and credentials already set up. */
   models: Models;
+  /**
+   * The program and arguments that run Shrimpy, such as node and the path of the
+   * command's entry point. With it, the agent's shell finds `shrimpy` and runs that.
+   */
+  shrimpy?: readonly string[];
   /** Non-fatal failures the engine reports while it works. */
   onReport?: (error: unknown) => void;
 }
@@ -45,6 +51,7 @@ export async function openHost(options: HostOptions, extensions: readonly Extens
   const lock = takeOwnerLock(home);
   try {
     mkdirSync(dirname(database), { recursive: true });
+    const shell = options.shrimpy === undefined ? undefined : shellWithShrimpy(home, options.shrimpy);
     const registry = createRegistry();
     registry.install(CodingTools);
     for (const extension of extensions) registry.install(extension);
@@ -55,7 +62,7 @@ export async function openHost(options: HostOptions, extensions: readonly Extens
         registry,
         // Messages that queued up while a session was busy are picked up together, so they get one answer.
         settings: { followUpMode: "all" },
-        env: () => new NodeExecutionEnv({ cwd: home }),
+        env: () => new NodeExecutionEnv({ cwd: home, shellEnv: shell }),
         onReport: options.onReport ?? reportToStderr,
       },
       context,
