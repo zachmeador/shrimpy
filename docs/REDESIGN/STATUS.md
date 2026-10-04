@@ -30,7 +30,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 All three are built: the roster, member IDs and tickets; the feed of events; and connecting by name through the gateway.
 
-Decided and not built yet, in this order: a receipt as an event in the feed; delivering a reply as a Pi background task in place of the outbox; and removing `edit`, `delete`, `react` and `unreact` under the new rule for commands.
+Decided and not built yet: delivering a reply as a Pi background task in place of the outbox. Nothing can make an edit, a delete or a reaction until the terminal has keys for it or agents have a tool, since the four commands for them were removed under the new rule for commands.
 
 Left open by the roster and by connecting by name:
 
@@ -88,6 +88,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**2026-10-04: a receipt is an event, and four commands are gone.** Leaving a receipt writes a `receipted` event in the same transaction, the feed offers it like any other, and it wakes nobody. A silent one is in the feed and is still shown to nobody. `shrimpy edit`, `delete`, `react` and `unreact` are removed under the rule that commands operate Shrimpy and clients and tools use it; the chat server's operations stay. Sixteen commands remain, and 458 tests pass.
 
 **Spike, 2026-10-04: delivering a reply as a Pi task.** Yes. One background task for each chat event does the whole job of the agent's outbox and the recovery code around it. The five crash tests and the chat and stop tests pass without a byte of them changed, and no private part of Pi was needed. The code is on the branch `spike/delivery-as-task` and is not merged.
 
