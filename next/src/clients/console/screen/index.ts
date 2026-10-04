@@ -6,7 +6,7 @@
  * downstream has to trust it. It must not know how anything is drawn, or reach
  * the network.
  */
-export { farewellLine, QUIT_AGAIN } from "./words.ts";
+export { farewellLine, hiddenLines, OUT_OF_DATE, QUIT_AGAIN } from "./words.ts";
 export { oneLine, plain } from "./plain.ts";
 export {
   type AgentsScreen,

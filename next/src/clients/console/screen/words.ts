@@ -1,4 +1,4 @@
-import type { SessionActivity } from "../../../contracts/agent/index.ts";
+import type { SessionActivity, ToolStatus } from "../../../contracts/agent/index.ts";
 import type { Receipt } from "../../../contracts/chat/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -157,7 +157,7 @@ export function workingLine(names: string[], activity: SessionActivity | undefin
   const who = names.length === 0 ? "The agent" : names.map(oneLine).join(" and ");
   const verb = names.length > 1 ? "are" : "is";
   const doing = activity === undefined ? undefined : activityWords(activity);
-  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}`;
+  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`} · esc to stop`;
 }
 
 function activityWords(activity: SessionActivity): string | undefined {
@@ -174,15 +174,40 @@ function activityWords(activity: SessionActivity): string | undefined {
   }
 }
 
-export const outOfDate = "out of date";
+/** What marks a title or a block that may no longer be current. */
+export const OUT_OF_DATE = "out of date";
+export const THINKING = "thinking";
 export const hiddenSteps = (count: number): string =>
   `${String(count)} earlier ${count === 1 ? "step" : "steps"} not shown`;
 export const hiddenLines = (count: number): string =>
   `${String(count)} earlier ${count === 1 ? "line" : "lines"}`;
 
+/** How a tool call stands, with a mark, and how to draw it. */
+export function toolStatus(status: ToolStatus): { label: string; tone: "good" | "bad" | "busy" | "idle" } {
+  switch (status) {
+    case "pending":
+      return { label: "○ waiting", tone: "idle" };
+    case "running":
+      return { label: "● running", tone: "busy" };
+    case "done":
+      return { label: "✓ done", tone: "good" };
+    case "error":
+      return { label: "✗ failed", tone: "bad" };
+    case "interrupted":
+      return { label: "! interrupted, not run again", tone: "bad" };
+  }
+}
+
+/** A word on an answer that did not end the way an answer does. */
+export function answerNote(stopReason: string | null): string | undefined {
+  if (stopReason === "aborted") return "answer interrupted";
+  if (stopReason === "error") return "answer failed";
+  return undefined;
+}
+
 export const KEYS = {
   agents: "↑↓ choose · enter open · ctrl+c twice to quit",
   threads: "↑↓ choose · enter open · n new thread · esc agents · ctrl+c twice to quit",
-  thread: "enter send · esc stop the work · ctrl+t threads · ctrl+n new thread · ctrl+c clears, then quits",
+  thread: "enter send · esc stop · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
 };
 export const QUIT_AGAIN = "Press Ctrl+C again to quit.";

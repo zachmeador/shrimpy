@@ -203,13 +203,13 @@ test("a thread that is working shows who is, and the work: thinking, tools with 
 
   const screen = thread(screenOf(onThread("scout", open, view, { session }), { now }));
 
-  assert.equal(screen.working, "scout is working · answering");
+  assert.equal(screen.working, "scout is working · answering · esc to stop");
   assert.deepEqual(screen.work, {
-    hidden: 0,
+    earlier: undefined,
     steps: [
-      { kind: "thinking", text: "I should list the files first." },
+      { kind: "thinking", label: "thinking", text: "I should list the files first." },
       { kind: "text", text: "Let me look.", note: undefined },
-      { kind: "tool", name: "bash", call: "$ ls -la", status: "done", output: "a\nb", notes: [] },
+      { kind: "tool", name: "bash", call: "$ ls -la", status: "✓ done", tone: "good", output: ["a", "b"], earlier: undefined, notes: [] },
       { kind: "text", text: "Two files", note: undefined },
     ],
   });
@@ -228,7 +228,7 @@ test("the work is only the current turn, and nothing once the session is idle", 
   const idle = thread(screenOf(onThread("scout", open, undefined, { session: sessionView({ items: history }) }), { now }));
 
   assert.deepEqual(busy.work?.steps.map((step) => step.kind), ["tool"]);
-  assert.equal(busy.working, "The agent is working · running bash".replace("The agent", "scout"));
+  assert.equal(busy.working, "scout is working · running bash · esc to stop");
   assert.equal(idle.work, undefined);
   assert.equal(idle.working, undefined);
 });
@@ -238,7 +238,7 @@ test("the agent working with no session to watch yet is still shown as working",
 
   const screen = thread(screenOf(onThread("scout", open, aThreadView(open, [aMessage("msg_1", zach, "go")])), { now }));
 
-  assert.equal(screen.working, "scout is working");
+  assert.equal(screen.working, "scout is working · esc to stop");
   assert.equal(screen.work, undefined);
 });
 
@@ -252,7 +252,7 @@ test("a turn with more steps than are shown says how many are left out", () => {
   const screen = thread(screenOf(onThread("scout", open, undefined, { session: workingView(items) }), { now }));
 
   assert.ok(screen.work);
-  assert.equal(screen.work.hidden, 3);
+  assert.equal(screen.work.earlier, "3 earlier steps not shown");
   assert.equal(screen.work.steps.length, 12);
   const [first] = screen.work.steps;
   assert.equal(first?.kind === "tool" && first.call, "$ echo 3");
@@ -272,10 +272,31 @@ test("a tool that was interrupted, failed or is waiting, and an answer that was 
 
   assert.deepEqual(steps, [
     { kind: "text", text: "Partial", note: "answer interrupted" },
-    { kind: "tool", name: "write", call: '{"path":"x.txt"}', status: "interrupted", output: "", notes: ["The agent restarted; the call was not run again."] },
-    { kind: "tool", name: "read", call: "", status: "pending", output: "", notes: [] },
-    { kind: "tool", name: "grep", call: "", status: "error", output: "no such file", notes: [] },
+    {
+      kind: "tool",
+      name: "write",
+      call: '{"path":"x.txt"}',
+      status: "! interrupted, not run again",
+      tone: "bad",
+      output: [],
+      earlier: undefined,
+      notes: ["The agent restarted; the call was not run again."],
+    },
+    { kind: "tool", name: "read", call: "", status: "○ waiting", tone: "idle", output: [], earlier: undefined, notes: [] },
+    { kind: "tool", name: "grep", call: "", status: "✗ failed", tone: "bad", output: ["no such file"], earlier: undefined, notes: [] },
   ]);
+});
+
+test("a tool's output shows its last lines, and says how many came before", () => {
+  const open = aThread("th_1", { preview: "go" });
+  const output = Array.from({ length: 10 }, (_, index) => `line ${String(index + 1)}`).join("\n");
+
+  const screen = thread(screenOf(onThread("scout", open, undefined, { session: workingView([userItem("go"), toolItem("bash", { output })]) }), { now }));
+
+  const [step] = screen.work?.steps ?? [];
+  assert.ok(step?.kind === "tool");
+  assert.deepEqual(step.output, ["line 5", "line 6", "line 7", "line 8", "line 9", "line 10"]);
+  assert.equal(step.earlier, "4 earlier lines");
 });
 
 test("a thread says when older messages are not shown, when it has none, and when it has not started", () => {
@@ -384,7 +405,7 @@ test("every screen names the keys that do something there", () => {
   assert.equal(agents(screenOf(aModel(), { now })).keys, "↑↓ choose · enter open · ctrl+c twice to quit");
   assert.equal(
     thread(screenOf(onThread("scout", aThread("th_1", {}), undefined), { now })).keys,
-    "enter send · esc stop the work · ctrl+t threads · ctrl+n new thread · ctrl+c clears, then quits",
+    "enter send · esc stop · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
   );
 });
 

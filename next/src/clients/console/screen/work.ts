@@ -1,25 +1,41 @@
-import type { SessionItem, SessionView, ToolStatus } from "../../../contracts/agent/index.ts";
+import type { SessionItem, SessionView } from "../../../contracts/agent/index.ts";
 import { lastLines, oneLine, plain } from "./plain.ts";
+import { answerNote, hiddenLines, hiddenSteps, THINKING, toolStatus } from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now. */
 export type Step =
-  | { kind: "thinking"; text: string }
+  | { kind: "thinking"; label: string; text: string }
   | { kind: "text"; text: string; note: string | undefined }
-  | { kind: "tool"; name: string; call: string; status: ToolStatus; output: string; notes: string[] };
+  | {
+      kind: "tool";
+      name: string;
+      call: string;
+      /** How the call stands, with a mark: done, running, failed. */
+      status: string;
+      /** The tool's severity for how it is drawn. */
+      tone: "good" | "bad" | "busy" | "idle";
+      /** The last lines of what it printed. */
+      output: string[];
+      /** How many earlier lines of output there were, in words, when there were more. */
+      earlier: string | undefined;
+      notes: string[];
+    };
 
 /** The work in progress behind the open thread: what the agent is doing, not what was said. */
 export interface Work {
   steps: Step[];
-  /** Steps of this turn before the ones shown. */
-  hidden: number;
+  /** In words, how many steps of this turn come before the ones shown, when some do. */
+  earlier: string | undefined;
 }
 
 /** The most steps of one turn shown. A turn that uses many tools shows the latest. */
 const MAX_STEPS = 12;
-/** How much of what streams is kept: the lines a person could see are far fewer. */
-const THINKING_LINES = 6;
+/** What is kept of what streams: the lines a person could see are far fewer. */
+const THINKING_LINES = 2;
 const TEXT_LINES = 80;
-const OUTPUT_LINES = 40;
+const OUTPUT_LINES = 6;
+/** What is read of a tool's output to find those lines, so that a very long one costs little. */
+const OUTPUT_READ_LINES = 40;
 const CALL_CHARACTERS = 300;
 
 /**
@@ -34,7 +50,8 @@ export function workOf(session: SessionView | undefined): Work | undefined {
   const live = session.items.slice(session.items.findLastIndex((item) => item.type === "user") + 1);
   const steps = live.flatMap(stepsOf);
   const shown = steps.slice(-MAX_STEPS);
-  return { steps: shown, hidden: steps.length - shown.length };
+  const left = steps.length - shown.length;
+  return { steps: shown, earlier: left > 0 ? hiddenSteps(left) : undefined };
 }
 
 function stepsOf(item: SessionItem): Step[] {
@@ -44,30 +61,33 @@ function stepsOf(item: SessionItem): Step[] {
       return [];
     case "assistant": {
       const steps: Step[] = [];
-      if (item.thinking.trim() !== "") steps.push({ kind: "thinking", text: plain(lastLines(item.thinking.trim(), THINKING_LINES)) });
-      if (item.text.trim() !== "" || item.stopReason === "aborted" || item.stopReason === "error") {
-        steps.push({ kind: "text", text: plain(lastLines(item.text.trimEnd(), TEXT_LINES)), note: stopNote(item.stopReason) });
+      if (item.thinking.trim() !== "") {
+        steps.push({ kind: "thinking", label: THINKING, text: plain(lastLines(item.thinking.trim(), THINKING_LINES)) });
+      }
+      const cutOff = answerNote(item.stopReason);
+      if (item.text.trim() !== "" || cutOff !== undefined) {
+        steps.push({ kind: "text", text: plain(lastLines(item.text.trimEnd(), TEXT_LINES)), note: cutOff });
       }
       return steps;
     }
-    case "tool":
+    case "tool": {
+      const lines = plain(lastLines(item.output.trimEnd(), OUTPUT_READ_LINES)).split("\n");
+      const shown = lines.slice(-OUTPUT_LINES);
+      const status = toolStatus(item.status);
       return [
         {
           kind: "tool",
           name: oneLine(item.name),
           call: callOf(item.name, item.args),
-          status: item.status,
-          output: plain(lastLines(item.output.trimEnd(), OUTPUT_LINES)),
+          status: status.label,
+          tone: status.tone,
+          output: shown.length === 1 && shown[0] === "" ? [] : shown,
+          earlier: lines.length > shown.length ? hiddenLines(lines.length - shown.length) : undefined,
           notes: item.notes.map(oneLine),
         },
       ];
+    }
   }
-}
-
-function stopNote(stopReason: string | null): string | undefined {
-  if (stopReason === "aborted") return "answer interrupted";
-  if (stopReason === "error") return "answer failed";
-  return undefined;
 }
 
 /** A tool call on one line: the command for the shell, the arguments for any other. */
