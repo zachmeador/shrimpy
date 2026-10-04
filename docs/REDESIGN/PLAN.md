@@ -270,6 +270,7 @@ Work this plan defers on purpose, to pick up after cutover:
 - Codemode, as a [later experiment](#tools-and-publication).
 - A plain HTTP entry point, once a program that can't speak Pi's protocol needs in.
 - A desktop chat app as the native client for channels.
+- Events from outside apps, such as MCP events or webhooks. They would arrive as a chat provider's messages, not as triggers, so agents keep taking nothing inbound. The [research note](../research/mcp-events-and-triggers-2026-10-04.md) says why not yet, and when to look again.
 
 ## Architecture
 
