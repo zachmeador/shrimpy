@@ -9,6 +9,8 @@ export interface Io {
    * Ctrl+C do. Returns a function that stops listening.
    */
   onStop(listener: () => void): () => void;
+  /** Whether a person is at a terminal: input and output are both one. */
+  readonly terminal: boolean;
 }
 
 export function processIo(): Io {
@@ -23,5 +25,6 @@ export function processIo(): Io {
         process.off("SIGINT", listener);
       };
     },
+    terminal: process.stdin.isTTY && process.stdout.isTTY,
   };
 }

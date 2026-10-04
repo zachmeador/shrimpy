@@ -11,7 +11,8 @@ export interface CapturedIo {
   requestStop(): void;
 }
 
-export function captureIo(): CapturedIo {
+/** Capture what a command prints. It is not at a terminal unless `terminal` says so. */
+export function captureIo(options: { terminal?: boolean } = {}): CapturedIo {
   const out: string[] = [];
   const err: string[] = [];
   const stops = new Set<() => void>();
@@ -29,6 +30,7 @@ export function captureIo(): CapturedIo {
         stops.add(listener);
         return () => void stops.delete(listener);
       },
+      terminal: options.terminal === true,
     },
     nextOut(matches) {
       return new Promise((resolve) => {

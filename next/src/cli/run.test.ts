@@ -42,6 +42,39 @@ test("with no command it prints the commands and exits with 2", async () => {
   assert.ok(result.err.includes("\n  gateway status\n      List the programs registered"));
 });
 
+test("with no command at a terminal it opens the console instead, and its result is the exit code", async () => {
+  for (const code of [0, 1]) {
+    const cli = captureIo({ terminal: true });
+    let opened = 0;
+
+    const result = await runCli([], cli.io, {
+      openConsole: () => {
+        opened += 1;
+        return Promise.resolve(code);
+      },
+    });
+
+    assert.deepEqual([result, opened, cli.err, cli.out], [code, 1, [], []]);
+  }
+});
+
+test("at a terminal, a command is still that command, and help still lists the commands", async () => {
+  let opened = 0;
+  const openConsole = (): Promise<number> => {
+    opened += 1;
+    return Promise.resolve(0);
+  };
+
+  const help = captureIo({ terminal: true });
+  const unknown = captureIo({ terminal: true });
+
+  assert.equal(await runCli(["help"], help.io, { openConsole }), 0);
+  assert.equal(await runCli(["nope"], unknown.io, { openConsole }), 2);
+  assert.match(help.out.join("\n"), /^Usage: shrimpy <command>/);
+  assert.match(unknown.err.join("\n"), /^Unknown command: nope/);
+  assert.equal(opened, 0);
+});
+
 test("help lists the commands on standard output and exits with 0", async () => {
   for (const word of ["help", "--help", "-h"]) {
     const result = await run(word);

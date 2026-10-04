@@ -1,15 +1,27 @@
 import { type Command, loadAll, loadFamily } from "./commands/index.ts";
 import type { Io } from "./io/index.ts";
+import { currentPerson } from "./talk/index.ts";
 import { UsageError } from "./usage/index.ts";
+
+export interface RunOptions {
+  /**
+   * How a bare `shrimpy` at a terminal opens the console, as an exit code. The
+   * console itself by default; a test stands in for it.
+   */
+  openConsole?: (io: Io) => Promise<number>;
+}
 
 /**
  * Run `shrimpy` with the arguments after its name. The result is the exit
  * code: 0 for success, 2 when the command was used wrongly, and 1 for any
- * other failure. A command may use other codes for results it reports.
+ * other failure. A command may use other codes for results it reports. With no
+ * command, at a terminal, it opens the console; anywhere else it lists the
+ * commands.
  */
-export async function runCli(argv: string[], io: Io): Promise<number> {
+export async function runCli(argv: string[], io: Io, options: RunOptions = {}): Promise<number> {
   const [family] = argv;
   if (family === undefined) {
+    if (io.terminal) return (options.openConsole ?? openTheConsole)(io);
     io.err(await overview());
     return 2;
   }
@@ -38,6 +50,17 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
       io.err(describe(command));
       return 2;
     }
+    io.err(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+}
+
+/** The console is only loaded when it is opened, so no other command loads the terminal library. */
+async function openTheConsole(io: Io): Promise<number> {
+  const { openConsole } = await import("../clients/console/index.ts");
+  try {
+    return await openConsole({ me: currentPerson(), io });
+  } catch (error) {
     io.err(error instanceof Error ? error.message : String(error));
     return 1;
   }

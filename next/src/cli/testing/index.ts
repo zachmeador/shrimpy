@@ -1,5 +1,6 @@
 /**
- * Test support for the CLI: captured output, a model that speaks OpenAI's
+ * Test support for the CLI: captured output, a terminal to open the console
+ * on, a model that speaks OpenAI's
  * protocol on a local port, an agent whose side of chat a test scripts, a
  * gateway and chat server to talk through, a server that takes connections and
  * never answers, `shrimpy up` running, waiting for a program to register with
@@ -33,4 +34,5 @@ export {
   shrimpy,
   shrimpyInBackground,
 } from "./process.ts";
+export { FakeTerminal } from "./terminal.ts";
 export { type Talk, talkTo } from "./talk.ts";
