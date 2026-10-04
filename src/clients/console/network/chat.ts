@@ -17,10 +17,11 @@ import type { Transports } from "./transports.ts";
 export type ThreadUpdate = { threadId: string; view: ThreadView } | { threadId: string; problem: Problem };
 
 export interface ChatLinkOptions {
-  /** Who the console is in chat: what it says on every connection before anything else. */
-  me: Member;
+  /** The gateway: where the chat server is, and the ticket that gets the console in. */
   registry: RegistryLink;
   transports: Transports;
+  /** Told who the console is, as chat says, each time a connection is made. */
+  onEntered(me: Member): void;
   /** Told of each view of the followed thread, from the first, and of a thread that could not be followed. */
   onThread(update: ThreadUpdate): void;
   /** The pauses between attempts. Tests shorten them. */
@@ -45,9 +46,10 @@ export interface ChatLink {
 }
 
 /**
- * Keep a connection to the chat server the gateway lists: connect, say who the
- * console is, hold the connection, and keep following the thread that is wanted
- * across losses.
+ * Keep a connection to the chat server the gateway lists: take a ticket from
+ * the gateway, connect, come in with it, hold the connection, and keep
+ * following the thread that is wanted across losses. Nobody says who the
+ * console is: the gateway does, and chat says it back.
  */
 export function keepChat(options: ChatLinkOptions): ChatLink {
   let wanted: string | undefined;
@@ -90,6 +92,7 @@ export function keepChat(options: ChatLinkOptions): ChatLink {
         () => waiting({ kind: "not-registered" }),
       );
       waiting({ kind: "connecting" });
+      const ticket = await options.registry.ticket({ kind: registration.kind, name: registration.name });
       const connection = await connectChat({
         serverId: registration.serverId,
         transportFactory: options.transports.program(registration),
@@ -104,7 +107,7 @@ export function keepChat(options: ChatLinkOptions): ChatLink {
         );
       });
       try {
-        await connection.chat.identify(options.me, signal);
+        options.onEntered(await connection.chat.enter(ticket, signal));
       } catch (error) {
         await connection.close().catch(() => undefined);
         throw error;

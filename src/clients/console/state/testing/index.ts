@@ -9,10 +9,13 @@
 export {
   aChatServer,
   aDm,
+  agentMember,
+  aListing,
   aMessage,
   aModel,
   anAgent,
   aReceipt,
+  aRosterAgent,
   aThread,
   aThreadView,
   onThread,

@@ -1,20 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
-import {
-  agentMember,
-  type ChatConnection,
-  type Member,
-  type Message,
-  type Receipt,
-  type Thread,
-} from "../../contracts/chat/index.ts";
-import { connectLocal } from "../../contracts/chat/node.ts";
-import { eventually, stopAfter } from "../../lib/testing/index.ts";
+import type { Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import { enterAsPerson, memberNamed } from "../../contracts/chat/testing/index.ts";
+import { eventually } from "../../lib/testing/index.ts";
 import type { ServedChat } from "./process.ts";
 
-const zach: Member = { id: "person:zach", kind: "person", name: "Zach" };
-
-/** Zach's DM with an agent on a real chat server, and what he can do in it. */
+/** The person's DM with an agent on a real chat server, and what they can do in it. */
 export interface Talk {
   /** The main thread of the DM. */
   readonly thread: Thread;
@@ -29,14 +20,14 @@ export interface Talk {
 }
 
 /**
- * Zach, connected to the chat server `chat`, in a DM with the agent called
- * `agentName`. The connection is closed when the test ends.
+ * The person who runs the gateway, connected to the chat server `chat`, in a DM
+ * with the agent called `agentName`, once that has joined the roster. The
+ * connection is closed when the test ends.
  */
 export async function talkTo(t: TestContext, chat: ServedChat["listening"], agentName: string): Promise<Talk> {
-  const connection: ChatConnection = await connectLocal(chat);
-  stopAfter(t, () => connection.close());
-  await connection.chat.identify(zach);
-  const dm = await connection.chat.openDm(agentMember(agentName));
+  const connection = await enterAsPerson(t, chat);
+  const agent = await memberNamed(t, agentName);
+  const dm = await connection.chat.openDm(agent.id);
   const thread = (await connection.chat.threads(dm.id)).find((candidate) => candidate.main);
   if (thread === undefined) throw new Error(`The DM ${dm.id} has no main thread`);
 
@@ -48,7 +39,7 @@ export async function talkTo(t: TestContext, chat: ServedChat["listening"], agen
     say: (text) => connection.chat.post(thread.id, text, `talk-${randomUUID()}`),
     said,
     async replies() {
-      return (await said()).filter((message) => message.author.id === agentMember(agentName).id);
+      return (await said()).filter((message) => message.author.id === agent.id);
     },
     async receiptOn(message, timeoutMs = 30_000) {
       const found = await eventually(() => receiptOf(message), (receipt) => receipt !== undefined, {

@@ -65,7 +65,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     const roster = openRoster(options.dataDir);
     open.push(() => roster.close());
     roster.ensurePerson(osUser);
-    const registry = createRegistry();
+    const registry = createRegistry({ nameOf: (memberId) => roster.member(memberId)?.name });
     const server = await startServer({ roster, registry, tickets: createTickets(), osUser }, socket);
     open.push(() => server.close());
     const web =

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentMember } from "../../../contracts/chat/index.ts";
 import type { HomeSnapshot } from "../../home/index.ts";
 import { messageTools } from "../tools/index.ts";
 import { baseInstructions } from "./base.ts";
@@ -50,7 +49,7 @@ test("what every agent is told names the agent, its home and every message tool 
 
   assert.match(text, /^You are scout, /);
   assert.ok(text.includes("/agents/scout"));
-  const installed = messageTools({ self: agentMember("scout"), chat: () => undefined });
+  const installed = messageTools({ chat: () => undefined, gateway: () => undefined });
   const tools = (installed.tools ?? []).map((tool) => tool.name);
   assert.deepEqual(tools, ["send_message", "read_messages"]);
   for (const name of tools) assert.ok(text.includes(name), `the instructions don't name ${name}`);

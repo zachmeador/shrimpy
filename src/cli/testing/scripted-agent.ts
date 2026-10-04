@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { TestContext } from "node:test";
-import { agentMember, type ChatEndpoint, type Message } from "../../contracts/chat/index.ts";
-import { connectLocal } from "../../contracts/chat/node.ts";
-import { connectLocalGateway } from "../../contracts/gateway/node.ts";
+import type { ChatEndpoint, Message } from "../../contracts/chat/index.ts";
+import { enterAsAgent, gatewayAsAgent } from "../../contracts/chat/testing/index.ts";
 import { runtimeDir } from "../../lib/runtime/node.ts";
 import { stopAfter, within } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
@@ -29,7 +28,10 @@ export interface ScriptedAgentOptions {
   handle(message: Message): Outcome | Promise<Outcome>;
   /** The version in its registration. The version of Shrimpy by default. */
   version?: string;
-  /** Leave the gateway alone, as an agent that is not running would. */
+  /**
+   * Do not register with the gateway, as an agent that is not running does not.
+   * It is a member of the roster all the same.
+   */
   register?: false;
 }
 
@@ -39,29 +41,26 @@ export interface ScriptedAgent {
 }
 
 /**
- * Stand in for an agent whose side of chat is not under test: it joins the chat
- * server as the agent called `name`, registers with the gateway as that agent,
- * and for each message others post it works as `handle` says and leaves the
- * receipt. It needs the test's runtime directory, with the gateway running if
- * it is to register, and it leaves when the test ends.
+ * Stand in for an agent whose side of chat is not under test: it joins the
+ * gateway's roster as the agent called `name`, registers there as that agent,
+ * comes in to the chat server with a ticket, and for each message others post it
+ * works as `handle` says and leaves the receipt. It needs the test's runtime
+ * directory, with the gateway running, and it leaves when the test ends.
  */
 export async function startScriptedAgent(t: TestContext, options: ScriptedAgentOptions): Promise<ScriptedAgent> {
-  const self = agentMember(options.name);
-  const connection = await connectLocal(options.chat);
-  stopAfter(t, () => connection.close());
-  await connection.chat.identify(self);
+  // Joined first, so that it is a member of the roster whether it registers or not.
+  const gateway = await gatewayAsAgent(t, options.name);
   if (options.register !== false) {
-    const gateway = await connectLocalGateway();
-    stopAfter(t, () => gateway.close());
     await gateway.register({
       kind: "agent",
-      name: options.name,
       serverId: randomUUID(),
       socket: join(runtimeDir(), `${options.name}.sock`),
       pid: process.pid,
       version: options.version ?? SHRIMPY_VERSION,
     });
   }
+  const connection = await enterAsAgent(t, options.chat, options.name);
+  const self = connection.me;
 
   const offered: Message[] = [];
   const leaving = new AbortController();

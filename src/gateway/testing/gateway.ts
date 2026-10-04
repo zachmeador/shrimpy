@@ -7,6 +7,6 @@ import { type GatewayOptions, type RunningGateway, startGateway } from "../index
  * gives one. It uses the test's runtime directory, so the test has to have one,
  * and the caller closes it.
  */
-export function startTestGateway(t: TestContext, options: Partial<GatewayOptions> = {}): Promise<RunningGateway> {
+export function startGatewayInProcess(t: TestContext, options: Partial<GatewayOptions> = {}): Promise<RunningGateway> {
   return startGateway({ ...options, dataDir: options.dataDir ?? tempDir(t, "gateway-data") });
 }

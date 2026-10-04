@@ -1,6 +1,6 @@
 import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { flag, identifier, label, member as checkMember } from "../input/index.ts";
+import { flag, identifier, label } from "../input/index.ts";
 import type { ChannelRecord } from "../store/index.ts";
 import { visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
@@ -25,17 +25,20 @@ export function listChannels(deps: ChatDeps, caller: Member): Channel[] {
 
 /**
  * The DM between the caller and another member, made on first use together with
- * its main thread. A member the store has not met yet is recorded as described;
- * one it knows keeps what is on record, because only a member speaks for itself.
+ * its main thread. A member the store has not met yet is looked up in the
+ * roster, and one the roster does not have is refused. One the store knows is
+ * not asked about: it keeps what is on record, and its name is brought up to
+ * date when it next comes in.
  */
-export function openDm(deps: ChatDeps, caller: Member, claimed: unknown): Channel {
-  const other = checkMember(claimed, "other");
-  if (other.id === caller.id) refuse("A DM needs someone besides yourself.");
+export async function openDm(deps: ChatDeps, caller: Member, otherId: unknown): Promise<Channel> {
+  const id = identifier(otherId, "other");
+  if (id === caller.id) refuse("A DM needs someone besides yourself.");
+  const met = deps.store.transaction((tx) => tx.member(id));
+  const other = met ?? (await deps.identity.member(id)) ?? refuse(`There is no member ${id} on the roster.`);
   return deps.store.transaction((tx) => {
     tx.addMember(other);
-    const known = tx.member(other.id) ?? other;
     const channel =
-      tx.directChannel(caller.id, known.id) ?? tx.createDirectChannel(caller, known, deps.now());
+      tx.directChannel(caller.id, other.id) ?? tx.createDirectChannel(caller, other, deps.now());
     return toChannel(channel, caller);
   });
 }

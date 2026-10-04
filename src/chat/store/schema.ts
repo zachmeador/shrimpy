@@ -1,5 +1,9 @@
-/** The tables' version. A store written by any other version is refused, never changed. */
-export const SCHEMA_VERSION = 2;
+/**
+ * The tables' version. A store written by any other version is refused, never
+ * changed. Version 3 is the first whose member IDs are the roster's: an ID in
+ * an earlier store holds a name and means nothing to the gateway.
+ */
+export const SCHEMA_VERSION = 3;
 
 /**
  * `messages.seq` is the server-wide order. AUTOINCREMENT keeps it from ever

@@ -1,6 +1,6 @@
 import type { SessionView } from "../../../contracts/agent/index.ts";
-import { agentMember, type Channel, type Member, type Thread, type ThreadView } from "../../../contracts/chat/index.ts";
-import type { Registration } from "../../../contracts/gateway/index.ts";
+import type { Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
+import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
 /** Where in the console the person is. */
@@ -27,13 +27,13 @@ export type Notice =
   | { kind: "not-stopped"; problem: Problem };
 
 export interface Model {
-  /** You, as the chat server knows you. */
-  me: Member;
+  /** You, as the chat server says the gateway knows you. Unknown until the console has been let in to chat. */
+  me: Member | undefined;
   where: Where;
-  /** The gateway, which says what is running. */
+  /** The gateway, which says what is running and who is on the roster. */
   gateway: LinkStatus;
-  /** What it last said, if it has: the programs running and the version of Shrimpy it runs. */
-  listing: { programs: Registration[]; version: string } | undefined;
+  /** What it last said, if it has: the programs running, the members, and the version of Shrimpy it runs. */
+  listing: { programs: Registration[]; members: RosterEntry[]; version: string } | undefined;
   /** The chat server, where threads live. */
   chat: LinkStatus;
   /** The agent that is selected, once one is. */
@@ -49,29 +49,38 @@ export interface Model {
 
 /** An agent as the list of agents shows it. */
 export interface AgentEntry {
+  /** The agent's ID in the roster, which chat knows it by. */
+  id: string;
   name: string;
-  /** The version of Shrimpy it runs. */
-  version: string;
+  /** Whether the agent is registered with the gateway now. An agent that is not is still on the roster. */
+  running: boolean;
+  /** The version of Shrimpy it runs, when it is running. */
+  version: string | undefined;
   working: boolean;
 }
 
-/** Whether `agent` is working in `thread`, going by the marks chat keeps. */
-export function workingIn(thread: Thread, agent: string): boolean {
-  const { id } = agentMember(agent);
-  return thread.working.some((mark) => mark.memberId === id);
+/** Whether the member `agentId` is working in `thread`, going by the marks chat keeps. */
+export function workingIn(thread: Thread, agentId: string): boolean {
+  return thread.working.some((mark) => mark.memberId === agentId);
 }
 
-/** The agents running, by name, with whether each is working in a thread of the person's. */
+/**
+ * The agents on the roster, by name, running or not, with whether each is
+ * working in a thread of the person's.
+ */
 export function agentEntries(model: Pick<Model, "listing" | "dms">): AgentEntry[] {
   const running = new Map<string, Registration>();
   for (const program of model.listing?.programs ?? []) {
-    if (program.kind === "agent") running.set(program.name, program);
+    if (program.kind === "agent" && program.memberId !== null) running.set(program.memberId, program);
   }
-  return [...running.values()]
-    .map((program) => ({
-      name: program.name,
-      version: program.version,
-      working: model.dms[program.name]?.threads.some((thread) => workingIn(thread, program.name)) ?? false,
+  return (model.listing?.members ?? [])
+    .filter((member) => member.kind === "agent")
+    .map((member) => ({
+      id: member.id,
+      name: member.name,
+      running: running.has(member.id),
+      version: running.get(member.id)?.version,
+      working: model.dms[member.name]?.threads.some((thread) => workingIn(thread, member.id)) ?? false,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -2,14 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DisconnectedError } from "@earendil-works/pi-client";
 import { until } from "../../../lib/testing/index.ts";
-import { scout } from "../../testing/index.ts";
 import { startToolRig } from "./testing/index.ts";
 
 const timeout = 15_000;
 
 /** What Scout has said in a thread, oldest first. */
-const saidByScout = (messages: { author: { id: string }; text: string }[]): string[] =>
-  messages.filter((message) => message.author.id === scout.id).map((message) => message.text);
+const saidByScout = (rig: { partner: { id: string } }, messages: { author: { id: string }; text: string }[]): string[] =>
+  messages.filter((message) => message.author.id === rig.partner.id).map((message) => message.text);
 
 test("a call that runs again posts nothing twice", { timeout }, async (t) => {
   const rig = await startToolRig(t, { messageLimit: 20 });
@@ -19,7 +18,7 @@ test("a call that runs again posts nothing twice", { timeout }, async (t) => {
   const again = await rig.call("send_message", { text }, { taskId: 7, callId: "call-0" });
 
   assert.equal(again.isError, false);
-  assert.equal(saidByScout(await rig.said()).length, 2, "two parts, once");
+  assert.equal(saidByScout(rig, await rig.said()).length, 2, "two parts, once");
 });
 
 test("a call ID with characters chat does not take, or a very long one, still names a post chat takes", { timeout }, async (t) => {
@@ -30,7 +29,7 @@ test("a call ID with characters chat does not take, or a very long one, still na
 
   assert.equal(odd.isError, false, odd.text);
   assert.equal(long.isError, false, long.text);
-  assert.deepEqual(saidByScout(await rig.said()), ["One.", "Two."]);
+  assert.deepEqual(saidByScout(rig, await rig.said()), ["One.", "Two."]);
 });
 
 test("a connection that dropped while the post was out is uncertain: the message may have arrived", { timeout }, async (t) => {
@@ -73,7 +72,7 @@ test("a text posted in parts says how far it got when chat goes away part of the
 
   assert.equal(run.isError, true);
   assert.match(run.text, /after 1 of 3 parts were posted/);
-  assert.equal(saidByScout(await rig.said()).length, 1);
+  assert.equal(saidByScout(rig, await rig.said()).length, 1);
 });
 
 test("a call that is stopped while it waits for chat is stopped, not reported as chat being unreachable", { timeout }, async (t) => {

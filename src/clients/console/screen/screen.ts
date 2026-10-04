@@ -122,7 +122,7 @@ function agentsScreen(model: Model): AgentsScreen {
   const rows = agentEntries(model).map((entry) => ({
     id: entry.name,
     label: oneLine(entry.name),
-    detail: entry.working ? "working" : "idle",
+    detail: entry.running ? (entry.working ? "working" : "idle") : "not running",
     working: entry.working,
   }));
   return {
@@ -138,11 +138,14 @@ function agentsScreen(model: Model): AgentsScreen {
 
 function threadsScreen(model: Model, agent: string, now: number): ThreadsScreen {
   const threads = model.dms[agent]?.threads ?? [];
+  // Chat's working marks name members by ID, and the agent is the one agent in its DM with the person.
+  const agentId = model.dms[agent]?.channel.members.find((member) => member.kind === "agent")?.id;
+  const workingHere = (thread: Thread): boolean => agentId !== undefined && workingIn(thread, agentId);
   const rows = threads.map((thread) => ({
     id: thread.id,
     label: titleWithTags(thread),
-    detail: [whenOf(thread.updatedAt, now), workingIn(thread, agent) ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
-    working: workingIn(thread, agent),
+    detail: [whenOf(thread.updatedAt, now), workingHere(thread) ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
+    working: workingHere(thread),
   }));
   return {
     kind: "threads",
@@ -212,7 +215,7 @@ function messageRow(message: Message, model: Model, names: (memberId: string) =>
   return {
     id: message.id,
     who: oneLine(message.author.name),
-    mine: message.author.id === model.me.id,
+    mine: message.author.id === model.me?.id,
     agent: message.author.kind === "agent",
     when: whenOf(message.sentAt, now),
     text: plain(message.text).trimEnd(),

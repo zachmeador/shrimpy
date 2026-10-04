@@ -12,8 +12,8 @@ import {
   agent,
   countWatchers,
   follow,
+  identityOf,
   openTestStore,
-  person,
   startChatChild,
   startTestChat,
 } from "./testing/index.ts";
@@ -23,7 +23,7 @@ const timeout = 30_000;
 
 test("a second chat server on this machine is refused for the socket, even on the same data directory, and the first keeps serving", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
+  const zach = await chat.person();
 
   await assert.rejects(
     startChat({ dataDir: chat.dataDir }),
@@ -31,13 +31,13 @@ test("a second chat server on this machine is refused for the socket, even on th
   );
 
   assert.deepEqual(await zach.chat.channels(), []);
-  const late = await chat.join(agent("Shrimpy"));
+  const late = await chat.agent("Shrimpy");
   assert.equal(await late.chat.head(), 0);
 });
 
 test("chat servers that share a data directory but not a runtime directory are refused by the store", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
+  const zach = await chat.person();
   const elsewhere = tempDir(t, "rt-elsewhere");
 
   await assert.rejects(inRuntimeDir(elsewhere, () => startChat({ dataDir: chat.dataDir })), StoreOwnedError);
@@ -60,13 +60,8 @@ test("chat servers started at the same moment cannot both run", { timeout }, asy
         if (result.status === "rejected") assert.ok(result.reason instanceof ChatRunningError, String(result.reason));
       }
 
-      const client = await connectLocal(winners[0]?.value.endpoint ?? assert.fail("no chat server started"));
-      try {
-        await client.chat.identify(person("Zach"));
-        assert.deepEqual(await client.chat.channels(), []);
-      } finally {
-        await client.close();
-      }
+      // The one that runs answers on its socket.
+      await (await connectLocal(winners[0]?.value.endpoint ?? assert.fail("no chat server started"))).close();
     } finally {
       for (const winner of winners) await winner.value.close();
     }
@@ -87,10 +82,7 @@ test("a chat server that was killed leaves a socket that the next one replaces",
 
   const chat = await startChat({ dataDir: tempDir(t, "chat-next") });
   stopAfter(t, () => chat.close());
-  const client = await connectLocal(chat.endpoint);
-  stopAfter(t, () => client.close());
-  await client.chat.identify(person("Zach"));
-  assert.deepEqual(await client.chat.channels(), []);
+  await (await connectLocal(chat.endpoint)).close();
 });
 
 test("a chat server that cannot record its endpoint does not keep listening", { timeout }, async (t) => {
@@ -108,7 +100,7 @@ test("a chat server that cannot record its endpoint does not keep listening", { 
 
 test("stopping the server ends its connections and removes its socket", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
+  const zach = await chat.person();
   const reasons: (Error | undefined)[] = [];
   zach.onDisconnect((reason) => reasons.push(reason));
   const waiting = zach.chat.feed(0, 10);
@@ -129,7 +121,7 @@ test("a client that is gone before the chat server's answer reaches it is not re
 
   await leaveUnanswered(chat.chat.endpoint.socket);
   // By the time the server has answered this one, it is done with the one that left.
-  await chat.join(person("Zach"));
+  await chat.person();
   await settle();
 
   assert.deepEqual(reported.mock.calls.map((call) => call.arguments), []);
@@ -139,8 +131,9 @@ test("a feed that is waiting is forgotten when its connection drops", { timeout 
   useRuntimeDir(t);
   const { store, dataDir } = openTestStore(t);
   const counted = countWatchers(store);
+  const shrimpy = agent("Shrimpy");
   const server = await startServer(
-    { store: counted.store, working: createWorkingMarks(), now: () => Date.now() },
+    { store: counted.store, working: createWorkingMarks(), identity: identityOf(shrimpy), now: () => Date.now() },
     dataDir,
     namedSocketPath("chat"),
     () => undefined,
@@ -148,7 +141,7 @@ test("a feed that is waiting is forgotten when its connection drops", { timeout 
   stopAfter(t, () => server.close());
   const connection = await connectLocal(server.endpoint);
   stopAfter(t, () => connection.close());
-  await connection.chat.identify(agent("Shrimpy"));
+  await connection.chat.enter("any-ticket");
   follow(connection.chat.feed(0, 10));
   await until(() => counted.watching() === 1);
 

@@ -1,10 +1,8 @@
 import { type Context, defineService } from "@earendil-works/chord";
 
-/** A program other programs can reach on this machine. */
-export interface Registration {
+/** What a program says about itself when it registers. */
+export interface Announcement {
   kind: "agent" | "chat";
-  /** An agent's name, or `chat` for the chat server. */
-  name: string;
   serverId: string;
   /** Absolute path of the program's Unix socket. */
   socket: string;
@@ -15,6 +13,14 @@ export interface Registration {
    * never refuses a program for it.
    */
   version: string;
+}
+
+/** A program other programs can reach on this machine, as the gateway lists it. */
+export interface Registration extends Announcement {
+  /** An agent's name as the roster has it now, or `chat` for the chat server. */
+  name: string;
+  /** The member an agent is. The chat server is a program and not a member, so it has none. */
+  memberId: string | null;
 }
 
 /** Which program a ticket is for. */
@@ -57,10 +63,13 @@ export interface Joined {
 export interface Gateway {
   /**
    * Announce this program. The registration lasts as long as this connection.
-   * Only a program on the gateway's machine can register: a connection that
-   * came through the browser entry is refused.
+   * An agent registers as the member this connection signed in as, and is
+   * refused if it did not sign in. The chat server registers as itself and is
+   * not a member, so it does not sign in. Only a program on the gateway's
+   * machine can register: a connection that came through the browser entry is
+   * refused.
    */
-  register(registration: Registration, context: Context): Promise<void>;
+  register(announcement: Announcement, context: Context): Promise<void>;
   list(context: Context): Promise<Registration[]>;
   /**
    * The version of Shrimpy the gateway runs, so that whoever talks through it

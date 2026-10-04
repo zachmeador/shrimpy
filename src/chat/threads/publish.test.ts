@@ -27,7 +27,7 @@ const message = (seq: number, receipts: Receipt[] = []): Message => ({
   receipts,
 });
 
-const silent: Receipt = { memberId: "agent:shrimpy", status: "silent", reply: null, detail: null };
+const silent: Receipt = { memberId: "mem_shrimpy", status: "silent", reply: null, detail: null };
 const answered = (reply: string): Receipt => ({ ...silent, status: "answered", reply });
 
 function view(
@@ -71,7 +71,7 @@ test("the published view always equals the latest view", () => {
     view([message(1), message(2, [silent])]),
     view([message(1), message(2, [answered("msg_3")]), message(3)]),
     view(range(1, 3), { name: "Renamed" }),
-    view(range(1, 3), { name: "Renamed", working: [{ memberId: "agent:shrimpy", since: 5000 }] }),
+    view(range(1, 3), { name: "Renamed", working: [{ memberId: "mem_shrimpy", since: 5000 }] }),
     view(range(2, 4), { earlier: 1, name: "Renamed" }),
     view(range(4, 4), { earlier: 3 }),
     view([message(9)], { earlier: 8 }),

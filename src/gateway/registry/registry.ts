@@ -1,5 +1,5 @@
 import { isAbsolute } from "node:path";
-import { isProgramKind, type Registration } from "../../contracts/gateway/index.ts";
+import { type Announcement, isProgramKind, type Registration } from "../../contracts/gateway/index.ts";
 
 /** A peer sent something that is not a registration. */
 export class InvalidRegistrationError extends Error {
@@ -11,8 +11,12 @@ export class InvalidRegistrationError extends Error {
 
 /** What one connection may register. */
 export interface Registrant {
-  /** Register this connection's program, and say what was registered. Registering again replaces the earlier entry. */
-  register(registration: unknown): Registration;
+  /**
+   * Register this connection's program, as the agent `memberId` or, for the
+   * chat server, as nobody. Registering again replaces the earlier entry. Says
+   * what was registered.
+   */
+  register(announcement: unknown, memberId: string | null): Registration;
   /** The connection is gone: drop its entry. */
   close(): void;
 }
@@ -26,24 +30,43 @@ export interface Registry {
   find(kind: Registration["kind"], name: string): Registration | undefined;
 }
 
+export interface RegistryOptions {
+  /** What the member `memberId` is called now, so a registration follows its member when it is renamed. */
+  nameOf(memberId: string): string | undefined;
+}
+
+/** What the chat server is called in the registry: it is a program, not a member. */
+const CHAT_NAME = "chat";
+
+interface Entry {
+  announcement: Announcement;
+  memberId: string | null;
+}
+
 /**
  * The registrations that are live right now. A connection holds at most one,
  * and it is dropped when the connection closes, so nothing expires and
  * nothing needs cleaning up.
  */
-export function createRegistry(): Registry {
+export function createRegistry(options: RegistryOptions): Registry {
   // A replaced entry moves to the end, so the map's order is oldest first.
-  const entries = new Map<Registrant, Registration>();
+  const entries = new Map<Registrant, Entry>();
+  const describe = ({ announcement, memberId }: Entry): Registration => ({
+    ...announcement,
+    name: memberId === null ? CHAT_NAME : (options.nameOf(memberId) ?? memberId),
+    memberId,
+  });
+  const list = (): Registration[] => [...entries.values()].map(describe);
   return {
     connect() {
       let closed = false;
       const registrant: Registrant = {
-        register(registration) {
+        register(announcement, memberId) {
           if (closed) throw new Error("The connection is closed");
-          const checked = check(registration);
+          const entry = { announcement: checkAnnouncement(announcement), memberId };
           entries.delete(registrant);
-          entries.set(registrant, checked);
-          return { ...checked };
+          entries.set(registrant, entry);
+          return describe(entry);
         },
         close() {
           closed = true;
@@ -52,23 +75,16 @@ export function createRegistry(): Registry {
       };
       return registrant;
     },
-    list: () => [...entries.values()].map((entry) => ({ ...entry })),
-    find(kind, name) {
-      const matches = [...entries.values()].filter((entry) => entry.kind === kind && entry.name === name);
-      const newest = matches.at(-1);
-      return newest && { ...newest };
-    },
+    list,
+    find: (kind, name) => list().findLast((entry) => entry.kind === kind && entry.name === name),
   };
 }
 
 /** A peer sends JSON, so the contract's types hold only once this has checked it. */
-function check(value: unknown): Registration {
+export function checkAnnouncement(value: unknown): Announcement {
   if (typeof value !== "object" || value === null) throw new InvalidRegistrationError("expected an object");
-  const { kind, name, serverId, socket, pid, version } = value as Record<string, unknown>;
+  const { kind, serverId, socket, pid, version } = value as Record<string, unknown>;
   if (!isProgramKind(kind)) throw new InvalidRegistrationError('kind must be "agent" or "chat"');
-  if (typeof name !== "string" || name === "") {
-    throw new InvalidRegistrationError("name must be a non-empty string");
-  }
   if (typeof serverId !== "string" || serverId === "") {
     throw new InvalidRegistrationError("serverId must be a non-empty string");
   }
@@ -82,5 +98,5 @@ function check(value: unknown): Registration {
   if (typeof version !== "string" || version === "") {
     throw new InvalidRegistrationError("version must be a non-empty string");
   }
-  return { kind, name, serverId, socket, pid, version };
+  return { kind, serverId, socket, pid, version };
 }

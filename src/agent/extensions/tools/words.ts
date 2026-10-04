@@ -13,7 +13,8 @@ export const SEND_DESCRIPTION =
   "this to answer.";
 export const SEND_TEXT = "The message to post.";
 export const SEND_TO =
-  "Where to post it: @name for your DM with that person or agent. Leave it out to post to this thread.";
+  "Where to post it: @name for your DM with that person or agent, which is started if you have none. " +
+  "Leave it out to post to this thread.";
 
 export const READ_DESCRIPTION =
   "Read the newest messages of a thread, oldest first. Use it to see what was said earlier, in this thread " +
@@ -32,16 +33,21 @@ export const dmWith = (name: string): string => `your DM with ${name}`;
 
 export function badPlace(argument: PlaceArgument): string {
   const tail = argument === "to" ? "post to this thread" : "read this thread";
-  return `${argument} should be @name, such as @zach: the name of someone you have a DM with. Leave it out to ${tail}.`;
+  return `${argument} should be @name, such as @maya: the name of a person or an agent. Leave it out to ${tail}.`;
 }
 
-export function noDm(name: string, argument: PlaceArgument): string {
-  const nowhere = argument === "to" ? "there is nowhere to send this" : "there is nothing to read";
-  return `You have no DM with @${name}, so ${nowhere}. A DM exists once one of you has written to the other.`;
+const nowhere = (argument: PlaceArgument): string =>
+  argument === "to" ? "there is nowhere to send this" : "there is nothing to read";
+
+export function nobody(name: string, members: string[]): string {
+  return `Nobody is called @${name}. The members are: ${members.join(", ")}.`;
 }
 
-export function severalMembers(name: string, ids: string[]): string {
-  return `@${name} matches more than one member: ${ids.join(", ")}. Use the full ID, such as @${ids[0] ?? name}.`;
+export const noDmYet = (name: string): string =>
+  `You have no DM with ${name} yet, so there is nothing to read. Writing to them starts one.`;
+
+export function noRoster(name: string, argument: PlaceArgument): string {
+  return `Can't look up @${name}: the gateway is unreachable right now, so ${nowhere(argument)}. Try again later.`;
 }
 
 export function yourself(name: string, argument: PlaceArgument): string {

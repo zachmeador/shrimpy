@@ -1,4 +1,4 @@
-import type { Member, Receipt } from "../../contracts/chat/index.ts";
+import type { Receipt } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { MAX_DETAIL, MAX_ID, MAX_NAME, MAX_TEXT } from "./limits.ts";
 
@@ -41,15 +41,6 @@ export function whole(value: unknown, what: string, least: number): number {
 export function flag(value: unknown, what: string): boolean {
   if (typeof value !== "boolean") refuse(`${what} must be true or false.`);
   return value;
-}
-
-export function member(value: unknown, what: string): Member {
-  if (typeof value !== "object" || value === null) {
-    refuse(`${what} must be a member: an id, a kind and a name.`);
-  }
-  const { id, kind, name } = value as Record<string, unknown>;
-  if (kind !== "person" && kind !== "agent") refuse(`${what}.kind must be "person" or "agent".`);
-  return { id: identifier(id, `${what}.id`), kind, name: label(name, `${what}.name`) };
 }
 
 /** A list of IDs, one to `most` long. */

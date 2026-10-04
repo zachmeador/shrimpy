@@ -1,18 +1,32 @@
-import {
-  agentMember,
-  type Channel,
-  type Member,
-  type Message,
-  personMember,
-  type Receipt,
-  type Thread,
-  type ThreadView,
+import type {
+  Channel,
+  Member,
+  Message,
+  Receipt,
+  Thread,
+  ThreadView,
 } from "../../../../contracts/chat/index.ts";
-import type { Registration } from "../../../../contracts/gateway/index.ts";
+import type { Registration, RosterEntry } from "../../../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../../../lib/version/index.ts";
 import type { Dm, Model } from "../index.ts";
 
-export const zach = personMember("zach");
+/** The person, as the roster would have them. */
+export const zach: Member = { id: "mem_1", kind: "person", name: "zach" };
+
+const agents = new Map<string, Member>();
+
+/**
+ * An agent as the roster has it. IDs mean nothing, so each agent gets the next
+ * one, and asking for the same agent again gives the same member.
+ */
+export function agentMember(name: string): Member {
+  let found = agents.get(name);
+  if (found === undefined) {
+    found = { id: `mem_${String(agents.size + 2)}`, kind: "agent", name };
+    agents.set(name, found);
+  }
+  return found;
+}
 
 /** A model with nothing wrong and nothing on it: the agents screen, every link up, no agents. */
 export function aModel(parts: Partial<Model> = {}): Model {
@@ -20,7 +34,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     me: zach,
     where: { screen: "agents" },
     gateway: { state: "up" },
-    listing: { programs: [], version: SHRIMPY_VERSION },
+    listing: { programs: [], members: [{ ...zach, reachable: false }], version: SHRIMPY_VERSION },
     chat: { state: "up" },
     agent: undefined,
     dms: {},
@@ -31,13 +45,36 @@ export function aModel(parts: Partial<Model> = {}): Model {
   };
 }
 
-/** An agent as the gateway lists it. */
+/** An agent as the gateway lists it when it is running. */
 export function anAgent(name: string, version = SHRIMPY_VERSION): Registration {
-  return { kind: "agent", name, serverId: `${name}-id`, socket: `/tmp/${name}.sock`, pid: 100, version };
+  return {
+    kind: "agent",
+    name,
+    memberId: agentMember(name).id,
+    serverId: `${name}-id`,
+    socket: `/tmp/${name}.sock`,
+    pid: 100,
+    version,
+  };
+}
+
+/** An agent as the roster lists it, running or not. */
+export function aRosterAgent(name: string, reachable = true): RosterEntry {
+  return { ...agentMember(name), reachable };
+}
+
+/**
+ * What the gateway lists when `programs` are running: the person, and each agent
+ * among them on the roster as reachable. Agents that are not running are
+ * added with `idle`.
+ */
+export function aListing(programs: Registration[], version = SHRIMPY_VERSION, idle: string[] = []) {
+  const running = programs.filter((program) => program.kind === "agent").map((program) => aRosterAgent(program.name));
+  return { programs, members: [{ ...zach, reachable: false }, ...running, ...idle.map((name) => aRosterAgent(name, false))], version };
 }
 
 export function aChatServer(version = SHRIMPY_VERSION): Registration {
-  return { kind: "chat", name: "chat", serverId: "chat-id", socket: "/tmp/chat.sock", pid: 101, version };
+  return { kind: "chat", name: "chat", memberId: null, serverId: "chat-id", socket: "/tmp/chat.sock", pid: 101, version };
 }
 
 /** A thread, with the fields a test cares about; the rest are plain. */
@@ -87,7 +124,11 @@ export function aThreadView(thread: Thread, messages: Message[], earlier = 0): T
 export function onThread(agent: string, thread: Thread, view: ThreadView | undefined, parts: Partial<Model> = {}): Model {
   return aModel({
     where: { screen: "thread", agent, thread: thread.id },
-    listing: { programs: [anAgent(agent), aChatServer()], version: SHRIMPY_VERSION },
+    listing: {
+      programs: [anAgent(agent), aChatServer()],
+      members: [{ ...zach, reachable: false }, aRosterAgent(agent)],
+      version: SHRIMPY_VERSION,
+    },
     agent: { state: "up" },
     dms: { [agent]: aDm(agent, [thread]) },
     thread: view,

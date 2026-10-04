@@ -1,7 +1,6 @@
 import type { TestContext } from "node:test";
 import type { ChatConnection, Message, Thread } from "../../contracts/chat/index.ts";
 import { startTestChat } from "./chat.ts";
-import { agent, person } from "./fixtures.ts";
 
 /** The main thread of a channel. */
 export async function mainThread(connection: ChatConnection, channelId: string): Promise<Thread> {
@@ -11,14 +10,15 @@ export async function mainThread(connection: ChatConnection, channelId: string):
 }
 
 /**
- * A chat server with Zach, a person, and Shrimpy, an agent, connected to it,
- * and the main thread of the DM Zach opened with Shrimpy.
+ * A chat server with the person who runs the gateway, called zach here, and
+ * Shrimpy, an agent, connected to it, and the main thread of the DM zach opened
+ * with Shrimpy.
  */
 export async function startDm(t: TestContext) {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const shrimpy = await chat.agent("Shrimpy");
+  const dm = await zach.chat.openDm(shrimpy.me.id);
   const main = await mainThread(zach, dm.id);
   return { chat, zach, shrimpy, dm, main };
 }

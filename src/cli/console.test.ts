@@ -4,7 +4,6 @@ import { test, type TestContext } from "node:test";
 import { openConsole } from "../clients/console/index.ts";
 import { tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
-import { currentPerson } from "./talk/index.ts";
 import {
   captureIo,
   declareLocalModel,
@@ -48,7 +47,7 @@ async function agentHome(t: TestContext, model: ModelServer): Promise<string> {
 function openOn(terminal: FakeTerminal) {
   const cli = captureIo({ terminal: true });
   const exited = runCli([], cli.io, {
-    openConsole: (io) => openConsole({ me: currentPerson(), io, terminal, pollMs: 100 }),
+    openConsole: (io) => openConsole({ io, terminal, pollMs: 100 }),
   });
   return { cli, exited };
 }

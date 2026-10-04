@@ -1,10 +1,10 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
- * server, both without a network, the real chat server started through the
- * command, an agent taking part in it with a person to talk to it, and helpers
- * to attach to an agent, stop it and read its views. Only tests and test
- * fixtures import this. The one thing it knows of another program is the
- * command that starts it.
+ * server, both without a network, the real gateway and chat server started
+ * through the command, an agent taking part in the network with a person to
+ * talk to it, and helpers to attach to an agent, stop it and read its views.
+ * Only tests and test fixtures import this. The one thing it knows of another
+ * program is the command that starts it.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -28,7 +28,7 @@ export { attachThread, closeAfter } from "./attach.ts";
 export { type ChatServer, startChatServer } from "./chat-server.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { startAgentChild } from "./child.ts";
-export { scout, zach } from "./names.ts";
+export { SCOUT } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
 export { type Talk, talkTo } from "./talk.ts";
 export { callingTools } from "./tools.ts";

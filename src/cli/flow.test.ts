@@ -3,10 +3,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Message, Receipt } from "../contracts/chat/index.ts";
-import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
-import { captureIo, declareLocalModel, type ModelServer, serveChat, startModelServer, talkTo } from "./testing/index.ts";
+import {
+  captureIo,
+  declareLocalModel,
+  type ModelServer,
+  serveChat,
+  startModelServer,
+  talkTo,
+  untilRegistered,
+} from "./testing/index.ts";
 
 const timeout = 60_000;
 
@@ -43,13 +51,12 @@ interface ServedHome {
 async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<ServedHome> {
   useRuntimeDir(t);
   const model = await startModelServer();
-  const gateway = await startStandInGateway(t);
+  await startTestGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
-  await until(() => gateway.registered().length === 1, "chat to be listed with the gateway");
+  await untilRegistered("chat", "chat");
   const home = join(tempDir(t, "flow"), "scout");
   assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
   declareLocalModel(home, { url: model.url, model: "test-model" });
-  const talk = await talkTo(t, chat.listening, "scout");
 
   const serving = captureIo();
   const done = runCli(["agent", "serve", home, ...serveFlags], serving.io);
@@ -71,6 +78,7 @@ async function servedHome(t: TestContext, ...serveFlags: string[]): Promise<Serv
       throw new Error(`agent serve ended with ${code}: ${serving.err.join("\n")}`);
     }),
   ]);
+  const talk = await talkTo(t, chat.listening, "scout");
 
   const ask = async (text: string): Promise<Message> => {
     const said = await talk.say(text);

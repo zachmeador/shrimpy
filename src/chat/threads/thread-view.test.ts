@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { ANSWER_BYTES } from "../input/index.ts";
-import { agent, openTestDeps, person } from "../testing/index.ts";
-import { identify, listThreads, openDm, post } from "./index.ts";
+import { agent, know, openTestDeps, person } from "../testing/index.ts";
+import { listThreads, openDm, post } from "./index.ts";
 import { readThreadView } from "./thread-view.ts";
 
-test("a view of very long messages holds the newest that fit one answer, and counts the rest", (t) => {
+test("a view of very long messages holds the newest that fit one answer, and counts the rest", async (t) => {
   const { deps, clock } = openTestDeps(t);
-  const zach = identify(deps, person("Zach"));
-  const dm = openDm(deps, zach, identify(deps, agent("Shrimpy")));
+  const zach = know(deps, person("Zach"));
+  const dm = await openDm(deps, zach, know(deps, agent("Shrimpy")).id);
   const [main] = listThreads(deps, zach, dm.id);
   assert.ok(main);
   const posted = 30;

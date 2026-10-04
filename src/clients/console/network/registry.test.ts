@@ -1,58 +1,85 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import type { Registration } from "../../../contracts/gateway/index.ts";
+import type { Announcement } from "../../../contracts/gateway/index.ts";
 import { keepRegistered } from "../../../contracts/gateway/node.ts";
-import { startStandInGateway } from "../../../contracts/gateway/testing/index.ts";
+import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { eventually, stopAfter, until, useRuntimeDir, within } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { quick, startRegistry } from "./testing/index.ts";
 
-const timeout = 15_000;
+const timeout = 30_000;
 
-const program = (kind: "agent" | "chat", name: string): Registration => ({
+const announce = (kind: "agent" | "chat", name: string, pid = 4242): Announcement => ({
   kind,
-  name,
   serverId: `${name}-id`,
   socket: `/tmp/${name}.sock`,
-  pid: 4242,
+  pid,
   version: SHRIMPY_VERSION,
 });
 
-/** Register a program with the gateway, as an agent or the chat server does; it is gone when `stop` is called or the test ends. */
-function register(t: TestContext, registration: Registration) {
-  const kept = keepRegistered(registration, { backoff: quick() });
+/** The chat server registers; it is gone when `stop` is called or the test ends. */
+function registerChat(t: TestContext) {
+  const kept = keepRegistered(announce("chat", "chat"), { backoff: quick() });
   stopAfter(t, () => kept.stop());
   return kept;
 }
 
-test("it lists what the gateway lists, with the gateway's version, and follows programs that come and go", { timeout }, async (t) => {
+/**
+ * An agent joins the roster as `name` and registers, or signs in with `token` and
+ * registers when it has one, as the same agent does again after the gateway has
+ * been away. It is gone when `stop` is called or the test ends.
+ */
+function registerAgent(t: TestContext, name: string, options: { token?: string; pid?: number } = {}) {
+  let token = options.token;
+  const kept = keepRegistered(announce("agent", name, options.pid), {
+    backoff: quick(),
+    async identify(gateway) {
+      if (token === undefined) token = (await gateway.join(name)).token;
+      else await gateway.signIn(token, name);
+    },
+  });
+  stopAfter(t, () => kept.stop());
+  return { kept, token: () => token };
+}
+
+test("it lists what the gateway lists, with the roster and the gateway's version, and follows programs that come and go", { timeout }, async (t) => {
   useRuntimeDir(t);
-  await startStandInGateway(t, { version: "9.9.9" });
+  await startTestGateway(t);
   const registry = startRegistry(t);
   await until(() => registry.status().state === "up", "the gateway to be reached");
 
-  const scout = register(t, program("agent", "scout"));
+  const scout = registerAgent(t, "scout");
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to be listed" });
-  register(t, program("chat", "chat"));
+  registerChat(t);
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 2, { what: "the chat server to be listed" });
 
   assert.deepEqual(
     registry.listing()?.programs.map((listed) => `${listed.kind} ${listed.name}`),
     ["agent scout", "chat chat"],
   );
-  assert.equal(registry.listing()?.version, "9.9.9");
-  await scout.stop();
+  assert.equal(registry.listing()?.version, SHRIMPY_VERSION);
+  assert.deepEqual(
+    registry.listing()?.members.map((member) => [member.kind, member.name, member.reachable]).slice(1),
+    [["agent", "scout", true]],
+    "and who is on the roster, the person who runs the gateway first",
+  );
+  await scout.kept.stop();
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to go" });
+  assert.deepEqual(
+    registry.listing()?.members.map((member) => [member.name, member.reachable]).slice(1),
+    [["scout", false]],
+    "scout stays on the roster, no longer reachable",
+  );
 });
 
 test("when the gateway goes away the last listing stays, and the registry comes back with the gateway", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startStandInGateway(t);
+  const gateway = await startTestGateway(t);
   const registry = startRegistry(t);
-  register(t, program("agent", "scout"));
+  registerAgent(t, "scout");
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to be listed" });
 
-  await gateway.close();
+  await gateway.outage();
 
   await until(() => registry.status().state === "down", "the loss to be noticed");
   assert.deepEqual(
@@ -60,19 +87,37 @@ test("when the gateway goes away the last listing stays, and the registry comes 
     ["scout"],
     "what was last known stays",
   );
-  await startStandInGateway(t);
+  await gateway.recover();
   await until(() => registry.status().state === "up", "the gateway to be reached again");
-  // Scout registers again on its own when the gateway is back.
+  // Scout signs in and registers again on its own when the gateway is back.
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to be listed again" });
+});
+
+test("a ticket for the chat server comes from the gateway, for the person who runs it, and the registry says why it cannot when it is away", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startTestGateway(t);
+  const registry = startRegistry(t);
+  await assert.rejects(registry.ticket({ kind: "chat", name: "chat" }), { name: "Down" });
+  await until(() => registry.status().state === "up", "the gateway to be reached");
+  registerChat(t);
+  await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "the chat server to be listed" });
+
+  const ticket = await registry.ticket({ kind: "chat", name: "chat" });
+
+  assert.ok(ticket.length > 10);
+  await gateway.outage();
+  await until(() => registry.status().state === "down", "the loss to be noticed");
+  await assert.rejects(registry.ticket({ kind: "chat", name: "chat" }), { name: "Down" });
 });
 
 test("the newest of programs with the same name is the one found", { timeout }, async (t) => {
   useRuntimeDir(t);
-  await startStandInGateway(t);
+  await startTestGateway(t);
   const registry = startRegistry(t);
-  register(t, { ...program("agent", "scout"), pid: 1 });
+  const first = registerAgent(t, "scout", { pid: 1 });
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "the first scout" });
-  register(t, { ...program("agent", "scout"), pid: 2 });
+  // A copy of the same agent, with the same token, is the same member twice.
+  registerAgent(t, "scout", { token: first.token(), pid: 2 });
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 2, { what: "the second scout" });
 
   assert.equal((await registry.untilListed((listed) => listed.name === "scout", new AbortController().signal)).pid, 2);

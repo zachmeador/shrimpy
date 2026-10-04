@@ -122,7 +122,7 @@ export function farewellLine(agentName: string, threadId: string): string {
   );
 }
 
-export const AGENTS_EMPTY = `No agent is registered with this machine's gateway. Start one with: shrimpy agent serve <home>, or start everything with: ${START_EVERYTHING}`;
+export const AGENTS_EMPTY = `No agent has joined this machine's roster yet. Start one with: shrimpy agent serve <home>, or start everything with: ${START_EVERYTHING}`;
 export const THREAD_EMPTY = "No messages yet.";
 export const NO_TITLE = "(no messages yet)";
 

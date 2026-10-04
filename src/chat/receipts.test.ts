@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
-import { connectLocal } from "../contracts/chat/node.ts";
+import { enterAsPerson } from "../contracts/chat/testing/index.ts";
 import { settle, stopAfter, waitForView } from "../lib/testing/index.ts";
 import { startChat } from "./index.ts";
-import { agent, follow, outcome, person, startDm } from "./testing/index.ts";
+import { follow, outcome, startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -17,14 +17,14 @@ test("a receipt shows on its message in an attached view, and a later one replac
   await shrimpy.chat.leaveReceipt([asked.id], outcome("skipped"));
   const skipped = await waitForView(watching, (view) => view.messages[0]?.receipts.length === 1);
   assert.deepEqual(skipped.messages[0]?.receipts, [
-    { memberId: agent("Shrimpy").id, status: "skipped", reply: null, detail: null },
+    { memberId: shrimpy.me.id, status: "skipped", reply: null, detail: null },
   ]);
 
   const answer = await shrimpy.chat.post(main.id, "Yes.", "shrimpy-1");
   await shrimpy.chat.leaveReceipt([asked.id], outcome("answered", { reply: answer.id }));
   const answered = await waitForView(watching, (view) => view.messages[0]?.receipts[0]?.status === "answered");
   assert.deepEqual(answered.messages[0]?.receipts, [
-    { memberId: agent("Shrimpy").id, status: "answered", reply: answer.id, detail: null },
+    { memberId: shrimpy.me.id, status: "answered", reply: answer.id, detail: null },
   ]);
   assert.deepEqual(answered.messages[1]?.receipts, []);
 });
@@ -65,7 +65,7 @@ test("a message offered after its receipt carries the receipt", { timeout }, asy
   const [offered] = await zach.chat.feed(0, 10);
 
   assert.deepEqual(offered?.receipts, [
-    { memberId: agent("Shrimpy").id, status: "failed", reply: null, detail: "No model was reachable." },
+    { memberId: shrimpy.me.id, status: "failed", reply: null, detail: "No model was reachable." },
   ]);
 });
 
@@ -78,13 +78,11 @@ test("a receipt survives the chat server restarting", { timeout }, async (t) => 
   await chat.chat.close();
   const restarted = await startChat({ dataDir: chat.dataDir });
   stopAfter(t, () => restarted.close());
-  const again = await connectLocal(restarted.endpoint);
-  stopAfter(t, () => again.close());
-  await again.chat.identify(person("Zach"));
+  const again = await enterAsPerson(t, restarted.endpoint);
 
   const [message] = await again.chat.read(main.id, null, 10);
   assert.deepEqual(message?.receipts, [
-    { memberId: agent("Shrimpy").id, status: "answered", reply: answer.id, detail: null },
+    { memberId: shrimpy.me.id, status: "answered", reply: answer.id, detail: null },
   ]);
 });
 
@@ -113,7 +111,7 @@ test("one receipt call covers several messages, all or none, and repeating it ch
   await shrimpy.chat.leaveReceipt([first.id, second.id], outcome("answered", { reply: answer.id }));
   await shrimpy.chat.leaveReceipt([first.id, second.id], outcome("answered", { reply: answer.id }));
 
-  const left = [{ memberId: agent("Shrimpy").id, status: "answered", reply: answer.id, detail: null }];
+  const left = [{ memberId: shrimpy.me.id, status: "answered", reply: answer.id, detail: null }];
   assert.deepEqual(
     (await zach.chat.read(main.id, null, 10)).map((message) => message.receipts),
     [left, left, []],

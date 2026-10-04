@@ -5,7 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { openConnection } from "../connection/index.ts";
 import { offer, startStandIn, stopAfter, useRuntimeDir } from "../testing/index.ts";
-import { refuse } from "./index.ts";
+import { isRefusal, refuse } from "./index.ts";
 
 const timeout = 15_000;
 
@@ -34,16 +34,19 @@ test("a refusal reaches the caller over a socket with its reason, and any other 
   stopAfter(t, () => connection.close());
   const doorman = connection.service;
 
-  await assert.rejects(doorman.turnAway(BACKGROUND_CONTEXT), {
-    code: "service_invalid_value",
-    message: "Not on the list.",
+  await assert.rejects(doorman.turnAway(BACKGROUND_CONTEXT), (error: unknown) => {
+    assert.ok(isRefusal(error), "a caller can tell it was refused");
+    assert.deepEqual([error.code, error.message], ["service_invalid_value", "Not on the list."]);
+    return true;
   });
-  await assert.rejects(doorman.turnAwayForNow(BACKGROUND_CONTEXT), {
-    code: "service_not_allowed",
-    message: "Come back later.",
+  await assert.rejects(doorman.turnAwayForNow(BACKGROUND_CONTEXT), (error: unknown) => {
+    assert.ok(isRefusal(error));
+    assert.deepEqual([error.code, error.message], ["service_not_allowed", "Come back later."]);
+    return true;
   });
-  await assert.rejects(doorman.crash(BACKGROUND_CONTEXT), {
-    code: "internal_error",
-    message: "Internal server error",
+  await assert.rejects(doorman.crash(BACKGROUND_CONTEXT), (error: unknown) => {
+    assert.ok(!isRefusal(error), "a failure that is not a refusal is not taken for one");
+    assert.deepEqual([(error as { code?: unknown }).code, (error as Error).message], ["internal_error", "Internal server error"]);
+    return true;
   });
 });

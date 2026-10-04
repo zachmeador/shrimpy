@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
+import { userInfo } from "node:os";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { agentMember } from "../../../contracts/chat/index.ts";
 import { until } from "../../../lib/testing/index.ts";
-import { callingTools, scout, startAgentRig } from "../../testing/index.ts";
+import { callingTools, startAgentRig } from "../../testing/index.ts";
 
 const timeout = 30_000;
 
-const sentByScout = (messages: { author: { id: string }; text: string }[]): string[] =>
-  messages.filter((message) => message.author.id === scout.id).map((message) => message.text);
+const sentBy = (id: string, messages: { author: { id: string }; text: string }[]): string[] =>
+  messages.filter((message) => message.author.id === id).map((message) => message.text);
 
 test("send_message posts to the thread the turn came from, and the final text is still the reply", { timeout }, async (t) => {
   const model = callingTools([[{ name: "send_message", args: { text: "On it: checking the build." } }]], "The build is green.");
@@ -29,7 +29,7 @@ test("send_message posts to the thread the turn came from, and the final text is
 test("a message sent along the way goes to the thread it came from, side threads too, and @name to the DM's main thread", { timeout }, async (t) => {
   const model = callingTools([
     [{ name: "send_message", args: { text: "To the side thread." } }],
-    [{ name: "send_message", args: { text: "To the main thread.", to: "@zach" } }],
+    [{ name: "send_message", args: { text: "To the main thread.", to: `@${userInfo().username}` } }],
   ]);
   const rig = await startAgentRig(t, { script: model.script });
   const side = await rig.newThread("a side topic");
@@ -37,8 +37,8 @@ test("a message sent along the way goes to the thread it came from, side threads
   await rig.receiptOn(await rig.say("from the side", side.id));
   await rig.receiptOn(await rig.say("from the side again", side.id));
 
-  assert.deepEqual(sentByScout(await rig.said(side.id)), ["To the side thread.", "Done.", "Done."]);
-  assert.deepEqual(sentByScout(await rig.said(rig.thread.id)), ["To the main thread."]);
+  assert.deepEqual(sentBy(rig.partner.id, await rig.said(side.id)), ["To the side thread.", "Done.", "Done."]);
+  assert.deepEqual(sentBy(rig.partner.id, await rig.said(rig.thread.id)), ["To the main thread."]);
 });
 
 test("the same call ID in two turns is two posts, because each call is a task of its own", { timeout }, async (t) => {
@@ -49,7 +49,7 @@ test("the same call ID in two turns is two posts, because each call is a task of
   await rig.receiptOn(await rig.say("one"));
   await rig.receiptOn(await rig.say("two"));
 
-  assert.deepEqual(sentByScout(await rig.said()), ["Working on it.", "Done.", "Working on it.", "Done."]);
+  assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Working on it.", "Done.", "Working on it.", "Done."]);
 });
 
 test("read_messages gives the model the thread as it was said, in the same words a message arrives in", { timeout }, async (t) => {
@@ -65,7 +65,7 @@ test("read_messages gives the model the thread as it was said, in the same words
   assert.equal(read?.name, "read_messages");
   assert.equal(read.isError, false);
   const iso = new Date(earlier.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z");
-  assert.ok(read.text.includes(`Zach wrote at ${iso}:\nEarlier, I asked about the build.`), read.text);
+  assert.ok(read.text.includes(`${rig.me.name} wrote at ${iso}:\nEarlier, I asked about the build.`), read.text);
   assert.ok(read.text.indexOf(earlier.text) < read.text.indexOf(asked.text), "oldest first");
 });
 
@@ -96,19 +96,38 @@ test("tools that find chat gone say so and do not wait, and the reply is deliver
   await rig.chat.recover();
   const receipt = await rig.receiptOn(asked);
   assert.equal(receipt.status, "answered");
-  assert.deepEqual(sentByScout(await rig.said()), ["Chat was away, but I am here."], "the reply waited in the outbox and was posted once");
+  assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Chat was away, but I am here."], "the reply waited in the outbox and was posted once");
 });
 
-test("an agent can message another it already has a DM with, and the other's thread is where it lands", { timeout }, async (t) => {
-  const mechanic = agentMember("mechanic");
-  const model = callingTools([[{ name: "send_message", args: { text: "The build is red.", to: "@mechanic" } }]]);
+test("an agent starts a DM with a member it has never talked to, by name, and says who there is when the name is nobody's", { timeout }, async (t) => {
+  const model = callingTools([
+    [
+      { name: "send_message", args: { text: "The build is red.", to: "@Mechanic" } },
+      { name: "read_messages", args: { from: "@mechanic" } },
+      { name: "send_message", args: { text: "Anyone?", to: "@nobody" } },
+    ],
+  ]);
   const rig = await startAgentRig(t, { script: model.script });
-  const dm = await rig.dm(scout, mechanic);
+  const mechanic = await rig.chat.agent("mechanic");
+  assert.deepEqual(await mechanic.chat.channels(), [], "they have never talked");
 
   await rig.receiptOn(await rig.say("tell the mechanic"));
 
-  const [sent] = await dm.said();
-  assert.deepEqual(sentByScout(await dm.said()), ["The build is red."]);
-  assert.equal(sent?.addressed[0], mechanic.id);
-  assert.deepEqual(sentByScout(await rig.said()), ["Done."], "and the reply still goes to the person who asked");
+  const [channel] = await mechanic.chat.channels();
+  assert.ok(channel);
+  assert.equal(channel.name, "scout", "the mechanic sees a DM with the agent");
+  const [main] = await mechanic.chat.threads(channel.id);
+  assert.ok(main);
+  const [sent, ...others] = await mechanic.chat.read(main.id, null, 10);
+  assert.deepEqual(others, []);
+  assert.equal(sent?.text, "The build is red.");
+  assert.equal(sent.author.id, rig.partner.id);
+  assert.deepEqual(sent.addressed, [mechanic.me.id]);
+  assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Done."], "and the reply still goes to the person who asked");
+  const [posted, read, refused] = model.answers;
+  assert.equal(posted?.isError, false);
+  assert.ok(read?.text.includes("The build is red."), "the DM it started can be read");
+  assert.equal(refused?.isError, true);
+  assert.match(refused.text, /^Nobody is called @nobody\. The members are: /);
+  for (const name of [rig.me.name, "scout", "mechanic"]) assert.ok(refused.text.includes(name), `it names ${name}`);
 });

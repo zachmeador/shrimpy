@@ -15,6 +15,7 @@ export {
   webSocketPath,
 } from "./endpoint.ts";
 export {
+  type Announcement,
   Gateway,
   type Joined,
   type Member,

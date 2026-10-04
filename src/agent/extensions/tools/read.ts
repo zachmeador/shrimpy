@@ -40,7 +40,9 @@ export function readMessages(options: MessageToolsOptions) {
           conversationId: api.conversationId,
           read: api,
           chat: live.chat,
-          self: options.self,
+          self: live.self,
+          gateway: options.gateway(),
+          startDm: false,
           context,
           signal,
         });

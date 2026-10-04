@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { agentMember, type Message, type Receipt } from "../contracts/chat/index.ts";
-import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
+import type { Message, Receipt } from "../contracts/chat/index.ts";
+import type { Registration } from "../contracts/gateway/index.ts";
+import type { TestGateway } from "../contracts/gateway/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { homePaths } from "./home/index.ts";
 import { ModelSetupError } from "./host/index.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
@@ -32,11 +33,28 @@ function newHome(t: TestContext, providers: object = { local }, name = "scout") 
 
 /** A gateway and the chat server on this machine. The chat server lists itself with the gateway. */
 async function startNetwork(t: TestContext) {
-  const gateway = await startStandInGateway(t);
   const chat = await startChatServer(t);
-  await until(() => gateway.registered().length === 1, "chat to be listed with the gateway");
-  return { gateway, chat };
+  await eventually(() => registered(chat.gateway), (programs) => programs.length === 1, {
+    what: "chat to be listed with the gateway",
+  });
+  return { gateway: chat.gateway, chat };
 }
+
+/** The programs the gateway lists, asked over a connection of its own. */
+async function registered(gateway: TestGateway): Promise<Registration[]> {
+  const observer = await gateway.connect();
+  try {
+    return await observer.list();
+  } finally {
+    await observer.close();
+  }
+}
+
+/** The agents among them. */
+const agentsOf = async (gateway: TestGateway): Promise<Registration[]> =>
+  (await registered(gateway)).filter((program) => program.kind === "agent");
+
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Start the home's agent. It is stopped when the test ends. */
 async function startAt(t: TestContext, home: string) {
@@ -45,8 +63,10 @@ async function startAt(t: TestContext, home: string) {
 
 /** Zach, in his DM with the agent called `name`, who says something and waits until the agent has left its receipt. */
 async function talkToAgent(chat: ChatServer, name: string) {
-  const talk = await talkTo(chat, agentMember(name));
+  const talk = await talkTo(chat, name);
   return {
+    me: talk.me,
+    partner: talk.partner,
     thread: talk.thread,
     replies: () => talk.replies(),
     async ask(text: string, timeoutMs?: number): Promise<{ asked: Message; receipt: Receipt }> {
@@ -60,18 +80,16 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   const paths = newHome(t);
   const requests = stubChatCompletions(t, "Hello from qwen");
   const { gateway, chat } = await startNetwork(t);
-  const person = await talkToAgent(chat, "scout");
 
   const agent = await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
   const { receipt } = await person.ask("hi");
-  await until(() => gateway.registered().some((program) => program.kind === "agent"), "the agent to register");
 
   assert.equal(agent.name, "scout");
   assert.equal(agent.home, paths.root);
-  assert.deepEqual(
-    gateway.registered().filter((program) => program.kind === "agent"),
-    [{ kind: "agent", name: "scout", ...agent.endpoint, version: SHRIMPY_VERSION }],
-  );
+  assert.deepEqual(await agentsOf(gateway), [
+    { kind: "agent", name: "scout", memberId: person.partner.id, ...agent.endpoint, version: SHRIMPY_VERSION },
+  ]);
   assert.equal(receipt.status, "answered");
   assert.deepEqual((await person.replies()).map((reply) => reply.text), ["Hello from qwen"]);
 
@@ -81,7 +99,11 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.equal(sent.body.model, "qwen");
   const [system, user] = sent.body.messages;
   assert.equal(system?.role, "system");
-  assert.match(String(user?.content), /^Thread th_\w+ in channel ch_\w+\.\n\nZach wrote at \S+:\nhi$/, "the facts about a message travel with it");
+  assert.match(
+    String(user?.content),
+    new RegExp(`^Thread th_\\w+ in channel ch_\\w+\\.\\n\\n${escaped(person.me.name)} wrote at \\S+:\\nhi$`),
+    "the facts about a message travel with it",
+  );
   const { connection, session } = await attachThread(paths.root, person.thread.id);
   t.after(() => connection.close());
   assert.deepEqual(session.view.status.model, { provider: "local", id: "qwen" });
@@ -100,8 +122,8 @@ test("the model gets the home's instructions as sections in a fixed order, exact
   );
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  const person = await talkToAgent(chat, "scout");
   await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
 
   await person.ask("hi");
 
@@ -118,9 +140,9 @@ test("editing the home takes effect at the next start, in sessions made before i
   writeFileSync(paths.soul, "Answer in prose.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
-  const person = await talkToAgent(chat, "scout");
 
   const first = await startAt(t, paths.root);
+  const person = await talkToAgent(chat, "scout");
   await person.ask("one");
   await first.close();
 
@@ -140,15 +162,12 @@ test("two homes share no keys, instructions or history", { timeout }, async (t) 
   writeFileSync(two.soul, "You are the second agent.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { gateway, chat } = await startNetwork(t);
-  const toOne = await talkToAgent(chat, "scout");
-  const toTwo = await talkToAgent(chat, "other");
   await startAt(t, one.root);
   await startAt(t, two.root);
-  await until(() => gateway.registered().filter((program) => program.kind === "agent").length === 2, "both agents to register");
-  assert.deepEqual(
-    gateway.registered().filter((program) => program.kind === "agent").map((program) => program.name).sort(),
-    ["other", "scout"],
-  );
+  const toOne = await talkToAgent(chat, "scout");
+  const toTwo = await talkToAgent(chat, "other");
+  await eventually(() => agentsOf(gateway), (agents) => agents.length === 2, { what: "both agents to register" });
+  assert.deepEqual((await agentsOf(gateway)).map((program) => program.name).sort(), ["other", "scout"]);
 
   await toOne.ask("hello from one");
   await toTwo.ask("hello from two");
@@ -176,9 +195,9 @@ test("an agent that starts before the gateway and chat finds them when they come
   assert.ok(agent.endpoint.socket, "it started without them");
 
   const { gateway, chat } = await startNetwork(t);
-  const person = await talkToAgent(chat, "scout");
   // The agent looks again after growing pauses, so a slow machine can make it a while.
-  await until(() => gateway.registered().some((program) => program.kind === "agent"), "the agent to register", 30_000);
+  await eventually(() => agentsOf(gateway), (agents) => agents.length === 1, { what: "the agent to register", timeoutMs: 30_000 });
+  const person = await talkToAgent(chat, "scout");
 
   const { receipt } = await person.ask("are you there?", 30_000);
 

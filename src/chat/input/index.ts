@@ -9,7 +9,6 @@ export {
   identifier,
   identifiers,
   label,
-  member,
   messageText,
   receipt,
   whole,

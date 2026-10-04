@@ -1,6 +1,5 @@
 import { type Command, loadAll, loadFamily } from "./commands/index.ts";
 import type { Io } from "./io/index.ts";
-import { currentPerson } from "./talk/index.ts";
 import { UsageError } from "./usage/index.ts";
 
 export interface RunOptions {
@@ -68,7 +67,7 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
 /** The console is only loaded when it is opened, so no other command loads the terminal library. */
 async function openTheConsole(io: Io): Promise<number> {
   const { openConsole } = await import("../clients/console/index.ts");
-  return openConsole({ me: currentPerson(), io });
+  return openConsole({ io });
 }
 
 /** The words that select a command: one for `up`, two for `agent serve`. */

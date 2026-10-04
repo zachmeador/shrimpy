@@ -33,7 +33,7 @@ export interface ThreadHandle {
 }
 
 export interface ChatConnection {
-  /** Say who you are with `identify` before anything else. */
+  /** Come in with a ticket from the gateway, with `enter`, before anything else. */
   readonly chat: ChatClient;
   /** Watch one thread. A connection watches one at a time; attaching again switches. */
   attach(threadId: string): Promise<ThreadHandle>;
@@ -63,9 +63,9 @@ export async function connectChat(options: {
   const service = connection.service;
 
   const chat: ChatClient = {
-    identify: (member, signal) => service.identify(member, contextFor(signal)),
+    enter: (ticket, signal) => service.enter(ticket, contextFor(signal)),
     channels: (signal) => service.channels(contextFor(signal)),
-    openDm: (other, signal) => service.openDm(other, contextFor(signal)),
+    openDm: (otherId, signal) => service.openDm(otherId, contextFor(signal)),
     threads: (channelId, signal) => service.threads(channelId, contextFor(signal)),
     createThread: (channelId, name, signal) =>
       service.createThread(channelId, name, contextFor(signal)),

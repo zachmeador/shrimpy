@@ -21,7 +21,7 @@ test("the mark stays while any message in the thread is still being worked on", 
   rig.turns.end({ kind: "stopped" }, one.id);
   await until(() => rig.turns.settled.length === 1, "the first message to be settled");
   await delay(30);
-  assert.deepEqual(await rig.working(), ["agent:scout"]);
+  assert.deepEqual(await rig.working(), [rig.partner.id]);
   rig.turns.end({ kind: "skipped" }, two.id);
 
   await rig.untilIdle();

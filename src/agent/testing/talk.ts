@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
-import type { ChatConnection, Member, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import type { Member, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import type { Entered } from "../../contracts/chat/testing/index.ts";
 import { eventually } from "../../lib/testing/index.ts";
 import type { ChatServer } from "./chat-server.ts";
-import { scout, zach } from "./names.ts";
+import { SCOUT } from "./names.ts";
 
 /** A person's side of a DM with an agent, on a chat server that may go away and come back. */
 export interface Talk {
+  /** The person who runs the gateway, who talks to the agent. */
+  readonly me: Member;
+  /** The agent they talk to, as the roster has it. */
+  readonly partner: Member;
   /** The main thread of the DM. */
   readonly thread: Thread;
   /** Start a side thread in the DM. */
@@ -27,18 +32,19 @@ export interface Talk {
 }
 
 /**
- * Zach, in his DM with the agent Scout on `chat`, made if need be. He connects
- * again by himself when the chat server has been away.
+ * The person who runs the gateway, in their DM with the agent called
+ * `agentName` on `chat`, made if need be once the agent has joined the roster.
+ * They come in again by themselves when the chat server has been away.
  */
-export async function talkTo(chat: ChatServer, agent: Member = scout, person: Member = zach): Promise<Talk> {
-  let connected: Promise<ChatConnection> | undefined;
-  const connection = (): Promise<ChatConnection> => {
-    connected ??= chat.join(person).then(
-      (joined) => {
-        joined.onDisconnect(() => {
+export async function talkTo(chat: ChatServer, agentName: string = SCOUT): Promise<Talk> {
+  let connected: Promise<Entered> | undefined;
+  const connection = (): Promise<Entered> => {
+    connected ??= chat.person().then(
+      (entered) => {
+        entered.onDisconnect(() => {
           connected = undefined;
         });
-        return joined;
+        return entered;
       },
       (error: unknown) => {
         connected = undefined;
@@ -48,9 +54,10 @@ export async function talkTo(chat: ChatServer, agent: Member = scout, person: Me
     return connected;
   };
 
-  const { chat: client } = await connection();
-  const dm = await client.openDm(agent);
-  const thread = (await client.threads(dm.id)).find((candidate) => candidate.main);
+  const partner = await chat.member(agentName);
+  const first = await connection();
+  const dm = await first.chat.openDm(partner.id);
+  const thread = (await first.chat.threads(dm.id)).find((candidate) => candidate.main);
   if (thread === undefined) throw new Error(`The DM ${dm.id} has no main thread`);
 
   const said = async (threadId = thread.id): Promise<Message[]> => (await connection()).chat.read(threadId, null, 200);
@@ -59,6 +66,8 @@ export async function talkTo(chat: ChatServer, agent: Member = scout, person: Me
     return found?.working.map((mark) => mark.memberId) ?? [];
   };
   return {
+    me: first.me,
+    partner,
     thread,
     async newThread(name) {
       return (await connection()).chat.createThread(dm.id, name ?? null);
@@ -68,7 +77,7 @@ export async function talkTo(chat: ChatServer, agent: Member = scout, person: Me
     },
     said,
     async replies(threadId) {
-      return (await said(threadId)).filter((message) => message.author.id === agent.id);
+      return (await said(threadId)).filter((message) => message.author.id === partner.id);
     },
     working,
     async untilWorking(threadId) {
@@ -79,7 +88,7 @@ export async function talkTo(chat: ChatServer, agent: Member = scout, person: Me
     },
     receiptOn: (message, timeoutMs) =>
       eventually(
-        async () => (await said(message.threadId)).find((candidate) => candidate.id === message.id)?.receipts.find((r) => r.memberId === agent.id),
+        async () => (await said(message.threadId)).find((candidate) => candidate.id === message.id)?.receipts.find((r) => r.memberId === partner.id),
         (receipt) => receipt !== undefined,
         { what: `a receipt on "${message.text}"`, timeoutMs },
       ) as Promise<Receipt>,

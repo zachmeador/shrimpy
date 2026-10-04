@@ -9,7 +9,7 @@ function message(seq: number, text: string): Message {
     seq,
     channelId: "ch_1",
     threadId: "th_1",
-    author: { id: "person:zach", kind: "person", name: "Zach" },
+    author: { id: "mem_zach", kind: "person", name: "Zach" },
     text,
     sentAt: seq,
     addressed: [],

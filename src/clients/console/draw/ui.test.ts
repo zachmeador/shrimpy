@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { setCapabilityOverrides, visibleWidth } from "@earendil-works/pi-tui";
 import { assistantItem, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
-import { agentMember } from "../../../contracts/chat/index.ts";
 import { settle, stopAfter, until } from "../../../lib/testing/index.ts";
 import type { Model } from "../state/index.ts";
 import {
   aChatServer,
+  agentMember,
+  aListing,
   aDm,
   aMessage,
   aModel,
@@ -64,14 +65,14 @@ const conversation = (): Model =>
 
 const agentsModel = (): Model =>
   aModel({
-    listing: { programs: [anAgent("scout"), anAgent("mechanic"), aChatServer()], version: "0.0.0" },
+    listing: aListing([anAgent("scout"), anAgent("mechanic"), aChatServer()]),
     dms: { scout: aDm("scout", [open]) },
   });
 
 const threadsModel = (): Model =>
   aModel({
     where: { screen: "threads", agent: "scout" },
-    listing: { programs: [anAgent("scout"), aChatServer()], version: "0.0.0" },
+    listing: aListing([anAgent("scout"), aChatServer()]),
     dms: {
       scout: aDm("scout", [
         aThread("th_a", { preview: "Check the disk usage", updatedAt: at(14, 5), working: [{ memberId: scout.id, since: now }] }),
@@ -93,7 +94,7 @@ test("the choice stays where it was when the list is drawn again with something 
   const { terminal, state } = start(t, agentsModel());
   terminal.type(DOWN);
 
-  state.show({ ...agentsModel(), listing: { programs: [anAgent("scout"), anAgent("mechanic"), anAgent("zed"), aChatServer()], version: "0.0.0" } });
+  state.show({ ...agentsModel(), listing: aListing([anAgent("scout"), anAgent("mechanic"), anAgent("zed"), aChatServer()]) });
   terminal.type(ENTER);
 
   assert.deepEqual(state.calls, ["select scout"]);
@@ -359,7 +360,7 @@ test("nothing drawn is wider than the terminal, however narrow, whatever the cha
 test("text from other members and from tools can't reach the terminal, wherever it appears", async (t) => {
   const ESC_ = "\u001b";
   const hostile = `${ESC_}]0;pwned\u0007${ESC_}[999;999H${ESC_}[2J${ESC_}]52;c;cHduZWQ=\u0007${ESC_}[31mred\u009b6n\rover`;
-  const stranger = { id: "person:evil", kind: "person" as const, name: `Evil${hostile}` };
+  const stranger = { id: "mem_evil", kind: "person" as const, name: `Evil${hostile}` };
   const thread = aThread("th_1", { name: `Name${hostile}`, preview: `Preview${hostile}`, working: [{ memberId: scout.id, since: now }] });
   const model = onThread(
     "scout",

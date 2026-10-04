@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TestContext } from "node:test";
 import { stopAfter } from "../../lib/testing/index.ts";
-import { openTestDm, outcome } from "../testing/index.ts";
+import { know, openTestDm, outcome } from "../testing/index.ts";
 import {
   archiveThread,
   createThread,
-  identify,
   leaveReceipt,
   post,
   renameThread,
@@ -15,15 +14,15 @@ import {
 } from "./index.ts";
 import { readThreadView } from "./thread-view.ts";
 
-function setup(t: TestContext) {
-  const { deps, clock, zach, shrimpy, dm, main } = openTestDm(t);
+async function setup(t: TestContext) {
+  const { deps, clock, zach, shrimpy, dm, main } = await openTestDm(t);
   const served = serveThread(deps, main.id);
   stopAfter(t, () => served.close());
   return { deps, clock, zach, shrimpy, dm, main, served };
 }
 
-test("the view follows the thread through any mix of changes", (t) => {
-  const { deps, clock, zach, shrimpy, dm, main, served } = setup(t);
+test("the view follows the thread through any mix of changes", async (t) => {
+  const { deps, clock, zach, shrimpy, dm, main, served } = await setup(t);
   const side = createThread(deps, zach, dm.id, "Side");
   served.watch();
   const connections = [{}, {}];
@@ -59,7 +58,7 @@ test("the view follows the thread through any mix of changes", (t) => {
       if (picked !== undefined) leaveReceipt(deps, shrimpy, [picked.id], outcomes[next(outcomes.length)]!);
     } else if (choice < 19) setWorking(deps, connection, author, main.id, next(2) === 0);
     else if (choice === 19) deps.working.end(connection);
-    else identify(deps, { ...author, name: `${author.name} ${step}` });
+    else know(deps, { ...author, name: `${author.name} ${step}` });
 
     assert.deepEqual(served.state.value, readThreadView(deps, main.id), `after step ${step}`);
   }

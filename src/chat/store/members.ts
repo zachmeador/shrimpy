@@ -6,6 +6,11 @@ export type MemberRow = { id: string; kind: Member["kind"]; name: string };
 
 export const toMember = (row: MemberRow): Member => ({ id: row.id, kind: row.kind, name: row.name });
 
+/**
+ * The members the chat server has met, as the roster described them when it
+ * did. The store keeps a copy of each so that messages and channels can name
+ * their members; the roster stays the authority.
+ */
 export interface MemberOperations {
   /** The member on record, if any. */
   member(id: string): Member | undefined;

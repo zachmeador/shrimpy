@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { settle, waitForView } from "../lib/testing/index.ts";
-import { person, startDm } from "./testing/index.ts";
+import { startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -49,7 +49,7 @@ test("a long thread's view holds its newest 200 messages and counts the rest", {
 
 test("several clients watch one thread and see the same view, and one leaving does not stop the others", { timeout }, async (t) => {
   const { chat, zach, shrimpy, main } = await startDm(t);
-  const another = await chat.join(person("Zach"));
+  const another = await chat.person();
   const watchers = await Promise.all([zach, shrimpy, another].map((connection) => connection.attach(main.id)));
 
   await zach.chat.post(main.id, "to everyone", "zach-1");

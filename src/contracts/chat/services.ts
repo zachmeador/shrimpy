@@ -7,16 +7,23 @@ import type { Channel, Member, Message, Receipt, Thread, ThreadView } from "./vi
  */
 export interface Chat {
   /**
-   * Say who this connection is, before anything else. On one machine the chat
-   * server takes the caller's word; a gateway verifies it once access crosses
-   * machines.
+   * Come in, before anything else, with a ticket the gateway made for the chat
+   * server. Nobody says who they are: the chat server asks the gateway whose the
+   * ticket is, and answers with the member the caller is, as the roster has it
+   * now. A ticket works once, so a caller that is refused gets another. While
+   * the chat server cannot reach the gateway it refuses to let anyone in, saying
+   * so, and callers try again.
    */
-  identify(member: Member, context: Context): Promise<void>;
+  enter(ticket: string, context: Context): Promise<Member>;
 
   /** The channels the caller belongs to, oldest first. */
   channels(context: Context): Promise<Channel[]>;
-  /** The DM between the caller and `other`, created on first use. */
-  openDm(other: Member, context: Context): Promise<Channel>;
+  /**
+   * The DM between the caller and the member `otherId`, created on first use. A
+   * member the chat server has not met is looked up in the gateway's roster, and
+   * one the roster does not have is refused.
+   */
+  openDm(otherId: string, context: Context): Promise<Channel>;
 
   /** A channel's threads, archived ones too, the most recently updated first. */
   threads(channelId: string, context: Context): Promise<Thread[]>;

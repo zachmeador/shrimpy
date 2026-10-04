@@ -46,7 +46,7 @@ test("a message in a DM becomes a turn, and only the turn's final text is the re
   const [reply, ...others] = await rig.replies();
   assert.ok(reply);
   assert.deepEqual(others, []);
-  assert.deepEqual(receipt, { memberId: "agent:scout", status: "answered", reply: reply.id, detail: null });
+  assert.deepEqual(receipt, { memberId: rig.partner.id, status: "answered", reply: reply.id, detail: null });
   assert.ok(reply.text.startsWith("The command finished.\n\n- first point"), "not what it said while it worked");
   assert.doesNotMatch(reply.text, /Let me look at the work directory/);
   assert.deepEqual(rig.reports, []);
@@ -59,7 +59,7 @@ test("the agent is working in the thread from picking a message up until its rep
   const asked = await rig.say("hello");
 
   await rig.untilWorking();
-  assert.deepEqual(await rig.working(), ["agent:scout"]);
+  assert.deepEqual(await rig.working(), [rig.partner.id]);
   releaseGate(rig.home);
   await rig.receiptOn(asked);
   await rig.untilIdle();

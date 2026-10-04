@@ -1,12 +1,15 @@
 /**
  * The Node-only door of the agent contract: reaching an agent on this machine
- * over its Unix socket. Browser code must not import this file.
+ * over its Unix socket, and reading and keeping the membership its home holds.
+ * Browser code must not import this file.
  */
 import { readFileSync } from "node:fs";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { isNotListening } from "../../lib/connection/index.ts";
 import { type AgentConnection, connectAgent } from "./connect.ts";
 import { type AgentEndpoint, endpointFile } from "./endpoint.ts";
+
+export { readMembership, saveMembership } from "./membership.node.ts";
 
 /** Nothing is listening for the agent of a home. */
 export class AgentNotRunningError extends Error {

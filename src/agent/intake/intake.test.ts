@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ServerError } from "@earendil-works/pi-client";
 import type { Message } from "../../contracts/chat/index.ts";
+import { joinRoster } from "../../contracts/chat/testing/index.ts";
 import { until } from "../../lib/testing/index.ts";
-import { startChatServer, talkTo } from "../testing/index.ts";
+import { SCOUT, startChatServer, talkTo } from "../testing/index.ts";
 import { snapshotOf } from "./prompt.ts";
 import { type IntakeRig, scriptedTurns, startIntakeRig } from "./testing/index.ts";
 
@@ -64,6 +65,8 @@ test("a reply that chat refuses for good is dropped with a report, and the messa
 
 test("a restarted agent finds a message that was recorded but never handed over, and hands it over", { timeout }, async (t) => {
   const chat = await startChatServer(t);
+  // The agent has joined the roster, and is not running yet.
+  await joinRoster(t, SCOUT);
   const person = await talkTo(chat);
   const turns = scriptedTurns();
   const said = await person.say("recorded, then the agent died");

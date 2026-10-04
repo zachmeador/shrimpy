@@ -4,4 +4,10 @@
  * made or what the registered programs do, so it only hears when a
  * connection registers and when it ends.
  */
-export { createRegistry, InvalidRegistrationError, type Registrant, type Registry } from "./registry.ts";
+export {
+  checkAnnouncement,
+  createRegistry,
+  InvalidRegistrationError,
+  type Registrant,
+  type Registry,
+} from "./registry.ts";

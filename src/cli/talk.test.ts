@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { userInfo } from "node:os";
 import { test } from "node:test";
-import { agentMember, Chat, type ChatConnection, personMember } from "../contracts/chat/index.ts";
+import { Chat, type ChatConnection } from "../contracts/chat/index.ts";
+import { memberNamed } from "../contracts/chat/testing/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
-import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { eventually, offer, startStandIn, stopAfter, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import {
@@ -41,7 +41,7 @@ function startedThread(stderr: string): string {
 
 /** Your DM with scout, and the threads in it. */
 async function scoutsThreads(you: ChatConnection) {
-  const dm = (await you.chat.channels()).find((channel) => channel.members.some((m) => m.id === "agent:scout"));
+  const dm = (await you.chat.channels()).find((channel) => channel.members.some((m) => m.name === "scout"));
   assert.ok(dm, "there is no DM with scout");
   return { dm, threads: await you.chat.threads(dm.id) };
 }
@@ -62,9 +62,10 @@ test("run posts to a new thread, prints the agent's reply, and puts the thread's
   const [asked, reply] = await you.chat.read(thread, null, 10);
   assert.ok(asked && reply);
   assert.equal(asked.text, "what is in my inbox?");
-  assert.equal(asked.author.id, `person:${userInfo().username}`);
-  assert.equal(reply.author.id, "agent:scout");
-  assert.deepEqual(asked.receipts, [{ memberId: "agent:scout", status: "answered", reply: reply.id, detail: null }]);
+  assert.equal(asked.author.id, you.me.id, "the command spoke as the person who runs it");
+  const scout = await memberNamed(t, "scout");
+  assert.equal(reply.author.id, scout.id);
+  assert.deepEqual(asked.receipts, [{ memberId: scout.id, status: "answered", reply: reply.id, detail: null }]);
   assert.equal(agent.offered.length, 1);
 });
 
@@ -181,16 +182,18 @@ test("run says so when the chat server goes away while it waits, instead of wait
 
 test("stopping run while its message is still being sent says it may have been posted, and exits 130", { timeout }, async (t) => {
   useRuntimeDir(t);
-  await startStandInGateway(t);
+  await startTestGateway(t);
   const sending = deferred<undefined>();
   const unsupported = (): Promise<never> => Promise.reject(new Error("this chat server only takes a post"));
-  const channel = { id: "ch_one", kind: "dm", name: "scout", members: [agentMember("scout"), personMember("you")] } as const;
+  const scout = { id: "mem_scout", kind: "agent", name: "scout" } as const;
+  const you = { id: "mem_you", kind: "person", name: "you" } as const;
+  const channel = { id: "ch_one", kind: "dm", name: "scout", members: [scout, you] } as const;
   const thread = { id: "th_one", channelId: "ch_one", main: false, name: null, preview: null, archived: false, updatedAt: 0, working: [] };
   // A chat server that takes a post and never answers it.
   const chat = await startStandIn(t, "chat", {
     offer: () =>
       offer(Chat, {
-        identify: () => Promise.resolve(),
+        enter: () => Promise.resolve(you),
         channels: unsupported,
         openDm: () => Promise.resolve({ ...channel, members: [...channel.members] }),
         threads: unsupported,
@@ -213,10 +216,11 @@ test("stopping run while its message is still being sent says it may have been p
   const registrations = await connectLocalGateway();
   stopAfter(t, () => registrations.close());
   const program = { serverId: chat.serverId, socket: chat.socket, pid: process.pid, version: SHRIMPY_VERSION };
-  await registrations.register({ kind: "chat", name: "chat", ...program });
+  await registrations.register({ kind: "chat", ...program });
   const agents = await connectLocalGateway();
   stopAfter(t, () => agents.close());
-  await agents.register({ kind: "agent", name: "scout", ...program });
+  await agents.join("scout");
+  await agents.register({ kind: "agent", ...program });
   const waiting = shrimpyInBackground(["run", "scout", "hello"]);
   await sending.promise;
 

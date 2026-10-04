@@ -16,6 +16,12 @@ import {
 
 type Method = Exclude<keyof Chat, "attach" | "detach">;
 
+/** Who the scripted chat asks who people are: the real gateway, in the tests that run one. */
+export interface ScriptedIdentity {
+  redeem(ticket: string): Promise<Member>;
+  member(id: string): Promise<Member | undefined>;
+}
+
 export interface ScriptedChatOptions {
   /** The clock, in milliseconds. Messages and marks are stamped with it. */
   now?: () => number;
@@ -37,7 +43,7 @@ export interface ScriptedChat {
    * over. For offering over a socket. Given the connection's presentation, the
    * connection can attach a thread and watch its live view, which `route` offers.
    */
-  serve(presentation?: RoutedServerPresentation): { chat: Chat; end: () => void };
+  serve(presentation: RoutedServerPresentation | undefined, identity: ScriptedIdentity): { chat: Chat; end: () => void };
   /**
    * The live view of a thread, for a server that sends a connection that
    * attaches the thread there: undefined when there is no such thread. The view
@@ -161,9 +167,12 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     return clone(message);
   }
 
-  function serve(presentation?: RoutedServerPresentation): { chat: Chat; end: () => void } {
+  function serve(
+    presentation: RoutedServerPresentation | undefined,
+    identity: ScriptedIdentity,
+  ): { chat: Chat; end: () => void } {
     let who: Member | undefined;
-    const caller = (): Member => who ?? refuse("Say who you are with identify before anything else.", "service_not_allowed");
+    const caller = (): Member => who ?? refuse("Come in with a ticket first.", "service_not_allowed");
     const gate = (method: Method): void => {
       const failure = failures.get(method);
       if (failure === undefined || failure.times === 0) return;
@@ -173,18 +182,20 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     const unsupported = (): never => refuse("The stand-in chat does not do this.");
 
     const chat: Chat = {
-      async identify(member) {
-        gate("identify");
-        who = member;
+      async enter(ticket) {
+        gate("enter");
+        who = await identity.redeem(ticket);
+        return who;
       },
       async channels() {
         gate("channels");
         const me = caller();
         return channels.filter((channel) => isIn(channel, me.id)).map((channel) => toChannel(channel, me));
       },
-      async openDm(other) {
+      async openDm(otherId) {
         gate("openDm");
         const me = caller();
+        const other = (await identity.member(otherId)) ?? refuse(`There is no member ${otherId} on the roster.`);
         return toChannel(makeDm(me, other).channel, me);
       },
       async threads(channelId) {

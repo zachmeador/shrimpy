@@ -1,4 +1,3 @@
-import type { Member } from "../../contracts/chat/index.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
 import { localTransports, type Transports } from "./network/index.ts";
 import { farewellLine } from "./screen/index.ts";
@@ -13,8 +12,6 @@ export interface ConsoleIo {
 }
 
 export interface ConsoleOptions {
-  /** You, as the chat server knows you. */
-  me: Member;
   io: ConsoleIo;
   /** How to reach the gateway and the programs it lists. This machine's sockets by default. */
   transports?: Transports;
@@ -39,7 +36,6 @@ export interface ConsoleOptions {
  */
 export async function openConsole(options: ConsoleOptions): Promise<number> {
   const state = createConsoleState({
-    me: options.me,
     transports: options.transports ?? localTransports(),
     pollMs: options.pollMs,
     noticeMs: options.noticeMs,

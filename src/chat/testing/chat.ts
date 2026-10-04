@@ -1,44 +1,62 @@
 import type { TestContext } from "node:test";
 import type { ChatConnection, Member } from "../../contracts/chat/index.ts";
+import {
+  type Entered,
+  enterAsAgent,
+  enterAsPerson,
+  joinRoster,
+  renameAgent,
+  ticketForPerson,
+} from "../../contracts/chat/testing/index.ts";
 import { connectLocal } from "../../contracts/chat/node.ts";
+import { startTestGateway, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
-import { type ChatOptions, type RunningChat, startChat } from "../index.ts";
+import { backoff } from "../../lib/retry/index.ts";
+import { type RunningChat, startChat } from "../index.ts";
 
 export interface TestChat {
   readonly chat: RunningChat;
   readonly dataDir: string;
-  /** A connection that has not said who it is. */
+  /** The real gateway the chat server is registered with. */
+  readonly gateway: TestGateway;
+  /** A connection that has not come in. */
   connect(): Promise<ChatConnection>;
-  /** A connection that has said it is `member`. */
-  join(member: Member): Promise<ChatConnection>;
+  /** Come in as the person who runs the gateway. */
+  person(): Promise<Entered>;
+  /** Come in as the agent called `name`. It joins the roster the first time, and is the same member each time after. */
+  agent(name: string): Promise<Entered>;
+  /** Make the agent called `name` a member of the roster, without its coming in. */
+  member(name: string): Promise<Member>;
+  /** Rename an agent that has joined, as starting it again under another name does. */
+  rename(name: string, renamed: string): Promise<Member>;
+  /** A ticket for the chat server, for the person who runs the gateway. */
+  ticket(): Promise<string>;
 }
 
 /**
  * A chat server in this process, with a data directory and a runtime directory
- * of its own. It stops, with the connections made through it, when the test
- * ends. It registers with a gateway only if `options.register` says so.
+ * of its own, registered with the real gateway, which runs as a process of its
+ * own. Both stop, with the connections made through them, when the test ends.
  */
-export async function startTestChat(
-  t: TestContext,
-  options: Pick<ChatOptions, "register"> = {},
-): Promise<TestChat> {
+export async function startTestChat(t: TestContext): Promise<TestChat> {
   useRuntimeDir(t);
+  const gateway = await startTestGateway(t);
   const dataDir = tempDir(t, "chat-data");
-  const chat = await startChat({ dataDir, ...options });
+  const chat = await startChat({ dataDir, backoff: backoff({ firstMs: 5, maxMs: 50 }) });
   stopAfter(t, () => chat.close());
-  const connect = async (): Promise<ChatConnection> => {
-    const connection = await connectLocal(chat.endpoint);
-    stopAfter(t, () => connection.close());
-    return connection;
-  };
   return {
     chat,
     dataDir,
-    connect,
-    async join(member) {
-      const connection = await connect();
-      await connection.chat.identify(member);
+    gateway,
+    async connect() {
+      const connection = await connectLocal(chat.endpoint);
+      stopAfter(t, () => connection.close());
       return connection;
     },
+    person: () => enterAsPerson(t, chat.endpoint),
+    agent: (name) => enterAsAgent(t, chat.endpoint, name),
+    member: (name) => joinRoster(t, name),
+    rename: (name, renamed) => renameAgent(t, name, renamed),
+    ticket: () => ticketForPerson(t),
   };
 }

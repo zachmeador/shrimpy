@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
 import { settle, waitForView } from "../lib/testing/index.ts";
-import { agent, startDm } from "./testing/index.ts";
+import { startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -16,7 +16,7 @@ test("who is working shows in threads and in another member's live view, until i
   const working = await waitForView(watching, (view) => view.thread.working.length === 1);
   const [mark] = working.thread.working;
   assert.ok(mark);
-  assert.equal(mark.memberId, agent("Shrimpy").id);
+  assert.equal(mark.memberId, shrimpy.me.id);
   assert.ok(mark.since > 0);
   assert.equal(working.thread.updatedAt, main.updatedAt);
   assert.deepEqual((await zach.chat.threads(dm.id))[0]?.working, [mark]);
@@ -53,7 +53,7 @@ test("a mark ends with the connection that made it", { timeout }, async (t) => {
 
 test("a member marked from two connections works until both have cleared or ended", { timeout }, async (t) => {
   const { chat, zach, shrimpy, main } = await startDm(t);
-  const other = await chat.join(agent("Shrimpy"));
+  const other = await chat.agent("Shrimpy");
   const watching = await zach.attach(main.id);
   await shrimpy.chat.setWorking(main.id, true);
   const started = await waitForView(watching, (view) => view.thread.working.length === 1);

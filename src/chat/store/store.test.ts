@@ -105,7 +105,7 @@ test("a store written by another version is refused and left as it is", (t) => {
   old.exec("CREATE TABLE skips (message_seq INTEGER, member_id TEXT); PRAGMA user_version = 1");
   old.close();
 
-  assert.throws(() => openStore(dataDir), /version 1, and this chat server reads version 2/);
+  assert.throws(() => openStore(dataDir), /version 1, and this chat server reads version 3/);
 
   const after = new DatabaseSync(file);
   const tables = after.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();

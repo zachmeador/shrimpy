@@ -2,10 +2,11 @@ import type { TestContext } from "node:test";
 import { DisconnectedError } from "@earendil-works/pi-client";
 import type { ChatConnection } from "../../../contracts/chat/index.ts";
 import { connectLocal } from "../../../contracts/chat/node.ts";
+import { gatewayAsAgent } from "../../../contracts/chat/testing/index.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import { openChatLink } from "../../links/index.ts";
-import { type ChatServer, scout, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
+import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
 import { type IntakeOptions, startIntake } from "../index.ts";
 import { type ScriptedTurns, scriptedTurns } from "./turns.ts";
 
@@ -37,26 +38,30 @@ export interface IntakeRigOptions extends Partial<Pick<IntakeOptions, "messageLi
 }
 
 /**
- * An intake for the agent Scout, wired to the real chat server and scripted
- * turns, with Zach to talk to it. Pauses between retries are a few
- * milliseconds. The intake and its link are stopped when the test ends.
+ * An intake for the agent Scout, wired to the real chat server and gateway and
+ * scripted turns, with the person who runs the gateway to talk to it. Scout is
+ * a member of the roster here, signed in on a connection to the gateway that
+ * makes the tickets it comes in with, without being a running agent. Pauses
+ * between retries are a few milliseconds. The intake and its link are stopped
+ * when the test ends.
  */
 export async function startIntakeRig(t: TestContext, options: IntakeRigOptions = {}): Promise<IntakeRig> {
   useRuntimeDir(t);
   const chat = options.chat ?? (await startChatServer(t));
+  // A second rig on the same chat server is the same agent coming back: it signs in with the token it joined with.
+  const gateway = await gatewayAsAgent(t, SCOUT);
   const talk = await talkTo(chat);
   const turns = options.turns ?? scriptedTurns();
   const errors: Error[] = [];
   const faults = planFaults();
 
   const link = openChatLink({
-    self: scout,
-    open: async () => faulty(await connectLocal(chat.endpoint), faults),
+    gateway: { untilUp: () => Promise.resolve(gateway) },
+    connect: async (registered) => faulty(await connectLocal(registered), faults),
     onError: (error) => errors.push(error),
     backoff: backoff({ firstMs: 5, maxMs: 20 }),
   });
   const intake = startIntake({
-    self: scout,
     link,
     turns,
     onError: (error) => errors.push(error),

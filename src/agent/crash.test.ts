@@ -18,21 +18,24 @@ import {
 const timeout = 60_000;
 const LAST_LINE = "line 40: the quick brown fox jumps over the lazy dog";
 
-/** A home, the chat server, and Zach in his DM with Scout. */
+/**
+ * A home and the chat server and gateway. The person talks to the agent once it
+ * has started for the first time and joined the roster.
+ */
 async function setUp(t: TestContext) {
   useRuntimeDir(t);
   const home = tempDir(t, "crash");
   const chat = await startChatServer(t);
-  const talk = await talkTo(chat);
   /** Start an agent in a process of its own, as the next start would. */
   const start = (scenario: Parameters<typeof startAgentChild>[2], tokensPerSecond: number, holdReceipts = false) =>
-    startAgentChild(t, home, scenario, tokensPerSecond, chat.endpoint, { holdReceipts });
-  return { home, chat, talk, start };
+    startAgentChild(t, home, scenario, tokensPerSecond, { holdReceipts });
+  return { home, chat, start };
 }
 
 test("killed while the model streams: the request is sent again, and the reply is posted once", { timeout }, async (t) => {
-  const { home, talk, start } = await setUp(t);
+  const { home, chat, start } = await setUp(t);
   const first = await start("mixed", 40);
+  const talk = await talkTo(chat);
   const asked = await talk.say("stream a long answer");
   await talk.untilWorking();
   const before = await attachThread(home, talk.thread.id);
@@ -64,9 +67,10 @@ test("killed while the model streams: the request is sent again, and the reply i
 });
 
 test("killed while a tool runs: the tool is reported and not run again, and the reply is posted once", { timeout }, async (t) => {
-  const { home, talk, start } = await setUp(t);
+  const { home, chat, start } = await setUp(t);
   stopAfter(t, () => stopOrphanedShell(home));
   const first = await start("mixed", 400);
+  const talk = await talkTo(chat);
   const asked = await talk.say("run the slow command");
   await talk.untilWorking();
   const before = await attachThread(home, talk.thread.id);
@@ -96,8 +100,9 @@ test("killed while a tool runs: the tool is reported and not run again, and the 
 });
 
 test("killed between the turn ending and the reply being posted: the reply arrives once when the agent is back", { timeout }, async (t) => {
-  const { home, chat, talk, start } = await setUp(t);
+  const { home, chat, start } = await setUp(t);
   const first = await start("gated", 400);
+  const talk = await talkTo(chat);
   const asked = await talk.say("hello");
   await talk.untilWorking();
   await chat.outage();
@@ -113,13 +118,15 @@ test("killed between the turn ending and the reply being posted: the reply arriv
   assert.equal((await talk.receiptOn(asked)).status, "answered");
   const replies = await talk.replies();
   assert.equal(replies.length, 1);
-  assert.match(replies[0]?.text ?? "", /^You said: Thread th_\w+ in channel ch_\w+\.\n\nZach wrote at /);
+  assert.match(replies[0]?.text ?? "", /^You said: Thread th_\w+ in channel ch_\w+\.\n\n/);
+  assert.ok(replies[0]?.text.includes(`${talk.me.name} wrote at `));
   assert.equal(loggedRequests(home).length, 1, "the model was not asked again");
 });
 
 test("killed while the receipt is being left: the reply is not posted a second time", { timeout }, async (t) => {
-  const { talk, start } = await setUp(t);
+  const { chat, start } = await setUp(t);
   const first = await start("mixed", 400, true);
+  const talk = await talkTo(chat);
   const asked = await talk.say("hello");
   await eventually(() => talk.replies(), (replies) => replies.length === 1, { what: "the reply to be out" });
   const [posted] = await talk.replies();
@@ -134,8 +141,9 @@ test("killed while the receipt is being left: the reply is not posted a second t
 });
 
 test("killed with a message waiting: the next start works through what it left, in order", { timeout }, async (t) => {
-  const { home, talk, start } = await setUp(t);
+  const { home, chat, start } = await setUp(t);
   const first = await start("mixed", 40);
+  const talk = await talkTo(chat);
   const one = await talk.say("stream a long answer");
   await talk.untilWorking();
   const two = await talk.say("and then this");

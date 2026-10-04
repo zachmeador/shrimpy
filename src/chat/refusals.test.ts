@@ -1,17 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Member } from "../contracts/chat/index.ts";
 import { settle } from "../lib/testing/index.ts";
-import { agent, follow, mainThread, outcome, person, startTestChat } from "./testing/index.ts";
+import { follow, mainThread, outcome, startTestChat } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-test("before a connection says who it is, every call but identify is refused", { timeout }, async (t) => {
+test("before a connection has come in with a ticket, every call but enter is refused, and a ticket works once", { timeout }, async (t) => {
   const chat = await startTestChat(t);
+  // Once someone has come in, the chat server is registered and can ask the gateway.
+  await chat.person();
   const stranger = await chat.connect();
   const calls: [string, () => Promise<unknown>][] = [
     ["channels", () => stranger.chat.channels()],
-    ["openDm", () => stranger.chat.openDm(agent("Shrimpy"))],
+    ["openDm", () => stranger.chat.openDm("mem_1")],
     ["threads", () => stranger.chat.threads("ch_1")],
     ["createThread", () => stranger.chat.createThread("ch_1", null)],
     ["renameThread", () => stranger.chat.renameThread("th_1", "Name")],
@@ -26,20 +27,26 @@ test("before a connection says who it is, every call but identify is refused", {
   ];
 
   for (const [name, call] of calls) {
-    await assert.rejects(call(), { code: "service_not_allowed", message: /Say who you are with identify/ }, name);
+    await assert.rejects(call(), { code: "service_not_allowed", message: /Come in with a ticket/ }, name);
   }
+  await assert.rejects(stranger.chat.enter(""), { message: /^ticket must be an ID/ });
+  await assert.rejects(stranger.chat.enter("made-up"), { message: /not good/ });
 
-  await stranger.chat.identify(person("Zach"));
+  const ticket = await chat.ticket();
+  const me = await stranger.chat.enter(ticket);
+  assert.equal(me.kind, "person");
   assert.deepEqual(await stranger.chat.channels(), []);
+  await assert.rejects(stranger.chat.enter(await chat.ticket()), { message: /entered already/ });
+  const another = await chat.connect();
+  await assert.rejects(another.chat.enter(ticket), { message: /not good/ });
 });
 
 test("a member who is not in a channel cannot see or touch it", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const alice = await chat.join(person("Alice"));
-  const outsider = await chat.join(agent("Outsider"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const shrimpy = await chat.agent("Shrimpy");
+  const alice = await chat.agent("Alice");
+  const dm = await zach.chat.openDm(shrimpy.me.id);
   const main = await mainThread(zach, dm.id);
   const said = await zach.chat.post(main.id, "for shrimpy only", "zach-1");
 
@@ -53,10 +60,10 @@ test("a member who is not in a channel cannot see or touch it", { timeout }, asy
     ["read", () => alice.chat.read(main.id, null, 10), /^Unknown thread: th_/],
     ["setWorking", () => alice.chat.setWorking(main.id, true), /^Unknown thread: th_/],
     ["attach", () => alice.attach(main.id), /^Unknown thread: th_/],
-    ["leaveReceipt by a person", () => alice.chat.leaveReceipt([said.id], outcome("silent")), /^Only an agent/],
+    ["leaveReceipt by a person", () => zach.chat.leaveReceipt([said.id], outcome("silent")), /^Only an agent/],
     [
       "leaveReceipt by another agent",
-      () => outsider.chat.leaveReceipt([said.id], outcome("silent")),
+      () => alice.chat.leaveReceipt([said.id], outcome("silent")),
       /^Unknown message: msg_/,
     ],
   ];
@@ -71,44 +78,37 @@ test("a member who is not in a channel cannot see or touch it", { timeout }, asy
   assert.deepEqual((await zach.chat.threads(dm.id))[0]?.preview, "for shrimpy only");
 });
 
-test("a connection is one member for as long as it lasts", { timeout }, async (t) => {
+test("a member who comes in again under a new name is the same member, with its channels, under that name", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
+  const zach = await chat.person();
+  const shrimpy = await chat.agent("Shrimpy");
+  const dm = await zach.chat.openDm(shrimpy.me.id);
+  const main = await mainThread(zach, dm.id);
+  const said = await zach.chat.post(main.id, "Hello", "zach-1");
+  assert.equal(dm.name, "Shrimpy");
 
-  await zach.chat.identify({ id: "person:zach", kind: "person", name: "Zachariah" });
-  await assert.rejects(zach.chat.identify(person("Someone")), {
-    code: "service_invalid_value",
-    message: /already identified as person:zach/,
-  });
+  await chat.rename("Shrimpy", "Sparky");
+  const renamed = await chat.agent("Sparky");
 
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  assert.deepEqual(
-    dm.members.map((member) => member.name),
-    ["Shrimpy", "Zachariah"],
-  );
-});
-
-test("a member cannot change what kind of member it is", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  await chat.join(agent("Shrimpy"));
-  const impostor = await chat.connect();
-
-  await assert.rejects(impostor.chat.identify({ id: "agent:shrimpy", kind: "person", name: "Shrimpy" }), {
-    message: /agent:shrimpy is on record with kind agent, not person/,
-  });
-  await assert.rejects(impostor.chat.channels(), { code: "service_not_allowed" });
+  assert.equal(renamed.me.id, shrimpy.me.id);
+  assert.equal(renamed.me.name, "Sparky");
+  const [channel] = await zach.chat.channels();
+  assert.equal(channel?.id, dm.id);
+  assert.equal(channel.name, "Sparky");
+  assert.deepEqual(await renamed.chat.read(main.id, null, 10), [{ ...said, author: said.author }]);
+  assert.equal((await zach.chat.openDm(renamed.me.id)).id, dm.id, "and it is the same DM that opens");
 });
 
 test("arguments of the wrong kind are refused with a reason", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const dm = await zach.chat.openDm((await chat.member("Shrimpy")).id);
   const main = await mainThread(zach, dm.id);
   const wrong = (value: unknown): never => value as never;
 
   const refusals: [() => Promise<unknown>, RegExp][] = [
-    [() => zach.chat.identify(wrong("person:zach") as Member), /^member must be a member/],
-    [() => zach.chat.openDm(person("Zach")), /needs someone besides yourself/],
+    [() => zach.chat.openDm(zach.me.id), /needs someone besides yourself/],
+    [() => zach.chat.openDm(wrong(7)), /^other must be an ID/],
     [() => zach.chat.post(main.id, "", "zach-1"), /needs some text/],
     [() => zach.chat.post(main.id, "hi", wrong("")), /^requestId must be an ID/],
     [() => zach.chat.read(main.id, null, 0), /^limit must be a whole number/],

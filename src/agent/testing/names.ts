@@ -1,7 +1,2 @@
-import { agentMember, type Member } from "../../contracts/chat/index.ts";
-
-/** The person who talks to the agent in tests. */
-export const zach: Member = { id: "person:zach", kind: "person", name: "Zach" };
-
-/** The agent under test. */
-export const scout: Member = agentMember("scout");
+/** What the agent under test is called. The roster binds the name to an ID of its own, which only the roster knows. */
+export const SCOUT = "scout";

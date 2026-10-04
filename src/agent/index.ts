@@ -1,13 +1,13 @@
 /**
  * The agent program: one process that owns one home, serves the agent API for
- * it, and takes part in chat. Other programs reach an agent only through
- * `contracts/agent`; they never import this program's modules, except that the
- * CLI starts an agent, creates a home and previews what a home would tell an
- * agent through this door. It must not know who its clients are, or anything
- * about the chat server and the gateway beyond their contracts.
+ * it, and takes part in the network as a member and in chat. Other programs
+ * reach an agent only through `contracts/agent`; they never import this
+ * program's modules, except that the CLI starts an agent, creates a home and
+ * previews what a home would tell an agent through this door. It must not know
+ * who its clients are, or anything about the chat server and the gateway
+ * beyond their contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
-import { agentMember } from "../contracts/chat/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext } from "./extensions/index.ts";
 import { loadHome } from "./home/index.ts";
@@ -30,11 +30,15 @@ export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
 
 export interface AgentOptions extends HostOptions {
-  /** The agent's name: who it is in chat, what the gateway lists it as, and what its instructions call it. */
+  /**
+   * The agent's name: what it asks the roster to call it, and what its
+   * instructions call it. The roster binds the name to the agent's ID, and
+   * decides whether it is free.
+   */
   name: string;
   /** The model every session uses. It is set again at every start. */
   model: SessionDefaults["model"];
-  /** Take part in chat. Without it, nothing reaches the agent but clients that attach to its sessions. */
+  /** Take part in the network and in chat. Without it, nothing reaches the agent but clients that attach to its sessions. */
   join?: JoinOptions;
 }
 
@@ -63,12 +67,12 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   // A runtime directory too long for a socket fails here, before the home is claimed.
   socketPathFor(options.home);
   const context = await homeContext({ name: options.name, home: options.home });
-  // The message tools are installed with the engine, before the agent has a link to chat: they ask for the one it
-  // has when they run. An agent that takes no part in chat has none, and they say chat is unreachable.
+  // The message tools are installed with the engine, before the agent has a link to chat: they ask for the ones it
+  // has when they run. An agent that takes no part in the network has none, and they say chat is unreachable.
   let joined: Joined | undefined;
   const messages = messageTools({
-    self: agentMember(options.name),
     chat: () => joined?.chat(),
+    gateway: () => joined?.gateway(),
     ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
   });
   const host = await openHost(options, [context.extension, messages]);
@@ -81,7 +85,12 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     host.resume();
     const server = await startServer(host, sessions, context);
     try {
-      if (options.join !== undefined) joined = join(options.name, options.join, server.endpoint, sessions.turns, report);
+      if (options.join !== undefined) {
+        joined = join(
+          { name: options.name, home: options.home, endpoint: server.endpoint, turns: sessions.turns, onError: report },
+          options.join,
+        );
+      }
       return { endpoint: server.endpoint, close: stopper({ host, server, joined }) };
     } catch (error) {
       await server.close();

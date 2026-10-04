@@ -1,15 +1,23 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { connectGateway, type Registration } from "../../../contracts/gateway/index.ts";
+import {
+  connectGateway,
+  type GatewayConnection,
+  type ProgramName,
+  type Registration,
+  type RosterEntry,
+} from "../../../contracts/gateway/index.ts";
 import { isDisconnected, isNotListening } from "../../../lib/connection/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import { type Backoff, keepRunning } from "../../../lib/retry/index.ts";
-import { CONNECTING, type LinkStatus, type Why } from "./status.ts";
+import { CONNECTING, Down, type LinkStatus, type Why } from "./status.ts";
 import type { Transports } from "./transports.ts";
 
-/** What the gateway says is running. */
+/** What the gateway says is running and who is on its roster. */
 export interface Listing {
   /** Every program it lists, oldest first. */
   programs: Registration[];
+  /** Everyone on the roster, oldest first, whether they are running or not. */
+  members: RosterEntry[];
   /** The version of Shrimpy the gateway runs. */
   version: string;
 }
@@ -35,6 +43,12 @@ export interface RegistryLink {
    * `signal` aborts.
    */
   untilListed(match: (program: Registration) => boolean, signal: AbortSignal, waiting?: () => void): Promise<Registration>;
+  /**
+   * A ticket from the gateway for `target`, to hand to it. The console never
+   * signs in, so the gateway says the ticket is for the person who runs it. Fails
+   * with `Down`, saying why, when the gateway is not being reached.
+   */
+  ticket(target: ProgramName): Promise<string>;
   /** Hang up and stop asking. */
   close(): Promise<void>;
 }
@@ -49,6 +63,7 @@ export function keepRegistry(options: RegistryOptions): RegistryLink {
   const changes = createListeners<undefined>(() => undefined);
   let listing: Listing | undefined;
   let status: LinkStatus = CONNECTING;
+  let live: GatewayConnection | undefined;
 
   const setStatus = (next: LinkStatus): void => {
     if (JSON.stringify(next) === JSON.stringify(status)) return;
@@ -82,12 +97,14 @@ export function keepRegistry(options: RegistryOptions): RegistryLink {
         const version = await gateway.version();
         established();
         setStatus({ state: "up" });
+        live = gateway;
         const over = AbortSignal.any([signal, lost.signal]);
         while (!over.aborted) {
-          setListing({ programs: await gateway.list(), version });
+          setListing({ programs: await gateway.list(), members: await gateway.members(), version });
           await delay(options.pollMs, undefined, { signal: over }).catch(() => undefined);
         }
       } finally {
+        live = undefined;
         signal.removeEventListener("abort", hangUp);
         if (!signal.aborted) setStatus({ state: "down", why: { kind: "lost" } });
         await gateway.close().catch(() => undefined);
@@ -123,6 +140,10 @@ export function keepRegistry(options: RegistryOptions): RegistryLink {
         if (signal.aborted) return cancel();
         signal.addEventListener("abort", cancel, { once: true });
       });
+    },
+    async ticket(target) {
+      if (live === undefined) throw new Down(status.state === "down" ? status.why : { kind: "lost" });
+      return live.ticket(target);
     },
     async close() {
       stopping.abort();

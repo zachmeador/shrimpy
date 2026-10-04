@@ -4,7 +4,7 @@ import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/conte
 import type { ToolExecutionApi, ToolRegistration } from "@earendil-works/pi-durable";
 import type { ChatClient } from "../../../../contracts/chat/index.ts";
 import type { LiveChat } from "../../../links/index.ts";
-import { scout, startChatServer, type Talk, talkTo } from "../../../testing/index.ts";
+import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../../testing/index.ts";
 import { messageTools } from "../index.ts";
 
 export interface ToolRigOptions {
@@ -23,8 +23,10 @@ export interface ToolRun {
   isError: boolean;
 }
 
-/** The message tools for the agent Scout, and Zach to talk to it. */
+/** The message tools for the agent Scout, and the person who runs the gateway to talk to it. */
 export interface ToolRig extends Talk {
+  /** The real chat server and gateway the tools work against. */
+  readonly chat: ChatServer;
   /** Scout posts in the main thread of the DM, as the agent does over the connection the tools use. */
   postAsScout(text: string): Promise<void>;
   /** The connection the tools use is lost. */
@@ -38,21 +40,28 @@ export interface ToolRig extends Talk {
 }
 
 /**
- * The message tools for the agent Scout, wired to the real chat server where
- * Zach has a DM with it, over a connection that is closed when the test ends.
+ * The message tools for the agent Scout, wired to the real chat server and
+ * gateway, where the person who runs the gateway has a DM with it, over a
+ * connection that is closed when the test ends. Scout is a member of the
+ * roster here without being a running agent: the tools are all that is under test.
  */
 export async function startToolRig(t: TestContext, options: ToolRigOptions = {}): Promise<ToolRig> {
   const chat = await startChatServer(t);
+  const connection = await chat.agent(SCOUT);
   const talk = await talkTo(chat);
-  const connection = await chat.join(scout);
   const lost = new AbortController();
   const lose = (): void => lost.abort(new Error("The connection to chat was closed."));
   connection.onDisconnect((reason) => lost.abort(reason ?? new Error("The connection to chat was closed.")));
-  const live: LiveChat = { chat: options.through?.(connection.chat, lose) ?? connection.chat, lost: lost.signal };
+  const live: LiveChat = {
+    chat: options.through?.(connection.chat, lose) ?? connection.chat,
+    self: connection.me,
+    lost: lost.signal,
+  };
+  const roster = await chat.gateway.connect();
 
   const extension = messageTools({
-    self: scout,
     chat: () => (live.lost.aborted ? undefined : live),
+    gateway: () => roster,
     ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),
   });
   const tool = (name: string): ToolRegistration => {
@@ -61,10 +70,11 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
     return found;
   };
 
-  // The engine's number for the session, and the one document that says it is behind Zach's main thread.
+  // The engine's number for the session, and the one document that says it is behind the main thread of the DM.
   const sessions = { [talk.thread.id]: { conversationId: 1, channelId: talk.thread.channelId, unacted: [] } };
   return {
     ...talk,
+    chat,
     lose,
     async postAsScout(text) {
       await connection.chat.post(talk.thread.id, text, randomUUID());

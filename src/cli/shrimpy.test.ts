@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
+import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { loadAll } from "./commands/index.ts";
 import {
@@ -12,7 +13,6 @@ import {
   type LaunchOptions,
   serve,
   serveChat,
-  serveGateway,
   shrimpy,
   shrimpyInBackground,
   startModelServer,
@@ -54,7 +54,7 @@ async function agentOnTheNetwork(t: TestContext, target: { url: string; model: s
   const init = await shrimpy(["agent", "init", home, "--name", "scout", "--model", `local/${target.model}`]);
   assert.equal(init.code, 0, init.stderr);
   declareLocalModel(home, target);
-  await serveGateway(t);
+  await startTestGateway(t);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   const agent = await serve(t, home, [], { env: { HOME: tempDir(t, "user-home"), ...launch?.env } });
   const talk = await talkTo(t, chat.listening, "scout");

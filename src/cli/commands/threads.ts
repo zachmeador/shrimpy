@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { dmWith, reachChat } from "../talk/index.ts";
+import { agentNamed, dmWith, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThreads } from "./render-threads.ts";
@@ -20,7 +20,7 @@ const threads: Command = {
 
     const reached = await reachChat(io);
     try {
-      const dm = dmWith(await reached.connection.chat.channels(), agent);
+      const dm = dmWith(await reached.connection.chat.channels(), agentNamed(reached.members, agent));
       if (dm === undefined) {
         io.out(json ? "[]" : `You have not talked to ${agent} yet. Start with: shrimpy run ${agent} "<text>"`);
         return 0;

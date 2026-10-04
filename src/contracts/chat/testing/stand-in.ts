@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
+import { isRefusal, refuse } from "../../../lib/refusal/index.ts";
+import { backoff } from "../../../lib/retry/index.ts";
 import { offer, type StandIn, startStandIn, stopAfter } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
-import { keepRegistered } from "../../gateway/node.ts";
-import { Chat, type ChatConnection, type ChatEndpoint, type Member } from "../index.ts";
-import { connectLocal } from "../node.ts";
-import { type ScriptedChat, scriptedChat } from "./scripted.ts";
+import { keepRegistered, type KeptRegistration } from "../../gateway/node.ts";
+import { Chat, type ChatEndpoint } from "../index.ts";
+import { type Entered, enterAsAgent, enterAsPerson } from "./enter.ts";
+import { type ScriptedChat, scriptedChat, type ScriptedIdentity } from "./scripted.ts";
 
 export interface StandInChatOptions {
   /** The chat to serve, when the test made one. By default a new, empty one. */
   chat?: ScriptedChat;
-  /** Register with this machine's gateway, the way the chat server does. */
-  register?: boolean;
 }
 
 export interface StandInChat {
@@ -19,8 +19,14 @@ export interface StandInChat {
   readonly chat: ScriptedChat;
   /** How many connections are open right now. */
   connections(): number;
-  /** Connect over the socket and say who you are. The connection is closed when the test ends. */
-  join(member: Member): Promise<ChatConnection>;
+  /** Come in as the person who runs the gateway. The connection is closed when the test ends. */
+  asPerson(): Promise<Entered>;
+  /**
+   * Come in as the agent called `name`: with its token if it has one, as a
+   * stand-in agent does, or else by joining the roster the first time. The
+   * connection is closed when the test ends.
+   */
+  asAgent(name: string, token?: string): Promise<Entered>;
   /** Stop listening and cut every connection, like a chat server that went away. What was said stays. */
   outage(): Promise<void>;
   /** Listen again where it was, with the same server ID, like a chat server that came back. */
@@ -30,17 +36,38 @@ export interface StandInChat {
 /**
  * A stand-in for the chat server as a real server on a real socket, for the
  * tests of the console. It answers with a scripted chat in memory, not the chat
- * server's code. It listens where the chat server does, so the test needs a
- * runtime directory of its own, and it is closed when the test ends.
+ * server's code, but it lets people in the way the chat server does: it is
+ * registered with the gateway, which is the real one, and asks it whose a
+ * ticket is. It listens where the chat server does, so the test needs a
+ * runtime directory of its own and a gateway, and it is closed when the test
+ * ends.
  */
 export async function startStandInChat(t: TestContext, options: StandInChatOptions = {}): Promise<StandInChat> {
   const chat = options.chat ?? scriptedChat();
   const serverId = randomUUID();
+  const registered: { kept?: KeptRegistration } = {};
+  const identity: ScriptedIdentity = {
+    async redeem(ticket) {
+      const gateway = registered.kept?.current() ?? refuse("The stand-in chat can't reach the gateway.", "service_not_allowed");
+      try {
+        const { id, kind, name } = await gateway.redeem(ticket);
+        return { id, kind, name };
+      } catch (error) {
+        if (isRefusal(error)) refuse(error.message);
+        throw error;
+      }
+    },
+    async member(id) {
+      const gateway = registered.kept?.current() ?? refuse("The stand-in chat can't reach the gateway.", "service_not_allowed");
+      const found = (await gateway.members()).find((each) => each.id === id);
+      return found === undefined ? undefined : { id: found.id, kind: found.kind, name: found.name };
+    },
+  };
   const listen = (): Promise<StandIn> =>
     startStandIn(t, "chat", {
       serverId,
       offer(presentation) {
-        const served = chat.serve(presentation);
+        const served = chat.serve(presentation, identity);
         return offer(Chat, served.chat, served.end);
       },
       route: (threadId) => chat.route(threadId),
@@ -49,20 +76,18 @@ export async function startStandInChat(t: TestContext, options: StandInChatOptio
   let listening: StandIn | undefined = await listen();
   const { socket } = listening;
   const endpoint: ChatEndpoint = { serverId, socket, pid: process.pid };
-  if (options.register === true) {
-    const kept = keepRegistered({ kind: "chat", name: "chat", ...endpoint, version: SHRIMPY_VERSION });
-    stopAfter(t, () => kept.stop());
-  }
+  const kept = keepRegistered(
+    { kind: "chat", serverId, socket, pid: process.pid, version: SHRIMPY_VERSION },
+    { backoff: backoff({ firstMs: 5, maxMs: 20 }) },
+  );
+  registered.kept = kept;
+  stopAfter(t, () => kept.stop());
 
   return {
     chat,
     connections: () => listening?.connections() ?? 0,
-    async join(member) {
-      const connection = await connectLocal(endpoint);
-      stopAfter(t, () => connection.close());
-      await connection.chat.identify(member);
-      return connection;
-    },
+    asPerson: () => enterAsPerson(t, endpoint),
+    asAgent: (name, token) => enterAsAgent(t, endpoint, name, token),
     async outage() {
       const stopped = listening;
       listening = undefined;

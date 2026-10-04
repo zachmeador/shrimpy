@@ -4,12 +4,13 @@ import { connectGateway, webSocketPath, webSocketTransport } from "../contracts/
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import {
-  agentRegistration as agent,
+  agentAnnouncement as agent,
+  joinAndRegister,
   connectEcho,
   type EchoClient,
   handshakeStatus,
   startEchoProgram,
-  startTestGateway,
+  startGatewayInProcess,
   webPortOf,
 } from "./testing/index.ts";
 
@@ -17,7 +18,7 @@ const timeout = 30_000;
 
 test("a browser reads the registry and reaches a registered program through the web entry", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t, { web: { port: 0 } });
+  const gateway = await startGatewayInProcess(t, { web: { port: 0 } });
   const echo = await startEchoProgram(t, "echo-agent");
   const program = await connectLocalGateway();
   // From here on, what a page would do: only the web entry.
@@ -27,7 +28,7 @@ test("a browser reads the registry and reaches a registered program through the 
   });
   let agentClient: EchoClient | undefined;
   try {
-    await program.register({ ...agent("echo"), serverId: echo.serverId, socket: echo.socket });
+    await joinAndRegister(program, "echo", { ...agent("echo"), serverId: echo.serverId, socket: echo.socket });
 
     const [found] = await browser.list();
     assert.equal(found?.name, "echo");
@@ -42,17 +43,21 @@ test("a browser reads the registry and reaches a registered program through the 
   }
 });
 
-test("a browser can list programs but cannot register one", { timeout }, async (t) => {
+test("a browser can list programs and the roster, but cannot register a program, join, sign in or ask for a ticket", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t, { web: { port: 0 } });
+  const gateway = await startGatewayInProcess(t, { web: { port: 0 } });
   const port = webPortOf(gateway);
   const browser = await connectGateway({
     transportFactory: webSocketTransport(`ws://127.0.0.1:${port}${webSocketPath("gateway")}`),
   });
   try {
     await assert.rejects(browser.register(agent("planted")), { code: "service_not_allowed" });
+    await assert.rejects(browser.join("planted"), { code: "service_not_allowed" });
+    await assert.rejects(browser.signIn("a-token", null), { code: "service_not_allowed" });
+    await assert.rejects(browser.ticket({ kind: "chat", name: "chat" }), { code: "service_not_allowed" });
 
     assert.deepEqual(await browser.list(), []);
+    assert.deepEqual((await browser.members()).map((member) => member.kind), ["person"]);
     assert.equal(await handshakeStatus(port, webSocketPath({ kind: "agent", name: "planted" })), 404);
   } finally {
     await browser.close();
@@ -62,7 +67,7 @@ test("a browser can list programs but cannot register one", { timeout }, async (
 
 test("a program that leaves the registry can no longer be reached from a browser", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t, { web: { port: 0 } });
+  const gateway = await startGatewayInProcess(t, { web: { port: 0 } });
   const echo = await startEchoProgram(t, "echo-agent");
   const program = await connectLocalGateway();
   try {
@@ -70,7 +75,7 @@ test("a program that leaves the registry can no longer be reached from a browser
     const path = webSocketPath({ kind: "agent", name: "echo" });
     assert.equal(await handshakeStatus(port, path), 404);
 
-    await program.register({ ...agent("echo"), serverId: echo.serverId, socket: echo.socket });
+    await joinAndRegister(program, "echo", { ...agent("echo"), serverId: echo.serverId, socket: echo.socket });
     assert.equal(await handshakeStatus(port, path), 101);
 
     await program.close();

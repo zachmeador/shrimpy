@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
-import { agentMember, type Channel, type ChatClient, type Thread } from "../../contracts/chat/index.ts";
+import type { Channel, ChatClient, Thread } from "../../contracts/chat/index.ts";
 import type { Io } from "../io/index.ts";
-import { type Reached, reachChat, registeredAgent, type Waited, waitForReceipt } from "../talk/index.ts";
+import { agentNamed, type Reached, reachChat, runningAgent, type Waited, waitForReceipt } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
@@ -57,11 +57,12 @@ async function say(io: Io, request: Request): Promise<number> {
   try {
     reached = await reachChat(io, signal);
     reached.connection.onDisconnect(() => lost.abort());
-    const registered = registeredAgent(reached.programs, request.agent);
-    warnIfVersionDiffers(io, `the agent ${request.agent}`, registered.version);
+    const agent = agentNamed(reached.members, request.agent);
+    const registered = runningAgent(reached.programs, agent);
+    warnIfVersionDiffers(io, `the agent ${agent.name}`, registered.version);
 
     const { chat } = reached.connection;
-    const dm = await chat.openDm(agentMember(request.agent), signal);
+    const dm = await chat.openDm(agent.id, signal);
     const thread = await chooseThread(chat, dm, request.thread, signal);
     progress = { stage: "sending" };
     const message = await chat.post(thread.id, request.text, randomUUID(), signal);
@@ -75,7 +76,7 @@ async function say(io: Io, request: Request): Promise<number> {
     }
     const watched = await reached.connection.attach(thread.id);
     const waiting = AbortSignal.any([signal, lost.signal]);
-    const waited = await waitForReceipt(watched, message.id, agentMember(request.agent).id, waiting);
+    const waited = await waitForReceipt(watched, message.id, agent.id, waiting);
     return report(io, request.agent, thread.id, waited);
   } catch (error) {
     if (signal.aborted) return interrupted(io, request.agent, progress);

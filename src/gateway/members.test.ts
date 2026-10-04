@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { RosterOwnedError } from "./index.ts";
-import { startTestGateway } from "./testing/index.ts";
+import { startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -15,7 +15,7 @@ const rosterFile = (dataDir: string): string => join(dataDir, "state", "roster.j
 test("an agent that joins is the same member when it signs in again, also after the gateway has restarted", { timeout }, async (t) => {
   useRuntimeDir(t);
   const dataDir = tempDir(t, "gateway-data");
-  const first = await startTestGateway(t, { dataDir });
+  const first = await startGatewayInProcess(t, { dataDir });
   const joining = await connectLocalGateway();
   const { member, token } = await joining.join("scout");
   assert.equal(member.kind, "agent");
@@ -24,7 +24,7 @@ test("an agent that joins is the same member when it signs in again, also after 
   await joining.close();
   await first.close();
 
-  const second = await startTestGateway(t, { dataDir });
+  const second = await startGatewayInProcess(t, { dataDir });
   const returning = await connectLocalGateway();
   stopAfter(t, () => returning.close());
   try {
@@ -44,14 +44,14 @@ test("an agent that joins is the same member when it signs in again, also after 
 test("a token the roster does not have is refused, and so is a second gateway on the same roster", { timeout }, async (t) => {
   useRuntimeDir(t);
   const dataDir = tempDir(t, "gateway-data");
-  const gateway = await startTestGateway(t, { dataDir });
+  const gateway = await startGatewayInProcess(t, { dataDir });
   const client = await connectLocalGateway();
   stopAfter(t, () => client.close());
   try {
     await assert.rejects(client.signIn("not-a-token", null), /does not know that token/);
 
     const elsewhere = tempDir(t, "rt-elsewhere");
-    await assert.rejects(inRuntimeDir(elsewhere, () => startTestGateway(t, { dataDir })), RosterOwnedError);
+    await assert.rejects(inRuntimeDir(elsewhere, () => startGatewayInProcess(t, { dataDir })), RosterOwnedError);
   } finally {
     await gateway.close();
   }
@@ -59,7 +59,7 @@ test("a token the roster does not have is refused, and so is a second gateway on
 
 test("a name another member has is refused, whatever the case, and a rename keeps the member", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const [scout, other, renamer, later] = await Promise.all([1, 2, 3, 4].map(() => connectLocalGateway()));
   for (const connection of [scout, other, renamer, later]) stopAfter(t, () => connection?.close());
   try {
@@ -91,7 +91,7 @@ test("a name another member has is refused, whatever the case, and a rename keep
 
 test("the person who runs the gateway is on the roster from the start, and nobody says who they are", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const client = await connectLocalGateway();
   stopAfter(t, () => client.close());
   try {

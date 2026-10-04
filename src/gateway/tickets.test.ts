@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
-import type { Registration } from "../contracts/gateway/index.ts";
+import type { Announcement } from "../contracts/gateway/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
-import { agentRegistration, startTestGateway } from "./testing/index.ts";
+import { agentAnnouncement, startGatewayInProcess } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-const chatRegistration = (): Registration => ({ ...agentRegistration("chat"), kind: "chat" });
+const chatRegistration = (): Announcement => ({ ...agentAnnouncement("chat"), kind: "chat" });
 const chat = { kind: "chat", name: "chat" } as const;
 
 test("a ticket says who asked, is good once and only for the program it was made for, and a made-up one is not good", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const connect = async () => {
     const connection = await connectLocalGateway();
     stopAfter(t, () => connection.close());
@@ -22,7 +22,8 @@ test("a ticket says who asked, is good once and only for the program it was made
   try {
     const [server, bystander, person, agent] = await Promise.all([connect(), connect(), connect(), connect()]);
     await server.register(chatRegistration());
-    await bystander.register(agentRegistration("scout"));
+    await bystander.join("scout");
+    await bystander.register(agentAnnouncement("scout"));
     const joined = await agent.join("scout-too");
 
     const forPerson = await person.ticket(chat);
@@ -43,7 +44,7 @@ test("a ticket says who asked, is good once and only for the program it was made
 
 test("a ticket is made for a program that is registered, and only the chat server is one today", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const client = await connectLocalGateway();
   stopAfter(t, () => client.close());
   try {

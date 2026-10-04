@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentMember } from "../../../contracts/chat/index.ts";
 import { assistantItem, sessionView, toolItem, userItem, workingView } from "../../../contracts/agent/testing/index.ts";
 import {
   aChatServer,
   aDm,
+  agentMember,
+  aListing,
   aMessage,
   aModel,
   anAgent,
@@ -38,7 +39,7 @@ const thread = (screen: Screen): ThreadScreen => {
 test("the agents are listed by name, with whether each is working, and the list says nothing is wrong when nothing is", () => {
   const busy = aThread("th_1", { working: [{ memberId: scout.id, since: 0 }] });
   const model = aModel({
-    listing: { programs: [anAgent("scout"), anAgent("mechanic"), aChatServer()], version: "0.0.0" },
+    listing: aListing([anAgent("scout"), anAgent("mechanic"), aChatServer()]),
     dms: { scout: aDm("scout", [busy]) },
   });
 
@@ -54,6 +55,20 @@ test("the agents are listed by name, with whether each is working, and the list 
   assert.equal(screen.stale, false);
   assert.equal(screen.empty, undefined);
   assert.deepEqual(screen.notes, []);
+});
+
+test("an agent on the roster that is not running is listed, and said not to be running", () => {
+  const model = aModel({ listing: aListing([anAgent("scout"), aChatServer()], undefined, ["mechanic"]) });
+
+  const screen = agents(screenOf(model, { now }));
+
+  assert.deepEqual(
+    screen.rows.map((row) => [row.id, row.detail]),
+    [
+      ["mechanic", "not running"],
+      ["scout", "idle"],
+    ],
+  );
 });
 
 test("with no agents it says what to start, and with no gateway it says that instead", () => {
@@ -74,7 +89,7 @@ test("with no agents it says what to start, and with no gateway it says that ins
 test("when the gateway is lost the list stays, marked as possibly out of date, and says what was lost", () => {
   const model = aModel({
     gateway: { state: "down", why: { kind: "lost" } },
-    listing: { programs: [anAgent("scout")], version: "0.0.0" },
+    listing: aListing([anAgent("scout")]),
   });
 
   const screen = agents(screenOf(model, { now }));
@@ -330,7 +345,7 @@ test("the gateway being gone explains why nothing is registered, and is said onc
 test("a program that runs another version of Shrimpy is named with its version", () => {
   const model = aModel({
     where: { screen: "threads", agent: "scout" },
-    listing: { programs: [anAgent("scout", "9.9.9"), aChatServer("8.8.8")], version: "7.7.7" },
+    listing: aListing([anAgent("scout", "9.9.9"), aChatServer("8.8.8")], "7.7.7"),
   });
 
   const notes = threads(screenOf(model, { now })).notes.map((note) => note.text);
@@ -376,7 +391,7 @@ test("text from other members and from tools can't act on a terminal, wherever i
   const ESC = "\u001b";
   const hostile = `${ESC}]0;pwned\u0007${ESC}[2J${ESC}[31mred\u009b6n\rover`;
   const ACTED_ON = new RegExp("[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u202a-\\u202e\\u2066-\\u2069]");
-  const stranger = { id: "person:evil", kind: "person" as const, name: `Evil${hostile}` };
+  const stranger = { id: "mem_evil", kind: "person" as const, name: `Evil${hostile}` };
   const open = aThread("th_1", { name: `Name${hostile}`, preview: `Preview${hostile}`, working: [{ memberId: scout.id, since: now }] });
   const view = aThreadView(open, [
     aMessage("msg_1", stranger, `text${hostile}`, { receipts: [aReceipt("scout", "failed", `detail${hostile}`)] }),
@@ -392,7 +407,7 @@ test("text from other members and from tools can't act on a terminal, wherever i
   );
   const model = onThread(`scout${hostile}`, open, view, {
     session,
-    listing: { programs: [anAgent(`scout${hostile}`, `1.0${hostile}`)], version: `2.0${hostile}` },
+    listing: aListing([anAgent(`scout${hostile}`, `1.0${hostile}`)], `2.0${hostile}`),
     dms: { [`scout${hostile}`]: aDm(`scout${hostile}`, [open]) },
     chat: { state: "down", why: { kind: "unreachable", message: `chat${hostile}` } },
     agent: { state: "down", why: { kind: "unreachable", message: `agent${hostile}` } },

@@ -6,25 +6,24 @@ import { test } from "node:test";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { leaveUnanswered, settle, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { GatewayRunningError } from "./index.ts";
-import { agentRegistration as agent, startGatewayChild, startTestGateway, webPortOf } from "./testing/index.ts";
+import { joinAndRegister, startGatewayChild, startGatewayInProcess, webPortOf } from "./testing/index.ts";
 
 const timeout = 30_000;
 
 test("a second gateway is refused and the first is undisturbed", { timeout }, async (t) => {
   const runtime = useRuntimeDir(t);
-  const first = await startTestGateway(t, { web: { port: 0 } });
+  const first = await startGatewayInProcess(t, { web: { port: 0 } });
   const program = await connectLocalGateway();
   let dropped = false;
   program.onDisconnect(() => {
     dropped = true;
   });
   try {
-    const one = agent("one");
-    await program.register(one);
+    const one = await joinAndRegister(program, "one");
 
     // Asking for the first gateway's own port would fail on the port, if the second tried it before the socket.
     await assert.rejects(
-      startTestGateway(t, { web: { port: webPortOf(first) } }),
+      startGatewayInProcess(t, { web: { port: webPortOf(first) } }),
       (error) =>
         error instanceof GatewayRunningError &&
         error.socket === first.socket &&
@@ -52,7 +51,7 @@ test("a second gateway is refused and the first is undisturbed", { timeout }, as
 
 test("gateways started at the same moment cannot both run", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const results = await Promise.allSettled([startTestGateway(t), startTestGateway(t), startTestGateway(t)]);
+  const results = await Promise.allSettled([startGatewayInProcess(t), startGatewayInProcess(t), startGatewayInProcess(t)]);
   try {
     const started = results.filter((result) => result.status === "fulfilled");
     const refused = results.filter((result) => result.status === "rejected");
@@ -79,7 +78,7 @@ test("a gateway that was killed leaves a socket that the next one replaces", { t
   await child.kill("SIGKILL");
   assert.ok(existsSync(join(runtime, "gateway.sock")));
 
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const client = await connectLocalGateway();
   try {
     assert.deepEqual(await client.list(), []);
@@ -91,10 +90,10 @@ test("a gateway that was killed leaves a socket that the next one replaces", { t
 
 test("closing the gateway drops its connections and its socket, and another can start", { timeout }, async (t) => {
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   const program = await connectLocalGateway();
   const ended = new Promise<void>((resolve) => program.onDisconnect(() => resolve()));
-  await program.register(agent("one"));
+  await joinAndRegister(program, "one");
 
   await gateway.close();
   await gateway.close();
@@ -103,7 +102,7 @@ test("closing the gateway drops its connections and its socket, and another can 
   assert.equal(existsSync(gateway.socket), false);
   await program.close();
 
-  const again = await startTestGateway(t);
+  const again = await startGatewayInProcess(t);
   const client = await connectLocalGateway();
   try {
     assert.deepEqual(await client.list(), []);
@@ -116,7 +115,7 @@ test("closing the gateway drops its connections and its socket, and another can 
 test("a client that is gone before the gateway's answer reaches it is not reported", { timeout }, async (t) => {
   const reported = t.mock.method(console, "error", () => undefined);
   useRuntimeDir(t);
-  const gateway = await startTestGateway(t);
+  const gateway = await startGatewayInProcess(t);
   try {
     await leaveUnanswered(gateway.socket);
     // By the time the gateway has answered this one, it is done with the one that left.
@@ -137,10 +136,10 @@ test("a gateway whose browser entry cannot start gives the socket back", { timeo
   await new Promise<void>((resolve) => squatter.listen(0, "127.0.0.1", resolve));
   try {
     const { port } = squatter.address() as AddressInfo;
-    await assert.rejects(startTestGateway(t, { web: { port } }), /EADDRINUSE/);
-    await assert.rejects(startTestGateway(t, { web: { port: 0, staticDir: join(runtime, "no-such-site") } }), /ENOENT/);
+    await assert.rejects(startGatewayInProcess(t, { web: { port } }), /EADDRINUSE/);
+    await assert.rejects(startGatewayInProcess(t, { web: { port: 0, staticDir: join(runtime, "no-such-site") } }), /ENOENT/);
 
-    const gateway = await startTestGateway(t);
+    const gateway = await startGatewayInProcess(t);
     await gateway.close();
   } finally {
     await new Promise<void>((resolve) => squatter.close(() => resolve()));

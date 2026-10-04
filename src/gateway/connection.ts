@@ -1,7 +1,7 @@
 import type { Gateway, Member, ProgramName } from "../contracts/gateway/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { InvalidRegistrationError, type Registry } from "./registry/index.ts";
+import { checkAnnouncement, InvalidRegistrationError, type Registry } from "./registry/index.ts";
 import type { Roster } from "./roster/index.ts";
 import type { Tickets } from "./tickets/index.ts";
 
@@ -48,17 +48,27 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     (signedIn === undefined ? roster.person(deps.osUser) : roster.member(signedIn)) ??
     refuse("The gateway has no member for this connection.");
 
-  const becomeBefore = (what: string): void => {
+  /** Who a connection is cannot change under a registration that was made as someone. */
+  const beforeRegistering = (what: string): void => {
     if (registered !== undefined) refuse(`This connection has registered already, so it can't ${what}.`);
   };
 
   const gateway: Gateway = {
-    async register(registration) {
+    async register(announcement) {
       onThisMachine("register");
       if (registrant === undefined) return;
       try {
-        const { kind, name } = registrant.register(registration);
-        registered = { kind, name };
+        const { kind } = checkAnnouncement(announcement);
+        let memberId: string | null = null;
+        if (kind === "agent") {
+          const member = signedIn === undefined ? undefined : roster.member(signedIn);
+          if (member === undefined) refuse("An agent registers as a member: join or sign in first.");
+          memberId = member.id;
+        } else if (signedIn !== undefined) {
+          refuse("Only an agent is a member. A program that is not one registers without signing in.");
+        }
+        const entry = registrant.register(announcement, memberId);
+        registered = { kind: entry.kind, name: entry.name };
       } catch (error) {
         if (error instanceof InvalidRegistrationError) refuse(error.message);
         throw error;
@@ -69,7 +79,7 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
 
     async join(name) {
       onThisMachine("join");
-      becomeBefore("join");
+      beforeRegistering("join");
       if (signedIn !== undefined) refuse(`This connection is already signed in as ${caller().name}.`);
       const joined = roster.join(name);
       signedIn = joined.member.id;
@@ -77,7 +87,7 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     },
     async signIn(token, name) {
       onThisMachine("sign in");
-      becomeBefore("sign in");
+      beforeRegistering("sign in");
       const member = typeof token === "string" ? roster.memberWithToken(token) : undefined;
       if (member === undefined) {
         refuse("The gateway does not know that token. It may belong to a roster that was replaced.");
@@ -91,8 +101,8 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       return signed;
     },
     async members() {
-      const agents = new Set(registry.list().filter((program) => program.kind === "agent").map((program) => program.name));
-      return roster.members().map((member) => ({ ...member, reachable: member.kind === "agent" && agents.has(member.name) }));
+      const running = new Set(registry.list().map((program) => program.memberId));
+      return roster.members().map((member) => ({ ...member, reachable: running.has(member.id) }));
     },
 
     async ticket(target) {

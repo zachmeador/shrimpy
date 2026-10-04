@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentMember, type Message, type Thread } from "../contracts/chat/index.ts";
+import type { Message, Thread } from "../contracts/chat/index.ts";
+import { joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { type Outcome, shrimpy, startScriptedAgent, startTalking } from "./testing/index.ts";
 
@@ -58,20 +59,24 @@ test("threads says who is working in a thread right now, and stops saying so whe
     (await threadsOf("scout")).find((candidate) => candidate.id === thread)?.working.map((mark) => mark.memberId) ?? [];
 
   await eventually(workingIn, (working) => working.length === 1);
-  assert.deepEqual(await workingIn(), ["agent:scout"]);
+  assert.deepEqual(await workingIn(), [(await memberNamed(t, "scout")).id]);
 
   finish.resolve(answered("done"));
   await eventually(workingIn, (working) => working.length === 0);
 });
 
-test("threads with an agent you have never talked to lists nothing, and makes nothing", { timeout }, async (t) => {
+test("threads with an agent you have never talked to lists nothing, and makes nothing, and with nobody on the roster it says so", { timeout }, async (t) => {
   const talking = await startTalking(t);
+  await joinRoster(t, "rex");
 
   const result = await shrimpy(["threads", "rex", "--json"]);
+  const nobody = await shrimpy(["threads", "nobody"]);
 
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), []);
   assert.deepEqual(await (await talking.you()).chat.channels(), []);
+  assert.equal(nobody.code, 1);
+  assert.match(nobody.stderr, /Nobody called nobody is on this machine's roster/);
 });
 
 /** What the scripted agent does with a message, by what it says. */
@@ -111,6 +116,7 @@ test("read shows who said what, and where an agent failed, stopped or skipped a 
 test("read --json prints the thread and every message with all its receipts, silent ones included", { timeout }, async (t) => {
   const talking = await startTalking(t);
   await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: byText });
+  const scout = await memberNamed(t, "scout");
   const thread = startedThread((await shrimpy(["run", "scout", "q1"])).stderr);
   await shrimpy(["run", "scout", "q2", "--thread", thread]);
 
@@ -120,14 +126,14 @@ test("read --json prints the thread and every message with all its receipts, sil
   const data = JSON.parse(result.stdout) as { thread: Thread; messages: Message[] };
   assert.equal(data.thread.id, thread);
   assert.deepEqual(data.messages.map((message) => message.text), ["q1", "a1", "q2"]);
-  assert.deepEqual(data.messages[2]?.receipts, [{ memberId: "agent:scout", status: "silent", reply: null, detail: null }]);
+  assert.deepEqual(data.messages[2]?.receipts, [{ memberId: scout.id, status: "silent", reply: null, detail: null }]);
   assert.equal(data.messages[0]?.receipts[0]?.status, "answered");
 });
 
 test("read goes back through a thread that is longer than the live view holds", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const connection = await talking.you();
-  const dm = await connection.chat.openDm(agentMember("scout"));
+  const dm = await connection.chat.openDm((await joinRoster(t, "scout")).id);
   const [main] = await connection.chat.threads(dm.id);
   const thread = main?.id ?? "";
   for (let n = 0; n < 450; n++) await connection.chat.post(thread, `message ${n}`, `request-${n}`);

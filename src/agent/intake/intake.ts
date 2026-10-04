@@ -1,6 +1,7 @@
-import { MAX_MESSAGE_LENGTH, type Member, type Message } from "../../contracts/chat/index.ts";
+import { MAX_MESSAGE_LENGTH, type Message } from "../../contracts/chat/index.ts";
+import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
-import { type ChatLink, isRefusal } from "../links/index.ts";
+import type { ChatLink } from "../links/index.ts";
 import { deliver } from "./deliver.ts";
 import { readFeed } from "./feed.ts";
 import { pause, untilAborted } from "./pause.ts";
@@ -9,8 +10,6 @@ import type { Outstanding, Turn, TurnOutcome, Turns } from "./turns.ts";
 import { workingMarks } from "./working.ts";
 
 export interface IntakeOptions {
-  /** Who the agent is in chat. */
-  self: Member;
   /** The agent's way to chat. Intake does not know what is on the other end of it. */
   link: ChatLink;
   /** The agent's sessions and records. */
@@ -49,7 +48,7 @@ interface Followed {
  * restart, or once chat comes back, whatever is unfinished is picked up again.
  */
 export function startIntake(options: IntakeOptions): Intake {
-  const { self, link, turns } = options;
+  const { link, turns } = options;
   const onError = (error: Error): void => options.onError?.(error);
   const messageLimit = options.messageLimit ?? MAX_MESSAGE_LENGTH;
   const newBackoff = options.backoff ?? backoff;
@@ -128,7 +127,7 @@ export function startIntake(options: IntakeOptions): Intake {
     const pauses = newBackoff();
     for (;;) {
       try {
-        await link.use((chat, signal) => deliver(chat, outstanding, outcome, messageLimit, signal), closing.signal);
+        await link.use((live, signal) => deliver(live.chat, outstanding, outcome, messageLimit, signal), closing.signal);
         return;
       } catch (error) {
         if (closed()) throw error;
@@ -163,7 +162,6 @@ export function startIntake(options: IntakeOptions): Intake {
 
   const resuming = resume();
   const reading = readFeed({
-    self,
     link,
     turns,
     admit,

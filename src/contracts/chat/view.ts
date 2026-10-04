@@ -1,19 +1,12 @@
-/** Someone who can be in a channel: a person or an agent. */
+/**
+ * Someone who can be in a channel: a person or an agent, as the gateway's
+ * roster has them. The ID is the roster's and never changes. The name is the
+ * roster's too, as the chat server last heard it, and it can change.
+ */
 export interface Member {
-  /** Stable and unique, such as `person:zach` or `agent:shrimpy`. */
   id: string;
   kind: "person" | "agent";
   name: string;
-}
-
-/** The member an agent is in chat. Every program names an agent this way, so they agree on who it is. */
-export function agentMember(name: string): Member {
-  return { id: `agent:${name}`, kind: "agent", name };
-}
-
-/** The member a person is in chat. */
-export function personMember(name: string): Member {
-  return { id: `person:${name}`, kind: "person", name };
 }
 
 /** A place where people and agents talk. */

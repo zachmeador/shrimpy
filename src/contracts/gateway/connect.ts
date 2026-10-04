@@ -2,14 +2,23 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ByteTransportFactory } from "@earendil-works/pi-client";
 import { openConnection } from "../../lib/connection/index.ts";
 import { GATEWAY_SERVER_ID } from "./endpoint.ts";
-import { Gateway, type Joined, type Member, type ProgramName, type Registration, type RosterEntry } from "./services.ts";
+import {
+  type Announcement,
+  Gateway,
+  type Joined,
+  type Member,
+  type ProgramName,
+  type Registration,
+  type RosterEntry,
+} from "./services.ts";
 
 export interface GatewayConnection {
   /**
    * Announce a program. It stays registered while this connection is open, and
-   * registering again replaces the earlier entry.
+   * registering again replaces the earlier entry. See `Gateway.register` for
+   * who it registers as.
    */
-  register(registration: Registration): Promise<void>;
+  register(announcement: Announcement): Promise<void>;
   list(): Promise<Registration[]>;
   /** The version of Shrimpy the gateway runs. */
   version(): Promise<string>;
@@ -52,7 +61,7 @@ export async function connectGateway(options: {
   });
   const gateway = connection.service;
   return {
-    register: (registration) => gateway.register(registration, context),
+    register: (announcement) => gateway.register(announcement, context),
     list: () => gateway.list(context),
     version: () => gateway.version(context),
     join: (name) => gateway.join(name, context),

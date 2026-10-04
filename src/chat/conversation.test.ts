@@ -2,45 +2,37 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
 import { settle } from "../lib/testing/index.ts";
-import {
-  agent,
-  follow,
-  mainThread,
-  person,
-  startDm,
-  startTestChat,
-  texts,
-} from "./testing/index.ts";
+import { follow, mainThread, startDm, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
 
 test("two members talk in a DM", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const shrimpy = await chat.join(agent("Shrimpy"));
+  const zach = await chat.person();
+  const shrimpy = await chat.agent("Shrimpy");
 
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const dm = await zach.chat.openDm(shrimpy.me.id);
   assert.equal(dm.kind, "dm");
   assert.equal(dm.name, "Shrimpy");
-  assert.deepEqual(dm.members, [agent("Shrimpy"), person("Zach")]);
+  assert.deepEqual(new Set(dm.members.map((member) => member.id)), new Set([zach.me.id, shrimpy.me.id]));
   assert.deepEqual(await zach.chat.channels(), [dm]);
   const fromShrimpy = await shrimpy.chat.channels();
   assert.deepEqual(
     fromShrimpy.map((channel) => [channel.id, channel.name]),
-    [[dm.id, "Zach"]],
+    [[dm.id, zach.me.name]],
   );
-  assert.deepEqual(await shrimpy.chat.openDm(person("Zach")), fromShrimpy[0]);
+  assert.deepEqual(await shrimpy.chat.openDm(zach.me.id), fromShrimpy[0]);
 
   const main = await mainThread(zach, dm.id);
   const start = await shrimpy.chat.head();
   const offered = shrimpy.chat.feed(start, 10);
   const question = await zach.chat.post(main.id, "Are you there?", "zach-1");
-  assert.deepEqual(question.addressed, [agent("Shrimpy").id]);
-  assert.deepEqual(question.author, person("Zach"));
+  assert.deepEqual(question.addressed, [shrimpy.me.id]);
+  assert.deepEqual(question.author, zach.me);
   assert.deepEqual(await offered, [question]);
 
   const answer = await shrimpy.chat.post(main.id, "Yes.", "shrimpy-1");
-  assert.deepEqual(answer.addressed, [person("Zach").id]);
+  assert.deepEqual(answer.addressed, [zach.me.id]);
   assert.deepEqual(await zach.chat.feed(question.seq, 10), [answer]);
   assert.deepEqual(await shrimpy.chat.feed(question.seq, 10), [answer], "a member is offered its own messages too");
   assert.deepEqual(await zach.chat.read(main.id, null, 10), [question, answer]);
@@ -52,23 +44,24 @@ test("two members talk in a DM", { timeout }, async (t) => {
   assert.equal(after.updatedAt, answer.sentAt);
 });
 
-test("a DM can be opened with a member who has not connected yet", { timeout }, async (t) => {
+test("a DM can be opened with a member on the roster who has not come in yet, and with nobody else", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const dm = await zach.chat.openDm(agent("Newcomer"));
+  const zach = await chat.person();
+  const newcomer = await chat.member("Newcomer");
+  const dm = await zach.chat.openDm(newcomer.id);
   const main = await mainThread(zach, dm.id);
   const waiting = await zach.chat.post(main.id, "Whenever you get here.", "zach-1");
+  await assert.rejects(zach.chat.openDm("mem_nobody"), /There is no member mem_nobody on the roster/);
 
-  const newcomer = await chat.join(agent("Newcomer"));
+  const arrived = await chat.agent("Newcomer");
 
-  const [channel] = await newcomer.chat.channels();
+  assert.equal(arrived.me.id, newcomer.id);
+  const [channel] = await arrived.chat.channels();
   assert.ok(channel);
   assert.equal(channel.id, dm.id);
-  assert.equal(channel.name, "Zach");
-  assert.deepEqual(await newcomer.chat.read(main.id, null, 10), [waiting]);
-  assert.equal(await newcomer.chat.head(), waiting.seq);
-  // Only a member speaks for itself: describing one the server has met changes nothing.
-  assert.deepEqual(await zach.chat.openDm({ id: "agent:newcomer", kind: "agent", name: "Impostor" }), dm);
+  assert.equal(channel.name, zach.me.name);
+  assert.deepEqual(await arrived.chat.read(main.id, null, 10), [waiting]);
+  assert.equal(await arrived.chat.head(), waiting.seq);
 });
 
 test("side threads keep their own conversations in the channel", { timeout }, async (t) => {
@@ -96,9 +89,9 @@ test("side threads keep their own conversations in the channel", { timeout }, as
 
 test("a feed catches up after a reconnect", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const first = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const first = await chat.agent("Shrimpy");
+  const dm = await zach.chat.openDm(first.me.id);
   const main = await mainThread(zach, dm.id);
   await zach.chat.post(main.id, "one", "zach-1");
   const [seen] = await first.chat.feed(0, 10);
@@ -107,7 +100,7 @@ test("a feed catches up after a reconnect", { timeout }, async (t) => {
   await first.close();
   await zach.chat.post(main.id, "two", "zach-2");
   await zach.chat.post(main.id, "three", "zach-3");
-  const second = await chat.join(agent("Shrimpy"));
+  const second = await chat.agent("Shrimpy");
 
   const missed = await second.chat.feed(seen.seq, 10);
   assert.deepEqual(texts(missed), ["two", "three"]);
@@ -149,10 +142,10 @@ test("a retried post returns the first message instead of posting twice", { time
 
 test("a post whose acknowledgment was lost is not posted again by its retry", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const dm = await zach.chat.openDm((await chat.member("Shrimpy")).id);
   const main = await mainThread(zach, dm.id);
-  const sender = await chat.join(person("Zach"));
+  const sender = await chat.person();
 
   // The server gets the post, and the connection goes before the answer can be read.
   const lost = sender.chat.post(main.id, "Did this arrive?", "zach-1");
@@ -196,9 +189,9 @@ test("a waiting feed ends when its caller cancels it, and the connection carries
 
 test("a waiting feed ends when its connection drops, and the server carries on", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const gone = await chat.join(agent("Shrimpy"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const gone = await chat.agent("Shrimpy");
+  const dm = await zach.chat.openDm(gone.me.id);
   const main = await mainThread(zach, dm.id);
   const start = await gone.chat.head();
   const abandoned = follow(gone.chat.feed(start, 10));
@@ -208,7 +201,7 @@ test("a waiting feed ends when its connection drops, and the server carries on",
   await settle();
   assert.equal(abandoned.done, true);
 
-  const stays = await chat.join(agent("Shrimpy"));
+  const stays = await chat.agent("Shrimpy");
   const waiting = stays.chat.feed(start, 10);
   await zach.chat.post(main.id, "anyone there?", "zach-1");
   assert.deepEqual(texts(await waiting), ["anyone there?"]);
@@ -216,8 +209,8 @@ test("a waiting feed ends when its connection drops, and the server carries on",
 
 test("a message of the longest allowed size makes it through, and a longer one does not", { timeout }, async (t) => {
   const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
+  const zach = await chat.person();
+  const dm = await zach.chat.openDm((await chat.member("Shrimpy")).id);
   const main = await mainThread(zach, dm.id);
 
   const longest = await zach.chat.post(main.id, "é".repeat(MAX_MESSAGE_LENGTH), "zach-1");

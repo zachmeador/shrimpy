@@ -1,6 +1,6 @@
 /**
- * A program that registers with the gateway and holds the connection open,
- * for tests that kill it:
+ * A program that joins the roster as an agent, registers with the gateway and
+ * holds the connection open, for tests that kill it:
  *
  *   node registrant-child.ts <name>
  *
@@ -17,9 +17,9 @@ if (name === undefined) throw new Error("usage: registrant-child.ts <name>");
 await runUntilStopped(
   async () => {
     const gateway = await connectLocalGateway();
+    await gateway.join(name);
     await gateway.register({
       kind: "agent",
-      name,
       serverId: randomUUID(),
       socket: `/tmp/${name}.sock`,
       pid: process.pid,

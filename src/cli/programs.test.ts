@@ -71,16 +71,12 @@ test("a chat server stops promptly when the gateway it is registered with has st
   assert.equal(isAlive(chat.listening.pid), false);
 });
 
-test("a chat server with no gateway running serves, and stops with 0", { timeout }, async (t) => {
+test("a chat server with no gateway running serves, refuses to let anyone in and says why, and stops with 0", { timeout }, async (t) => {
   const chat = await serveChat(t, tempDir(t, "chat-data"));
   const connection = await connectLocal(chat.listening);
   stopAfter(t, () => connection.close());
-  await connection.chat.identify({ id: "person:zach", kind: "person", name: "Zach" });
-  const dm = await connection.chat.openDm({ id: "agent:shrimpy", kind: "agent", name: "Shrimpy" });
-  const [main] = await connection.chat.threads(dm.id);
-  assert.ok(main);
 
-  await connection.chat.post(main.id, "Is anyone there?", "zach-1");
+  await assert.rejects(connection.chat.enter("a-ticket"), { message: /can't reach the gateway/ });
 
   assert.equal((await shrimpy(["gateway", "status"])).code, 1);
   await connection.close();
@@ -125,7 +121,7 @@ test("a second chat server is refused before it touches its data, and the first 
   assert.deepEqual(readdirSync(otherDir), [], "a refused chat server leaves nothing in its data directory");
   const connection = await connectLocal(first.listening);
   stopAfter(t, () => connection.close());
-  await connection.chat.identify({ id: "person:zach", kind: "person", name: "Zach" });
+  await assert.rejects(connection.chat.channels(), { code: "service_not_allowed" }, "the first still answers");
 });
 
 test("a chat server that reaches the data of another through a different socket is refused by the store", { timeout }, async (t) => {

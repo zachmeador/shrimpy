@@ -1,6 +1,7 @@
-import type { ChatClient, Member, Message } from "../../contracts/chat/index.ts";
+import type { Member, Message } from "../../contracts/chat/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
-import { type ChatLink, isRefusal } from "../links/index.ts";
+import { isRefusal } from "../../lib/refusal/index.ts";
+import type { ChatLink, LiveChat } from "../links/index.ts";
 import { pause } from "./pause.ts";
 import type { Turns } from "./turns.ts";
 
@@ -12,8 +13,8 @@ const FEED_LIMIT = 50;
  * the agent, which in a DM is every message from the other member. The agent's
  * own messages come back in its feed and are never one. Neither is a message
  * that already carries the agent's receipt: it was dealt with, perhaps by an
- * agent of this name that has lost its records since. Rooms and the agent's
- * own wake policy come later and belong here.
+ * agent that has lost its records since. Rooms and the agent's own wake policy
+ * come later and belong here.
  */
 export function wakes(self: Member, message: Message): boolean {
   if (message.author.id === self.id || !message.addressed.includes(self.id)) return false;
@@ -21,7 +22,6 @@ export function wakes(self: Member, message: Message): boolean {
 }
 
 export interface FeedOptions {
-  self: Member;
   link: ChatLink;
   turns: Turns;
   /** Take a message that wakes the agent. The agent's place in the feed moves past it only once this returns. */
@@ -44,7 +44,7 @@ export interface FeedOptions {
  * connection that chat cuts off is carried on over the next one, without a pause.
  */
 export async function readFeed(options: FeedOptions): Promise<void> {
-  const { self, link, turns, stop } = options;
+  const { link, turns, stop } = options;
   const stopped = (): boolean => stop.aborted;
   const pauses = options.backoff ?? backoff();
   let loaded = false;
@@ -61,7 +61,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
     return seq;
   };
 
-  const follow = async (chat: ChatClient, signal: AbortSignal): Promise<void> => {
+  const follow = async ({ chat, self }: LiveChat, signal: AbortSignal): Promise<void> => {
     let at = cursor ?? 0;
     for (;;) {
       let messages: Message[];

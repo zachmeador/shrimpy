@@ -39,7 +39,9 @@ export function sendMessage(options: MessageToolsOptions) {
           conversationId: api.conversationId,
           read: api,
           chat: live.chat,
-          self: options.self,
+          self: live.self,
+          gateway: options.gateway(),
+          startDm: true,
           context,
           signal,
         });

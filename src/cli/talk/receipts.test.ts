@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agentMember, type Message, personMember, type Receipt, type ThreadView } from "../../contracts/chat/index.ts";
+import type { Member, Message, Receipt, ThreadView } from "../../contracts/chat/index.ts";
 import { waitForReceipt } from "./receipts.ts";
 
-const scout = agentMember("scout");
-const zach = personMember("zach");
+const scout: Member = { id: "mem_a", kind: "agent", name: "scout" };
+const zach: Member = { id: "mem_b", kind: "person", name: "zach" };
 
 function message(id: string, seq: number, receipts: Receipt[] = []): Message {
   return { id, seq, channelId: "ch_1", threadId: "th_1", author: zach, text: id, sentAt: seq, addressed: [], receipts };

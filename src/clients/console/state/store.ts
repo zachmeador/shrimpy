@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
-import { agentMember, type Member } from "../../../contracts/chat/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import {
@@ -28,8 +27,6 @@ import {
 } from "./model.ts";
 
 export interface ConsoleStateOptions {
-  /** You, as the chat server knows you. */
-  me: Member;
   /** How the console reaches the gateway, and the programs it lists. */
   transports: Transports;
   /** How often what has no subscription is asked for again: what is running, and the threads in the person's DMs. 2 seconds by default. */
@@ -82,7 +79,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   let closed = false;
 
   let model: Model = {
-    me: options.me,
+    me: undefined,
     where: { screen: "agents" },
     gateway: CONNECTING,
     listing: undefined,
@@ -118,10 +115,10 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     else say({ kind: "not-opened", problem: update.problem });
   };
   const chat = keepChat({
-    me: options.me,
     registry,
     transports: options.transports,
     backoff: options.backoff,
+    onEntered: (me) => set({ me }),
     onThread,
   });
 
@@ -159,8 +156,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   const refreshDms = converge(
     async () => {
       if (chat.status().state !== "up") return;
-      const names = agentEntries(model).map((entry) => entry.name);
-      const dms = await chat.call((client) => readDms(client, names));
+      const agents = agentEntries(model);
+      const dms = await chat.call((client) => readDms(client, agents));
       if (JSON.stringify(dms) !== JSON.stringify(model.dms)) set({ dms });
       if (model.notice?.kind === "not-listed") say(undefined);
     },
@@ -170,6 +167,13 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       if ("said" in problem) say({ kind: "not-listed", problem });
     },
   );
+
+  /** The agent on the roster that is called `name`. */
+  const roster = (name: string): AgentEntry => {
+    const found = agentEntries(model).find((entry) => entry.name === name);
+    if (found === undefined) throw new Error(`${name} is not on the roster.`);
+    return found;
+  };
 
   const land = (): void => {
     if (landed) return;
@@ -252,7 +256,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
         const threadId = await chat.call(async (client) => {
           let id = where.thread ?? (started?.agent === where.agent ? started.threadId : undefined);
           if (id === undefined) {
-            const dm = model.dms[where.agent]?.channel ?? (await client.openDm(agentMember(where.agent), answered));
+            const dm = model.dms[where.agent]?.channel ?? (await client.openDm(roster(where.agent).id, answered));
             id = (await client.createThread(dm.id, null, answered)).id;
             started = { agent: where.agent, threadId: id };
           }
@@ -281,7 +285,9 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       const { where } = model;
       if (where.screen !== "thread" || where.thread === undefined || agent === undefined) return;
       const thread = model.thread?.thread ?? model.dms[where.agent]?.threads.find((each) => each.id === where.thread);
-      const working = model.session?.status.busy === true || (thread !== undefined && workingIn(thread, where.agent));
+      const agentId = agentEntries(model).find((entry) => entry.name === where.agent)?.id;
+      const working =
+        model.session?.status.busy === true || (thread !== undefined && agentId !== undefined && workingIn(thread, agentId));
       if (!working) {
         say({ kind: "nothing-to-stop" });
         return;
@@ -298,10 +304,12 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       await Promise.race([refreshDms(), delay(FAREWELL_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
       waiting.abort();
       const { where } = model;
-      const names = [...(where.screen === "agents" ? [] : [where.agent]), ...agentEntries(model).map((entry) => entry.name)];
+      const entries = agentEntries(model);
+      const names = [...(where.screen === "agents" ? [] : [where.agent]), ...entries.map((entry) => entry.name)];
       for (const name of new Set(names)) {
         // The thread on screen comes first, then the newest thread the agent is working in.
-        const { id } = agentMember(name);
+        const id = entries.find((entry) => entry.name === name)?.id;
+        if (id === undefined) continue;
         // A session that was working when the agent went away is not working now, whatever its last view says.
         const sessionWorking = model.session?.status.busy === true && model.agent?.state !== "down";
         const onScreen =
@@ -309,7 +317,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
             ? { thread: where.thread, working: sessionWorking || model.thread?.thread.working.some((mark) => mark.memberId === id) === true }
             : undefined;
         if (onScreen?.working === true) return { agent: name, thread: onScreen.thread };
-        const working = model.dms[name]?.threads.find((thread) => workingIn(thread, name));
+        const working = model.dms[name]?.threads.find((thread) => workingIn(thread, id));
         if (working !== undefined) return { agent: name, thread: working.id };
       }
       return undefined;

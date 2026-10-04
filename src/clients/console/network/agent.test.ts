@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { startStandInAgent } from "../../../contracts/agent/testing/index.ts";
-import { startStandInGateway } from "../../../contracts/gateway/testing/index.ts";
+import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
 import { stopAfter, until, useRuntimeDir, within } from "../../../lib/testing/index.ts";
 import { type AgentLink, keepAgent, type SessionUpdate } from "./agent.ts";
 import { Down } from "./status.ts";
@@ -28,18 +28,18 @@ function startLink(t: TestContext, transports: Transports = localTransports()) {
 
 async function startAgent(t: TestContext) {
   useRuntimeDir(t);
-  await startStandInGateway(t);
-  return startStandInAgent(t, { name: "scout", register: true });
+  await startTestGateway(t);
+  return startStandInAgent(t, { name: "scout" });
 }
 
 test("while the agent is not listed it says so, and it connects when the agent is", { timeout }, async (t) => {
   useRuntimeDir(t);
-  await startStandInGateway(t);
+  await startTestGateway(t);
   const { link } = startLink(t);
 
   await until(() => JSON.stringify(link.status()) === JSON.stringify({ state: "down", why: { kind: "not-registered" } }), "the wait");
   await assert.rejects(link.stop(), (error: unknown) => error instanceof Down && error.why.kind === "not-registered");
-  await startStandInAgent(t, { name: "scout", register: true });
+  await startStandInAgent(t, { name: "scout" });
 
   await until(() => link.status().state === "up", "the agent to be reached");
 });
