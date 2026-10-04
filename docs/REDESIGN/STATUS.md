@@ -12,7 +12,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 - Bare `shrimpy` opens the list of agents, or your threads with the only agent. It doesn't remember your latest thread, start programs on demand, or mark what arrived while you were away.
 - The terminal lists your threads with an agent, not the agent's sessions, so a session that isn't behind one of your threads can't be reached from it.
-- A terminal started with no gateway can't reach a running agent, and an agent that isn't running isn't listed.
+- A terminal started with no gateway can't reach a running agent.
 - The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
 - Joining from another machine, which waits for a VM on the LAN to test on.
@@ -20,7 +20,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
-- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
+- Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes.
 - Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
 - Promises in phase 1's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
@@ -29,27 +29,32 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 **Core contracts, before rooms**
 
-Decided on 2026-10-04 and not built. The chat store's data doesn't carry over, since member IDs change shape and nothing migrates it.
+The roster, member IDs and tickets are built. Two are left:
 
-- The roster and member IDs: today a member's ID holds its name, a connection says who it is, and the gateway forgets a program when it disconnects.
 - The feed of events: today the feed offers messages, and an edit couldn't reach an agent.
-- Connecting by name through the gateway: today the gateway hands out socket paths and local clients connect directly.
+- Connecting by name through the gateway: today the gateway still lists socket paths, and clients connect to the chat server directly after getting a ticket.
+
+Left open by the first:
+
+- An agent that crashes between the gateway answering its first join and the home saving the token leaves its name taken, and nothing removes a member, replaces a token or renames a person. Having the home make its token before it joins would close the gap.
+- A rename reaches the chat server only when that member next enters chat.
+- A copied home is two live connections with one member, and nothing chooses between them.
+- A browser can list the roster and can't enter chat, since a person from another device has nothing to be recognized by yet.
 
 **Still open in phase 2**
 
 - Not built yet: compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
 - The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
 - Skills are trails only. `/skill:name`, templates, required-tool filtering and choosing skills for one agent aren't built.
-- A command an agent runs with `shrimpy` acts as the person. The plan's identity table recommends that it act as the agent.
 - The skills name what doesn't exist yet and say so: a setup command, OAuth sign-in, resetting a session, rooms, starting a DM, and commands to list, rename or remove an agent.
 - `up` stops everything it started when one of its agents stops, which makes stopping one agent a sharp edge.
-- `send_message` and `read_messages` reach this thread and a DM the agent already has. An agent can't start a DM, because chat has no list of members to find one in. `quiet`, `#channel`, reactions, edits and delivery status come with rooms and providers.
+- `send_message` and `read_messages` reach this thread and the agent's DM with any member. `quiet`, `#channel`, reactions, edits and delivery status come with rooms and providers.
 - Nothing limits the size of `SOUL.md`, a context file, the skills list or the earlier messages that come with an input. The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.
 - The agent's own service is named `SessionDirectory`, though it now also reloads the home.
 
 **Planned for a later phase**
 
-- OAuth sign-in, and a way to set who you are in chat, which is always `person:<OS username>` today: phase 3.
+- OAuth sign-in, and a way to choose your name in chat, which is your OS username today: phase 3.
 - A web client in phase 3, and `chat/providers/` in phase 5.
 - In `agent/intake/`: chat commands, wake policies and the unread cache for rooms.
 - The plan's triggers row promises one coalesced overdue run and also says a restart doesn't backfill, which reads two ways. Old Shrimpy ran a missed watch once at the next start. Phase 4 settles it.
@@ -73,6 +78,14 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Core contracts, 2026-10-04: the roster, member IDs and tickets are in.** A member has an ID that never changes and a name that can. The gateway keeps the roster in a file, an agent gets a token the first time it joins, and a program learns who is on a connection by a ticket the gateway vouches for. `identify` is gone. 434 tests pass.
+
+- A `shrimpy` command run from an agent's shell speaks as that agent, and the same command in a person's terminal speaks as the person.
+- `@name` resolves through the roster, so an agent can start a DM with a member it has never talked to. The terminal lists agents from the roster and marks one that isn't running.
+- The same member comes back after the agent and the gateway both restart, a second home with a name in use is refused with what to change, and a home whose name changed is the same member under the new name. Each has a test through real processes.
+- The gateway needs a data folder now, and `up --data` gives the gateway and the chat server one each. A chat store from before member IDs is refused, and nothing converts it.
+- `src/` holds 12,964 lines of product code, 9,291 of tests and 4,161 of test support.
 
 **A second opinion on the core design, 2026-10-04.** A Fable 5.1 subagent read the plan's core sections and the five contract files, and was asked where it disagreed. After one round of pushback, three of its five points became recommendations in the plan, waiting for review:
 
