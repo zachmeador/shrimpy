@@ -193,7 +193,7 @@ test("a chat store restored from an older copy gives new events the positions of
   assert.equal((await fresh.replies()).filter((reply) => reply.text.includes("came back")).length, 1);
 });
 
-test("a receipt another member leaves on a message the agent wrote is offered to the agent and wakes nobody", { timeout }, async (t) => {
+test("a receipt another member leaves on a message the agent wrote wakes the agent for nothing", { timeout }, async (t) => {
   const model = callingTools([[{ name: "send_message", args: { text: "Is the disk full?", to: "@mechanic" } }]], "I asked.");
   const rig = await startAgentRig(t, { script: model.script });
   const mechanic = await rig.chat.agent("mechanic");

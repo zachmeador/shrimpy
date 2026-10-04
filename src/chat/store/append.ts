@@ -27,7 +27,7 @@ export type NewEvent =
 /**
  * Add an event to the log, and say where it landed. Only the store's own
  * operations call this, each in the transaction that makes the change the event
- * records, so no change to a message goes unrecorded.
+ * records, so no change to a message and no receipt goes unrecorded.
  */
 export function appendEvent(sql: Sql, event: NewEvent): { seq: number; id: string } {
   const id = newId("evt");
