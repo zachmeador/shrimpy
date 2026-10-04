@@ -18,7 +18,7 @@ npm run check
 
 `check` runs the type check, lint and every test. Tests run straight from TypeScript with `node --test`, so there is no build step. Nothing here touches the root `dist/` that the installed `shrimpy` uses.
 
-One test runs a turn with the shell tool against a real model, and is skipped unless you point it at a server. `SHRIMPY_TEST_MODEL_URL` is the server's OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
+Two tests use a real model, and are skipped unless you point them at a server. One asks the agent in a thread to run a command with the shell tool. The other checks that the agent stays silent with `END` when told to say nothing, and answers otherwise. `SHRIMPY_TEST_MODEL_URL` is the server's OpenAI-compatible base URL, ending in `/v1`, and `SHRIMPY_TEST_MODEL_ID` is its model ID. The server needs no key.
 
 ```bash
 SHRIMPY_TEST_MODEL_URL=http://localhost:8090/v1 SHRIMPY_TEST_MODEL_ID=my-model npm test
@@ -67,13 +67,15 @@ A server that needs no key still takes a placeholder, so `apiKey` is set. A key 
 | `agent init <home> --name <name> --model <provider/id>` | Creates the home. |
 | `agent serve <home> [--now]` | Runs the agent in the foreground, which is what a supervisor or sandbox runs. It prints one JSON line when it is listening. |
 | `agent status <home>` | Prints whether an agent is running there and how to reach it. Exits 1 if none is. |
-| `sessions list <home>` | Lists the agent's sessions. |
-| `sessions read <home> [--json]` | Shows the main session. |
-| `sessions steer <home> <text> [--request-id <id>] [--wait]` | Gives the main session input. A retry with the same request ID is the same input. |
-| `sessions stop <home>` | Cancels the main session's current work. The agent keeps running. |
+| `sessions list <home>` | Lists the agent's sessions: the thread and channel each is behind, and whether it is working. |
+| `sessions read <home> <thread> [--json]` | Shows the session behind a thread. |
+| `sessions steer <home> <thread> <text> [--request-id <id>] [--wait]` | Gives that session input. A retry with the same request ID is the same input. |
+| `sessions stop <home> <thread>` | Stops that session's work and withdraws the input it had not picked up. The agent keeps running. |
 | `gateway serve [--web-port <port>] [--web-dir <dir>]` | Runs the gateway in the foreground. It prints one JSON line when it is listening. The browser entry opens on loopback only when a port is given, and 0 picks a free one. `--web-dir` serves the web client's files from a directory. |
 | `gateway status` | Lists the programs registered with this machine's gateway: kind, name, version and pid. A version that differs from the command's own is marked. Exits 1 if no gateway is running. |
 | `chat serve <data-dir>` | Runs the chat server in the foreground, with its store in the data directory, and registers it with the gateway. It prints one JSON line when it is listening. |
+
+An agent has one session for each thread it takes part in, named by the thread's ID, and no session until a message arrives in a thread. `agent serve` registers the agent with this machine's gateway, finds the chat server through the gateway's list, and joins chat as the agent its `agent.json` names. It starts, and its sessions work, with no gateway or chat server running; it finds them when they come up and again after they go away. A message addressed to the agent, which in a DM is every message from the other member, becomes a turn in the session for its thread, and the turn's final text is posted to the thread as the reply. A final text of `END`, or nothing, posts nothing. The agent leaves a receipt on each message when its turn ends.
 
 `agent serve` stops on SIGTERM or Ctrl+C. It stops taking input, gives running turns up to five seconds to finish, then closes. Work that did not finish resumes at the next start. `--now`, or a second signal during the wait, skips the wait.
 
@@ -89,7 +91,8 @@ A server that needs no key still takes a placeholder, so `apiKey` is set. A key 
 - A module whose API partly needs Node offers that part through `node.ts`, and a file behind that door that needs Node is named `*.node.ts`. A module that is Node-only throughout has `node.ts` as its only door.
 - Browser-safe code can't import Node or a `node.ts` door. That is the web client and everything in `contracts/` and `lib/` apart from the files that need Node, so a `lib/` module's `index.ts` door and everything behind it is browser-safe. Tests and `testing/` modules, `lib/testing` among them, are never shipped and are exempt.
 - Tests sit beside the code as `*.test.ts`. Test support lives in a `testing/` module that only tests import.
-- Only `agent/` imports Pi's durable runtime, and `agent/sessions/` is the one place that reads Pi's records.
+- Only `agent/` imports Pi's durable runtime. Inside it, only `host/`, `sessions/` and `extensions/` do, and the code that takes messages in (`intake/`) sees nothing of it: it works with Shrimpy's own types and a `Turns` it is handed. `agent/sessions/` is the one place that reads Pi's records, and it writes Shrimpy's own documents (which thread a session belongs to, the outbox, the feed cursor) in the same commits as the work they belong to.
+- The agent reaches the gateway and the chat server through `agent/links/`, which is handed how to reach each, so nothing there assumes either is on this machine. The defaults reach both over their Unix sockets.
 
 `lint/boundaries.js` enforces these rules, so a violation fails `npm run check`.
 

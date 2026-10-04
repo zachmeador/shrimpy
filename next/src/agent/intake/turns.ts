@@ -1,11 +1,12 @@
 /**
  * What intake needs from the agent's sessions and records, in Shrimpy's own
  * terms. Whatever stores the agent's records and runs its sessions implements
- * `Turns`; intake sees nothing of how. Every value that is stored is plain JSON.
+ * `Turns`; intake sees nothing of how. What is stored is plain JSON, so these
+ * are type aliases, which TypeScript lets stand for JSON.
  */
 
 /** A chat message as it was written, kept so the model can be shown it later. */
-export interface Snapshot {
+export type Snapshot = {
   id: string;
   /** Its position in chat's order, which is the order messages are shown in. */
   seq: number;
@@ -13,14 +14,14 @@ export interface Snapshot {
   author: string;
   text: string;
   sentAt: number;
-}
+};
 
 /**
  * A message the agent picked up and has not left its receipt on yet: the
  * agent's outbox holds one for each, from the moment the message is taken until
  * its receipt is left.
  */
-export interface Outstanding {
+export type Outstanding = {
   message: Snapshot;
   threadId: string;
   channelId: string;
@@ -30,7 +31,7 @@ export interface Outstanding {
    * Oldest first. They get the same receipt as the message.
    */
   earlier: Snapshot[];
-}
+};
 
 /** How the turn for a message ended. */
 export type TurnOutcome =

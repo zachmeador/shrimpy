@@ -17,7 +17,8 @@ export class AgentConnectionLostError extends Error {
 
 /** One attached session: its view, updates, and control. */
 export interface SessionHandle {
-  readonly id: string;
+  /** The thread the session is behind, which is how it was attached. */
+  readonly threadId: string;
   readonly view: SessionView;
   /** Calls `listener` with the current view, then after every change. */
   subscribe(listener: (view: SessionView) => void): () => void;
@@ -29,8 +30,11 @@ export interface SessionHandle {
 
 export interface AgentConnection {
   sessions(): Promise<SessionSummary[]>;
-  /** Watch one session. A connection watches one at a time; attaching again switches. */
-  attach(sessionId: string): Promise<SessionHandle>;
+  /**
+   * Watch the session behind a thread. A thread the agent has no session for
+   * yet is refused. A connection watches one at a time; attaching again switches.
+   */
+  attach(threadId: string): Promise<SessionHandle>;
   /** Called once if the connection drops. Nothing reconnects by itself. */
   onDisconnect(listener: (reason: Error | undefined) => void): void;
   close(): Promise<void>;
@@ -70,11 +74,11 @@ export async function connectAgent(options: {
 
   return {
     sessions: () => guarded(() => directory.list(context)),
-    attach: (sessionId) =>
+    attach: (threadId) =>
       guarded(async () => {
-        const { service: session } = await connection.attach(sessionId);
+        const { service: session } = await connection.attach(threadId);
         return {
-          id: sessionId,
+          threadId,
           get view() {
             return received(session.state, "session view");
           },

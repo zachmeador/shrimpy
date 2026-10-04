@@ -12,13 +12,16 @@ export function closeAfter<T extends { close(options?: { now?: boolean }): Promi
   return agent;
 }
 
-/** Connect to the agent that owns `home` and attach to its main session. */
-export async function attachMain(
+/** Connect to the agent that owns `home` and attach to the session behind a thread. */
+export async function attachThread(
   home: string,
+  threadId: string,
 ): Promise<{ connection: AgentConnection; session: SessionHandle }> {
   const connection = await attachLocal(home);
-  const sessions = await connection.sessions();
-  const main = sessions.find((session) => session.main);
-  if (main === undefined) throw new Error("The agent has no main session");
-  return { connection, session: await connection.attach(main.id) };
+  try {
+    return { connection, session: await connection.attach(threadId) };
+  } catch (error) {
+    await connection.close();
+    throw error;
+  }
 }

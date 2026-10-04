@@ -63,8 +63,9 @@ test("a command's help names its usage and what it does", async () => {
   assert.equal(result.code, 0);
   assert.match(
     result.out,
-    /^Usage: shrimpy sessions steer <home> <text> \[--request-id <id>\] \[--wait\]\n\nGive the main session input; it joins work already running\.\nWith --wait, print the answer and exit 0 /,
+    /^Usage: shrimpy sessions steer <home> <thread> <text> \[--request-id <id>\] \[--wait\]\n\nGive the session behind a thread input; it joins work already running\.\nDirect input is a control, like stopping, and not a message: /,
   );
+  assert.match(result.out, /With --wait, print the answer and exit 0 /);
   assert.match(result.out, /130 when it was cancelled\./);
 });
 
@@ -82,10 +83,13 @@ test("a command used wrongly exits with 2 and shows its usage", async () => {
     [["agent", "init", "h", "--name", "a", "--model", "nope"], 'Model "nope" should be provider/id'],
     [["agent", "init", "a", "b", "--name", "a", "--model", "x/y"], "Unexpected argument: b."],
     [["agent", "serve", "h", "--fast"], "Unknown option '--fast'"],
-    [["sessions", "steer", "h"], "Missing <text>."],
-    [["sessions", "steer", "h", "one", "two"], "Unexpected argument: two. Put text with spaces in quotes."],
-    [["sessions", "steer", "h", "   "], "The text is empty."],
-    [["sessions", "read", "h", "--json=yes"], "does not take an argument"],
+    [["sessions", "steer", "h"], "Missing <thread>."],
+    [["sessions", "steer", "h", "th_1"], "Missing <text>."],
+    [["sessions", "steer", "h", "th_1", "one", "two"], "Unexpected argument: two. Put text with spaces in quotes."],
+    [["sessions", "steer", "h", "th_1", "   "], "The text is empty."],
+    [["sessions", "read", "h"], "Missing <thread>."],
+    [["sessions", "read", "h", "th_1", "--json=yes"], "does not take an argument"],
+    [["sessions", "stop", "h"], "Missing <thread>."],
     [["gateway", "serve", "--web-dir", "site"], "--web-dir needs --web-port."],
     [["gateway", "serve", "--web-port", "http"], '--web-port must be a port number from 0 to 65535, not "http".'],
     [["gateway", "serve", "--web-port", "65536"], '--web-port must be a port number from 0 to 65535, not "65536".'],
@@ -152,7 +156,7 @@ test("session commands say how to start the agent when none is running", async (
   const home = tempHome(t);
   await run("agent", "init", home, "--name", "scout", "--model", "local/qwen");
 
-  for (const args of [["list"], ["read"], ["steer", "hello"], ["stop"]]) {
+  for (const args of [["list"], ["read", "th_1"], ["steer", "th_1", "hello"], ["stop", "th_1"]]) {
     const result = await run("sessions", args[0] ?? "", home, ...args.slice(1));
     assert.equal(result.code, 1, args.join(" "));
     assert.equal(result.err, `No agent is running at ${home}. Start one with: shrimpy agent serve ${home}`);

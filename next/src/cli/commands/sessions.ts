@@ -13,13 +13,15 @@ const CANCELLED = 130;
 const list: Command = {
   name: "sessions list",
   usage: "<home>",
-  summary: "List the sessions of the agent running at the home.",
+  summary: "List the sessions of the agent running at the home: the thread and channel each is behind, and whether it is working.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [home] = expectArguments(positionals, ["<home>"]);
     return withConnection(home, async (connection) => {
-      for (const session of await connection.sessions()) {
-        io.out(session.main ? `${session.id} main` : session.id);
+      const sessions = await connection.sessions();
+      if (sessions.length === 0) io.out("The agent has no sessions yet.");
+      for (const session of sessions) {
+        io.out(`${session.threadId} ${session.channelId} ${session.working ? "working" : "idle"}`);
       }
       return 0;
     });
@@ -28,14 +30,14 @@ const list: Command = {
 
 const read: Command = {
   name: "sessions read",
-  usage: "<home> [--json]",
-  summary: "Show the main session: what was said, what the tools did, and what it is doing now.",
+  usage: "<home> <thread> [--json]",
+  summary: "Show the session behind a thread: what was said, what the tools did, and what it is doing now.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
     );
-    const [home] = expectArguments(positionals, ["<home>"]);
-    return withMainSession(home, (session) => {
+    const [home, thread] = expectArguments(positionals, ["<home>", "<thread>"]);
+    return withSession(home, thread, (session) => {
       io.out(values.json === true ? JSON.stringify(session.view) : renderSession(session.view));
       return Promise.resolve(0);
     });
@@ -44,9 +46,12 @@ const read: Command = {
 
 const steer: Command = {
   name: "sessions steer",
-  usage: "<home> <text> [--request-id <id>] [--wait]",
-  summary: "Give the main session input; it joins work already running.",
+  usage: "<home> <thread> <text> [--request-id <id>] [--wait]",
+  summary: "Give the session behind a thread input; it joins work already running.",
   details:
+    "Direct input is a control, like stopping, and not a message: the thread does not see it. If it joins a " +
+    "turn that is answering a message, that answer covers it; otherwise the answer stays in the session. " +
+    "To talk to an agent, post to its thread. " +
     "With --wait, print the answer and exit 0 when the input was answered, 1 when it failed or ended " +
     "without an answer, and 130 when it was cancelled. A retry with the same --request-id is the same input.",
   async run(args, io) {
@@ -57,9 +62,9 @@ const steer: Command = {
         allowPositionals: true,
       }),
     );
-    const [home, text] = expectArguments(positionals, ["<home>", "<text>"]);
+    const [home, thread, text] = expectArguments(positionals, ["<home>", "<thread>", "<text>"]);
     if (text.trim() === "") throw new UsageError("The text is empty.");
-    return withMainSession(home, async (session) => {
+    return withSession(home, thread, async (session) => {
       const { submission } = await session.steer(text, values["request-id"]);
       if (values.wait !== true) {
         io.out(`Accepted as submission ${submission}.`);
@@ -90,15 +95,17 @@ function report(settlement: Settlement, io: Io): number {
 
 const stop: Command = {
   name: "sessions stop",
-  usage: "<home>",
-  summary: "Cancel the main session's current work and withdraw input it has not picked up.",
-  details: "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C.",
+  usage: "<home> <thread>",
+  summary: "Stop the work in the session behind a thread, and withdraw the input it has not picked up.",
+  details:
+    "Messages still waiting stay in the thread, marked as skipped, and the agent reads them with the next one. " +
+    "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [home] = expectArguments(positionals, ["<home>"]);
-    return withMainSession(home, async (session) => {
+    const [home, thread] = expectArguments(positionals, ["<home>", "<thread>"]);
+    return withSession(home, thread, async (session) => {
       await session.stop();
-      io.out("Cancelled the work in the main session.");
+      io.out(`Stopped the work in the session for thread ${thread}.`);
       return 0;
     });
   },
@@ -124,12 +131,9 @@ async function withConnection<T>(home: string, use: (connection: AgentConnection
   }
 }
 
-function withMainSession<T>(home: string, use: (session: SessionHandle) => Promise<T>): Promise<T> {
-  return withConnection(home, async (connection) => {
-    const main = (await connection.sessions()).find((session) => session.main);
-    if (main === undefined) throw new Error("The agent has no main session.");
-    return use(await connection.attach(main.id));
-  });
+/** Attach to the session behind `thread` at the agent at `home` for the length of `use`. */
+function withSession<T>(home: string, thread: string, use: (session: SessionHandle) => Promise<T>): Promise<T> {
+  return withConnection(home, async (connection) => use(await connection.attach(thread)));
 }
 
 export const sessionsCommands: Command[] = [list, read, steer, stop];

@@ -18,13 +18,13 @@ import { SessionDirectory } from "./services.ts";
 const timeout = 15_000;
 
 /** An agent that lists one session and does whatever `attach` says when a client asks to watch it. */
-async function standInAgent(t: TestContext, attach: (sessionId: string) => Promise<void>) {
+async function standInAgent(t: TestContext, attach: (threadId: string) => Promise<void>) {
   useRuntimeDir(t);
   return startStandIn(t, "agent", {
     offer: () =>
       offer(SessionDirectory, {
-        list: () => Promise.resolve([{ id: "1", main: true }]),
-        attach: (sessionId) => attach(sessionId),
+        list: () => Promise.resolve([{ threadId: "th_1", channelId: "ch_1", working: false }]),
+        attach: (threadId) => attach(threadId),
         detach: () => Promise.resolve(),
       }),
   });
@@ -51,7 +51,7 @@ test("an attach that is waiting for its route fails when the connection drops", 
   });
   const connection = await connect(t, standIn);
 
-  const attaching = assert.rejects(connection.attach("1"), AgentConnectionLostError);
+  const attaching = assert.rejects(connection.attach("th_1"), AgentConnectionLostError);
   await accepted;
   await settle();
   await standIn.close();
@@ -72,11 +72,11 @@ test("an attach the server refuses leaves nothing listening for its route", { ti
     };
   });
   const standIn = await standInAgent(t, () =>
-    Promise.reject(new Refusal("Unknown session: 999")),
+    Promise.reject(new Refusal("This agent has no session for thread th_999 yet.")),
   );
   const connection = await connect(t, standIn);
 
-  await assert.rejects(connection.attach("999"), /Unknown session: 999/);
+  await assert.rejects(connection.attach("th_999"), /This agent has no session for thread th_999 yet\./);
 
   assert.equal(listening.size, 0);
 });

@@ -3,82 +3,66 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
-import { startAgent } from "./index.ts";
+import { until, waitForView } from "../lib/testing/index.ts";
 import {
   answered,
   assistantItems,
-  attachMain,
-  closeAfter,
-  type FauxScenario,
-  fauxModels,
+  type AgentRig,
   loggedRequests,
+  releaseGate,
+  startAgentRig,
   toolItems,
 } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-/** A home of its own, and a runtime directory of its own for the agents started on it. */
-function tempHome(t: TestContext): string {
-  useRuntimeDir(t);
-  return tempDir(t, "stop");
-}
-
-async function startOn(t: TestContext, home: string, scenario: FauxScenario, tokensPerSecond?: number) {
-  return closeAfter(t, await startAgent({ home, ...fauxModels({ home, scenario, tokensPerSecond }) }));
-}
-
-/** Attach to the home's agent for the rest of the test. The agent may be gone before the connection is closed. */
-async function attach(t: TestContext, home: string) {
-  const attached = await attachMain(home);
-  t.after(() => attached.connection.close().catch(() => undefined));
-  return attached;
-}
-
-/** Steer a long answer, and return once part of it has streamed. */
-async function startStreaming(t: TestContext, home: string, tokensPerSecond: number) {
-  const agent = await startOn(t, home, "stream", tokensPerSecond);
-  const attached = await attach(t, home);
-  const { submission } = await attached.session.steer("stream a long answer", "request-1");
+/** An agent that has been asked for a long answer and has started to stream it. */
+async function startStreaming(t: TestContext, tokensPerSecond: number) {
+  const rig = await startAgentRig(t, { tokensPerSecond });
+  const asked = rig.say("stream a long answer");
+  await until(() => rig.chat.chat.working(rig.thread.id).length === 1, "the agent to take the message up");
+  const attached = await rig.attach();
   await waitForView(attached.session, (view) => (assistantItems(view).at(-1)?.text.length ?? 0) > 60);
-  return { agent, submission, ...attached };
+  return { rig, asked, ...attached };
 }
 
-/** Start another agent on the home, and return the main session's view once it has answered. */
-async function resumed(t: TestContext, home: string, scenario: FauxScenario, tokensPerSecond: number) {
-  const agent = await startOn(t, home, scenario, tokensPerSecond);
-  const { connection, session } = await attach(t, home);
-  const view = await waitForView(session, answered);
-  await connection.close();
-  await agent.close();
-  return view;
+/** Start another agent on the first one's home and chat, as the next start would. */
+function restart(t: TestContext, rig: AgentRig, tokensPerSecond = 4000) {
+  return startAgentRig(t, { home: rig.home, chat: rig.chat, tokensPerSecond });
 }
 
-test("stopping lets a running turn finish first", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const { agent } = await startStreaming(t, home, 400);
+const LAST_LINE = "line 40: the quick brown fox jumps over the lazy dog";
 
-  await agent.close();
+test("stopping lets a running turn finish first, and its reply is posted before the agent is gone", { timeout }, async (t) => {
+  const { rig, asked } = await startStreaming(t, 400);
 
-  const view = await resumed(t, home, "stream", 4000);
-  assert.deepEqual(
-    view.items.map((item) => item.type),
-    ["user", "assistant"],
-  );
-  assert.equal(assistantItems(view)[0]?.stopReason, "stop");
-  // The turn was answered before the agent stopped, so nothing was asked twice.
-  assert.equal(loggedRequests(home).length, 1);
+  await rig.agent.close();
+
+  assert.equal(rig.replies().length, 1, "posted while the agent was stopping");
+  assert.ok(rig.replies()[0]?.text.endsWith(LAST_LINE));
+  assert.equal((await rig.receiptOn(asked)).status, "answered");
+  const next = await restart(t, rig);
+  await delay(100);
+  assert.equal(next.replies().length, 1, "and nothing is posted again by the next start");
+  assert.equal(loggedRequests(rig.home).length, 1, "or asked of the model again");
 });
 
-test("stopping at once pauses the turn, and the next start finishes it", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const { agent } = await startStreaming(t, home, 40);
+test("stopping at once pauses the turn, and the next start finishes it and posts the reply", { timeout }, async (t) => {
+  const { rig, asked } = await startStreaming(t, 40);
 
   const started = Date.now();
-  await agent.close({ now: true });
+  await rig.agent.close({ now: true });
   assert.ok(Date.now() - started < 3000, "stopped without waiting for the answer");
+  assert.deepEqual(rig.replies(), [], "and nothing was posted");
 
-  const view = await resumed(t, home, "stream", 4000);
+  const next = await restart(t, rig);
+  const receipt = await next.receiptOn(asked);
+
+  assert.equal(receipt.status, "answered");
+  assert.equal(next.replies().length, 1);
+  assert.ok(next.replies()[0]?.text.endsWith(LAST_LINE));
+  const { session } = await next.attach();
+  const view = await waitForView(session, answered);
   assert.deepEqual(
     view.items.map((item) => item.type),
     ["user", "assistant", "assistant"],
@@ -86,87 +70,108 @@ test("stopping at once pauses the turn, and the next start finishes it", { timeo
   const [partial, complete] = assistantItems(view);
   assert.equal(partial?.stopReason, "aborted");
   assert.ok(partial.text.startsWith("line 01"));
-  assert.ok(complete?.text.endsWith("line 40: the quick brown fox jumps over the lazy dog"));
-  const sent = loggedRequests(home);
+  assert.ok(complete?.text.endsWith(LAST_LINE));
+  const sent = loggedRequests(rig.home);
   assert.equal(sent.length, 2);
   assert.equal(sent[0]?.digest, sent[1]?.digest);
 });
 
 test("a turn that outlasts the grace period is paused, not lost", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const { agent } = await startStreaming(t, home, 40);
+  const { rig, asked } = await startStreaming(t, 40);
 
   const started = Date.now();
-  await agent.close({ graceMs: 300 });
+  await rig.agent.close({ graceMs: 300 });
   const waited = Date.now() - started;
   assert.ok(waited >= 250 && waited < 3000, `waited ${waited} ms`);
 
-  const view = await resumed(t, home, "stream", 4000);
-  assert.equal(assistantItems(view).at(-1)?.stopReason, "stop");
-  assert.equal(loggedRequests(home).length, 2);
+  const next = await restart(t, rig);
+  assert.equal((await next.receiptOn(asked)).status, "answered");
+  assert.equal(next.replies().length, 1);
+  assert.equal(loggedRequests(rig.home).length, 2);
 });
 
-test("input accepted before the stop is answered after the next start, and can be waited for then", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const { agent, session, submission: first } = await startStreaming(t, home, 40);
-  const { submission: second } = await session.steer("and a second one", "request-2");
-  assert.notEqual(first, second);
+test("messages taken before the stop are answered after the next start, one reply each", { timeout }, async (t) => {
+  const { rig, asked: first, session } = await startStreaming(t, 40);
+  const second = rig.say("and a second one");
+  await waitForView(session, (view) => view.status.queued.length === 1);
 
-  await agent.close({ now: true });
+  await rig.agent.close({ now: true });
 
-  await startOn(t, home, "stream", 4000);
-  const restarted = await attach(t, home);
-  const settled = await Promise.all([restarted.session.wait(first), restarted.session.wait(second)]);
+  const next = await restart(t, rig);
+  assert.equal((await next.receiptOn(first)).status, "answered");
+  assert.equal((await next.receiptOn(second)).status, "answered");
   assert.deepEqual(
-    settled.map((settlement) => settlement.status),
-    ["answered", "answered"],
+    next.replies().map((reply) => reply.text.includes("You said: Zach wrote at") || reply.text.endsWith(LAST_LINE)),
+    [true, true],
   );
-  const view = await waitForView(restarted.session, answered);
-  assert.equal(view.items.filter((item) => item.type === "user").length, 2);
 });
 
-test("once stopping begins, new input is refused and the reason reaches the client", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const { agent, session } = await startStreaming(t, home, 40);
+test("once stopping begins, new input is refused, from a client and from chat, and chat's message waits for the next start", { timeout }, async (t) => {
+  const { rig, session } = await startStreaming(t, 40);
 
-  const closing = agent.close({ graceMs: 60_000 });
+  const closing = rig.agent.close({ graceMs: 60_000 });
   await assert.rejects(session.steer("one more thing"), {
     code: "service_not_allowed",
     message: "The agent is stopping and is not taking new input.",
   });
+  const late = rig.say("said while the agent was stopping");
+  await delay(150);
+  assert.equal(rig.chat.chat.messages().find((message) => message.id === late.id)?.receipts.length, 0, "not taken");
 
   // Asking again with `now` ends the wait.
-  await agent.close({ now: true });
+  await rig.agent.close({ now: true });
   await closing;
+  const next = await restart(t, rig);
+  assert.equal((await next.receiptOn(late)).status, "answered");
 });
 
 test("stopping twice stops once, and frees the home", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const agent = await startOn(t, home, "chat");
+  const rig = await startAgentRig(t);
 
-  await Promise.all([agent.close(), agent.close(), agent.close({ now: true })]);
-  await agent.close();
+  await Promise.all([rig.agent.close(), rig.agent.close(), rig.agent.close({ now: true })]);
+  await rig.agent.close();
 
-  await (await startOn(t, home, "chat")).close();
+  const next = await restart(t, rig);
+  await next.agent.close();
+});
+
+test("stopping while chat is unreachable does not wait for it", { timeout }, async (t) => {
+  const rig = await startAgentRig(t, { scenario: "gated" });
+  const asked = rig.say("hello");
+  await until(() => rig.chat.chat.working(rig.thread.id).length === 1, "the agent to take the message up");
+  await rig.chat.outage();
+  releaseGate(rig.home);
+  await delay(300);
+
+  const started = Date.now();
+  await rig.agent.close();
+
+  assert.ok(Date.now() - started < 2000, `stopping took ${Date.now() - started} ms`);
+  await rig.chat.recover();
+  const next = await restart(t, rig);
+  assert.equal((await next.receiptOn(asked)).status, "answered");
+  assert.equal(next.replies().length, 1);
 });
 
 test("stopping during a shell command ends the command, and the next start reports it as interrupted", { timeout }, async (t) => {
-  const home = tempHome(t);
-  const agent = await startOn(t, home, "tool", 400);
-  const { session } = await attach(t, home);
-  await session.steer("run the slow command", "request-1");
-  await waitForView(session, (view) => toolItems(view)[0]?.output.includes("started") ?? false);
-  const shell = Number(readFileSync(join(home, "child.pid"), "utf8").trim());
+  const rig = await startAgentRig(t, { tokensPerSecond: 400 });
+  const asked = rig.say("run the slow command");
+  await until(() => existsSync(join(rig.home, "child.pid")), "the command to start");
+  const shell = Number(readFileSync(join(rig.home, "child.pid"), "utf8").trim());
 
-  await agent.close({ now: true });
+  await rig.agent.close({ now: true });
 
   // The command was running in a shell of its own; stopping the agent took it down too.
   await eventuallyGone(shell);
-  assert.equal(existsSync(join(home, "runs.log")) && readFileSync(join(home, "runs.log"), "utf8").includes("finished"), false);
+  assert.equal(existsSync(join(rig.home, "runs.log")) && readFileSync(join(rig.home, "runs.log"), "utf8").includes("finished"), false);
 
-  const view = await resumed(t, home, "tool", 400);
+  const next = await restart(t, rig, 400);
+  assert.equal((await next.receiptOn(asked)).status, "answered");
+  const { session } = await next.attach();
+  const view = await waitForView(session, answered);
   assert.equal(toolItems(view)[0]?.status, "interrupted");
-  assert.equal(readFileSync(join(home, "runs.log"), "utf8").split("\n").filter((line) => line === "attempt").length, 1);
+  assert.ok(next.replies()[0]?.text.includes("isError=true"));
+  assert.equal(readFileSync(join(rig.home, "runs.log"), "utf8").split("\n").filter((line) => line === "attempt").length, 1);
 });
 
 /** Nothing is left running in the process group that `leader` started, within a moment. */

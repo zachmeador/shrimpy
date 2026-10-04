@@ -4,7 +4,12 @@ import type { SessionSummary, SessionView, Settlement } from "./view.ts";
 /** Agent scope: which sessions exist, and which one this connection watches. */
 export interface SessionDirectory {
   list(context: Context): Promise<SessionSummary[]>;
-  attach(sessionId: string, context: Context): Promise<void>;
+  /**
+   * Watch the session behind a thread: the thread's ID is its address. A
+   * thread the agent has no session for yet is refused, with a message that
+   * says so. A connection watches one session at a time.
+   */
+  attach(threadId: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
 }
 export const SessionDirectory = defineService<SessionDirectory>("shrimpy.agent.sessions");

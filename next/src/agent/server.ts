@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   type RoutedServerServiceHost,
   Server,
@@ -15,9 +14,10 @@ import {
   SessionService,
 } from "../contracts/agent/index.ts";
 import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
+import { refuse } from "../lib/refusal/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import type { Host } from "./host/index.ts";
-import { findSession, listSessions, serveSession } from "./sessions/index.ts";
+import type { Sessions } from "./sessions/index.ts";
 
 export interface AgentServer {
   readonly endpoint: AgentEndpoint;
@@ -26,10 +26,8 @@ export interface AgentServer {
   close(): Promise<void>;
 }
 
-const context = BACKGROUND_CONTEXT;
-
-/** Serve the agent API for `host` on a Unix socket, and record where to find it. */
-export async function startServer(host: Host): Promise<AgentServer> {
+/** Serve the agent API for `host`'s sessions on a Unix socket, and record where to find it. */
+export async function startServer(host: Host, sessions: Sessions): Promise<AgentServer> {
   const endpoint: AgentEndpoint = {
     serverId: previousServerId(host.home) ?? randomUUID(),
     socket: socketPathFor(host.home),
@@ -38,7 +36,7 @@ export async function startServer(host: Host): Promise<AgentServer> {
   let takingInput = true;
   // This process holds the home's lock, so a socket left at its path is stale.
   rmSync(endpoint.socket, { force: true });
-  const server = new Server(serverHost(host, () => takingInput), {
+  const server = new Server(serverHost(sessions, () => takingInput), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
     onError: (error) => console.error("[agent]", error.message),
@@ -60,27 +58,28 @@ export async function startServer(host: Host): Promise<AgentServer> {
   };
 }
 
-function serverHost(host: Host, takingInput: () => boolean): ServerHost {
+function serverHost(sessions: Sessions, takingInput: () => boolean): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
       return offerToConnection(SessionDirectory, {
-        list: () => Promise.resolve(listSessions()),
-        attach: (sessionId, callContext) => presentation.attachSession(sessionId, callContext),
+        list: () => sessions.list(),
+        async attach(threadId, callContext) {
+          // Refused here, not by the router, so the reason reaches the client.
+          if (!(await sessions.has(threadId))) refuse(`This agent has no session for thread ${threadId} yet.`);
+          await presentation.attachSession(threadId, callContext);
+        },
         detach: (callContext) => presentation.detachSession(callContext),
       });
     },
   };
   return {
     serverServices,
-    async resolveSession(sessionId, callContext) {
-      const conversation = await findSession(host.harness, sessionId, callContext);
-      if (conversation === undefined) throw new SessionNotFoundError(`Unknown session: ${sessionId}`);
-      return { id: sessionId };
+    async resolveSession(threadId) {
+      if (!(await sessions.has(threadId))) throw new SessionNotFoundError(`Unknown session: ${threadId}`);
+      return { id: threadId };
     },
     async openSession(metadata) {
-      const conversation = await findSession(host.harness, metadata.id, context);
-      if (conversation === undefined) throw new SessionNotFoundError(`Unknown session: ${metadata.id}`);
-      const served = await serveSession(host.harness, conversation, context, takingInput);
+      const served = await sessions.serve(metadata.id, takingInput);
       return offerToRoute(SessionService, served.service, { closed: () => served.close() });
     },
   };

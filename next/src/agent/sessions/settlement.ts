@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import type {
   Conversation,
+  EntryId,
   EntryRecord,
   Harness,
   SettledSubmissionRecord,
@@ -24,26 +25,35 @@ export async function waitForSettlement(
   }
   const settled = await submission.wait(context);
   if (settled.status !== "done") return toSettlement(settled, undefined);
-  const answer = await conversation.entries(
-    { minEntryId: settled.answer, maxEntryId: settled.answer },
-    1,
-    undefined,
-    context,
-  );
-  return toSettlement(settled, answer.items[0]);
+  return toSettlement(settled, await answerEntry(conversation, settled.answer, context));
+}
+
+/** The entry a `done` submission points to as its answer. */
+export async function answerEntry(
+  conversation: Conversation,
+  answer: EntryId | undefined,
+  context: Context,
+): Promise<EntryRecord | undefined> {
+  if (answer === undefined) return undefined;
+  const found = await conversation.entries({ minEntryId: answer, maxEntryId: answer }, 1, undefined, context);
+  return found.items[0];
 }
 
 /** `answer` is the entry a `done` submission points to. */
 export function toSettlement(record: SettledSubmissionRecord, answer: EntryRecord | undefined): Settlement {
-  if (record.status === "done") {
-    const message = answer?.model?.[0];
-    return { status: "answered", text: message?.role === "assistant" ? assistantText(message) : "" };
-  }
+  if (record.status === "done") return { status: "answered", text: answerText(answer) };
   if (record.reason === "aborted") return { status: "cancelled" };
   return { status: "unanswered", reason: record.reason, detail: describe(record.detail) };
 }
 
-function describe(detail: unknown): string | null {
+/** The words of an answer entry, or nothing if the entry holds no answer. */
+export function answerText(answer: EntryRecord | undefined): string {
+  const message = answer?.model?.[0];
+  return message?.role === "assistant" ? assistantText(message) : "";
+}
+
+/** What the engine says about why an input went unanswered, as text. */
+export function describe(detail: unknown): string | null {
   if (detail === undefined || detail === null) return null;
   return typeof detail === "string" ? detail : JSON.stringify(detail);
 }

@@ -1,7 +1,8 @@
 /**
  * Test support for the CLI: captured output, a model that speaks OpenAI's
- * protocol on a local port, and the CLI itself as a child process, including
- * the commands that serve a program. Only tests and test fixtures import this,
+ * protocol on a local port, the CLI itself as a child process, including the
+ * commands that serve a program, and a person talking to an agent on a real
+ * chat server. Only tests and test fixtures import this,
  * and it must not know how a program works inside.
  */
 export { declareLocalModel } from "./home.ts";
@@ -19,3 +20,4 @@ export {
   shrimpy,
   shrimpyInBackground,
 } from "./process.ts";
+export { type Talk, talkTo } from "./talk.ts";

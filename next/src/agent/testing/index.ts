@@ -1,12 +1,14 @@
 /**
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
- * server, both without a network, and helpers to attach to an agent, stop it
- * and read its views. Only tests and test fixtures import this, and it must not
- * know about any other program.
+ * server, both without a network, an agent wired to a stand-in chat with a
+ * person to talk to it, and helpers to attach to an agent, stop it and read its
+ * views. Only tests and test fixtures import this, and it must not know about
+ * any other program.
  */
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   createModels,
   fauxAssistantMessage,
@@ -19,16 +21,29 @@ import {
   type Models,
   type ToolResultMessage,
 } from "@earendil-works/pi-ai";
-import type { HostOptions } from "../host/index.ts";
+import type { AgentOptions } from "../index.ts";
 
-export { attachMain, closeAfter } from "./attach.ts";
+export { attachThread, closeAfter } from "./attach.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { startAgentChild } from "./child.ts";
+export { scout, zach } from "./names.ts";
+export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
 export { answered, assistantItems, toolItems } from "./views.ts";
 
-export type FauxScenario = "chat" | "fail" | "stream" | "tool";
+/**
+ * What the scripted model does. `chat`, `fail`, `stream` and `tool` each do one
+ * thing. `mixed` picks one of them by what the latest message says: "stream"
+ * streams a long answer, "refuse" fails, "slow command" runs the slow shell
+ * call, and anything else is answered as `chat` answers. `gated` answers as
+ * `chat` does once `releaseGate` has been called for its home.
+ */
+export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "mixed" | "gated";
 
-type Script = (messages: readonly Message[]) => ReturnType<typeof fauxAssistantMessage>;
+/** What the model answers to the messages it is sent, so far. It may take its time. */
+export type Script = (
+  messages: readonly Message[],
+  home: string,
+) => ReturnType<typeof fauxAssistantMessage> | Promise<ReturnType<typeof fauxAssistantMessage>>;
 
 const LONG_TEXT = Array.from(
   { length: 40 },
@@ -45,6 +60,11 @@ const SLOW_COMMAND = [
 ].join("; ");
 
 const LISTING_COMMAND = "printf 'listing the work directory\\n'; sleep 1; printf 'done\\n'";
+
+/** Let the answers of a `gated` model through. */
+export function releaseGate(home: string): void {
+  writeFileSync(join(home, "release"), "");
+}
 
 const SCRIPTS: Record<FauxScenario, Script> = {
   /** One long streamed answer, for interrupting the agent mid-stream. */
@@ -90,15 +110,33 @@ const SCRIPTS: Record<FauxScenario, Script> = {
       fauxText(`${lead}\n\n- first point\n- second point\n\nThat is all for this turn.`),
     ]);
   },
+
+  mixed: (messages, home) => {
+    const user = lastUserText(messages);
+    if (/\bstream\b/i.test(user)) return SCRIPTS.stream(messages, home);
+    if (/\brefuse\b/i.test(user)) return SCRIPTS.fail(messages, home);
+    if (/\bslow command\b/i.test(user)) return SCRIPTS.tool(messages, home);
+    return SCRIPTS.chat(messages, home);
+  },
+
+  gated: async (messages, home) => {
+    // The home going away ends the wait, so a model nobody released does not outlive its test.
+    while (existsSync(home) && !existsSync(join(home, "release"))) await delay(10);
+    return SCRIPTS.chat(messages, home);
+  },
 };
 
-/** A model runtime whose only model follows `scenario`. Each request is logged to `home/requests.jsonl`. */
+/**
+ * A model runtime whose only model follows `scenario`, or `script` when given.
+ * Each request is logged to `home/requests.jsonl`.
+ */
 export function fauxModels(options: {
   home: string;
-  scenario: FauxScenario;
+  scenario?: FauxScenario;
+  script?: Script;
   tokensPerSecond?: number;
-}): { models: Models; model: HostOptions["model"] } {
-  const script = SCRIPTS[options.scenario];
+}): { models: Models; model: AgentOptions["model"] } {
+  const script = options.script ?? SCRIPTS[options.scenario ?? "chat"];
   const faux = fauxProvider({
     tokensPerSecond: options.tokensPerSecond ?? 400,
     tokenSize: { min: 1, max: 2 },
@@ -111,7 +149,7 @@ export function fauxModels(options: {
       join(options.home, "requests.jsonl"),
       `${JSON.stringify({ pid: process.pid, roles: request.messages.map((m) => m.role), digest })}\n`,
     );
-    return script(request.messages);
+    return script(request.messages, options.home);
   };
   faux.setResponses([respond]);
   const models = createModels();

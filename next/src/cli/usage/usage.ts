@@ -23,6 +23,7 @@ export function parsing<T>(parse: () => T): T {
 export function expectArguments(positionals: string[], names: []): [];
 export function expectArguments(positionals: string[], names: [string]): [string];
 export function expectArguments(positionals: string[], names: [string, string]): [string, string];
+export function expectArguments(positionals: string[], names: [string, string, string]): [string, string, string];
 export function expectArguments(positionals: string[], names: string[]): string[] {
   const missing = names[positionals.length];
   if (missing !== undefined) throw new UsageError(`Missing ${missing}.`);

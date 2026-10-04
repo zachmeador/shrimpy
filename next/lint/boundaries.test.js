@@ -49,7 +49,7 @@ tester.run("imports", importsRule, {
     // Inside the agent, the engine belongs to the host, the sessions and the durable extensions, tests of theirs included.
     allowed("agent/host/models.test.ts", "@earendil-works/pi-durable"),
     allowed("agent/sessions/session-view.ts", "@earendil-works/pi-durable"),
-    allowed("agent/sessions/records/outbox.ts", "@earendil-works/pi-durable"),
+    allowed("agent/sessions/turns.ts", "@earendil-works/pi-durable"),
     allowed("agent/extensions/context/sections.ts", "@earendil-works/pi-durable"),
     // Contracts have a Node-only door, and tests may use Node anywhere.
     allowed("contracts/agent/node.ts", "node:fs"),

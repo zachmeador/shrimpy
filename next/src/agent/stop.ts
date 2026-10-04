@@ -1,4 +1,5 @@
 import type { Host } from "./host/index.ts";
+import type { Joined } from "./join.ts";
 import type { AgentServer } from "./server.ts";
 
 export interface CloseOptions {
@@ -10,31 +11,49 @@ export interface CloseOptions {
 
 const DEFAULT_GRACE_MS = 5_000;
 
+/** What an agent is made of, in the order it is taken down. */
+export interface Parts {
+  host: Host;
+  server: AgentServer;
+  /** Absent for an agent that takes no part in chat. */
+  joined?: Joined;
+}
+
 /**
- * How an agent stops: it stops taking new input, gives running turns a short
- * time to finish, then closes the server and the home. Work that did not
- * finish is paused and resumes at the next start. Stopping twice does it
- * once; the second call with `now` cuts the wait short.
+ * How an agent stops: it stops taking new input, from clients and from chat,
+ * gives running turns a short time to finish and their replies a moment to be
+ * told to chat, then leaves the network and closes the server and the home.
+ * Work that did not finish is paused and resumes at the next start. Stopping
+ * twice does it once; the second call with `now` cuts the wait short.
  */
-export function stopper(host: Host, server: AgentServer): (options?: CloseOptions) => Promise<void> {
+export function stopper(parts: Parts): (options?: CloseOptions) => Promise<void> {
   const hurry = new AbortController();
   let stopping: Promise<void> | undefined;
   return (options = {}) => {
     if (options.now === true) hurry.abort();
-    stopping ??= stop(host, server, options.graceMs ?? DEFAULT_GRACE_MS, hurry.signal);
+    stopping ??= stop(parts, options.graceMs ?? DEFAULT_GRACE_MS, hurry.signal);
     return stopping;
   };
 }
 
-async function stop(host: Host, server: AgentServer, graceMs: number, hurry: AbortSignal): Promise<void> {
+async function stop({ host, server, joined }: Parts, graceMs: number, hurry: AbortSignal): Promise<void> {
   server.stopIntake();
+  joined?.stopTaking();
   try {
-    if (!hurry.aborted) await host.settle(AbortSignal.any([hurry, AbortSignal.timeout(graceMs)]));
+    if (!hurry.aborted) {
+      const deadline = AbortSignal.any([hurry, AbortSignal.timeout(graceMs)]);
+      await host.settle(deadline);
+      await joined?.drain(deadline);
+    }
   } finally {
     try {
-      await server.close();
+      await joined?.close();
     } finally {
-      await host.close();
+      try {
+        await server.close();
+      } finally {
+        await host.close();
+      }
     }
   }
 }

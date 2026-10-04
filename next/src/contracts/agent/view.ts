@@ -55,10 +55,17 @@ export interface SessionView {
   entries: number;
 }
 
+/**
+ * A session as a list shows it. An agent has one session for each thread it
+ * takes part in, and addresses it by the thread's ID. A session with no
+ * thread, such as a helper's, comes later with an ID of its own.
+ */
 export interface SessionSummary {
-  id: string;
-  /** The session an agent always has. */
-  main: boolean;
+  /** The thread the session is behind. It is also the session's address at the agent: `attach` takes it. */
+  threadId: string;
+  channelId: string;
+  /** Whether the session has input it is answering or has queued. */
+  working: boolean;
 }
 
 /**

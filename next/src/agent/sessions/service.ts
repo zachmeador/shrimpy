@@ -1,11 +1,6 @@
 import { type Context, replicatedState } from "@earendil-works/chord";
-import {
-  type Conversation,
-  type ConversationId,
-  type Harness,
-  ROOT_CONVERSATION_ID,
-} from "@earendil-works/pi-durable";
-import type { SessionService, SessionSummary } from "../../contracts/agent/index.ts";
+import type { Conversation, Harness } from "@earendil-works/pi-durable";
+import type { SessionService } from "../../contracts/agent/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
@@ -15,19 +10,6 @@ import { waitForSettlement } from "./settlement.ts";
 export interface ServedSession {
   readonly service: SessionService;
   close(): void;
-}
-
-export function listSessions(): SessionSummary[] {
-  return [{ id: String(ROOT_CONVERSATION_ID), main: true }];
-}
-
-export async function findSession(
-  harness: Harness,
-  sessionId: string,
-  context: Context,
-): Promise<Conversation | undefined> {
-  if (!/^\d+$/.test(sessionId)) return undefined;
-  return harness.conversation(Number(sessionId) as ConversationId, context);
 }
 
 /**
