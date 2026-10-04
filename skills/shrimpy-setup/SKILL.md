@@ -15,13 +15,15 @@ You can check things and edit files. Starting programs is the person's step: `sh
 
 `shrimpy up <home>... --data <data-dir>` starts whichever of these is missing and stays in that terminal. Ctrl+C stops what it started. Anything already running is used as it is. To add an agent to a setup that is up, the person runs `shrimpy agent serve <home>` in another terminal. Stopping an agent that `up` started stops everything `up` started.
 
+Programs reach each other by name through the gateway, so people and agents can talk only while it runs. An agent's own work does not need it, and its replies wait until it is back, but `up` stops everything it started when any of it ends, the gateway included. With the gateway down, `shrimpy sessions list <home>`, `shrimpy sessions read <home> <thread>` and `shrimpy sessions stop <home> <thread>` still reach an agent, because they go straight to its home.
+
 A program that won't start says why in the terminal that started it. Ask the person to paste it.
 
 There is no setup command yet. A new setup is `shrimpy agent init`, a model for the agent, then `up`. One agent that answers is a complete setup, and a second can wait until the person asks for it.
 
 ## See what is running
 
-- `shrimpy gateway status` lists the registered programs (kind, name, version and pid) and the roster (ID, kind, name, and whether it is reachable now). An agent that isn't listed among the programs isn't running.
+- `shrimpy gateway status` lists the registered programs (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now). An agent that isn't listed among the programs isn't running.
 - `shrimpy agent status <home>` says whether the agent at a home is running.
 - `shrimpy sessions list <home>` lists the threads that agent is working in.
 

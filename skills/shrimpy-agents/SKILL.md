@@ -26,8 +26,8 @@ vault/                longer notes it reads when it needs them
 state/pi/models.json  model servers it can use
 state/pi/auth.json    its API keys
 state/agent.sqlite    the engine's storage
-state/member.json     its ID on the roster and the key that proves it is this agent
-runtime/              the lock, the socket and the shrimpy command: disposable
+state/member.json     the key that proves it is this agent, and its ID on the roster once it has joined
+runtime/              the lock, where to find the agent by its home, and the shrimpy command: disposable
 ```
 
 Never open `state/agent.sqlite` or edit `runtime/`: the running agent owns them. Never show `state/member.json` to anyone: whoever holds the key is that agent. Every agent under one user can read and edit every other's files, so be sure which home you are in.
