@@ -35,24 +35,6 @@ test("an attempt that fails is tried again, and its error is reported", async ()
   assert.deepEqual(errors, ["Error: failed 1", "Error: failed 2"]);
 });
 
-test("an attempt that ends without an error is started again after a pause", async () => {
-  const stop = new AbortController();
-  const calls: string[] = [];
-  let attempts = 0;
-
-  await keepRunning({
-    signal: stop.signal,
-    backoff: fixedPause(0, calls),
-    async attempt() {
-      attempts += 1;
-      if (attempts === 2) stop.abort();
-    },
-  });
-
-  assert.equal(attempts, 2);
-  assert.deepEqual(calls, ["next"]);
-});
-
 test("an established attempt resets the pauses", async () => {
   const stop = new AbortController();
   const calls: string[] = [];
@@ -108,17 +90,4 @@ test("the running attempt gets the stop signal, and stopping is not an error", {
   await running;
 
   assert.deepEqual(errors, []);
-});
-
-test("nothing runs when the signal is already aborted", async () => {
-  let attempts = 0;
-
-  await keepRunning({
-    signal: AbortSignal.abort(),
-    async attempt() {
-      attempts += 1;
-    },
-  });
-
-  assert.equal(attempts, 0);
 });

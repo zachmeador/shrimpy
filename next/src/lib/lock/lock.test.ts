@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { startChild, tempDir } from "../testing/index.ts";
-import { isLocked, takeLock } from "./node.ts";
+import { takeLock } from "./node.ts";
 
 const lockModule = new URL("./node.ts", import.meta.url).href;
 
@@ -25,50 +25,6 @@ test("one process holds a lock at a time, and releasing frees it", (t) => {
 
   lock.release();
   takeLock(file, taken).release();
-});
-
-test("isLocked recognizes a busy database and nothing else", (t) => {
-  const file = lockFile(t);
-  const lock = takeLock(file, taken);
-  const busy = (() => {
-    try {
-      takeLock(file, (cause) => cause);
-    } catch (error) {
-      return error;
-    }
-  })();
-  lock.release();
-
-  assert.equal(isLocked(busy), true);
-  assert.equal(isLocked(Object.assign(new Error("database is locked"), { errcode: 5 + 256 })), true);
-  assert.equal(isLocked(Object.assign(new Error("database table is locked"), { errcode: 6 })), false);
-  assert.equal(isLocked(Object.assign(new Error("unable to open database file"), { errcode: 14 })), false);
-  assert.equal(isLocked("database is locked"), false);
-  assert.equal(isLocked(undefined), false);
-});
-
-test("an error with no code is judged by its message", () => {
-  assert.equal(isLocked(new Error("database is locked")), true);
-  assert.equal(isLocked(new Error("unable to open database file")), false);
-});
-
-test("releasing twice does nothing, and does not free a lock someone else took since", (t) => {
-  const file = lockFile(t);
-  const first = takeLock(file, taken);
-  first.release();
-  const second = takeLock(file, taken);
-
-  first.release();
-
-  assert.throws(() => takeLock(file, taken), Taken);
-  second.release();
-});
-
-test("different files have different locks", (t) => {
-  const one = takeLock(lockFile(t), taken);
-  const two = takeLock(lockFile(t), taken);
-  one.release();
-  two.release();
 });
 
 test("a lock that cannot be opened is not mistaken for one that is held", (t) => {

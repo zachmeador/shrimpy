@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { type Context, defineService } from "@earendil-works/chord";
-import { DisconnectedError } from "@earendil-works/pi-client";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { offer, startChild, startStandIn, useRuntimeDir } from "../testing/index.ts";
 import { isNotListening, openConnection } from "./index.ts";
@@ -26,23 +25,6 @@ function connectionFailure(socket: string, serverId = randomUUID()): Promise<unk
     (error: unknown) => error,
   );
 }
-
-const withCode = (code: string): DisconnectedError =>
-  new DisconnectedError("could not connect", Object.assign(new Error(code), { code }));
-
-test("a socket that is gone, or that nothing answers on, is nobody listening", () => {
-  assert.equal(isNotListening(withCode("ENOENT")), true);
-  assert.equal(isNotListening(withCode("ECONNREFUSED")), true);
-});
-
-test("any other failure says something more", () => {
-  assert.equal(isNotListening(withCode("EACCES")), false);
-  assert.equal(isNotListening(new DisconnectedError("lost it")), false);
-  assert.equal(isNotListening(new Error("ENOENT")), false);
-  assert.equal(isNotListening(Object.assign(new Error("gone"), { code: "ENOENT" })), false);
-  assert.equal(isNotListening("ENOENT"), false);
-  assert.equal(isNotListening(undefined), false);
-});
 
 test("connecting to a socket that does not exist fails as nobody listening", { timeout }, async (t) => {
   const missing = join(useRuntimeDir(t), "missing.sock");

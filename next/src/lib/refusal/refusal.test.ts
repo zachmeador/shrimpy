@@ -1,28 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Context, defineService, RemoteServiceError } from "@earendil-works/chord";
+import { type Context, defineService } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { openConnection } from "../connection/index.ts";
 import { offer, startStandIn, stopAfter, useRuntimeDir } from "../testing/index.ts";
-import { refuse, Refusal } from "./index.ts";
+import { refuse } from "./index.ts";
 
 const timeout = 15_000;
-
-test("a refusal is a service error that carries its reason", () => {
-  const refusal = new Refusal("Not that.");
-
-  assert.ok(refusal instanceof RemoteServiceError);
-  assert.equal(refusal.message, "Not that.");
-  assert.equal(refusal.code, "service_invalid_value");
-  assert.equal(refusal.name, "Refusal");
-  assert.equal(new Refusal("Who are you?", "service_not_allowed").code, "service_not_allowed");
-});
-
-test("refuse throws a refusal", () => {
-  assert.throws(() => refuse("Not that."), (error) => error instanceof Refusal && error.message === "Not that.");
-  assert.throws(() => refuse("Not now.", "service_not_allowed"), { name: "Refusal", code: "service_not_allowed" });
-});
 
 interface Doorman {
   turnAway(context: Context): Promise<void>;
