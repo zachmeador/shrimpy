@@ -25,8 +25,17 @@ const messages = {
   durableInAgent:
     "Inside agent/, only host/, sessions/ and extensions/ import Pi's durable runtime, not {{part}}: the rest, intake/ included, sees only Shrimpy's own types.",
   piTui: "Only clients/console/ imports pi-tui, and only from the package root.",
+  piTuiDraw:
+    "Inside clients/console/, only draw/ imports pi-tui: the client's state and everything that reaches the network must work without a terminal.",
+  drawing:
+    "Only the top of clients/console/ imports draw/: what the client shows and does must not depend on how it is drawn.",
   browser: "Browser-safe code must not import {{target}}: what needs Node sits behind a node.ts door.",
 };
+
+const CONSOLE = "clients/console/";
+const CONSOLE_DRAW = `${CONSOLE}draw/`;
+/** A file in a directory of the console, as opposed to one at its top. */
+const inConsoleDirectory = (path) => path.startsWith(CONSOLE) && path.includes("/", CONSOLE.length);
 
 /** The program or shared area a path under src/ belongs to. */
 function ownerOf(path) {
@@ -65,6 +74,7 @@ function checkPackage(from, specifier) {
     if (owner !== "clients/console" || specifier !== "@earendil-works/pi-tui") {
       return { messageId: "piTui" };
     }
+    if (!from.startsWith(CONSOLE_DRAW)) return { messageId: "piTuiDraw" };
   }
   if (isBrowserSafe(from) && reachesNode(specifier)) {
     return { messageId: "browser", data: { target: specifier } };
@@ -91,6 +101,9 @@ function checkRelative(from, specifier) {
   }
   if (isBrowserSafe(from) && needsNode(target)) {
     return { messageId: "browser", data: { target } };
+  }
+  if (target.startsWith(CONSOLE_DRAW) && inConsoleDirectory(from) && !from.startsWith(CONSOLE_DRAW)) {
+    return { messageId: "drawing" };
   }
 
   const provider = /^chat\/providers\/([^/]+)\//.exec(from);

@@ -43,9 +43,15 @@ tester.run("imports", importsRule, {
     allowed("cli/flow.test.ts", "./testing/index.ts"),
     // Programs share small helpers through lib/.
     allowed("agent/home/agent-config.ts", "../../lib/json-config/index.ts"),
-    // Only the agent knows the engine, and only the console knows pi-tui.
+    // Only the agent knows the engine, and only the console's drawing knows pi-tui, tests and test support of it included.
     allowed("agent/host/host.ts", "@earendil-works/pi-durable/env/node"),
-    allowed("clients/console/screen.ts", "@earendil-works/pi-tui"),
+    allowed("clients/console/draw/screen.ts", "@earendil-works/pi-tui"),
+    allowed("clients/console/draw/screen.test.ts", "@earendil-works/pi-tui"),
+    allowed("clients/console/draw/testing/terminal.ts", "@earendil-works/pi-tui"),
+    // The top of the console starts the drawing through its front door, and the drawing reaches the rest the same way.
+    allowed("clients/console/console.ts", "./draw/index.ts"),
+    allowed("clients/console/draw/screen.ts", "../state/index.ts"),
+    allowed("clients/console/state/store.ts", "../network/index.ts"),
     // Inside the agent, the engine belongs to the host, the sessions and the durable extensions, tests of theirs included.
     allowed("agent/host/models.test.ts", "@earendil-works/pi-durable"),
     allowed("agent/sessions/session-view.ts", "@earendil-works/pi-durable"),
@@ -123,7 +129,19 @@ tester.run("imports", importsRule, {
     refused("agent/index.ts", "@earendil-works/pi-durable", "durableInAgent"),
     refused("agent/agent.test.ts", "@earendil-works/pi-durable", "durableInAgent"),
     refused("clients/web/page.ts", "@earendil-works/pi-tui", "piTui"),
-    refused("clients/console/screen.ts", "@earendil-works/pi-tui/dist/editor.js", "piTui"),
+    refused("clients/console/draw/screen.ts", "@earendil-works/pi-tui/dist/editor.js", "piTui"),
+    refused("clients/console/draw/screen.ts", "@earendil-works/pi-tui/dist/index.js", "piTui"),
+    refused("cli/commands/read.ts", "@earendil-works/pi-tui", "piTui"),
+    // Inside the console only the drawing imports it, so the client works without a terminal.
+    refused("clients/console/screen.ts", "@earendil-works/pi-tui", "piTuiDraw"),
+    refused("clients/console/index.ts", "@earendil-works/pi-tui", "piTuiDraw"),
+    refused("clients/console/state/store.ts", "@earendil-works/pi-tui", "piTuiDraw"),
+    refused("clients/console/state/store.test.ts", "@earendil-works/pi-tui", "piTuiDraw"),
+    refused("clients/console/network/testing/watching.ts", "@earendil-works/pi-tui", "piTuiDraw"),
+    // And nothing below the top of the console imports the drawing, so pi-tui can't arrive through it.
+    refused("clients/console/state/store.ts", "../draw/index.ts", "drawing"),
+    refused("clients/console/network/chat.ts", "../draw/index.ts", "drawing"),
+    refused("clients/console/screen/screen.test.ts", "../draw/index.ts", "drawing"),
     refused("contracts/agent/connect.ts", "node:fs", "browser"),
     refused("contracts/agent/connect.ts", "fs", "browser"),
     refused("contracts/agent/connect.ts", "@earendil-works/pi-client/unix", "browser"),
