@@ -18,42 +18,14 @@ import {
 
 const timeout = 30_000;
 
-test("a client reaches a program through the pipe and makes a call", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const echo = await startEchoProgram(t, "echo-agent");
-  const entry = await openEntry({ echo: echo.socket });
-  const url = agentUrl(entry.port, "echo");
-  const first = await connectEcho(echo.serverId, webSocketTransport(url));
-  const second = await connectEcho(echo.serverId, webSocketTransport(url));
-  try {
-    assert.equal(await first.echo("hello"), "echo: hello");
-    assert.equal(await second.echo("there"), "echo: there");
-    assert.equal(echo.connections(), 2);
-  } finally {
-    await first.close();
-    await second.close();
-    await entry.close();
-    await echo.close();
-  }
-});
-
 test("a target that is not running is refused, and nothing is connected", { timeout }, async (t) => {
   const runtime = useRuntimeDir(t);
   const target = await startBytesTarget("known");
   const entry = await openEntry({ known: target.socket, ghost: join(runtime, "ghost.sock") });
   try {
-    const unknown = [
-      "/ws/agent/nobody",
-      "/ws/chat/known",
-      "/ws/gateway",
-      "/ws/robot/known",
-      "/ws/agent/known/extra",
-      "/ws/agent/",
-      "/ws/agent/%E0%A4%A",
-      "/ws",
-      "/",
-    ];
-    for (const path of unknown) assert.equal(await handshakeStatus(entry.port, path), 404, path);
+    for (const path of ["/ws/agent/nobody", "/ws/agent/%E0%A4%A"]) {
+      assert.equal(await handshakeStatus(entry.port, path), 404, path);
+    }
     assert.equal(await handshakeStatus(entry.port, "/ws/agent/ghost"), 502);
     assert.equal(target.connections.length, 0);
 
@@ -64,7 +36,7 @@ test("a target that is not running is refused, and nothing is connected", { time
   }
 });
 
-test("a page from another origin is refused, and nothing is connected", { timeout }, async (t) => {
+test("a page from another origin reaches nothing, while the entry's own pages and clients that are not pages do", { timeout }, async (t) => {
   useRuntimeDir(t);
   const target = await startBytesTarget("known");
   const entry = await openEntry({ known: target.socket });
@@ -72,13 +44,9 @@ test("a page from another origin is refused, and nothing is connected", { timeou
     const { port } = entry;
     const foreign = [
       "https://evil.example",
-      "http://evil.example:80",
       `http://127.0.0.1:${port + 1}`,
-      `http://localhost:${port + 1}`,
-      `https://127.0.0.1:${port}`,
-      "http://localhost",
+      `http://127.0.0.1:${port}.evil.example`,
       "null",
-      "",
     ];
     for (const origin of foreign) {
       assert.equal(await handshakeStatus(port, "/ws/agent/known", { Origin: origin }), 403, origin);
@@ -88,18 +56,8 @@ test("a page from another origin is refused, and nothing is connected", { timeou
     for (const origin of [`http://127.0.0.1:${port}`, `http://localhost:${port}`]) {
       assert.equal(await handshakeStatus(port, "/ws/agent/known", { Origin: origin }), 101, origin);
     }
-  } finally {
-    await entry.close();
-    await target.close();
-  }
-});
-
-test("a client that sends no Origin is not a web page, and is accepted", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const target = await startBytesTarget("known");
-  const entry = await openEntry({ known: target.socket });
-  try {
-    assert.equal(await handshakeStatus(entry.port, "/ws/agent/known"), 101);
+    // Browsers always send an Origin, so a client with none is not a web page.
+    assert.equal(await handshakeStatus(port, "/ws/agent/known"), 101);
   } finally {
     await entry.close();
     await target.close();

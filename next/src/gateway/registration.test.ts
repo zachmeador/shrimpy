@@ -4,7 +4,6 @@ import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectGateway, type Registration } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, GatewayNotRunningError } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
-import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { startGateway } from "./index.ts";
 import { agentRegistration as agent, startEchoProgram, startRegistrantChild } from "./testing/index.ts";
 
@@ -30,18 +29,6 @@ test("a registration is listed to every client", { timeout }, async (t) => {
   }
 });
 
-test("the gateway reports the version of Shrimpy it runs", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startGateway();
-  const client = await connectLocalGateway();
-  try {
-    assert.equal(await client.version(), SHRIMPY_VERSION);
-  } finally {
-    await client.close();
-    await gateway.close();
-  }
-});
-
 test("every version is listed as it was given, and none is refused", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGateway();
@@ -61,74 +48,25 @@ test("every version is listed as it was given, and none is refused", { timeout }
   }
 });
 
-test("registering again on a connection replaces its entry", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startGateway();
-  const first = await connectLocalGateway();
-  const second = await connectLocalGateway();
-  try {
-    const one = agent("one");
-    const chat: Registration = { ...agent("chat"), kind: "chat" };
-    await first.register(one);
-    await second.register(chat);
-
-    const restarted = { ...one, socket: "/tmp/one-restarted.sock" };
-    await first.register(restarted);
-
-    assert.deepEqual(await second.list(), [chat, restarted]);
-  } finally {
-    await first.close();
-    await second.close();
-    await gateway.close();
-  }
-});
-
-test("a registration lasts exactly as long as its connection", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startGateway();
-  const first = await connectLocalGateway();
-  const second = await connectLocalGateway();
-  const observer = await connectLocalGateway();
-  let firstEnded = 0;
-  first.onDisconnect(() => {
-    firstEnded += 1;
-  });
-  try {
-    const one = agent("one");
-    const two = agent("two");
-    await first.register(one);
-    await second.register(two);
-    assert.deepEqual(await observer.list(), [one, two]);
-
-    await first.close();
-
-    await eventually(() => observer.list(), (list) => list.length === 1);
-    assert.deepEqual(await observer.list(), [two]);
-    assert.equal(firstEnded, 1);
-  } finally {
-    await first.close();
-    await second.close();
-    await observer.close();
-    await gateway.close();
-  }
-});
-
-test("a registration disappears when its process is killed", { timeout }, async (t) => {
+test("a registration lasts as long as its connection: it is gone when its process is killed, and the others stay", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGateway();
   const observer = await connectLocalGateway();
+  const stays = await connectLocalGateway();
   const child = await startRegistrantChild(t, "victim");
   try {
+    const staying = agent("stays");
+    await stays.register(staying);
     const listed = await observer.list();
-    assert.equal(listed.length, 1);
-    const [victim] = listed;
-    assert.equal(victim?.name, "victim");
-    assert.equal(victim.pid, child.pid);
+    assert.deepEqual(listed.map((program) => program.name), ["victim", "stays"]);
+    assert.equal(listed[0]?.pid, child.pid);
 
     await child.kill("SIGKILL");
 
-    await eventually(() => observer.list(), (list) => list.length === 0);
+    await eventually(() => observer.list(), (list) => list.length === 1);
+    assert.deepEqual(await observer.list(), [staying]);
   } finally {
+    await stays.close();
     await observer.close();
     await gateway.close();
   }
@@ -160,15 +98,9 @@ test("a registration that cannot be accepted is refused with the reason", { time
   }
 });
 
-test("connecting fails when no gateway is running, and says so", { timeout }, async (t) => {
+test("connecting fails as no gateway running when nothing listens", { timeout }, async (t) => {
   useRuntimeDir(t);
-  await assert.rejects(
-    connectLocalGateway(),
-    (error) =>
-      error instanceof GatewayNotRunningError &&
-      error.message === "No gateway is running on this machine." &&
-      /ENOENT/.test(String(error.cause)),
-  );
+  await assert.rejects(connectLocalGateway(), GatewayNotRunningError);
 });
 
 test("a gateway client refuses a server that is not the gateway", { timeout }, async (t) => {

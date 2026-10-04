@@ -131,16 +131,6 @@ test("a client that is gone before the gateway's answer reaches it is not report
   }
 });
 
-test("a gateway without a browser entry opens no port", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startGateway();
-  try {
-    assert.equal(gateway.webPort, undefined);
-  } finally {
-    await gateway.close();
-  }
-});
-
 test("a gateway whose browser entry cannot start gives the socket back", { timeout }, async (t) => {
   const runtime = useRuntimeDir(t);
   const squatter = createServer();

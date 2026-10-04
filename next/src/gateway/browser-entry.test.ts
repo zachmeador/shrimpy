@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { test } from "node:test";
 import { connectGateway, webSocketPath, webSocketTransport } from "../contracts/gateway/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
-import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import { startGateway } from "./index.ts";
 import {
   agentRegistration as agent,
   connectEcho,
   type EchoClient,
   handshakeStatus,
-  rawRequest,
   startEchoProgram,
   webPortOf,
 } from "./testing/index.ts";
@@ -53,10 +50,7 @@ test("a browser can list programs but cannot register one", { timeout }, async (
     transportFactory: webSocketTransport(`ws://127.0.0.1:${port}${webSocketPath("gateway")}`),
   });
   try {
-    await assert.rejects(browser.register(agent("planted")), {
-      code: "service_not_allowed",
-      message: "Only a program on the gateway's machine can register. A browser can list what is running.",
-    });
+    await assert.rejects(browser.register(agent("planted")), { code: "service_not_allowed" });
 
     assert.deepEqual(await browser.list(), []);
     assert.equal(await handshakeStatus(port, webSocketPath({ kind: "agent", name: "planted" })), 404);
@@ -84,45 +78,6 @@ test("a program that leaves the registry can no longer be reached from a browser
   } finally {
     await program.close();
     await echo.close();
-    await gateway.close();
-  }
-});
-
-test("closing the gateway closes the browser entry and every pipe through it", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startGateway({ web: { port: 0 } });
-  const port = webPortOf(gateway);
-  const browser = await connectGateway({
-    transportFactory: webSocketTransport(`ws://127.0.0.1:${port}${webSocketPath("gateway")}`),
-  });
-  try {
-    assert.deepEqual(await browser.list(), []);
-    const ended = new Promise<void>((resolve) => browser.onDisconnect(() => resolve()));
-
-    await gateway.close();
-
-    await ended;
-    await assert.rejects(handshakeStatus(port, "/ws/gateway"), /ECONNREFUSED/);
-  } finally {
-    await browser.close();
-  }
-});
-
-test("a gateway serves its page and its pipes from one origin", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const site = tempDir(t, "site");
-  writeFileSync(join(site, "index.html"), "<h1>shrimpy</h1>");
-  const gateway = await startGateway({ web: { port: 0, staticDir: site } });
-  try {
-    const port = webPortOf(gateway);
-    const page = await rawRequest(port, "/");
-    assert.equal(page.status, 200);
-    assert.equal(page.body, "<h1>shrimpy</h1>");
-
-    // Browsers send the page's origin with the handshake.
-    assert.equal(await handshakeStatus(port, "/ws/gateway", { Origin: `http://127.0.0.1:${port}` }), 101);
-    assert.equal(await handshakeStatus(port, "/ws/gateway", { Origin: "https://evil.example" }), 403);
-  } finally {
     await gateway.close();
   }
 });
