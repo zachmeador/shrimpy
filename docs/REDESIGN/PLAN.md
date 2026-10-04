@@ -322,42 +322,57 @@ Ideas that are not decisions. Nothing here is scheduled, and nothing gets built 
 
 ### What an agent keeps in view
 
-**State:** an early thought from 2026-10-04. You haven't yet worked out when an agent needs this and when it is more than an agent needs. That question comes before any design.
+**State:** an early thought from 2026-10-04. You haven't yet worked out when an agent needs this and when it is more than an agent needs. That question comes before any design. Two things have been looked at since: what a change to the prompt costs, and a second opinion from Fable. Both lean toward building nothing until use shows an agent missing something.
 
 **The thought,** in your words: "most context can live in static markdowns but it feels like sometimes dynamic info that only appears when it's changed could be useful". Your example is a finance agent with passive access to things like balance changes. It is one piece of the app-agents idea: an agent whose identity is one application-like vertical, and whose `context/` is about that vertical and nothing else. Live facts would be the part of that context that moves.
 
-**Where it comes from.** Old Shrimpy had turn context: facts placed in front of every turn within a 6,000-character budget. Some came from producers, which were bounded commands run before a turn, and its example was a finance alerts command. It kept track of what it had shown, so an unchanged fact was left out and came back when its value changed. Its own advice was to keep producers for "bounded facts the model must see before it can decide what to inspect", and otherwise to let the agent run a command when it decides live data matters.
+**Where it comes from.** Old Shrimpy had turn context: facts placed in front of the user's message at every turn, within a 6,000-character budget. Some came from producers, which were bounded commands run before a turn, and its example was a finance alerts command. It kept track of what it had shown, so an unchanged fact was left out and came back when its value changed. Its own advice was to keep producers for "bounded facts the model must see before it can decide what to inspect", and otherwise to let the agent run a command when it decides live data matters.
 
-**What Pi brings.** A prompt section can render from a durable document. Pi stores sections as entries at their place in the transcript and sends only what changed. Old Shrimpy built that tracking by hand; in Pi it is how sections work. A section can't run a command, so something else has to keep the document current. A change wakes nobody: it is seen at the agent's next turn. With the OpenAI-compatible adapter a changed section was seen to send the whole leading system message again, so that model gets the new state and not what changed.
+**What Pi brings.** A prompt section can render from a durable document, and Pi keeps track of what each conversation has been shown. A section must give the same text for the same inputs, so it can't run a check itself: something else has to keep the document current. A change wakes nobody. It is seen at the agent's next turn.
 
-**Three ways a fact reaches an agent.** This is a framing offered for review, not a decision.
+**What a change to the prompt costs.** You asked whether pulling a changed context file into a long-running session would break caching. On most models it would. This was checked on 2026-10-04 against Pi 1.0.0 and your local model.
 
-- It looks it up when it needs it, with its shell and its files. This is the default and needs no mechanism.
-- It is kept in view: small, current, in the prompt, told once when it changes, waking nobody.
-- It is told now: an event or a trigger starts a turn.
+- Pi never rewrites what it has sent. A section whose text changed is added as an entry at the end of the transcript, holding that section's whole new text.
+- A model that accepts a system message partway through a conversation gets the entry where it sits. Everything before it is unchanged, so the provider's cache holds and the change costs its own size. Pi's model list turns this on for some of the newest models on their makers' own APIs, such as Claude Opus 5.5 and GPT-5.5.
+- Every other model gets one system message at the front, rebuilt with the current text. That is the default for any server declared in `models.json`. The request then differs from the changed section onward, so the rest of the prompt and the whole conversation are read again. Each session of the agent pays that once, at its next request.
+- Your local Qwen server is in the second group and can't be moved out of it. It answers a system message that isn't first with "System message must be at the beginning."
+- Every file in `context/` is part of one section, so one changed file sends all of them again.
+- A reload that changed nothing adds nothing and costs nothing. Today a home's files are read when the agent starts and on `shrimpy agent reload`, and never in between.
 
-The design question for any one fact is which of the three it belongs to.
+**Four ways a fact reaches an agent,** cheapest first. This is a framing offered for review, not a decision.
 
-**Shapes it could take,** cheapest first.
+1. **It looks it up** when it needs it, with its shell, its files and its tools. This is the default. It needs nothing new: a skill says when to look.
+2. **It is told at its next turn.** The fact comes with the next input and wakes nobody. It costs nothing on any model, because a turn only adds to the end of the conversation. It appears once, when it changed, and then moves up with everything else, where compaction may leave it out. This is what your words describe, it is where old Shrimpy put turn context, and it is already this plan's [rule for per-turn facts](#prompt-capture). The carrier would be a quiet message: a check posts to a thread without waking the agent, which reads it at its next turn there. That takes triggers and the [unread copy](#chat-server) planned with rooms, and neither is built.
+3. **It is told now.** A trigger or an event starts a turn.
+4. **It sits in the prompt** and is replaced when it changes. The current value is in every request, and after compaction Pi writes the whole prompt again. Each change costs what the list above says, so this suits only a fact that rarely changes. The carrier would be a document behind a section, for facts that only Shrimpy knows: who is reachable, which questions to other agents are open.
 
-- A Markdown file in `context/` that something keeps current, a check command or the agent itself, with the agent reading its files again when one changes. Facts stay files a person can open, and almost nothing is new: a file in `context/` already reaches every session after `shrimpy agent reload`.
-- A document behind a section, for facts only Shrimpy knows: who is reachable, which threads have something unread, which questions to other agents are open.
-- A check with two outcomes: wake the agent, or just keep a fact current. That would make this the quiet half of triggers and not a second system.
+The design question for any one fact is which of the four it belongs to.
+
+A Markdown file in `context/` that a check keeps current looked like the cheapest shape and isn't. It costs most models a full read of the conversation at every change, it sends every other context file along, and it puts machine-kept state beside what the agent is told about itself.
+
+**Fable's view,** asked on 2026-10-04. These are its arguments, not decisions.
+
+- Sort facts by kind, not by how often they change. A domain fact, such as a balance or a transaction, is a lookup: the agent has commands for it, and a skill says when to run them. Its example was "glance at status when a finance conversation starts; re-check before any payment". If the agent doesn't know to look, fix the skill. A situation fact, such as a new thread, a peer it can reach or a question it has open, is one it wouldn't know to look for. Only those are candidates.
+- A candidate whose staleness costs something outside the conversation, such as money, a deadline or a person waiting, should wake the agent. The rest can be told once.
+- An app-agent doesn't need live state in its prompt. A coded finance app shows a dashboard because its user can't ask it questions, and an agent can look. What makes an accountant is not the numbers held in their head. It is knowing which accounts exist, which is `context/`, and when to look, which is skills.
+- Overdone, it fails quietly. An agent trusts a fact in view and stops looking. When the check behind the fact dies, the agent acts on a stale value and nothing errors. A lookup fails loudly.
+- Build nothing first. Skills, and triggers that write to a thread, cover the finance agent. If use later shows agents missing situation facts, the next step is one small document behind one section.
+- If it is built, it is the quiet half of a trigger: a check with two outcomes, wake the agent with a message or record a fact without waking it. The fact is written without the time it was checked, or every check counts as a change.
 
 **Candidate tests for whether a fact earns a place in view.** None is settled.
 
-- The agent would need it on most turns, or wouldn't know to ask.
-- It is small, and it changes slowly.
-- Acting on a stale value would cost more than keeping it there does.
+- The agent wouldn't know to look for it.
+- It would act differently for knowing it.
 - It isn't something that should wake the agent. If it is, it is an event.
+- To sit in the prompt, it rarely changes.
 
 **Open.**
 
-- When an agent needs this and when it is more than it needs. Your question, and the first one.
+- When an agent needs this and when it is more than it needs. Your question, and the first one. Both looks above answer "rarely", and it is still yours to settle.
+- What becomes of the [context producers](#instructions-memory-and-skills) row, which was confirmed with old Shrimpy's shape and isn't built. Fable would drop it.
+- Whether a trigger gets a quiet outcome. That belongs to the design of triggers in phase 4.
 - How much may sit in view. Old Shrimpy had a budget and the new one has none.
-- Sections belong to an agent, not to a thread, so a change reaches every session of that agent at its next request, and each pays for it once.
-- Whether a fact should say when it was last true, so the model can tell a fresh value from a stale one.
-- What becomes of the [context producers](#instructions-memory-and-skills) row, which was confirmed with old Shrimpy's shape and isn't built.
+- Whether each context file should be a section of its own, so one changed file doesn't send the rest again. It only helps the models that take a change in place.
 
 ## Architecture
 
@@ -490,7 +505,7 @@ A crash between steps 1 and 2 leaves a session or an outbox record with no submi
 
 A durable extension supplies base instructions, skill trails, input facts and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
 
-**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, workspace context, `SOUL.md` and skill trails. Durable appends a system delta whenever a section's rendered text changes, which invalidates provider prompt caches, so sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender and the thread's unread messages travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload costs one cache miss.
+**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, workspace context, `SOUL.md` and skill trails. When a section's text changes, Durable adds the new text as an entry at the end of the transcript. Some of the newest models take it there and keep their cache. Every other model, which by default includes any server declared in `models.json`, gets one rebuilt system message at the front and reads the whole conversation again. So sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender and the thread's unread messages travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload that changed something costs each session at most one cache miss. [What a change to the prompt costs](#what-an-agent-keeps-in-view) has the detail.
 
 How Pi recovers shapes these rules:
 
