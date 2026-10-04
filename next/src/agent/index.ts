@@ -7,6 +7,7 @@
  * beyond their contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
+import { socketPathFor } from "../lib/runtime/node.ts";
 import { loadHome } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { join, type JoinOptions } from "./join.ts";
@@ -52,6 +53,8 @@ export interface HomeAgent extends RunningAgent {
 
 /** Take ownership of a home and start serving it. The lock comes first. */
 export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
+  // A runtime directory too long for a socket fails here, before the home is claimed.
+  socketPathFor(options.home);
   const host = await openHost(options);
   try {
     const sessions = createSessions(host.harness, {

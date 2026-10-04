@@ -1,5 +1,6 @@
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { agentMember } from "../contracts/chat/index.ts";
+import type { KeepRegisteredOptions } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { startIntake, type Turns } from "./intake/index.ts";
 import { joinGateway, type OpenChat, openChatLink, openChatLocally } from "./links/index.ts";
@@ -9,8 +10,10 @@ export interface JoinOptions {
   name: string;
   /** How to reach the chat server. By default through this machine's gateway, over Unix sockets. */
   openChat?: OpenChat;
-  /** Register with this machine's gateway. On unless this says otherwise. */
+  /** Register with the gateway. On unless this says otherwise. */
   register?: boolean;
+  /** How to reach the gateway. By default the one on this machine, over its Unix socket. */
+  reachGateway?: KeepRegisteredOptions["transportFactory"];
   /** The pauses between tries at reaching the gateway and chat, and at what fails meanwhile. Tests shorten them. */
   backoff?: () => Backoff;
   /** Characters in the longest message the agent posts. Tests shorten it. */
@@ -47,6 +50,7 @@ export function join(
       : joinGateway(options.name, endpoint, {
           onError: (error) => onError(new Error(`Could not register with the gateway: ${error.message}`)),
           ...(backoff === undefined ? {} : { backoff: backoff() }),
+          ...(options.reachGateway === undefined ? {} : { transportFactory: options.reachGateway }),
         });
   const link = openChatLink({
     self,
