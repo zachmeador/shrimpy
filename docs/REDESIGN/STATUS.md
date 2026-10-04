@@ -23,7 +23,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
-**The flip, waiting on two merges**
+**The flip, next**
 
 - `next/` moves to the repo's root and old Shrimpy into `shrimpy-old/`, in one commit of pure renames. A rehearsal in a throwaway worktree passed the full check from the root.
 - Into `shrimpy-old/`: `src/`, `test/`, `web/`, `extensions/`, `themes/`, `scripts/`, the old package and config files, the old `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and `THIRD_PARTY_NOTICES.md`, the developer skills, and `docs/reference/`, `docs/backlog/`, `docs/musings/`, `docs/getting-started.md` and the old docs index. The old `AGENTS.md` goes in as `AGENTS.old.md`, so no tool loads it, beside a short one that says the folder is reference only.
@@ -34,13 +34,14 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 **Still open in phase 2**
 
-- Not built yet: the rewritten instructions and the four skills, compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
-- A reload reaches a turn that is running, at its next request. The plan says later inputs only, and its `/reload` row waits for your call.
+- Not built yet: compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
 - The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
-- Skills are trails only. `/skill:name`, templates, required-tool filtering and precedence aren't built, and included skills have no place to live yet.
+- Skills are trails only. `/skill:name`, templates, required-tool filtering and choosing skills for one agent aren't built.
+- A command an agent runs with `shrimpy` acts as the person. The plan's identity table recommends that it act as the agent.
+- The skills name what doesn't exist yet and say so: a setup command, OAuth sign-in, resetting a session, rooms, starting a DM, and commands to list, rename or remove an agent.
+- `up` stops everything it started when one of its agents stops, which makes stopping one agent a sharp edge.
 - `send_message` and `read_messages` reach this thread and a DM the agent already has. An agent can't start a DM, because chat has no list of members to find one in. `quiet`, `#channel`, reactions, edits and delivery status come with rooms and providers.
 - Nothing limits the size of `SOUL.md`, a context file, the skills list or the earlier messages that come with an input. The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.
-- The starter `SOUL.md` repeats the first line of the base instructions and carries a note meant for the person, which the model reads.
 - The agent's own service is named `SessionDirectory`, though it now also reloads the home.
 
 **Planned for a later phase**
@@ -67,6 +68,15 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Phase 2 progress, 2026-10-04: the words an agent reads, and four skills.** The base instructions and the starter `SOUL.md` are rewritten for the model, four skills ship with Shrimpy and every agent is shown them, an agent's shell finds the same `shrimpy` the agent runs, and `agent init` says what to do next. 795 tests pass.
+
+- Against `qwen-3.8-flash-next-180b-a6b-nvfp4`, the builder ran the new skill test ten times: nine passed, each reading `shrimpy-agents` first and answering with `shrimpy agent init` and commands that exist. One was killed by the test support's two-minute limit.
+- The shrimp emoji in the starter `SOUL.md` costs some silence on that model. With the new base and no `SOUL.md` it stayed silent after a plain goodbye 12 times of 12; with the emoji line, 7 or 8 of 12, answering "Bye! 🦐". It is left as a rough edge, for use to tune.
+- In one of those runs the model used its shell to list the owner's home folder and `~/shrimpy-next`, and read `~/shrimpy-next/scout/agent.json`. Nothing was changed. Agents in real-model tests now get a temporary `HOME`; their shell can still name an absolute path, which is what running with no sandbox means.
+- A command an agent runs with `shrimpy` acts as the person. The instructions and skills tell agents to speak only by their reply and `send_message`.
+- The line that cleared a copy of `SOUL.md` from sessions made by earlier builds is gone, under the no-migration rule.
+- `next/src/` now holds 12,021 lines of product code, 13,352 of tests and 4,015 of test support, and `next/skills/` 185 lines of Markdown.
 
 **Tests pruned, 2026-10-04.** The new tree had grown 18,370 lines of tests around 11,895 lines of product code, more per line than old Shrimpy. The plan now says what a test is for ("Tests earn their place"), and a first pass cut the tests in `lib/`, `contracts/`, `gateway/`, `chat/` and `clients/` from 9,984 lines to 4,864, 555 tests to 226, without touching product code. 793 tests pass.
 
