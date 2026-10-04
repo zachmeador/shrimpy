@@ -78,3 +78,18 @@ export type Settlement =
   | { status: "answered"; text: string }
   | { status: "cancelled" }
   | { status: "unanswered"; reason: string; detail: string | null };
+
+/**
+ * What an agent found in its home when it read it again, after `reload`: how
+ * much of each kind it now gives its sessions, and the files it could not use.
+ */
+export interface Reloaded {
+  /** Whether `SOUL.md` has instructions in it. */
+  soul: boolean;
+  /** How many Markdown files of `context/` it gives its sessions. */
+  files: number;
+  /** How many skills it tells its sessions about. */
+  skills: number;
+  /** Files it did not use, each with why. Everything else was read. */
+  leftOut: { file: string; reason: string }[];
+}

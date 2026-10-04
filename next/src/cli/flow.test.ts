@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { agentMember, type Member, type Message, type Thread } from "../contracts/chat/index.ts";
@@ -142,6 +143,43 @@ test("a turn that uses a shell tool runs from init to stop, and the session is r
   const after = await run("agent", "status", home);
   assert.equal(after.code, 1);
   assert.deepEqual(JSON.parse(after.out[0] ?? ""), { running: false, home });
+});
+
+test("agent reload makes the running agent read its home again, and says what it found and what it left out", { timeout }, async (t) => {
+  const { home, model, ask } = await servedHome(t);
+  const told = (index: number): string => String(model.requests[index]?.body.messages[0]?.content);
+  await ask("hello");
+  writeFileSync(join(home, "SOUL.md"), "Answer in rhyme.\n");
+  writeFileSync(join(home, "context", "team.md"), "The team is small.\n");
+  mkdirSync(join(home, "skills", "broken"));
+  writeFileSync(join(home, "skills", "broken", "SKILL.md"), "# no front matter\n");
+  await ask("hello again");
+  assert.doesNotMatch(told(1), /Answer in rhyme\./, "nothing changes until the agent is told to read again");
+
+  const reloaded = await run("agent", "reload", home);
+
+  assert.equal(reloaded.code, 0, reloaded.err.join("\n"));
+  assert.deepEqual(reloaded.out, [
+    `Reloaded. The agent at ${home} now reads SOUL.md and 1 context file. Each of its sessions uses the change with its next request.`,
+    "Left out:\n  skills/broken/SKILL.md: it does not start with a front matter block, between --- lines",
+  ]);
+  await ask("and once more");
+  assert.match(told(2), /<soul>\nAnswer in rhyme\.\n<\/soul>/);
+  assert.match(told(2), /<file path="context\/team\.md">\nThe team is small\.\n<\/file>/);
+});
+
+test("agent reload says when there is no agent to read again, and needs a home", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const home = join(tempDir(t, "flow"), "scout");
+  assert.equal((await run("agent", "init", home, "--name", "scout", "--model", "local/test-model")).code, 0);
+
+  const none = await run("agent", "reload", home);
+  const unused = await run("agent", "reload");
+
+  assert.equal(none.code, 1);
+  assert.deepEqual(none.err, [`No agent is running at ${home}. Start one with: shrimpy agent serve ${home}`]);
+  assert.equal(unused.code, 2);
+  assert.equal(unused.err[0], "Missing <home>.");
 });
 
 test("a session that is working says so in the list", { timeout }, async (t) => {

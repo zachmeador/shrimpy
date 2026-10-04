@@ -1,10 +1,9 @@
-import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { AgentConnection, SessionHandle, Settlement } from "../../contracts/agent/index.ts";
-import { AgentNotRunningError, attachLocal } from "../../contracts/agent/node.ts";
+import type { SessionHandle, Settlement } from "../../contracts/agent/index.ts";
 import type { Io } from "../io/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
+import { withConnection } from "./connected.ts";
 import { renderSession } from "./render.ts";
 
 /** The exit code of `steer --wait` for work that someone cancelled, as a shell reports an interrupted command. */
@@ -110,26 +109,6 @@ const stop: Command = {
     });
   },
 };
-
-/** Connect to the agent at `home` for the length of `use`. */
-async function withConnection<T>(home: string, use: (connection: AgentConnection) => Promise<T>): Promise<T> {
-  const root = resolve(home);
-  let connection: AgentConnection;
-  try {
-    connection = await attachLocal(root);
-  } catch (error) {
-    if (error instanceof AgentNotRunningError) {
-      throw new Error(`${error.message} Start one with: shrimpy agent serve ${root}`, { cause: error });
-    }
-    throw error;
-  }
-  try {
-    return await use(connection);
-  } finally {
-    // The agent may be gone by now, and there is nothing left to release.
-    await connection.close().catch(() => undefined);
-  }
-}
 
 /** Attach to the session behind `thread` at the agent at `home` for the length of `use`. */
 function withSession<T>(home: string, thread: string, use: (session: SessionHandle) => Promise<T>): Promise<T> {

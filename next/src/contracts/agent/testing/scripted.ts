@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
-import { type SessionDirectory, SessionService, type SessionView } from "../index.ts";
+import { type Reloaded, type SessionDirectory, SessionService, type SessionView } from "../index.ts";
 import { sessionView } from "./views.ts";
 
 /** One session of a scripted agent: what its clients see, and what they did to it. */
@@ -39,6 +39,11 @@ export interface ScriptedAgent {
   session(threadId: string, options?: { channelId?: string; view?: SessionView }): ScriptedSession;
   /** The session behind a thread, if the agent has one. */
   find(threadId: string): ScriptedSession | undefined;
+
+  /** How many times a client asked the agent to read its home again. */
+  readonly reloads: number;
+  /** What the next reloads answer with. Nothing found, to begin with. */
+  reloadedWith(result: Reloaded): void;
 }
 
 interface Held {
@@ -48,6 +53,8 @@ interface Held {
 
 export function scriptedAgent(): ScriptedAgent {
   const held = new Map<string, Held>();
+  let reloads = 0;
+  let reloaded: Reloaded = { soul: false, files: 0, skills: 0, leftOut: [] };
   // The agent says a session has work when it is answering input or has input queued.
   const working = (view: SessionView): boolean => view.status.busy || view.status.queued.length > 0;
 
@@ -111,6 +118,10 @@ export function scriptedAgent(): ScriptedAgent {
           await presentation.attachSession(threadId, context);
         },
         detach: (context) => presentation.detachSession(context),
+        reload() {
+          reloads += 1;
+          return Promise.resolve(structuredClone(reloaded));
+        },
       };
     },
     route(threadId) {
@@ -119,5 +130,11 @@ export function scriptedAgent(): ScriptedAgent {
     },
     session,
     find: (threadId) => held.get(threadId)?.session,
+    get reloads() {
+      return reloads;
+    },
+    reloadedWith(result) {
+      reloaded = structuredClone(result);
+    },
   };
 }

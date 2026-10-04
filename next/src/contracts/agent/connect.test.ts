@@ -26,6 +26,7 @@ async function standInAgent(t: TestContext, attach: (threadId: string) => Promis
         list: () => Promise.resolve([{ threadId: "th_1", channelId: "ch_1", working: false }]),
         attach: (threadId) => attach(threadId),
         detach: () => Promise.resolve(),
+        reload: () => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] }),
       }),
   });
 }

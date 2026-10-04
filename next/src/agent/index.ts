@@ -71,7 +71,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
     host.resume();
-    const server = await startServer(host, sessions);
+    const server = await startServer(host, sessions, context);
     try {
       const joined =
         options.join === undefined

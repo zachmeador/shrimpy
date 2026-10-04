@@ -2,7 +2,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ByteTransportFactory, DisconnectedError } from "@earendil-works/pi-client";
 import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { SessionDirectory, SessionService } from "./services.ts";
-import type { SessionSummary, SessionView, Settlement } from "./view.ts";
+import type { Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
 
 /** The connection to the agent dropped while a call was waiting for its answer. */
 export class AgentConnectionLostError extends Error {
@@ -35,6 +35,8 @@ export interface AgentConnection {
    * yet is refused. A connection watches one at a time; attaching again switches.
    */
   attach(threadId: string): Promise<SessionHandle>;
+  /** Make the agent read its home's instructions, context files and skills again. See `SessionDirectory.reload`. */
+  reload(): Promise<Reloaded>;
   /** Called once if the connection drops. Nothing reconnects by itself. */
   onDisconnect(listener: (reason: Error | undefined) => void): void;
   close(): Promise<void>;
@@ -74,6 +76,7 @@ export async function connectAgent(options: {
 
   return {
     sessions: () => guarded(() => directory.list(context)),
+    reload: () => guarded(() => directory.reload(context)),
     attach: (threadId) =>
       guarded(async () => {
         const { service: session } = await connection.attach(threadId);

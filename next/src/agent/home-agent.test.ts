@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { agentMember, type Member } from "../contracts/chat/index.ts";
 import { type StandInChat, startStandInChat } from "../contracts/chat/testing/index.ts";
+import { attachLocal } from "../contracts/agent/node.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
@@ -147,6 +148,47 @@ test("editing the home takes effect at the next start, in sessions made before i
   assert.match(systemPrompt(0), /You are scout, a Shrimpy agent built on Pi\./);
   assert.match(systemPrompt(1), /Answer in rhyme\./);
   assert.doesNotMatch(systemPrompt(1), /a Shrimpy agent built on Pi/);
+});
+
+test("a running agent reads its home again only when asked, and then each session follows with its next request", { timeout }, async (t) => {
+  const paths = newHome(t);
+  writeFileSync(paths.soul, "Answer in rhyme.\n");
+  const requests = stubChatCompletions(t, "Ok");
+  const { chat } = await startNetwork(t);
+  const thread = dmWith(chat, "scout");
+  await startHeard(t, paths.root, chat);
+  const say = async (text: string): Promise<void> => {
+    const sent = chat.chat.say(zach, thread.id, text);
+    await eventually(
+      () => chat.chat.messages().find((message) => message.id === sent.id)?.receipts[0],
+      (found) => found !== undefined,
+      { what: `an answer to "${text}"` },
+    );
+  };
+  /** Everything the model was told as instructions in a request: the system messages, whichever way they were sent. */
+  const told = (index: number): string =>
+    (requests[index]?.body.messages ?? [])
+      .filter((message) => message.role === "system")
+      .map((message) => String(message.content))
+      .join("\n");
+
+  await say("one");
+  writeFileSync(paths.soul, "Answer in haiku.\n");
+  writeFileSync(join(paths.context, "new.md"), "A note written after the start.\n");
+  await say("two");
+  assert.match(told(1), /Answer in rhyme\./, "editing a file changes nothing for a running agent");
+  assert.doesNotMatch(told(1), /A note written after the start\./);
+
+  const connection = await attachLocal(paths.root);
+  t.after(() => connection.close());
+  assert.deepEqual(await connection.reload(), { soul: true, files: 1, skills: 0, leftOut: [] });
+  await say("three");
+
+  assert.match(told(2), /Answer in haiku\./, "a reload reaches the session's next request");
+  assert.match(told(2), /A note written after the start\./);
+  assert.doesNotMatch(told(2), /Answer in rhyme\./);
+  const history = requests[2]?.body.messages.filter((message) => message.role !== "system").map((message) => message.role);
+  assert.deepEqual(history, ["user", "assistant", "user", "assistant", "user"], "and what the session held is still there");
 });
 
 test("two homes share no keys, instructions or history", { timeout }, async (t) => {

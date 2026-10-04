@@ -9,9 +9,11 @@ import {
   previewHomeContext,
   startHomeAgent,
 } from "../../agent/index.ts";
+import type { Reloaded } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
+import { withConnection } from "./connected.ts";
 
 const init: Command = {
   name: "agent init",
@@ -151,4 +153,44 @@ const context: Command = {
   },
 };
 
-export const agentCommands: Command[] = [init, serve, status, context];
+const reload: Command = {
+  name: "agent reload",
+  usage: "<home>",
+  summary: "Make the agent running at a home read its instructions, context files and skills again.",
+  details:
+    "An agent reads SOUL.md, the Markdown files in context/ and the skills in skills/ when it starts, and " +
+    "editing them changes nothing for it until this is run. Each session then uses what changed with its " +
+    "next request, and what it already holds is not rewritten. A file the agent cannot use is left out and " +
+    "named, and the rest is read. To see what a home gives an agent now, use shrimpy agent context.",
+  async run(args, io) {
+    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
+    const [given] = expectArguments(positionals, ["<home>"]);
+    const home = resolve(given);
+
+    return withConnection(home, async (connection) => {
+      const reloaded = await connection.reload();
+      io.out(
+        `Reloaded. The agent at ${home} now reads ${whatItReads(reloaded)}. ` +
+          "Each of its sessions uses the change with its next request.",
+      );
+      if (reloaded.leftOut.length > 0) {
+        io.out(`Left out:\n${reloaded.leftOut.map((each) => `  ${each.file}: ${each.reason}`).join("\n")}`);
+      }
+      return 0;
+    });
+  },
+};
+
+/** What a reload found, such as "SOUL.md, 2 context files and 1 skill". */
+function whatItReads({ soul, files, skills }: Reloaded): string {
+  const parts = [
+    ...(soul ? ["SOUL.md"] : []),
+    ...(files > 0 ? [`${files} context ${files === 1 ? "file" : "files"}`] : []),
+    ...(skills > 0 ? [`${skills} ${skills === 1 ? "skill" : "skills"}`] : []),
+  ];
+  const last = parts.pop();
+  if (last === undefined) return "nothing from its home's files";
+  return parts.length === 0 ? last : `${parts.join(", ")} and ${last}`;
+}
+
+export const agentCommands: Command[] = [init, serve, status, reload, context];

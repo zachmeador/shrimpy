@@ -10,6 +10,7 @@ import { createUnixListener } from "@earendil-works/pi-server/unix";
 import {
   type AgentEndpoint,
   endpointFile,
+  type Reloaded,
   SessionDirectory,
   SessionService,
 } from "../contracts/agent/index.ts";
@@ -26,8 +27,14 @@ export interface AgentServer {
   close(): Promise<void>;
 }
 
+/** What the agent API asks of the agent's instructions. */
+export interface HomeFiles {
+  /** Read the home's instructions, context files and skills again. */
+  reload(): Promise<Reloaded>;
+}
+
 /** Serve the agent API for `host`'s sessions on a Unix socket, and record where to find it. */
-export async function startServer(host: Host, sessions: Sessions): Promise<AgentServer> {
+export async function startServer(host: Host, sessions: Sessions, files: HomeFiles): Promise<AgentServer> {
   const endpoint: AgentEndpoint = {
     serverId: previousServerId(host.home) ?? randomUUID(),
     socket: socketPathFor(host.home),
@@ -36,7 +43,7 @@ export async function startServer(host: Host, sessions: Sessions): Promise<Agent
   let takingInput = true;
   // This process holds the home's lock, so a socket left at its path is stale.
   rmSync(endpoint.socket, { force: true });
-  const server = new Server(serverHost(sessions, () => takingInput), {
+  const server = new Server(serverHost(sessions, files, () => takingInput), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
     onError(error) {
@@ -60,7 +67,7 @@ export async function startServer(host: Host, sessions: Sessions): Promise<Agent
   };
 }
 
-function serverHost(sessions: Sessions, takingInput: () => boolean): ServerHost {
+function serverHost(sessions: Sessions, files: HomeFiles, takingInput: () => boolean): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
       return offerToConnection(SessionDirectory, {
@@ -71,6 +78,7 @@ function serverHost(sessions: Sessions, takingInput: () => boolean): ServerHost 
           await presentation.attachSession(threadId, callContext);
         },
         detach: (callContext) => presentation.detachSession(callContext),
+        reload: () => files.reload(),
       });
     },
   };

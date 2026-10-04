@@ -1,7 +1,7 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
-import type { SessionSummary, SessionView, Settlement } from "./view.ts";
+import type { Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
 
-/** Agent scope: which sessions exist, and which one this connection watches. */
+/** Agent scope: which sessions exist, which one this connection watches, and the agent's home. */
 export interface SessionDirectory {
   list(context: Context): Promise<SessionSummary[]>;
   /**
@@ -11,6 +11,13 @@ export interface SessionDirectory {
    */
   attach(threadId: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
+  /**
+   * Read the home's instructions, context files and skills again. Each session
+   * uses what changed with its next request, and what it already holds stays as
+   * it was. A file that cannot be used is left out and named in the answer; it
+   * never makes the reload fail.
+   */
+  reload(context: Context): Promise<Reloaded>;
 }
 export const SessionDirectory = defineService<SessionDirectory>("shrimpy.agent.sessions");
 

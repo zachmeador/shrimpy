@@ -14,6 +14,7 @@ export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.
 export { SessionDirectory, SessionService } from "./services.ts";
 export type {
   QueuedInput,
+  Reloaded,
   SessionActivity,
   SessionItem,
   SessionStatus,

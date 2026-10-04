@@ -30,6 +30,18 @@ test("sessions are listed with their thread and channel, and whether they have w
   ]);
 });
 
+test("a client asks the agent to reload its home over the connection, and is told what the agent read", { timeout }, async (t) => {
+  const stand = await startAgent(t);
+  const client = await stand.join();
+  assert.deepEqual(await client.reload(), { soul: false, files: 0, skills: 0, leftOut: [] });
+
+  const found = { soul: true, files: 2, skills: 1, leftOut: [{ file: "skills/bad/SKILL.md", reason: "its front matter has no description" }] };
+  stand.agent.reloadedWith(found);
+
+  assert.deepEqual(await client.reload(), found);
+  assert.equal(stand.agent.reloads, 2);
+});
+
 test("an attached session shows its view and follows each change", { timeout }, async (t) => {
   const stand = await startAgent(t);
   const session = stand.agent.session("th_one", { view: sessionView({ items: [userItem("hello")] }) });
