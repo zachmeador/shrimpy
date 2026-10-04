@@ -61,7 +61,12 @@ export function keepConnection<C extends Connected>(options: KeepOptions<C>): Ke
       set({ state: "down", why });
     },
     async attempt(established, signal) {
-      const connection = await options.open(signal, (why) => set({ state: "down", why }));
+      const connection = await options.open(signal, (why) => {
+        // A link that tries again keeps saying what went wrong the last time, instead of saying "connecting" at every try.
+        const failed = status.state === "down" && (status.why.kind === "lost" || status.why.kind === "unreachable");
+        if (why.kind === "connecting" && failed) return;
+        set({ state: "down", why });
+      });
       const ended = new Promise<void>((resolve) => connection.onDisconnect(() => resolve()));
       // Stopping ends a connection that is up.
       const hangUp = (): void => void connection.close().catch(() => undefined);

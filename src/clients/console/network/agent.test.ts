@@ -61,6 +61,23 @@ test("it reaches the agent through the transports it is handed", { timeout }, as
   assert.deepEqual(reached, ["agent scout"]);
 });
 
+test("a link whose agent went away keeps saying it was lost while it tries again", { timeout }, async (t) => {
+  const stand = await startAgent(t);
+  const { link } = startLink(t);
+  await until(() => link.status().state === "up", "the agent to be reached");
+  const statuses: string[] = [];
+  link.onStatus((status) => statuses.push(status.state === "up" ? "up" : status.why.kind));
+
+  // The agent's registration stays, so every try finds it listed and fails to reach it.
+  await stand.outage();
+  await until(() => statuses.includes("lost"), "the loss to be noticed");
+  await new Promise((resolve) => setTimeout(resolve, POLL_MS * 10));
+
+  assert.deepEqual([...new Set(statuses)], ["lost"]);
+  await stand.recover();
+  await until(() => link.status().state === "up", "the agent to be reached again");
+});
+
 test("closing hangs up at once, even while a session is being looked for", { timeout }, async (t) => {
   const stand = await startAgent(t);
   const { link } = startLink(t);
