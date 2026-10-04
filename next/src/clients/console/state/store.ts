@@ -302,9 +302,11 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       for (const name of new Set(names)) {
         // The thread on screen comes first, then the newest thread the agent is working in.
         const { id } = agentMember(name);
+        // A session that was working when the agent went away is not working now, whatever its last view says.
+        const sessionWorking = model.session?.status.busy === true && model.agent?.state !== "down";
         const onScreen =
           where.screen === "thread" && where.agent === name && where.thread !== undefined
-            ? { thread: where.thread, working: model.session?.status.busy === true || model.thread?.thread.working.some((mark) => mark.memberId === id) === true }
+            ? { thread: where.thread, working: sessionWorking || model.thread?.thread.working.some((mark) => mark.memberId === id) === true }
             : undefined;
         if (onScreen?.working === true) return { agent: name, thread: onScreen.thread };
         const working = model.dms[name]?.threads.find((thread) => workingIn(thread, name));

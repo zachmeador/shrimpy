@@ -162,7 +162,8 @@ function threadScreen(model: Model, agent: string, threadId: string | undefined,
   const messages = (live?.messages ?? []).map((message) => messageRow(message, model, names, now));
   const session = model.session;
   const markedWorking = thread?.working.map((mark) => names(mark.memberId)) ?? [];
-  const sessionBusy = session?.status.busy === true;
+  // A session that was working when the agent went away is not working now, whatever its last view says.
+  const sessionBusy = session?.status.busy === true && model.agent?.state !== "down";
   const working =
     markedWorking.length > 0 || sessionBusy
       ? workingLine(markedWorking.length > 0 ? markedWorking : [oneLine(agent)], sessionBusy ? session.status.activity : undefined)

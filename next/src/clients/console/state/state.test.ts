@@ -416,6 +416,21 @@ test("leaving names the agent still working and the thread it is working in, and
   assert.deepEqual(await rig.state.farewell(), { agent: "scout", thread: other.id }, "the thread on screen first");
 });
 
+test("leaving does not call an agent busy that went away while its session showed work", { timeout }, async (t) => {
+  const rig = await startRig(t);
+  const thread = await rig.thread("scout", "go");
+  rig.agents.scout?.agent.session(thread.id, { view: workingView([userItem("go")]) });
+  await rig.until((model) => model.where.screen === "threads", "the threads");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => model.session?.status.busy === true, "the work to show");
+  assert.deepEqual(await rig.state.farewell(), { agent: "scout", thread: thread.id });
+
+  await rig.agents.scout?.outage();
+  await rig.until((model) => model.agent?.state === "down", "the loss to be noticed");
+
+  assert.equal(await rig.state.farewell(), undefined);
+});
+
 test("with no gateway running it says so, and picks everything up once the gateway and the chat server are there", { timeout }, async (t) => {
   const rig = await startRig(t, { noGateway: true });
 

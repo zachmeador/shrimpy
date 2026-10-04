@@ -333,6 +333,21 @@ test("while chat or the agent is lost, what is shown is marked, and the notes sa
   ]);
 });
 
+test("an agent that went away is not said to be working because of what its session last showed", () => {
+  const working = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  const idle = aThread("th_1", { preview: "go" });
+  const lost = { state: "down" as const, why: { kind: "lost" as const } };
+  const session = workingView([userItem("go"), assistantItem("Partial", { streaming: true })]);
+
+  const gone = thread(screenOf(onThread("scout", idle, undefined, { session, agent: lost }), { now }));
+  const stillMarked = thread(screenOf(onThread("scout", working, undefined, { session, agent: lost }), { now }));
+
+  assert.equal(gone.working, undefined);
+  assert.notEqual(gone.work, undefined, "the work it showed stays, marked as out of date");
+  assert.equal(gone.workStale, true);
+  assert.equal(stillMarked.working, "scout is working · esc to stop", "chat still says so, so it is said, without what the session was doing");
+});
+
 test("the gateway being gone explains why nothing is registered, and is said once", () => {
   const open = aThread("th_1", { preview: "go" });
   const model = onThread("scout", open, undefined, {
