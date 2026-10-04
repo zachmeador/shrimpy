@@ -48,7 +48,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - OAuth sign-in, and a way to set who you are in chat, which is always `person:<OS username>` today: phase 3.
 - A web client in phase 3, and `chat/providers/` in phase 5.
 - In `agent/intake/`: chat commands, wake policies and the unread cache for rooms.
-- The plan's triggers row promises one coalesced overdue run and also says a restart doesn't backfill, which reads two ways. Old Shrimpy ran a missed watch once at the next start. Phase 4 settles it, along with how a command check's output reaches the model as data and not as instructions.
+- The plan's triggers row promises one coalesced overdue run and also says a restart doesn't backfill, which reads two ways. Old Shrimpy ran a missed watch once at the next start. Phase 4 settles it.
 
 ## Log
 
