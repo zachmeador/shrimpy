@@ -1,6 +1,6 @@
 import type { Thread } from "../../contracts/chat/index.ts";
 import type { ReportChange } from "./changes.ts";
-import { newId } from "./ids.ts";
+import { newId } from "../../lib/ids/index.ts";
 import type { Sql } from "./sql.ts";
 
 type ThreadRow = {

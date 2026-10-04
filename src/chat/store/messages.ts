@@ -1,6 +1,6 @@
 import type { Member, Message } from "../../contracts/chat/index.ts";
 import type { ReportChange } from "./changes.ts";
-import { newId } from "./ids.ts";
+import { newId } from "../../lib/ids/index.ts";
 import { parseReceipts, RECEIPTS_ON_MESSAGE } from "./receipts.ts";
 import type { Sql } from "./sql.ts";
 

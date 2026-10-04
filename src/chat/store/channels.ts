@@ -1,5 +1,5 @@
 import type { Member } from "../../contracts/chat/index.ts";
-import { newId } from "./ids.ts";
+import { newId } from "../../lib/ids/index.ts";
 import { type MemberRow, toMember } from "./members.ts";
 import type { Sql } from "./sql.ts";
 import { insertThread } from "./threads.ts";
