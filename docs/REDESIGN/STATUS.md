@@ -24,6 +24,14 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
+**Core contracts, before rooms**
+
+Decided on 2026-10-04 and not built. The chat store's data doesn't carry over, since member IDs change shape and nothing migrates it.
+
+- The roster and member IDs: today a member's ID holds its name, a connection says who it is, and the gateway forgets a program when it disconnects.
+- The feed of events: today the feed offers messages, and an edit couldn't reach an agent.
+- Connecting by name through the gateway: today the gateway hands out socket paths and local clients connect directly.
+
 **Still open in phase 2**
 
 - Not built yet: compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
