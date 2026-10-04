@@ -53,7 +53,7 @@ That is closer to the personal-agent relationship than either unlimited access o
 
 ## Five Things That Must Stay Separate
 
-The earlier [Agent Currency And Personal RL](../musings/agent-currency-and-rl.md) note distinguishes budget, currency, and reward. An allowance adds a useful fourth concept, and real financial action exposes a fifth:
+The earlier [Agent Currency And Personal RL](../../shrimpy-old/docs/musings/agent-currency-and-rl.md) note distinguishes budget, currency, and reward. An allowance adds a useful fourth concept, and real financial action exposes a fifth:
 
 - **Budget:** a hard cap or policy boundary. It prevents runaway behavior.
 - **Allowance:** a recurring spendable balance inside those boundaries. It lets the agent decide which permitted actions are worth funding.
@@ -327,7 +327,7 @@ Start with non-transferable allowances. The first useful transfer is a parent-cr
 
 ## Required Controller Properties
 
-The [Optional Spend Controller](../backlog/proposals/runtime-001-optional-spend-controller.md) already has the right broad seam. Research sharpens the requirements:
+The [Optional Spend Controller](../../shrimpy-old/docs/backlog/proposals/runtime-001-optional-spend-controller.md) already has the right broad seam. Research sharpens the requirements:
 
 - Enforcement, accounting, and signing live outside the model.
 - Authority checks happen before affordability checks; money never expands permissions.

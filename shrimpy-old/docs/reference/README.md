@@ -23,4 +23,4 @@ Current behavior, operating reference, and the design principles that guide Shri
 - [surfaces.md](surfaces.md) — surface verticals and Telegram.
 - [development.md](development.md) — repo layout and build/test commands.
 
-Other directories: [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../research/README.md) for external comparison notes.
+Other directories: [../backlog/index.md](../backlog/index.md) for active work, [../musings/README.md](../musings/README.md) for exploratory product thinking, [../research/README.md](../../../docs/research/README.md) for external comparison notes.

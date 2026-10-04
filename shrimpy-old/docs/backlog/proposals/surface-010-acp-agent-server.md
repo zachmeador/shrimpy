@@ -13,7 +13,7 @@ External clients increasingly know how to launch and control an agent through th
 
 Pi 0.83.0 does not provide a native ACP mode. Its headless RPC mode is a separate Pi-specific JSONL dialect, while the community `pi-acp` adapter launches standalone Pi and would bypass Shrimpy's agent selection, context, session layout, and authority boundaries. Shrimpy therefore needs a thin ACP server over its own session services rather than another subprocess translation layer.
 
-See [codex-session-control.md](../../research/codex-session-control.md) for the broader ACP client/server tradeoffs. This item is only the server direction: let an ACP client drive a Shrimpy agent.
+See [codex-session-control.md](../../../../docs/research/codex-session-control.md) for the broader ACP client/server tradeoffs. This item is only the server direction: let an ACP client drive a Shrimpy agent.
 
 ## Current State
 

@@ -120,4 +120,4 @@ What is **not** worth borrowing:
 - [OpenClaw plugin docs](https://docs.openclaw.dev/concepts/memory-honcho)
 - [Honcho upstream](https://github.com/plastic-labs/honcho) and [docs.honcho.dev](https://docs.honcho.dev)
 - [Hermes feature doc](https://github.com/sdfgeoff/hermes-agent/blob/main/website/docs/user-guide/features/honcho.md)
-- Shrimpy comparisons: [memory-design.md](../musings/memory-design.md), [context-assembly.md](../reference/context-assembly.md), [workspace.md](../reference/workspace.md)
+- Shrimpy comparisons: [memory-design.md](../../shrimpy-old/docs/musings/memory-design.md), [context-assembly.md](../../shrimpy-old/docs/reference/context-assembly.md), [workspace.md](../../shrimpy-old/docs/reference/workspace.md)

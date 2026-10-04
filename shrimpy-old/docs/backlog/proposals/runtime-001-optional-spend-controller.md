@@ -157,11 +157,11 @@ Possible config shape:
 ## Touches
 
 - [Agent Currency And Personal RL](../../musings/agent-currency-and-rl.md): keep operating allowance, external wallet truth, impact accounting, reward, and authority distinct.
-- [Agent Allowances And Financial Stewardship](../../research/agent-allowances-and-financial-stewardship.md): add allowance and authority as separate concepts, keep risk outside pricing, and stage synthetic operating credits before real money.
+- [Agent Allowances And Financial Stewardship](../../../../docs/research/agent-allowances-and-financial-stewardship.md): add allowance and authority as separate concepts, keep risk outside pricing, and stage synthetic operating credits before real money.
 - [Runtime](../../reference/runtime.md): hook points belong around gateway sessions, direct sessions, watches, and workers.
 - [Tools](../../reference/tools.md): daemon tools are the first Shrimpy-owned tool surface that can be wrapped cleanly.
 - [Channels](../../reference/channels.md): refusals and spend status need visible, inspectable channel records when they affect routed work.
-- [Pi durable replacement plan](../../REDESIGN/PLAN.md#sandboxing): spend policy stays a separate capability from the agent's tool policy and environment authority.
+- [Pi durable replacement plan](../../../../docs/REDESIGN/PLAN.md#sandboxing): spend policy stays a separate capability from the agent's tool policy and environment authority.
 
 ## Done
 

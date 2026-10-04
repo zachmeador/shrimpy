@@ -1,9 +1,9 @@
 {
-  "name": "shrimpy-next",
+  "name": "shrimpy",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The rebuild of Shrimpy on Pi's durable runtime. Moves into src/ when it replaces the old tree.",
+  "description": "A home for agents, built on Pi's durable runtime.",
   "engines": {
     "node": ">=22.19.0"
   },

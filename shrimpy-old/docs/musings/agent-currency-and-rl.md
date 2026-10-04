@@ -197,4 +197,4 @@ The likely product insight is that the currency/control plane may matter more th
 
 ## Research Follow-Up
 
-[Agent Allowances And Financial Stewardship](../research/agent-allowances-and-financial-stewardship.md) surveys current agent-payment standards, wallet controls, cost-aware agent research, payment-system risk analysis, and the human allowance analogy. Its strongest recommendation is to begin with a visible synthetic operating allowance, keep real money and impact rewards in separate purses, and let deterministic code enforce quotes, reservations, caps, authority, and settlement.
+[Agent Allowances And Financial Stewardship](../../../docs/research/agent-allowances-and-financial-stewardship.md) surveys current agent-payment standards, wallet controls, cost-aware agent research, payment-system risk analysis, and the human allowance analogy. Its strongest recommendation is to begin with a visible synthetic operating allowance, keep real money and impact rewards in separate purses, and let deterministic code enforce quotes, reservations, caps, authority, and settlement.

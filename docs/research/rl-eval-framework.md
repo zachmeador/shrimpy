@@ -38,7 +38,7 @@ OpenClaw-RL is closest to this complete personal loop. ART is probably the most 
 
 For Shrimpy, the highest-leverage near-term move is not RL. It is eval capture and replay. A good Shrimpy eval suite would be valuable even if the eventual trainer is ART, TRL, OpenClaw-RL, Unsloth, Tinker, or something that does not exist yet.
 
-Related musing: [Agent Currency And Personal RL](../musings/agent-currency-and-rl.md) sharpens this into a cost/value ledger idea. The ledger could improve runtime policy first, then become reward or preference data later.
+Related musing: [Agent Currency And Personal RL](../../shrimpy-old/docs/musings/agent-currency-and-rl.md) sharpens this into a cost/value ledger idea. The ledger could improve runtime policy first, then become reward or preference data later.
 
 ---
 

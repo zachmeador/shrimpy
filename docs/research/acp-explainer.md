@@ -106,7 +106,7 @@ This boundary is ACP's main tradeoff. A client gains one integration shape acros
 | Subprocess stdio | Stable and recommended | Portable transport for local clients launching agents. |
 | Streamable HTTP and WebSocket | Draft | Remote interoperability is still being designed. |
 | ACP v2 | Draft; schema release `v2.0.0-alpha.3` | Experimental wire protocol with breaking changes still allowed. |
-| Shrimpy ACP | Draft backlog proposal | [SURFACE-010](../backlog/proposals/surface-010-acp-agent-server.md) describes it; implementation is pending. |
+| Shrimpy ACP | Draft backlog proposal | [SURFACE-010](../../shrimpy-old/docs/backlog/proposals/surface-010-acp-agent-server.md) describes it; implementation is pending. |
 
 The version labels describe different layers. `protocolVersion: 1` is the negotiated wire major. `v1.21.0` is a release of the v1 schema. SDK package majors describe library API compatibility; wire support comes from the negotiated protocol version and schema.
 

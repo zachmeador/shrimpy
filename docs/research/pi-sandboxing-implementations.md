@@ -8,13 +8,13 @@ Status: Research; source inspection, no runtime validation
 
 **A sandbox around Pi constrains extension code and built-in tools together. A sandbox extension generally constrains only the operations it intercepts.** This distinction still determines whether a candidate can supply Shrimpy's process boundary.
 
-The current shortlist and release/security history live in the [runtime scout](sandbox-runtime-scout-2026-08-26.md). This page owns the Pi integration comparison. [SECURITY.md](../../SECURITY.md) owns Shrimpy's actual guarantees: there is no OS containment today.
+The current shortlist and release/security history live in the [runtime scout](sandbox-runtime-scout-2026-08-26.md). This page owns the Pi integration comparison. [SECURITY.md](../../shrimpy-old/SECURITY.md) owns Shrimpy's actual guarantees: there is no OS containment today.
 
 ## Pi and Shrimpy baseline
 
 Shrimpy pins Pi `0.84.4` in [package.json](../../package.json). The [Pi SDK at that tag](https://github.com/earendil-works/pi/blob/v0.84.4/packages/coding-agent/src/core/sdk.ts) exposes `tools` as a name allowlist, `excludeTools` as a denylist, `customTools`, and `noTools` modes. These control tool availability. They do not create filesystem, network, or process isolation. The [Pi README](https://github.com/earendil-works/pi/blob/v0.84.4/packages/coding-agent/README.md) continues to delegate permissions and sandboxing to the embedding environment or extensions.
 
-Current [Shrimpy session construction](../../src/sessions/open.ts) passes custom tools and exclusions, but no explicit active-tool allowlist. [Tool policy](../../src/tools/policy.ts) resolves the configured daemon tools and disabled names; `SessionKey.profileId` remains an identity/storage partition rather than a security policy. A system-prompt containment hook also supplies instructions, not OS containment. The [constrained-tool proposal](shrimpy-constrained-tool-profile.md) describes that separate layer.
+Current [Shrimpy session construction](../../shrimpy-old/src/sessions/open.ts) passes custom tools and exclusions, but no explicit active-tool allowlist. [Tool policy](../../shrimpy-old/src/tools/policy.ts) resolves the configured daemon tools and disabled names; `SessionKey.profileId` remains an identity/storage partition rather than a security policy. A system-prompt containment hook also supplies instructions, not OS containment. The [constrained-tool proposal](shrimpy-constrained-tool-profile.md) describes that separate layer.
 
 ## Version and boundary comparison
 

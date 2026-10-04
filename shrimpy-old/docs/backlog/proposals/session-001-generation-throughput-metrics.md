@@ -16,7 +16,7 @@ Provider output tokens can include hidden reasoning, and the stream can carry te
 
 ## Proposed Work
 
-Build this on the [durable runtime](../../REDESIGN/PLAN.md), not today's JSONL session recording, which that plan deletes.
+Build this on the [durable runtime](../../../../docs/REDESIGN/PLAN.md), not today's JSONL session recording, which that plan deletes.
 
 - Start by checking what durable already records for a model request: the generation task, its committed stream progress, and `UsageDoc`. Add only the timing it lacks.
 - Measure from the request start, the first streamed output, and the end of the model's response. Stop at the response, so tool execution never counts.

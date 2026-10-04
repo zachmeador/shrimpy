@@ -14,7 +14,7 @@ Buzz remains a plausible primary human chat UX for Shrimpy, but its integration 
 
 The revised direction is to expose a selected Shrimpy agent through [SURFACE-010](surface-010-acp-agent-server.md) and register that command as a Buzz custom harness. Buzz should own relay connectivity, Nostr identity, channel discovery, membership, author gates, mention subscriptions, per-channel queues, reconnect/replay, and agent presentation. Shrimpy should own its agent profile, model runtime, context, tools, ACP sessions, and transcripts.
 
-See [buzz-shrimpy-environment.md](../../research/buzz-shrimpy-environment.md) for the earlier deployment and protocol research. Its native Nostr adapter recommendation predates Buzz's generic ACP runtime seam and should not be treated as the current implementation plan.
+See [buzz-shrimpy-environment.md](../../../../docs/research/buzz-shrimpy-environment.md) for the earlier deployment and protocol research. Its native Nostr adapter recommendation predates Buzz's generic ACP runtime seam and should not be treated as the current implementation plan.
 
 ## Current State
 

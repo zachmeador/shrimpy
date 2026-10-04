@@ -7,7 +7,7 @@ Status: Draft
 
 Push the character-agent idea to its self-running extreme and use it as a design test.
 
-This is the sibling of [`character-agents.md`](character-agents.md) and [`../research/facade-interactive-drama.md`](../research/facade-interactive-drama.md), with one big change: no human in the dramatic loop. The three musings form a progression:
+This is the sibling of [`character-agents.md`](character-agents.md) and [`../research/facade-interactive-drama.md`](../../../docs/research/facade-interactive-drama.md), with one big change: no human in the dramatic loop. The three musings form a progression:
 
 - **character-agents** — one mind plus inner voices, with the user as the other party.
 - **facade-interactive-drama** — a human player supplies agency while a drama manager supplies arc.

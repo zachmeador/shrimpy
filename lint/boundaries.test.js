@@ -9,7 +9,7 @@ RuleTester.itOnly = it.only;
 
 const tester = new RuleTester({ languageOptions: { ecmaVersion: 2023, sourceType: "module" } });
 
-const file = (path) => `/repo/next/src/${path}`;
+const file = (path) => `/repo/src/${path}`;
 const allowed = (path, specifier) => ({
   filename: file(path),
   code: `import x from ${JSON.stringify(specifier)};`,
@@ -100,7 +100,7 @@ tester.run("imports", importsRule, {
     allowed("chat/providers/telegram/poller.ts", "../index.ts"),
     allowed("chat/providers/telegram/poller.ts", "../../../lib/retry/index.ts"),
     // Files outside src/ are not this rule's business.
-    { filename: "/repo/next/lint/boundaries.js", code: 'import x from "../src/agent/host/host.ts";' },
+    { filename: "/repo/lint/boundaries.js", code: 'import x from "../src/agent/host/host.ts";' },
     { filename: file("agent/index.ts"), code: 'export { openHost } from "./host/index.ts";' },
     { filename: file("cli/main.ts"), code: 'await import("../agent/index.ts");' },
   ],

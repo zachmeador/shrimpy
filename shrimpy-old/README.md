@@ -1,3 +1,5 @@
+> This is old Shrimpy's README, kept for reference until the release. The current one is at the [repo's root](../README.md).
+
 # 🦐 shrimpy 🦐
 
 <p align="center">
@@ -83,4 +85,4 @@ shrimpy-web                      # run the read-only workspace inspector directl
 
 ## 🦐 Status
 
-Alpha — expect rough edges. Release history is in [CHANGELOG.md](CHANGELOG.md). MIT licensed ([LICENSE](LICENSE)); contributions welcome ([CONTRIBUTING.md](CONTRIBUTING.md)).
+Alpha — expect rough edges. Release history is in [CHANGELOG.md](../CHANGELOG.md). MIT licensed ([LICENSE](../LICENSE)); contributions welcome ([CONTRIBUTING.md](CONTRIBUTING.md)).

@@ -18,8 +18,8 @@ Primary sources checked:
 - [bb plugin SDK](https://github.com/get-bb/bb/tree/main/packages/plugin-sdk)
 - [bb official Tasks plugin](https://github.com/get-bb/bb/tree/main/official-plugins/tasks)
 - [bb official Memory plugin](https://github.com/get-bb/bb/tree/main/official-plugins/memory)
-- local Shrimpy reference docs: [overview](../reference/overview.md), [runtime](../reference/runtime.md), [sessions](../reference/sessions.md), [channels](../reference/channels.md), and [tools](../reference/tools.md)
-- local Shrimpy ACP work: [ACP explainer](acp-explainer.md), [SURFACE-010](../backlog/proposals/surface-010-acp-agent-server.md), and [SURFACE-008](../backlog/proposals/surface-008-buzz-chat-adapter.md)
+- local Shrimpy reference docs: [overview](../../shrimpy-old/docs/reference/overview.md), [runtime](../../shrimpy-old/docs/reference/runtime.md), [sessions](../../shrimpy-old/docs/reference/sessions.md), [channels](../../shrimpy-old/docs/reference/channels.md), and [tools](../../shrimpy-old/docs/reference/tools.md)
+- local Shrimpy ACP work: [ACP explainer](acp-explainer.md), [SURFACE-010](../../shrimpy-old/docs/backlog/proposals/surface-010-acp-agent-server.md), and [SURFACE-008](../../shrimpy-old/docs/backlog/proposals/surface-008-buzz-chat-adapter.md)
 
 bb is in active development, and its own README says that workflows and surfaces are still evolving. This note describes the repository and documentation inspected on the date above, not a stable external contract.
 

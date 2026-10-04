@@ -17,7 +17,7 @@ The open questions are:
 
 ## Current Read
 
-Compare whole-process SRT and nono first, then Smol Machines and Microsandbox where a separate guest kernel is needed. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns current versions, advisories, licenses, and the acceptance suite. This page owns OS primitives and git/workspace semantics. [SECURITY.md](../../SECURITY.md) still correctly describes Shrimpy as unsandboxed. No runner was installed or exercised for this refresh.
+Compare whole-process SRT and nono first, then Smol Machines and Microsandbox where a separate guest kernel is needed. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns current versions, advisories, licenses, and the acceptance suite. This page owns OS primitives and git/workspace semantics. [SECURITY.md](../../shrimpy-old/SECURITY.md) still correctly describes Shrimpy as unsandboxed. No runner was installed or exercised for this refresh.
 
 - macOS: App Sandbox for a host app, Seatbelt/SBPL or equivalent runner policy for an entire agent process, XPC/bookmark brokers for dynamic host access;
 - Linux: `bubblewrap`/namespaces plus seccomp as the most practical first runner shape, with Landlock worth studying for unprivileged filesystem and TCP restrictions;

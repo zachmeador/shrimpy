@@ -32,13 +32,13 @@ Keep verification small: check links, validate important command/default claims,
 
 ## 3. Give documentation policy one home
 
-[docs/AGENTS.md](AGENTS.md) still calls nonexistent `tracking/` active project state. It allows reference changes when the user or backlog makes a decision explicit. The [research index](research/README.md) likewise promotes conclusions when they become decisions. The [docs index](README.md) instead says behavior must ship, while the docs skill puts implementation first but also mentions explicit decisions.
+[docs/AGENTS.md](AGENTS.md) still calls nonexistent `tracking/` active project state. It allows reference changes when the user or backlog makes a decision explicit. The [research index](../../docs/research/README.md) likewise promotes conclusions when they become decisions. The [docs index](README.md) instead says behavior must ship, while the docs skill puts implementation first but also mentions explicit decisions.
 
 These rules leave an avoidable ambiguity between an accepted design and implemented behavior. [design.md](reference/design.md) also explicitly describes doctrine while living under an index labeled “Current behavior.” That is a labeling issue, not a reason to move the document.
 
 **Recommendation:** let the docs skill own placement and evidence rules. Behavioral reference follows implemented behavior; design doctrine describes intended constraints; accepted but unimplemented work belongs in planning. Make `docs/AGENTS.md` a short entry pointer. Give indexes audience labels and links, without their own competing promotion policies.
 
-The [writing guide](../skills/shrimpy-dev-writing-guide/SKILL.md) should keep ownership of prose style. The docs skill repeats its human-first framing, common-case-first structure, concrete language, brevity, and no-hard-wrapping rule. Remove that second style guide.
+The [writing guide](../../dev-skills/shrimpy-dev-writing-guide/SKILL.md) should keep ownership of prose style. The docs skill repeats its human-first framing, common-case-first structure, concrete language, brevity, and no-hard-wrapping rule. Remove that second style guide.
 
 ## 4. Consolidate storage and context explanations
 
@@ -81,9 +81,9 @@ Keep operational consequences: whether a reply is public, how controls reach an 
 
 The skills often restate safeguards instead of adding a new decision:
 
-- The 150-line [changelog skill](../skills/shrimpy-dev-changelog/SKILL.md) repeats released-section immutability in Workflow, Released Section Lock, Evidence Checks, and Impact Ordering. Inclusion thresholds, exclusions, and style guidance also overlap. Keep one immutable-history rule, one inclusion test, and one impact-order rule.
+- The 150-line [changelog skill](../../dev-skills/shrimpy-dev-changelog/SKILL.md) repeats released-section immutability in Workflow, Released Section Lock, Evidence Checks, and Impact Ordering. Inclusion thresholds, exclusions, and style guidance also overlap. Keep one immutable-history rule, one inclusion test, and one impact-order rule.
 - The [backlog skill](../skills/shrimpy-dev-backlog/SKILL.md) repeats completion-by-deletion and the UX-section requirement. Its instructions still call absent short filenames “existing exceptions.” Keep placement/status semantics, one completion rule, and flexible sections. An explicit UX decision is useful; boilerplate is not.
-- The [Pi-upgrade report template](../skills/shrimpy-dev-pi-upgrade/SKILL.md#report-shape) repeats version fields and asks to retain both “Upgrade Steps” and “Implementation Sequence.” The [research note](research/pi-agent.md) carries that repeated structure. Preserve provenance, evidence, live checks, and uncertainty, but maintain one version block and one action sequence.
+- The [Pi-upgrade report template](../skills/shrimpy-dev-pi-upgrade/SKILL.md#report-shape) repeats version fields and asks to retain both “Upgrade Steps” and “Implementation Sequence.” The [research note](../../docs/research/pi-agent.md) carries that repeated structure. Preserve provenance, evidence, live checks, and uncertainty, but maintain one version block and one action sequence.
 - The docs skill's mandatory two-or-three-sentence opening and roughly 150-line target are weak quality measures. Unwrapped prose makes line counts especially misleading: runtime is only 86 lines but about 1,320 words. Cut or reorganize based on the question being answered.
 
 Do not merge every skill into a large manual. The short writing and skills-maintenance skills have clear jobs. Changelog writing and release execution also deserve separate workflows. Shorten repeated instructions while preserving distinct responsibilities.

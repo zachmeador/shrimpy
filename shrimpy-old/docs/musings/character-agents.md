@@ -75,7 +75,7 @@ That keeps the weirdness contained in an inspectable composition layer instead o
 
 ## Façade Lessons
 
-The strongest precedent for this line of thought is Mateas and Stern's Façade; see [`../research/facade-interactive-drama.md`](../research/facade-interactive-drama.md).
+The strongest precedent for this line of thought is Mateas and Stern's Façade; see [`../research/facade-interactive-drama.md`](../../../docs/research/facade-interactive-drama.md).
 
 The big lesson for Façade-style drama is that the character needs authored structure around it, not just a vivid character prompt. Façade separates visible performance from backstage machinery: player utterances become discourse acts, discourse acts update social/story state, a drama manager sequences beats, and Grace and Trip perform the result. For Shrimpy, the equivalent shape is a normal character agent plus an inspectable story-state and context-policy layer.
 

@@ -1,13 +1,13 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-03
-Status: experience decisions reviewed on 2026-10-03. Phase 0 is done and phase 1 is being built in `next/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](#introduced-by-the-build-not-yet-reviewed), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03. Phase 0 is done, phase 1 works on one machine, and phase 2 is under way. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](#introduced-by-the-build-not-yet-reviewed), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
 The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#experience-decisions).
 
-This file owns the architecture, experience decisions and phases for this change, and [STATUS.md](STATUS.md) logs progress. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../reference/README.md) describe what ships today.
+This file owns the architecture, experience decisions and phases for this change, and [STATUS.md](STATUS.md) logs progress. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe what ships today.
 
 ## Why
 
@@ -227,7 +227,7 @@ The builders made these visible choices while implementing phase 1. None has shi
 | `gateway serve` | `--web-port` opens the browser entry and `--web-dir` serves files from a directory. It prints one JSON line when listening. |
 | `gateway status` | Lists registered programs as kind, name, version and pid, and marks a version that differs from the command's own. It exits 1 when no gateway is running. |
 | `chat serve` | Makes its data directory if it's missing and always registers with the gateway. A failed attempt to register prints one line each time. |
-| Shrimpy's version | `0.0.0`, the same as `next/package.json`. A command that goes through the gateway warns when a program's version differs from its own, and carries on. |
+| Shrimpy's version | `0.0.0`, the same as `package.json`. A command that goes through the gateway warns when a program's version differs from its own, and carries on. |
 | Messages sent while an agent is busy | They queue, and the agent's next turn answers them together with one reply. Each gets a receipt pointing at it. |
 | A turn that fails with messages waiting | The waiting messages are marked skipped and shown to the agent at its next turn in that thread. Nothing runs them by itself. |
 | A brand-new agent | It answers messages that were sent to it before it first connected, and passes over any that already carry its receipt. |
@@ -249,14 +249,14 @@ The builders made these visible choices while implementing phase 1. None has shi
 | The terminal: lists | Agents and thread lists refresh every two seconds. Only running agents are listed, and "working" means working in one of your threads. A thread shows its newest 200 messages and points to `shrimpy read` for the rest. |
 | The terminal: leaving | Quitting while an agent works prints one line naming the thread and how to stop it. |
 | A lock that fails for another reason | An unwritable runtime folder shows the underlying error, not "Another process owns the agent home". |
-| What an agent is told | Four sections, in this order, each in its own tag: `<shrimpy>`, which every agent gets (how its reply works, `END`, the two message tools, how to look things up with its tools and the `shrimpy` command, what its home holds, and the motto); `<soul>`, its `SOUL.md`; `<context>`, each file of `context/` in a `<file path="…">` tag; and `<skills>`, each skill as its name, a one-line description and the path of its `SKILL.md`. An empty section is left out. The words are in `next/src/agent/extensions/context/base.ts`, 328 of them. |
+| What an agent is told | Four sections, in this order, each in its own tag: `<shrimpy>`, which every agent gets (how its reply works, `END`, the two message tools, how to look things up with its tools and the `shrimpy` command, what its home holds, and the motto); `<soul>`, its `SOUL.md`; `<context>`, each file of `context/` in a `<file path="…">` tag; and `<skills>`, each skill as its name, a one-line description and the path of its `SKILL.md`. An empty section is left out. The words are in `src/agent/extensions/context/base.ts`, 328 of them. |
 | When the home's files are read | When the agent starts and when it is told to reload, never in between. A file that can't be read, or a skill whose `SKILL.md` has no front matter with a description, is left out and named: on standard error at start, in the reload's answer and in the preview. The rest is read. |
 | Which files count | In `context/`, every `.md` file, in folders too, in path order. Hidden and blank files are skipped and links are followed. A skill is a folder of `skills/` with a `SKILL.md`; its name comes from the front matter or else the folder. The skills that ship with Shrimpy are read the same way, and a home's skill of the same name replaces one. Nothing limits how long any of it is. |
 | `agent context` and `agent reload` | `agent context <home>` prints a one-line label saying it is a preview, then the sections as a model gets them, then what was left out. It starts nothing. `agent reload <home>` answers "Reloaded. The agent at … now reads SOUL.md, 2 context files and 1 skill." Both exit 0 when files were left out. |
 | `send_message` | Takes `text`, and `to` as `@name` for a DM the agent already has; without `to` it posts to the turn's thread. `@name` matches a name in any case or a full ID such as `@person:zach`. It posts at once, in parts when the text is long, and one call at a time. With chat unreachable it says nothing was sent; when the connection drops mid-post it says the message may or may not have been posted. After a post to the turn's thread it reminds the model that its reply is posted too. It isn't run again after a crash. |
 | `read_messages` | Takes `from` as `@name`, `limit` (20, at most 100) and `before`. It returns the newest messages, oldest first, each as an arriving message reads, and says how to read older ones. It's run again after a crash. |
 | Who gets the message tools | Every agent, including one that takes no part in chat, so the instructions are always true. There they answer that chat is unreachable. |
-| Shrimpy's own skills | Four ship, in `next/skills/`: `shrimpy-setup`, `shrimpy-agents`, `shrimpy-chat` and `shrimpy-skills`, 39 to 53 lines each. Every agent is shown all of them, and none is selected for one agent yet. A test holds every `shrimpy` command and flag they name, and the base instructions name, to the commands the CLI has. |
+| Shrimpy's own skills | Four ship, in `skills/`: `shrimpy-setup`, `shrimpy-agents`, `shrimpy-chat` and `shrimpy-skills`, 39 to 53 lines each. Every agent is shown all of them, and none is selected for one agent yet. A test holds every `shrimpy` command and flag they name, and the base instructions name, to the commands the CLI has. |
 | `shrimpy` in an agent's shell | `agent serve` writes a launcher at `runtime/bin/shrimpy` in the home and puts that folder first on the shell's `PATH`, so the agent's shell runs the same Shrimpy as the agent whatever else is installed. A home whose path has a colon in it is refused. |
 | Who the CLI speaks as | A command an agent runs acts as the person, `person:<OS username>`: `run` would post as them, and `threads` and `read` show their threads. The instructions and the skills tell agents to speak only by their reply and `send_message`. The [identity table](#identity-and-addressing) recommends changing this. |
 | The starter `SOUL.md` | Three short paragraphs for the model, with no heading: be direct, calm and useful; check before anything that can't be undone; answer briefly; "You enjoy the shrimp emoji 🦐." On the small local model the emoji costs some silence after a goodbye: it answered "Bye! 🦐" in about a third of tries. |
@@ -452,6 +452,8 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 
 ## Replacement map
 
+The old paths in this table are under `shrimpy-old/`.
+
 Reuse small filesystem, search, formatting, calendar, model-policy, transport and installation helpers where they still serve the new owner. This maps responsibilities, not folders to move.
 
 | Current responsibility and source | New owner, and what gets deleted |
@@ -472,7 +474,7 @@ A replaced slice removes its old imports, registrations, unused dependencies, fi
 
 ## Target source layout
 
-This is the layout after phase 6. Until then the new tree lives under `next/src/`, in a package of its own with its own dependencies, lint and tests, so it never collides with today's `src/` and never rewrites the live `dist/`. Phase 6 moves it into `src/` and deletes the old tree, along with the old tests, which test old internals.
+This is the layout of `src/`. Old Shrimpy sits in `shrimpy-old/` until phase 6 deletes it, along with its tests, which test old internals.
 
 The tree is organized by program. Shrimpy is three programs (an agent, the chat server and the gateway) plus the clients and the CLI, and the only code they share is their contracts.
 
@@ -541,9 +543,11 @@ Keep this simple:
 - Tests sit next to the code they cover, as `*.test.ts`.
 - A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the contracts' main doors, and every `lib/` module's main door with everything behind it.
 - Test support lives in a `testing/` module that only tests import.
-- ESLint enforces the import table, the front doors and the Pi package rules from a module's first commit, through one local rule in `next/lint/boundaries.js` with its own tests. `npm run check` in `next/` runs types, lint and tests.
+- ESLint enforces the import table, the front doors and the Pi package rules from a module's first commit, through one local rule in `lint/boundaries.js` with its own tests. `npm run check` runs types, lint and tests.
 
 ### Size baseline
+
+The paths below are old Shrimpy's, under `shrimpy-old/` since 2026-10-04.
 
 Measured at `574bb2c` from tracked files. Counts are raw lines, including blanks and comments.
 
@@ -591,9 +595,9 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 **Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. From the end of phase 1 the new Shrimpy is used for real conversations, and from the end of phase 2 it is the one in daily use. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
 
-**The new Shrimpy takes the repo's root.** Decided on 2026-10-04, and done as soon as the two builds in flight are merged: everything under `next/` moves to the root of `wip`, and old Shrimpy moves into `shrimpy-old/` as one unit, code, tests and docs, where nothing is built, tested or edited until the release deletes it. `next/` was a side folder to protect a live install that no longer exists, and leaving old Shrimpy at the root meant its `AGENTS.md`, its docs and its tests reached every agent that worked here. The move is one commit of pure renames, then one for the words. Until then, the paragraphs below and the layout section still say `next/`.
+**The new Shrimpy is the repo's root.** Since 2026-10-04, on `wip`, old Shrimpy sits in `shrimpy-old/` as one unit: its code, tests and docs. Nothing there is built, tested or edited, nobody building the new Shrimpy reads its tests, and phase 6 deletes it. Until then the new tree was a side folder, `next/`, which protected a live install that no longer exists; leaving old Shrimpy at the root meant its `AGENTS.md`, docs and tests reached every agent that worked here.
 
-Work in `next/`, with its own homes, sockets and data paths, so nothing touches the old tree or its workspace. Never run the root build or tests: they rewrite the `dist/` that the installed CLI uses. `main` stays on Pi `0.84.4` until the release replaces it; there's no interim upgrade. The old tree is deleted in phase 6, and until then each phase only adds to `next/`.
+Development uses its own homes, sockets and data paths, so nothing touches a setup in use or the old workspace. `main` stays on old Shrimpy and Pi `0.84.4` until the release replaces it; there's no interim upgrade.
 
 **Core first.** The new Shrimpy focuses on getting the core architecture and design right. A feature of old Shrimpy that isn't part of that waits until daily use asks for it. Until then agents are trusted to use the tools they have: searching Shrimpy's state with the shell, for one, instead of being handed memory breadcrumbs. The same goes for how things are worded and how a model behaves with the words: they are made correct and plain, then tuned through use. Effort goes to what has to be designed well because it is hard to change later. That is the shape, and it has six pieces:
 
@@ -632,7 +636,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 **Gate:** if any of these needs a large compatibility layer, revisit durable before phase 1. The spike is a probe: what fits gets rebuilt in the real tree and the rest is deleted.
 
-**Result:** done on 2026-10-03. All three questions fit; see the [spike report](spike/REPORT.md). Its proven parts were then realigned into `next/src/` as the seed of the real tree, and the spike's code was deleted. It stays in git at `a3c6ae4`.
+**Result:** done on 2026-10-03. All three questions fit; see the [spike report](spike/REPORT.md). Its proven parts were then realigned into the seed of the real tree, and the spike's code was deleted. It stays in git at `a3c6ae4`.
 
 ### 1. The MVP
 
@@ -640,7 +644,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 **Build**
 
-- Start from the seed in `next/src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, crash and lock tests, and the boundary lint.
+- Start from the seed in `src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, crash and lock tests, and the boundary lint.
 - Keep the durable, AI, Chord, server, client and protocol packages pinned at `1.0.0`, and pin `pi-tui` the same way when the terminal client arrives. Use public exports only.
 - Home → model runtime, registry and environment → Harness on SQLite → service → CLI, with no old session runtime.
 - A minimal local gateway and chat server, so talking goes through threads from the start. No chat providers, rooms, remote routing or tokens yet.
@@ -789,7 +793,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Reference docs, the README and the developer docs and skills rewritten from scratch for what the release ships, keeping the charming parts of today's.
 - A decision for every command and affordance of today's Shrimpy that hasn't come back.
 - Default locations for machine-level data, and service installation for each program.
-- Move `next/` into `src/`, then remove what's left: `AppRuntime`, the session pool, leases, turn wrappers, gateway execution, control and watch state, private Pi imports, obsolete binaries, commands and dependencies, and candidate scaffolding.
+- Delete `shrimpy-old/`, and with it `AppRuntime`, the session pool, leases, turn wrappers, gateway execution, control and watch state, private Pi imports and obsolete binaries, commands and dependencies. Remove any candidate scaffolding left in the new tree.
 
 **Prove**
 
@@ -803,7 +807,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 ## Command coverage
 
-The current catalog is [src/commands/catalog.ts](../../src/commands/catalog.ts). Before implementation, record its exact entries and the JSON and exit behavior that scripts rely on. Each shipped operation gets a concrete command and a reviewed argument and result contract. Old aliases are removed directly, without shims.
+The current catalog is [src/commands/catalog.ts](../../shrimpy-old/src/commands/catalog.ts). Before implementation, record its exact entries and the JSON and exit behavior that scripts rely on. Each shipped operation gets a concrete command and a reviewed argument and result contract. Old aliases are removed directly, without shims.
 
 | Current family | Outcome in the replacement |
 |---|---|

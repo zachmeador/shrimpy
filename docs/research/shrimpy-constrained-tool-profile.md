@@ -12,9 +12,9 @@ Yes at the tool-capability layer. This would restrict what the model can invoke 
 
 ## Current evidence
 
-The refresh checked [session identity](../../src/sessions/identity.ts), [session construction](../../src/sessions/open.ts), [tool policy](../../src/tools/policy.ts), and the pinned Pi `0.84.4` dependency in [package.json](../../package.json). The central finding is unchanged: Shrimpy passes tool exclusions, but does not resolve a closed security policy from `profileId`. No implementation or runtime test was performed.
+The refresh checked [session identity](../../shrimpy-old/src/sessions/identity.ts), [session construction](../../shrimpy-old/src/sessions/open.ts), [tool policy](../../shrimpy-old/src/tools/policy.ts), and the pinned Pi `0.84.4` dependency in [package.json](../../package.json). The central finding is unchanged: Shrimpy passes tool exclusions, but does not resolve a closed security policy from `profileId`. No implementation or runtime test was performed.
 
-This remains a possible application-level restriction. Under the resident-agent option in the [runtime scout](sandbox-runtime-scout-2026-08-26.md), all sessions inside one agent process share its OS authority. A session profile may narrow tool access inside that boundary; a different OS grant needs a separately launched process. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns current backend comparisons, and [SECURITY.md](../../SECURITY.md) owns implemented guarantees.
+This remains a possible application-level restriction. Under the resident-agent option in the [runtime scout](sandbox-runtime-scout-2026-08-26.md), all sessions inside one agent process share its OS authority. A session profile may narrow tool access inside that boundary; a different OS grant needs a separately launched process. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns current backend comparisons, and [SECURITY.md](../../shrimpy-old/SECURITY.md) owns implemented guarantees.
 
 ## Existing Profile Meaning
 

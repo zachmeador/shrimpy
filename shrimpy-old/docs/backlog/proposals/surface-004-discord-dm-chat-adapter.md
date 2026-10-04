@@ -12,7 +12,7 @@ Shrimpy should support Discord as another chat surface, but the first version sh
 
 Discord DMs fit Shrimpy's existing surface model well. The adapter translates an external one-on-one chat into a durable Shrimpy channel, stamps stable human identity, and lets agents reply through `send_message` instead of treating Discord as a separate conversation runtime.
 
-See [discord-adapter-interface.md](../../research/discord-adapter-interface.md) for the current high-level interface notes.
+See [discord-adapter-interface.md](../../../../docs/research/discord-adapter-interface.md) for the current high-level interface notes.
 
 ## UX Implications
 

@@ -4,7 +4,7 @@ This directory holds source notes and comparison research that may inform future
 
 ## Sandboxing refresh
 
-The [sandbox runtime scout](sandbox-runtime-scout-2026-08-26.md) is the starting point for the Sep 14 survey and Sep 16 networking follow-up: releases, SRT/nono and Smol/Microsandbox comparisons, published advisories, licenses, and the unrun acceptance suite. Its [networking comparison](sandbox-runtime-scout-2026-08-26.md#networking-comparison) covers defaults, enforcement, DNS/TLS, private services, and credential authority. The [OS and git](in-os-agent-sandboxing-and-git.md), [macOS helper](macos-seatbelt-helper.md), [Pi implementations](pi-sandboxing-implementations.md), and [constrained tools](shrimpy-constrained-tool-profile.md) notes provide focused background. These remain research; [SECURITY.md](../../SECURITY.md) owns current isolation guarantees.
+The [sandbox runtime scout](sandbox-runtime-scout-2026-08-26.md) is the starting point for the Sep 14 survey and Sep 16 networking follow-up: releases, SRT/nono and Smol/Microsandbox comparisons, published advisories, licenses, and the unrun acceptance suite. Its [networking comparison](sandbox-runtime-scout-2026-08-26.md#networking-comparison) covers defaults, enforcement, DNS/TLS, private services, and credential authority. The [OS and git](in-os-agent-sandboxing-and-git.md), [macOS helper](macos-seatbelt-helper.md), [Pi implementations](pi-sandboxing-implementations.md), and [constrained tools](shrimpy-constrained-tool-profile.md) notes provide focused background. These remain research; [SECURITY.md](../../shrimpy-old/SECURITY.md) owns current isolation guarantees.
 
 ## Notes
 
@@ -35,4 +35,4 @@ The [sandbox runtime scout](sandbox-runtime-scout-2026-08-26.md) is the starting
 - [temporal-awareness-prompting.md](temporal-awareness-prompting.md) — deep dive on prompt/context-side temporal awareness research, with implications for Shrimpy turn context, watches, freshness metadata, and urgency cues.
 - [web-search-providers.md](web-search-providers.md) — survey of web search API providers that can inform optional setup guidance for web lookup capability; also notes why answer engines like xAI/Perplexity are a different shape.
 
-Documentation placement and promotion follow [shrimpy-dev-docs](../../skills/shrimpy-dev-docs/SKILL.md).
+Documentation placement and promotion follow [shrimpy-dev-docs](../../shrimpy-old/skills/shrimpy-dev-docs/SKILL.md).

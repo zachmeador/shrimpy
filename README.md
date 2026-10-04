@@ -1,6 +1,6 @@
-# 🦐 Shrimpy, rebuilt
+# 🦐 Shrimpy
 
-This is the new Shrimpy, built on Pi's durable runtime. It lives here until it replaces `src/`. The [replacement plan](../docs/REDESIGN/PLAN.md) owns the design, and its "Target source layout" section owns the rules below.
+This is Shrimpy, rebuilt on Pi's durable runtime. Old Shrimpy is in [`shrimpy-old/`](shrimpy-old/README.md) for reference until the release deletes it: nothing there is built, tested or edited. The [replacement plan](docs/REDESIGN/PLAN.md) owns the design, and its "Target source layout" section owns the rules below.
 
 ## Stay aligned with the plan
 
@@ -16,7 +16,7 @@ npm install --ignore-scripts
 npm run check
 ```
 
-`check` runs the type check, lint and every test. Tests run straight from TypeScript with `node --test`, so there is no build step. Nothing here touches the root `dist/` that the installed `shrimpy` uses.
+`check` runs the type check, lint and every test. Tests run straight from TypeScript with `node --test`, so there is no build step.
 
 A test earns its place by protecting something that would be missed: a seam between programs, starting, stopping, crashing and recovering, a promise the plan makes, or a bug that was actually seen. Don't pin wording or an internal shape, don't test test support or trivial helpers, and prefer one test through the real path to several on its pieces. When a change breaks a test that only recorded how things were, delete the test and keep the change.
 

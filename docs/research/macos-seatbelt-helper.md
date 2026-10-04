@@ -8,7 +8,7 @@ Status: Research; helper and containment remain unimplemented
 
 **Prove a CLI-launched, whole-agent sandbox before building a Mac app.** SRT and nono already provide macOS process runners worth testing; Shrimpy does not need to start by inventing an SBPL generator or menu-bar control plane. The [runtime scout](sandbox-runtime-scout-2026-08-26.md) owns the candidate comparison and acceptance suite.
 
-A native app could later own folder selection, bookmarks, status, and narrowly scoped host services. It would not establish a separate sandbox for every Pi session merely by launching Shrimpy. Every session inside the same OS process shares that process's rights. [SECURITY.md](../../SECURITY.md) continues to state that current Shrimpy has no OS containment.
+A native app could later own folder selection, bookmarks, status, and narrowly scoped host services. It would not establish a separate sandbox for every Pi session merely by launching Shrimpy. Every session inside the same OS process shares that process's rights. [SECURITY.md](../../shrimpy-old/SECURITY.md) continues to state that current Shrimpy has no OS containment.
 
 ## Apple's two sandbox surfaces
 

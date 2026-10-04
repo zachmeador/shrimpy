@@ -65,7 +65,7 @@ Prefer strengthening boundaries over threading new behavior through whatever cod
 
 ## Writing
 
-Use the canonical [`shrimpy-dev-writing-guide`](skills/shrimpy-dev-writing-guide/SKILL.md) skill when writing or revising any project documentation or user-facing text. Use the relevant specialized skill too for reference docs, backlog notes, changelog entries, or skill packages.
+Use the canonical [`shrimpy-dev-writing-guide`](../dev-skills/shrimpy-dev-writing-guide/SKILL.md) skill when writing or revising any project documentation or user-facing text. Use the relevant specialized skill too for reference docs, backlog notes, changelog entries, or skill packages.
 
 ## Legacy support policy
 

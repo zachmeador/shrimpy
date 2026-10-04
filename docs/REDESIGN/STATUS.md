@@ -23,15 +23,6 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
-**The flip, next**
-
-- `next/` moves to the repo's root and old Shrimpy into `shrimpy-old/`, in one commit of pure renames. A rehearsal in a throwaway worktree passed the full check from the root.
-- Into `shrimpy-old/`: `src/`, `test/`, `web/`, `extensions/`, `themes/`, `scripts/`, the old package and config files, the old `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and `THIRD_PARTY_NOTICES.md`, the developer skills, and `docs/reference/`, `docs/backlog/`, `docs/musings/`, `docs/getting-started.md` and the old docs index. The old `AGENTS.md` goes in as `AGENTS.old.md`, so no tool loads it, beside a short one that says the folder is reference only.
-- Staying at the root: `docs/REDESIGN/`, `docs/research/`, the logo, `CHANGELOG.md` and `LICENSE`.
-- A second commit for the words: a new root `AGENTS.md`, the 41 links in root docs that point at what moved, the paths in this plan and status, and the package's name.
-- Four developer skills come back to the root as `dev-skills/`, with their old-tree lines fixed: the writing guide, the changelog skill, commit-all and the cleanup pass. The other seven stay in `shrimpy-old/` until the release decides.
-- On this machine: `~/.local/bin/shrimpy` is linked again, and `shrimpy up` restarted.
-
 **Still open in phase 2**
 
 - Not built yet: compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
@@ -53,6 +44,8 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 ## Log
 
+Entries from before the flip on 2026-10-04 say `next/` for what is now the repo's root.
+
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
 
 **Phase 1 progress, 2026-10-03: the wire-up is in, and an agent answers in a thread.** `shrimpy up` starts the gateway, the chat server and an agent, and `shrimpy run` gets a reply. The agent registers with the gateway, joins chat, turns a message into a turn and its final text into a reply, and leaves a receipt. `threads` and `read` show what was said. Checked on macOS arm64 with Node 26.7.0: 852 tests pass.
@@ -68,6 +61,15 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**The flip, 2026-10-04.** The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/` as one unit: its code, tests and docs. `next/` existed to protect a live install that is gone, and old Shrimpy at the root was reaching every agent that worked here: its `AGENTS.md` said the entry point was `src/cli.ts` and never mentioned the rebuild.
+
+- One commit of pure renames (`5120620`), after which the full check passed from the root, then one for the words.
+- Into `shrimpy-old/`: `src/`, `test/`, `web/`, `extensions/`, `themes/`, `scripts/`, the old package and config files, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md`, seven developer skills, and the old docs: reference, backlog, musings and getting started. The old `AGENTS.md` is `AGENTS.old.md` there, so no tool loads it, beside a short one saying the folder is reference only.
+- At the root: a new `AGENTS.md`, `docs/REDESIGN/`, `docs/research/`, the logo, `CHANGELOG.md` and `LICENSE`. `CLAUDE.md` now only points at `AGENTS.md`, since nothing generates it.
+- Four developer skills live in `dev-skills/` with their old-tree lines fixed: the writing guide, the changelog skill, commit-all and the cleanup pass.
+- 61 links between docs were rewritten for what moved, and none is broken. The package is named `shrimpy`.
+- On this machine `~/.local/bin/shrimpy` points at `bin/shrimpy.js`.
 
 **Phase 2 progress, 2026-10-04: the words an agent reads, and four skills.** The base instructions and the starter `SOUL.md` are rewritten for the model, four skills ship with Shrimpy and every agent is shown them, an agent's shell finds the same `shrimpy` the agent runs, and `agent init` says what to do next. 795 tests pass.
 

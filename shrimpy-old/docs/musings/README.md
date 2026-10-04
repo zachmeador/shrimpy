@@ -16,7 +16,7 @@ Current notes worth scanning:
 - `agent-specific-tui-surfaces.md` — agent-owned dashboards, themes, commands, and a career-agent spike to test Pi's TUI extension limits
 - `agent-currency-and-rl.md` — agent currency as a cost/value ledger, runtime policy pressure, and possible reward scaffold for personal RL
 - `asynchronous-agents.md` — first principles for async home-agent design, why heartbeat is only one piece, and how one visible agent can be many internal actors
-- `character-agents.md` — story-character agents, inner voices, and this weird art-project shape as an architecture litmus test; paired with [`../research/facade-interactive-drama.md`](../research/facade-interactive-drama.md)
+- `character-agents.md` — story-character agents, inner voices, and this weird art-project shape as an architecture litmus test; paired with [`../research/facade-interactive-drama.md`](../../../docs/research/facade-interactive-drama.md)
 - `story-worlds.md` — the self-running extreme: a matrix-builder world authority, a scene-manager director, and an autonomous character cast, with no human in the dramatic loop
 - `framework-design.md` — broader product direction, preserved quotes, app-agent framing, and onboarding taste
 - `mechanic-agent.md` — why self-modification may want a default `shrimpy-mechanic` specialist instead of leaning on opaque skill discovery

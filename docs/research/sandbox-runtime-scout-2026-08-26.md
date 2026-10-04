@@ -10,7 +10,7 @@ Status: Research; no backend selected or locally validated
 
 If networking decides the VM choice, test Microsandbox first: its documented policy connects DNS answers, destination addresses, TLS names, and inspected HTTP requests. Smol's inspected hostname gate authorizes addresses learned from DNS. This ranking reflects policy design, not measured reliability. See the [networking comparison](#networking-comparison) and nono's [advisory qualifications](#nono-retain-as-a-serious-process-policy-comparison).
 
-This is a source-based recommendation, not a security certification or benchmark. [SECURITY.md](../../SECURITY.md) still describes Shrimpy accurately: its agents are not OS-sandboxed. The [Pi durable plan](../REDESIGN/PLAN.md#sandboxing) sandboxes the **entire agent process**, including Node operations, Pi extensions, Bash, and descendants. That is a plan, not an implemented guarantee.
+This is a source-based recommendation, not a security certification or benchmark. [SECURITY.md](../../shrimpy-old/SECURITY.md) still describes Shrimpy accurately: its agents are not OS-sandboxed. The [Pi durable plan](../REDESIGN/PLAN.md#sandboxing) sandboxes the **entire agent process**, including Node operations, Pi extensions, Bash, and descendants. That is a plan, not an implemented guarantee.
 
 The refresh checked public release metadata, package metadata, READMEs, selected implementation files, and published advisories. Tagged sources are linked where practical; explicitly identified `main` observations may be ahead of releases. Release numbers across projects are not maturity scores. No packages were installed, VMs booted, agents launched, or containment tests run.
 

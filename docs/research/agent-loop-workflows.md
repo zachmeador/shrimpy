@@ -62,7 +62,7 @@ Pi's lower-level loop config also has `shouldStopAfterTurn`, but the pinned stat
 
 Extensions receive `turn_start`, `turn_end`, `agent_start`, `agent_end`, message events, tool events, and provider events. A goal controller can evaluate only terminal-looking turns and enqueue feedback before Pi exits the current agent loop.
 
-The safest integration point is `turn_end`, not `agent_end`. Shrimpy's current [`runSessionTurn()`](../../src/sessions/turn-output.ts) resolves on the first `agent_end`. Pi can perform a post-`agent_end` continuation when an extension queues work from an `agent_end` handler, but Shrimpy's wrapper would already consider that turn finished. Enqueuing evaluator feedback from an awaited `turn_end` extension handler keeps the work inside one Pi loop and produces one final `agent_end`.
+The safest integration point is `turn_end`, not `agent_end`. Shrimpy's current [`runSessionTurn()`](../../shrimpy-old/src/sessions/turn-output.ts) resolves on the first `agent_end`. Pi can perform a post-`agent_end` continuation when an extension queues work from an `agent_end` handler, but Shrimpy's wrapper would already consider that turn finished. Enqueuing evaluator feedback from an awaited `turn_end` extension handler keeps the work inside one Pi loop and produces one final `agent_end`.
 
 ### Transcript, compaction, models, and usage
 
