@@ -318,17 +318,13 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
         threads.push(record);
         return toThread(record);
       },
-      async renameThread(threadId, name, context) {
+      async renameThread(_threadId, _name, context) {
         await gate("renameThread", context);
-        const { thread } = threadFor(threadId);
-        thread.name = name;
-        return toThread(thread);
+        return refuse("The scripted chat does not rename threads.");
       },
-      async archiveThread(threadId, archived, context) {
+      async archiveThread(_threadId, _archived, context) {
         await gate("archiveThread", context);
-        const { thread } = threadFor(threadId);
-        thread.archived = archived;
-        return toThread(thread);
+        return refuse("The scripted chat does not archive threads.");
       },
       async post(threadId, text, requestId, context) {
         await gate("post", context);
