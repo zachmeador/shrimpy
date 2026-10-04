@@ -92,12 +92,7 @@ npm run shrimpy -- threads scout
 npm run shrimpy -- read th_4k9x2m7q0b3d
 ```
 
-Any member of a channel can react to a message in it, and edit or delete their own. `read` shows each message's ID for these commands, and shows a message as it now stands: an edited one says when, a deleted one has lost its text, and the emoji on a message are listed.
-
-```bash
-npm run shrimpy -- edit msg_7q2m4x9c1b0d "what is in my inbox from today?"
-npm run shrimpy -- react msg_7q2m4x9c1b0d 👍
-```
+`read` shows each message's ID, and shows a message as it now stands: an edited one says when, a deleted one has lost its text, and the emoji on a message are listed. Any member of a channel can react to a message in it, and edit or delete their own, but no command, terminal key or agent tool does that.
 
 ## The terminal
 
@@ -126,11 +121,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `up <home>... --data <dir>` | Start what is missing on this machine and keep it running: the gateway, the chat server and an agent per home. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
 | `threads <member> [--json]` | List your threads with a person or an agent: ID, when last updated, who is working in it, and its name. |
-| `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with the message IDs that edit, delete and react take. |
-| `edit <message> <text>` | Change what one of your messages says. |
-| `delete <message>` | Delete one of your messages: it keeps its place in the thread and loses its text. |
-| `react <message> <emoji>` | Put an emoji on a message, as a member of the channel it is in. |
-| `unreact <message> <emoji>` | Take back your emoji from a message. |
+| `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
 | `agent init <home> --name <name> --model <provider/id>` | Create an agent home. Files that already exist are left as they are. |
 | `agent serve <home> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status <home>` | Say whether an agent is running at the home, and how to reach it. |

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { AGENT_HOME_VARIABLE, type SessionItem, type SessionView } from "../contracts/agent/index.ts";
+import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
 import { enterAsPerson, memberNamed } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
@@ -265,7 +265,7 @@ test("the agent's shell finds shrimpy, though the PATH the agent was started wit
 test("a shrimpy command in an agent's shell speaks as that agent, and the same command in a person's terminal speaks as the person", { timeout: 120_000 }, async (t) => {
   const model = await startModelServer();
   t.after(() => model.close());
-  const { home, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
+  const { talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
   const mechanic = await startScriptedAgent(t, { name: "mechanic", handle: () => ({ status: "silent" }) });
   const person = (await enterAsPerson(t)).me;
   const scout = await memberNamed(t, "scout");
@@ -282,19 +282,6 @@ test("a shrimpy command in an agent's shell speaks as that agent, and the same c
   assert.deepEqual([fromAgent?.text, fromAgent?.actor.id], ["hello from my shell", scout.id]);
   assert.deepEqual([fromPerson?.text, fromPerson?.actor.id], ["hello from my shell", person.id]);
   assert.notEqual(scout.id, person.id);
-
-  // The commands that change messages speak as the agent in its shell too, so an agent needs no tool to react.
-  const shell = { env: { [AGENT_HOME_VARIABLE]: home } };
-  const reactedInShell = await shrimpy(["react", asked.id, "\u{1F44D}"], shell);
-  const reactedInTerminal = await shrimpy(["react", asked.id, "\u{1F389}"]);
-  assert.deepEqual([reactedInShell.code, reactedInTerminal.code], [0, 0], reactedInShell.stderr + reactedInTerminal.stderr);
-  const reactions = (await talk.said()).find((message) => message.id === asked.id)?.reactions;
-  assert.deepEqual(reactions, [
-    { emoji: "\u{1F44D}", memberIds: [scout.id] },
-    { emoji: "\u{1F389}", memberIds: [person.id] },
-  ]);
-  const notTheAgents = await shrimpy(["delete", asked.id], shell);
-  assert.equal(notTheAgents.code, 1, "and a message of the person's is not the agent's to delete");
 });
 
 test("a command killed while it waits does not stop the work", { timeout: 120_000 }, async (t) => {

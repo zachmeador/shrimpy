@@ -12,6 +12,7 @@ import { type Outcome, type Posted, shrimpy, startScriptedAgent, startTalking } 
  */
 
 const timeout = 60_000;
+const THUMBS_UP = "\u{1F44D}";
 const answered = (text: string): Outcome => ({ status: "answered", text });
 
 function deferred<T>() {
@@ -140,6 +141,35 @@ test("read --json prints the thread and every message with all its receipts, sil
     { memberId: scout.id, event: data.messages[2]?.event, status: "silent", reply: null, detail: null },
   ]);
   assert.equal(data.messages[0]?.receipts[0]?.status, "answered");
+});
+
+test("read shows each message's ID, and a message as it now stands: edited, deleted, and with the emoji on it", { timeout }, async (t) => {
+  const talking = await startTalking(t);
+  await startScriptedAgent(t, { name: "scout", handle: () => answered("Noted.") });
+  const thread = startedThread((await shrimpy(["run", "scout", "first draft"])).stderr);
+  const you = await talking.you();
+  const [asked, reply] = await you.chat.read(thread, null, 10);
+  assert.ok(asked && reply);
+  const read = async (): Promise<string[]> => (await shrimpy(["read", thread])).stdout.split("\n");
+  const lineOf = (lines: string[], message: Message): string => lines.find((line) => line.includes(message.id)) ?? "";
+
+  const before = await read();
+  assert.ok(lineOf(before, asked).includes(asked.author.name) && lineOf(before, reply).includes(reply.author.name));
+  await you.chat.edit(asked.id, "second draft");
+  await you.chat.react(reply.id, THUMBS_UP);
+
+  const edited = await read();
+  assert.ok(edited.some((line) => line.trim() === "second draft"));
+  assert.ok(!edited.some((line) => line.trim() === "first draft"));
+  assert.match(lineOf(edited, asked), /edited/);
+  assert.ok(edited.some((line) => line.trim() === `${THUMBS_UP} ${you.me.name}`));
+
+  await you.chat.unreact(reply.id, THUMBS_UP);
+  await you.chat.delete(asked.id);
+
+  const deleted = await read();
+  assert.ok(deleted.some((line) => line.trim() === "(deleted)"));
+  assert.ok(!deleted.some((line) => line.includes("second draft") || line.includes(THUMBS_UP)));
 });
 
 test("read goes back through a thread that is longer than the live view holds", { timeout }, async (t) => {

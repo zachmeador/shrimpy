@@ -11,7 +11,7 @@ const PAGE = 200;
 const read: Command = {
   name: "read",
   usage: "<thread> [--json]",
-  summary: "Show a thread: who said what and when, oldest first, with the message IDs that edit, delete and react take.",
+  summary: "Show a thread: who said what and when, oldest first, with each message's ID.",
   details:
     "Messages are shown as they now stand: an edited one says when, a deleted one says it was deleted, and the " +
     "emoji on a message are listed with who put them there. Where an agent failed, stopped or skipped a message, " +

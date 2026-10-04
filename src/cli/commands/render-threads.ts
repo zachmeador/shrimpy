@@ -39,12 +39,12 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
 
 /**
  * A thread to read, with its messages as they now stand, oldest first: who said
- * what and when, and the ID that edit, delete and react take. An edited message
- * says when, a deleted one says it was deleted, and the emoji on a message are
- * listed with who put them there. Below a message, a line for each agent that
- * failed, stopped or skipped it. An answer is the message that follows, and a
- * silent receipt is data nobody is shown, so neither gets a line. At the end, a
- * line for each member working in it now.
+ * what and when, and each message's ID. An edited message says when, a deleted
+ * one says it was deleted, and the emoji on a message are listed with who put
+ * them there. Below a message, a line for each agent that failed, stopped or
+ * skipped it. An answer is the message that follows, and a silent receipt is
+ * data nobody is shown, so neither gets a line. At the end, a line for each
+ * member working in it now.
  */
 export function renderThread(thread: Thread, messages: Message[], channel: Channel): string[] {
   const nameOf = namer(channel);
