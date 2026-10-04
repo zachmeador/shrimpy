@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { connectLocal } from "../contracts/chat/node.ts";
@@ -153,6 +153,22 @@ test("a second chat server is refused with the chat server's own message, and th
   const connection = await connectLocal(first.listening);
   stopAfter(t, () => connection.close());
   await connection.chat.identify({ id: "person:zach", kind: "person", name: "Zach" });
+});
+
+test("a runtime directory too long for a socket is refused with what to shorten, and nothing is started", { timeout }, async (t) => {
+  const runtime = join(tempDir(t, "rt"), "d".repeat(100));
+
+  for (const args of [["gateway", "status"], ["gateway", "serve"]]) {
+    const result = await shrimpy(args, { env: { SHRIMPY_RUNTIME_DIR: runtime } });
+
+    assert.equal(result.code, 1, args.join(" "));
+    assert.equal(result.stdout, "");
+    assert.match(
+      result.stderr,
+      /^The runtime directory .* is too long for a socket: .* Shorten SHRIMPY_RUNTIME_DIR by at least \d+ bytes/,
+    );
+  }
+  assert.equal(existsSync(runtime), false);
 });
 
 test("the browser entry opens only when a port is given, and serves the web client's files", { timeout }, async (t) => {

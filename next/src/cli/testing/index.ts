@@ -10,6 +10,7 @@ export { type CapturedIo, captureIo } from "./io.ts";
 export { type ModelRequest, type ModelServer, startModelServer } from "./model-server.ts";
 export {
   type CliResult,
+  type LaunchOptions,
   type RunningCommand,
   serve,
   type ServedAgent,

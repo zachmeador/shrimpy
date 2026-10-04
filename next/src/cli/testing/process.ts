@@ -21,8 +21,16 @@ export interface CliResult {
   stderr: string;
 }
 
-function launch(args: string[]) {
-  const child = spawn(process.execPath, [main, ...args], { stdio: ["ignore", "pipe", "pipe"] });
+/** How a test starts `shrimpy`: the environment it adds to this process's own. */
+export interface LaunchOptions {
+  env?: Record<string, string>;
+}
+
+function launch(args: string[], options: LaunchOptions = {}) {
+  const child = spawn(process.execPath, [main, ...args], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, ...options.env },
+  });
   running.add(child);
   const stuck = setTimeout(() => child.kill("SIGKILL"), LONGEST_COMMAND_MS);
   let stdout = "";
@@ -38,8 +46,8 @@ function launch(args: string[]) {
 }
 
 /** Run `shrimpy` with `args` as its own process, and wait for it to end. */
-export async function shrimpy(args: string[]): Promise<CliResult> {
-  const { closed, result } = launch(args);
+export async function shrimpy(args: string[], options?: LaunchOptions): Promise<CliResult> {
+  const { closed, result } = launch(args, options);
   await closed;
   return result();
 }
