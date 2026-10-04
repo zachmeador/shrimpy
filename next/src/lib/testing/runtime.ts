@@ -16,9 +16,26 @@ export function useRuntimeDir(t: TestContext): string {
   given.set(t, directory);
   const saved = process.env.SHRIMPY_RUNTIME_DIR;
   process.env.SHRIMPY_RUNTIME_DIR = directory;
-  stopAfter(t, () => {
-    if (saved === undefined) delete process.env.SHRIMPY_RUNTIME_DIR;
-    else process.env.SHRIMPY_RUNTIME_DIR = saved;
-  });
+  stopAfter(t, () => restore(saved));
   return directory;
+}
+
+/**
+ * Run `work` with `directory` as the runtime directory, so that what it starts
+ * puts its sockets there, as a program with a runtime directory of its own
+ * would. The previous setting comes back when `work` settles.
+ */
+export async function inRuntimeDir<T>(directory: string, work: () => Promise<T>): Promise<T> {
+  const saved = process.env.SHRIMPY_RUNTIME_DIR;
+  process.env.SHRIMPY_RUNTIME_DIR = directory;
+  try {
+    return await work();
+  } finally {
+    restore(saved);
+  }
+}
+
+function restore(saved: string | undefined): void {
+  if (saved === undefined) delete process.env.SHRIMPY_RUNTIME_DIR;
+  else process.env.SHRIMPY_RUNTIME_DIR = saved;
 }

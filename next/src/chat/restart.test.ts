@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
 import type { Message } from "../contracts/chat/index.ts";
-import { stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
-import { startChat } from "./index.ts";
+import { inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { ChatRunningError, startChat } from "./index.ts";
 import { StoreOwnedError } from "./store/index.ts";
 import {
   agent,
@@ -114,7 +114,8 @@ test("a chat server in another process keeps this one out, and a killed one free
   const dataDir = tempDir(t, "chat-data");
   const child = await startChatChild(t, { dataDir });
 
-  await assert.rejects(startChat({ dataDir }), StoreOwnedError);
+  await assert.rejects(startChat({ dataDir }), ChatRunningError);
+  await assert.rejects(inRuntimeDir(tempDir(t, "rt-other"), () => startChat({ dataDir })), StoreOwnedError);
 
   await child.kill("SIGKILL");
   const taken = await startChat({ dataDir });

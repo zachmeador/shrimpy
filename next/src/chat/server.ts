@@ -16,9 +16,7 @@ import {
   ThreadService,
 } from "../contracts/chat/index.ts";
 import { offerToConnection, offerToRoute } from "../lib/offer/index.ts";
-import { namedSocketPath } from "../lib/runtime/node.ts";
 import { serveChat } from "./connection.ts";
-import { takeChatLock } from "./lock.ts";
 import { type ChatDeps, serveThread, threadExists } from "./threads/index.ts";
 
 export interface ChatServer {
@@ -27,49 +25,34 @@ export interface ChatServer {
 }
 
 /**
- * Serve the chat API on this machine's chat socket, and record where to find
- * it. The socket's lock comes first.
+ * Serve the chat API on `socket`, and record where to find it. The caller
+ * holds the socket's lock, so no other chat server here is listening, and the
+ * listener replaces a socket left behind by one that died.
  */
 export async function startServer(
   deps: ChatDeps,
   dataDir: string,
+  socket: string,
   onError: (error: Error) => void,
 ): Promise<ChatServer> {
   const endpoint: ChatEndpoint = {
     serverId: previousServerId(dataDir) ?? randomUUID(),
-    socket: namedSocketPath("chat"),
+    socket,
     pid: process.pid,
   };
-  const lock = takeChatLock(endpoint.socket);
-  // This process holds the lock, so no other chat server here is listening.
-  // The listener replaces a socket left behind by one that died.
   const server = new Server(serverHost(deps), {
     serverId: endpoint.serverId,
     listeners: [createUnixListener({ path: endpoint.socket })],
     onError,
   });
+  await server.start();
   try {
-    await server.start();
-    try {
-      writeEndpoint(dataDir, endpoint);
-    } catch (error) {
-      await server.close();
-      throw error;
-    }
+    writeEndpoint(dataDir, endpoint);
   } catch (error) {
-    lock.release();
+    await server.close();
     throw error;
   }
-  return {
-    endpoint,
-    async close() {
-      try {
-        await server.close();
-      } finally {
-        lock.release();
-      }
-    },
-  };
+  return { endpoint, close: () => server.close() };
 }
 
 function serverHost(deps: ChatDeps): ServerHost {

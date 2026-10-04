@@ -8,7 +8,9 @@
  */
 import type { ChatEndpoint } from "../contracts/chat/index.ts";
 import { keepRegistered } from "../contracts/gateway/node.ts";
+import { namedSocketPath } from "../lib/runtime/node.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
+import { takeChatLock } from "./lock.ts";
 import { openStore } from "./store/index.ts";
 import { startServer } from "./server.ts";
 import { type ChatDeps, createWorkingMarks } from "./threads/index.ts";
@@ -32,11 +34,34 @@ export interface RunningChat {
 }
 
 /**
- * Take the data directory, then start serving it. The store's lock comes
- * first, then the socket's, so a second chat server on this machine is
- * refused with `StoreOwnedError` or `ChatRunningError`.
+ * Take this machine's chat socket, then the data directory, then start
+ * serving. The socket's lock comes first, so a second chat server on this
+ * machine is refused with `ChatRunningError` before it touches its data
+ * directory. The store's own lock still guards a data directory that two
+ * servers reach through different sockets, and refuses with `StoreOwnedError`.
  */
 export async function startChat(options: ChatOptions): Promise<RunningChat> {
+  const socket = namedSocketPath("chat");
+  const lock = takeChatLock(socket);
+  try {
+    const chat = await serveStore(options, socket);
+    return {
+      endpoint: chat.endpoint,
+      async close() {
+        try {
+          await chat.close();
+        } finally {
+          lock.release();
+        }
+      },
+    };
+  } catch (error) {
+    lock.release();
+    throw error;
+  }
+}
+
+async function serveStore(options: ChatOptions, socket: string): Promise<RunningChat> {
   const onError = (error: Error): void => console.error("[chat]", error.message);
   const store = openStore(options.dataDir, { onError });
   try {
@@ -45,8 +70,8 @@ export async function startChat(options: ChatOptions): Promise<RunningChat> {
       working: createWorkingMarks({ onError }),
       now: () => Date.now(),
     };
-    const server = await startServer(deps, options.dataDir, onError);
-    const { serverId, socket, pid } = server.endpoint;
+    const server = await startServer(deps, options.dataDir, socket, onError);
+    const { serverId, pid } = server.endpoint;
     const registration =
       options.register === true
         ? keepRegistered(

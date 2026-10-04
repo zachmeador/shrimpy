@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { Gateway, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
-import { offer, startStandIn, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { inRuntimeDir, offer, startStandIn, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { StoreOwnedError } from "./store/index.ts";
@@ -114,8 +114,12 @@ test("a chat server that is refused never registers", { timeout }, async (t) => 
   const chat = await startTestChat(t, { register: true });
   await until(() => gateway.registered().length === 1, "the chat server to register");
 
-  await assert.rejects(startChat({ dataDir: chat.dataDir, register: true }), StoreOwnedError);
+  await assert.rejects(startChat({ dataDir: chat.dataDir, register: true }), ChatRunningError);
   await assert.rejects(startChat({ dataDir: tempDir(t, "chat-other"), register: true }), ChatRunningError);
+  await assert.rejects(
+    inRuntimeDir(tempDir(t, "rt-other"), () => startChat({ dataDir: chat.dataDir, register: true })),
+    StoreOwnedError,
+  );
   await delay(100);
 
   assert.equal(gateway.received.length, 1);

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectChat } from "../contracts/chat/index.ts";
 import { connectLocal, readChatEndpoint } from "../contracts/chat/node.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
-import { settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { inRuntimeDir, settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { startServer } from "./server.ts";
 import { openStore, StoreOwnedError } from "./store/index.ts";
@@ -40,18 +40,34 @@ test("the endpoint file says where the chat server is", { timeout }, async (t) =
   await connection.chat.identify(person("Zach"));
 });
 
-test("a second chat server on the same data directory is refused, and the first keeps serving", { timeout }, async (t) => {
+test("a second chat server on this machine is refused for the socket, even on the same data directory, and the first keeps serving", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.join(person("Zach"));
 
-  await assert.rejects(startChat({ dataDir: chat.dataDir }), StoreOwnedError);
+  await assert.rejects(
+    startChat({ dataDir: chat.dataDir }),
+    (error) => error instanceof ChatRunningError && error.socket === chat.chat.endpoint.socket,
+  );
 
   assert.deepEqual(await zach.chat.channels(), []);
   const late = await chat.join(agent("Shrimpy"));
   assert.equal(await late.chat.head(), 0);
 });
 
-test("a second chat server on the same socket is refused, and lets go of its data directory", { timeout }, async (t) => {
+test("chat servers that share a data directory but not a runtime directory are refused by the store", { timeout }, async (t) => {
+  const chat = await startTestChat(t);
+  const zach = await chat.join(person("Zach"));
+  const elsewhere = tempDir(t, "rt-elsewhere");
+
+  await assert.rejects(inRuntimeDir(elsewhere, () => startChat({ dataDir: chat.dataDir })), StoreOwnedError);
+
+  assert.deepEqual(await zach.chat.channels(), []);
+  // The refused server let go of the socket it had taken, so another can take it.
+  const other = await inRuntimeDir(elsewhere, () => startChat({ dataDir: tempDir(t, "chat-other") }));
+  stopAfter(t, () => other.close());
+});
+
+test("a second chat server on the same socket is refused, and leaves nothing in its data directory", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.join(person("Zach"));
   const elsewhere = tempDir(t, "chat-elsewhere");
@@ -64,8 +80,7 @@ test("a second chat server on the same socket is refused, and lets go of its dat
       error.message.includes("already running"),
   );
 
-  const reopened = openStore(elsewhere);
-  reopened.close();
+  assert.deepEqual(readdirSync(elsewhere), []);
   assert.deepEqual(await zach.chat.channels(), []);
 });
 
@@ -91,8 +106,12 @@ test("chat servers started at the same moment cannot both run", { timeout }, asy
     } finally {
       for (const winner of winners) await winner.value.close();
     }
-    // The servers that were refused let go of their stores.
-    for (const dataDir of dataDirs) openStore(dataDir).close();
+    // The servers that were refused made nothing, and the one that ran let go of its store.
+    results.forEach((result, index) => {
+      const dataDir = dataDirs[index] ?? assert.fail("a data directory is missing");
+      if (result.status === "rejected") assert.deepEqual(readdirSync(dataDir), [], `round ${round}`);
+      else openStore(dataDir).close();
+    });
   }
 });
 
@@ -199,6 +218,7 @@ test("a feed that is waiting is forgotten when its connection drops", { timeout 
   const server = await startServer(
     { store: counted.store, working: createWorkingMarks(), now: () => Date.now() },
     dataDir,
+    namedSocketPath("chat"),
     () => undefined,
   );
   stopAfter(t, () => server.close());
