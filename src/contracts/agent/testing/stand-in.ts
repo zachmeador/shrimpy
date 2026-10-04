@@ -57,7 +57,7 @@ export async function startStandInAgent(t: TestContext, options: StandInAgentOpt
     { kind: "agent", serverId, socket, pid: process.pid, version: SHRIMPY_VERSION },
     {
       backoff: backoff({ firstMs: 5, maxMs: 20 }),
-      async identify(gateway) {
+      async signIn(gateway) {
         if (membership === undefined) {
           membership = await gateway.join(options.name);
           resolveJoined(membership);

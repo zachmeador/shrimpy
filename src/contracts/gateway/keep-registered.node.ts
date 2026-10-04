@@ -13,11 +13,11 @@ export interface KeepRegisteredOptions {
    */
   transportFactory?: ByteTransportFactory;
   /**
-   * Run on each new connection before the program registers, to say who the
-   * program is: an agent joins or signs in. A failure, a refusal included, ends
+   * Run on each new connection before the program registers, to get a place on the
+   * roster: an agent joins or signs in. A failure, a refusal included, ends
    * the attempt, is reported, and is tried again after a pause.
    */
-  identify?: (gateway: GatewayConnection) => Promise<void>;
+  signIn?: (gateway: GatewayConnection) => Promise<void>;
   /**
    * Told why an attempt failed, such as a refused registration or a server that
    * is not the gateway. It is not told that nothing is listening: that is the
@@ -43,12 +43,13 @@ export interface KeptRegistration {
 
 /**
  * Stay registered with the gateway. A registration lasts as long as the
- * connection that made it, so this connects, says who the program is, registers
- * and holds the connection open, and when the gateway goes away it tries again,
- * pausing longer after each failure, and registers again once the gateway is
- * back. Starting never waits for the gateway, and neither does stopping: a
- * gateway that accepted the connection and then stopped answering cannot hold
- * either up, because stopping hangs up whatever the attempt is waiting for.
+ * connection that made it, so this connects, signs in if the program has a
+ * place on the roster, registers and holds the connection open, and when the
+ * gateway goes away it tries again, pausing longer after each failure, and
+ * registers again once the gateway is back. Starting never waits for the
+ * gateway, and neither does stopping: a gateway that accepted the connection
+ * and then stopped answering cannot hold either up, because stopping hangs up
+ * whatever the attempt is waiting for.
  */
 export function keepRegistered(
   announcement: Announcement,
@@ -72,7 +73,7 @@ export function keepRegistered(
       signal.addEventListener("abort", hangUp, { once: true });
       try {
         if (signal.aborted) return;
-        await options.identify?.(gateway);
+        await options.signIn?.(gateway);
         await gateway.register(announcement);
         live = gateway;
         established();

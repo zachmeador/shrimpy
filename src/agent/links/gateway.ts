@@ -40,7 +40,7 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
   const { name, membership, files } = options;
   let reported: string | undefined;
 
-  async function identify(gateway: GatewayConnection): Promise<void> {
+  async function joinOrSignIn(gateway: GatewayConnection): Promise<void> {
     const saved = membership.read();
     try {
       if (saved === undefined) {
@@ -77,7 +77,7 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
     {
       transportFactory: options.transportFactory,
       backoff: options.backoff,
-      identify,
+      signIn: joinOrSignIn,
       onError(error) {
         if (error.message === reported) return;
         reported = error.message;

@@ -33,7 +33,7 @@ function registerAgent(t: TestContext, name: string, options: { token?: string; 
   let token = options.token;
   const kept = keepRegistered(announce("agent", name, options.pid), {
     backoff: quick(),
-    async identify(gateway) {
+    async signIn(gateway) {
       if (token === undefined) token = (await gateway.join(name)).token;
       else await gateway.signIn(token, name);
     },
