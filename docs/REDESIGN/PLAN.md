@@ -129,7 +129,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
 | Instruction selection | Approved base context, `SOUL.md`, agent context, skill precedence and required-tool filtering; ambient `AGENTS.md` and global Pi skills and settings excluded | Same, with the workspace's shared `context/` files coming from the gateway. Facts are captured when queued input is consumed, and later edits don't rewrite committed context. | Keep |
-| `/reload` | Refreshes skills and templates; base files load only at session open | Also rebuilds base instructions, for later inputs only. Code, tool or environment changes need a drain and restart. | Confirmed |
+| `/reload` | Refreshes skills and templates; base files load only at session open | Also rebuilds base instructions. Code, tool or environment changes need a drain and restart. **Change:** you confirmed "for later inputs only", and the build does what Pi does: sections render again at every request, so a reload also reaches a turn that is running, at its next request. Nothing a session already holds is rewritten. Keeping a running turn on the old text would need a captured revision for each input. Recommended: take Pi's behavior. | Change |
 | Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts and the thread's unread messages. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other threads and sessions, triggers and workers when they need to. Keep the 6,000-character budget. Memory breadcrumbs wait until daily use asks for them: they need a search index, and until then agents are trusted to search their own files and Shrimpy's state with the tools they have. | Confirmed |
 | Workspace context | Shared `context/` files in the workspace that every agent reads | The gateway hosts the workspace's `context/` files, and agents receive them through the API. Each agent keeps a cached copy for when the gateway is unreachable and picks up changes on reload, at the cost of one prompt-cache miss. You or the mechanic edit them in one place. | Confirmed |
 | Memory | Ordinary files; mechanic can search every agent | Same files. The mechanic reaches other agents' homes over SSH instead of a built-in all-agent search. | Confirmed |
@@ -218,7 +218,7 @@ The builders made these visible choices while implementing phase 1. None has shi
 | Messages sent while an agent is busy | They queue, and the agent's next turn answers them together with one reply. Each gets a receipt pointing at it. |
 | A turn that fails with messages waiting | The waiting messages are marked skipped and shown to the agent at its next turn in that thread. Nothing runs them by itself. |
 | A brand-new agent | It answers messages that were sent to it before it first connected, and passes over any that already carry its receipt. |
-| What the model sees for a message | A line such as `Zach wrote at 2026-10-03T14:05:22Z:`, then the text as written. Earlier messages it hasn't acted on come first, each the same way. |
+| What the model sees for a message | `Thread th_… in channel ch_….`, a blank line, then a line such as `Zach wrote at 2026-10-03T14:05:22Z:` and the text as written. Earlier messages it hasn't acted on come first, each the same way. The time is when the message was sent, in UTC; the model isn't told the current time. |
 | Why a turn failed | The receipt says "The model failed: …", "The agent has no model it can use.", "The agent hit an internal error: …" or "The turn ended without an answer (…)", cut to 500 characters. |
 | `END` in detail | Case-sensitive. Straight or curly quotes, backticks and asterisks around it and one final period are ignored. Only the last line counts. |
 | A reply's edges | Blank lines before a reply and whitespace after it are dropped. The rest is posted as written. |
@@ -236,6 +236,14 @@ The builders made these visible choices while implementing phase 1. None has shi
 | The terminal: lists | Agents and thread lists refresh every two seconds. Only running agents are listed, and "working" means working in one of your threads. A thread shows its newest 200 messages and points to `shrimpy read` for the rest. |
 | The terminal: leaving | Quitting while an agent works prints one line naming the thread and how to stop it. |
 | A lock that fails for another reason | An unwritable runtime folder shows the underlying error, not "Another process owns the agent home". |
+| What an agent is told | Four sections, in this order, each in its own tag: `<shrimpy>`, which every agent gets (how its reply works, `END`, the two message tools, and what its home holds); `<soul>`, its `SOUL.md`; `<context>`, each file of `context/` in a `<file path="…">` tag; and `<skills>`, each skill as its name, a one-line description and the path of its `SKILL.md`. An empty section is left out. The words are in `next/src/agent/extensions/context/base.ts`, written to be correct before the keep-list review, not for voice. |
+| When the home's files are read | When the agent starts and when it is told to reload, never in between. A file that can't be read, or a skill whose `SKILL.md` has no front matter with a description, is left out and named: on standard error at start, in the reload's answer and in the preview. The rest is read. |
+| Which files count | In `context/`, every `.md` file, in folders too, in path order. Hidden and blank files are skipped and links are followed. A skill is a folder of `skills/` with a `SKILL.md`; its name comes from the front matter or else the folder. Nothing limits how long any of it is. |
+| `agent context` and `agent reload` | `agent context <home>` prints a one-line label saying it is a preview, then the sections as a model gets them, then what was left out. It starts nothing. `agent reload <home>` answers "Reloaded. The agent at … now reads SOUL.md, 2 context files and 1 skill." Both exit 0 when files were left out. |
+| `send_message` | Takes `text`, and `to` as `@name` for a DM the agent already has; without `to` it posts to the turn's thread. `@name` matches a name in any case or a full ID such as `@person:zach`. It posts at once, in parts when the text is long, and one call at a time. With chat unreachable it says nothing was sent; when the connection drops mid-post it says the message may or may not have been posted. After a post to the turn's thread it reminds the model that its reply is posted too. It isn't run again after a crash. |
+| `read_messages` | Takes `from` as `@name`, `limit` (20, at most 100) and `before`. It returns the newest messages, oldest first, each as an arriving message reads, and says how to read older ones. It's run again after a crash. |
+| Who gets the message tools | Every agent, including one that takes no part in chat, so the instructions are always true. There they answer that chat is unreachable. |
+| A session's own instructions | Sessions keep none. Each start clears the copy of `SOUL.md` that sessions made before 2026-10-04 stored. That line of code only serves those sessions, which the no-migration rule would remove. |
 
 ## Not built
 
@@ -400,7 +408,7 @@ How Pi recovers shapes these rules:
 - `beforeRequest` transforms stay pure. They run again after recovery, so reading files or the clock there would change a resent request.
 - Prompt sections render again too, including after blocking compaction, so they can't run external commands. Producers run as public custom tasks. Their captures are keyed by the consumed submission ID and record the source and producer revision, and re-renders, compaction and recovery reuse that capture. Join tasks outside a commit.
 - Throwing from a section doesn't signal failure; Pi can keep the old text and proceed. Show failed or interrupted producers as explicit diagnostics.
-- Reload affects later inputs only. The registry, tool implementations and environment stay fixed for accepted work; replacing them needs admission to stop and a drain and restart.
+- Reload affects later inputs only; the build takes Pi's behavior instead, and the [`/reload` row](#instructions-memory-and-skills) waits for your call. The registry, tool implementations and environment stay fixed for accepted work; replacing them needs admission to stop and a drain and restart.
 
 Inspection shows raw entries, effective model messages, selected tools, source revisions, omissions and budgets, and the effective model and settings. Previews are labelled as previews; a captured request is the real evidence. Hidden context in the human transcript expands without blank rows.
 
@@ -459,10 +467,10 @@ src/
     sessions/       session control and queries, the session view that clients see, and Shrimpy's own documents:
                     the thread each session is behind, the outbox and the feed cursor
     links/          reaching the gateway and chat: registering, finding chat, keeping the connection
-    intake/         what arrives from chat and what goes back: the feed, waking, replies, receipts and working marks;
-                    later chat commands, wake policy and the unread cache
+    intake/         what arrives from chat and what goes back: the feed, waking, how a message reads to the model,
+                    replies, receipts and working marks; later chat commands, wake policy and the unread cache
     extensions/     durable extensions
-      context/      prompt sections, turn facts, producers, compaction guidance
+      context/      prompt sections and compaction guidance; later, facts captured when input is taken up, and producers
       tools/        message tools, search, image reading, helpers
       triggers/     trigger and occurrence tasks
   chat/             the chat server program

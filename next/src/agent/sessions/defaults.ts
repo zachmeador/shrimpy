@@ -8,9 +8,9 @@ export interface SessionDefaults {
 }
 
 /**
- * The change that makes a session follow the home. The agent's instructions are
- * prompt sections of the home-context extension and are not kept in a session,
- * so any that an earlier start stored there are cleared.
+ * The change that makes a session follow the home. A session keeps no
+ * instructions of its own: the agent's instructions are prompt sections of the
+ * home-context extension.
  */
 export function agentChange(defaults: SessionDefaults): AgentChange {
   return { model: defaults.model, cwd: defaults.cwd, instructions: null };

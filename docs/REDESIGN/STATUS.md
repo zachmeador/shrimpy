@@ -6,7 +6,7 @@ Record review decisions, finished phases, commands and results, and blockers her
 
 ## Where the code trails the plan
 
-As of 2026-10-04. Before each review pause, everything under "still open in phase 1" is fixed or raised with the user.
+As of 2026-10-04. Before each review pause, everything under "still open" is fixed or raised with the user.
 
 **Still open in phase 1**
 
@@ -23,11 +23,21 @@ As of 2026-10-04. Before each review pause, everything under "still open in phas
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
+**Still open in phase 2**
+
+- Not built yet: the rewritten instructions and the four skills, compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
+- A reload reaches a turn that is running, at its next request. The plan says later inputs only, and its `/reload` row waits for your call.
+- The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
+- Skills are trails only. `/skill:name`, templates, required-tool filtering and precedence aren't built, and included skills have no place to live yet.
+- `send_message` and `read_messages` reach this thread and a DM the agent already has. An agent can't start a DM, because chat has no list of members to find one in. `quiet`, `#channel`, reactions, edits and delivery status come with rooms and providers.
+- Nothing limits the size of `SOUL.md`, a context file, the skills list or the earlier messages that come with an input. The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.
+- The starter `SOUL.md` repeats the first line of the base instructions and carries a note meant for the person, which the model reads.
+- The agent's own service is named `SessionDirectory`, though it now also reloads the home.
+
 **Planned for a later phase**
 
-- The agent is never told how replying works, or that `END` keeps it silent. That comes with the base instructions in phase 2.
 - OAuth sign-in, and a way to set who you are in chat, which is always `person:<OS username>` today: phase 3.
-- `agent/extensions/` in phase 2, a web client in phase 3, and `chat/providers/` in phase 5.
+- A web client in phase 3, and `chat/providers/` in phase 5.
 - In `agent/intake/`: chat commands, wake policies and the unread cache for rooms.
 
 ## Log
@@ -47,6 +57,14 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Phase 2 progress, 2026-10-04: an agent is told how Shrimpy works, and has the message tools.** Every session gets four sections of instructions from its home: what every agent is told, `SOUL.md`, the context files and the skills. `shrimpy agent context` previews them, `shrimpy agent reload` makes a running agent read them again, and `send_message` and `read_messages` are in. Checked on macOS arm64 with Node 26.7.0: 1,122 tests pass.
+
+- Against `qwen-3.8-flash-next-180b-a6b-nvfp4` on `cashmoney:8090`, five real-model tests pass: the shell tool, `END` when told, silence after a plain goodbye without being told, `send_message` before the reply, and `read_messages`.
+- The builder's probe of the same model, 30 tries each: with the base instructions it stayed silent after a plain closer 30 times, without the sentence about ended conversations 12 times, and with `SOUL.md` alone never. It still answered a new question, a greeting and a follow-up every time. A bare "ok" to a question the agent had asked went silent once in six.
+- `SOUL.md` is no longer the engine's instructions field, which renders after the skills. It is a section of its own, so the order holds.
+- The builder raised fifteen mismatches. The ones that change what the plan says are in its `/reload` row and its layout; the rest are in the list above.
+- `next/src/` now holds 11,895 lines of product code, 18,370 of tests and 4,021 of test support.
 
 **Core first, 2026-10-04.** The new Shrimpy focuses on getting the core architecture and design right, and a feature that isn't part of that waits until daily use asks for it. Memory breadcrumbs, their search index and the `memory-management` skill moved from phase 2 to phase 3's candidates: agents are trusted to search Shrimpy's state with the tools they have.
 
