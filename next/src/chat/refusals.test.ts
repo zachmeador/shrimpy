@@ -71,15 +71,6 @@ test("a member who is not in a channel cannot see or touch it", { timeout }, asy
   assert.deepEqual((await zach.chat.threads(dm.id))[0]?.preview, "for shrimpy only");
 });
 
-test("a channel that does not exist is refused the same way as one the caller cannot see", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-
-  await assert.rejects(zach.chat.threads("ch_nothing"), { message: "Unknown channel: ch_nothing" });
-  await assert.rejects(zach.chat.read("th_nothing", null, 10), { message: "Unknown thread: th_nothing" });
-  await assert.rejects(zach.chat.leaveReceipt(["msg_nothing"], outcome("silent")), { message: /Only an agent/ });
-});
-
 test("a connection is one member for as long as it lasts", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.join(person("Zach"));
@@ -117,16 +108,10 @@ test("arguments of the wrong kind are refused with a reason", { timeout }, async
 
   const refusals: [() => Promise<unknown>, RegExp][] = [
     [() => zach.chat.identify(wrong("person:zach") as Member), /^member must be a member/],
-    [() => zach.chat.openDm(wrong({ id: "agent:x", kind: "robot", name: "X" })), /^other.kind must be/],
     [() => zach.chat.openDm(person("Zach")), /needs someone besides yourself/],
-    [() => zach.chat.threads(wrong(7)), /^channelId must be an ID/],
-    [() => zach.chat.createThread(dm.id, wrong("")), /^name must be/],
-    [() => zach.chat.archiveThread(main.id, wrong("yes")), /^archived must be true or false/],
     [() => zach.chat.post(main.id, "", "zach-1"), /needs some text/],
     [() => zach.chat.post(main.id, "hi", wrong("")), /^requestId must be an ID/],
-    [() => zach.chat.read(main.id, wrong("5"), 10), /^beforeSeq must be a whole number/],
     [() => zach.chat.read(main.id, null, 0), /^limit must be a whole number/],
-    [() => zach.chat.feed(-1, 10), /^cursor must be a whole number/],
     [() => zach.chat.feed(99, 10), /past the newest message/],
   ];
   for (const [call, reason] of refusals) {

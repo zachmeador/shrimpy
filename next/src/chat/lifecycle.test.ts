@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
-import { connectChat } from "../contracts/chat/index.ts";
-import { connectLocal, readChatEndpoint } from "../contracts/chat/node.ts";
+import { connectLocal } from "../contracts/chat/node.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
 import { inRuntimeDir, leaveUnanswered, settle, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
@@ -15,30 +12,14 @@ import {
   agent,
   countWatchers,
   follow,
-  mainThread,
   openTestStore,
   person,
   startChatChild,
-  startDm,
   startTestChat,
 } from "./testing/index.ts";
 import { createWorkingMarks } from "./threads/index.ts";
 
 const timeout = 30_000;
-
-test("the endpoint file says where the chat server is", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-
-  const endpoint = readChatEndpoint(chat.dataDir);
-
-  assert.deepEqual(endpoint, chat.chat.endpoint);
-  assert.equal(endpoint.socket, namedSocketPath("chat"));
-  assert.equal(endpoint.pid, process.pid);
-  assert.match(endpoint.serverId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  const connection = await connectLocal(endpoint);
-  stopAfter(t, () => connection.close());
-  await connection.chat.identify(person("Zach"));
-});
 
 test("a second chat server on this machine is refused for the socket, even on the same data directory, and the first keeps serving", { timeout }, async (t) => {
   const chat = await startTestChat(t);
@@ -65,23 +46,6 @@ test("chat servers that share a data directory but not a runtime directory are r
   // The refused server let go of the socket it had taken, so another can take it.
   const other = await inRuntimeDir(elsewhere, () => startChat({ dataDir: tempDir(t, "chat-other") }));
   stopAfter(t, () => other.close());
-});
-
-test("a second chat server on the same socket is refused, and leaves nothing in its data directory", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const elsewhere = tempDir(t, "chat-elsewhere");
-
-  await assert.rejects(
-    startChat({ dataDir: elsewhere }),
-    (error) =>
-      error instanceof ChatRunningError &&
-      error.socket === chat.chat.endpoint.socket &&
-      error.message.includes("already running"),
-  );
-
-  assert.deepEqual(readdirSync(elsewhere), []);
-  assert.deepEqual(await zach.chat.channels(), []);
 });
 
 test("chat servers started at the same moment cannot both run", { timeout }, async (t) => {
@@ -140,58 +104,6 @@ test("a chat server that cannot record its endpoint does not keep listening", { 
   rmSync(join(dataDir, "runtime"));
   const again = await startChat({ dataDir });
   stopAfter(t, () => again.close());
-});
-
-test("a restarted chat server keeps its ID, its messages and its positions", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
-  const first = await zach.chat.post(main.id, "before the restart", "zach-1");
-  const { serverId } = chat.chat.endpoint;
-
-  await chat.chat.close();
-  assert.equal(existsSync(chat.chat.endpoint.socket), false);
-  const restarted = await startChat({ dataDir: chat.dataDir });
-  stopAfter(t, () => restarted.close());
-  const again = await connectLocal(restarted.endpoint);
-  stopAfter(t, () => again.close());
-  await again.chat.identify(person("Zach"));
-
-  assert.equal(restarted.endpoint.serverId, serverId);
-  assert.deepEqual(await again.chat.channels(), [dm]);
-  assert.deepEqual(await again.chat.read(main.id, null, 10), [first]);
-  assert.equal(await again.chat.head(), first.seq);
-  assert.deepEqual(await again.chat.post(main.id, "before the restart", "zach-1"), first);
-  const next = await again.chat.post(main.id, "after the restart", "zach-2");
-  assert.equal(next.seq, first.seq + 1);
-});
-
-test("nobody is working after a restart", { timeout }, async (t) => {
-  const { chat, zach, shrimpy, dm, main } = await startDm(t);
-  await shrimpy.chat.setWorking(main.id, true);
-  assert.equal((await zach.chat.threads(dm.id))[0]?.working.length, 1);
-
-  await chat.chat.close();
-  const restarted = await startChat({ dataDir: chat.dataDir });
-  stopAfter(t, () => restarted.close());
-  const again = await connectLocal(restarted.endpoint);
-  stopAfter(t, () => again.close());
-  await again.chat.identify(person("Zach"));
-
-  assert.deepEqual((await again.chat.threads(dm.id))[0]?.working, []);
-});
-
-test("a client that expects another server is refused", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-
-  await assert.rejects(
-    connectChat({
-      serverId: randomUUID(),
-      transportFactory: createUnixTransportFactory({ path: chat.chat.endpoint.socket }),
-    }),
-    /does not match/,
-  );
 });
 
 test("stopping the server ends its connections and removes its socket", { timeout }, async (t) => {

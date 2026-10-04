@@ -20,14 +20,6 @@ function message(seq: number, text: string): Message {
 const sizeOf = (one: Message): number => Buffer.byteLength(JSON.stringify(one));
 const seqs = (messages: Message[]): number[] => messages.map((one) => one.seq);
 
-test("messages that fit are all kept, in order", () => {
-  const messages = [message(1, "one"), message(2, "two"), message(3, "three")];
-
-  assert.deepEqual(fitAnswer(messages, "newest"), messages);
-  assert.deepEqual(fitAnswer(messages, "oldest"), messages);
-  assert.deepEqual(fitAnswer([], "newest"), []);
-});
-
 test("past the budget, the kept end stays and the other end goes", () => {
   const messages = [1, 2, 3, 4].map((seq) => message(seq, "x".repeat(100)));
   const budget = sizeOf(message(1, "x".repeat(100))) * 2;

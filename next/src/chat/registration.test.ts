@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { Gateway, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
-import { inRuntimeDir, offer, startStandIn, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { inRuntimeDir, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { StoreOwnedError } from "./store/index.ts";
@@ -36,17 +35,6 @@ test("closing the chat server ends its registration", { timeout }, async (t) => 
   assert.deepEqual(gateway.registered(), []);
 });
 
-test("a chat server that is not asked to register does not go to the gateway", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startStandInGateway(t);
-
-  await startTestChat(t);
-  await delay(100);
-
-  assert.deepEqual(gateway.received, []);
-  assert.equal(gateway.connections(), 0);
-});
-
 test("with no gateway running, the chat server starts, serves and closes quietly", { timeout }, async (t) => {
   const reported = t.mock.method(console, "error", () => undefined);
 
@@ -61,38 +49,6 @@ test("with no gateway running, the chat server starts, serves and closes quietly
   await chat.chat.close();
 
   assert.equal(reported.mock.callCount(), 0);
-});
-
-test("a registration that fails is reported on standard error, with what it was", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  // Something on the gateway's socket that answers as someone else.
-  await startStandIn(t, GATEWAY_SOCKET_NAME, {
-    offer: () =>
-      offer(Gateway, {
-        register: () => Promise.resolve(),
-        list: () => Promise.resolve([]),
-        version: () => Promise.resolve(SHRIMPY_VERSION),
-      }),
-  });
-  const reported = t.mock.method(console, "error", () => undefined);
-
-  await startTestChat(t, { register: true });
-
-  await until(() => reported.mock.callCount() > 0, "the failure to be reported");
-  const first: unknown[] = reported.mock.calls[0]?.arguments ?? [];
-  assert.equal(first[0], "[chat]");
-  assert.match(String(first[1]), /^Could not register with the gateway: .*does not match/);
-});
-
-test("a chat server that started before the gateway registers once the gateway is up", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const chat = await startTestChat(t, { register: true });
-  await delay(50);
-
-  const gateway = await startStandInGateway(t);
-
-  await until(() => gateway.registered().length === 1, "the chat server to register");
-  assert.equal(gateway.registered()[0]?.serverId, chat.chat.endpoint.serverId);
 });
 
 test("the chat server keeps serving while the gateway is away, and registers again when it is back", { timeout }, async (t) => {

@@ -88,21 +88,34 @@ test("a receipt survives the chat server restarting", { timeout }, async (t) => 
   ]);
 });
 
-test("a receipt the caller may not leave is refused with its reason, and leaves nothing", { timeout }, async (t) => {
+test("one receipt call covers several messages, all or none, and repeating it changes nothing", { timeout }, async (t) => {
   const { zach, shrimpy, main } = await startDm(t);
-  const asked = await zach.chat.post(main.id, "are you there", "zach-1");
+  const first = await zach.chat.post(main.id, "one", "zach-1");
+  const second = await zach.chat.post(main.id, "two", "zach-2");
+  const answer = await shrimpy.chat.post(main.id, "one and two", "shrimpy-1");
 
-  await assert.rejects(shrimpy.chat.leaveReceipt([asked.id], outcome("answered")), {
+  await assert.rejects(shrimpy.chat.leaveReceipt([first.id], outcome("answered")), {
     code: "service_invalid_value",
     message: /^An answered receipt needs a reply/,
   });
-  await assert.rejects(shrimpy.chat.leaveReceipt([asked.id], outcome("answered", { reply: asked.id })), {
-    code: "service_invalid_value",
-    message: new RegExp(`^${asked.id} is not a message you wrote in the same thread as ${asked.id}`),
+  await assert.rejects(shrimpy.chat.leaveReceipt([first.id], outcome("answered", { reply: first.id })), {
+    message: /is not a message you wrote/,
   });
-  await assert.rejects(shrimpy.chat.leaveReceipt([asked.id], outcome("silent", { detail: "why" })), {
-    message: /^Only a failed receipt has a detail/,
+  await assert.rejects(shrimpy.chat.leaveReceipt([first.id, "msg_nothing"], outcome("silent")), {
+    message: /^Unknown message: msg_nothing/,
   });
+  assert.deepEqual(
+    (await zach.chat.read(main.id, null, 10)).map((message) => message.receipts),
+    [[], [], []],
+  );
 
-  assert.deepEqual((await zach.chat.read(main.id, null, 10))[0]?.receipts, []);
+  // A call whose answer was lost is made again.
+  await shrimpy.chat.leaveReceipt([first.id, second.id], outcome("answered", { reply: answer.id }));
+  await shrimpy.chat.leaveReceipt([first.id, second.id], outcome("answered", { reply: answer.id }));
+
+  const left = [{ memberId: agent("Shrimpy").id, status: "answered", reply: answer.id, detail: null }];
+  assert.deepEqual(
+    (await zach.chat.read(main.id, null, 10)).map((message) => message.receipts),
+    [left, left, []],
+  );
 });

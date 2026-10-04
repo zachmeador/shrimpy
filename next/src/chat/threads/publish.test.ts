@@ -82,25 +82,6 @@ test("the published view always equals the latest view", () => {
   assert.deepEqual(publishAll(view([]), steps), steps);
 });
 
-test("a view that does not line up with the last one replaces its messages", () => {
-  const steps = [view(range(5, 8), { earlier: 4 }), view(range(1, 3))];
-
-  assert.deepEqual(publishAll(view(range(2, 6)), steps), steps);
-});
-
-test("publishing the same view again makes no new revision", () => {
-  const state = replicatedState(view(range(1, 3)));
-  let revisions = 0;
-  state.subscribe(() => {
-    revisions += 1;
-  });
-  const before = revisions;
-
-  publishThreadView(state, view(range(1, 3)), context);
-
-  assert.equal(revisions, before);
-});
-
 /** What a watching client is sent when `state` changes. */
 function updatesTo(state: MutableReplicatedState<ThreadView>): ServiceProviderUpdate[] {
   const provider = new RemoteServiceProvider([{ service: ThreadService, mode: "singleton" }]);

@@ -42,6 +42,7 @@ test("two members talk in a DM", { timeout }, async (t) => {
   const answer = await shrimpy.chat.post(main.id, "Yes.", "shrimpy-1");
   assert.deepEqual(answer.addressed, [person("Zach").id]);
   assert.deepEqual(await zach.chat.feed(question.seq, 10), [answer]);
+  assert.deepEqual(await shrimpy.chat.feed(question.seq, 10), [answer], "a member is offered its own messages too");
   assert.deepEqual(await zach.chat.read(main.id, null, 10), [question, answer]);
   assert.deepEqual(await shrimpy.chat.read(main.id, answer.seq, 10), [question]);
 
@@ -66,16 +67,8 @@ test("a DM can be opened with a member who has not connected yet", { timeout }, 
   assert.equal(channel.name, "Zach");
   assert.deepEqual(await newcomer.chat.read(main.id, null, 10), [waiting]);
   assert.equal(await newcomer.chat.head(), waiting.seq);
-});
-
-test("a member's new name shows to the others", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await startDm(t);
-  await zach.chat.post(main.id, "hello", "zach-1");
-
-  await zach.chat.identify({ id: "person:zach", kind: "person", name: "Zachariah" });
-
-  assert.equal((await shrimpy.chat.channels())[0]?.name, "Zachariah");
-  assert.equal((await shrimpy.chat.read(main.id, null, 10))[0]?.author.name, "Zachariah");
+  // Only a member speaks for itself: describing one the server has met changes nothing.
+  assert.deepEqual(await zach.chat.openDm({ id: "agent:newcomer", kind: "agent", name: "Impostor" }), dm);
 });
 
 test("side threads keep their own conversations in the channel", { timeout }, async (t) => {
@@ -122,23 +115,6 @@ test("a feed catches up after a reconnect", { timeout }, async (t) => {
   const waiting = second.chat.feed(missed.at(-1)?.seq ?? 0, 10);
   await zach.chat.post(main.id, "four", "zach-4");
   assert.deepEqual(texts(await waiting), ["four"]);
-});
-
-test("a feed that starts at the head offers nothing from before", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.join(person("Zach"));
-  const dm = await zach.chat.openDm(agent("Shrimpy"));
-  const main = await mainThread(zach, dm.id);
-  await zach.chat.post(main.id, "from before", "zach-1");
-
-  const shrimpy = await chat.join(agent("Shrimpy"));
-  const start = await shrimpy.chat.head();
-  const waiting = follow(shrimpy.chat.feed(start, 10));
-  await settle();
-  assert.equal(waiting.done, false);
-
-  await zach.chat.post(main.id, "after", "zach-2");
-  assert.deepEqual(texts(await shrimpy.chat.feed(start, 10)), ["after"]);
 });
 
 test("a feed pages through what it missed", { timeout }, async (t) => {

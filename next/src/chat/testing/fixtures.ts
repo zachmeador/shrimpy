@@ -20,13 +20,6 @@ export const outcome = (
   given: { reply?: string; detail?: string } = {},
 ): Omit<Receipt, "memberId"> => ({ status, reply: given.reply ?? null, detail: given.detail ?? null });
 
-/** What `assert.throws` should find when the chat server refuses a call in this process, whose reason matches `message`. */
-export const refused = (message: RegExp, code = "service_invalid_value") => ({
-  name: "Refusal",
-  code,
-  message,
-});
-
 export interface Clock {
   readonly now: () => number;
   advance(ms?: number): void;

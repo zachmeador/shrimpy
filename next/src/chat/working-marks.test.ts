@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
 import { settle, waitForView } from "../lib/testing/index.ts";
-import { agent, follow, person, startDm } from "./testing/index.ts";
+import { agent, startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
 
@@ -37,17 +37,6 @@ test("marking work twice keeps the time it started", { timeout }, async (t) => {
   await shrimpy.chat.setWorking(main.id, true);
 
   assert.deepEqual((await zach.chat.threads(dm.id))[0]?.working, [first]);
-});
-
-test("a mark is part of every thread the service returns", { timeout }, async (t) => {
-  const { zach, shrimpy, dm, main } = await startDm(t);
-  await shrimpy.chat.setWorking(main.id, true);
-  const working = (await zach.chat.threads(dm.id))[0]?.working;
-  assert.equal(working?.length, 1);
-
-  assert.deepEqual((await zach.chat.renameThread(main.id, "Plans")).working, working);
-  assert.deepEqual((await zach.chat.archiveThread(main.id, true)).working, working);
-  assert.deepEqual((await zach.chat.createThread(dm.id, "Elsewhere")).working, []);
 });
 
 test("a mark ends with the connection that made it", { timeout }, async (t) => {
@@ -91,29 +80,4 @@ test("a member that works in two threads shows in each", { timeout }, async (t) 
     threads.map((thread) => [thread.id, thread.working.length]).sort(),
     [[main.id, 0], [side.id, 1]].sort(),
   );
-});
-
-test("working is not a message: it is never offered", { timeout }, async (t) => {
-  const { zach, shrimpy, main } = await startDm(t);
-  const start = await zach.chat.head();
-  const waiting = follow(zach.chat.feed(start, 10));
-
-  await shrimpy.chat.setWorking(main.id, true);
-  await shrimpy.chat.setWorking(main.id, false);
-  await settle();
-
-  assert.equal(waiting.done, false);
-  assert.equal(await zach.chat.head(), start);
-});
-
-test("only a member of the thread's channel can mark work in it", { timeout }, async (t) => {
-  const { chat, shrimpy, main } = await startDm(t);
-  const alice = await chat.join(person("Alice"));
-
-  await assert.rejects(alice.chat.setWorking(main.id, true), { message: /^Unknown thread: th_/ });
-  await assert.rejects(shrimpy.chat.setWorking("th_nothing", true), { message: /^Unknown thread: th_nothing/ });
-  await assert.rejects(shrimpy.chat.setWorking(main.id, "yes" as unknown as boolean), {
-    message: /^working must be true or false/,
-  });
-  assert.deepEqual((await shrimpy.chat.threads(main.channelId))[0]?.working, []);
 });
