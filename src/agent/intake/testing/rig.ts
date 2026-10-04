@@ -4,9 +4,9 @@ import type { ChatConnection } from "../../../contracts/chat/index.ts";
 import { connectLocal } from "../../../contracts/chat/node.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
-import { type ChatLink, openChatLink } from "../../links/index.ts";
+import { openChatLink } from "../../links/index.ts";
 import { type ChatServer, scout, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
-import { type Intake, type IntakeOptions, startIntake } from "../index.ts";
+import { type IntakeOptions, startIntake } from "../index.ts";
 import { type ScriptedTurns, scriptedTurns } from "./turns.ts";
 
 type Method = "post" | "leaveReceipt";
@@ -24,8 +24,6 @@ export interface Faults {
 export interface IntakeRig extends Talk {
   readonly chat: ChatServer;
   readonly turns: ScriptedTurns;
-  readonly link: ChatLink;
-  readonly intake: Intake;
   readonly faults: Faults;
   /** What the link and the intake reported. */
   readonly errors: Error[];
@@ -69,7 +67,7 @@ export async function startIntakeRig(t: TestContext, options: IntakeRigOptions =
   stopAfter(t, () => link.close());
   stopAfter(t, () => intake.close());
 
-  return { ...talk, chat, turns, link, intake, faults: faults.faults, errors };
+  return { ...talk, chat, turns, faults: faults.faults, errors };
 }
 
 interface FaultPlan {

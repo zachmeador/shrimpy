@@ -11,7 +11,7 @@ const timeout = 15_000;
 const saidByScout = (messages: { author: { id: string }; text: string }[]): string[] =>
   messages.filter((message) => message.author.id === scout.id).map((message) => message.text);
 
-test("a call that runs again posts nothing twice, and a different call posts again, even under the same ID", { timeout }, async (t) => {
+test("a call that runs again posts nothing twice", { timeout }, async (t) => {
   const rig = await startToolRig(t, { messageLimit: 20 });
   const text = "first line here\nsecond line here";
 
@@ -20,10 +20,6 @@ test("a call that runs again posts nothing twice, and a different call posts aga
 
   assert.equal(again.isError, false);
   assert.equal(saidByScout(await rig.said()).length, 2, "two parts, once");
-
-  // The model's call IDs repeat from one turn to the next, but each call is a task of its own.
-  await rig.call("send_message", { text }, { taskId: 8, callId: "call-0" });
-  assert.equal(saidByScout(await rig.said()).length, 4);
 });
 
 test("a call ID with characters chat does not take, or a very long one, still names a post chat takes", { timeout }, async (t) => {

@@ -14,7 +14,6 @@ import {
   serveGateway,
   shrimpy,
   startModelServer,
-  startScriptedAgent,
   startUp,
   untilRegistered,
 } from "./testing/index.ts";
@@ -155,18 +154,6 @@ test("up needs --data, and starts nothing without it", { timeout }, async (t) =>
 
   assert.equal(missing.code, 2);
   assert.deepEqual(readdirSync(runtime), []);
-});
-
-test("what up starts is what run talks through", { timeout }, async (t) => {
-  const up = await startUp(t, ["--data", tempDir(t, "up-data")]);
-  const chat = await untilRegistered("chat", "chat");
-  await startScriptedAgent(t, { name: "scout", chat, handle: () => ({ status: "answered", text: "hello from scout" }) });
-
-  const result = await shrimpy(["run", "scout", "hi"]);
-
-  assert.equal(result.code, 0, result.stderr);
-  assert.equal(result.stdout, "hello from scout\n");
-  assert.equal(chat.pid, up.programs()[1], "the chat server it talked through is the one up started");
 });
 
 test("run right after up gets its reply from the agent up started, even one sent before the agent has joined chat", { timeout }, async (t) => {

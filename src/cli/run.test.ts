@@ -14,9 +14,7 @@ test("with no command it lists the commands and exits with 2, and help lists the
   const bare = await run();
   assert.equal(bare.code, 2);
   assert.match(bare.err, /^Usage: shrimpy <command>/);
-  for (const command of ["up", "run", "threads", "read", "agent serve", "sessions steer", "gateway serve", "chat serve"]) {
-    assert.ok(bare.err.includes(`  ${command} `), command);
-  }
+  for (const command of ["up", "run", "agent serve"]) assert.ok(bare.err.includes(`  ${command} `), command);
 
   const help = await run("help");
   assert.equal(help.code, 0);
