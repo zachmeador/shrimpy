@@ -13,7 +13,7 @@ import { oneLine } from "./plain.ts";
  * harmless here, whoever calls, so no sentence can carry anything else.
  */
 
-/** The command that starts everything talking needs. */
+/** The command that starts everything a conversation needs, as the commands name it. */
 const START_EVERYTHING = "shrimpy up <home>... --data <dir>";
 
 /** The program a problem is about. */
@@ -152,9 +152,9 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
   }
 }
 
-/** Who is working in a thread, and what the session is doing. */
+/** Who is working in a thread, and what the session is doing. At least one name. */
 export function workingLine(names: string[], activity: SessionActivity | undefined): string {
-  const who = names.length === 0 ? "The agent" : names.map(oneLine).join(" and ");
+  const who = names.map(oneLine).join(" and ");
   const verb = names.length > 1 ? "are" : "is";
   const doing = activity === undefined ? undefined : activityWords(activity);
   return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`} · esc to stop`;
