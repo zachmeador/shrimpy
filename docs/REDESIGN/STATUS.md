@@ -23,6 +23,15 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
+**The flip, waiting on two merges**
+
+- `next/` moves to the repo's root and old Shrimpy into `shrimpy-old/`, in one commit of pure renames. A rehearsal in a throwaway worktree passed the full check from the root.
+- Into `shrimpy-old/`: `src/`, `test/`, `web/`, `extensions/`, `themes/`, `scripts/`, the old package and config files, the old `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and `THIRD_PARTY_NOTICES.md`, the developer skills, and `docs/reference/`, `docs/backlog/`, `docs/musings/`, `docs/getting-started.md` and the old docs index. The old `AGENTS.md` goes in as `AGENTS.old.md`, so no tool loads it, beside a short one that says the folder is reference only.
+- Staying at the root: `docs/REDESIGN/`, `docs/research/`, the logo, `CHANGELOG.md` and `LICENSE`.
+- A second commit for the words: a new root `AGENTS.md`, the 41 links in root docs that point at what moved, the paths in this plan and status, and the package's name.
+- Four developer skills come back to the root as `dev-skills/`, with their old-tree lines fixed: the writing guide, the changelog skill, commit-all and the cleanup pass. The other seven stay in `shrimpy-old/` until the release decides.
+- On this machine: `~/.local/bin/shrimpy` is linked again, and `shrimpy up` restarted.
+
 **Still open in phase 2**
 
 - Not built yet: the rewritten instructions and the four skills, compaction guidance, seeing the request a turn sent, and workspace context from the gateway.
