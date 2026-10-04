@@ -78,6 +78,20 @@ test("stopping at once pauses the turn, and the next start finishes it and posts
   assert.equal(sent[0]?.digest, sent[1]?.digest);
 });
 
+test("a turn that outlasts the grace period is paused, not lost", { timeout }, async (t) => {
+  const { rig, asked } = await startStreaming(t, 40);
+
+  const started = Date.now();
+  await rig.agent.close({ graceMs: 300 });
+  const waited = Date.now() - started;
+  assert.ok(waited >= 250 && waited < 3000, `waited ${waited} ms`);
+
+  const next = await restart(t, rig);
+  assert.equal((await next.receiptOn(asked)).status, "answered");
+  assert.equal((await next.replies()).length, 1);
+  assert.equal(loggedRequests(rig.home).length, 2);
+});
+
 test("once stopping begins, new input is refused, from a client and from chat, and chat's message waits for the next start", { timeout }, async (t) => {
   const { rig, session } = await startStreaming(t, 40);
 
