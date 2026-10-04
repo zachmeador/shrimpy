@@ -5,6 +5,7 @@ import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gat
 import { startGateway, type WebOptions } from "../../gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
+import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
 import { serveUntilStopped } from "./serve.ts";
 
@@ -50,16 +51,21 @@ const status: Command = {
   name: "gateway status",
   usage: "",
   summary: "List the programs registered with this machine's gateway: kind, name, version and pid.",
-  details: "A version that differs from this command's own is marked. Exits 1 if no gateway is running.",
+  details:
+    "A version that differs from this command's own is marked, and so is the gateway's, on standard error. " +
+    "Exits 1 if no gateway is running.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     expectArguments(positionals, []);
-    for (const line of renderPrograms(await listPrograms(), SHRIMPY_VERSION)) io.out(line);
+    const { programs, version } = await inspectGateway();
+    warnIfVersionDiffers(io, "the gateway", version);
+    for (const line of renderPrograms(programs, SHRIMPY_VERSION)) io.out(line);
     return 0;
   },
 };
 
-async function listPrograms(): Promise<Registration[]> {
+/** The programs this machine's gateway lists, and the version it runs. */
+async function inspectGateway(): Promise<{ programs: Registration[]; version: string }> {
   let gateway: GatewayConnection;
   try {
     gateway = await connectLocalGateway();
@@ -70,7 +76,7 @@ async function listPrograms(): Promise<Registration[]> {
     throw error;
   }
   try {
-    return await gateway.list();
+    return { programs: await gateway.list(), version: await gateway.version() };
   } finally {
     await gateway.close().catch(() => undefined);
   }

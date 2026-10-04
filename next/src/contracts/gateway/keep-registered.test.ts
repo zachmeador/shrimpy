@@ -98,7 +98,12 @@ test("it waits for a gateway that is not there yet, and says nothing about it", 
 test("something on the gateway's socket that is not the gateway is reported, and tried again", { timeout }, async (t) => {
   useRuntimeDir(t);
   await startStandIn(t, GATEWAY_SOCKET_NAME, {
-    offer: () => offer(Gateway, { register: () => Promise.resolve(), list: () => Promise.resolve([]) }),
+    offer: () =>
+      offer(Gateway, {
+        register: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+        version: () => Promise.resolve(registration.version),
+      }),
   });
   const errors: Error[] = [];
 
@@ -116,6 +121,7 @@ test("a registration the gateway refuses is reported with its reason, and tried 
       offer(Gateway, {
         register: () => Promise.reject(new Refusal("Invalid registration: pid must be a positive integer")),
         list: () => Promise.resolve([]),
+        version: () => Promise.resolve(registration.version),
       }),
   });
   const errors: Error[] = [];

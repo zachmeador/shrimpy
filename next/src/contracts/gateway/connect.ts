@@ -11,6 +11,8 @@ export interface GatewayConnection {
    */
   register(registration: Registration): Promise<void>;
   list(): Promise<Registration[]>;
+  /** The version of Shrimpy the gateway runs. */
+  version(): Promise<string>;
   /**
    * Called once when the connection ends, whether the gateway went away or
    * `close` was called. Nothing reconnects by itself: a program that wants to
@@ -34,6 +36,7 @@ export async function connectGateway(options: {
   return {
     register: (registration) => gateway.register(registration, context),
     list: () => gateway.list(context),
+    version: () => gateway.version(context),
     onDisconnect: (listener) => connection.onDisconnect(listener),
     close: () => connection.close(),
   };

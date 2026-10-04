@@ -1,5 +1,6 @@
 import type { TestContext } from "node:test";
 import { offer, type StandIn, startStandIn } from "../../../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME, type Registration } from "../index.ts";
 
 export interface StandInGateway extends StandIn {
@@ -9,13 +10,21 @@ export interface StandInGateway extends StandIn {
   registered(): Registration[];
 }
 
+export interface StandInGatewayOptions {
+  /** The version it reports for itself. The version of Shrimpy by default. */
+  version?: string;
+}
+
 /**
  * A stand-in for the gateway: it takes registrations, and keeps each for as
  * long as the connection that made it lasts. It listens where the gateway
  * does, so the test needs a runtime directory of its own, and it is closed
  * when the test ends.
  */
-export async function startStandInGateway(t: TestContext): Promise<StandInGateway> {
+export async function startStandInGateway(
+  t: TestContext,
+  options: StandInGatewayOptions = {},
+): Promise<StandInGateway> {
   const live = new Map<object, Registration>();
   const received: Registration[] = [];
   const standIn = await startStandIn(t, GATEWAY_SOCKET_NAME, {
@@ -33,6 +42,7 @@ export async function startStandInGateway(t: TestContext): Promise<StandInGatewa
             return Promise.resolve();
           },
           list: () => Promise.resolve([...live.values()]),
+          version: () => Promise.resolve(options.version ?? SHRIMPY_VERSION),
         },
         () => live.delete(connection),
       );

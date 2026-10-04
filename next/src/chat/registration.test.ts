@@ -67,7 +67,12 @@ test("a registration that fails is reported on standard error, with what it was"
   useRuntimeDir(t);
   // Something on the gateway's socket that answers as someone else.
   await startStandIn(t, GATEWAY_SOCKET_NAME, {
-    offer: () => offer(Gateway, { register: () => Promise.resolve(), list: () => Promise.resolve([]) }),
+    offer: () =>
+      offer(Gateway, {
+        register: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+        version: () => Promise.resolve(SHRIMPY_VERSION),
+      }),
   });
   const reported = t.mock.method(console, "error", () => undefined);
 

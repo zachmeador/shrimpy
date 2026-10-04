@@ -10,6 +10,7 @@ import { Gateway, GATEWAY_SERVER_ID, GATEWAY_SOCKET_NAME } from "../contracts/ga
 import { offerToConnection } from "../lib/offer/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
+import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { takeGatewayLock } from "./lock.ts";
 import { InvalidRegistrationError, type Registry } from "./registry/index.ts";
 
@@ -86,6 +87,7 @@ function serverHost(registry: Registry, peer: Peer): ServerHost {
             }
           },
           list: async () => registry.list(),
+          version: async () => SHRIMPY_VERSION,
         },
         () => connection?.close(),
       );

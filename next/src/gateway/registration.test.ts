@@ -4,6 +4,7 @@ import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { connectGateway, type Registration } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, GatewayNotRunningError } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { startGateway } from "./index.ts";
 import { agentRegistration as agent, startEchoProgram, startRegistrantChild } from "./testing/index.ts";
 
@@ -25,6 +26,18 @@ test("a registration is listed to every client", { timeout }, async (t) => {
   } finally {
     await program.close();
     await observer.close();
+    await gateway.close();
+  }
+});
+
+test("the gateway reports the version of Shrimpy it runs", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startGateway();
+  const client = await connectLocalGateway();
+  try {
+    assert.equal(await client.version(), SHRIMPY_VERSION);
+  } finally {
+    await client.close();
     await gateway.close();
   }
 });

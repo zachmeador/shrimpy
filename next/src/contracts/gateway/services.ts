@@ -29,5 +29,11 @@ export interface Gateway {
    */
   register(registration: Registration, context: Context): Promise<void>;
   list(context: Context): Promise<Registration[]>;
+  /**
+   * The version of Shrimpy the gateway runs, so that whoever talks through it
+   * can tell when they were not built together. Like a registration's version,
+   * it is reported and never refused.
+   */
+  version(context: Context): Promise<string>;
 }
 export const Gateway = defineService<Gateway>("shrimpy.gateway");
