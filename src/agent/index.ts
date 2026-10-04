@@ -11,7 +11,7 @@
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext } from "./extensions/index.ts";
-import { loadHome } from "./home/index.ts";
+import { homePaths, loadHome } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
@@ -83,6 +83,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const report = reporter(options);
     for (const { file, reason } of context.report.leftOut) report(new Error(`${file} was left out: ${reason}.`));
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home });
+    await sessions.check(homePaths(options.home).database);
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
     host.resume();
