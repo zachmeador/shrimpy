@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { connectLocal } from "../contracts/chat/node.ts";
-import { eventually, stopAfter, tempDir, within } from "../lib/testing/index.ts";
+import { GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
+import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
-import { type CliResult, serveChat, serveGateway, shrimpy } from "./testing/index.ts";
+import { type CliResult, serveChat, serveGateway, shrimpy, startSilentServer } from "./testing/index.ts";
 
 /*
  * These tests run the gateway and the chat server as people do: every
@@ -101,11 +101,10 @@ test("a chat server stops promptly when the gateway it is registered with has st
 });
 
 test("a chat server that started while the gateway was not answering stops promptly too", { timeout }, async (t) => {
-  const gateway = await serveGateway(t);
-  process.kill(gateway.listening.pid, "SIGSTOP");
+  useRuntimeDir(t);
+  const gateway = await startSilentServer(t, GATEWAY_SOCKET_NAME);
   const chat = await serveChat(t, tempDir(t, "chat-data"));
-  // Long enough for it to have connected to the gateway and be waiting for its answer.
-  await delay(300);
+  await until(() => gateway.connections() === 1, "the chat server to reach the gateway");
 
   const stopped = await within(PROMPT_MS, chat.stop(), "the chat server stopping");
 

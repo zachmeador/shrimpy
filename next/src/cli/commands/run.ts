@@ -50,10 +50,13 @@ async function say(io: Io, request: Request): Promise<number> {
   const stopped = new AbortController();
   const stopListening = io.onStop(() => stopped.abort());
   const { signal } = stopped;
+  // Ended by the chat server going away, which nothing else would notice while waiting for a receipt.
+  const lost = new AbortController();
   let progress: Progress = { stage: "reaching" };
   let reached: Reached | undefined;
   try {
     reached = await reachChat(io, signal);
+    reached.connection.onDisconnect(() => lost.abort());
     const registered = registeredAgent(reached.programs, request.agent);
     warnIfVersionDiffers(io, `the agent ${request.agent}`, registered.version);
 
@@ -71,11 +74,13 @@ async function say(io: Io, request: Request): Promise<number> {
       io.err(`Thread ${thread.id} started. Continue it with: shrimpy run ${request.agent} "<text>" --thread ${thread.id}`);
     }
     const watched = await reached.connection.attach(thread.id);
-    const waited = await waitForReceipt(watched, message.id, agentMember(request.agent).id, signal);
+    const waiting = AbortSignal.any([signal, lost.signal]);
+    const waited = await waitForReceipt(watched, message.id, agentMember(request.agent).id, waiting);
     return report(io, request.agent, thread.id, waited);
   } catch (error) {
-    if (!signal.aborted) throw error;
-    return interrupted(io, request.agent, progress);
+    if (signal.aborted) return interrupted(io, request.agent, progress);
+    if (lost.signal.aborted) throw new Error(lostConnection(request.agent, progress), { cause: error });
+    throw error;
   } finally {
     // A second stop request ends the command at once, while the connection is let go.
     stopListening();
@@ -127,6 +132,19 @@ function report(io: Io, agent: string, thread: string, waited: Waited): number {
     case "skipped":
       io.err(`${agent} skipped your message.`);
       return CANCELLED;
+  }
+}
+
+/** The chat server went away: say what became of the message, as far as that is known. */
+function lostConnection(agent: string, progress: Progress): string {
+  const lost = "Lost the connection to the chat server";
+  switch (progress.stage) {
+    case "reaching":
+      return `${lost}. Nothing was sent.`;
+    case "sending":
+      return `${lost} while your message was being sent. It may have been posted; check with: shrimpy threads ${agent}`;
+    case "waiting":
+      return `${lost}. Your message is in thread ${progress.thread}; read the thread with: shrimpy read ${progress.thread}`;
   }
 }
 

@@ -17,8 +17,8 @@ const up: Command = {
     "start, and the chat server keeps its store in the data directory, which is made if it is missing. A " +
     "gateway, chat server or agent that is already running is used as it is, and left running when this stops. " +
     "Ctrl+C or SIGTERM stops what this started, agents first, and exits 0 once they have stopped; a second " +
-    "request stops without waiting for running turns, and a third ends them at once. If a program this " +
-    "started ends by itself, this says which, stops the rest and exits 1.",
+    "request tells the agents to stop without waiting for running turns, and a third ends everything at " +
+    "once. If a program this started ends by itself, this says which, stops the rest and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { data: { type: "string" } }, allowPositionals: true }),
@@ -196,8 +196,10 @@ interface StopWatch {
 /**
  * Listen for stop requests before anything starts, since whoever reads the first
  * line may signal at once. The first request stops everything in order. A second
- * is passed to the programs as a second SIGTERM, which tells an agent to stop
- * without waiting for its running turns, and a third kills them.
+ * is a second SIGTERM for the agents, which tells each to stop without waiting
+ * for its running turns. The gateway and the chat server get one SIGTERM, when
+ * their turn comes: once they have closed nothing listens for another, and the
+ * signal would end them instead of being ignored. A third request kills everything.
  */
 function watchForStop(io: Io, crew: Started[]): StopWatch {
   const aborted = new AbortController();
@@ -209,7 +211,10 @@ function watchForStop(io: Io, crew: Started[]): StopWatch {
   const release = io.onStop(() => {
     count += 1;
     aborted.abort();
-    if (count > 1) for (const member of crew) member.program.signal(count > 2 ? "SIGKILL" : "SIGTERM");
+    for (const member of crew) {
+      if (count === 2 && member.role === "agent") member.program.signal("SIGTERM");
+      if (count > 2) member.program.signal("SIGKILL");
+    }
     wake();
   });
   return { asked, signal: aborted.signal, requests: () => count, release };

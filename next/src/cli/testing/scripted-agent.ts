@@ -5,7 +5,7 @@ import { agentMember, type ChatEndpoint, type Message } from "../../contracts/ch
 import { connectLocal } from "../../contracts/chat/node.ts";
 import { connectLocalGateway } from "../../contracts/gateway/node.ts";
 import { runtimeDir } from "../../lib/runtime/node.ts";
-import { stopAfter } from "../../lib/testing/index.ts";
+import { stopAfter, within } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 
 /** What a scripted agent did with a message: the receipt it leaves, and the reply it posts first if it answered. */
@@ -23,7 +23,8 @@ export interface ScriptedAgentOptions {
   /**
    * What it does with each message it is offered, one at a time. It is marked
    * as working in the message's thread until this settles, so a test can hold
-   * the work by returning a promise it settles later.
+   * the work by returning a promise it settles later. Work that is held must be
+   * let go before the test ends, or the agent cannot leave.
    */
   handle(message: Message): Outcome | Promise<Outcome>;
   /** The version in its registration. The version of Shrimpy by default. */
@@ -83,6 +84,11 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
   };
   // Read through a function, so the compiler does not assume the answer it saw first still holds.
   const hasLeft = (): boolean => leaving.signal.aborted;
+  // A chat server that goes away ends the agent's listening without being a failure of the test.
+  let dropped = false;
+  connection.onDisconnect(() => {
+    dropped = true;
+  });
   let cursor = await connection.chat.head();
   const listening = (async () => {
     while (!hasLeft()) {
@@ -95,11 +101,11 @@ export async function startScriptedAgent(t: TestContext, options: ScriptedAgentO
       }
     }
   })().catch((error: unknown) => {
-    if (!hasLeft()) throw error;
+    if (!hasLeft() && !dropped) throw error;
   });
   stopAfter(t, async () => {
     leaving.abort();
-    await listening;
+    await within(5000, listening, "the scripted agent leaving (a handle that holds work must settle before the test ends)");
   });
   return { offered };
 }

@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { startChat } from "../chat/index.ts";
 import { agentMember, Chat, type ChatConnection, personMember } from "../contracts/chat/index.ts";
+import { GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
 import { connectLocalGateway } from "../contracts/gateway/node.ts";
 import { startStandInGateway } from "../contracts/gateway/testing/index.ts";
 import {
@@ -26,6 +26,7 @@ import {
   shrimpy,
   shrimpyInBackground,
   startScriptedAgent,
+  startSilentServer,
   startTalking,
   untilRegistered,
 } from "./testing/index.ts";
@@ -225,6 +226,29 @@ test("stopping run while it waits leaves the message and the agent's work alone,
   assert.equal(message.receipts[0]?.status, "answered");
 });
 
+test("run says so when the chat server goes away while it waits, instead of waiting for nothing", { timeout }, async (t) => {
+  const talking = await startTalking(t);
+  const finish = deferred<Outcome>();
+  const agent = await startScriptedAgent(t, { name: "scout", chat: talking.chat.listening, handle: () => finish.promise });
+  const waiting = shrimpyInBackground(["run", "scout", "take your time"]);
+  await until(() => agent.offered.length === 1, "the agent to be offered the message");
+  await until(() => waiting.output().stderr.includes(" started."), "run to say which thread it started");
+
+  await talking.chat.stop("SIGKILL");
+  const result = await within(15_000, waiting.finished, "run ending");
+
+  assert.equal(result.code, 1);
+  assert.equal(result.stdout, "");
+  const thread = startedThread(result.stderr);
+  assert.ok(
+    result.stderr.endsWith(
+      `Lost the connection to the chat server. Your message is in thread ${thread}; read the thread with: shrimpy read ${thread}\n`,
+    ),
+    result.stderr,
+  );
+  finish.resolve(answered("too late"));
+});
+
 test("run says so when the thread moves on past its message, instead of waiting for nothing", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const finish = deferred<Outcome>();
@@ -248,11 +272,10 @@ test("run says so when the thread moves on past its message, instead of waiting 
 });
 
 test("stopping run while the gateway is not answering says nothing was sent, and exits 130", { timeout }, async (t) => {
-  const gateway = await serveGateway(t);
-  process.kill(gateway.listening.pid, "SIGSTOP");
+  useRuntimeDir(t);
+  const gateway = await startSilentServer(t, GATEWAY_SOCKET_NAME);
   const waiting = shrimpyInBackground(["run", "scout", "hello"]);
-  // Long enough for it to have connected to the gateway and be waiting for its answer.
-  await delay(500);
+  await until(() => gateway.connections() === 1, "run to reach the gateway");
 
   waiting.kill("SIGINT");
   const result = await within(5000, waiting.finished, "run stopping");
