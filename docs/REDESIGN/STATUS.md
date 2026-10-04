@@ -21,6 +21,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
 - Clients see Chord's and `pi-client`'s error types and codes, though contracts are meant to carry only Shrimpy's shapes. The check for a refusal lives in `agent/links/` and belongs in `lib/refusal`.
+- Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, two stand-ins for an agent's side of chat, in `cli/testing/` and `contracts/chat/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
 **Still open in phase 2**
@@ -61,6 +62,14 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**A second opinion on the core design, 2026-10-04.** A Fable 5.1 subagent read the plan's core sections and the five contract files, and was asked where it disagreed. After one round of pushback, three of its five points became recommendations in the plan, waiting for review:
+
+- A member's ID should be minted once and mean nothing, with its name a label in the roster; and the gateway should decide who a connection is, so `identify` goes.
+- The feed should be a log of events (posted, edited, deleted, reacted), since today an edited message could never reach an agent.
+- Clients should connect to a name and never see a socket or a pid, so reaching a program on this machine and on another is one path.
+
+Two were left until something forces them: giving every session an ID of its own apart from its thread, which waits for forks, and a hard counter against agents waking each other in a loop. It thought the most right choice was agents pulling messages from their own cursor and leaving receipts.
 
 **The flip, 2026-10-04.** The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/` as one unit: its code, tests and docs. `next/` existed to protect a live install that is gone, and old Shrimpy at the root was reaching every agent that worked here: its `AGENTS.md` said the entry point was `src/cli.ts` and never mentioned the rebuild.
 
