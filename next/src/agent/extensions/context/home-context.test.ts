@@ -47,7 +47,6 @@ test("the extension has the four sections, in order, and the engine adds no tags
   assert.match(texts.shrimpy ?? "", /^<shrimpy>\nYou are scout, an agent in Shrimpy\./);
   assert.equal(texts.soul, "<soul>\nBe brief.\n</soul>");
   assert.equal(texts.context, undefined);
-  assert.equal(texts.skills, undefined);
 });
 
 test("rendering reads no file: the text is what the files said when they were read, even once they are gone", async (t) => {
@@ -82,7 +81,9 @@ test("editing a file changes nothing until the home is reloaded, and then the la
 
   assert.match((await rendered(context)).soul ?? "", /Answer in rhyme\./);
   assert.match((await rendered(context)).context ?? "", /A new note\./);
-  assert.deepEqual(report, { soul: true, files: 1, skills: 0, leftOut: [] });
+  assert.equal(report.soul, true);
+  assert.equal(report.files, 1);
+  assert.deepEqual(report.leftOut, []);
 });
 
 test("the first reading is reported with what it found, and a reload with what it finds", async (t) => {
@@ -95,16 +96,17 @@ test("the first reading is reported with what it found, and a reload with what i
 
   const context = await homeContext(agent);
 
-  assert.deepEqual(context.report, {
-    soul: true,
-    files: 2,
-    skills: 1,
-    leftOut: [{ file: "skills/bad/SKILL.md", reason: "it does not start with a front matter block, between --- lines" }],
-  });
+  assert.equal(context.report.soul, true);
+  assert.equal(context.report.files, 2);
+  assert.deepEqual(context.report.leftOut, [
+    { file: "skills/bad/SKILL.md", reason: "it does not start with a front matter block, between --- lines" },
+  ]);
 
   write("skills/bad/SKILL.md", skill("Fixed."));
-  assert.deepEqual(await context.reload(), { soul: true, files: 2, skills: 2, leftOut: [] });
-  assert.equal(context.report.skills, 1, "the first report stays as it was");
+  const reloaded = await context.reload();
+  assert.deepEqual(reloaded.leftOut, []);
+  assert.equal(reloaded.skills, context.report.skills + 1, "the skill that was left out is now counted");
+  assert.equal(context.report.leftOut.length, 1, "the first report stays as it was");
 });
 
 test("a file taken away is dropped from the sections by a reload", async (t) => {

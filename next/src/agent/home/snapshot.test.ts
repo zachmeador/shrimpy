@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { chmodSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { tempDir } from "../../lib/testing/index.ts";
-import { homePaths } from "./layout.ts";
-import { readHomeSnapshot } from "./snapshot.ts";
+import { INCLUDED_SKILLS } from "./included.ts";
+import { type HomePaths, homePaths } from "./layout.ts";
+import { type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
+
+/** What the home's own files give, without the skills that ship with Shrimpy, which most of these tests are not about. */
+async function readHome(paths: HomePaths): Promise<HomeSnapshot> {
+  const snapshot = await readHomeSnapshot(paths);
+  return {
+    ...snapshot,
+    skills: snapshot.skills.filter((skill) => skill.file.startsWith(paths.root)),
+    leftOut: snapshot.leftOut.filter((each) => !isAbsolute(each.file)),
+  };
+}
 
 function newHome(t: TestContext) {
   const paths = homePaths(join(tempDir(t, "snapshot"), "scout"));
@@ -25,7 +36,7 @@ const skill = (description: string, name?: string): string =>
 test("a home with none of the files gives an empty snapshot, and nothing is wrong", async (t) => {
   const { paths } = newHome(t);
 
-  assert.deepEqual(await readHomeSnapshot(paths), { soul: undefined, files: [], skills: [], leftOut: [] });
+  assert.deepEqual(await readHome(paths), { soul: undefined, files: [], skills: [], leftOut: [] });
 });
 
 test("SOUL.md, the Markdown files of context/ and the skills are read, each in a fixed order", async (t) => {
@@ -37,7 +48,7 @@ test("SOUL.md, the Markdown files of context/ and the skills are read, each in a
   write("skills/review/SKILL.md", skill("Review a diff for bugs."));
   write("skills/deploy/SKILL.md", skill("Ship a build.", "ship-it"));
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.equal(snapshot.soul, "You are scout.\n");
   assert.deepEqual(snapshot.files, [
@@ -62,7 +73,7 @@ test("only Markdown is read from context/, and hidden files and blank files are 
   write("context/.git/notes.md", "secret");
   write("context/empty.md", "\n \n");
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.equal(snapshot.soul, undefined);
   assert.deepEqual(snapshot.files.map((file) => file.path), ["context/notes.md"]);
@@ -77,7 +88,7 @@ test("a file that cannot be read is left out and named, and the others are still
   chmodSync(locked, 0o000);
   t.after(() => rmSync(locked, { force: true }));
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.equal(snapshot.soul, "Be brief.\n");
   assert.deepEqual(snapshot.files.map((file) => file.path), ["context/good.md"]);
@@ -87,13 +98,13 @@ test("a file that cannot be read is left out and named, and the others are still
 test("a file that is not text is left out, and so is a context folder that is not a folder", async (t) => {
   const { paths, write } = newHome(t);
   write("context/binary.md", "abc\0def");
-  const noted = await readHomeSnapshot(paths);
+  const noted = await readHome(paths);
   assert.deepEqual(noted.files, []);
   assert.deepEqual(noted.leftOut, [{ file: "context/binary.md", reason: "it is not text" }]);
 
   rmSync(paths.context, { recursive: true });
   write("context", "I am a file.\n");
-  const flat = await readHomeSnapshot(paths);
+  const flat = await readHome(paths);
   assert.deepEqual(flat.leftOut, [{ file: "context", reason: "it is not a folder" }]);
 });
 
@@ -101,7 +112,7 @@ test("SOUL.md that is a folder is left out and named", async (t) => {
   const { paths, write } = newHome(t);
   write("SOUL.md/inside.md", "x");
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.equal(snapshot.soul, undefined);
   assert.deepEqual(snapshot.leftOut, [{ file: "SOUL.md", reason: "it is a folder, not a file" }]);
@@ -117,7 +128,7 @@ test("links to files and folders are followed, a link back on itself ends, and a
   symlinkSync(paths.context, join(paths.context, "again"));
   symlinkSync(join(paths.root, "nowhere.md"), join(paths.context, "gone.md"));
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.deepEqual(snapshot.files.map((file) => file.path), ["context/more/extra.md", "context/team.md"]);
   assert.deepEqual(snapshot.leftOut, [{ file: "context/gone.md", reason: "it is a link to nothing" }]);
@@ -131,7 +142,7 @@ test("a skill's name is its front matter's, or else its folder's, and its descri
     ["---", "name: daily-journal", "description: |", "  Write the day up.", "  Keep it short.", "---", "body"].join("\n"),
   );
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.deepEqual(
     snapshot.skills.map((each) => [each.name, each.description]),
@@ -151,7 +162,7 @@ test("a skill with no description, or no front matter, is left out and named; a 
   write("skills/.hidden/SKILL.md", skill("Hidden."));
   write("skills/README.md", "A file among the skills.\n");
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.deepEqual(snapshot.skills.map((each) => each.name), ["ok"]);
   assert.deepEqual(snapshot.leftOut, [
@@ -170,8 +181,26 @@ test("a folder of skills that is linked in counts, and a SKILL.md that is a fold
   symlinkSync(join(paths.root, "elsewhere", "shared-skill"), join(paths.skills, "shared-skill"));
   write("skills/odd/SKILL.md/inside.md", "x");
 
-  const snapshot = await readHomeSnapshot(paths);
+  const snapshot = await readHome(paths);
 
   assert.deepEqual(snapshot.skills.map((each) => each.name), ["shared-skill"]);
   assert.deepEqual(snapshot.leftOut, [{ file: "skills/odd/SKILL.md", reason: "it is a folder, not a file" }]);
+});
+
+test("every home is shown the skills that ship with Shrimpy, and a skill of the home with the same name replaces one", async (t) => {
+  const { paths, write } = newHome(t);
+  const shipped = readdirSync(INCLUDED_SKILLS).sort();
+  assert.notEqual(shipped.length, 0, "Shrimpy ships skills, and they are found from the code's own location");
+
+  const before = await readHomeSnapshot(paths);
+  assert.deepEqual(before.skills.map((each) => each.name), shipped);
+  assert.deepEqual(before.leftOut, [], "every skill that ships is written right");
+
+  const [replaced = ""] = shipped;
+  write(`skills/${replaced}/SKILL.md`, skill("Mine."));
+  const after = await readHomeSnapshot(paths);
+  assert.deepEqual(after.skills.map((each) => each.name), shipped, "the same skills are shown");
+  const mine = after.skills.find((each) => each.name === replaced);
+  assert.deepEqual([mine?.description, mine?.file], ["Mine.", join(paths.skills, replaced, "SKILL.md")]);
+  assert.equal(after.skills.filter((each) => each.file.startsWith(paths.root)).length, 1, "and no other is replaced");
 });

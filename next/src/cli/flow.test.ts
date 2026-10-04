@@ -162,10 +162,12 @@ test("agent reload makes the running agent read its home again, and says what it
   const reloaded = await run("agent", "reload", home);
 
   assert.equal(reloaded.code, 0, reloaded.err.join("\n"));
-  assert.deepEqual(reloaded.out, [
-    `Reloaded. The agent at ${home} now reads SOUL.md and 1 context file. Each of its sessions uses the change with its next request.`,
+  assert.match(reloaded.out[0] ?? "", /^Reloaded\. .* now reads SOUL\.md, 1 context file and \d+ skills\./);
+  assert.equal(
+    reloaded.out[1],
     "Left out:\n  skills/broken/SKILL.md: it does not start with a front matter block, between --- lines",
-  ]);
+  );
+  assert.equal(reloaded.out.length, 2);
   await ask("and once more");
   assert.match(told(2), /<soul>\nAnswer in rhyme\.\n<\/soul>/);
   assert.match(told(2), /<file path="context\/team\.md">\nThe team is small\.\n<\/file>/);

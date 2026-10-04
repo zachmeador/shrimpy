@@ -51,7 +51,7 @@ test("agent context previews the sections the agent would be told, in order, and
   assert.ok(order.every((at) => at >= 0));
   assert.match(sections, /<soul>\nYou are scout, who keeps the build green\.\n<\/soul>/);
   assert.match(sections, /<file path="context\/user\.md">\nZach likes short answers\.\n<\/file>/);
-  assert.ok(sections.includes(`- review: Review a diff for bugs.\n  ${join(paths.skills, "review", "SKILL.md")}\n</skills>`));
+  assert.ok(sections.includes(`- review: Review a diff for bugs.\n  ${join(paths.skills, "review", "SKILL.md")}\n`));
   assert.doesNotMatch(sections, /Left out/);
 });
 

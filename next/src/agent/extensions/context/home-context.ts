@@ -35,11 +35,11 @@ export interface ContextPreview {
 }
 
 /**
- * Read the home's files and make them the instructions of every session, as
- * prompt sections that follow the files only when the home is read again. The
- * sections hold text that is the same on every request: rendering one reads no
- * file and no clock, because the engine renders sections again after a restart
- * and after compaction.
+ * Read the home's files, and the skills that ship with Shrimpy, and make them
+ * the instructions of every session, as prompt sections that follow the files
+ * only when the home is read again. The sections hold text that is the same on
+ * every request: rendering one reads no file and no clock, because the engine
+ * renders sections again after a restart and after compaction.
  */
 export async function homeContext(agent: AgentFacts): Promise<HomeContext> {
   const facts = factsOf(agent);

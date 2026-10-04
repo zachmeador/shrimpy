@@ -86,7 +86,7 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.equal(sent.body.model, "qwen");
   const [system, user] = sent.body.messages;
   assert.equal(system?.role, "system");
-  assert.match(String(system.content), /You are scout, a Shrimpy agent built on Pi\./);
+  assert.match(String(system.content), /<soul>/, "the home's SOUL.md is in the instructions");
   assert.match(
     String(user?.content),
     new RegExp(`^Thread ${thread.id} in channel ${thread.channelId}\\.\\n\\nZach wrote at \\d{4}-\\d\\d-\\d\\dT[\\d:]{8}Z:\\nhi$`),
@@ -133,6 +133,7 @@ test("the model gets the home's instructions as sections in a fixed order, exact
 
 test("editing the home takes effect at the next start, in sessions made before it too", { timeout }, async (t) => {
   const paths = newHome(t);
+  writeFileSync(paths.soul, "Answer in prose.\n");
   const requests = stubChatCompletions(t, "Ok");
   const { chat } = await startNetwork(t);
   const thread = dmWith(chat, "scout");
@@ -148,9 +149,9 @@ test("editing the home takes effect at the next start, in sessions made before i
   await eventually(() => chat.chat.messages().find((m) => m.id === two.id)?.receipts[0], (r) => r !== undefined, { what: "the second answer" });
 
   const systemPrompt = (index: number): string => String(requests[index]?.body.messages[0]?.content);
-  assert.match(systemPrompt(0), /You are scout, a Shrimpy agent built on Pi\./);
+  assert.match(systemPrompt(0), /Answer in prose\./);
   assert.match(systemPrompt(1), /Answer in rhyme\./);
-  assert.doesNotMatch(systemPrompt(1), /a Shrimpy agent built on Pi/);
+  assert.doesNotMatch(systemPrompt(1), /Answer in prose\./);
 });
 
 test("a running agent reads its home again only when asked, and then each session follows with its next request", { timeout }, async (t) => {
@@ -184,7 +185,10 @@ test("a running agent reads its home again only when asked, and then each sessio
 
   const connection = await attachLocal(paths.root);
   t.after(() => connection.close());
-  assert.deepEqual(await connection.reload(), { soul: true, files: 1, skills: 0, leftOut: [] });
+  const reloaded = await connection.reload();
+  assert.equal(reloaded.soul, true);
+  assert.equal(reloaded.files, 1);
+  assert.deepEqual(reloaded.leftOut, []);
   await say("three");
 
   assert.match(told(2), /Answer in haiku\./, "a reload reaches the session's next request");
