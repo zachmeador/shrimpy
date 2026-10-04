@@ -9,6 +9,8 @@ export class FakeTerminal implements Terminal {
   readonly written: string[] = [];
   started = false;
   stopped = false;
+  /** How many times the screen was drawn again with the cursor hidden, whether or not anything changed. */
+  hides = 0;
   #onInput: ((data: string) => void) | undefined;
 
   constructor(columns = 80, rows = 24) {
@@ -30,7 +32,9 @@ export class FakeTerminal implements Terminal {
     this.written.push(data);
   }
   moveBy(): void {}
-  hideCursor(): void {}
+  hideCursor(): void {
+    this.hides += 1;
+  }
   showCursor(): void {}
   clearLine(): void {}
   clearFromCursor(): void {}

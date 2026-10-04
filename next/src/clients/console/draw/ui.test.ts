@@ -382,6 +382,20 @@ test("when the work ends the work and the working line go away", async (t) => {
   assert.equal(lines().some((line) => line.startsWith("│ ") || line.includes("working")), false);
 });
 
+test("leaving a thread whose agent is working stops its spinner, so a list does not redraw for nothing", async (t) => {
+  const busy = onThread("scout", aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] }), undefined);
+  const { state, terminal } = start(t, busy);
+  await until(() => terminal.output().includes("scout is working"), "the working line to be drawn");
+
+  state.show(threadsModel());
+  await until(() => terminal.output().includes("your threads"), "the threads to be drawn");
+  await settle();
+  const drawn = terminal.hides;
+  await new Promise((resolve) => setTimeout(resolve, 600));
+
+  assert.equal(terminal.hides, drawn, "nothing is drawn again while nothing changes");
+});
+
 test("a long run of work shows its latest lines and says how many came before, whatever the width", (t) => {
   const output = Array.from({ length: 6 }, (_, index) => `line ${String(index)}`).join("\n");
   const items = [userItem("go"), ...Array.from({ length: 12 }, (_, index) => toolItem("bash", { id: `c${String(index)}`, args: { command: `echo ${String(index)}` }, status: "done", output }))];

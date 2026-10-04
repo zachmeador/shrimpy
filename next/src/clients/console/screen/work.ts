@@ -30,12 +30,15 @@ export interface Work {
 
 /** The most steps of one turn shown. A turn that uses many tools shows the latest. */
 const MAX_STEPS = 12;
-/** What is kept of what streams: the lines a person could see are far fewer. */
+/** What is kept of what streams: the lines a person could see are far fewer, and a line can be megabytes long. */
 const THINKING_LINES = 2;
+const THINKING_CHARACTERS = 2_000;
 const TEXT_LINES = 80;
+const TEXT_CHARACTERS = 20_000;
 const OUTPUT_LINES = 6;
-/** What is read of a tool's output to find those lines, so that a very long one costs little. */
+/** What is read of a tool's output to find those lines. */
 const OUTPUT_READ_LINES = 40;
+const OUTPUT_CHARACTERS = 8_000;
 const CALL_CHARACTERS = 300;
 
 /**
@@ -62,16 +65,16 @@ function stepsOf(item: SessionItem): Step[] {
     case "assistant": {
       const steps: Step[] = [];
       if (item.thinking.trim() !== "") {
-        steps.push({ kind: "thinking", label: THINKING, text: plain(lastLines(item.thinking.trim(), THINKING_LINES)) });
+        steps.push({ kind: "thinking", label: THINKING, text: plain(lastLines(item.thinking.trim(), THINKING_LINES, THINKING_CHARACTERS)) });
       }
       const cutOff = answerNote(item.stopReason);
       if (item.text.trim() !== "" || cutOff !== undefined) {
-        steps.push({ kind: "text", text: plain(lastLines(item.text.trimEnd(), TEXT_LINES)), note: cutOff });
+        steps.push({ kind: "text", text: plain(lastLines(item.text.trimEnd(), TEXT_LINES, TEXT_CHARACTERS)), note: cutOff });
       }
       return steps;
     }
     case "tool": {
-      const lines = plain(lastLines(item.output.trimEnd(), OUTPUT_READ_LINES)).split("\n");
+      const lines = plain(lastLines(item.output.trimEnd(), OUTPUT_READ_LINES, OUTPUT_CHARACTERS)).split("\n");
       const shown = lines.slice(-OUTPUT_LINES);
       const status = toolStatus(item.status);
       return [

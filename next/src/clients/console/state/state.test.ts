@@ -4,7 +4,7 @@ import { assistantItem, sessionView, toolItem, userItem, workingView } from "../
 import { agentMember } from "../../../contracts/chat/index.ts";
 import { startStandInGateway } from "../../../contracts/gateway/testing/index.ts";
 import { Refusal } from "../../../lib/refusal/index.ts";
-import { type Freezable, freezable, until } from "../../../lib/testing/index.ts";
+import { type Freezable, freezable, until, within } from "../../../lib/testing/index.ts";
 import { agentEntries, type Model } from "./index.ts";
 import { startRig } from "./testing/index.ts";
 
@@ -211,6 +211,61 @@ test("a message whose acknowledgment was lost can be sent again without being po
   assert.deepEqual(sent, { ok: false });
   assert.deepEqual(again, { ok: true });
   assert.deepEqual(rig.chat.chat.messages(thread.id).map((message) => message.text), ["first", "hello"]);
+});
+
+test("a message to a chat server that has stopped answering is not left in limbo, and sending it again is safe", { timeout }, async (t) => {
+  const frozen: Freezable[] = [];
+  const rig = await startRig(t, {
+    sendMs: 150,
+    transports: (local) => ({
+      ...local,
+      program(registration) {
+        const wrapped = freezable(local.program(registration));
+        if (registration.kind === "chat") frozen.push(wrapped);
+        return wrapped.transportFactory;
+      },
+    }),
+  });
+  const thread = await rig.thread("scout", "first");
+  await rig.until((model) => model.where.screen === "threads" && model.chat.state === "up", "the chat server");
+  rig.state.openThread(thread.id);
+  await rig.until((model) => textsOf(model).length === 1, "the thread's view");
+
+  frozen[0]?.freeze();
+  const sent = await rig.state.send("hello");
+
+  assert.deepEqual(sent, { ok: false });
+  assert.deepEqual(rig.state.model().notice, {
+    kind: "not-sent",
+    problem: { down: { kind: "unreachable", message: "the chat server did not answer" } },
+  });
+  // The chat server did hear it. Once it is reached again, sending it again does not post it twice.
+  await until(() => rig.chat.chat.messages(thread.id).length === 2, "the message to reach the chat server");
+  await rig.chat.outage();
+  await rig.chat.recover();
+  await rig.until((model) => model.chat.state === "up", "the chat server again");
+  assert.deepEqual(await rig.state.send("hello"), { ok: true });
+  assert.deepEqual(rig.chat.chat.messages(thread.id).map((message) => message.text), ["first", "hello"]);
+});
+
+test("leaving does not wait for a chat server that has stopped answering", { timeout }, async (t) => {
+  const frozen: Freezable[] = [];
+  const rig = await startRig(t, {
+    transports: (local) => ({
+      ...local,
+      program(registration) {
+        const wrapped = freezable(local.program(registration));
+        if (registration.kind === "chat") frozen.push(wrapped);
+        return wrapped.transportFactory;
+      },
+    }),
+  });
+  await rig.until((model) => model.where.screen === "threads" && model.chat.state === "up", "the chat server");
+
+  frozen[0]?.freeze();
+
+  assert.equal(await within(3000, rig.state.farewell(), "working out what is left running"), undefined);
+  await within(5000, rig.state.close(), "letting go");
 });
 
 test("while chat is lost it says so and sends nothing, and when chat is back the thread is up to date", { timeout }, async (t) => {

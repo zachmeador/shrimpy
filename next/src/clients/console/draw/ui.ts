@@ -143,6 +143,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   /** What the screen holds between its title and its notes, and what the keys go to. */
   function body(screen: Screen): { parts: Component[]; focus: Component | null } {
     if (screen.kind !== "thread") {
+      // Nothing is being worked on in a list, so its spinner has no business running.
+      working(undefined);
       if (screen.rows.length === 0) {
         return { parts: screen.empty === undefined ? [] : [new Text(theme.dim(screen.empty), 0, 0)], focus: null };
       }

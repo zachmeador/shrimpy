@@ -7,6 +7,7 @@ import {
   type AgentLink,
   CONNECTING,
   converge,
+  Down,
   keepAgent,
   keepChat,
   keepRegistry,
@@ -35,6 +36,8 @@ export interface ConsoleStateOptions {
   pollMs?: number;
   /** How long a notice stays. 6 seconds by default. */
   noticeMs?: number;
+  /** How long sending a message waits for the chat server before saying it was not sent. 20 seconds by default. */
+  sendMs?: number;
   /** The pauses between attempts to reach a program. Tests shorten them. */
   backoff?: Backoff;
 }
@@ -67,12 +70,14 @@ export interface ConsoleState {
 
 const POLL_MS = 2000;
 const NOTICE_MS = 6000;
+const SEND_MS = 20_000;
 /** How long leaving waits for chat to say who is working. */
 const FAREWELL_MS = 500;
 
 export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   const pollMs = options.pollMs ?? POLL_MS;
   const noticeMs = options.noticeMs ?? NOTICE_MS;
+  const sendMs = options.sendMs ?? SEND_MS;
   const listeners = createListeners<Model>(() => undefined);
   let closed = false;
 
@@ -211,7 +216,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   // The message being sent, so that sending the same again after a failure is the same message.
   let pending: { threadId: string; text: string; requestId: string } | undefined;
   // Which new thread is on screen, so that a first message that arrives late does not open it over something else.
-  let drafts = 0;
+  let newThreads = 0;
 
   return {
     model: () => model,
@@ -220,7 +225,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     selectAgent: select,
     openThread: (threadId) => open(threadId),
     startThread() {
-      drafts += 1;
+      newThreads += 1;
       started = undefined;
       open(undefined);
     },
@@ -240,31 +245,34 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     async send(text) {
       const { where } = model;
       if (where.screen !== "thread") return { ok: false };
-      const draft = drafts;
+      const newThread = newThreads;
+      // A chat server that has stopped answering must not leave the message in limbo. Sending it again is safe either way.
+      const answered = AbortSignal.timeout(sendMs);
       try {
         const threadId = await chat.call(async (client) => {
           let id = where.thread ?? (started?.agent === where.agent ? started.threadId : undefined);
           if (id === undefined) {
-            const dm = model.dms[where.agent]?.channel ?? (await client.openDm(agentMember(where.agent)));
-            id = (await client.createThread(dm.id, null)).id;
+            const dm = model.dms[where.agent]?.channel ?? (await client.openDm(agentMember(where.agent), answered));
+            id = (await client.createThread(dm.id, null, answered)).id;
             started = { agent: where.agent, threadId: id };
           }
           const requestId =
             pending?.threadId === id && pending.text === text ? pending.requestId : randomUUID();
           pending = { threadId: id, text, requestId };
-          await client.post(id, text, requestId);
+          await client.post(id, text, requestId, answered);
           pending = undefined;
           return id;
         });
         if (where.thread === undefined) {
           started = undefined;
           const now = model.where;
-          if (now.screen === "thread" && now.thread === undefined && drafts === draft) open(threadId);
+          if (now.screen === "thread" && now.thread === undefined && newThreads === newThread) open(threadId);
         }
         void refreshDms();
         return { ok: true };
       } catch (error) {
-        say({ kind: "not-sent", problem: problemOf(error) });
+        const silent = answered.aborted ? new Down({ kind: "unreachable", message: "the chat server did not answer" }) : error;
+        say({ kind: "not-sent", problem: problemOf(silent) });
         return { ok: false };
       }
     },

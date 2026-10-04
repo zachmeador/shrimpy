@@ -24,6 +24,8 @@ export interface RigOptions {
   transports?: (local: Transports) => Transports;
   /** How long a notice stays, in milliseconds. */
   noticeMs?: number;
+  /** How long sending waits for the chat server, in milliseconds. */
+  sendMs?: number;
 }
 
 /** A gateway, a chat server and agents as stand-ins on real sockets, and a console state talking to them. */
@@ -61,6 +63,7 @@ export async function startRig(t: TestContext, options: RigOptions = {}): Promis
     transports: options.transports?.(local) ?? local,
     pollMs: 15,
     noticeMs: options.noticeMs,
+    sendMs: options.sendMs,
     backoff: backoff({ firstMs: 1, maxMs: 8, random: () => 0 }),
   });
   stopAfter(t, () => state.close());

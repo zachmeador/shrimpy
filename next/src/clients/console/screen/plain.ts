@@ -47,14 +47,18 @@ export function oneLine(text: string): string {
   return plain(text).replace(/\s*\n\s*/g, " ").trim();
 }
 
-/** The last `lines` lines of `text`, for what streams and grows, without reading all of a very long text. */
-export function lastLines(text: string, lines: number): string {
-  let from = text.endsWith("\n") ? text.length - 1 : text.length;
+/**
+ * The last `lines` lines of `text`, and no more than its last `characters`
+ * characters, for what streams and grows and may have one line of megabytes.
+ */
+export function lastLines(text: string, lines: number, characters = Number.POSITIVE_INFINITY): string {
+  const kept = text.length > characters ? text.slice(text.length - characters) : text;
+  let from = kept.endsWith("\n") ? kept.length - 1 : kept.length;
   for (let seen = 0; seen < lines; seen++) {
-    if (from <= 0) return text;
-    const before = text.lastIndexOf("\n", from - 1);
-    if (before === -1) return text;
+    if (from <= 0) return kept;
+    const before = kept.lastIndexOf("\n", from - 1);
+    if (before === -1) return kept;
     from = before;
   }
-  return text.slice(from + 1);
+  return kept.slice(from + 1);
 }
