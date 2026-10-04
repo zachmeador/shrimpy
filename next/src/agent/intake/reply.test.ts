@@ -56,6 +56,12 @@ test("text that only mentions END, or says something near it, is a reply", () =>
   }
 });
 
+test("a reply is posted without the blank lines before it or the whitespace after it, and keeps its first line's indent", () => {
+  assert.deepEqual(readFinalText("\n\nI'm working in the home.\n"), { kind: "reply", text: "I'm working in the home." });
+  assert.deepEqual(readFinalText("  \n\t\r\n    indented code\nmore   \n\n"), { kind: "reply", text: "    indented code\nmore" });
+  assert.deepEqual(readFinalText("one\n\ntwo"), { kind: "reply", text: "one\n\ntwo" });
+});
+
 test("text whose last line is END is posted without that line", () => {
   assert.deepEqual(readFinalText("Done for today.\nEND"), { kind: "reply", text: "Done for today." });
   assert.deepEqual(readFinalText("Done for today.\n\n`END`.\n"), { kind: "reply", text: "Done for today." });
@@ -71,11 +77,7 @@ test("an END line before the last line is left where it is", () => {
 
 test("only the last END line goes", () => {
   assert.deepEqual(readFinalText("Hello\nEND\nEND"), { kind: "reply", text: "Hello\nEND" });
-  assert.deepEqual(readFinalText("\n\nEND\nEND"), { kind: "reply", text: "\n\nEND" });
-});
-
-test("a reply is posted as it was written, trailing line breaks and all", () => {
-  assert.deepEqual(readFinalText("Hello there.\n"), { kind: "reply", text: "Hello there.\n" });
+  assert.deepEqual(readFinalText("\n\nEND\nEND"), { kind: "reply", text: "END" });
 });
 
 test("text that fits is one part", () => {

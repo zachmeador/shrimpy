@@ -13,16 +13,23 @@ export function isEnd(line: string): boolean {
 
 /**
  * Read the final text of a turn. `END`, or nothing, means the agent has nothing
- * to say. Text whose last line is `END` is posted without that line.
+ * to say. Text whose last line is `END` is posted without that line. A reply is
+ * posted without the blank lines a model may put before it or the whitespace
+ * after it, and is otherwise as written.
  */
 export function readFinalText(text: string): Reading {
   const lines = text.split(/\r?\n/);
   while (lines.length > 0 && lines[lines.length - 1]?.trim() === "") lines.pop();
   const last = lines.pop();
   if (last === undefined) return { kind: "silent" };
-  if (!isEnd(last)) return { kind: "reply", text };
-  const rest = lines.join("\n").trimEnd();
+  if (!isEnd(last)) return { kind: "reply", text: withoutBlankEdges(text) };
+  const rest = withoutBlankEdges(lines.join("\n"));
   return rest === "" ? { kind: "silent" } : { kind: "reply", text: rest };
+}
+
+/** The text without blank lines in front or whitespace at the end. The first line keeps its indent. */
+function withoutBlankEdges(text: string): string {
+  return text.replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
 }
 
 /**
