@@ -9,6 +9,7 @@
   },
   "scripts": {
     "shrimpy": "node src/cli/main.ts",
+    "readme": "node src/cli/readme/update.ts",
     "check": "npm run typecheck && npm run lint && npm test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src lint",

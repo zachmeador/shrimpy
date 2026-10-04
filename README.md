@@ -118,28 +118,34 @@ Quitting stops no work. If the agent is still working, one line says so and how 
 
 ## Commands
 
+The table is written by `npm run readme` from the commands the CLI has, and a test fails when it is behind. `shrimpy <command> --help` says more about each.
+
+<!-- commands:start -->
 | Command | What it does |
 |---|---|
-| `up <home>... --data <dir>` | Starts what is missing: the gateway with its roster in `<dir>/gateway`, the chat server with its store in `<dir>/chat`, and an agent at each home. Each runs as a process of its own. One that is already running is used as it is and left running when this stops. It stays in the foreground, and says what is running and how to reach it. |
-| `run <agent> "<text>" [--thread <id>] [--no-wait]` | Posts the text to the agent in your DM, to a new thread unless `--thread` names one, waits for the agent's receipt on it, and prints the reply. `--no-wait` exits once the message is posted and prints its IDs. |
-| `threads <member> [--json]` | Lists your threads with a person or an agent: ID, when last updated, who is working in it, and its name or first message. |
-| `read <thread> [--json]` | Shows a thread with its messages as they now stand: who said what and when, each message's ID, when one was edited, that one was deleted, the emoji on a message, and where an agent failed, stopped or skipped a message. `--json` prints the thread and every message with all its receipts. |
-| `edit <message> <text>` | Changes what one of your messages says. Only a message's author can. |
-| `delete <message>` | Deletes one of your messages: it keeps its place in the thread and loses its text and reactions. |
-| `react <message> <emoji>` | Puts an emoji on a message in a channel you are in. |
-| `unreact <message> <emoji>` | Takes your emoji back from a message. |
-| `agent init <home> --name <name> --model <provider/id>` | Creates the home. |
-| `agent serve <home> [--now]` | Runs the agent in the foreground, which is what a supervisor or sandbox runs. It prints one JSON line when it is listening. |
-| `agent status <home>` | Prints whether an agent is running there and how to reach it. Exits 1 if none is. |
-| `agent reload <home>` | Makes the agent running there read `SOUL.md`, `context/` and `skills/` again. Each session uses the change with its next request. Files it couldn't use are named. |
-| `agent context <home>` | Prints what an agent at the home would be told if it started now, read from the files and labelled as a preview. It starts nothing, and works while an agent runs there. A running agent has what it read when it started or last reloaded. |
-| `sessions list <home>` | Lists the agent's sessions: the thread and channel each is behind, and whether it is working. |
-| `sessions read <home> <thread> [--json]` | Shows the session behind a thread. |
-| `sessions steer <home> <thread> <text> [--request-id <id>] [--wait]` | Gives that session input. A retry with the same request ID is the same input. |
-| `sessions stop <home> <thread>` | Stops that session's work and withdraws the input it had not picked up. The agent keeps running. |
-| `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Runs the gateway in the foreground, with its roster in the data directory. It prints one JSON line when it is listening. The browser entry opens on loopback only when a port is given, and 0 picks a free one. `--web-dir` serves the web client's files from a directory. |
-| `gateway status` | Lists the programs registered with this machine's gateway (kind, name, version and pid) and the members on its roster (ID, kind, name, and whether a program is registered as each). A version that differs from the command's own is marked, and so is the gateway's, on standard error. Exits 1 if no gateway is running. |
-| `chat serve <data-dir>` | Runs the chat server in the foreground, with its store in the data directory, and registers it with the gateway. It prints one JSON line when it is listening. |
+| `up <home>... --data <dir>` | Start what is missing on this machine and keep it running: the gateway, the chat server and an agent per home. |
+| `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
+| `threads <member> [--json]` | List your threads with a person or an agent: ID, when last updated, who is working in it, and its name. |
+| `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with the message IDs that edit, delete and react take. |
+| `edit <message> <text>` | Change what one of your messages says. |
+| `delete <message>` | Delete one of your messages: it keeps its place in the thread and loses its text. |
+| `react <message> <emoji>` | Put an emoji on a message, as a member of the channel it is in. |
+| `unreact <message> <emoji>` | Take back your emoji from a message. |
+| `agent init <home> --name <name> --model <provider/id>` | Create an agent home. Files that already exist are left as they are. |
+| `agent serve <home> [--now]` | Run the agent in the foreground until it is told to stop. |
+| `agent status <home>` | Say whether an agent is running at the home, and how to reach it. |
+| `agent reload <home>` | Make the agent running at a home read its instructions, context files and skills again. |
+| `agent context <home>` | Preview what the agent at a home would be told, from the home's files as they are now. |
+| `sessions list <home>` | List the sessions of the agent running at the home: the thread and channel each is behind, and whether it is working. |
+| `sessions read <home> <thread> [--json]` | Show the session behind a thread: what was said, what the tools did, and what it is doing now. |
+| `sessions steer <home> <thread> <text> [--request-id <id>] [--wait]` | Give the session behind a thread input; it joins work already running. |
+| `sessions stop <home> <thread>` | Stop the work in the session behind a thread, and withdraw the input it has not picked up. |
+| `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
+| `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
+| `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |
+<!-- commands:end -->
+
+`agent serve`, `gateway serve` and `chat serve` run in the foreground, which is what a supervisor or a sandbox runs, and each prints one JSON line when it is listening. `gateway serve` opens the browser entry on loopback only when `--web-port` is given, and 0 picks a free port; `--web-dir` serves the web client's files from a directory. `agent status` exits 1 when no agent is running at the home, and `gateway status` when no gateway is running.
 
 An agent has one session for each thread it takes part in, named by the thread's ID, and no session until a message arrives in a thread. `agent serve` makes the agent a member of this machine's roster, with the name its `agent.json` gives it, the first time it starts, and keeps its member ID and token in `state/member.json`. Every start after that signs in with that token, and a name changed in `agent.json` renames the same member. It registers with the gateway as that member, finds the chat server through the gateway's list, and comes in to chat with a ticket from the gateway, so chat learns who the agent is from the gateway and not from the agent. A name another member has is refused, and the message says to change it in `agent.json`. The agent starts, and its sessions work, with no gateway or chat server running; it finds them when they come up and again after they go away. The chat server keeps a log of events: a message posted, edited or deleted, an emoji put on a message or taken back. It offers all of them to every member of the channel, and a message is what its events add up to. What an event means to an agent is the agent's own call. By default a message addressed to the agent, which in a DM is every message from the other member, becomes a turn in the session for its thread, and so does an edit of one, and so does a reaction to a message the agent wrote. The model is shown what happened: an edit says which message it changed and what it now says, and a reaction says who reacted with what, and to which of the agent's messages. A delete, a reaction to someone else's message and a reaction taken back wake nobody. The turn's final text is posted to the thread as the reply. A final text of `END`, or nothing, posts nothing. The agent leaves a receipt on each event when its turn ends, and the receipt names the event it answers, so a message edited after the agent answered it gets a second answer and a second receipt, and the two can be told apart.
 
