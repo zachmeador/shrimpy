@@ -21,6 +21,7 @@ export interface ModelServer {
  *
  * - "run": call the bash tool to echo `shrimpy-ok`, then report what it printed
  * - "which shrimpy": call the bash tool to find `shrimpy` and list what is running, then report what it printed
+ * - "from the shell": call the bash tool to post "hello from my shell" to the agent called mechanic with `shrimpy run`, then report what it printed
  * - "slow": stream words for several seconds, until the client hangs up
  * - "refuse": answer with an HTTP 400 error
  * - anything else: say hello
@@ -59,9 +60,11 @@ function respond(body: ModelRequest["body"], response: ServerResponse): void {
   response.writeHead(200, { "content-type": "text/event-stream" });
   const command = asked.includes("which shrimpy")
     ? "command -v shrimpy && shrimpy gateway status"
-    : asked.includes("run")
-      ? "echo shrimpy-ok"
-      : undefined;
+    : asked.includes("from the shell")
+      ? 'shrimpy run mechanic "hello from my shell" --no-wait'
+      : asked.includes("run")
+        ? "echo shrimpy-ok"
+        : undefined;
   if (asked.includes("slow")) streamWords(response);
   else if (command !== undefined && last?.role === "tool") {
     say(response, `The command printed: ${String(last.content).trim()}`);

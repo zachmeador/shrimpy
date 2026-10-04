@@ -3,21 +3,26 @@ import type { Registration } from "../../contracts/gateway/index.ts";
 import { START_EVERYTHING } from "./hints.ts";
 
 /**
- * The agent called `name` on the roster, whatever the case, or its full ID. A
- * member that is not an agent, or that nobody has, is an error that says who
- * there is.
+ * The member called `name` on the roster, whatever the case, or the one with
+ * that ID. When nobody is, the error says who there is.
  */
-export function agentNamed(members: Member[], name: string): Member {
+export function memberNamed(members: Member[], name: string): Member {
   const wanted = name.toLowerCase();
   const found = members.find((member) => member.id === name || member.name.toLowerCase() === wanted);
-  if (found?.kind === "agent") return found;
-  if (found !== undefined) throw new Error(`${found.name} is a person, not an agent.`);
+  if (found !== undefined) return found;
   const agents = members.filter((member) => member.kind === "agent").map((member) => member.name);
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
   throw new Error(
     `Nobody called ${name} is on this machine's roster. ${others} ` +
       "An agent joins when it first runs: shrimpy agent serve <home>",
   );
+}
+
+/** The agent called `name` on the roster. A person called that is an error that says so. */
+export function agentNamed(members: Member[], name: string): Member {
+  const found = memberNamed(members, name);
+  if (found.kind !== "agent") throw new Error(`${found.name} is a person, not an agent.`);
+  return found;
 }
 
 /**

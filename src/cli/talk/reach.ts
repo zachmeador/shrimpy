@@ -5,6 +5,7 @@ import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import { view, withGateway } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
+import { signInAsTheShellsAgent } from "./shell.ts";
 
 /** A connection to the chat server on this machine, found through the gateway, as whoever the gateway says this is. */
 export interface Reached {
@@ -22,14 +23,16 @@ export interface Reached {
 /**
  * Reach the chat server on this machine the way every command that talks does:
  * ask the machine's gateway where it is and for a ticket to hand it, connect, and
- * come in with the ticket. Nobody says who they are: the gateway decides, and
- * a command run by a person is that person. A gateway or chat server of another
+ * come in with the ticket. Nobody says who they are: the gateway decides. A
+ * command run from an agent's shell signs in with that agent's token and is
+ * the agent; any other is the person who runs the gateway. A gateway or chat server of another
  * version than this command is named on standard error, and the command
  * carries on. When nothing is running the error says what to start. Aborting
  * `signal` gives up, even on a server that is not answering.
  */
 export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> {
   const found = await withGateway(signal, async (gateway) => {
+    await signInAsTheShellsAgent(gateway);
     const listing = await view(gateway);
     warnIfVersionDiffers(io, "the gateway", listing.version);
     const chat = listing.programs.findLast((program) => program.kind === "chat");

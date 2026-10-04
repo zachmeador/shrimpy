@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
+import { enterAsPerson, memberNamed } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { loadAll } from "./commands/index.ts";
@@ -16,6 +17,7 @@ import {
   shrimpy,
   shrimpyInBackground,
   startModelServer,
+  startScriptedAgent,
   talkTo,
   whyNotACommand,
 } from "./testing/index.ts";
@@ -258,6 +260,28 @@ test("the agent's shell finds shrimpy, though the PATH the agent was started wit
   assert.equal(tool?.status, "done");
   assert.equal(tool.output.split("\n")[0], join(home, "runtime", "bin", "shrimpy"), "the shell finds the agent's own launcher");
   assert.match(tool.output, /^agent\s+scout\s+0\.0\.0\s+\d+$/m, "and it reaches this machine's gateway, which lists the agent");
+});
+
+test("a shrimpy command in an agent's shell speaks as that agent, and the same command in a person's terminal speaks as the person", { timeout: 120_000 }, async (t) => {
+  const model = await startModelServer();
+  t.after(() => model.close());
+  const { chat, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
+  const mechanic = await startScriptedAgent(t, { name: "mechanic", chat: chat.listening, handle: () => ({ status: "silent" }) });
+  const person = (await enterAsPerson(t, chat.listening)).me;
+  const scout = await memberNamed(t, "scout");
+
+  // The test model has the agent run `shrimpy run mechanic "hello from my shell" --no-wait` in its shell.
+  const asked = await talk.say("post from the shell");
+  assert.equal((await talk.receiptOn(asked)).status, "answered");
+  await until(() => mechanic.offered.length === 1, "the mechanic to be offered what the agent's shell posted");
+  const posted = await shrimpy(["run", "mechanic", "hello from my shell", "--no-wait"]);
+  await until(() => mechanic.offered.length === 2, "the mechanic to be offered what the person's command posted");
+
+  assert.equal(posted.code, 0, posted.stderr);
+  const [fromAgent, fromPerson] = mechanic.offered;
+  assert.deepEqual([fromAgent?.text, fromAgent?.author.id], ["hello from my shell", scout.id]);
+  assert.deepEqual([fromPerson?.text, fromPerson?.author.id], ["hello from my shell", person.id]);
+  assert.notEqual(scout.id, person.id);
 });
 
 test("a command killed while it waits does not stop the work", { timeout: 120_000 }, async (t) => {

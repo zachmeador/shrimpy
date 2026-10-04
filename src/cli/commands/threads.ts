@@ -1,28 +1,29 @@
 import { parseArgs } from "node:util";
-import { agentNamed, dmWith, reachChat } from "../talk/index.ts";
+import { dmWith, memberNamed, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThreads } from "./render-threads.ts";
 
 const threads: Command = {
   name: "threads",
-  usage: "<agent> [--json]",
-  summary: "List your threads with an agent: ID, when last updated, who is working in it, and its name.",
+  usage: "<member> [--json]",
+  summary: "List your threads with a person or an agent: ID, when last updated, who is working in it, and its name.",
   details:
     "Most recently updated first, archived threads included. A thread with no name shows the start of its " +
-    "first message. --json prints the threads as data. Exits 1 if no gateway or chat server is running.",
+    "first message. --json prints the threads as data. \"You\" is whoever runs the command: the person who runs " +
+    "the gateway, or the agent when the command runs in its shell. Exits 1 if no gateway or chat server is running.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
     );
-    const [agent] = expectArguments(positionals, ["<agent>"]);
+    const [name] = expectArguments(positionals, ["<member>"]);
     const json = values.json === true;
 
     const reached = await reachChat(io);
     try {
-      const dm = dmWith(await reached.connection.chat.channels(), agentNamed(reached.members, agent));
+      const dm = dmWith(await reached.connection.chat.channels(), memberNamed(reached.members, name));
       if (dm === undefined) {
-        io.out(json ? "[]" : `You have not talked to ${agent} yet. Start with: shrimpy run ${agent} "<text>"`);
+        io.out(json ? "[]" : `You have not talked to ${name} yet. Start with: shrimpy run ${name} "<text>"`);
         return 0;
       }
       const list = await reached.connection.chat.threads(dm.id);

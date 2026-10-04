@@ -11,7 +11,7 @@ export {
   type SessionHandle,
 } from "./connect.ts";
 export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.ts";
-export { type Membership, membershipFile } from "./membership.ts";
+export { AGENT_HOME_VARIABLE, type Membership, membershipFile } from "./membership.ts";
 export { SessionDirectory, SessionService } from "./services.ts";
 export type {
   QueuedInput,
