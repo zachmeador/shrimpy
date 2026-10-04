@@ -92,7 +92,6 @@ export function keepChat(options: ChatLinkOptions): ChatLink {
         () => waiting({ kind: "not-registered" }),
       );
       waiting({ kind: "connecting" });
-      const ticket = await options.registry.ticket({ kind: registration.kind, name: registration.name });
       const connection = await connectChat({
         serverId: registration.serverId,
         transportFactory: options.transports.program(registration),
@@ -107,6 +106,8 @@ export function keepChat(options: ChatLinkOptions): ChatLink {
         );
       });
       try {
+        // A ticket is good once and for a short time, so it is asked for when there is a connection to hand it to.
+        const ticket = await options.registry.ticket({ kind: registration.kind, name: registration.name });
         options.onEntered(await connection.chat.enter(ticket, signal));
       } catch (error) {
         await connection.close().catch(() => undefined);
