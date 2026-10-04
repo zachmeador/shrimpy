@@ -1,4 +1,5 @@
 import { join, resolve } from "node:path";
+import { AGENT_RUNTIME_DIR } from "../../contracts/agent/index.ts";
 
 /** Where everything lives inside one agent home. */
 export interface HomePaths {
@@ -33,6 +34,6 @@ export function homePaths(home: string): HomePaths {
     auth: join(pi, "auth.json"),
     models: join(pi, "models.json"),
     database: join(root, "state", "agent.sqlite"),
-    runtime: join(root, "runtime"),
+    runtime: join(root, AGENT_RUNTIME_DIR),
   };
 }

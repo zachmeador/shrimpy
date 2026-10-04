@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { endpointFile } from "../../contracts/agent/index.ts";
 import { ConfigError } from "../../lib/json-config/index.ts";
 import { tempDir } from "../../lib/testing/index.ts";
 import { homePaths, initHome, loadHome, modelLabel, parseModelChoice } from "./index.ts";
@@ -26,6 +27,11 @@ test("a home has the layout the plan describes", () => {
     database: "/agents/scout/state/agent.sqlite",
     runtime: "/agents/scout/runtime",
   });
+});
+
+test("the endpoint clients look for is in the folder the home keeps its runtime files in", () => {
+  const { runtime } = homePaths("/agents/scout");
+  assert.equal(endpointFile("/agents/scout"), join(runtime, "endpoint.json"));
 });
 
 test("a relative home becomes an absolute path", () => {

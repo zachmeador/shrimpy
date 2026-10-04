@@ -10,7 +10,7 @@ export {
   connectAgent,
   type SessionHandle,
 } from "./connect.ts";
-export { type AgentEndpoint, endpointFile } from "./endpoint.ts";
+export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.ts";
 export { SessionDirectory, SessionService } from "./services.ts";
 export type {
   QueuedInput,

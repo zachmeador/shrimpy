@@ -3,8 +3,8 @@
  * over its Unix socket. Browser code must not import this file.
  */
 import { readFileSync } from "node:fs";
-import { DisconnectedError } from "@earendil-works/pi-client";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
+import { isNotListening } from "../../lib/connection/index.ts";
 import { type AgentConnection, connectAgent } from "./connect.ts";
 import { type AgentEndpoint, endpointFile } from "./endpoint.ts";
 
@@ -43,11 +43,4 @@ export async function attachLocal(home: string): Promise<AgentConnection> {
     if (isNotListening(error)) throw new AgentNotRunningError(home, { cause: error });
     throw error;
   }
-}
-
-/** The socket is gone (ENOENT) or nothing answers on it (ECONNREFUSED). */
-function isNotListening(error: unknown): boolean {
-  if (!(error instanceof DisconnectedError)) return false;
-  const code = (error.cause as NodeJS.ErrnoException | undefined)?.code;
-  return code === "ENOENT" || code === "ECONNREFUSED";
 }
