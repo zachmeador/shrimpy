@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
-import { type Reloaded, type SessionDirectory, SessionService, type SessionView } from "../index.ts";
+import { type SessionDirectory, SessionService, type SessionView } from "../index.ts";
 import { sessionView } from "./views.ts";
 
 /** One session of a scripted agent: what its clients see, and what they did to it. */
@@ -18,8 +18,6 @@ export interface ScriptedSession {
   update(change: (view: SessionView) => void): void;
   /** How many times a client stopped the session's work. */
   readonly stops: number;
-  /** The input clients gave it directly, oldest first. */
-  readonly steered: readonly string[];
   /** Make stops be refused with `reason`, as written, or work again with undefined. */
   failStops(reason: string | undefined): void;
 }
@@ -36,14 +34,7 @@ export interface ScriptedAgent {
   route(threadId: string): Offer | undefined;
 
   /** Make the session behind a thread, idle and empty unless `view` says more. Making it again gives the same session. */
-  session(threadId: string, options?: { channelId?: string; view?: SessionView }): ScriptedSession;
-  /** The session behind a thread, if the agent has one. */
-  find(threadId: string): ScriptedSession | undefined;
-
-  /** How many times a client asked the agent to read its home again. */
-  readonly reloads: number;
-  /** What the next reloads answer with. Nothing found, to begin with. */
-  reloadedWith(result: Reloaded): void;
+  session(threadId: string, options?: { view?: SessionView }): ScriptedSession;
 }
 
 interface Held {
@@ -53,22 +44,19 @@ interface Held {
 
 export function scriptedAgent(): ScriptedAgent {
   const held = new Map<string, Held>();
-  let reloads = 0;
-  let reloaded: Reloaded = { soul: false, files: 0, skills: 0, leftOut: [] };
   // The agent says a session has work when it is answering input or has input queued.
   const working = (view: SessionView): boolean => view.status.busy || view.status.queued.length > 0;
 
-  function session(threadId: string, options: { channelId?: string; view?: SessionView } = {}): ScriptedSession {
+  function session(threadId: string, options: { view?: SessionView } = {}): ScriptedSession {
     const existing = held.get(threadId);
     if (existing !== undefined) return existing.session;
 
     const state = replicatedState(structuredClone(options.view ?? sessionView()));
-    const steered: string[] = [];
     let stops = 0;
     let refusal: string | undefined;
     const made: ScriptedSession = {
       threadId,
-      channelId: options.channelId ?? `ch_${threadId.slice(3)}`,
+      channelId: `ch_${threadId.slice(3)}`,
       get view() {
         return structuredClone(state.value);
       },
@@ -81,17 +69,13 @@ export function scriptedAgent(): ScriptedAgent {
       get stops() {
         return stops;
       },
-      steered,
       failStops(reason) {
         refusal = reason;
       },
     };
     const service: SessionService = {
       state,
-      steer(text) {
-        steered.push(text);
-        return Promise.resolve({ submission: steered.length });
-      },
+      steer: () => Promise.resolve({ submission: 1 }),
       wait: () => Promise.reject(new Error("A scripted agent does not settle input.")),
       stop() {
         stops += 1;
@@ -118,10 +102,7 @@ export function scriptedAgent(): ScriptedAgent {
           await presentation.attachSession(threadId, context);
         },
         detach: (context) => presentation.detachSession(context),
-        reload() {
-          reloads += 1;
-          return Promise.resolve(structuredClone(reloaded));
-        },
+        reload: () => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] }),
       };
     },
     route(threadId) {
@@ -129,12 +110,5 @@ export function scriptedAgent(): ScriptedAgent {
       return found === undefined ? undefined : offer(SessionService, found.service);
     },
     session,
-    find: (threadId) => held.get(threadId)?.session,
-    get reloads() {
-      return reloads;
-    },
-    reloadedWith(result) {
-      reloaded = structuredClone(result);
-    },
   };
 }

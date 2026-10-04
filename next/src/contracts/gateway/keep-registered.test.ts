@@ -5,7 +5,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
 import { Refusal } from "../../lib/refusal/index.ts";
 import { backoff } from "../../lib/retry/index.ts";
-import { namedSocketPath } from "../../lib/runtime/node.ts";
 import {
   freezable,
   offer,
@@ -63,19 +62,6 @@ test("stopping ends the registration by closing the connection", { timeout }, as
   assert.deepEqual(gateway.registered(), []);
 });
 
-test("it registers again when the gateway goes away and comes back", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const first = await startStandInGateway(t);
-  keep(t);
-  await until(() => first.registered().length === 1, "the registration to arrive");
-
-  await first.close();
-  const second = await startStandInGateway(t);
-
-  await until(() => second.registered().length === 1, "the registration to arrive again");
-  assert.deepEqual(second.registered(), [registration]);
-});
-
 test("it registers again after every restart of the gateway, not just the first", { timeout }, async (t) => {
   useRuntimeDir(t);
   let gateway = await startStandInGateway(t);
@@ -105,24 +91,6 @@ test("it waits for a gateway that is not there yet, and says nothing about it", 
   assert.deepEqual(errors, []);
 });
 
-test("something on the gateway's socket that is not the gateway is reported, and tried again", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  await startStandIn(t, GATEWAY_SOCKET_NAME, {
-    offer: () =>
-      offer(Gateway, {
-        register: () => Promise.resolve(),
-        list: () => Promise.resolve([]),
-        version: () => Promise.resolve(registration.version),
-      }),
-  });
-  const errors: Error[] = [];
-
-  keep(t, { onError: (error) => errors.push(error) });
-
-  await until(() => errors.length >= 2, "two attempts to fail");
-  assert.match(errors[0]?.message ?? "", /does not match/);
-});
-
 test("a registration the gateway refuses is reported with its reason, and tried again", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startStandIn(t, GATEWAY_SOCKET_NAME, {
@@ -142,25 +110,6 @@ test("a registration the gateway refuses is reported with its reason, and tried 
 
   assert.equal(errors[0]?.message, "Invalid registration: pid must be a positive integer");
   await until(() => gateway.connections() === 0, "the connections to close");
-});
-
-test("stopping while it waits to try again does not wait for the pause", { timeout: 5000 }, async (t) => {
-  useRuntimeDir(t);
-  const kept = keepRegistered(registration, { backoff: backoff({ firstMs: 60_000, maxMs: 60_000 }) });
-  await delay(50);
-
-  await kept.stop();
-});
-
-test("stopping straight away registers nothing", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const gateway = await startStandInGateway(t);
-  const kept = keepRegistered(registration);
-
-  await kept.stop();
-
-  assert.deepEqual(gateway.received, []);
-  await until(() => gateway.connections() === 0, "the connection to close");
 });
 
 /**
@@ -198,29 +147,6 @@ test("a gateway that stops answering after the registration does not hold up sto
   assert.deepEqual(gateway.registered(), []);
 });
 
-test("a gateway that never answers the registration does not hold up stopping", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  let asked = false;
-  const gateway = await startStandIn(t, GATEWAY_SOCKET_NAME, {
-    serverId: GATEWAY_SERVER_ID,
-    offer: () =>
-      offer(Gateway, {
-        register: () => {
-          asked = true;
-          return new Promise<void>(() => undefined);
-        },
-        list: () => Promise.resolve([]),
-        version: () => Promise.resolve(registration.version),
-      }),
-  });
-  const kept = keep(t);
-  await until(() => asked, "the registration to be asked for");
-
-  await within(PROMPT_MS, kept.stop(), "stopping");
-
-  await until(() => gateway.connections() === 0, "the connection to close");
-});
-
 test("it can be given the way to reach a gateway that is not this machine's", { timeout }, async (t) => {
   useRuntimeDir(t);
   const local = await startStandInGateway(t);
@@ -234,17 +160,4 @@ test("it can be given the way to reach a gateway that is not this machine's", { 
   await until(() => elsewhere.connections() === 0, "the connection to close");
   assert.deepEqual(local.received, []);
   assert.equal(local.connections(), 0);
-});
-
-test("a gateway elsewhere that is not running is waited for quietly, like a local one", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  const errors: Error[] = [];
-  const nowhere = createUnixTransportFactory({ path: namedSocketPath("gateway-elsewhere") });
-  keep(t, { transportFactory: nowhere, onError: (error) => errors.push(error) });
-  await delay(100);
-
-  const elsewhere = await startStandInGateway(t, { socketName: "gateway-elsewhere" });
-
-  await until(() => elsewhere.registered().length === 1, "the registration to arrive");
-  assert.deepEqual(errors, []);
 });

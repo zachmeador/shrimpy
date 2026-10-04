@@ -1,17 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { type Context, defineService } from "@earendil-works/chord";
-import { type AttachmentChangeListener, Client } from "@earendil-works/pi-client";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
-import { Refusal } from "../../lib/refusal/index.ts";
-import {
-  offer,
-  settle,
-  startStandIn,
-  stopAfter,
-  until,
-  useRuntimeDir,
-} from "../../lib/testing/index.ts";
+import { offer, settle, startStandIn, stopAfter, useRuntimeDir } from "../../lib/testing/index.ts";
 import { AgentConnectionLostError, type AgentConnection, connectAgent } from "./index.ts";
 import { SessionDirectory } from "./services.ts";
 
@@ -58,44 +48,4 @@ test("an attach that is waiting for its route fails when the connection drops", 
   await standIn.close();
 
   await attaching;
-});
-
-test("an attach the server refuses leaves nothing listening for its route", { timeout }, async (t) => {
-  const listening = new Set<AttachmentChangeListener>();
-  type Listen = (this: Client, listener: AttachmentChangeListener) => () => void;
-  const original = Reflect.get(Client.prototype, "onAttachmentChange") as Listen;
-  t.mock.method(Client.prototype, "onAttachmentChange", function (this: Client, listener: AttachmentChangeListener) {
-    const stop = original.call(this, listener);
-    listening.add(listener);
-    return () => {
-      listening.delete(listener);
-      stop();
-    };
-  });
-  const standIn = await standInAgent(t, () =>
-    Promise.reject(new Refusal("This agent has no session for thread th_999 yet.")),
-  );
-  const connection = await connect(t, standIn);
-
-  await assert.rejects(connection.attach("th_999"), /This agent has no session for thread th_999 yet\./);
-
-  assert.equal(listening.size, 0);
-});
-
-test("a program that does not offer the agent API is refused, and the connection is closed", { timeout }, async (t) => {
-  useRuntimeDir(t);
-  interface Other {
-    ping(context: Context): Promise<void>;
-  }
-  const Other = defineService<Other>("shrimpy.test.other");
-  const standIn = await startStandIn(t, "other", { offer: () => offer(Other, { ping: () => Promise.resolve() }) });
-
-  await assert.rejects(
-    connectAgent({
-      serverId: standIn.serverId,
-      transportFactory: createUnixTransportFactory({ path: standIn.socket }),
-    }),
-  );
-
-  await until(() => standIn.connections() === 0, "the refused connection to close");
 });

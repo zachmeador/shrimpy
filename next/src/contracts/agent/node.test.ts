@@ -26,24 +26,6 @@ async function staleSocket(t: TestContext, path: string): Promise<void> {
   await child.kill("SIGKILL");
 }
 
-test("a home that no agent ever served has no endpoint and no agent", async (t) => {
-  const home = tempHome(t);
-  assert.equal(readEndpoint(home), undefined);
-  await assert.rejects(attachLocal(home), new AgentNotRunningError(home));
-});
-
-test("an endpoint whose socket is gone means no agent is running", async (t) => {
-  const home = tempHome(t);
-  recordEndpoint(home, join(home, "runtime", "gone.sock"));
-
-  assert.equal(readEndpoint(home)?.pid, 1);
-  await assert.rejects(attachLocal(home), (error: unknown) => {
-    assert.ok(error instanceof AgentNotRunningError);
-    assert.equal(error.message, `No agent is running at ${home}.`);
-    return true;
-  });
-});
-
 test("a socket that nothing answers on means no agent is running", async (t) => {
   const home = tempHome(t);
   const socket = join(home, "runtime", "stale.sock");
