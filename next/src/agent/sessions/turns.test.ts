@@ -351,31 +351,6 @@ test("sessions, the outbox, unacted messages and the cursor are all there after 
   assert.deepEqual((await after.sessions.turns.record(draft(3)))?.earlier, [snapshot(2)]);
 });
 
-test("no session keeps instructions of its own, and any an earlier start stored are cleared at the next start", { timeout }, async (t) => {
-  const home = tempDir(t, "turns");
-  const before = await open(t, home, "mixed");
-  await before.sessions.turns.record(draft(1));
-  const instructionsOf = async (host: typeof before.host): Promise<(string | undefined)[]> => {
-    const threads = (await host.harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
-    const agents = await Promise.all(
-      Object.values(threads).map(async (session) =>
-        (await host.harness.conversation(session.conversationId as ConversationId, context))?.agent(context),
-      ),
-    );
-    return agents.map((agent) => agent?.instructions);
-  };
-  assert.deepEqual(await instructionsOf(before.host), [undefined], "a new session has none");
-  const threads = (await before.host.harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
-  const stored = await before.host.harness.conversation(threads.th_1?.conversationId as ConversationId, context);
-  await stored?.configure({ instructions: "Answer in rhyme." }, context);
-  assert.deepEqual(await instructionsOf(before.host), ["Answer in rhyme."]);
-  await before.close();
-
-  const after = await open(t, home, "mixed");
-
-  assert.deepEqual(await instructionsOf(after.host), [undefined]);
-});
-
 test("the thread a session is behind is found from the engine's number for the session, and a number no thread owns has none", { timeout }, async (t) => {
   const { host, sessions } = await open(t, tempDir(t, "turns"), "mixed");
   await sessions.turns.record(draft(1));
