@@ -22,7 +22,7 @@ import { type ChatDeps, createWorkingMarks } from "./threads/index.ts";
 export { ChatRunningError } from "./lock.ts";
 
 export interface ChatOptions {
-  /** Where the chat server keeps its store and its endpoint. */
+  /** Where the chat server keeps its store. */
   dataDir: string;
   /** The pauses between attempts to reach the gateway. Tests shorten them. */
   backoff?: Backoff;
