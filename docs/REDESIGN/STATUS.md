@@ -25,6 +25,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
 - Promises in phase 1's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
 - The terminal client's tests still run on a 350-line stand-in for the chat server that repeats two of its rules. The agent's and the CLI's tests run on the real one.
+- The README's command table is written by hand, so every new command edits the same file. It gets generated from the commands the CLI already knows, once the build now editing it has landed.
 - Small duplicates: a pause helper in `agent/intake/` and in `lib/retry`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
 
 **Core contracts, before rooms**
