@@ -24,6 +24,7 @@ agent.json            its name and the model it starts with
 SOUL.md               who it is: the first thing in its instructions
 context/              Markdown notes shown in every conversation
 skills/               its own skills, a folder each with a SKILL.md
+triggers/             its triggers, a small file each (see shrimpy-triggers)
 vault/                longer notes it reads when it needs them
 state/pi/models.json  model servers it can use
 state/pi/auth.json    its API keys
@@ -48,8 +49,8 @@ A change to `agent.json`, `models.json` or `auth.json` waits for a restart, whic
 ## See what an agent is doing
 
 - `shrimpy sessions list <agent>` has a line for each thread it is in: the thread, its channel, and `working` or `idle`.
-- `shrimpy sessions read <agent> <thread>` shows that session: what the agent was shown, what its tools did and what it answered.
-- `shrimpy sessions stop <agent> <thread>` stops the work in that session and takes back the messages it hadn't picked up. Those stay in the thread, marked skipped, and the agent reads them with the next one. The agent keeps running.
+- `shrimpy sessions read <agent> <session>` shows a session, named by its thread's ID or as `trigger:<name>` for a trigger's own: what the agent was shown, what its tools did and what it answered.
+- `shrimpy sessions stop <agent> <session>` stops the work in that session and takes back the messages it hadn't picked up. Those stay in the thread, marked skipped, and the agent reads them with the next one. The agent keeps running.
 
 `sessions steer` puts input into a session that the thread never sees. It is not a way to talk to an agent.
 

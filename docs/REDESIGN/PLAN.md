@@ -319,6 +319,9 @@ The builders made these visible choices while implementing. None has shipped, an
 | When a trigger first runs | One interval after it is first seen, or at the next time its cron matches. A new schedule, or turning it back on, counts from the reload. After the agent was down past its time, it runs once at the start. |
 | A trigger's own session | It is named `trigger:<name>`, and `sessions list`, `read`, `steer` and `stop` reach it by that name. It stays when the trigger's file is removed, and a file put back under the same name uses it again. |
 | What a trigger reads as | "This is the trigger tidy, fired at …. Its schedule is every 1h." In a session of its own it adds that what the agent writes last is posted nowhere, and that `send_message` with `to` tells someone. Then the prompt, as written. One run by hand says so. |
+| The triggers' commands | In an agent's shell they act on that agent, and `--agent` wins when both are given. `add`, `on`, `off` and `remove` write the trigger's file, checked first by the agent's own check, then tell a running agent to read its files again and say what it answered; with no agent running they say the change waits for the start. `triggers` and `show` print what the files say when no agent is running. Times are UTC. `add --thread` checks the thread only from the agent's own shell, since only the agent's identity says whether it is in that channel. |
+| A trigger that names a thread | It makes the session if there is none, by asking chat for the thread. With chat away, or the agent not in that channel, the occurrence is recorded as failed with the reason, and the next one tries again. |
+| What every agent is told about triggers | Three sentences under "Repeating work": a trigger gives a prompt on a schedule, use one for work that repeats and `check_back` for something to look at once, and `shrimpy triggers --help` shows how. A fifth skill, `shrimpy-triggers`, teaches the rest. The instructions are now 508 words. |
 | Where the trigger tasks live | In `agent/sessions/`, with the wake-up's sleeper, because they write session records. The plan had put them in `extensions/triggers/`. |
 | The order of inputs in a session | By the ID of each input's task, since a task is made in the commit that admits its input and Pi numbers what it makes in that order. Pi's spec promises this of transcript entries and not of tasks, so it leans on how the storage numbers them; the order tests would catch a change. |
 | `check_back`'s limits | A delay of 1 second to 366 days, a note of up to 1,000 characters, and 20 wake-ups waiting in one session. A refusal begins "Not set:" and says what to give instead. `at` takes a full ISO time with an offset. |
@@ -782,7 +785,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Built on 2026-10-04: the `shrimpy` command takes an agent's name and has a default folder, `~/shrimpy`.
 - Built on 2026-10-04: the gateway refuses a second body for one agent.
 - Built on 2026-10-04: phase 4's first step, the one task for any input and `check_back`.
-- Built on 2026-10-05: phase 4's second step, standing triggers with a prompt. Their commands are a change of their own, and come next.
+- Built on 2026-10-05: phase 4's second step, standing triggers with a prompt, and then their seven commands as a change of their own.
 - Built on 2026-10-05: phase 5's first step, rooms in the chat server, their three commands and the terminal browsing them.
 - Phase 4 then builds on that one mechanism: asking another agent and carrying on with the answer, as the spike on `spike/ask-and-resume` showed, triggers that repeat and that fire once, and helpers.
 

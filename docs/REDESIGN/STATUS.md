@@ -21,9 +21,9 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - Nothing prunes the finished task that each event leaves in the agent's records, nor a wake-up's finished sleeper, and each `check_back` call scans the session's sleepers.
 - Nothing shows a wake-up that is waiting: not `sessions list`, `sessions read` or the terminal. It needs a field in the agent's contract.
 - The terminal's Esc says there is nothing to stop while an agent is idle, so a waiting wake-up is cancelled only by `shrimpy sessions stop`.
-- A trigger that names a thread needs a session already behind that thread. Without one each occurrence is recorded as failed and reported, since making the session takes the thread's channel, which only chat knows.
+- A trigger that names a thread and comes due while the agent was down fires at the start before the link to chat is up, so that one occurrence fails. The next one works.
+- A trigger file that doesn't check out is named by a reload and by `agent context`, and is missing from `shrimpy triggers` while the agent runs.
 - A trigger that fires every minute leaves about 1,440 finished tasks a day, each holding its prompt, and listing triggers scans all of them. Pruning has become a real question.
-- The instructions every agent gets say `check_back` wakes "in this thread", and say nothing of triggers. `agent context` and a reload's answer don't count triggers. The `sessions` commands still say `<thread>`. These come with the triggers' commands.
 - A trigger or a wake-up that comes due during a stop's grace period can still start.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
@@ -103,6 +103,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Phase 4 progress, 2026-10-05: the triggers' commands.** `shrimpy triggers` lists an agent's triggers, and `add`, `show`, `run`, `on`, `off` and `remove` do the rest. They act on the agent whose shell they run in and take `--agent` elsewhere. What they write is checked first by the agent's own check, so a wrong schedule is refused with nothing written, and a running agent is told to read its files again. A trigger that names a thread now makes its session. Every agent is told that triggers exist, a fifth skill teaches them, and the `sessions` commands say `<session>`. Checked on macOS arm64: 505 tests, 499 pass and 6 are skipped. Twenty-six commands now, from sixteen: three for rooms and seven for triggers.
 
 **Phase 5 progress, 2026-10-05: rooms in the chat server.** A room is a channel with a name and any number of members. Any member makes one and adds anyone on the roster, and only members see it, read it and post in it. A post in a room is addressed to the members it mentions with `@name`, and `@all` addresses everyone but its author. A member is offered a room's events from the moment it joined. `shrimpy rooms`, `rooms new` and `rooms add` exist, `threads` takes `#name`, and the terminal lists rooms beside agents. The chat store is version 6, so a store from before is refused. The build also fixed the terminal hanging on exit when a link was still connecting. Checked on macOS arm64: 499 tests, 493 pass and 6 are skipped.
 
