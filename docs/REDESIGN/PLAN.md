@@ -50,6 +50,7 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | Session | An agent's private work behind a thread, or behind work with no thread. Pi calls this a conversation. |
 | Helper | A child session an agent starts to split up its own work. Pi calls these subagents. |
 | Trigger | Anything other than a message that wakes an agent: a time, an interval or a check whose output changed. Today's watches. |
+| Breadcrumb | A fact that comes with an agent's next input, once, when it is new to that session. It is one small file in the agent's home. |
 | Chat provider | A bridge between a channel and an outside chat app, such as Telegram. |
 | Chat server | Keeps channels, threads, messages and attachments, and bridges chat providers in. |
 | Gateway | Connects clients, agents and the chat server, and keeps the workspace's configuration. It never hosts agents or conversations. |
@@ -137,7 +138,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Automatic awareness | Sender, destination, time and session facts; a channel unread count with a preview of the latest message; memory breadcrumbs; fleet and gateway status; other-session activity; worker and watch summaries | Keep sender, destination, time and session facts and the thread's unread messages. Unread messages appear as written, the way a person scrolls a chat room: who said what, when, and whether it was addressed to this agent, newest last, within the turn-context budget. Nothing summarizes them. Drop the rest from every request, and give agents instructions for checking status, other threads and sessions, triggers and workers when they need to. Keep the 6,000-character budget. Memory breadcrumbs wait until daily use asks for them: they need a search index, and until then agents are trusted to search their own files and Shrimpy's state with the tools they have. | Confirmed |
 | Workspace context | Shared `context/` files in the workspace that every agent reads | The gateway hosts the workspace's `context/` files, and agents receive them through the API. Each agent keeps a cached copy for when the gateway is unreachable and picks up changes on reload, at the cost of one prompt-cache miss. You or the mechanic edit them in one place. | Confirmed |
 | Memory | Ordinary files; mechanic can search every agent | Same files. The mechanic reaches other agents' homes over SSH instead of a built-in all-agent search. | Confirmed |
-| Context producers | Opt-in commands with channel matching, caching and bounds | Same features. Each preparation makes one attempt, checkpointed by Pi; a crash after it starts reports interruption instead of rerunning. A failure leaves a breadcrumb and the request continues. Previews never run producers. | Confirmed |
+| Context producers | Opt-in commands with channel matching, caching and bounds | Replaced by breadcrumbs, and no command runs before a turn. A fact that moves is one small file in a folder of the home: a line or two, and how to look closer. A trigger's check, a script or the agent writes it. When an input is handed to a session, the files that differ from what that session last saw come with it. So a fact is told once, when it is new to that session, nothing enters the prompt, and nobody is woken. A check that fails writes that into its file. Built with triggers in phase 4 ([contract](#prompt-capture)). | Confirmed |
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. Compaction only shrinks the session, so agents are told they can re-read the thread when a detail went missing. | Confirmed |
 | Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next two rows say. | Keep |
 | Which skills come first | 16 included skills, rewritten together | Phase 2 rewrites the four an agent needs to look after a Shrimpy setup: setting it up, making and maintaining agents, where messages go, and making skills. A skill for a feature that comes later is rewritten with that feature: watches and the default watches, coding delegation, update, the journals and audits, which run from watches, and `memory-management`, which comes with memory breadcrumbs. `remember`, search and web search wait until they're wanted. | Confirmed |
@@ -312,7 +313,6 @@ Work this plan defers on purpose, to pick up after cutover:
 - Codemode, as a [later experiment](#tools-and-publication).
 - A plain HTTP entry point, once a program that can't speak Pi's protocol needs in.
 - A desktop chat app as the native client for channels.
-- Facts that reach an agent without it asking, told once when they change. It is an early thought and not a decision: see [early thinking](#early-thinking).
 - Seams that would let more of Shrimpy be built in parallel, to look at once the core contracts have settled: extensions in the agent as folders with one entry point that are handed the same few things; the chat provider interface with a fake provider as its reference; a client core that the terminal and the web client share; and landing a contract change on its own before the programs that follow it. No seam where only one thing will ever plug in: the gateway stays one piece.
 - Events from outside apps, such as MCP events or webhooks. They would arrive as a chat provider's messages, not as triggers, so agents keep taking nothing inbound. The [research note](../research/mcp-events-and-triggers-2026-10-04.md) says why not yet, and when to look again.
 
@@ -320,68 +320,18 @@ Work this plan defers on purpose, to pick up after cutover:
 
 Ideas that are not decisions. Nothing here is scheduled, and nothing gets built from it until it has been through review.
 
-### Facts that reach an agent without it asking
+### A fact held in the prompt
 
-**State:** early thinking, begun on 2026-10-04 and not decided. A first look, at what a change to the prompt costs and with a second opinion from Fable, leaned toward building nothing. You then said what you had imagined and why it is needed, and both hold up. The leading candidate is now breadcrumbs that come with a turn, only when something is new to that session. When to build it is yours to settle.
+**State:** early thinking from 2026-10-04, not decided. Nothing asks for it yet.
 
-**The thought,** in your words:
+[Breadcrumbs](#prompt-capture) cover a fact that moves: it comes with an input, once. They don't cover a fact that should be in every request and that the agent couldn't look up, because only Shrimpy knows it: who is reachable, or which questions to other agents are open. That would be a document behind a prompt section. Pi keeps track of what each conversation has been shown, and after compaction it writes the whole prompt again, so the current value would always be in the request. Each change would cost what [a change to the prompt costs](#prompt-capture), so it would suit only a fact that rarely changes.
 
-- "most context can live in static markdowns but it feels like sometimes dynamic info that only appears when it's changed could be useful"
-- "the pattern i imagined only surfaced things to the context that are new, relative to the session. so there wouldn't be a balance number every time, just when it differs from the last value the agent saw it."
-- "sometimes in long running heartbeat sessions models will get lazy and stop doing the thing that they've done 500 times previously in the session, to no relevant result. injecting context that prompts it to be more alert to environmental changes feels useful to prevent this. not saying we load a shit ton of stuff into this, just useful info breadcrumbs"
+Fable was asked about this shape on 2026-10-04 and argued against it. An agent trusts a value in its prompt and stops looking. When the check behind the value dies, the agent acts on a stale one and nothing errors, where a lookup fails loudly. An app-agent doesn't need it either. What makes an accountant is not the numbers held in their head. It is knowing which accounts exist, which is `context/`, and when to look, which is skills.
 
-Your example is a finance agent with passive access to things like balance changes. It is one piece of the app-agents idea: an agent whose identity is one application-like vertical, and whose `context/` is about that vertical and nothing else.
+**Also open.**
 
-**Where it comes from.** Old Shrimpy had turn context: facts placed in front of the user's message at every turn, within a 6,000-character budget. Each was a summary line with an optional command to look closer. Some came from producers, which were bounded commands run before a turn, and its example was a finance alerts command. It kept track of what each session had been shown, so an unchanged fact was left out and came back when its value changed. Its own advice was to keep producers for "bounded facts the model must see before it can decide what to inspect", and otherwise to let the agent run a command when it decides live data matters.
-
-**What a change to the prompt costs.** You asked whether pulling a changed context file into a long-running session would break caching. On most models it would. This was checked on 2026-10-04 against Pi 1.0.0 and your local model.
-
-- Pi never rewrites what it has sent. A section whose text changed is added as an entry at the end of the transcript, holding that section's whole new text.
-- A model that accepts a system message partway through a conversation gets the entry where it sits. Everything before it is unchanged, so the provider's cache holds and the change costs its own size. Pi's model list turns this on for some of the newest models on their makers' own APIs, such as Claude Opus 5.5 and GPT-5.5.
-- Every other model gets one system message at the front, rebuilt with the current text. That is the default for any server declared in `models.json`. The request then differs from the changed section onward, so the rest of the prompt and the whole conversation are read again. Each session of the agent pays that once, at its next request.
-- Your local Qwen server is in the second group and can't be moved out of it. It answers a system message that isn't first with "System message must be at the beginning."
-- Every file in `context/` is part of one section, so one changed file sends all of them again.
-- A reload that changed nothing adds nothing and costs nothing. Today a home's files are read when the agent starts and on `shrimpy agent reload`, and never in between.
-
-**Four ways a fact reaches an agent,** cheapest first. This is a framing offered for review, not a decision.
-
-1. **It looks it up** when it needs it, with its shell, its files and its tools. This is the default. It needs nothing new: a skill says when to look.
-2. **It is told at its next turn.** The fact comes with the next input and wakes nobody. It costs nothing on any model, because a turn only adds to the end of the conversation. It appears once, when it changed, and then moves up with everything else. This is your pattern, it is where old Shrimpy put turn context, and it is already this plan's [rule for per-turn facts](#prompt-capture). It has two carriers. Breadcrumbs are private to the agent, and their shape is below. A message that wakes nobody sits in a thread, where people see it too. That one may be the same flag as `quiet` on `send_message`, which so far means a person isn't notified.
-3. **It is told now.** A trigger or an event starts a turn.
-4. **It sits in the prompt** and is replaced when it changes. The current value is in every request, and after compaction Pi writes the whole prompt again. Each change costs what the list above says, so this suits only a fact that rarely changes.
-
-A Markdown file in `context/` that a check keeps current is the fourth way. It looked like the cheapest shape and isn't: it costs most models a full read of the conversation at every change, and it puts machine-kept state beside what the agent is told about itself.
-
-**Why looking it up isn't enough.** This is your observation from long heartbeat sessions: a model stops making a check it has made hundreds of times to no result. The session's own history is the likely reason, since it is evidence that the check finds nothing. So the first way wears out in the sessions that run longest. Two things follow.
-
-- A check that usually finds nothing shouldn't be a model's turn. It runs as code, and the model hears of it only when something changed. Phase 4 already promises this for triggers: a deterministic check makes no model call until it emits something.
-- What changed needs a way to reach the agent without it asking. That is the second way.
-
-**A shape offered for review.** Not a decision.
-
-- One small file for each fact, in a folder of the home: a line or two, and how to look closer. Anything may write one: a trigger's check, a script or the agent.
-- When an input is handed to a session, Shrimpy compares each file with what that session last saw and adds the ones that differ to the input. Nothing enters the prompt, so no model loses its cache, and nobody is woken.
-- A breadcrumb prompts a look and doesn't replace it. The lookup stays the source of truth.
-- A check that fails writes that into its file, so a dead check is news and not silence.
-
-What is new to build is the record of what each session last saw, and the comparison. The rest is files and triggers. It would take the place of [context producers](#instructions-memory-and-skills), which run a command before every turn.
-
-**Fable's view,** asked on 2026-10-04. It was asked about a value that stays in the prompt, which is the fourth way, and it assumed an agent that keeps looking. These are its arguments, not decisions.
-
-- Sort facts by kind, not by how often they change. A domain fact, such as a balance or a transaction, is a lookup: the agent has commands for it, and a skill says when to run them. A situation fact, such as a new thread, a peer it can reach or a question it has open, is one it wouldn't know to look for.
-- A fact whose staleness costs something outside the conversation, such as money, a deadline or a person waiting, should wake the agent. The rest can be told once.
-- An app-agent doesn't need live state in its prompt. A coded finance app shows a dashboard because its user can't ask it questions, and an agent can look. What makes an accountant is not the numbers held in their head. It is knowing which accounts exist, which is `context/`, and when to look, which is skills.
-- Overdone, it fails quietly. An agent trusts a value in its prompt and stops looking. When the check behind it dies, the agent acts on a stale value and nothing errors. A lookup fails loudly.
-- One mechanism, not two: a check with two outcomes, wake the agent with a message or record a fact without waking it. The fact is written without the time it was checked, or every check counts as a change.
-
-**Open.**
-
-- When to build it. The checks lean on triggers, so phase 4 is the natural time. Yours to settle.
-- What becomes of the context producers row, which was confirmed with old Shrimpy's shape and isn't built: keep it, drop it, or change it to the shape above.
-- Whether a trigger gets an outcome that writes a fact and wakes nobody, or its command just writes the file.
-- How many breadcrumbs a turn may carry. Old Shrimpy had a budget and the new one has none.
-- Where the folder lives and what it is called.
 - Whether each context file should be a section of its own. You would rather have several small files than one big one such as a `MEMORY.md`. Today that saves nothing, because all of `context/` is one section. With a section for each file, a changed file would be sent alone to the models that take a change in place. On the others any change still costs a full read.
+- Whether a message that wakes nobody is the same flag as `quiet` on `send_message`, which so far means a person isn't notified. It would be the way to leave something in a thread for an agent's next turn there, where people see it too.
 
 ## Architecture
 
@@ -514,13 +464,32 @@ A crash between steps 1 and 2 leaves a session or an outbox record with no submi
 
 A durable extension supplies base instructions, skill trails, input facts and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
 
-**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, workspace context, `SOUL.md` and skill trails. When a section's text changes, Durable adds the new text as an entry at the end of the transcript. Some of the newest models take it there and keep their cache. Every other model, which by default includes any server declared in `models.json`, gets one rebuilt system message at the front and reads the whole conversation again. So sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender and the thread's unread messages travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload that changed something costs each session at most one cache miss. [What a change to the prompt costs](#facts-that-reach-an-agent-without-it-asking) has the detail.
+**Caching.** Stable text lives in prompt sections that don't change between turns: base instructions, workspace context, `SOUL.md` and skill trails. When a section's text changes, Durable adds the new text as an entry at the end of the transcript. Some of the newest models take it there and keep their cache. Every other model, which by default includes any server declared in `models.json`, gets one rebuilt system message at the front and reads the whole conversation again. So sections never embed timestamps, counters or other per-turn values. Per-turn facts such as time, sender and the thread's unread messages travel with the input entry instead. Each turn then only adds to the end of a cached prefix, and a reload that changed something costs each session at most one cache miss.
+
+What a change to the prompt costs was checked on 2026-10-04 against Pi 1.0.0:
+
+- A changed section is sent whole, and every file in `context/` is part of one section, so one changed file sends all of them again.
+- Pi's model list lets a model take a change in place only for some of the newest models on their makers' own APIs, such as Claude Opus 5.5 and GPT-5.5.
+- A server that refuses a system message unless it comes first can never take one in place. The local Qwen server is one: "System message must be at the beginning."
+- A reload that changed nothing adds nothing and costs nothing.
+
+**Breadcrumbs.** A fact that moves reaches an agent with its next input, once, when it is new to that session. You asked for it because a model in a long session stops making a check it has made hundreds of times to no result: "injecting context that prompts it to be more alert to environmental changes feels useful to prevent this".
+
+- Each fact is one small file in a folder of the home: a line or two, and how to look closer. A trigger's check, a script or the agent may write one.
+- When an input is handed to a session, Shrimpy compares each file with what that session last saw, adds the ones that differ to the input, and commits what it showed with the input. A session that was idle through several changes is told the latest once.
+- Nothing enters the prompt, so no model loses its cache, and nobody is woken. What can't wait is a trigger that wakes the agent.
+- A breadcrumb prompts a look and doesn't replace it. The lookup stays the source of truth.
+- A breadcrumb is data, not instructions, under the same rule as [what a trigger brings in](#triggers). It reaches the model marked as something to read.
+- A file holds the fact and never the time it was checked, or every check would count as a change.
+- A check that fails writes that into its file, so a dead check is news and not silence.
+
+To settle when phase 4 designs it with triggers: the folder's name, how many breadcrumbs an input may carry, and whether a trigger owns the write. The rule about a failed check leans toward the trigger owning it, since a command that died can't write its own failure.
 
 How Pi recovers shapes these rules:
 
 - `beforeRequest` transforms stay pure. They run again after recovery, so reading files or the clock there would change a resent request.
-- Prompt sections render again too, including after blocking compaction, so they can't run external commands. Producers run as public custom tasks. Their captures are keyed by the consumed submission ID and record the source and producer revision, and re-renders, compaction and recovery reuse that capture. Join tasks outside a commit.
-- Throwing from a section doesn't signal failure; Pi can keep the old text and proceed. Show failed or interrupted producers as explicit diagnostics.
+- Prompt sections render again too, including after blocking compaction, so they can't run external commands. Nothing runs a command to build a prompt or an input: a fact that moves is kept in a file and reaches a session as a breadcrumb.
+- Throwing from a section doesn't signal failure; Pi can keep the old text and proceed.
 - A reload reaches each session at its next request, as Pi renders sections, including a turn that is running. The registry, tool implementations and environment stay fixed for accepted work; replacing them needs admission to stop and a drain and restart.
 
 Inspection shows raw entries, effective model messages, selected tools, source revisions, omissions and budgets, and the effective model and settings. Previews are labelled as previews; a captured request is the real evidence. Hidden context in the human transcript expands without blank rows.
@@ -555,7 +524,7 @@ Reuse small filesystem, search, formatting, calendar, model-policy, transport an
 | `src/sessions/pool.ts`, `turn-output.ts`; gateway turn and runtime state | Pi admission, inbox, submission settlement and committed views. Delete lane promise chains, completion inference and parallel activity and outcome records. |
 | `src/sessions/ownership.ts`, `control.ts`; gateway control messages | One home lock and service operations. Delete competition for transcripts between foreground, gateway and maintenance, and channels used as control transport. |
 | Session recording, manifest, transcript store, inventory and search; the copied compaction runner | Pi entries and projection, minimal session metadata and derived queries. Delete the second transcript lifecycle and compaction paths. |
-| `src/context/*`, resource loading, included instructions and skills | The durable home-context extension, producer helpers and committed provenance. Delete global-runtime dependencies and `ExtensionAPI` bindings. |
+| `src/context/*`, resource loading, included instructions and skills | The durable home-context extension, breadcrumbs and committed provenance. Delete global-runtime dependencies and `ExtensionAPI` bindings. |
 | `src/tools/daemon.ts`; channel routing, bus, activity and outbox; `src/agents/channel-policy.ts` | The two message tools, the chat server, which owns routing and delivery, and wake policy in each agent's service. Delete the shared bus and duplicate turn state; keep needed delivery receipts. |
 | `src/workers/*` | Helpers on durable's child and background ownership; a focused adapter or skill for Codex. Delete the universal worker supervisor and backend state. |
 | `src/watches/*`; gateway watch service and clock | The durable trigger extension. Delete the global clock, execution history and orchestration state. |
@@ -590,7 +559,7 @@ src/
                     replies, receipts, working marks and the default for what wakes the agent; later chat commands, a wake
                     policy the agent sets, and the unread cache
     extensions/     durable extensions
-      context/      prompt sections and compaction guidance; later, facts captured when input is taken up, and producers
+      context/      prompt sections and compaction guidance; later, facts captured when input is taken up, breadcrumbs among them
       tools/        message tools, search, image reading, helpers
       triggers/     trigger and occurrence tasks
   chat/             the chat server program
@@ -811,8 +780,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Context is captured at consumption for queued input, steering, tool rounds, reload, compaction and restart.
 - Real provider input matches live and reopened raw and effective history.
 - Editing a context file while work is queued: in-flight input, newly consumed input and a resent request each use the right version.
-- Killing the owner around a producer's effect and result commit, and during blocking compaction. Failures and caching behave as specified.
-- Previews run no producers.
+- Killing the owner during blocking compaction.
 - A model tool call spanning a resource reload and an attempted code or environment swap.
 - Early cost checks: context capture.
 
@@ -854,12 +822,14 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 **Build**
 
 - The trigger extension, following the [trigger contract](#triggers).
+- [Breadcrumbs](#prompt-capture): the fact files in the home, the record of what each session last saw, and a way for a trigger's check to keep a fact current without waking anyone.
 - Helpers in the foreground and background, and the retained Codex workflow.
 
 **Prove**
 
 - Triggers: cron with timezones, intervals, one overdue run, overlap skipping and opt-in overlap, invalid edits at startup and on reload, manual runs, disabling, removing or reloading mid-run, cancelling one occurrence, changed and unchanged output, timeouts, and restarts before and after a command's effect and its input admission.
 - Deterministic checks make no model calls until they emit something.
+- Breadcrumbs: a changed fact is told once to each session and not again, a session idle through several changes is told the latest once, a failed check is told, and killing the owner at hand-over neither repeats nor loses one.
 - Delegation through the real Codex backend: start, inspect, continue, wait, cancel, close and outputs, across caller disconnect and owner death. A background helper wakes its parent when it finishes, and Pi task ownership never cancels detached external workers.
 
 **Replaces:** the old watch and worker stores and supervisors.
@@ -929,7 +899,7 @@ The current catalog is [src/commands/catalog.ts](../../shrimpy-old/src/commands/
 | Bare launch, initial prompt, `chat`, `run`, `agent tui`, `agent run` | Select, start or attach the right home; reviewed run retention and output; explicit model, thinking and skill overrides. |
 | Sessions: new, clear, restore, set, stop, list, search, read, compaction | Split between threads (new, archive, rename, read, search) and the sessions behind them (reset, stop, inspect, compaction), with the new IDs, bounded raw and effective queries, and Pi submission status. Renamed aliases and JSON behavior need review. |
 | Models: inspect, resolve, policies, provider addition | Per-home credentials, candidate precedence, session choice versus saved defaults, favorites and local endpoints. |
-| Context: composition, files, sources, producers, provenance | Captured requests and labelled previews, explicit producer runs and bounded source evidence. |
+| Context: composition, files, sources, producers, provenance | Captured requests and labelled previews, and bounded source evidence. Producers are gone, and what replaces them needs no command: breadcrumbs are files in the home. |
 | Agents: list, show, inspect, add, set, policy, rename, remove | Home registration, configuration and endpoint policy; registration isn't the runtime. Remove stays explicit and preserves data by default. |
 | Skills: list, show, add, update, remove, new, validate | Per-home instruction management and precedence. Pi extension and theme discovery follows its decision above. |
 | Channels: list, show, read, search, tail, create, post, bind, unbind, dm, members, join, leave | Reviewed routing, log, thread and recipient operations owned by the chat server. The internal bus is removed. |
