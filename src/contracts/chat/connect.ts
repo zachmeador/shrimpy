@@ -3,7 +3,7 @@ import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/conte
 import type { ByteTransportFactory } from "@earendil-works/pi-client";
 import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { Chat, ThreadService } from "./services.ts";
-import type { Message, ThreadView } from "./view.ts";
+import type { ThreadView } from "./view.ts";
 
 type WithSignal<Method> = Method extends (...args: [...infer Args, Context]) => infer Result
   ? (...args: [...Args, signal?: AbortSignal]) => Result
@@ -15,16 +15,9 @@ type WithSignal<Method> = Method extends (...args: [...infer Args, Context]) => 
  * the Chord context, and cancelling it ends a call that is still waiting, such
  * as `feed`. A call the server refuses rejects with an error whose message says
  * why.
- *
- * `post` is the one call whose optional argument, the event it answers, comes
- * after the signal. Chord adds the context after the arguments a caller sends,
- * so the service takes `answers` before it, always, and this client sends null
- * when the caller leaves it out.
  */
 export type ChatClient = {
-  [Method in Exclude<keyof Chat, "attach" | "detach" | "post">]: WithSignal<Chat[Method]>;
-} & {
-  post(threadId: string, text: string, requestId: string, signal?: AbortSignal, answers?: string): Promise<Message>;
+  [Method in Exclude<keyof Chat, "attach" | "detach">]: WithSignal<Chat[Method]>;
 };
 
 /**
@@ -82,8 +75,7 @@ export async function connectChat(options: {
       service.renameThread(threadId, name, contextFor(signal)),
     archiveThread: (threadId, archived, signal) =>
       service.archiveThread(threadId, archived, contextFor(signal)),
-    post: (threadId, text, requestId, signal, answers) =>
-      service.post(threadId, text, requestId, answers ?? null, contextFor(signal)),
+    post: (threadId, text, requestId, signal) => service.post(threadId, text, requestId, contextFor(signal)),
     edit: (messageId, text, signal) => service.edit(messageId, text, contextFor(signal)),
     delete: (messageId, signal) => service.delete(messageId, contextFor(signal)),
     react: (messageId, emoji, signal) => service.react(messageId, emoji, contextFor(signal)),

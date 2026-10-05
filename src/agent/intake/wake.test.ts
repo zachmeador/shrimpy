@@ -17,9 +17,19 @@ interface Parts {
   addressed?: string[];
   deleted?: boolean;
   receipts?: Receipt[];
+  /** What a receipt says: silent, unless it is an answer, which points at a reply. */
+  answered?: boolean;
 }
 
-function anEvent({ kind = "posted", actor = zach, author = actor, addressed = [scout.id], deleted = false, receipts = [] }: Parts = {}): ChatEvent {
+function anEvent({
+  kind = "posted",
+  actor = zach,
+  author = actor,
+  addressed = [scout.id],
+  deleted = false,
+  receipts = [],
+  answered = false,
+}: Parts = {}): ChatEvent {
   const base = {
     id: "evt_1",
     seq: 7,
@@ -38,13 +48,15 @@ function anEvent({ kind = "posted", actor = zach, author = actor, addressed = [s
     case "unreacted":
       return { ...base, kind, emoji: "👍" };
     case "receipted":
-      return { ...base, kind, event: "evt_0", status: "silent", reply: null, detail: null };
+      return answered
+        ? { ...base, kind, event: "evt_0", status: "answered", reply: "msg_2", detail: null }
+        : { ...base, kind, event: "evt_0", status: "silent", reply: null, detail: null };
   }
 }
 
 const wakes = (event: ChatEvent): boolean => takeUp(scout, event) !== undefined;
 
-test("the default wake policy: a post or an edit addressed to the agent, and a reaction to a message it wrote, and nothing else", () => {
+test("the default wake policy: a post or an edit addressed to the agent, a reaction to a message it wrote and an answer to one, and nothing else", () => {
   assert.equal(wakes(anEvent({ kind: "posted" })), true);
   assert.equal(wakes(anEvent({ kind: "posted", actor: helper })), true);
   assert.equal(wakes(anEvent({ kind: "edited" })), true);
@@ -58,9 +70,14 @@ test("the default wake policy: a post or an edit addressed to the agent, and a r
   assert.equal(wakes(anEvent({ kind: "reacted", author: helper, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "unreacted", author: scout, addressed: [zach.id] })), false);
   assert.equal(wakes(anEvent({ kind: "deleted" })), false);
-  // A receipt wakes nobody: not another member's on a message the agent wrote, nor one on a message meant for it.
-  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id] })), false);
+  // A receipt wakes nobody, except one that says another member answered a message of the agent's own that was for them,
+  // whose reply the agent will ask for.
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id] })), false, "silent");
   assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: zach })), false);
+  assert.deepEqual(takeUp(scout, anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id], answered: true }))?.kind, "answer");
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [zach.id], answered: true })), false, "it was not for them");
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: zach, addressed: [helper.id], answered: true })), false, "it is not the agent's message");
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id], answered: true, deleted: true })), false);
 
   // What the agent does itself never wakes it: its own reply comes back in its feed, and answering it would never end.
   assert.equal(wakes(anEvent({ kind: "posted", actor: scout, addressed: [zach.id] })), false);

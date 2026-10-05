@@ -54,26 +54,16 @@ export interface Chat {
    * Post to a thread. A retry with the same `requestId` from the same member
    * returns the first message, as it stands now, instead of posting twice, even
    * if it has been edited or deleted since; the same `requestId` with a
-   * different thread, text or `answers` is refused. A message holds at most
+   * different thread or text is refused. A message holds at most
    * `MAX_MESSAGE_LENGTH` characters.
    *
    * Who the post is for follows from the channel. In a DM it is the other
    * member, whatever the text says. In a room it is the members the text
    * mentions as `@name`, matched as names are matched elsewhere, whatever the
    * case, and every member but the author when it says `@all`; a name that is
-   * no member's is for nobody. `answers` is the ID of an event the post answers,
-   * or null: the author of that event is for it too, if they are a member of
-   * the room, and not the poster. The event must be in a channel the caller
-   * belongs to. An edit works out who the message is for again, with the same
-   * event.
+   * no member's is for nobody. An edit works out who the message is for again.
    */
-  post(
-    threadId: string,
-    text: string,
-    requestId: string,
-    answers: string | null,
-    context: Context,
-  ): Promise<Message>;
+  post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
   /**
    * Change what a message says. Only its author may; for anyone else in the
    * channel the call is refused, and for someone outside it the message does

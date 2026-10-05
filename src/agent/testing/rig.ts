@@ -11,6 +11,8 @@ import { SCOUT } from "./names.ts";
 import { type Talk, talkTo } from "./talk.ts";
 
 export interface AgentRigOptions {
+  /** The agent's name: Scout unless the test says otherwise, as for a second agent on the same chat server. */
+  name?: string;
   /** What the model does; `mixed` unless the test says otherwise. */
   scenario?: FauxScenario;
   script?: Script;
@@ -56,7 +58,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
     t,
     await startAgent({
       home,
-      name: SCOUT,
+      name: options.name ?? SCOUT,
       ...fauxModels({
         home,
         scenario: options.scenario ?? (options.script === undefined ? "mixed" : undefined),
@@ -72,7 +74,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       },
     }),
   );
-  const talk = await talkTo(chat);
+  const talk = await talkTo(chat, options.name ?? SCOUT);
 
   return {
     ...talk,

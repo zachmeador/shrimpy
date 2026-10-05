@@ -87,38 +87,6 @@ test("a post in a room is for the members it mentions, or for everyone with @all
   assert.deepEqual(forWhom(direct, names), ["scout"]);
 });
 
-test("a post that says what it answers is for that event's author too, and an edit keeps it so", { timeout }, async (t) => {
-  const chat = await startTestChat(t);
-  const zach = await chat.person();
-  const scout = await chat.agent("scout");
-  const maya = await chat.agent("maya");
-  const alice = await chat.agent("alice");
-  const names = new Map([zach, scout, maya].map((member) => [member.me.id, member.me.name]));
-  const room = await zach.chat.createRoom("Ops", [scout.me.id, maya.me.id]);
-  const main = await mainThread(zach, room.id);
-  const asked = await maya.chat.post(main.id, "Which disk is full?", "maya-1");
-
-  const plain = await scout.chat.post(main.id, "The big one.", "scout-1");
-  const answer = await scout.chat.post(main.id, "The big one.", "scout-2", undefined, asked.event);
-  const both = await scout.chat.post(main.id, `@${zach.me.name}, the big one.`, "scout-3", undefined, asked.event);
-  const own = await scout.chat.post(main.id, "Hm.", "scout-4", undefined, plain.event);
-
-  assert.deepEqual(forWhom(plain, names), [], "answering nothing, it is for nobody");
-  assert.deepEqual(forWhom(answer, names), ["maya"]);
-  assert.deepEqual(forWhom(both, names), ["maya", zach.me.name].sort(), "and whoever it mentions");
-  assert.deepEqual(forWhom(own, names), [], "an author is never for themself");
-  const edited = await scout.chat.edit(answer.id, "The big disk, sda.");
-  assert.deepEqual(forWhom(edited, names), ["maya"], "an edit works it out again, with the event the message answered");
-
-  // The event has to be one the poster can see, and a retry that changes what it answers is not a retry.
-  const other = await alice.chat.openDm(zach.me.id);
-  await assert.rejects(alice.chat.post((await mainThread(alice, other.id)).id, "Hello", "alice-1", undefined, asked.event), {
-    message: /^Unknown event: evt_/u,
-  });
-  await assert.rejects(scout.chat.post(main.id, "The big one.", "scout-2"), { message: /already posted a different message/u });
-  assert.deepEqual(await scout.chat.post(main.id, "The big one.", "scout-2", undefined, asked.event), edited, "a true retry gets the first message back");
-});
-
 test("a member added to a room is offered what comes after, never what came before, though the room's thread shows it all", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.person();

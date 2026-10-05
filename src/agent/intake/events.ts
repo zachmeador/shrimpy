@@ -7,8 +7,9 @@
 
 /**
  * A chat event as it was written, kept so the model can be shown it later. The
- * agent admits events, not messages: what it takes up is a post, an edit, or a
- * reaction to a message of its own, and its receipt names that event.
+ * agent admits events, not messages: what it takes up is a post, an edit, a
+ * reaction to a message of its own, or the reply that answers a message of its
+ * own, and its receipt names that event: for a reply, the event that posted it.
  */
 export type Snapshot =
   | {
@@ -44,6 +45,21 @@ export type Snapshot =
       at: number;
       emoji: string;
       /** When the message reacted to was sent, and the start of its text. It is one of the agent's own. */
+      sentAt: number;
+      start: string;
+    }
+  | {
+      kind: "answered";
+      /** The ID of the event that posted the reply, which the agent admits it by and its receipt names. */
+      id: string;
+      /** The reply's position in chat's order, which is the order events are shown in. */
+      seq: number;
+      /** The name of the member who answered. */
+      by: string;
+      /** When the reply was written, and what it says. */
+      at: number;
+      text: string;
+      /** When the message answered was sent, and the start of its text. It is one of the agent's own. */
       sentAt: number;
       start: string;
     };
@@ -215,12 +231,14 @@ export interface Admissions {
   setCursor(seq: number): Promise<void>;
   /**
    * Take an event up: make its thread's session if the thread has none, start
-   * the task that follows the event to its receipt, and move the cursor past
-   * the event, all in one commit. The thread's earlier unacted events go with
-   * it, and so do the wake-ups cancelled since the model last heard of them. An
-   * event is taken up once, because the cursor moves with it.
+   * the task that follows the event to its receipt, and move the cursor to
+   * `position`, all in one commit. `position` is where the feed brought the
+   * event, which is the event's own position unless it is a reply that a receipt
+   * pointed to. The thread's earlier unacted events go with it, and so do the
+   * wake-ups cancelled since the model last heard of them. An event is taken up
+   * once, because the cursor moves with it.
    */
-  admit(draft: Omit<ChatInput, "earlier" | "cancelled">): Promise<void>;
+  admit(draft: Omit<ChatInput, "earlier" | "cancelled">, position?: number): Promise<void>;
 }
 
 /** What the agent's sessions know of the inputs it took up and has not finished telling their sources about yet. */

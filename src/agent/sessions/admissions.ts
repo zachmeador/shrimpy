@@ -27,9 +27,9 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
       }, context);
     },
 
-    admit(draft) {
+    admit(draft, position = draft.event.seq) {
       return harness.commit(async (tx) => {
-        (await tx.doc(FeedDoc)).cursor = draft.event.seq;
+        (await tx.doc(FeedDoc)).cursor = position;
         const threads = (await tx.doc(SessionsDoc)).sessions;
         const known = Object.hasOwn(threads, draft.threadId) ? threads[draft.threadId] : undefined;
         let conversationId: ConversationId;

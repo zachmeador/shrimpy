@@ -79,8 +79,8 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
     async archiveThread(threadId, archived) {
       return archiveThread(deps, caller(), threadId, archived);
     },
-    async post(threadId, text, requestId, answers) {
-      return post(deps, caller(), threadId, text, requestId, answers);
+    async post(threadId, text, requestId) {
+      return post(deps, caller(), threadId, text, requestId);
     },
     async edit(messageId, text) {
       return editMessage(deps, caller(), messageId, text);

@@ -15,7 +15,7 @@ function onlyAuthor(caller: Member, message: Message, doing: string): void {
  * Change what a message says, as its author. The store writes the event with
  * the change, and writes neither when the message already says that, which
  * makes a retry of an edit harmless. Who the message is for is worked out again
- * from the new text, and from the event it answered, if it answered one.
+ * from the new text.
  */
 export function editMessage(deps: ChatDeps, caller: Member, messageId: unknown, text: unknown): Message {
   const id = identifier(messageId, "messageId");
@@ -28,7 +28,7 @@ export function editMessage(deps: ChatDeps, caller: Member, messageId: unknown, 
       actorId: caller.id,
       at: deps.now(),
       text: body,
-      addressed: addressedMembers(channel, caller, body, tx.answeredMember(message)),
+      addressed: addressedMembers(channel, caller, body),
       preview: previewOf(body),
     });
   });

@@ -1,7 +1,8 @@
 /**
  * What arrives from chat and what goes back: reading the agent's feed of
- * events from its own cursor, deciding which wake it, admitting each as a task
- * of its thread's session, and, once that task knows how the turn ended,
+ * events from its own cursor, deciding which wake it, a reply that answers a
+ * message of the agent's own among them, admitting each as a task of its
+ * thread's session, and, once that task knows how the turn ended,
  * posting the reply and leaving the receipt, which names the event. The same
  * goes for a wake-up the agent asked for, which the sessions admit when it
  * is due: its reply is posted, and it has no receipt. The same goes for an

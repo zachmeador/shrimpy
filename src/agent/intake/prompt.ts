@@ -68,7 +68,9 @@ function cancellations(cancelled: Wakeup[]): string {
  * One event as the model reads it. A post is the message as written. An edit
  * says which message it changed by when that was sent, and gives what it now
  * says. A reaction says who reacted with what, and to which of the agent's
- * messages by when it was sent and how it starts.
+ * messages by when it was sent and how it starts. An answer says who answered
+ * which of the agent's messages, by when it was sent and how it starts, and
+ * gives the reply.
  */
 export function written(event: Snapshot): string {
   switch (event.kind) {
@@ -78,6 +80,8 @@ export function written(event: Snapshot): string {
       return `${event.author} edited their message from ${utc(event.sentAt)} at ${utc(event.at)}. It now reads:\n${event.text}`;
     case "reacted":
       return `${event.by} reacted with ${event.emoji} at ${utc(event.at)} to your message from ${utc(event.sentAt)}, which starts:\n${event.start}`;
+    case "answered":
+      return `${event.by} answered your message from ${utc(event.sentAt)}, which starts:\n${event.start}\n\nTheir reply, written at ${utc(event.at)}:\n${event.text}`;
   }
 }
 

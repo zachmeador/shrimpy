@@ -32,6 +32,7 @@ export { startAgentChild } from "./child.ts";
 export { SCOUT } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
 export { type Talk, talkTo } from "./talk.ts";
+export { shownSinceLastAnswer, type Talking, talking, type Turn } from "./talking.ts";
 export { callingTools } from "./tools.ts";
 export { removeTrigger, writeTrigger } from "./triggers.ts";
 export { answered, assistantItems, toolItems } from "./views.ts";

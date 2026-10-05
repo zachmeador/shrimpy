@@ -21,8 +21,9 @@ export const SCHEMA_VERSION = 6;
  * by its `room_key`, its name in lower case, which no other room has. A member
  * is offered a channel's events after its `since_seq`: the position of the
  * newest event when it joined, so that nothing from before comes with it.
- * A message that answers an event keeps that event's position in its own
- * `answers_seq`, so that who it is for can be worked out again when it is edited.
+ * `messages.answers_seq` is not written or read any more: a message does not
+ * say which event it answers. The column stays, empty in every new row, until
+ * the store's next change of shape removes it.
  */
 export const SCHEMA = `
 CREATE TABLE members (

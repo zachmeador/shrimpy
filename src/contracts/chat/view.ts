@@ -106,8 +106,8 @@ export interface Message {
   /**
    * IDs of the members this message is meant for, in the channel's order of
    * members. In a DM that is the other member. In a room it is those the text
-   * mentions as `@name`, everyone but the author when it says `@all`, and the
-   * author of the event it answers, if that is a member. Never its author.
+   * mentions as `@name`, and everyone but the author when it says `@all`. Never
+   * its author.
    */
   addressed: string[];
   /** The emoji on it, in the order each first appeared. */

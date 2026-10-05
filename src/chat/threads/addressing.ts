@@ -31,20 +31,12 @@ function mentions(text: string, name: string): boolean {
  * never its author. In a DM that is the other member. In a room it is the
  * members the text mentions as `@name`, matched as names are matched elsewhere,
  * whatever the case, and every member but the author when it says `@all`. A
- * name that is no member's is for nobody. `answered` is the member whose event
- * the message answers, who is for it too when they are a member of the room.
+ * name that is no member's is for nobody.
  */
-export function addressedMembers(
-  channel: ChannelRecord,
-  author: Member,
-  text: string,
-  answered?: string,
-): string[] {
+export function addressedMembers(channel: ChannelRecord, author: Member, text: string): string[] {
   const others = channel.members.filter((member) => member.id !== author.id);
   if (channel.kind === "dm") return others.map((member) => member.id);
   const lowered = text.toLowerCase();
   if (mentions(lowered, EVERYONE)) return others.map((member) => member.id);
-  return others
-    .filter((member) => member.id === answered || mentions(lowered, member.name.toLowerCase()))
-    .map((member) => member.id);
+  return others.filter((member) => mentions(lowered, member.name.toLowerCase())).map((member) => member.id);
 }

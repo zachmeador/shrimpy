@@ -2,6 +2,7 @@ import type { ChatEvent } from "../../contracts/chat/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
+import { takeUpAnswer } from "./answer.ts";
 import type { Admissions } from "./events.ts";
 import { pause } from "./pause.ts";
 import { takeUp } from "./wake.ts";
@@ -28,6 +29,8 @@ export interface FeedOptions {
  * refuses as past the end means its store was replaced, and the agent reads
  * the new log from the start. A failure is reported and followed by a pause. A
  * connection that chat cuts off is carried on over the next one, without a pause.
+ * A receipt that says another member answered a message of the agent's own is a
+ * reason to ask chat for the reply it points to, which only chat can give.
  */
 export async function readFeed(options: FeedOptions): Promise<void> {
   const { link, admissions, stop } = options;
@@ -67,10 +70,14 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         continue;
       }
       for (const event of events) {
-        const taken = takeUp(self, event);
+        const waking = takeUp(self, event);
+        const taken =
+          waking?.kind === "answer"
+            ? await takeUpAnswer(chat, self, waking.receipt, waking.reply, signal, (error) => options.onError(error))
+            : waking?.taken;
         if (taken !== undefined) {
-          // The agent's place in the feed moves in the commit that takes the event up.
-          await admissions.admit(taken);
+          // The agent's place in the feed moves in the commit that takes the event up, to where the feed brought it.
+          await admissions.admit(taken, event.seq);
           cursor = stored = at = event.seq;
         } else {
           at = event.seq;
