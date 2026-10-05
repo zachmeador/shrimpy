@@ -29,9 +29,8 @@ export interface HomeContext {
 }
 
 /** What a home would give an agent if it started now, without starting anything. */
-export interface ContextPreview {
+export interface ContextPreview extends ContextReport {
   readonly sections: readonly RenderedSection[];
-  readonly leftOut: readonly LeftOut[];
 }
 
 /**
@@ -76,7 +75,7 @@ export async function homeContext(agent: AgentFacts): Promise<HomeContext> {
 export async function previewContext(agent: AgentFacts): Promise<ContextPreview> {
   const facts = factsOf(agent);
   const snapshot = await readHomeSnapshot(homePaths(facts.home));
-  return { sections: renderSections(facts, snapshot), leftOut: snapshot.leftOut };
+  return { sections: renderSections(facts, snapshot), ...reportOf(snapshot) };
 }
 
 const factsOf = (agent: AgentFacts): AgentFacts => ({ name: agent.name, home: homePaths(agent.home).root });

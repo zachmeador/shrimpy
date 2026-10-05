@@ -10,13 +10,13 @@ import {
   previewHomeContext,
   startHomeAgent,
 } from "../../agent/index.ts";
-import type { Reloaded } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
 import { homeNamed, isPath, newHome } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
+import { leftOutLines, whatItReads } from "./reloaded.ts";
 
 const init: Command = {
   name: "agent init",
@@ -166,15 +166,13 @@ const context: Command = {
     const [given] = expectArguments(positionals, ["<agent>"]);
     const home = homeNamed(given);
 
-    const { sections, leftOut } = await previewHomeContext(home);
+    const { sections, leftOut, ...read } = await previewHomeContext(home);
     io.out(
       `Preview of what the agent would be told if it started now, from the files of ${home}. ` +
-        `A running agent has what it read when it started or last reloaded.\n`,
+        `It would read ${whatItReads(read)}. A running agent has what it read when it started or last reloaded.\n`,
     );
     io.out(sections.map((section) => section.text).join("\n\n"));
-    if (leftOut.length > 0) {
-      io.out(`\nLeft out:\n${leftOut.map((each) => `  ${each.file}: ${each.reason}`).join("\n")}`);
-    }
+    if (leftOut.length > 0) io.out(`\nLeft out:\n${leftOutLines(leftOut).join("\n")}`);
     return 0;
   },
 };
@@ -182,12 +180,13 @@ const context: Command = {
 const reload: Command = {
   name: "agent reload",
   usage: "<agent>",
-  summary: "Make a running agent read its instructions, context files and skills again.",
+  summary: "Make a running agent read its instructions, context files, skills and triggers again.",
   details:
-    "An agent reads SOUL.md, the Markdown files in context/ and the skills in skills/ when it starts, and " +
-    "editing them changes nothing for it until this is run. Each session then uses what changed with its " +
-    "next request, and what it already holds is not rewritten. A file the agent cannot use is left out and " +
-    "named, and the rest is read. To see what a home gives an agent now, use shrimpy agent context.",
+    "An agent reads SOUL.md, the Markdown files in context/, the skills in skills/ and the triggers in " +
+    "triggers/ when it starts, and editing them changes nothing for it until this is run. Each session then " +
+    "uses what changed in its instructions with its next request, and what it already holds is not rewritten; " +
+    "a trigger follows its file at once. A file the agent cannot use is left out and named, and the rest is " +
+    "read. To see what a home gives an agent now, use shrimpy agent context.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [agent] = expectArguments(positionals, ["<agent>"]);
@@ -196,26 +195,12 @@ const reload: Command = {
       const reloaded = await connection.reload();
       io.out(
         `Reloaded. The agent at ${home} now reads ${whatItReads(reloaded)}. ` +
-          "Each of its sessions uses the change with its next request.",
+          "Each of its sessions uses a change to its instructions with its next request; a trigger follows its file at once.",
       );
-      if (reloaded.leftOut.length > 0) {
-        io.out(`Left out:\n${reloaded.leftOut.map((each) => `  ${each.file}: ${each.reason}`).join("\n")}`);
-      }
+      if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
       return 0;
     });
   },
 };
-
-/** What a reload found, such as "SOUL.md, 2 context files and 1 skill". */
-function whatItReads({ soul, files, skills }: Reloaded): string {
-  const parts = [
-    ...(soul ? ["SOUL.md"] : []),
-    ...(files > 0 ? [`${files} context ${files === 1 ? "file" : "files"}`] : []),
-    ...(skills > 0 ? [`${skills} ${skills === 1 ? "skill" : "skills"}`] : []),
-  ];
-  const last = parts.pop();
-  if (last === undefined) return "nothing from its home's files";
-  return parts.length === 0 ? last : `${parts.join(", ")} and ${last}`;
-}
 
 export const agentCommands: Command[] = [init, serve, status, reload, context];

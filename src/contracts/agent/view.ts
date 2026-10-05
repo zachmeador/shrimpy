@@ -160,6 +160,8 @@ export interface Reloaded {
   files: number;
   /** How many skills it tells its sessions about. */
   skills: number;
+  /** How many triggers it has now, on or off, counting one whose file it could not use but still has a last valid definition of. */
+  triggers: number;
   /** Files it did not use, each with why. Everything else was read. */
   leftOut: { file: string; reason: string }[];
 }

@@ -117,7 +117,19 @@ A key nobody knows is an error that names the key and says which are allowed. Th
 
 With no `thread`, a trigger has a session of its own, made at its first occurrence and kept from one to the next, so it has its own history. It is addressed as `trigger:` and the trigger's name, so `shrimpy sessions read scout trigger:nightly` shows it. It is behind no thread, so what its turn writes last is posted nowhere: it uses `send_message` with `to` when it has something to say, and says so to the model. `check_back` works there too. What the model reads for an occurrence is that this is the trigger of that name, when it fired and what its schedule is, and then the prompt as written.
 
-An occurrence is an input of a session like a message or a wake-up, and the same task follows it: stopping the session's work stops the occurrence's turn and leaves the trigger on. A trigger and each occurrence are tasks of the engine, so a trigger that came due while the agent was down runs once when the agent starts, however many times it missed, and then goes back to its schedule; an occurrence happens once however often the agent is killed meanwhile; and a stopped agent runs no triggers. Each occurrence's outcome (answered, silent, failed, stopped or skipped) is in the agent's records, and a failure is reported on standard error, since an occurrence has no receipt. The agent's API lists every trigger with its schedule, whether it is on, its next time and how its last occurrence ended; shows one with its definition and recent occurrences; and fires one now. No command uses these yet.
+An occurrence is an input of a session like a message or a wake-up, and the same task follows it: stopping the session's work stops the occurrence's turn and leaves the trigger on. A trigger and each occurrence are tasks of the engine, so a trigger that came due while the agent was down runs once when the agent starts, however many times it missed, and then goes back to its schedule; an occurrence happens once however often the agent is killed meanwhile; and a stopped agent runs no triggers. Each occurrence's outcome (answered, silent, failed, stopped or skipped) is in the agent's records, and a failure is reported on standard error, since an occurrence has no receipt. The agent's API lists every trigger with its schedule, whether it is on, its next time and how its last occurrence ended; shows one with its definition and recent occurrences; and fires one now.
+
+The `triggers` commands use it, and write the files so that nobody has to. They act on the agent whose shell they run in, so an agent makes its own, and anywhere else they take `--agent`, a name or a path.
+
+```bash
+npm run shrimpy -- triggers add nightly --cron "0 3 * * *" "Look over today's notes and tidy what needs it." --agent scout
+npm run shrimpy -- triggers --agent scout
+npm run shrimpy -- triggers show nightly --agent scout
+npm run shrimpy -- triggers run nightly --agent scout
+npm run shrimpy -- triggers off nightly --agent scout
+```
+
+`add` makes the file or replaces the one of that name, `on` and `off` set `enabled` in it, and `remove` deletes it. What a command is about to write is checked first by the check the agent makes when it reads a file, so a schedule that is wrong is refused with the key and what it may be, and nothing is written. A running agent is then told to `reload`, and the command prints its answer, naming any file it left out; with no agent running, the change takes effect when the agent starts. `add` ends by saying when the trigger runs first. `triggers`, `show` and `run` ask the running agent. With none running, `run` says so and names the command that starts one, and `triggers` and `show` print what the files say, which has no times and no outcomes, and exit 1.
 
 ## Talk to an agent
 
@@ -188,12 +200,19 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `agent init <agent> --model <provider/id> [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status <agent>` | Say whether the agent is running, and how to reach it. |
-| `agent reload <agent>` | Make a running agent read its instructions, context files and skills again. |
+| `agent reload <agent>` | Make a running agent read its instructions, context files, skills and triggers again. |
 | `agent context <agent>` | Preview what an agent would be told, from its home's files as they are now. |
-| `sessions list <agent>` | List the sessions of a running agent: the thread and channel each is behind, and whether it is working. |
-| `sessions read <agent> <thread> [--json]` | Show the session behind a thread: what was said, what the tools did, and what it is doing now. |
-| `sessions steer <agent> <thread> <text> [--request-id <id>] [--wait]` | Give the session behind a thread input; it joins work already running. |
-| `sessions stop <agent> <thread>` | Stop the work in the session behind a thread, and withdraw the input it has not picked up. |
+| `sessions list <agent>` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working. |
+| `sessions read <agent> <session> [--json]` | Show a session: what was said, what the tools did, and what it is doing now. |
+| `sessions steer <agent> <session> <text> [--request-id <id>] [--wait]` | Give a session input; it joins work already running. |
+| `sessions stop <agent> <session>` | Stop the work in a session, and withdraw the input it has not picked up. |
+| `triggers [--agent <agent>]` | List the triggers of an agent: each one's schedule, whether it is on, when it runs next and how its last occurrence ended. |
+| `triggers add <name> (--every <delay> \| --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] "<prompt>" [--agent <agent>]` | Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule. |
+| `triggers show <name> [--agent <agent>]` | Show a trigger: what it says, when it runs next and its latest occurrences. |
+| `triggers run <name> [--agent <agent>]` | Fire a trigger now, apart from its schedule, which it keeps. |
+| `triggers on <name> [--agent <agent>]` | Turn a trigger on. |
+| `triggers off <name> [--agent <agent>]` | Turn a trigger off, and keep it. |
+| `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
 | `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |

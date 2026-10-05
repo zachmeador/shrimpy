@@ -90,6 +90,16 @@ export function newHome(word: string): string {
   return isPath(word) ? resolve(word) : homeIn(ownFolder(), word);
 }
 
+/**
+ * The agents the Shrimpy folder has, by name, and the folder of `agents/` they
+ * are in, for an error that has to say which to name. Nothing is made, and a
+ * folder that is someone else's is refused as it is anywhere else.
+ */
+export function agentsListed(): { where: string; names: string[] } {
+  const folder = ownFolder();
+  return { where: join(folder, AGENTS), names: agentsIn(folder) };
+}
+
 /** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. With none, the error says how to make one. */
 export function allHomes(): string[] {
   const folder = ownFolder();

@@ -8,4 +8,13 @@
  * line knows this folder: the programs take explicit paths. It must not know
  * how a command runs or how an agent works inside its home.
  */
-export { allHomes, dataFolder, FOLDER_VARIABLE, folderPath, homeNamed, isPath, newHome } from "./folder.ts";
+export {
+  agentsListed,
+  allHomes,
+  dataFolder,
+  FOLDER_VARIABLE,
+  folderPath,
+  homeNamed,
+  isPath,
+  newHome,
+} from "./folder.ts";

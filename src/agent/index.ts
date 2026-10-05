@@ -4,15 +4,16 @@
  * made by its name to), and takes part in the network as a member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
- * home, previews what a home would tell an agent and checks what a trigger's
- * file says through this door, none of which needs a running agent. It must
- * not know who its clients are beyond who it is told they are, or anything
- * about the chat server and the gateway beyond their contracts.
+ * home, previews what a home would tell an agent, and reads, checks and
+ * changes the files of its triggers through this door, none of which needs a
+ * running agent. It must not know who its clients are beyond who it is told
+ * they are, or anything about the chat server and the gateway beyond their
+ * contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
-import { homePaths, loadHome, readTriggers } from "./home/index.ts";
+import { homePaths, loadHome, readTriggers, type TriggerFiles } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { createDelivery } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
@@ -32,15 +33,25 @@ import { type CloseOptions, stopper } from "./stop.ts";
 export type { ContextPreview } from "./extensions/index.ts";
 export {
   checkAgentName,
+  describeSchedule,
+  draftTrigger,
   type InitOptions,
   type InitResult,
   initHome,
   type ModelChoice,
   modelLabel,
+  type NewTrigger,
+  NoTriggerError,
   parseModelChoice,
   parseTrigger,
+  removeTrigger,
+  saveTrigger,
+  switchTrigger,
   type TriggerDefinition,
+  type TriggerDraft,
   TriggerFileError,
+  type TriggerFiles,
+  type TriggerProblem,
 } from "./home/index.ts";
 export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
@@ -138,13 +149,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     run = await sessions.start();
     // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
     // while the agent was down is not woken by its old one.
-    for (const { file, reason } of await triggers.reload()) report(new Error(`${file} was left out: ${reason}.`));
+    for (const { file, reason } of (await triggers.reload()).leftOut) report(new Error(`${file} was left out: ${reason}.`));
     host.resume();
     // Reloading reads the instructions, context files and skills, and the triggers.
     const files: HomeFiles = {
       async reload() {
         const read = await context.reload();
-        return { ...read, leftOut: [...read.leftOut, ...(await triggers.reload())] };
+        const followed = await triggers.reload();
+        return { ...read, triggers: followed.count, leftOut: [...read.leftOut, ...followed.leftOut] };
       },
     };
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
@@ -215,12 +227,36 @@ export async function startHomeAgent(home: string, options: { shrimpy?: readonly
   return { ...agent, name: loaded.name, home: loaded.paths.root };
 }
 
+/** What a home would give an agent: what it would be told, and how many triggers it would run. */
+export interface HomePreview extends ContextPreview {
+  /** How many of the home's trigger files check out. */
+  readonly triggers: number;
+}
+
 /**
- * What the agent whose home is `home` would be told if it started now, read
- * from the home's files without starting anything and without a lock. An agent
- * that is running has what it read when it started or last reloaded.
+ * What the agent whose home is `home` would be told if it started now, and how
+ * many triggers it would have, read from the home's files without starting
+ * anything and without a lock. A trigger file that does not check out is among
+ * what is left out. An agent that is running has what it read when it started
+ * or last reloaded.
  */
-export async function previewHomeContext(home: string): Promise<ContextPreview> {
+export async function previewHomeContext(home: string): Promise<HomePreview> {
   const loaded = loadHome(home);
-  return previewContext({ name: loaded.name, home: loaded.paths.root });
+  const preview = await previewContext({ name: loaded.name, home: loaded.paths.root });
+  const { triggers, problems } = await readTriggers(loaded.paths);
+  return {
+    ...preview,
+    triggers: triggers.length,
+    leftOut: [...preview.leftOut, ...problems.map(({ file, reason }) => ({ file, reason }))],
+  };
+}
+
+/**
+ * The triggers the files of the home of `home` hold, and the files that do not
+ * check out, read without starting anything and without a lock. This is what a
+ * running agent would have after it reloaded; it has no times and no outcomes,
+ * which only a running agent knows.
+ */
+export async function readHomeTriggers(home: string): Promise<TriggerFiles> {
+  return readTriggers(loadHome(home).paths);
 }

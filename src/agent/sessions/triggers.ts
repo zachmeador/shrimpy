@@ -64,10 +64,10 @@ export interface Triggers {
    * that checks out is the trigger's definition from now on: a new schedule
    * counts from now, and a new prompt is used from the next occurrence. A file
    * that is gone, or that says `enabled: false`, ends the trigger. A file that
-   * does not check out leaves the trigger as it was. Answers with the files it
-   * left out, and why.
+   * does not check out leaves the trigger as it was. Answers with how many
+   * triggers the agent has now, on or off, and the files it left out, and why.
    */
-  reload(): Promise<LeftOut[]>;
+  reload(): Promise<{ count: number; leftOut: LeftOut[] }>;
   /** Every trigger the agent has, in order of name. */
   list(): Promise<TriggerSummary[]>;
   /** One trigger with its definition and recent occurrences. Refused when there is none of that name. */
@@ -143,7 +143,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
   /** Reloading twice at once would reconcile twice, and the later reading may be the older. */
   let queue: Promise<unknown> = Promise.resolve();
 
-  async function reconcile(files: TriggerFiles): Promise<LeftOut[]> {
+  async function reconcile(files: TriggerFiles): Promise<{ count: number; leftOut: LeftOut[] }> {
     const now = Date.now();
     const result = await harness.commit(async (tx) => {
       const live = await liveTriggerTasks(tx);
@@ -196,10 +196,10 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
           await tx.createTask(task, waiting, { ownership: { kind: "conversation" }, conversationId: owner, background: true });
         }
       }
-      return { abort, leftOut };
+      return { abort, leftOut, count: Object.keys(after).length };
     }, context);
     for (const id of result.abort) await harness.abortTask(id, context);
-    return result.leftOut;
+    return { count: result.count, leftOut: result.leftOut };
   }
 
   /** The tasks that wait for a trigger and are not being ended, with what they are for. */

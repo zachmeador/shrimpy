@@ -4,7 +4,8 @@
  * the agent, read into a snapshot together with the skills that ship with
  * Shrimpy, and what its triggers files say: when each fires, and what it is to
  * do. Reading and checking a trigger needs no running agent, so whatever writes
- * a trigger checks it the way the agent does. It must not know about the
+ * a trigger checks it the way the agent does, and this module is the one that
+ * writes, changes and deletes the files of triggers. It must not know about the
  * engine, the model runtime or how the agent is reached.
  */
 export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "./agent-config.ts";
@@ -15,6 +16,15 @@ export { type LoadedHome, loadHome } from "./load.ts";
 export { describeSchedule, nextOccurrence, sameSchedule } from "./schedule.ts";
 export { type ContextFile, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
 export type { SkillTrail } from "./skills.ts";
+export {
+  draftTrigger,
+  NoTriggerError,
+  type NewTrigger,
+  removeTrigger,
+  saveTrigger,
+  switchTrigger,
+  type TriggerDraft,
+} from "./trigger-files.ts";
 export {
   parseTrigger,
   readTriggers,

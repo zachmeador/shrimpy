@@ -20,7 +20,7 @@ async function standInAgent(t: TestContext, attach: (threadId: string) => Promis
         triggers: () => Promise.resolve([]),
         trigger: () => Promise.reject(new Error("No triggers here.")),
         fire: () => Promise.reject(new Error("No triggers here.")),
-        reload: () => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] }),
+        reload: () => Promise.resolve({ soul: false, files: 0, skills: 0, triggers: 0, leftOut: [] }),
       }),
   });
 }

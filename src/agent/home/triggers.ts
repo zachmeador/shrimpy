@@ -60,6 +60,11 @@ const KEYS = ["every", "cron", "timezone", "thread", "enabled", "overlap"] as co
 const THREAD = /^th_[0-9a-z]{12}$/;
 const EXAMPLE_THREAD = "th_4k9x2m7q0b3d";
 
+/** For a trigger's name that comes from outside a file, such as a command line. It follows the rule for agents' names. */
+export function checkTriggerName(name: string): void {
+  if (!isName(name)) throw new TriggerFileError(`the trigger name "${name}" ${NAME_RULE}`);
+}
+
 /**
  * Read and check one trigger's file. `name` is the file's name without `.md`,
  * and `text` is everything in it: front matter with the schedule, then the

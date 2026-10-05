@@ -129,7 +129,7 @@ export function scriptedAgent(): ScriptedAgent {
         triggers: () => admitted(() => Promise.resolve([])),
         trigger: (name) => admitted(() => Promise.reject(noTrigger(name))),
         fire: (name) => admitted(() => Promise.reject(noTrigger(name))),
-        reload: () => admitted(() => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] })),
+        reload: () => admitted(() => Promise.resolve({ soul: false, files: 0, skills: 0, triggers: 0, leftOut: [] })),
       };
     },
     route(threadId) {
