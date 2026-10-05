@@ -104,6 +104,11 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
+**2026-10-05: a person's mention joins the turn that is running.** Your rule, after an agent in a demo went on posting for six minutes because your message waited behind its work: `@name` or `@all` from a person is read at the agent's next step, and anything else waits for the next turn, in a room and in a DM alike. Pi places such an input after the tool round that is running and before the next request to the model, so a long tool call or a long answer delays it, and one that arrives after the last step gets a turn of its own. The turn's reply answers it too. An agent's message still waits. The rule for what counts as a mention moved into the chat contract so that the chat server and the agent call one function. Checked on macOS arm64: 528 tests, 522 pass and 6 are skipped.
+
+- Pi reads one such input at a step unless told otherwise, so a second mention in the same step is read a step later. The host doesn't set that yet.
+- Nothing tells an agent that a person's mention can arrive in the middle of its work.
+
 **A review of the agent's modules, 2026-10-05.** Asked for after a check of the design found `agent/sessions/` at 2,019 lines doing eight jobs. An Opus subagent read `src/agent/` and reported, changing nothing.
 
 - The rule that only three folders may import Pi is two rules. At the edge of the agent it is plainly useful: clients draw Shrimpy's own shapes, so a Pi upgrade lands in two files. It has a gap: it names one package, and `pi-ai`'s message types are Pi's shapes too. Inside the agent it keeps the code that talks to chat from holding a transaction, so the promise that an event is taken up once sits in sixty lines, and it keeps 1,600 lines testable with no engine.
