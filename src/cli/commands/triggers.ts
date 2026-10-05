@@ -162,8 +162,9 @@ const list: Command = {
     "The other commands take a trigger's name: show, run, on, off and remove, as in: shrimpy triggers show nightly. " +
       "Each has its own --help.",
     "",
-    "These commands act on the agent whose shell they run in. Anywhere else, name the agent with --agent <agent>, " +
-      "a name or a path. With no agent running, this shows only what the trigger files say, and exits 1.",
+    "With no --agent these commands act on the agent whose shell they run in, and in your own terminal on the only " +
+      "agent your Shrimpy folder has. --agent <agent>, a name or a path, acts on another, and is needed when the " +
+      "folder has more than one agent. With no agent running, this shows only what the trigger files say, and exits 1.",
     "",
     ABOUT_ANOTHER_AGENT,
   ].join("\n"),

@@ -193,8 +193,9 @@ test("run fires a trigger now even when it is off, and show lists the occurrence
   assert.equal((await run("triggers", "show", "nothing", "--agent", "scout")).code, 1);
 });
 
-test("in an agent's shell the commands act on that agent, and anywhere else they need --agent", { timeout }, async (t) => {
+test("in an agent's shell the commands act on that agent, and in a person's terminal they need --agent when the folder has more than one", { timeout }, async (t) => {
   const { home } = await servedScout(t);
+  assert.equal((await run("agent", "init", "rex", "--model", "local/test-model")).code, 0);
   // The launcher in an agent's home sets this for its shell; a test that runs in one must not take it for its own.
   const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
   const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };

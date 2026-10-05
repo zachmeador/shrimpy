@@ -2,14 +2,16 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
 import { stopAfter, tempDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
-import { captureIo, commandLines, useShrimpyDir } from "./testing/index.ts";
+import { captureIo, commandLines, shrimpy, useShrimpyDir } from "./testing/index.ts";
 
 /*
  * Daily use needs no paths: an agent is a name, and its home is in the Shrimpy
  * folder. These run the commands in this process, against a folder of the
- * test's own, and start no program.
+ * test's own, and start no program. Where the answer depends on the shell a
+ * command runs in, it runs as a process of its own.
  */
 
 /** Run `shrimpy` with `args` in this process and return the code with what it printed. */
@@ -104,4 +106,29 @@ test("a name with no home behind it says so, lists the agents the folder has, an
   process.chdir(here);
   stopAfter(t, () => process.chdir(before));
   assert.match((await run("agent", "status", "--agent", "maya")).err, /write \.\/maya/);
+});
+
+test("in a person's terminal a command about one agent acts on the only agent the folder has, and with two it lists them and asks for --agent; in an agent's shell it acts on that agent whatever the folder has", { timeout: 30_000 }, async (t) => {
+  const folder = useShrimpyDir(t);
+  const homeOf = (name: string): string => join(folder, "agents", name);
+  // The launcher in an agent's home sets this for its shell, so each command here says which shell it runs in.
+  const person = { env: { [AGENT_HOME_VARIABLE]: "" } };
+  assert.equal((await run("agent", "init", "scout", ...modelFlags)).code, 0);
+
+  // agent context reads the home's files and starts nothing, and says whose files they are.
+  const only = await shrimpy(["agent", "context"], person);
+  assert.equal(only.code, 0, only.stderr);
+  assert.ok(only.stdout.includes(homeOf("scout")), only.stdout);
+
+  assert.equal((await run("agent", "init", "rex", ...modelFlags)).code, 0);
+  const two = await shrimpy(["agent", "context"], person);
+  assert.equal(two.code, 2);
+  assert.ok(two.stderr.includes("--agent") && two.stderr.includes("rex, scout"), `it asks for the flag and lists the agents:\n${two.stderr}`);
+  const named = await shrimpy(["agent", "context", "--agent", "rex"], person);
+  assert.equal(named.code, 0, named.stderr);
+  assert.ok(named.stdout.includes(homeOf("rex")), named.stdout);
+
+  const inShell = await shrimpy(["agent", "context"], { env: { [AGENT_HOME_VARIABLE]: homeOf("scout") } });
+  assert.equal(inShell.code, 0, inShell.stderr);
+  assert.ok(inShell.stdout.includes(homeOf("scout")), inShell.stdout);
 });

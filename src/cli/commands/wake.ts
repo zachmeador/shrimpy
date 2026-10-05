@@ -15,7 +15,15 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { leftOutLines } from "./reloaded.ts";
-import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
+import {
+  ABOUT_ANOTHER_AGENT,
+  AGENT_OPTION,
+  agentToActOn,
+  command,
+  mayActOn,
+  type Target,
+  WHICH_AGENT,
+} from "./which-agent.ts";
 
 /** The policies as a sentence gives them: "none, mentions, people or all". */
 const POLICIES = `${WAKE_POLICIES.slice(0, -1).join(", ")} or ${WAKE_POLICIES.at(-1) ?? ""}`;
@@ -65,7 +73,7 @@ const wake: Command = {
   summary: "Choose what wakes an agent in a room, or list what is set.",
   details: [
     "An agent is woken in a DM by every message from the other member. In a room, what wakes it is the room's " +
-      "policy, which this sets for the agent whose shell it runs in, or the one --agent names, a name or a path:",
+      "policy, which this sets:",
     "",
     ...WAKE_POLICIES.map((policy) => `  ${policy.padEnd(10)}${MEANING[policy]}${policy === DEFAULT_WAKE_POLICY ? " This is the default." : ""}`),
     "",
@@ -76,7 +84,7 @@ const wake: Command = {
     "The choice is kept in wake.json in the agent's home. A running agent is told to read its files again, and " +
       "one that is not running reads the file when it starts.",
     "",
-    ABOUT_ANOTHER_AGENT,
+    `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));

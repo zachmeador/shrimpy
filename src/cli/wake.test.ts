@@ -58,7 +58,8 @@ test("wake chooses what wakes an agent in a room, checks the room when the agent
   assert.match(wrong.stderr, /none, mentions, people or all/);
   assert.deepEqual(chosen(), { Ops: "all" });
 
-  // Anywhere else it takes --agent, can't say which rooms the agent is in, and writes the room as it was written.
+  // Anywhere else it takes --agent when the folder has more than one agent, can't say which rooms the agent is in, and writes the room as it was written.
+  assert.equal((await shrimpy(["agent", "init", "rex", "--model", "local/test-model"])).code, 0);
   const unaimed = await shrimpy(["wake", "Ops", "mentions"], elsewhere);
   assert.equal(unaimed.code, 2);
   assert.ok(unaimed.stderr.includes("--agent"), unaimed.stderr);
