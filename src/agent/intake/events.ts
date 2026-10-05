@@ -106,7 +106,8 @@ export type Said = Extract<Snapshot, { kind: "posted" }>;
 /**
  * What was said in a room's thread since the agent last looked, which an event
  * that wakes the agent there comes with. These are messages the agent has not
- * taken up and whose events have no receipt: the agent was only shown them.
+ * taken up as events of its own: it was only shown them. A command it acted on
+ * is one of them.
  */
 export type Backlog = {
   /** The newest of them that fit in what the model is shown, oldest first. */
@@ -286,9 +287,10 @@ export type TurnOutcome =
   | { kind: "failed"; reason: string };
 
 /**
- * What intake needs from the agent's records: where it stands in chat's feed, and
- * a way to take an event up. It is also handed the choices the agent made, in a
- * file of its home, about what wakes it in each room.
+ * What intake needs from the agent's records: where it stands in chat's feed, a
+ * way to take an event up, and a way to stop the work behind a thread, for a
+ * command. It is also handed the choices the agent made, in a file of its home,
+ * about what wakes it in each room.
  */
 export interface Admissions {
   /** What wakes the agent in each room. Without it, every room has the default. */
@@ -315,6 +317,15 @@ export interface Admissions {
    * that position is what the agent has not seen.
    */
   looked(threadId: string): Promise<number | undefined>;
+  /**
+   * Stop the work of the session behind a thread, as stopping it from a client
+   * does: the turn that is running is stopped, the inputs that wait are taken
+   * back, and the wake-ups the session waits on are cancelled. The inputs'
+   * sources are told as they would be of any stop. It does nothing when the
+   * agent has no session there or the session has nothing to stop, and it leaves
+   * the agent's other sessions alone. It resolves once the work has stopped.
+   */
+  stopWork(threadId: string): Promise<void>;
 }
 
 /** What the agent's sessions know of the inputs it took up and has not finished telling their sources about yet. */

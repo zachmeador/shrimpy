@@ -4,6 +4,7 @@ import type { Admissions, Snapshot, Wakeup } from "../intake/index.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { FeedDoc, plain, SessionsDoc } from "./documents.ts";
 import { carrying, takeCancelled, takeEvents } from "./kept.ts";
+import { stopWork } from "./service.ts";
 import { followInput, type TurnTask } from "./turn-task.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -31,6 +32,14 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
       const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
       const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
       return known?.channelId === null ? undefined : known?.looked;
+    },
+
+    async stopWork(threadId) {
+      const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
+      const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
+      if (known === undefined) return;
+      const conversation = await harness.conversation(known.conversationId as ConversationId, context);
+      if (conversation !== undefined) await stopWork(harness, conversation, context);
     },
 
     admit(draft, position = draft.event.seq) {

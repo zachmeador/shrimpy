@@ -8,16 +8,18 @@
  * The same goes for a wake-up the agent asked for, which the sessions admit when
  * it is due: its reply is posted, and it has no receipt. The same goes for an
  * occurrence of a standing trigger, whose reply is posted only if the trigger
- * names a thread. Intake also tells chat which threads the agent is working in,
- * and finds which channel a thread is in, for a trigger whose thread the agent
- * has no session behind yet. It reaches chat only through the link it is handed
- * and the agent's sessions only through `Admissions` and `Working`, and the
- * sessions reach it through `Delivery`, so it must not know the engine, a
- * transport, or how a session or a record is stored. It also decides how an
- * event, a wake-up, an occurrence and a message read to the model, and how a
- * text too long for one message is split. It marks a person's message that
- * mentions the agent as urgent, so that a turn that is running reads it at its
- * next step.
+ * names a thread. A command a person writes in a thread, `/stop`, is no input:
+ * it is acted on when the feed brings it, whatever the room's wake policy, and
+ * is never handed to a session or a model. Intake also tells chat which threads
+ * the agent is working in, and finds which channel a thread is in, for a trigger
+ * whose thread the agent has no session behind yet. It reaches chat only through
+ * the link it is handed and the agent's sessions only through `Admissions` and
+ * `Working`, and the sessions reach it through `Delivery`, so it must not know
+ * the engine, a transport, or how a session or a record is stored. It also
+ * decides how an event, a wake-up, an occurrence and a message read to the
+ * model, and how a text too long for one message is split. It marks a person's
+ * message that mentions the agent as urgent, so that a turn that is running
+ * reads it at its next step.
  */
 export { createDelivery, type Delivery, type DeliveryOptions } from "./delivery.ts";
 export {

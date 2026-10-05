@@ -5,12 +5,29 @@ import { refuse } from "../../lib/refusal/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
 import { waitForSettlement } from "./settlement.ts";
+import { withdrawUnhanded } from "./turn-task.ts";
 import { cancelWakeups } from "./wakeups.ts";
 
 /** A session being served: the contract's service, and a way to stop serving it. */
 export interface ServedSession {
   readonly service: SessionService;
   close(): void;
+}
+
+/**
+ * Stop a session's work: the turn that is running is stopped, the inputs that
+ * wait are taken back, and the wake-ups the session is waiting on are cancelled.
+ * A client's stop and a person's `/stop` in a thread are this, so they do the
+ * same. The tasks that follow the inputs are left to tell their sources how that
+ * ended.
+ */
+export async function stopWork(harness: Harness, conversation: Conversation, context: Context): Promise<void> {
+  // The wake-ups go first, so that none of them starts a turn while the work is being stopped. A stopped turn
+  // may have set another before it ended, so they go again after.
+  await cancelWakeups(harness, conversation.id, context);
+  await withdrawUnhanded(harness, conversation.id, context);
+  await conversation.abort(context);
+  await cancelWakeups(harness, conversation.id, context);
 }
 
 /**
@@ -42,13 +59,7 @@ export async function serveSession(
         return { submission: submission.id };
       },
       wait: (submission, callContext) => waitForSettlement(harness, conversation, submission, callContext),
-      async stop(callContext) {
-        // The wake-ups go first, so that none of them starts a turn while the work is being stopped. A stopped turn
-        // may have set another before it ended, so they go again after.
-        await cancelWakeups(harness, conversation.id, callContext);
-        await conversation.abort(callContext);
-        await cancelWakeups(harness, conversation.id, callContext);
-      },
+      stop: (callContext) => stopWork(harness, conversation, callContext),
     },
     close() {
       stopPublishing();

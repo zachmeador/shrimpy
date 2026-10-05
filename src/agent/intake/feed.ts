@@ -4,6 +4,7 @@ import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import { takeUpAnswer } from "./answer.ts";
 import { knownChannels } from "./channels.ts";
+import { commandFor, obey } from "./commands.ts";
 import type { Admissions } from "./events.ts";
 import { pause } from "./pause.ts";
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "./policy.ts";
@@ -33,11 +34,14 @@ export interface FeedOptions {
  * the new log from the start. A failure is reported and followed by a pause. A
  * connection that chat cuts off is carried on over the next one, without a pause.
  * A receipt that says another member answered a message of the agent's own is a
- * reason to ask chat for the reply it points to, which only chat can give.
+ * reason to ask chat for the reply it points to, which only chat can give. A
+ * command that a person wrote is not taken up like the rest: it is acted on as
+ * the feed brings it.
  */
 export async function readFeed(options: FeedOptions): Promise<void> {
   const { link, admissions, stop } = options;
   const stopped = (): boolean => stop.aborted;
+  const reported = (error: Error): void => options.onError(error);
   const pauses = options.backoff ?? backoff();
   let loaded = false;
   const channels = knownChannels();
@@ -82,9 +86,17 @@ export async function readFeed(options: FeedOptions): Promise<void> {
       }
       for (const event of events) {
         // What the agent did itself is the most of what the feed offers it, and is passed over without asking chat anything.
-        const policy = passedOver(self, event) ? DEFAULT_WAKE_POLICY : await policyOf(chat, event, signal);
+        const passed = passedOver(self, event);
+        // A command is acted on at once, ahead of anything queued, and goes no further: no wake policy turns it away, no
+        // model reads it, and no session is handed it. The agent's place in the feed moves past it with the page.
+        const command = passed ? undefined : commandFor(self, event);
+        if (command !== undefined) {
+          await obey(command, event, { chat, admissions, signal, onError: reported });
+          at = event.seq;
+          continue;
+        }
+        const policy = passed ? DEFAULT_WAKE_POLICY : await policyOf(chat, event, signal);
         const waking = takeUp(self, event, policy);
-        const reported = (error: Error): void => options.onError(error);
         const woken =
           waking?.kind === "answer"
             ? await takeUpAnswer(chat, self, policy, waking.receipt, waking.reply, signal, reported)

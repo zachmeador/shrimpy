@@ -5,6 +5,7 @@ import {
   type Cursor,
   defineExtension,
   defineTask,
+  type Harness,
   type NextTaskState,
   type RunningTask,
   type SettledSubmissionRecord,
@@ -269,6 +270,21 @@ async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise
     return undefined;
   }, context);
   return found.sort((a, b) => a.id - b.id).map((record) => record.input as Outstanding);
+}
+
+/**
+ * Take back the inputs of a session that no task has handed over yet: ones taken
+ * up a moment ago, such as the events that come before a stop in one page of
+ * chat's feed. Each such task is aborted, so its input does not reach the
+ * session, and its source is told it was skipped, or stopped if it got there
+ * meanwhile. An input that was handed over is the session's to withdraw or stop.
+ */
+export async function withdrawUnhanded(harness: Harness, conversationId: ConversationId, context: Context): Promise<void> {
+  const { tasks } = await harness.inspect(context);
+  for (const { record } of tasks) {
+    if (record.kind !== TURN_TASK || record.conversationId !== conversationId || record.abortRequested) continue;
+    if (phaseOf(record) === "handOver") await harness.abortTask(record.id, context);
+  }
 }
 
 /** The tasks that follow an input and are live, with none of them being aborted: those of one session, or of all. */

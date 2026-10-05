@@ -10,12 +10,13 @@
  * input's source is told how its turn ended; the task that waits for a wake-up
  * to come due; and the task that waits for each trigger's next occurrence and
  * makes it. It answers what intake asks about those tasks, and what the agent's
- * API asks about the triggers. It opens the records at the start, giving them an
- * ID of their own the first time, and refuses, saying what to do, a home whose
- * documents another version wrote. It notes in them that the agent is running
- * until an orderly stop, and counts the crashes that the turns it interrupted
- * live through. It must not know about transports, or about chat beyond the
- * messages it is handed.
+ * API asks about the triggers, and stops the work of a thread's session when
+ * intake is told to by a command, as it does for a client's stop. It opens the
+ * records at the start, giving them an ID of their own the first time, and
+ * refuses, saying what to do, a home whose documents another version wrote. It
+ * notes in them that the agent is running until an orderly stop, and counts the
+ * crashes that the turns it interrupted live through. It must not know about
+ * transports, or about chat beyond the messages it is handed.
  */
 export type { Run } from "./crashes.ts";
 export type { SessionDefaults } from "./defaults.ts";
