@@ -54,10 +54,10 @@ Decided on 2026-10-05 and not built yet: every time is written in local time wit
 
 Left open by rooms' first step:
 
-- A post can name one event it answers, and its author is then addressed. One reply can answer several events from different people, and each waiting event's task posts that same reply, so one name can't be right. To be replaced before the agent uses it.
+- The chat store keeps a column for the event a post answers, which nothing writes or reads now. It goes at the next change of the store's shape.
+- After a fresh start an agent has forgotten where it last looked, so its first wake in a room shows up to 20,000 characters of history, from before it joined included.
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment and dropped.
 - In a room's thread the terminal can't stop an agent or show its work as it happens, and it polls every room's threads every two seconds.
-- The message tools still say rooms come later, and reach no room.
 - An edit that removes a mention un-addresses the original post for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - Two full runs of the suite have failed one test and passed when run again: a test of the chat server stopping, once in eight runs under load, and one on 2026-10-05 whose name wasn't captured, once in seven runs. Something in the suite depends on timing.
 
@@ -105,6 +105,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Phase 5 progress, 2026-10-05: rooms in the agent.** Built from what the first demo showed. `send_message` and `read_messages` reach a room, so a session behind a DM can post there. An answer wakes whoever asked, once, read from the receipt, and the argument a post had for naming what it answers is gone. An agent woken in a room reads what was said since it last looked, up to 20,000 characters, and every message says who it was for. The default wake policy is `people`, and `shrimpy wake` sets a room to `none`, `mentions`, `people` or `all`. Every agent is told how another agent is reached and what to do with a person's message that mentions nobody. Checked on macOS arm64: 513 tests, 507 pass and 6 are skipped.
 
 **The first demo with two agents, 2026-10-05.** You put scout and nervous-bob in a room and asked for a poem in five minutes. They finished one. What the room's thread and the four sessions behind it show:
 
