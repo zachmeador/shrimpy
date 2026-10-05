@@ -156,7 +156,12 @@ test("stopping run while it waits leaves the message and the agent's work alone,
   // The message is where it was, and the agent still finishes what it was doing.
   const you = await talking.you();
   finish.resolve(answered("done anyway"));
-  const [message, reply] = await eventually(() => you.chat.read(thread, null, 10), (messages) => messages.length === 2);
+  // The agent posts its reply first and leaves the receipt after it.
+  const [message, reply] = await eventually(
+    () => you.chat.read(thread, null, 10),
+    (messages) => messages.length === 2 && messages[0]?.receipts.length === 1,
+    { what: "the reply, and the receipt on the message" },
+  );
   assert.ok(message && reply);
   assert.equal(message.text, "take your time");
   assert.equal(reply.text, "done anyway");

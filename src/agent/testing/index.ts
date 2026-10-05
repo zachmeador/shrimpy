@@ -195,11 +195,15 @@ export function fauxModels(options: {
   return { models, model: { provider: model.provider, modelId: model.id } };
 }
 
-/** The requests `fauxModels` logged for `home`, oldest first. The digest identifies the messages sent. */
+/**
+ * The requests `fauxModels` logged for `home`, oldest first. The digest
+ * identifies the messages sent. An agent in another process may be writing the
+ * file as it is read: a line with no newline yet is left for the next read.
+ */
 export function loggedRequests(home: string): { pid: number; digest: string }[] {
   return readFileSync(join(home, "requests.jsonl"), "utf8")
-    .trim()
     .split("\n")
+    .slice(0, -1)
     .map((line) => JSON.parse(line) as { pid: number; digest: string });
 }
 

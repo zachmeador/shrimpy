@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { settle } from "../lib/testing/index.ts";
 import { mainThread, posted, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -96,7 +95,8 @@ test("a member added to a room is offered what comes after, never what came befo
   const main = await mainThread(zach, room.id);
   await zach.chat.post(main.id, "before", "zach-1");
   const waiting = maya.chat.feed(await maya.chat.head(), 10);
-  await settle();
+  // The server takes up a connection's calls in order, so once it has answered this one it has the feed.
+  await maya.chat.head();
 
   await zach.chat.addMembers(room.id, [maya.me.id]);
   await zach.chat.post(main.id, "after", "zach-2");
