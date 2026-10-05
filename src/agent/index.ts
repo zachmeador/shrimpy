@@ -17,7 +17,7 @@ import { createDelivery } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { startServer } from "./server.ts";
-import { createSessions, type SessionDefaults, turnTask } from "./sessions/index.ts";
+import { createSessions, openRecords, type SessionDefaults, turnTask } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 
 export type { ContextPreview } from "./extensions/index.ts";
@@ -72,26 +72,31 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   socketPathFor(options.home, "gw");
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
-  // The message tools and the tasks that follow events are installed with the engine, before the agent has a link to
-  // chat. The tools ask for the one it has when they run, and say chat is unreachable if there is none; the tasks wait
-  // for the link `join` gives them.
-  let joined: Joined | undefined;
-  const messages = messageTools({
-    chat: () => joined?.chat(),
-    gateway: () => joined?.gateway(),
-    ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
-  });
-  const delivery = createDelivery({
-    onError: report,
-    ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
-    ...(options.join?.backoff === undefined ? {} : { backoff: options.join.backoff }),
-  });
-  const turn = turnTask({ delivery, onError: report });
-  const host = await openHost(options, [context.extension, messages, turn.extension]);
+  const host = await openHost(options);
   try {
     for (const { file, reason } of context.report.leftOut) report(new Error(`${file} was left out: ${reason}.`));
+    // What the agent posts under names of its own making carries what its records are called, and only the opened
+    // storage can say that. So the tools and tasks that post are made once the records are open, and installed before
+    // anything runs.
+    const recordsId = await openRecords(host.harness, homePaths(options.home).database);
+    // They are installed before the agent has a link to chat. The tools ask for the one it has when they run, and say
+    // chat is unreachable if there is none; the tasks wait for the link `join` gives them.
+    let joined: Joined | undefined;
+    const messages = messageTools({
+      recordsId,
+      chat: () => joined?.chat(),
+      gateway: () => joined?.gateway(),
+      ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
+    });
+    const delivery = createDelivery({
+      recordsId,
+      onError: report,
+      ...(options.join?.messageLimit === undefined ? {} : { messageLimit: options.join.messageLimit }),
+      ...(options.join?.backoff === undefined ? {} : { backoff: options.join.backoff }),
+    });
+    const turn = turnTask({ delivery, onError: report });
+    host.install(context.extension, messages, turn.extension);
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, turn.task);
-    await sessions.check(homePaths(options.home).database);
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
     host.resume();

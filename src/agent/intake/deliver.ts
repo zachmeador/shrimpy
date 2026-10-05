@@ -10,6 +10,14 @@ import type { Outstanding, TurnOutcome } from "./events.ts";
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
 
+/** What the agent's replies are posted with. */
+interface Posting {
+  /** Characters in the longest message the agent posts; a longer answer is posted in parts. */
+  messageLimit: number;
+  /** What the agent's records are called, which every reply's request ID carries. */
+  recordsId: string;
+}
+
 /**
  * Tell chat how an event's turn ended: post the reply if there is one, then
  * leave the receipt on the event and on the earlier events that were shown
@@ -20,10 +28,10 @@ export async function deliver(
   chat: ChatClient,
   outstanding: Outstanding,
   outcome: TurnOutcome,
-  messageLimit: number,
+  posting: Posting,
   signal: AbortSignal,
 ): Promise<void> {
-  const receipt = await postReply(chat, outstanding, outcome, messageLimit, signal);
+  const receipt = await postReply(chat, outstanding, outcome, posting, signal);
   const ids = [...outstanding.earlier, outstanding.event].map((event) => event.id);
   for (let from = 0; from < ids.length; from += RECEIPTS_AT_ONCE) {
     await chat.leaveReceipt(ids.slice(from, from + RECEIPTS_AT_ONCE), receipt, signal);
@@ -35,7 +43,7 @@ async function postReply(
   chat: ChatClient,
   outstanding: Outstanding,
   outcome: TurnOutcome,
-  messageLimit: number,
+  { messageLimit, recordsId }: Posting,
   signal: AbortSignal,
 ): Promise<Omit<Receipt, "memberId" | "event">> {
   switch (outcome.kind) {
@@ -44,7 +52,7 @@ async function postReply(
       const parts = reading.kind === "silent" ? [] : inParts(reading.text, messageLimit);
       let first: Message | undefined;
       for (const [index, part] of parts.entries()) {
-        const requestId = replyRequestId(outstanding.threadId, outcome.answer, index);
+        const requestId = replyRequestId(recordsId, outstanding.threadId, outcome.answer, index);
         const posted = await chat.post(outstanding.threadId, part, requestId, signal);
         first ??= posted;
       }

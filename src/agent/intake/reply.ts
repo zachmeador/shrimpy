@@ -67,10 +67,13 @@ export function clip(text: string, limit: number): string {
 }
 
 /**
- * Names a posted reply by the thread's session and the answer it carries, and
- * by which part of the answer it is, so a retry posts nothing twice and
- * several messages answered by one turn share one reply.
+ * Names a posted reply by the agent's records, the thread's session and the
+ * answer it carries, and by which part of the answer it is, so a retry posts
+ * nothing twice and several messages answered by one turn share one reply. The
+ * engine numbers its entries again in a new database, so what the records are
+ * called keeps a reply made after a fresh start from being taken for a retry of
+ * an older one.
  */
-export function replyRequestId(threadId: string, answer: string, part: number): string {
-  return `reply-${threadId}-${answer}-${part}`;
+export function replyRequestId(recordsId: string, threadId: string, answer: string, part: number): string {
+  return `reply-${recordsId}-${threadId}-${answer}-${part}`;
 }

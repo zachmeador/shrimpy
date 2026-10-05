@@ -3,6 +3,8 @@ import type { LiveChat } from "../../links/index.ts";
 
 /** What the message tools are handed: the ways to chat and to the roster that the agent already has. */
 export interface MessageToolsOptions {
+  /** What the agent's records are called. Every request ID the tools make carries it. */
+  recordsId: string;
   /**
    * The connection to chat that is up right now, if one is. The tools use the
    * agent's own connection and never open another, and they never wait for one:

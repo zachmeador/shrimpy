@@ -1,10 +1,12 @@
 import { defineDoc } from "@earendil-works/pi-durable";
+import { newId } from "../../lib/ids/index.ts";
 import type { Snapshot } from "../intake/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
- * commits as the work they belong to. The engine has no place for these: which
- * thread a session belongs to, and where the agent stands in chat's feed.
+ * commits as the work they belong to. The engine has no place for these: what
+ * the agent's records are called, which thread a session belongs to, and where
+ * the agent stands in chat's feed.
  *
  * Their version rises when a home written under the old meaning must be refused
  * and not read as current: the engine refuses it, and `records.ts` says what to
@@ -12,6 +14,20 @@ import type { Snapshot } from "../intake/index.ts";
  * it has not answered in a record that is no longer read, so reading it would
  * drop them.
  */
+
+/**
+ * What the agent's records are called, made with them and never changed. The
+ * engine numbers its entries and tasks again in a new database, so a name built
+ * from those numbers alone repeats one that an earlier set of records already
+ * posted under, and chat takes the post for a retry of that one. What the agent
+ * posts under such a name carries this too.
+ */
+export const RecordsDoc = defineDoc<{ id: string }>({
+  kind: "shrimpy.records",
+  version: 3,
+  scope: "session",
+  initial: () => ({ id: newId("rec") }),
+});
 
 /** The session behind a thread, and the events in the thread the agent has not acted on. */
 export type ThreadSession = {

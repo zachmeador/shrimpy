@@ -5,11 +5,13 @@
  * Shrimpy's own documents (which thread a session belongs to, the feed cursor)
  * in the same commits as the work they belong to. It owns the task that
  * follows each event the agent takes up, from its input to its receipt, and
- * answers what intake asks about those tasks. It also refuses, saying what to
- * do, a home whose documents another version wrote. It must not know about
- * transports, or about chat beyond the messages it is handed.
+ * answers what intake asks about those tasks. It opens the records at the
+ * start, giving them an ID of their own the first time, and refuses, saying
+ * what to do, a home whose documents another version wrote. It must not know
+ * about transports, or about chat beyond the messages it is handed.
  */
 export type { SessionDefaults } from "./defaults.ts";
+export { openRecords } from "./records.ts";
 export type { ServedSession } from "./service.ts";
 export { createSessions, type Sessions } from "./sessions.ts";
 export { type SessionThread, threadOfSession } from "./thread-of.ts";

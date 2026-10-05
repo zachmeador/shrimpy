@@ -8,7 +8,7 @@ import { tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { homePaths } from "../home/index.ts";
 import { openHost } from "../host/index.ts";
 import { startAgent } from "../index.ts";
-import { closeAfter, fauxModels, SCOUT } from "../testing/index.ts";
+import { closeAfter, fauxModels, SCOUT, startAgentRig } from "../testing/index.ts";
 import { FeedDoc, ThreadsDoc } from "./documents.ts";
 
 const timeout = 30_000;
@@ -56,4 +56,19 @@ test("records another version wrote are refused at the start, the message says w
 
   renameSync(database, `${database}.aside`);
   closeAfter(t, await start());
+});
+
+test("an agent started fresh answers in a thread that its old records already posted a reply in, though the engine numbers its entries as it did before", { timeout }, async (t) => {
+  const first = await startAgentRig(t);
+  await first.receiptOn(await first.say("A, before the agent started fresh"));
+  await first.agent.close();
+  const { database } = homePaths(first.home);
+  renameSync(database, `${database}.aside`);
+  const later = await first.say("B, said while the agent was down");
+
+  // The same work in a new database gives the engine's entries the same numbers: this answer is the first, as that one was.
+  const second = await startAgentRig(t, { home: first.home, chat: first.chat });
+
+  assert.equal((await second.receiptOn(later)).status, "answered");
+  assert.equal((await second.replies()).length, 2, "the reply to A from before, and the reply to B");
 });

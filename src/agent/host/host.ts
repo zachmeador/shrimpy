@@ -27,6 +27,13 @@ export interface HostOptions {
 export interface Host {
   readonly home: string;
   readonly harness: Harness;
+  /**
+   * Install extensions in the engine's registry, after the ones it has, in
+   * order; every session uses all of them. Nothing runs until `resume()`, so
+   * an extension can be made from what the opened storage says before it is
+   * installed, and work that needs one waits for it.
+   */
+  install(...extensions: readonly Extension[]): void;
   /** Continue the work a last run left unfinished, and let new work run. Call it once the sessions follow the home. */
   resume(): void;
   /**
@@ -40,12 +47,8 @@ export interface Host {
 
 const context = BACKGROUND_CONTEXT;
 
-/**
- * Take ownership of a home and open its storage and engine. `extensions` are
- * installed after the stock coding tools, in order, and every session uses all
- * of them.
- */
-export async function openHost(options: HostOptions, extensions: readonly Extension[] = []): Promise<Host> {
+/** Take ownership of a home and open its storage and engine, with the stock coding tools installed. */
+export async function openHost(options: HostOptions): Promise<Host> {
   const { home } = options;
   const { database } = homePaths(home);
   const lock = takeOwnerLock(home);
@@ -54,7 +57,6 @@ export async function openHost(options: HostOptions, extensions: readonly Extens
     const shell = options.shrimpy === undefined ? undefined : shellWithShrimpy(home, options.shrimpy);
     const registry = createRegistry();
     registry.install(CodingTools);
-    for (const extension of extensions) registry.install(extension);
     const harness = await Harness.open(
       await openNodeSqliteStorage(database),
       {
@@ -70,6 +72,9 @@ export async function openHost(options: HostOptions, extensions: readonly Extens
     return {
       home,
       harness,
+      install(...extensions) {
+        for (const extension of extensions) registry.install(extension);
+      },
       resume: () => harness.resume(),
       async settle(signal) {
         try {

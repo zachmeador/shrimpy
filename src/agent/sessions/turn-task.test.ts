@@ -69,7 +69,8 @@ async function open(t: TestContext, home: string, scenario: FauxScenario, option
   const { models, model } = fauxModels({ home, scenario, tokensPerSecond: options.tokensPerSecond ?? 4000 });
   const real = turnTask({ delivery, onError: (error) => reports.push(error) });
   const turn = options.pace === undefined ? real : paced(real, options.pace);
-  const host = await openHost({ home, models }, [turn.extension]);
+  const host = await openHost({ home, models });
+  host.install(turn.extension);
   let stopped = false;
   const stop = async (): Promise<void> => {
     if (stopped) return;

@@ -5,7 +5,6 @@ import type { Admissions, Working } from "../intake/index.ts";
 import { createAdmissions } from "./admissions.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { ThreadsDoc, type ThreadSession } from "./documents.ts";
-import { checkRecords } from "./records.ts";
 import { type ServedSession, serveSession } from "./service.ts";
 import type { TurnTask } from "./turn-task.ts";
 import { createWorking } from "./working.ts";
@@ -20,11 +19,6 @@ export interface Sessions {
   has(threadId: string): Promise<boolean>;
   /** Serve the session behind a thread to the clients that watch it. `takingInput` says whether new input may still come in. */
   serve(threadId: string, takingInput: () => boolean): Promise<ServedSession>;
-  /**
-   * Fail, saying what to do, if the agent's records in `file` can't be read by this version. Nothing converts
-   * them, so the way out is to start fresh.
-   */
-  check(file: string): Promise<void>;
   /** Make every session follow the home's model and working directory, as a new session does from the start. */
   applyDefaults(): Promise<void>;
   /** What intake takes events up through, and keeps its place in the feed with. */
@@ -62,8 +56,6 @@ export function createSessions(harness: Harness, defaults: SessionDefaults, turn
       if (conversation === undefined) throw new Error(`The agent has no session for thread ${threadId}.`);
       return serveSession(harness, conversation, context, takingInput);
     },
-
-    check: (file) => checkRecords(harness, file),
 
     async applyDefaults() {
       const change = agentChange(defaults);

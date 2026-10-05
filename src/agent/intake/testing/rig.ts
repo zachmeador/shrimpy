@@ -61,6 +61,7 @@ export async function startChatRig(
     backoff: backoff({ firstMs: 5, maxMs: 20 }),
   });
   const delivery = createDelivery({
+    recordsId: "rec_test",
     onError: (error) => errors.push(error),
     backoff: () => backoff({ firstMs: 5, maxMs: 20 }),
     ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),

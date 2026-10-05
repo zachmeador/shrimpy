@@ -49,7 +49,7 @@ test("what every agent is told names the agent, its home and every message tool 
 
   assert.match(text, /^You are scout, /);
   assert.ok(text.includes("/agents/scout"));
-  const installed = messageTools({ chat: () => undefined, gateway: () => undefined });
+  const installed = messageTools({ recordsId: "rec_test", chat: () => undefined, gateway: () => undefined });
   const tools = (installed.tools ?? []).map((tool) => tool.name);
   assert.deepEqual(tools, ["send_message", "read_messages"]);
   for (const name of tools) assert.ok(text.includes(name), `the instructions don't name ${name}`);

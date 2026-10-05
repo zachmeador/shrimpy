@@ -141,7 +141,7 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
 
   await gateway.stop("SIGKILL");
 
-  // The agent goes on without it, and says by its home's path when the turn is over. The reply waits in its outbox.
+  // The agent goes on without it, and says by its home's path when the turn is over. The reply waits in the task that follows its event.
   const sessions = await eventually(
     () => shrimpy(["sessions", "list", home]),
     (result) => result.stdout.includes(`${thread} `) && result.stdout.includes("idle"),

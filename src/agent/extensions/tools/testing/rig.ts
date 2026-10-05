@@ -60,6 +60,7 @@ export async function startToolRig(t: TestContext, options: ToolRigOptions = {})
   const roster = await chat.gateway.connect();
 
   const extension = messageTools({
+    recordsId: "rec_test",
     chat: () => (live.lost.aborted ? undefined : live),
     gateway: () => roster,
     ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),

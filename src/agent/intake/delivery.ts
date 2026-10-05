@@ -7,6 +7,8 @@ import type { Outstanding, TurnOutcome } from "./events.ts";
 import { orAborted, pause, untilAborted } from "./pause.ts";
 
 export interface DeliveryOptions {
+  /** What the agent's records are called. Every reply's request ID carries it. */
+  recordsId: string;
   /** Told of failures, and of replies chat refused. */
   onError?: (error: Error) => void;
   /** Characters in the longest message the agent posts; a longer answer is posted in parts. Tests shorten it. */
@@ -31,9 +33,9 @@ export interface Delivery {
   close(): void;
 }
 
-export function createDelivery(options: DeliveryOptions = {}): Delivery {
+export function createDelivery(options: DeliveryOptions): Delivery {
   const onError = (error: Error): void => options.onError?.(error);
-  const messageLimit = options.messageLimit ?? MAX_MESSAGE_LENGTH;
+  const posting = { messageLimit: options.messageLimit ?? MAX_MESSAGE_LENGTH, recordsId: options.recordsId };
   const newBackoff = options.backoff ?? backoff;
   const closing = new AbortController();
   let attached: (link: ChatLink) => void = () => undefined;
@@ -49,7 +51,7 @@ export function createDelivery(options: DeliveryOptions = {}): Delivery {
       for (;;) {
         try {
           const link = await orAborted(linked, stop);
-          await link.use((live, aborted) => deliver(live.chat, outstanding, outcome, messageLimit, aborted), stop);
+          await link.use((live, aborted) => deliver(live.chat, outstanding, outcome, posting, aborted), stop);
           return;
         } catch (error) {
           // The engine is closing: the task stays where it is for the next start.
