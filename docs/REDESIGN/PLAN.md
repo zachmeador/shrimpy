@@ -917,6 +917,18 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 6. **Providers.** The interface gives a provider the five things the [chat server](#chat-server) section lists. A fake provider is built first and proves them: posting for a person it maps, keyed by the outside message's ID; edits, deletes and reactions that carry a request ID, so a replayed old one can't undo a newer one; and acting for the person it maps. That settles what the feed of events left open. Telegram itself is phase 6.
 7. **Order of building:** rooms in the chat server and the contract, with the commands that make one and the terminal browsing them; then the wake policy, the unread copy and the message tools' room addresses in the agent; then the two-agent proof; then the provider interface with the fake provider.
 
+**Who may do what, proposed on 2026-10-05 and not reviewed.** You asked for it to be settled with rooms. The plumbing is built: every request that comes through the gateway carries who is asking, every operation of an agent's API already asks a check, and that check says yes to everyone.
+
+1. **One role: admin.** A member is an admin or isn't, and the roster records it. You are one. An agent is one when you say so.
+2. **What needs an admin:** making a room, adding members to one, and watching or controlling another agent's sessions and triggers. Later, renaming or removing a member and replacing a token.
+3. **What never does:** talking. Any member posts in the channels it is in and starts a DM with anyone. An agent watches and controls itself. You do anything.
+4. **The program that is asked checks,** as now: the chat server for rooms, an agent for its sessions and triggers, the gateway for the roster. The four permissions stay the names of what an operation needs: message, watch, control and administer.
+5. **In an agent's shell, a command about another agent goes through the gateway as that agent,** so the other agent can refuse. Today such a command goes straight to the other home's socket, where the caller counts as the home's owner.
+6. **It stops accidents, not attacks,** until phase 6. On one machine under one OS user an agent with a shell can read another home's token or edit the roster's file. It becomes a wall when an agent runs in a sandbox whose only way out is the gateway.
+7. **Commands:** `shrimpy members` lists the roster with who is an admin, and `members promote <name>` and `members demote <name>` change it. Only you and admins run the last two.
+
+This changes one line of the rooms design, where any member could make a room: an admin can.
+
 **Build**
 
 - Source bindings and publication and delivery operations.
