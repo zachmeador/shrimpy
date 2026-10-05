@@ -16,6 +16,7 @@ const USING = new Map<string, Family>([
   ["run", async () => (await import("./run.ts")).runCommands],
   ["threads", async () => (await import("./threads.ts")).threadsCommands],
   ["read", async () => (await import("./read.ts")).readCommands],
+  ["rooms", async () => (await import("./rooms.ts")).roomsCommands],
 ]);
 
 // The commands that start, stop, inspect and repair its programs and homes.

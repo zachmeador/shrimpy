@@ -48,7 +48,7 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
  */
 export function renderThread(thread: Thread, messages: Message[], channel: Channel): string[] {
   const nameOf = namer(channel);
-  const where = channel.kind === "dm" ? `your DM with ${channel.name}` : `the room ${channel.name}`;
+  const where = channel.kind === "dm" ? `your DM with ${channel.name}` : `the room #${channel.name}`;
   const lines = [`Thread ${thread.id} in ${where}: ${titleOf(thread)}`];
   if (messages.length === 0) lines.push("", "(no messages yet)");
   for (const message of messages) {

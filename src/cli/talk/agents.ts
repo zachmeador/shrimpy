@@ -8,13 +8,39 @@ import { START_EVERYTHING } from "./hints.ts";
  * is called that, the error says who there is.
  */
 export function memberNamed(members: Member[], name: string): Member {
-  const wanted = name.toLowerCase();
-  const found = members.find((member) => member.name.toLowerCase() === wanted);
+  const found = find(members, name);
   if (found !== undefined) return found;
+  throw nobodyCalled(members, [name]);
+}
+
+/**
+ * The members that `names` call, each once, whatever the case. Every name is
+ * checked before any is used, and the error names each one the roster does not
+ * have, and says who there is.
+ */
+export function membersNamed(members: Member[], names: string[]): Member[] {
+  const found = new Map<string, Member>();
+  const nobody: string[] = [];
+  for (const name of names) {
+    const member = find(members, name);
+    if (member === undefined) nobody.push(name);
+    else found.set(member.id, member);
+  }
+  if (nobody.length > 0) throw nobodyCalled(members, nobody);
+  return [...found.values()];
+}
+
+function find(members: Member[], name: string): Member | undefined {
+  const wanted = name.toLowerCase();
+  return members.find((member) => member.name.toLowerCase() === wanted);
+}
+
+function nobodyCalled(members: Member[], names: string[]): Error {
   const agents = members.filter((member) => member.kind === "agent").map((member) => member.name);
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
-  throw new Error(
-    `Nobody called ${name} is on this machine's roster. ${others} ` +
+  const who = names.length === 1 ? names.join("") : `${names.slice(0, -1).join(", ")} or ${names.at(-1) ?? ""}`;
+  return new Error(
+    `Nobody called ${who} is on this machine's roster. ${others} ` +
       "An agent joins when it first runs: shrimpy agent serve <agent>",
   );
 }

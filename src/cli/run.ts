@@ -30,7 +30,10 @@ export async function runCli(argv: string[], io: Io, options: RunOptions = {}): 
     return 0;
   }
 
-  const command = (await loadFamily(family))?.find((candidate) => selects(candidate, argv));
+  // `rooms` and `rooms new` both select `rooms new ops`: the one with more words is the one meant.
+  const command = (await loadFamily(family))
+    ?.filter((candidate) => selects(candidate, argv))
+    .sort((a, b) => words(b).length - words(a).length)[0];
   if (command === undefined) {
     io.err(`Unknown command: ${argv.filter((word) => !word.startsWith("-")).slice(0, 2).join(" ")}`);
     io.err(await overview());

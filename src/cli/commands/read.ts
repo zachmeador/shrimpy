@@ -49,7 +49,7 @@ async function wholeThread(connection: ChatConnection, threadId: string): Promis
   } catch (error) {
     const message = (error as Error).message;
     if (!message.startsWith("Unknown thread")) throw error;
-    throw new Error(`${message}. See the threads of a conversation with: shrimpy threads <member>`, { cause: error });
+    throw new Error(`${message}. See the threads of a conversation with: shrimpy threads <member|#room>`, { cause: error });
   }
   let messages = view.messages;
   let remaining = view.earlier;

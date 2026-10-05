@@ -28,9 +28,9 @@ export function whyNotACommand(line: string, commands: readonly Command[]): stri
 
   const end = words.findIndex((word) => !/^[a-z][a-z-]*$/.test(word));
   const bare = end === -1 ? words : words.slice(0, end);
-  const command = commands.find((candidate) =>
-    candidate.name.split(" ").every((word, index) => bare[index] === word),
-  );
+  const command = commands
+    .filter((candidate) => candidate.name.split(" ").every((word, index) => bare[index] === word))
+    .sort((a, b) => b.name.split(" ").length - a.name.split(" ").length)[0];
   if (command === undefined) return "there is no such command";
 
   const unknown = words

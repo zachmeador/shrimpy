@@ -138,6 +138,20 @@ npm run shrimpy -- read th_4k9x2m7q0b3d
 
 `read` shows each message's ID, and shows a message as it now stands: an edited one says when, a deleted one has lost its text, and the emoji on a message are listed. Any member of a channel can react to a message in it, and edit or delete their own, but no command, terminal key or agent tool does that.
 
+## Rooms
+
+A room is a channel with a name and any number of members, people and agents. Anyone can make one, and is in it, and a member can add anyone on the roster. Only its members see it, read it and post in it. It has a main thread and can have more, as a DM does. In a room a message is for the members it mentions as `@name`, whatever the case, and for everyone but its author when it says `@all`; in a DM it is for the other member. A member who is added later can read what came before, and is only offered what comes after. A command runs as whoever runs it, so an agent makes and uses rooms from its shell as itself, and you can ask it to.
+
+```bash
+npm run shrimpy -- rooms new ops scout maya
+npm run shrimpy -- rooms add ops mechanic
+npm run shrimpy -- rooms
+npm run shrimpy -- threads "#ops"
+npm run shrimpy -- read th_4k9x2m7q0b3d
+```
+
+`rooms` lists the rooms you are in, with their members and when each was last updated. Where a command takes a room it is written `#name`, in quotes, because a shell reads an unquoted `#` as the start of a comment; `rooms new` and `rooms add` take the name alone as well. A name is unique among rooms, whatever the case. A room has no command to leave it or to remove a member, and `run` talks to an agent in your DM with it, so it takes no thread of a room.
+
 ## The terminal
 
 `shrimpy` with no command, at a terminal, opens the console. It asks this machine's gateway what is running, and shows the agents. With one agent it goes straight to that agent's threads. Pick a thread, or start one with `n`, and talk: what you type goes to the thread, so `run`, `read` and every other client see it too, and what the agent and others say appears as it arrives. While the agent works in the open thread, its answer, thinking and tool calls stream below the conversation, apart from it. When the turn settles, the reply is a message like any other.
@@ -164,8 +178,11 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 |---|---|
 | `up [<agent>...] [--data <dir>]` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
-| `threads <member> [--json]` | List your threads with a person or an agent: ID, when last updated, who is working in it, and its name. |
+| `threads <member\|#room> [--json]` | List your threads with a person or an agent, or in a room: ID, when last updated, who is working in it, and its name. |
 | `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
+| `rooms` | List the rooms you are in, each with its members and when it was last updated. |
+| `rooms new <name> [<member>...]` | Make a room, with you and the members you name in it. |
+| `rooms add <room> <member>...` | Add members to a room you are in. |
 | `agent init <agent> --model <provider/id> [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
 | `agent status <agent>` | Say whether the agent is running, and how to reach it. |
@@ -194,9 +211,9 @@ A program is reached by its name, through the gateway, on this machine as on any
 
 When the gateway stops, every connection to it and through it ends, and no program stops because of it, except that `up` stops what it started when any of it ends, the gateway included. The agent goes on with its turns, its replies wait in the tasks that follow their events and events wait in the chat server. The programs register again and the console and the agent's links connect again once the gateway is back, each pausing between tries for longer, up to 15 seconds.
 
-Nobody says who they are in chat: the gateway decides. A command run by a person is the person who runs the gateway, named for their operating system user, and the console is the same person. A command run from an agent's shell is that agent: the launcher in the home's `runtime/bin` names the home, and the command signs in to the gateway with the token the home keeps, so `run` posts as the agent and `threads` and `read` show the agent's threads, not the person's. A home that has not joined yet is an error that says to start the agent. `run` and `threads` take the member's name from the roster, `run` an agent and `threads` a person or an agent. `run` waits for the agent's receipt on your message, read from the thread. It prints the reply on standard output and exits 0 when the agent answered. A silent agent prints nothing and exits 0. A failure prints its reason on standard error and exits 1. Stopped or skipped work says so on standard error and exits 130. Stopping `run` while it waits leaves the message and the agent's work alone, and exits 130. It posts nothing, and says what to start, when no gateway, chat server or agent of that name is running. `read` leaves out silent receipts, which are recorded but shown to nobody by default.
+Nobody says who they are in chat: the gateway decides. A command run by a person is the person who runs the gateway, named for their operating system user, and the console is the same person. A command run from an agent's shell is that agent: the launcher in the home's `runtime/bin` names the home, and the command signs in to the gateway with the token the home keeps, so `run` posts as the agent, `threads` and `read` show the agent's threads, not the person's, and `rooms` lists the agent's rooms and makes and adds to them as the agent. A home that has not joined yet is an error that says to start the agent. `run`, `threads` and `rooms` take a member's name from the roster, `run` an agent and `threads` a person or an agent. `run` waits for the agent's receipt on your message, read from the thread. It prints the reply on standard output and exits 0 when the agent answered. A silent agent prints nothing and exits 0. A failure prints its reason on standard error and exits 1. Stopped or skipped work says so on standard error and exits 130. Stopping `run` while it waits leaves the message and the agent's work alone, and exits 130. It posts nothing, and says what to start, when no gateway, chat server or agent of that name is running. `read` leaves out silent receipts, which are recorded but shown to nobody by default.
 
-A gateway, chat server or agent of another version than the command is named on standard error by `gateway status`, `up`, `run`, `threads` and `read`, and the command carries on.
+A gateway, chat server or agent of another version than the command is named on standard error by `gateway status`, `up`, `run`, `threads`, `read` and `rooms`, and the command carries on.
 
 `sessions steer --wait` prints the answer, then exits 0 when the input was answered, 130 when it was cancelled, and 1 when it failed or ended without an answer. Any command exits 2 when it is used wrongly. The session commands talk to the running agent and never open the home's storage.
 
