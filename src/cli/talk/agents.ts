@@ -7,7 +7,7 @@ import { START_EVERYTHING } from "./hints.ts";
  * thing that is looked up, so that a name always means one member. When nobody
  * is called that, the error says who there is.
  */
-export function memberNamed(members: Member[], name: string): Member {
+export function memberNamed<T extends Member>(members: T[], name: string): T {
   const found = find(members, name);
   if (found !== undefined) return found;
   throw nobodyCalled(members, [name]);
@@ -30,7 +30,7 @@ export function membersNamed(members: Member[], names: string[]): Member[] {
   return [...found.values()];
 }
 
-function find(members: Member[], name: string): Member | undefined {
+function find<T extends Member>(members: T[], name: string): T | undefined {
   const wanted = name.toLowerCase();
   return members.find((member) => member.name.toLowerCase() === wanted);
 }

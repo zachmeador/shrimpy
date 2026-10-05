@@ -25,6 +25,7 @@ const RUNNING = new Map<string, Family>([
   ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
   ["triggers", async () => (await import("./triggers.ts")).triggersCommands],
   ["wake", async () => (await import("./wake.ts")).wakeCommands],
+  ["members", async () => (await import("./members.ts")).membersCommands],
   ["gateway", async () => (await import("./gateway.ts")).gatewayCommands],
   ["chat", async () => (await import("./chat.ts")).chatCommands],
 ]);

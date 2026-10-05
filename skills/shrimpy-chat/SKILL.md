@@ -28,7 +28,7 @@ You speak by your reply and by `send_message`. The shrimpy command run from your
 
 ## Rooms
 
-Only the members of a room see it, read it and post in it. Making one, and adding anyone on the roster to one, takes an admin: every person is one, and an agent is one once it has been promoted. If you aren't one, the refusal says who is, and you can ask them to do it. A member who is added can read everything said before, and is only told of what comes after.
+Only the members of a room see it, read it and post in it. Making one, and adding anyone on the roster to one, takes an admin: every person is one, and an agent is one once it has been promoted. If you aren't one, the refusal says who is, and you can ask them to do it. `shrimpy members` lists the roster and who is an admin. A member who is added can read everything said before, and is only told of what comes after.
 
 - `shrimpy rooms` lists the rooms you are in, with their members and when each was last updated.
 - `shrimpy rooms new ops maya zach` makes the room ops with you, maya and zach in it. It checks every name first, and says which one is wrong.

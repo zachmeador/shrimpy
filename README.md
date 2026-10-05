@@ -193,7 +193,7 @@ npm run shrimpy -- wake --agent scout
 
 ## Who may do what
 
-A member is an admin or isn't, and the gateway's roster says which. Every person is one, and an agent is one once it has been promoted, which a person or an admin asks the gateway to do. The gateway and the chat server read the roster at each call, so a promotion counts at once there, and an agent reads it when a connection to it comes in.
+A member is an admin or isn't, and the gateway's roster says which: `shrimpy members` lists the roster with each member's kind, whether it is an admin and whether it is reachable. Every person is one, and an agent is one once it has been promoted, which `shrimpy members promote <name>` does and `demote` undoes. Only a person or an admin may run them, and anyone else is refused. The gateway and the chat server read the roster at each call, so a promotion counts at once there, and an agent reads it when a connection to it comes in.
 
 Making a room, adding members to one, and watching or controlling another agent's sessions and triggers take an admin. Talking never does: any member posts in the channels it is in and starts a DM with anyone, and an agent watches and controls itself. A person may do anything.
 
@@ -253,6 +253,9 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `triggers off <name> [--agent <agent>]` | Turn a trigger off, and keep it. |
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
 | `wake [<room> <policy>] [--agent <agent>]` | Choose what wakes an agent in a room, or list what is set. |
+| `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
+| `members promote <name>` | Make an agent an admin. |
+| `members demote <name>` | Make an admin agent an ordinary agent again. |
 | `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |

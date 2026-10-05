@@ -54,6 +54,6 @@ A change to `agent.json`, `models.json` or `auth.json` waits for a restart, whic
 
 `sessions steer` puts input into a session that the thread never sees. It is not a way to talk to an agent.
 
-Your own sessions and triggers are yours to look at and stop. Another agent's, and reloading it, take an admin: every person is one, and an agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them.
+Your own sessions and triggers are yours to look at and stop. Another agent's, and reloading it, take an admin: every person is one, and an agent is one once it has been promoted. If you are refused, the refusal says who the admins are, and you can ask one of them. `shrimpy members` lists them, and an admin can run `shrimpy members promote <name>` to make an agent one.
 
 No command removes an agent. To retire one, have the person stop it and leave its home where it is. Delete files only when they ask you to.

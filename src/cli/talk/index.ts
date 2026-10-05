@@ -13,7 +13,7 @@
 export { reachAgent, requireAdminFor } from "./agent.ts";
 export { agentNamed, memberNamed, membersNamed, runningAgent } from "./agents.ts";
 export { dmWith } from "./dm.ts";
-export { askGateway, type GatewayView } from "./gateway.ts";
+export { askGateway, type GatewayView, withGatewayAsMe } from "./gateway.ts";
 export { START_EVERYTHING } from "./hints.ts";
 export { type Reached, reachChat } from "./reach.ts";
 export { type Waited, waitForReceipt } from "./receipts.ts";
