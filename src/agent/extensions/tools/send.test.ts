@@ -75,6 +75,34 @@ test("a text posted in parts says how far it got when chat goes away part of the
   assert.equal(saidByScout(rig, await rig.said()).length, 1);
 });
 
+test("a session behind a DM posts in a room it is in, in its main thread or another, and is refused a room it is not in", { timeout }, async (t) => {
+  const rig = await startToolRig(t);
+  const person = await rig.chat.person();
+  const ops = await person.chat.createRoom("Ops", [rig.partner.id]);
+  const closed = await person.chat.createRoom("Closed", []);
+  const poem = await person.chat.createThread(ops.id, "Poem");
+  const mainOf = async (channelId: string): Promise<string> => {
+    const main = (await person.chat.threads(channelId)).find((thread) => thread.main);
+    assert.ok(main);
+    return main.id;
+  };
+  const said = async (threadId: string): Promise<string[]> =>
+    saidByScout(rig, await person.chat.read(threadId, null, 10));
+
+  const toRoom = await rig.call("send_message", { text: "To the room.", to: "#OPS" }, { callId: "room" });
+  const toThread = await rig.call("send_message", { text: "To the thread.", to: "#ops/POEM" }, { callId: "thread" });
+  const refused = await rig.call("send_message", { text: "Let me in.", to: "#Closed" }, { callId: "closed" });
+  const read = await rig.call("read_messages", { from: `#Ops/${poem.id}` });
+
+  assert.deepEqual([toRoom.isError, toThread.isError, refused.isError], [false, false, true]);
+  assert.deepEqual(await said(await mainOf(ops.id)), ["To the room."]);
+  assert.deepEqual(await said(poem.id), ["To the thread."]);
+  assert.deepEqual(await said(await mainOf(closed.id)), [], "and nothing went to the room it is not in");
+  assert.match(refused.text, /not in a room called #Closed\. The rooms you are in: #Ops\./);
+  assert.ok(read.text.includes("To the thread."), "the thread can be read the same way");
+  assert.deepEqual(saidByScout(rig, await rig.said()), [], "none of it went to the DM the session is behind");
+});
+
 test("a call that is stopped while it waits for chat is stopped, not reported as chat being unreachable", { timeout }, async (t) => {
   let out = false;
   const rig = await startToolRig(t, {

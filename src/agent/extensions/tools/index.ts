@@ -1,7 +1,7 @@
 /**
  * The agent's own tools. The message tools: `send_message`, which posts to a
- * thread or to the agent's DM with someone right away, and `read_messages`,
- * which reads one. They reach chat over the connection the agent already has,
+ * thread, to the agent's DM with someone or to a room it is in right away, and
+ * `read_messages`, which reads one. They reach chat over the connection the agent already has,
  * handed to them, and never open another or wait for one to come back. And
  * `check_back`, which wakes the session that calls it, once, later: it asks the
  * sessions to keep the wake-up and does not know how they do. They must not

@@ -9,8 +9,9 @@ import * as words from "./words.ts";
 
 /**
  * `send_message`: post a message now, without ending the turn. With nothing
- * said about where, it goes to the thread the turn came from. The turn's final
- * text is still its reply, so this is never the way to answer.
+ * said about where, it goes to the thread the turn came from; `to` names a DM
+ * or a room the agent is in, or one of its threads. The turn's final text is
+ * still its reply, so this is never the way to answer.
  */
 export function sendMessage(options: MessageToolsOptions) {
   const limit = options.messageLimit ?? MAX_MESSAGE_LENGTH;
