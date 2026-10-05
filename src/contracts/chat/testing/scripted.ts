@@ -33,10 +33,10 @@ export interface ScriptedChatOptions {
  * them. It is a stand-in for what the console needs and nothing more: it takes
  * the calls the console makes, keeps what was posted once however often the
  * same request is sent, and publishes a thread's view as it changes. What an
- * agent does with a feed, receipts, edits, deletes and reactions, and the limits
- * of the chat server are not here, because nothing that uses this makes those
- * calls; whatever tests that need chat to behave as it does run the chat server
- * itself.
+ * agent does with a feed, receipts, edits, deletes and reactions, rooms, and the
+ * limits of the chat server are not here, because nothing that uses this makes
+ * those calls; whatever tests that need chat to behave as it does run the chat
+ * server itself.
  */
 export interface ScriptedChat {
   /**

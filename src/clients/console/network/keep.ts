@@ -67,6 +67,14 @@ export function keepConnection<C extends Connected>(options: KeepOptions<C>): Ke
         if (why.kind === "connecting" && failed) return;
         set({ state: "down", why });
       });
+      // A stop that came while the connection was being opened has been and gone, and listening for it now would
+      // wait for ever. The connection is let go of, and never announced. Read through a function, so the compiler
+      // does not assume the answer it saw first still holds.
+      const stopped = (): boolean => signal.aborted;
+      if (stopped()) {
+        await connection.close().catch(() => undefined);
+        return;
+      }
       const ended = new Promise<void>((resolve) => connection.onDisconnect(() => resolve()));
       // Stopping ends a connection that is up.
       const hangUp = (): void => void connection.close().catch(() => undefined);

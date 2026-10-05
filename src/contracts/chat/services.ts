@@ -25,13 +25,13 @@ export interface Chat {
    */
   openDm(otherId: string, context: Context): Promise<Channel>;
   /**
-   * Make a room called `name`, with the caller and the members `memberIds` in
-   * it, and its main thread. A name is one line of 1 to 200 characters, and no
-   * other room has it, whatever the case. Anyone on the roster may be a member:
-   * one the chat server has not met is looked up in the gateway's roster, and
-   * one the roster does not have is refused. Either refusal makes nothing. The
-   * caller among `memberIds`, or a member named twice, counts once. Answers with
-   * the room.
+   * Make a room called `name`, with the caller and up to 200 more members,
+   * `memberIds`, in it, and its main thread. A name is one line of 1 to 200
+   * characters, and no other room has it, whatever the case. Anyone on the
+   * roster may be a member: one the chat server has not met is looked up in the
+   * gateway's roster. A name that is taken, or a member the roster does not
+   * have, is refused, and nothing is made. The caller among `memberIds`, or a
+   * member named twice, counts once. Answers with the room.
    */
   createRoom(name: string, memberIds: string[], context: Context): Promise<Channel>;
   /**
