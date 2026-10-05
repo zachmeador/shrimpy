@@ -21,6 +21,10 @@ export interface NewTrigger {
   timezone?: string;
   thread?: string;
   overlap?: string;
+  check?: string;
+  when?: string;
+  then?: string;
+  timeout?: string;
   prompt: string;
 }
 
@@ -57,12 +61,20 @@ const scalar = (value: string): string => (PLAIN.test(value) ? value : JSON.stri
  */
 export function draftTrigger(name: string, parts: NewTrigger, check?: TriggerCheck): TriggerDraft {
   checkTriggerName(name);
+  // A front matter value is one line, so a command with a line break in it would come back as another command.
+  if (parts.check !== undefined && /[\r\n]/.test(parts.check)) {
+    throw new TriggerFileError("check is one line: put a longer script in a file in the home, and run that file");
+  }
   const keys = [
     ["every", parts.every],
     ["cron", parts.cron],
     ["timezone", parts.timezone],
     ["thread", parts.thread],
     ["overlap", parts.overlap],
+    ["check", parts.check],
+    ["when", parts.when],
+    ["then", parts.then],
+    ["timeout", parts.timeout],
   ] as const;
   const lines = keys.flatMap(([key, value]) => (value === undefined ? [] : [`${key}: ${scalar(value)}`]));
   const text = ["---", ...lines, "---", parts.prompt.trim(), ""].join("\n");

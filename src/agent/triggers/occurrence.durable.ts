@@ -2,7 +2,7 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { describeSchedule, type TriggerDefinition } from "../home/index.ts";
-import { isOccurrence, type Occurrence, type Outstanding } from "../inputs/index.ts";
+import { isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import {
   openSession,
   type SessionDefaults,
@@ -16,12 +16,20 @@ import { liveTurns, takeUp, type TurnTask } from "../turns/durable.ts";
 /** What was found out about the thread of a trigger that has no session behind it yet. */
 export type Where = { thread: string } & ({ channelId: string } | { problem: string });
 
-/** What an occurrence needs to be made: when it was due and when it fired, and whether it was run by hand. */
+/**
+ * What an occurrence needs to be made: when it was due and when it fired,
+ * whether it was run by hand, and, for one that woke the agent because its check
+ * found news, what the check printed.
+ */
 export interface Firing {
   due: number;
   firedAt: number;
   byHand: boolean;
+  output?: string;
 }
+
+/** How an occurrence that no turn runs ended, and why. */
+export type Unrun = NonNullable<OccurrenceInput["unrun"]>;
 
 /** The conversation that owns the tasks that wait for triggers and the occurrences no session ran, made when it is first needed. */
 export async function ownerOf(tx: Tx): Promise<ConversationId> {
@@ -30,6 +38,34 @@ export async function ownerOf(tx: Tx): Promise<ConversationId> {
   const record = await tx.createConversation({ ownership: { kind: "ownerless" } });
   doc.owner = record.id;
   return record.id;
+}
+
+function occurrenceOf(definition: TriggerDefinition, firing: Firing): Occurrence {
+  return {
+    id: newId("occ"),
+    trigger: definition.name,
+    due: firing.due,
+    firedAt: firing.firedAt,
+    byHand: firing.byHand,
+    schedule: describeSchedule(definition.schedule),
+    prompt: definition.prompt,
+    ...(firing.output === undefined ? {} : { output: firing.output }),
+  };
+}
+
+/** Put an occurrence on record as one that no turn runs, in the conversation that owns it: its task ends at once with `unrun`. */
+async function leave(tx: Tx, turn: TurnTask, occurrence: Occurrence, unrun: Unrun): Promise<OccurrenceView> {
+  await takeUp(tx, turn, await ownerOf(tx), { occurrence, unrun });
+  return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: unrun.outcome, reason: unrun.reason };
+}
+
+/**
+ * Put an occurrence on record that no turn is made for, in the commit `tx`
+ * belongs to, with how it ended and why: its check found no news, or the agent
+ * ended while its check ran. Nothing is taken from any session.
+ */
+export function recordUnrun(tx: Tx, turn: TurnTask, definition: TriggerDefinition, firing: Firing, unrun: Unrun): Promise<OccurrenceView> {
+  return leave(tx, turn, occurrenceOf(definition, firing), unrun);
 }
 
 /**
@@ -49,22 +85,14 @@ export async function fire(
   firing: Firing,
   where?: Where,
 ): Promise<OccurrenceView> {
-  const occurrence: Occurrence = {
-    id: newId("occ"),
-    trigger: definition.name,
-    due: firing.due,
-    firedAt: firing.firedAt,
-    byHand: firing.byHand,
-    schedule: describeSchedule(definition.schedule),
-    prompt: definition.prompt,
-  };
+  const occurrence = occurrenceOf(definition, firing);
   const address = definition.thread ?? triggerSession(definition.name);
   const sessions = (await tx.doc(SessionsDoc)).sessions;
   const session = Object.hasOwn(sessions, address) ? sessions[address] : undefined;
 
   // What was found out about the thread's channel is only good for the thread it was found out for.
   const found = session === undefined && where?.thread === definition.thread ? where : undefined;
-  let unrun: { outcome: "skipped" | "failed"; reason: string } | undefined;
+  let unrun: Unrun | undefined;
   if (definition.thread !== null && session === undefined) {
     if (found === undefined) {
       unrun = { outcome: "failed", reason: "The trigger was changed while its occurrence was being made, so it did not run." };
@@ -75,10 +103,7 @@ export async function fire(
     unrun = { outcome: "skipped", reason: "The last occurrence was still going." };
   }
 
-  if (unrun !== undefined) {
-    await takeUp(tx, parts.turn, await ownerOf(tx), { occurrence, unrun });
-    return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: unrun.outcome, reason: unrun.reason };
-  }
+  if (unrun !== undefined) return leave(tx, parts.turn, occurrence, unrun);
 
   // The thread's channel, from the session that is there or from the one this makes; none for a session of the trigger's own.
   const channelId = session === undefined ? (found !== undefined && "channelId" in found ? found.channelId : null) : session.channelId;

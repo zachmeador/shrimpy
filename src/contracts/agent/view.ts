@@ -92,8 +92,34 @@ export interface SessionSummary {
  */
 export type TriggerSchedule = { every: string } | { cron: string; timezone: string };
 
-/** How an occurrence ended. A skipped occurrence never ran: the last one was still going, or there was nowhere to send it. */
-export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped";
+/**
+ * What a trigger's check is. The command runs at each occurrence, before
+ * anything is taken up, and decides whether there is news: with none, no turn is
+ * made and no model is called. The agent keeps it in its records, so it is a type
+ * alias, which TypeScript lets stand for JSON.
+ */
+export type Check = {
+  /** The command line, run with the agent's shell from its home. */
+  command: string;
+  /**
+   * What counts as news: output that `changed` since the last occurrence, which
+   * a trigger's first always has, any `output` at all, or `always`. A check that
+   * fails has a line about the failure for its output.
+   */
+  when: "changed" | "output" | "always";
+  /** What news does: `wake` the agent with the trigger's prompt and the output, which it reads as data and not as instructions. */
+  then: "wake";
+  /** How long the check may run before it is stopped and counts as failed: a delay such as `30s` or `2m`, at most `10m`. */
+  timeout: string;
+};
+
+/**
+ * How an occurrence ended. A skipped occurrence never ran: the last one was still
+ * going, or there was nowhere to send it. A quiet one ran its check, which found
+ * no news, so no turn was made. An interrupted one was running its check when the
+ * agent ended, and the check was not run again for it.
+ */
+export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "interrupted";
 
 /**
  * One occurrence of a trigger, from the agent's records. Times are milliseconds
@@ -132,6 +158,8 @@ export interface TriggerDetail extends TriggerSummary {
   prompt: string;
   /** Whether a due occurrence is skipped while the last one is still going (`skip`), or handed over behind it (`allow`). */
   overlap: "skip" | "allow";
+  /** Its check, or null when every occurrence wakes the agent. */
+  check: Check | null;
   /** The address of the session of its own that its occurrences go to, if they go there, whether or not it has been made yet. */
   session: string | null;
   /** The latest occurrences, newest first. */

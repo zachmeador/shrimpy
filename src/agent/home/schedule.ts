@@ -11,15 +11,15 @@ const DELAY = /^(\d+)\s*([smhd])$/;
  * A delay such as 15m, 1h or 1d written the plain way, with no space and no
  * leading zero, or undefined when `text` is not a delay.
  */
-export function normalizeEvery(text: string): string | undefined {
+export function normalizeDelay(text: string): string | undefined {
   const match = DELAY.exec(text.trim());
   return match === null ? undefined : `${String(Number(match[1]))}${match[2]}`;
 }
 
-/** What a delay written as `normalizeEvery` writes it comes to, in milliseconds. */
-export function everyMs(every: string): number {
-  const match = DELAY.exec(every);
-  if (match === null) throw new Error(`"${every}" is not a delay.`);
+/** What a delay written as `normalizeDelay` writes it comes to, in milliseconds. */
+export function delayMs(delay: string): number {
+  const match = DELAY.exec(delay);
+  if (match === null) throw new Error(`"${delay}" is not a delay.`);
   return Number(match[1]) * UNIT_MS[match[2] as keyof typeof UNIT_MS];
 }
 
@@ -59,7 +59,7 @@ export function cronFields(expression: string): string | undefined {
  * is the one the clock jumps to. Throws when a cron schedule never matches.
  */
 export function nextOccurrence(schedule: TriggerSchedule, from: number): number {
-  if ("every" in schedule) return from + everyMs(schedule.every);
+  if ("every" in schedule) return from + delayMs(schedule.every);
   const expression = CronExpressionParser.parse(schedule.cron, { currentDate: new Date(from), tz: schedule.timezone });
   return expression.next().getTime();
 }

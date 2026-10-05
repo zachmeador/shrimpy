@@ -16,6 +16,7 @@ export { AGENT_RUNTIME_DIR, type AgentEndpoint, endpointFile } from "./endpoint.
 export { AGENT_HOME_VARIABLE, type Membership, membershipFile } from "./membership.ts";
 export { SessionDirectory, SessionService } from "./services.ts";
 export type {
+  Check,
   Member,
   Occurrence,
   OccurrenceEnding,

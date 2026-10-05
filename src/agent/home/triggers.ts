@@ -1,26 +1,27 @@
 import type { Dirent, Stats } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { TriggerSchedule } from "../../contracts/agent/index.ts";
+import type { Check, TriggerSchedule } from "../../contracts/agent/index.ts";
 import { isName, NAME_RULE } from "./agent-config.ts";
 import { codeOf, compare, readText, why } from "./files.ts";
 import { frontmatterAndBody } from "./frontmatter.ts";
 import type { HomePaths } from "./layout.ts";
 import {
   cronFields,
+  delayMs,
   delayText,
-  everyMs,
   isTimezone,
   machineTimezone,
   nextOccurrence,
-  normalizeEvery,
+  normalizeDelay,
   SHORTEST_EVERY_MS,
 } from "./schedule.ts";
 
 /**
  * A standing trigger, as its file says it: when it fires, where its
- * occurrences go and what they are told to do. It is plain JSON, because the
- * agent keeps the last valid one in its records.
+ * occurrences go, what they are told to do and whether a check decides that
+ * there is anything to do. It is plain JSON, because the agent keeps the last
+ * valid one in its records.
  */
 export type TriggerDefinition = {
   /** The file's name without `.md`, which follows the rule for agent names. */
@@ -34,6 +35,8 @@ export type TriggerDefinition = {
   overlap: "skip" | "allow";
   /** The body of the file: what an occurrence is told to do. */
   prompt: string;
+  /** What runs at each occurrence to decide whether there is news. A trigger with none has no occurrence that is quiet. */
+  check?: Check;
 };
 
 /** What checking a trigger's file can be told. */
@@ -56,9 +59,13 @@ export class TriggerFileError extends Error {
   }
 }
 
-const KEYS = ["every", "cron", "timezone", "thread", "enabled", "overlap"] as const;
+const KEYS = ["every", "cron", "timezone", "thread", "enabled", "overlap", "check", "when", "then", "timeout"] as const;
 const THREAD = /^th_[0-9a-z]{12}$/;
 const EXAMPLE_THREAD = "th_4k9x2m7q0b3d";
+/** How long a check may run when its file says nothing, and the shortest and longest it may be given. */
+const DEFAULT_TIMEOUT = "1m";
+const SHORTEST_TIMEOUT_MS = 1_000;
+const LONGEST_TIMEOUT_MS = 600_000;
 
 /** For a trigger's name that comes from outside a file, such as a command line. It follows the rule for agents' names. */
 export function checkTriggerName(name: string): void {
@@ -79,6 +86,11 @@ export function checkTriggerName(name: string): void {
  * - `thread` is the ID of a thread. `enabled: false` turns the trigger off.
  *   `overlap: allow` hands an occurrence that is due while the last one is still
  *   going over behind it, where the default skips it.
+ * - `check` is a command line that runs at each occurrence and decides whether
+ *   there is news. `when` says what news is: `changed`, the default, `output` or
+ *   `always`. `then` says what news does, and `timeout` is a delay, a minute
+ *   unless given and at most ten, after which the check is stopped. All three
+ *   go with a check.
  */
 export function parseTrigger(name: string, text: string, check: TriggerCheck = {}): TriggerDefinition {
   if (!isName(name)) throw new TriggerFileError(`its name ${NAME_RULE}`);
@@ -99,6 +111,7 @@ export function parseTrigger(name: string, text: string, check: TriggerCheck = {
   if (thread !== undefined && !THREAD.test(thread)) {
     throw new TriggerFileError(`thread: ${thread} should be the ID of a thread, such as ${EXAMPLE_THREAD}`);
   }
+  const checked = checkOf(values);
   const prompt = body.trim();
   if (prompt === "") throw new TriggerFileError("it has no prompt: write what the trigger is to do after the closing --- line");
 
@@ -109,7 +122,48 @@ export function parseTrigger(name: string, text: string, check: TriggerCheck = {
     enabled: oneOf("enabled", values.get("enabled"), { true: true, false: false }, true),
     overlap: oneOf("overlap", values.get("overlap"), { skip: "skip", allow: "allow" } as const, "skip"),
     prompt,
+    ...(checked === undefined ? {} : { check: checked }),
   };
+}
+
+/** The check the file asks for, or undefined when it asks for none. */
+function checkOf(values: ReadonlyMap<string, string>): Check | undefined {
+  const command = values.get("check");
+  if (command === undefined) {
+    const stray = ["when", "then", "timeout"].find((key) => values.has(key));
+    if (stray !== undefined) {
+      throw new TriggerFileError(`${stray} goes with check, and this file has no check: give check, a command run at each occurrence, such as check: cat status.txt`);
+    }
+    return undefined;
+  }
+  return {
+    command,
+    when: oneOf("when", values.get("when"), { changed: "changed", output: "output", always: "always" } as const, "changed"),
+    then: thenOf(values.get("then")),
+    timeout: timeoutOf(values.get("timeout")),
+  };
+}
+
+function thenOf(given: string | undefined): "wake" {
+  if (given?.toLowerCase() === "note") {
+    throw new TriggerFileError("then: note is not built yet: for now news can only wake the agent, so leave then out or give then: wake");
+  }
+  return oneOf("then", given, { wake: "wake" } as const, "wake");
+}
+
+function timeoutOf(given: string | undefined): string {
+  if (given === undefined) return DEFAULT_TIMEOUT;
+  const normal = normalizeDelay(given);
+  if (normal === undefined) {
+    throw new TriggerFileError(`timeout: ${given} is not a delay: write a whole number and a unit, s or m, such as 30s or 2m`);
+  }
+  if (delayMs(normal) < SHORTEST_TIMEOUT_MS) {
+    throw new TriggerFileError(`timeout: ${given} is shorter than ${delayText(SHORTEST_TIMEOUT_MS)}, the shortest a check may be given`);
+  }
+  if (delayMs(normal) > LONGEST_TIMEOUT_MS) {
+    throw new TriggerFileError(`timeout: ${given} is longer than ${delayText(LONGEST_TIMEOUT_MS)}, the longest a check may run`);
+  }
+  return normal;
 }
 
 function scheduleOf(values: ReadonlyMap<string, string>, check: TriggerCheck): TriggerSchedule {
@@ -127,12 +181,12 @@ function scheduleOf(values: ReadonlyMap<string, string>, check: TriggerCheck): T
     if (timezone !== undefined) {
       throw new TriggerFileError("timezone goes with cron: every counts from the last occurrence and has no time of day");
     }
-    const normal = normalizeEvery(every);
+    const normal = normalizeDelay(every);
     if (normal === undefined) {
       throw new TriggerFileError(`every: ${every} is not a delay: write a whole number and a unit, m, h or d, such as 15m, 1h or 1d`);
     }
     const shortest = check.shortestEveryMs ?? SHORTEST_EVERY_MS;
-    if (everyMs(normal) < shortest) {
+    if (delayMs(normal) < shortest) {
       throw new TriggerFileError(`every: ${every} is shorter than ${delayText(shortest)}, the shortest a trigger repeats at`);
     }
     return { every: normal };

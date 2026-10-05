@@ -3,7 +3,7 @@ import type { Cursor, Harness, TaskId, Tx } from "@earendil-works/pi-durable";
 import { type LeftOut, nextOccurrence, sameSchedule, type TriggerFiles, type TriggerProblem } from "../home/index.ts";
 import { plain, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
 import { ownerOf } from "./occurrence.durable.ts";
-import { type TriggerTask, TRIGGER_TASK, type Waiting, type Waits } from "./task.durable.ts";
+import { type Standing, type TriggerTask, TRIGGER_TASK, type Waiting } from "./task.durable.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -32,7 +32,9 @@ export async function reconcile(
     for (const definition of files.triggers) {
       const old = Object.hasOwn(before, definition.name) ? before[definition.name] : undefined;
       const unchanged = old !== undefined && sameSchedule(old.definition.schedule, definition.schedule);
-      after[definition.name] = { revision: unchanged ? old.revision : (revisions += 1), definition };
+      // What its check printed last stays with a trigger that still has one, whatever else its file changed.
+      const last = definition.check !== undefined && old?.last !== undefined ? { last: old.last } : {};
+      after[definition.name] = { revision: unchanged ? old.revision : (revisions += 1), definition, ...last };
     }
     for (const problem of files.problems) {
       const old = keptFor(problem, before, after);
@@ -85,7 +87,7 @@ async function liveTriggerTasks(tx: Tx): Promise<{ id: TaskId; name: string; rev
       const page = await tx.scanTasks({ kind: TRIGGER_TASK, status, abortRequested: false }, 100, cursor);
       for (const record of page.items) {
         if ("checkpoint" in record.state) {
-          const state = record.state.checkpoint as Waits;
+          const state = record.state.checkpoint as Standing;
           found.push({ id: record.id, name: (record.input as Waiting).name, revision: state.revision });
         }
       }

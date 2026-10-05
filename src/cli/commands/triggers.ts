@@ -159,6 +159,8 @@ const list: Command = {
     "To make one:",
     '  shrimpy triggers add nightly --cron "0 3 * * *" "Look over today\'s notes and tidy what needs it."',
     '  shrimpy triggers add heartbeat --every 1h "Check the build, and use send_message to tell @maya if it broke."',
+    "To be woken only when something has changed, give the trigger a check, a command that runs first:",
+    '  shrimpy triggers add inbox --every 10m --check "ls inbox | wc -l" "Tell @maya what is new in the inbox."',
     "The other commands take a trigger's name: show, run, on, off and remove, as in: shrimpy triggers show nightly. " +
       "Each has its own --help.",
     "",
@@ -198,7 +200,8 @@ const list: Command = {
 const add: Command = {
   name: "triggers add",
   usage:
-    '<name> (--every <delay> | --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] "<prompt>" [--agent <agent>]',
+    '<name> (--every <delay> | --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] ' +
+    '[--check "<command>" [--when changed|output|always] [--then wake] [--timeout <delay>]] "<prompt>" [--agent <agent>]',
   summary: "Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule.",
   details: [
     "Give --every, how often, or --cron, when, and not both. --every is a whole number and a unit, m, h or d, " +
@@ -214,6 +217,16 @@ const add: Command = {
       "has none, and what the agent writes last is posted in the thread. Run in the agent's own shell, this checks " +
       "before it writes that the agent is in the thread's channel. An occurrence that is due while the last is " +
       "still going is skipped, unless --overlap allow lets it wait behind.",
+    "",
+    "Without --check, every occurrence wakes the agent. --check is a command line that runs at each occurrence, " +
+      "before anything else, from the agent's home with the shrimpy command on its path, and the agent is woken only " +
+      "when it finds news. --when says what that is: changed, the default, is output that differs from the last " +
+      "occurrence's, which a trigger's first always does; output is any output at all; always is every time. The " +
+      "output is what the command prints on standard output, trimmed and cut at 2,000 characters. A command that " +
+      "exits with anything but 0, runs longer than --timeout, 1m unless given and at most 10m, or can't be started " +
+      "has failed, and the failure is news in its own right, once, until it fails differently. --then wake, the " +
+      "only thing news does so far, gives the agent the prompt and, apart from it, the output, which it reads as " +
+      "data and not as instructions. With no news, no turn is made and no model is called.",
     "",
     "What is given is checked before anything is written, and the error says what to give instead. It is written " +
       "as triggers/<name>.md in the agent's home, in place of any trigger of that name, and the new trigger is on. " +
@@ -231,6 +244,10 @@ const add: Command = {
           timezone: { type: "string" },
           thread: { type: "string" },
           overlap: { type: "string" },
+          check: { type: "string" },
+          when: { type: "string" },
+          then: { type: "string" },
+          timeout: { type: "string" },
         },
         allowPositionals: true,
       }),
@@ -252,6 +269,10 @@ const add: Command = {
         timezone: values.timezone,
         thread: values.thread,
         overlap: values.overlap,
+        check: values.check,
+        when: values.when,
+        then: values.then,
+        timeout: values.timeout,
         prompt,
       });
     } catch (error) {
@@ -289,8 +310,9 @@ const show: Command = {
   summary: "Show a trigger: what it says, when it runs next and its latest occurrences.",
   details:
     "Its schedule, where it goes, what it does when an occurrence is due while the last is still going, its " +
-    "prompt, when it runs next and how its latest occurrences ended, newest first. With no agent running, it " +
-    "shows only what the trigger's file says, and exits 1.",
+    "check if it has one, its prompt, when it runs next and how its latest occurrences ended, newest first: an " +
+    "occurrence of a trigger with a check can also end quiet, when the check found no news, or interrupted, when the " +
+    "agent stopped while the check ran. With no agent running, it shows only what the trigger's file says, and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
@@ -324,8 +346,9 @@ const run: Command = {
   summary: "Fire a trigger now, apart from its schedule, which it keeps.",
   details:
     "Needs a running agent. The occurrence runs in the background: follow it with shrimpy triggers show. A trigger " +
-    "that is off can be fired too. If the trigger does not allow overlap and its last occurrence is still going, " +
-    "this one is skipped, and the command exits 1.",
+    "that is off can be fired too. A trigger with a check is fired without running it: the agent is woken with the " +
+    "prompt alone. If the trigger does not allow overlap and its last occurrence is still going, this one is " +
+    "skipped, and the command exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);

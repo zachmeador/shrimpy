@@ -24,6 +24,18 @@ export async function readText(path: string): Promise<Read> {
   }
 }
 
+/**
+ * `text` cut to at most `limit` characters, never between the two halves of a
+ * character that takes two, with a last line that says it was cut. Text that
+ * fits is as it is.
+ */
+export function cutText(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  const last = text.charCodeAt(limit - 1);
+  const splitsAPair = last >= 0xd800 && last <= 0xdbff;
+  return `${text.slice(0, splitsAPair ? limit - 1 : limit).trimEnd()}\n[cut here: there is more]`;
+}
+
 /** Plain order of the characters, which does not change with the machine's language. */
 export const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 

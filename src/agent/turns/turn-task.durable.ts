@@ -157,7 +157,9 @@ export function turnTask(options: TurnTaskOptions) {
     initial: (input) => {
       const unrun = isOccurrence(input) ? input.unrun : undefined;
       if (unrun === undefined) return { phase: "handOver" };
-      return { phase: "tell", outcome: unrun.outcome === "skipped" ? { kind: "skipped" } : { kind: "failed", reason: unrun.reason } };
+      // An occurrence no turn ran has nobody to tell, unless something went wrong: then it is told as a failure, which reports it.
+      const wrong = unrun.outcome === "failed" || unrun.outcome === "interrupted";
+      return { phase: "tell", outcome: wrong ? { kind: "failed", reason: unrun.reason } : { kind: "skipped" } };
     },
     phases: {
       // Hand the input over, after any input admitted before it that has not been.

@@ -5,7 +5,7 @@ import type { Occurrence as OccurrenceView, TriggerSummary } from "../../contrac
 import { type Ending, isOccurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import type { StoredTrigger } from "../records/durable.ts";
 import { TURN_TASK } from "../turns/durable.ts";
-import { TRIGGER_TASK, type Waiting, type Waits } from "./task.durable.ts";
+import { type Standing, TRIGGER_TASK, type Waiting } from "./task.durable.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -21,7 +21,7 @@ export async function nextTimes(harness: Harness): Promise<Map<string, NextTime>
   const times = new Map<string, NextTime>();
   for (const { record } of tasks) {
     if (record.kind !== TRIGGER_TASK || record.abortRequested || !("checkpoint" in record.state)) continue;
-    const { revision, next } = record.state.checkpoint as Waits;
+    const { revision, next } = record.state.checkpoint as Standing;
     times.set((record.input as Waiting).name, { revision, next });
   }
   return times;

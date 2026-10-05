@@ -52,7 +52,10 @@ export interface Triggers {
   list(): Promise<TriggerSummary[]>;
   /** One trigger with its definition and recent occurrences. Refused when there is none of that name. */
   show(name: string): Promise<TriggerDetail>;
-  /** Fire a trigger once now, apart from its schedule. Refused when there is none of that name. */
+  /**
+   * Fire a trigger once now, apart from its schedule, with its prompt and without
+   * running its check. Refused when there is none of that name.
+   */
   fire(name: string): Promise<OccurrenceView>;
 }
 
@@ -82,11 +85,14 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
 
   /**
    * Where the thread the trigger names is, when it names one and the agent has no
-   * session behind it. Nothing otherwise, and nothing is asked of chat.
+   * session behind it. Nothing otherwise, and nothing is asked of chat. A trigger
+   * with a check has nobody to wake before its check has run, so it is asked
+   * once `afterCheck` says it has, or that there is none to run.
    */
-  async function whereTo(name: string, signal: AbortSignal): Promise<Where | undefined> {
-    const thread = (await stored(name))?.definition.thread ?? null;
-    if (thread === null) return undefined;
+  async function whereTo(name: string, signal: AbortSignal, afterCheck = false): Promise<Where | undefined> {
+    const found = await stored(name);
+    const thread = found?.definition.thread ?? null;
+    if (thread === null || (found?.definition.check !== undefined && !afterCheck)) return undefined;
     const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
     if (Object.hasOwn(sessions, thread)) return undefined;
     return { thread, ...(await options.channelOf(thread, signal)) };
@@ -131,13 +137,14 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
         ...summaryOf(found, (await nextTimes(harness)).get(name), recent.at(-1)),
         prompt: definition.prompt,
         overlap: definition.overlap,
+        check: definition.check ?? null,
         session: definition.thread === null ? triggerSession(name) : null,
         occurrences: recent.slice(-RECENT).reverse(),
       };
     },
 
     async fire(name) {
-      const where = await whereTo(name, new AbortController().signal);
+      const where = await whereTo(name, new AbortController().signal, true);
       return harness.commit(async (tx) => {
         const triggers = (await tx.doc(TriggersDoc)).triggers;
         const found = Object.hasOwn(triggers, name) ? triggers[name] : undefined;

@@ -175,7 +175,8 @@ export type WakeupInput = {
 /**
  * An occurrence of a trigger, as it was when it fired. The prompt and the
  * schedule are kept as they were then, so a later edit of the trigger's file
- * does not change what the record says ran.
+ * does not change what the record says ran. What the trigger's check printed is
+ * kept apart from the prompt, never merged into it.
  */
 export type Occurrence = {
   /** Names the occurrence for as long as the agent's records last. */
@@ -189,6 +190,11 @@ export type Occurrence = {
   schedule: string;
   /** What the trigger is to do, from its file. */
   prompt: string;
+  /**
+   * What the trigger's check printed, or the line that says it failed, for an
+   * occurrence the check's news woke the agent with. Absent for one with no check.
+   */
+  output?: string;
 };
 
 /**
@@ -203,10 +209,12 @@ export type OccurrenceInput = {
   cancelled?: Wakeup[];
   /**
    * An occurrence that no turn runs: it was skipped because the last one was
-   * still going, or could not be handed to a session. The task that follows it
-   * ends at once with this outcome, and `reason` says why. It has no thread.
+   * still going, or could not be handed to a session; its check found no news,
+   * so it was quiet; or the agent ended while its check ran, so it was
+   * interrupted. The task that follows it ends at once with this outcome, and
+   * `reason` says why. It has no thread.
    */
-  unrun?: { outcome: "skipped" | "failed"; reason: string };
+  unrun?: { outcome: "skipped" | "failed" | "quiet" | "interrupted"; reason: string };
 } & (InThread | NoThread);
 
 /**
@@ -269,8 +277,8 @@ export function isUrgent(outstanding: Outstanding): boolean {
 
 /** How the turn of an input ended, as the record of its task keeps it. */
 export type Ending = {
-  ended: "answered" | "silent" | "failed" | "stopped" | "skipped";
-  /** Why a turn failed or an occurrence was skipped, when it says. */
+  ended: "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "interrupted";
+  /** Why a turn failed, or an occurrence was skipped, quiet or interrupted, when it says. */
   reason?: string;
 };
 

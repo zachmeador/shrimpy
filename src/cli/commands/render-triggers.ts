@@ -1,5 +1,5 @@
 import { describeSchedule, type TriggerDefinition } from "../../agent/index.ts";
-import type { Occurrence, TriggerDetail, TriggerSchedule, TriggerSummary } from "../../contracts/agent/index.ts";
+import type { Check, Occurrence, TriggerDetail, TriggerSchedule, TriggerSummary } from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
@@ -68,6 +68,7 @@ interface Defined {
   /** The address of the session of its own, when the agent says it. */
   session: string | null;
   overlap: "skip" | "allow";
+  check: Check | null;
   prompt: string;
 }
 
@@ -87,8 +88,27 @@ function definition(trigger: Defined, next?: string): string[] {
     ...(next === undefined ? [] : [`  next      ${next}`]),
     `  goes to   ${goesTo}`,
     `  overlap   ${overlap}`,
+    ...(trigger.check === null ? [] : checkLines(trigger.check)),
     "  prompt",
     ...indent(trigger.prompt).map((line) => `  ${line}`),
+  ];
+}
+
+/** What a trigger's check says: the command, what counts as news, what news does, and how long the command may run. */
+function checkLines({ command, when, then, timeout }: Check): string[] {
+  const news = {
+    changed: "changed: news is output that differs from the last occurrence's, and the first occurrence's always does",
+    output: "output: news is any output at all",
+    always: "always: every occurrence is news",
+  }[when];
+  const does = {
+    wake: "wake: the agent is woken with the prompt and, apart from it, the output, which it reads as data",
+  }[then];
+  return [
+    `  check     ${command}`,
+    `  when      ${news}`,
+    `  then      ${does}`,
+    `  timeout   ${timeout}`,
   ];
 }
 
@@ -102,5 +122,5 @@ export function renderTrigger(trigger: TriggerDetail, now: number): string[] {
 
 /** One trigger as its file says it. */
 export function renderTriggerFile(trigger: TriggerDefinition): string[] {
-  return definition({ ...trigger, on: trigger.enabled, session: null });
+  return definition({ ...trigger, on: trigger.enabled, session: null, check: trigger.check ?? null });
 }

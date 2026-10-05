@@ -23,7 +23,10 @@ export interface HomePaths {
   readonly member: string;
   /** The engine's storage. Only the owner process opens it. */
   readonly database: string;
-  /** Disposable files: the owner lock, where to find the agent by this home's path, and the shrimpy command below. */
+  /**
+   * Disposable files: the owner lock, where to find the agent by this home's path, the shrimpy command below, and
+   * what each trigger's check last printed on standard error.
+   */
   readonly runtime: string;
   /** Where the owner puts the `shrimpy` command its agent's shell runs. */
   readonly bin: string;

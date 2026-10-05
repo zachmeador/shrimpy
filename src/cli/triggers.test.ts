@@ -83,6 +83,15 @@ test("add writes a file the agent's own check accepts, a running agent picks it 
   const listed = await run("triggers", "--agent", "scout");
   assert.equal(listed.code, 0, listed.err);
   assert.ok(listed.out.includes("nightly") && listed.out.includes("on"), listed.out);
+
+  // A check comes with what counts as news and how long it may run, and the agent has it as the file says it.
+  const checked = await run("triggers", "add", "inbox", "--every", "1h", "--check", 'ls inbox | grep -c "new"', "--when", "output", "--timeout", "30s", "Tell me.", "--agent", "scout");
+  assert.equal(checked.code, 0, checked.err);
+  const check = { command: 'ls inbox | grep -c "new"', when: "output", then: "wake", timeout: "30s" };
+  assert.deepEqual(parseTrigger("inbox", readFileSync(join(home, "triggers", "inbox.md"), "utf8")).check, check);
+  assert.deepEqual((await (await connection()).trigger("inbox")).check, check);
+  const shown = await run("triggers", "show", "inbox", "--agent", "scout");
+  assert.ok(shown.out.includes(check.command) && shown.out.includes("30s"), shown.out);
 });
 
 test("a schedule that is wrong is refused with the key and the value, and nothing is written", { timeout }, async (t) => {
@@ -98,6 +107,12 @@ test("a schedule that is wrong is refused with the key and the value, and nothin
     ["a time zone with a delay", ["--every", "1h", "--timezone", "UTC"], "timezone"],
     ["a thread that is not an ID", ["--every", "1h", "--thread", "general"], "thread: general"],
     ["an overlap that is not one", ["--every", "1h", "--overlap", "always"], "overlap: always"],
+    ["a when with no check", ["--every", "1h", "--when", "output"], "when goes with check"],
+    ["a when that is not one", ["--every", "1h", "--check", "true", "--when", "sometimes"], "when: sometimes"],
+    ["a then that is not built yet", ["--every", "1h", "--check", "true", "--then", "note"], "then: note"],
+    ["a timeout that is not a delay", ["--every", "1h", "--check", "true", "--timeout", "soon"], "timeout: soon"],
+    ["a timeout that is too long", ["--every", "1h", "--check", "true", "--timeout", "20m"], "timeout: 20m"],
+    ["a check of more than one line", ["--every", "1h", "--check", "true\nfalse"], "check is one line"],
   ];
   for (const [what, flags, mentions] of refused) {
     const result = await run("triggers", "add", "nightly", ...flags, "Tidy.", "--agent", "scout");

@@ -47,7 +47,7 @@ test("a trigger's file is read as written, and one that doesn't check out is ref
   assert.throws(() => parseTrigger("nightly", "Tidy up.\n"), /front matter/);
   assert.throws(() => parseTrigger("two words", file(["every: 1h"])), /name/);
   // A key nobody knows is told with the keys there are, and the shortest delay can be shortened for a test.
-  assert.throws(() => parseTrigger("nightly", file(["every: 1h", "retries: 3"])), /every, cron, timezone, thread, enabled and overlap/);
+  assert.throws(() => parseTrigger("nightly", file(["every: 1h", "retries: 3"])), /every, cron, timezone, thread, enabled, overlap, check, when, then and timeout/);
   assert.deepEqual(parseTrigger("quick", file(["every: 1s"]), { shortestEveryMs: 1_000 }).schedule, { every: "1s" });
 });
 

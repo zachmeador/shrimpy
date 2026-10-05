@@ -33,13 +33,14 @@ export function readFinalText(text: string): Reading {
  * How a turn ended, as the record of the task that followed its input keeps it.
  * A turn that answered with a reply is answered and one that answered with
  * `END` or nothing is silent, whether or not the reply has anywhere to go. An
- * occurrence that no turn ran says why in the reason it came with.
+ * occurrence that no turn ran ended as it came saying it did, with the reason it
+ * came with.
  */
 export function endingOf(input: Outstanding, outcome: TurnOutcome): Ending {
-  const reason = isOccurrence(input) && input.unrun !== undefined ? input.unrun.reason : outcome.kind === "failed" ? outcome.reason : undefined;
+  if (isOccurrence(input) && input.unrun !== undefined) return { ended: input.unrun.outcome, reason: input.unrun.reason };
   const ended: Ending["ended"] =
     outcome.kind === "answered" ? (readFinalText(outcome.text).kind === "reply" ? "answered" : "silent") : outcome.kind;
-  return reason === undefined ? { ended } : { ended, reason };
+  return outcome.kind === "failed" ? { ended, reason: outcome.reason } : { ended };
 }
 
 /** The text without blank lines in front or whitespace at the end. The first line keeps its indent. */
