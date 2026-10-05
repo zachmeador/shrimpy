@@ -50,7 +50,7 @@ Left open by the roster and by connecting by name:
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
 - To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine. Also how long a dead peer's registration lasts: an agent has one live body, so over a network an agent that restarts is turned away until its old connection times out.
 
-Decided on 2026-10-05 and not built yet: every time is written in local time with its offset, and who may do what, with one role, admin. Both follow rooms' second step.
+Decided on 2026-10-05 and not built yet: who may do what, with one role, admin.
 
 Left open by rooms' first step:
 
@@ -105,6 +105,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**2026-10-05: one way to write a time, and who a person's mention wakes.** Every time a model is shown and every time a command prints is local time with its offset, such as `2026-10-05T09:00:29-04:00`, written by one function in `lib/time`. A person's message wakes every agent in the room only when it mentions nobody; one that names members wakes who it names. Checked on macOS arm64: 513 tests, 507 pass and 6 are skipped.
 
 **Tests that depended on timing, 2026-10-05.** One full run of the suite in about thirty-six had failed a single test and passed when run again. The cause was found in the chat server's stop test: it closed the server, waited one tick and asserted that the client had been told, though that crosses a real socket. With copies of the old and the new test run side by side under load, the old one failed once in sixty and the new one never. Eleven such pauses now wait for the thing itself, and five tests that assert nothing happened now wait for an event that is certain to come after. Seventeen one-tick waits stay, where everything is in one process. Twenty more runs under load found two other tests that fail now and then, each with a known cause: test support read a log file while it was being written, and a test read a receipt the moment the reply appeared. Both are being fixed, and no fault was found in the product.
 
