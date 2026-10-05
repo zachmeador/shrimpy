@@ -18,7 +18,10 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - After a crash nothing shows a notice, though the plan's row on recovery asks for one. Only a turn that is given up reaches the sender, as a failed receipt.
 - A crash loop while an event is being handed over, or while chat is being told, is never broken: only a turn that was underway counts.
 - A skipped receipt carries no reason, so the sender of a message skipped behind a failed turn isn't told that writing again brings it back.
-- Nothing prunes the finished task that each event leaves in the agent's records.
+- Nothing prunes the finished task that each event leaves in the agent's records, nor a wake-up's finished sleeper, and each `check_back` call scans the session's sleepers.
+- Nothing shows a wake-up that is waiting: not `sessions list`, `sessions read` or the terminal. It needs a field in the agent's contract.
+- The terminal's Esc says there is nothing to stop while an agent is idle, so a waiting wake-up is cancelled only by `shrimpy sessions stop`.
+- `check_back` needs a session with a thread. A trigger's own session will have none, so the next step makes the thread optional.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
@@ -88,6 +91,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Phase 4 progress, 2026-10-04: one task follows any input, and an agent can wake itself.** The task that followed a chat event now follows an input from a source, and there are two: a chat event and a wake-up. Order, working marks, stop and the crash count cover both from the same code, and no assertion changed in the crash, chat, stop or events tests. `check_back({in, at, note})` wakes the session that called it, once: a sleeping background task on Pi's durable sleep admits the wake-up when it is due, a tool call that runs again after a crash sets no second one, and one that came due while the agent was down fires at the next start. A stop cancels a session's waiting wake-ups and its next input says which. Checked on macOS arm64: 481 tests, 475 pass and 6 are skipped.
 
 **Review, 2026-10-04: the rooms design.** Confirmed as written in the plan's phase 5, with two changes. Rooms are made with commands, `shrimpy rooms new` and `rooms add`, which an agent runs from its shell as itself, so making a room is something you ask an agent to do; the terminal only browses rooms. And the backlog an agent is shown when it wakes in a room is cut at 20,000 characters, not 6,000, with a line that says how many earlier messages there are and that `read_messages` reads them. If instructions alone can't keep two agents from going round in circles in the proof, that comes back for a decision before any mechanism is added.
 

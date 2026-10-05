@@ -309,6 +309,10 @@ The builders made these visible choices while implementing. None has shipped, an
 | Stopping an agent | It waits for the receipts of the turns that have ended, as before, and now stops waiting as soon as chat is lost. |
 | The agent's records have an ID | `rec_` and 12 characters, made once and kept in a document of its own, `shrimpy.records`. Every request ID the agent builds from Pi's own numbers carries it: a reply's and `send_message`'s. Without it, an agent started fresh in a thread it had already answered in could reuse an old reply's ID, and chat would refuse the new reply. |
 | What is kept for each event | A finished task of about 445 bytes with the event's text, for good. Nothing prunes them. |
+| The order of inputs in a session | By the ID of each input's task, since a task is made in the commit that admits its input and Pi numbers what it makes in that order. Pi's spec promises this of transcript entries and not of tasks, so it leans on how the storage numbers them; the order tests would catch a change. |
+| `check_back`'s limits | A delay of 1 second to 366 days, a note of up to 1,000 characters, and 20 wake-ups waiting in one session. A refusal begins "Not set:" and says what to give instead. `at` takes a full ISO time with an offset. |
+| What a wake-up reads as | The tool answers "You will be woken in this thread at …, in 5 minutes, with your note. You can end your turn now." When woken the model reads that this is a wake-up it asked for with `check_back`, when it asked, when it was for, and its note. The final text is posted like any reply. |
+| A stop and wake-ups | Stopping a session's work cancels the wake-ups it is waiting on, as you were told on 2026-10-04. The session's next input says which were cancelled, with each one's time and note, once. A wake-up whose turn fails, or is given up after two crashes, has no receipt to carry it, so it is only reported on standard error. |
 | What counts as a crash | The agent's records say whether it is running: set at the start, cleared at an orderly stop. A start that finds it set counts one crash for every event whose input was placed and not settled, in one commit before work resumes. A crash while an event is being handed over, or while chat is being told, never counts. The count is kept in the records beside the event's task, and goes when the task ends. |
 | Giving up on a turn | At two crashes the turn is stopped before it can run again, and the event's receipt says: "The agent stopped unexpectedly twice while working on this, so it gave up. Send it again to try once more." Events answered by the same turn end the same way, and an input waiting behind it is skipped. The third Ctrl+C under `up` kills the programs, so it counts as a crash. |
 | How a refusal says which case it is | A refusal's code carries a reason after its kind, such as `service_not_allowed:agent_running`, because the code is the only part besides the message that crosses the wire. Chord types its codes as a fixed set and the wire carries any string, so Shrimpy casts. The gateway's three reasons for turning an agent away are a name that is taken, a token it doesn't know and an agent that is already running, and the agent picks its advice by the reason, never by the message's words. |
@@ -477,7 +481,7 @@ A request ID names one request, and its first use wins. Pi returns the first sub
 An event is taken up in one commit and followed by one task:
 
 1. One Harness commit moves the feed's cursor past the event, makes the thread's session if it's new, and creates a Pi background task for the event.
-2. The task calls public `Conversation.submit()` with the stable request ID. It first hands over any earlier event of its thread that hasn't been, so events reach a session in the feed's order whatever order Pi starts the tasks in.
+2. The task calls public `Conversation.submit()` with the stable request ID. It first hands over any earlier input of its session that hasn't been, so inputs reach a session in the order they were admitted, whatever order Pi starts the tasks in. For chat events that is the feed's order.
 3. The task waits for the input to settle, posts the reply, leaves the receipt and ends.
 
 A crash at any point leaves a task, and Pi resumes it at its checkpoint. The feed is never read again for an event already taken up, because the cursor moved with the task. Use only public APIs: no `submit()` inside a Harness commit, no private admission helpers and no raw `Tx.createSubmission()`.
@@ -767,7 +771,8 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Built on 2026-10-04: a turn that crashes twice is stopped and marked failed, and a reply chat refuses leaves a failed receipt.
 - Built on 2026-10-04: the `shrimpy` command takes an agent's name and has a default folder, `~/shrimpy`.
 - Built on 2026-10-04: the gateway refuses a second body for one agent.
-- In progress on 2026-10-04: phase 4's first step.
+- Built on 2026-10-04: phase 4's first step, the one task for any input and `check_back`.
+- In progress on 2026-10-04: phase 5's first step, rooms in the chat server.
 - Phase 4 then builds on that one mechanism: asking another agent and carrying on with the answer, as the spike on `spike/ask-and-resume` showed, triggers that repeat and that fire once, and helpers.
 
 **From another machine, last.** These wait until there's a VM on the LAN to test them on. Nothing built before them assumes one machine: every link between programs takes a transport, so the same code runs over a Unix socket or a network connection.
