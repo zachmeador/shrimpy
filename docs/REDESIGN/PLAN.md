@@ -118,8 +118,8 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- A review of how the agent's code is divided into modules. `agent/sessions/` had become everything that touches Pi, because only three folders may import it. The [proposal](proposals/agent-modules.md) is written and waits on you.
-- Then one cleanup, agreed on 2026-10-05 after a check of the design: the agent's modules by job; every command naming its agent the same way, the shell's own agent unless `--agent` says another; and the README cut back to how to run, check and lay out the code.
+- The agent's modules by job. `agent/sessions/` had become everything that touches Pi, because only three folders may import it. You approved the [proposal](proposals/agent-modules.md) on 2026-10-05, and it is being built.
+- Then the rest of the cleanup agreed on 2026-10-05 after a check of the design: every command naming its agent the same way, the shell's own agent unless `--agent` says another; and the README cut back to how to run, check and lay out the code.
 
 **Next:**
 

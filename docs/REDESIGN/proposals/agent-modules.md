@@ -1,6 +1,6 @@
 # 🦐 The agent's modules, proposed
 
-**State:** proposed on 2026-10-05 and not reviewed. Nothing moves until you approve it. It comes from a review of `src/agent/` by an Opus subagent, asked for after `agent/sessions/` had grown to 2,019 lines doing eight jobs.
+**State:** approved on 2026-10-05, with the name `chat/`, and being built. When the build lands, the modules go into [the code's layout](../design/code-layout.md) and this file leaves. It comes from a review of `src/agent/` by an Opus subagent, asked for after `agent/sessions/` had grown to 2,019 lines doing eight jobs.
 
 **What went wrong.** The rule that only `host/`, `sessions/` and `extensions/` may import Pi was not the main cause. Triggers could have lived in `extensions/`, where the plan had put them. They went to `sessions/` because the records are private to that module, and no other module can take part in a commit. So "find or make the session, take what it kept, create the task" is written three times there: for a chat event, a wake-up and a trigger. A feature now spans three folders: the change that added wake-ups touched 27 files across `intake/`, `sessions/` and `extensions/`.
 
