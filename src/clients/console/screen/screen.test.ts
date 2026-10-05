@@ -396,7 +396,7 @@ test("the line for leaving names the thread, says the work continues, and says h
 
   assert.match(line, /scout is still working in thread th_4k9x2m7q0b3d.*continues/);
   assert.match(line, /Esc/);
-  assert.match(line, /shrimpy sessions stop <home> th_4k9x2m7q0b3d/);
+  assert.match(line, /shrimpy sessions stop scout th_4k9x2m7q0b3d/);
   assert.equal(farewellLine("sc\u001b[2Jout", "th_\u0007x"), farewellLine("scout", "th_x"));
 });
 

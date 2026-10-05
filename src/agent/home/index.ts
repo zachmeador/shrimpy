@@ -5,7 +5,7 @@
  * Shrimpy. It must not know about the engine, the model runtime or how the
  * agent is reached.
  */
-export { type ModelChoice, modelLabel, parseModelChoice } from "./agent-config.ts";
+export { checkAgentName, type ModelChoice, modelLabel, parseModelChoice } from "./agent-config.ts";
 export type { LeftOut } from "./files.ts";
 export { type InitOptions, type InitResult, initHome } from "./init.ts";
 export { type HomePaths, homePaths } from "./layout.ts";

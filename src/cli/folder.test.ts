@@ -23,7 +23,7 @@ const modelFlags = ["--model", "local/test-model"];
 
 const agentFile = (home: string): unknown => JSON.parse(readFileSync(join(home, "agent.json"), "utf8"));
 
-test("agent init with a name makes the home in the Shrimpy folder and names the agent for it, with a path it makes the home there, and it says what to type next", async (t) => {
+test("agent init with a name makes the home in the Shrimpy folder and names the agent for it, with a path it makes the home there, and it says what to type next; a folder name no agent can have needs --name", async (t) => {
   const folder = useShrimpyDir(t);
   assert.equal(existsSync(folder), false, "nothing is made until a command needs it");
 
@@ -43,9 +43,18 @@ test("agent init with a name makes the home in the Shrimpy folder and names the 
   assert.deepEqual(commandLines(path.out.join("\n")), [`shrimpy up ${elsewhere}`, `shrimpy agent serve ${elsewhere}`]);
   assert.equal(renamed.code, 0, renamed.err);
   assert.equal(readdirSync(join(folder, "agents")).join(), "scout", "and nothing of those went into the folder");
+
+  // The agent is named for its folder, so a folder name that no agent can have needs --name to give it one that differs.
+  const odd = await run("agent", "init", "Scout Bot", ...modelFlags);
+  const oddHome = join(folder, "agents", "Scout Bot");
+  assert.equal(odd.code, 2);
+  assert.match(odd.err, /--name/);
+  assert.equal(existsSync(oddHome), false);
+  assert.equal((await run("agent", "init", "Scout Bot", "--name", "scout-bot", ...modelFlags)).code, 0);
+  assert.deepEqual(agentFile(oddHome), { name: "scout-bot", model });
 });
 
-test("a folder with someone else's files in it is not used, and nothing is made in it, until the files are gone", async (t) => {
+test("a folder with someone else's files in it is not used, and nothing is made in it, until the files are gone; dot files are not someone else's", async (t) => {
   const folder = useShrimpyDir(t);
   mkdirSync(folder);
   writeFileSync(join(folder, "package.json"), "{}");
@@ -58,8 +67,14 @@ test("a folder with someone else's files in it is not used, and nothing is made 
   }
 
   assert.deepEqual(readdirSync(folder), ["package.json"]);
+  // An empty folder is Shrimpy's, and so is one with only dot files in it, such as the .DS_Store Finder leaves.
   rmSync(join(folder, "package.json"));
-  assert.equal((await run("agent", "init", "scout", ...modelFlags)).code, 0, "an empty folder is Shrimpy's");
+  for (const left of [[], [".DS_Store"]]) {
+    for (const file of left) writeFileSync(join(folder, file), "");
+    const used = await run("up");
+    assert.doesNotMatch(used.err, /SHRIMPY_DIR/, `a folder holding ${JSON.stringify(left)}`);
+  }
+  assert.equal((await run("agent", "init", "scout", ...modelFlags)).code, 0);
 });
 
 test("a name with no home behind it says so, lists the agents the folder has, and says how to make one; up with none says the same", async (t) => {

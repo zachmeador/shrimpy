@@ -14,7 +14,7 @@ import { oneLine } from "./plain.ts";
  */
 
 /** The command that starts everything a conversation needs, as the commands name it. */
-const START_EVERYTHING = "shrimpy up <home>... --data <dir>";
+const START_EVERYTHING = "shrimpy up";
 
 /** The program a problem is about. */
 export type Program = { kind: "chat" } | { kind: "agent"; name: string };
@@ -56,7 +56,7 @@ export function agentNote(agent: string, why: Why): string | undefined {
   const name = oneLine(agent);
   switch (why.kind) {
     case "not-registered":
-      return `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve <home>, or start everything with: ${START_EVERYTHING}`;
+      return `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
     case "lost":
       return `Lost the connection to ${name}. The work shown may be out of date, and it can't be stopped from here. Trying again.`;
     case "unreachable":
@@ -118,11 +118,11 @@ export function farewellLine(agentName: string, threadId: string): string {
   const thread = oneLine(threadId);
   return (
     `${agent} is still working in thread ${thread}, and the work continues. ` +
-    `To stop it, open the thread and press Esc, or run: shrimpy sessions stop <home> ${thread}`
+    `To stop it, open the thread and press Esc, or run: shrimpy sessions stop ${agent} ${thread}`
   );
 }
 
-export const AGENTS_EMPTY = `No agent has joined this machine's roster yet. Start one with: shrimpy agent serve <home>, or start everything with: ${START_EVERYTHING}`;
+export const AGENTS_EMPTY = `No agent has joined this machine's roster yet. Start one with: shrimpy agent serve <agent>, or start everything with: ${START_EVERYTHING}`;
 export const THREAD_EMPTY = "No messages yet.";
 export const NO_TITLE = "(no messages yet)";
 export const DELETED = "This message was deleted.";

@@ -15,7 +15,7 @@ export function loadHome(home: string): LoadedHome {
   if (!existsSync(paths.config)) {
     throw new Error(
       `${paths.root} is not an agent home: ${paths.config} is missing. ` +
-        `Create one with: shrimpy agent init ${paths.root} --name <name> --model <provider/id>`,
+        `Create one with: shrimpy agent init ${paths.root} --model <provider/id>`,
     );
   }
   const config = parseAgentConfig(readFileSync(paths.config, "utf8"), paths.config);

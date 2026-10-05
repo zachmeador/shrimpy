@@ -22,6 +22,7 @@ import { type CloseOptions, stopper } from "./stop.ts";
 
 export type { ContextPreview } from "./extensions/index.ts";
 export {
+  checkAgentName,
   type InitOptions,
   type InitResult,
   initHome,

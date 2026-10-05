@@ -39,7 +39,7 @@ What you set up lives in one folder, `~/shrimpy`, or the folder the environment 
   chat/             the chat server's data
 ```
 
-A folder that has other files in it and no `agents/` is taken to be someone else's, such as a clone of this repository. Nothing is made in it, and the commands say to set `SHRIMPY_DIR` or move it. While you work on Shrimpy, give every run a `SHRIMPY_DIR` and a `SHRIMPY_RUNTIME_DIR` of its own, so that nothing touches a setup in use.
+A folder that has other files in it and no `agents/` is taken to be someone else's, such as a clone of this repository. Dot files don't count, so a folder that holds only a `.DS_Store` is still yours to fill. Nothing is made in someone else's folder, and the commands say to set `SHRIMPY_DIR` or move it. While you work on Shrimpy, give every run a `SHRIMPY_DIR` and a `SHRIMPY_RUNTIME_DIR` of its own, so that nothing touches a setup in use.
 
 Each agent is a home folder, and `agent init` makes one, with a starter `SOUL.md` that works as it is, and says what to do next. It never overwrites a file that exists. The agent is named for its folder unless `--name` gives another name.
 

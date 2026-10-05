@@ -27,9 +27,10 @@ export function isPath(word: string): boolean {
 
 /**
  * The Shrimpy folder, once it is known to be Shrimpy's: it is not there yet,
- * or it is empty, or it has an `agents/` folder. A folder with other files and
- * no `agents/`, such as a clone of this repository, belongs to someone else,
- * and nothing is made in it.
+ * or it holds nothing but dot files, such as the `.DS_Store` Finder leaves, or
+ * it has an `agents/` folder. A folder with other files and no `agents/`, such
+ * as a clone of this repository, belongs to someone else, and nothing is made
+ * in it.
  */
 function ownFolder(): string {
   const folder = folderPath();
@@ -40,7 +41,7 @@ function ownFolder(): string {
         `Set ${FOLDER_VARIABLE} to another folder, or move this file.`,
     );
   }
-  if (existsSync(join(folder, AGENTS)) || readdirSync(folder).length === 0) return folder;
+  if (existsSync(join(folder, AGENTS)) || readdirSync(folder).every((entry) => entry.startsWith("."))) return folder;
   throw new Error(
     `${folder} has other files in it and no ${AGENTS}/ folder, so Shrimpy won't make anything there. ` +
       `Set ${FOLDER_VARIABLE} to another folder, or move this one.`,

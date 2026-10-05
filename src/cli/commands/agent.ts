@@ -1,6 +1,7 @@
 import { basename } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  checkAgentName,
   type HomeAgent,
   initHome,
   type ModelChoice,
@@ -35,7 +36,7 @@ const init: Command = {
     const model = modelFromFlag(values.model);
 
     const home = newHome(given);
-    const name = values.name ?? basename(home);
+    const name = values.name ?? folderName(home);
     const { paths, created } = initHome(home, { name, model });
     if (created.length === 0) {
       io.out(`The agent ${name} is already set up in ${paths.root}. Nothing was changed.`);
@@ -58,6 +59,19 @@ const init: Command = {
     return 0;
   },
 };
+
+/** The name an agent gets when `--name` gives none: the name of its home's folder, if an agent can have that name. */
+function folderName(home: string): string {
+  const name = basename(home);
+  try {
+    checkAgentName(name);
+  } catch (error) {
+    throw new UsageError(
+      `${(error as Error).message} An agent is named for its folder; --name gives it a name that differs from its folder's.`,
+    );
+  }
+  return name;
+}
 
 function modelFromFlag(flag: string): ModelChoice {
   try {
