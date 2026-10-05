@@ -41,7 +41,6 @@ Left open by the roster and by connecting by name:
 - A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
 - A copied home is two live connections with one member, and nothing chooses between them.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
-- `up` stops the agents it started when its gateway ends by itself, though losing the gateway is never meant to stop an agent.
 - To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine.
 
 Left open by the feed of events, to settle before rooms and chat providers:
@@ -58,9 +57,8 @@ Left open by the feed of events, to settle before rooms and chat providers:
 - The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
 - Skills are trails only. `/skill:name`, templates, required-tool filtering and choosing skills for one agent aren't built.
 - The skills name what doesn't exist yet and say so: a setup command, OAuth sign-in, resetting a session, rooms, starting a DM, and commands to list, rename or remove an agent.
-- `up` stops everything it started when one of its agents stops, which makes stopping one agent a sharp edge.
 - `send_message` and `read_messages` reach this thread and the agent's DM with any member. `quiet`, `#channel`, reactions, edits and delivery status come with rooms and providers.
-- Nothing limits the size of `SOUL.md`, a context file, the skills list or the earlier messages that come with an input. The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.
+- The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.
 - The agent's own service is named `SessionDirectory`, though it now also reloads the home.
 
 **Planned for a later phase**
@@ -90,7 +88,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
-**Review, 2026-10-04: the build's own choices.** The table of them in the plan had reached 77 rows. It is sorted now: ten worth a look, and the rest small mechanics that stand unless you say otherwise. Of the ten, confirmed so far: messages sent while an agent is busy are answered together in one reply, and keys come only from the home's files. Edits, deletes and reactions having no way in is fine until phase 3 brings keys in the clients and tools for agents. Your name stays your OS user's for now and becomes one of your own settings later. The plan's text was checked against the build in the sections the build touched, and what it had left behind was fixed: the mechanic, a command for every operation, an agent API for admitting messages, and the outbox. `wip` was pushed at `8dbf744`.
+**Review, 2026-10-04: the build's own choices.** The table of them in the plan had reached 77 rows. It is sorted now: ten worth a look, and the rest small mechanics that stand unless you say otherwise. Of the ten, confirmed so far: messages sent while an agent is busy are answered together in one reply, and keys come only from the home's files. Edits, deletes and reactions having no way in is fine until phase 3 brings keys in the clients and tools for agents. Your name stays your OS user's for now and becomes one of your own settings later. Confirmed later the same day: a failed turn leaves the messages behind it skipped until someone writes again, as a stop does; the model isn't told the current time; `up` stops everything it started when any one of them ends; and nothing limits how much an agent is told, for now. Two of the ten are still open: what a fresh start answers, and a copied home. The plan's text was checked against the build in the sections the build touched, and what it had left behind was fixed: the mechanic, a command for every operation, an agent API for admitting messages, and the outbox. `wip` was pushed at `8dbf744`.
 
 **2026-10-04: an event is followed to its receipt by a Pi task, and the outbox is gone.** Taking an event up is one commit: it moves the feed's cursor, makes the session if the thread is new and creates a background task. The task hands the input over, waits for it to settle, posts the reply, leaves the receipt and ends, and Pi resumes it after a crash. The agent's outbox, its recovery pass at start and the replay of the feed are deleted. Checked on macOS arm64: 465 tests, 459 pass and 6 are skipped.
 

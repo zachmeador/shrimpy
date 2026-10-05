@@ -214,14 +214,10 @@ The thinnest of the [six core pieces](#phases). The first column is what the new
 
 The builders made these visible choices while implementing. None has shipped, and each is open until you've looked at it. A new one is added here when its code is merged.
 
-**Worth a look.** These six change how you'd use Shrimpy, or have a real alternative.
+**Worth a look.** These two are still open.
 
 | Topic | What the build does | Why look |
 |---|---|---|
-| A turn that fails with messages waiting | The waiting messages are marked skipped and shown to the agent at its next turn in that thread. Nothing runs them by itself. | A message can sit unanswered until someone writes again. |
-| The current time | The model is told when each message was sent, in UTC, and never what time it is now. | The plan says the time travels with the input, and an agent woken by a trigger will need it. |
-| `shrimpy up` and what it started | It stops everything it started when any one of them ends, an agent or the gateway. Closing the terminal leaves the programs running. | Losing the gateway is never meant to stop an agent, and stopping one agent stops the rest. |
-| How much an agent is told | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | A big file goes to the model whole. Old Shrimpy had budgets. |
 | A fresh start | An agent with no records reads its channels from the start and answers every event that doesn't carry its receipt. | Moving an agent's records aside makes it answer old messages it never settled. |
 | A copied home | A home copied with its token is two live connections with one member, and nothing chooses between them. | Copying a home is the obvious way to clone an agent. |
 
@@ -233,6 +229,10 @@ The builders made these visible choices while implementing. None has shipped, an
 | Where keys come from | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed |
 | Edits, deletes and reactions | The chat server and the feed carry them, and nothing can make one yet: no command, no key in the terminal and no tool for an agent. | Fine for now. The ways in come in [phase 3](#3-what-daily-use-asks-for): keys in the clients, and tools for agents. |
 | Your name | The person is made when the gateway starts, from the OS user, and is named for it. Nothing renames a person, and a person is never shown as reachable. | Kept for now. The name you appear under becomes one of your own settings later. |
+| A turn that fails with messages waiting | The waiting messages are marked skipped and shown to the agent at its next turn in that thread. Nothing runs them by itself. | Confirmed. It is what a stop does. |
+| The current time | The model is told when each message was sent, in UTC, and never what time it is now. | Confirmed |
+| `shrimpy up` and what it started | It stops everything it started when any one of them ends, an agent or the gateway. Closing the terminal leaves the programs running. | Confirmed. Programs started on their own, with `agent serve`, `gateway serve` and `chat serve`, don't share a fate: losing the gateway never stops such an agent. |
+| How much an agent is told | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | Confirmed for now |
 
 **The rest** are small mechanics, settled under [core first](#phases). Skim them or leave them: saying nothing keeps them.
 
