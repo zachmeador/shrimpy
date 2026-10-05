@@ -11,5 +11,6 @@
 export { agentNamed, memberNamed, runningAgent } from "./agents.ts";
 export { dmWith } from "./dm.ts";
 export { askGateway, type GatewayView } from "./gateway.ts";
+export { START_EVERYTHING } from "./hints.ts";
 export { type Reached, reachChat } from "./reach.ts";
 export { type Waited, waitForReceipt } from "./receipts.ts";

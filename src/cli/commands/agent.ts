@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { basename } from "node:path";
 import { parseArgs } from "node:util";
 import {
   type HomeAgent,
@@ -11,6 +11,7 @@ import {
 } from "../../agent/index.ts";
 import type { Reloaded } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
+import { homeNamed, isPath, newHome } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
@@ -18,8 +19,9 @@ import { withConnection } from "./connected.ts";
 
 const init: Command = {
   name: "agent init",
-  usage: "<home> --name <name> --model <provider/id>",
+  usage: "<agent> --model <provider/id> [--name <name>]",
   summary: "Create an agent home. Files that already exist are left as they are.",
+  details: "The agent is named for the folder of its home unless --name gives it another name.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -28,28 +30,31 @@ const init: Command = {
         allowPositionals: true,
       }),
     );
-    const [home] = expectArguments(positionals, ["<home>"]);
-    if (values.name === undefined) throw new UsageError("Missing --name.");
+    const [given] = expectArguments(positionals, ["<agent>"]);
     if (values.model === undefined) throw new UsageError("Missing --model.");
     const model = modelFromFlag(values.model);
 
-    const { paths, created } = initHome(resolve(home), { name: values.name, model });
+    const home = newHome(given);
+    const name = values.name ?? basename(home);
+    const { paths, created } = initHome(home, { name, model });
     if (created.length === 0) {
-      io.out(`The agent ${values.name} is already set up in ${paths.root}. Nothing was changed.`);
+      io.out(`The agent ${name} is already set up in ${paths.root}. Nothing was changed.`);
       return 0;
     }
-    io.out(`Created the agent ${values.name} in ${paths.root}, with the model ${modelLabel(model)}.`);
+    // A home in the Shrimpy folder is found by its name, and one anywhere else by its path.
+    const named = !isPath(given);
+    io.out(`Created the agent ${name} in ${paths.root}, with the model ${modelLabel(model)}.`);
     io.out("");
     io.out("Next:");
     io.out(
-      `  1. Give ${values.name} access to that model. Declare its provider in ${paths.models}, ` +
+      `  1. Give ${name} access to that model. Declare its provider in ${paths.models}, ` +
         `or add a key to ${paths.auth}.`,
     );
-    io.out(`  2. Say who ${values.name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`);
-    io.out("  3. Start it, with the chat server's data in a folder of your choice:");
-    io.out(`       shrimpy up ${paths.root} --data <dir>`);
+    io.out(`  2. Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`);
+    io.out("  3. Start it:");
+    io.out(`       ${named ? "shrimpy up" : `shrimpy up ${paths.root}`}`);
     io.out("     Or, if Shrimpy is already running, add the agent to it:");
-    io.out(`       shrimpy agent serve ${paths.root}`);
+    io.out(`       shrimpy agent serve ${named ? given : paths.root}`);
     return 0;
   },
 };
@@ -64,7 +69,7 @@ function modelFromFlag(flag: string): ModelChoice {
 
 const serve: Command = {
   name: "agent serve",
-  usage: "<home> [--now]",
+  usage: "<agent> [--now]",
   summary: "Run the agent in the foreground until it is told to stop.",
   details:
     "Prints one JSON line when it is listening. SIGTERM or Ctrl+C stops it: it stops taking input, gives " +
@@ -74,7 +79,7 @@ const serve: Command = {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { now: { type: "boolean" } }, allowPositionals: true }),
     );
-    const [home] = expectArguments(positionals, ["<home>"]);
+    const [given] = expectArguments(positionals, ["<agent>"]);
 
     // Listening for stop requests comes first: whoever reads the "listening" line may signal at once.
     // The first request stops the agent, with a short wait for running turns unless --now is given.
@@ -91,7 +96,7 @@ const serve: Command = {
       else void agent?.close({ now: true });
     });
     try {
-      agent = await startHomeAgent(resolve(home), { shrimpy: shrimpyCommand() });
+      agent = await startHomeAgent(homeNamed(given), { shrimpy: shrimpyCommand() });
       io.out(JSON.stringify({ event: "listening", name: agent.name, home: agent.home, ...agent.endpoint }));
       await requested;
       await agent.close({ now: values.now === true });
@@ -104,13 +109,13 @@ const serve: Command = {
 
 const status: Command = {
   name: "agent status",
-  usage: "<home>",
-  summary: "Say whether an agent is running at the home, and how to reach it.",
+  usage: "<agent>",
+  summary: "Say whether the agent is running, and how to reach it.",
   details: "Prints one JSON line. Exits 0 if an agent is running and 1 if not.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [given] = expectArguments(positionals, ["<home>"]);
-    const home = resolve(given);
+    const [given] = expectArguments(positionals, ["<agent>"]);
+    const home = homeNamed(given);
 
     const endpoint = readEndpoint(home);
     // The endpoint file outlives the agent, so only an answer shows that one is there.
@@ -136,16 +141,16 @@ async function answers(home: string): Promise<boolean> {
 
 const context: Command = {
   name: "agent context",
-  usage: "<home>",
-  summary: "Preview what the agent at a home would be told, from the home's files as they are now.",
+  usage: "<agent>",
+  summary: "Preview what an agent would be told, from its home's files as they are now.",
   details:
     "Prints the sections the agent's instructions are made of, in order, as a model would get them. It " +
     "reads the files and starts nothing, so it also works while an agent runs there. A running agent has " +
     "what it read when it started or last reloaded: make it read again with shrimpy agent reload.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [given] = expectArguments(positionals, ["<home>"]);
-    const home = resolve(given);
+    const [given] = expectArguments(positionals, ["<agent>"]);
+    const home = homeNamed(given);
 
     const { sections, leftOut } = await previewHomeContext(home);
     io.out(
@@ -162,8 +167,8 @@ const context: Command = {
 
 const reload: Command = {
   name: "agent reload",
-  usage: "<home>",
-  summary: "Make the agent running at a home read its instructions, context files and skills again.",
+  usage: "<agent>",
+  summary: "Make a running agent read its instructions, context files and skills again.",
   details:
     "An agent reads SOUL.md, the Markdown files in context/ and the skills in skills/ when it starts, and " +
     "editing them changes nothing for it until this is run. Each session then uses what changed with its " +
@@ -171,10 +176,9 @@ const reload: Command = {
     "named, and the rest is read. To see what a home gives an agent now, use shrimpy agent context.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [given] = expectArguments(positionals, ["<home>"]);
-    const home = resolve(given);
+    const [agent] = expectArguments(positionals, ["<agent>"]);
 
-    return withConnection(home, async (connection) => {
+    return withConnection(agent, async (connection, home) => {
       const reloaded = await connection.reload();
       io.out(
         `Reloaded. The agent at ${home} now reads ${whatItReads(reloaded)}. ` +

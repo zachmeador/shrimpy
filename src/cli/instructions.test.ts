@@ -3,10 +3,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
 import { previewHomeContext } from "../agent/index.ts";
-import { tempDir } from "../lib/testing/index.ts";
 import { loadAll } from "./commands/index.ts";
 import { runCli } from "./index.ts";
-import { captureIo, commandLines, whyNotACommand } from "./testing/index.ts";
+import { captureIo, commandLines, useShrimpyDir, whyNotACommand } from "./testing/index.ts";
 
 /*
  * What agents are told about Shrimpy's commands has to stay true of the commands
@@ -15,9 +14,9 @@ import { captureIo, commandLines, whyNotACommand } from "./testing/index.ts";
  * to the CLI's own catalog of commands and flags.
  */
 test("every shrimpy command line in what an agent is told is a command the CLI has", async (t) => {
-  const home = join(tempDir(t, "instructions"), "scout");
   const init = captureIo();
-  assert.equal(await runCli(["agent", "init", home, "--name", "scout", "--model", "local/test-model"], init.io), 0);
+  assert.equal(await runCli(["agent", "init", "scout", "--model", "local/test-model"], init.io), 0);
+  const home = join(useShrimpyDir(t), "agents", "scout");
 
   const { sections, leftOut } = await previewHomeContext(home);
   assert.deepEqual(leftOut, [], "every skill that ships is written right");

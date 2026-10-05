@@ -20,7 +20,7 @@ A skill is a folder with a `SKILL.md`: instructions for one kind of job, read wh
    ```
 
 3. Under it, write the steps. Lead with what to do and put the common case first. Say when doing nothing is right. Keep it short enough to read in the middle of a task, about 80 lines. Check each shrimpy command in it with `--help`, as in `shrimpy agent init --help`.
-4. `shrimpy agent reload <home>` makes a running agent read its skills again. Without it, the change waits for the agent's next start.
+4. `shrimpy agent reload <agent>` makes a running agent read its skills again. Without it, the change waits for the agent's next start.
 
 ## The description decides
 
@@ -37,4 +37,4 @@ Under `<skills>`, one entry for each skill: its name, its description and the pa
 
 Other files in a skill's folder are not shown. The `SKILL.md` can name them by path for the agent to read when it needs them. A folder with no `SKILL.md` is not a skill, and neither is a hidden one.
 
-`shrimpy agent context <home>` shows the `<skills>` section as the agent will get it. A skill with no front matter or no description is left out, and the same output names it and says why.
+`shrimpy agent context <agent>` shows the `<skills>` section as the agent will get it. A skill with no front matter or no description is left out, and the same output names it and says why.

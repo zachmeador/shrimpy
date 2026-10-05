@@ -36,5 +36,5 @@ When a turn for an event ends, the agent leaves a receipt on it. The receipt nam
 
 1. `shrimpy gateway status`. An agent that isn't listed among the programs isn't running.
 2. `shrimpy read <thread> --json` shows each message with each agent's receipt on it. It reads only threads you are in.
-3. `shrimpy sessions read <home> <thread>` shows what the agent was shown and what it did. It asks the agent, so it needs no seat in the thread.
+3. `shrimpy sessions read <agent> <thread>` shows what the agent was shown and what it did. It asks the agent, so it needs no seat in the thread.
 4. `shrimpy threads <name>` shows your threads with that member and who is working in each right now.

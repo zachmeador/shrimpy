@@ -1,6 +1,7 @@
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
+import { allHomes, dataFolder, homeNamed } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd, type Program, ProgramEndedError, startProgram } from "../programs/index.ts";
 import { askGateway } from "../talk/index.ts";
@@ -10,28 +11,30 @@ import type { Command } from "./command.ts";
 
 const up: Command = {
   name: "up",
-  usage: "<home>... --data <dir>",
-  summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and an agent per home.",
+  usage: "[<agent>...] [--data <dir>]",
+  summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and your agents.",
   details:
-    "Each program runs as a process of its own, the same one that gateway serve, chat serve and agent serve " +
-    "start. The data directory is made if it is missing, and the gateway keeps its roster in a folder of its " +
-    "own in it, gateway/, and the chat server its store in chat/. A " +
-    "gateway, chat server or agent that is already running is used as it is, and left running when this stops. " +
-    "Ctrl+C or SIGTERM stops what this started, agents first, and exits 0 once they have stopped; a second " +
-    "request tells the agents to stop without waiting for running turns, and a third ends everything at " +
-    "once. If a program this started ends by itself, this says which, stops the rest and exits 1.",
+    "With no agents named, it starts every agent in your Shrimpy folder, which is ~/shrimpy or the folder " +
+    "SHRIMPY_DIR names: each folder of agents/ that holds an agent.json. The gateway keeps its roster in " +
+    "gateway/ and the chat server its store in chat/, in that folder or in the directory --data names, which " +
+    "is made if it is missing. Each program runs as a process of its own, the same one that gateway serve, " +
+    "chat serve and agent serve start. A gateway, chat server or agent that is already running is used as it " +
+    "is, and left running when this stops. Ctrl+C or SIGTERM stops what this started, agents first, and " +
+    "exits 0 once they have stopped; a second request tells the agents to stop without waiting for running " +
+    "turns, and a third ends everything at once. If a program this started ends by itself, this says which, " +
+    "stops the rest and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { data: { type: "string" } }, allowPositionals: true }),
     );
-    if (values.data === undefined) throw new UsageError("Missing --data.");
     if (values.data === "") throw new UsageError("--data needs a directory.");
-    return bringUp(io, { data: resolve(values.data), homes: positionals.map((home) => resolve(home)) });
+    const homes = positionals.length === 0 ? allHomes() : positionals.map(homeNamed);
+    return bringUp(io, { data: values.data === undefined ? dataFolder() : resolve(values.data), homes });
   },
 };
 
 interface Plan {
-  /** Where the chat server keeps its store. */
+  /** Where the gateway and the chat server keep their data, each in a folder of its own. */
   data: string;
   homes: string[];
 }

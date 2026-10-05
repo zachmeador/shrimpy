@@ -28,10 +28,25 @@ SHRIMPY_TEST_MODEL_URL=http://localhost:8090/v1 SHRIMPY_TEST_MODEL_ID=my-model n
 
 ## Run an agent
 
-`npm run shrimpy -- <command>` runs the command line from source. For a `shrimpy` command that works from any directory, link `bin/shrimpy.js` into a directory on your PATH. Each agent is a home folder, and `agent init` creates one, with a starter `SOUL.md` that works as it is, and says what to do next. It never overwrites a file that exists.
+`npm run shrimpy -- <command>` runs the command line from source. For a `shrimpy` command that works from any directory, link `bin/shrimpy.js` into a directory on your PATH.
+
+What you set up lives in one folder, `~/shrimpy`, or the folder the environment variable `SHRIMPY_DIR` names. Nothing is made there until a command needs it.
+
+```text
+~/shrimpy/
+  agents/<name>/    one home for each agent
+  gateway/          the gateway's data: the roster of who is on the network
+  chat/             the chat server's data
+```
+
+A folder that has other files in it and no `agents/` is taken to be someone else's, such as a clone of this repository. Nothing is made in it, and the commands say to set `SHRIMPY_DIR` or move it. While you work on Shrimpy, give every run a `SHRIMPY_DIR` and a `SHRIMPY_RUNTIME_DIR` of its own, so that nothing touches a setup in use.
+
+Each agent is a home folder, and `agent init` makes one, with a starter `SOUL.md` that works as it is, and says what to do next. It never overwrites a file that exists. The agent is named for its folder unless `--name` gives another name.
+
+Wherever a command takes an agent's home, a name like `scout` is the home `agents/scout` in the folder, and anything with a path separator in it, or that starts with `.` or `~`, is a path: `./scout` is a folder here, and `agent init ~/elsewhere/scout` makes a home there.
 
 ```bash
-npm run shrimpy -- agent init ~/agents/scout --name scout --model local/qwen3.8-27b
+npm run shrimpy -- agent init scout --model local/qwen3.8-27b
 ```
 
 ```text
@@ -77,10 +92,10 @@ The agent has two tools for chat. `send_message` posts a message now, without en
 
 ## Talk to an agent
 
-`up` starts what is missing on this machine and keeps it running in the foreground: the gateway, the chat server and the agent at each home. The data directory is required, so nothing lands near a live workspace, and each program that keeps data has a folder of its own in it: `gateway/` holds the roster of who is on the network, and `chat/` the chat server's store.
+`up` starts what is missing on this machine and keeps it running in the foreground: the gateway, the chat server and every agent in the folder's `agents/` that has an `agent.json`. The gateway keeps its roster in `gateway/` of the folder and the chat server its store in `chat/`. Name agents to start only those, and give `--data` to keep the two programs' data in another directory, in the same two folders. With no agent to start, `up` starts nothing and says how to make one.
 
 ```bash
-npm run shrimpy -- up ~/agents/scout --data ~/shrimpy-data
+npm run shrimpy -- up
 ```
 
 From another terminal, `run` says something to the agent and prints its reply. The new thread's ID goes to standard error, so a script that reads standard output gets only the reply, and `--thread` continues the thread.
@@ -118,19 +133,19 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 <!-- commands:start -->
 | Command | What it does |
 |---|---|
-| `up <home>... --data <dir>` | Start what is missing on this machine and keep it running: the gateway, the chat server and an agent per home. |
+| `up [<agent>...] [--data <dir>]` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
 | `threads <member> [--json]` | List your threads with a person or an agent: ID, when last updated, who is working in it, and its name. |
 | `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
-| `agent init <home> --name <name> --model <provider/id>` | Create an agent home. Files that already exist are left as they are. |
-| `agent serve <home> [--now]` | Run the agent in the foreground until it is told to stop. |
-| `agent status <home>` | Say whether an agent is running at the home, and how to reach it. |
-| `agent reload <home>` | Make the agent running at a home read its instructions, context files and skills again. |
-| `agent context <home>` | Preview what the agent at a home would be told, from the home's files as they are now. |
-| `sessions list <home>` | List the sessions of the agent running at the home: the thread and channel each is behind, and whether it is working. |
-| `sessions read <home> <thread> [--json]` | Show the session behind a thread: what was said, what the tools did, and what it is doing now. |
-| `sessions steer <home> <thread> <text> [--request-id <id>] [--wait]` | Give the session behind a thread input; it joins work already running. |
-| `sessions stop <home> <thread>` | Stop the work in the session behind a thread, and withdraw the input it has not picked up. |
+| `agent init <agent> --model <provider/id> [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
+| `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
+| `agent status <agent>` | Say whether the agent is running, and how to reach it. |
+| `agent reload <agent>` | Make a running agent read its instructions, context files and skills again. |
+| `agent context <agent>` | Preview what an agent would be told, from its home's files as they are now. |
+| `sessions list <agent>` | List the sessions of a running agent: the thread and channel each is behind, and whether it is working. |
+| `sessions read <agent> <thread> [--json]` | Show the session behind a thread: what was said, what the tools did, and what it is doing now. |
+| `sessions steer <agent> <thread> <text> [--request-id <id>] [--wait]` | Give the session behind a thread input; it joins work already running. |
+| `sessions stop <agent> <thread>` | Stop the work in the session behind a thread, and withdraw the input it has not picked up. |
 | `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |
@@ -146,7 +161,7 @@ An agent has one session for each thread it takes part in, named by the thread's
 
 `up` stops on SIGTERM or Ctrl+C: agents first, then the chat server, then the gateway, and it exits 0 once they have stopped. A second request tells the agents to stop without waiting for running turns, and a third ends everything at once. A program that `up` started and that ends by itself makes `up` say which one, stop the rest and exit 1. Each line a program prints is passed on with its name in front. When everything is already running, `up` says so and exits 0.
 
-A program is reached by its name, through the gateway, on this machine as on any other. A client asks the gateway for a ticket for the program it wants, which comes with the server ID the program answers as, and connects to the gateway's way in for that name: a socket in the `ways/` folder of the runtime directory, made when the program registers and taken away when the program is gone. The gateway pipes the bytes both ways to the program's own socket, which only the gateway is told, reads none of them, and closes each side as soon as the other closes. The client hands the program its ticket before anything else, and the program asks the gateway whose it is, so a connection to the chat server or to an agent that comes without a good ticket is refused. The gateway's list says what is running, by kind, name, version and the member it is, and tells no one where a program listens. A program that registers again after a restart is reached by the same name. An agent has a second socket, for its home, that the commands which take a home's path (`agent` and `sessions`) connect to straight and that asks for no ticket, so an agent can be watched and stopped while the gateway is down. What a member the gateway names may do at an agent is decided by the agent, and today everyone under one operating system user may do everything.
+A program is reached by its name, through the gateway, on this machine as on any other. A client asks the gateway for a ticket for the program it wants, which comes with the server ID the program answers as, and connects to the gateway's way in for that name: a socket in the `ways/` folder of the runtime directory, made when the program registers and taken away when the program is gone. The gateway pipes the bytes both ways to the program's own socket, which only the gateway is told, reads none of them, and closes each side as soon as the other closes. The client hands the program its ticket before anything else, and the program asks the gateway whose it is, so a connection to the chat server or to an agent that comes without a good ticket is refused. The gateway's list says what is running, by kind, name, version and the member it is, and tells no one where a program listens. A program that registers again after a restart is reached by the same name. An agent has a second socket, for its home, that the commands which take an agent (`agent` and `sessions`) connect to straight and that asks for no ticket, so an agent can be watched and stopped while the gateway is down. What a member the gateway names may do at an agent is decided by the agent, and today everyone under one operating system user may do everything.
 
 When the gateway stops, every connection to it and through it ends, and no program stops because of it, except that `up` stops what it started when any of it ends, the gateway included. The agent goes on with its turns, its replies wait in the tasks that follow their events and events wait in the chat server. The programs register again and the console and the agent's links connect again once the gateway is back, each pausing between tries for longer, up to 15 seconds.
 

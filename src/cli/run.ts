@@ -1,4 +1,5 @@
-import { type Command, loadAll, loadFamily } from "./commands/index.ts";
+import { type Command, loadFamily, loadGroups } from "./commands/index.ts";
+import { FOLDER_VARIABLE, folderPath } from "./folder/index.ts";
 import type { Io } from "./io/index.ts";
 import { UsageError } from "./usage/index.ts";
 
@@ -86,7 +87,30 @@ function describe(command: Command): string {
   return `Usage: shrimpy ${invocation(command)}`;
 }
 
+/** Every command, bare `shrimpy` first, then those for using Shrimpy, then those for running it and looking after it. */
 async function overview(): Promise<string> {
-  const lines = (await loadAll()).flatMap((command) => [`  ${invocation(command)}`, `      ${command.summary}`]);
-  return ["Usage: shrimpy <command> [arguments]", "", "Commands:", ...lines].join("\n");
+  const { using, running } = await loadGroups();
+  const list = (commands: Command[]): string[] =>
+    commands.flatMap((command) => [`  ${invocation(command)}`, `      ${command.summary}`]);
+  return [
+    "Usage: shrimpy [<command>] [arguments]",
+    "",
+    "  (no command)",
+    "      Open the terminal client, to see your agents and talk to them. It needs a terminal.",
+    "",
+    "Use Shrimpy:",
+    ...list(using),
+    "",
+    "Run and look after Shrimpy:",
+    ...list(running),
+    "",
+    "Wherever a command takes an agent's home, an <agent> is a name or a path. A name, like scout, is the home " +
+      "agents/scout in your Shrimpy folder. Anything with a / in it, or that starts with . or ~, is a path, so " +
+      "./scout is a folder here.",
+    "",
+    `Your Shrimpy folder is ${folderPath()}, where agents/ holds the home of each agent, and gateway/ and chat/ ` +
+      `hold the data of those programs. Set ${FOLDER_VARIABLE} to use another folder.`,
+    "",
+    "Say more about one command with: shrimpy <command> --help",
+  ].join("\n");
 }

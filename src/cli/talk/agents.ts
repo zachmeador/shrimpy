@@ -15,7 +15,7 @@ export function memberNamed(members: Member[], name: string): Member {
   const others = agents.length === 0 ? "No agent has joined yet." : `The agents are: ${agents.join(", ")}.`;
   throw new Error(
     `Nobody called ${name} is on this machine's roster. ${others} ` +
-      "An agent joins when it first runs: shrimpy agent serve <home>",
+      "An agent joins when it first runs: shrimpy agent serve <agent>",
   );
 }
 
@@ -35,6 +35,6 @@ export function runningAgent(programs: Registration[], agent: Member): Registrat
   if (registered !== undefined) return registered;
   throw new Error(
     `The agent ${agent.name} is on the roster but is not running. ` +
-      `Start it with: shrimpy agent serve <home>, or start everything with: ${START_EVERYTHING}`,
+      `Start it with: shrimpy agent serve ${agent.name}, or start everything with: ${START_EVERYTHING}`,
   );
 }

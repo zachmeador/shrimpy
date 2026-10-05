@@ -11,12 +11,12 @@ const CANCELLED = 130;
 
 const list: Command = {
   name: "sessions list",
-  usage: "<home>",
-  summary: "List the sessions of the agent running at the home: the thread and channel each is behind, and whether it is working.",
+  usage: "<agent>",
+  summary: "List the sessions of a running agent: the thread and channel each is behind, and whether it is working.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [home] = expectArguments(positionals, ["<home>"]);
-    return withConnection(home, async (connection) => {
+    const [agent] = expectArguments(positionals, ["<agent>"]);
+    return withConnection(agent, async (connection) => {
       const sessions = await connection.sessions();
       if (sessions.length === 0) io.out("The agent has no sessions yet.");
       for (const session of sessions) {
@@ -29,14 +29,14 @@ const list: Command = {
 
 const read: Command = {
   name: "sessions read",
-  usage: "<home> <thread> [--json]",
+  usage: "<agent> <thread> [--json]",
   summary: "Show the session behind a thread: what was said, what the tools did, and what it is doing now.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
     );
-    const [home, thread] = expectArguments(positionals, ["<home>", "<thread>"]);
-    return withSession(home, thread, (session) => {
+    const [agent, thread] = expectArguments(positionals, ["<agent>", "<thread>"]);
+    return withSession(agent, thread, (session) => {
       io.out(values.json === true ? JSON.stringify(session.view) : renderSession(session.view));
       return Promise.resolve(0);
     });
@@ -45,7 +45,7 @@ const read: Command = {
 
 const steer: Command = {
   name: "sessions steer",
-  usage: "<home> <thread> <text> [--request-id <id>] [--wait]",
+  usage: "<agent> <thread> <text> [--request-id <id>] [--wait]",
   summary: "Give the session behind a thread input; it joins work already running.",
   details:
     "Direct input is a control, like stopping, and not a message: the thread does not see it. If it joins a " +
@@ -61,9 +61,9 @@ const steer: Command = {
         allowPositionals: true,
       }),
     );
-    const [home, thread, text] = expectArguments(positionals, ["<home>", "<thread>", "<text>"]);
+    const [agent, thread, text] = expectArguments(positionals, ["<agent>", "<thread>", "<text>"]);
     if (text.trim() === "") throw new UsageError("The text is empty.");
-    return withSession(home, thread, async (session) => {
+    return withSession(agent, thread, async (session) => {
       const { submission } = await session.steer(text, values["request-id"]);
       if (values.wait !== true) {
         io.out(`Accepted as submission ${submission}.`);
@@ -94,15 +94,15 @@ function report(settlement: Settlement, io: Io): number {
 
 const stop: Command = {
   name: "sessions stop",
-  usage: "<home> <thread>",
+  usage: "<agent> <thread>",
   summary: "Stop the work in the session behind a thread, and withdraw the input it has not picked up.",
   details:
     "Messages still waiting stay in the thread, marked as skipped, and the agent reads them with the next one. " +
     "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [home, thread] = expectArguments(positionals, ["<home>", "<thread>"]);
-    return withSession(home, thread, async (session) => {
+    const [agent, thread] = expectArguments(positionals, ["<agent>", "<thread>"]);
+    return withSession(agent, thread, async (session) => {
       await session.stop();
       io.out(`Stopped the work in the session for thread ${thread}.`);
       return 0;
@@ -110,9 +110,9 @@ const stop: Command = {
   },
 };
 
-/** Attach to the session behind `thread` at the agent at `home` for the length of `use`. */
-function withSession<T>(home: string, thread: string, use: (session: SessionHandle) => Promise<T>): Promise<T> {
-  return withConnection(home, async (connection) => use(await connection.attach(thread)));
+/** Attach to the session behind `thread` at the agent `agent` names, a name or the path of its home, for the length of `use`. */
+function withSession<T>(agent: string, thread: string, use: (session: SessionHandle) => Promise<T>): Promise<T> {
+  return withConnection(agent, async (connection) => use(await connection.attach(thread)));
 }
 
 export const sessionsCommands: Command[] = [list, read, steer, stop];

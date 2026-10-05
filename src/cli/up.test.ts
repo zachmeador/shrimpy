@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
@@ -16,6 +16,7 @@ import {
   startModelServer,
   startUp,
   untilRegistered,
+  useShrimpyDir,
 } from "./testing/index.ts";
 
 /*
@@ -38,6 +39,15 @@ async function agentHome(t: TestContext, model: ModelServer, name = "scout"): Pr
   const home = join(tempDir(t, "up-homes"), name);
   const init = await shrimpy(["agent", "init", home, "--name", name, "--model", "local/test-model"]);
   assert.equal(init.code, 0, init.stderr);
+  declareLocalModel(home, { url: model.url, model: "test-model" });
+  return home;
+}
+
+/** The agent `name` in the Shrimpy folder, set up to use the test model. */
+async function agentInFolder(t: TestContext, model: ModelServer, name: string): Promise<string> {
+  const init = await shrimpy(["agent", "init", name, "--model", "local/test-model"]);
+  assert.equal(init.code, 0, init.stderr);
+  const home = join(useShrimpyDir(t), "agents", name);
   declareLocalModel(home, { url: model.url, model: "test-model" });
   return home;
 }
@@ -148,13 +158,30 @@ test("a program that cannot start ends up with its own words, then stops what wa
   assert.deepEqual(started.map(isAlive), [false, false]);
 });
 
-test("up needs --data, and starts nothing without it", { timeout }, async (t) => {
-  const runtime = useRuntimeDir(t);
+test("up with no arguments starts every agent in the Shrimpy folder, and keeps the gateway's and the chat server's data there", { timeout }, async (t) => {
+  const model = await testModel(t);
+  const folder = useShrimpyDir(t);
+  const scout = await agentInFolder(t, model, "scout");
+  await agentInFolder(t, model, "rex");
+  // A folder of agents/ with no agent.json in it is not an agent.
+  mkdirSync(join(folder, "agents", "notes"));
 
-  const missing = await shrimpy(["up", "some-home"]);
+  const up = await startUp(t, []);
 
-  assert.equal(missing.code, 2);
-  assert.deepEqual(readdirSync(runtime), []);
+  assert.equal(up.programs().length, 4, "the gateway, the chat server and the two agents");
+  await untilRegistered("agent", "scout");
+  await untilRegistered("agent", "rex");
+  const status = JSON.parse((await shrimpy(["agent", "status", "scout"])).stdout) as { home: string };
+  assert.equal(status.home, scout, "an agent is reached by its name");
+  assert.equal((await shrimpy(["sessions", "list", "rex"])).code, 0, "and so are its sessions");
+  assert.ok(existsSync(join(folder, "gateway", "state", "roster.json")), "the gateway keeps its roster in the folder");
+  assert.ok(existsSync(join(folder, "chat", "state", "chat.sqlite")), "and the chat server its store");
+
+  up.kill("SIGTERM");
+  const stopped = await up.finished;
+
+  assert.equal(stopped.code, 0, stopped.stderr);
+  assert.deepEqual(up.programs().map(isAlive), [false, false, false, false]);
 });
 
 test("run right after up gets its reply from the agent up started, even one sent before the agent has joined chat", { timeout }, async (t) => {

@@ -4,6 +4,7 @@ import type { GatewayConnection, Registration, RosterEntry } from "../../contrac
 import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
 import { startGateway, type WebOptions } from "../../gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
+import { START_EVERYTHING } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
@@ -81,7 +82,7 @@ async function inspectGateway(): Promise<{ programs: Registration[]; members: Ro
     gateway = await connectLocalGateway();
   } catch (error) {
     if (error instanceof GatewayNotRunningError) {
-      throw new Error(`${error.message} Start one with: shrimpy gateway serve --data <dir>`, { cause: error });
+      throw new Error(`${error.message} Start Shrimpy with: ${START_EVERYTHING}`, { cause: error });
     }
     throw error;
   }
