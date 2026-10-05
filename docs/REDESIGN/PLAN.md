@@ -172,6 +172,23 @@ None.
 
 **Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch. The MVP takes the second: every program runs the same version, and a mismatch is reported.
 
+**Facts and decisions, proposed on 2026-10-05 and not reviewed.**
+
+The rule: a contract carries facts. What a fact means to whoever reads it is the reader's decision.
+
+*The case that showed it.* The chat server marks every message with who it is `addressed` to: "the others in a DM, or those mentioned in a room". That is one field doing two jobs. Who a message mentions is a fact, worked out once when the message is written, by the program that knows the room's members and the roster at that moment. That a message in a DM is for the other member is a decision, and the chat server makes it for every reader. It came in with the first contract on 2026-10-03, when only DMs existed and the two looked the same. The plan had said only that the chat server owns "addressing and mentions" and that agents decide what wakes them.
+
+*What would change.*
+
+- A message records `mentions`: the members its text names, with `@all` as everyone in the room then. In a DM that is empty unless a name was written.
+- The agent's wake policy says what it already means: in a DM every message from the other member wakes it, and in a room a mention does, or a person's message that mentions nobody.
+- The rule that a person's mention joins the running turn reads the mention off the event, in a DM as in a room. The function the chat server and the agent share for this today goes.
+- The terminal decides for itself what to mark as for you.
+
+*What it costs.* The chat store holds something different, so its version rises and a store from before is refused. Your chat data resets once, and the agents' records with it. One unused column goes in the same change. The contract's field is renamed, so the chat server, the agent, the terminal and the commands change together. Nothing you see in a conversation changes.
+
+*What else the rule touches today:* nothing. The three contracts were read for another field that mixes the two, and `addressed` is the only one. A receipt's status is the agent's own statement of what it did. Whether a member is an admin, or reachable, is a fact. The chat server refusing a room to someone who isn't an admin is a permission it enforces, which is not the same as deciding what a message means.
+
 ### Identity and addressing
 
 It covers who a member is, how something is named and found, and who may message, watch, control or administer.
@@ -471,6 +488,7 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 |---|---|---|---|
 | Closing a client | The interactive session disposes its runtime on exit | The client detaches and accepted work keeps running. Quitting while the agent is busy prints one line saying the work continues and how to stop it. Reopening shows committed state, and threads and sessions mark replies and work that arrived while you were away. | Confirmed |
 | Bare `shrimpy` | Most recent interactive agent and its main chat | Opens your most recent thread with the most recently used agent, and starts that agent's service on demand if installed. Startup failure is explicit and keeps the editor draft. Workspace-wide gateway controls become per-agent controls. | Confirmed |
+| Where a setup lives | A pointer file in your home names a workspace, `~/.shrimpy` by default | One folder, `~/shrimpy` unless `SHRIMPY_DIR` names another: `agents/<name>/` for homes, with the gateway's and the chat server's data beside them. Where a command takes an agent, a bare word means the home of that name there, and `shrimpy up` with no arguments starts every agent in it. A path still works. A folder that holds other files and no `agents/` is taken to be someone else's and is left alone, and dot files don't count. Old Shrimpy's `~/.shrimpy` is never read or written. | Confirmed |
 | Several clients | A second terminal fails because the first owns the transcript | Clients share the agent's process and Pi orders the input. The UI shows the selected agent, thread and incoming messages. Switching views mid-turn is immediate; the previous thread's work keeps running and stays easy to find. Esc from any client stops the session for everyone. What you type in any client posts to the thread, so every client of the channel sees it. | Confirmed |
 | Terminal and web clients | Terminal only; the web app is a read-only inspector | Both talk in threads and open the sessions behind them, locally or through the gateway. Opening a view never creates an execution owner. Offline agents, lost routes and rejected input show explicitly. Navigation, controls and permissions still need review. | Confirmed |
 | `shrimpy run` | Ephemeral; prints intermediate and final assistant text | Posts to a thread, a new one in your DM with the agent unless one is selected, and prints the final settled answer. Scripts that parse today's output or exit codes need updating. | Confirmed |
@@ -585,6 +603,41 @@ Keep this simple:
 - A module whose API partly needs Node offers that part through a second door, `node.ts`, with its Node files named `*.node.ts`. A module that needs Node throughout has `node.ts` as its only door. Browser-safe code can't import either: that's the web client, the contracts' main doors, and every `lib/` module's main door with everything behind it.
 - Test support lives in a `testing/` module that only tests import.
 - ESLint enforces the import table, the front doors and the Pi package rules from a module's first commit, through one local rule in `lint/boundaries.js` with its own tests. `npm run check` runs types, lint and tests.
+
+### The agent's modules, proposed
+
+**State:** proposed on 2026-10-05 and not reviewed. Nothing moves until you approve it. It comes from a review of `src/agent/` by an Opus subagent, asked for after `agent/sessions/` had grown to 2,019 lines doing eight jobs.
+
+**What went wrong.** The rule that only `host/`, `sessions/` and `extensions/` may import Pi was not the main cause. Triggers could have lived in `extensions/`, where the plan had put them. They went to `sessions/` because the records are private to that module, and no other module can take part in a commit. So "find or make the session, take what it kept, create the task" is written three times there: for a chat event, a wake-up and a trigger. A feature now spans three folders: the change that added wake-ups touched 27 files across `intake/`, `sessions/` and `extensions/`.
+
+**What the rule is for,** and it stays for this. At the agent's edge, clients draw Shrimpy's own shapes, so a Pi upgrade lands in two files. Inside the agent, the code that talks to chat can't hold a transaction, so the promise that an event is taken up once sits in sixty lines, and 1,600 lines are testable with no engine.
+
+**The fix is two functions that take a transaction.** `openSession` finds or makes a session, and `takeUp` takes an input up. With them a source of input can live in a module of its own and still act inside one commit. This is the only change of logic, about 150 lines.
+
+**The modules, each with one job.**
+
+| Module | Its one job | Touches Pi |
+|---|---|---|
+| `inputs/`, new | What an input is, from any source, how it reads to the model, and how its turn can end. Data and words. | Never |
+| `records/`, new | Shrimpy's own documents in the engine's storage, and the changes to a session's record made inside another module's commit. | Defines the documents |
+| `turns/`, new | The task that follows one input to its end: taking it up, what is being worked on, and what a crash costs it. | Defines the task |
+| `wakeups/`, new | `check_back`: the tool, and the task that sleeps until the wake-up is due. | A tool and a task, as one extension |
+| `triggers/`, new | Standing triggers: follow the home's files, sleep, make occurrences, and answer the API about them. | Defines the task |
+| `chat/`, was `intake/` | The agent's side of chat: read the feed, decide what wakes it, take that up, post replies, leave receipts, mark where it works. | One file |
+| `sessions/` | The sessions as clients see them: which there are, the view of each, and steer, wait and stop. | Reads Pi's view |
+| `message-tools/`, was `extensions/tools/` | `send_message` and `read_messages`. | Defines the tools |
+| `context/`, was `extensions/context/` | What every session is told, as prompt sections made from the home's files. | Defines the sections |
+| `home/`, `host/`, `links/`, `access/` | As now. | `host/` opens the engine, and is the only place that does |
+
+`extensions/` goes: an extension is what a module hands the host to install. `sessions/` goes back to its first job. Imports point one way: `inputs`, `home`, `links` and `access`; then `host` and `records`; then `turns`; then `wakeups`, `triggers` and `chat`; then `sessions`, `message-tools` and `context`; then the top.
+
+**The rule, redrawn by file.** Inside the agent, a file imports Pi only if it is named `*.durable.ts`, and a plain file can't import a marked one. That is how `*.node.ts` works today. What decides it is what a builder does when the lint says no. Under a list of folders the cheap fix is to move the code into a listed folder, which is what filled `sessions/`. Under a name it is a new file beside the feature. It costs about 25 renames, and nearly every file of `turns/`, `records/` and `sessions/` carries the suffix. `pi-ai` joins the rule at the agent's edge, where its message types slip through today.
+
+**How.** Four commits by one builder on a quiet tree, each passing the check: renames only; the two functions, in place; the split of `sessions/`; then the lint by file. 69 files change path. No command, contract or behavior changes.
+
+**What must not change:** the names of the tasks and the documents, their versions, the shape of a stored input and the form of a request ID. Nothing converts records, so a drift costs a home its sessions. It is checked once by hand: today's build on a temporary home with a wake-up and a trigger waiting, then the new build on the same home.
+
+**Unsure.** The reviewer is confident of the cause and less so of the map, since nothing was built. Its least sure choices are the name `chat/`, which is also the chat server's folder; `records/` and `turns/` as two modules where one might do; and the second half of the rule, untried against a build.
 
 ### Size baseline
 

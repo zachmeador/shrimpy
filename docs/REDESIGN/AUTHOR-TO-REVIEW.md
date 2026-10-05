@@ -4,20 +4,14 @@ This page collects what you should look at: the questions waiting on you, the vi
 
 ## Waiting on you
 
-1. The two spike branches, `spike/delivery-as-task` and `spike/ask-and-resume`, exist only on this machine. Push them, or delete them now that both ideas are built or planned?
-2. How the agent's code is divided. A review on 2026-10-05 found the cause of `agent/sessions/` becoming everything that touches Pi, and it wasn't the lint: no module could take part in a commit without living beside the records, so the same steps were written three times in one folder. The proposal, in the [status log](STATUS.md#log): two functions that take a transaction; modules by job (`inputs`, `records`, `turns`, `wakeups`, `triggers`, `chat`, `sessions`, `message-tools`, `context`), with `extensions/` gone and `intake/` renamed; and the Pi rule drawn by file name, `*.durable.ts`, as `*.node.ts` already is. Four commits by one builder on a quiet tree, with no behavior changed. Yours to approve, and to say whether `chat/` is the right name for the agent's side of chat when the chat server's folder is `chat/` too.
-3. Refusals carry their reason inside Pi's error code, and contracts still show Pi's own error types. Nothing is broken. Deciding what a refusal is in Shrimpy's contracts would make it intentional. Not urgent.
-4. A contract carries facts, and what a fact means is the reader's decision. Proposed on 2026-10-05 as a rule for the contracts, after the chat server was found marking every DM message as addressed to the other member: who a message mentions is a fact, and that a DM is for the other member is a decision an agent should make. If you agree, the rule goes into the plan, and the chat store records only mentions at its next change of shape, which resets chat data once.
+1. The reshape of the agent's modules: go or no-go. The proposal is written out in the plan, under [the agent's modules, proposed](PLAN.md#the-agents-modules-proposed), with its one open name, `chat/`.
+2. A contract carries facts, and what a fact means is the reader's decision. Whether it goes into the plan, and with it the chat store recording only who a message mentions, which resets chat data once. It is written out under [the contracts between them](PLAN.md#the-contracts-between-them), with what would change and what it costs.
+3. The `cron-parser` package. A trigger's `cron` schedule is worked out by it, and it brings `luxon` with it. It is the first dependency the new Shrimpy has taken beyond Pi's own packages and the tools that check the code, and old Shrimpy used the same one. The other choices are writing that arithmetic here, time zones and summer time included, or having triggers take only `every`.
+4. Refusals carry their reason inside Pi's error code, and contracts still show Pi's own error types. Nothing is broken. Deciding what a refusal is in Shrimpy's contracts would make it intentional. Not urgent.
 
 ## Worth a look
 
-**Worth a look.** Three are open.
-
-| Topic | What the build does | Why look |
-|---|---|---|
-| `/stop` and what you see | A message of yours that starts with `/stop` stops the agents it is for at once: every agent in the room when it mentions nobody, and with a name that is no member's too, so `@typo /stop` stops everyone. Each agent leaves a silent receipt on it, which is shown to nobody. | When nothing was running, you see no sign that it was obeyed. |
-| A new dependency | Cron schedules are worked out by the package `cron-parser`, pinned at 5.5.0, which brings `luxon` with it. It is what old Shrimpy used, so it is the calendar the plan says to reuse. | It is the first dependency the new Shrimpy has taken beyond Pi's packages and the tools that check it. |
-| Where your setup lives | One folder, `~/shrimpy` unless `SHRIMPY_DIR` names another: `agents/<name>/` for homes, with the gateway's and the chat server's data beside them. Where a command takes an agent, a bare word means the home of that name there, and `shrimpy up` with no arguments starts every agent in it. Built on 2026-10-04, on your ask to think only in terms of `shrimpy`. A path still works: anything with a `/` in it, or that starts with `.` or `~`. A folder that holds other files and no `agents/` is taken to be someone else's and is left alone; dot files, such as a `.DS_Store`, don't count. The terminal client names an agent's commands by its roster name, which is its folder's name unless it was started from a path or renamed. | It is the one sticky default: where your agents live. Old Shrimpy's `~/.shrimpy` is never read or written, so an old workspace stays untouched. |
+Nothing is waiting here.
 
 ## Small mechanics
 
@@ -25,6 +19,7 @@ This page collects what you should look at: the questions waiting on you, the vi
 
 | Topic | What the build does |
 |---|---|
+| `/stop` when nothing was running | Each agent it is for leaves a silent receipt on it, which the terminal doesn't show. So a `/stop` that had nothing to stop looks the same as one that was ignored. A name that is no member's counts as mentioning nobody, so `@typo /stop` stops every agent in the room. |
 | Exit codes | 0 for success, 1 for failure and 130 for a cancelled wait, as decided, plus 2 when a command is used wrongly. |
 | Command output | `agent serve` and `agent status` print one JSON line each. `sessions read --json` prints the whole session view. |
 | Stop grace period | Running turns get five seconds to finish. The plan said "short". |
