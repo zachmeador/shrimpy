@@ -26,21 +26,24 @@ export interface Chat {
   openDm(otherId: string, context: Context): Promise<Channel>;
   /**
    * Make a room called `name`, with the caller and up to 200 more members,
-   * `memberIds`, in it, and its main thread. A name is one line of 1 to 200
-   * characters, and no other room has it, whatever the case. Anyone on the
-   * roster may be a member: one the chat server has not met is looked up in the
-   * gateway's roster. A name that is taken, or a member the roster does not
-   * have, is refused, and nothing is made. The caller among `memberIds`, or a
-   * member named twice, counts once. Answers with the room.
+   * `memberIds`, in it, and its main thread. Only an admin may: anyone else is
+   * refused with the reason `NEEDS_ADMIN`, which the chat server reads from the
+   * gateway's roster at the time of the call, so that a promotion counts at
+   * once. A name is one line of 1 to 200 characters, and no other room has it,
+   * whatever the case. Anyone on the roster may be a member: one the chat server
+   * has not met is looked up in the gateway's roster. A name that is taken, or a
+   * member the roster does not have, is refused, and nothing is made. The caller
+   * among `memberIds`, or a member named twice, counts once. Answers with the
+   * room.
    */
   createRoom(name: string, memberIds: string[], context: Context): Promise<Channel>;
   /**
    * Add 1 to 200 members to a room the caller is in, by the same rules as
-   * `createRoom`: anyone on the roster, and none is added if any is refused. A
-   * member who is in the room already stays as they are. A member who is added
-   * is offered the room's events from then on, and never what came before; the
-   * room's threads, read, show it. A DM takes no one. Answers with the room as
-   * it now stands.
+   * `createRoom`: only an admin may, and anyone on the roster may be added, and
+   * none is added if any is refused. A member who is in the room already stays as
+   * they are. A member who is added is offered the room's events from then on,
+   * and never what came before; the room's threads, read, show it. A DM takes no
+   * one. Answers with the room as it now stands.
    */
   addMembers(channelId: string, memberIds: string[], context: Context): Promise<Channel>;
 

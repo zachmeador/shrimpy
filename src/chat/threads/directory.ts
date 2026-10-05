@@ -2,7 +2,7 @@ import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
 import type { ChannelRecord, Transaction } from "../store/index.ts";
-import { visibleChannel, visibleThread } from "./access.ts";
+import { requireAdmin, visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
 
@@ -60,10 +60,11 @@ async function membersOf(deps: ChatDeps, caller: Member, ids: string[]): Promise
 
 /**
  * Make a room, with the caller and the members given in it, and its main
- * thread. The name is a name for display, and no other room has it, whatever
- * the case. Everything is checked before anything is made.
+ * thread. Only an admin may. The name is a name for display, and no other room
+ * has it, whatever the case. Everything is checked before anything is made.
  */
 export async function createRoom(deps: ChatDeps, caller: Member, name: unknown, memberIds: unknown): Promise<Channel> {
+  await requireAdmin(deps, caller, "Making a room");
   const title = label(name, "The room's name");
   const members = await membersOf(deps, caller, identifiers(memberIds, "memberIds", MAX_MEMBERS, 0));
   return deps.store.transaction((tx) => {
@@ -83,14 +84,16 @@ function roomOf(tx: Transaction, caller: Member, channelId: string): ChannelReco
 }
 
 /**
- * Add members to a room the caller is in. Whoever is added is offered the
- * room's events from then on, and one who is in already stays as they are.
+ * Add members to a room the caller is in, as an admin. Whoever is added is
+ * offered the room's events from then on, and one who is in already stays as
+ * they are.
  */
 export async function addMembers(deps: ChatDeps, caller: Member, channelId: unknown, memberIds: unknown): Promise<Channel> {
   const id = identifier(channelId, "channelId");
   const ids = identifiers(memberIds, "memberIds", MAX_MEMBERS);
-  // Someone who is not in the room is refused before the roster is asked anything for them.
+  // Someone who is not in the room is refused as if there were none, before the roster is asked anything.
   deps.store.transaction((tx) => roomOf(tx, caller, id));
+  await requireAdmin(deps, caller, "Adding members to a room");
   const added = await membersOf(deps, caller, ids);
   return deps.store.transaction((tx) => {
     roomOf(tx, caller, id);

@@ -9,10 +9,14 @@ export interface Identity {
   redeem(ticket: string): Promise<Member>;
   /** The member with this ID, or undefined when the roster has none. Refuses while the gateway cannot be reached. */
   member(id: string): Promise<Member | undefined>;
+  /** The admins as the roster has them now, which is asked again each time. Refuses while the gateway cannot be reached. */
+  admins(): Promise<Member[]>;
 }
 
 const UNREACHABLE =
   "The chat server can't reach the gateway right now, so it can't tell who you are. Try again in a moment.";
+const UNREACHABLE_FOR_ADMINS =
+  "The chat server can't reach the gateway right now, so it can't tell whether you are an admin. Try again in a moment.";
 
 /**
  * Ask the gateway over the connection the chat server already keeps to it, the
@@ -21,13 +25,13 @@ const UNREACHABLE =
  * caller as it was said.
  */
 export function identityFromGateway(current: () => GatewayConnection | undefined): Identity {
-  const ask = async <T>(question: (gateway: GatewayConnection) => Promise<T>): Promise<T> => {
+  const ask = async <T>(question: (gateway: GatewayConnection) => Promise<T>, unreachable = UNREACHABLE): Promise<T> => {
     const gateway = current();
-    if (gateway === undefined) refuse(UNREACHABLE, "service_not_allowed");
+    if (gateway === undefined) refuse(unreachable, "service_not_allowed");
     try {
       return await question(gateway);
     } catch (error) {
-      if (isDisconnected(error)) refuse(UNREACHABLE, "service_not_allowed");
+      if (isDisconnected(error)) refuse(unreachable, "service_not_allowed");
       if (isRefusal(error)) refuse(error.message);
       throw error;
     }
@@ -37,6 +41,10 @@ export function identityFromGateway(current: () => GatewayConnection | undefined
     async member(id) {
       const found = (await ask((gateway) => gateway.members())).find((each) => each.id === id);
       return found === undefined ? undefined : toMember(found);
+    },
+    async admins() {
+      const roster = await ask((gateway) => gateway.members(), UNREACHABLE_FOR_ADMINS);
+      return roster.filter((each) => each.admin).map(toMember);
     },
   };
 }

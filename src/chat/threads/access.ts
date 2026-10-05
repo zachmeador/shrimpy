@@ -1,4 +1,5 @@
 import type { ChatEvent, Member, Message } from "../../contracts/chat/index.ts";
+import { refuseNeedsAdmin } from "../../contracts/gateway/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { identifier } from "../input/index.ts";
 import type { ChannelRecord, ThreadRecord, Transaction } from "../store/index.ts";
@@ -64,4 +65,14 @@ export function watchableThread(deps: ChatDeps, caller: Member, threadId: unknow
 
 export function threadExists(deps: ChatDeps, threadId: string): boolean {
   return deps.store.transaction((tx) => tx.thread(threadId) !== undefined);
+}
+
+/**
+ * Refuse unless the caller is an admin, as the roster has it now and not as it
+ * had it when the caller came in, so that a promotion counts at once. `what`
+ * is what takes an admin, written to start a sentence.
+ */
+export async function requireAdmin(deps: ChatDeps, caller: Member, what: string): Promise<void> {
+  const admins = await deps.identity.admins();
+  if (!admins.some((admin) => admin.id === caller.id)) refuseNeedsAdmin(what, caller, admins);
 }

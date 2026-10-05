@@ -12,13 +12,18 @@ export function openTestDeps(t: TestContext): { deps: ChatDeps; clock: Clock } {
   const identity = {
     redeem: () => refuse("There is no gateway in this test."),
     member: () => Promise.resolve(undefined),
+    admins: () => refuse("There is no gateway in this test."),
   };
   return { deps: { store, working: createWorkingMarks(), identity, now: clock.now }, clock };
 }
 
 /** An identity that says everyone who comes in is `member`, for a test whose subject is not who people are. */
 export function identityOf(member: Member) {
-  return { redeem: () => Promise.resolve(member), member: () => Promise.resolve(member) };
+  return {
+    redeem: () => Promise.resolve(member),
+    member: () => Promise.resolve(member),
+    admins: () => Promise.resolve([member]),
+  };
 }
 
 /** Record a member in the store, or give one already there its new name, as coming in does. */

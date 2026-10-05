@@ -6,8 +6,8 @@
  * program's modules. It must not know what a member does with an event, or
  * anything about an agent's sessions. Of the gateway it knows only its
  * contract: it registers there with the one socket it listens on, which only
- * the gateway is told, and asks it who a ticket belongs to, over the one
- * connection it keeps.
+ * the gateway is told, and asks it who a ticket belongs to and who the admins
+ * are, over the one connection it keeps.
  */
 import { type KeptRegistration, keepRegistered } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";

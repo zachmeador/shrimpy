@@ -46,11 +46,13 @@ const rooms: Command = {
 const roomsNew: Command = {
   name: "rooms new",
   usage: "<name> [<member>...]",
-  summary: "Make a room, with you and the members you name in it.",
+  summary: "Make a room, with you and the members you name in it. Takes an admin.",
   details:
-    "Anyone can make a room and name anyone on the roster as a member. Every name is checked before anything " +
-    "is made, and the error says which name is wrong. A room's name is one line of up to 200 characters that no " +
-    "other room has, whatever the case. Members read and post in the room and can add more. A member added " +
+    "Making a room takes an admin: every person is one, and an agent is one once it has been promoted. An admin " +
+    "can name anyone on the roster as a member. Every name is checked before anything is made, and the error " +
+    "says which name is wrong. A room's name is one line of up to 200 characters that no " +
+    "other room has, whatever the case. Members read and post in the room, and a member who is an admin can add " +
+    "more. A member added " +
     "later can read what came before, and is only told of what comes after. To write the name as #ops, put it " +
     "in quotes: a shell treats an unquoted # as the start of a comment.",
   async run(args, io) {
@@ -78,11 +80,11 @@ const roomsNew: Command = {
 const roomsAdd: Command = {
   name: "rooms add",
   usage: "<room> <member>...",
-  summary: "Add members to a room you are in.",
+  summary: "Add members to a room you are in. Takes an admin.",
   details:
-    "Name the room as #name, in quotes, or as its name alone. Anyone on the roster can be added by a member of " +
-    "the room. Every name is checked before anyone is added, and the error says which name is wrong. A member " +
-    "added can read what came before, and is only told of what comes after.",
+    "Name the room as #name, in quotes, or as its name alone. Adding takes an admin who is a member of the room, " +
+    "and anyone on the roster can be added. Every name is checked before anyone is added, and the error says " +
+    "which name is wrong. A member added can read what came before, and is only told of what comes after.",
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [written, ...named] = positionals;

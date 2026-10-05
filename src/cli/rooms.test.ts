@@ -20,23 +20,25 @@ const timeout = 60_000;
 
 /**
  * `shrimpy` as an agent's shell runs it: the agent has joined the roster with a
- * token of its own, which its home keeps, and the command acts with it.
+ * token of its own, which its home keeps, and the command acts with it. It is
+ * not an admin unless the person who runs the gateway has made it one.
  */
-async function shellOf(t: TestContext, name: string): Promise<(args: string[]) => Promise<CliResult>> {
+async function shellOf(t: TestContext, name: string, options: { admin?: true } = {}): Promise<(args: string[]) => Promise<CliResult>> {
   const gateway = await (await startTestGateway(t)).connect();
   const token = newToken();
-  await gateway.join(name, token);
+  const member = await gateway.join(name, token);
+  if (options.admin === true) await (await (await startTestGateway(t)).connect()).promote(member.id);
   const home = tempDir(t, `${name}-home`);
   saveMembership(home, { token });
   return (args) => shrimpy(args, { env: { [AGENT_HOME_VARIABLE]: home } });
 }
 
-test("an agent makes a room from its shell and the person is added to it, then both list it and its threads, and read it", { timeout }, async (t) => {
+test("an agent that is an admin makes a room from its shell and the person is added to it, then both list it and its threads, and read it", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const you = await talking.you();
   await startScriptedAgent(t, { name: "scout", handle: () => ({ status: "silent" }) });
   await joinRoster(t, "maya");
-  const rex = await shellOf(t, "rex");
+  const rex = await shellOf(t, "rex", { admin: true });
 
   // The agent makes it, so it is the agent that is in it, and the person has to be added to see it.
   const made = await rex(["rooms", "new", "ops", "scout"]);

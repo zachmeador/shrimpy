@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { NEEDS_ADMIN } from "../contracts/gateway/index.ts";
+import { isRefusal, reasonOf } from "../lib/refusal/index.ts";
 import { mainThread, posted, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -8,7 +10,7 @@ const timeout = 30_000;
 const forWhom = (message: { addressed: string[] }, names: Map<string, string>): string[] =>
   message.addressed.map((id) => names.get(id) ?? id).sort();
 
-test("a room is made with the members it names, any member can add more, and only members see it, read it or post in it", { timeout }, async (t) => {
+test("a room is made with the members it names, an admin who is in it can add more, and only members see it, read it or post in it", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.person();
   const scout = await chat.agent("scout");
@@ -26,9 +28,9 @@ test("a room is made with the members it names, any member can add more, and onl
   await zach.chat.post(side.id, "Which disk?", "zach-1");
 
   // A name is unique among rooms whatever the case, and a call that names someone who is not on the roster makes nothing.
-  await assert.rejects(alice.chat.createRoom("OPS", []), { code: "service_invalid_value", message: /room called "OPS" already/ });
-  await assert.rejects(alice.chat.createRoom("Other", ["mem_nobody"]), { message: /There is no member mem_nobody on the roster/ });
-  assert.deepEqual(await alice.chat.channels(), []);
+  await assert.rejects(zach.chat.createRoom("OPS", []), { code: "service_invalid_value", message: /room called "OPS" already/ });
+  await assert.rejects(zach.chat.createRoom("Other", ["mem_nobody"]), { message: /There is no member mem_nobody on the roster/ });
+  assert.deepEqual((await zach.chat.channels()).map((channel) => channel.name), ["Ops"]);
 
   // Someone who is not in it can't see it, read it, post in it or add anyone, and is told nothing about it.
   const refused: [string, () => Promise<unknown>][] = [
@@ -40,8 +42,8 @@ test("a room is made with the members it names, any member can add more, and onl
   ];
   for (const [what, call] of refused) await assert.rejects(call(), { message: /^Unknown (channel|thread): /u }, what);
 
-  // A member can add anyone on the roster, and a member added sees the whole room, its history included.
-  const added = await scout.chat.addMembers(room.id, [maya.me.id, scout.me.id]);
+  // An admin who is in the room can add anyone on the roster, and a member added sees the whole room, its history included.
+  const added = await zach.chat.addMembers(room.id, [maya.me.id, scout.me.id]);
   assert.deepEqual(added.members.map((member) => member.id).sort(), [zach.me.id, scout.me.id, maya.me.id].sort());
   assert.deepEqual((await maya.chat.channels()).map((channel) => channel.id), [room.id]);
   assert.deepEqual(texts(await maya.chat.read(side.id, null, 10)), ["Which disk?"]);
@@ -105,4 +107,36 @@ test("a member added to a room is offered what comes after, never what came befo
   assert.deepEqual(posted(await maya.chat.feed(0, 10)), ["after"], "and so does one that starts from the beginning");
   assert.deepEqual(texts(await maya.chat.read(main.id, null, 10)), ["before", "after"]);
   assert.deepEqual(posted(await scout.chat.feed(0, 10)), ["before", "after"], "while a member from the start is offered it all");
+});
+
+test("making a room and adding members take an admin, which a person is and an agent is once promoted, with nothing restarted", { timeout }, async (t) => {
+  const chat = await startTestChat(t);
+  const zach = await chat.person();
+  const scout = await chat.agent("scout");
+  const maya = await chat.agent("maya");
+  const rex = await chat.agent("rex");
+  const needsAdmin = (error: unknown): boolean => isRefusal(error) && reasonOf(error) === NEEDS_ADMIN;
+  // The person is the admin there is, so the refusal names them for whoever has to ask.
+  const asksTheAdmin = (error: unknown): boolean => needsAdmin(error) && (error as Error).message.includes(zach.me.name);
+
+  // A person is an admin, and makes a room and adds to it.
+  const ops = await zach.chat.createRoom("Ops", [scout.me.id]);
+  assert.equal((await zach.chat.addMembers(ops.id, [maya.me.id])).members.length, 3);
+
+  // An agent that is not is refused both, even in a room it is in, and the refusal says why in a way that can be told without reading it.
+  await assert.rejects(scout.chat.createRoom("Mine", [rex.me.id]), asksTheAdmin);
+  await assert.rejects(scout.chat.addMembers(ops.id, [rex.me.id]), asksTheAdmin);
+  assert.deepEqual((await scout.chat.channels()).map((channel) => channel.name), ["Ops"], "nothing was made and nobody was added");
+  assert.deepEqual((await zach.chat.channels()).map((channel) => channel.name), ["Ops"]);
+
+  // Promoted at the gateway, the same connection may: the chat server asks the roster each time, not once when it came in.
+  await chat.setAdmin(scout.me, true);
+  const mine = await scout.chat.createRoom("Mine", [rex.me.id]);
+  assert.deepEqual(mine.members.map((member) => member.name).sort(), ["rex", "scout"]);
+  assert.equal((await scout.chat.addMembers(ops.id, [rex.me.id])).members.length, 4);
+
+  // And demoted, it may not again.
+  await chat.setAdmin(scout.me, false);
+  await assert.rejects(scout.chat.createRoom("Theirs", []), needsAdmin);
+  await assert.rejects(scout.chat.addMembers(mine.id, [maya.me.id]), needsAdmin);
 });

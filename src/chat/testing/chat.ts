@@ -29,6 +29,8 @@ export interface TestChat {
   member(name: string): Promise<Member>;
   /** Rename an agent that has joined, as starting it again under another name does. */
   rename(name: string, renamed: string): Promise<Member>;
+  /** Make an agent an admin, or an ordinary agent again, as the person who runs the gateway does. The chat server reads it at once. */
+  setAdmin(member: Member, admin: boolean): Promise<void>;
   /** A ticket for the chat server, for the person who runs the gateway. */
   ticket(): Promise<string>;
 }
@@ -57,6 +59,10 @@ export async function startTestChat(t: TestContext): Promise<TestChat> {
     agent: (name) => enterAsAgent(t, name),
     member: (name) => joinRoster(t, name),
     rename: (name, renamed) => renameAgent(t, name, renamed),
+    async setAdmin(member, admin) {
+      const person = await gateway.connect();
+      await (admin ? person.promote(member.id) : person.demote(member.id));
+    },
     ticket: () => ticketForPerson(t),
   };
 }
