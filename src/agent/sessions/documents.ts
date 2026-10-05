@@ -26,9 +26,9 @@ import type { Snapshot } from "../intake/index.ts";
  *
  * `running` is set at every start and cleared by an orderly stop, so a start
  * that finds it set follows a run that ended in some other way. `crashes` counts,
- * for each event whose task is live, the runs that ended that way while the
- * event's turn was underway. Records written before either existed have neither,
- * which reads as not running and no crashes.
+ * for each input whose task is live, the runs that ended that way while the
+ * input's turn was underway, under the input's ID. Records written before either
+ * existed have neither, which reads as not running and no crashes.
  */
 export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: Record<string, number> }>({
   kind: "shrimpy.records",

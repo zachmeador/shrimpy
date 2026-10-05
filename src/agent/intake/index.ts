@@ -11,7 +11,7 @@
  * how a text too long for one message is split.
  */
 export { createDelivery, type Delivery, type DeliveryOptions } from "./delivery.ts";
-export type { Admissions, Outstanding, Snapshot, TurnOutcome, Working } from "./events.ts";
+export { type Admissions, idOf, type Outstanding, type Snapshot, type TurnOutcome, type Working } from "./events.ts";
 export { type Intake, type IntakeOptions, startIntake } from "./intake.ts";
 export { promptFor, standing } from "./prompt.ts";
 export { inParts } from "./reply.ts";

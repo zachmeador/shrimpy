@@ -14,7 +14,7 @@ import {
   type TaskRuntime,
   type Tx,
 } from "@earendil-works/pi-durable";
-import { type Delivery, type Outstanding, promptFor, type Snapshot, type TurnOutcome } from "../intake/index.ts";
+import { type Delivery, idOf, type Outstanding, promptFor, type Snapshot, type TurnOutcome } from "../intake/index.ts";
 import { plain, RecordsDoc, ThreadsDoc } from "./documents.ts";
 import { toOutcome } from "./turn.ts";
 
@@ -48,14 +48,17 @@ type Phase<P extends TurnState = TurnState> = (turn: Turn<P>, runtime: Runtime, 
 /** What a phase does when something unexpected went wrong in it, so that the task ends in a way that says so. */
 type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context, failure: Error) => Promise<void>;
 
-/** The input an event becomes is named for the event, so handing the same event over twice is one input. */
-const requestIdOf = (eventId: string): string => `chat:${eventId}`;
+/**
+ * The input a task hands its session is named for the input it follows, in the
+ * namespace of its source, so handing the same one over twice is one input.
+ */
+const requestIdOf = (outstanding: Outstanding): string => `chat:${idOf(outstanding)}`;
 
 const inputOf = (outstanding: Outstanding) => ({
   type: "input" as const,
   content: promptFor(outstanding),
   whenBusy: "followUp" as const,
-  requestId: requestIdOf(outstanding.event.id),
+  requestId: requestIdOf(outstanding),
 });
 
 export interface TurnTaskOptions {
@@ -89,7 +92,7 @@ export function turnTask(options: TurnTaskOptions) {
         // The engine is closing, or the task was aborted: the engine ends the phase and carries on from the checkpoint.
         if (runtime.signal.aborted) throw error;
         const failure = asError(error);
-        const where = `${turn.input.event.id} in thread ${turn.input.threadId}`;
+        const where = `${idOf(turn.input)} in thread ${turn.input.threadId}`;
         options.onError(new Error(`Work on ${where} failed: ${failure.message}`));
         await recover(turn, runtime, context, failure);
       }
@@ -160,7 +163,7 @@ export function turnTask(options: TurnTaskOptions) {
       } catch (error) {
         if (runtime.signal.aborted) throw error;
         const failure = asError(error);
-        const where = `${turn.input.event.id} in thread ${turn.input.threadId}`;
+        const where = `${idOf(turn.input)} in thread ${turn.input.threadId}`;
         options.onError(new Error(`Stopping the work on ${where} failed: ${failure.message}`));
         await gaveUp(turn.input, runtime, context, failure);
       }
@@ -180,22 +183,24 @@ async function sessionOf(input: Outstanding, runtime: Runtime, context: Context)
 }
 
 /**
- * The events of this thread before the task's own whose tasks have not handed
- * them over yet, oldest first. A task hands these over before its own event.
- * Handing over is idempotent by the event's request ID, so it does not matter
- * which task gets there first, and no event can reach the session ahead of one
- * that precedes it in its thread, whatever order the engine starts the tasks in.
+ * The inputs of this session admitted before the task's own whose tasks have not
+ * handed them over yet, in the order they were admitted. A task hands these over
+ * before its own input. An input is admitted in the commit that creates its
+ * task, and the engine numbers what it creates in the order it creates it, so
+ * the order of the tasks' IDs is the order of admission, whatever order the
+ * engine starts the tasks in. Handing over is idempotent by the input's request
+ * ID, so it does not matter which task gets there first, and no input can reach
+ * the session ahead of one admitted before it.
  */
 async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise<Outstanding[]> {
-  const found: Outstanding[] = [];
+  const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
   await runtime.commit(async (tx) => {
     for (const record of await liveTurns(tx, runtime.conversationId)) {
-      const input = record.input as Outstanding;
-      if (phaseOf(record) === "handOver" && input.event.seq < turn.input.event.seq) found.push(input);
+      if (phaseOf(record) === "handOver" && record.id < turn.id) found.push(record);
     }
     return undefined;
   }, context);
-  return found.sort((a, b) => a.event.seq - b.event.seq);
+  return found.sort((a, b) => a.id - b.id).map((record) => record.input as Outstanding);
 }
 
 /** The tasks that follow an event and are live, with none of them being aborted: those of one session, or of all. */
@@ -214,31 +219,33 @@ async function liveTurns(tx: Tx, conversationId?: ConversationId): Promise<TaskR
 }
 
 /**
- * The events whose turn is underway: the task that follows the event is live
+ * The inputs whose turn is underway: the task that follows the input is live
  * and its input is placed in the transcript and not settled. These are the turns
- * that a crash of the agent interrupts. An event whose turn has ended, so that
- * its task is telling chat, is not among them, and neither is one still waiting.
+ * that a crash of the agent interrupts. An input whose turn has ended, so that
+ * its task is telling its source, is not among them, and neither is one still
+ * waiting.
  */
-export async function turnsUnderway(tx: Tx): Promise<{ eventId: string; conversationId: ConversationId }[]> {
-  const underway: { eventId: string; conversationId: ConversationId }[] = [];
+export async function turnsUnderway(tx: Tx): Promise<{ inputId: string; conversationId: ConversationId }[]> {
+  const underway: { inputId: string; conversationId: ConversationId }[] = [];
   for (const record of await liveTurns(tx)) {
-    const eventId = (record.input as Outstanding).event.id;
-    const submission = await tx.submissionByRequest(record.conversationId, requestIdOf(eventId));
-    if (submission?.status === "placed") underway.push({ eventId, conversationId: record.conversationId });
+    const input = record.input as Outstanding;
+    const submission = await tx.submissionByRequest(record.conversationId, requestIdOf(input));
+    if (submission?.status === "placed") underway.push({ inputId: idOf(input), conversationId: record.conversationId });
   }
   return underway;
 }
 
-/** How many times the agent ended unexpectedly while the event's turn was underway. */
+/** How many times the agent ended unexpectedly while the input's turn was underway. */
 async function crashesOf(input: Outstanding, runtime: Runtime, context: Context): Promise<number> {
-  return (await runtime.snapshot(RecordsDoc, context))?.crashes?.[input.event.id] ?? 0;
+  return (await runtime.snapshot(RecordsDoc, context))?.crashes?.[idOf(input)] ?? 0;
 }
 
-/** The event's task ends, so the count of its crashes is not needed any more. */
+/** The input's task ends, so the count of its crashes is not needed any more. */
 async function forgetCrashes(tx: Tx, input: Outstanding): Promise<void> {
   const records = await tx.doc(RecordsDoc);
-  if (records.crashes?.[input.event.id] === undefined) return;
-  records.crashes = Object.fromEntries(Object.entries(plain(records.crashes)).filter(([event]) => event !== input.event.id));
+  const id = idOf(input);
+  if (records.crashes?.[id] === undefined) return;
+  records.crashes = Object.fromEntries(Object.entries(plain(records.crashes)).filter(([counted]) => counted !== id));
 }
 
 /** How a settled input ended, as the outcome of its event's turn. */
@@ -251,7 +258,7 @@ async function outcomeOf(settled: SettledSubmissionRecord, runtime: Runtime, con
 async function handedOver(input: Outstanding, runtime: Runtime, context: Context): Promise<SubmissionRecord | undefined> {
   const found: { record?: SubmissionRecord } = {};
   await runtime.commit(async (tx) => {
-    found.record = await tx.submissionByRequest(runtime.conversationId, requestIdOf(input.event.id));
+    found.record = await tx.submissionByRequest(runtime.conversationId, requestIdOf(input));
     return undefined;
   }, context);
   return found.record;

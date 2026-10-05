@@ -65,6 +65,15 @@ export type Outstanding = {
   earlier: Snapshot[];
 };
 
+/**
+ * The ID the agent's records know an input by, such as the count of crashes its
+ * turn has lived through. It is the one its source gave it, which the source
+ * does not reuse.
+ */
+export function idOf(outstanding: Outstanding): string {
+  return outstanding.event.id;
+}
+
 /** How the turn for an event ended. */
 export type TurnOutcome =
   /** `answer` names the final answer within the thread's session, and `text` is its text. */

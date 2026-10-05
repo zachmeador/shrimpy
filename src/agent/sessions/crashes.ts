@@ -15,10 +15,10 @@ export interface Run {
  * Begin a run: say in the records that the agent is running, and count what the
  * last run's end cost. A start that finds the records already saying so follows
  * a run that ended without an orderly stop, such as a kill, a crash or a power
- * cut, and every event whose turn it left underway has been through one more
- * crash. An event that reaches `MAX_CRASHES` is not followed again, so its turn
+ * cut, and every input whose turn it left underway has been through one more
+ * crash. An input that reaches `MAX_CRASHES` is not followed again, so its turn
  * is stopped here, as stopping a session's work does, and the task that follows
- * the event tells chat it failed.
+ * the input tells its source it failed.
  *
  * Call it once, after the sessions follow the home and before the engine
  * resumes: counting is one commit, together with the note, so the turns it
@@ -33,10 +33,10 @@ export async function beginRun(harness: Harness): Promise<Run> {
     records.running = true;
     const reached = new Set<ConversationId>();
     if (lastEndedUnexpectedly) {
-      for (const { eventId, conversationId } of await turnsUnderway(tx)) {
+      for (const { inputId, conversationId } of await turnsUnderway(tx)) {
         records.crashes ??= {};
-        const crashes = (records.crashes[eventId] ?? 0) + 1;
-        records.crashes[eventId] = crashes;
+        const crashes = (records.crashes[inputId] ?? 0) + 1;
+        records.crashes[inputId] = crashes;
         if (crashes >= MAX_CRASHES) reached.add(conversationId);
       }
     }
