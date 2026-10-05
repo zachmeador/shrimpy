@@ -639,7 +639,7 @@ src/
       draw/         the only code that imports `pi-tui`
     web/            web client, replacing today's top-level web/
   cli/              the `shrimpy` command
-  lib/              helpers with no knowledge of Shrimpy's domain: sockets, locks, retries, IDs, refusals, config checking,
+  lib/              helpers with no knowledge of Shrimpy's domain: sockets, locks, retries, IDs, refusals, times, config checking,
                     test support, and the plumbing every program repeats around Pi's client and server
 ```
 
