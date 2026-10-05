@@ -18,7 +18,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 
 ## How to work here
 
-- **Build what the plan says, and raise every mismatch.** If the plan is wrong, unclear or silent, or the code can't follow it, say so to the user and to whoever is coordinating the build. Never settle it quietly in the code.
+- **Build what the plan says, and raise every mismatch.** If the plan is wrong, unclear or silent, or the code can't follow it, say so to the user and to whoever is coordinating the build. Never settle it quietly in the code. A visible choice you make that the plan doesn't cover goes in your report, so it can be reviewed.
 - **Core first.** Effort goes to the shape, which is hard to change later: the three programs and what each owns, the contracts between them, identity and addressing, the conversation model, the home, and the network. Wording, extra tools, skills and terminal affordances are made correct and plain, then tuned through use.
 - **Tests earn their place.** A test protects a seam between programs, starting, stopping, crashing and recovering, a promise the plan makes, or a bug that was actually seen. Don't pin wording or an internal shape, and don't test test support. When a change breaks a test that only recorded how things were, the test goes.
 - **No shortcuts reach a commit.** `npm run check` passes at every commit: types, the boundary lint and the tests.
