@@ -15,7 +15,9 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
 - Joining from another machine, which waits for a VM on the LAN to test on.
-- A turn that was resumed and crashed twice isn't stopped and marked failed yet.
+- A turn that was resumed and crashed twice isn't stopped and marked failed yet. The task that follows its event resumes it at every start, and is where the count would live.
+- Nothing prunes the finished task that each event leaves in the agent's records.
+- When chat refuses a reply for good, the reply and its receipt are both dropped with one line on standard error, so the sender sees nothing. A failed receipt saying the reply couldn't be posted would show it.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
@@ -30,7 +32,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 
 All three are built: the roster, member IDs and tickets; the feed of events; and connecting by name through the gateway.
 
-Decided and not built yet: delivering a reply as a Pi background task in place of the outbox. Nothing can make an edit, a delete or a reaction until the terminal has keys for it or agents have a tool, since the four commands for them were removed under the new rule for commands.
+Nothing can make an edit, a delete or a reaction until the terminal has keys for it or agents have a tool, since the four commands for them were removed under the new rule for commands.
 
 Left open by the roster and by connecting by name:
 
@@ -49,7 +51,6 @@ Left open by the feed of events, to settle before rooms and chat providers:
 - Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
 - In a room, every reaction wakes the message's author, and an edit that newly mentions someone wakes them.
 - The log never shrinks, and nothing shows a message's earlier versions.
-- An agent home made before events is refused at start with the engine's own words, which don't say what to do.
 
 **Still open in phase 2**
 
@@ -88,6 +89,17 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**2026-10-04: an event is followed to its receipt by a Pi task, and the outbox is gone.** Taking an event up is one commit: it moves the feed's cursor, makes the session if the thread is new and creates a background task. The task hands the input over, waits for it to settle, posts the reply, leaves the receipt and ends, and Pi resumes it after a crash. The agent's outbox, its recovery pass at start and the replay of the feed are deleted. Checked on macOS arm64: 465 tests, 459 pass and 6 are skipped.
+
+- The crash, chat, stop and events tests pass without a byte of them changed.
+- A soak killed the agent 352 times across 532 messages, with receipts held back and with chat outages in two of its three variants. Every message got exactly one receipt, each naming a reply that exists, and no reply was doubled or stray. A last run of 20 rounds on the final code gave the same: 71 messages, 43 kills and one receipt each.
+- Pi starts pending tasks before running ones after a restart, so order isn't first in, first out. Each task hands over any earlier event of its thread before its own, which keeps the feed's order.
+- A phase that throws ends its task for good, with no retry and nothing reported. Every phase is guarded, so a failure becomes a failed receipt and a report.
+- An agent home whose records another version wrote is refused at the start in Shrimpy's words, with the file to move aside.
+- The build found a bug that was there before it: a reply's request ID was made from Pi's entry numbers, which start again in a new database, so an agent started fresh could reuse an old reply's ID and chat refused the new reply. The agent's records now have an ID of their own, and the request IDs carry it.
+- `intake/` and `sessions/` together went from 1,424 to 1,683 lines of product code. The growth is the order, the guard and the abort handling in the task; the recovery code is gone. Each event leaves a finished task of about 445 bytes, about 110 bytes more than the outbox's history did.
+- The choices the build made alone are in the plan's table: the order of events, what a failure reads as, what aborting a task does, and that stopping an agent no longer waits once chat is lost.
 
 **Review, 2026-10-04: breadcrumbs take the place of context producers.** Confirmed: a fact that moves is one small file in the agent's home, and it comes with a session's next input once, when it differs from what that session last saw. No command runs before a turn, nothing enters the prompt and nobody is woken. It gets built with triggers in phase 4. The question that led there was what a changed prompt section costs, checked against Pi 1.0.0: some of the newest models take the change in place and keep their cache, and every other model, the local Qwen server included, reads the whole conversation again. The plan's [prompt capture](PLAN.md#prompt-capture) section has both.
 
