@@ -1,6 +1,6 @@
 # 🦐 MCP Events and Shrimpy's Triggers
 
-Researched on 2026-10-04 by a read-only scout, for the question: should Shrimpy's triggers follow the conventions on OpenAI's [MCP Events page](https://developers.openai.com/plugins/build/mcp-events)? Triggers are phase 4 of the [plan](../REDESIGN/PLAN.md#4-triggers-and-helpers) and nothing is built yet.
+Researched on 2026-10-04 by a read-only scout, for the question: should Shrimpy's triggers follow the conventions on OpenAI's [MCP Events page](https://developers.openai.com/plugins/build/mcp-events)? Triggers are phase 4 of the [plan](../REDESIGN/PLAN.md#what-an-agent-does-without-being-asked) and nothing is built yet.
 
 The claims in the first two sections about the OpenAI page and the working group's repo were read a second time against those two sources. Everything else rests on the scout's reading of the sources it links.
 
