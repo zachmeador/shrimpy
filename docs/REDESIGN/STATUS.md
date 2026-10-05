@@ -40,9 +40,9 @@ Left open by the roster and by connecting by name:
 - A browser can list the programs and the roster and nothing more. It can't get a ticket, so it can't reach the chat server or an agent. How a page is recognized was decided on 2026-10-04 and gets built with the web client.
 - Nothing removes a member, replaces a token or renames a person.
 - A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
-- A copied home is two live connections with one member, and nothing chooses between them.
+- A command run from an agent's shell prints a gateway refusal with no advice, where the agent's own link now adds what to do.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
-- To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine.
+- To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine. Also how long a dead peer's registration lasts: an agent has one live body, so over a network an agent that restarts is turned away until its old connection times out.
 
 Left open by the feed of events, to settle before rooms and chat providers:
 
@@ -88,6 +88,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**2026-10-04: an agent has one live body.** While an agent runs, the gateway turns away a program that joins with its token, signs in with it under another name or registers as it, so a copy of a home no longer renames the agent it was copied from or takes its place. A home that has joined once comes in through `signIn`, not `join`, so the rename was closed there too. A refusal now says which case it is with a reason in its code, the gateway says only what happened, and the agent's link adds what to do with the paths of its own home, once, while it keeps trying. Checked with real homes on a real gateway: a renamed copy, a copy holding only the token and a copy that kept the name were each turned away, and took the agent's place once it stopped. Two chat servers can still hold one name for the instant of a restart, so the console keeps choosing the newest. Checked on macOS arm64: 474 tests, 468 pass and 6 are skipped.
 
 **2026-10-04: the `shrimpy` command takes names, and a setup has a default folder.** One folder holds a person's setup, `~/shrimpy` unless `SHRIMPY_DIR` names another: a home for each agent in `agents/`, with the gateway's and the chat server's data beside them. Where a command takes an agent, a bare word is the home of that name there, and a path still works. `shrimpy up` with no arguments starts every agent in the folder. Help lists bare `shrimpy` first and says where the folder is. No command was added, and the old forms have no alias. Every CLI test gets a `SHRIMPY_DIR` of its own. Checked on macOS arm64: 471 tests, 465 pass and 6 are skipped. The dev agent moved to `~/shrimpy/agents/scout`, and `~/shrimpy-next` is gone. The terminal client says the new forms too: with nothing running, bare `shrimpy` reads "Start Shrimpy with: shrimpy up".
 

@@ -48,6 +48,7 @@ Signing in with OAuth doesn't work yet.
 - **The name "X" is taken**: another member has the name, and people and agents share names. Change `name` in the agent's `agent.json` to one nobody has. The person starts the agent again.
 - **The gateway does not know that token**: the gateway's roster was replaced since this home joined. The message names the file in the home to delete so that the agent joins again as a new member. A new member has none of the old one's DMs, so leave that to the person.
 - **The chat server can't reach the gateway**: nobody can come in to chat until the gateway is back, and programs find it again when it is. If it stays down, the person runs `shrimpy up`.
+- **The agent "X" is already running**: another home holds the same token, so the gateway takes the two for one agent. That happens when a home is copied. The message says how to make the copy an agent of its own. Don't start an agent's home twice.
 - **Another process owns the agent home**: an agent already runs there. Use it.
 - **A gateway is already running**, **a chat server is already running**, or **another chat server is using the data**: one is up already. Use it.
 - **names the provider "p", which is not declared**: declare `p` in `models.json`, or correct the model in `agent.json`.
