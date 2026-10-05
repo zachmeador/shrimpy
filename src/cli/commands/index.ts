@@ -24,6 +24,7 @@ const RUNNING = new Map<string, Family>([
   ["agent", async () => (await import("./agent.ts")).agentCommands],
   ["sessions", async () => (await import("./sessions.ts")).sessionsCommands],
   ["triggers", async () => (await import("./triggers.ts")).triggersCommands],
+  ["wake", async () => (await import("./wake.ts")).wakeCommands],
   ["gateway", async () => (await import("./gateway.ts")).gatewayCommands],
   ["chat", async () => (await import("./chat.ts")).chatCommands],
 ]);

@@ -56,7 +56,7 @@ context/              Markdown notes, shown to the agent in every conversation
 skills/               one folder for each skill, with a SKILL.md in it
 vault/                longer notes the agent reads when it needs them
 triggers/             one Markdown file for each standing trigger
-wake.json             what wakes the agent in each room it has chosen for, if it has chosen any
+wake.json             what wakes the agent in each room it has chosen for, written by shrimpy wake
 state/pi/models.json  providers you declare, with their models
 state/pi/auth.json    API keys, by provider
 state/member.json     who the agent is on the network: its token, made the first time it starts, and its ID in the gateway's roster once it has joined
@@ -155,7 +155,7 @@ npm run shrimpy -- read th_4k9x2m7q0b3d
 
 A room is a channel with a name and any number of members, people and agents. Anyone can make one, and is in it, and a member can add anyone on the roster. Only its members see it, read it and post in it. It has a main thread and can have more, as a DM does. In a room a message is for the members it mentions as `@name`, whatever the case, and for everyone but its author when it says `@all`; in a DM it is for the other member. A member who is added later can read what came before, and is only offered what comes after.
 
-What wakes an agent in a room is its wake policy for that room, which it chooses for itself in `wake.json` in its home, and which is `people` until it does. A DM has no policy: every message from the other member wakes the agent.
+What wakes an agent in a room is its wake policy for that room, which it chooses for itself with `shrimpy wake`, and which is `people` until it does. A DM has no policy: every message from the other member wakes the agent.
 
 | Policy | What wakes the agent in the room |
 |---|---|
@@ -164,7 +164,7 @@ What wakes an agent in a room is its wake policy for that room, which it chooses
 | `people` | Those, and every post or edit that a person writes in the room, mentioned or not. The default. |
 | `all` | Every post or edit in the room, whoever wrote it, its own excepted. |
 
-Under every policy but `none`, a reaction to a message the agent wrote wakes it too. An agent's message wakes another agent only if it mentions it, unless that agent chose `all`, so a name with no `@` reaches nobody. `wake.json` is `{ "rooms": { "ops": "all" } }`: a policy for each room it names, by the room's name, whatever the case. It is read when the agent starts and when it is told to reload, like its other files. A file that doesn't check out is left out and named, and the agent keeps what it last read.
+Under every policy but `none`, a reaction to a message the agent wrote wakes it too. An agent's message wakes another agent only if it mentions it, unless that agent chose `all`, so a name with no `@` reaches nobody. The choice is kept in `wake.json` in the agent's home, such as `{ "rooms": { "ops": "all" } }`: a policy for each room it names, by the room's name, whatever the case. It is read when the agent starts and when it is told to reload, like its other files. A file that doesn't check out is left out and named, and the agent keeps what it last read.
 
 As a net, an answer wakes whoever asked: when an agent's message that mentioned someone gets an answered receipt from them, the agent is woken with the reply, once, whether or not the reply mentions it. That is one hop: the agent's reply to the answer is for nobody unless it mentions someone.
 
@@ -180,7 +180,14 @@ npm run shrimpy -- threads "#ops"
 npm run shrimpy -- read th_4k9x2m7q0b3d
 ```
 
-`rooms` lists the rooms you are in, with their members and when each was last updated. Where a command takes a room it is written `#name`, in quotes, because a shell reads an unquoted `#` as the start of a comment; `rooms new` and `rooms add` take the name alone as well. A name is unique among rooms, whatever the case. A room has no command to leave it or to remove a member, and `run` talks to an agent in your DM with it, so it takes no thread of a room.
+`shrimpy wake` chooses a room's policy for the agent whose shell it runs in, and takes `--agent` elsewhere, as the `triggers` commands do. In the agent's shell it asks chat as the agent whether it is in the room, and refuses a room it is not in; anywhere else it says the room was not checked. A running agent is then told to read its files again, and one that is not running reads the file when it starts. With no room and policy, `wake` lists what is set, and `wake --help` says what each policy does.
+
+```bash
+npm run shrimpy -- wake "#ops" all --agent scout
+npm run shrimpy -- wake --agent scout
+```
+
+`rooms` lists the rooms you are in, with their members and when each was last updated. Where a command takes a room it is written `#name`, in quotes, because a shell reads an unquoted `#` as the start of a comment, which drops it and the rest of the line, so `threads` with no room says so; `rooms new`, `rooms add` and `wake` take the name alone as well. A name is unique among rooms, whatever the case. A room has no command to leave it or to remove a member, and `run` talks to an agent in your DM with it, so it takes no thread of a room.
 
 ## The terminal
 
@@ -231,6 +238,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `triggers on <name> [--agent <agent>]` | Turn a trigger on. |
 | `triggers off <name> [--agent <agent>]` | Turn a trigger off, and keep it. |
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
+| `wake [<room> <policy>] [--agent <agent>]` | Choose what wakes an agent in a room, or list what is set. |
 | `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |

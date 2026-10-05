@@ -5,15 +5,15 @@
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
  * home, previews what a home would tell an agent, and reads, checks and
- * changes the files of its triggers through this door, none of which needs a
- * running agent. It must not know who its clients are beyond who it is told
+ * changes the files of its triggers and its wake file through this door, none
+ * of which needs a running agent. It must not know who its clients are beyond who it is told
  * they are, or anything about the chat server and the gateway beyond their
  * contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
-import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles } from "./home/index.ts";
+import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles, type WakeRead } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { channelOfThread, createDelivery, createWakes } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
@@ -45,15 +45,19 @@ export {
   NoTriggerError,
   parseModelChoice,
   parseTrigger,
+  parseWake,
   removeTrigger,
   saveTrigger,
+  saveWake,
   switchTrigger,
   type TriggerDefinition,
   type TriggerDraft,
   TriggerFileError,
   type TriggerFiles,
   type TriggerProblem,
+  type WakeRead,
 } from "./home/index.ts";
+export { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "./intake/index.ts";
 export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
 
@@ -262,6 +266,15 @@ export async function previewHomeContext(home: string): Promise<HomePreview> {
     triggers: triggers.length,
     leftOut: [...preview.leftOut, ...problems.map(({ file, reason }) => ({ file, reason }))],
   };
+}
+
+/**
+ * What the wake file of the home of `home` chooses, for the rooms it names, or why
+ * the file is left out, read without starting anything and without a lock. A
+ * running agent has what it read when it started or last reloaded.
+ */
+export async function readHomeWake(home: string): Promise<WakeRead> {
+  return readWake(loadHome(home).paths);
 }
 
 /**

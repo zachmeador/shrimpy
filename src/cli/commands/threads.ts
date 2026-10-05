@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import type { Channel } from "../../contracts/chat/index.ts";
 import { dmWith, memberNamed, type Reached, reachChat, roomNamed } from "../talk/index.ts";
-import { expectArguments, parsing } from "../usage/index.ts";
+import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderThreads } from "./render-threads.ts";
 
@@ -19,6 +19,12 @@ const threads: Command = {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
     );
+    if (positionals.length === 0) {
+      throw new UsageError(
+        "Missing <member|#room>. Write a room as #name in quotes: a shell treats an unquoted # as the start of a comment, " +
+          'and drops it and the rest of the line, as in: shrimpy threads "#ops"',
+      );
+    }
     const [name] = expectArguments(positionals, ["<member|#room>"]);
     const json = values.json === true;
 

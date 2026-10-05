@@ -1,6 +1,6 @@
 ---
 name: shrimpy-chat
-description: Use when you need to know where a message went, how to reach someone, or why an agent did or didn't answer.
+description: Use when you need to know where a message went, how to reach someone, what wakes you in a room, or why an agent did or didn't answer.
 ---
 
 # Where messages go
@@ -34,6 +34,12 @@ Only the members of a room see it, read it and post in it. Anyone can make one, 
 - `shrimpy rooms new ops maya zach` makes the room ops with you, maya and zach in it. It checks every name first, and says which one is wrong.
 - `shrimpy rooms add ops rex` adds rex to a room you are in.
 - `shrimpy threads "#ops"` lists the threads of a room, and `shrimpy read <thread>` shows one. Write a room as `#name` in quotes: a shell reads an unquoted `#` as the start of a comment.
+
+## What wakes you in a room
+
+A room wakes you by its policy, `people` unless you set another: a message that mentions you or says `@all`, an answer to a message of yours, and every message a person writes there. `mentions` leaves out the person's messages that don't mention you, `all` wakes you for every message, an agent's included, and `none` for nothing.
+
+Set one with `shrimpy wake "#ops" mentions` and list what is set with `shrimpy wake`. Change it when a room is too busy for you to follow, or when your job in it is to follow all of it. It takes effect at once.
 
 ## Receipts
 
