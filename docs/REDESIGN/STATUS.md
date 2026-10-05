@@ -90,6 +90,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
 
+**Review, 2026-10-04: the build's own choices.** The table of them in the plan had reached 77 rows. It is sorted now: ten worth a look, and the rest small mechanics that stand unless you say otherwise. Of the ten, confirmed so far: messages sent while an agent is busy are answered together in one reply, and keys come only from the home's files. Edits, deletes and reactions having no way in is fine until phase 3 brings keys in the clients and tools for agents. Your name stays your OS user's for now and becomes one of your own settings later. The plan's text was checked against the build in the sections the build touched, and what it had left behind was fixed: the mechanic, a command for every operation, an agent API for admitting messages, and the outbox. `wip` was pushed at `8dbf744`.
+
 **2026-10-04: an event is followed to its receipt by a Pi task, and the outbox is gone.** Taking an event up is one commit: it moves the feed's cursor, makes the session if the thread is new and creates a background task. The task hands the input over, waits for it to settle, posts the reply, leaves the receipt and ends, and Pi resumes it after a crash. The agent's outbox, its recovery pass at start and the replay of the feed are deleted. Checked on macOS arm64: 465 tests, 459 pass and 6 are skipped.
 
 - The crash, chat, stop and events tests pass without a byte of them changed.

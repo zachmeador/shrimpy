@@ -214,20 +214,25 @@ The thinnest of the [six core pieces](#phases). The first column is what the new
 
 The builders made these visible choices while implementing. None has shipped, and each is open until you've looked at it. A new one is added here when its code is merged.
 
-**Worth a look.** These ten change how you'd use Shrimpy, or have a real alternative.
+**Worth a look.** These six change how you'd use Shrimpy, or have a real alternative.
 
 | Topic | What the build does | Why look |
 |---|---|---|
-| Messages sent while an agent is busy | They queue, and the agent's next turn answers them together with one reply. Each gets a receipt pointing at it. | The alternatives are steering them into the turn that is running, or a reply for each. |
 | A turn that fails with messages waiting | The waiting messages are marked skipped and shown to the agent at its next turn in that thread. Nothing runs them by itself. | A message can sit unanswered until someone writes again. |
 | The current time | The model is told when each message was sent, in UTC, and never what time it is now. | The plan says the time travels with the input, and an agent woken by a trigger will need it. |
-| Where keys come from | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. | A key in your shell's environment does nothing. |
-| Edits, deletes and reactions | The chat server and the feed carry them, and nothing can make one: no command, no key in the terminal and no tool for an agent. | You called them standard chat features, and they have no way in yet. Phase 3 lists them. |
-| Your name | The person is made when the gateway starts, from the OS user, and is named for it. Nothing renames a person, and a person is never shown as reachable. | You appear in every thread under your OS user's name. |
 | `shrimpy up` and what it started | It stops everything it started when any one of them ends, an agent or the gateway. Closing the terminal leaves the programs running. | Losing the gateway is never meant to stop an agent, and stopping one agent stops the rest. |
 | How much an agent is told | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | A big file goes to the model whole. Old Shrimpy had budgets. |
 | A fresh start | An agent with no records reads its channels from the start and answers every event that doesn't carry its receipt. | Moving an agent's records aside makes it answer old messages it never settled. |
 | A copied home | A home copied with its token is two live connections with one member, and nothing chooses between them. | Copying a home is the obvious way to clone an agent. |
+
+**Reviewed on 2026-10-04.**
+
+| Topic | What the build does | Decision |
+|---|---|---|
+| Messages sent while an agent is busy | They queue, and the agent's next turn answers them together with one reply. Each gets a receipt pointing at it. | Confirmed |
+| Where keys come from | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed |
+| Edits, deletes and reactions | The chat server and the feed carry them, and nothing can make one yet: no command, no key in the terminal and no tool for an agent. | Fine for now. The ways in come in [phase 3](#3-what-daily-use-asks-for): keys in the clients, and tools for agents. |
+| Your name | The person is made when the gateway starts, from the OS user, and is named for it. Nothing renames a person, and a person is never shown as reachable. | Kept for now. The name you appear under becomes one of your own settings later. |
 
 **The rest** are small mechanics, settled under [core first](#phases). Skim them or leave them: saying nothing keeps them.
 
@@ -811,8 +816,9 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
 - Chat commands in a thread: `/new`, `/stop`, `/status` and `/help`.
-- Reactions, edits and deletes in threads: in the chat server, the clients and the agent's tools.
+- Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](#instructions-memory-and-skills) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
 - Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
+- Your own settings as a person, starting with the name you appear under. Today it is your OS user's name.
 - Attachments on messages, including clipboard files and images. An image reaches the model with its message.
 - The search tools and a tool that shows the model an image file.
 - Memory breadcrumbs, with the search index behind them and the `memory-management` skill.
