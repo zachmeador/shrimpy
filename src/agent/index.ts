@@ -13,9 +13,9 @@
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
-import { homePaths, loadHome, readTriggers, type TriggerFiles } from "./home/index.ts";
+import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
-import { channelOfThread, createDelivery } from "./intake/index.ts";
+import { channelOfThread, createDelivery, createWakes } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { type HomeFiles, startServer } from "./server.ts";
@@ -145,6 +145,15 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       triggers.extension,
     );
     const sessions = createSessions(host.harness, defaults, turn.task);
+    // What wakes the agent in each room is read from the home's wake file, at the start and on a reload. A file that
+    // does not check out is left out and named, and the agent keeps what it last read.
+    const wakes = createWakes();
+    const readWakes = async (): Promise<LeftOut[]> => {
+      const read = await readWake(homePaths(options.home));
+      if (read.kind === "left out") return [read.leftOut];
+      wakes.replace(read.settings);
+      return [];
+    };
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
     // The records say the agent is running, and what the last run's end cost the turns it interrupted, before any of
@@ -153,13 +162,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
     // while the agent was down is not woken by its old one.
     for (const { file, reason } of (await triggers.reload()).leftOut) report(new Error(`${file} was left out: ${reason}.`));
+    for (const { file, reason } of await readWakes()) report(new Error(`${file} was left out: ${reason}.`));
     host.resume();
-    // Reloading reads the instructions, context files and skills, and the triggers.
+    // Reloading reads the instructions, context files and skills, the triggers and the wake file.
     const files: HomeFiles = {
       async reload() {
         const read = await context.reload();
         const followed = await triggers.reload();
-        return { ...read, triggers: followed.count, leftOut: [...read.leftOut, ...followed.leftOut] };
+        return { ...read, triggers: followed.count, leftOut: [...read.leftOut, ...followed.leftOut, ...(await readWakes())] };
       },
     };
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
@@ -173,7 +183,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             name: options.name,
             home: options.home,
             listening: { serverId: server.endpoint.serverId, socket: server.gatewaySocket },
-            admissions: sessions.admissions,
+            admissions: { ...sessions.admissions, wakes },
             working: sessions.working,
             delivery,
             onError: report,

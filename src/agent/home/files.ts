@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 
 /** A file the agent was not given, and why. */
 export interface LeftOut {
@@ -43,5 +44,17 @@ export function why(error: unknown): string {
       return "it is not a folder";
     default:
       return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/** Write `text` to a file beside `file` and move it into place, so that `file` is always whole. A hidden file is no trigger. */
+export async function replaceFile(file: string, text: string): Promise<void> {
+  const temporary = join(dirname(file), `.${basename(file)}.${String(process.pid)}.tmp`);
+  try {
+    await writeFile(temporary, text);
+    await rename(temporary, file);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
   }
 }

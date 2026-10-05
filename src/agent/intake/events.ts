@@ -5,6 +5,8 @@
  * plain JSON, so these are type aliases, which TypeScript lets stand for JSON.
  */
 
+import type { WakePolicies } from "./policy.ts";
+
 /**
  * Who a message in a room was for, as the model is told: whether it was for the
  * agent, the other members it was for by name, and whether it was for everyone in
@@ -265,8 +267,14 @@ export type TurnOutcome =
   /** The turn ended without an answer for any other reason: `reason` is short and a person can read it. */
   | { kind: "failed"; reason: string };
 
-/** What intake needs from the agent's records: where it stands in chat's feed, and a way to take an event up. */
+/**
+ * What intake needs from the agent's records: where it stands in chat's feed, and
+ * a way to take an event up. It is also handed the choices the agent made, in a
+ * file of its home, about what wakes it in each room.
+ */
 export interface Admissions {
+  /** What wakes the agent in each room. Without it, every room has the default. */
+  readonly wakes?: WakePolicies;
   /** Where the agent stands in chat's feed, kept with its own records. Undefined until it is first set. */
   cursor(): Promise<number | undefined>;
   /** Move past events that wake nobody. */

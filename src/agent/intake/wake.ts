@@ -1,5 +1,6 @@
 import type { ChatEvent, Member } from "../../contracts/chat/index.ts";
 import type { ChatInput, Snapshot } from "./events.ts";
+import type { WakePolicy } from "./policy.ts";
 
 /** What the agent takes up of an event, with where it came from. */
 export type Taken = Omit<ChatInput, "earlier" | "cancelled">;
@@ -15,28 +16,45 @@ export type Receipted = Extract<ChatEvent, { kind: "receipted" }>;
 export type Waking = { kind: "event"; taken: Taken } | { kind: "answer"; receipt: Receipted; reply: string };
 
 /**
- * The agent's default wake policy: what it takes up of an event, or nothing
- * when the event does not wake it. Chat offers every event and filters none,
- * so this is where an event gets its meaning, and where the policy an agent
- * sets for itself will go.
- *
- * It wakes for a post addressed to it, which in a DM is every post from the
- * other member; for an edit of a message addressed to it; and for a reaction
- * to a message it wrote, which is an answer to it. An answered receipt that
- * another member leaves on a message of the agent's own that was for them is an
- * answer too, in words, whether or not their reply mentions the agent: it is
- * taken up as the reply it points to. Deletes, reactions taken back, reactions
- * to anyone else's message and every other receipt, whoever left them and
- * whatever message they name, wake it for nothing.
+ * Whether an event wakes the agent for nothing, whatever its policy: what the
+ * agent did itself, which comes back in its feed and would never end; an event
+ * of a message that was taken back, which is nothing to act on, and whose text
+ * is gone; and one the agent has dealt with already, perhaps before it lost its
+ * records.
  */
-export function takeUp(self: Member, event: ChatEvent): Waking | undefined {
+export function passedOver(self: Member, event: ChatEvent): boolean {
+  return event.actor.id === self.id || event.message.deleted || event.receipts.some((receipt) => receipt.memberId === self.id);
+}
+
+/**
+ * Whether a post or an edit by `author` that is addressed to `addressed` wakes
+ * the agent under `policy`: it does when it is addressed to the agent, which in
+ * a DM every message from the other member is; when the policy is `people` and
+ * a person wrote it; and when the policy is `all`.
+ */
+export function wakesAsPost(self: Member, policy: WakePolicy, author: Member, addressed: readonly string[]): boolean {
+  if (addressed.includes(self.id)) return true;
+  return policy === "all" || (policy === "people" && author.kind === "person");
+}
+
+/**
+ * What an event means to the agent under the wake policy of the room it is in,
+ * or of a DM, which has none: what it takes up of it, or nothing when the event
+ * does not wake it. Chat offers every event and filters none, so this is where an
+ * event gets its meaning.
+ *
+ * Under `none` nothing wakes the agent. Otherwise it wakes for a reaction to a
+ * message it wrote, which is an answer to it; for a post, or an edit of one, that
+ * `wakesAsPost` says wakes it; and for an answered receipt that another member
+ * leaves on a message of the agent's own that was for them, which is an answer in
+ * words whether or not their reply mentions the agent: it is taken up as the reply
+ * it points to. Deletes, reactions taken back, reactions to anyone else's message
+ * and every other receipt, whoever left them and whatever message they name, wake
+ * it for nothing.
+ */
+export function takeUp(self: Member, event: ChatEvent, policy: WakePolicy): Waking | undefined {
+  if (policy === "none" || passedOver(self, event)) return undefined;
   const { message } = event;
-  // What the agent did itself never wakes it: its replies come back in its feed, and answering them would never end.
-  if (event.actor.id === self.id) return undefined;
-  // A message that was taken back is nothing to act on, and its text is gone.
-  if (message.deleted) return undefined;
-  // Dealt with already, perhaps by an agent that has lost its records since.
-  if (event.receipts.some((receipt) => receipt.memberId === self.id)) return undefined;
 
   const taken = (snapshot: Snapshot): Waking => ({
     kind: "event",
@@ -45,10 +63,10 @@ export function takeUp(self: Member, event: ChatEvent): Waking | undefined {
   const { id, seq } = event;
   switch (event.kind) {
     case "posted":
-      if (!message.addressed.includes(self.id)) return undefined;
+      if (!wakesAsPost(self, policy, event.actor, message.addressed)) return undefined;
       return taken({ kind: "posted", id, seq, author: message.author.name, sentAt: message.sentAt, text: event.text });
     case "edited":
-      if (!message.addressed.includes(self.id)) return undefined;
+      if (!wakesAsPost(self, policy, event.actor, message.addressed)) return undefined;
       return taken({
         kind: "edited",
         id,

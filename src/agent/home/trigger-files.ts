@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { mkdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 import { isName } from "./agent-config.ts";
-import { compare, readText } from "./files.ts";
+import { compare, readText, replaceFile } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 import { loadHome } from "./load.ts";
 import {
@@ -151,16 +151,4 @@ function withEnabled(text: string, enabled: boolean): string {
     lines.splice(close, 0, "enabled: false");
   }
   return lines.join("\n");
-}
-
-/** Write `text` to a file beside `file` and move it into place, so that `file` is always whole. A hidden file is no trigger. */
-async function replaceFile(file: string, text: string): Promise<void> {
-  const temporary = join(dirname(file), `.${basename(file)}.${String(process.pid)}.tmp`);
-  try {
-    await writeFile(temporary, text);
-    await rename(temporary, file);
-  } catch (error) {
-    await rm(temporary, { force: true });
-    throw error;
-  }
 }

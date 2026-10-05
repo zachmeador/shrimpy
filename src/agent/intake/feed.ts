@@ -1,4 +1,4 @@
-import type { ChatEvent } from "../../contracts/chat/index.ts";
+import type { ChatClient, ChatEvent } from "../../contracts/chat/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
@@ -6,8 +6,9 @@ import { takeUpAnswer } from "./answer.ts";
 import { knownChannels } from "./channels.ts";
 import type { Admissions } from "./events.ts";
 import { pause } from "./pause.ts";
+import { DEFAULT_WAKE_POLICY, type WakePolicy } from "./policy.ts";
 import { inRoom } from "./room.ts";
-import { takeUp } from "./wake.ts";
+import { passedOver, takeUp } from "./wake.ts";
 
 /** Events asked for at a time. */
 const FEED_LIMIT = 50;
@@ -40,6 +41,13 @@ export async function readFeed(options: FeedOptions): Promise<void> {
   const pauses = options.backoff ?? backoff();
   let loaded = false;
   const channels = knownChannels();
+  /** What wakes the agent in the channel the event is in: the policy of its room, or the default where there is no room or no choice. */
+  const policyOf = async (chat: ChatClient, event: ChatEvent, signal: AbortSignal): Promise<WakePolicy> => {
+    const { wakes } = admissions;
+    if (wakes === undefined || !wakes.anySet()) return DEFAULT_WAKE_POLICY;
+    const channel = await channels.find(chat, event.message.channelId, signal);
+    return channel?.kind === "room" ? wakes.of(channel.name) : DEFAULT_WAKE_POLICY;
+  };
   // Where the agent stands in the feed, and what its records hold.
   let cursor: number | undefined;
   let stored: number | undefined;
@@ -73,11 +81,13 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         continue;
       }
       for (const event of events) {
-        const waking = takeUp(self, event);
+        // What the agent did itself is the most of what the feed offers it, and is passed over without asking chat anything.
+        const policy = passedOver(self, event) ? DEFAULT_WAKE_POLICY : await policyOf(chat, event, signal);
+        const waking = takeUp(self, event, policy);
         const reported = (error: Error): void => options.onError(error);
         const woken =
           waking?.kind === "answer"
-            ? await takeUpAnswer(chat, self, waking.receipt, waking.reply, signal, reported)
+            ? await takeUpAnswer(chat, self, policy, waking.receipt, waking.reply, signal, reported)
             : waking?.taken;
         if (woken !== undefined) {
           // In a room the event comes with what was said before it, and who each message was for.
