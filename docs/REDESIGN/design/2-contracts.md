@@ -59,45 +59,28 @@ Leaving it had four costs. An agent's rule for DMs was written in the chat serve
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Who a message is for | The chat server marks each message with who it is `addressed` to: in a room the members its text mentions, and in a DM the other member, whatever the text says. | A message records `mentions`: the members its text names as `@name`, and everyone in the channel but the author when it says `@all`, in a DM as in a room. What a mention means, and what a DM means, is each reader's decision: an agent's wake policy, its rule for a mention that joins a running turn, `/stop`, and what a client marks as for you. | Confirmed on 2026-10-05. Not built yet. |
+| Who a message is for | The chat server marks each message with who it is `addressed` to: in a room the members its text mentions, and in a DM the other member, whatever the text says. | A message records `mentions`: the members its text names as `@name`, and everyone in the channel but the author when it says `@all`, in a DM as in a room. What a mention means, and what a DM means, is each reader's decision: an agent's wake policy, its rule for a mention that joins a running turn, `/stop`, and what a client marks as for you. | Confirmed and built on 2026-10-05. |
 
 **Open**
 
 **Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch. The MVP takes the second: every program runs the same version, and a mismatch is reported.
 
-**Not built yet**
+**Built on 2026-10-05**
 
-*The contracts: the chat store records who a message mentions.*
-
-Under Now in the [order of work](../PLAN.md#order-of-work). It is built after the reshape of the agent's modules lands, since both touch the agent's side of chat.
-
-**Outcome:** the chat contract says who a message mentions and nothing about who it is for, and every rule of the agent gives the answer it gives today.
-
-**Build**
-
-- In the contract, a message has `mentions` in place of `addressed`: the IDs of the members its text names as `@name`, and everyone in the channel but the author when it says `@all`, as the members were when it was written or last edited. Never its author. In a DM it is empty unless the text names the other member. The function for finding a mention leaves the contract, because only the chat server reads text for mentions.
-- The chat server works out mentions the same way in a DM and a room. The store's `addressed` column becomes `mentions`, and the unused `answers_seq` column of `messages` goes, so the store's version rises from 6 to 7.
+- In the contract, a message has `mentions`: the IDs of the members its text names as `@name`, and everyone in the channel but the author when it says `@all`, as the members were when it was written or last edited. Never its author. In a DM it is empty unless the text names the other member, and `@all` there mentions the other member. Only the chat server reads text for mentions, so the function that finds one is its own.
+- The chat server works out mentions the same way in a DM and a room. The store's version is 7: it has `mentions`, lost the unused `answers_seq` column of `messages`, and has an ID. A store of another version is refused, and the refusal says to move the folder aside.
 - In the agent, each rule says what it means:
 
-| Rule | With `addressed` | With `mentions` |
+| Rule | Before, with `addressed` | Now, with `mentions` |
 |---|---|---|
 | What wakes it in a DM | `addressed` includes it, which is always, because the chat server put it there | It is a DM and the other member wrote the message |
 | What wakes it in a room | `addressed` includes it. Or the policy is `people`, a person wrote it and `addressed` is empty. Or the policy is `all` | The same, read from `mentions` |
 | A person's mention joins the running turn | In a room, `addressed` includes it. In a DM, the text is read again | `mentions` includes it, in a room and a DM alike |
 | `/stop` | For the agent when `addressed` is empty or includes it | In a DM, always. In a room, when `mentions` is empty or includes it |
-| An answer wakes whoever asked | The agent's own message was `addressed` to the member who answered | In a room, its own message mentioned them. In a DM the reply wakes it anyway |
+| An answer wakes whoever asked | The agent's own message was `addressed` to the member who answered | In a room, its own message mentioned them. In a DM the reply wakes it anyway, so chat isn't asked for it |
 | Who a message in a room was for, as the model is told | Worked out from `addressed` | Worked out from `mentions`, in the same words |
 
-- The terminal doesn't read the field. `shrimpy read --json` prints every message whole, so the field's name changes in its output.
-- The store's ID in an agent's cursor shares the reset. Today an agent notices a replaced chat store only when its cursor is past the store's newest position. With the ID it notices at once and reads the new store from its start, so a later reset of chat data shouldn't need the agents' records moved too. The proposal recommended it, and you agreed to the proposal on 2026-10-05.
-
-**Prove**
-
-- The tests of waking, steering, `/stop` and the backlog pass unchanged, on the real chat server and the real engine.
-- A person's mention in a DM joins a running turn, with the agent reading no text for it.
-- A chat store of version 6 is refused, and the refusal says what to do.
-- An agent whose cursor is for another store reads the new one from its start, and says so.
-
-**What it costs.** 85 lines in 28 files name the field: 44 in the chat server, the contract and the agent, and the rest in tests and test data. Your chat data resets once. Nothing converts a chat store, so your dev setup's `chat/` folder is moved aside, and each agent's records with it, because their cursors and sessions point into the old store. The homes stay: `SOUL.md`, context, skills, trigger files and `wake.json`. What goes is the history of your test conversations, the agents' sessions and any wake-up that was waiting. They are moved to the Trash when nothing is running, on your word.
+- The terminal doesn't read the field. `shrimpy read --json` prints every message whole, so its output has the new name.
+- **The store's ID.** The chat store gets an ID when it is made, and the chat contract answers it with `store`. An agent keeps, with its place in the feed, the ID of the store that place is for, and asks for the ID each time it connects. A place kept for another store, or for none, is dropped: the agent reads the new store from its start and says so. A place past the end of the same store means the store went back to an earlier state, as when restored from a backup, and the agent reads it from the start too. So replacing the chat store needs nothing done to an agent's records.
 
 **Left for the provider interface:** request IDs on edits, deletes and reactions, and a version on renaming and archiving a thread. Both are on the [status list](../STATUS.md#the-contracts-between-them), and their shape gets decided there.

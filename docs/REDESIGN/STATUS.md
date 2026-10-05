@@ -18,9 +18,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - Renaming and archiving a thread carry no version, though the plan says they are versioned set-to-value updates, so an old retry could overwrite a later decision.
 - Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
 - Only the author edits or deletes, checked against the caller, so a provider acting for a person it maps has no way to.
-- An agent notices a replaced chat store only when its cursor is past the newest position. A store that has grown past the cursor makes it skip events. A store's ID in the cursor would close that. Event IDs already stop a new store's event being taken for an answered one.
 - The chat server's log of events never shrinks, and nothing shows a message's earlier versions.
-- The chat store keeps a column for the event a post answers, which nothing writes or reads now. It goes at the next change of the store's shape.
 - A skipped receipt carries no reason, so the sender of a message skipped behind a failed turn isn't told that writing again brings it back.
 - The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
 - Nothing shows a wake-up that is waiting: not `sessions list`, `sessions read` or the terminal. It needs a field in the agent's contract.
@@ -37,7 +35,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 ### The conversation model
 
 - After a fresh start an agent has forgotten where it last looked, so its first wake in a room shows up to 20,000 characters of history, from before it joined included.
-- An edit that removes a mention un-addresses the original post for an agent that reads the feed afterwards, since an event shows its message as it now stands.
+- An edit that removes a mention takes it from the original post too, for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.
 - `send_message` has no `quiet` yet. It comes with chat providers, where it means a person isn't notified.
 - The message tools have no timeout, so a chat server that hangs holds a turn until someone stops it.

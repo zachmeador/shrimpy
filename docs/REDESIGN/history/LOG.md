@@ -27,6 +27,8 @@
 - Who may do what, with one role, admin: it guards making a room, adding members, and watching or controlling another agent. ([log, 2026-10-05](#log))
 - A person's mention joins the turn an agent is running, and `/stop` in a thread stops the agents it is for, at once and with no model call. ([log, 2026-10-05](#log))
 - The agent's modules sorted by job, with two functions that let a source of input act inside one commit from a module of its own, and a file that needs Pi marked by its name. ([log, 2026-10-05](#log))
+- Every command about one agent names it the same way: the agent whose shell it runs in, unless `--agent` says another. ([log, 2026-10-05](#log))
+- A contract carries facts: a message says who it mentions and never who it is for, and the chat store has an ID that an agent keeps with its place in the feed. ([log, 2026-10-05](#log))
 
 ## Log
 
@@ -35,6 +37,14 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-05: a message says who it mentions, and the chat store has an ID.** Built as the contracts' design had it. `mentions` replaces `addressed` in the chat contract and the store, and the function that finds a mention is the chat server's own. Each of the agent's rules says what it means: a DM wakes it whoever is mentioned, a person's mention joins a running turn with no text read, `/stop` in a DM is always for the agent, and an answer in a DM needs nothing asked of chat. The chat store is version 7 and has an ID, which the chat contract answers with `store`. An agent keeps the ID with its place in the feed, and a place kept for another store, or for none, is dropped with a report.
+
+- So replacing the chat store needs nothing done to an agent's records. The proposal had said the agents' records would be moved with your chat data. They needn't be.
+- Choices the build made: `@all` in a DM mentions the other member; a place in the feed kept with no ID, as in records from before, counts as kept for another store; and a DM message's urgency follows the message as it stands, as a room's did.
+- The refusal of a store of another version named only the two versions. The coordinator added what to do: move the folder aside, and each agent starts over in the new store by itself.
+- chat's own `takeUp`, which decides what an event means to the agent, is `wakingOf` now, so `takeUp` means one thing in the agent.
+- Your dev setup's chat data has not been touched. Its chat server will refuse the store at its next start, until you say to move it.
 
 **2026-10-05: every command names its agent one way.** `sessions list`, `read`, `steer` and `stop`, and `agent status`, `context` and `reload`, act on the agent whose shell they run in and take `--agent <agent>` for another, as `triggers` and `wake` did. A bare name stays where it says who you are talking to, or which agent to make or start. The skills follow: an agent no longer has to know its own name to stop its own trigger's session. No command keeps the old shape.
 
