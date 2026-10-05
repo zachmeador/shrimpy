@@ -7,6 +7,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 ## Where things are
 
 - **The plan:** [`docs/REDESIGN/PLAN.md`](docs/REDESIGN/PLAN.md) owns the design and the order of work. [`docs/REDESIGN/STATUS.md`](docs/REDESIGN/STATUS.md) logs progress and lists where the code trails the plan.
+- **For the author to review:** [`docs/REDESIGN/AUTHOR-TO-REVIEW.md`](docs/REDESIGN/AUTHOR-TO-REVIEW.md) collects what the owner should look at: the questions waiting on them and the visible choices a build made.
 - **How to run and check it:** [`README.md`](README.md), which also has the layout rules and every command.
 - **`src/`:** three programs (`agent/`, `chat/` and `gateway/`), the clients, the CLI, and the only code they share: `contracts/` and `lib/`.
 - **`skills/`:** the skills Shrimpy ships to its agents.
