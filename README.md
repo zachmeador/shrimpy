@@ -154,20 +154,22 @@ npm run shrimpy -- read th_4k9x2m7q0b3d
 
 ## The terminal
 
-`shrimpy` with no command, at a terminal, opens the console. It asks this machine's gateway what is running, and shows the agents. With one agent it goes straight to that agent's threads. Pick a thread, or start one with `n`, and talk: what you type goes to the thread, so `run`, `read` and every other client see it too, and what the agent and others say appears as it arrives. While the agent works in the open thread, its answer, thinking and tool calls stream below the conversation, apart from it. When the turn settles, the reply is a message like any other.
+`shrimpy` with no command, at a terminal, opens the console. It asks this machine's gateway what is running, and shows the agents, and the rooms you are in beside them. With one agent and no room it goes straight to that agent's threads, once chat has answered. Pick a thread, or start one with `n`, and talk: what you type goes to the thread, so `run`, `read` and every other client see it too, and what the agent and others say appears as it arrives. While the agent works in the open thread, its answer, thinking and tool calls stream below the conversation, apart from it. When the turn settles, the reply is a message like any other.
+
+A room opens on its threads, and a thread of a room works as one with an agent does: you read it, write in it and see who is working in it. The agents' work in a room is not streamed, and the console can't stop it; `shrimpy sessions stop <agent> <thread>` does. The console makes no room and adds no member, which `rooms new` and `rooms add` do.
 
 It is a client of the chat server and of agents, and nothing more. It reaches both by name through the gateway, so when the gateway stops, the console loses the chat server and the agent it was watching, names them on screen, and goes on trying until the gateway is back. The agent's work does not stop. Anything it can't reach is named on screen with what to start, and it keeps trying; what you typed stays in the editor.
 
 | Key | What it does |
 |---|---|
-| `↑` `↓`, Enter | Choose and open an agent or a thread. |
-| `n` | In the threads of an agent: start a thread. |
-| Esc | In the threads of an agent: go back to the agents. In a thread: stop the agent's work in this thread, for everyone. |
+| `↑` `↓`, Enter | Choose and open an agent, a room or a thread. |
+| `n` | In the threads of an agent or a room: start a thread. |
+| Esc | In the threads of an agent or a room: go back to the agents and rooms. In a thread with an agent: stop the agent's work in this thread, for everyone. In a thread of a room it does nothing. |
 | Enter | In a thread: send what you typed. Shift+Enter or Ctrl+J starts a new line. |
 | Ctrl+T, Ctrl+N | In a thread: go to the threads, or start a thread. |
 | Ctrl+C | Clears what you typed. Pressed again with nothing typed, it quits. |
 
-Quitting stops no work. If the agent is still working, one line says so and how to stop it. With nothing running at a terminal, `shrimpy` shows what to start and picks everything up once it is running. Anywhere but a terminal, `shrimpy` with no command lists the commands and exits 2, as `shrimpy help` does with 0.
+Quitting stops no work. If an agent is still working in a thread of your DM with it, one line says so and how to stop it. With nothing running at a terminal, `shrimpy` shows what to start and picks everything up once it is running. Anywhere but a terminal, `shrimpy` with no command lists the commands and exits 2, as `shrimpy help` does with 0.
 
 ## Commands
 

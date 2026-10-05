@@ -10,6 +10,7 @@ import {
   aModel,
   anAgent,
   aReceipt,
+  aRoom,
   aThread,
   aThreadView,
   onThread,
@@ -102,7 +103,7 @@ test("when the gateway is lost the list stays, marked as possibly out of date, a
 
 test("a thread is listed by its name, or else the start of its first message, and says whether the agent is working in it", () => {
   const model = aModel({
-    where: { screen: "threads", agent: "scout" },
+    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
     dms: {
       scout: aDm("scout", [
         aThread("th_a", { preview: "Check the disk usage", updatedAt: at(10, 3, 14, 5), working: [{ memberId: scout.id, since: 0 }] }),
@@ -128,7 +129,7 @@ test("a thread is listed by its name, or else the start of its first message, an
 
 test("when chat is lost the threads stay and say so, and nothing claims there are none", () => {
   const model = aModel({
-    where: { screen: "threads", agent: "scout" },
+    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
     chat: { state: "down", why: { kind: "lost" } },
     dms: { scout: aDm("scout", [aThread("th_a", { preview: "Hello" })]) },
   });
@@ -139,7 +140,7 @@ test("when chat is lost the threads stay and say so, and nothing claims there ar
   assert.equal(screen.rows.length, 1);
   assert.equal(screen.notes.length, 1);
   assert.match(screen.notes[0]?.text ?? "", /chat server/);
-  const empty = threads(screenOf(aModel({ where: { screen: "threads", agent: "scout" }, chat: { state: "down", why: { kind: "lost" } } }), { now }));
+  const empty = threads(screenOf(aModel({ where: { screen: "threads", place: { kind: "agent", name: "scout" } }, chat: { state: "down", why: { kind: "lost" } } }), { now }));
   assert.equal(empty.empty, undefined);
 });
 
@@ -366,7 +367,7 @@ test("the gateway being gone explains why nothing is registered, and is said onc
 
 test("a program that runs another version of Shrimpy is named with its version", () => {
   const model = aModel({
-    where: { screen: "threads", agent: "scout" },
+    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
     listing: aListing([anAgent("scout", "9.9.9"), aChatServer("8.8.8")], "7.7.7"),
   });
 
@@ -431,12 +432,21 @@ test("text from other members and from tools can't act on a terminal, wherever i
     session,
     listing: aListing([anAgent(`scout${hostile}`, `1.0${hostile}`)], `2.0${hostile}`),
     dms: { [`scout${hostile}`]: aDm(`scout${hostile}`, [open]) },
+    rooms: { ch_2: aRoom(`ops${hostile}`, [`scout${hostile}`], [open]) },
     chat: { state: "down", why: { kind: "unreachable", message: `chat${hostile}` } },
     agent: { state: "down", why: { kind: "unreachable", message: `agent${hostile}` } },
     notice: { kind: "not-sent", problem: { said: `said${hostile}` } },
   });
+  const dm = { kind: "agent" as const, name: `scout${hostile}` };
+  const room = { kind: "room" as const, id: "ch_2" };
 
-  for (const where of [{ screen: "agents" as const }, { screen: "threads" as const, agent: `scout${hostile}` }, { screen: "thread" as const, agent: `scout${hostile}`, thread: "th_1" }]) {
+  for (const where of [
+    { screen: "agents" as const },
+    { screen: "threads" as const, place: dm },
+    { screen: "thread" as const, place: dm, thread: "th_1" },
+    { screen: "threads" as const, place: room },
+    { screen: "thread" as const, place: room, thread: "th_1" },
+  ]) {
     const screen = screenOf({ ...model, where }, { now });
     const all = [...stringsIn(screen)];
     assert.ok(all.length > 3);

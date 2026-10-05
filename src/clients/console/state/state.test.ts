@@ -16,7 +16,7 @@ test("with one agent it goes straight to that agent's threads", { timeout }, asy
 
   const model = await rig.until((each) => each.where.screen === "threads", "the only agent's threads");
 
-  assert.deepEqual(model.where, { screen: "threads", agent: "scout" });
+  assert.deepEqual(model.where, { screen: "threads", place: { kind: "agent", name: "scout" } });
   assert.deepEqual(model.gateway, { state: "up" });
 });
 
@@ -64,7 +64,7 @@ test("an open thread follows what is said in it, by the person here, by anyone e
   rig.chat.chat.say(await rig.member("scout"), thread.id, "second");
   await rig.until((model) => textsOf(model).length === 2, "the agent's reply");
   assert.deepEqual(textsOf(rig.state.model()), ["first", "second"]);
-  assert.deepEqual(rig.state.model().where, { screen: "thread", agent: "scout", thread: thread.id });
+  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", name: "scout" }, thread: thread.id });
 });
 
 test("the work behind an open thread is watched, and an agent with no session for it yet has nothing to watch", { timeout }, async (t) => {
@@ -119,14 +119,14 @@ test("a new thread comes to be with its first message, in the person's DM with t
   await rig.until((model) => model.where.screen === "threads", "the agent");
 
   rig.state.startThread();
-  assert.deepEqual(rig.state.model().where, { screen: "thread", agent: "scout", thread: undefined });
+  assert.deepEqual(rig.state.model().where, { screen: "thread", place: { kind: "agent", name: "scout" }, thread: undefined });
   await new Promise((resolve) => setTimeout(resolve, 60));
   assert.deepEqual(await (await rig.person()).chat.channels(), [], "nothing exists yet");
   const sent = await rig.state.send("a fresh topic");
 
   assert.deepEqual(sent, { ok: true });
   const model = await rig.until((each) => each.where.screen === "thread" && each.where.thread !== undefined, "the new thread to open");
-  assert.equal(model.where.screen === "thread" && model.where.agent, "scout");
+  assert.deepEqual(model.where.screen === "thread" && model.where.place, { kind: "agent", name: "scout" });
   await rig.until((each) => textsOf(each).length === 1, "the first message in the view");
   assert.deepEqual(textsOf(rig.state.model()), ["a fresh topic"]);
   const listed = await rig.until((each) => each.dms.scout?.threads.some((thread) => thread.preview === "a fresh topic") === true, "the thread to be listed");
@@ -331,7 +331,7 @@ test("going back leaves the thread, then the agent, and what was watched is let 
   await rig.until((model) => model.session?.status.busy === true, "the work to show");
 
   rig.state.back();
-  assert.deepEqual(rig.state.model().where, { screen: "threads", agent: "scout" });
+  assert.deepEqual(rig.state.model().where, { screen: "threads", place: { kind: "agent", name: "scout" } });
   assert.equal(rig.state.model().thread, undefined);
   assert.equal(rig.state.model().session, undefined);
   rig.chat.chat.say(await rig.member("scout"), thread.id, "unheard");

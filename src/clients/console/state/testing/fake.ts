@@ -26,6 +26,7 @@ export function fakeState(initial: Model): FakeState {
     model: () => model,
     subscribe: (listener) => listeners.add(listener),
     selectAgent: (name) => void calls.push(`select ${name}`),
+    selectRoom: (id) => void calls.push(`room ${id}`),
     openThread: (threadId) => void calls.push(`open ${threadId}`),
     startThread: () => void calls.push("start"),
     back: () => void calls.push("back"),

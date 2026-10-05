@@ -136,13 +136,19 @@ export function reactionsLine(reactions: { emoji: string; by: string[] }[]): str
   return reactions.map(({ emoji, by }) => `${oneLine(emoji)} ${by.join(", ")}`).join("  ");
 }
 
-export const agentsTitle = (): string => "Agents";
+export const agentsTitle = (): string => "Agents and rooms";
 export const threadsTitle = (agent: string): string => `${oneLine(agent)} · your threads`;
-export const threadTitle = (agent: string, title: string | undefined): string =>
-  `${oneLine(agent)} · ${title === undefined ? "new thread" : oneLine(title)}`;
+export const roomThreadsTitle = (room: string): string => `${roomLabel(room)} · threads`;
+/** `who` is what the conversation is called: an agent's name or a room's label. */
+export const threadTitle = (who: string, title: string | undefined): string =>
+  `${oneLine(who)} · ${title === undefined ? "new thread" : oneLine(title)}`;
 export const threadsEmpty = (agent: string): string =>
   `You have not talked to ${oneLine(agent)} yet. Press n to start a thread.`;
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
+export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
+
+/** A room as it is written wherever the console names one. */
+export const roomLabel = (name: string): string => `#${oneLine(name)}`;
 export const earlierMessages = (count: number, threadId: string): string =>
   `${String(count)} earlier ${count === 1 ? "message is" : "messages are"} not shown. Read them with: shrimpy read ${oneLine(threadId)}`;
 
@@ -162,12 +168,15 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
   }
 }
 
-/** Who is working in a thread, and what the session is doing. At least one name. */
-export function workingLine(names: string[], activity: SessionActivity | undefined): string {
+/**
+ * Who is working in a thread, and what the session is doing. At least one name.
+ * Esc stops an agent's work in its DM, and does nothing in a room.
+ */
+export function workingLine(names: string[], activity: SessionActivity | undefined, canStop: boolean): string {
   const who = names.map(oneLine).join(" and ");
   const verb = names.length > 1 ? "are" : "is";
   const doing = activity === undefined ? undefined : activityWords(activity);
-  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`} · esc to stop`;
+  return `${who} ${verb} working${doing === undefined ? "" : ` · ${doing}`}${canStop ? " · esc to stop" : ""}`;
 }
 
 function activityWords(activity: SessionActivity): string | undefined {
@@ -217,7 +226,8 @@ export function answerNote(stopReason: string | null): string | undefined {
 
 export const KEYS = {
   agents: "↑↓ choose · enter open · ctrl+c twice to quit",
-  threads: "↑↓ choose · enter open · n new thread · esc agents · ctrl+c twice to quit",
+  threads: "↑↓ choose · enter open · n new thread · esc back · ctrl+c twice to quit",
   thread: "enter send · esc stop · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
+  roomThread: "enter send · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
 };
 export const QUIT_AGAIN = "Press Ctrl+C again to quit.";

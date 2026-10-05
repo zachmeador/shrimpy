@@ -71,7 +71,7 @@ const agentsModel = (): Model =>
 
 const threadsModel = (): Model =>
   aModel({
-    where: { screen: "threads", agent: "scout" },
+    where: { screen: "threads", place: { kind: "agent", name: "scout" } },
     listing: aListing([anAgent("scout"), aChatServer()]),
     dms: {
       scout: aDm("scout", [
@@ -112,7 +112,7 @@ test("in an agent's threads, enter opens one, n starts one and escape goes back"
 });
 
 test("with nothing to choose from, enter does nothing and n still starts a thread", (t) => {
-  const { terminal, state } = start(t, aModel({ where: { screen: "threads", agent: "scout" } }));
+  const { terminal, state } = start(t, aModel({ where: { screen: "threads", place: { kind: "agent", name: "scout" } } }));
 
   terminal.type(ENTER);
   terminal.type("n");
@@ -386,7 +386,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
   const { terminal, drawing, state } = start(t, model);
 
   const drawn = [...drawing.render(80)];
-  state.show({ ...model, where: { screen: "threads", agent: "scout" } });
+  state.show({ ...model, where: { screen: "threads", place: { kind: "agent", name: "scout" } } });
   drawn.push(...drawing.render(80));
   state.show({ ...model, where: { screen: "agents" } });
   drawn.push(...drawing.render(80));

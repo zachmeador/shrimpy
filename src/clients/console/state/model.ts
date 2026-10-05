@@ -3,15 +3,27 @@ import type { Channel, Member, Thread, ThreadView } from "../../../contracts/cha
 import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
 
+/**
+ * Whose threads the person looks at: their DM with an agent, by the agent's
+ * name, or a room they are in, by its channel's ID.
+ */
+export type Place = { kind: "agent"; name: string } | { kind: "room"; id: string };
+
 /** Where in the console the person is. */
 export type Where =
   | { screen: "agents" }
-  | { screen: "threads"; agent: string }
+  | { screen: "threads"; place: Place }
   /** `thread` is undefined for a thread that is not started yet: it comes to be with its first message. */
-  | { screen: "thread"; agent: string; thread: string | undefined };
+  | { screen: "thread"; place: Place; thread: string | undefined };
 
 /** The person's DM with an agent, and their threads in it, newest first. */
 export interface Dm {
+  channel: Channel;
+  threads: Thread[];
+}
+
+/** A room the person is in, and its threads, newest first. */
+export interface Room {
   channel: Channel;
   threads: Thread[];
 }
@@ -40,6 +52,8 @@ export interface Model {
   agent: LinkStatus | undefined;
   /** The person's DM with each agent that is running and that they have talked to, by the agent's name. */
   dms: Record<string, Dm>;
+  /** The rooms the person is in, by their channels' IDs. */
+  rooms: Record<string, Room>;
   /** The live view of the open thread. */
   thread: ThreadView | undefined;
   /** The live view of the session behind the open thread, once the agent has one. */
@@ -81,6 +95,32 @@ export function agentEntries(model: Pick<Model, "listing" | "dms">): AgentEntry[
       running: running.has(member.id),
       version: running.get(member.id)?.version,
       working: model.dms[member.name]?.threads.some((thread) => workingIn(thread, member.id)) ?? false,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** A room as the list of agents and rooms shows it. */
+export interface RoomEntry {
+  /** The room's channel ID. */
+  id: string;
+  name: string;
+  /** The names of its members but the person's own, in alphabetical order. */
+  members: string[];
+  /** Whether anyone is working in a thread of the room. */
+  working: boolean;
+}
+
+/** The rooms the person is in, by name. */
+export function roomEntries(model: Pick<Model, "me" | "rooms">): RoomEntry[] {
+  return Object.values(model.rooms)
+    .map(({ channel, threads }) => ({
+      id: channel.id,
+      name: channel.name,
+      members: channel.members
+        .filter((member) => member.id !== model.me?.id)
+        .map((member) => member.name)
+        .sort((a, b) => a.localeCompare(b)),
+      working: threads.some((thread) => thread.working.length > 0),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

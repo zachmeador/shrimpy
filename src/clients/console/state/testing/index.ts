@@ -15,6 +15,7 @@ export {
   aModel,
   anAgent,
   aReceipt,
+  aRoom,
   aRosterAgent,
   aThread,
   aThreadView,

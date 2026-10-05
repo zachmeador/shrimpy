@@ -1,5 +1,5 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, workingIn } from "../state/index.ts";
+import { agentEntries, type Model, type Place, roomEntries, workingIn } from "../state/index.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
 import { type Work, workOf } from "./work.ts";
@@ -13,11 +13,14 @@ import {
   earlierMessages,
   gatewayNote,
   KEYS,
+  newRoomThreadHint,
   newThreadHint,
   NO_TITLE,
   noticeText,
   reactionsLine,
   receiptNote,
+  roomLabel,
+  roomThreadsTitle,
   THREAD_EMPTY,
   threadsEmpty,
   threadsTitle,
@@ -42,8 +45,10 @@ interface Chrome {
 
 /** A row of a list the person chooses from. */
 export interface Row {
-  /** What the state is told when the row is chosen: an agent's name, or a thread's ID. It is never shown. */
+  /** What the state is told when the row is chosen: an agent's name, a room's channel ID or a thread's ID. It is never shown. */
   id: string;
+  /** What choosing it opens. */
+  kind: "agent" | "room" | "thread";
   label: string;
   detail: string;
   working: boolean;
@@ -121,19 +126,28 @@ export function screenOf(model: Model, options: ScreenOptions): Screen {
     case "agents":
       return agentsScreen(model);
     case "threads":
-      return threadsScreen(model, where.agent, options.now);
+      return threadsScreen(model, where.place, options.now);
     case "thread":
-      return threadScreen(model, where.agent, where.thread, options.now);
+      return threadScreen(model, where.place, where.thread, options.now);
   }
 }
 
 function agentsScreen(model: Model): AgentsScreen {
-  const rows = agentEntries(model).map((entry) => ({
+  const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.name,
+    kind: "agent",
     label: oneLine(entry.name),
     detail: entry.running ? (entry.working ? "working" : "idle") : "not running",
     working: entry.working,
   }));
+  const rooms: Row[] = roomEntries(model).map((entry) => ({
+    id: entry.id,
+    kind: "room",
+    label: roomLabel(entry.name),
+    detail: [entry.members.map(oneLine).join(", "), entry.working ? "working" : undefined].filter((part) => part !== undefined && part !== "").join(" · "),
+    working: entry.working,
+  }));
+  const rows = [...agents, ...rooms];
   return {
     kind: "agents",
     title: agentsTitle(),
@@ -145,60 +159,94 @@ function agentsScreen(model: Model): AgentsScreen {
   };
 }
 
-function threadsScreen(model: Model, agent: string, now: number): ThreadsScreen {
-  const threads = model.dms[agent]?.threads ?? [];
+/** The threads the person looks at: an agent's DM with them, or a room. */
+interface Looking {
+  /** The agent's name, or the room's. */
+  name: string;
+  channel: Channel | undefined;
+  threads: Thread[];
+  /** Whether the one it is about is at work in the thread: the agent in its DM, or anyone in a room. */
+  busyIn(thread: Thread): boolean;
+}
+
+function lookingAt(model: Model, place: Place): Looking {
+  if (place.kind === "room") {
+    const room = model.rooms[place.id];
+    return {
+      name: room?.channel.name ?? place.id,
+      channel: room?.channel,
+      threads: room?.threads ?? [],
+      busyIn: (thread) => thread.working.length > 0,
+    };
+  }
+  const dm = model.dms[place.name];
   // Chat's working marks name members by ID, and the agent is the one agent in its DM with the person.
-  const agentId = model.dms[agent]?.channel.members.find((member) => member.kind === "agent")?.id;
-  const workingHere = (thread: Thread): boolean => agentId !== undefined && workingIn(thread, agentId);
-  const rows = threads.map((thread) => ({
+  const agentId = dm?.channel.members.find((member) => member.kind === "agent")?.id;
+  return {
+    name: place.name,
+    channel: dm?.channel,
+    threads: dm?.threads ?? [],
+    busyIn: (thread) => agentId !== undefined && workingIn(thread, agentId),
+  };
+}
+
+function threadsScreen(model: Model, place: Place, now: number): ThreadsScreen {
+  const here = lookingAt(model, place);
+  const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
+    kind: "thread",
     label: titleWithTags(thread),
-    detail: [whenOf(thread.updatedAt, now), workingHere(thread) ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
-    working: workingHere(thread),
+    detail: [whenOf(thread.updatedAt, now), here.busyIn(thread) ? "working" : undefined].filter((part) => part !== undefined).join(" · "),
+    working: here.busyIn(thread),
   }));
+  const agent = place.kind === "agent" ? place.name : undefined;
   return {
     kind: "threads",
-    title: threadsTitle(oneLine(agent)),
+    title: place.kind === "agent" ? threadsTitle(oneLine(here.name)) : roomThreadsTitle(here.name),
     stale: model.chat.state === "down",
     rows,
-    empty: rows.length === 0 && model.chat.state === "up" ? threadsEmpty(oneLine(agent)) : undefined,
+    // A room always has its main thread, so there is no one to ask the person to start a talk with.
+    empty: rows.length === 0 && model.chat.state === "up" && agent !== undefined ? threadsEmpty(oneLine(agent)) : undefined,
     notes: notesOf(model, agent),
     keys: KEYS.threads,
   };
 }
 
-function threadScreen(model: Model, agent: string, threadId: string | undefined, now: number): ThreadScreen {
+function threadScreen(model: Model, place: Place, threadId: string | undefined, now: number): ThreadScreen {
+  const here = lookingAt(model, place);
   const live = threadId !== undefined && model.thread?.thread.id === threadId ? model.thread : undefined;
-  const listed = threadId === undefined ? undefined : model.dms[agent]?.threads.find((thread) => thread.id === threadId);
+  const listed = threadId === undefined ? undefined : here.threads.find((thread) => thread.id === threadId);
   const thread = live?.thread ?? listed;
-  const channel = model.dms[agent]?.channel;
-  const names = namer(channel, model);
+  const names = namer(here.channel, model);
+  // Only an agent's DM has a session to show and an agent to stop. In a room the marks chat keeps say who is working.
+  const isAgent = place.kind === "agent";
+  const who = isAgent ? oneLine(here.name) : roomLabel(here.name);
 
   const messages = (live?.messages ?? []).map((message) => messageRow(message, model, names, now));
-  const session = model.session;
+  const session = isAgent ? model.session : undefined;
   const markedWorking = thread?.working.map((mark) => names(mark.memberId)) ?? [];
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const sessionBusy = session?.status.busy === true && model.agent?.state !== "down";
   const working =
     markedWorking.length > 0 || sessionBusy
-      ? workingLine(markedWorking.length > 0 ? markedWorking : [oneLine(agent)], sessionBusy ? session.status.activity : undefined)
+      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, isAgent)
       : undefined;
 
   let lead: string | undefined;
-  if (threadId === undefined) lead = newThreadHint(oneLine(agent));
+  if (threadId === undefined) lead = isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
   else if (live !== undefined && live.earlier > 0) lead = earlierMessages(live.earlier, threadId);
   else if (live !== undefined && messages.length === 0) lead = THREAD_EMPTY;
 
   return {
     kind: "thread",
-    title: threadTitle(oneLine(agent), thread === undefined ? threadId : titleOf(thread)),
+    title: threadTitle(who, thread === undefined ? threadId : titleOf(thread)),
     lead,
     messages,
     working,
     work: workOf(session),
-    workStale: model.agent?.state === "down",
-    notes: notesOf(model, agent),
-    keys: KEYS.thread,
+    workStale: isAgent && model.agent?.state === "down",
+    notes: notesOf(model, isAgent ? here.name : undefined),
+    keys: isAgent ? KEYS.thread : KEYS.roomThread,
   };
 }
 

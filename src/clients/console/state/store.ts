@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
+import type { Channel, ChatClient } from "../../../contracts/chat/index.ts";
 import type { Transports } from "../../../contracts/gateway/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
@@ -15,13 +16,14 @@ import {
   type SessionUpdate,
   type ThreadUpdate,
 } from "../network/index.ts";
-import { readDms } from "./directory.ts";
+import { readChannels } from "./directory.ts";
 import {
   type AgentEntry,
   agentEntries,
   type Farewell,
   type Model,
   type Notice,
+  type Place,
   type SendResult,
   workingIn,
 } from "./model.ts";
@@ -29,7 +31,7 @@ import {
 export interface ConsoleStateOptions {
   /** How the console reaches the gateway, and the programs registered with it by their names. */
   transports: Transports;
-  /** How often what has no subscription is asked for again: what is running, and the threads in the person's DMs. 2 seconds by default. */
+  /** How often what has no subscription is asked for again: what is running, and the threads in the person's DMs and rooms. 2 seconds by default. */
   pollMs?: number;
   /** How long a notice stays. 6 seconds by default. */
   noticeMs?: number;
@@ -47,11 +49,13 @@ export interface ConsoleState {
 
   /** Show an agent's threads. */
   selectAgent(name: string): void;
-  /** Open one of the selected agent's threads, to talk and watch the work. */
+  /** Show the threads of a room the person is in, by its channel's ID. */
+  selectRoom(roomId: string): void;
+  /** Open one of the threads on show, to talk and, in an agent's, to watch the work. */
   openThread(threadId: string): void;
-  /** Start a thread with the selected agent. It comes to be with its first message. */
+  /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. */
   startThread(): void;
-  /** Go up one level: from a thread to the agent's threads, and from those to the agents. */
+  /** Go up one level: from a thread to the threads, and from those to the agents and rooms. */
   back(): void;
 
   /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
@@ -64,6 +68,9 @@ export interface ConsoleState {
   /** Let go of every connection. The work in agents goes on. */
   close(): Promise<void>;
 }
+
+/** A place as a string, for telling one from another. */
+const placeKey = (place: Place): string => (place.kind === "agent" ? `agent ${place.name}` : `room ${place.id}`);
 
 const POLL_MS = 2000;
 const NOTICE_MS = 6000;
@@ -86,6 +93,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     chat: CONNECTING,
     agent: undefined,
     dms: {},
+    rooms: {},
     thread: undefined,
     session: undefined,
     notice: undefined,
@@ -105,6 +113,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
 
   // Whether the person has been taken to the only agent there is, or has found their own way.
   let landed = false;
+  // Whether the person's channels have been read yet, since without them it is not known whether they are in a room.
+  let channelsRead = false;
 
   const registry = keepRegistry({ transports: options.transports, pollMs, backoff: options.backoff });
 
@@ -152,14 +162,18 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     set({ agent: link.status(), session: undefined });
   };
 
-  /** The person's DMs and the threads in them, asked for again whenever something suggests they changed. */
-  const refreshDms = converge(
+  /** The person's DMs and rooms and the threads in them, asked for again whenever something suggests they changed. */
+  const refreshChannels = converge(
     async () => {
       if (chat.status().state !== "up") return;
       const agents = agentEntries(model);
-      const dms = await chat.call((client) => readDms(client, agents));
-      if (JSON.stringify(dms) !== JSON.stringify(model.dms)) set({ dms });
+      const { dms, rooms } = await chat.call((client) => readChannels(client, agents));
+      if (JSON.stringify(dms) !== JSON.stringify(model.dms) || JSON.stringify(rooms) !== JSON.stringify(model.rooms)) {
+        set({ dms, rooms });
+      }
       if (model.notice?.kind === "not-listed") say(undefined);
+      channelsRead = true;
+      land();
     },
     (error) => {
       const problem = problemOf(error);
@@ -175,25 +189,41 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     return found;
   };
 
-  const land = (): void => {
-    if (landed) return;
+  /**
+   * The channel a new thread goes in: the person's DM with the agent, which is
+   * made if they have none, or the room, which the console never makes.
+   */
+  async function channelOf(client: ChatClient, place: Place, signal: AbortSignal): Promise<Channel> {
+    if (place.kind === "room") {
+      const room = model.rooms[place.id];
+      if (room === undefined) throw new Error("You are not in that room.");
+      return room.channel;
+    }
+    return model.dms[place.name]?.channel ?? (await client.openDm(roster(place.name).id, signal));
+  }
+
+  /** With one agent and no room to choose from, the person is taken to the agent, once. */
+  function land(): void {
+    if (landed || !channelsRead) return;
     const agents: AgentEntry[] = agentEntries(model);
     if (agents.length === 0) return;
     landed = true;
     const [only] = agents;
-    if (only !== undefined && agents.length === 1 && model.where.screen === "agents") select(only.name);
-  };
+    if (only !== undefined && agents.length === 1 && Object.keys(model.rooms).length === 0 && model.where.screen === "agents") {
+      select(only.name);
+    }
+  }
 
   registry.onChange(() => {
     set({ gateway: registry.status(), listing: registry.listing() });
     land();
-    void refreshDms();
+    void refreshChannels();
   });
   chat.onStatus((status) => {
     set({ chat: status });
-    if (status.state === "up") void refreshDms();
+    if (status.state === "up") void refreshChannels();
   });
-  const poll = setInterval(() => void refreshDms(), pollMs);
+  const poll = setInterval(() => void refreshChannels(), pollMs);
   // The links have been trying since they were made, and may have something to say already.
   set({ gateway: registry.status(), listing: registry.listing(), chat: chat.status() });
 
@@ -202,8 +232,16 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     useAgent(name);
     chat.follow(undefined);
     agent?.watch(undefined);
-    set({ where: { screen: "threads", agent: name }, thread: undefined, session: undefined, notice: undefined });
-    void refreshDms();
+    set({ where: { screen: "threads", place: { kind: "agent", name } }, thread: undefined, session: undefined, notice: undefined });
+    void refreshChannels();
+  }
+
+  function selectRoom(id: string): void {
+    landed = true;
+    useAgent(undefined);
+    chat.follow(undefined);
+    set({ where: { screen: "threads", place: { kind: "room", id } }, thread: undefined, session: undefined, notice: undefined });
+    void refreshChannels();
   }
 
   function open(threadId: string | undefined): void {
@@ -212,11 +250,11 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     landed = true;
     chat.follow(threadId);
     agent?.watch(threadId);
-    set({ where: { screen: "thread", agent: where.agent, thread: threadId }, thread: undefined, session: undefined, notice: undefined });
+    set({ where: { screen: "thread", place: where.place, thread: threadId }, thread: undefined, session: undefined, notice: undefined });
   }
 
   // The thread a person started and could not send a first message in, so that trying again does not make another.
-  let started: { agent: string; threadId: string } | undefined;
+  let started: { place: string; threadId: string } | undefined;
   // The message being sent, so that sending the same again after a failure is the same message.
   let pending: { threadId: string; text: string; requestId: string } | undefined;
   // Which new thread is on screen, so that a first message that arrives late does not open it over something else.
@@ -227,6 +265,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     subscribe: (listener) => listeners.add(listener),
 
     selectAgent: select,
+    selectRoom,
     openThread: (threadId) => open(threadId),
     startThread() {
       newThreads += 1;
@@ -238,8 +277,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       if (where.screen === "thread") {
         chat.follow(undefined);
         agent?.watch(undefined);
-        set({ where: { screen: "threads", agent: where.agent }, thread: undefined, session: undefined, notice: undefined });
-        void refreshDms();
+        set({ where: { screen: "threads", place: where.place }, thread: undefined, session: undefined, notice: undefined });
+        void refreshChannels();
       } else if (where.screen === "threads") {
         useAgent(undefined);
         set({ where: { screen: "agents" }, notice: undefined });
@@ -254,11 +293,11 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       const answered = AbortSignal.timeout(sendMs);
       try {
         const threadId = await chat.call(async (client) => {
-          let id = where.thread ?? (started?.agent === where.agent ? started.threadId : undefined);
+          let id = where.thread ?? (started?.place === placeKey(where.place) ? started.threadId : undefined);
           if (id === undefined) {
-            const dm = model.dms[where.agent]?.channel ?? (await client.openDm(roster(where.agent).id, answered));
-            id = (await client.createThread(dm.id, null, answered)).id;
-            started = { agent: where.agent, threadId: id };
+            const channel = await channelOf(client, where.place, answered);
+            id = (await client.createThread(channel.id, null, answered)).id;
+            started = { place: placeKey(where.place), threadId: id };
           }
           const requestId =
             pending?.threadId === id && pending.text === text ? pending.requestId : randomUUID();
@@ -272,7 +311,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
           const now = model.where;
           if (now.screen === "thread" && now.thread === undefined && newThreads === newThread) open(threadId);
         }
-        void refreshDms();
+        void refreshChannels();
         return { ok: true };
       } catch (error) {
         const silent = answered.aborted ? new Down({ kind: "unreachable", message: "the chat server did not answer" }) : error;
@@ -283,9 +322,10 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
 
     async stop() {
       const { where } = model;
-      if (where.screen !== "thread" || where.thread === undefined || agent === undefined) return;
-      const thread = model.thread?.thread ?? model.dms[where.agent]?.threads.find((each) => each.id === where.thread);
-      const agentId = agentEntries(model).find((entry) => entry.name === where.agent)?.id;
+      if (where.screen !== "thread" || where.place.kind !== "agent" || where.thread === undefined || agent === undefined) return;
+      const { name } = where.place;
+      const thread = model.thread?.thread ?? model.dms[name]?.threads.find((each) => each.id === where.thread);
+      const agentId = agentEntries(model).find((entry) => entry.name === name)?.id;
       const working =
         model.session?.status.busy === true || (thread !== undefined && agentId !== undefined && workingIn(thread, agentId));
       if (!working) {
@@ -301,11 +341,13 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
 
     async farewell() {
       const waiting = new AbortController();
-      await Promise.race([refreshDms(), delay(FAREWELL_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
+      await Promise.race([refreshChannels(), delay(FAREWELL_MS, undefined, { signal: waiting.signal }).catch(() => undefined)]);
       waiting.abort();
       const { where } = model;
       const entries = agentEntries(model);
-      const names = [...(where.screen === "agents" ? [] : [where.agent]), ...entries.map((entry) => entry.name)];
+      // Only an agent's DM is looked at: a room has no one agent's work to stop with a key.
+      const shown = where.screen !== "agents" && where.place.kind === "agent" ? where.place.name : undefined;
+      const names = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.name)];
       for (const name of new Set(names)) {
         // The thread on screen comes first, then the newest thread the agent is working in.
         const id = entries.find((entry) => entry.name === name)?.id;
@@ -313,7 +355,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
         // A session that was working when the agent went away is not working now, whatever its last view says.
         const sessionWorking = model.session?.status.busy === true && model.agent?.state !== "down";
         const onScreen =
-          where.screen === "thread" && where.agent === name && where.thread !== undefined
+          where.screen === "thread" && shown === name && where.thread !== undefined
             ? { thread: where.thread, working: sessionWorking || model.thread?.thread.working.some((mark) => mark.memberId === id) === true }
             : undefined;
         if (onScreen?.working === true) return { agent: name, thread: onScreen.thread };

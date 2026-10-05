@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { openConsole } from "../clients/console/index.ts";
 import type { Message, Thread } from "../contracts/chat/index.ts";
+import { memberNamed } from "../contracts/chat/testing/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import {
@@ -10,11 +11,14 @@ import {
   declareLocalModel,
   FakeTerminal,
   type ModelServer,
+  type Outcome,
   serve,
   serveChat,
   serveGateway,
   shrimpy,
   startModelServer,
+  startScriptedAgent,
+  startTalking,
   startUp,
   untilRegistered,
 } from "./testing/index.ts";
@@ -30,6 +34,7 @@ const timeout = 90_000;
 const ESC = "\u001b";
 const CTRL_C = "\u0003";
 const CTRL_N = "\u000e";
+const DOWN = "\u001b[B";
 const ENTER = "\r";
 
 async function testModel(t: TestContext): Promise<ModelServer> {
@@ -161,6 +166,71 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
   assert.equal(posted.length, 1);
   await new Promise((resolve) => setTimeout(resolve, 1000));
   assert.equal((await repliesOf()).length, 1, "and it is not posted again");
+
+  terminal.type(CTRL_C);
+  terminal.type(CTRL_C);
+  assert.equal(await within(30_000, exited, "the console to be left"), 0);
+});
+
+test("the console lists the rooms a person is in beside the agents, and a thread of a room is read, written in and watched like one of a DM", { timeout }, async (t) => {
+  const talking = await startTalking(t);
+  let finish: (outcome: Outcome) => void = () => undefined;
+  const working = new Promise<Outcome>((resolve) => {
+    finish = resolve;
+  });
+  const scout = await startScriptedAgent(t, { name: "scout", handle: () => working });
+  const you = await talking.you();
+  const room = await you.chat.createRoom("ops", [(await memberNamed(t, "scout")).id]);
+  const [main] = await you.chat.threads(room.id);
+  assert.ok(main);
+  const terminal = new FakeTerminal();
+  const { cli, exited } = openOn(terminal);
+  // A test that fails must not leave the console open or the agent working, or its process never ends.
+  stopAfter(t, async () => {
+    finish({ status: "silent" });
+    cli.requestStop();
+    await exited.catch(() => undefined);
+  });
+
+  // With an agent and a room to choose from, the person chooses, and is not taken to the agent.
+  await seen(terminal, "Agents and rooms");
+  await seen(terminal, "#ops");
+  terminal.type(DOWN);
+  terminal.type(ENTER);
+  await seen(terminal, "#ops · threads");
+  terminal.type(ENTER);
+  await seen(terminal, "No messages yet.");
+
+  // What the person writes is posted in the room's thread, and the agent that is offered it is seen working.
+  terminal.type("is the disk full?");
+  terminal.type(ENTER);
+  await seen(terminal, "scout is working", "who is working");
+  const [posted] = await eventually(() => you.chat.read(main.id, null, 10), (messages) => messages.length === 1, {
+    what: "the message to be posted in the room",
+  });
+  assert.ok(posted);
+  assert.equal(posted.text, "is the disk full?");
+  assert.equal(posted.author.id, you.me.id);
+  assert.deepEqual(scout.offered.map((offered) => offered.text), ["is the disk full?"]);
+
+  // What the agent says in it arrives as it does in a DM.
+  finish({ status: "answered", text: "The disk is fine." });
+  await seen(terminal, "The disk is fine.", "the agent's reply");
+
+  // A new thread is made in the room, with its first message.
+  terminal.type(CTRL_N);
+  terminal.type("and the backups?");
+  terminal.type(ENTER);
+  const [side] = await eventually(
+    async () => (await you.chat.threads(room.id)).filter((thread) => !thread.main),
+    (threads) => threads.length === 1,
+    { what: "a second thread in the room" },
+  );
+  assert.ok(side);
+  const [first] = await eventually(() => you.chat.read(side.id, null, 10), (messages) => messages.length > 0, {
+    what: "its first message",
+  });
+  assert.equal(first?.text, "and the backups?");
 
   terminal.type(CTRL_C);
   terminal.type(CTRL_C);

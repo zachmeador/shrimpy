@@ -81,7 +81,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
   const drafts = new Map<string, string>();
   let draftKey: string | undefined;
   const keyOf = (where: Where): string | undefined =>
-    where.screen === "thread" ? `${where.agent}\n${where.thread ?? "new"}` : undefined;
+    where.screen === "thread" ? `${JSON.stringify(where.place)}\n${where.thread ?? "new"}` : undefined;
   const syncDraft = (where: Where): void => {
     const key = keyOf(where);
     if (key === draftKey) return;
@@ -153,7 +153,11 @@ export function startDrawing(options: DrawingOptions): Drawing {
         chosen,
         room: rows() - 8,
         theme,
-        open: (id) => (screen.kind === "agents" ? state.selectAgent(id) : state.openThread(id)),
+        open: (row) => {
+          if (row.kind === "agent") state.selectAgent(row.id);
+          else if (row.kind === "room") state.selectRoom(row.id);
+          else state.openThread(row.id);
+        },
         moved: (id) => {
           chosen = id;
         },

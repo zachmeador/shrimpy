@@ -8,7 +8,7 @@ import type {
 } from "../../../../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../../../../contracts/gateway/index.ts";
 import { SHRIMPY_VERSION } from "../../../../lib/version/index.ts";
-import type { Dm, Model } from "../index.ts";
+import type { Dm, Model, Room } from "../index.ts";
 
 /** The person, as the roster would have them. */
 export const zach: Member = { id: "mem_1", kind: "person", name: "zach" };
@@ -38,6 +38,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     chat: { state: "up" },
     agent: undefined,
     dms: {},
+    rooms: {},
     thread: undefined,
     session: undefined,
     notice: undefined,
@@ -94,6 +95,12 @@ export function aDm(agent: string, threads: Thread[]): Dm {
   return { channel, threads };
 }
 
+/** A room the person is in with these agents, and the threads in it. */
+export function aRoom(name: string, agents: string[], threads: Thread[], id = "ch_2"): Room {
+  const channel: Channel = { id, kind: "room", name, members: [zach, ...agents.map(agentMember)] };
+  return { channel, threads };
+}
+
 export function aMessage(id: string, author: Member, text: string, parts: Partial<Message> = {}): Message {
   return {
     id,
@@ -124,7 +131,7 @@ export function aThreadView(thread: Thread, messages: Message[], earlier = 0): T
 /** A model on a thread of an agent's, with whatever else `parts` adds. */
 export function onThread(agent: string, thread: Thread, view: ThreadView | undefined, parts: Partial<Model> = {}): Model {
   return aModel({
-    where: { screen: "thread", agent, thread: thread.id },
+    where: { screen: "thread", place: { kind: "agent", name: agent }, thread: thread.id },
     listing: {
       programs: [anAgent(agent), aChatServer()],
       members: [{ ...zach, reachable: false }, aRosterAgent(agent)],
