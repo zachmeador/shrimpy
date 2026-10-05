@@ -1,22 +1,22 @@
 import type { ChatClient, Member, Message } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { WakePolicy } from "../home/index.ts";
-import { type Receipted, type Taken, wakesAsPost } from "./wake.ts";
+import { type Receipted, type Taken, wakesInRoom } from "./wake.ts";
 
 /** Messages asked for at a time when looking for a reply, and how many times: a reply is posted just before its receipt, so it is among the newest. */
 const PAGE = 50;
 const PAGES = 4;
 
 /**
- * The reply that a receipt points to, taken up as an answer to the message of
- * the agent's own that the receipt is on. A reply that wakes the agent by itself
- * under its policy, because it mentions the agent or a person wrote it or the
- * policy is `all`, is not taken up here, and neither is one the agent has dealt
- * with already, or that was taken back. Chat is asked for the reply, since
- * the receipt only names it. `onError` is told when it can't be found. One reply
- * that answers two messages of the agent's has a receipt on each, so it is taken
- * up for each: that is still one input for the model, one reply and one
- * receipt, because the reply's event names each of them.
+ * The reply that a receipt points to in a room, taken up as an answer to the
+ * message of the agent's own that the receipt is on. A reply that wakes the
+ * agent by itself under its policy, because it mentions the agent or a person
+ * wrote it or the policy is `all`, is not taken up here, and neither is one the
+ * agent has dealt with already, or that was taken back. Chat is asked for the
+ * reply, since the receipt only names it. `onError` is told when it can't be
+ * found. One reply that answers two messages of the agent's has a receipt on
+ * each, so it is taken up for each: that is still one input for the model, one
+ * reply and one receipt, because the reply's event names each of them.
  */
 export async function takeUpAnswer(
   chat: ChatClient,
@@ -37,7 +37,7 @@ export async function takeUpAnswer(
     );
     return undefined;
   }
-  if (found.deleted || wakesAsPost(self, policy, found.author, found.addressed)) return undefined;
+  if (found.deleted || wakesInRoom(self, policy, found.author, found.mentions)) return undefined;
   if (found.receipts.some((each) => each.memberId === self.id && each.event === found.event)) return undefined;
   return {
     event: {

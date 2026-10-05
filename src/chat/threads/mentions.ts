@@ -1,3 +1,6 @@
+import type { Member } from "../../contracts/chat/index.ts";
+import type { ChannelRecord } from "../store/index.ts";
+
 /** What `@all` stands for. */
 const EVERYONE = "all";
 
@@ -25,12 +28,22 @@ function hasMention(text: string, name: string): boolean {
 
 /**
  * Whether `text` mentions the member called `name`: it says `@name`, whatever
- * the case, or `@all`, which mentions every member. A name that is no member's
- * is for nobody. The chat server works out who a message in a room is for with
- * this, and an agent asks it of a message in a DM, where that is not worked
- * out because every message is for the other member.
+ * the case, or `@all`, which mentions every member.
  */
-export function mentions(text: string, name: string): boolean {
+function mentions(text: string, name: string): boolean {
   const lowered = text.toLowerCase();
   return hasMention(lowered, EVERYONE) || hasMention(lowered, name.toLowerCase());
+}
+
+/**
+ * The IDs of the members of `channel` that `text` mentions, in the channel's
+ * order of members, and never its author: the members it names as `@name`,
+ * matched as names are matched elsewhere, whatever the case, and every member
+ * but the author when it says `@all`. A name that is no member's mentions
+ * nobody. It works out the same in a DM as in a room.
+ */
+export function mentionedMembers(channel: ChannelRecord, author: Member, text: string): string[] {
+  return channel.members
+    .filter((member) => member.id !== author.id && mentions(text, member.name))
+    .map((member) => member.id);
 }

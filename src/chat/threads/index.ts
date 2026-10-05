@@ -1,7 +1,7 @@
 /**
  * What the chat API means: how a member comes in and is recorded, which
- * channels and threads it can see, how DMs and rooms are made, who a post is
- * meant for, what posting, editing, deleting, reacting, reading and leaving
+ * channels and threads it can see, how DMs and rooms are made, which members a
+ * post mentions, what posting, editing, deleting, reacting, reading and leaving
  * receipts do and who may do them, who is working where, and the live view of
  * a thread. Each operation takes the caller and runs as one store transaction.
  * It must not know about sockets, connections or any chat provider, or how the

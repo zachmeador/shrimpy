@@ -149,7 +149,7 @@ test("an agent starts a DM with a member it has never talked to, by name, and sa
   assert.deepEqual(others, []);
   assert.equal(sent?.text, "The build is red.");
   assert.equal(sent.author.id, rig.partner.id);
-  assert.deepEqual(sent.addressed, [mechanic.me.id]);
+  assert.deepEqual(sent.mentions, []);
   assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Done."], "and the reply still goes to the person who asked");
   const [posted, read, refused] = model.answers;
   assert.equal(posted?.isError, false);

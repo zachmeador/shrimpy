@@ -22,7 +22,7 @@ type EventRow = {
   channel_id: string;
   thread_id: string;
   sent_at: number;
-  addressed: string;
+  mentions: string;
   deleted: number;
   preview: string;
   author_id: string;
@@ -35,7 +35,7 @@ const SELECT = `
   SELECT e.seq, e.id, e.kind, e.at, e.text, e.emoji, e.status, e.detail,
          answered.id AS answers_id, replied.id AS reply_id,
          x.id AS actor_id, x.kind AS actor_kind, x.name AS actor_name,
-         m.id AS message_id, m.channel_id, m.thread_id, m.sent_at, m.addressed, m.deleted, m.preview,
+         m.id AS message_id, m.channel_id, m.thread_id, m.sent_at, m.mentions, m.deleted, m.preview,
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${RECEIPTS_ON_EVENT} AS receipts
   FROM events e
@@ -63,7 +63,7 @@ function toEvent(row: EventRow): ChatEvent {
       threadId: row.thread_id,
       author: { id: row.author_id, kind: row.author_kind, name: row.author_name },
       sentAt: row.sent_at,
-      addressed: JSON.parse(row.addressed) as string[],
+      mentions: JSON.parse(row.mentions) as string[],
       deleted: row.deleted === 1,
       preview: row.preview,
     },

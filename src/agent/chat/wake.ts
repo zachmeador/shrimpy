@@ -1,4 +1,4 @@
-import { type ChatEvent, type Member, mentions } from "../../contracts/chat/index.ts";
+import type { Channel, ChatEvent, Member } from "../../contracts/chat/index.ts";
 import type { WakePolicy } from "../home/index.ts";
 import type { ChatInput, Snapshot } from "../inputs/index.ts";
 
@@ -27,54 +27,59 @@ export function passedOver(self: Member, event: ChatEvent): boolean {
 }
 
 /**
- * Whether a post or an edit by `author` that is addressed to `addressed` wakes
- * the agent under `policy`: it does when it is addressed to the agent, which in
- * a DM every message from the other member is; when the policy is `people` and
- * a person wrote it and mentioned nobody, so that it is for every agent in the
- * room; and when the policy is `all`. A person who names members is talking to
- * them, and the others only see it in what they read when something wakes them.
+ * Whether a post or an edit in a DM wakes the agent: it does when the other
+ * member wrote it, whatever the text says.
  */
-export function wakesAsPost(self: Member, policy: WakePolicy, author: Member, addressed: readonly string[]): boolean {
-  if (addressed.includes(self.id)) return true;
-  return policy === "all" || (policy === "people" && author.kind === "person" && addressed.length === 0);
+export function wakesInDm(self: Member, author: Member): boolean {
+  return author.id !== self.id;
 }
 
 /**
- * Whether what the agent took up of an event is urgent, which is how a person
- * says it can't wait for the turn that is running: a post or an edit that a
- * person wrote and that mentions the agent, as `@name` or `@all`. It is the same
- * in a room and in a DM. An agent's message is never urgent, whoever it
- * mentions, and neither is an answer or a reaction.
- *
- * In a room, chat worked out who the message is for, and the audience in `taken`
- * says whether that is the agent. A DM has no audience, because every message in
- * it is for the other member whatever it says, so the text is asked, by the rule
- * chat uses.
+ * Whether a post or an edit by `author` that mentions the members `mentions`
+ * wakes the agent under `policy` in a room: it does when it mentions the agent;
+ * when the policy is `people` and a person wrote it and mentioned nobody, so
+ * that it is for every agent in the room; and when the policy is `all`. A person
+ * who names members is talking to them, and the others only see it in what they
+ * read when something wakes them.
  */
-export function isUrgentPost(self: Member, event: ChatEvent, taken: Taken): boolean {
-  const { event: snapshot } = taken;
-  if (event.actor.kind !== "person" || (snapshot.kind !== "posted" && snapshot.kind !== "edited")) return false;
-  return snapshot.to === undefined ? mentions(snapshot.text, self.name) : snapshot.to.you;
+export function wakesInRoom(self: Member, policy: WakePolicy, author: Member, mentions: readonly string[]): boolean {
+  if (mentions.includes(self.id)) return true;
+  return policy === "all" || (policy === "people" && author.kind === "person" && mentions.length === 0);
+}
+
+/**
+ * Whether an event is urgent, which is how a person says it can't wait for the
+ * turn that is running: a post or an edit that a person wrote and that mentions
+ * the agent, as `@name` or `@all`. It is the same in a room and in a DM. An
+ * agent's message is never urgent, whoever it mentions, and neither is an
+ * answer or a reaction.
+ */
+export function isUrgentPost(self: Member, event: ChatEvent): boolean {
+  if (event.actor.kind !== "person" || (event.kind !== "posted" && event.kind !== "edited")) return false;
+  return event.message.mentions.includes(self.id);
 }
 
 /**
  * What an event means to the agent under the wake policy of the room it is in,
- * or of a DM, which has none: what it takes up of it, or nothing when the event
- * does not wake it. Chat offers every event and filters none, so this is where an
- * event gets its meaning.
+ * or in a DM, which has none: what it takes up of it, or nothing when the event
+ * does not wake it. `where` says which of the two the event is in. Chat offers
+ * every event and filters none, so this is where an event gets its meaning.
  *
  * Under `none` nothing wakes the agent. Otherwise it wakes for a reaction to a
  * message it wrote, which is an answer to it; for a post, or an edit of one, that
- * `wakesAsPost` says wakes it; and for an answered receipt that another member
- * leaves on a message of the agent's own that was for them, which is an answer in
- * words whether or not their reply mentions the agent: it is taken up as the reply
- * it points to. Deletes, reactions taken back, reactions to anyone else's message
- * and every other receipt, whoever left them and whatever message they name, wake
- * it for nothing.
+ * `wakesInDm` or `wakesInRoom` says wakes it; and in a room for an answered
+ * receipt that another member leaves on a message of the agent's own that
+ * mentioned them, which is an answer in words whether or not their reply
+ * mentions the agent: it is taken up as the reply it points to. In a DM the reply
+ * wakes the agent by itself, so a receipt that points to it wakes it for nothing.
+ * Deletes, reactions taken back, reactions to anyone else's message and every
+ * other receipt, whoever left them and whatever message they name, wake it for
+ * nothing.
  */
-export function takeUp(self: Member, event: ChatEvent, policy: WakePolicy): Waking | undefined {
+export function wakingOf(self: Member, event: ChatEvent, policy: WakePolicy, where: Channel["kind"]): Waking | undefined {
   if (policy === "none" || passedOver(self, event)) return undefined;
   const { message } = event;
+  const wakesAsPost = where === "dm" ? wakesInDm(self, event.actor) : wakesInRoom(self, policy, event.actor, message.mentions);
 
   const taken = (snapshot: Snapshot): Waking => ({
     kind: "event",
@@ -83,10 +88,10 @@ export function takeUp(self: Member, event: ChatEvent, policy: WakePolicy): Waki
   const { id, seq } = event;
   switch (event.kind) {
     case "posted":
-      if (!wakesAsPost(self, policy, event.actor, message.addressed)) return undefined;
+      if (!wakesAsPost) return undefined;
       return taken({ kind: "posted", id, seq, author: message.author.name, sentAt: message.sentAt, text: event.text });
     case "edited":
-      if (!wakesAsPost(self, policy, event.actor, message.addressed)) return undefined;
+      if (!wakesAsPost) return undefined;
       return taken({
         kind: "edited",
         id,
@@ -109,9 +114,9 @@ export function takeUp(self: Member, event: ChatEvent, policy: WakePolicy): Waki
         start: message.preview,
       });
     case "receipted":
-      // The message is the agent's own and was for the member who answered it.
-      if (event.status !== "answered" || event.reply === null) return undefined;
-      if (message.author.id !== self.id || !message.addressed.includes(event.actor.id)) return undefined;
+      // In a room, the message is the agent's own and mentioned the member who answered it.
+      if (where === "dm" || event.status !== "answered" || event.reply === null) return undefined;
+      if (message.author.id !== self.id || !message.mentions.includes(event.actor.id)) return undefined;
       return { kind: "answer", receipt: event, reply: event.reply };
     case "deleted":
     case "unreacted":

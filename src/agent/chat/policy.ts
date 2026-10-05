@@ -10,8 +10,6 @@ import { DEFAULT_WAKE_POLICY, type WakePolicy, type WakeSettings } from "../home
 export interface WakePolicies {
   /** The policy of the room with this name, whatever the case. */
   of(room: string): WakePolicy;
-  /** Whether the agent chose a policy for any room, so that a room's name is needed to decide anything. */
-  anySet(): boolean;
 }
 
 /** The choices the agent holds, which a reload replaces. */
@@ -24,7 +22,6 @@ export function createWakes(settings: WakeSettings = {}): Wakes {
   let held = lowered(settings);
   return {
     of: (room) => held.get(room.toLowerCase()) ?? DEFAULT_WAKE_POLICY,
-    anySet: () => held.size > 0,
     replace(next) {
       held = lowered(next);
     },

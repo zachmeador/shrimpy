@@ -1,6 +1,7 @@
 import { type MutableReplicatedState, replicatedState } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
+import { newId } from "../../../lib/ids/index.ts";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
 import {
@@ -33,10 +34,10 @@ export interface ScriptedChatOptions {
  * them. It is a stand-in for what the console needs and nothing more: it takes
  * the calls the console makes, keeps what was posted once however often the
  * same request is sent, and publishes a thread's view as it changes. What an
- * agent does with a feed, receipts, edits, deletes and reactions, rooms, and the
- * limits of the chat server are not here, because nothing that uses this makes
- * those calls; whatever tests that need chat to behave as it does run the chat
- * server itself.
+ * agent does with a feed, receipts, edits, deletes and reactions, rooms, who a
+ * text mentions, and the limits of the chat server are not here, because
+ * nothing that uses this makes those calls; whatever tests that need chat to
+ * behave as it does run the chat server itself.
  */
 export interface ScriptedChat {
   /**
@@ -82,6 +83,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
   const threads: ThreadRecord[] = [];
   const log: Message[] = [];
   const posts = new Map<string, Message>();
+  const storeId = newId("store");
   const marks = new Map<string, Map<string, number>>();
   const views = new Map<string, MutableReplicatedState<ThreadView>>();
   const failures = new Map<Method, { error: Error; times: number }>();
@@ -91,9 +93,8 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     counter += 1;
     return `${prefix}_${String(counter).padStart(12, "0")}`;
   };
-  const channelOf = (id: string): ChannelRecord | undefined => channels.find((channel) => channel.id === id);
-  const isIn = (channel: ChannelRecord | undefined, memberId: string): boolean =>
-    channel?.members.some((member) => member.id === memberId) ?? false;
+  const isIn = (channel: ChannelRecord, memberId: string): boolean =>
+    channel.members.some((member) => member.id === memberId);
 
   const toThread = (record: ThreadRecord): Thread => {
     const first = log.find((message) => message.threadId === record.id);
@@ -149,7 +150,6 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
     if (earlier !== undefined) return clone(earlier);
     const thread = threads.find((candidate) => candidate.id === threadId);
     if (thread === undefined) refuse(`Unknown thread: ${threadId}`);
-    const channel = channelOf(thread.channelId);
     const message: Message = {
       id: nextId("msg"),
       seq: log.length + 1,
@@ -161,7 +161,7 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       sentAt: now(),
       editedAt: null,
       deleted: false,
-      addressed: (channel?.members ?? []).filter((member) => member.id !== me.id).map((member) => member.id),
+      mentions: [],
       reactions: [],
       receipts: [],
     };
@@ -261,6 +261,11 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
       },
       async head() {
         return unsupported();
+      },
+      async store() {
+        gate("store");
+        caller();
+        return storeId;
       },
       async feed() {
         return unsupported();

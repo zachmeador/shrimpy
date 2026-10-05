@@ -209,7 +209,7 @@ test("a chat server whose store was replaced under the agent makes it read the n
   await rig.chat.outage();
   await rig.chat.recover({ dataDir: tempDir(t, "chat-data") });
   await until(
-    () => rig.reports.some((report) => /^Chat's log ends at 0, before the agent's place in it at \d+\./.test((report as Error).message)),
+    () => rig.reports.some((report) => /^Chat's store is not the one the agent's place in the feed was for/.test((report as Error).message)),
     "the agent to say its place in the log was lost",
   );
   const fresh = await talkTo(rig.chat);
@@ -217,6 +217,27 @@ test("a chat server whose store was replaced under the agent makes it read the n
 
   assert.equal((await fresh.receiptOn(message)).status, "answered");
   assert.equal(message.seq, 1);
+});
+
+test("a chat store that has grown past the agent's place before the agent reads it is read from the start all the same, and the agent says so", { timeout }, async (t) => {
+  const first = await startAgentRig(t);
+  await first.receiptOn(await first.say("before"));
+  // Where the old store ends, which is where the agent stands in it, or a step before.
+  const place = (await first.events()).at(-1)?.seq ?? 0;
+  await first.agent.close();
+  await first.chat.outage();
+  await first.chat.recover({ dataDir: tempDir(t, "chat-data") });
+  // The new store has more in it than that place, so nothing but its ID says it is not the old one.
+  const person = await talkTo(first.chat);
+  const messages = [await person.say("message 1")];
+  while ((messages.at(-1)?.seq ?? 0) <= place) messages.push(await person.say(`message ${String(messages.length + 1)}`));
+
+  const second = await startAgentRig(t, { home: first.home, chat: first.chat });
+
+  const [oldest] = messages;
+  assert.ok(oldest);
+  assert.equal((await second.receiptOn(oldest)).status, "answered", "a message at a position the agent's old place is past");
+  assert.ok(second.reports.some((report) => /^Chat's store is not the one the agent's place in the feed was for/.test((report as Error).message)));
 });
 
 test("while chat is unreachable the sessions keep working, and clients can still watch, steer and stop them", { timeout }, async (t) => {

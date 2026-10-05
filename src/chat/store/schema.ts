@@ -1,5 +1,5 @@
 /** The tables' version. A store written by any other version is refused, never changed. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /**
  * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
@@ -21,11 +21,15 @@ export const SCHEMA_VERSION = 6;
  * by its `room_key`, its name in lower case, which no other room has. A member
  * is offered a channel's events after its `since_seq`: the position of the
  * newest event when it joined, so that nothing from before comes with it.
- * `messages.answers_seq` is not written or read any more: a message does not
- * say which event it answers. The column stays, empty in every new row, until
- * the store's next change of shape removes it.
+ *
+ * `store` has one row: the store's own ID, made when the store was and never
+ * changed.
  */
 export const SCHEMA = `
+CREATE TABLE store (
+  id TEXT NOT NULL
+) STRICT;
+
 CREATE TABLE members (
   id TEXT NOT NULL PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('person', 'agent')),
@@ -101,8 +105,7 @@ CREATE TABLE messages (
   sent_at INTEGER NOT NULL,
   edited_at INTEGER,
   deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
-  addressed TEXT NOT NULL,
-  answers_seq INTEGER REFERENCES events (seq)
+  mentions TEXT NOT NULL
 ) STRICT;
 CREATE INDEX messages_by_thread ON messages (thread_id, seq);
 

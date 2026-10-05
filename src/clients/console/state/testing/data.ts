@@ -113,7 +113,7 @@ export function aMessage(id: string, author: Member, text: string, parts: Partia
     sentAt: 0,
     editedAt: null,
     deleted: false,
-    addressed: [],
+    mentions: [],
     reactions: [],
     receipts: [],
     ...parts,

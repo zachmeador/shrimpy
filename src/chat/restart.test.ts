@@ -25,6 +25,8 @@ for (const signal of ["SIGKILL", "SIGTERM"] as const) {
     const two = await zach.chat.post(main.id, "two", "zach-2");
     const [taken] = await shrimpy.chat.feed(0, 1);
     assert.deepEqual([taken?.id, taken?.seq], [one.event, one.seq]);
+    const store = await zach.chat.store();
+    assert.match(store, /^store_\w{12}$/);
     await shrimpy.chat.setWorking(main.id, true);
     const dropped = Promise.all(
       [zach, shrimpy].map((connection) => new Promise((resolve) => connection.onDisconnect(resolve))),
@@ -42,6 +44,7 @@ for (const signal of ["SIGKILL", "SIGTERM"] as const) {
     assert.deepEqual(await zachAgain.chat.channels(), [dm]);
     assert.deepEqual(await zachAgain.chat.read(main.id, null, 10), [one, two]);
     assert.equal(await shrimpyAgain.chat.head(), two.seq);
+    assert.equal(await shrimpyAgain.chat.store(), store, "and the store is the same one");
     // The agent's cursor still means the same: what it had not taken in, then what comes next.
     assert.deepEqual((await shrimpyAgain.chat.feed(one.seq, 10)).map((event) => event.id), [two.event]);
     const waiting = shrimpyAgain.chat.feed(two.seq, 10);

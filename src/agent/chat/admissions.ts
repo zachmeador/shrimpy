@@ -2,16 +2,25 @@ import type { ChatInput } from "../inputs/index.ts";
 import type { WakePolicies } from "./policy.ts";
 
 /**
- * What chat needs from the agent's records: where it stands in chat's feed, a
- * way to take an event up, and a way to stop the work behind a thread, for a
- * command. It is also handed the choices the agent made, in a file of its home,
- * about what wakes it in each room.
+ * What chat needs from the agent's records: where it stands in chat's feed and
+ * in which chat store, a way to take an event up, and a way to stop the work
+ * behind a thread, for a command. It is also handed the choices the agent made,
+ * in a file of its home, about what wakes it in each room.
  */
 export interface Admissions {
   /** What wakes the agent in each room. Without it, every room has the default. */
   readonly wakes?: WakePolicies;
   /** Where the agent stands in chat's feed, kept with its own records. Undefined until it is first set. */
   cursor(): Promise<number | undefined>;
+  /**
+   * Say which chat store the agent is reading, which it asks chat each time it
+   * connects, before it reads the feed. The cursor is kept with the ID of the
+   * store it is in. When that is another store, or none, the cursor goes back to
+   * the start in the same commit that keeps this ID, and this answers true. With
+   * no cursor there is nothing to lose: the ID is kept with the first cursor that
+   * is set, and with each one after it.
+   */
+  readingStore(store: string): Promise<boolean>;
   /** Move past events that wake nobody. */
   setCursor(seq: number): Promise<void>;
   /**

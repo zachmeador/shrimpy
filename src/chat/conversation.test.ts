@@ -27,16 +27,16 @@ test("two members talk in a DM", { timeout }, async (t) => {
   const start = await shrimpy.chat.head();
   const offered = shrimpy.chat.feed(start, 10);
   const question = await zach.chat.post(main.id, "Are you there?", "zach-1");
-  assert.deepEqual(question.addressed, [shrimpy.me.id]);
+  assert.deepEqual(question.mentions, []);
   assert.deepEqual(question.author, zach.me);
   const [asked, ...others] = await offered;
   assert.deepEqual(others, []);
   assert.ok(asked?.kind === "posted");
   assert.deepEqual([asked.id, asked.seq, asked.text], [question.event, question.seq, "Are you there?"]);
-  assert.deepEqual([asked.actor, asked.message.id, asked.message.addressed], [zach.me, question.id, [shrimpy.me.id]]);
+  assert.deepEqual([asked.actor, asked.message.id, asked.message.mentions], [zach.me, question.id, []]);
 
   const answer = await shrimpy.chat.post(main.id, "Yes.", "shrimpy-1");
-  assert.deepEqual(answer.addressed, [zach.me.id]);
+  assert.deepEqual(answer.mentions, []);
   assert.deepEqual(posted(await zach.chat.feed(question.seq, 10)), ["Yes."]);
   assert.deepEqual(posted(await shrimpy.chat.feed(question.seq, 10)), ["Yes."], "a member is offered its own events too");
   assert.deepEqual(await zach.chat.read(main.id, null, 10), [question, answer]);

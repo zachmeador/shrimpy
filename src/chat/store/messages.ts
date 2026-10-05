@@ -16,7 +16,7 @@ type MessageRow = {
   sent_at: number;
   edited_at: number | null;
   deleted: number;
-  addressed: string;
+  mentions: string;
   author_id: string;
   author_kind: Member["kind"];
   author_name: string;
@@ -37,7 +37,7 @@ const REACTIONS_ON_MESSAGE = `
             GROUP BY emoji) g)`;
 
 const SELECT = `
-  SELECT m.seq, p.id AS event_id, m.id, m.channel_id, m.thread_id, m.text, m.sent_at, m.edited_at, m.deleted, m.addressed,
+  SELECT m.seq, p.id AS event_id, m.id, m.channel_id, m.thread_id, m.text, m.sent_at, m.edited_at, m.deleted, m.mentions,
          a.id AS author_id, a.kind AS author_kind, a.name AS author_name,
          ${REACTIONS_ON_MESSAGE} AS reactions,
          ${RECEIPTS_ON_MESSAGE} AS receipts
@@ -56,7 +56,7 @@ const toMessage = (row: MessageRow): Message => ({
   sentAt: row.sent_at,
   editedAt: row.edited_at,
   deleted: row.deleted === 1,
-  addressed: JSON.parse(row.addressed) as string[],
+  mentions: JSON.parse(row.mentions) as string[],
   reactions: JSON.parse(row.reactions) as Reaction[],
   receipts: parseReceipts(row.receipts),
 });
@@ -73,7 +73,7 @@ export interface NewMessage {
   authorId: string;
   text: string;
   sentAt: number;
-  addressed: string[];
+  mentions: string[];
   /** The start of the text, for places that show only that. */
   preview: string;
   /** The author's own ID for this post. A second post with the same one is a retry. */
@@ -87,7 +87,7 @@ export interface MessageEdit {
   actorId: string;
   at: number;
   text: string;
-  addressed: string[];
+  mentions: string[];
   preview: string;
 }
 
@@ -135,7 +135,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         text: post.text,
       });
       sql.run(
-        `INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, addressed)
+        `INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, mentions)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         posted.seq,
         newId("msg"),
@@ -145,7 +145,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.text,
         post.preview,
         post.sentAt,
-        JSON.stringify(post.addressed),
+        JSON.stringify(post.mentions),
       );
       sql.run(
         "INSERT INTO posts (author_id, request_id, message_seq, digest) VALUES (?, ?, ?, ?)",
@@ -194,10 +194,10 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         text: edit.text,
       });
       sql.run(
-        "UPDATE messages SET text = ?, preview = ?, addressed = ?, edited_at = ? WHERE seq = ?",
+        "UPDATE messages SET text = ?, preview = ?, mentions = ?, edited_at = ? WHERE seq = ?",
         edit.text,
         edit.preview,
-        JSON.stringify(edit.addressed),
+        JSON.stringify(edit.mentions),
         edit.at,
         message.seq,
       );

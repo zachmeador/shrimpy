@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { newId } from "../../lib/ids/index.ts";
 import { isLocked } from "../../lib/lock/node.ts";
 import { SCHEMA, SCHEMA_VERSION } from "./schema.ts";
 
@@ -51,5 +52,6 @@ function createTables(db: DatabaseSync, dataDir: string): void {
     );
   }
   db.exec(SCHEMA);
+  db.prepare("INSERT INTO store (id) VALUES (?)").run(newId("store"));
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }

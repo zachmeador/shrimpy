@@ -54,11 +54,11 @@ test("an agent that mentioned another is woken by the answer, once, though it do
 
   const [question, reply] = await messagesWhen(person, main.id, (messages) => messages.length >= 2, "the question and bob's answer");
   assert.ok(question && reply);
-  assert.deepEqual([question.author.id, reply.author.id, reply.addressed], [scout.partner.id, bob.partner.id, []], "bob answered without mentioning scout");
+  assert.deepEqual([question.author.id, reply.author.id, reply.mentions], [scout.partner.id, bob.partner.id, []], "bob answered without mentioning scout");
   assert.equal((await scout.receiptOn(reply, PATIENT)).status, "answered");
   const thanks = (await person.chat.read(main.id, null, 10)).find((message) => message.text === "Thanks, stanza 2 is yours.");
   assert.ok(thanks);
-  assert.deepEqual(thanks.addressed, [], "the reply to an answer is for nobody, so it wakes nobody");
+  assert.deepEqual(thanks.mentions, [], "the reply to an answer mentions nobody, so it wakes nobody");
 
   assert.equal(asking.shown.length, 2, "once for the person who asked it to, once for bob's answer");
   const shown = asking.shown[1] ?? "";
@@ -85,7 +85,7 @@ test("in a DM an answer is taken up once: the reply wakes the agent, and the rec
   const [question] = await messagesWhen(bob, dm.id, (messages) => messages.length > 0, "scout's question");
   assert.ok(question);
   const reply = await answer(bob, dm.id, "Stanza 2.", [question.event], "bob-1");
-  assert.deepEqual(reply.addressed, [scout.partner.id], "every reply in a DM is for the other member");
+  assert.deepEqual(reply.mentions, [], "a reply in a DM that names nobody mentions nobody, and wakes the agent all the same");
 
   await messagesWhen(
     bob,

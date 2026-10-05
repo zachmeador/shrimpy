@@ -18,7 +18,7 @@ function message(id: string, seq: number, receipts: Receipt[] = []): Message {
     sentAt: seq,
     editedAt: null,
     deleted: false,
-    addressed: [],
+    mentions: [],
     reactions: [],
     receipts,
   };

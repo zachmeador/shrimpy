@@ -6,9 +6,9 @@ import { mainThread, posted, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
 
-/** Who a message is for, by name, in alphabetical order. */
-const forWhom = (message: { addressed: string[] }, names: Map<string, string>): string[] =>
-  message.addressed.map((id) => names.get(id) ?? id).sort();
+/** The members a message mentions, by name, in alphabetical order. */
+const mentioned = (message: { mentions: string[] }, names: Map<string, string>): string[] =>
+  message.mentions.map((id) => names.get(id) ?? id).sort();
 
 test("a room is made with the members it names, an admin who is in it can add more, and only members see it, read it or post in it", { timeout }, async (t) => {
   const chat = await startTestChat(t);
@@ -52,7 +52,7 @@ test("a room is made with the members it names, an admin who is in it can add mo
   await assert.rejects(zach.chat.addMembers(dm.id, [scout.me.id]), { message: /DM has two members/ });
 });
 
-test("a post in a room is for the members it mentions, or for everyone with @all, and an edit works that out again", { timeout }, async (t) => {
+test("a post in a room mentions the members its text names, or everyone but its author with @all, and an edit works that out again", { timeout }, async (t) => {
   const chat = await startTestChat(t);
   const zach = await chat.person();
   const scout = await chat.agent("scout");
@@ -64,28 +64,40 @@ test("a post in a room is for the members it mentions, or for everyone with @all
   let number = 0;
   const say = (text: string) => zach.chat.post(main.id, text, `zach-${++number}`);
 
-  assert.deepEqual(forWhom(await say("@scout, can you look?"), names), ["scout"]);
-  assert.deepEqual(forWhom(await say("@MAYA and @Scout: both of you."), names), ["maya", "scout"], "in any case");
-  assert.deepEqual(forWhom(await say("Everyone: @all"), names), ["maya", "scout"], "but not its author");
-  assert.deepEqual(forWhom(await say(`@${zach.me.name} asked me to tell you`), names), [], "and not its author, who mentions themself");
-  assert.deepEqual(forWhom(await say("@rex, are you there?"), names), [], "a name that is no member's is for nobody");
-  assert.deepEqual(forWhom(await say("Write to me@scout or ask @scoutmaster"), names), [], "only a name on its own is a mention");
-  assert.deepEqual(forWhom(await say("Thanks, @scout."), names), ["scout"], "and a full stop after it ends the sentence");
-  assert.deepEqual(forWhom(await say("No one in particular."), names), []);
+  assert.deepEqual(mentioned(await say("@scout, can you look?"), names), ["scout"]);
+  assert.deepEqual(mentioned(await say("@MAYA and @Scout: both of you."), names), ["maya", "scout"], "in any case");
+  assert.deepEqual(mentioned(await say("Everyone: @all"), names), ["maya", "scout"], "but not its author");
+  assert.deepEqual(mentioned(await say(`@${zach.me.name} asked me to tell you`), names), [], "and not its author, who mentions themself");
+  assert.deepEqual(mentioned(await say("@rex, are you there?"), names), [], "a name that is no member's mentions nobody");
+  assert.deepEqual(mentioned(await say("Write to me@scout or ask @scoutmaster"), names), [], "only a name on its own is a mention");
+  assert.deepEqual(mentioned(await say("Thanks, @scout."), names), ["scout"], "and a full stop after it ends the sentence");
+  assert.deepEqual(mentioned(await say("No one in particular."), names), []);
 
-  // An edit is for whoever its new text names, and the event that carries it says so.
+  // An edit mentions whoever its new text names, and the event that carries it says so.
   const message = await say("@scout first");
   const head = await maya.chat.head();
-  assert.deepEqual(forWhom(await zach.chat.edit(message.id, "@maya instead of scout"), names), ["maya"]);
+  assert.deepEqual(mentioned(await zach.chat.edit(message.id, "@maya instead of scout"), names), ["maya"]);
   const [edit] = await maya.chat.feed(head, 10);
   assert.ok(edit?.kind === "edited");
-  assert.deepEqual(forWhom(edit.message, names), ["maya"]);
-  assert.deepEqual(forWhom(await zach.chat.edit(message.id, "no one at all"), names), []);
+  assert.deepEqual(mentioned(edit.message, names), ["maya"]);
+  assert.deepEqual(mentioned(await zach.chat.edit(message.id, "no one at all"), names), []);
+});
 
-  // In a DM it is the other member, whatever the text says.
+test("in a DM a message mentions the other member only when its text names them, and in a room @all mentions everyone but its author", { timeout }, async (t) => {
+  const chat = await startTestChat(t);
+  const zach = await chat.person();
+  const scout = await chat.agent("scout");
+  const maya = await chat.agent("maya");
+  const names = new Map([zach, scout, maya].map((member) => [member.me.id, member.me.name]));
   const dm = await zach.chat.openDm(scout.me.id);
-  const direct = await zach.chat.post((await mainThread(zach, dm.id)).id, "@maya hello", "zach-dm");
-  assert.deepEqual(forWhom(direct, names), ["scout"]);
+  const room = await zach.chat.createRoom("Ops", [scout.me.id, maya.me.id]);
+  let number = 0;
+  const say = async (channelId: string, text: string) => zach.chat.post((await mainThread(zach, channelId)).id, text, `zach-${++number}`);
+
+  assert.deepEqual(mentioned(await say(dm.id, "hello"), names), [], "a DM message that names nobody mentions nobody");
+  assert.deepEqual(mentioned(await say(dm.id, "@scout stop that"), names), ["scout"], "one that names the other member mentions them");
+  assert.deepEqual(mentioned(await say(dm.id, "@all hello"), names), ["scout"], "and @all is everyone there but the author");
+  assert.deepEqual(mentioned(await say(room.id, "@all hello"), names), ["maya", "scout"], "as it is in a room");
 });
 
 test("a member added to a room is offered what comes after, never what came before, though the room's thread shows it all", { timeout }, async (t) => {

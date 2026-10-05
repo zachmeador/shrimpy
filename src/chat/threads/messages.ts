@@ -3,8 +3,8 @@ import type { Member, Message } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { fitAnswer, identifier, MAX_PAGE, messageText, whole } from "../input/index.ts";
 import { visibleThread } from "./access.ts";
-import { addressedMembers } from "./addressing.ts";
 import type { ChatDeps } from "./deps.ts";
+import { mentionedMembers } from "./mentions.ts";
 
 const PREVIEW_LENGTH = 80;
 
@@ -44,7 +44,7 @@ export function post(deps: ChatDeps, caller: Member, threadId: unknown, text: un
       authorId: caller.id,
       text: body,
       sentAt: deps.now(),
-      addressed: addressedMembers(channel, caller, body),
+      mentions: mentionedMembers(channel, caller, body),
       requestId: request,
       preview: previewOf(body),
       digest,

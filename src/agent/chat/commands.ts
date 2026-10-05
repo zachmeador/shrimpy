@@ -1,4 +1,4 @@
-import type { ChatClient, ChatEvent, Member } from "../../contracts/chat/index.ts";
+import type { Channel, ChatClient, ChatEvent, Member } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { Admissions } from "./admissions.ts";
 
@@ -20,15 +20,14 @@ const COMMAND = /^\s*(?:@\S+\s+)*\/([\p{L}\p{N}_-]+)/u;
 
 /**
  * The command a message of a thread is, if it is one that is for the agent: a
- * person wrote it, and in a room it mentions the agent, says `@all`, or mentions
- * nobody, which is for everyone there. In a DM every message is for the other
- * member, so chat says it is addressed to them whatever it says. What an agent
+ * person wrote it, and it is in a DM, or it is in a room and mentions the agent,
+ * says `@all`, or mentions nobody, which is for everyone there. What an agent
  * writes is only text, since an agent has no say over another agent's work.
  */
-export function commandFor(self: Member, event: ChatEvent): Command | undefined {
+export function commandFor(self: Member, event: ChatEvent, where: Channel["kind"]): Command | undefined {
   if (event.kind !== "posted" || event.actor.kind !== "person") return undefined;
-  const { addressed } = event.message;
-  if (addressed.length > 0 && !addressed.includes(self.id)) return undefined;
+  const { mentions } = event.message;
+  if (where === "room" && mentions.length > 0 && !mentions.includes(self.id)) return undefined;
   const word = COMMAND.exec(event.text)?.[1]?.toLowerCase();
   return word !== undefined && isCommand(word) ? word : undefined;
 }

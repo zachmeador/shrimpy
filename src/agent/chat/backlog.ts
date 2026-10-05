@@ -83,7 +83,7 @@ function said(message: Message, self: Member, room: Channel): Said {
     author: message.author.name,
     sentAt: message.sentAt,
     text: message.text,
-    to: audienceOf(self, message.author, message.addressed, room),
+    to: audienceOf(self, message.author, message.mentions, room),
     ...(message.editedAt === null ? {} : { editedAt: message.editedAt }),
   };
 }

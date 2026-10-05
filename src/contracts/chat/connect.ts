@@ -87,6 +87,7 @@ export async function connectChat(options: {
     setWorking: (threadId, working, signal) =>
       service.setWorking(threadId, working, contextFor(signal)),
     head: (signal) => service.head(contextFor(signal)),
+    store: (signal) => service.store(contextFor(signal)),
     feed: (cursor, limit, signal) => service.feed(cursor, limit, contextFor(signal)),
   };
 

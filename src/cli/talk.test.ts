@@ -220,6 +220,7 @@ test("stopping run while its message is still being sent says it may have been p
         leaveReceipt: unsupported,
         setWorking: unsupported,
         head: unsupported,
+        store: unsupported,
         feed: unsupported,
         attach: unsupported,
         detach: unsupported,

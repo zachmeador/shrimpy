@@ -21,15 +21,34 @@ export type StopWork = (harness: Harness, conversation: Conversation, context: C
  * nothing is taken up twice.
  */
 export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask, stopWork: StopWork): Admissions {
+  /** The chat store the agent is reading, once it has said: each cursor it sets is kept with this ID. */
+  let reading: string | undefined;
+  const moveCursor = (feed: { cursor: number | null; store?: string }, seq: number): void => {
+    feed.cursor = seq;
+    if (reading !== undefined) feed.store = reading;
+  };
+
   return {
     async cursor() {
       return (await harness.snapshot(FeedDoc, context))?.cursor ?? undefined;
     },
 
+    async readingStore(store) {
+      const feed = await harness.snapshot(FeedDoc, context);
+      const lost = feed !== undefined && feed.cursor !== null && feed.store !== store;
+      if (lost) {
+        await harness.commit(async (tx) => {
+          const kept = await tx.doc(FeedDoc);
+          kept.cursor = 0;
+          kept.store = store;
+        }, context);
+      }
+      reading = store;
+      return lost;
+    },
+
     async setCursor(seq) {
-      await harness.commit(async (tx) => {
-        (await tx.doc(FeedDoc)).cursor = seq;
-      }, context);
+      await harness.commit(async (tx) => moveCursor(await tx.doc(FeedDoc), seq), context);
     },
 
     async looked(threadId) {
@@ -48,7 +67,7 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
 
     admit(draft, position = draft.event.seq) {
       return harness.commit(async (tx) => {
-        (await tx.doc(FeedDoc)).cursor = position;
+        moveCursor(await tx.doc(FeedDoc), position);
         const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
         // An event in a room is the newest thing the agent has looked at in its thread.
         if (draft.backlog !== undefined && session.channelId !== null) {

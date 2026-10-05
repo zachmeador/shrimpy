@@ -110,8 +110,8 @@ test("saying something posts it as the person to the open thread, and every clie
   assert.deepEqual(sent, { ok: true });
   await rig.until((model) => textsOf(model).length === 2, "the new message in the view");
   const posted = rig.chat.chat.messages(thread.id).at(-1);
-  const [person, scout] = [(await rig.person()).me, await rig.member("scout")];
-  assert.deepEqual([posted?.author.id, posted?.text, posted?.addressed], [person.id, "and this", [scout.id]]);
+  const person = (await rig.person()).me;
+  assert.deepEqual([posted?.author.id, posted?.text, posted?.mentions], [person.id, "and this", []]);
 });
 
 test("a new thread comes to be with its first message, in the person's DM with the agent, and is then open", { timeout }, async (t) => {

@@ -10,8 +10,8 @@ const helper: Member = { id: "mem_c", kind: "agent", name: "helper" };
 
 type Posted = Extract<ChatEvent, { kind: "posted" }>;
 
-/** A post as the feed offers it: by `actor`, to the members whose IDs are `addressed`. */
-function post(text: string, { actor = zach, addressed = [scout.id] }: { actor?: Member; addressed?: string[] } = {}): Posted {
+/** A post as the feed offers it: by `actor`, mentioning the members whose IDs are `mentions`. */
+function post(text: string, { actor = zach, mentions = [scout.id] }: { actor?: Member; mentions?: string[] } = {}): Posted {
   return {
     id: "evt_1",
     seq: 7,
@@ -20,12 +20,12 @@ function post(text: string, { actor = zach, addressed = [scout.id] }: { actor?: 
     kind: "posted",
     text,
     receipts: [],
-    message: { id: "msg_1", channelId: "ch_1", threadId: "th_1", author: actor, sentAt: 1000, addressed, deleted: false, preview: text },
+    message: { id: "msg_1", channelId: "ch_1", threadId: "th_1", author: actor, sentAt: 1000, mentions, deleted: false, preview: text },
   };
 }
 
 test("a command is what a post says when, after any mentions at its start, it begins with /stop as a whole word", () => {
-  const stops = (text: string): boolean => commandFor(scout, post(text)) === "stop";
+  const stops = (text: string): boolean => commandFor(scout, post(text), "room") === "stop";
   for (const text of ["/stop", "  /stop", "/stop now, please", "/stop.", "/Stop", "@scout /stop", "@all /stop", "@scout @helper /stop", "@scout, /stop", "@scout\n/stop"]) {
     assert.ok(stops(text), text);
   }
@@ -34,13 +34,13 @@ test("a command is what a post says when, after any mentions at its start, it be
   }
 });
 
-test("a command is for the agent when the post is addressed to it, or to nobody, which is for everyone; and only a person's post is one", () => {
-  const forWhom = (addressed: string[]): boolean => commandFor(scout, post("/stop", { addressed })) === "stop";
-  assert.equal(forWhom([scout.id]), true, "a DM, or a room where it is mentioned");
+test("a command in a room is for the agent when the post mentions it, or mentions nobody, which is for everyone; and only a person's post is one", () => {
+  const forWhom = (mentions: string[]): boolean => commandFor(scout, post("/stop", { mentions }), "room") === "stop";
+  assert.equal(forWhom([scout.id]), true, "a room where it is mentioned");
   assert.equal(forWhom([scout.id, helper.id]), true);
   assert.equal(forWhom([]), true, "a room where nobody is");
   assert.equal(forWhom([helper.id]), false, "a room where only someone else is");
 
-  assert.equal(commandFor(scout, post("/stop", { actor: helper })), undefined, "an agent's post is only text");
-  assert.equal(commandFor(scout, { ...post("/stop"), kind: "edited" }), undefined, "and so is an edit");
+  assert.equal(commandFor(scout, post("/stop", { actor: helper }), "room"), undefined, "an agent's post is only text");
+  assert.equal(commandFor(scout, { ...post("/stop"), kind: "edited" }, "room"), undefined, "and so is an edit");
 });

@@ -27,14 +27,14 @@ export interface RoomContext {
  */
 export async function inRoom(context: RoomContext, event: ChatEvent, taken: Taken): Promise<Taken> {
   const { chat, self, channels, signal } = context;
-  const room = await channels.find(chat, taken.channelId, signal, event.message.addressed);
+  const room = await channels.find(chat, taken.channelId, signal, event.message.mentions);
   if (room === undefined || room.kind !== "room") return taken;
 
   const { threadId } = taken;
   const snapshot = taken.event;
   const told: Snapshot =
     snapshot.kind === "posted" || snapshot.kind === "edited"
-      ? { ...snapshot, to: audienceOf(self, event.message.author, event.message.addressed, room) }
+      ? { ...snapshot, to: audienceOf(self, event.message.author, event.message.mentions, room) }
       : snapshot;
 
   let backlog: Backlog;
@@ -49,7 +49,7 @@ export async function inRoom(context: RoomContext, event: ChatEvent, taken: Take
       signal,
     });
     // A member added since the room was last read may be among who the messages were for.
-    const there = await channels.find(chat, taken.channelId, signal, unseen.flatMap((message) => message.addressed));
+    const there = await channels.find(chat, taken.channelId, signal, unseen.flatMap((message) => message.mentions));
     backlog = backlogOf(unseen, more, self, there ?? room);
   } catch (error) {
     // Chat says no for good: the event is taken up without what came before it, and the agent can read the thread.

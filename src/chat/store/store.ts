@@ -19,6 +19,8 @@ export type Transaction = MemberOperations &
   ReceiptOperations;
 
 export interface Store {
+  /** The ID the store was given when it was made, which it keeps for good. */
+  readonly id: string;
   /**
    * Run `work` as one transaction: what it writes commits together or not at
    * all, and nobody sees half of it. `work` must be synchronous, and the
@@ -43,6 +45,7 @@ export interface StoreOptions {
 export function openStore(dataDir: string, options: StoreOptions = {}): Store {
   const db = openDatabase(dataDir);
   const sql = createSql(db);
+  const { id } = sql.one("SELECT id FROM store") as { id: string };
   const onError = options.onError ?? reportToStderr;
   const watchers = createListeners<Change>(onError);
   // Read through a function, so the compiler does not assume the answer it saw first still holds.
@@ -71,6 +74,7 @@ export function openStore(dataDir: string, options: StoreOptions = {}): Store {
   }
 
   return {
+    id,
     transaction,
     subscribe: (listener) => watchers.add(listener),
     close() {

@@ -107,6 +107,10 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
       caller();
       return head(deps.store);
     },
+    async store() {
+      caller();
+      return deps.store.id;
+    },
     async feed(cursor, limit, context) {
       return feed(deps.store, caller(), cursor, limit, context);
     },

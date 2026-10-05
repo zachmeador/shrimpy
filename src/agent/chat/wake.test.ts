@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ChatEvent, Member, Receipt } from "../../contracts/chat/index.ts";
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "../home/index.ts";
-import { takeUp } from "./wake.ts";
+import { wakingOf } from "./wake.ts";
 
 // IDs mean nothing, so any will do for members who only have to be told apart.
 const zach: Member = { id: "mem_a", kind: "person", name: "zach" };
@@ -15,7 +15,7 @@ interface Parts {
   actor?: Member;
   /** Who wrote the message it names. */
   author?: Member;
-  addressed?: string[];
+  mentions?: string[];
   deleted?: boolean;
   receipts?: Receipt[];
   /** What a receipt says: silent, unless it is an answer, which points at a reply. */
@@ -26,7 +26,7 @@ function anEvent({
   kind = "posted",
   actor = zach,
   author = actor,
-  addressed = [scout.id],
+  mentions = [scout.id],
   deleted = false,
   receipts = [],
   answered = false,
@@ -37,7 +37,7 @@ function anEvent({
     at: 2000,
     actor,
     receipts,
-    message: { id: "msg_1", channelId: "ch_1", threadId: "th_1", author, sentAt: 1000, addressed, deleted, preview: "Shall I deploy it now?" },
+    message: { id: "msg_1", channelId: "ch_1", threadId: "th_1", author, sentAt: 1000, mentions, deleted, preview: "Shall I deploy it now?" },
   };
   switch (kind) {
     case "posted":
@@ -55,20 +55,21 @@ function anEvent({
   }
 }
 
-const wakes = (event: ChatEvent, policy: WakePolicy = DEFAULT_WAKE_POLICY): boolean => takeUp(scout, event, policy) !== undefined;
+/** Whether an event in a room wakes the agent. */
+const wakes = (event: ChatEvent, policy: WakePolicy = DEFAULT_WAKE_POLICY): boolean => wakingOf(scout, event, policy, "room") !== undefined;
 
 test("what wakes the agent depends on the room's policy, and the default wakes it for a mention, a person's message that mentions nobody, an answer to its own and a reaction to one", () => {
   // What each policy does with one kind of message: the agent is mentioned, someone else is, nobody is, by a person or an agent.
   const messages = {
-    "a person mentions the agent": anEvent({ addressed: [scout.id] }),
-    "a person mentions someone else": anEvent({ addressed: ["mem_d"] }),
-    "a person mentions nobody": anEvent({ addressed: [] }),
-    "a person edits a message that mentions nobody": anEvent({ kind: "edited", addressed: [] }),
-    "an agent mentions the agent": anEvent({ actor: helper, addressed: [scout.id] }),
-    "an agent mentions someone else": anEvent({ actor: helper, addressed: ["mem_d"] }),
-    "an agent mentions nobody": anEvent({ actor: helper, addressed: [] }),
-    "an agent edits a message that mentions nobody": anEvent({ kind: "edited", actor: helper, addressed: [] }),
-    "a person reacts to a message of the agent's": anEvent({ kind: "reacted", author: scout, addressed: [helper.id] }),
+    "a person mentions the agent": anEvent({ mentions: [scout.id] }),
+    "a person mentions someone else": anEvent({ mentions: ["mem_d"] }),
+    "a person mentions nobody": anEvent({ mentions: [] }),
+    "a person edits a message that mentions nobody": anEvent({ kind: "edited", mentions: [] }),
+    "an agent mentions the agent": anEvent({ actor: helper, mentions: [scout.id] }),
+    "an agent mentions someone else": anEvent({ actor: helper, mentions: ["mem_d"] }),
+    "an agent mentions nobody": anEvent({ actor: helper, mentions: [] }),
+    "an agent edits a message that mentions nobody": anEvent({ kind: "edited", actor: helper, mentions: [] }),
+    "a person reacts to a message of the agent's": anEvent({ kind: "reacted", author: scout, mentions: [helper.id] }),
   };
   const woken = (policy: WakePolicy): string[] => Object.entries(messages).filter(([, event]) => wakes(event, policy)).map(([what]) => what);
 
@@ -92,12 +93,12 @@ test("what wakes the agent depends on the room's policy, and the default wakes i
   // Whatever the policy but none, a reaction to someone else's message, taking a reaction back and a delete wake nobody.
   for (const policy of ["mentions", "people", "all"] as const) {
     assert.equal(wakes(anEvent({ kind: "reacted", author: zach }), policy), false);
-    assert.equal(wakes(anEvent({ kind: "reacted", author: helper, addressed: [zach.id] }), policy), false);
-    assert.equal(wakes(anEvent({ kind: "unreacted", author: scout, addressed: [zach.id] }), policy), false);
+    assert.equal(wakes(anEvent({ kind: "reacted", author: helper, mentions: [zach.id] }), policy), false);
+    assert.equal(wakes(anEvent({ kind: "unreacted", author: scout, mentions: [zach.id] }), policy), false);
     assert.equal(wakes(anEvent({ kind: "deleted" }), policy), false);
     // What the agent does itself never wakes it: its own reply comes back in its feed, and answering it would never end.
-    assert.equal(wakes(anEvent({ kind: "posted", actor: scout, addressed: [zach.id] }), policy), false);
-    assert.equal(wakes(anEvent({ kind: "reacted", actor: scout, author: scout, addressed: [zach.id] }), policy), false);
+    assert.equal(wakes(anEvent({ kind: "posted", actor: scout, mentions: [zach.id] }), policy), false);
+    assert.equal(wakes(anEvent({ kind: "reacted", actor: scout, author: scout, mentions: [zach.id] }), policy), false);
     // Nor does an event of a message that was deleted since, or one the agent already left a receipt on.
     for (const kind of ["posted", "edited", "reacted"] as const) {
       assert.equal(wakes(anEvent({ kind, author: kind === "reacted" ? scout : zach, deleted: true }), policy), false, kind);
@@ -107,14 +108,14 @@ test("what wakes the agent depends on the room's policy, and the default wakes i
     assert.equal(wakes(anEvent({ receipts: [{ ...receipt, memberId: helper.id }] }), policy), true);
   }
 
-  // A receipt wakes nobody, except one that says another member answered a message of the agent's own that was for them,
+  // A receipt wakes nobody, except one that says another member answered a message of the agent's own that mentioned them,
   // whose reply the agent will ask for, under every policy but none.
-  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id] })), false, "silent");
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, mentions: [helper.id] })), false, "silent");
   assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: zach })), false);
-  const answer = anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id], answered: true });
-  for (const policy of ["mentions", "people", "all"] as const) assert.equal(takeUp(scout, answer, policy)?.kind, "answer", policy);
+  const answer = anEvent({ kind: "receipted", actor: helper, author: scout, mentions: [helper.id], answered: true });
+  for (const policy of ["mentions", "people", "all"] as const) assert.equal(wakingOf(scout, answer, policy, "room")?.kind, "answer", policy);
   assert.equal(wakes(answer, "none"), false);
-  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [zach.id], answered: true })), false, "it was not for them");
-  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: zach, addressed: [helper.id], answered: true })), false, "it is not the agent's message");
-  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, addressed: [helper.id], answered: true, deleted: true })), false);
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, mentions: [zach.id], answered: true })), false, "it did not mention them");
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: zach, mentions: [helper.id], answered: true })), false, "it is not the agent's message");
+  assert.equal(wakes(anEvent({ kind: "receipted", actor: helper, author: scout, mentions: [helper.id], answered: true, deleted: true })), false);
 });

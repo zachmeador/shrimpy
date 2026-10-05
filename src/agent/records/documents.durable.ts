@@ -129,8 +129,12 @@ export const TriggersDoc = defineDoc<{ owner: number | null; revisions: number; 
   initial: () => ({ owner: null, revisions: 0, triggers: {} }),
 });
 
-/** Where the agent stands in chat's feed: the position of the last event it is done with. */
-export const FeedDoc = defineDoc<{ cursor: number | null }>({
+/**
+ * Where the agent stands in chat's feed: the position of the last event it is
+ * done with, and the ID of the chat store that position is in. A position kept
+ * with no ID is for no store.
+ */
+export const FeedDoc = defineDoc<{ cursor: number | null; store?: string }>({
   kind: "shrimpy.feed",
   version: 3,
   scope: "session",

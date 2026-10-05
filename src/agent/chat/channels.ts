@@ -2,9 +2,9 @@ import type { Channel, ChatClient } from "../../contracts/chat/index.ts";
 
 /**
  * The channels the agent is in, as chat last said, so that an event can be told
- * to be in a room, and who is in it. Chat is asked again when a channel is not
- * known, or when a member that is looked for is not in the channel as it was
- * last said, because members are added to a room.
+ * to be in a DM or a room, and who is in it. Chat is asked again when a channel
+ * is not known, or when a member that is looked for is not in the channel as it
+ * was last said, because members are added to a room.
  */
 export interface Channels {
   /**

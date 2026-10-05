@@ -104,12 +104,13 @@ export interface Message {
   /** A deleted message keeps its place in the thread and has lost its text and its reactions. */
   deleted: boolean;
   /**
-   * IDs of the members this message is meant for, in the channel's order of
-   * members. In a DM that is the other member. In a room it is those the text
-   * mentions as `@name`, and everyone but the author when it says `@all`. Never
-   * its author.
+   * IDs of the members the text names as `@name`, and of everyone in the
+   * channel but the author when it says `@all`, in the channel's order of
+   * members, as the members were when the message was written or last edited.
+   * Never its author. In a DM it is empty unless the text names the other
+   * member.
    */
-  addressed: string[];
+  mentions: string[];
   /** The emoji on it, in the order each first appeared. */
   reactions: Reaction[];
   /**
@@ -126,7 +127,7 @@ export interface Message {
  */
 export type MessageRef = Pick<
   Message,
-  "id" | "channelId" | "threadId" | "author" | "sentAt" | "addressed" | "deleted"
+  "id" | "channelId" | "threadId" | "author" | "sentAt" | "mentions" | "deleted"
 > & {
   /** The start of its text on one line, or nothing once it is deleted. */
   preview: string;

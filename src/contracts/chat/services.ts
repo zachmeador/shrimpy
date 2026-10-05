@@ -60,11 +60,11 @@ export interface Chat {
    * different thread or text is refused. A message holds at most
    * `MAX_MESSAGE_LENGTH` characters.
    *
-   * Who the post is for follows from the channel. In a DM it is the other
-   * member, whatever the text says. In a room it is the members the text
-   * mentions as `@name`, matched as names are matched elsewhere, whatever the
-   * case, and every member but the author when it says `@all`; a name that is
-   * no member's is for nobody. An edit works out who the message is for again.
+   * The post records which members its text mentions, in a DM as in a room:
+   * those it names as `@name`, matched as names are matched elsewhere, whatever
+   * the case, and every member but the author when it says `@all`. A name that
+   * is no member's mentions nobody. An edit records them again from its new
+   * text.
    */
   post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
   /**
@@ -72,8 +72,9 @@ export interface Chat {
    * channel the call is refused, and for someone outside it the message does
    * not exist. A deleted message cannot be edited. Editing to the text the
    * message already has changes nothing and adds no event, so a call whose
-   * answer was lost can be made again. Who the message is for is worked out
-   * again from the new text. Answers with the message as it now stands.
+   * answer was lost can be made again. Which members the message mentions is
+   * worked out again from the new text. Answers with the message as it now
+   * stands.
    */
   edit(messageId: string, text: string, context: Context): Promise<Message>;
   /**
@@ -140,6 +141,12 @@ export interface Chat {
 
   /** The position of the newest event on the server, or 0 when there is none. */
   head(context: Context): Promise<number>;
+  /**
+   * The ID of the chat store, given to it when it was made and never changed.
+   * Positions in the feed start again in a new store, so a caller that kept one
+   * can tell with this whether it is for the store it is talking to.
+   */
+  store(context: Context): Promise<string>;
   /**
    * Events after `cursor` in every channel the caller belongs to, oldest
    * first, up to `limit`, or fewer when they are very long. In each channel,

@@ -26,7 +26,7 @@ const message = (seq: number, receipts: Receipt[] = [], parts: Partial<Message> 
   sentAt: 1000 + seq,
   editedAt: null,
   deleted: false,
-  addressed: [],
+  mentions: [],
   reactions: [],
   receipts,
   ...parts,
