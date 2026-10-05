@@ -1,8 +1,6 @@
 # 🦐 Small mechanics
 
-These are the small choices builds made up to 2026-10-05, kept as a record. The table is no longer added to: since then a small choice is noted in the log entry of the change that made it, and only a choice that changes the design goes to the author.
-
-**The rest** are small mechanics, settled under [core first](../PLAN.md#order-of-work). Skim them or leave them: saying nothing keeps them.
+These are the small choices builds made up to 2026-10-05, kept as a record. The table is no longer added to: since then a small choice is noted in the [log](LOG.md) entry of the change that made it, and only a choice that changes the design goes to the author. They were settled under [core first](../PLAN.md#order-of-work). A later change may have overtaken a row, and the log says what changed: times, for one, are shown to a model in local time now and not in UTC.
 
 | Topic | What the build does |
 |---|---|

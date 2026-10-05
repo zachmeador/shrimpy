@@ -36,10 +36,11 @@ for d in src/*/ extensions web test; do printf '%-18s %6s\n' "$d" "$(git ls-file
 | `web/` | 3,099 |
 | `test/` | 27,026 |
 
-Each completed phase adds a row to the size log. Note any directory that grew or shrank unexpectedly beside it.
+Each review pause adds a row to the size log. Note any directory that grew or shrank unexpectedly beside it.
 
 | Phase | `src/` + `extensions/` | `web/` | `test/` | Net vs baseline |
 |---|---|---|---|---|
 | Baseline `574bb2c` | 45,536 | 3,099 | 27,026 | — |
 | 0. Spike `a3c6ae4` | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/spike/` adds 2,054 lines of probe code |
 | Seed: spike realigned | 45,536 | 3,099 | 27,026 | 0 in the old tree; `next/` holds 1,803 lines (about 800 of product code, 780 of tests and test support, 220 of lint) and the spike's code is gone |
+| Review pause, 2026-10-05 | 45,536 | 3,099 | 27,026 | 0 in the old tree, which is `shrimpy-old/` now. The new tree's `src/` holds 20,080 lines of product code, 13,403 of tests and 4,441 of test support, and `lint/` holds 265 |

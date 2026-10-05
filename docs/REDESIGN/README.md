@@ -8,14 +8,14 @@ As of 2026-10-05.
 
 | Piece | Built | Building | Next |
 |---|---|---|---|
-| [The three programs](design/1-programs.md) | The agent, the chat server and the gateway run as separate programs, and `shrimpy up` starts them. An agent has one live body. | A review of how the agent's own code is divided. | Reshaping the agent's modules by job. |
-| [The contracts](design/2-contracts.md) | The agent's, the chat server's and the gateway's contracts, with refusals that say which case they are. | — | Carry only Shrimpy's shapes: Pi's error types still show through. |
+| [The three programs](design/1-programs.md) | The agent, the chat server and the gateway run as separate programs, and `shrimpy up` starts them. An agent has one live body. | The reshape of the agent's modules is [proposed](proposals/agent-modules.md) and waits on you. | Reshaping the agent's modules by job. |
+| [The contracts](design/2-contracts.md) | The agent's, the chat server's and the gateway's contracts, with refusals that say which case they are. | A rule for what a contract carries is [proposed](proposals/facts-and-decisions.md) and waits on you. | Carry only Shrimpy's shapes: Pi's error types still show through. |
 | [Identity and addressing](design/3-identity.md) | The roster, member IDs, names, tickets, reaching a program by its name, and who may do what, with one role, admin. | — | Removing a member, replacing a token, renaming a person. |
-| [The conversation model](design/4-conversation.md) | The feed of events, receipts, rooms, mentions, wake policies, the backlog an agent reads, an answer waking whoever asked, and one task following every input. | — | The provider interface with a fake provider. Ways in for edits, deletes and reactions. |
+| [The conversation model](design/4-conversation.md) | The feed of events, receipts, rooms, mentions, wake policies, the backlog an agent reads, an answer waking whoever asked, a person's mention joining a running turn, `/stop`, and one task following every input. | Posting an answer when its own turn ends. Today it waits until the session is idle. | The provider interface with a fake provider. Ways in for edits, deletes and reactions. |
 | [The home](design/5-home.md) | The files an agent is told from, skills, reload, `triggers/`, `wake.json`, and records with an ID of their own. | — | Breadcrumbs. Compaction with Shrimpy's guidance. Seeing the request a turn sent. Workspace context from the gateway. |
 | [The network](design/6-network.md) | On one machine: every connection by name goes through the gateway. | — | Another machine, sandboxes, Linux and Tailscale, which wait for a machine to test on. |
 | [What an agent does without being asked](design/7-on-its-own.md) | `check_back`, standing triggers and their commands. | — | Checks and breadcrumbs. Asking another agent. Helpers. |
-| [Using it](design/using-it.md) | The terminal, which browses agents and rooms, the commands, and a default folder, `~/shrimpy`. | — | What daily use asks for: resetting a session, `/new` and `/stop`, sign-in, the web client. |
+| [Using it](design/using-it.md) | The terminal, which browses agents and rooms, the commands, and a default folder, `~/shrimpy`. | — | What daily use asks for: resetting a session, `/new`, sign-in, the web client. |
 
 How the code is laid out is in [the code's layout](design/code-layout.md).
 
@@ -25,5 +25,6 @@ How the code is laid out is in [the code's layout](design/code-layout.md).
 - **[The plan](PLAN.md):** why Shrimpy is being rebuilt, the direction, the words it uses and the order of work.
 - **The design:** one file for each piece, linked from the table above. Each says how the piece works, what was decided and what isn't built.
 - **Proposals:** designs written out and waiting for a decision. Two are open: [the agent's modules](proposals/agent-modules.md) and [facts and decisions](proposals/facts-and-decisions.md).
-- **[Status](STATUS.md):** where the code trails the plan.
+- **[Status](STATUS.md):** where the code trails the plan, grouped by piece.
+- **Research:** what was found outside this repo is in [`docs/research/`](../research/). [The note on Pi](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) has what its source and its recovery showed.
 - **History:** kept for lineage, and nothing you need to read. [The log](history/LOG.md) of what was built and decided, [the small choices builds made](history/mechanics.md), [the first spike](history/spike/REPORT.md), [the keep list](history/keep-list.md) from old Shrimpy's docs, [what changes from old Shrimpy](history/from-old-shrimpy.md) and [the size baseline](history/size-baseline.md).

@@ -1,13 +1,13 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-05
-Status: experience decisions reviewed on 2026-10-03. [Where it stands](README.md#where-it-stands) says what is built, and the plan was reshaped around the core pieces on 2026-10-05. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](AUTHOR-TO-REVIEW.md), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03. [Where it stands](README.md#where-it-stands) says what is built. The plan was reshaped around the core pieces on 2026-10-05, and the design moved into a file for each piece the same day. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. Two lists keep the build honest: what is [waiting on you](AUTHOR-TO-REVIEW.md), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the work that builds them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
-The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#the-design).
+The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is a row in a piece's Decisions table, under [the design](#the-design).
 
-This file owns the architecture, experience decisions and phases for this change, and [STATUS.md](STATUS.md) logs progress. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe what ships today.
+This file owns why, the direction, the words and the order of work. The [design files](#the-design) own the architecture and the experience decisions, [STATUS.md](STATUS.md) lists where the code trails them, and the [log](history/LOG.md) records what was built and decided. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe old Shrimpy.
 
 ## Why
 
@@ -88,7 +88,7 @@ The design is in one file for each piece:
 
 ## Order of work
 
-**Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. The new Shrimpy is used for real conversations, and from the end of phase 2 it is the one in daily use. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
+**Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. The new Shrimpy is used for real conversations while it is built. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
 
 **The new Shrimpy is the repo's root.** Since 2026-10-04, on `wip`, old Shrimpy sits in `shrimpy-old/` as one unit: its code, tests and docs. Nothing there is built, tested or edited, nobody building the new Shrimpy reads its tests, and the release deletes it. Until then the new tree was a side folder, `next/`, which protected a live install that no longer exists; leaving old Shrimpy at the root meant its `AGENTS.md`, docs and tests reached every agent that worked here.
 
@@ -110,15 +110,16 @@ Everything else sits on top of these and can change without touching them: wordi
 
 **Tests earn their place.** A test protects something that would be missed: a seam between programs, starting, stopping, crashing and recovering, a promise this plan makes, or a bug that was actually seen. Nothing else needs one. A test doesn't pin wording or an internal shape. There are no tests of test support, of trivial helpers or of every permutation, and one test through the real path beats several on its pieces. When a change breaks a test that only recorded how things were, the test goes, not the change. Old Shrimpy's tests are a guide to nothing: they are deleted with the old tree, and nobody building the new one reads them.
 
-**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided: it goes into [Introduced by the build, not yet reviewed](AUTHOR-TO-REVIEW.md), and a known gap goes into the list in [STATUS.md](STATUS.md).
+**The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided. One that changes the design goes to [the author's list](AUTHOR-TO-REVIEW.md), a small one is noted in the [log](history/LOG.md) entry of the change that made it, and a known gap goes into the list in [STATUS.md](STATUS.md).
 
-Each phase ends with a shape review against the [layout rules](design/code-layout.md), a look at how large `lib/` has grown, and a new row in the [size log](history/size-baseline.md). [STATUS.md](STATUS.md) logs progress and lists where the code trails this plan.
+Each review pause has a shape review against the [layout rules](design/code-layout.md), a look at how large `lib/` has grown, and a new row in the [size log](history/size-baseline.md). The [log](history/LOG.md) records progress, and [STATUS.md](STATUS.md) lists where the code trails this plan.
 
-The order follows what daily use shows is rough or missing. Two things are built side by side when they barely share code, as rooms and triggers were.
+The order follows what daily use shows is rough or missing. Two things are built side by side when they barely share code, as rooms and triggers were. What is built, in order, is at the top of the [log](history/LOG.md).
 
 **Now:**
 
-- A review of how the agent's code is divided into modules. `agent/sessions/` had become everything that touches Pi, because only three folders may import it.
+- An answer is posted when its own turn ends. Today it waits until the agent's whole session is idle, which was found on 2026-10-05 and is first in [STATUS.md](STATUS.md#the-conversation-model).
+- A review of how the agent's code is divided into modules. `agent/sessions/` had become everything that touches Pi, because only three folders may import it. The [proposal](proposals/agent-modules.md) is written and waits on you.
 - Then one cleanup, agreed on 2026-10-05 after a check of the design: the agent's modules by job; every command naming its agent the same way, the shell's own agent unless `--agent` says another; and the README cut back to how to run, check and lay out the code.
 
 **Next:**

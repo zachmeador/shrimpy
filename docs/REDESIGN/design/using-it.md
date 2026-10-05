@@ -60,7 +60,7 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 This phase has no fixed scope. Its list comes from use, and its order is yours. The known candidates:
 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
-- Chat commands in a thread: `/new`, `/stop`, `/status` and `/help`.
+- Chat commands in a thread: `/new`, `/status` and `/help`. `/stop` is built.
 - Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](4-conversation.md) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
 - Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
 - Your own settings as a person, starting with the name you appear under. Today it is your OS user's name.

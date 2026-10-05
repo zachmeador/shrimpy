@@ -8,13 +8,13 @@ It covers who a member is, how something is named and found, and who may message
 
 Homes under one OS user share that user's authority. Different permissions need a real OS environment boundary; a session, a home directory or a tool selection isn't one. Remote access distinguishes permission to message, observe, control and administer.
 
-**Who may do what, confirmed on 2026-10-05** as good enough for now, and not built yet. You asked for it to be settled with rooms. The plumbing is built: every request that comes through the gateway carries who is asking, every operation of an agent's API already asks a check, and that check says yes to everyone.
+**Who may do what, confirmed on 2026-10-05** as good enough for now, and built that day. You asked for it to be settled with rooms. Every request that comes through the gateway carries who is asking, and every operation of an agent's API asks a check.
 
 1. **One role: admin.** A member is an admin or isn't, and the roster records it. You are one. An agent is one when you say so.
 2. **What needs an admin:** making a room, adding members to one, and watching or controlling another agent's sessions and triggers. Later, renaming or removing a member and replacing a token.
 3. **What never does:** talking. Any member posts in the channels it is in and starts a DM with anyone. An agent watches and controls itself. You do anything.
 4. **The program that is asked checks,** as now: the chat server for rooms, an agent for its sessions and triggers, the gateway for the roster. The four permissions stay the names of what an operation needs: message, watch, control and administer.
-5. **In an agent's shell, a command about another agent goes through the gateway as that agent,** so the other agent can refuse. Today such a command goes straight to the other home's socket, where the caller counts as the home's owner.
+5. **In an agent's shell, a command about another agent goes through the gateway as that agent,** so the other agent can refuse. Before this, such a command went straight to the other home's socket, where the caller counts as the home's owner.
 6. **It stops accidents, not attacks,** until agents run in sandboxes. On one machine under one OS user an agent with a shell can read another home's token or edit the roster's file. It becomes a wall when an agent runs in a sandbox whose only way out is the gateway.
 7. **Commands:** `shrimpy members` lists the roster with who is an admin, and `members promote <name>` and `members demote <name>` change it. Only you and admins run the last two.
 
@@ -33,7 +33,7 @@ The thinnest of the [core pieces](../PLAN.md#the-design). The first column is wh
 | Who the CLI speaks as | The person, whoever runs it. An agent that runs `shrimpy run` posts as its owner, and can't read its own threads with `threads` or `read`. | In an agent's shell the CLI speaks as that agent: the launcher that puts `shrimpy` on its path also says who is running it. In a person's terminal it speaks as the person. Then an agent can read its own threads and talk from a script, and can't post as its owner by accident. | Confirmed |
 | How the gateway vouches | Nothing vouches: a connection says who it is. | With a ticket. A client asks the gateway to connect it to a name and gets a ticket. It connects through the gateway, hands the ticket to the program, and the program asks the gateway whose it is. Nobody says who they are, an agent's token is shown only to the gateway, and nothing is parsed ahead of Pi's protocol. | Confirmed |
 | A page in a browser | A page can list the programs and the roster and nothing more, so it can't reach the chat server or an agent. | A page served by the gateway on this machine is the person who runs the gateway, with everything that person may do: whoever can use the web app is the admin. It gets in with a link that carries a secret only that OS user can read, so another account on the same machine can't open the page and be them. From another device it waits for Tailscale. Built with the web client. | Confirmed |
-| Who may do what | Everyone under the OS user can do everything. | The four permissions (message, watch, control, administer) are enforced by the program that is asked: an agent for its sessions, the chat server for its channels. The gateway only says who is asking and pipes the bytes. A connection by a home's path is the home's owner, and the OS guards that socket. Built so far: an agent learns who is asking on every connection that comes through the gateway, and its check lets everyone do everything. Which member gets which permission isn't modelled until there is a second person. | Change |
+| Who may do what | Everyone under the OS user can do everything. | The four permissions (message, watch, control, administer) are enforced by the program that is asked: an agent for its sessions, the chat server for its channels. The gateway only says who is asking and pipes the bytes. A connection by a home's path is the home's owner, and the OS guards that socket. Built on 2026-10-05 with one role, admin, as the design above has it. Which person gets which permission isn't modelled until there is a second person. | Confirmed |
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
@@ -43,4 +43,4 @@ The thinnest of the [core pieces](../PLAN.md#the-design). The first column is wh
 
 **Open**
 
-Who may do what is under Now in the [order of work](../PLAN.md#order-of-work). Your own settings as a person are under Not built yet in [using it](using-it.md).
+Removing a member, replacing a token and renaming a person aren't designed yet. Your own settings as a person are under Not built yet in [using it](using-it.md).

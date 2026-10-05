@@ -29,23 +29,26 @@
 
 ## Log
 
-Entries from before the flip on 2026-10-04 say `next/` for what is now the repo's root.
+Newest first, roughly: the entries of one day aren't always in the order they happened. An entry is left as it was written, so its paths and section names are those of its day. Entries from before the flip on 2026-10-04 say `next/` for what is now the repo's root, and entries from before 2026-10-05 say "the plan's table" for the [table of small choices](mechanics.md) and name phases the plan no longer has.
+
+A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
 
-**Phase 1 progress, 2026-10-03: the wire-up is in, and an agent answers in a thread.** `shrimpy up` starts the gateway, the chat server and an agent, and `shrimpy run` gets a reply. The agent registers with the gateway, joins chat, turns a message into a turn and its final text into a reply, and leaves a receipt. `threads` and `read` show what was said. Checked on macOS arm64 with Node 26.7.0: 852 tests pass.
+**2026-10-05: an answer is held until the whole session is idle.** Another agent pointed it out to you, and it is so. The task that follows an input waits for its session to go idle before it reads how its own input ended. Pi settles an input when its own run ends, and starts the next run for whatever is queued in the same step, so the session isn't idle in between. A turn's reply and receipt therefore wait until every turn queued behind it has ended.
 
-- Against `qwen-3.8-flash-next-180b-a6b-nvfp4` on `cashmoney:8090`, a message in a thread became a turn that used the shell tool and came back as a reply, and the agent stayed silent with `END` when told to say nothing.
-- Shrimpy's own documents (the thread each session is behind, the outbox and the feed cursor) live in `agent/sessions/`, because the code that takes messages in must not touch Pi, and the lint now enforces that. The agent's links to the gateway and chat got a module of their own, `agent/links/`. The plan's layout was updated to match.
-- Three behaviors were decided during the merge and wait for review in the plan's table: queued messages are answered together, a failed turn takes back what waits behind it, and a new agent reads its channels from the start.
-- A lost chat connection is retried quietly. A message is handed to its session once, even when both the outbox and the feed bring it up after a restart.
-- `next/src/` now holds 8,420 lines of product code, 14,007 of tests and 3,091 of test support.
+- Seen on the real engine with a throwaway probe: a first turn was let go while a second message waited, and the second turn was held. Two seconds into the second turn, the first turn's finished answer hadn't been posted. Both replies came when the second turn ended.
+- It came in on 2026-10-04 with the task that follows an event, to catch an input left waiting after the turn ahead of it failed. Nobody chose the delay: the design says the task waits for the turn.
+- No test saw it: the tests of a busy agent, in `busy.test.ts`, wait for every receipt before they look.
+- It is first under the conversation model in STATUS.md, and first under Now in the order of work.
 
-**Phase 1 progress, 2026-10-04: the terminal client is in.** Bare `shrimpy` at a terminal opens it: the agents on the network, your threads with one, a thread to talk in, and the agent's work shown live under the messages, with Esc to stop it. 1,017 tests pass.
+**2026-10-05: the redesign docs are sorted into files that each do one job.** You asked for it before more work continues. The folder had grown to 46,000 words, and three files each did two jobs. The front page now says where each piece stands and what to read. The design is one file for each piece in `design/`, and each ends with its own work that isn't built. The plan keeps why, the direction, the words and the order of work. The two open proposals are in `proposals/`, and a proposal leaves when it is decided. This log, the table of small choices, the spike, the keep list, the appendix on old Shrimpy and the size baseline are in `history/`. Text was moved as it was written, and a check found every line of the old files in a new one, apart from 23: pointers that were replaced, a label, the rows of the front page's table, whose first cell became a link, and the old front page.
 
-- The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
-- `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
-- `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+- The table of small choices is no longer added to. A small choice is noted in the log entry of the change that made it. Only a choice that changes the design goes to the author's list, which now holds nothing but what waits on you.
+- The list of where the code trails the plan is grouped by piece and was checked against the code. Ten items left it. Six were built or settled: the three core contracts; a reaction or an edit waking an agent in a room, which the conversation model now has as the design, with the policy `none` to turn it off; the message tools reaching only a thread and a DM; chat commands, wake policies and the unread cache; what a page in a browser can do, which the identity design's own row says; and the triggers row that read two ways. Four are work that hasn't started and is in a piece's "Not built yet": the ways in for edits, deletes and reactions; compaction guidance, the request a turn sent and workspace context; OAuth sign-in and the name you appear under; and the web client, providers and Telegram.
+- The build had settled what the plan's row on triggers left open: a trigger that came due while the agent was down fires once at the next start, however many times it came due.
+- Statements the move showed to be stale were corrected. Who may do what and `/stop` were still described as not built, and the plan still spoke of phases and of a review table that no longer exist.
+- The size log has a row for today.
 
 **2026-10-05: `/stop` is a chat command.** After three agents in a demo kept talking through two requests to stop: each request had waited behind what the agents had queued, and each goodbye mentioned someone and woke them again. A message a person writes that starts with `/stop` is acted on when the feed brings it, ahead of anything queued and with no request to a model. It does what `shrimpy sessions stop` does for the session behind that thread, and in a room it stops whoever it mentions, or every agent there when it mentions nobody. A wake policy of `none` doesn't turn it away. An agent's message that says `/stop` stops nothing. Each agent that obeyed leaves a silent receipt. The build found and closed a hole in stopping itself: inputs already admitted and not yet handed to the session survived a stop, so an agent that was down would answer two messages after the stop that followed them. The engine now also takes every steered input at a step. Checked on macOS arm64: 535 tests, 529 pass and 6 are skipped.
 
@@ -223,6 +226,12 @@ Two were left until something forces them: giving every session an ID of its own
 
 **A client that leaves mid-answer, 2026-10-04.** The `up` test that failed now and then is fixed. When a client dropped its connection while a server was writing to it, the gateway, the chat server and the agent each printed `write EPIPE` as an error. A client may leave at any moment, so they no longer report it. A test for each program reproduces the line with the fix switched off. 1,023 tests pass.
 
+**Phase 1 progress, 2026-10-04: the terminal client is in.** Bare `shrimpy` at a terminal opens it: the agents on the network, your threads with one, a thread to talk in, and the agent's work shown live under the messages, with Esc to stop it. 1,017 tests pass.
+
+- The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
+- `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
+- `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
 **First use, 2026-10-03.** A fresh home and chat store were set up outside the repo, `shrimpy up` was started, and the first `run` got its answer from the local Qwen model. The old command links were removed at the user's request, and `shrimpy` on the PATH now runs the new command from source through `next/bin/shrimpy.js`.
 
 **The old dev workspace moved, 2026-10-03.** It was moved out of the checkout to a sibling directory, untouched, so the new Shrimpy starts fresh and things are brought over from it as wanted. Its location is in the private notes. Nothing of old Shrimpy is running.
@@ -235,6 +244,14 @@ Two were left until something forces them: giving every session an ID of its own
 - The loop that keeps a program registered lives in the gateway contract's Node door. The plan was silent on where it belongs; a contract's client caller is the closest home, since both the chat server and the agent need it.
 - A silent receipt reaches every reader in `Message.receipts`. Not drawing it is each client's job.
 - `next/src/` now holds 5,966 lines of product code, 9,432 of tests and 1,582 of test support.
+
+**Phase 1 progress, 2026-10-03: the wire-up is in, and an agent answers in a thread.** `shrimpy up` starts the gateway, the chat server and an agent, and `shrimpy run` gets a reply. The agent registers with the gateway, joins chat, turns a message into a turn and its final text into a reply, and leaves a receipt. `threads` and `read` show what was said. Checked on macOS arm64 with Node 26.7.0: 852 tests pass.
+
+- Against `qwen-3.8-flash-next-180b-a6b-nvfp4` on `cashmoney:8090`, a message in a thread became a turn that used the shell tool and came back as a reply, and the agent stayed silent with `END` when told to say nothing.
+- Shrimpy's own documents (the thread each session is behind, the outbox and the feed cursor) live in `agent/sessions/`, because the code that takes messages in must not touch Pi, and the lint now enforces that. The agent's links to the gateway and chat got a module of their own, `agent/links/`. The plan's layout was updated to match.
+- Three behaviors were decided during the merge and wait for review in the plan's table: queued messages are answered together, a failed turn takes back what waits behind it, and a new agent reads its channels from the start.
+- A lost chat connection is retried quietly. A message is handed to its session once, even when both the outbox and the feed bring it up after a restart.
+- `next/src/` now holds 8,420 lines of product code, 14,007 of tests and 3,091 of test support.
 
 **The MVP, 2026-10-03.** A core part of it is opening the terminal, browsing the agents that have joined the Shrimpy network and seeing their sessions, along with talking in threads. Phase 1 is now the MVP, and it gained joining with a token, the gateway's network entry, and routing to an agent that only connects out. Joining from another machine is part of the MVP but comes last: it waits for a VM on the LAN to test on, and using the MVP on this machine doesn't wait for it.
 

@@ -1,6 +1,6 @@
 # 🦐 Shrimpy
 
-This is Shrimpy, rebuilt on Pi's durable runtime. Old Shrimpy is in [`shrimpy-old/`](shrimpy-old/README.md) for reference until the release deletes it: nothing there is built, tested or edited. The [replacement plan](docs/REDESIGN/PLAN.md) owns the design, and its "Target source layout" section owns the rules below.
+This is Shrimpy, rebuilt on Pi's durable runtime. Old Shrimpy is in [`shrimpy-old/`](shrimpy-old/README.md) for reference until the release deletes it: nothing there is built, tested or edited. The [redesign docs](docs/REDESIGN/README.md) own the design, and [the code's layout](docs/REDESIGN/design/code-layout.md) owns the rules below.
 
 ## Stay aligned with the plan
 
