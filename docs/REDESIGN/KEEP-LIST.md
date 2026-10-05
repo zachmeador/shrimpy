@@ -12,6 +12,7 @@ From your review on 2026-10-04:
 - **3, the footer shrimp: not for now.** The new terminal's working line is good enough.
 - **5, the starter agents: one, not two.** New agents enjoy the shrimp emoji by default. Your leaning is that setup makes one agent, named `shrimpy`, which has the admin role the mechanic had. It's in the plan as an [open decision](PLAN.md#terminal-models-and-settings).
 - **16 and 17, the memory and journal skills: not in the MVP.** They come back with the features they depend on. Phase 2 rewrites four skills: setup, agents, where messages go, and skills.
+- **"Say what it can't do first": dropped.** "that's an llm-speak carryover". It moved from the habits to keep to the habits to drop, and the skill for making skills no longer asks for it.
 
 ## Names and motifs
 
@@ -67,7 +68,6 @@ From your review on 2026-10-04:
 ## Habits to keep
 
 - **Name the next step.** Errors, status lines and setup endings all end with the command to run.
-- **Say what it can't do first.** "No sandbox", "Alpha — expect rough edges", "not a security review".
 - **Give permission to do nothing or stay small.** "A small setup is a complete setup." "A no-op run is fine." "End the turn silently."
 - **Speak to the person at the moment they might worry.** The password cursor, "like I am new to terminals", backups "you would be sad to lose".
 - **Treat the agent as someone who keeps notes.** First-person skills, "a note to my future self".
@@ -80,6 +80,7 @@ From your review on 2026-10-04:
 - **Prospective closers and slogans.** "That is the deeper promise: software that can become more alive without becoming less legible." (`docs/musings/app-habitats.md:258`).
 - **Sales words in working docs.** "effortless", "That is a strong foundation.", "the polished direction".
 - **Hedging as a default.** "probably" 25 times and "likely" 20 times in the musings.
+- **Saying what it can't do first.** "No sandbox", "Alpha — expect rough edges", "not a security review". The pass had this as a habit to keep.
 - **The same sentence in many places.** The channels and sessions split is stated three ways: in `AGENTS.md:60`, `docs/reference/design.md:28` and `shrimpy-channels/SKILL.md:41`.
 
 ## What the pass covered
