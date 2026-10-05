@@ -119,13 +119,14 @@ test("taking an event up makes its session, the task that follows it and the cur
   assert.equal(await sessions.admissions.cursor(), 1);
 });
 
-test("events taken up together reach their session in the order of the events, whichever task starts first", { timeout }, async (t) => {
+test("events taken up together reach their session in the order of the events, whichever task starts first, urgent ones included", { timeout }, async (t) => {
   const ids = Array.from({ length: 12 }, (_, index) => index + 1);
   // The later the event, the sooner its task starts.
   const reversed = (input: ChatInput, signal: AbortSignal) => delay((ids.length - input.event.seq) * 15, undefined, { signal });
   const { host, sessions } = await open(t, tempDir(t, "turns"), "gated", { pace: reversed });
 
-  for (const n of ids) await sessions.admissions.admit(draft(n));
+  // Every third event is urgent, so the session is handed steers among the follow-ups.
+  for (const n of ids) await sessions.admissions.admit(n % 3 === 0 ? { ...draft(n), urgent: true } : draft(n));
 
   const reached = await eventually(() => handedOver(host), (found) => found.length === ids.length, {
     what: "every event to reach the session",

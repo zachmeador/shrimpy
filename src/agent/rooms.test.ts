@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { renameSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
-import type { Channel, Member, Message, Thread } from "../contracts/chat/index.ts";
+import type { Message } from "../contracts/chat/index.ts";
 import type { Entered } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
 import { homePaths } from "./home/index.ts";
 import type { WakePolicy } from "./intake/index.ts";
-import { type ChatServer, loggedRequests, startAgentRig, talking } from "./testing/index.ts";
+import { loggedRequests, roomWith, startAgentRig, talking } from "./testing/index.ts";
 
 /*
  * Agents in a room, with the real engine under them and the real chat server.
@@ -18,19 +18,6 @@ import { type ChatServer, loggedRequests, startAgentRig, talking } from "./testi
 const timeout = 60_000;
 /** How long to wait for an agent's receipt, in milliseconds: turns of several agents follow one another. */
 const PATIENT = 30_000;
-
-
-/** A room that the person who runs the gateway makes, with `members`, and its main thread. */
-async function roomWith(chat: ChatServer, name: string, members: Member[]): Promise<{ person: Entered; room: Channel; main: Thread }> {
-  const person = await chat.person();
-  const room = await person.chat.createRoom(
-    name,
-    members.map((member) => member.id),
-  );
-  const main = (await person.chat.threads(room.id)).find((thread) => thread.main);
-  assert.ok(main);
-  return { person, room, main };
-}
 
 /** The messages of a thread as `viewer` sees them, once `ready` is satisfied by them. */
 function messagesWhen(viewer: Entered, threadId: string, ready: (messages: Message[]) => boolean, what: string): Promise<Message[]> {

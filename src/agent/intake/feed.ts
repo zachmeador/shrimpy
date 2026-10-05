@@ -8,7 +8,7 @@ import type { Admissions } from "./events.ts";
 import { pause } from "./pause.ts";
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "./policy.ts";
 import { inRoom } from "./room.ts";
-import { passedOver, takeUp } from "./wake.ts";
+import { isUrgentPost, passedOver, takeUp } from "./wake.ts";
 
 /** Events asked for at a time. */
 const FEED_LIMIT = 50;
@@ -96,8 +96,10 @@ export async function readFeed(options: FeedOptions): Promise<void> {
             event,
             woken,
           );
+          // A person's message that mentions the agent is read by the turn that is running, and not after it.
+          const input = isUrgentPost(self, event, taken) ? { ...taken, urgent: true as const } : taken;
           // The agent's place in the feed moves in the commit that takes the event up, to where the feed brought it.
-          await admissions.admit(taken, event.seq);
+          await admissions.admit(input, event.seq);
           cursor = stored = at = event.seq;
         } else {
           at = event.seq;

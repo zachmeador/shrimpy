@@ -21,6 +21,7 @@ import {
   idOf,
   isChat,
   isOccurrence,
+  isUrgent,
   isWakeup,
   type Outstanding,
   promptFor,
@@ -78,10 +79,16 @@ const requestIdOf = (outstanding: Outstanding): string => {
   return `chat:${idOf(outstanding)}`;
 };
 
+/**
+ * What the session is handed for an input. When the session is working, an
+ * urgent input joins the turn that is running, which reads it at its next step,
+ * and any other input waits for the next turn. A session that is idle starts a
+ * turn for either.
+ */
 const inputOf = (outstanding: Outstanding) => ({
   type: "input" as const,
   content: promptFor(outstanding),
-  whenBusy: "followUp" as const,
+  whenBusy: isUrgent(outstanding) ? ("steer" as const) : ("followUp" as const),
   requestId: requestIdOf(outstanding),
 });
 
@@ -248,7 +255,10 @@ async function sessionOf(input: Outstanding, runtime: Runtime, context: Context)
  * the order of the tasks' IDs is the order of admission, whatever order the
  * engine starts the tasks in. Handing over is idempotent by the input's request
  * ID, so it does not matter which task gets there first, and no input can reach
- * the session ahead of one admitted before it.
+ * the session ahead of one admitted before it. That is the order the session is
+ * handed inputs in, urgent or not. It is not always the order the model reads
+ * them in: an urgent input joins the turn that is running, ahead of earlier
+ * inputs that wait for the next turn.
  */
 async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise<Outstanding[]> {
   const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];

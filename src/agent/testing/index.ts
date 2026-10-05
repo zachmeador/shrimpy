@@ -2,8 +2,8 @@
  * Test support for the agent: a scripted model and a stand-in OpenAI-compatible
  * server, both without a network, the real gateway and chat server started
  * through the command, an agent taking part in the network with a person to
- * talk to it, helpers to attach to an agent, stop it and read its views, and to
- * write the files of its triggers.
+ * talk to it, a room for them to talk in, helpers to attach to an agent, stop it
+ * and read its views, and to write the files of its triggers.
  * Only tests and test fixtures import this. The one thing it knows of another
  * program is the command that starts it.
  */
@@ -31,6 +31,7 @@ export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { startAgentChild } from "./child.ts";
 export { SCOUT } from "./names.ts";
 export { type AgentRig, type AgentRigOptions, startAgentRig } from "./rig.ts";
+export { roomWith } from "./rooms.ts";
 export { type Talk, talkTo } from "./talk.ts";
 export { shownSinceLastAnswer, type Talking, talking, type Turn } from "./talking.ts";
 export { callingTools } from "./tools.ts";

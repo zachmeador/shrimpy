@@ -15,7 +15,9 @@
  * sessions reach it through `Delivery`, so it must not know the engine, a
  * transport, or how a session or a record is stored. It also decides how an
  * event, a wake-up, an occurrence and a message read to the model, and how a
- * text too long for one message is split.
+ * text too long for one message is split. It marks a person's message that
+ * mentions the agent as urgent, so that a turn that is running reads it at its
+ * next step.
  */
 export { createDelivery, type Delivery, type DeliveryOptions } from "./delivery.ts";
 export {
@@ -25,6 +27,7 @@ export {
   idOf,
   isChat,
   isOccurrence,
+  isUrgent,
   isWakeup,
   type Occurrence,
   type OccurrenceInput,

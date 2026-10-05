@@ -143,6 +143,15 @@ export type ChatInput = {
    * them, told to the model with this input, once. Absent when there are none.
    */
   cancelled?: Wakeup[];
+  /**
+   * Set when the message can't wait for the turn that is running: a person
+   * wrote it and it mentions the agent, which is how a person says so. The turn
+   * reads it at its next step, and its reply answers the message too. A turn
+   * with no step left can't read it, and the next turn answers it. Absent for
+   * every other input, which waits for the next turn, and so for one stored
+   * before this existed.
+   */
+  urgent?: true;
 };
 
 /** The thread a session is behind, for an input that goes to one. */
@@ -247,6 +256,15 @@ export function threadOf(outstanding: Outstanding): { threadId: string; channelI
 /** Whether the source of an input wants a receipt: a chat event does, and nothing else has anyone to leave one for. */
 export function hasReceipt(outstanding: Outstanding): boolean {
   return isChat(outstanding);
+}
+
+/**
+ * Whether an input can't wait for the turn that is running, which then reads it
+ * at its next step. Only a chat event can be: what a wake-up or an occurrence
+ * of a trigger has to say is for the next turn.
+ */
+export function isUrgent(outstanding: Outstanding): boolean {
+  return isChat(outstanding) && outstanding.urgent === true;
 }
 
 /** How the turn of an input ended, as the record of its task keeps it. */

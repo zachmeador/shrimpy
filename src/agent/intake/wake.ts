@@ -1,4 +1,4 @@
-import type { ChatEvent, Member } from "../../contracts/chat/index.ts";
+import { type ChatEvent, type Member, mentions } from "../../contracts/chat/index.ts";
 import type { ChatInput, Snapshot } from "./events.ts";
 import type { WakePolicy } from "./policy.ts";
 
@@ -37,6 +37,24 @@ export function passedOver(self: Member, event: ChatEvent): boolean {
 export function wakesAsPost(self: Member, policy: WakePolicy, author: Member, addressed: readonly string[]): boolean {
   if (addressed.includes(self.id)) return true;
   return policy === "all" || (policy === "people" && author.kind === "person" && addressed.length === 0);
+}
+
+/**
+ * Whether what the agent took up of an event is urgent, which is how a person
+ * says it can't wait for the turn that is running: a post or an edit that a
+ * person wrote and that mentions the agent, as `@name` or `@all`. It is the same
+ * in a room and in a DM. An agent's message is never urgent, whoever it
+ * mentions, and neither is an answer or a reaction.
+ *
+ * In a room, chat worked out who the message is for, and the audience in `taken`
+ * says whether that is the agent. A DM has no audience, because every message in
+ * it is for the other member whatever it says, so the text is asked, by the rule
+ * chat uses.
+ */
+export function isUrgentPost(self: Member, event: ChatEvent, taken: Taken): boolean {
+  const { event: snapshot } = taken;
+  if (event.actor.kind !== "person" || (snapshot.kind !== "posted" && snapshot.kind !== "edited")) return false;
+  return snapshot.to === undefined ? mentions(snapshot.text, self.name) : snapshot.to.you;
 }
 
 /**
