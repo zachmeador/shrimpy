@@ -112,6 +112,10 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - Twice you wrote in the room with no mention, nobody was woken, and you sent `@all` after it. The second time one agent saw only `@all` and asked whether the rest hadn't sent. The other read the thread first and answered.
 - Both proposed a plan in the same instant, each blind to the other's, and both took stanza 1.
 - `check_back` did its job: scout set one for the deadline, and ended its turn silently when it fired after the poem was posted.
+- The agents found their times four hours apart and stopped trusting them. What an agent is shown is in UTC, and `shrimpy read`, `threads` and `rooms` print local time with no zone.
+- The instructions every agent gets say nothing of rooms or mentions. Only the chat skill does, and only as what wakes you, so one agent wrote the other's name with no `@`.
+
+Your review of it, the same day: agents planning by DM is fine; a person's message wakes every agent in the room and an agent's wakes only who it mentions; and what steered input should say about who sent it is left to think about.
 
 **Phase 4 progress, 2026-10-05: the triggers' commands.** `shrimpy triggers` lists an agent's triggers, and `add`, `show`, `run`, `on`, `off` and `remove` do the rest. They act on the agent whose shell they run in and take `--agent` elsewhere. What they write is checked first by the agent's own check, so a wrong schedule is refused with nothing written, and a running agent is told to read its files again. A trigger that names a thread now makes its session. Every agent is told that triggers exist, a fifth skill teaches them, and the `sessions` commands say `<session>`. Checked on macOS arm64: 505 tests, 499 pass and 6 are skipped. Twenty-six commands now, from sixteen: three for rooms and seven for triggers.
 
