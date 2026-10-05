@@ -2,7 +2,6 @@ import type { JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
   type ConversationId,
-  configure,
   type Cursor,
   defineExtension,
   defineTask,
@@ -26,10 +25,11 @@ import {
   type TriggerFiles,
   type TriggerProblem,
 } from "../home/index.ts";
-import { agentChange, type SessionDefaults } from "./defaults.ts";
+import type { SessionDefaults } from "./defaults.ts";
 import { plain, type SessionRecord, SessionsDoc, type StoredTrigger, triggerSession, TriggersDoc } from "./documents.ts";
-import { carrying, takeCancelled } from "./kept.ts";
-import { followInput, liveTurns, TURN_TASK, type TurnTask } from "./turn-task.ts";
+import { openSession } from "./open-session.ts";
+import { takeUp } from "./take-up.ts";
+import { liveTurns, TURN_TASK, type TurnTask } from "./turn-task.ts";
 
 /** The name of the task that sleeps until a trigger's next occurrence is due, and then makes it. */
 const TRIGGER_TASK = "shrimpy.trigger";
@@ -423,31 +423,15 @@ async function fire(
   }
 
   if (unrun !== undefined) {
-    await followInput(tx, parts.turn, await ownerOf(tx), { occurrence, unrun });
+    await takeUp(tx, parts.turn, await ownerOf(tx), { occurrence, unrun });
     return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: unrun.outcome, reason: unrun.reason };
   }
 
   // The thread's channel, from the session that is there or from the one this makes; none for a session of the trigger's own.
-  let channelId: string | null = session?.channelId ?? null;
-  let conversationId: ConversationId;
-  let cancelled: ReturnType<typeof takeCancelled> = [];
-  if (session === undefined) {
-    conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
-    await configure(tx, conversationId, agentChange(parts.defaults));
-    if (found !== undefined && "channelId" in found) {
-      channelId = found.channelId;
-      sessions[address] = { conversationId, channelId, unacted: [] };
-    } else {
-      sessions[address] = { conversationId, channelId: null, trigger: definition.name, unacted: [] };
-    }
-  } else {
-    conversationId = session.conversationId as ConversationId;
-    cancelled = takeCancelled(session);
-  }
+  const channelId = session === undefined ? (found !== undefined && "channelId" in found ? found.channelId : null) : session.channelId;
   const thread = definition.thread !== null && channelId !== null ? { threadId: definition.thread, channelId } : undefined;
-  const input: OccurrenceInput =
-    thread === undefined ? { occurrence, ...carrying(cancelled) } : { occurrence, ...thread, ...carrying(cancelled) };
-  await followInput(tx, parts.turn, conversationId, input);
+  const opened = await openSession(tx, parts.defaults, thread ?? { trigger: definition.name });
+  await takeUp(tx, parts.turn, opened.conversationId as ConversationId, thread === undefined ? { occurrence } : { occurrence, ...thread });
   return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: null, reason: null };
 }
 

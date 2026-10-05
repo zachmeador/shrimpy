@@ -230,20 +230,6 @@ export function turnTask(options: TurnTaskOptions) {
 /** The task that follows an input, to create one in the commit that takes the input up. */
 export type TurnTask = ReturnType<typeof turnTask>["task"];
 
-/**
- * Take an input up: create the task that follows it, in the commit `tx` belongs
- * to, for the session `conversationId`. It is a background task, so a stop of
- * the session's work leaves it to report how that ended.
- */
-export async function followInput(
-  tx: Tx,
-  turn: TurnTask,
-  conversationId: ConversationId,
-  input: Outstanding,
-): Promise<void> {
-  await tx.createTask(turn, input, { ownership: { kind: "conversation" }, conversationId, background: true });
-}
-
 async function sessionOf(input: Outstanding, runtime: Runtime, context: Context): Promise<ConversationHandle> {
   const session = await runtime.conversation(runtime.conversationId, context);
   if (session === undefined) throw new Error(`The session ${placeText(input)} is gone.`);

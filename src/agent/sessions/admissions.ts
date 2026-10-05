@@ -1,11 +1,12 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
-import type { Admissions, Snapshot, Wakeup } from "../chat/index.ts";
-import { agentChange, type SessionDefaults } from "./defaults.ts";
-import { FeedDoc, plain, SessionsDoc } from "./documents.ts";
-import { carrying, takeCancelled, takeEvents } from "./kept.ts";
+import type { ConversationId, Harness } from "@earendil-works/pi-durable";
+import type { Admissions } from "../chat/index.ts";
+import type { SessionDefaults } from "./defaults.ts";
+import { FeedDoc, SessionsDoc } from "./documents.ts";
+import { openSession } from "./open-session.ts";
 import { stopWork } from "./service.ts";
-import { followInput, type TurnTask } from "./turn-task.ts";
+import { takeUp } from "./take-up.ts";
+import type { TurnTask } from "./turn-task.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -43,26 +44,14 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
     },
 
     admit(draft, position = draft.event.seq) {
-      // An event in a room is the newest thing the agent has looked at in its thread.
-      const looking = draft.backlog === undefined ? {} : { looked: draft.event.seq };
       return harness.commit(async (tx) => {
         (await tx.doc(FeedDoc)).cursor = position;
-        const threads = (await tx.doc(SessionsDoc)).sessions;
-        const known = Object.hasOwn(threads, draft.threadId) ? threads[draft.threadId] : undefined;
-        let conversationId: ConversationId;
-        let earlier: Snapshot[] = [];
-        let cancelled: Wakeup[] = [];
-        if (known === undefined) {
-          conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
-          await configure(tx, conversationId, agentChange(defaults));
-          threads[draft.threadId] = { conversationId, channelId: draft.channelId, unacted: [], ...looking };
-        } else {
-          conversationId = known.conversationId as ConversationId;
-          earlier = takeEvents(known);
-          cancelled = takeCancelled(known);
-          if (known.channelId !== null && looking.looked !== undefined) known.looked = Math.max(known.looked ?? 0, looking.looked);
+        const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
+        // An event in a room is the newest thing the agent has looked at in its thread.
+        if (draft.backlog !== undefined && session.channelId !== null) {
+          session.looked = Math.max(session.looked ?? 0, draft.event.seq);
         }
-        await followInput(tx, turn, conversationId, { ...plain(draft), earlier, ...carrying(cancelled) });
+        await takeUp(tx, turn, session.conversationId as ConversationId, draft);
       }, context);
     },
   };

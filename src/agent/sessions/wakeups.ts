@@ -13,9 +13,10 @@ import {
 import { localTime } from "../../lib/time/index.ts";
 import type { Wakeup } from "../chat/index.ts";
 import { type SessionRecord, SessionsDoc, sessionAddress } from "./documents.ts";
-import { carrying, keepCancelled, takeCancelled } from "./kept.ts";
+import { keepCancelled } from "./kept.ts";
+import { takeUp } from "./take-up.ts";
 import { placeOfSession, type SessionPlace } from "./thread-of.ts";
-import { followInput, type TurnTask } from "./turn-task.ts";
+import type { TurnTask } from "./turn-task.ts";
 
 /** The name of the task that waits for a wake-up to come due, and then takes it up as an input. */
 const WAKEUP_TASK = "shrimpy.wakeup";
@@ -85,9 +86,7 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
         await runtime.sleep(wakeup.due, context);
         try {
           await runtime.commit(async (tx) => {
-            const session = sessionOfWaiting((await tx.doc(SessionsDoc)).sessions, waiting.input);
-            const cancelled = session === undefined ? [] : takeCancelled(session);
-            await followInput(tx, turn, runtime.conversationId, { ...waiting.input, ...carrying(cancelled) });
+            await takeUp(tx, turn, runtime.conversationId, waiting.input);
             return { status: "terminal", outcome: { status: "completed", result: null } };
           }, context);
         } catch (error) {
