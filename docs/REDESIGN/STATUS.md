@@ -15,9 +15,10 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - The terminal polls the gateway's list and your thread lists every two seconds, because the contracts have no subscription for them. The agent's client has no detach and takes no abort signal, and a hung connection is only noticed when something is sent.
 - `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
 - Joining from another machine, which waits for a VM on the LAN to test on.
-- A turn that was resumed and crashed twice isn't stopped and marked failed yet. The task that follows its event resumes it at every start, and is where the count would live.
+- After a crash nothing shows a notice, though the plan's row on recovery asks for one. Only a turn that is given up reaches the sender, as a failed receipt.
+- A crash loop while an event is being handed over, or while chat is being told, is never broken: only a turn that was underway counts.
+- A skipped receipt carries no reason, so the sender of a message skipped behind a failed turn isn't told that writing again brings it back.
 - Nothing prunes the finished task that each event leaves in the agent's records.
-- When chat refuses a reply for good, the reply and its receipt are both dropped with one line on standard error, so the sender sees nothing. A failed receipt saying the reply couldn't be posted would show it.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.
@@ -87,6 +88,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**2026-10-04: a turn that crashes twice is given up, and a refused reply leaves a failed receipt.** The agent's records say whether it is running, so a start can tell that the last run ended without an orderly stop. It then counts one crash for every event whose turn was underway, before work resumes. At two, the turn is stopped and the event's receipt says the agent stopped unexpectedly twice and to send it again. Stopping and starting the agent in an orderly way never counts. A reply that chat refuses for good now leaves a failed receipt with chat's reason. Checked on macOS arm64: 467 tests, 461 pass and 6 are skipped. A probe of 20 messages and 25 kills ended with 14 answered, 5 failed and 1 skipped, none missing, and no thread left marked as working.
 
 **Review, 2026-10-04: the phase 4 design.** Confirmed as written in the plan's phase 4: one task follows an input from any source; a wake-up is the tool `check_back`; a standing trigger is one small Markdown file in the home's `triggers/`; a trigger has a session of its own unless it names a thread; a check decides whether there is news and whether news wakes the agent or is noted as a breadcrumb; and seven `shrimpy triggers` commands. It is built in that order, after the three fixes and the command's polish that are in progress.
 

@@ -308,6 +308,9 @@ The builders made these visible choices while implementing. None has shipped, an
 | Stopping an agent | It waits for the receipts of the turns that have ended, as before, and now stops waiting as soon as chat is lost. |
 | The agent's records have an ID | `rec_` and 12 characters, made once and kept in a document of its own, `shrimpy.records`. Every request ID the agent builds from Pi's own numbers carries it: a reply's and `send_message`'s. Without it, an agent started fresh in a thread it had already answered in could reuse an old reply's ID, and chat would refuse the new reply. |
 | What is kept for each event | A finished task of about 445 bytes with the event's text, for good. Nothing prunes them. |
+| What counts as a crash | The agent's records say whether it is running: set at the start, cleared at an orderly stop. A start that finds it set counts one crash for every event whose input was placed and not settled, in one commit before work resumes. A crash while an event is being handed over, or while chat is being told, never counts. The count is kept in the records beside the event's task, and goes when the task ends. |
+| Giving up on a turn | At two crashes the turn is stopped before it can run again, and the event's receipt says: "The agent stopped unexpectedly twice while working on this, so it gave up. Send it again to try once more." Events answered by the same turn end the same way, and an input waiting behind it is skipped. The third Ctrl+C under `up` kills the programs, so it counts as a crash. |
+| A reply chat refuses | The event's receipt says failed, "The reply could not be posted: …", with chat's reason. Parts already posted stay. If chat refuses the receipt too, it is dropped with a second line on standard error. |
 
 ## Not built
 
@@ -759,7 +762,8 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 
 - Built on 2026-10-04: a receipt is an event in the feed.
 - Built on 2026-10-04: following an event to its receipt is one Pi background task, in place of the agent's outbox and its recovery code. Events reach a session in the feed's order whatever order Pi starts the tasks in, a failure inside a task becomes a failed receipt, and who is working is read from Pi's list of tasks.
-- In progress on 2026-10-04, before phase 4: a turn that crashes twice is stopped and marked failed, a reply chat refuses leaves a failed receipt, the gateway refuses a second body for one agent, and the `shrimpy` command takes names and a default folder.
+- Built on 2026-10-04: a turn that crashes twice is stopped and marked failed, and a reply chat refuses leaves a failed receipt.
+- In progress on 2026-10-04, before phase 4: the gateway refuses a second body for one agent, and the `shrimpy` command takes names and a default folder.
 - Phase 4 then builds on that one mechanism: asking another agent and carrying on with the answer, as the spike on `spike/ask-and-resume` showed, triggers that repeat and that fire once, and helpers.
 
 **From another machine, last.** These wait until there's a VM on the LAN to test them on. Nothing built before them assumes one machine: every link between programs takes a transport, so the same code runs over a Unix socket or a network connection.
