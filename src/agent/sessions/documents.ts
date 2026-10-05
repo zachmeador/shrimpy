@@ -16,13 +16,21 @@ import type { Snapshot } from "../intake/index.ts";
  */
 
 /**
- * What the agent's records are called, made with them and never changed. The
- * engine numbers its entries and tasks again in a new database, so a name built
- * from those numbers alone repeats one that an earlier set of records already
- * posted under, and chat takes the post for a retry of that one. What the agent
- * posts under such a name carries this too.
+ * What the agent's records are called, and how the agent's runs have gone.
+ *
+ * The ID is made with the records and never changes. The engine numbers its
+ * entries and tasks again in a new database, so a name built from those numbers
+ * alone repeats one that an earlier set of records already posted under, and
+ * chat takes the post for a retry of that one. What the agent posts under such a
+ * name carries this too.
+ *
+ * `running` is set at every start and cleared by an orderly stop, so a start
+ * that finds it set follows a run that ended in some other way. `crashes` counts,
+ * for each event whose task is live, the runs that ended that way while the
+ * event's turn was underway. Records written before either existed have neither,
+ * which reads as not running and no crashes.
  */
-export const RecordsDoc = defineDoc<{ id: string }>({
+export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: Record<string, number> }>({
   kind: "shrimpy.records",
   version: 3,
   scope: "session",

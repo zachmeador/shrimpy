@@ -17,7 +17,7 @@ import { createDelivery } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { startServer } from "./server.ts";
-import { createSessions, openRecords, type SessionDefaults, turnTask } from "./sessions/index.ts";
+import { createSessions, openRecords, type Run, type SessionDefaults, turnTask } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 
 export type { ContextPreview } from "./extensions/index.ts";
@@ -73,6 +73,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
   const context = await homeContext({ name: options.name, home: options.home });
   const report = reporter(options);
   const host = await openHost(options);
+  let run: Run | undefined;
   try {
     for (const { file, reason } of context.report.leftOut) report(new Error(`${file} was left out: ${reason}.`));
     // What the agent posts under names of its own making carries what its records are called, and only the opened
@@ -99,6 +100,9 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, turn.task);
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
+    // The records say the agent is running, and what the last run's end cost the turns it interrupted, before any of
+    // them resumes: a turn that has crashed too often is stopped here and does not run again.
+    run = await sessions.start();
     host.resume();
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
     const server = await startServer(host, sessions, context, {
@@ -119,12 +123,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
           options.join,
         );
       }
-      return { endpoint: server.endpoint, close: stopper({ host, server, joined }) };
+      return { endpoint: server.endpoint, close: stopper({ host, server, run, joined }) };
     } catch (error) {
       await server.close();
       throw error;
     }
   } catch (error) {
+    // A start that fails closes the engine in an orderly way too, once the records say it was running.
+    await run?.stopped().catch(report);
     await host.close();
     throw error;
   }

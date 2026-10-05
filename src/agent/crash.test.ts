@@ -27,10 +27,19 @@ async function setUp(t: TestContext) {
   const home = tempDir(t, "crash");
   const chat = await startChatServer(t);
   /** Start an agent in a process of its own, as the next start would. */
-  const start = (scenario: Parameters<typeof startAgentChild>[2], tokensPerSecond: number, holdReceipts = false) =>
-    startAgentChild(t, home, scenario, tokensPerSecond, { holdReceipts });
+  const start = (
+    scenario: Parameters<typeof startAgentChild>[2],
+    tokensPerSecond: number,
+    options: Parameters<typeof startAgentChild>[4] = {},
+  ) => startAgentChild(t, home, scenario, tokensPerSecond, options);
   return { home, chat, start };
 }
+
+/** Wait until the model has been asked `count` times, which is when a turn is underway on a stream that is slow. */
+const untilAsked = (home: string, count: number) =>
+  eventually(() => (existsSync(join(home, "requests.jsonl")) ? loggedRequests(home).length : 0), (asked) => asked >= count, {
+    what: `the model to be asked ${String(count)} time(s)`,
+  });
 
 test("killed while the model streams: the request is sent again, and the reply is posted once", { timeout }, async (t) => {
   const { home, chat, start } = await setUp(t);
@@ -125,7 +134,7 @@ test("killed between the turn ending and the reply being posted: the reply arriv
 
 test("killed while the receipt is being left: the reply is not posted a second time", { timeout }, async (t) => {
   const { chat, start } = await setUp(t);
-  const first = await start("mixed", 400, true);
+  const first = await start("mixed", 400, { holdReceipts: true });
   const talk = await talkTo(chat);
   const asked = await talk.say("hello");
   await eventually(() => talk.replies(), (replies) => replies.length === 1, { what: "the reply to be out" });
@@ -160,6 +169,44 @@ test("killed with a message waiting: the next start works through what it left, 
   assert.equal(replies.length, 2);
   assert.ok(replies[0]?.text.endsWith(LAST_LINE));
   assert.match(replies[1]?.text ?? "", /and then this/);
+});
+
+test("killed twice while one turn runs: the third start stops it, leaves a failed receipt, and does not run it again", { timeout }, async (t) => {
+  const { home, chat, start } = await setUp(t);
+  const first = await start("mixed", 40);
+  const talk = await talkTo(chat);
+  const asked = await talk.say("stream a long answer");
+  await untilAsked(home, 1);
+  await first.kill("SIGKILL");
+  const second = await start("mixed", 40);
+  await untilAsked(home, 2);
+  await second.kill("SIGKILL");
+
+  await start("mixed", 4000);
+
+  assert.equal((await talk.receiptOn(asked)).status, "failed");
+  await talk.untilIdle();
+  assert.equal(loggedRequests(home).length, 2, "the model was not asked a third time");
+  assert.deepEqual(await talk.replies(), []);
+  const again = await talk.say("hello again");
+  assert.equal((await talk.receiptOn(again)).status, "answered", "and what the receipt says to do works");
+});
+
+test("stopped in an orderly way twice while one turn runs: the turn is still answered once the agent is back", { timeout }, async (t) => {
+  const { home, chat, start } = await setUp(t);
+  const first = await start("mixed", 40, { graceMs: 100 });
+  const talk = await talkTo(chat);
+  const asked = await talk.say("stream a long answer");
+  await untilAsked(home, 1);
+  await first.kill("SIGTERM");
+  const second = await start("mixed", 40, { graceMs: 100 });
+  await untilAsked(home, 2);
+  await second.kill("SIGTERM");
+
+  await start("mixed", 4000);
+
+  assert.equal((await talk.receiptOn(asked)).status, "answered");
+  assert.equal((await talk.replies()).length, 1);
 });
 
 /** The killed agent's shell command keeps running on its own; stop it so the test leaves nothing behind. */

@@ -3,6 +3,7 @@ import { type ConversationId, configure, type Harness } from "@earendil-works/pi
 import type { SessionSummary } from "../../contracts/agent/index.ts";
 import type { Admissions, Working } from "../intake/index.ts";
 import { createAdmissions } from "./admissions.ts";
+import { beginRun, type Run } from "./crashes.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { ThreadsDoc, type ThreadSession } from "./documents.ts";
 import { type ServedSession, serveSession } from "./service.ts";
@@ -21,6 +22,12 @@ export interface Sessions {
   serve(threadId: string, takingInput: () => boolean): Promise<ServedSession>;
   /** Make every session follow the home's model and working directory, as a new session does from the start. */
   applyDefaults(): Promise<void>;
+  /**
+   * Begin the agent's run: say in the records that it is running, and count the crash of every turn that the last
+   * run, if it ended without an orderly stop, left underway. A turn that has crashed twice is stopped, so that it
+   * does not run again, and its event is told it failed. Call it once, before the engine resumes.
+   */
+  start(): Promise<Run>;
   /** What intake takes events up through, and keeps its place in the feed with. */
   readonly admissions: Admissions;
   /** What intake asks about the events taken up and not yet answered. */
@@ -66,6 +73,8 @@ export function createSessions(harness: Harness, defaults: SessionDefaults, turn
         }
       }, context);
     },
+
+    start: () => beginRun(harness),
 
     admissions: createAdmissions(harness, defaults, turn),
     working: createWorking(harness),

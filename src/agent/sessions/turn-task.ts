@@ -1,6 +1,7 @@
 import type { Context, JsonValue } from "@earendil-works/chord";
 import {
   type ConversationHandle,
+  type ConversationId,
   type Cursor,
   defineExtension,
   defineTask,
@@ -14,11 +15,24 @@ import {
   type Tx,
 } from "@earendil-works/pi-durable";
 import { type Delivery, type Outstanding, promptFor, type Snapshot, type TurnOutcome } from "../intake/index.ts";
-import { plain, ThreadsDoc } from "./documents.ts";
+import { plain, RecordsDoc, ThreadsDoc } from "./documents.ts";
 import { toOutcome } from "./turn.ts";
 
 /** The name of the task that follows one event, from the moment it is taken up to its receipt. */
 export const TURN_TASK = "shrimpy.turn";
+
+/**
+ * How many times the agent may end unexpectedly while an event's turn is
+ * underway before the turn is given up. An event that reaches it is not followed
+ * again: its turn is stopped, and chat is told it failed.
+ */
+export const MAX_CRASHES = 2;
+
+/** What chat is told of an event that reached `MAX_CRASHES`. The words say "twice" for the count. */
+const CRASHED_OUT: TurnOutcome = {
+  kind: "failed",
+  reason: "The agent stopped unexpectedly twice while working on this, so it gave up. Send it again to try once more.",
+};
 
 /** Where an event's task is: handing the event over, following its turn, or telling chat how the turn ended. */
 export type TurnState = { phase: "handOver" } | { phase: "follow" } | { phase: "tell"; outcome: TurnOutcome };
@@ -58,7 +72,9 @@ export interface TurnTaskOptions {
  * that ended. Each phase is safe to run again after a crash, and none lets an
  * unexpected failure out, because a phase that throws ends its task for good,
  * with no receipt and nothing reported. The event gets a receipt in every case:
- * the way its turn ended, or that something went wrong.
+ * the way its turn ended, or that something went wrong. A turn that has been
+ * interrupted by `MAX_CRASHES` unexpected ends of the agent is not run again:
+ * the start that counted the last one stopped it, and the event is told it failed.
  */
 export function turnTask(options: TurnTaskOptions) {
   const { delivery } = options;
@@ -110,7 +126,11 @@ export function turnTask(options: TurnTaskOptions) {
           // the next one.
           await session.waitForIdle(context);
           if ((await submission.status(context)).status === "queued") await submission.abort(context);
-          await told(runtime, context, await outcomeOf(await submission.wait(context), runtime, context));
+          const outcome = await outcomeOf(await submission.wait(context), runtime, context);
+          // An event that reached `MAX_CRASHES` had its turn stopped by the start that counted the crash, before the
+          // turn could run again. It is told that it failed, and not that it was stopped.
+          const crashedOut = (await crashesOf(turn.input, runtime, context)) >= MAX_CRASHES;
+          await told(runtime, context, crashedOut ? CRASHED_OUT : outcome);
         },
         tellFailed,
       ),
@@ -125,7 +145,7 @@ export function turnTask(options: TurnTaskOptions) {
         // Once more, to say that it failed; if that is what was being told, there is nothing left to try.
         (turn, runtime, context, failure) =>
           turn.state.checkpoint.outcome.kind === "failed"
-            ? gaveUp(runtime, context, failure)
+            ? gaveUp(turn.input, runtime, context, failure)
             : tellFailed(turn, runtime, context, failure),
       ),
     },
@@ -142,7 +162,7 @@ export function turnTask(options: TurnTaskOptions) {
         const failure = asError(error);
         const where = `${turn.input.event.id} in thread ${turn.input.threadId}`;
         options.onError(new Error(`Stopping the work on ${where} failed: ${failure.message}`));
-        await gaveUp(runtime, context, failure);
+        await gaveUp(turn.input, runtime, context, failure);
       }
     },
   });
@@ -169,21 +189,56 @@ async function sessionOf(input: Outstanding, runtime: Runtime, context: Context)
 async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise<Outstanding[]> {
   const found: Outstanding[] = [];
   await runtime.commit(async (tx) => {
-    for (const status of ["pending", "running"] as const) {
-      let cursor: Cursor | undefined;
-      do {
-        const query = { conversationId: runtime.conversationId, kind: TURN_TASK, status, abortRequested: false };
-        const page = await tx.scanTasks(query, 100, cursor);
-        for (const record of page.items) {
-          const input = record.input as Outstanding;
-          if (phaseOf(record) === "handOver" && input.event.seq < turn.input.event.seq) found.push(input);
-        }
-        cursor = page.next;
-      } while (cursor !== undefined);
+    for (const record of await liveTurns(tx, runtime.conversationId)) {
+      const input = record.input as Outstanding;
+      if (phaseOf(record) === "handOver" && input.event.seq < turn.input.event.seq) found.push(input);
     }
     return undefined;
   }, context);
   return found.sort((a, b) => a.event.seq - b.event.seq);
+}
+
+/** The tasks that follow an event and are live, with none of them being aborted: those of one session, or of all. */
+async function liveTurns(tx: Tx, conversationId?: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
+  const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
+  for (const status of ["pending", "running"] as const) {
+    let cursor: Cursor | undefined;
+    do {
+      const query = { ...(conversationId === undefined ? {} : { conversationId }), kind: TURN_TASK, status, abortRequested: false };
+      const page = await tx.scanTasks(query, 100, cursor);
+      found.push(...page.items);
+      cursor = page.next;
+    } while (cursor !== undefined);
+  }
+  return found;
+}
+
+/**
+ * The events whose turn is underway: the task that follows the event is live
+ * and its input is placed in the transcript and not settled. These are the turns
+ * that a crash of the agent interrupts. An event whose turn has ended, so that
+ * its task is telling chat, is not among them, and neither is one still waiting.
+ */
+export async function turnsUnderway(tx: Tx): Promise<{ eventId: string; conversationId: ConversationId }[]> {
+  const underway: { eventId: string; conversationId: ConversationId }[] = [];
+  for (const record of await liveTurns(tx)) {
+    const eventId = (record.input as Outstanding).event.id;
+    const submission = await tx.submissionByRequest(record.conversationId, requestIdOf(eventId));
+    if (submission?.status === "placed") underway.push({ eventId, conversationId: record.conversationId });
+  }
+  return underway;
+}
+
+/** How many times the agent ended unexpectedly while the event's turn was underway. */
+async function crashesOf(input: Outstanding, runtime: Runtime, context: Context): Promise<number> {
+  return (await runtime.snapshot(RecordsDoc, context))?.crashes?.[input.event.id] ?? 0;
+}
+
+/** The event's task ends, so the count of its crashes is not needed any more. */
+async function forgetCrashes(tx: Tx, input: Outstanding): Promise<void> {
+  const records = await tx.doc(RecordsDoc);
+  if (records.crashes?.[input.event.id] === undefined) return;
+  records.crashes = Object.fromEntries(Object.entries(plain(records.crashes)).filter(([event]) => event !== input.event.id));
 }
 
 /** How a settled input ended, as the outcome of its event's turn. */
@@ -219,9 +274,12 @@ function told(runtime: Runtime, context: Context, outcome: TurnOutcome): Promise
 }
 
 /** Nothing more can be done for the event: the task ends as failed, saying why. */
-function gaveUp(runtime: Runtime, context: Context, failure: Error): Promise<void> {
+function gaveUp(input: Outstanding, runtime: Runtime, context: Context, failure: Error): Promise<void> {
   const error = { message: failure.message };
-  return runtime.commit(() => ({ status: "terminal", outcome: { status: "failed", error } }), context);
+  return runtime.commit(async (tx) => {
+    await forgetCrashes(tx, input);
+    return { status: "terminal", outcome: { status: "failed", error } };
+  }, context);
 }
 
 const failedOutcome = (failure: Error): TurnOutcome => ({
@@ -236,6 +294,7 @@ async function finish(
   outcome: TurnOutcome,
   ended: TaskOutcome<null>,
 ): Promise<NextTaskState<TurnState, null>> {
+  await forgetCrashes(tx, input);
   if (outcome.kind === "skipped") {
     const session = (await tx.doc(ThreadsDoc)).sessions[input.threadId];
     if (session !== undefined) session.unacted = inOrder([...plain(session.unacted), ...input.earlier, input.event]);
