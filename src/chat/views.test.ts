@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { settle, waitForView } from "../lib/testing/index.ts";
+import { waitForView } from "../lib/testing/index.ts";
 import { startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -89,7 +89,8 @@ test("detaching stops the updates, and the connection can attach again", { timeo
 
   await zach.detach();
   await shrimpy.chat.post(main.id, "while detached", "shrimpy-1");
-  await settle();
+  // Anything the server pushed to this connection for that post would reach it before the answer to this call.
+  await zach.chat.head();
   assert.equal(views, 1);
   assert.throws(() => watching.view, /Thread th_\w+ is no longer attached/);
   assert.throws(() => watching.subscribe(() => undefined), /no longer attached/);

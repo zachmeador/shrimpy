@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MAX_MESSAGE_LENGTH } from "../contracts/chat/index.ts";
-import { settle } from "../lib/testing/index.ts";
+import { until } from "../lib/testing/index.ts";
 import { follow, mainThread, posted, startDm, startTestChat, texts } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -182,7 +182,8 @@ test("a waiting feed ends when its caller cancels it, and the connection carries
 
   const controller = new AbortController();
   const cancelled = shrimpy.chat.feed(start, 10, controller.signal);
-  await settle();
+  // The server takes up a connection's calls in order, so once it has answered this one it has the feed.
+  await shrimpy.chat.head();
   controller.abort();
   await assert.rejects(cancelled, { name: "AbortError" });
 
@@ -199,11 +200,11 @@ test("a waiting feed ends when its connection drops, and the server carries on",
   const main = await mainThread(zach, dm.id);
   const start = await gone.chat.head();
   const abandoned = follow(gone.chat.feed(start, 10));
-  await settle();
+  // The server takes up a connection's calls in order, so once it has answered this one it has the feed.
+  await gone.chat.head();
 
   await gone.close();
-  await settle();
-  assert.equal(abandoned.done, true);
+  await until(() => abandoned.done, "the waiting feed to end once its connection was closed");
 
   const stays = await chat.agent("Shrimpy");
   const waiting = stays.chat.feed(start, 10);

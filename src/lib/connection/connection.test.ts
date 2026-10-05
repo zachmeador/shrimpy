@@ -8,7 +8,6 @@ import {
   type Freezable,
   freezable,
   offer,
-  settle,
   startStandIn,
   stopAfter,
   until,
@@ -39,14 +38,21 @@ const Room = defineService<Room>("shrimpy.test.room");
 
 const transport = (standIn: { socket: string }) => createUnixTransportFactory({ path: standIn.socket });
 
-/** A program whose one service answers greetings. A `wait` never gets its answer. */
+/** A program whose one service answers greetings. A `wait` never gets its answer, and `waited` is there once one has been asked for. */
 async function startGreeter(t: TestContext) {
   useRuntimeDir(t);
+  let askedToWait: () => void = () => undefined;
+  const waited = new Promise<void>((resolve) => {
+    askedToWait = resolve;
+  });
   const standIn = await startStandIn(t, "greeter", {
     offer: () =>
       offer(Greeter, {
         greet: (name) => Promise.resolve(`hello, ${name}`),
-        wait: () => new Promise<void>(() => undefined),
+        wait: () => {
+          askedToWait();
+          return new Promise<void>(() => undefined);
+        },
       }),
   });
   const connection = await openConnection({
@@ -55,7 +61,7 @@ async function startGreeter(t: TestContext) {
     service: Greeter,
   });
   stopAfter(t, () => connection.close());
-  return { standIn, connection };
+  return { standIn, connection, waited };
 }
 
 test("a connection calls the program's service", { timeout }, async (t) => {
@@ -90,9 +96,9 @@ test("a program that does not offer the service is refused, and the connection i
 });
 
 test("closing without saying goodbye does not wait for a call that is waiting for its answer", { timeout }, async (t) => {
-  const { connection } = await startGreeter(t);
+  const { connection, waited } = await startGreeter(t);
   const waiting = assert.rejects(connection.service.wait(context));
-  await settle();
+  await waited;
 
   await connection.close({ goodbye: false });
 

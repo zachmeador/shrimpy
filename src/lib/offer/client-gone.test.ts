@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { type Context, defineService, replicatedState, type ReplicatedState } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
@@ -50,8 +49,7 @@ test("a client that leaves while the server is writing to it is not an error to 
   for (let update = 0; update < 60; update++) state.replace(BACKGROUND_CONTEXT, { text: `${big}${update}` });
   await client.close({ goodbye: false });
   await until(() => connections === 0, "the server to let go of the client");
-  await delay(100);
+  await until(() => errors.length > 0, "the server to report that writing to the client that left failed");
 
-  assert.ok(errors.length > 0, "writing to a client that left fails");
   assert.deepEqual(errors.filter((error) => !isClientGone(error)).map((error) => error.message), []);
 });

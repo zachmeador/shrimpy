@@ -91,10 +91,11 @@ test("stopping the server ends its connections and removes its socket", { timeou
   zach.onDisconnect((reason) => reasons.push(reason));
   const waiting = zach.chat.feed(0, 10);
   waiting.catch(() => undefined);
-  await settle();
+  // The server takes up a connection's calls in order, so once it has answered this one it has the feed.
+  await zach.chat.head();
 
   await chat.chat.close();
-  await settle();
+  await until(() => reasons.length > 0, "the client to be told its connection ended");
 
   assert.equal(reasons.length, 1);
   await assert.rejects(waiting);

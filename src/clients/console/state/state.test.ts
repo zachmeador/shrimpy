@@ -74,7 +74,7 @@ test("the work behind an open thread is watched, and an agent with no session fo
 
   rig.state.openThread(thread.id);
   await rig.until((model) => textsOf(model).length === 1, "the thread's view");
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await until(() => (rig.agents.scout?.agent.listings ?? 0) >= 2, "the agent to be asked for its sessions more than once");
 
   assert.equal(rig.state.model().session, undefined);
   assert.equal(rig.state.model().notice, undefined, "no session is no error");

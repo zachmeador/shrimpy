@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as wait } from "node:timers/promises";
-import { settle, waitForView } from "../lib/testing/index.ts";
+import { waitForView } from "../lib/testing/index.ts";
 import { startDm } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -60,7 +60,8 @@ test("a member marked from two connections works until both have cleared or ende
   await other.chat.setWorking(main.id, true);
 
   await shrimpy.chat.setWorking(main.id, false);
-  await settle();
+  // Any change to the view would reach this connection before the answer to this call does.
+  await zach.chat.head();
   assert.deepEqual(watching.view.thread.working, started.thread.working);
 
   await other.close();

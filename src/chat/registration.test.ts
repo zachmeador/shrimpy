@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { connectToSocket } from "../contracts/chat/testing/index.ts";
-import { eventually, inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { countedBackoff, eventually, inRuntimeDir, stopAfter, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { ChatRunningError, startChat } from "./index.ts";
 import { StoreOwnedError } from "./store/index.ts";
@@ -33,7 +33,8 @@ test("the chat server registers with the gateway and tells it which version it r
 test("with no gateway running, the chat server starts, serves and closes quietly, and refuses to let anyone in, saying why", { timeout }, async (t) => {
   useRuntimeDir(t);
   const reported = t.mock.method(console, "error", () => undefined);
-  const chat = await startChat({ dataDir: tempDir(t, "chat-data") });
+  const pauses = countedBackoff();
+  const chat = await startChat({ dataDir: tempDir(t, "chat-data"), backoff: pauses });
   const stranger = await connectToSocket(chat);
   stopAfter(t, () => stranger.close());
 
@@ -41,8 +42,7 @@ test("with no gateway running, the chat server starts, serves and closes quietly
     code: "service_not_allowed",
     message: /can't reach the gateway right now/,
   });
-  // Long enough for it to have looked for the gateway more than once.
-  await delay(300);
+  await until(() => pauses.taken() >= 2, "the chat server to have looked for the gateway more than once");
   await chat.close();
 
   assert.equal(reported.mock.callCount(), 0);

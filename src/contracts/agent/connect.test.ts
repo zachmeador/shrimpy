@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
-import { offer, settle, startStandIn, stopAfter, useRuntimeDir } from "../../lib/testing/index.ts";
+import { offer, startStandIn, stopAfter, useRuntimeDir } from "../../lib/testing/index.ts";
 import { AgentConnectionLostError, type AgentConnection, connectAgent } from "./index.ts";
 import { SessionDirectory } from "./services.ts";
 
@@ -48,7 +48,8 @@ test("an attach that is waiting for its route fails when the connection drops", 
 
   const attaching = assert.rejects(connection.attach("th_1"), AgentConnectionLostError);
   await accepted;
-  await settle();
+  // The server had answered the attach before it read this call, so once this is answered the attach is waiting for its route.
+  await connection.sessions();
   await standIn.close();
 
   await attaching;

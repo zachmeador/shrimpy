@@ -7,6 +7,7 @@ import { Refusal } from "../../lib/refusal/index.ts";
 import { backoff } from "../../lib/retry/index.ts";
 import { namedSocketPath } from "../../lib/runtime/node.ts";
 import {
+  countedBackoff,
   eventually,
   freezable,
   offer,
@@ -92,8 +93,9 @@ test("it registers again after every restart of the gateway, not just the first"
 test("it waits for a gateway that is not there yet, and says nothing about it", { timeout }, async (t) => {
   useRuntimeDir(t);
   const errors: Error[] = [];
-  const kept = keep(t, { onError: (error) => errors.push(error) });
-  await delay(100);
+  const pauses = countedBackoff();
+  const kept = keep(t, { onError: (error) => errors.push(error), backoff: pauses });
+  await until(() => pauses.taken() >= 2, "the keeper to have looked for the gateway more than once");
   const waiting = kept.untilUp(AbortSignal.timeout(20_000));
 
   const gateway = await startTestGateway(t);
@@ -136,8 +138,15 @@ test("a gateway that takes the connection and never answers does not hold up sto
   const gateway = await startTestGateway(t);
   const silent = freezable(createUnixTransportFactory({ path: namedSocketPath(GATEWAY_SOCKET_NAME) }));
   silent.freeze();
-  const kept = keep(t, { transportFactory: silent.transportFactory });
-  await delay(100);
+  let connected = false;
+  const kept = keep(t, {
+    transportFactory: async (handlers) => {
+      const transport = await silent.transportFactory(handlers);
+      connected = true;
+      return transport;
+    },
+  });
+  await until(() => connected, "the keeper to have connected to the gateway, which never answers it");
 
   await within(PROMPT_MS, kept.stop(), "stopping");
 

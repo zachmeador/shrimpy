@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { settle } from "../lib/testing/index.ts";
 import { follow, mainThread, outcome, startTestChat } from "./testing/index.ts";
 
 const timeout = 30_000;
@@ -78,7 +77,10 @@ test("a member who is not in a channel cannot see or touch it", { timeout }, asy
   }
 
   const offered = follow(alice.chat.feed(0, 10));
-  await settle();
+  // The first call can be read in the same turn as the feed and answered ahead of it, so a second follows:
+  // it is read in a later turn, and an answer to the feed would already be ahead of it.
+  await alice.chat.head();
+  await alice.chat.head();
   assert.equal(offered.done, false);
   assert.deepEqual((await shrimpy.chat.read(main.id, null, 10)).map((message) => message.text), ["for shrimpy only"]);
   assert.deepEqual((await zach.chat.threads(dm.id))[0]?.preview, "for shrimpy only");

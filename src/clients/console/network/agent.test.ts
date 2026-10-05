@@ -84,7 +84,7 @@ test("closing hangs up at once, even while a session is being looked for", { tim
   const { link } = startLink(t);
   await until(() => link.status().state === "up", "the agent to be reached");
   link.watch("th_none");
-  await new Promise((resolve) => setTimeout(resolve, POLL_MS * 2));
+  await until(() => stand.agent.listings >= 2, "the link to have looked for the session more than once");
 
   await within(2000, link.close(), "closing");
 

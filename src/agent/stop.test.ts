@@ -113,9 +113,10 @@ test("stopping while chat is unreachable does not wait for it", { timeout }, asy
   const rig = await startAgentRig(t, { scenario: "gated" });
   const asked = await rig.say("hello");
   await rig.untilWorking();
+  const { session } = await rig.attach();
   await rig.chat.outage();
   releaseGate(rig.home);
-  await delay(300);
+  await waitForView(session, answered);
 
   const started = Date.now();
   await rig.agent.close();

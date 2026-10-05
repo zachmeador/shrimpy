@@ -217,9 +217,8 @@ test("an agent that was down past several of a trigger's times runs it once when
   const [late] = once.occurrences;
   assert.equal(once.occurrences.length, 1);
   assert.ok(late !== undefined && late.firedAt - late.due >= 1_500, "it was due while the agent was down, and runs when it is back");
-  await delay(400);
-  assert.equal((await connection.trigger("tidy")).occurrences.length, 1, "and not again for each time it missed");
   const kept = await trigger(connection, "tidy", (found) => found.occurrences.length >= 2, "the schedule to go on");
+  assert.equal(kept.occurrences.length, 2, "the time made up and the next one, and not again for each time it missed");
   assert.ok((kept.occurrences[0]?.firedAt ?? 0) - late.firedAt >= 900, "a second after it ran, not a second after it was due");
 });
 

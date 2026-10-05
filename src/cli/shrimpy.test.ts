@@ -5,7 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { SessionItem, SessionView } from "../contracts/agent/index.ts";
 import { enterAsPerson, memberNamed } from "../contracts/chat/testing/index.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, tempDir, until, useRuntimeDir } from "../lib/testing/index.ts";
 import { loadAll } from "./commands/index.ts";
 import {
   commandLines,
@@ -305,8 +305,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
 
   // The answer keeps growing with no one waiting for it, until someone stops the work.
   const before = await answerLength();
-  await delay(400);
-  assert.ok((await answerLength()) > before, "the answer kept streaming");
+  await eventually(answerLength, (length) => length > before, { what: "the answer to keep streaming" });
   const stopped = await shrimpy(["sessions", "stop", home, thread]);
   assert.equal(stopped.code, 0, stopped.stderr);
   assert.equal((await agent.stop()).code, 0);

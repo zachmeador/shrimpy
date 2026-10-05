@@ -40,6 +40,8 @@ export interface ScriptedAgent {
 
   /** Make the session behind a thread, idle and empty unless `view` says more. Making it again gives the same session. */
   session(threadId: string, options?: { view?: SessionView }): ScriptedSession;
+  /** How many times clients have asked which sessions the agent has. */
+  readonly listings: number;
 }
 
 interface Held {
@@ -51,6 +53,7 @@ const noTrigger = (name: string): Refusal => new Refusal(`This agent has no trig
 
 export function scriptedAgent(): ScriptedAgent {
   const held = new Map<string, Held>();
+  let listings = 0;
   // The agent says a session has work when it is answering input or has input queued.
   const working = (view: SessionView): boolean => view.status.busy || view.status.queued.length > 0;
 
@@ -109,16 +112,17 @@ export function scriptedAgent(): ScriptedAgent {
           return member;
         },
         list: () =>
-          admitted(() =>
-            Promise.resolve(
+          admitted(() => {
+            listings += 1;
+            return Promise.resolve(
               [...held.values()].map(({ session: each }) => ({
                 id: each.threadId,
                 threadId: each.threadId,
                 channelId: each.channelId,
                 working: working(each.view),
               })),
-            ),
-          ),
+            );
+          }),
         attach: (address, context) =>
           admitted(async () => {
             if (!held.has(address)) refuse(`This agent has no session for ${address} yet.`);
@@ -137,5 +141,8 @@ export function scriptedAgent(): ScriptedAgent {
       return found === undefined ? undefined : offer(SessionService, found.service);
     },
     session,
+    get listings() {
+      return listings;
+    },
   };
 }
