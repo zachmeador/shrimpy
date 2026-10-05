@@ -50,6 +50,15 @@ Left open by the roster and by connecting by name:
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
 - To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine. Also how long a dead peer's registration lasts: an agent has one live body, so over a network an agent that restarts is turned away until its old connection times out.
 
+Left open by rooms' first step:
+
+- A post can name one event it answers, and its author is then addressed. One reply can answer several events from different people, and each waiting event's task posts that same reply, so one name can't be right. To be replaced before the agent uses it.
+- `threads #ops` needs quotes in a shell, or the room's name is taken for a comment and dropped.
+- In a room's thread the terminal can't stop an agent or show its work as it happens, and it polls every room's threads every two seconds.
+- The message tools still say rooms come later, and reach no room.
+- An edit that removes a mention un-addresses the original post for an agent that reads the feed afterwards, since an event shows its message as it now stands.
+- A test of the chat server stopping failed once in eight full runs under load.
+
 Left open by the feed of events, to settle before rooms and chat providers:
 
 - Edits, deletes and reactions carry no request ID, so a provider replaying an old edit after a newer one would undo it.
@@ -94,6 +103,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Phase 5 progress, 2026-10-05: rooms in the chat server.** A room is a channel with a name and any number of members. Any member makes one and adds anyone on the roster, and only members see it, read it and post in it. A post in a room is addressed to the members it mentions with `@name`, and `@all` addresses everyone but its author. A member is offered a room's events from the moment it joined. `shrimpy rooms`, `rooms new` and `rooms add` exist, `threads` takes `#name`, and the terminal lists rooms beside agents. The chat store is version 6, so a store from before is refused. The build also fixed the terminal hanging on exit when a link was still connecting. Checked on macOS arm64: 499 tests, 493 pass and 6 are skipped.
 
 **Phase 4 progress, 2026-10-05: standing triggers with a prompt.** A trigger is one Markdown file in the home's `triggers/`: a schedule in the front matter, `every` or `cron`, and the prompt as its body. The files are read at the start and on reload, and one that doesn't check out is left out or keeps its last valid definition. A background task sleeps until the next time and makes an occurrence, which is the third source of input for the task that follows inputs. A trigger has a session of its own, named `trigger:<name>` and reached by the `sessions` commands, unless it names a thread, where its final text is posted. An agent that was down past its time runs it once, the next occurrence is skipped while a turn runs unless overlap is allowed, and a stop ends an occurrence's turn and leaves the trigger on. The agent's API lists triggers, shows one with its recent occurrences and fires one now; no command exists yet. Cron uses the package `cron-parser`, the first dependency beyond Pi's. Checked on macOS arm64: 491 tests, 485 pass and 6 are skipped.
 
