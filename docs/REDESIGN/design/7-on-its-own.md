@@ -47,6 +47,31 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 
 Settled on 2026-10-04 with the trigger design: the folder is `breadcrumbs/`, and a trigger whose check says `then: note` owns the write, to `breadcrumbs/<trigger>.md`, since a command that died can't write its own failure. Anything else may still write a file there.
 
+**Mechanics of checks and breadcrumbs,** settled by the coordinator on 2026-10-05 for the build, and yours to change.
+
+*A check.*
+
+1. A trigger's front matter takes `check`, a command line; `when`, which is `changed`, `output` or `always`, and `changed` if left out; `then`, which is `wake` or `note`, and `wake` if left out; and `timeout`, a delay such as `30s` or `2m`, which is `1m` if left out and at most `10m`.
+2. The check runs where the agent's shell tool runs: the home is its working directory, and `shrimpy` on its path is the agent.
+3. Its output is what it prints on standard output, trimmed, and cut at 2,000 characters. A check that exits with anything but 0, outlasts its timeout or can't be started has failed, and its output is then one line that says so, with the end of what it printed on standard error.
+4. `changed` is news when the output, or the line about a failure, differs from the last occurrence's. A trigger's first occurrence counts as changed. `output` is news when there is any output, or the check failed. `always` is news every time. So a check that keeps failing the same way is news once.
+5. With no news the occurrence is on record as quiet, no model is called and nothing is written.
+6. With `then: wake` the agent is woken as for any occurrence, with the trigger's prompt and, apart from it, the output, marked as data. With `then: note` the output is written to `breadcrumbs/<trigger>.md`, the occurrence is on record as noted, and nobody is woken. A trigger that notes needs no prompt. When it has one, it is written above the output, as what the fact is and how to look closer.
+7. A check runs once for an occurrence. The occurrence records that the check is starting before it starts. If the agent ends while it runs, the occurrence says it was interrupted, and the check isn't run again for it: the next occurrence runs it.
+8. `shrimpy triggers add` takes `--check`, `--when`, `--then` and `--timeout`, and checks them as it checks a schedule. `triggers show` prints them, and how each occurrence ended.
+
+*Breadcrumbs.*
+
+9. A breadcrumb is a Markdown file directly in the home's `breadcrumbs/`, which `agent init` makes.
+10. The files are compared when an input is taken up, in the same commit. Those whose text differs from what the session was last shown come with the input, and the session's record keeps what it was shown of each. A session's first input carries every file, since all of them are new to it.
+11. An input carries at most 10 files, each cut at 1,000 characters. When more differ, it says how many more, and they come with later inputs.
+12. An input that is skipped showed the model nothing, so what it carried counts as not seen and comes again.
+13. A file that is removed is forgotten, and nothing is said about it.
+14. The model reads them before the rest of the input, marked as data to read and not instructions.
+15. What every agent is told gains a few sentences on what a breadcrumb is: a fact that moves, shown once when it is new to a session, which prompts a look and doesn't replace one.
+
+The old row's "output filters" are `when`. A fact that changes while an input waits behind a running turn comes with the next input, since an input's breadcrumbs are fixed when it is taken up.
+
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
