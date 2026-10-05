@@ -62,8 +62,9 @@ export async function openHost(options: HostOptions): Promise<Host> {
       {
         models: options.models,
         registry,
-        // Messages that queued up while a session was busy are picked up together, so they get one answer.
-        settings: { followUpMode: "all" },
+        // Messages that queued up while a session was busy are picked up together, so they get one answer. So are the
+        // ones that join a turn that is running: a second mention in the same step is read at the same next step.
+        settings: { followUpMode: "all", steeringMode: "all" },
         env: () => new NodeExecutionEnv({ cwd: home, shellEnv: shell }),
         onReport: options.onReport ?? reportToStderr,
       },
