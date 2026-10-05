@@ -1,11 +1,10 @@
 /**
- * What the agent's side of chat and its sessions agree on, in Shrimpy's own terms.
- * Whatever stores the agent's records and runs its sessions implements
- * `Admissions` and `Working`; chat sees nothing of how. What is stored is
- * plain JSON, so these are type aliases, which TypeScript lets stand for JSON.
+ * What an input is, in Shrimpy's own terms: a chat event, a wake-up the agent
+ * asked for or an occurrence of a trigger, each as it is kept while the agent
+ * works on it, and the helpers that ask an input what it is and where it is.
+ * What is stored is plain JSON, so these are type aliases, which TypeScript
+ * lets stand for JSON.
  */
-
-import type { WakePolicies } from "./policy.ts";
 
 /**
  * Who a message in a room was for, as the model is told: whether it was for the
@@ -285,55 +284,3 @@ export type TurnOutcome =
   | { kind: "skipped" }
   /** The turn ended without an answer for any other reason: `reason` is short and a person can read it. */
   | { kind: "failed"; reason: string };
-
-/**
- * What chat needs from the agent's records: where it stands in chat's feed, a
- * way to take an event up, and a way to stop the work behind a thread, for a
- * command. It is also handed the choices the agent made, in a file of its home,
- * about what wakes it in each room.
- */
-export interface Admissions {
-  /** What wakes the agent in each room. Without it, every room has the default. */
-  readonly wakes?: WakePolicies;
-  /** Where the agent stands in chat's feed, kept with its own records. Undefined until it is first set. */
-  cursor(): Promise<number | undefined>;
-  /** Move past events that wake nobody. */
-  setCursor(seq: number): Promise<void>;
-  /**
-   * Take an event up: make its thread's session if the thread has none, start
-   * the task that follows the event to its receipt, and move the cursor to
-   * `position`, all in one commit. `position` is where the feed brought the
-   * event, which is the event's own position unless it is a reply that a receipt
-   * pointed to. The thread's earlier unacted events go with it, and so do the
-   * wake-ups cancelled since the model last heard of them. An event in a room,
-   * one with a `backlog`, also moves where the agent has looked in its thread to
-   * the event. An event is taken up once, because the cursor moves with it.
-   */
-  admit(draft: Omit<ChatInput, "earlier" | "cancelled">, position?: number): Promise<void>;
-  /**
-   * Where the agent last looked in a thread of a room: the position of the
-   * newest event it took up there, kept with the thread's session. Undefined
-   * for a thread it has never been woken in. Everything the thread says after
-   * that position is what the agent has not seen.
-   */
-  looked(threadId: string): Promise<number | undefined>;
-  /**
-   * Stop the work of the session behind a thread, as stopping it from a client
-   * does: the turn that is running is stopped, the inputs that wait are taken
-   * back, and the wake-ups the session waits on are cancelled. The inputs'
-   * sources are told as they would be of any stop. It does nothing when the
-   * agent has no session there or the session has nothing to stop, and it leaves
-   * the agent's other sessions alone. It resolves once the work has stopped.
-   */
-  stopWork(threadId: string): Promise<void>;
-}
-
-/** What the agent's sessions know of the inputs it took up and has not finished telling their sources about yet. */
-export interface Working {
-  /** The threads those inputs are in. A session behind no thread is in none. */
-  threads(): Promise<ReadonlySet<string>>;
-  /** Call `listener` after the answer to `threads()` may have changed. Returns what stops that. */
-  onChange(listener: () => void): () => void;
-  /** Resolve once every input whose turn has ended has been told to its source, or `signal` aborts. A turn still running is not waited for. */
-  untilTold(signal: AbortSignal): Promise<void>;
-}

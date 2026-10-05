@@ -38,7 +38,7 @@ tester.run("imports", importsRule, {
     allowed("chat/providers/telegram/poller.ts", "../index.ts"),
     // testing: tests import test support.
     allowed("agent/agent.test.ts", "./testing/index.ts"),
-    // durable and durableInAgent: only the host, the sessions, the message tools and the context of the agent know the engine.
+    // durable and durableInAgent: only the host, the records, the turns, the wake-ups, the triggers, the sessions and the tools and prompt sections of the agent know the engine.
     allowed("agent/host/host.ts", "@earendil-works/pi-durable/env/node"),
     allowed("agent/sessions/session-view.ts", "@earendil-works/pi-durable"),
     // piTui, piTuiDraw and drawing: only the console's drawing knows pi-tui, and the top of the console starts the drawing.
@@ -63,9 +63,9 @@ tester.run("imports", importsRule, {
     refused("chat/providers/telegram/poller.ts", "../../store/index.ts", "provider"),
     refused("agent/server.ts", "./testing/index.ts", "testing"),
     refused("contracts/agent/view.ts", "@earendil-works/pi-durable", "durable"),
-    // A type is still the engine's: the code that takes messages in imports none of it, even for a type.
+    // A type is still the engine's: the code that says what an input is imports none of it, even for a type.
     {
-      filename: file("agent/chat/feed.ts"),
+      filename: file("agent/inputs/prompt.ts"),
       code: 'import type { Harness } from "@earendil-works/pi-durable";',
       errors: [{ messageId: "durableInAgent" }],
     },

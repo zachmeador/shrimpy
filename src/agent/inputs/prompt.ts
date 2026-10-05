@@ -11,7 +11,7 @@ import {
   type Snapshot,
   threadOf,
   type Wakeup,
-} from "./events.ts";
+} from "./input.ts";
 
 /**
  * What the model is shown for an input, and the one place that decides: the

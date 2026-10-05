@@ -13,34 +13,32 @@
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
-import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
+import { channelOfThread, createAdmissions, createDelivery, createWakes } from "./chat/index.ts";
 import { type ContextPreview, homeContext, previewContext } from "./context/index.ts";
 import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles, type WakeRead } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
-import { messageTools, wakeupTools } from "./message-tools/index.ts";
+import { messageTools } from "./message-tools/index.ts";
+import { openRecords, type SessionDefaults } from "./records/index.ts";
 import { type HomeFiles, startServer } from "./server.ts";
-import {
-  createSessions,
-  createTriggers,
-  createWakeups,
-  openRecords,
-  type Run,
-  type SessionDefaults,
-  turnTask,
-} from "./sessions/index.ts";
+import { createSessions, stopWork } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
+import { createTriggers } from "./triggers/index.ts";
+import { beginRun, createWorking, type Run, turnTask } from "./turns/index.ts";
+import { createWakeups, wakeupTools } from "./wakeups/index.ts";
 
 export { placeOfThread, type ThreadPlace } from "./chat/index.ts";
 export type { ContextPreview } from "./context/index.ts";
 export {
   checkAgentName,
+  DEFAULT_WAKE_POLICY,
   describeSchedule,
   draftTrigger,
   type InitOptions,
   type InitResult,
   initHome,
+  isWakePolicy,
   type ModelChoice,
   modelLabel,
   type NewTrigger,
@@ -57,9 +55,10 @@ export {
   TriggerFileError,
   type TriggerFiles,
   type TriggerProblem,
+  WAKE_POLICIES,
+  type WakePolicy,
   type WakeRead,
 } from "./home/index.ts";
-export { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "./chat/index.ts";
 export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
 
@@ -150,7 +149,9 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       wakeups.extension,
       triggers.extension,
     );
-    const sessions = createSessions(host.harness, defaults, turn.task);
+    const sessions = createSessions(host.harness, defaults);
+    const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork);
+    const working = createWorking(host.harness);
     // What wakes the agent in each room is read from the home's wake file, at the start and on a reload. A file that
     // does not check out is left out and named, and the agent keeps what it last read.
     const wakes = createWakes();
@@ -164,7 +165,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     await sessions.applyDefaults();
     // The records say the agent is running, and what the last run's end cost the turns it interrupted, before any of
     // them resumes: a turn that has crashed too often is stopped here and does not run again.
-    run = await sessions.start();
+    run = await beginRun(host.harness);
     // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
     // while the agent was down is not woken by its old one.
     for (const { file, reason } of (await triggers.reload()).leftOut) report(new Error(`${file} was left out: ${reason}.`));
@@ -191,8 +192,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
             name: options.name,
             home: options.home,
             listening: { serverId: server.endpoint.serverId, socket: server.gatewaySocket },
-            admissions: { ...sessions.admissions, wakes },
-            working: sessions.working,
+            admissions: { ...admissions, wakes },
+            working,
             delivery,
             onError: report,
           },

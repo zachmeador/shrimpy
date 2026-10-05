@@ -1,14 +1,17 @@
+import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { ConversationId, Harness } from "@earendil-works/pi-durable";
-import type { Admissions } from "../chat/index.ts";
-import type { SessionDefaults } from "./defaults.ts";
-import { FeedDoc, SessionsDoc } from "./documents.ts";
-import { openSession } from "./open-session.ts";
-import { stopWork } from "./service.ts";
-import { takeUp } from "./take-up.ts";
-import type { TurnTask } from "./turn-task.ts";
+import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
+import { FeedDoc, openSession, type SessionDefaults, SessionsDoc } from "../records/index.ts";
+import { takeUp, type TurnTask } from "../turns/index.ts";
+import type { Admissions } from "./admit.ts";
 
 const context = BACKGROUND_CONTEXT;
+
+/**
+ * How the work of a session is stopped. That is the sessions' to do, and they
+ * are above this module, so whoever makes the admissions hands it in.
+ */
+export type StopWork = (harness: Harness, conversation: Conversation, context: Context) => Promise<void>;
 
 /**
  * Chat's view of the agent's records, over the engine. Each thread has one
@@ -17,7 +20,7 @@ const context = BACKGROUND_CONTEXT;
  * past it. Nothing is lost between an event being read and being taken up, and
  * nothing is taken up twice.
  */
-export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask): Admissions {
+export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask, stopWork: StopWork): Admissions {
   return {
     async cursor() {
       return (await harness.snapshot(FeedDoc, context))?.cursor ?? undefined;

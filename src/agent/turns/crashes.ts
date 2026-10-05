@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ConversationId, Harness } from "@earendil-works/pi-durable";
-import { RecordsDoc } from "./documents.ts";
+import { RecordsDoc } from "../records/index.ts";
 import { MAX_CRASHES, turnsUnderway } from "./turn-task.ts";
 
 const context = BACKGROUND_CONTEXT;

@@ -11,12 +11,16 @@ import {
   type Tx,
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
-import type { Wakeup } from "../chat/index.ts";
-import { type SessionRecord, SessionsDoc, sessionAddress } from "./documents.ts";
-import { keepCancelled } from "./kept.ts";
-import { takeUp } from "./take-up.ts";
-import { placeOfSession, type SessionPlace } from "./thread-of.ts";
-import type { TurnTask } from "./turn-task.ts";
+import type { Wakeup } from "../inputs/index.ts";
+import {
+  keepCancelled,
+  placeOfSession,
+  sessionAddress,
+  type SessionPlace,
+  type SessionRecord,
+  SessionsDoc,
+} from "../records/index.ts";
+import { takeUp, type TurnTask } from "../turns/index.ts";
 
 /** The name of the task that waits for a wake-up to come due, and then takes it up as an input. */
 const WAKEUP_TASK = "shrimpy.wakeup";

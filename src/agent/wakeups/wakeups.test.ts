@@ -6,11 +6,13 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { defineExtension } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir } from "../../lib/testing/index.ts";
-import { type Delivery, isWakeup, type Outstanding, type TurnOutcome } from "../chat/index.ts";
+import { createAdmissions } from "../chat/index.ts";
 import { openHost } from "../host/index.ts";
-import { wakeupTools } from "../message-tools/index.ts";
+import { isWakeup, type Outstanding, type TurnOutcome } from "../inputs/index.ts";
+import { createSessions, stopWork } from "../sessions/index.ts";
 import { callingTools, fauxModels, loggedRequests, type Script } from "../testing/index.ts";
-import { createSessions, createWakeups, turnTask } from "./index.ts";
+import { beginRun, type Delivery, turnTask } from "../turns/index.ts";
+import { createWakeups, wakeupTools } from "./index.ts";
 
 /*
  * Wake-ups on the real engine, with no chat. The engine is stopped without
@@ -71,9 +73,10 @@ async function start(t: TestContext, home: string, script: Script, options: Star
   let closing: Promise<void> | undefined;
   const stop = (): Promise<void> => (closing ??= host.close());
   stopAfter(t, stop);
-  const sessions = createSessions(host.harness, { model, cwd: home }, turn.task);
-  await sessions.applyDefaults();
-  await sessions.start();
+  const defaults = { model, cwd: home };
+  const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork);
+  await createSessions(host.harness, defaults).applyDefaults();
+  await beginRun(host.harness);
   host.resume();
   return {
     told,
@@ -81,7 +84,7 @@ async function start(t: TestContext, home: string, script: Script, options: Star
     stop,
     /** A message from a person in a thread of its own, as the agent takes it up. */
     admit: () =>
-      sessions.admissions.admit({
+      admissions.admit({
         event: { kind: "posted", id: "evt_1", seq: 1, author: "Zach", text: "check back soon", sentAt: Date.now() },
         threadId: "th_1",
         channelId: "ch_1",

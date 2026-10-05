@@ -4,11 +4,13 @@ import { setTimeout as delay } from "node:timers/promises";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type CommitPublication, type ConversationId, defineExtension, defineTask } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir, until } from "../../lib/testing/index.ts";
-import { type ChatInput, type Delivery, idOf, isChat, type Snapshot, type TurnOutcome } from "../chat/index.ts";
+import { createAdmissions } from "../chat/index.ts";
 import { openHost } from "../host/index.ts";
+import { type ChatInput, idOf, isChat, type Snapshot, type TurnOutcome } from "../inputs/index.ts";
+import { SessionsDoc } from "../records/index.ts";
+import { createSessions, stopWork } from "../sessions/index.ts";
 import { type FauxScenario, fauxModels, releaseGate } from "../testing/index.ts";
-import { SessionsDoc } from "./documents.ts";
-import { createSessions, turnTask } from "./index.ts";
+import { type Delivery, turnTask } from "./index.ts";
 import { TURN_TASK } from "./turn-task.ts";
 
 const timeout = 30_000;
@@ -62,7 +64,7 @@ function paced(turn: ReturnType<typeof turnTask>, pace: NonNullable<OpenOptions[
   return { task, extension: defineExtension({ name: "turns", tasks: [task] }) };
 }
 
-/** An agent's host and sessions on `home`, stopped when the test ends. `stop` ends it earlier, as a crash would. */
+/** An agent's host and admissions on `home`, stopped when the test ends. `stop` ends it earlier, as a crash would. */
 async function open(t: TestContext, home: string, scenario: FauxScenario, options: OpenOptions = {}) {
   const delivery = options.delivery ?? recordingDelivery().delivery;
   const reports: Error[] = [];
@@ -82,10 +84,11 @@ async function open(t: TestContext, home: string, scenario: FauxScenario, option
     releaseGate(home);
     await stop();
   });
-  const sessions = createSessions(host.harness, { model, cwd: home }, turn.task);
-  await sessions.applyDefaults();
+  const defaults = { model, cwd: home };
+  const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork);
+  await createSessions(host.harness, defaults).applyDefaults();
   host.resume();
-  return { host, sessions, reports, stop };
+  return { host, admissions, reports, stop };
 }
 
 type Opened = Awaited<ReturnType<typeof open>>;
@@ -103,11 +106,11 @@ async function endedTasks(host: Opened["host"]) {
 }
 
 test("taking an event up makes its session, the task that follows it and the cursor's move in one commit", { timeout }, async (t) => {
-  const { host, sessions } = await open(t, tempDir(t, "turns"), "mixed");
+  const { host, admissions } = await open(t, tempDir(t, "turns"), "mixed");
   const published: CommitPublication[] = [];
   host.harness.subscribeCommits((publication) => published.push(publication));
 
-  await sessions.admissions.admit(draft(1));
+  await admissions.admit(draft(1));
 
   const commits = published.filter((publication) => publication.changes.some((change) => change.type === "conversation"));
   assert.equal(commits.length, 1, "the session is made in one commit");
@@ -116,17 +119,17 @@ test("taking an event up makes its session, the task that follows it and the cur
   assert.ok(kinds.includes("shrimpy.threads") && kinds.includes("shrimpy.feed"), `with its thread and the cursor: ${String(kinds)}`);
   const task = changes.find((change) => change.type === "task");
   assert.ok(task?.type === "task" && task.value.kind === TURN_TASK && task.value.background, "and a background task");
-  assert.equal(await sessions.admissions.cursor(), 1);
+  assert.equal(await admissions.cursor(), 1);
 });
 
 test("events taken up together reach their session in the order of the events, whichever task starts first, urgent ones included", { timeout }, async (t) => {
   const ids = Array.from({ length: 12 }, (_, index) => index + 1);
   // The later the event, the sooner its task starts.
   const reversed = (input: ChatInput, signal: AbortSignal) => delay((ids.length - input.event.seq) * 15, undefined, { signal });
-  const { host, sessions } = await open(t, tempDir(t, "turns"), "gated", { pace: reversed });
+  const { host, admissions } = await open(t, tempDir(t, "turns"), "gated", { pace: reversed });
 
   // Every third event is urgent, so the session is handed steers among the follow-ups.
-  for (const n of ids) await sessions.admissions.admit(n % 3 === 0 ? { ...draft(n), urgent: true } : draft(n));
+  for (const n of ids) await admissions.admit(n % 3 === 0 ? { ...draft(n), urgent: true } : draft(n));
 
   const reached = await eventually(() => handedOver(host), (found) => found.length === ids.length, {
     what: "every event to reach the session",
@@ -137,13 +140,13 @@ test("events taken up together reach their session in the order of the events, w
 test("events taken up before a restart and after it reach their session in the order of the events", { timeout }, async (t) => {
   const home = tempDir(t, "turns");
   const before = await open(t, home, "gated", { pace: (_input, signal) => delay(60_000, undefined, { signal }) });
-  for (const n of [1, 2, 3, 4]) await before.sessions.admissions.admit(draft(n));
+  for (const n of [1, 2, 3, 4]) await before.admissions.admit(draft(n));
   assert.deepEqual(await handedOver(before.host), [], "none of them reached the session before the engine went");
   await before.stop();
 
   const reversed = (input: ChatInput, signal: AbortSignal) => delay((8 - input.event.seq) * 15, undefined, { signal });
   const after = await open(t, home, "gated", { pace: reversed });
-  for (const n of [5, 6, 7]) await after.sessions.admissions.admit(draft(n));
+  for (const n of [5, 6, 7]) await after.admissions.admit(draft(n));
 
   const reached = await eventually(() => handedOver(after.host), (found) => found.length === 7, {
     what: "every event to reach the session",
@@ -153,15 +156,15 @@ test("events taken up before a restart and after it reach their session in the o
 
 test("a failure while handing an event over leaves a failed receipt with the reason, is reported, and ends the task by its own hand", { timeout }, async (t) => {
   const { delivery, told } = recordingDelivery();
-  const { host, sessions, reports } = await open(t, tempDir(t, "turns"), "mixed", { delivery });
-  await sessions.admissions.admit(draft(1));
+  const { host, admissions, reports } = await open(t, tempDir(t, "turns"), "mixed", { delivery });
+  await admissions.admit(draft(1));
   await until(() => told.length === 1, "the first event to be told");
   // A passive entry already holds the request ID the second event will be handed over with.
   const conversationId = (await host.harness.snapshot(SessionsDoc, context))?.sessions.th_1?.conversationId;
   const session = await host.harness.conversation(conversationId as ConversationId, context);
   await session?.submit({ type: "write", entry: { kind: "test.note" }, requestId: "chat:evt_2" }, context);
 
-  await sessions.admissions.admit(draft(2));
+  await admissions.admit(draft(2));
 
   await until(() => told.length === 2, "the second event to be told");
   const outcome = told[1]?.outcome;
@@ -175,9 +178,9 @@ test("a failure while handing an event over leaves a failed receipt with the rea
 
 test("a failure while telling chat is told as a failure, once, and is reported", { timeout }, async (t) => {
   const { delivery, told } = recordingDelivery((outcome) => (outcome.kind === "answered" ? new Error("The disk is full.") : undefined));
-  const { host, sessions, reports } = await open(t, tempDir(t, "turns"), "mixed", { delivery });
+  const { host, admissions, reports } = await open(t, tempDir(t, "turns"), "mixed", { delivery });
 
-  await sessions.admissions.admit(draft(1));
+  await admissions.admit(draft(1));
 
   await until(() => told.length === 1, "the event to be told");
   assert.deepEqual(told[0]?.outcome, { kind: "failed", reason: "The agent hit an internal error: The disk is full." });
@@ -189,8 +192,8 @@ test("a failure while telling chat is told as a failure, once, and is reported",
 
 test("a task that is aborted stops its event's turn, tells chat it was stopped, and ends as aborted", { timeout }, async (t) => {
   const { delivery, told } = recordingDelivery();
-  const { host, sessions, reports } = await open(t, tempDir(t, "turns"), "mixed", { delivery, tokensPerSecond: 100 });
-  await sessions.admissions.admit(draft(1, "stream a long answer"));
+  const { host, admissions, reports } = await open(t, tempDir(t, "turns"), "mixed", { delivery, tokensPerSecond: 100 });
+  await admissions.admit(draft(1, "stream a long answer"));
   const { tasks } = await eventually(
     () => host.harness.inspect(context),
     (found) => found.submissions.some((submission) => submission.status === "placed"),

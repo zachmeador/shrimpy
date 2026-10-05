@@ -1,7 +1,6 @@
 import type { ConversationId, Tx } from "@earendil-works/pi-durable";
-import type { Outstanding } from "../chat/index.ts";
-import { plain, SessionsDoc, sessionAddress } from "./documents.ts";
-import { carrying, takeCancelled, takeEvents } from "./kept.ts";
+import type { Outstanding } from "../inputs/index.ts";
+import { carrying, plain, sessionAddress, SessionsDoc, takeCancelled, takeEvents } from "../records/index.ts";
 import type { TurnTask } from "./turn-task.ts";
 
 /** An input as its source makes it: what its session kept for it is not in it yet. */

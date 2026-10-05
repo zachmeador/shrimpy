@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ChatEvent, Member, Receipt } from "../../contracts/chat/index.ts";
-import { DEFAULT_WAKE_POLICY, type WakePolicy } from "./policy.ts";
+import { DEFAULT_WAKE_POLICY, type WakePolicy } from "../home/index.ts";
 import { takeUp } from "./wake.ts";
 
 // IDs mean nothing, so any will do for members who only have to be told apart.

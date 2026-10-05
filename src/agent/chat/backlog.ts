@@ -1,7 +1,6 @@
 import type { Channel, ChatClient, Member, Message } from "../../contracts/chat/index.ts";
+import { type Backlog, type Said, written } from "../inputs/index.ts";
 import { audienceOf } from "./audience.ts";
-import type { Backlog, Said } from "./events.ts";
-import { written } from "./prompt.ts";
 import { clip } from "./reply.ts";
 
 /** Characters of messages the model is shown of what it missed. */

@@ -2,11 +2,11 @@ import { type Context, replicatedState } from "@earendil-works/chord";
 import type { Conversation, Harness } from "@earendil-works/pi-durable";
 import type { SessionService } from "../../contracts/agent/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
+import { withdrawUnhanded } from "../turns/index.ts";
+import { cancelWakeups } from "../wakeups/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
 import { waitForSettlement } from "./settlement.ts";
-import { withdrawUnhanded } from "./turn-task.ts";
-import { cancelWakeups } from "./wakeups.ts";
 
 /** A session being served: the contract's service, and a way to stop serving it. */
 export interface ServedSession {

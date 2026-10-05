@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { stopAfter } from "../../lib/testing/index.ts";
-import type { Working } from "./events.ts";
+import type { Working } from "../turns/index.ts";
 import { startChatRig } from "./testing/index.ts";
 import { markWorking } from "./working.ts";
 

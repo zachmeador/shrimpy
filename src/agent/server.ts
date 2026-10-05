@@ -13,7 +13,8 @@ import { socketPathFor } from "../lib/runtime/node.ts";
 import { type Asker, carryCallers, guardSession } from "./access/index.ts";
 import { type Entry, type HomeFiles, serveDirectory } from "./directory.ts";
 import type { Host } from "./host/index.ts";
-import type { Sessions, Triggers } from "./sessions/index.ts";
+import type { Sessions } from "./sessions/index.ts";
+import type { Triggers } from "./triggers/index.ts";
 
 export type { HomeFiles } from "./directory.ts";
 

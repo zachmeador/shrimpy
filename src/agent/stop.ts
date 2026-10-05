@@ -1,7 +1,7 @@
 import type { Host } from "./host/index.ts";
 import type { Joined } from "./join.ts";
 import type { AgentServer } from "./server.ts";
-import type { Run } from "./sessions/index.ts";
+import type { Run } from "./turns/index.ts";
 
 export interface CloseOptions {
   /** Do not wait for running turns. What they had done is kept, and they resume at the next start. */

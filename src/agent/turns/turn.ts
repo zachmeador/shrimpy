@@ -1,6 +1,6 @@
 import type { EntryRecord, SettledSubmissionRecord } from "@earendil-works/pi-durable";
-import type { TurnOutcome } from "../chat/index.ts";
-import { answerText, describe } from "./settlement.ts";
+import type { TurnOutcome } from "../inputs/index.ts";
+import { answerText, describe } from "./answer.ts";
 
 /**
  * How a settled input ended, in the terms a message's receipt uses. `answer` is

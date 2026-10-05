@@ -5,8 +5,7 @@ import type { Message } from "../contracts/chat/index.ts";
 import type { Entered } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
-import type { WakePolicy } from "./chat/index.ts";
-import { homePaths } from "./home/index.ts";
+import { homePaths, type WakePolicy } from "./home/index.ts";
 import { loggedRequests, roomWith, startAgentRig, talking } from "./testing/index.ts";
 
 /*

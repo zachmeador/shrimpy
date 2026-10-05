@@ -1,14 +1,8 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
 import type { SessionSummary } from "../../contracts/agent/index.ts";
-import type { Admissions, Working } from "../chat/index.ts";
-import { createAdmissions } from "./admissions.ts";
-import { beginRun, type Run } from "./crashes.ts";
-import { agentChange, type SessionDefaults } from "./defaults.ts";
-import { type SessionRecord, SessionsDoc } from "./documents.ts";
+import { agentChange, type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/index.ts";
 import { type ServedSession, serveSession } from "./service.ts";
-import type { TurnTask } from "./turn-task.ts";
-import { createWorking } from "./working.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -26,19 +20,9 @@ export interface Sessions {
   serve(address: string, takingInput: () => boolean): Promise<ServedSession>;
   /** Make every session follow the home's model and working directory, as a new session does from the start. */
   applyDefaults(): Promise<void>;
-  /**
-   * Begin the agent's run: say in the records that it is running, and count the crash of every turn that the last
-   * run, if it ended without an orderly stop, left underway. A turn that has crashed twice is stopped, so that it
-   * does not run again, and its source is told it failed. Call it once, before the engine resumes.
-   */
-  start(): Promise<Run>;
-  /** What chat takes events up through, and keeps its place in the feed with. */
-  readonly admissions: Admissions;
-  /** What chat asks about the inputs taken up and not yet told to their sources. */
-  readonly working: Working;
 }
 
-export function createSessions(harness: Harness, defaults: SessionDefaults, turn: TurnTask): Sessions {
+export function createSessions(harness: Harness, defaults: SessionDefaults): Sessions {
   const records = async (): Promise<Record<string, SessionRecord>> =>
     (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
 
@@ -78,11 +62,6 @@ export function createSessions(harness: Harness, defaults: SessionDefaults, turn
         }
       }, context);
     },
-
-    start: () => beginRun(harness),
-
-    admissions: createAdmissions(harness, defaults, turn),
-    working: createWorking(harness),
   };
 }
 

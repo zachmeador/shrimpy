@@ -1,5 +1,5 @@
 import type { ChatLink, LiveChat } from "../links/index.ts";
-import type { Working } from "./events.ts";
+import type { Working } from "../turns/index.ts";
 
 /**
  * Keep chat told which threads the agent is working in, as its sessions say:

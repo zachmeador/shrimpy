@@ -1,6 +1,6 @@
 import { type ChatEvent, type Member, mentions } from "../../contracts/chat/index.ts";
-import type { ChatInput, Snapshot } from "./events.ts";
-import type { WakePolicy } from "./policy.ts";
+import type { WakePolicy } from "../home/index.ts";
+import type { ChatInput, Snapshot } from "../inputs/index.ts";
 
 /** What the agent takes up of an event, with where it came from. */
 export type Taken = Omit<ChatInput, "earlier" | "cancelled">;

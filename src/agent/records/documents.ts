@@ -1,7 +1,7 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import { newId } from "../../lib/ids/index.ts";
-import { isOccurrence, isWakeup, type Outstanding, type Snapshot, threadOf, type Wakeup } from "../chat/index.ts";
 import type { TriggerDefinition } from "../home/index.ts";
+import { isOccurrence, isWakeup, type Outstanding, type Snapshot, threadOf, type Wakeup } from "../inputs/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
@@ -48,7 +48,7 @@ export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: R
  */
 export type SessionRecord =
   | {
-      /** The engine's ID for the session. Only this module knows what it is. */
+      /** The engine's ID for the session. */
       conversationId: number;
       channelId: string;
       /** Events skipped when work was stopped: shown with the next event in the thread. Oldest first. */

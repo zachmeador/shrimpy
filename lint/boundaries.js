@@ -8,7 +8,7 @@ import { posix } from "node:path";
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
 const FRONT_DOORS = ["index.ts", "node.ts"];
 /** The parts of the agent that may import Pi's durable runtime. Everything else sees only Shrimpy's own types. */
-const DURABLE_IN_AGENT = ["host", "sessions", "message-tools", "context"];
+const DURABLE_IN_AGENT = ["host", "records", "turns", "wakeups", "triggers", "chat", "sessions", "message-tools", "context"];
 
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
@@ -23,7 +23,7 @@ const messages = {
   testing: "Only tests and test support import a testing/ module, not {{target}}.",
   durable: "Only agent/ imports Pi's durable runtime.",
   durableInAgent:
-    "Inside agent/, only host/, sessions/, message-tools/ and context/ import Pi's durable runtime, not {{part}}: the rest, chat/ included, sees only Shrimpy's own types.",
+    "Inside agent/, only host/, records/, turns/, wakeups/, triggers/, chat/, sessions/, message-tools/ and context/ import Pi's durable runtime, not {{part}}: the rest, inputs/ included, sees only Shrimpy's own types.",
   piTui: "Only clients/console/ imports pi-tui, and only from the package root.",
   piTuiDraw:
     "Inside clients/console/, only draw/ imports pi-tui: the client's state and everything that reaches the network must work without a terminal.",

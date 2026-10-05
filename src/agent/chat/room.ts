@@ -1,9 +1,9 @@
 import type { ChatClient, ChatEvent, Member } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
+import type { Backlog, Snapshot } from "../inputs/index.ts";
 import { audienceOf } from "./audience.ts";
 import { backlogOf, readUnseen } from "./backlog.ts";
 import type { Channels } from "./channels.ts";
-import type { Backlog, Snapshot } from "./events.ts";
 import type { Taken } from "./wake.ts";
 
 /** What taking an event up in a room needs, apart from the event. */

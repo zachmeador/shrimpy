@@ -3,9 +3,10 @@ import type { connectChat } from "../contracts/chat/index.ts";
 import type { GatewayConnection, Transports } from "../contracts/gateway/index.ts";
 import { localTransports } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
-import { type Admissions, type Delivery, startIntake, type Working } from "./chat/index.ts";
+import { type Admissions, startIntake } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
 import { joinGateway, type LiveChat, openChatLink } from "./links/index.ts";
+import type { Delivery, Working } from "./turns/index.ts";
 
 export interface JoinOptions {
   /**

@@ -1,6 +1,6 @@
 import type { ChatClient, ChatEvent, Member } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import type { Admissions } from "./events.ts";
+import type { Admissions } from "./admit.ts";
 
 /**
  * What the agent does for each command a person can write in a thread, with no

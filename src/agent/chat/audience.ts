@@ -1,5 +1,5 @@
 import type { Channel, Member } from "../../contracts/chat/index.ts";
-import type { Audience } from "./events.ts";
+import type { Audience } from "../inputs/index.ts";
 
 /**
  * Who a message in `room` was for, from the IDs chat says it is addressed to:

@@ -1,12 +1,22 @@
 import { Type } from "@earendil-works/pi-ai";
-import { defineTool } from "@earendil-works/pi-durable";
-import type { WakeupToolsOptions } from "./options.ts";
-import { answer, failure } from "./results.ts";
+import { defineExtension, defineTool, type Extension, type ToolExecutionResult } from "@earendil-works/pi-durable";
+import type { Wakeups } from "./wakeups.ts";
 import { readWhen } from "./when.ts";
 import * as words from "./words.ts";
 
+/** What the tool that wakes the session later is handed: where the agent's wake-ups are kept. */
+export interface WakeupToolsOptions {
+  wakeups: Wakeups;
+}
+
 /** The most characters a note may have: it is shown to the model again, perhaps with others, when it is woken. */
 const MAX_NOTE = 1_000;
+
+/** A tool's answer: just these words. */
+const answer = (text: string): ToolExecutionResult => ({ content: [{ type: "text", text }] });
+
+/** A tool's answer when it did not do what was asked: just these words, marked as an error. */
+const failure = (text: string): ToolExecutionResult => ({ isError: true, content: [{ type: "text", text }] });
 
 /**
  * `check_back`: wake the session that calls it, once, after a delay or at a
@@ -40,4 +50,9 @@ export function checkBack(options: WakeupToolsOptions) {
       return answer(words.wakeSet(set.wakeup.due, set.wakeup.askedAt, set.inThread));
     },
   });
+}
+
+/** The tool that wakes the calling session later, as an extension to install in the engine's registry. */
+export function wakeupTools(options: WakeupToolsOptions): Extension {
+  return defineExtension({ name: "wakeup-tools", tools: [checkBack(options)] });
 }

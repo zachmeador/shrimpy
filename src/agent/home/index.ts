@@ -26,7 +26,17 @@ export {
   switchTrigger,
   type TriggerDraft,
 } from "./trigger-files.ts";
-export { parseWake, readWake, saveWake, type WakeRead } from "./wake.ts";
+export {
+  DEFAULT_WAKE_POLICY,
+  isWakePolicy,
+  parseWake,
+  readWake,
+  saveWake,
+  WAKE_POLICIES,
+  type WakePolicy,
+  type WakeRead,
+  type WakeSettings,
+} from "./wake.ts";
 export {
   parseTrigger,
   readTriggers,

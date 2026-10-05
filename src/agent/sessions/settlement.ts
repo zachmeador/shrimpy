@@ -9,7 +9,7 @@ import type {
 } from "@earendil-works/pi-durable";
 import type { Settlement } from "../../contracts/agent/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { assistantText } from "./session-view.ts";
+import { answerText, describe } from "../turns/index.ts";
 
 /** Wait for a submission of `conversation` to end, and say how it ended. */
 export async function waitForSettlement(
@@ -44,16 +44,4 @@ export function toSettlement(record: SettledSubmissionRecord, answer: EntryRecor
   if (record.status === "done") return { status: "answered", text: answerText(answer) };
   if (record.reason === "aborted") return { status: "cancelled" };
   return { status: "unanswered", reason: record.reason, detail: describe(record.detail) };
-}
-
-/** The words of an answer entry, or nothing if the entry holds no answer. */
-export function answerText(answer: EntryRecord | undefined): string {
-  const message = answer?.model?.[0];
-  return message?.role === "assistant" ? assistantText(message) : "";
-}
-
-/** What the engine says about why an input went unanswered, as text. */
-export function describe(detail: unknown): string | null {
-  if (detail === undefined || detail === null) return null;
-  return typeof detail === "string" ? detail : JSON.stringify(detail);
 }

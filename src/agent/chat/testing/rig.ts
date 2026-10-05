@@ -5,9 +5,11 @@ import { gatewayAsAgent } from "../../../contracts/chat/testing/index.ts";
 import { localTransports } from "../../../contracts/gateway/node.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
+import type { Outstanding } from "../../inputs/index.ts";
 import { type ChatLink, openChatLink } from "../../links/index.ts";
 import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
-import { createDelivery, type Delivery, type DeliveryOptions, type Outstanding } from "../index.ts";
+import type { Delivery } from "../../turns/index.ts";
+import { createDelivery, type DeliveryOptions } from "../index.ts";
 
 type Method = "post" | "leaveReceipt";
 

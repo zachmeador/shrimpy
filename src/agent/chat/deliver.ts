@@ -5,8 +5,8 @@ import {
   type Receipt,
 } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
-import { clip, inParts, readFinalText, replyRequestId } from "./reply.ts";
-import { isChat, type Outstanding, type TurnOutcome } from "./events.ts";
+import { isChat, type Outstanding, readFinalText, type TurnOutcome } from "../inputs/index.ts";
+import { clip, inParts, replyRequestId } from "./reply.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
