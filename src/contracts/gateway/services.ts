@@ -95,15 +95,22 @@ export interface Gateway {
    * never heard the answer joins again with the same token and is the same
    * member: when the roster already has the member that holds the token, this
    * is that member, renamed to `name` if it is not called that. A name another
-   * member has, whatever the case, is refused. Only a program on the gateway's
+   * member has, whatever the case, is refused. So is joining, under any name,
+   * with the token of a member that a program is registered as on another
+   * connection: a copy of an agent's home holds the same token, and the agent
+   * that is running keeps its name and stays the one that is reached. The token
+   * joins again once that connection has ended. Only a program on the gateway's
    * machine can join.
    */
   join(name: string, token: string, context: Context): Promise<Member>;
   /**
    * Be the member that holds `token` from now on. With a `name` that is not the
    * member's, the member is renamed first, and a name another member has is
-   * refused. With null the roster's name stands. A token the roster does not
-   * have is refused. Only a program on the gateway's machine can sign in.
+   * refused. A rename is refused too while a program is registered as the
+   * member on another connection, for the reason `join` is. With null, or the
+   * member's own name, nothing changes, so a command run in an agent's shell
+   * can sign in as the agent while it runs. A token the roster does not have is
+   * refused. Only a program on the gateway's machine can sign in.
    */
   signIn(token: string, name: string | null, context: Context): Promise<Member>;
   /** Everyone on the roster, oldest first. It carries no token and no socket. */

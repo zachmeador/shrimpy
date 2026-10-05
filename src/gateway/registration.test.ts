@@ -113,7 +113,58 @@ test("a registration lasts as long as its connection: it is gone when its proces
   }
 });
 
-test("a copied home is two live connections with one ID: both are listed, and the member is reachable until both are gone", { timeout }, async (t) => {
+test("a copy of an agent's home that joins or renames with its token is turned away while the agent runs, which keeps its name and stays the one reached", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startGatewayInProcess(t);
+  const [original, copy, shell, observer] = await Promise.all([1, 2, 3, 4].map(() => connectLocalGateway()));
+  try {
+    const token = newToken();
+    const running = agent("scout");
+    const scout = await original!.join("scout", token);
+    await original!.register(running);
+
+    // The copy of a home that never wrote down its member ID joins. The copy of one that did signs in, under its new name.
+    await assert.rejects(copy!.join("scout", token), { code: "service_not_allowed", message: /already running/ });
+    await assert.rejects(copy!.join("scout2", token), { code: "service_not_allowed", message: /already running/ });
+    await assert.rejects(copy!.signIn(token, "scout2"), { code: "service_not_allowed", message: /already running/ });
+
+    const agents = (await observer!.members()).filter((each) => each.kind === "agent");
+    assert.deepEqual(agents, [{ ...scout, reachable: true }], "nothing is renamed, and the copy made no member of its own");
+    assert.equal((await observer!.ticket({ kind: "agent", name: "scout" })).serverId, running.serverId);
+    await assert.rejects(observer!.ticket({ kind: "agent", name: "scout2" }), /no agent called scout2/);
+
+    assert.deepEqual(await shell!.signIn(token, null), scout, "a command in the agent's shell still signs in as the agent");
+  } finally {
+    for (const connection of [original, copy, shell, observer]) await connection?.close();
+    await gateway.close();
+  }
+});
+
+test("once the running agent's connection is gone, its token joins and registers again, under another name too", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startGatewayInProcess(t);
+  const [original, successor, observer] = await Promise.all([1, 2, 3].map(() => connectLocalGateway()));
+  try {
+    const token = newToken();
+    const scout = await original!.join("scout", token);
+    await original!.register(agent("scout"));
+    await assert.rejects(successor!.join("scout2", token), /already running/);
+
+    await original!.close();
+    await eventually(() => observer!.list(), (list) => list.length === 0, { what: "the registration to go" });
+
+    assert.deepEqual(await successor!.join("scout2", token), { ...scout, name: "scout2" });
+    const next = agent("scout2");
+    await successor!.register(next);
+    assert.deepEqual(await observer!.list(), [{ kind: "agent", name: "scout2", memberId: scout.id, version: next.version }]);
+    assert.equal((await observer!.ticket({ kind: "agent", name: "scout2" })).serverId, next.serverId);
+  } finally {
+    for (const connection of [original, successor, observer]) await connection?.close();
+    await gateway.close();
+  }
+});
+
+test("a copy that keeps the original's name signs in without a rename and registers beside it: both are listed, and the member is reachable until both are gone", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGatewayInProcess(t);
   const [original, copy, observer] = await Promise.all([1, 2, 3].map(() => connectLocalGateway()));

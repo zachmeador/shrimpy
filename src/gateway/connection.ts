@@ -58,6 +58,23 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     if (registered !== undefined) refuse(`This connection has registered already, so it can't ${what}.`);
   };
 
+  /**
+   * A copy of an agent's home holds the agent's token. While a program is
+   * registered as the member, joining with its token or renaming the member with
+   * it would let the copy change the agent that runs, so that is refused. The
+   * asking connection has not registered yet, so a registration of the member is
+   * on another connection.
+   */
+  const refuseIfRunning = (member: Member): void => {
+    if (!registry.list().some((program) => program.memberId === member.id)) return;
+    refuse(
+      `The agent "${member.name}" is already running, and this home holds its token, so the gateway takes it for the same agent. ` +
+        "If this home is a copy that should be an agent of its own, stop it, delete its state/member.json, " +
+        "give it another name in agent.json and start it again.",
+      "service_not_allowed",
+    );
+  };
+
   /** Make the ways in match what is registered. A way that cannot be made is the caller's to be told of, not an internal error. */
   const openWays = async (): Promise<void> => {
     try {
@@ -103,6 +120,9 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       onThisMachine("join");
       beforeRegistering("join");
       if (signedIn !== undefined) refuse(`This connection is already signed in as ${caller().name}.`);
+      // The roster renames the member that holds the token, so whether it runs is checked first.
+      const holder = typeof token === "string" ? roster.memberWithToken(token) : undefined;
+      if (holder !== undefined) refuseIfRunning(holder);
       const member = roster.join(name, token);
       signedIn = member.id;
       return member;
@@ -118,7 +138,10 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
         refuse(`This connection is already signed in as ${caller().name}.`);
       }
       const wanted: unknown = name;
-      const signed = wanted === null || wanted === undefined ? member : roster.rename(member.id, wanted as string);
+      const named = wanted !== null && wanted !== undefined;
+      // Signing in without a rename changes nothing, so a command in the agent's shell can do it while the agent runs.
+      if (named && wanted !== member.name) refuseIfRunning(member);
+      const signed = named ? roster.rename(member.id, wanted as string) : member;
       signedIn = signed.id;
       // A rename moves the registrations of that member to the new name, and their ways in with them.
       if (signed.name !== member.name) await openWays();
