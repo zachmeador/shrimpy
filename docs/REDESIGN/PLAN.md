@@ -104,7 +104,7 @@ If implementation finds another visible difference, add a row before shipping it
 | Working contexts | One session per agent for each chat or binding | One session per agent for each thread it takes part in, with its own history and model settings and the home's shared resources. No master session and no shared transcripts. A new thread isn't a new agent or a filesystem boundary. | Confirmed |
 | `shrimpy run` | Ephemeral; prints intermediate and final assistant text | Posts to a thread, a new one in your DM with the agent unless one is selected, and prints the final settled answer. Scripts that parse today's output or exit codes need updating. | Confirmed |
 | New, reset, archive, resume | New and restore wait behind running work and swap JSONL files | A new topic is a new thread, and the old one stays to come back to. Reset clears the agent's context for a thread, while the thread's messages and the agent's earlier work stay browsable; a chat app without threads, like a Telegram private chat, uses reset for `/new` as today. Archive hides a thread without deleting it, and resume reopens one. A new thread starts at once, even while the agent is busy, because an agent runs its sessions side by side, and late replies in the earlier thread still arrive there. | Confirmed |
-| Identifiers | Path-shaped session IDs | Channels, threads and sessions get short, stable IDs, and channels and threads have names you can change. A session is identified by its agent and thread: its address at the agent is the thread's ID, so a client looking at a thread opens the work behind it with the same ID. There's no main session, and a session with no thread, such as a helper's, gets an ID of its own. A new thread shows its first message until it's named. CLI JSON, search hits, anchors, URLs and copied links change. Choose a form that can gain a machine prefix later. | Confirmed |
+| Identifiers | Path-shaped session IDs | Channels, threads and sessions get short, stable IDs, and channels and threads have names you can change. A session is identified by its agent and thread: its address at the agent is the thread's ID, so a client looking at a thread opens the work behind it with the same ID. There's no main session. A session behind no thread has an address of its own: a trigger's own session is `trigger:<name>`. A new thread shows its first message until it's named. CLI JSON, search hits, anchors, URLs and copied links change. Choose a form that can gain a machine prefix later. | Confirmed |
 | Old history | JSONL transcripts | Shrimpy converts nothing. Old transcripts stay in the old workspace, and each agent brings over whatever it wants from there itself. Channel logs aren't carried over, so new channels start empty. | Confirmed |
 
 ### Input, cancellation and recovery
@@ -216,10 +216,11 @@ The thinnest of the [six core pieces](#phases). The first column is what the new
 
 The builders made these visible choices while implementing. None has shipped, and each is open until you've looked at it. A new one is added here when its code is merged.
 
-**Worth a look.** One is open.
+**Worth a look.** Two are open.
 
 | Topic | What the build does | Why look |
 |---|---|---|
+| A new dependency | Cron schedules are worked out by the package `cron-parser`, pinned at 5.5.0, which brings `luxon` with it. It is what old Shrimpy used, so it is the calendar the plan says to reuse. | It is the first dependency the new Shrimpy has taken beyond Pi's packages and the tools that check it. |
 | Where your setup lives | One folder, `~/shrimpy` unless `SHRIMPY_DIR` names another: `agents/<name>/` for homes, with the gateway's and the chat server's data beside them. Where a command takes an agent, a bare word means the home of that name there, and `shrimpy up` with no arguments starts every agent in it. Built on 2026-10-04, on your ask to think only in terms of `shrimpy`. A path still works: anything with a `/` in it, or that starts with `.` or `~`. A folder that holds other files and no `agents/` is taken to be someone else's and is left alone; dot files, such as a `.DS_Store`, don't count. The terminal client names an agent's commands by its roster name, which is its folder's name unless it was started from a path or renamed. | It is the one sticky default: where your agents live. Old Shrimpy's `~/.shrimpy` is never read or written, so an old workspace stays untouched. |
 
 **Reviewed on 2026-10-04.**
@@ -309,6 +310,11 @@ The builders made these visible choices while implementing. None has shipped, an
 | Stopping an agent | It waits for the receipts of the turns that have ended, as before, and now stops waiting as soon as chat is lost. |
 | The agent's records have an ID | `rec_` and 12 characters, made once and kept in a document of its own, `shrimpy.records`. Every request ID the agent builds from Pi's own numbers carries it: a reply's and `send_message`'s. Without it, an agent started fresh in a thread it had already answered in could reuse an old reply's ID, and chat would refuse the new reply. |
 | What is kept for each event | A finished task of about 445 bytes with the event's text, for good. Nothing prunes them. |
+| A trigger file | Keys: `every` (at least a minute) or `cron` (five fields) with `timezone`, which defaults to the machine's; `thread`; `enabled`; and `overlap`, `skip` or `allow`. The body is the prompt. A key nobody knows is refused by name, with the keys there are. A file that doesn't check out is left out at the start, and on reload the trigger keeps its last valid definition. |
+| When a trigger first runs | One interval after it is first seen, or at the next time its cron matches. A new schedule, or turning it back on, counts from the reload. After the agent was down past its time, it runs once at the start. |
+| A trigger's own session | It is named `trigger:<name>`, and `sessions list`, `read`, `steer` and `stop` reach it by that name. It stays when the trigger's file is removed, and a file put back under the same name uses it again. |
+| What a trigger reads as | "This is the trigger tidy, fired at …. Its schedule is every 1h." In a session of its own it adds that what the agent writes last is posted nowhere, and that `send_message` with `to` tells someone. Then the prompt, as written. One run by hand says so. |
+| Where the trigger tasks live | In `agent/sessions/`, with the wake-up's sleeper, because they write session records. The plan had put them in `extensions/triggers/`. |
 | The order of inputs in a session | By the ID of each input's task, since a task is made in the commit that admits its input and Pi numbers what it makes in that order. Pi's spec promises this of transcript entries and not of tasks, so it leans on how the storage numbers them; the order tests would catch a change. |
 | `check_back`'s limits | A delay of 1 second to 366 days, a note of up to 1,000 characters, and 20 wake-ups waiting in one session. A refusal begins "Not set:" and says what to give instead. `at` takes a full ISO time with an offset. |
 | What a wake-up reads as | The tool answers "You will be woken in this thread at …, in 5 minutes, with your note. You can end your turn now." When woken the model reads that this is a wake-up it asked for with `check_back`, when it asked, when it was for, and its note. The final text is posted like any reply. |
@@ -528,8 +534,8 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 ### Triggers
 
 - A standing trigger is defined by a file in the home's `triggers/`: front matter for the schedule and the check, and the prompt as its body. The files are read at the start and on reload, and commands that write one check it first.
-- A trigger and each of its occurrences are separate durable tasks owned by a session. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
-- Persist the trigger revision, next occurrence and target thread, if any. Admit prompt work with a stable trigger and occurrence ID.
+- A trigger and each of its occurrences are separate durable tasks. A trigger's task belongs to a conversation of the agent's own that is no session, and an occurrence belongs to the session it goes to. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
+- The trigger's task keeps its revision and its next occurrence. The definition, with its thread, prompt and overlap, is kept in Shrimpy's records and read at each occurrence. Admit prompt work with a stable trigger and occurrence ID.
 - **What a trigger brings in is data, not instructions.** The trigger's own prompt is the instruction, and it comes from whoever wrote the trigger. What a firing brings with it, a command's output today and perhaps an outside event's payload later, reaches the model marked as something to read, never as something to obey. Old Shrimpy pasted a command's output into a message its skill called an instruction; this one doesn't.
 - **An occurrence keeps its payload apart from the prompt.** It carries an ID from its source, when it fired and a payload, beside the trigger's prompt and never merged into it, so the two can be told apart in storage, in what the model is shown and in what a client draws. Both rules come from the [MCP events research](../research/mcp-events-and-triggers-2026-10-04.md).
 - Command occurrences record intent before running. If an unsafe command had started when the owner died, the occurrence reports interrupted and isn't rerun. A finished result and emission decision are kept, so an admission retry doesn't repeat the check.
@@ -583,8 +589,8 @@ src/
     home/           home layout, agent.json, resource and skill selection, model policy, credential paths
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
     sessions/       session control and queries, the session view that clients see, and Shrimpy's own records:
-                    the thread each session is behind, the feed cursor, and the task that follows each event to its
-                    receipt
+                    the thread each session is behind, the feed cursor, the task that follows each input to its
+                    end, and the tasks that sleep for wake-ups and for triggers
     links/          reaching the gateway and chat: joining and signing in, registering, entering chat with a ticket,
                     keeping the connection
     access/         who is asking on a connection, and what they may do
@@ -594,7 +600,6 @@ src/
     extensions/     durable extensions
       context/      prompt sections and compaction guidance; later, facts captured when input is taken up, breadcrumbs among them
       tools/        message tools, search, image reading, helpers
-      triggers/     trigger and occurrence tasks
   chat/             the chat server program
     store/          SQLite schema and transactions: the log of events and the messages they add up to
     threads/        channels, threads, membership, messages, attachments
@@ -772,6 +777,7 @@ Each phase ends with a shape review against the [layout rules](#target-source-la
 - Built on 2026-10-04: the `shrimpy` command takes an agent's name and has a default folder, `~/shrimpy`.
 - Built on 2026-10-04: the gateway refuses a second body for one agent.
 - Built on 2026-10-04: phase 4's first step, the one task for any input and `check_back`.
+- Built on 2026-10-05: phase 4's second step, standing triggers with a prompt. Their commands are a change of their own, and come next.
 - In progress on 2026-10-04: phase 5's first step, rooms in the chat server.
 - Phase 4 then builds on that one mechanism: asking another agent and carrying on with the answer, as the spike on `spike/ask-and-resume` showed, triggers that repeat and that fire once, and helpers.
 
