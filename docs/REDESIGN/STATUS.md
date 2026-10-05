@@ -34,6 +34,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 
 ### The conversation model
 
+- When the chat store is replaced, an agent keeps its sessions behind the old store's threads, and goes on with what was unfinished in them. A wake-up that was waiting there, or a turn that was cut short, runs once more, calls the model, and then can't post: chat refuses the mark on the thread and the reply, and the agent reports each. It ends by itself. The agent knows the store was replaced, so it could stop that work and say so once.
 - After a fresh start an agent has forgotten where it last looked, so its first wake in a room shows up to 20,000 characters of history, from before it joined included.
 - An edit that removes a mention takes it from the original post too, for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.

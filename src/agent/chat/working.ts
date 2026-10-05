@@ -18,7 +18,10 @@ export function markWorking(link: ChatLink, working: Working, onError: (error: E
       await live.chat.setWorking(threadId, on, live.lost);
       return true;
     } catch (error) {
-      if (!live.lost.aborted) onError(asError(error));
+      if (!live.lost.aborted) {
+        const saying = on ? "as one the agent is working in" : "as one the agent has finished in";
+        onError(new Error(`Chat would not mark the thread ${threadId} ${saying}: ${asError(error).message}`, { cause: error }));
+      }
       return false;
     }
   }

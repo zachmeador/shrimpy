@@ -45,6 +45,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The refusal of a store of another version named only the two versions. The coordinator added what to do: move the folder aside, and each agent starts over in the new store by itself.
 - chat's own `takeUp`, which decides what an event means to the agent, is `wakingOf` now, so `takeUp` means one thing in the agent.
 - Your dev setup's chat data was reset the same evening, on your word and with nothing running: `~/shrimpy/chat` went to the Trash, and the agents' homes, their records and the gateway's roster stayed.
+- At the first start after it, scout printed two bare lines, "Unknown thread" and a thread's ID. Reproduced on a throwaway setup: a wake-up that was waiting in a thread of the old store comes due, its turn marks the thread as worked in, and chat refuses the mark. The reply is refused next, with a line that says so, and then it is over. The first line now says what chat refused. What an agent should do with work in the old store's threads is in the status list.
 
 **2026-10-05: every command names its agent one way.** `sessions list`, `read`, `steer` and `stop`, and `agent status`, `context` and `reload`, act on the agent whose shell they run in and take `--agent <agent>` for another, as `triggers` and `wake` did. A bare name stays where it says who you are talking to, or which agent to make or start. The skills follow: an agent no longer has to know its own name to stop its own trigger's session. No command keeps the old shape.
 
