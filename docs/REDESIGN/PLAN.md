@@ -816,7 +816,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
 - Chat commands in a thread: `/new`, `/stop`, `/status` and `/help`.
-- Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](#instructions-memory-and-skills) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
+- Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](#tools-and-publication) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
 - Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
 - Your own settings as a person, starting with the name you appear under. Today it is your OS user's name.
 - Attachments on messages, including clipboard files and images. An image reaches the model with its message.
