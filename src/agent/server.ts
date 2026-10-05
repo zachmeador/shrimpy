@@ -7,16 +7,10 @@ import {
   SessionNotFoundError,
 } from "@earendil-works/pi-server";
 import { createUnixListener } from "@earendil-works/pi-server/unix";
-import {
-  type AgentEndpoint,
-  endpointFile,
-  type Member,
-  SessionDirectory,
-  SessionService,
-} from "../contracts/agent/index.ts";
+import { type AgentEndpoint, endpointFile, SessionDirectory, SessionService } from "../contracts/agent/index.ts";
 import { isClientGone, offerToConnection, offerToRoute } from "../lib/offer/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
-import { carryCallers, guardSession } from "./access/index.ts";
+import { type Asker, carryCallers, guardSession } from "./access/index.ts";
 import { type Entry, type HomeFiles, serveDirectory } from "./directory.ts";
 import type { Host } from "./host/index.ts";
 import type { Sessions, Triggers } from "./sessions/index.ts";
@@ -34,8 +28,8 @@ export interface AgentServer {
 }
 
 export interface ServerOptions {
-  /** Whose a ticket is, for a connection that came through the gateway. */
-  whose(ticket: string): Promise<Member>;
+  /** Whose a ticket is, and what the agent knows of them, for a connection that came through the gateway. */
+  whose(ticket: string): Promise<Asker>;
 }
 
 /**

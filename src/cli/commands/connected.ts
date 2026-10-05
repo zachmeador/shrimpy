@@ -1,12 +1,18 @@
 import type { AgentConnection } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal } from "../../contracts/agent/node.ts";
 import { homeNamed } from "../folder/index.ts";
+import { reachAgent, shellActingOn } from "../talk/index.ts";
 
 /**
  * Connect to the agent that owns `home`, or answer undefined if none is running
- * there. The caller closes the connection.
+ * there. A person reaches it by the home's path, as the home's owner, which
+ * needs no gateway, and so does an agent's shell for its own agent. Run in the
+ * shell of another agent it goes through the gateway as that agent instead, so
+ * that the agent it reaches can refuse. The caller closes the connection.
  */
 export async function connectIfRunning(home: string): Promise<AgentConnection | undefined> {
+  const shell = shellActingOn(home);
+  if (shell !== undefined) return reachAgent(shell, home);
   try {
     return await attachLocal(home);
   } catch (error) {

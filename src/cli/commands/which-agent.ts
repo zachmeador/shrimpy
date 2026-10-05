@@ -1,5 +1,6 @@
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import { agentsListed, homeNamed } from "../folder/index.ts";
+import { requireAdminFor, shellActingOn } from "../talk/index.ts";
 import { UsageError } from "../usage/index.ts";
 
 /** The agent a command is about. */
@@ -23,6 +24,22 @@ export function agentToActOn(flag: string | undefined): Target {
   const shell = process.env[AGENT_HOME_VARIABLE];
   if (shell !== undefined && shell !== "") return { given: shell, home: homeNamed(shell), flagged: false };
   throw new UsageError(`Say which agent: add --agent <agent>, a name or a path.${agentsThere()}`);
+}
+
+/** What the help of a command that acts on an agent says about acting on another agent's. */
+export const ABOUT_ANOTHER_AGENT =
+  "Run in the shell of an agent, about another agent, it goes through the gateway as that agent and takes an admin.";
+
+/**
+ * Before a command changes, or looks at, the files of the agent `target` names,
+ * which no agent is there to guard. Run in the shell of another agent, it asks
+ * the gateway whether that agent is an admin, and refuses if it is not; `what`
+ * is what takes an admin, written to start a sentence. Run anywhere else, or in
+ * the shell of the agent itself, it does nothing.
+ */
+export async function mayActOn(target: Target, what: string): Promise<void> {
+  const shell = shellActingOn(target.home);
+  if (shell !== undefined) await requireAdminFor(shell, target.home, what);
 }
 
 /** A sentence about the agents the Shrimpy folder has, when it can be read. */

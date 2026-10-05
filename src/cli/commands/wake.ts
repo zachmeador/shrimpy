@@ -15,7 +15,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { leftOutLines } from "./reloaded.ts";
-import { agentToActOn, command, type Target } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
 
 /** The policies as a sentence gives them: "none, mentions, people or all". */
 const POLICIES = `${WAKE_POLICIES.slice(0, -1).join(", ")} or ${WAKE_POLICIES.at(-1) ?? ""}`;
@@ -75,16 +75,22 @@ const wake: Command = {
     "",
     "The choice is kept in wake.json in the agent's home. A running agent is told to read its files again, and " +
       "one that is not running reads the file when it starts.",
+    "",
+    ABOUT_ANOTHER_AGENT,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: { agent: { type: "string" } }, allowPositionals: true }));
     const target = agentToActOn(values.agent);
-    if (positionals.length === 0) return list(io, target);
+    if (positionals.length === 0) {
+      await mayActOn(target, "Looking at what wakes another agent");
+      return list(io, target);
+    }
     if (positionals.length === 1) throw new UsageError(`Missing <policy>: ${POLICIES}.`);
     const [written, policy] = expectArguments(positionals, ["<room>", "<policy>"]);
     if (!isWakePolicy(policy)) {
       throw new UsageError(`The policy is ${POLICIES}, not ${policy}. shrimpy wake --help says what each does.`);
     }
+    await mayActOn(target, "Choosing what wakes another agent");
     const room = await checkRoom(io, target, written);
     const { file } = await saveWake(target.home, room, policy);
     io.out(`Set #${room} to ${policy}: ${MEANING[policy]} Written to ${file}.`);

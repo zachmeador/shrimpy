@@ -10,13 +10,14 @@ import {
   previewHomeContext,
   startHomeAgent,
 } from "../../agent/index.ts";
-import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
+import { readEndpoint } from "../../contracts/agent/node.ts";
 import { homeNamed, isPath, newHome } from "../folder/index.ts";
 import { shrimpyCommand } from "../programs/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
-import { withConnection } from "./connected.ts";
+import { connectIfRunning, withConnection } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
+import { ABOUT_ANOTHER_AGENT } from "./which-agent.ts";
 
 const init: Command = {
   name: "agent init",
@@ -125,31 +126,36 @@ const status: Command = {
   name: "agent status",
   usage: "<agent>",
   summary: "Say whether the agent is running, and how to reach it.",
-  details: "Prints one JSON line. Exits 0 if an agent is running and 1 if not.",
+  details: `Prints one JSON line. Exits 0 if an agent is running and 1 if not. ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [given] = expectArguments(positionals, ["<agent>"]);
     const home = homeNamed(given);
 
-    const endpoint = readEndpoint(home);
     // The endpoint file outlives the agent, so only an answer shows that one is there.
-    if (endpoint === undefined || !(await answers(home))) {
+    if (!(await answers(home))) {
       io.out(JSON.stringify({ running: false, home }));
       return 1;
     }
-    io.out(JSON.stringify({ running: true, home, ...endpoint }));
+    io.out(JSON.stringify({ running: true, home, ...readEndpoint(home) }));
     return 0;
   },
 };
 
+/**
+ * Whether an agent answers at `home`. Reaching an agent is never refused, so it
+ * is asked for its sessions too, which an agent can refuse another agent's
+ * command: a command run in the shell of another agent is told so, and not
+ * that the agent is there.
+ */
 async function answers(home: string): Promise<boolean> {
+  const connection = await connectIfRunning(home);
+  if (connection === undefined) return false;
   try {
-    const connection = await attachLocal(home);
-    await connection.close();
+    await connection.sessions();
     return true;
-  } catch (error) {
-    if (error instanceof AgentNotRunningError) return false;
-    throw error;
+  } finally {
+    await connection.close().catch(() => undefined);
   }
 }
 
@@ -186,7 +192,8 @@ const reload: Command = {
     "triggers/ when it starts, and editing them changes nothing for it until this is run. Each session then " +
     "uses what changed in its instructions with its next request, and what it already holds is not rewritten; " +
     "a trigger follows its file at once. A file the agent cannot use is left out and named, and the rest is " +
-    "read. To see what a home gives an agent now, use shrimpy agent context.",
+    "read. To see what a home gives an agent now, use shrimpy agent context. " +
+    ABOUT_ANOTHER_AGENT,
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [agent] = expectArguments(positionals, ["<agent>"]);

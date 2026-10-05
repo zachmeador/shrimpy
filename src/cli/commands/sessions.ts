@@ -5,6 +5,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession } from "./render.ts";
+import { ABOUT_ANOTHER_AGENT } from "./which-agent.ts";
 
 /** The exit code of `steer --wait` for work that someone cancelled, as a shell reports an interrupted command. */
 const CANCELLED = 130;
@@ -19,6 +20,7 @@ const list: Command = {
   usage: "<agent>",
   summary:
     "List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working.",
+  details: ABOUT_ANOTHER_AGENT,
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [agent] = expectArguments(positionals, ["<agent>"]);
@@ -37,7 +39,7 @@ const read: Command = {
   name: "sessions read",
   usage: "<agent> <session> [--json]",
   summary: "Show a session: what was said, what the tools did, and what it is doing now.",
-  details: ADDRESS,
+  details: `${ADDRESS} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
@@ -60,7 +62,8 @@ const steer: Command = {
     "turn that is answering a message, that answer covers it; otherwise the answer stays in the session. " +
     "To talk to an agent, post to its thread. " +
     "With --wait, print the answer and exit 0 when the input was answered, 1 when it failed or ended " +
-    "without an answer, and 130 when it was cancelled. A retry with the same --request-id is the same input.",
+    "without an answer, and 130 when it was cancelled. A retry with the same --request-id is the same input. " +
+    ABOUT_ANOTHER_AGENT,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
@@ -107,7 +110,8 @@ const stop: Command = {
   details:
     `${ADDRESS} ` +
     "Messages still waiting stay in the thread, marked skipped, and the agent reads them with the next one. " +
-    "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C.",
+    "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C. " +
+    ABOUT_ANOTHER_AGENT,
   async run(args, io) {
     const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
     const [agent, session] = expectArguments(positionals, ["<agent>", "<session>"]);

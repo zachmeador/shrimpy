@@ -1,7 +1,7 @@
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
-import type { Member, Reloaded, SessionDirectory } from "../contracts/agent/index.ts";
+import type { Reloaded, SessionDirectory } from "../contracts/agent/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
-import { type Caller, check, withCaller } from "./access/index.ts";
+import { type Asker, type Caller, check, withCaller } from "./access/index.ts";
 import type { Sessions, Triggers } from "./sessions/index.ts";
 
 /** What the agent API asks of the agent's instructions and triggers. */
@@ -15,7 +15,7 @@ export type Entry =
   /** By the home's path. Whoever can reach the socket is the home's owner, so there is nobody to ask. */
   | { via: "home" }
   /** Through the gateway, which says who a ticket is made for. */
-  | { via: "gateway"; whose(ticket: string): Promise<Member> };
+  | { via: "gateway"; whose(ticket: string): Promise<Asker> };
 
 export interface DirectoryParts {
   sessions: Sessions;
@@ -49,9 +49,9 @@ export function serveDirectory(parts: DirectoryParts): SessionDirectory {
       if (caller !== undefined || entering) refuse("This connection has entered already.");
       entering = true;
       try {
-        const member = await entry.whose(ticket);
-        caller = { via: "gateway", member };
-        return member;
+        const asker = await entry.whose(ticket);
+        caller = { via: "gateway", ...asker };
+        return asker.member;
       } finally {
         entering = false;
       }

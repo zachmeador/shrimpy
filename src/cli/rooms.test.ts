@@ -1,14 +1,9 @@
 import assert from "node:assert/strict";
-import { test, type TestContext } from "node:test";
-import { AGENT_HOME_VARIABLE } from "../contracts/agent/index.ts";
-import { saveMembership } from "../contracts/agent/node.ts";
+import { test } from "node:test";
 import type { Thread } from "../contracts/chat/index.ts";
 import { joinRoster } from "../contracts/chat/testing/index.ts";
-import { newToken } from "../contracts/gateway/node.ts";
-import { startTestGateway } from "../contracts/gateway/testing/index.ts";
-import { tempDir } from "../lib/testing/index.ts";
 import { localTime } from "../lib/time/index.ts";
-import { type CliResult, shrimpy, startScriptedAgent, startTalking } from "./testing/index.ts";
+import { shrimpy, startAgentShell, startScriptedAgent, startTalking } from "./testing/index.ts";
 
 /*
  * These tests make and use rooms with the commands, as people do: every
@@ -18,30 +13,15 @@ import { type CliResult, shrimpy, startScriptedAgent, startTalking } from "./tes
 
 const timeout = 60_000;
 
-/**
- * `shrimpy` as an agent's shell runs it: the agent has joined the roster with a
- * token of its own, which its home keeps, and the command acts with it. It is
- * not an admin unless the person who runs the gateway has made it one.
- */
-async function shellOf(t: TestContext, name: string, options: { admin?: true } = {}): Promise<(args: string[]) => Promise<CliResult>> {
-  const gateway = await (await startTestGateway(t)).connect();
-  const token = newToken();
-  const member = await gateway.join(name, token);
-  if (options.admin === true) await (await (await startTestGateway(t)).connect()).promote(member.id);
-  const home = tempDir(t, `${name}-home`);
-  saveMembership(home, { token });
-  return (args) => shrimpy(args, { env: { [AGENT_HOME_VARIABLE]: home } });
-}
-
 test("an agent that is an admin makes a room from its shell and the person is added to it, then both list it and its threads, and read it", { timeout }, async (t) => {
   const talking = await startTalking(t);
   const you = await talking.you();
   await startScriptedAgent(t, { name: "scout", handle: () => ({ status: "silent" }) });
   await joinRoster(t, "maya");
-  const rex = await shellOf(t, "rex", { admin: true });
+  const rex = await startAgentShell(t, "rex", { admin: true });
 
   // The agent makes it, so it is the agent that is in it, and the person has to be added to see it.
-  const made = await rex(["rooms", "new", "ops", "scout"]);
+  const made = await rex.run(["rooms", "new", "ops", "scout"]);
   assert.equal(made.code, 0, made.stderr);
   assert.deepEqual(
     (await shrimpy(["rooms"])).stdout.trim(),
@@ -52,7 +32,7 @@ test("an agent that is an admin makes a room from its shell and the person is ad
   assert.match(blind.stderr, /You are not in a room called #ops/);
 
   // A member adds anyone on the roster, in any case, and one who is in already is said to be.
-  const added = await rex(["rooms", "add", "#OPS", "MAYA", you.me.name, "scout"]);
+  const added = await rex.run(["rooms", "add", "#OPS", "MAYA", you.me.name, "scout"]);
   assert.equal(added.code, 0, added.stderr);
   assert.match(added.stdout, /Added .* to #ops\. scout was in it already\./);
   const [room] = await you.chat.channels();
@@ -83,7 +63,7 @@ test("an agent that is an admin makes a room from its shell and the person is ad
       [main.id, null, true],
     ],
   );
-  assert.equal((await rex(["threads", "#Ops"])).code, 0, "the agent lists them as itself");
+  assert.equal((await rex.run(["threads", "#Ops"])).code, 0, "the agent lists them as itself");
 
   // A room's thread is read like any other. A command that talks to an agent in your DM with it takes no thread of a room.
   const read = await shrimpy(["read", main.id]);

@@ -11,6 +11,7 @@
  * contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
+import { readMembership } from "../contracts/agent/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
 import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles, type WakeRead } from "./home/index.ts";
@@ -177,8 +178,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       },
     };
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
+    // The agent knows itself by the member ID its home keeps, which it writes as soon as the gateway says who it is, and
+    // so before it registers: no ticket for the agent exists until then.
     const server = await startServer(host, sessions, triggers, files, {
-      whose: (ticket) => whoseTicket(() => joined?.gateway(), ticket),
+      whose: (ticket) => whoseTicket(() => joined?.gateway(), ticket, () => readMembership(homePaths(options.home).root)?.memberId),
     });
     try {
       if (options.join !== undefined) {

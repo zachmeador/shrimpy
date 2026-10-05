@@ -19,9 +19,12 @@ import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
-import { agentToActOn, command, type Target } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
 
 const AGENT_OPTION = { agent: { type: "string" } } as const;
+
+/** What takes an admin, when a command run in the shell of another agent changes this agent's trigger files. */
+const CHANGE = "Changing another agent's triggers";
 
 /** How to make a trigger, for an error that has to say what to do next. */
 const MAKE_ONE = 'triggers add <name> --every 1h "<what to do>"';
@@ -163,6 +166,8 @@ const list: Command = {
     "",
     "These commands act on the agent whose shell they run in. Anywhere else, name the agent with --agent <agent>, " +
       "a name or a path. With no agent running, this shows only what the trigger files say, and exits 1.",
+    "",
+    ABOUT_ANOTHER_AGENT,
   ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
@@ -238,6 +243,7 @@ const add: Command = {
     if (values.every !== undefined && values.cron !== undefined) throw new UsageError("Give --every or --cron, not both.");
     if (prompt.trim() === "") throw new UsageError("The prompt is empty. Say what the trigger is to do.");
     const target = agentToActOn(values.agent);
+    await mayActOn(target, CHANGE);
 
     let draft: ReturnType<typeof draftTrigger>;
     try {
@@ -358,6 +364,7 @@ function switching(enabled: boolean): Command {
       const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
       const [name] = expectArguments(positionals, ["<name>"]);
       const target = agentToActOn(values.agent);
+      await mayActOn(target, CHANGE);
 
       const { changed } = await changing(target, name, () => switchTrigger(target.home, name, enabled));
       io.out(changed ? `Turned ${word} the trigger ${name}.` : `The trigger ${name} is ${word} already.`);
@@ -379,6 +386,7 @@ const remove: Command = {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
     const target = agentToActOn(values.agent);
+    await mayActOn(target, CHANGE);
 
     const { file } = await changing(target, name, () => removeTrigger(target.home, name));
     io.out(`Removed the trigger ${name}: ${file} is deleted.`);
