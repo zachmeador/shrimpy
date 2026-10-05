@@ -14,7 +14,7 @@ As of 2026-10-05.
 | [The conversation model](design/4-conversation.md) | The feed of events, receipts, rooms, mentions, wake policies, the backlog an agent reads, an answer waking whoever asked, a person's mention joining a running turn, `/stop`, and one task following every input. | — | The provider interface with a fake provider. Ways in for edits, deletes and reactions. |
 | [The home](design/5-home.md) | The files an agent is told from, skills, reload, `triggers/`, `wake.json`, and records with an ID of their own. | — | Breadcrumbs. Compaction with Shrimpy's guidance. Seeing the request a turn sent. Workspace context from the gateway. |
 | [The network](design/6-network.md) | On one machine: every connection by name goes through the gateway. | — | Another machine, sandboxes, Linux and Tailscale, which wait for a machine to test on. |
-| [What an agent does without being asked](design/7-on-its-own.md) | `check_back`, standing triggers and their commands. | — | Checks and breadcrumbs. Asking another agent. Helpers. |
+| [What an agent does without being asked](design/7-on-its-own.md) | `check_back`, standing triggers and their commands. | Checks and breadcrumbs. | Asking another agent. Helpers. |
 | [Using it](design/using-it.md) | The terminal, which browses agents and rooms, the commands, which each name their agent the same way, and a default folder, `~/shrimpy`. | — | What daily use asks for: resetting a session, `/new`, sign-in, the web client. |
 
 How the code is laid out is in [the code's layout](design/code-layout.md).
