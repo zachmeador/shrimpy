@@ -150,6 +150,7 @@ If implementation finds another visible difference, add a row before shipping it
 |---|---|---|---|
 | Publication rule | Assistant text in channel conversations is private; only tools publish | A turn's final assistant text goes to the thread its message came from, unless it's `END` or empty. It posts even when the turn already sent messages through a tool. Text earlier in the turn stays private, and so does the final text of work with no thread, such as a helper's. Many models forget to call a reply tool, so replying becomes the default, and `END` lets an agent stay silent, which also stops polite goodbye loops. `END` still counts when it's wrapped in whitespace, quotes, backticks or asterisks, or ends with a period, and text followed by a last line of `END` posts without that line. Messages sent mid-turn or elsewhere use the [message tools](#tools-and-publication). | Confirmed |
 | Message tools | `reply`, `ask`, `notify`, `report`, `send_message({channel, text})` and `read_channel({channel, limit?})`. The first four only differ in a label nothing acts on, except that `quiet` or low-urgency `notify` delivers silently on Telegram; `batchable` is stored but unused. | Two tools. `send_message({text, to?, quiet?})` posts to this thread when `to` is omitted, or to `@agent` or `@person` for a DM, `#channel` for its main thread, or `#channel/thread`. A person is reached where they were last active, as `user:<id>` does today. `read_messages({from?, limit?, before?})` reads with the same addresses, defaulting to this thread. The final-text default covers what `reply`, `ask` and `report` did, and `quiet` covers `notify`. For example, `notify(text, urgency="low")` becomes `send_message(text, quiet: true)`, `send_message(channel="dm~mechanic~shrimpy", text)` becomes `send_message(text, to: "@mechanic")`, and `read_channel(channel)` becomes `read_messages(from: "#channel")`. Reactions and edits add `react({emoji, to?})`, which defaults to the message that woke the turn, and an `edit` option on `send_message` for one of the agent's own messages. | Confirmed |
+| Waking itself later | An agent holds its turn open with `sleep` in its shell, or sets up a watch | A tool, `check_back({in, at, note})`, wakes the session that called it, once, after a delay or at a time. It survives a restart. It is a tool and not a command because it belongs to a conversation, and a tool knows which session called it. | Confirmed |
 | Publication results | — | Success means the delivery owner accepted it. Pending, delivered, failed and uncertain are a separate status. A person's last-active destination is fixed when the message is accepted. A message that was accepted but later fails or becomes uncertain is noted in the agent's next turn, so it can fix and resend. | Confirmed |
 | Publishing while chat is unreachable | Replies append to the channel log on disk, and the gateway's outbox delivers them when it runs | The agent tracks whether it's connected. Publication tools fail with an explanation the model can act on: not sent because chat is unreachable, so try again later. A send that went out without confirmation reports itself as uncertain. Each publication carries its tool call's ID, so a retry never posts twice. A final reply has no turn left to tell, so the task that follows its event holds it and posts it, once, when chat is reachable again. A reply whose turn finished just before a crash is delivered the same way, because Pi resumes the task. A reply the chat server refuses for good, such as one to a channel the agent has left, is dropped with a diagnostic, and its event gets a failed receipt saying the reply couldn't be posted, where chat will take one. | Confirmed |
 | No-reply watchdog | An extra model call after silent human turns, which may inject a prompt | Removed. Sending the final message by default covers what it was for. | Confirmed |
@@ -163,7 +164,7 @@ If implementation finds another visible difference, add a row before shipping it
 |---|---|---|---|
 | Helpers | — | An agent can start helpers: child sessions in its own process, with its home and authority. Foreground helpers join and stop with their parent. Background helpers outlive it and wake the parent with their result when they finish. Helpers appear in a work view and never become agents. Pi calls them subagents. | Confirmed |
 | Workers | Detach and outlive the caller | Same default. Codex keeps its real continue, send, wait and cancel protocol; after the owner dies it isn't a restored Pi child. Renaming or removing worker commands or backends needs review. | Keep |
-| Triggers | Watches, run by a global gateway clock | Renamed, because not everything that wakes an agent is a time. A trigger fires into a target thread, where it shows as a small trigger line with its prompt or output folded before the agent's reply, or into no thread for private background work. A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#triggers)). An invalid reload keeps the last valid definitions. Upkeep triggers stay disabled when installed. A stopped agent runs no triggers, and restart doesn't backfill. | Confirmed |
+| Triggers | Watches, run by a global gateway clock | Renamed, because not everything that wakes an agent is a time. A trigger fires into a target thread, where it shows as a small trigger line with its prompt or output folded before the agent's reply, or into no thread for private background work. A small durable extension in each agent with cron and intervals, prompt and command actions, one coalesced overdue run, skip-on-overlap by default, timeouts, output filters, history and reload ([contract](#triggers)). An invalid reload keeps the last valid definitions. Upkeep triggers stay disabled when installed. A stopped agent runs no triggers, and restart doesn't backfill. Each standing trigger is one small Markdown file in the home's `triggers/`, has a session of its own unless it names a thread, and may run a check that decides whether there is news: the [design](#4-triggers-and-helpers) has the rest. | Confirmed |
 | Triggers in the agent or the OS | — | In the agent's runtime, where durable tracks every run and you inspect them in one place. The `REDESIGN` branch had moved them to skills over launchd and systemd so they'd fire while the agent is down; a stopped agent now runs none. | Confirmed |
 | Cancel, disable and stop | — | Three separate controls. Cancelling work stops running occurrences and helpers but not the triggers themselves. Disabling a trigger stops future firings without killing a running one. Service stop interrupts everything and keeps state. | Confirmed |
 
@@ -389,7 +390,8 @@ SOUL.md
 context/
 vault/
 skills/
-triggers.json         optional
+triggers/             one small file for each standing trigger
+breadcrumbs/          one small file for each fact that moves
 state/pi/auth.json
 state/pi/models.json
 state/member.json     the agent's token, made before it first joins
@@ -477,7 +479,7 @@ A crash at any point leaves a task, and Pi resumes it at its checkpoint. The fee
 
 - **Channel messages:** the chat server stores each message, or burst batch, before advancing a provider's cursor, then offers it to member agents. An agent admits an event using the event's ID as the request ID, so a retry can't duplicate it or regroup a batch.
 - **Replies:** the task that follows an event is the record of it until its receipt is left. It posts the reply when the turn settles and waits while chat is away, and after a restart Pi resumes it where it was. A reply's request ID is made from the ID of the agent's records, its thread and its answer. So a retry can't post twice, several events answered by one turn get one reply, and a fresh set of records can't repeat an ID that an earlier set used. A failure inside the task becomes a failed receipt with the reason. Who is working, and what a stop waits for, are read from Pi's list of tasks.
-- **Other sources:** trigger occurrences and steering input use their own source namespaces. Transport and status correlation numbers aren't deduplication IDs.
+- **Other sources:** the task that follows a chat event follows an input from any source: a trigger's occurrence, a wake-up the agent asked for, or another agent's answer. Each hands its input over in order, posts the final text to the session's thread if it has one, and tells its source how the turn ended. Trigger occurrences and steering input use their own source namespaces. Transport and status correlation numbers aren't deduplication IDs.
 - **Control changes:** creating or forking a session commits it together with its thread binding. Reset is a `write` submission containing a `ResetEntry` and a request ID. Thread names and archive state are versioned set-to-value updates, so an old retry can't overwrite a later decision. Default and resource saves return a version or require a re-read after a lost acknowledgment. Clients never retry a change automatically without such a rule.
 
 ### Prompt capture
@@ -503,7 +505,7 @@ What a change to the prompt costs was checked on 2026-10-04 against Pi 1.0.0:
 - A file holds the fact and never the time it was checked, or every check would count as a change.
 - A check that fails writes that into its file, so a dead check is news and not silence.
 
-To settle when phase 4 designs it with triggers: the folder's name, how many breadcrumbs an input may carry, and whether a trigger owns the write. The rule about a failed check leans toward the trigger owning it, since a command that died can't write its own failure.
+Settled on 2026-10-04 with the trigger design: the folder is `breadcrumbs/`, and a trigger whose check says `then: note` owns the write, to `breadcrumbs/<trigger>.md`, since a command that died can't write its own failure. Anything else may still write a file there. Left to the build: how many breadcrumbs an input may carry.
 
 How Pi recovers shapes these rules:
 
@@ -516,6 +518,7 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 
 ### Triggers
 
+- A standing trigger is defined by a file in the home's `triggers/`: front matter for the schedule and the check, and the prompt as its body. The files are read at the start and on reload, and commands that write one check it first.
 - A trigger and each of its occurrences are separate durable tasks owned by a session. Occurrences are marked `background: true`, so changing or cancelling a trigger doesn't cancel a running occurrence.
 - Persist the trigger revision, next occurrence and target thread, if any. Admit prompt work with a stable trigger and occurrence ID.
 - **What a trigger brings in is data, not instructions.** The trigger's own prompt is the instruction, and it comes from whoever wrote the trigger. What a firing brings with it, a command's output today and perhaps an outside event's payload later, reaches the model marked as something to read, never as something to obey. Old Shrimpy pasted a command's output into a message its skill called an instruction; this one doesn't.
@@ -842,7 +845,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 **Outcome:** triggered and delegated work runs, can be inspected from the CLI and clients, and is honest about what a restart interrupted.
 
-**Design, proposed on 2026-10-04 and not reviewed.** Nothing is built from this until you've been through it. It builds on the task that follows a chat event to its receipt.
+**Design, confirmed on 2026-10-04.** It builds on the task that follows a chat event to its receipt.
 
 1. **One task follows any input.** Today the task follows a chat event. It becomes the task that follows an input from any source: a chat event, a trigger's occurrence, a wake-up the agent asked for, or the answer to a question it asked another agent. In every case it hands the input over in order, waits for the turn, posts the final text to the session's thread if it has one, and tells the source how it ended. Working marks, stop and recovery then cover all four with no code of their own.
 2. **A wake-up is a tool, not a command.** `check_back({in, at, note})` wakes the session that called it, once, after a delay or at a time: "in 5 minutes, check that build". It belongs to a conversation, and a tool knows which session called it. Pi's durable sleep is the timer, so it survives a restart.
@@ -854,8 +857,10 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 **Build**
 
-- The trigger extension, following the [trigger contract](#triggers).
+- The one task for any input, and `check_back`.
+- The trigger extension, following the design above and the [trigger contract](#triggers): standing triggers with a prompt first, then checks.
 - [Breadcrumbs](#prompt-capture): the fact files in the home, the record of what each session last saw, and a way for a trigger's check to keep a fact current without waking anyone.
+- Asking another agent and carrying on with the answer.
 - Helpers in the foreground and background, and the retained Codex workflow.
 
 **Prove**
@@ -937,7 +942,7 @@ The current catalog is [src/commands/catalog.ts](../../shrimpy-old/src/commands/
 | Skills: list, show, add, update, remove, new, validate | Per-home instruction management and precedence. Pi extension and theme discovery follows its decision above. |
 | Channels: list, show, read, search, tail, create, post, bind, unbind, dm, members, join, leave | Reviewed routing, log, thread and recipient operations owned by the chat server. The internal bus is removed. |
 | Surfaces, users, presence, owner | Explicit provider bindings, authenticated sender and contact policy, and current presence. Owner fallback and last-active addressing aren't removed silently. |
-| Watches: list, add, enable, disable, show, history, run | Renamed to `shrimpy triggers` with no `watches` alias. Per-home trigger policy and durable occurrence observation. Agents are who will use these most, so on 2026-10-04 you asked for a command path that feels intuitive and checks what it is given: a small local model that gets a schedule wrong is told so at once, where a hand-edited file would only be checked at reload. So adding and changing a trigger gets commands as well as looking at one and running it. Their names and shape are designed with the feature in phase 4, not copied from the old seven. Recommended for that design: a trigger that fires once, after a delay or at a time, which is how an agent checks back on something later without holding its turn open. Pi's durable sleep is the timer under it. |
+| Watches: list, add, enable, disable, show, history, run | Renamed to `shrimpy triggers` with no `watches` alias. Per-home trigger policy and durable occurrence observation. Agents are who will use these most, so on 2026-10-04 you asked for a command path that feels intuitive and checks what it is given: a small local model that gets a schedule wrong is told so at once, where a hand-edited file would only be checked at reload. Confirmed on 2026-10-04: `shrimpy triggers` lists them with the next run and the last outcome, `add` makes or replaces one, `show` prints one with its recent occurrences, `run` fires one now, `on` and `off` enable and disable, and `remove` deletes one. They act on the agent whose shell they run in and take `--agent <name>` elsewhere. A trigger that fires once is not among them: it is the tool `check_back`. |
 | Workers: backends, start, list, status, read, send, tail, wait, cancel, close | Helpers and real external CLI workflows. Unsupported backends are proposed removals, not empty placeholders. |
 | Workspace: setup, tracking, search, index, status | Explicit home selection, ordinary file search and checkpoints, derived indexes with provenance. Shared global scope needs review. |
 | Gateway: install, start, stop, restart, status, logs, uninstall | Service operations for each agent, the gateway and the chat server. Command names and independent shutdown need review. |
