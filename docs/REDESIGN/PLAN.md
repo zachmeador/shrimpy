@@ -118,8 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Your dev setup's chat data resets once, on your word: the chat store is version 7 since 2026-10-05, and the chat server refuses the store your setup has. [The contracts](design/2-contracts.md) has what changed.
-- Then checks and breadcrumbs, first under Next.
+- Checks and breadcrumbs, first under Next.
 
 **Next:**
 

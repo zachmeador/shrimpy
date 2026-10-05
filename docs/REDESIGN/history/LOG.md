@@ -44,7 +44,7 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - Choices the build made: `@all` in a DM mentions the other member; a place in the feed kept with no ID, as in records from before, counts as kept for another store; and a DM message's urgency follows the message as it stands, as a room's did.
 - The refusal of a store of another version named only the two versions. The coordinator added what to do: move the folder aside, and each agent starts over in the new store by itself.
 - chat's own `takeUp`, which decides what an event means to the agent, is `wakingOf` now, so `takeUp` means one thing in the agent.
-- Your dev setup's chat data has not been touched. Its chat server will refuse the store at its next start, until you say to move it.
+- Your dev setup's chat data was reset the same evening, on your word and with nothing running: `~/shrimpy/chat` went to the Trash, and the agents' homes, their records and the gateway's roster stayed.
 
 **2026-10-05: every command names its agent one way.** `sessions list`, `read`, `steer` and `stop`, and `agent status`, `context` and `reload`, act on the agent whose shell they run in and take `--agent <agent>` for another, as `triggers` and `wake` did. A bare name stays where it says who you are talking to, or which agent to make or start. The skills follow: an agent no longer has to know its own name to stop its own trigger's session. No command keeps the old shape.
 
