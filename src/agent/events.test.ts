@@ -4,6 +4,7 @@ import { test, type TestContext } from "node:test";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { attachLocal } from "../contracts/agent/node.ts";
 import { tempDir, until } from "../lib/testing/index.ts";
+import { localTime } from "../lib/time/index.ts";
 import {
   type AgentRig,
   callingTools,
@@ -67,7 +68,7 @@ test("an edit of a message the agent already answered reaches it as an event and
   assert.ok(firstReply?.text.includes("Is the build green?"));
   // The model is shown that it is an edit, of which message, and what the message says now.
   assert.match(secondReply?.text ?? "", /edited their message/);
-  assert.ok(secondReply?.text.includes(new Date(asked.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z")));
+  assert.ok(secondReply?.text.includes(localTime(asked.sentAt)));
   assert.ok(secondReply?.text.includes("Is the build green now?"));
   const [message] = await rig.said();
   assert.deepEqual(
@@ -123,7 +124,7 @@ test("a reaction to a message the agent wrote wakes it and is shown to it, and a
   const replies = await rig.replies();
   const answer = replies.find((reply) => reply.id === receipt.reply);
   const start = greeting.text.replace(/\s+/g, " ").slice(0, 30);
-  for (const fact of [rig.me.name, THUMBS_UP, new Date(greeting.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z"), start]) {
+  for (const fact of [rig.me.name, THUMBS_UP, localTime(greeting.sentAt), start]) {
     assert.ok(answer?.text.includes(fact), `${fact} reached the model in\n${answer?.text}`);
   }
   const answered = (await rig.said()).flatMap((message) => message.receipts).map((each) => each.event);

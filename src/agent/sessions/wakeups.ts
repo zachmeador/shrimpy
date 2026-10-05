@@ -10,7 +10,8 @@ import {
   type ToolExecutionApi,
   type Tx,
 } from "@earendil-works/pi-durable";
-import { utc, type Wakeup } from "../intake/index.ts";
+import { localTime } from "../../lib/time/index.ts";
+import type { Wakeup } from "../intake/index.ts";
 import { type SessionRecord, SessionsDoc, sessionAddress } from "./documents.ts";
 import { carrying, keepCancelled, takeCancelled } from "./kept.ts";
 import { placeOfSession, type SessionPlace } from "./thread-of.ts";
@@ -95,7 +96,7 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
           const message = error instanceof Error ? error.message : String(error);
           // A task being aborted refuses this too, and then nothing went wrong that needs reporting.
           await runtime.commit(() => ({ status: "terminal", outcome: { status: "failed", error: { message } } }), context);
-          options.onError(new Error(`The wake-up for ${utc(wakeup.due)} could not be taken up: ${message}`));
+          options.onError(new Error(`The wake-up for ${localTime(wakeup.due)} could not be taken up: ${message}`));
         }
       },
     },

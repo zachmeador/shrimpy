@@ -81,7 +81,7 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
   };
   const rig = await startAgentRig(t, { script });
   await rig.receiptOn(await rig.say("set a wake-up"));
-  const due = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/.exec(answer)?.[0];
+  const due = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}/.exec(answer)?.[0];
   assert.ok(due !== undefined, `the tool says when: ${answer}`);
   const { session } = await rig.attach();
 

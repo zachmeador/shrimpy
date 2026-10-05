@@ -3,6 +3,7 @@ import { userInfo } from "node:os";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { until } from "../../../lib/testing/index.ts";
+import { localTime } from "../../../lib/time/index.ts";
 import { callingTools, startAgentRig } from "../../testing/index.ts";
 
 const timeout = 30_000;
@@ -64,8 +65,7 @@ test("read_messages gives the model the thread as it was said, in the same words
   const [read] = model.answers;
   assert.equal(read?.name, "read_messages");
   assert.equal(read.isError, false);
-  const iso = new Date(earlier.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z");
-  assert.ok(read.text.includes(`${rig.me.name} wrote at ${iso}:\nEarlier, I asked about the build.`), read.text);
+  assert.ok(read.text.includes(`${rig.me.name} wrote at ${localTime(earlier.sentAt)}:\nEarlier, I asked about the build.`), read.text);
   assert.ok(read.text.indexOf(earlier.text) < read.text.indexOf(asked.text), "oldest first");
 });
 
@@ -87,8 +87,8 @@ test("read_messages gives the model each message as it now stands: edited ones s
 
   const [read] = model.answers;
   assert.equal(read?.name, "read_messages");
-  const sent = (message: { sentAt: number }): string => new Date(message.sentAt).toISOString().replace(/\.\d{3}Z$/, "Z");
-  const edited = new Date(edit.editedAt ?? 0).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const sent = (message: { sentAt: number }): string => localTime(message.sentAt);
+  const edited = localTime(edit.editedAt ?? 0);
   assert.ok(read.text.includes(`${rig.me.name} wrote at ${sent(kept)}, and edited it at ${edited}:\nIs the build green now?`), read.text);
   assert.ok(!read.text.includes("Is the build green?\n"), "not what it said before");
   assert.ok(read.text.includes(`${rig.me.name} wrote at ${sent(dropped)}, and deleted it.`), read.text);

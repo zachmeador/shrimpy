@@ -4,7 +4,7 @@
  * module writes words for the model.
  */
 import type { Thread } from "../../../contracts/chat/index.ts";
-import { utc } from "../../intake/index.ts";
+import { localTime } from "../../../lib/time/index.ts";
 
 /** The argument that names a place: where `send_message` posts, and what `read_messages` reads. */
 export type PlaceArgument = "to" | "from";
@@ -154,15 +154,15 @@ export const CHECK_DESCRIPTION =
 export const CHECK_IN =
   "How long to wait: a whole number and a unit, s, m, h or d, such as 30s, 5m, 2h or 1d. Give this or at, not both.";
 export const CHECK_AT =
-  "The time to wake you: ISO 8601 with an offset, such as 2026-10-05T09:00:00Z or 2026-10-05T09:00:00-07:00. " +
-  "Give this or in, not both.";
+  "The time to wake you, written as the times you are shown are: ISO 8601 with an offset, such as " +
+  "2026-10-05T09:00:00-04:00. Give this or in, not both.";
 export const CHECK_NOTE =
   "What you want to be told when you wake, in your own words: what to check, and what to do about it.";
 
 export const GIVE_ONE =
-  "Not set: give in or at, not both. in is how long to wait, such as 5m. at is a time, such as 2026-10-05T09:00:00Z.";
+  "Not set: give in or at, not both. in is how long to wait, such as 5m. at is a time, such as 2026-10-05T09:00:00-04:00.";
 export const GIVE_WHEN =
-  "Not set: say when. Give in, how long to wait, such as 30s, 5m, 2h or 1d, or at, a time, such as 2026-10-05T09:00:00Z.";
+  "Not set: say when. Give in, how long to wait, such as 30s, 5m, 2h or 1d, or at, a time, such as 2026-10-05T09:00:00-04:00.";
 export const NOTE_EMPTY = "Not set: write a note, what you want to be told when you wake.";
 
 export const tooSoon = (shortest: number): string =>
@@ -175,11 +175,11 @@ export const badDelay = (text: string): string =>
   `Not set: in: "${text}" is not a delay I can read. Write a whole number and a unit: 30s, 5m, 2h or 1d.`;
 
 export const badTime = (text: string): string =>
-  `Not set: at: "${text}" is not a time I can read. Write ISO 8601 with an offset, such as 2026-10-05T09:00:00Z or ` +
-  "2026-10-05T09:00:00-07:00.";
+  `Not set: at: "${text}" is not a time I can read. Write ISO 8601 with an offset, as the times you are shown are, ` +
+  "such as 2026-10-05T09:00:00-04:00.";
 
 export const inThePast = (text: string, now: number): string =>
-  `Not set: at: "${text}" is in the past. It is ${utc(now)} now. Give a later time, or use in.`;
+  `Not set: at: "${text}" is in the past. It is ${localTime(now)} now. Give a later time, or use in.`;
 
 export const noteTooLong = (length: number, most: number): string =>
   `Not set: the note is ${length} characters, and the most is ${most}. Say only what you will need.`;
@@ -189,7 +189,7 @@ export const tooMany = (waiting: number): string =>
   "Wait for one to wake you first.";
 
 export const wakeSet = (due: number, askedAt: number, inThread: boolean): string =>
-  `You will be woken ${inThread ? "in this thread " : ""}at ${utc(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now.`;
+  `You will be woken ${inThread ? "in this thread " : ""}at ${localTime(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now.`;
 
 /** A length of time in its two largest units: "2 hours 30 minutes", "5 minutes", "1 day". */
 export function howLong(milliseconds: number): string {

@@ -8,6 +8,7 @@ import { attachLocal, saveMembership } from "../contracts/agent/node.ts";
 import { joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
+import { localTime } from "../lib/time/index.ts";
 import { runCli } from "./index.ts";
 import {
   captureIo,
@@ -52,9 +53,6 @@ async function servedScout(t: TestContext): Promise<{ home: string; agent: Serve
   return { home, agent, connection };
 }
 
-/** The time a command printed in the form the agent tells times in. */
-const iso = (milliseconds: number): string => new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
-
 test("add writes a file the agent's own check accepts, a running agent picks it up at once, and the command says when it first runs", { timeout }, async (t) => {
   const { home, connection } = await servedScout(t);
 
@@ -73,7 +71,7 @@ test("add writes a file the agent's own check accepts, a running agent picks it 
   const [trigger] = await (await connection()).triggers();
   assert.equal(trigger?.name, "nightly", "the agent has it without being restarted");
   assert.ok(trigger.next !== null && Math.abs(trigger.next - Date.now() - 3_600_000) < 60_000);
-  assert.ok(added.out.includes(`first runs at ${iso(trigger.next)}`), `the time the agent has is said:\n${added.out}`);
+  assert.ok(added.out.includes(`first runs at ${localTime(trigger.next)}`), `the time the agent has is said:\n${added.out}`);
 
   // Making it again replaces it, and a schedule that changes counts from then.
   const replaced = await run("triggers", "add", "nightly", "--cron", "0 3 * * *", "--timezone", "Europe/Berlin", "Tidy more.", "--agent", "scout");
@@ -81,7 +79,7 @@ test("add writes a file the agent's own check accepts, a running agent picks it 
   assert.ok(/Replaced/.test(replaced.out), replaced.out);
   const [again] = await (await connection()).triggers();
   assert.deepEqual(again?.schedule, { cron: "0 3 * * *", timezone: "Europe/Berlin" });
-  assert.ok(replaced.out.includes(`runs at ${iso(again.next ?? 0)}`), replaced.out);
+  assert.ok(replaced.out.includes(`runs at ${localTime(again.next ?? 0)}`), replaced.out);
   const listed = await run("triggers", "--agent", "scout");
   assert.equal(listed.code, 0, listed.err);
   assert.ok(listed.out.includes("nightly") && listed.out.includes("on"), listed.out);

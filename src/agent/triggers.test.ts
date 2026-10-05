@@ -8,6 +8,7 @@ import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import type { AgentConnection, Occurrence, SessionView, TriggerDetail } from "../contracts/agent/index.ts";
 import { attachLocal } from "../contracts/agent/node.ts";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
+import { localTime } from "../lib/time/index.ts";
 import { homePaths } from "./home/index.ts";
 import {
   callingTools,
@@ -326,7 +327,7 @@ test("an agent killed while an occurrence's turn is underway comes back to it on
   const oldest = detail.occurrences.at(-1);
   assert.equal(oldest?.ended, "answered");
   assert.equal(detail.occurrences.filter((occurrence) => occurrence.due === oldest.due).length, 1);
-  const fired = new Date(oldest.firedAt).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const fired = localTime(oldest.firedAt);
   const inputs = inputsOf((await connection.attach("trigger:tidy")).view);
   assert.equal(inputs.filter((text) => text.includes(`fired at ${fired}`)).length, 1);
   const [sent, resent] = loggedRequests(home);

@@ -15,6 +15,7 @@ import {
 import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 import {
   describeSchedule,
   type LeftOut,
@@ -24,7 +25,7 @@ import {
   type TriggerFiles,
   type TriggerProblem,
 } from "../home/index.ts";
-import { type Ending, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding, utc } from "../intake/index.ts";
+import { type Ending, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../intake/index.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { plain, type SessionRecord, SessionsDoc, type StoredTrigger, triggerSession, TriggersDoc } from "./documents.ts";
 import { carrying, takeCancelled } from "./kept.ts";
@@ -158,7 +159,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
           // This occurrence could not be made. The trigger goes on to its next time, so that one failure does not end it.
           // A task being aborted refuses this too, and then nothing went wrong that needs reporting.
           await runtime.commit((tx) => carryOn(tx, false), context);
-          options.onError(new Error(`The trigger ${name} could not make its occurrence for ${utc(next)}: ${message}`));
+          options.onError(new Error(`The trigger ${name} could not make its occurrence for ${localTime(next)}: ${message}`));
         }
       },
     },

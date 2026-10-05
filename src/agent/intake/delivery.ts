@@ -1,11 +1,11 @@
 import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 import type { ChatLink } from "../links/index.ts";
 import { deliver, hasReply } from "./deliver.ts";
 import { hasReceipt, idOf, isOccurrence, isWakeup, type Outstanding, threadOf, type TurnOutcome } from "./events.ts";
 import { orAborted, pause, untilAborted } from "./pause.ts";
-import { utc } from "./prompt.ts";
 
 export interface DeliveryOptions {
   /** What the agent's records are called. Every reply's request ID carries it. */
@@ -99,9 +99,9 @@ export function createDelivery(options: DeliveryOptions): Delivery {
 
 /** What a report calls a wake-up or an occurrence: "wake-up for 2026-10-04T09:00:00Z". */
 function what(outstanding: Outstanding): string {
-  if (isWakeup(outstanding)) return `wake-up for ${utc(outstanding.wakeup.due)}`;
+  if (isWakeup(outstanding)) return `wake-up for ${localTime(outstanding.wakeup.due)}`;
   if (isOccurrence(outstanding)) {
-    return `occurrence of the trigger ${outstanding.occurrence.trigger} at ${utc(outstanding.occurrence.firedAt)}`;
+    return `occurrence of the trigger ${outstanding.occurrence.trigger} at ${localTime(outstanding.occurrence.firedAt)}`;
   }
   return idOf(outstanding);
 }

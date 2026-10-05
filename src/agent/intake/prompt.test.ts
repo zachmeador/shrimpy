@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { localTime } from "../../lib/time/index.ts";
 import { promptFor } from "./prompt.ts";
 import type { Outstanding, Snapshot } from "./events.ts";
 
@@ -28,28 +29,16 @@ test("a message is shown with where it is, after the earlier events the agent ha
     [
       where,
       "",
-      "Zach wrote at 2026-10-03T14:05:00Z:",
+      `Zach wrote at ${localTime(at("2026-10-03T14:05:00Z"))}:`,
       "Please check the build.",
       "",
-      "Alex wrote at 2026-10-03T14:06:30Z:",
+      `Alex wrote at ${localTime(at("2026-10-03T14:06:30Z"))}:`,
       "Two lines,",
       "and a blank one below.",
       "",
       "",
-      "Zach wrote at 2026-10-03T14:09:00Z:",
+      `Zach wrote at ${localTime(at("2026-10-03T14:09:00Z"))}:`,
       "Never mind the first one.",
     ].join("\n"),
   );
-});
-
-test("the time is UTC whatever the machine's zone is", () => {
-  const before = process.env.TZ;
-  process.env.TZ = "Pacific/Auckland";
-  try {
-    const prompt = promptFor(outstanding(posted("evt_1", "Zach", "hi", "2026-12-31T23:59:59Z")));
-    assert.equal(prompt, `${where}\n\nZach wrote at 2026-12-31T23:59:59Z:\nhi`);
-  } finally {
-    if (before === undefined) delete process.env.TZ;
-    else process.env.TZ = before;
-  }
 });

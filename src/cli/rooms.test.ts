@@ -7,6 +7,7 @@ import { joinRoster } from "../contracts/chat/testing/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { tempDir } from "../lib/testing/index.ts";
+import { localTime } from "../lib/time/index.ts";
 import { type CliResult, shrimpy, startScriptedAgent, startTalking } from "./testing/index.ts";
 
 /*
@@ -61,11 +62,13 @@ test("an agent makes a room from its shell and the person is added to it, then b
   );
 
   // Now the person sees it, with its members and when it was updated, and its threads.
-  const listed = (await shrimpy(["rooms"])).stdout.trim().split("\n");
-  assert.equal(listed.length, 2);
-  assert.match(listed[1] ?? "", /^#ops +\d{4}-\d{2}-\d{2} \d{2}:\d{2} +maya, rex, scout/i);
   const [main] = await you.chat.threads(room.id);
   assert.ok(main);
+  const listed = (await shrimpy(["rooms"])).stdout.trim().split("\n");
+  assert.equal(listed.length, 2);
+  const [name, updated, members] = (listed[1] ?? "").split(/ {2,}/);
+  assert.deepEqual([name, updated], ["#ops", localTime(main.updatedAt)], "a room is as new as its newest thread");
+  assert.ok(members?.startsWith("maya, rex, scout"));
   await you.chat.post(main.id, "Is the disk full?", "you-1");
   const side = await you.chat.createThread(room.id, "Backups");
   await you.chat.post(side.id, "Last night's run?", "you-2");

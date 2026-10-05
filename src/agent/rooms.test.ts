@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { Channel, Member, Message, Thread } from "../contracts/chat/index.ts";
 import type { Entered } from "../contracts/chat/testing/index.ts";
 import { eventually } from "../lib/testing/index.ts";
+import { localTime } from "../lib/time/index.ts";
 import { homePaths } from "./home/index.ts";
 import type { WakePolicy } from "./intake/index.ts";
 import { type ChatServer, loggedRequests, startAgentRig, talking } from "./testing/index.ts";
@@ -18,8 +19,6 @@ const timeout = 60_000;
 /** How long to wait for an agent's receipt, in milliseconds: turns of several agents follow one another. */
 const PATIENT = 30_000;
 
-/** A time as the model reads it. */
-const iso = (milliseconds: number): string => new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /** A room that the person who runs the gateway makes, with `members`, and its main thread. */
 async function roomWith(chat: ChatServer, name: string, members: Member[]): Promise<{ person: Entered; room: Channel; main: Thread }> {
@@ -139,8 +138,8 @@ test("one reply that answers two messages from two members wakes each of them th
   assert.equal(scoutAsks.shown.length, 2);
   assert.equal(mayaAsks.shown.length, 2);
   // Each is shown that bob answered its own question, and the reply.
-  assert.ok((scoutAsks.shown[1] ?? "").includes(`bob answered your message from ${iso(keyQuestion.sentAt)}, which starts:\n@bob, which key?`));
-  assert.ok((mayaAsks.shown[1] ?? "").includes(`bob answered your message from ${iso(tempoQuestion.sentAt)}, which starts:\n@bob, which tempo?`));
+  assert.ok((scoutAsks.shown[1] ?? "").includes(`bob answered your message from ${localTime(keyQuestion.sentAt)}, which starts:\n@bob, which key?`));
+  assert.ok((mayaAsks.shown[1] ?? "").includes(`bob answered your message from ${localTime(tempoQuestion.sentAt)}, which starts:\n@bob, which tempo?`));
   for (const shown of [scoutAsks.shown[1], mayaAsks.shown[1]]) assert.ok(shown?.includes("Key of C, tempo 90."), `the reply reached the model in\n${shown}`);
   assert.deepEqual(scout.reports, []);
   assert.deepEqual(maya.reports, []);
@@ -226,16 +225,16 @@ test("what the model reads of a message in a room says who it was for, and in a 
 
   const [one = "", two = "", three = ""] = model.shown;
   for (const line of [
-    `bob wrote at ${iso(toMaya.sentAt)}, for maya, not for you:\n@maya, the disk is full.`,
-    `bob wrote at ${iso(aloud.sentAt)}, mentioning nobody:\nThinking aloud.`,
-    `${person.me.name} wrote at ${iso(both.sentAt)}, for you and bob:\n@scout and @bob: is it urgent?`,
+    `bob wrote at ${localTime(toMaya.sentAt)}, for maya, not for you:\n@maya, the disk is full.`,
+    `bob wrote at ${localTime(aloud.sentAt)}, mentioning nobody:\nThinking aloud.`,
+    `${person.me.name} wrote at ${localTime(both.sentAt)}, for you and bob:\n@scout and @bob: is it urgent?`,
   ]) {
     assert.ok(one.includes(line), `${line}\nwas not in\n${one}`);
   }
-  assert.ok(two.includes(`${person.me.name} wrote at ${iso(everyone.sentAt)}, for everyone in the room:\n@all: status, please.`), two);
+  assert.ok(two.includes(`${person.me.name} wrote at ${localTime(everyone.sentAt)}, for everyone in the room:\n@all: status, please.`), two);
   assert.ok(!two.includes("Since you last looked"), "nothing came between the two");
   assert.equal(three.includes("Since you last looked"), false);
-  assert.ok(three.trimEnd().endsWith(`${person.me.name} wrote at ${iso(direct.sentAt)}:\nA word in private.`), `a DM's message is shown as it always was:\n${three}`);
+  assert.ok(three.trimEnd().endsWith(`${person.me.name} wrote at ${localTime(direct.sentAt)}:\nA word in private.`), `a DM's message is shown as it always was:\n${three}`);
 });
 
 test("a person's post that mentions nobody wakes every agent in the room, any other post only who it mentions, until the home's wake file says otherwise, which a reload reads", { timeout }, async (t) => {

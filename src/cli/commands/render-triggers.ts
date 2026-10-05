@@ -1,10 +1,8 @@
 import { describeSchedule, type TriggerDefinition } from "../../agent/index.ts";
 import type { Occurrence, TriggerDetail, TriggerSchedule, TriggerSummary } from "../../contracts/agent/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
-
-/** UTC to the second with a Z, which is how the agent writes every time it tells one to a model. */
-export const utc = (milliseconds: number): string => new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /** A length of time in its two largest units: "2 hours 30 minutes", "5 minutes", "1 day". */
 function howLong(milliseconds: number): string {
@@ -26,10 +24,10 @@ function howLong(milliseconds: number): string {
     .join(" ");
 }
 
-/** A time with how far it is from `now`: "2026-10-06T01:00:00Z, in 9 hours 12 minutes". */
+/** A time with how far it is from `now`: "2026-10-06T03:00:00+02:00, in 9 hours 12 minutes". */
 export function when(time: number, now: number): string {
   const distance = Math.abs(time - now) < 1_000 ? "now" : time > now ? `in ${howLong(time - now)}` : `${howLong(now - time)} ago`;
-  return `${utc(time)}, ${distance}`;
+  return `${localTime(time)}, ${distance}`;
 }
 
 /** How an occurrence stands, on one line: how it ended, or that it is still going, and why when it says. */
@@ -44,8 +42,8 @@ export function renderTriggers(triggers: TriggerSummary[]): string[] {
     trigger.name,
     describeSchedule(trigger.schedule),
     trigger.on ? "on" : "off",
-    trigger.next === null ? "-" : utc(trigger.next),
-    trigger.last === null ? "-" : `${trigger.last.ended ?? "running"} ${utc(trigger.last.firedAt)}`,
+    trigger.next === null ? "-" : localTime(trigger.next),
+    trigger.last === null ? "-" : `${trigger.last.ended ?? "running"} ${localTime(trigger.last.firedAt)}`,
   ]);
   return renderTable(["trigger", "schedule", "state", "next", "last"], rows);
 }
@@ -98,7 +96,7 @@ function definition(trigger: Defined, next?: string): string[] {
 export function renderTrigger(trigger: TriggerDetail, now: number): string[] {
   const lines = definition(trigger, trigger.next === null ? "never: it is off" : when(trigger.next, now));
   if (trigger.occurrences.length === 0) return [...lines, "", "It has not run yet."];
-  const rows = trigger.occurrences.map((occurrence) => [utc(occurrence.firedAt), occurrence.byHand ? "by hand" : "on schedule", ending(occurrence)]);
+  const rows = trigger.occurrences.map((occurrence) => [localTime(occurrence.firedAt), occurrence.byHand ? "by hand" : "on schedule", ending(occurrence)]);
   return [...lines, "", "Occurrences, newest first:", ...renderTable(["fired", "how", "ended"], rows).map((line) => `  ${line}`)];
 }
 

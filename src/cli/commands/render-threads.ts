@@ -1,14 +1,7 @@
 import type { Channel, Message, Receipt, Thread } from "../../contracts/chat/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 import { indent } from "./render.ts";
 import { renderTable } from "./table.ts";
-
-/** A moment as a person at a terminal reads it: local time, to the minute. */
-export function formatTime(milliseconds: number): string {
-  const time = new Date(milliseconds);
-  const two = (value: number): string => String(value).padStart(2, "0");
-  const date = `${time.getFullYear()}-${two(time.getMonth() + 1)}-${two(time.getDate())}`;
-  return `${date} ${two(time.getHours())}:${two(time.getMinutes())}`;
-}
 
 /** What a member of the channel is called, for the IDs that threads and receipts carry. */
 function namer(channel: Channel): (memberId: string) => string {
@@ -30,7 +23,7 @@ export function renderThreads(threads: Thread[], channel: Channel): string[] {
   const nameOf = namer(channel);
   const rows = threads.map((thread) => [
     thread.id,
-    formatTime(thread.updatedAt),
+    localTime(thread.updatedAt),
     thread.working.map((mark) => nameOf(mark.memberId)).join(", "),
     titleOf(thread),
   ]);
@@ -52,10 +45,10 @@ export function renderThread(thread: Thread, messages: Message[], channel: Chann
   const lines = [`Thread ${thread.id} in ${where}: ${titleOf(thread)}`];
   if (messages.length === 0) lines.push("", "(no messages yet)");
   for (const message of messages) {
-    const edited = message.editedAt === null || message.deleted ? "" : `  edited ${formatTime(message.editedAt)}`;
+    const edited = message.editedAt === null || message.deleted ? "" : `  edited ${localTime(message.editedAt)}`;
     lines.push(
       "",
-      `${message.author.name}  ${formatTime(message.sentAt)}  ${message.id}${edited}`,
+      `${message.author.name}  ${localTime(message.sentAt)}  ${message.id}${edited}`,
       ...indent(message.deleted ? "(deleted)" : message.text.trimEnd()),
     );
     if (message.reactions.length > 0) {
@@ -68,7 +61,7 @@ export function renderThread(thread: Thread, messages: Message[], channel: Chann
     }
   }
   for (const mark of thread.working) {
-    lines.push("", `-- ${nameOf(mark.memberId)} is working (since ${formatTime(mark.since)}) --`);
+    lines.push("", `-- ${nameOf(mark.memberId)} is working (since ${localTime(mark.since)}) --`);
   }
   return lines;
 }

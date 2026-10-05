@@ -1,4 +1,5 @@
 import type { Message } from "../../contracts/chat/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 import {
   type Audience,
   type Backlog,
@@ -77,21 +78,21 @@ function fired(occurrence: Occurrence, inThread: boolean): string {
   const where = inThread
     ? ""
     : " You are not in a thread, so what you write last is posted nowhere. To tell someone something, use send_message with to: @name for a DM, or to: #room for a room you are in.";
-  return `This is the trigger ${occurrence.trigger}, ${how} at ${utc(occurrence.firedAt)}. Its schedule is ${occurrence.schedule}.${where}\n\n${occurrence.prompt}`;
+  return `This is the trigger ${occurrence.trigger}, ${how} at ${localTime(occurrence.firedAt)}. Its schedule is ${occurrence.schedule}.${where}\n\n${occurrence.prompt}`;
 }
 
 /** A wake-up that has come, as the model reads it. */
 function woken(wakeup: Wakeup): string {
   return (
     "This is a wake-up you asked for with check_back. " +
-    `You asked at ${utc(wakeup.askedAt)}, and it was for ${utc(wakeup.due)}. Your note:\n${wakeup.note}`
+    `You asked at ${localTime(wakeup.askedAt)}, and it was for ${localTime(wakeup.due)}. Your note:\n${wakeup.note}`
   );
 }
 
 /** The wake-ups that were cancelled, each with when it was for, when it was asked for and its note on one line. */
 function cancellations(cancelled: Wakeup[]): string {
   const lines = cancelled.map(
-    (wakeup) => `- for ${utc(wakeup.due)}, asked at ${utc(wakeup.askedAt)}: ${wakeup.note.replace(/\s+/g, " ").trim()}`,
+    (wakeup) => `- for ${localTime(wakeup.due)}, asked at ${localTime(wakeup.askedAt)}: ${wakeup.note.replace(/\s+/g, " ").trim()}`,
   );
   return [
     "Your work was stopped, so these wake-ups you had asked for were cancelled and will not come. " +
@@ -112,16 +113,16 @@ function cancellations(cancelled: Wakeup[]): string {
 export function written(event: Snapshot): string {
   switch (event.kind) {
     case "posted": {
-      const edited = event.editedAt === undefined ? "" : `, and edited it at ${utc(event.editedAt)}`;
+      const edited = event.editedAt === undefined ? "" : `, and edited it at ${localTime(event.editedAt)}`;
       const cut = event.clipped === true ? `\n(The rest of this message is cut here. To read all of it, call read_messages with before: ${event.seq + 1} and limit: 1.)` : "";
-      return `${event.author} wrote at ${utc(event.sentAt)}${edited}${forWhom(event.to)}:\n${event.text}${cut}`;
+      return `${event.author} wrote at ${localTime(event.sentAt)}${edited}${forWhom(event.to)}:\n${event.text}${cut}`;
     }
     case "edited":
-      return `${event.author} edited their message from ${utc(event.sentAt)} at ${utc(event.at)}. It now reads${forWhom(event.to)}:\n${event.text}`;
+      return `${event.author} edited their message from ${localTime(event.sentAt)} at ${localTime(event.at)}. It now reads${forWhom(event.to)}:\n${event.text}`;
     case "reacted":
-      return `${event.by} reacted with ${event.emoji} at ${utc(event.at)} to your message from ${utc(event.sentAt)}, which starts:\n${event.start}`;
+      return `${event.by} reacted with ${event.emoji} at ${localTime(event.at)} to your message from ${localTime(event.sentAt)}, which starts:\n${event.start}`;
     case "answered":
-      return `${event.by} answered your message from ${utc(event.sentAt)}, which starts:\n${event.start}\n\nTheir reply, written at ${utc(event.at)}:\n${event.text}`;
+      return `${event.by} answered your message from ${localTime(event.sentAt)}, which starts:\n${event.start}\n\nTheir reply, written at ${localTime(event.at)}:\n${event.text}`;
   }
 }
 
@@ -131,9 +132,9 @@ export function written(event: Snapshot): string {
  * what. `nameOf` says what a member is called.
  */
 export function standing(message: Message, nameOf: (memberId: string) => string): string {
-  const sent = `${message.author.name} wrote at ${utc(message.sentAt)}`;
+  const sent = `${message.author.name} wrote at ${localTime(message.sentAt)}`;
   if (message.deleted) return `${sent}, and deleted it.`;
-  const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${utc(message.editedAt)}:`, message.text];
+  const lines = [message.editedAt === null ? `${sent}:` : `${sent}, and edited it at ${localTime(message.editedAt)}:`, message.text];
   if (message.reactions.length > 0) {
     const reactions = message.reactions.map((reaction) => `${reaction.emoji} by ${list(reaction.memberIds.map(nameOf))}`);
     lines.push(`Reactions: ${reactions.join(", ")}`);
@@ -157,9 +158,4 @@ function forWhom(to: Audience | undefined): string {
 function list(names: string[]): string {
   const last = names.at(-1);
   return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${last}`;
-}
-
-/** UTC to the second, so the model reads the same time whatever machine the agent runs on. */
-export function utc(milliseconds: number): string {
-  return new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
 }

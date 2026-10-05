@@ -47,6 +47,6 @@ export {
   type Wakes,
   type WakeSettings,
 } from "./policy.ts";
-export { promptFor, standing, utc } from "./prompt.ts";
+export { promptFor, standing } from "./prompt.ts";
 export { endingOf, inParts } from "./reply.ts";
 export { channelOfThread, placeOfThread, type ThreadPlace } from "./thread.ts";
