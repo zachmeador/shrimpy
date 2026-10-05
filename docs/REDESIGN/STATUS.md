@@ -59,7 +59,7 @@ Left open by rooms' first step:
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment and dropped.
 - In a room's thread the terminal can't stop an agent or show its work as it happens, and it polls every room's threads every two seconds.
 - An edit that removes a mention un-addresses the original post for an agent that reads the feed afterwards, since an event shows its message as it now stands.
-- Two full runs of the suite have failed one test and passed when run again: a test of the chat server stopping, once in eight runs under load, and one on 2026-10-05 whose name wasn't captured, once in seven runs. Something in the suite depends on timing.
+- Some tests assert that nothing happened after a pause, where no later event can be waited for: about a dozen, in the console's network and state tests, the agent's chat and stop tests and the registration tests. A few bound how long something takes, which could trip on a loaded machine. Neither has failed.
 
 Left open by the feed of events, to settle before rooms and chat providers:
 
@@ -105,6 +105,8 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**Tests that depended on timing, 2026-10-05.** One full run of the suite in about thirty-six had failed a single test and passed when run again. The cause was found in the chat server's stop test: it closed the server, waited one tick and asserted that the client had been told, though that crosses a real socket. With copies of the old and the new test run side by side under load, the old one failed once in sixty and the new one never. Eleven such pauses now wait for the thing itself, and five tests that assert nothing happened now wait for an event that is certain to come after. Seventeen one-tick waits stay, where everything is in one process. Twenty more runs under load found two other tests that fail now and then, each with a known cause: test support read a log file while it was being written, and a test read a receipt the moment the reply appeared. Both are being fixed, and no fault was found in the product.
 
 **Phase 5 progress, 2026-10-05: rooms in the agent.** Built from what the first demo showed. `send_message` and `read_messages` reach a room, so a session behind a DM can post there. An answer wakes whoever asked, once, read from the receipt, and the argument a post had for naming what it answers is gone. An agent woken in a room reads what was said since it last looked, up to 20,000 characters, and every message says who it was for. The default wake policy is `people`, and `shrimpy wake` sets a room to `none`, `mentions`, `people` or `all`. Every agent is told how another agent is reached and what to do with a person's message that mentions nobody. Checked on macOS arm64: 513 tests, 507 pass and 6 are skipped.
 
