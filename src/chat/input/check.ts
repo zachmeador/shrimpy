@@ -59,10 +59,10 @@ export function flag(value: unknown, what: string): boolean {
   return value;
 }
 
-/** A list of IDs, one to `most` long. */
-export function identifiers(value: unknown, what: string, most: number): string[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > most) {
-    refuse(`${what} must be a list of 1 to ${most} IDs.`);
+/** A list of IDs, `least` to `most` long, one at least unless said otherwise. */
+export function identifiers(value: unknown, what: string, most: number, least = 1): string[] {
+  if (!Array.isArray(value) || value.length < least || value.length > most) {
+    refuse(`${what} must be a list of ${least} to ${most} IDs.`);
   }
   return value.map((item) => identifier(item, `${what} item`));
 }

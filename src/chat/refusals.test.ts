@@ -13,6 +13,8 @@ test("before a connection has come in with a ticket, every call but enter is ref
   const calls: [string, () => Promise<unknown>][] = [
     ["channels", () => stranger.chat.channels()],
     ["openDm", () => stranger.chat.openDm("mem_1")],
+    ["createRoom", () => stranger.chat.createRoom("Ops", [])],
+    ["addMembers", () => stranger.chat.addMembers("ch_1", ["mem_1"])],
     ["threads", () => stranger.chat.threads("ch_1")],
     ["createThread", () => stranger.chat.createThread("ch_1", null)],
     ["renameThread", () => stranger.chat.renameThread("th_1", "Name")],

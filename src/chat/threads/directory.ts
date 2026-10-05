@@ -1,7 +1,7 @@
 import type { Channel, Member, Thread } from "../../contracts/chat/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
-import { flag, identifier, label } from "../input/index.ts";
-import type { ChannelRecord } from "../store/index.ts";
+import { flag, identifier, identifiers, label, MAX_MEMBERS } from "../input/index.ts";
+import type { ChannelRecord, Transaction } from "../store/index.ts";
 import { visibleChannel, visibleThread } from "./access.ts";
 import type { ChatDeps } from "./deps.ts";
 import { withWorking } from "./working.ts";
@@ -40,6 +40,62 @@ export async function openDm(deps: ChatDeps, caller: Member, otherId: unknown): 
     const channel =
       tx.directChannel(caller.id, other.id) ?? tx.createDirectChannel(caller, other, deps.now());
     return toChannel(channel, caller);
+  });
+}
+
+/**
+ * The members that `ids` name, as the store has them or else the roster does,
+ * with the caller and repeats left out. One the roster does not have is
+ * refused, so a call that names one makes and changes nothing.
+ */
+async function membersOf(deps: ChatDeps, caller: Member, ids: string[]): Promise<Member[]> {
+  const wanted = [...new Set(ids)].filter((id) => id !== caller.id);
+  const met = deps.store.transaction((tx) => wanted.map((id) => tx.member(id)));
+  const members: Member[] = [];
+  for (const [index, id] of wanted.entries()) {
+    members.push(met[index] ?? (await deps.identity.member(id)) ?? refuse(`There is no member ${id} on the roster.`));
+  }
+  return members;
+}
+
+/**
+ * Make a room, with the caller and the members given in it, and its main
+ * thread. The name is a name for display, and no other room has it, whatever
+ * the case. Everything is checked before anything is made.
+ */
+export async function createRoom(deps: ChatDeps, caller: Member, name: unknown, memberIds: unknown): Promise<Channel> {
+  const title = label(name, "The room's name");
+  const members = await membersOf(deps, caller, identifiers(memberIds, "memberIds", MAX_MEMBERS, 0));
+  return deps.store.transaction((tx) => {
+    if (tx.roomNamed(title) !== undefined) {
+      refuse(`There is a room called "${title}" already. Room names are unique, whatever the case. Choose another.`);
+    }
+    for (const member of members) tx.addMember(member);
+    return toChannel(tx.createRoom(title, [caller, ...members], deps.now()), caller);
+  });
+}
+
+/** A room the caller is in. A DM is refused: it has the two members and no more. */
+function roomOf(tx: Transaction, caller: Member, channelId: string): ChannelRecord {
+  const channel = visibleChannel(tx, caller, channelId);
+  if (channel.kind !== "room") refuse("A DM has two members and takes no more. Make a room to talk with more.");
+  return channel;
+}
+
+/**
+ * Add members to a room the caller is in. Whoever is added is offered the
+ * room's events from then on, and one who is in already stays as they are.
+ */
+export async function addMembers(deps: ChatDeps, caller: Member, channelId: unknown, memberIds: unknown): Promise<Channel> {
+  const id = identifier(channelId, "channelId");
+  const ids = identifiers(memberIds, "memberIds", MAX_MEMBERS);
+  // Someone who is not in the room is refused before the roster is asked anything for them.
+  deps.store.transaction((tx) => roomOf(tx, caller, id));
+  const added = await membersOf(deps, caller, ids);
+  return deps.store.transaction((tx) => {
+    roomOf(tx, caller, id);
+    for (const member of added) tx.addMember(member);
+    return toChannel(tx.addToChannel(id, added), caller);
   });
 }
 

@@ -1,5 +1,5 @@
 /** The tables' version. A store written by any other version is refused, never changed. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /**
  * `events` is the log, and the one thing that gives positions. AUTOINCREMENT
@@ -16,6 +16,13 @@ export const SCHEMA_VERSION = 5;
  * carries the receipt in `answers_seq`, `status`, `reply_seq` and `detail`.
  * `receipts` keeps the one that stands for each member and event, as
  * `reactions` keeps the emoji that stand.
+ *
+ * A DM is found by its `direct_key`, the two members' IDs in order, and a room
+ * by its `room_key`, its name in lower case, which no other room has. A member
+ * is offered a channel's events after its `since_seq`: the position of the
+ * newest event when it joined, so that nothing from before comes with it.
+ * A message that answers an event keeps that event's position in its own
+ * `answers_seq`, so that who it is for can be worked out again when it is edited.
  */
 export const SCHEMA = `
 CREATE TABLE members (
@@ -28,12 +35,17 @@ CREATE TABLE channels (
   id TEXT NOT NULL PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('dm', 'room')),
   name TEXT,
-  direct_key TEXT UNIQUE
+  direct_key TEXT UNIQUE,
+  room_key TEXT UNIQUE,
+  CHECK ((kind = 'dm') = (direct_key IS NOT NULL)),
+  CHECK ((kind = 'room') = (name IS NOT NULL)),
+  CHECK ((kind = 'room') = (room_key IS NOT NULL))
 ) STRICT;
 
 CREATE TABLE memberships (
   channel_id TEXT NOT NULL REFERENCES channels (id),
   member_id TEXT NOT NULL REFERENCES members (id),
+  since_seq INTEGER NOT NULL,
   PRIMARY KEY (channel_id, member_id)
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX memberships_by_member ON memberships (member_id, channel_id);
@@ -88,7 +100,8 @@ CREATE TABLE messages (
   sent_at INTEGER NOT NULL,
   edited_at INTEGER,
   deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
-  addressed TEXT NOT NULL
+  addressed TEXT NOT NULL,
+  answers_seq INTEGER REFERENCES events (seq)
 ) STRICT;
 CREATE INDEX messages_by_thread ON messages (thread_id, seq);
 

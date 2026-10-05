@@ -10,7 +10,10 @@ export const MAX_DETAIL = MAX_RECEIPT_DETAIL_LENGTH;
 /** Messages or events in one page of `read` or `feed`. Larger requests get a page this size. */
 export const MAX_PAGE = 200;
 
-/** Characters in a member's or a thread's name. */
+/** Members one call can name, when it makes a room or adds to one. */
+export const MAX_MEMBERS = 200;
+
+/** Characters in a member's, a room's or a thread's name. */
 export const MAX_NAME = 200;
 
 /** Characters in an ID that a caller makes up: a member, a request. */

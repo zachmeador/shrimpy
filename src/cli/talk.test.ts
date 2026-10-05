@@ -197,6 +197,8 @@ test("stopping run while its message is still being sent says it may have been p
         enter: () => Promise.resolve(you),
         channels: unsupported,
         openDm: () => Promise.resolve({ ...channel, members: [...channel.members] }),
+        createRoom: unsupported,
+        addMembers: unsupported,
         threads: unsupported,
         createThread: () => Promise.resolve(thread),
         renameThread: unsupported,

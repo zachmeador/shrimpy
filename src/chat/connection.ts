@@ -3,8 +3,10 @@ import type { Chat, Member } from "../contracts/chat/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { feed, head } from "./offers/index.ts";
 import {
+  addMembers,
   archiveThread,
   type ChatDeps,
+  createRoom,
   createThread,
   deleteMessage,
   editMessage,
@@ -59,6 +61,12 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
     async openDm(otherId) {
       return openDm(deps, caller(), otherId);
     },
+    async createRoom(name, memberIds) {
+      return createRoom(deps, caller(), name, memberIds);
+    },
+    async addMembers(channelId, memberIds) {
+      return addMembers(deps, caller(), channelId, memberIds);
+    },
     async threads(channelId) {
       return listThreads(deps, caller(), channelId);
     },
@@ -71,8 +79,8 @@ export function serveChat(deps: ChatDeps, presentation: RoutedServerPresentation
     async archiveThread(threadId, archived) {
       return archiveThread(deps, caller(), threadId, archived);
     },
-    async post(threadId, text, requestId) {
-      return post(deps, caller(), threadId, text, requestId);
+    async post(threadId, text, requestId, answers) {
+      return post(deps, caller(), threadId, text, requestId, answers);
     },
     async edit(messageId, text) {
       return editMessage(deps, caller(), messageId, text);

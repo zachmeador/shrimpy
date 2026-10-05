@@ -14,4 +14,4 @@ export {
   receipt,
   whole,
 } from "./check.ts";
-export { ANSWER_BYTES, fitAnswer, MAX_PAGE } from "./limits.ts";
+export { ANSWER_BYTES, fitAnswer, MAX_MEMBERS, MAX_PAGE } from "./limits.ts";

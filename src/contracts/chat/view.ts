@@ -9,12 +9,16 @@ export interface Member {
   name: string;
 }
 
-/** A place where people and agents talk. */
+/**
+ * A place where people and agents talk: a DM, which has two members, or a room,
+ * which has a name of its own and any number of them. Only its members see it.
+ */
 export interface Channel {
   id: string;
   kind: "dm" | "room";
   /** A room's name, or in a DM the other member's name: what the caller calls it. */
   name: string;
+  /** In order of ID, so every member sees the same list. */
   members: Member[];
 }
 
@@ -99,7 +103,12 @@ export interface Message {
   editedAt: number | null;
   /** A deleted message keeps its place in the thread and has lost its text and its reactions. */
   deleted: boolean;
-  /** IDs of the members this message is meant for: the others in a DM, or those mentioned in a room. */
+  /**
+   * IDs of the members this message is meant for, in the channel's order of
+   * members. In a DM that is the other member. In a room it is those the text
+   * mentions as `@name`, everyone but the author when it says `@all`, and the
+   * author of the event it answers, if that is a member. Never its author.
+   */
   addressed: string[];
   /** The emoji on it, in the order each first appeared. */
   reactions: Reaction[];

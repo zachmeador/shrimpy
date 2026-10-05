@@ -27,6 +27,7 @@ function post(tx: Transaction, threadId: string, author: Member, text: string, s
     text,
     sentAt,
     addressed: [],
+    answers: null,
     requestId: `request-${text}`,
     preview: text,
     digest: text,

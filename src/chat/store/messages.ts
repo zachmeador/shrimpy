@@ -76,6 +76,8 @@ export interface NewMessage {
   addressed: string[];
   /** The start of the text, for places that show only that. */
   preview: string;
+  /** The position of the event it says it answers, or null. */
+  answers: number | null;
   /** The author's own ID for this post. A second post with the same one is a retry. */
   requestId: string;
   /** What the request said, so that a retry can be told from a different request that reuses its ID. */
@@ -101,6 +103,8 @@ export interface MessageOperations {
   /** Add a message to a thread, with its post event and the record that makes its post a retry-safe one. */
   appendMessage(message: NewMessage): Message;
   message(id: string): Message | undefined;
+  /** The ID of the member who did the event that a message says it answers, if it says it answers one. */
+  answeredMember(message: Message): string | undefined;
   /** Up to `limit` messages of a thread older than `before`, or the newest when it is null; oldest first. */
   messagesIn(threadId: string, before: number | null, limit: number): Message[];
   /** Change what a message says. The message stays as it is if it already says that. It must not be deleted. */
@@ -135,8 +139,8 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         text: post.text,
       });
       sql.run(
-        `INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, addressed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO messages (seq, id, channel_id, thread_id, author_id, text, preview, sent_at, addressed, answers_seq)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         posted.seq,
         newId("msg"),
         thread.channel_id,
@@ -146,6 +150,7 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
         post.preview,
         post.sentAt,
         JSON.stringify(post.addressed),
+        post.answers,
       );
       sql.run(
         "INSERT INTO posts (author_id, request_id, message_seq, digest) VALUES (?, ?, ?, ?)",
@@ -168,6 +173,13 @@ export function messageOperations(sql: Sql, report: ReportChange): MessageOperat
       return loadMessage(sql, posted.seq);
     },
     message: (id) => select("WHERE m.id = ?", id)[0],
+    answeredMember(message) {
+      const row = sql.one(
+        "SELECT e.actor_id FROM messages m JOIN events e ON e.seq = m.answers_seq WHERE m.seq = ?",
+        message.seq,
+      ) as { actor_id: string } | undefined;
+      return row?.actor_id;
+    },
     messagesIn(threadId, before, limit) {
       const rows = sql.all(
         `SELECT * FROM (

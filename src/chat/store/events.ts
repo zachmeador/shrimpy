@@ -93,7 +93,10 @@ function toEvent(row: EventRow): ChatEvent {
 export interface EventOperations {
   /** The event with this ID, if there is one. */
   event(id: string): ChatEvent | undefined;
-  /** Up to `limit` events after `cursor` in the channels a member belongs to; oldest first. */
+  /**
+   * Up to `limit` events after `cursor` in the channels a member belongs to;
+   * oldest first. In each channel, only those after the member joined it.
+   */
   eventsAfter(memberId: string, cursor: number, limit: number): ChatEvent[];
   /** The position of the newest event, or 0 while there are none. */
   head(): number;
@@ -108,7 +111,9 @@ export function eventOperations(sql: Sql): EventOperations {
     eventsAfter(memberId, cursor, limit) {
       const rows = sql.all(
         `${SELECT}
-         WHERE e.seq > ? AND e.channel_id IN (SELECT channel_id FROM memberships WHERE member_id = ?)
+         WHERE e.seq > ?
+           AND EXISTS (SELECT 1 FROM memberships s
+                        WHERE s.channel_id = e.channel_id AND s.member_id = ? AND s.since_seq < e.seq)
          ORDER BY e.seq LIMIT ?`,
         cursor,
         memberId,

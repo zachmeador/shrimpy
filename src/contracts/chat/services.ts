@@ -24,6 +24,25 @@ export interface Chat {
    * one the roster does not have is refused.
    */
   openDm(otherId: string, context: Context): Promise<Channel>;
+  /**
+   * Make a room called `name`, with the caller and the members `memberIds` in
+   * it, and its main thread. A name is one line of 1 to 200 characters, and no
+   * other room has it, whatever the case. Anyone on the roster may be a member:
+   * one the chat server has not met is looked up in the gateway's roster, and
+   * one the roster does not have is refused. Either refusal makes nothing. The
+   * caller among `memberIds`, or a member named twice, counts once. Answers with
+   * the room.
+   */
+  createRoom(name: string, memberIds: string[], context: Context): Promise<Channel>;
+  /**
+   * Add 1 to 200 members to a room the caller is in, by the same rules as
+   * `createRoom`: anyone on the roster, and none is added if any is refused. A
+   * member who is in the room already stays as they are. A member who is added
+   * is offered the room's events from then on, and never what came before; the
+   * room's threads, read, show it. A DM takes no one. Answers with the room as
+   * it now stands.
+   */
+  addMembers(channelId: string, memberIds: string[], context: Context): Promise<Channel>;
 
   /** A channel's threads, archived ones too, the most recently updated first. */
   threads(channelId: string, context: Context): Promise<Thread[]>;
@@ -35,17 +54,33 @@ export interface Chat {
    * Post to a thread. A retry with the same `requestId` from the same member
    * returns the first message, as it stands now, instead of posting twice, even
    * if it has been edited or deleted since; the same `requestId` with a
-   * different thread or text is refused. A message holds at most
+   * different thread, text or `answers` is refused. A message holds at most
    * `MAX_MESSAGE_LENGTH` characters.
+   *
+   * Who the post is for follows from the channel. In a DM it is the other
+   * member, whatever the text says. In a room it is the members the text
+   * mentions as `@name`, matched as names are matched elsewhere, whatever the
+   * case, and every member but the author when it says `@all`; a name that is
+   * no member's is for nobody. `answers` is the ID of an event the post answers,
+   * or null: the author of that event is for it too, if they are a member of
+   * the room, and not the poster. The event must be in a channel the caller
+   * belongs to. An edit works out who the message is for again, with the same
+   * event.
    */
-  post(threadId: string, text: string, requestId: string, context: Context): Promise<Message>;
+  post(
+    threadId: string,
+    text: string,
+    requestId: string,
+    answers: string | null,
+    context: Context,
+  ): Promise<Message>;
   /**
    * Change what a message says. Only its author may; for anyone else in the
    * channel the call is refused, and for someone outside it the message does
    * not exist. A deleted message cannot be edited. Editing to the text the
    * message already has changes nothing and adds no event, so a call whose
-   * answer was lost can be made again. Answers with the message as it now
-   * stands.
+   * answer was lost can be made again. Who the message is for is worked out
+   * again from the new text. Answers with the message as it now stands.
    */
   edit(messageId: string, text: string, context: Context): Promise<Message>;
   /**
@@ -114,10 +149,11 @@ export interface Chat {
   head(context: Context): Promise<number>;
   /**
    * Events after `cursor` in every channel the caller belongs to, oldest
-   * first, up to `limit`, or fewer when they are very long. Waits until there
-   * is at least one. Every event is offered, the caller's own included, and
-   * what to do with each is the caller's call: the chat server leaves nothing
-   * out. This is how an agent is offered what happens: it asks, so the chat
+   * first, up to `limit`, or fewer when they are very long. In each channel,
+   * only the events after the caller joined it: a room's earlier history is
+   * read in its threads, never offered. Waits until there is at least one.
+   * Every event is offered, the caller's own included, and what to do with each
+   * is the caller's call: the chat server leaves nothing out. This is how an agent is offered what happens: it asks, so the chat
    * server never has to reach an agent, and a restarted agent catches up from
    * its own cursor. A cursor past `head` is refused.
    */

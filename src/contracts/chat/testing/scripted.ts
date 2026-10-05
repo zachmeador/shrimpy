@@ -203,6 +203,12 @@ export function scriptedChat(options: ScriptedChatOptions = {}): ScriptedChat {
         const other = (await identity.member(otherId)) ?? refuse(`There is no member ${otherId} on the roster.`);
         return toChannel(makeDm(me, other).channel, me);
       },
+      async createRoom() {
+        return unsupported();
+      },
+      async addMembers() {
+        return unsupported();
+      },
       async threads(channelId) {
         gate("threads");
         return threads
