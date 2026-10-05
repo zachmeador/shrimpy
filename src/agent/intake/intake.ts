@@ -6,7 +6,7 @@ import { deliver } from "./deliver.ts";
 import { readFeed } from "./feed.ts";
 import { pause, untilAborted } from "./pause.ts";
 import { promptFor } from "./prompt.ts";
-import type { Outstanding, Turn, TurnOutcome, Turns } from "./turns.ts";
+import type { Outstanding, Turn, TurnOutcome, Turns } from "./events.ts";
 import type { Taken } from "./wake.ts";
 import { workingMarks } from "./working.ts";
 

@@ -3,7 +3,7 @@ import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import { pause } from "./pause.ts";
-import type { Turns } from "./turns.ts";
+import type { Turns } from "./events.ts";
 import { type Taken, takeUp } from "./wake.ts";
 
 /** Events asked for at a time. */

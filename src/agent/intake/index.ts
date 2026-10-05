@@ -11,4 +11,4 @@
 export { type Intake, type IntakeOptions, startIntake } from "./intake.ts";
 export { standing } from "./prompt.ts";
 export { inParts } from "./reply.ts";
-export type { Outstanding, Snapshot, Turn, TurnOutcome, Turns } from "./turns.ts";
+export type { Outstanding, Snapshot, Turn, TurnOutcome, Turns } from "./events.ts";

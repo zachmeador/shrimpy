@@ -1,5 +1,5 @@
 import type { ChatEvent, Member } from "../../contracts/chat/index.ts";
-import type { Outstanding, Snapshot } from "./turns.ts";
+import type { Outstanding, Snapshot } from "./events.ts";
 
 /** What the agent takes up of an event, with where it came from. */
 export type Taken = Omit<Outstanding, "earlier">;

@@ -1,5 +1,5 @@
 import type { Message } from "../../contracts/chat/index.ts";
-import type { Outstanding, Snapshot } from "./turns.ts";
+import type { Outstanding, Snapshot } from "./events.ts";
 
 /**
  * What the model is shown for an event, and the one place that decides: the

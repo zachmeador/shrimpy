@@ -5,7 +5,7 @@ import {
   type Receipt,
 } from "../../contracts/chat/index.ts";
 import { clip, inParts, readFinalText, replyRequestId } from "./reply.ts";
-import type { Outstanding, TurnOutcome } from "./turns.ts";
+import type { Outstanding, TurnOutcome } from "./events.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;

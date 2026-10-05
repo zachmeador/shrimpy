@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { promptFor } from "./prompt.ts";
-import type { Outstanding, Snapshot } from "./turns.ts";
+import type { Outstanding, Snapshot } from "./events.ts";
 
 const at = (iso: string): number => Date.parse(iso);
 
