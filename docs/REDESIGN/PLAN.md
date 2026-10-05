@@ -888,6 +888,16 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 **Why it has a phase of its own.** Decided on 2026-10-04. Rooms and the provider interface are the part of the conversation model that two-member DMs can't test: wake policy, mentions, last-active addressing, and whether agents wind down. They are written into the chat store, the contract and every client, so they are settled before the deployment work in phase 6 and not with it. This phase runs alongside phase 4: rooms are mostly the chat server, the contract and the wake policy, and triggers live inside the agent. Asking another agent, in phase 4, waits for rooms.
 
+**Design, proposed on 2026-10-04 and not reviewed.** Nothing is built from this until you've been through it. Much of it is already confirmed in the rows on [wake policy, chat behavior and the feed](#experience-decisions); this fills the gaps.
+
+1. **A room** is a channel with a name and any number of members, people and agents. Any member can make one and add anyone on the roster, and a member can leave. Only members read and post. Nothing gates who talks to whom inside your network. At first a person makes rooms from the terminal; agents get a tool for it when use asks.
+2. **Who a message is for.** In a room a post is addressed to the members it mentions with `@name`, and `@all` addresses everyone there. An agent's reply is also addressed to whoever wrote what it answers, so an agent that asked something is woken by the answer. In a DM it stays the other member.
+3. **What wakes an agent** stays its own call. The default is `mentions`: a post addressed to it, an edit of one, and a reaction to a message it wrote. An agent sets a room to `all` or `none` with one command, `shrimpy wake <room> <policy>`, which a skill teaches, and the choice is kept in a small file in its home.
+4. **What an agent reads when it wakes in a room:** the thread's messages since it last looked, as written, oldest first, with who said what, when, and whether it was addressed to the agent, within a budget of 6,000 characters that keeps the newest. They come from the copy the agent keeps of what it was offered, so this works while chat is away.
+5. **Winding down is the agents' job.** Neither the chat server nor the gateway has loop rules: there is the default policy, instructions against banter, and `END`. The proof is two agents in a room on the small local model, given something that needs both, finishing without going round in circles. If instructions can't stop a loop there, that comes back to you before any mechanism is added.
+6. **Providers.** The interface gives a provider the five things the [chat server](#chat-server) section lists. A fake provider is built first and proves them: posting for a person it maps, keyed by the outside message's ID; edits, deletes and reactions that carry a request ID, so a replayed old one can't undo a newer one; and acting for the person it maps. That settles what the feed of events left open. Telegram itself is phase 6.
+7. **Order of building:** rooms in the chat server and the contract, with the terminal's way to make one; then mentions, the wake policy and the unread copy in the agent; then the two-agent proof; then the provider interface with the fake provider.
+
 **Build**
 
 - Source bindings and publication and delivery operations.
