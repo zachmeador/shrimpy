@@ -6,6 +6,17 @@
  */
 
 /**
+ * Who a message in a room was for, as the model is told: whether it was for the
+ * agent, the other members it was for by name, and whether it was for everyone in
+ * the room but its author. A message that mentions nobody is for none of them.
+ */
+export type Audience = {
+  you: boolean;
+  others: string[];
+  everyone: boolean;
+};
+
+/**
  * A chat event as it was written, kept so the model can be shown it later. The
  * agent admits events, not messages: what it takes up is a post, an edit, a
  * reaction to a message of its own, or the reply that answers a message of its
@@ -22,6 +33,12 @@ export type Snapshot =
       author: string;
       sentAt: number;
       text: string;
+      /** In a room, who it was for. A DM has none: every message in it is for the other member. */
+      to?: Audience;
+      /** When it was last edited, for a message that is shown as it now stands. */
+      editedAt?: number;
+      /** Whether `text` is only the start of what it says, cut because the rest was longer than there was room for. */
+      clipped?: true;
     }
   | {
       kind: "edited";
@@ -35,6 +52,8 @@ export type Snapshot =
       at: number;
       /** What the message says now. */
       text: string;
+      /** In a room, who it is for now. */
+      to?: Audience;
     }
   | {
       kind: "reacted";
@@ -79,6 +98,22 @@ export type Wakeup = {
   note: string;
 };
 
+/** A message of a thread, as the model reads one that arrives. */
+export type Said = Extract<Snapshot, { kind: "posted" }>;
+
+/**
+ * What was said in a room's thread since the agent last looked, which an event
+ * that wakes the agent there comes with. These are messages the agent has not
+ * taken up and whose events have no receipt: the agent was only shown them.
+ */
+export type Backlog = {
+  /** The newest of them that fit in what the model is shown, oldest first. */
+  messages: Said[];
+  /** How many earlier messages are not shown, or at least that many when `atLeast` is set. */
+  cut: number;
+  atLeast?: true;
+};
+
 /**
  * A chat event the agent took up and has not left its receipt on yet: the input
  * of the task that follows it, from the moment the event is taken up until its
@@ -94,6 +129,13 @@ export type ChatInput = {
    * Oldest first. They get the same receipt as the event.
    */
   earlier: Snapshot[];
+  /**
+   * In a room, what was said in the thread since the agent last looked, shown
+   * to the model before the event. Present for every event that wakes the agent
+   * in a room, with nothing in it when there was nothing to show, and absent in
+   * a DM.
+   */
+  backlog?: Backlog;
   /**
    * Wake-ups the agent asked for that were cancelled since it last heard of
    * them, told to the model with this input, once. Absent when there are none.
@@ -235,10 +277,18 @@ export interface Admissions {
    * `position`, all in one commit. `position` is where the feed brought the
    * event, which is the event's own position unless it is a reply that a receipt
    * pointed to. The thread's earlier unacted events go with it, and so do the
-   * wake-ups cancelled since the model last heard of them. An event is taken up
-   * once, because the cursor moves with it.
+   * wake-ups cancelled since the model last heard of them. An event in a room,
+   * one with a `backlog`, also moves where the agent has looked in its thread to
+   * the event. An event is taken up once, because the cursor moves with it.
    */
   admit(draft: Omit<ChatInput, "earlier" | "cancelled">, position?: number): Promise<void>;
+  /**
+   * Where the agent last looked in a thread of a room: the position of the
+   * newest event it took up there, kept with the thread's session. Undefined
+   * for a thread it has never been woken in. Everything the thread says after
+   * that position is what the agent has not seen.
+   */
+  looked(threadId: string): Promise<number | undefined>;
 }
 
 /** What the agent's sessions know of the inputs it took up and has not finished telling their sources about yet. */

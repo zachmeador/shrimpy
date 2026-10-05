@@ -3,8 +3,10 @@ import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
 import { takeUpAnswer } from "./answer.ts";
+import { knownChannels } from "./channels.ts";
 import type { Admissions } from "./events.ts";
 import { pause } from "./pause.ts";
+import { inRoom } from "./room.ts";
 import { takeUp } from "./wake.ts";
 
 /** Events asked for at a time. */
@@ -37,6 +39,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
   const stopped = (): boolean => stop.aborted;
   const pauses = options.backoff ?? backoff();
   let loaded = false;
+  const channels = knownChannels();
   // Where the agent stands in the feed, and what its records hold.
   let cursor: number | undefined;
   let stored: number | undefined;
@@ -71,11 +74,18 @@ export async function readFeed(options: FeedOptions): Promise<void> {
       }
       for (const event of events) {
         const waking = takeUp(self, event);
-        const taken =
+        const reported = (error: Error): void => options.onError(error);
+        const woken =
           waking?.kind === "answer"
-            ? await takeUpAnswer(chat, self, waking.receipt, waking.reply, signal, (error) => options.onError(error))
+            ? await takeUpAnswer(chat, self, waking.receipt, waking.reply, signal, reported)
             : waking?.taken;
-        if (taken !== undefined) {
+        if (woken !== undefined) {
+          // In a room the event comes with what was said before it, and who each message was for.
+          const taken = await inRoom(
+            { chat, self, channels, looked: (threadId) => admissions.looked(threadId), signal, onError: reported },
+            event,
+            woken,
+          );
           // The agent's place in the feed moves in the commit that takes the event up, to where the feed brought it.
           await admissions.admit(taken, event.seq);
           cursor = stored = at = event.seq;

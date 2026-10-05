@@ -15,6 +15,9 @@ import { type ChatServer, loggedRequests, startAgentRig, talking } from "./testi
 
 const timeout = 60_000;
 
+/** A time as the model reads it. */
+const iso = (milliseconds: number): string => new Date(milliseconds).toISOString().replace(/\.\d{3}Z$/, "Z");
+
 /** A room that the person who runs the gateway makes, with `members`, and its main thread. */
 async function roomWith(chat: ChatServer, name: string, members: Member[]): Promise<{ person: Entered; room: Channel; main: Thread }> {
   const person = await chat.person();
@@ -132,8 +135,9 @@ test("one reply that answers two messages from two members wakes each of them th
   await Promise.all([scout.receiptOn(reply), maya.receiptOn(reply)]);
   assert.equal(scoutAsks.shown.length, 2);
   assert.equal(mayaAsks.shown.length, 2);
-  assert.ok((scoutAsks.shown[1] ?? "").includes("which key?") && !(scoutAsks.shown[1] ?? "").includes("which tempo?"), "each is shown its own question");
-  assert.ok((mayaAsks.shown[1] ?? "").includes("which tempo?") && !(mayaAsks.shown[1] ?? "").includes("which key?"));
+  // Each is shown that bob answered its own question, and the reply.
+  assert.ok((scoutAsks.shown[1] ?? "").includes(`bob answered your message from ${iso(keyQuestion.sentAt)}, which starts:\n@bob, which key?`));
+  assert.ok((mayaAsks.shown[1] ?? "").includes(`bob answered your message from ${iso(tempoQuestion.sentAt)}, which starts:\n@bob, which tempo?`));
   for (const shown of [scoutAsks.shown[1], mayaAsks.shown[1]]) assert.ok(shown?.includes("Key of C, tempo 90."), `the reply reached the model in\n${shown}`);
   assert.deepEqual(scout.reports, []);
   assert.deepEqual(maya.reports, []);
@@ -163,4 +167,70 @@ test("a fresh start passes over an answer it has dealt with, and over the rest o
   assert.equal(loggedRequests(first.home).length - asked, 1, "the model was asked for the new message and nothing from before");
   const inRoom = (await person.chat.read(main.id, null, 20)).filter((message) => message.author.id === first.partner.id);
   assert.deepEqual(inRoom.map((message) => message.text), ["@bob, which stanza will you take?", "Thanks."], "and said nothing again in the room");
+});
+
+test("an agent woken in a room is shown what was said there since it last looked, then the message that woke it, and a long backlog is cut with a pointer to the rest", { timeout }, async (t) => {
+  const model = talking(() => ({ final: "Seen." }));
+  const scout = await startAgentRig(t, { script: model.script });
+  const bob = await scout.chat.agent("bob");
+  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
+
+  // Bob talks and does not mention scout, so it is not woken until the person does.
+  await bob.chat.post(main.id, "I'll take stanza 2.", "bob-1");
+  await bob.chat.post(main.id, "Which key are we in?", "bob-2");
+  await scout.receiptOn(await person.chat.post(main.id, "@scout, where are we?", "person-1"));
+  const first = model.shown[0] ?? "";
+  const [stanza, key, woke] = ["I'll take stanza 2.", "Which key are we in?", "@scout, where are we?"].map((text) => first.indexOf(text));
+  assert.ok(first.includes("Since you last looked in this thread") && first.includes("Then this woke you:"), first);
+  assert.ok(stanza !== undefined && key !== undefined && woke !== undefined && 0 < stanza && stanza < key && key < woke, `oldest first, then the message that woke it:\n${first}`);
+
+  // What it was shown is not shown again.
+  await bob.chat.post(main.id, "Never mind, it is C.", "bob-3");
+  await scout.receiptOn(await person.chat.post(main.id, "@scout, and now?", "person-2"));
+  const second = model.shown[1] ?? "";
+  assert.ok(second.includes("Never mind, it is C."));
+  assert.ok(!second.includes("stanza 2") && !second.includes("Which key"), second);
+
+  // A backlog that is longer than the model is shown keeps the newest, says how many are left out and how to read them.
+  for (let n = 1; n <= 30; n++) await bob.chat.post(main.id, `${String(n).padStart(2, "0")} ${"x".repeat(900)}`, `long-${String(n)}`);
+  await scout.receiptOn(await person.chat.post(main.id, "@scout, catch up.", "person-3"));
+  const third = model.shown[2] ?? "";
+  assert.ok(third.length < 22_000, `${String(third.length)} characters`);
+  const [, cut = "", before = ""] = /(\d+) earlier messages are not shown here\. To read them, call read_messages with before: (\d+)\./.exec(third) ?? [];
+  const numbered = [...third.matchAll(/^(\d\d) x+/gm)].map((found) => Number(found[1]));
+  assert.equal(numbered.at(-1), 30, "the newest is kept");
+  assert.equal(numbered.length + Number(cut), 30, "and every one is either shown or counted");
+  const oldest = (await person.chat.read(main.id, null, 200)).find((message) => message.text.startsWith(`${String(numbered[0]).padStart(2, "0")} x`));
+  assert.equal(Number(before), oldest?.seq, "read_messages reads what is before the oldest one shown");
+  assert.deepEqual(scout.reports, []);
+});
+
+test("what the model reads of a message in a room says who it was for, and in a DM it says nothing of it", { timeout }, async (t) => {
+  const model = talking(() => ({ final: "Seen." }));
+  const scout = await startAgentRig(t, { script: model.script });
+  const bob = await scout.chat.agent("bob");
+  const maya = await scout.chat.agent("maya");
+  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me, maya.me]);
+
+  const toMaya = await bob.chat.post(main.id, "@maya, the disk is full.", "bob-1");
+  const aloud = await bob.chat.post(main.id, "Thinking aloud.", "bob-2");
+  const both = await person.chat.post(main.id, "@scout and @bob: is it urgent?", "person-1");
+  await scout.receiptOn(both);
+  const everyone = await person.chat.post(main.id, "@all: status, please.", "person-2");
+  await scout.receiptOn(everyone);
+  const direct = await scout.say("A word in private.");
+  await scout.receiptOn(direct);
+
+  const [one = "", two = "", three = ""] = model.shown;
+  for (const line of [
+    `bob wrote at ${iso(toMaya.sentAt)}, for maya, not for you:\n@maya, the disk is full.`,
+    `bob wrote at ${iso(aloud.sentAt)}, mentioning nobody:\nThinking aloud.`,
+    `${person.me.name} wrote at ${iso(both.sentAt)}, for you and bob:\n@scout and @bob: is it urgent?`,
+  ]) {
+    assert.ok(one.includes(line), `${line}\nwas not in\n${one}`);
+  }
+  assert.ok(two.includes(`${person.me.name} wrote at ${iso(everyone.sentAt)}, for everyone in the room:\n@all: status, please.`), two);
+  assert.ok(!two.includes("Since you last looked"), "nothing came between the two");
+  assert.equal(three.includes("Since you last looked"), false);
+  assert.ok(three.trimEnd().endsWith(`${person.me.name} wrote at ${iso(direct.sentAt)}:\nA word in private.`), `a DM's message is shown as it always was:\n${three}`);
 });

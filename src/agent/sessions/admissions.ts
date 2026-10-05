@@ -27,7 +27,15 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
       }, context);
     },
 
+    async looked(threadId) {
+      const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
+      const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
+      return known?.channelId === null ? undefined : known?.looked;
+    },
+
     admit(draft, position = draft.event.seq) {
+      // An event in a room is the newest thing the agent has looked at in its thread.
+      const looking = draft.backlog === undefined ? {} : { looked: draft.event.seq };
       return harness.commit(async (tx) => {
         (await tx.doc(FeedDoc)).cursor = position;
         const threads = (await tx.doc(SessionsDoc)).sessions;
@@ -38,11 +46,12 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
         if (known === undefined) {
           conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
           await configure(tx, conversationId, agentChange(defaults));
-          threads[draft.threadId] = { conversationId, channelId: draft.channelId, unacted: [] };
+          threads[draft.threadId] = { conversationId, channelId: draft.channelId, unacted: [], ...looking };
         } else {
           conversationId = known.conversationId as ConversationId;
           earlier = takeEvents(known);
           cancelled = takeCancelled(known);
+          if (known.channelId !== null && looking.looked !== undefined) known.looked = Math.max(known.looked ?? 0, looking.looked);
         }
         await followInput(tx, turn, conversationId, { ...plain(draft), earlier, ...carrying(cancelled) });
       }, context);

@@ -43,11 +43,14 @@ export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]
  * came with it, and a wake-up is kept as one that was cancelled, because a stop
  * is what withdrew it. An occurrence of a trigger is not kept: the trigger's
  * next one says the same. What the input carried of the cancelled wake-ups is
- * kept again too.
+ * kept again too, and so are the messages of a room that came with a chat event,
+ * since the agent has moved past them.
  */
 export function keepSkipped(session: SessionRecord, input: Outstanding): void {
   if (isWakeup(input)) keepCancelled(session, [input.wakeup]);
-  else if (isChat(input)) session.unacted = inOrder([...plain(session.unacted), ...input.earlier, input.event]);
+  else if (isChat(input)) {
+    session.unacted = inOrder([...plain(session.unacted), ...input.earlier, ...(input.backlog?.messages ?? []), input.event]);
+  }
   keepCancelled(session, input.cancelled ?? []);
 }
 

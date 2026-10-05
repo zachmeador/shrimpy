@@ -41,7 +41,8 @@ export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: R
 /**
  * A session of the agent, and what the model has yet to be shown for it: the
  * events in its thread the agent has not acted on, and the wake-ups it asked
- * for that were cancelled. Both go with the session's next input. A session is
+ * for that were cancelled. Both go with the session's next input. A session in a
+ * room also keeps where the agent last looked in the thread. A session is
  * behind a thread, and has that thread's channel, or is a trigger's own and
  * behind none, and has no channel; `trigger` names that trigger.
  */
@@ -58,6 +59,13 @@ export type SessionRecord =
        * session written before wake-ups existed has none.
        */
       cancelled?: Wakeup[];
+      /**
+       * In a room, the position of the newest event the agent took up in the thread:
+       * everything the thread says after it is what the agent has not looked at. A
+       * session that was never woken in a room has none, and neither has one written
+       * before the agent kept it.
+       */
+      looked?: number;
     }
   | {
       conversationId: number;
