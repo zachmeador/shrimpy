@@ -1,4 +1,4 @@
-import type { Gateway, Member, ProgramName } from "../contracts/gateway/index.ts";
+import { type Gateway, type Member, type ProgramName, TURNED_AWAY } from "../contracts/gateway/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { checkAnnouncement, InvalidRegistrationError, type Registry } from "./registry/index.ts";
@@ -59,19 +59,19 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
   };
 
   /**
-   * A copy of an agent's home holds the agent's token. While a program is
-   * registered as the member, joining with its token or renaming the member with
-   * it would let the copy change the agent that runs, so that is refused. The
-   * asking connection has not registered yet, so a registration of the member is
-   * on another connection.
+   * An agent runs once, and a copy of its home holds its token. While a program
+   * on another connection is registered as the member, joining with the token,
+   * renaming the member with it and registering as the member are refused, so
+   * that the copy changes nothing and the agent that runs stays the one reached.
+   * What to do about it depends on files in the agent's home, which the agent
+   * says; the message here says what happened.
    */
   const refuseIfRunning = (member: Member): void => {
-    if (!registry.list().some((program) => program.memberId === member.id)) return;
+    if (!registry.registeredAs(member.id, registrant)) return;
     refuse(
-      `The agent "${member.name}" is already running, and this home holds its token, so the gateway takes it for the same agent. ` +
-        "If this home is a copy that should be an agent of its own, stop it, delete its state/member.json, " +
-        "give it another name in agent.json and start it again.",
+      `The agent "${member.name}" is already running, and this connection holds its token, so the gateway takes it for the same agent.`,
       "service_not_allowed",
+      TURNED_AWAY.agentRunning,
     );
   };
 
@@ -94,6 +94,7 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
         if (kind === "agent") {
           const member = signedIn === undefined ? undefined : roster.member(signedIn);
           if (member === undefined) refuse("An agent registers as a member: join or sign in first.");
+          refuseIfRunning(member);
           memberId = member.id;
         } else if (signedIn !== undefined) {
           refuse("Only an agent is a member. A program that is not one registers without signing in.");
@@ -132,7 +133,11 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       beforeRegistering("sign in");
       const member = typeof token === "string" ? roster.memberWithToken(token) : undefined;
       if (member === undefined) {
-        refuse("The gateway does not know that token. It may belong to a roster that was replaced.");
+        refuse(
+          "The gateway does not know that token. It may belong to a roster that was replaced.",
+          "service_invalid_value",
+          TURNED_AWAY.unknownToken,
+        );
       }
       if (signedIn !== undefined && signedIn !== member.id) {
         refuse(`This connection is already signed in as ${caller().name}.`);

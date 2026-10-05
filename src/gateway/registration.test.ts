@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createUnixTransportFactory } from "@earendil-works/pi-client/unix";
-import { type Announcement, connectGateway, type Registration } from "../contracts/gateway/index.ts";
+import { type Announcement, connectGateway, type Registration, TURNED_AWAY, whyTurnedAway } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, GatewayNotRunningError, newToken } from "../contracts/gateway/node.ts";
 import { eventually, useRuntimeDir } from "../lib/testing/index.ts";
 import {
@@ -15,6 +15,12 @@ import {
 const timeout = 30_000;
 
 const chatAnnouncement = (): Announcement => ({ ...agent("chat"), kind: "chat" });
+
+/** A refusal that says an agent is running already, whatever its words. */
+function agentRunning(error: unknown): boolean {
+  assert.equal(whyTurnedAway(error), TURNED_AWAY.agentRunning);
+  return true;
+}
 
 test("a registration is listed to every client, with the name the roster has for the agent", { timeout }, async (t) => {
   useRuntimeDir(t);
@@ -124,9 +130,9 @@ test("a copy of an agent's home that joins or renames with its token is turned a
     await original!.register(running);
 
     // The copy of a home that never wrote down its member ID joins. The copy of one that did signs in, under its new name.
-    await assert.rejects(copy!.join("scout", token), { code: "service_not_allowed", message: /already running/ });
-    await assert.rejects(copy!.join("scout2", token), { code: "service_not_allowed", message: /already running/ });
-    await assert.rejects(copy!.signIn(token, "scout2"), { code: "service_not_allowed", message: /already running/ });
+    await assert.rejects(copy!.join("scout", token), agentRunning);
+    await assert.rejects(copy!.join("scout2", token), agentRunning);
+    await assert.rejects(copy!.signIn(token, "scout2"), agentRunning);
 
     const agents = (await observer!.members()).filter((each) => each.kind === "agent");
     assert.deepEqual(agents, [{ ...scout, reachable: true }], "nothing is renamed, and the copy made no member of its own");
@@ -148,7 +154,7 @@ test("once the running agent's connection is gone, its token joins and registers
     const token = newToken();
     const scout = await original!.join("scout", token);
     await original!.register(agent("scout"));
-    await assert.rejects(successor!.join("scout2", token), /already running/);
+    await assert.rejects(successor!.join("scout2", token), agentRunning);
 
     await original!.close();
     await eventually(() => observer!.list(), (list) => list.length === 0, { what: "the registration to go" });
@@ -164,22 +170,26 @@ test("once the running agent's connection is gone, its token joins and registers
   }
 });
 
-test("a copy that keeps the original's name signs in without a rename and registers beside it: both are listed, and the member is reachable until both are gone", { timeout }, async (t) => {
+test("a copy that keeps the original's name signs in without a rename and is refused when it registers: the first stays the one reached until it is gone", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGatewayInProcess(t);
   const [original, copy, observer] = await Promise.all([1, 2, 3].map(() => connectLocalGateway()));
   try {
     const token = newToken();
+    const running = agent("scout");
     const member = await original!.join("scout", token);
-    await original!.register(agent("scout"));
+    await original!.register(running);
     await copy!.signIn(token, "scout");
-    await copy!.register(agent("scout"));
+    await assert.rejects(copy!.register(agent("scout")), agentRunning);
 
-    assert.deepEqual((await observer!.list()).map((program) => program.memberId), [member.id, member.id]);
-    assert.equal((await observer!.members()).filter((each) => each.id === member.id).length, 1);
+    assert.deepEqual((await observer!.list()).map((program) => program.memberId), [member.id]);
+    assert.equal((await observer!.ticket({ kind: "agent", name: "scout" })).serverId, running.serverId);
 
     await original!.close();
-    await eventually(() => observer!.list(), (list) => list.length === 1);
+    await eventually(() => observer!.list(), (list) => list.length === 0, { what: "the registration to go" });
+    await copy!.register(agent("scout"));
+    await copy!.register(agent("scout"));
+    assert.deepEqual((await observer!.list()).map((program) => program.memberId), [member.id], "registering again is not a second body");
     assert.equal((await observer!.members()).find((each) => each.id === member.id)?.reachable, true);
     await copy!.close();
     await eventually(() => observer!.members(), (members) => members.find((each) => each.id === member.id)?.reachable === false);

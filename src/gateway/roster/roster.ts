@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { isToken, type Member } from "../../contracts/gateway/index.ts";
+import { isToken, type Member, TURNED_AWAY } from "../../contracts/gateway/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { type Lock, takeLock } from "../../lib/lock/node.ts";
 import { refuse } from "../../lib/refusal/index.ts";
@@ -107,6 +107,8 @@ function keep(file: string, lock: Lock): Roster {
     refuse(
       `The name "${name}" is taken: it belongs to ${holder.kind === "agent" ? "the agent" : "the person"} "${holder.name}". ` +
         "Names are shared by people and agents, whatever the case. Choose another.",
+      "service_invalid_value",
+      TURNED_AWAY.nameTaken,
     );
   };
 

@@ -69,15 +69,25 @@ export interface RosterEntry extends Member {
  * Nobody says who they are: a connection that signed in with an agent's token
  * is that agent, and one that did not, on the gateway's own socket, is the
  * person who runs the gateway.
+ *
+ * An agent runs once. A copy of an agent's home holds the same token, so while a
+ * program is registered as a member, a program on another connection that joins
+ * with the member's token, renames the member with it or registers as the member
+ * is refused. The agent that is running keeps its name and stays the one that is
+ * reached, and the token is let in again once that connection has ended. Signing
+ * in without a rename is let in, so a command run in an agent's shell can act as
+ * the agent. A refusal that an agent answers with advice of its own says which
+ * case it is, in its reason (see `TURNED_AWAY`), and its message says only what
+ * happened: the gateway knows nothing of the files in an agent's home.
  */
 export interface Gateway {
   /**
    * Announce this program. The registration lasts as long as this connection.
    * An agent registers as the member this connection signed in as, and is
-   * refused if it did not sign in. The chat server registers as itself and is
-   * not a member, so it does not sign in. Only a program on the gateway's
-   * machine can register: a connection that came through the browser entry is
-   * refused.
+   * refused if it did not sign in, or if a program on another connection is
+   * registered as that member. The chat server registers as itself and is not a
+   * member, so it does not sign in. Only a program on the gateway's machine can
+   * register: a connection that came through the browser entry is refused.
    */
   register(announcement: Announcement, context: Context): Promise<void>;
   list(context: Context): Promise<Registration[]>;
@@ -96,21 +106,17 @@ export interface Gateway {
    * member: when the roster already has the member that holds the token, this
    * is that member, renamed to `name` if it is not called that. A name another
    * member has, whatever the case, is refused. So is joining, under any name,
-   * with the token of a member that a program is registered as on another
-   * connection: a copy of an agent's home holds the same token, and the agent
-   * that is running keeps its name and stays the one that is reached. The token
-   * joins again once that connection has ended. Only a program on the gateway's
-   * machine can join.
+   * with the token of a member that a program on another connection is
+   * registered as. Only a program on the gateway's machine can join.
    */
   join(name: string, token: string, context: Context): Promise<Member>;
   /**
    * Be the member that holds `token` from now on. With a `name` that is not the
    * member's, the member is renamed first, and a name another member has is
-   * refused. A rename is refused too while a program is registered as the
-   * member on another connection, for the reason `join` is. With null, or the
-   * member's own name, nothing changes, so a command run in an agent's shell
-   * can sign in as the agent while it runs. A token the roster does not have is
-   * refused. Only a program on the gateway's machine can sign in.
+   * refused. So is a rename while a program on another connection is registered
+   * as the member. With null, or the member's own name, nothing changes, and the
+   * member is signed in as. A token the roster does not have is refused. Only a
+   * program on the gateway's machine can sign in.
    */
   signIn(token: string, name: string | null, context: Context): Promise<Member>;
   /** Everyone on the roster, oldest first. It carries no token and no socket. */

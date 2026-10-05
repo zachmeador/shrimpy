@@ -39,8 +39,13 @@ export interface Registry {
   list(): Registration[];
   /** The name of each program that is registered, once. */
   names(): ProgramName[];
-  /** The newest live registration of a program. */
+  /**
+   * The newest live registration of a program. The gateway lets an agent
+   * register once at a time, so this chooses between the chat server's.
+   */
   find(kind: Registration["kind"], name: string): Registered | undefined;
+  /** Whether a connection other than `except` is registered as the agent `memberId`. */
+  registeredAs(memberId: string, except?: Registrant): boolean;
 }
 
 export interface RegistryOptions {
@@ -98,6 +103,8 @@ export function createRegistry(options: RegistryOptions): Registry {
       return [...seen.values()];
     },
     find: (kind, name) => all().findLast((entry) => entry.kind === kind && entry.name === name),
+    registeredAs: (memberId, except) =>
+      [...entries].some(([registrant, entry]) => registrant !== except && entry.memberId === memberId),
   };
 }
 

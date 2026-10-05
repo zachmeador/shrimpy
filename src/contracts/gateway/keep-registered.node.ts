@@ -24,6 +24,12 @@ export interface KeepRegisteredOptions {
    * ordinary state of a machine whose gateway has not started yet.
    */
   onError?: (error: Error) => void;
+  /**
+   * Called each time the program has registered, on a new connection. A caller
+   * that tells of an attempt's failure once, and not again while it repeats,
+   * starts over from here.
+   */
+  onRegistered?: () => void;
   /** The pauses between attempts. Tests shorten them. */
   backoff?: Backoff;
 }
@@ -77,6 +83,7 @@ export function keepRegistered(
         await gateway.register(announcement);
         live = gateway;
         established();
+        options.onRegistered?.();
         for (const wake of [...waiting]) wake(gateway);
         await ended(gateway);
       } finally {

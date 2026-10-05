@@ -18,20 +18,20 @@ const announce = (kind: "agent" | "chat", name: string, version = SHRIMPY_VERSIO
 });
 
 /** The chat server registers; it is gone when `stop` is called or the test ends. */
-function registerChat(t: TestContext) {
-  const kept = keepRegistered(announce("chat", "chat"), { backoff: quick() });
+function registerChat(t: TestContext, version?: string) {
+  const kept = keepRegistered(announce("chat", "chat", version), { backoff: quick() });
   stopAfter(t, () => kept.stop());
   return kept;
 }
 
 /**
- * An agent joins the roster as `name` and registers, or signs in with `token` and
- * registers when it has one, as the same agent does again after the gateway has
- * been away. It is gone when `stop` is called or the test ends.
+ * An agent joins the roster as `name` and registers, and signs in with its token
+ * and registers again after the gateway has been away. It is gone when `stop` is
+ * called or the test ends.
  */
-function registerAgent(t: TestContext, name: string, options: { token?: string; version?: string } = {}) {
-  let token = options.token;
-  const kept = keepRegistered(announce("agent", name, options.version), {
+function registerAgent(t: TestContext, name: string) {
+  let token: string | undefined;
+  const kept = keepRegistered(announce("agent", name), {
     backoff: quick(),
     async signIn(gateway) {
       if (token === undefined) {
@@ -41,7 +41,7 @@ function registerAgent(t: TestContext, name: string, options: { token?: string; 
     },
   });
   stopAfter(t, () => kept.stop());
-  return { kept, token: () => token };
+  return { kept };
 }
 
 test("it lists what the gateway lists, with the roster and the gateway's version, and follows programs that come and go", { timeout }, async (t) => {
@@ -116,13 +116,13 @@ test("the newest of programs with the same name is the one found", { timeout }, 
   useRuntimeDir(t);
   await startTestGateway(t);
   const registry = startRegistry(t);
-  const first = registerAgent(t, "scout", { version: "1.0.0" });
-  await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "the first scout" });
-  // A copy of the same agent, with the same token, is the same member twice.
-  registerAgent(t, "scout", { token: first.token(), version: "2.0.0" });
-  await eventually(() => registry.listing(), (listing) => listing?.programs.length === 2, { what: "the second scout" });
+  registerChat(t, "1.0.0");
+  await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "the first chat server" });
+  // The gateway refuses a second body for an agent, and not for the chat server: a restarted one is listed beside its old connection.
+  registerChat(t, "2.0.0");
+  await eventually(() => registry.listing(), (listing) => listing?.programs.length === 2, { what: "the second chat server" });
 
-  assert.equal((await registry.untilListed((listed) => listed.name === "scout", new AbortController().signal)).version, "2.0.0");
+  assert.equal((await registry.untilListed((listed) => listed.kind === "chat", new AbortController().signal)).version, "2.0.0");
 });
 
 test("closing stops it at once, even while the gateway is not there", { timeout }, async (t) => {
