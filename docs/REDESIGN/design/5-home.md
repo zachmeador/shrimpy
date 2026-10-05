@@ -4,7 +4,7 @@ This is one piece of the design. The words for a decision's status, such as Conf
 
 **The design**
 
-An agent home works on its own, with no workspace pointer, gateway or other agent; it keeps a cached copy of the workspace context. It holds identity and instructions, selected resources and skills, retained knowledge, provider credentials and defaults, and Pi storage. Joining a gateway puts the agent on its roster under a name, and the agent's token stays in its home: [identity and addressing](#identity-and-addressing) has the rest.
+An agent home works on its own, with no workspace pointer, gateway or other agent; it keeps a cached copy of the workspace context. It holds identity and instructions, selected resources and skills, retained knowledge, provider credentials and defaults, and Pi storage. Joining a gateway puts the agent on its roster under a name, and the agent's token stays in its home: [identity and addressing](3-identity.md) has the rest.
 
 Proposed layout; final paths settle with setup and the CLI:
 
@@ -58,7 +58,7 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 | Compaction | A copied runner with Shrimpy's guidance | Pi's native compaction with Shrimpy's summary guidance for dates, voice, paths and work state; same thresholds and model at first. Qualify summary quality before deleting the copy. Compaction only shrinks the session, so agents are told they can re-read the thread when a detail went missing. | Confirmed |
 | Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next two rows say. | Keep |
 | Which skills come first | 16 included skills, rewritten together | The first rewrite covers the four an agent needs to look after a Shrimpy setup: setting it up, making and maintaining agents, where messages go, and making skills. A skill for a feature that comes later is rewritten with that feature: watches and the default watches, coding delegation, update, the journals and audits, which run from watches, and `memory-management`, which comes with memory breadcrumbs. `remember`, search and web search wait until they're wanted. | Confirmed |
-| Docs, skills and agent instructions | Written for old Shrimpy and grown along with it | Rewritten from scratch for the new Shrimpy: the reference docs, the included skills, the base instructions and starter files agents get, and the developer docs. The charming parts of today's are kept, starting from the [keep list](KEEP-LIST.md), which you review before anything is rewritten. Keep it shrimple is the standard they're written to. | Confirmed |
+| Docs, skills and agent instructions | Written for old Shrimpy and grown along with it | Rewritten from scratch for the new Shrimpy: the reference docs, the included skills, the base instructions and starter files agents get, and the developer docs. The charming parts of today's are kept, starting from the [keep list](../history/keep-list.md), which you review before anything is rewritten. Keep it shrimple is the standard they're written to. | Confirmed |
 | Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
 | Where keys come from | — | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed |
 | How much an agent is told | — | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | Confirmed for now |
@@ -81,7 +81,7 @@ Pi compacts a session by default: it starts a summary in the background as the h
 
 - The home-context extension: base instructions, skill trails, input facts and compaction guidance.
 - Request and context inspection, and explicit reload.
-- Agent instructions and the first included skills rewritten from scratch against the new commands and tools: the base instructions, the starter `SOUL.md`, and each of the [skills that come first](#the-home) with its helper commands, tool requirements and precedence. First comes the [keep list](KEEP-LIST.md) of what's charming in today's, for you to review.
+- Agent instructions and the first included skills rewritten from scratch against the new commands and tools: the base instructions, the starter `SOUL.md`, and each of the [skills that come first](5-home.md) with its helper commands, tool requirements and precedence. First comes the [keep list](../history/keep-list.md) of what's charming in today's, for you to review.
 - Native compaction with Shrimpy's guidance in place of the copied runner.
 - Workspace context hosted by the gateway, with each agent's cached copy.
 

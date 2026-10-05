@@ -26,7 +26,7 @@ A replaced slice removes its old imports, registrations, unused dependencies, fi
 
 The table below says what each old family is for in the replacement, not that each of its verbs comes back.
 
-The current catalog is [src/commands/catalog.ts](../../shrimpy-old/src/commands/catalog.ts). Before implementation, record its exact entries and the JSON and exit behavior that scripts rely on. Each shipped operation gets a concrete command and a reviewed argument and result contract. Old aliases are removed directly, without shims.
+The current catalog is [src/commands/catalog.ts](../../../shrimpy-old/src/commands/catalog.ts). Before implementation, record its exact entries and the JSON and exit behavior that scripts rely on. Each shipped operation gets a concrete command and a reviewed argument and result contract. Old aliases are removed directly, without shims.
 
 | Current family | Outcome in the replacement |
 |---|---|

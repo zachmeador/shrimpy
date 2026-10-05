@@ -22,7 +22,7 @@ This changes one line of the rooms design, where any member could make a room: a
 
 **Decisions**
 
-The thinnest of the [core pieces](#the-core). The first column is what the new Shrimpy does today, on one machine with one person. Three rows were sharpened by a second opinion from another model, and all but the last two were confirmed on 2026-10-04. They are built before rooms: the roster and IDs first, then the feed of events, then connecting to a name. The first was built on 2026-10-04, so the "built today" column describes what it replaced.
+The thinnest of the [core pieces](../PLAN.md#the-design). The first column is what the new Shrimpy does today, on one machine with one person. Three rows were sharpened by a second opinion from another model, and all but the last two were confirmed on 2026-10-04. They are built before rooms: the roster and IDs first, then the feed of events, then connecting to a name. The first was built on 2026-10-04, so the "built today" column describes what it replaced.
 
 | Topic | Built today | Proposed | Decision |
 |---|---|---|---|
@@ -43,4 +43,4 @@ The thinnest of the [core pieces](#the-core). The first column is what the new S
 
 **Open**
 
-Who may do what is under Now in the [order of work](#order-of-work). Your own settings as a person are under Not built yet in [using it](using-it.md).
+Who may do what is under Now in the [order of work](../PLAN.md#order-of-work). Your own settings as a person are under Not built yet in [using it](using-it.md).

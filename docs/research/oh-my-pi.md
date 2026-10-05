@@ -54,7 +54,7 @@ The `task` tool is a full child-agent runtime, not a simple subprocess wrapper.
 - Optional task workspace isolation uses APFS clones, reflinks, overlay filesystems, ProjFS, git worktrees, or recursive copies, then returns a patch or branch result.
 - An optional advisor model watches the main agent on a separate context and injects concerns or blockers. Review, commit splitting, diagnostics cleanup, planning, and model handoff build on the same primitives.
 
-The word “isolation” needs care. `pi-iso` creates a separate writable workspace view and makes change capture cheap. It does not by itself restrict network access, credentials, process execution, or reads outside that workspace. Headless OMP subagents also force the approval mode to `yolo`; configured per-tool `deny` rules still apply, while `prompt` rules fail because no UI can answer them. This is useful conflict isolation, not a security boundary. Shrimpy's [durable plan](../REDESIGN/PLAN.md#the-network) puts that boundary around the whole agent process.
+The word “isolation” needs care. `pi-iso` creates a separate writable workspace view and makes change capture cheap. It does not by itself restrict network access, credentials, process execution, or reads outside that workspace. Headless OMP subagents also force the approval mode to `yolo`; configured per-tool `deny` rules still apply, while `prompt` rules fail because no UI can answer them. This is useful conflict isolation, not a security boundary. Shrimpy's [durable plan](../REDESIGN/design/6-network.md) puts that boundary around the whole agent process.
 
 ### Sessions, context, and compaction
 
@@ -109,7 +109,7 @@ The useful pieces are narrower:
 
 | OMP idea | Shrimpy value | Recommendation |
 | --- | --- | --- |
-| RPC host tools and host URI schemes | Credentials and authority stay with the parent while a child receives scoped capabilities over RPC | Prior art only. The [durable plan](../REDESIGN/PLAN.md#the-network) sandboxes the whole agent instead of a contained runner; revisit if a child process ever needs scoped host capabilities |
+| RPC host tools and host URI schemes | Credentials and authority stay with the parent while a child receives scoped capabilities over RPC | Prior art only. The [durable plan](../REDESIGN/design/6-network.md) sandboxes the whole agent instead of a contained runner; revisit if a child process ever needs scoped host capabilities |
 | Typed child output, artifacts, lifecycle, and live supervision | Shrimpy workers already have durable records and follow-up commands, but structured yield and one coherent live supervisor would reduce prose parsing and make delegation easier to inspect | Add optional output schemas and attributable artifacts to the worker contract before considering more persistent child machinery |
 | Virtual resource schemes | `worker://`, `session://`, `channel://`, `skill://`, or `watch://` could make existing bounded facts composable through `read` without multiplying model tool schemas | Prototype only when every scheme delegates to the same service and authorization checks as its CLI command; URI access must not become a hidden second API |
 | Argument-aware tool policy | OMP's tier plus per-call policy function is more expressive than Shrimpy's current whole-tool `disabledTools` list | A candidate for Shrimpy's tool policy through durable `beforeTool` hooks. Real limits still come from the agent's environment, and defaults should be safer than OMP's |

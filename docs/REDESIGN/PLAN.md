@@ -1,11 +1,11 @@
 # 🦐 Pi Durable Replacement Plan
 
 Updated: 2026-10-05
-Status: experience decisions reviewed on 2026-10-03. [Where it stands](#where-it-stands) says what is built, and the plan was reshaped around the core pieces on 2026-10-05. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](AUTHOR-TO-REVIEW.md), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the phases that build them.
+Status: experience decisions reviewed on 2026-10-03. [Where it stands](README.md#where-it-stands) says what is built, and the plan was reshaped around the core pieces on 2026-10-05. The new Shrimpy is the repo's root on `wip`, and old Shrimpy is in `shrimpy-old/`. Two lists keep the build honest: what the build introduced that [you haven't reviewed](AUTHOR-TO-REVIEW.md), and where the code [trails this plan](STATUS.md#where-the-code-trails-the-plan). A few interface and command details are left for the phases that build them.
 
 Shrimpy's session machinery gets replaced with `pi-durable`. Each agent becomes an independent program: one resident process owns its home and its Pi storage. People talk to agents in threads kept by a chat server, from the console, the web app or chat providers such as Telegram, and clients can attach to an agent to watch and steer its work. Pi owns admission, queues, transcripts, task lifetimes, cancellation, compaction, recovery and committed observation. Shrimpy owns the home, the agent's context and tools, the clients, and the routes in.
 
-The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#the-core).
+The aim is fewer state machines, clearer ownership, and a smaller, better organized codebase. Switching engines doesn't license quiet changes to how people or agents use Shrimpy: every visible change is listed under [experience decisions](#the-design).
 
 This file owns the architecture, experience decisions and phases for this change, and [STATUS.md](STATUS.md) logs progress. The [Pi research note](../research/pi-agent.md#pi-durable-source-and-recovery-investigation) owns upstream findings and probes. [Reference docs](../../shrimpy-old/docs/reference/README.md) describe what ships today.
 
@@ -38,7 +38,7 @@ Confirmed during review:
 - **Agents decide what wakes them.** The chat server offers each new channel message to member agents, and each agent's wake policy decides whether it starts a turn, as `channelPolicy` does today. By default an agent wakes for DMs, for mentions and for a person's message in a room that mentions nobody, and an included skill teaches agents to tune their own policy. Loop protection lives there too; nothing upstream filters conversation.
 - **Sandboxing is a deployment choice.** An agent runs the same with or without a sandbox. When it is sandboxed, the sandbox wraps the whole agent process. Shrimpy doesn't sandbox individual tools, so agents keep a real shell.
 
-This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. It differs in one place: triggers, today's watches, stay in the agent's runtime instead of moving to OS schedulers ([see below](#what-an-agent-does-without-being-asked)).
+This direction comes from the `REDESIGN` branch (2026-09-19): independent agent homes, a front door on Tailscale, one API for every client, and skills in place of subsystems. Its contracts built on Pi's `AgentSession` and its `shrimpy2/` scaffold are superseded here. It differs in one place: triggers, today's watches, stay in the agent's runtime instead of moving to OS schedulers ([see below](design/7-on-its-own.md)).
 
 ## Words
 
@@ -112,7 +112,7 @@ Everything else sits on top of these and can change without touching them: wordi
 
 **The build follows this plan, and every mismatch gets raised.** Slop piles up when code quietly drifts from the design. Whoever builds, a person or an agent, builds what this plan says. When the plan is wrong, unclear or silent, or the code can't follow it, that is raised with the user and the agent coordinating the build. It is never settled quietly in the code. Then the plan changes or the code does, so the two don't stay apart. A visible choice a builder made alone isn't decided: it goes into [Introduced by the build, not yet reviewed](AUTHOR-TO-REVIEW.md), and a known gap goes into the list in [STATUS.md](STATUS.md).
 
-Each phase ends with a shape review against the [layout rules](#the-codes-layout), a look at how large `lib/` has grown, and a new row in the [size log](#size-baseline). [STATUS.md](STATUS.md) logs progress and lists where the code trails this plan.
+Each phase ends with a shape review against the [layout rules](design/code-layout.md), a look at how large `lib/` has grown, and a new row in the [size log](history/size-baseline.md). [STATUS.md](STATUS.md) logs progress and lists where the code trails this plan.
 
 The order follows what daily use shows is rough or missing. Two things are built side by side when they barely share code, as rooms and triggers were.
 
@@ -140,7 +140,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 Work this plan defers on purpose, to pick up after cutover:
 
 - Notifications wherever you want them (desktop, chat or phone) when work finishes while you're away.
-- Codemode, as a [later experiment](#the-conversation-model).
+- Codemode, as a [later experiment](design/4-conversation.md).
 - A plain HTTP entry point, once a program that can't speak Pi's protocol needs in.
 - A desktop chat app as the native client for channels.
 - Seams that would let more of Shrimpy be built in parallel, to look at once the core contracts have settled: extensions in the agent as folders with one entry point that are handed the same few things; the chat provider interface with a fake provider as its reference; a client core that the terminal and the web client share; and landing a contract change on its own before the programs that follow it. No seam where only one thing will ever plug in: the gateway stays one piece.
@@ -160,7 +160,7 @@ This plan deliberately leaves these out, so they don't creep back in:
 - Automatic migration of old transcripts, tasks, manifests or clocks.
 - Model calls to route ordinary input.
 - Loop or flood control in the chat server or gateway. Agents' wake policies, instructions and `END` handle it.
-- Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](#the-conversation-model).
+- Native MCP, per-request model routing, cache warming, vector memory, journaling daemons and transcription. Each is a separate future decision; codemode is a [later experiment](design/4-conversation.md).
 - A mesh protocol, ACP product, visual redesign or mandatory hosting platform.
 
 **Release**
@@ -193,7 +193,7 @@ Ideas that are not decisions. Nothing here is scheduled, and nothing gets built 
 
 **State:** early thinking from 2026-10-04, not decided. Nothing asks for it yet.
 
-[Breadcrumbs](#what-an-agent-does-without-being-asked) cover a fact that moves: it comes with an input, once. They don't cover a fact that should be in every request and that the agent couldn't look up, because only Shrimpy knows it: who is reachable, or which questions to other agents are open. That would be a document behind a prompt section. Pi keeps track of what each conversation has been shown, and after compaction it writes the whole prompt again, so the current value would always be in the request. Each change would cost what [a change to the prompt costs](#the-home), so it would suit only a fact that rarely changes.
+[Breadcrumbs](design/7-on-its-own.md) cover a fact that moves: it comes with an input, once. They don't cover a fact that should be in every request and that the agent couldn't look up, because only Shrimpy knows it: who is reachable, or which questions to other agents are open. That would be a document behind a prompt section. Pi keeps track of what each conversation has been shown, and after compaction it writes the whole prompt again, so the current value would always be in the request. Each change would cost what [a change to the prompt costs](design/5-home.md), so it would suit only a fact that rarely changes.
 
 Fable was asked about this shape on 2026-10-04 and argued against it. An agent trusts a value in its prompt and stops looking. When the check behind the value dies, the agent acts on a stale one and nothing errors, where a lookup fails loudly. An app-agent doesn't need it either. What makes an accountant is not the numbers held in their head. It is knowing which accounts exist, which is `context/`, and when to look, which is skills.
 

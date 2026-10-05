@@ -1,6 +1,6 @@
 /**
  * The import rules of the source layout, as one ESLint rule. See
- * docs/REDESIGN/PLAN.md, "The code's layout".
+ * docs/REDESIGN/design/code-layout.md.
  */
 import { isBuiltin } from "node:module";
 import { posix } from "node:path";

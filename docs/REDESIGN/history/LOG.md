@@ -2,30 +2,30 @@
 
 ## What is built, in order
 
-- The spike: durable, `pi-tui` and Pi's browser client all fit, and its proven parts became the seed of the real tree. Its code stays in git at `a3c6ae4`, and the [spike report](spike/REPORT.md) has the evidence. ([log, 2026-10-03](STATUS.md#log))
-- The seed in `src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, and the boundary lint. ([log, 2026-10-03](STATUS.md#log))
-- The chat server and the gateway, each a program of its own on a Unix socket. The chat server keeps members, DMs, threads and messages in its own SQLite store, and the gateway keeps the registry of running programs. ([log, 2026-10-03](STATUS.md#log))
-- The wire-up: an agent registers with the gateway, joins chat as a member and reads its feed, keeps one session per thread, posts its final text as the reply, leaves receipts and marks where it is working. ([log, 2026-10-03](STATUS.md#log))
-- The first commands: `agent init`, `agent serve`, `agent status` and `sessions` for an agent, `up`, `run`, `threads` and `read` for talking, and `gateway serve`, `gateway status` and `chat serve` for the other two programs. ([log, 2026-10-03](STATUS.md#log))
-- The terminal client, drawn with `pi-tui`'s public components only: the agents on the network, your threads with one, a thread to talk in, the agent's work shown live, and Esc to stop it. The gate held. ([log, 2026-10-04](STATUS.md#log))
-- The roster and member IDs: every member has an ID minted once, a unique name and how it is recognized, and a ticket replaces `identify`. A `shrimpy` command run from an agent's shell speaks as that agent. ([log, 2026-10-04](STATUS.md#log))
-- The feed of events: posted, edited, deleted, reacted and a reaction taken back, with one cursor. An agent admits an event, and its receipt names the event it answered. ([log, 2026-10-04](STATUS.md#log))
-- Connecting to a program by its name through the gateway, on one machine too, and by a home's path straight to its socket. ([log, 2026-10-04](STATUS.md#log))
-- A receipt is an event in the feed. ([log, 2026-10-04](STATUS.md#log))
-- One Pi background task follows each event to its receipt, in place of the agent's outbox and its recovery code, and the agent's records have an ID of their own. ([log, 2026-10-04](STATUS.md#log))
-- A turn that crashes twice is stopped and marked failed, and a reply chat refuses leaves a failed receipt. ([log, 2026-10-04](STATUS.md#log))
-- The `shrimpy` command takes an agent's name and has a default folder, `~/shrimpy`. ([log, 2026-10-04](STATUS.md#log))
-- The gateway refuses a second body for one agent, and a refusal says which case it is. ([log, 2026-10-04](STATUS.md#log))
-- One task follows an input from any source, and `check_back` wakes the session that called it. ([log, 2026-10-04](STATUS.md#log))
-- The words an agent reads: what every agent is told, `SOUL.md`, the context files and the skills that ship with Shrimpy. `shrimpy agent context` previews them and `shrimpy agent reload` makes a running agent read them again. ([log, 2026-10-04](STATUS.md#log))
-- The two message tools, `send_message` and `read_messages`. ([log, 2026-10-04](STATUS.md#log))
-- Standing triggers with a prompt, each one Markdown file in the home's `triggers/`, and their seven commands. ([log, 2026-10-05](STATUS.md#log))
-- Rooms in the chat server, their three commands and the terminal browsing them. ([log, 2026-10-05](STATUS.md#log))
-- Rooms in the agent: the message tools reach a room, an answer wakes whoever asked, an agent woken in a room reads what was said since it last looked, a message says who it was for, and `shrimpy wake` sets what wakes an agent in a room. A skill teaches an agent to set its own. ([log, 2026-10-05](STATUS.md#log))
-- A person's message wakes every agent in a room only when it mentions nobody. One that names members wakes who it names. ([log, 2026-10-05](STATUS.md#log))
-- Every time is written one way, local time with its offset, by one function in `lib/time`. ([log, 2026-10-05](STATUS.md#log))
-- Who may do what, with one role, admin: it guards making a room, adding members, and watching or controlling another agent. ([log, 2026-10-05](STATUS.md#log))
-- A person's mention joins the turn an agent is running, and `/stop` in a thread stops the agents it is for, at once and with no model call. ([log, 2026-10-05](STATUS.md#log))
+- The spike: durable, `pi-tui` and Pi's browser client all fit, and its proven parts became the seed of the real tree. Its code stays in git at `a3c6ae4`, and the [spike report](spike/REPORT.md) has the evidence. ([log, 2026-10-03](#log))
+- The seed in `src/`: the owner lock, the host on SQLite, the agent API over a Unix socket with a Shrimpy-owned session view, and the boundary lint. ([log, 2026-10-03](#log))
+- The chat server and the gateway, each a program of its own on a Unix socket. The chat server keeps members, DMs, threads and messages in its own SQLite store, and the gateway keeps the registry of running programs. ([log, 2026-10-03](#log))
+- The wire-up: an agent registers with the gateway, joins chat as a member and reads its feed, keeps one session per thread, posts its final text as the reply, leaves receipts and marks where it is working. ([log, 2026-10-03](#log))
+- The first commands: `agent init`, `agent serve`, `agent status` and `sessions` for an agent, `up`, `run`, `threads` and `read` for talking, and `gateway serve`, `gateway status` and `chat serve` for the other two programs. ([log, 2026-10-03](#log))
+- The terminal client, drawn with `pi-tui`'s public components only: the agents on the network, your threads with one, a thread to talk in, the agent's work shown live, and Esc to stop it. The gate held. ([log, 2026-10-04](#log))
+- The roster and member IDs: every member has an ID minted once, a unique name and how it is recognized, and a ticket replaces `identify`. A `shrimpy` command run from an agent's shell speaks as that agent. ([log, 2026-10-04](#log))
+- The feed of events: posted, edited, deleted, reacted and a reaction taken back, with one cursor. An agent admits an event, and its receipt names the event it answered. ([log, 2026-10-04](#log))
+- Connecting to a program by its name through the gateway, on one machine too, and by a home's path straight to its socket. ([log, 2026-10-04](#log))
+- A receipt is an event in the feed. ([log, 2026-10-04](#log))
+- One Pi background task follows each event to its receipt, in place of the agent's outbox and its recovery code, and the agent's records have an ID of their own. ([log, 2026-10-04](#log))
+- A turn that crashes twice is stopped and marked failed, and a reply chat refuses leaves a failed receipt. ([log, 2026-10-04](#log))
+- The `shrimpy` command takes an agent's name and has a default folder, `~/shrimpy`. ([log, 2026-10-04](#log))
+- The gateway refuses a second body for one agent, and a refusal says which case it is. ([log, 2026-10-04](#log))
+- One task follows an input from any source, and `check_back` wakes the session that called it. ([log, 2026-10-04](#log))
+- The words an agent reads: what every agent is told, `SOUL.md`, the context files and the skills that ship with Shrimpy. `shrimpy agent context` previews them and `shrimpy agent reload` makes a running agent read them again. ([log, 2026-10-04](#log))
+- The two message tools, `send_message` and `read_messages`. ([log, 2026-10-04](#log))
+- Standing triggers with a prompt, each one Markdown file in the home's `triggers/`, and their seven commands. ([log, 2026-10-05](#log))
+- Rooms in the chat server, their three commands and the terminal browsing them. ([log, 2026-10-05](#log))
+- Rooms in the agent: the message tools reach a room, an answer wakes whoever asked, an agent woken in a room reads what was said since it last looked, a message says who it was for, and `shrimpy wake` sets what wakes an agent in a room. A skill teaches an agent to set its own. ([log, 2026-10-05](#log))
+- A person's message wakes every agent in a room only when it mentions nobody. One that names members wakes who it names. ([log, 2026-10-05](#log))
+- Every time is written one way, local time with its offset, by one function in `lib/time`. ([log, 2026-10-05](#log))
+- Who may do what, with one role, admin: it guards making a room, adding members, and watching or controlling another agent. ([log, 2026-10-05](#log))
+- A person's mention joins the turn an agent is running, and `/stop` in a thread stops the agents it is for, at once and with no model call. ([log, 2026-10-05](#log))
 
 ## Log
 
@@ -128,7 +128,7 @@ Your review of it, the same day: agents planning by DM is fine; a person's messa
 - `intake/` and `sessions/` together went from 1,424 to 1,683 lines of product code. The growth is the order, the guard and the abort handling in the task; the recovery code is gone. Each event leaves a finished task of about 445 bytes, about 110 bytes more than the outbox's history did.
 - The choices the build made alone are in the plan's table: the order of events, what a failure reads as, what aborting a task does, and that stopping an agent no longer waits once chat is lost.
 
-**Review, 2026-10-04: breadcrumbs take the place of context producers.** Confirmed: a fact that moves is one small file in the agent's home, and it comes with a session's next input once, when it differs from what that session last saw. No command runs before a turn, nothing enters the prompt and nobody is woken. It gets built with triggers in phase 4. The question that led there was what a changed prompt section costs, checked against Pi 1.0.0: some of the newest models take the change in place and keep their cache, and every other model, the local Qwen server included, reads the whole conversation again. The plan's [prompt capture](PLAN.md#the-home) section has both.
+**Review, 2026-10-04: breadcrumbs take the place of context producers.** Confirmed: a fact that moves is one small file in the agent's home, and it comes with a session's next input once, when it differs from what that session last saw. No command runs before a turn, nothing enters the prompt and nobody is woken. It gets built with triggers in phase 4. The question that led there was what a changed prompt section costs, checked against Pi 1.0.0: some of the newest models take the change in place and keep their cache, and every other model, the local Qwen server included, reads the whole conversation again. The plan's [prompt capture](../design/5-home.md) section has both.
 
 **2026-10-04: a receipt is an event, and four commands are gone.** Leaving a receipt writes a `receipted` event in the same transaction, the feed offers it like any other, and it wakes nobody. A silent one is in the feed and is still shown to nobody. `shrimpy edit`, `delete`, `react` and `unreact` are removed under the rule that commands operate Shrimpy and clients and tools use it; the chat server's operations stay. Sixteen commands remain, and 458 tests pass.
 
@@ -227,7 +227,7 @@ Two were left until something forces them: giving every session an ID of its own
 
 **The old dev workspace moved, 2026-10-03.** It was moved out of the checkout to a sibling directory, untouched, so the new Shrimpy starts fresh and things are brought over from it as wanted. Its location is in the private notes. Nothing of old Shrimpy is running.
 
-**Docs, skills and agent instructions, 2026-10-03.** They get rewritten from scratch for the new Shrimpy, keeping the charming parts of today's. Agent instructions and included skills come in phase 2, and reference and developer docs at the release. The [keep list](KEEP-LIST.md) of those parts was compiled on 2026-10-04. Your answers: the habits to drop are purged from the rewrite and the musings stay as they are for now, the footer shrimp waits, and phase 2 rewrites four skills: setup, agents, where messages go, and skills. Setup leans toward one agent, named `shrimpy`, with the admin role the mechanic had; that row in the plan is open.
+**Docs, skills and agent instructions, 2026-10-03.** They get rewritten from scratch for the new Shrimpy, keeping the charming parts of today's. Agent instructions and included skills come in phase 2, and reference and developer docs at the release. The [keep list](keep-list.md) of those parts was compiled on 2026-10-04. Your answers: the habits to drop are purged from the rewrite and the musings stay as they are for now, the footer shrimp waits, and phase 2 rewrites four skills: setup, agents, where messages go, and skills. Setup leans toward one agent, named `shrimpy`, with the admin role the mechanic had; that row in the plan is open.
 
 **Phase 1 progress, 2026-10-03: receipts, versions and the serve commands are in.** Agents leave receipts on messages in place of the skipped mark, registrations carry Shrimpy's version, the chat server stays registered with the gateway, and `shrimpy gateway serve`, `gateway status` and `chat serve` exist. `lib/` says "route" where it said "session", and the lint keeps every `lib/` main door safe for browsers.
 
@@ -244,7 +244,7 @@ Two were left until something forces them: giving every session an ID of its own
 
 - Crash recovery behaved as planned, killed mid-stream and mid-tool. A shell child kept running after its owner died, so supervision has to reap it.
 - The terminal view used only public `pi-tui` pieces, and the browser page bundled without Node built-ins or `esbuild` and recovered after server restarts.
-- Opening a home's storage is a write, which makes the owner lock mandatory; the rule is now under [Host and Pi](PLAN.md#the-three-programs-and-what-each-owns).
+- Opening a home's storage is a write, which makes the owner lock mandatory; the rule is now under [Host and Pi](../design/1-programs.md).
 - The spike first sent Pi's record shapes to its clients. That shortcut was removed in `a3c6ae4`: the server builds a Shrimpy-owned view, and a boundary check fails the build on a violation.
 - The spike was then realigned into the seed of the real tree under `next/src/`: `contracts/agent` (the session view, two services, the client caller and a Node-only door), `agent/host` (lock, storage, engine), `agent/sessions` (the one place that reads Pi's records) and the agent's server on a short Unix socket path. Direct input is now `steer`, a control action; talking arrives with the chat server. The terminal view, browser page and WebSocket listener were deleted, to be rebuilt in `clients/` and `gateway/` from the report.
 - Each agent process took about 0.6 s and 110 MB of memory to start cold.
@@ -288,6 +288,6 @@ After the three merges `next/src/` holds about 5,300 lines of product code, 7,00
 
 **Design review of the contracts and the message flow, 2026-10-03.** Confirmed: a session's address is its thread's ID, and there's no main session; receipts on messages replace the skipped mark and an agent-side wait; the contract says `stop` where it said `abort`; and registrations carry Shrimpy's version. Pi's session view holds only the active context, which compaction keeps inside the model's window, so it stays far below the protocol's 16 MiB frame. Also confirmed: the agent's `react` tool and the `edit` option on `send_message`; silent receipts stay invisible by default; the first command names, `person:<OS username>` as the default identity, explicit paths for machine-level data until phase 6, `/stop` among the first chat commands, and the five things a provider gets.
 
-**Chat review, 2026-10-03.** Confirmed: each agent has its own bot account on an outside chat app, bridges only post as bots, and threads carry reactions, edits and deletes. The agent runs chat commands, starting with `/new`, `/status` and `/help`, and each provider does its own translation. Three recommendations are waiting for a decision. The [chat bridge scout](../research/chat-bridge-scout-2026-10-03.md) found nothing to adopt as the bridge layer.
+**Chat review, 2026-10-03.** Confirmed: each agent has its own bot account on an outside chat app, bridges only post as bots, and threads carry reactions, edits and deletes. The agent runs chat commands, starting with `/new`, `/status` and `/help`, and each provider does its own translation. Three recommendations are waiting for a decision. The [chat bridge scout](../../research/chat-bridge-scout-2026-10-03.md) found nothing to adopt as the bridge layer.
 
 **Reply review, 2026-10-03.** Four changes confirmed, and the rows above carry them: final text always posts unless it's `END` or empty; `END` is matched forgivingly; final replies wait in an agent-side outbox while chat is unreachable; and threads carry who is working in them.

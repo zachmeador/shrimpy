@@ -19,13 +19,13 @@ The agent process shares nothing with the outside except the network: no files, 
 - **Administration.** An agent with the admin role reaches its neighbors over SSH to the machine that hosts them, then edits their homes directly or through the sandbox's own exec or mount. The sandbox itself still accepts nothing inbound.
 - **Shared configuration.** A shared read-only config referenced by path needs a mount or a copy inside the sandbox.
 
-The [sandbox runtime scout](../research/sandbox-runtime-scout-2026-08-26.md) compares candidate sandboxes.
+The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) compares candidate sandboxes.
 
 **Decisions**
 
 | Topic | Today | Proposed | Decision |
 |---|---|---|---|
-| Sandbox boundary | Agents aren't sandboxed | The whole agent process runs inside whatever sandbox or VM you pick, or none ([how](#the-network)). No per-tool sandboxing; `bash` stays available. | Confirmed |
+| Sandbox boundary | Agents aren't sandboxed | The whole agent process runs inside whatever sandbox or VM you pick, or none ([how](6-network.md)). No per-tool sandboxing; `bash` stays available. | Confirmed |
 | Attachments | Telegram photos and clipboard images are paths on the same machine | Attachments travel with their message. The chat server keeps them with the thread, and each is copied into an agent's home, up to a size limit, when the message is offered; the agent's tools use them from there. | Confirmed |
 | Home edits | The CLI edits workspace files directly | Homes live where their agent runs, and edits happen there: by the agent itself, by `shrimpy` run in that environment, or by an agent with the admin role over SSH to the machine hosting it. Remote clients get session operations and reload, not file editing. | Confirmed |
 | Provider login | A browser callback on the same machine | Pi's login flows already handle a browser on another machine: they show a URL or device code and accept a pasted code or redirect URL. Shrimpy relays those prompts between the agent and the person's client. Sandboxes allow provider traffic, including login endpoints. | Confirmed |

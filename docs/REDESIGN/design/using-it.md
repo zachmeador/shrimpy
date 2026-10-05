@@ -17,12 +17,12 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 | Terminal affordances | Pi's `InteractiveMode` plus Shrimpy patches | The terminal client starts thin: talk in threads, watch the work behind them and stop it. Today's affordances come back as daily use asks for them: regular and fullscreen modes, editor history and multiline input, draft recovery, file completion, clipboard text and images, external editor, copy and suspend keys, `!` and `!!`, editing a message the agent hasn't picked up yet, tool-output expansion, hidden turn context, title, header and footer, and readable model, usage and errors. Any that hasn't come back by the release gets an explicit decision there. Ctrl+C doesn't exit immediately as Pi's demo does; Esc follows the stop decision. | Confirmed |
 | `/agents` | Agent and chat navigation | Same, over agents, channels and threads. Helpers appear in a separate work view and never become agents. That view's labels, visibility and cancellation need review. | Keep |
 | Model selection | Favorites, no accidental cycling, Enter applies, Ctrl+S saves a default, per-agent thinking | Same gestures. Fix Ctrl+S, which today reaches a workspace Pi setter that Shrimpy's config validation forbids: it sets the current session's model and saves a one-candidate home default. Other sessions and named policies are unchanged. Policies still pick the first available candidate at open; they don't fail over after errors. | Confirmed |
-| First setup | Setup makes two agents, `shrimpy` and `mechanic`, and opens a session with the mechanic to finish | Setup makes one agent, named `shrimpy` unless you choose otherwise, and you finish setup by talking to it. It has the admin role by default: the instructions and skills for setting up and repairing a Shrimpy setup, which old Shrimpy gave to the mechanic. No second agent is made by default; you ask for more when you want them. Since 2026-10-05 admin is also a role on the roster that [a few operations take](#identity-and-addressing). Nothing makes the first agent an admin yet, so a person promotes it with `shrimpy members promote`. Every agent is shown the skills for setting up and repairing, so nothing has to move. Every new agent's starter `SOUL.md` says it enjoys the shrimp emoji, as today's `shrimpy` agent does. Where this plan says "the mechanic", it means the agent with the admin role. | Decided in the build, on your leaning of 2026-10-04 |
-| Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login works the same for [sandboxed and remote agents](#the-network). | Keep |
+| First setup | Setup makes two agents, `shrimpy` and `mechanic`, and opens a session with the mechanic to finish | Setup makes one agent, named `shrimpy` unless you choose otherwise, and you finish setup by talking to it. It has the admin role by default: the instructions and skills for setting up and repairing a Shrimpy setup, which old Shrimpy gave to the mechanic. No second agent is made by default; you ask for more when you want them. Since 2026-10-05 admin is also a role on the roster that [a few operations take](3-identity.md). Nothing makes the first agent an admin yet, so a person promotes it with `shrimpy members promote`. Every agent is shown the skills for setting up and repairing, so nothing has to move. Every new agent's starter `SOUL.md` says it enjoys the shrimp emoji, as today's `shrimpy` agent does. Where this plan says "the mechanic", it means the agent with the admin role. | Decided in the build, on your leaning of 2026-10-04 |
+| Setup and auth | — | Existing files survive; local endpoints, API keys and OAuth work; errors say what to do next; credentials belong to the home. No credential copying, cache warming or per-request model routing. Login works the same for [sandboxed and remote agents](6-network.md). | Keep |
 | `shrimpy update` | Opens the mechanic TUI with the update skill | A deterministic preview by default. `--guide` runs the update skill in an ordinary thread. Exact tag or SHA apply stays explicit, with approval before consequential changes. The hidden `update check-mechanic` becomes ordinary preflight. | Confirmed |
 | Web app | Read-only inspector | A client for talking and watching: browse channels, threads and agents, talk in threads, and open the work behind them. Keeps the inspector views: files, tree, context, channels, triggers, runtime, bounded transcripts, folded output, images, thinking, usage and follow-latest. Pi-backed queries replace JSONL reading. URLs, anchors, pagination and write permissions need review, including loopback, same-origin and CSRF rules once the web app can send input. | Confirmed |
 
-[Command coverage](#old-command-families) lists every CLI family and inherited slash command. A command missing upstream isn't removed implicitly.
+[Command coverage](../history/from-old-shrimpy.md#old-command-families) lists every CLI family and inherited slash command. A command missing upstream isn't removed implicitly.
 
 **Commands**
 
@@ -61,13 +61,13 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 - Thread and session operations: reset, archive, resume, fork, names, search, read and export.
 - Chat commands in a thread: `/new`, `/stop`, `/status` and `/help`.
-- Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](#the-conversation-model) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
+- Reactions, edits and deletes in threads. The chat server has them. The clients need keys for them, and agents need tools: the [message tools](4-conversation.md) row names `react` and an `edit` option on `send_message`, and doesn't yet say how an agent deletes a message of its own.
 - Model selection, defaults, settings, setup and sign-in, including OAuth; status and help come from the service.
 - Your own settings as a person, starting with the name you appear under. Today it is your OS user's name.
 - Attachments on messages, including clipboard files and images. An image reaches the model with its message.
 - The search tools and a tool that shows the model an image file.
 - Memory breadcrumbs, with the search index behind them and the `memory-management` skill.
-- Terminal affordances from today's client, listed under [terminal, models and settings](#using-it).
+- Terminal affordances from today's client, listed under [terminal, models and settings](using-it.md).
 - A web client for talking and watching: channels, threads, agents and sessions, with history, live view and input, alongside the inspector views.
 
 **Prove,** for whatever gets built:
@@ -77,6 +77,6 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - Web queries and subscriptions, new IDs and anchors, and large transcripts. The web client uses the same operations as the terminal.
 - Presentation content never reaches provider input.
 
-**Rule:** an affordance today's Shrimpy has comes back when it's missed. Whatever hasn't come back by the release gets an explicit decision there, with every inherited command's disposition in [command coverage](#using-it), so nothing is dropped silently.
+**Rule:** an affordance today's Shrimpy has comes back when it's missed. Whatever hasn't come back by the release gets an explicit decision there, with every inherited command's disposition in [command coverage](using-it.md), so nothing is dropped silently.
 
 **Replaces:** private TUI patches, the old transcript readers and duplicated settings and lifecycle bindings.
