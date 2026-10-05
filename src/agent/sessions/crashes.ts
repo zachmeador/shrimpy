@@ -56,7 +56,7 @@ export async function beginRun(harness: Harness): Promise<Run> {
 /**
  * Mark the work of these sessions as aborted, the tasks a stop marks: those the
  * session owns that are not background. What they own is marked from them. The
- * tasks that follow the sessions' events are background, and tell their events
+ * tasks that follow the sessions' inputs are background, and tell their sources
  * how it ended.
  */
 async function stopTurns(harness: Harness, sessions: readonly ConversationId[]): Promise<void> {

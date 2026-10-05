@@ -5,6 +5,7 @@ import { refuse } from "../../lib/refusal/index.ts";
 import { publishSessionView } from "./publish.ts";
 import { toSessionView } from "./session-view.ts";
 import { waitForSettlement } from "./settlement.ts";
+import { cancelWakeups } from "./wakeups.ts";
 
 /** A session being served: the contract's service, and a way to stop serving it. */
 export interface ServedSession {
@@ -15,7 +16,8 @@ export interface ServedSession {
 /**
  * Serve one session: keep its view published, and route control to the
  * engine. `takingInput` says whether new input may still come in; stopping
- * work and watching stay open either way.
+ * work and watching stay open either way. Stopping the work also cancels the
+ * wake-ups the session is waiting on.
  */
 export async function serveSession(
   harness: Harness,
@@ -40,7 +42,13 @@ export async function serveSession(
         return { submission: submission.id };
       },
       wait: (submission, callContext) => waitForSettlement(harness, conversation, submission, callContext),
-      stop: (callContext) => conversation.abort(callContext),
+      async stop(callContext) {
+        // The wake-ups go first, so that none of them starts a turn while the work is being stopped. A stopped turn
+        // may have set another before it ended, so they go again after.
+        await cancelWakeups(harness, conversation.id, callContext);
+        await conversation.abort(callContext);
+        await cancelWakeups(harness, conversation.id, callContext);
+      },
     },
     close() {
       stopPublishing();

@@ -1,6 +1,6 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import { newId } from "../../lib/ids/index.ts";
-import type { Snapshot } from "../intake/index.ts";
+import type { Snapshot, Wakeup } from "../intake/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
@@ -37,13 +37,23 @@ export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: R
   initial: () => ({ id: newId("rec") }),
 });
 
-/** The session behind a thread, and the events in the thread the agent has not acted on. */
+/**
+ * The session behind a thread, and what the model has yet to be shown for it:
+ * the events in the thread the agent has not acted on, and the wake-ups it
+ * asked for that were cancelled. Both go with the session's next input.
+ */
 export type ThreadSession = {
   /** The engine's ID for the session. Only this module knows what it is. */
   conversationId: number;
   channelId: string;
   /** Events skipped when work was stopped: shown with the next event in the thread. Oldest first. */
   unacted: Snapshot[];
+  /**
+   * Wake-ups the agent asked for that were cancelled, by a stop or because their
+   * turn was skipped: told to the model with the session's next input, once. A
+   * session written before wake-ups existed has none.
+   */
+  cancelled?: Wakeup[];
 };
 
 /** Every thread the agent takes part in, with its session. A session never changes its thread. */

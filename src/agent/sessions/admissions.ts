@@ -1,9 +1,10 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
-import type { Admissions, Snapshot } from "../intake/index.ts";
+import type { Admissions, Snapshot, Wakeup } from "../intake/index.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { FeedDoc, plain, ThreadsDoc } from "./documents.ts";
-import type { TurnTask } from "./turn-task.ts";
+import { carrying, takeCancelled, takeEvents } from "./kept.ts";
+import { followInput, type TurnTask } from "./turn-task.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -33,21 +34,17 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
         const known = Object.hasOwn(threads, draft.threadId) ? threads[draft.threadId] : undefined;
         let conversationId: ConversationId;
         let earlier: Snapshot[] = [];
+        let cancelled: Wakeup[] = [];
         if (known === undefined) {
           conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
           await configure(tx, conversationId, agentChange(defaults));
           threads[draft.threadId] = { conversationId, channelId: draft.channelId, unacted: [] };
         } else {
           conversationId = known.conversationId as ConversationId;
-          earlier = plain(known.unacted);
-          known.unacted = [];
+          earlier = takeEvents(known);
+          cancelled = takeCancelled(known);
         }
-        // Background, so a stop of the session's work leaves the task to report how that ended.
-        await tx.createTask(
-          turn,
-          { ...plain(draft), earlier },
-          { ownership: { kind: "conversation" }, conversationId, background: true },
-        );
+        await followInput(tx, turn, conversationId, { ...plain(draft), earlier, ...carrying(cancelled) });
       }, context);
     },
   };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { HomeSnapshot } from "../../home/index.ts";
-import { messageTools } from "../tools/index.ts";
+import { messageTools, wakeupTools } from "../tools/index.ts";
 import { baseInstructions } from "./base.ts";
 import { renderSections } from "./sections.ts";
 
@@ -44,13 +44,16 @@ test("a section with nothing to say is left out, and the others keep their place
   assert.deepEqual(keys({ ...full, skills: [] }), ["shrimpy", "soul", "context"]);
 });
 
-test("what every agent is told names the agent, its home and every message tool the agent has", () => {
+test("what every agent is told names the agent, its home and every tool of its own the agent has", () => {
   const text = baseInstructions(agent);
 
   assert.match(text, /^You are scout, /);
   assert.ok(text.includes("/agents/scout"));
-  const installed = messageTools({ recordsId: "rec_test", chat: () => undefined, gateway: () => undefined });
-  const tools = (installed.tools ?? []).map((tool) => tool.name);
-  assert.deepEqual(tools, ["send_message", "read_messages"]);
+  const installed = [
+    messageTools({ recordsId: "rec_test", chat: () => undefined, gateway: () => undefined }),
+    wakeupTools({ wakeups: { set: () => Promise.reject(new Error("The tools are only listed here.")) } }),
+  ];
+  const tools = installed.flatMap((extension) => (extension.tools ?? []).map((tool) => tool.name));
+  assert.deepEqual(tools, ["send_message", "read_messages", "check_back"]);
   for (const name of tools) assert.ok(text.includes(name), `the instructions don't name ${name}`);
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import {
   answered,
@@ -207,6 +208,25 @@ test("stopped in an orderly way twice while one turn runs: the turn is still ans
 
   assert.equal((await talk.receiptOn(asked)).status, "answered");
   assert.equal((await talk.replies()).length, 1);
+});
+
+test("killed while wake-ups wait: each still comes, once, whether it fell due while the agent was down or not", { timeout }, async (t) => {
+  const { home, chat, start } = await setUp(t);
+  const first = await start("mixed", 400);
+  const talk = await talkTo(chat);
+  await talk.receiptOn(await talk.say("check back in 1s and 3s"));
+  await first.kill("SIGKILL");
+  // The first falls due while the agent is down. The second may or may not by the time it is back.
+  await delay(1_200);
+
+  await start("mixed", 400);
+
+  const replies = await eventually(() => talk.replies(), (found) => found.length === 3, { what: "both wake-ups to be answered" });
+  assert.ok(replies[1]?.text.includes("look again (1s)"));
+  assert.ok(replies[2]?.text.includes("look again (3s)"));
+  await talk.untilIdle();
+  assert.equal((await talk.replies()).length, 3, "and nothing came twice");
+  assert.equal(loggedRequests(home).length, 4, "the two requests of the turn that asked, and one for each wake-up");
 });
 
 /** The killed agent's shell command keeps running on its own; stop it so the test leaves nothing behind. */

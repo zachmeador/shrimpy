@@ -1,5 +1,6 @@
 import type { GatewayConnection } from "../../../contracts/gateway/index.ts";
 import type { LiveChat } from "../../links/index.ts";
+import type { Wakeups } from "../../sessions/index.ts";
 
 /** What the message tools are handed: the ways to chat and to the roster that the agent already has. */
 export interface MessageToolsOptions {
@@ -18,4 +19,9 @@ export interface MessageToolsOptions {
   gateway(): GatewayConnection | undefined;
   /** Characters in the longest message the agent posts; a longer text is posted in parts. The most chat takes, if not given. */
   messageLimit?: number;
+}
+
+/** What the tool that wakes the session later is handed: where the agent's wake-ups are kept. */
+export interface WakeupToolsOptions {
+  wakeups: Wakeups;
 }

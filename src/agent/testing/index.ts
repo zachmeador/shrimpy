@@ -35,14 +35,15 @@ export { callingTools } from "./tools.ts";
 export { answered, assistantItems, toolItems } from "./views.ts";
 
 /**
- * What the scripted model does. `chat`, `fail`, `stream` and `tool` each do one
- * thing. `mixed` picks one of them by what the latest message says: "stream"
- * streams a long answer, "refuse" fails, "slow command" runs the slow shell
- * call, and anything else is answered as `chat` answers. `gated` answers as
- * `chat` does once `releaseGate` has been called for its home, and `gatedFail`
- * fails as `fail` does once it has.
+ * What the scripted model does. `chat`, `fail`, `stream`, `tool` and `waking`
+ * each do one thing. `mixed` picks one of them by what the latest message says:
+ * "stream" streams a long answer, "refuse" fails, "slow command" runs the slow
+ * shell call, "check back in 2s" asks to be woken in 2 seconds (`and 5s` asks
+ * for a second wake-up), and anything else is answered as `chat` answers.
+ * `gated` answers as `chat` does once `releaseGate` has been called for its
+ * home, and `gatedFail` fails as `fail` does once it has.
  */
-export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "mixed" | "gated" | "gatedFail";
+export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "waking" | "mixed" | "gated" | "gatedFail";
 
 /** What the model answers to the messages it is sent, so far. It may take its time. */
 export type Script = (
@@ -65,6 +66,9 @@ const SLOW_COMMAND = [
 ].join("; ");
 
 const LISTING_COMMAND = "printf 'listing the work directory\\n'; sleep 0.2; printf 'done\\n'";
+
+/** The delays "check back in 2s and 5s" asks for. */
+const CHECK_BACK = /\bcheck back in (\d+s(?: and \d+s)*)/i;
 
 /** Let the answers of a `gated` model through. */
 export function releaseGate(home: string): void {
@@ -103,6 +107,16 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     );
   },
 
+  /** `check_back` once for each delay the message names, each with a note that says which, then an answer that says so. */
+  waking: (messages) => {
+    if (pendingToolResult(messages) !== undefined) return fauxAssistantMessage("Wake-ups set.");
+    const delays = (CHECK_BACK.exec(lastUserText(messages))?.[1] ?? "").split(" and ");
+    const calls = delays.map((delay, index) =>
+      fauxToolCall("check_back", { in: delay, note: `look again (${delay})` }, { id: `call-${String(index)}` }),
+    );
+    return fauxAssistantMessage([fauxText("Asking to be woken."), ...calls], { stopReason: "toolUse" });
+  },
+
   /** Thinking, a short shell call when asked about files, and a markdown answer. */
   chat: (messages) => {
     const result = pendingToolResult(messages);
@@ -129,6 +143,7 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     if (/\bstream\b/i.test(user)) return SCRIPTS.stream(messages, home);
     if (/\brefuse\b/i.test(user)) return SCRIPTS.fail(messages, home);
     if (/\bslow command\b/i.test(user)) return SCRIPTS.tool(messages, home);
+    if (CHECK_BACK.test(user)) return SCRIPTS.waking(messages, home);
     return SCRIPTS.chat(messages, home);
   },
 

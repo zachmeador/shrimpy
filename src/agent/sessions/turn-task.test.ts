@@ -5,7 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type CommitPublication, type ConversationId, defineExtension, defineTask } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir, until } from "../../lib/testing/index.ts";
 import { openHost } from "../host/index.ts";
-import type { Delivery, Outstanding, Snapshot, TurnOutcome } from "../intake/index.ts";
+import { type ChatInput, type Delivery, idOf, isWakeup, type Snapshot, type TurnOutcome } from "../intake/index.ts";
 import { type FauxScenario, fauxModels, releaseGate } from "../testing/index.ts";
 import { ThreadsDoc } from "./documents.ts";
 import { createSessions, turnTask } from "./index.ts";
@@ -18,7 +18,7 @@ function snapshot(n: number, text = `message ${String(n)}`): Snapshot {
   return { kind: "posted", id: `evt_${String(n)}`, seq: n, author: "Zach", text, sentAt: 1_700_000_000_000 + n * 1000 };
 }
 
-function draft(n: number, text?: string): Omit<Outstanding, "earlier"> {
+function draft(n: number, text?: string): Omit<ChatInput, "earlier" | "cancelled"> {
   return { event: snapshot(n, text), threadId: "th_1", channelId: "ch_1" };
 }
 
@@ -30,7 +30,7 @@ function recordingDelivery(fail: (outcome: TurnOutcome) => Error | undefined = (
     tell(outstanding, outcome) {
       const failure = fail(outcome);
       if (failure !== undefined) return Promise.reject(failure);
-      told.push({ id: outstanding.event.id, outcome, earlier: outstanding.earlier.map((event) => event.id) });
+      told.push({ id: idOf(outstanding), outcome, earlier: isWakeup(outstanding) ? [] : outstanding.earlier.map((event) => event.id) });
       return Promise.resolve();
     },
     close: () => undefined,
@@ -43,7 +43,7 @@ interface OpenOptions {
   /** How fast the model streams. Fast unless a test needs to catch a turn running. */
   tokensPerSecond?: number;
   /** Wait before an event's hand-over starts, as if the engine ran the tasks in another order. */
-  pace?: (input: Outstanding, signal: AbortSignal) => Promise<void>;
+  pace?: (input: ChatInput, signal: AbortSignal) => Promise<void>;
 }
 
 /** The task, except that each hand-over starts when `pace` lets it. */
@@ -54,7 +54,7 @@ function paced(turn: ReturnType<typeof turnTask>, pace: NonNullable<OpenOptions[
     phases: {
       ...real.phases,
       handOver: async (running, runtime, taskContext) => {
-        await pace(running.input, runtime.signal);
+        await pace(running.input as ChatInput, runtime.signal);
         await real.phases.handOver(running, runtime, taskContext);
       },
     },
@@ -122,7 +122,7 @@ test("taking an event up makes its session, the task that follows it and the cur
 test("events taken up together reach their session in the order of the events, whichever task starts first", { timeout }, async (t) => {
   const ids = Array.from({ length: 12 }, (_, index) => index + 1);
   // The later the event, the sooner its task starts.
-  const reversed = (input: Outstanding, signal: AbortSignal) => delay((ids.length - input.event.seq) * 15, undefined, { signal });
+  const reversed = (input: ChatInput, signal: AbortSignal) => delay((ids.length - input.event.seq) * 15, undefined, { signal });
   const { host, sessions } = await open(t, tempDir(t, "turns"), "gated", { pace: reversed });
 
   for (const n of ids) await sessions.admissions.admit(draft(n));
@@ -140,7 +140,7 @@ test("events taken up before a restart and after it reach their session in the o
   assert.deepEqual(await handedOver(before.host), [], "none of them reached the session before the engine went");
   await before.stop();
 
-  const reversed = (input: Outstanding, signal: AbortSignal) => delay((8 - input.event.seq) * 15, undefined, { signal });
+  const reversed = (input: ChatInput, signal: AbortSignal) => delay((8 - input.event.seq) * 15, undefined, { signal });
   const after = await open(t, home, "gated", { pace: reversed });
   for (const n of [5, 6, 7]) await after.sessions.admissions.admit(draft(n));
 

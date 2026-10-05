@@ -25,12 +25,12 @@ export interface Sessions {
   /**
    * Begin the agent's run: say in the records that it is running, and count the crash of every turn that the last
    * run, if it ended without an orderly stop, left underway. A turn that has crashed twice is stopped, so that it
-   * does not run again, and its event is told it failed. Call it once, before the engine resumes.
+   * does not run again, and its source is told it failed. Call it once, before the engine resumes.
    */
   start(): Promise<Run>;
   /** What intake takes events up through, and keeps its place in the feed with. */
   readonly admissions: Admissions;
-  /** What intake asks about the events taken up and not yet answered. */
+  /** What intake asks about the inputs taken up and not yet told to their sources. */
   readonly working: Working;
 }
 

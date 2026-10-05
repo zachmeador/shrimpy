@@ -14,30 +14,37 @@ import {
   type TaskRuntime,
   type Tx,
 } from "@earendil-works/pi-durable";
-import { type Delivery, idOf, type Outstanding, promptFor, type Snapshot, type TurnOutcome } from "../intake/index.ts";
+import { type Delivery, idOf, isWakeup, type Outstanding, promptFor, type TurnOutcome } from "../intake/index.ts";
 import { plain, RecordsDoc, ThreadsDoc } from "./documents.ts";
+import { keepSkipped } from "./kept.ts";
 import { toOutcome } from "./turn.ts";
 
-/** The name of the task that follows one event, from the moment it is taken up to its receipt. */
+/** The name of the task that follows one input, from the moment it is taken up until its source is told how it ended. */
 export const TURN_TASK = "shrimpy.turn";
 
 /**
- * How many times the agent may end unexpectedly while an event's turn is
- * underway before the turn is given up. An event that reaches it is not followed
- * again: its turn is stopped, and chat is told it failed.
+ * How many times the agent may end unexpectedly while an input's turn is
+ * underway before the turn is given up. An input that reaches it is not followed
+ * again: its turn is stopped, and its source is told it failed.
  */
 export const MAX_CRASHES = 2;
 
-/** What chat is told of an event that reached `MAX_CRASHES`. The words say "twice" for the count. */
-const CRASHED_OUT: TurnOutcome = {
+/**
+ * What the source of an input that reached `MAX_CRASHES` is told. The words say
+ * "twice" for the count. A chat event can be sent again; a wake-up is only
+ * reported, and the agent can ask for another.
+ */
+const abandonedOutcome = (input: Outstanding): TurnOutcome => ({
   kind: "failed",
-  reason: "The agent stopped unexpectedly twice while working on this, so it gave up. Send it again to try once more.",
-};
+  reason:
+    "The agent stopped unexpectedly twice while working on this, so it gave up." +
+    (isWakeup(input) ? "" : " Send it again to try once more."),
+});
 
-/** Where an event's task is: handing the event over, following its turn, or telling chat how the turn ended. */
+/** Where an input's task is: handing the input over, following its turn, or telling its source how the turn ended. */
 export type TurnState = { phase: "handOver" } | { phase: "follow" } | { phase: "tell"; outcome: TurnOutcome };
 
-/** The phase an event's task is in. A task that has ended is in none. */
+/** The phase an input's task is in. A task that has ended is in none. */
 export function phaseOf(record: TaskRecord<JsonValue, JsonValue, JsonValue>): TurnState["phase"] | undefined {
   return "checkpoint" in record.state ? (record.state.checkpoint as TurnState).phase : undefined;
 }
@@ -52,7 +59,8 @@ type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: 
  * The input a task hands its session is named for the input it follows, in the
  * namespace of its source, so handing the same one over twice is one input.
  */
-const requestIdOf = (outstanding: Outstanding): string => `chat:${idOf(outstanding)}`;
+const requestIdOf = (outstanding: Outstanding): string =>
+  `${isWakeup(outstanding) ? "wake" : "chat"}:${idOf(outstanding)}`;
 
 const inputOf = (outstanding: Outstanding) => ({
   type: "input" as const,
@@ -62,22 +70,27 @@ const inputOf = (outstanding: Outstanding) => ({
 });
 
 export interface TurnTaskOptions {
-  /** What tells chat how a turn ended. */
+  /** What tells an input's source how its turn ended. */
   delivery: Delivery;
-  /** Told of a failure inside a task, which the task turns into a failed receipt. */
+  /** Told of a failure inside a task, which the task turns into the failure its source is told. */
   onError(error: Error): void;
 }
 
 /**
- * The task that follows one event from the moment the agent takes it up to its
- * receipt. It belongs to the thread's session but not to the session's work: it
- * is a background task, so stopping the session's work leaves it to report how
- * that ended. Each phase is safe to run again after a crash, and none lets an
- * unexpected failure out, because a phase that throws ends its task for good,
- * with no receipt and nothing reported. The event gets a receipt in every case:
- * the way its turn ended, or that something went wrong. A turn that has been
- * interrupted by `MAX_CRASHES` unexpected ends of the agent is not run again:
- * the start that counted the last one stopped it, and the event is told it failed.
+ * The task that follows one input, from any source, from the moment the agent
+ * takes it up until its source is told how it ended. It does the same four
+ * things whatever the source: it hands the input over to its session, after any
+ * input admitted before it that has not been; waits for the turn to settle;
+ * posts the turn's final text to the session's thread; and tells the source how
+ * the turn ended, which for a chat event is its receipt. It belongs to the
+ * thread's session but not to the session's work: it is a background task, so
+ * stopping the session's work leaves it to report how that ended. Each phase is
+ * safe to run again after a crash, and none lets an unexpected failure out,
+ * because a phase that throws ends its task for good, with nothing told and
+ * nothing reported. The source is told in every case: the way the turn ended,
+ * or that something went wrong. A turn that has been interrupted by
+ * `MAX_CRASHES` unexpected ends of the agent is not run again: the start that
+ * counted the last one stopped it, and the source is told it failed.
  */
 export function turnTask(options: TurnTaskOptions) {
   const { delivery } = options;
@@ -98,7 +111,7 @@ export function turnTask(options: TurnTaskOptions) {
       }
     };
 
-  /** The event is told the work failed, with the reason. */
+  /** The source is told the work failed, with the reason. */
   const tellFailed: Recovery<TurnState> = (_turn, runtime, context, failure) =>
     told(runtime, context, failedOutcome(failure));
 
@@ -107,7 +120,7 @@ export function turnTask(options: TurnTaskOptions) {
     version: 1,
     initial: () => ({ phase: "handOver" }),
     phases: {
-      // Hand the event over, after any earlier event of its thread that has not been.
+      // Hand the input over, after any input admitted before it that has not been.
       handOver: guarded(
         async (turn, runtime, context) => {
           const session = await sessionOf(turn.input, runtime, context);
@@ -130,15 +143,15 @@ export function turnTask(options: TurnTaskOptions) {
           await session.waitForIdle(context);
           if ((await submission.status(context)).status === "queued") await submission.abort(context);
           const outcome = await outcomeOf(await submission.wait(context), runtime, context);
-          // An event that reached `MAX_CRASHES` had its turn stopped by the start that counted the crash, before the
-          // turn could run again. It is told that it failed, and not that it was stopped.
+          // An input that reached `MAX_CRASHES` had its turn stopped by the start that counted the crash, before the
+          // turn could run again. Its source is told that it failed, and not that it was stopped.
           const crashedOut = (await crashesOf(turn.input, runtime, context)) >= MAX_CRASHES;
-          await told(runtime, context, crashedOut ? CRASHED_OUT : outcome);
+          await told(runtime, context, crashedOut ? abandonedOutcome(turn.input) : outcome);
         },
         tellFailed,
       ),
 
-      // Post the reply, leave the receipt, and keep a skipped event for the next turn in its thread.
+      // Post the reply, tell the source how it ended, and keep a skipped input for the next one in its session.
       tell: guarded(
         async (turn, runtime, context) => {
           const { outcome } = turn.state.checkpoint;
@@ -153,7 +166,7 @@ export function turnTask(options: TurnTaskOptions) {
       ),
     },
 
-    // Whoever aborts an event's task stops what the event is: its turn if one is running, its input if it waits.
+    // Whoever aborts an input's task stops what the input is: its turn if one is running, the input itself if it waits.
     abort: async (turn, runtime, context) => {
       try {
         const { checkpoint } = turn.state;
@@ -173,8 +186,22 @@ export function turnTask(options: TurnTaskOptions) {
   return { task, extension: defineExtension({ name: "turns", tasks: [task] }) };
 }
 
-/** The task that follows an event, to create one in the commit that takes the event up. */
+/** The task that follows an input, to create one in the commit that takes the input up. */
 export type TurnTask = ReturnType<typeof turnTask>["task"];
+
+/**
+ * Take an input up: create the task that follows it, in the commit `tx` belongs
+ * to, for the session `conversationId`. It is a background task, so a stop of
+ * the session's work leaves it to report how that ended.
+ */
+export async function followInput(
+  tx: Tx,
+  turn: TurnTask,
+  conversationId: ConversationId,
+  input: Outstanding,
+): Promise<void> {
+  await tx.createTask(turn, input, { ownership: { kind: "conversation" }, conversationId, background: true });
+}
 
 async function sessionOf(input: Outstanding, runtime: Runtime, context: Context): Promise<ConversationHandle> {
   const session = await runtime.conversation(runtime.conversationId, context);
@@ -203,7 +230,7 @@ async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise
   return found.sort((a, b) => a.id - b.id).map((record) => record.input as Outstanding);
 }
 
-/** The tasks that follow an event and are live, with none of them being aborted: those of one session, or of all. */
+/** The tasks that follow an input and are live, with none of them being aborted: those of one session, or of all. */
 async function liveTurns(tx: Tx, conversationId?: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
   const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
   for (const status of ["pending", "running"] as const) {
@@ -248,13 +275,13 @@ async function forgetCrashes(tx: Tx, input: Outstanding): Promise<void> {
   records.crashes = Object.fromEntries(Object.entries(plain(records.crashes)).filter(([counted]) => counted !== id));
 }
 
-/** How a settled input ended, as the outcome of its event's turn. */
+/** How a settled input ended, as the outcome of its input's turn. */
 async function outcomeOf(settled: SettledSubmissionRecord, runtime: Runtime, context: Context): Promise<TurnOutcome> {
   const answer = settled.type === "input" && settled.status === "done" ? await runtime.entry(settled.answer, context) : undefined;
   return toOutcome(settled, answer);
 }
 
-/** The record of the input handed over for the event, if one was. */
+/** The record of the input handed over to the session for the task's input, if one was. */
 async function handedOver(input: Outstanding, runtime: Runtime, context: Context): Promise<SubmissionRecord | undefined> {
   const found: { record?: SubmissionRecord } = {};
   await runtime.commit(async (tx) => {
@@ -264,7 +291,7 @@ async function handedOver(input: Outstanding, runtime: Runtime, context: Context
   return found.record;
 }
 
-/** Stop what an event is: withdraw its input if it waits, stop its turn if it runs, and say how that ended. */
+/** Stop what an input is: withdraw it if it waits, stop its turn if it runs, and say how that ended. */
 async function stopped(turn: Turn, runtime: Runtime, context: Context): Promise<TurnOutcome> {
   if ((await handedOver(turn.input, runtime, context)) === undefined) return { kind: "skipped" };
   const session = await sessionOf(turn.input, runtime, context);
@@ -275,12 +302,12 @@ async function stopped(turn: Turn, runtime: Runtime, context: Context): Promise<
   return outcomeOf(await submission.wait(context), runtime, context);
 }
 
-/** Go on to telling chat how the turn ended. */
+/** Go on to telling the source how the turn ended. */
 function told(runtime: Runtime, context: Context, outcome: TurnOutcome): Promise<void> {
   return runtime.commit(() => ({ status: "running", checkpoint: { phase: "tell", outcome } }), context);
 }
 
-/** Nothing more can be done for the event: the task ends as failed, saying why. */
+/** Nothing more can be done for the input: the task ends as failed, saying why. */
 function gaveUp(input: Outstanding, runtime: Runtime, context: Context, failure: Error): Promise<void> {
   const error = { message: failure.message };
   return runtime.commit(async (tx) => {
@@ -294,7 +321,7 @@ const failedOutcome = (failure: Error): TurnOutcome => ({
   reason: `The agent hit an internal error: ${failure.message}`,
 });
 
-/** The event is done with: a skipped one is kept for the next turn in its thread, and the task ends. */
+/** The input is done with: a skipped one is kept for the next input of its session, and the task ends. */
 async function finish(
   tx: Tx,
   input: Outstanding,
@@ -304,15 +331,9 @@ async function finish(
   await forgetCrashes(tx, input);
   if (outcome.kind === "skipped") {
     const session = (await tx.doc(ThreadsDoc)).sessions[input.threadId];
-    if (session !== undefined) session.unacted = inOrder([...plain(session.unacted), ...input.earlier, input.event]);
+    if (session !== undefined) keepSkipped(session, input);
   }
   return { status: "terminal", outcome: ended };
-}
-
-/** Events by position in chat's order, each once. */
-function inOrder(events: Snapshot[]): Snapshot[] {
-  const byId = new Map(events.map((event) => [event.id, event]));
-  return [...byId.values()].sort((a, b) => a.seq - b.seq);
 }
 
 const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

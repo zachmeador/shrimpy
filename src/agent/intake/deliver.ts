@@ -6,7 +6,7 @@ import {
 } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { clip, inParts, readFinalText, replyRequestId } from "./reply.ts";
-import type { Outstanding, TurnOutcome } from "./events.ts";
+import { isWakeup, type Outstanding, type TurnOutcome } from "./events.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
@@ -17,20 +17,25 @@ interface Posting {
   messageLimit: number;
   /** What the agent's records are called, which every reply's request ID carries. */
   recordsId: string;
-  /** Told when chat refuses a reply for good, which its receipt then says. */
+  /** Told when chat refuses a reply for good, which a chat event's receipt then says. */
   onRefused(outstanding: Outstanding, error: Error): void;
 }
 
 /** What an agent's receipt says: `Receipt` without the member who left it and the event it is left on. */
 type Left = Omit<Receipt, "memberId" | "event">;
 
+/** Whether a turn ended with a reply to post: it answered, and not with `END` or nothing. */
+export function hasReply(outcome: TurnOutcome): boolean {
+  return outcome.kind === "answered" && readFinalText(outcome.text).kind === "reply";
+}
+
 /**
- * Tell chat how an event's turn ended: post the reply if there is one, then
- * leave the receipt on the event and on the earlier events that were shown
- * with it. Every step names itself, so doing all of it again after a failure
- * or a crash posts nothing twice and changes no receipt. A reply that chat
- * refuses for good is not posted, and the receipt says it failed; parts of it
- * that were posted stay.
+ * Tell chat how an input's turn ended: post the reply if there is one, then
+ * leave the receipt on a chat event and on the earlier events that were shown
+ * with it. A wake-up has no receipt. Every step names itself, so doing all of
+ * it again after a failure or a crash posts nothing twice and changes no
+ * receipt. A reply that chat refuses for good is not posted, and the receipt
+ * says it failed; parts of it that were posted stay.
  */
 export async function deliver(
   chat: ChatClient,
@@ -51,6 +56,7 @@ export async function deliver(
       detail: clip(`The reply could not be posted: ${error.message}`, MAX_RECEIPT_DETAIL_LENGTH),
     };
   }
+  if (isWakeup(outstanding)) return;
   const ids = [...outstanding.earlier, outstanding.event].map((event) => event.id);
   for (let from = 0; from < ids.length; from += RECEIPTS_AT_ONCE) {
     await chat.leaveReceipt(ids.slice(from, from + RECEIPTS_AT_ONCE), receipt, signal);

@@ -10,14 +10,14 @@
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
-import { type ContextPreview, homeContext, messageTools, previewContext } from "./extensions/index.ts";
+import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
 import { homePaths, loadHome } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { createDelivery } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { startServer } from "./server.ts";
-import { createSessions, openRecords, type Run, type SessionDefaults, turnTask } from "./sessions/index.ts";
+import { createSessions, createWakeups, openRecords, type Run, type SessionDefaults, turnTask } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 
 export type { ContextPreview } from "./extensions/index.ts";
@@ -97,7 +97,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       ...(options.join?.backoff === undefined ? {} : { backoff: options.join.backoff }),
     });
     const turn = turnTask({ delivery, onError: report });
-    host.install(context.extension, messages, turn.extension);
+    const wakeups = createWakeups(turn.task, { onError: report });
+    host.install(context.extension, messages, wakeupTools({ wakeups }), turn.extension, wakeups.extension);
     const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, turn.task);
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();

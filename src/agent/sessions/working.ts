@@ -6,13 +6,14 @@ import { phaseOf, TURN_TASK } from "./turn-task.ts";
 const context = BACKGROUND_CONTEXT;
 
 /**
- * What the agent is working on, read from the engine: an event is worked on
- * from the moment the agent takes it up until its receipt is left, which is as
- * long as its task is live. Nothing is kept beside the tasks, so a task that
- * ends in any way, a failure included, stops counting.
+ * What the agent is working on, read from the engine: an input is worked on
+ * from the moment the agent takes it up until its source is told how it ended,
+ * which is as long as its task is live. A wake-up that is only waiting is not
+ * an input yet, and is not counted. Nothing is kept beside the tasks, so a task
+ * that ends in any way, a failure included, stops counting.
  */
 export function createWorking(harness: Harness): Working {
-  /** The live tasks that follow an event, each with whether its turn is over and chat has yet to be told. */
+  /** The live tasks that follow an input, each with whether its turn is over and its source has yet to be told. */
   async function followed() {
     const { tasks, submissions } = await harness.inspect(context);
     const busy = new Set(submissions.filter(({ status }) => status === "placed").map(({ conversationId }) => conversationId));
@@ -54,7 +55,7 @@ export function createWorking(harness: Harness): Working {
   };
 }
 
-/** A task that follows an event was just made, or just ended. */
+/** A task that follows an input was just made, or just ended. */
 function startsOrEndsATurn(change: CommitChange): boolean {
   if (change.type !== "task" || change.value.kind !== TURN_TASK) return false;
   return change.value.state.status === "pending" || change.value.state.status === "terminal";
