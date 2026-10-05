@@ -24,7 +24,7 @@ export const isWakePolicy = (value: string): value is WakePolicy => (WAKE_POLICI
 /** The policy the agent chose for each room it chose one for, by the room's name as it was written. */
 export type WakeSettings = Readonly<Record<string, WakePolicy>>;
 
-/** What the intake needs to know of the agent's choices. */
+/** What chat needs to know of the agent's choices. */
 export interface WakePolicies {
   /** The policy of the room with this name, whatever the case. */
   of(room: string): WakePolicy;

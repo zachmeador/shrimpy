@@ -1,7 +1,7 @@
 /**
- * What intake and the agent's sessions agree on, in Shrimpy's own terms.
+ * What the agent's side of chat and its sessions agree on, in Shrimpy's own terms.
  * Whatever stores the agent's records and runs its sessions implements
- * `Admissions` and `Working`; intake sees nothing of how. What is stored is
+ * `Admissions` and `Working`; chat sees nothing of how. What is stored is
  * plain JSON, so these are type aliases, which TypeScript lets stand for JSON.
  */
 
@@ -287,7 +287,7 @@ export type TurnOutcome =
   | { kind: "failed"; reason: string };
 
 /**
- * What intake needs from the agent's records: where it stands in chat's feed, a
+ * What chat needs from the agent's records: where it stands in chat's feed, a
  * way to take an event up, and a way to stop the work behind a thread, for a
  * command. It is also handed the choices the agent made, in a file of its home,
  * about what wakes it in each room.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DisconnectedError } from "@earendil-works/pi-client";
-import { until } from "../../../lib/testing/index.ts";
+import { until } from "../../lib/testing/index.ts";
 import { startToolRig } from "./testing/index.ts";
 
 const timeout = 15_000;

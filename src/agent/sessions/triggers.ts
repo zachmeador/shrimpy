@@ -16,6 +16,7 @@ import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import { localTime } from "../../lib/time/index.ts";
+import { type Ending, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../chat/index.ts";
 import {
   describeSchedule,
   type LeftOut,
@@ -25,7 +26,6 @@ import {
   type TriggerFiles,
   type TriggerProblem,
 } from "../home/index.ts";
-import { type Ending, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../intake/index.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { plain, type SessionRecord, SessionsDoc, type StoredTrigger, triggerSession, TriggersDoc } from "./documents.ts";
 import { carrying, takeCancelled } from "./kept.ts";

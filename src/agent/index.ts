@@ -13,12 +13,13 @@
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
-import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
+import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
+import { type ContextPreview, homeContext, previewContext } from "./context/index.ts";
 import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles, type WakeRead } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
-import { channelOfThread, createDelivery, createWakes } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
+import { messageTools, wakeupTools } from "./message-tools/index.ts";
 import { type HomeFiles, startServer } from "./server.ts";
 import {
   createSessions,
@@ -31,8 +32,8 @@ import {
 } from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 
-export type { ContextPreview } from "./extensions/index.ts";
-export { placeOfThread, type ThreadPlace } from "./intake/index.ts";
+export { placeOfThread, type ThreadPlace } from "./chat/index.ts";
+export type { ContextPreview } from "./context/index.ts";
 export {
   checkAgentName,
   describeSchedule,
@@ -58,7 +59,7 @@ export {
   type TriggerProblem,
   type WakeRead,
 } from "./home/index.ts";
-export { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "./intake/index.ts";
+export { DEFAULT_WAKE_POLICY, isWakePolicy, WAKE_POLICIES, type WakePolicy } from "./chat/index.ts";
 export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";
 

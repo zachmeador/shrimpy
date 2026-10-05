@@ -1,7 +1,7 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import { newId } from "../../lib/ids/index.ts";
+import { isOccurrence, isWakeup, type Outstanding, type Snapshot, threadOf, type Wakeup } from "../chat/index.ts";
 import type { TriggerDefinition } from "../home/index.ts";
-import { isOccurrence, isWakeup, type Outstanding, type Snapshot, threadOf, type Wakeup } from "../intake/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same

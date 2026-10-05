@@ -1,8 +1,8 @@
 import type { Context } from "@earendil-works/chord";
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
-import { isDisconnected } from "../../../lib/connection/index.ts";
-import { isRefusal } from "../../../lib/refusal/index.ts";
-import type { LiveChat } from "../../links/index.ts";
+import { isDisconnected } from "../../lib/connection/index.ts";
+import { isRefusal } from "../../lib/refusal/index.ts";
+import type { LiveChat } from "../links/index.ts";
 
 /** A tool's answer: just these words. */
 export const answer = (text: string): ToolExecutionResult => ({ content: [{ type: "text", text }] });

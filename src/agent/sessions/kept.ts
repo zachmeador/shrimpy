@@ -1,4 +1,4 @@
-import { isChat, isWakeup, type Outstanding, type Snapshot, type Wakeup } from "../intake/index.ts";
+import { isChat, isWakeup, type Outstanding, type Snapshot, type Wakeup } from "../chat/index.ts";
 import { plain, type SessionRecord } from "./documents.ts";
 
 /*

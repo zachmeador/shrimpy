@@ -1,7 +1,7 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool } from "@earendil-works/pi-durable";
-import type { ChatClient, Message } from "../../../contracts/chat/index.ts";
-import { standing } from "../../intake/index.ts";
+import type { ChatClient, Message } from "../../contracts/chat/index.ts";
+import { standing } from "../chat/index.ts";
 import type { MessageToolsOptions } from "./options.ts";
 import { placeOf } from "./place.ts";
 import { answer, callSignal, chatFailure, failure } from "./results.ts";

@@ -1,6 +1,6 @@
-import type { GatewayConnection } from "../../../contracts/gateway/index.ts";
-import type { LiveChat } from "../../links/index.ts";
-import type { Wakeups } from "../../sessions/index.ts";
+import type { GatewayConnection } from "../../contracts/gateway/index.ts";
+import type { LiveChat } from "../links/index.ts";
+import type { Wakeups } from "../sessions/index.ts";
 
 /** What the message tools are handed: the ways to chat and to the roster that the agent already has. */
 export interface MessageToolsOptions {

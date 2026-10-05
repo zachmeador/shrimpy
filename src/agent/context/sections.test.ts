@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { HomeSnapshot } from "../../home/index.ts";
-import { messageTools, wakeupTools } from "../tools/index.ts";
+import type { HomeSnapshot } from "../home/index.ts";
+import { messageTools, wakeupTools } from "../message-tools/index.ts";
 import { baseInstructions } from "./base.ts";
 import { renderSections } from "./sections.ts";
 

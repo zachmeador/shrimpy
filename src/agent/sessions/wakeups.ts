@@ -11,7 +11,7 @@ import {
   type Tx,
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
-import type { Wakeup } from "../intake/index.ts";
+import type { Wakeup } from "../chat/index.ts";
 import { type SessionRecord, SessionsDoc, sessionAddress } from "./documents.ts";
 import { carrying, keepCancelled, takeCancelled } from "./kept.ts";
 import { placeOfSession, type SessionPlace } from "./thread-of.ts";

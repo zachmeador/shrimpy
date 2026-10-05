@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { until } from "../../../lib/testing/index.ts";
-import { localTime } from "../../../lib/time/index.ts";
-import { callingTools, startAgentRig } from "../../testing/index.ts";
+import { until } from "../../lib/testing/index.ts";
+import { localTime } from "../../lib/time/index.ts";
+import { callingTools, startAgentRig } from "../testing/index.ts";
 
 const timeout = 30_000;
 

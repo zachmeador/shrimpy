@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { CommitChange, Harness } from "@earendil-works/pi-durable";
-import { type Outstanding, threadOf, type Working } from "../intake/index.ts";
+import { type Outstanding, threadOf, type Working } from "../chat/index.ts";
 import { phaseOf, TURN_TASK } from "./turn-task.ts";
 
 const context = BACKGROUND_CONTEXT;

@@ -1,5 +1,5 @@
 import { ConfigError, parseConfig } from "../../lib/json-config/index.ts";
-import { isWakePolicy, type WakePolicy, type WakeSettings } from "../intake/index.ts";
+import { isWakePolicy, type WakePolicy, type WakeSettings } from "../chat/index.ts";
 import { type LeftOut, readText, replaceFile } from "./files.ts";
 import type { HomePaths } from "./layout.ts";
 import { loadHome } from "./load.ts";

@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
-import type { Admissions, Snapshot, Wakeup } from "../intake/index.ts";
+import type { Admissions, Snapshot, Wakeup } from "../chat/index.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { FeedDoc, plain, SessionsDoc } from "./documents.ts";
 import { carrying, takeCancelled, takeEvents } from "./kept.ts";
@@ -10,7 +10,7 @@ import { followInput, type TurnTask } from "./turn-task.ts";
 const context = BACKGROUND_CONTEXT;
 
 /**
- * Intake's view of the agent's records, over the engine. Each thread has one
+ * Chat's view of the agent's records, over the engine. Each thread has one
  * session, made when the first event in it is taken up, in the same commit
  * that creates the task that follows the event and moves the feed's cursor
  * past it. Nothing is lost between an event being read and being taken up, and

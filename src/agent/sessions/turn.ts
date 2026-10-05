@@ -1,5 +1,5 @@
 import type { EntryRecord, SettledSubmissionRecord } from "@earendil-works/pi-durable";
-import type { TurnOutcome } from "../intake/index.ts";
+import type { TurnOutcome } from "../chat/index.ts";
 import { answerText, describe } from "./settlement.ts";
 
 /**

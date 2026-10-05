@@ -10,7 +10,7 @@
  * occurrence of a standing trigger, whose reply is posted only if the trigger
  * names a thread. A command a person writes in a thread, `/stop`, is no input:
  * it is acted on when the feed brings it, whatever the room's wake policy, and
- * is never handed to a session or a model. Intake also tells chat which threads
+ * is never handed to a session or a model. It also tells chat which threads
  * the agent is working in, and finds which channel a thread is in, for a trigger
  * whose thread the agent has no session behind yet. It reaches chat only through
  * the link it is handed and the agent's sessions only through `Admissions` and

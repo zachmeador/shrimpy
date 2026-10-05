@@ -30,7 +30,7 @@ import {
   promptFor,
   threadOf,
   type TurnOutcome,
-} from "../intake/index.ts";
+} from "../chat/index.ts";
 import { plain, RecordsDoc, SessionsDoc, sessionAddress } from "./documents.ts";
 import { keepSkipped } from "./kept.ts";
 import { toOutcome } from "./turn.ts";

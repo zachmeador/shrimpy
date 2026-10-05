@@ -1,7 +1,7 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
 import type { SessionSummary } from "../../contracts/agent/index.ts";
-import type { Admissions, Working } from "../intake/index.ts";
+import type { Admissions, Working } from "../chat/index.ts";
 import { createAdmissions } from "./admissions.ts";
 import { beginRun, type Run } from "./crashes.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
@@ -32,9 +32,9 @@ export interface Sessions {
    * does not run again, and its source is told it failed. Call it once, before the engine resumes.
    */
   start(): Promise<Run>;
-  /** What intake takes events up through, and keeps its place in the feed with. */
+  /** What chat takes events up through, and keeps its place in the feed with. */
   readonly admissions: Admissions;
-  /** What intake asks about the inputs taken up and not yet told to their sources. */
+  /** What chat asks about the inputs taken up and not yet told to their sources. */
   readonly working: Working;
 }
 

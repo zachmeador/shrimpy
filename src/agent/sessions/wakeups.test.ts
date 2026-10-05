@@ -6,9 +6,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { defineExtension } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir } from "../../lib/testing/index.ts";
-import { wakeupTools } from "../extensions/index.ts";
+import { type Delivery, isWakeup, type Outstanding, type TurnOutcome } from "../chat/index.ts";
 import { openHost } from "../host/index.ts";
-import { type Delivery, isWakeup, type Outstanding, type TurnOutcome } from "../intake/index.ts";
+import { wakeupTools } from "../message-tools/index.ts";
 import { callingTools, fauxModels, loggedRequests, type Script } from "../testing/index.ts";
 import { createSessions, createWakeups, turnTask } from "./index.ts";
 

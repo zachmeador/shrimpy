@@ -1,7 +1,7 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ToolExecutionApi } from "@earendil-works/pi-durable";
-import { MAX_MESSAGE_LENGTH } from "../../../contracts/chat/index.ts";
-import { inParts } from "../../intake/index.ts";
+import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
+import { inParts } from "../chat/index.ts";
 import type { MessageToolsOptions } from "./options.ts";
 import { placeOf } from "./place.ts";
 import { answer, callSignal, chatFailure, failure } from "./results.ts";

@@ -1,5 +1,5 @@
 import { defineExtension, type Extension, section } from "@earendil-works/pi-durable";
-import { homePaths, type HomeSnapshot, type LeftOut, readHomeSnapshot } from "../../home/index.ts";
+import { homePaths, type HomeSnapshot, type LeftOut, readHomeSnapshot } from "../home/index.ts";
 import type { AgentFacts } from "./base.ts";
 import { type RenderedSection, renderSections, SECTION_KEYS, type SectionKey } from "./sections.ts";
 

@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { TestContext } from "node:test";
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { ToolExecutionApi, ToolRegistration } from "@earendil-works/pi-durable";
-import type { ChatClient } from "../../../../contracts/chat/index.ts";
-import type { LiveChat } from "../../../links/index.ts";
-import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../../testing/index.ts";
+import type { ChatClient } from "../../../contracts/chat/index.ts";
+import type { LiveChat } from "../../links/index.ts";
+import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
 import { messageTools } from "../index.ts";
 
 export interface ToolRigOptions {

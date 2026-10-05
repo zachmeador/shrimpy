@@ -1,9 +1,9 @@
 import type { Context } from "@earendil-works/chord";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import type { Channel, ChatClient, Member, Thread } from "../../../contracts/chat/index.ts";
-import type { GatewayConnection, RosterEntry } from "../../../contracts/gateway/index.ts";
-import { isDisconnected } from "../../../lib/connection/index.ts";
-import { threadOfSession } from "../../sessions/index.ts";
+import type { Channel, ChatClient, Member, Thread } from "../../contracts/chat/index.ts";
+import type { GatewayConnection, RosterEntry } from "../../contracts/gateway/index.ts";
+import { isDisconnected } from "../../lib/connection/index.ts";
+import { threadOfSession } from "../sessions/index.ts";
 import * as words from "./words.ts";
 
 /** A thread a tool means, and what the model calls it. */

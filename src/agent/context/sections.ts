@@ -1,4 +1,4 @@
-import type { HomeSnapshot } from "../../home/index.ts";
+import type { HomeSnapshot } from "../home/index.ts";
 import { type AgentFacts, baseInstructions } from "./base.ts";
 
 /** The sections, in the order the model reads them. */

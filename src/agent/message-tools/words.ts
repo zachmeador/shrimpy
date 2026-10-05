@@ -3,8 +3,8 @@
  * for, what its arguments mean, and what it answers. Nothing else in this
  * module writes words for the model.
  */
-import type { Thread } from "../../../contracts/chat/index.ts";
-import { localTime } from "../../../lib/time/index.ts";
+import type { Thread } from "../../contracts/chat/index.ts";
+import { localTime } from "../../lib/time/index.ts";
 
 /** The argument that names a place: where `send_message` posts, and what `read_messages` reads. */
 export type PlaceArgument = "to" | "from";
