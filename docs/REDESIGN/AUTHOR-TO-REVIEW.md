@@ -11,10 +11,11 @@ This page collects what you should look at: the questions waiting on you, the vi
 
 ## Worth a look
 
-**Worth a look.** Two are open.
+**Worth a look.** Three are open.
 
 | Topic | What the build does | Why look |
 |---|---|---|
+| `/stop` and what you see | A message of yours that starts with `/stop` stops the agents it is for at once: every agent in the room when it mentions nobody, and with a name that is no member's too, so `@typo /stop` stops everyone. Each agent leaves a silent receipt on it, which is shown to nobody. | When nothing was running, you see no sign that it was obeyed. |
 | A new dependency | Cron schedules are worked out by the package `cron-parser`, pinned at 5.5.0, which brings `luxon` with it. It is what old Shrimpy used, so it is the calendar the plan says to reuse. | It is the first dependency the new Shrimpy has taken beyond Pi's packages and the tools that check it. |
 | Where your setup lives | One folder, `~/shrimpy` unless `SHRIMPY_DIR` names another: `agents/<name>/` for homes, with the gateway's and the chat server's data beside them. Where a command takes an agent, a bare word means the home of that name there, and `shrimpy up` with no arguments starts every agent in it. Built on 2026-10-04, on your ask to think only in terms of `shrimpy`. A path still works: anything with a `/` in it, or that starts with `.` or `~`. A folder that holds other files and no `agents/` is taken to be someone else's and is left alone; dot files, such as a `.DS_Store`, don't count. The terminal client names an agent's commands by its roster name, which is its folder's name unless it was started from a path or renamed. | It is the one sticky default: where your agents live. Old Shrimpy's `~/.shrimpy` is never read or written, so an old workspace stays untouched. |
 

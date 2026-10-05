@@ -687,6 +687,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 - A person's message wakes every agent in a room only when it mentions nobody. One that names members wakes who it names. ([log, 2026-10-05](STATUS.md#log))
 - Every time is written one way, local time with its offset, by one function in `lib/time`. ([log, 2026-10-05](STATUS.md#log))
 - Who may do what, with one role, admin: it guards making a room, adding members, and watching or controlling another agent. ([log, 2026-10-05](STATUS.md#log))
+- A person's mention joins the turn an agent is running, and `/stop` in a thread stops the agents it is for, at once and with no model call. ([log, 2026-10-05](STATUS.md#log))
 
 **Now:**
 
