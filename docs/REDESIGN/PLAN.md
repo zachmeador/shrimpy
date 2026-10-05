@@ -69,10 +69,11 @@ This direction comes from the `REDESIGN` branch (2026-09-19): independent agent 
 | [2. An agent worth using](#2-an-agent-worth-using) | See exactly what the model received and why, with context, tools, skills and compaction on durable. Then your dev agents move in. | — |
 | [3. What daily use asks for](#3-what-daily-use-asks-for) | Stop hitting the rough edges that using it showed you | An affordance from today's Shrimpy is missed |
 | [4. Triggers and helpers](#4-triggers-and-helpers) | Run triggered and delegated work that is honest about what a restart interrupted | A capability can't be kept: back to review |
-| [5. Agents everywhere](#5-agents-everywhere) | Run agents in sandboxes and on Linux, in rooms with several members, and reach them from outside chat apps | How peers stay compatible across machines isn't decided |
-| [6. Release](#6-release) | Install, update, stop and uninstall a release with one engine, with the old tree gone | Client and framework complexity outweigh the runtime savings |
+| [5. Rooms and providers](#5-rooms-and-providers) | Put several people and agents in a room, with each agent deciding what wakes it, and drive chat from a fake provider | Two agents in a room can't be kept from going round in circles |
+| [6. Agents everywhere](#6-agents-everywhere) | Run agents in sandboxes and on Linux, and reach them from Telegram | How peers stay compatible across machines isn't decided |
+| [7. Release](#7-release) | Install, update, stop and uninstall a release with one engine, with the old tree gone | Client and framework complexity outweigh the runtime savings |
 
-The MVP is the end of phase 1. Phases 3, 4 and 5 can swap: after phase 2, the order follows what daily use shows is rough or missing.
+The MVP is the end of phase 1. Phases 3 to 6 can swap: after phase 2, the order follows what daily use shows is rough or missing. Phase 5 runs alongside phase 4, since they barely share code.
 
 ## Experience decisions
 
@@ -409,7 +410,7 @@ Homes under one OS user share that user's authority. Different permissions need 
 
 ### Host and Pi
 
-The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands that read a home's sessions go through the owner's API. The owner takes an exclusive lock on the home before anything that writes or serves, meaning opening storage, starting servers or binding sockets, and holds it for its lifetime. Reading the home's files comes first, so a home that doesn't load or names an unusable model fails without claiming it. The spike's 21-line lock on `node:sqlite` works on macOS; phase 5 qualifies it on Linux.
+The host builds the model and credential runtime, the trusted durable registry, the environment resolver, SQLite storage and the service, then supervises them. Opening a home's storage changes it, because durable resets unfinished work on every open. The phase 0 spike saw a second process that only opened a live home flip the owner's running turn back to pending, and a second owner send a model request twice and corrupt the first owner's session. So only the owner ever opens a home's storage, and commands that read a home's sessions go through the owner's API. The owner takes an exclusive lock on the home before anything that writes or serves, meaning opening storage, starting servers or binding sockets, and holds it for its lifetime. Reading the home's files comes first, so a home that doesn't load or names an unusable model fails without claiming it. The spike's 21-line lock on `node:sqlite` works on macOS; phase 6 qualifies it on Linux.
 
 Pi owns submissions, `InboxDoc`, `LiveDoc`, `UsageDoc`, conversation entries and configuration, generation, tool and compaction tasks, checkpoints, child ownership and structural watches. Shrimpy reads them directly. Query indexes and UI caches are disposable and name their source.
 
@@ -563,7 +564,7 @@ A replaced slice removes its old imports, registrations, unused dependencies, fi
 
 ## Target source layout
 
-This is the layout of `src/`. Old Shrimpy sits in `shrimpy-old/` until phase 6 deletes it, along with its tests, which test old internals.
+This is the layout of `src/`. Old Shrimpy sits in `shrimpy-old/` until phase 7 deletes it, along with its tests, which test old internals.
 
 The tree is organized by program. Shrimpy is three programs (an agent, the chat server and the gateway) plus the clients and the CLI, and the only code they share is their contracts.
 
@@ -693,7 +694,7 @@ Each completed phase adds a row to the size log. Note any directory that grew or
 
 **Use it early.** Old Shrimpy's shape was discovered by using it, and this one gets the same chance. From the end of phase 1 the new Shrimpy is used for real conversations, and from the end of phase 2 it is the one in daily use. What turns out rough or missing decides the order of the work after that. Tests and review pauses don't replace this.
 
-**The new Shrimpy is the repo's root.** Since 2026-10-04, on `wip`, old Shrimpy sits in `shrimpy-old/` as one unit: its code, tests and docs. Nothing there is built, tested or edited, nobody building the new Shrimpy reads its tests, and phase 6 deletes it. Until then the new tree was a side folder, `next/`, which protected a live install that no longer exists; leaving old Shrimpy at the root meant its `AGENTS.md`, docs and tests reached every agent that worked here.
+**The new Shrimpy is the repo's root.** Since 2026-10-04, on `wip`, old Shrimpy sits in `shrimpy-old/` as one unit: its code, tests and docs. Nothing there is built, tested or edited, nobody building the new Shrimpy reads its tests, and phase 7 deletes it. Until then the new tree was a side folder, `next/`, which protected a live install that no longer exists; leaving old Shrimpy at the root meant its `AGENTS.md`, docs and tests reached every agent that worked here.
 
 Development uses its own homes, sockets and data paths, so nothing touches a setup in use or the old workspace. `main` stays on old Shrimpy and Pi `0.84.4` until the release replaces it; there's no interim upgrade.
 
@@ -860,7 +861,7 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 4. **A trigger has a session of its own unless it names a thread.** Its own session lives on from one occurrence to the next, which is the heartbeat pattern, and you watch it like any session. Its final text goes nowhere: it uses `send_message` when it has something to say. With `thread:` the occurrence goes to the session behind that thread and the reply is posted there. The small trigger line in the thread comes later, with a change to the chat contract.
 5. **A check decides whether there is news, and what news does.** With `check:` a command runs at each occurrence and no model is called unless there is news. `when:` says what news is: `changed` since last time, which is the default, any `output`, or `always`. `then:` says what news does: `wake` the agent with the prompt and the output, marked as data, or `note` it as a [breadcrumb](#prompt-capture) in `breadcrumbs/<trigger>.md`, which wakes nobody. A check that fails is news, and says so the same way.
 6. **Commands,** which act on the agent whose shell they run in, and take `--agent <name>` elsewhere: `shrimpy triggers` lists them with the next run and the last outcome, `add` makes or replaces one, `show` prints one with its recent occurrences, `run` fires one now, `on` and `off` enable and disable, and `remove` deletes one.
-7. **Order of building:** the one task and `check_back`; then standing triggers with a prompt; then checks and breadcrumbs; then asking another agent. Helpers and the trigger line in chat follow.
+7. **Order of building:** the one task and `check_back`; then standing triggers with a prompt; then checks and breadcrumbs. Asking another agent waits for [rooms](#5-rooms-and-providers), since how two agents talk without going round in circles is one question in a DM and in a room. Helpers and the trigger line in chat follow.
 
 **Build**
 
@@ -881,18 +882,38 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 
 **Gate:** a capability that can't be kept goes back to [experience decisions](#experience-decisions) before removal.
 
-### 5. Agents everywhere
+### 5. Rooms and providers
 
-**Outcome:** agents run in sandboxes and on Linux, people's devices are identified by Tailscale, rooms hold several members, and chat reaches outside apps through providers, starting with Telegram. Joining from another machine and reaching an agent's sessions through the gateway are already in the MVP.
+**Outcome:** rooms hold several members, each agent decides what wakes it, and chat can reach an outside app through a provider interface. Two agents talk in a room without going round in circles, on a small local model, and a fake provider drives the same contract a real one will.
+
+**Why it has a phase of its own.** Decided on 2026-10-04. Rooms and the provider interface are the part of the conversation model that two-member DMs can't test: wake policy, mentions, last-active addressing, and whether agents wind down. They are written into the chat store, the contract and every client, so they are settled before the deployment work in phase 6 and not with it. This phase runs alongside phase 4: rooms are mostly the chat server, the contract and the wake policy, and triggers live inside the agent. Asking another agent, in phase 4, waits for rooms.
+
+**Build**
+
+- Source bindings and publication and delivery operations.
+- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent.
+- A fake provider, as the provider interface's reference.
+- An included skill that teaches agents to set their own wake policy.
+- What the feed of events left open for rooms and providers, which the [status](STATUS.md) lists.
+
+**Prove**
+
+- Two homes talking in a channel with no provider at all: default wake policies and real models, including a small local one, that wind down instead of ping-ponging; mentions and broadcast, sender restrictions, final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status.
+- A fake test provider drives the same chat contract, so nothing Telegram-specific leaks into the shared layer.
+- A reaction and an edit cross the bridge in both directions, and a feature the outside app lacks is left out.
+
+**Replaces:** the global handled-turn, cursor and outcome state, and the old channel session and control loop.
+
+### 6. Agents everywhere
+
+**Outcome:** agents run in sandboxes and on Linux, people's devices are identified by Tailscale, and chat reaches Telegram through the provider interface. Joining from another machine and reaching an agent's sessions through the gateway are already in the MVP.
 
 **Decide first:** how peers stay compatible across machines. Pi's protocol makes no compatibility promises, so every program upgrades together today. That works on one machine. With agents on other machines, updating one side breaks every agent that hasn't updated yet. The link that crosses machines is small: an agent talking to chat and the gateway. Either that link gets a stable protocol of its own, or lockstep upgrades are accepted with a clear report of the mismatch. The MVP takes the second: every program runs the same version, and a mismatch is reported.
 
 **Build**
 
-- Source bindings and publication and delivery operations.
-- The rest of the chat server: rooms with several members and the provider interface with its shared helpers. Chat commands and wake policies in each agent. Then Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
+- Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
 - Gateway registration and routing, with agents connecting out to it.
-- An included skill that teaches agents to set their own wake policy.
 - Tailscale identity for people, and the gateway checking that an agent's token comes from the expected machine.
 - The programs and their locks qualified on Linux.
 
@@ -901,17 +922,12 @@ This phase has no fixed scope. Its list comes from use, and its order is yours. 
 - An agent in a separate process from the gateway, with terminal and web attaching through it using the same contract as local use.
 - Switching agents and sessions; allowed and denied access; agent, gateway and client disconnects and reconnects; fixed-target retry; completion against the agent's filesystem; moving an attachment.
 - A gateway or chat server failure leaves accepted work with the agent; clients recover from committed state, and agents catch up on channel messages they missed.
-- Two homes talking in a channel with no provider at all: default wake policies and real models, including a small local one, that wind down instead of ping-ponging; mentions and broadcast, sender restrictions, final text as the reply and `END` for silence, last-active addressing, and accepted versus delivered status.
 - The same agent inside one real sandbox or VM, with the client outside and no shared files.
 - A sandboxed agent whose only outbound access is the gateway and its model provider.
 - A message typed in the console in a Telegram-bridged channel appears in Telegram, posted by the bot and labelled with your name.
-- A fake test provider drives the same chat contract, so nothing Telegram-specific leaks into the shared layer.
-- A reaction and an edit cross the bridge in both directions, and a feature the outside app lacks is left out.
 - Through Telegram: a reset between admission and retry, duplicate and batched updates, offline periods, first start, late replies, long formatted output, quiet notices, photos, documents, voice notes and video, and a lost send acknowledgment.
 
-**Replaces:** the global handled-turn, cursor and outcome state, and the old channel session and control loop.
-
-### 6. Release
+### 7. Release
 
 **Outcome:** an installable release with one engine, and the old tree is gone.
 
