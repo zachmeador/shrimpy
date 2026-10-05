@@ -90,13 +90,13 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `rooms add <room> <member>...` | Add members to a room you are in. Takes an admin. |
 | `agent init <agent> --model <provider/id> [--name <name>]` | Create an agent home. Files that already exist are left as they are. |
 | `agent serve <agent> [--now]` | Run the agent in the foreground until it is told to stop. |
-| `agent status <agent>` | Say whether the agent is running, and how to reach it. |
-| `agent reload <agent>` | Make a running agent read its instructions, context files, skills and triggers again. |
-| `agent context <agent>` | Preview what an agent would be told, from its home's files as they are now. |
-| `sessions list <agent>` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working. |
-| `sessions read <agent> <session> [--json]` | Show a session: what was said, what the tools did, and what it is doing now. |
-| `sessions steer <agent> <session> <text> [--request-id <id>] [--wait]` | Give a session input; it joins work already running. |
-| `sessions stop <agent> <session>` | Stop the work in a session, and withdraw the input it has not picked up. |
+| `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
+| `agent reload [--agent <agent>]` | Make a running agent read its instructions, context files, skills and triggers again. |
+| `agent context [--agent <agent>]` | Preview what an agent would be told, from its home's files as they are now. |
+| `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working. |
+| `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
+| `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
+| `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |
 | `triggers [--agent <agent>]` | List the triggers of an agent: each one's schedule, whether it is on, when it runs next and how its last occurrence ended. |
 | `triggers add <name> (--every <delay> \| --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] "<prompt>" [--agent <agent>]` | Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule. |
 | `triggers show <name> [--agent <agent>]` | Show a trigger: what it says, when it runs next and its latest occurrences. |

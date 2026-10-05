@@ -15,7 +15,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning } from "./connected.ts";
 import { leftOutLines } from "./reloaded.ts";
-import { ABOUT_ANOTHER_AGENT, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
 
 /** The policies as a sentence gives them: "none, mentions, people or all". */
 const POLICIES = `${WAKE_POLICIES.slice(0, -1).join(", ")} or ${WAKE_POLICIES.at(-1) ?? ""}`;
@@ -79,7 +79,7 @@ const wake: Command = {
     ABOUT_ANOTHER_AGENT,
   ].join("\n"),
   async run(args, io) {
-    const { values, positionals } = parsing(() => parseArgs({ args, options: { agent: { type: "string" } }, allowPositionals: true }));
+    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const target = agentToActOn(values.agent);
     if (positionals.length === 0) {
       await mayActOn(target, "Looking at what wakes another agent");

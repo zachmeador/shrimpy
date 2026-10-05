@@ -1,7 +1,7 @@
 import type { AgentConnection } from "../../contracts/agent/index.ts";
 import { AgentNotRunningError, attachLocal } from "../../contracts/agent/node.ts";
-import { homeNamed } from "../folder/index.ts";
 import { reachAgent, shellActingOn } from "../talk/index.ts";
+import type { Target } from "./which-agent.ts";
 
 /**
  * Connect to the agent that owns `home`, or answer undefined if none is running
@@ -25,19 +25,15 @@ export async function connectIfRunning(home: string): Promise<AgentConnection | 
 export const noAgentRunning = (home: string, agent: string): string =>
   `No agent is running at ${home}. Start one with: shrimpy agent serve ${agent}`;
 
-/**
- * Connect to the agent that `agent` names, a name or the path of its home, for
- * the length of `use`, which is also told the home's path.
- */
+/** Connect to the agent `target` is, for the length of `use`. */
 export async function withConnection<T>(
-  agent: string,
-  use: (connection: AgentConnection, home: string) => Promise<T>,
+  target: Target,
+  use: (connection: AgentConnection) => Promise<T>,
 ): Promise<T> {
-  const home = homeNamed(agent);
-  const connection = await connectIfRunning(home);
-  if (connection === undefined) throw new Error(noAgentRunning(home, agent));
+  const connection = await connectIfRunning(target.home);
+  if (connection === undefined) throw new Error(noAgentRunning(target.home, target.given));
   try {
-    return await use(connection, home);
+    return await use(connection);
   } finally {
     // The agent may be gone by now, and there is nothing left to release.
     await connection.close().catch(() => undefined);

@@ -33,7 +33,7 @@ test("agent context previews the sections the agent would be told, in order, and
   mkdirSync(join(paths.skills, "review"));
   writeFileSync(join(paths.skills, "review", "SKILL.md"), "---\ndescription: Review a diff for bugs.\n---\n");
 
-  const { code, out, err } = await run("agent", "context", paths.root);
+  const { code, out, err } = await run("agent", "context", "--agent", paths.root);
 
   assert.equal(code, 0, err.join("\n"));
   const [label, ...rest] = out;
@@ -51,8 +51,8 @@ test("agent context previews the sections the agent would be told, in order, and
 test("agent context starts nothing and claims nothing: the home's lock and storage are never made", async (t) => {
   const paths = await newHome(t);
 
-  await run("agent", "context", paths.root);
-  await run("agent", "context", paths.root);
+  await run("agent", "context", "--agent", paths.root);
+  await run("agent", "context", "--agent", paths.root);
 
   assert.equal(existsSync(paths.database), false);
   assert.equal(existsSync(join(paths.runtime, "owner.lock")), false);

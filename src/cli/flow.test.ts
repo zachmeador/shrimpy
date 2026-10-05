@@ -102,7 +102,7 @@ test("agent reload makes the running agent read its home again, and says what it
   await ask("hello again");
   assert.doesNotMatch(told(1), /Answer in rhyme\./, "nothing changes until the agent is told to read again");
 
-  const reloaded = await run("agent", "reload", home);
+  const reloaded = await run("agent", "reload", "--agent", home);
 
   assert.equal(reloaded.code, 0, reloaded.err.join("\n"));
   assert.ok(reloaded.out.join("\n").includes("skills/broken/SKILL.md"), "the file it left out is named");
@@ -116,19 +116,19 @@ test("stopping the work makes the waiting command exit 130, and the message in t
   const { home, model, threadId, ask, tell, receiptOn } = await servedHome(t);
   await ask("first");
 
-  const waiting = run("sessions", "steer", home, threadId, "go slow", "--wait");
+  const waiting = run("sessions", "steer", threadId, "go slow", "--wait", "--agent", home);
   await until(() => model.requests.length > 1, "the model to start answering");
-  const stopped = await run("sessions", "stop", home, threadId);
+  const stopped = await run("sessions", "stop", threadId, "--agent", home);
   const result = await waiting;
 
   assert.equal(stopped.code, 0);
   assert.equal(result.code, 130);
   assert.deepEqual(result.out, []);
   // The agent is still there, and can be asked again.
-  assert.equal((await run("sessions", "steer", home, threadId, "hello", "--wait")).code, 0);
+  assert.equal((await run("sessions", "steer", threadId, "hello", "--wait", "--agent", home)).code, 0);
   const slow = await tell("go slow, in the thread");
   await until(() => model.requests.length > 3, "the model to start on the thread's message");
-  assert.equal((await run("sessions", "stop", home, threadId)).code, 0);
+  assert.equal((await run("sessions", "stop", threadId, "--agent", home)).code, 0);
   assert.equal((await receiptOn(slow)).status, "stopped");
 });
 
@@ -136,7 +136,7 @@ test("input the model refuses makes the waiting command exit 1, with the reason"
   const { home, threadId, ask } = await servedHome(t);
   await ask("first");
 
-  const result = await run("sessions", "steer", home, threadId, "please refuse", "--wait");
+  const result = await run("sessions", "steer", threadId, "please refuse", "--wait", "--agent", home);
 
   assert.equal(result.code, 1);
   assert.deepEqual(result.out, []);
@@ -146,7 +146,7 @@ test("input the model refuses makes the waiting command exit 1, with the reason"
 test("a waiting command exits 1 when the agent stops under it", { timeout }, async (t) => {
   const { home, model, threadId, ask, stopNow } = await servedHome(t);
   await ask("first");
-  const waiting = run("sessions", "steer", home, threadId, "go slow", "--wait");
+  const waiting = run("sessions", "steer", threadId, "go slow", "--wait", "--agent", home);
   await until(() => model.requests.length > 1, "the model to start answering");
 
   assert.equal(await stopNow(), 0);
@@ -166,10 +166,10 @@ test("with the gateway gone, the agent is still watched and stopped by its home'
 
   await gateway.outage();
 
-  const watched = await run("sessions", "read", home, threadId, "--json");
+  const watched = await run("sessions", "read", threadId, "--json", "--agent", home);
   assert.equal(watched.code, 0, watched.err.join("\n"));
   assert.equal((JSON.parse(watched.out[0] ?? "{}") as SessionView).status.busy, true, "it is at work");
-  assert.equal((await run("sessions", "stop", home, threadId)).code, 0);
+  assert.equal((await run("sessions", "stop", threadId, "--agent", home)).code, 0);
 
   await gateway.recover();
   const statusOf = async (): Promise<string | undefined> => {
@@ -184,7 +184,7 @@ test("with the gateway gone, the agent is still watched and stopped by its home'
 test("--now stops the agent without waiting for the running turn", { timeout }, async (t) => {
   const { home, model, threadId, ask, stop } = await servedHome(t, "--now");
   await ask("first");
-  const waiting = run("sessions", "steer", home, threadId, "go slow", "--wait");
+  const waiting = run("sessions", "steer", threadId, "go slow", "--wait", "--agent", home);
   await until(() => model.requests.length > 1, "the model to start answering");
 
   // The test model streams for ten seconds, and a stop that waits would give the turn five of them.

@@ -114,7 +114,7 @@ test("a bare shrimpy at a terminal opens the console, in which a person can see 
   assert.match(line ?? "", /^scout is still working in thread th_\w+, and the work continues\. /);
   const thread = /thread (th_\w+)/.exec(line ?? "")?.[1];
   assert.ok(thread);
-  const stopped = await shrimpy(["sessions", "stop", home, thread]);
+  const stopped = await shrimpy(["sessions", "stop", thread, "--agent", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
 });
 
@@ -148,7 +148,7 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
 
   // The agent goes on without it, and says by its home's path when the turn is over. The reply waits in the task that follows its event.
   const sessions = await eventually(
-    () => shrimpy(["sessions", "list", home]),
+    () => shrimpy(["sessions", "list", "--agent", home]),
     (result) => result.stdout.includes(`${thread} `) && result.stdout.includes("idle"),
     { what: "the agent to finish the turn without the gateway", timeoutMs: 40_000 },
   );

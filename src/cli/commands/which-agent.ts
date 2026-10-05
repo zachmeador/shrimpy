@@ -26,6 +26,13 @@ export function agentToActOn(flag: string | undefined): Target {
   throw new UsageError(`Say which agent: add --agent <agent>, a name or a path.${agentsThere()}`);
 }
 
+/** The option every command about one agent takes, to name an agent that is not the one whose shell it runs in. */
+export const AGENT_OPTION = { agent: { type: "string" } } as const;
+
+/** What the help of a command about one agent says about which agent that is. */
+export const WHICH_AGENT =
+  "It acts on the agent whose shell it runs in. Anywhere else, name the agent with --agent <agent>, a name or a path.";
+
 /** What the help of a command that acts on an agent says about acting on another agent's. */
 export const ABOUT_ANOTHER_AGENT =
   "Run in the shell of an agent, about another agent, it goes through the gateway as that agent and takes an admin.";

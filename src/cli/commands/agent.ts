@@ -17,7 +17,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, withConnection } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
-import { ABOUT_ANOTHER_AGENT } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, WHICH_AGENT } from "./which-agent.ts";
 
 const init: Command = {
   name: "agent init",
@@ -124,13 +124,13 @@ const serve: Command = {
 
 const status: Command = {
   name: "agent status",
-  usage: "<agent>",
+  usage: "[--agent <agent>]",
   summary: "Say whether the agent is running, and how to reach it.",
-  details: `Prints one JSON line. Exits 0 if an agent is running and 1 if not. ${ABOUT_ANOTHER_AGENT}`,
+  details: `Prints one JSON line. Exits 0 if an agent is running and 1 if not. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
-    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [given] = expectArguments(positionals, ["<agent>"]);
-    const home = homeNamed(given);
+    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
+    expectArguments(positionals, []);
+    const { home } = agentToActOn(values.agent);
 
     // The endpoint file outlives the agent, so only an answer shows that one is there.
     if (!(await answers(home))) {
@@ -161,16 +161,16 @@ async function answers(home: string): Promise<boolean> {
 
 const context: Command = {
   name: "agent context",
-  usage: "<agent>",
+  usage: "[--agent <agent>]",
   summary: "Preview what an agent would be told, from its home's files as they are now.",
   details:
     "Prints the sections the agent's instructions are made of, in order, as a model would get them. It " +
     "reads the files and starts nothing, so it also works while an agent runs there. A running agent has " +
-    "what it read when it started or last reloaded: make it read again with shrimpy agent reload.",
+    `what it read when it started or last reloaded: make it read again with shrimpy agent reload. ${WHICH_AGENT}`,
   async run(args, io) {
-    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [given] = expectArguments(positionals, ["<agent>"]);
-    const home = homeNamed(given);
+    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
+    expectArguments(positionals, []);
+    const { home } = agentToActOn(values.agent);
 
     const { sections, leftOut, ...read } = await previewHomeContext(home);
     io.out(
@@ -185,23 +185,24 @@ const context: Command = {
 
 const reload: Command = {
   name: "agent reload",
-  usage: "<agent>",
+  usage: "[--agent <agent>]",
   summary: "Make a running agent read its instructions, context files, skills and triggers again.",
   details:
     "An agent reads SOUL.md, the Markdown files in context/, the skills in skills/ and the triggers in " +
     "triggers/ when it starts, and editing them changes nothing for it until this is run. Each session then " +
     "uses what changed in its instructions with its next request, and what it already holds is not rewritten; " +
     "a trigger follows its file at once. A file the agent cannot use is left out and named, and the rest is " +
-    "read. To see what a home gives an agent now, use shrimpy agent context. " +
+    `read. To see what a home gives an agent now, use shrimpy agent context. ${WHICH_AGENT} ` +
     ABOUT_ANOTHER_AGENT,
   async run(args, io) {
-    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [agent] = expectArguments(positionals, ["<agent>"]);
+    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
+    expectArguments(positionals, []);
+    const target = agentToActOn(values.agent);
 
-    return withConnection(agent, async (connection, home) => {
+    return withConnection(target, async (connection) => {
       const reloaded = await connection.reload();
       io.out(
-        `Reloaded. The agent at ${home} now reads ${whatItReads(reloaded)}. ` +
+        `Reloaded. The agent at ${target.home} now reads ${whatItReads(reloaded)}. ` +
           "Each of its sessions uses a change to its instructions with its next request; a trigger follows its file at once.",
       );
       if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);

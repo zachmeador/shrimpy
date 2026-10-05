@@ -5,7 +5,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession } from "./render.ts";
-import { ABOUT_ANOTHER_AGENT } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, type Target, WHICH_AGENT } from "./which-agent.ts";
 
 /** The exit code of `steer --wait` for work that someone cancelled, as a shell reports an interrupted command. */
 const CANCELLED = 130;
@@ -17,14 +17,14 @@ const ADDRESS =
 
 const list: Command = {
   name: "sessions list",
-  usage: "<agent>",
+  usage: "[--agent <agent>]",
   summary:
     "List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working.",
-  details: ABOUT_ANOTHER_AGENT,
+  details: `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
-    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [agent] = expectArguments(positionals, ["<agent>"]);
-    return withConnection(agent, async (connection) => {
+    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
+    expectArguments(positionals, []);
+    return withConnection(agentToActOn(values.agent), async (connection) => {
       const sessions = await connection.sessions();
       if (sessions.length === 0) io.out("The agent has no sessions yet.");
       for (const session of sessions) {
@@ -37,15 +37,15 @@ const list: Command = {
 
 const read: Command = {
   name: "sessions read",
-  usage: "<agent> <session> [--json]",
+  usage: "<session> [--json] [--agent <agent>]",
   summary: "Show a session: what was said, what the tools did, and what it is doing now.",
-  details: `${ADDRESS} ${ABOUT_ANOTHER_AGENT}`,
+  details: `${ADDRESS} ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
-      parseArgs({ args, options: { json: { type: "boolean" } }, allowPositionals: true }),
+      parseArgs({ args, options: { ...AGENT_OPTION, json: { type: "boolean" } }, allowPositionals: true }),
     );
-    const [agent, session] = expectArguments(positionals, ["<agent>", "<session>"]);
-    return withSession(agent, session, (attached) => {
+    const [session] = expectArguments(positionals, ["<session>"]);
+    return withSession(agentToActOn(values.agent), session, (attached) => {
       io.out(values.json === true ? JSON.stringify(attached.view) : renderSession(attached.view));
       return Promise.resolve(0);
     });
@@ -54,7 +54,7 @@ const read: Command = {
 
 const steer: Command = {
   name: "sessions steer",
-  usage: "<agent> <session> <text> [--request-id <id>] [--wait]",
+  usage: "<session> <text> [--request-id <id>] [--wait] [--agent <agent>]",
   summary: "Give a session input; it joins work already running.",
   details:
     `${ADDRESS} ` +
@@ -63,18 +63,18 @@ const steer: Command = {
     "To talk to an agent, post to its thread. " +
     "With --wait, print the answer and exit 0 when the input was answered, 1 when it failed or ended " +
     "without an answer, and 130 when it was cancelled. A retry with the same --request-id is the same input. " +
-    ABOUT_ANOTHER_AGENT,
+    `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() =>
       parseArgs({
         args,
-        options: { "request-id": { type: "string" }, wait: { type: "boolean" } },
+        options: { ...AGENT_OPTION, "request-id": { type: "string" }, wait: { type: "boolean" } },
         allowPositionals: true,
       }),
     );
-    const [agent, session, text] = expectArguments(positionals, ["<agent>", "<session>", "<text>"]);
+    const [session, text] = expectArguments(positionals, ["<session>", "<text>"]);
     if (text.trim() === "") throw new UsageError("The text is empty.");
-    return withSession(agent, session, async (attached) => {
+    return withSession(agentToActOn(values.agent), session, async (attached) => {
       const { submission } = await attached.steer(text, values["request-id"]);
       if (values.wait !== true) {
         io.out(`Accepted as submission ${submission}.`);
@@ -105,17 +105,17 @@ function report(settlement: Settlement, io: Io): number {
 
 const stop: Command = {
   name: "sessions stop",
-  usage: "<agent> <session>",
+  usage: "<session> [--agent <agent>]",
   summary: "Stop the work in a session, and withdraw the input it has not picked up.",
   details:
     `${ADDRESS} ` +
     "Messages still waiting stay in the thread, marked skipped, and the agent reads them with the next one. " +
     "The agent keeps running. To stop the agent itself, send its process SIGTERM or press Ctrl+C. " +
-    ABOUT_ANOTHER_AGENT,
+    `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
-    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
-    const [agent, session] = expectArguments(positionals, ["<agent>", "<session>"]);
-    return withSession(agent, session, async (attached) => {
+    const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
+    const [session] = expectArguments(positionals, ["<session>"]);
+    return withSession(agentToActOn(values.agent), session, async (attached) => {
       await attached.stop();
       io.out(`Stopped the work in the session ${session}.`);
       return 0;
@@ -123,9 +123,9 @@ const stop: Command = {
   },
 };
 
-/** Attach to `session` at the agent `agent` names, a name or the path of its home, for the length of `use`. */
-function withSession<T>(agent: string, session: string, use: (attached: SessionHandle) => Promise<T>): Promise<T> {
-  return withConnection(agent, async (connection) => use(await connection.attach(session)));
+/** Attach to `session` at the agent `target` is, for the length of `use`. */
+function withSession<T>(target: Target, session: string, use: (attached: SessionHandle) => Promise<T>): Promise<T> {
+  return withConnection(target, async (connection) => use(await connection.attach(session)));
 }
 
 export const sessionsCommands: Command[] = [list, read, steer, stop];

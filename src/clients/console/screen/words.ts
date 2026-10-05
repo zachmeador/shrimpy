@@ -118,7 +118,7 @@ export function farewellLine(agentName: string, threadId: string): string {
   const thread = oneLine(threadId);
   return (
     `${agent} is still working in thread ${thread}, and the work continues. ` +
-    `To stop it, open the thread and press Esc, or run: shrimpy sessions stop ${agent} ${thread}`
+    `To stop it, open the thread and press Esc, or run: shrimpy sessions stop ${thread} --agent ${agent}`
   );
 }
 

@@ -30,6 +30,6 @@ A trigger gives you a prompt on a schedule. It is a file in your home's `trigger
 - `shrimpy triggers` lists your triggers with when each runs next and how its last occurrence ended. `shrimpy triggers show morning` adds its prompt and its recent occurrences, with the reason for one that failed or was skipped.
 - `shrimpy triggers run morning` fires one now, and works on one that is off.
 - `shrimpy triggers off morning` stops it running on its schedule and keeps its file, `shrimpy triggers on morning` starts it again, and `shrimpy triggers remove morning` deletes it. To change a prompt or a schedule, make it again with `add`.
-- None of these stops an occurrence that is running. `shrimpy sessions stop <agent> trigger:morning` does, with your own name as the agent. For a trigger with a thread, give the thread's ID.
+- None of these stops an occurrence that is running. `shrimpy sessions stop trigger:morning` does. For a trigger with a thread, give the thread's ID.
 
 A trigger comes due only while you are running. One that came due while you were stopped runs once when you start.

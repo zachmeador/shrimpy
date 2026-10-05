@@ -44,29 +44,30 @@ test("in an agent's shell, a sessions command about another agent is refused unl
   const inScoutsShell = { env: { [AGENT_HOME_VARIABLE]: scout } };
   const noSessions = "The agent has no sessions yet.";
 
-  // About itself it goes by the home's path, as ever. About rex it goes through the gateway as scout, and rex refuses.
-  const own = await shrimpy(["sessions", "list", "scout"], inScoutsShell);
+  // About itself, which is what it is with no --agent, it goes by the home's path, as ever. About rex it goes through the gateway as scout, and rex refuses.
+  const own = await shrimpy(["sessions", "list"], inScoutsShell);
   assert.equal(own.code, 0, own.stderr);
-  const refused = await shrimpy(["sessions", "list", "rex"], inScoutsShell);
+  const refused = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
   assert.equal(refused.code, 1, refused.stdout);
   assert.ok(refused.stderr.includes(person), `it says who to ask:\n${refused.stderr}`);
-  assert.equal((await shrimpy(["agent", "status", "rex"], inScoutsShell)).code, 1, "and so does asking whether it is running");
-  assert.equal((await shrimpy(["sessions", "list", "rex"])).stdout.trim(), noSessions, "while the person who runs the gateway is told");
+  assert.equal((await shrimpy(["agent", "status", "--agent", "rex"], inScoutsShell)).code, 1, "and so does asking whether it is running");
+  assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).stdout.trim(), noSessions, "while the person who runs the gateway is told");
 
   // Promoted at the gateway, scout may, with the next command.
   await (await gateway.connect()).promote((await memberNamed(t, "scout")).id);
-  const admitted = await shrimpy(["sessions", "list", "rex"], inScoutsShell);
+  const admitted = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
   assert.equal(admitted.stdout.trim(), noSessions, admitted.stderr);
-  const status = await shrimpy(["agent", "status", "rex"], inScoutsShell);
+  const status = await shrimpy(["agent", "status", "--agent", "rex"], inScoutsShell);
   assert.equal((JSON.parse(status.stdout) as { pid: number }).pid, served.rex?.listening.pid);
 
   // With no gateway, the other agent can't be reached from an agent's shell, and the commands that go by the home's path still work.
   await gateway.outage();
-  const down = await shrimpy(["sessions", "list", "rex"], inScoutsShell);
+  const down = await shrimpy(["sessions", "list", "--agent", "rex"], inScoutsShell);
   assert.equal(down.code, 1);
   assert.match(down.stderr, /without the gateway/);
-  assert.equal((await shrimpy(["sessions", "list", "scout"], inScoutsShell)).stdout.trim(), noSessions, "its own agent does not need it");
-  assert.equal((await shrimpy(["sessions", "list", "rex"])).stdout.trim(), noSessions, "and neither does a person");
+  assert.equal((await shrimpy(["sessions", "list"], inScoutsShell)).stdout.trim(), noSessions, "its own agent does not need it");
+  assert.equal((await shrimpy(["sessions", "list", "--agent", "scout"], inScoutsShell)).stdout.trim(), noSessions, "even when it is named");
+  assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).stdout.trim(), noSessions, "and neither does a person");
 });
 
 test("in an agent's shell, changing the triggers or the wake file of another agent asks the gateway whether the agent is an admin, and writes nothing if it is not", { timeout }, async (t) => {

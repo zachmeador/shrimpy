@@ -60,7 +60,7 @@ test("a folder with someone else's files in it is not used, and nothing is made 
   writeFileSync(join(folder, "package.json"), "{}");
 
   // `up` would run until stopped if it had started anything.
-  for (const args of [["agent", "init", "scout", ...modelFlags], ["up"], ["up", "scout"], ["agent", "context", "scout"]]) {
+  for (const args of [["agent", "init", "scout", ...modelFlags], ["up"], ["up", "scout"], ["agent", "context", "--agent", "scout"]]) {
     const refused = await run(...args);
     assert.equal(refused.code, 1, args.join(" "));
     assert.match(refused.err, /SHRIMPY_DIR/);
@@ -88,7 +88,7 @@ test("a name with no home behind it says so, lists the agents the folder has, an
 
   for (const name of ["scout", "rex"]) await run("agent", "init", name, ...modelFlags);
   mkdirSync(join(folder, "agents", "notes"));
-  for (const args of [["agent", "status", "maya"], ["sessions", "list", "maya"], ["up", "maya"]]) {
+  for (const args of [["agent", "status", "--agent", "maya"], ["sessions", "list", "--agent", "maya"], ["up", "maya"]]) {
     const missing = await run(...args);
     assert.equal(missing.code, 1, args.join(" "));
     assert.match(missing.err, /no agent called maya/);
@@ -103,5 +103,5 @@ test("a name with no home behind it says so, lists the agents the folder has, an
   const before = process.cwd();
   process.chdir(here);
   stopAfter(t, () => process.chdir(before));
-  assert.match((await run("agent", "status", "maya")).err, /write \.\/maya/);
+  assert.match((await run("agent", "status", "--agent", "maya")).err, /write \.\/maya/);
 });

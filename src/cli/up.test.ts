@@ -64,7 +64,7 @@ test("up starts the gateway, the chat server and an agent per home, says how to 
   await untilRegistered("chat", "chat");
   await untilRegistered("agent", "scout");
   assert.ok(up.output().stdout.includes('shrimpy run scout "<text>"'), "it says how to talk to the agent");
-  const agentStatus = JSON.parse((await shrimpy(["agent", "status", home])).stdout) as { running: boolean; pid: number };
+  const agentStatus = JSON.parse((await shrimpy(["agent", "status", "--agent", home])).stdout) as { running: boolean; pid: number };
   assert.deepEqual([agentStatus.running, agentStatus.pid], [true, agent]);
   assert.ok(existsSync(join(data, "chat", "state", "chat.sqlite")), "the chat server keeps its store in a folder of its own");
   assert.ok(existsSync(join(data, "gateway", "state", "roster.json")), "and the gateway its roster");
@@ -171,9 +171,9 @@ test("up with no arguments starts every agent in the Shrimpy folder, and keeps t
   assert.equal(up.programs().length, 4, "the gateway, the chat server and the two agents");
   await untilRegistered("agent", "scout");
   await untilRegistered("agent", "rex");
-  const status = JSON.parse((await shrimpy(["agent", "status", "scout"])).stdout) as { home: string };
+  const status = JSON.parse((await shrimpy(["agent", "status", "--agent", "scout"])).stdout) as { home: string };
   assert.equal(status.home, scout, "an agent is reached by its name");
-  assert.equal((await shrimpy(["sessions", "list", "rex"])).code, 0, "and so are its sessions");
+  assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).code, 0, "and so are its sessions");
   assert.ok(existsSync(join(folder, "gateway", "state", "roster.json")), "the gateway keeps its roster in the folder");
   assert.ok(existsSync(join(folder, "chat", "state", "chat.sqlite")), "and the chat server its store");
 

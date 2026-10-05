@@ -70,7 +70,7 @@ async function turnWithShellTool(t: TestContext, target: { url: string; model: s
   assert.equal(agent.listening.name, "scout");
   assert.equal(agent.listening.home, home);
 
-  const status = await shrimpy(["agent", "status", home]);
+  const status = await shrimpy(["agent", "status", "--agent", home]);
   assert.equal(status.code, 0, status.stderr);
   assert.equal((JSON.parse(status.stdout) as { pid: number }).pid, agent.listening.pid);
 
@@ -81,11 +81,11 @@ async function turnWithShellTool(t: TestContext, target: { url: string; model: s
   assert.notEqual(replies.at(-1)?.text.trim(), "", "the answer is posted in the thread");
   assert.equal(receipt.reply, replies.at(-1)?.id);
 
-  const listed = await shrimpy(["sessions", "list", home]);
+  const listed = await shrimpy(["sessions", "list", "--agent", home]);
   assert.equal(listed.code, 0, listed.stderr);
   assert.ok(listed.stdout.includes(talk.thread.id) && listed.stdout.includes("idle"), listed.stdout);
 
-  const read = await shrimpy(["sessions", "read", home, talk.thread.id, "--json"]);
+  const read = await shrimpy(["sessions", "read", talk.thread.id, "--json", "--agent", home]);
   assert.equal(read.code, 0, read.stderr);
   const view = JSON.parse(read.stdout) as SessionView;
   const tool = view.items.find((item): item is Extract<SessionItem, { type: "tool" }> => item.type === "tool");
@@ -99,7 +99,7 @@ async function turnWithShellTool(t: TestContext, target: { url: string; model: s
   const stopped = await agent.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
   assert.equal(isAlive(agent.listening.pid), false);
-  assert.equal((await shrimpy(["agent", "status", home])).code, 1);
+  assert.equal((await shrimpy(["agent", "status", "--agent", home])).code, 1);
 }
 
 test("a message to the agent in a thread becomes a turn with the shell tool, against a model it talks to over HTTP, and the reply comes back", { timeout: 120_000 }, async (t) => {
@@ -173,7 +173,7 @@ test(
 
 /** The tool calls the agent made in a thread's session, with their arguments and how each ended. */
 async function toolItemsIn(home: string, thread: string): Promise<Extract<SessionItem, { type: "tool" }>[]> {
-  const read = await shrimpy(["sessions", "read", home, thread, "--json"]);
+  const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", home]);
   assert.equal(read.code, 0, read.stderr);
   const view = JSON.parse(read.stdout) as SessionView;
   return view.items.flatMap((item) => (item.type === "tool" ? [item] : []));
@@ -253,7 +253,7 @@ test("the agent's shell finds shrimpy, though the PATH the agent was started wit
 
   const receipt = await talk.receiptOn(asked);
   assert.equal(receipt.status, "answered", JSON.stringify(receipt));
-  const read = await shrimpy(["sessions", "read", home, talk.thread.id, "--json"]);
+  const read = await shrimpy(["sessions", "read", talk.thread.id, "--json", "--agent", home]);
   const tool = (JSON.parse(read.stdout) as SessionView).items.find(
     (item): item is Extract<SessionItem, { type: "tool" }> => item.type === "tool",
   );
@@ -290,7 +290,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
   const { home, agent, talk } = await agentOnTheNetwork(t, { url: model.url, model: "test-model" });
   const thread = talk.thread.id;
   const answerLength = async (): Promise<number> => {
-    const read = await shrimpy(["sessions", "read", home, thread, "--json"]);
+    const read = await shrimpy(["sessions", "read", thread, "--json", "--agent", home]);
     const view = JSON.parse(read.stdout) as SessionView;
     return view.items.reduce((length, item) => length + (item.type === "assistant" ? item.text.length : 0), 0);
   };
@@ -298,7 +298,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
   await talk.receiptOn(await talk.say("hello"));
   const asked = model.requests.length;
 
-  const waiting = shrimpyInBackground(["sessions", "steer", home, thread, "go slow", "--wait"]);
+  const waiting = shrimpyInBackground(["sessions", "steer", thread, "go slow", "--wait", "--agent", home]);
   await until(() => model.requests.length > asked, "the model to start answering");
   waiting.kill("SIGKILL");
   await waiting.finished;
@@ -306,7 +306,7 @@ test("a command killed while it waits does not stop the work", { timeout: 120_00
   // The answer keeps growing with no one waiting for it, until someone stops the work.
   const before = await answerLength();
   await eventually(answerLength, (length) => length > before, { what: "the answer to keep streaming" });
-  const stopped = await shrimpy(["sessions", "stop", home, thread]);
+  const stopped = await shrimpy(["sessions", "stop", thread, "--agent", home]);
   assert.equal(stopped.code, 0, stopped.stderr);
   assert.equal((await agent.stop()).code, 0);
 });

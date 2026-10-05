@@ -19,9 +19,7 @@ import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
 import { renderTrigger, renderTriggerFile, renderTriggerFiles, renderTriggers, when } from "./render-triggers.ts";
-import { ABOUT_ANOTHER_AGENT, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
-
-const AGENT_OPTION = { agent: { type: "string" } } as const;
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, command, mayActOn, type Target } from "./which-agent.ts";
 
 /** What takes an admin, when a command run in the shell of another agent changes this agent's trigger files. */
 const CHANGE = "Changing another agent's triggers";

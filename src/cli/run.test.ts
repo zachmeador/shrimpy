@@ -57,7 +57,7 @@ test("a command used wrongly exits with 2 and shows its usage", async () => {
     [["agent", "init"], "Missing <agent>."],
     [["agent", "init", "scout"], "Missing --model."],
     [["agent", "serve", "h", "--fast"], "Unknown option '--fast'"],
-    [["sessions", "steer", "h", "th_1", "one", "two"], "Unexpected argument: two."],
+    [["sessions", "steer", "th_1", "one", "two"], "Unexpected argument: two."],
     [["run", "scout", "   "], "The text is empty."],
   ];
   for (const [args, expected] of cases) {
