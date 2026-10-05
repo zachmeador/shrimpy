@@ -6,8 +6,7 @@ This page collects what you should look at: the questions waiting on you, the vi
 
 1. The reshape of the agent's modules: go or no-go. The proposal is written out in the plan, under [the agent's modules, proposed](PLAN.md#the-agents-modules-proposed), with its one open name, `chat/`.
 2. A contract carries facts, and what a fact means is the reader's decision. Whether it goes into the plan, and with it the chat store recording only who a message mentions, which resets chat data once. It is written out under [the contracts between them](PLAN.md#the-contracts-between-them), with what would change and what it costs.
-3. The `cron-parser` package. A trigger's `cron` schedule is worked out by it, and it brings `luxon` with it. It is the first dependency the new Shrimpy has taken beyond Pi's own packages and the tools that check the code, and old Shrimpy used the same one. The other choices are writing that arithmetic here, time zones and summer time included, or having triggers take only `every`.
-4. Refusals carry their reason inside Pi's error code, and contracts still show Pi's own error types. Nothing is broken. Deciding what a refusal is in Shrimpy's contracts would make it intentional. Not urgent.
+3. Refusals carry their reason inside Pi's error code, and contracts still show Pi's own error types. Nothing is broken. Deciding what a refusal is in Shrimpy's contracts would make it intentional. Not urgent.
 
 ## Worth a look
 
