@@ -57,7 +57,7 @@ Left open by rooms' first step:
 - In a room's thread the terminal can't stop an agent or show its work as it happens, and it polls every room's threads every two seconds.
 - The message tools still say rooms come later, and reach no room.
 - An edit that removes a mention un-addresses the original post for an agent that reads the feed afterwards, since an event shows its message as it now stands.
-- A test of the chat server stopping failed once in eight full runs under load.
+- Two full runs of the suite have failed one test and passed when run again: a test of the chat server stopping, once in eight runs under load, and one on 2026-10-05 whose name wasn't captured, once in seven runs. Something in the suite depends on timing.
 
 Left open by the feed of events, to settle before rooms and chat providers:
 
