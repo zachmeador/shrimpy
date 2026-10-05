@@ -14,10 +14,10 @@
  * agent as urgent, and splits a text too long for one message. It reaches chat
  * only through the link it is handed, and the agent's records only through
  * `Admissions`, so it must not know a transport, or how a session or a record is
- * stored. Only `admissions.ts` touches the engine.
+ * stored. This door is all of it that needs no engine: what takes an event up is
+ * behind `durable.ts`.
  */
-export { createAdmissions } from "./admissions.ts";
-export type { Admissions } from "./admit.ts";
+export type { Admissions } from "./admissions.ts";
 export { createDelivery, type DeliveryOptions } from "./delivery.ts";
 export { type Intake, type IntakeOptions, startIntake } from "./intake.ts";
 export { createWakes, type WakePolicies, type Wakes } from "./policy.ts";

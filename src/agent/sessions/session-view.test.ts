@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ConversationView } from "@earendil-works/pi-durable";
-import { toSessionView } from "./session-view.ts";
+import { toSessionView } from "./session-view.durable.ts";
 
 /*
  * The engine's records the real path can't be made to produce on demand: an

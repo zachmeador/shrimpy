@@ -38,9 +38,24 @@ tester.run("imports", importsRule, {
     allowed("chat/providers/telegram/poller.ts", "../index.ts"),
     // testing: tests import test support.
     allowed("agent/agent.test.ts", "./testing/index.ts"),
-    // durable and durableInAgent: only the host, the records, the turns, the wake-ups, the triggers, the sessions and the tools and prompt sections of the agent know the engine.
-    allowed("agent/host/host.ts", "@earendil-works/pi-durable/env/node"),
-    allowed("agent/sessions/session-view.ts", "@earendil-works/pi-durable"),
+    // durable and durableInAgent: inside the agent, only a file named *.durable.ts or a durable.ts door knows the engine, and tests and test support do too.
+    allowed("agent/host/host.durable.ts", "@earendil-works/pi-durable/env/node"),
+    allowed("agent/sessions/session-view.durable.ts", "@earendil-works/pi-durable"),
+    allowed("agent/turns/durable.ts", "@earendil-works/pi-durable"),
+    allowed("agent/sessions/session-view.test.ts", "@earendil-works/pi-durable"),
+    allowed("agent/testing/rig.ts", "@earendil-works/pi-durable"),
+    // plain: a marked file reaches plain and marked files alike, plain files stay with plain ones, and the top of the agent wires the doors of any module.
+    allowed("agent/turns/take-up.durable.ts", "./turn-task.durable.ts"),
+    allowed("agent/turns/take-up.durable.ts", "../inputs/index.ts"),
+    allowed("agent/chat/feed.ts", "./pause.ts"),
+    allowed("agent/chat/feed.ts", "../turns/index.ts"),
+    allowed("agent/chat/admissions.durable.ts", "../turns/durable.ts"),
+    allowed("agent/turns/turn-task.test.ts", "./turn-task.durable.ts"),
+    allowed("agent/index.ts", "./turns/durable.ts"),
+    // piAi: the agent uses pi-ai, and tests and test support use it anywhere.
+    allowed("agent/host/models.durable.ts", "@earendil-works/pi-ai"),
+    allowed("lib/testing/model.ts", "@earendil-works/pi-ai"),
+    allowed("cli/flow.test.ts", "@earendil-works/pi-ai"),
     // piTui, piTuiDraw and drawing: only the console's drawing knows pi-tui, and the top of the console starts the drawing.
     allowed("clients/console/draw/screen.ts", "@earendil-works/pi-tui"),
     allowed("clients/console/console.ts", "./draw/index.ts"),
@@ -63,12 +78,20 @@ tester.run("imports", importsRule, {
     refused("chat/providers/telegram/poller.ts", "../../store/index.ts", "provider"),
     refused("agent/server.ts", "./testing/index.ts", "testing"),
     refused("contracts/agent/view.ts", "@earendil-works/pi-durable", "durable"),
-    // A type is still the engine's: the code that says what an input is imports none of it, even for a type.
+    // A type is still the engine's: a file that isn't marked imports none of it, even for a type, and the top of the agent is no exception.
     {
       filename: file("agent/inputs/prompt.ts"),
       code: 'import type { Harness } from "@earendil-works/pi-durable";',
       errors: [{ messageId: "durableInAgent" }],
     },
+    refused("agent/index.ts", "@earendil-works/pi-durable", "durableInAgent"),
+    // Plain code inside a module reaches nothing marked, in its own module or in another.
+    refused("agent/chat/feed.ts", "./admissions.durable.ts", "plain"),
+    refused("agent/chat/index.ts", "./durable.ts", "plain"),
+    refused("agent/message-tools/words.ts", "../turns/durable.ts", "plain"),
+    // pi-ai is the agent's alone, apart from tests and test support.
+    refused("cli/commands/run.ts", "@earendil-works/pi-ai", "piAi"),
+    refused("contracts/agent/view.ts", "@earendil-works/pi-ai", "piAi"),
     // pi-tui is the console's alone, and only from the package root.
     refused("clients/web/page.ts", "@earendil-works/pi-tui", "piTui"),
     refused("clients/console/draw/screen.ts", "@earendil-works/pi-tui/dist/index.js", "piTui"),

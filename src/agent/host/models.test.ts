@@ -5,7 +5,7 @@ import { test, type TestContext } from "node:test";
 import type { Models } from "@earendil-works/pi-ai";
 import { tempDir } from "../../lib/testing/index.ts";
 import { stubChatCompletions } from "../testing/index.ts";
-import { buildModels, ModelSetupError } from "./index.ts";
+import { buildModels, ModelSetupError } from "./durable.ts";
 
 const flags = { supportsDeveloperRole: false, supportsStore: false, supportsReasoningEffort: false };
 

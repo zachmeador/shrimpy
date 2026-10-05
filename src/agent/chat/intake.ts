@@ -1,7 +1,7 @@
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import type { ChatLink } from "../links/index.ts";
 import type { Working } from "../turns/index.ts";
-import type { Admissions } from "./admit.ts";
+import type { Admissions } from "./admissions.ts";
 import { readFeed } from "./feed.ts";
 import { markWorking } from "./working.ts";
 

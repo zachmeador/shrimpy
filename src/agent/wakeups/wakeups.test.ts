@@ -6,13 +6,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fauxAssistantMessage, type Message } from "@earendil-works/pi-ai";
 import { defineExtension } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir } from "../../lib/testing/index.ts";
-import { createAdmissions } from "../chat/index.ts";
-import { openHost } from "../host/index.ts";
+import { createAdmissions } from "../chat/durable.ts";
+import { openHost } from "../host/durable.ts";
 import { isWakeup, type Outstanding, type TurnOutcome } from "../inputs/index.ts";
-import { createSessions, stopWork } from "../sessions/index.ts";
+import { createSessions, stopWork } from "../sessions/durable.ts";
 import { callingTools, fauxModels, loggedRequests, type Script } from "../testing/index.ts";
-import { beginRun, type Delivery, turnTask } from "../turns/index.ts";
-import { createWakeups, wakeupTools } from "./index.ts";
+import { beginRun, turnTask } from "../turns/durable.ts";
+import type { Delivery } from "../turns/index.ts";
+import { createWakeups, wakeupTools } from "./durable.ts";
 
 /*
  * Wake-ups on the real engine, with no chat. The engine is stopped without

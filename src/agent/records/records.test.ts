@@ -6,10 +6,10 @@ import { createModels } from "@earendil-works/pi-ai";
 import { defineDoc } from "@earendil-works/pi-durable";
 import { tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { homePaths } from "../home/index.ts";
-import { openHost } from "../host/index.ts";
+import { openHost } from "../host/durable.ts";
 import { startAgent } from "../index.ts";
 import { closeAfter, fauxModels, SCOUT, startAgentRig } from "../testing/index.ts";
-import { FeedDoc, SessionsDoc } from "./documents.ts";
+import { FeedDoc, SessionsDoc } from "./documents.durable.ts";
 
 const timeout = 30_000;
 

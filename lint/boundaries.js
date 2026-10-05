@@ -6,9 +6,7 @@ import { isBuiltin } from "node:module";
 import { posix } from "node:path";
 
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
-const FRONT_DOORS = ["index.ts", "node.ts"];
-/** The parts of the agent that may import Pi's durable runtime. Everything else sees only Shrimpy's own types. */
-const DURABLE_IN_AGENT = ["host", "records", "turns", "wakeups", "triggers", "chat", "sessions", "message-tools", "context"];
+const FRONT_DOORS = ["index.ts", "node.ts", "durable.ts"];
 
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
@@ -23,7 +21,10 @@ const messages = {
   testing: "Only tests and test support import a testing/ module, not {{target}}.",
   durable: "Only agent/ imports Pi's durable runtime.",
   durableInAgent:
-    "Inside agent/, only host/, records/, turns/, wakeups/, triggers/, chat/, sessions/, message-tools/ and context/ import Pi's durable runtime, not {{part}}: the rest, inputs/ included, sees only Shrimpy's own types.",
+    "Inside agent/, only a file named *.durable.ts, or a durable.ts door, imports Pi's durable runtime: name this file so, or move what needs the engine into one that is, and let the rest see only Shrimpy's own types.",
+  plain:
+    "This plain file can't import {{target}}, which needs Pi's durable runtime: name this file *.durable.ts too, or give what both need a plain file.",
+  piAi: "Only agent/ imports pi-ai, apart from tests and test support: the rest sees only Shrimpy's own types.",
   piTui: "Only clients/console/ imports pi-tui, and only from the package root.",
   piTuiDraw:
     "Inside clients/console/, only draw/ imports pi-tui: the client's state and everything that reaches the network must work without a terminal.",
@@ -48,6 +49,10 @@ const isTest = (path) => path.endsWith(".test.ts");
 const isTestSupport = (path) => path.split("/").includes("testing");
 /** A Node door, or a file behind one: the files that say they need Node. */
 const needsNode = (path) => /(^|\/)node\.ts$|\.node\.ts$/.test(path);
+/** A durable door, or a file behind one: the files that say they need Pi's durable runtime. */
+const needsDurable = (path) => /(^|\/)durable\.ts$|\.durable\.ts$/.test(path);
+/** A file inside a module of the agent, which is a directory of agent/, as opposed to one at the agent's top. */
+const inAgentModule = (path) => path.startsWith("agent/") && path.includes("/", "agent/".length);
 
 /**
  * Code that must also run in a browser: the web client, and the contracts and
@@ -67,8 +72,10 @@ function checkPackage(from, specifier) {
   const owner = ownerOf(from);
   if (/^@earendil-works\/pi-durable(\/|$)/.test(specifier)) {
     if (owner !== "agent") return { messageId: "durable" };
-    const part = from.split("/")[1];
-    if (!DURABLE_IN_AGENT.includes(part)) return { messageId: "durableInAgent", data: { part } };
+    if (!isTest(from) && !isTestSupport(from) && !needsDurable(from)) return { messageId: "durableInAgent" };
+  }
+  if (/^@earendil-works\/pi-ai(\/|$)/.test(specifier) && owner !== "agent" && !isTest(from) && !isTestSupport(from)) {
+    return { messageId: "piAi" };
   }
   if (/^@earendil-works\/pi-tui(\/|$)/.test(specifier)) {
     if (owner !== "clients/console" || specifier !== "@earendil-works/pi-tui") {
@@ -101,6 +108,10 @@ function checkRelative(from, specifier) {
   }
   if (isBrowserSafe(from) && needsNode(target)) {
     return { messageId: "browser", data: { target } };
+  }
+  // Inside a module of the agent, plain code can't reach what needs the engine. The top of the agent wires modules together.
+  if (inAgentModule(from) && !isTest(from) && !isTestSupport(from) && needsDurable(target) && !needsDurable(from)) {
+    return { messageId: "plain", data: { target } };
   }
   if (target.startsWith(CONSOLE_DRAW) && inConsoleDirectory(from) && !from.startsWith(CONSOLE_DRAW)) {
     return { messageId: "drawing" };

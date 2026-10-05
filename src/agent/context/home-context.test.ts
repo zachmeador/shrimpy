@@ -6,7 +6,8 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { PromptInput } from "@earendil-works/pi-durable";
 import { tempDir } from "../../lib/testing/index.ts";
 import { homePaths } from "../home/index.ts";
-import { type HomeContext, homeContext, previewContext } from "./home-context.ts";
+import { homeContext, type HomeContext } from "./home-context.durable.ts";
+import { previewContext } from "./preview.ts";
 
 function newHome(t: TestContext) {
   const paths = homePaths(join(tempDir(t, "context"), "scout"));

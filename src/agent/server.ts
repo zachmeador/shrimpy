@@ -12,9 +12,9 @@ import { isClientGone, offerToConnection, offerToRoute } from "../lib/offer/inde
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type Asker, carryCallers, guardSession } from "./access/index.ts";
 import { type Entry, type HomeFiles, serveDirectory } from "./directory.ts";
-import type { Host } from "./host/index.ts";
-import type { Sessions } from "./sessions/index.ts";
-import type { Triggers } from "./triggers/index.ts";
+import type { Host } from "./host/durable.ts";
+import type { Sessions } from "./sessions/durable.ts";
+import type { Triggers } from "./triggers/durable.ts";
 
 export type { HomeFiles } from "./directory.ts";
 

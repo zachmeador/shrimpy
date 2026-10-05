@@ -7,10 +7,10 @@ import type { Message, Receipt } from "../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../contracts/gateway/index.ts";
 import { newToken } from "../contracts/gateway/node.ts";
 import type { TestGateway } from "../contracts/gateway/testing/index.ts";
-import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { homePaths } from "./home/index.ts";
-import { ModelSetupError } from "./host/index.ts";
+import { ModelSetupError } from "./host/durable.ts";
 import { initHome, parseModelChoice, previewHomeContext, startHomeAgent } from "./index.ts";
 import { attachThread, type ChatServer, closeAfter, startChatServer, stubChatCompletions, talkTo } from "./testing/index.ts";
 

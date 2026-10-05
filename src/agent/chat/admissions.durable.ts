@@ -1,0 +1,61 @@
+import type { Context } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
+import { FeedDoc, openSession, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
+import { takeUp, type TurnTask } from "../turns/durable.ts";
+import type { Admissions } from "./admissions.ts";
+
+const context = BACKGROUND_CONTEXT;
+
+/**
+ * How the work of a session is stopped. That is the sessions' to do, and they
+ * are above this module, so whoever makes the admissions hands it in.
+ */
+export type StopWork = (harness: Harness, conversation: Conversation, context: Context) => Promise<void>;
+
+/**
+ * Chat's view of the agent's records, over the engine. Each thread has one
+ * session, made when the first event in it is taken up, in the same commit
+ * that creates the task that follows the event and moves the feed's cursor
+ * past it. Nothing is lost between an event being read and being taken up, and
+ * nothing is taken up twice.
+ */
+export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask, stopWork: StopWork): Admissions {
+  return {
+    async cursor() {
+      return (await harness.snapshot(FeedDoc, context))?.cursor ?? undefined;
+    },
+
+    async setCursor(seq) {
+      await harness.commit(async (tx) => {
+        (await tx.doc(FeedDoc)).cursor = seq;
+      }, context);
+    },
+
+    async looked(threadId) {
+      const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
+      const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
+      return known?.channelId === null ? undefined : known?.looked;
+    },
+
+    async stopWork(threadId) {
+      const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
+      const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
+      if (known === undefined) return;
+      const conversation = await harness.conversation(known.conversationId as ConversationId, context);
+      if (conversation !== undefined) await stopWork(harness, conversation, context);
+    },
+
+    admit(draft, position = draft.event.seq) {
+      return harness.commit(async (tx) => {
+        (await tx.doc(FeedDoc)).cursor = position;
+        const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
+        // An event in a room is the newest thing the agent has looked at in its thread.
+        if (draft.backlog !== undefined && session.channelId !== null) {
+          session.looked = Math.max(session.looked ?? 0, draft.event.seq);
+        }
+        await takeUp(tx, turn, session.conversationId as ConversationId, draft);
+      }, context);
+    },
+  };
+}

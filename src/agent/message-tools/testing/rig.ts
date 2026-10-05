@@ -5,7 +5,7 @@ import type { ToolExecutionApi, ToolRegistration } from "@earendil-works/pi-dura
 import type { ChatClient } from "../../../contracts/chat/index.ts";
 import type { LiveChat } from "../../links/index.ts";
 import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
-import { messageTools } from "../index.ts";
+import { messageTools } from "../durable.ts";
 
 export interface ToolRigOptions {
   /** Characters in the longest message the agent posts. */

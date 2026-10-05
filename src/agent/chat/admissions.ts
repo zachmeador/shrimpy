@@ -1,61 +1,44 @@
-import type { Context } from "@earendil-works/chord";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
-import { FeedDoc, openSession, type SessionDefaults, SessionsDoc } from "../records/index.ts";
-import { takeUp, type TurnTask } from "../turns/index.ts";
-import type { Admissions } from "./admit.ts";
-
-const context = BACKGROUND_CONTEXT;
+import type { ChatInput } from "../inputs/index.ts";
+import type { WakePolicies } from "./policy.ts";
 
 /**
- * How the work of a session is stopped. That is the sessions' to do, and they
- * are above this module, so whoever makes the admissions hands it in.
+ * What chat needs from the agent's records: where it stands in chat's feed, a
+ * way to take an event up, and a way to stop the work behind a thread, for a
+ * command. It is also handed the choices the agent made, in a file of its home,
+ * about what wakes it in each room.
  */
-export type StopWork = (harness: Harness, conversation: Conversation, context: Context) => Promise<void>;
-
-/**
- * Chat's view of the agent's records, over the engine. Each thread has one
- * session, made when the first event in it is taken up, in the same commit
- * that creates the task that follows the event and moves the feed's cursor
- * past it. Nothing is lost between an event being read and being taken up, and
- * nothing is taken up twice.
- */
-export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask, stopWork: StopWork): Admissions {
-  return {
-    async cursor() {
-      return (await harness.snapshot(FeedDoc, context))?.cursor ?? undefined;
-    },
-
-    async setCursor(seq) {
-      await harness.commit(async (tx) => {
-        (await tx.doc(FeedDoc)).cursor = seq;
-      }, context);
-    },
-
-    async looked(threadId) {
-      const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
-      const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
-      return known?.channelId === null ? undefined : known?.looked;
-    },
-
-    async stopWork(threadId) {
-      const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
-      const known = Object.hasOwn(sessions, threadId) ? sessions[threadId] : undefined;
-      if (known === undefined) return;
-      const conversation = await harness.conversation(known.conversationId as ConversationId, context);
-      if (conversation !== undefined) await stopWork(harness, conversation, context);
-    },
-
-    admit(draft, position = draft.event.seq) {
-      return harness.commit(async (tx) => {
-        (await tx.doc(FeedDoc)).cursor = position;
-        const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
-        // An event in a room is the newest thing the agent has looked at in its thread.
-        if (draft.backlog !== undefined && session.channelId !== null) {
-          session.looked = Math.max(session.looked ?? 0, draft.event.seq);
-        }
-        await takeUp(tx, turn, session.conversationId as ConversationId, draft);
-      }, context);
-    },
-  };
+export interface Admissions {
+  /** What wakes the agent in each room. Without it, every room has the default. */
+  readonly wakes?: WakePolicies;
+  /** Where the agent stands in chat's feed, kept with its own records. Undefined until it is first set. */
+  cursor(): Promise<number | undefined>;
+  /** Move past events that wake nobody. */
+  setCursor(seq: number): Promise<void>;
+  /**
+   * Take an event up: make its thread's session if the thread has none, start
+   * the task that follows the event to its receipt, and move the cursor to
+   * `position`, all in one commit. `position` is where the feed brought the
+   * event, which is the event's own position unless it is a reply that a receipt
+   * pointed to. The thread's earlier unacted events go with it, and so do the
+   * wake-ups cancelled since the model last heard of them. An event in a room,
+   * one with a `backlog`, also moves where the agent has looked in its thread to
+   * the event. An event is taken up once, because the cursor moves with it.
+   */
+  admit(draft: Omit<ChatInput, "earlier" | "cancelled">, position?: number): Promise<void>;
+  /**
+   * Where the agent last looked in a thread of a room: the position of the
+   * newest event it took up there, kept with the thread's session. Undefined
+   * for a thread it has never been woken in. Everything the thread says after
+   * that position is what the agent has not seen.
+   */
+  looked(threadId: string): Promise<number | undefined>;
+  /**
+   * Stop the work of the session behind a thread, as stopping it from a client
+   * does: the turn that is running is stopped, the inputs that wait are taken
+   * back, and the wake-ups the session waits on are cancelled. The inputs'
+   * sources are told as they would be of any stop. It does nothing when the
+   * agent has no session there or the session has nothing to stop, and it leaves
+   * the agent's other sessions alone. It resolves once the work has stopped.
+   */
+  stopWork(threadId: string): Promise<void>;
 }

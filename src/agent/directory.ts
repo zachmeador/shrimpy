@@ -2,8 +2,8 @@ import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import type { Reloaded, SessionDirectory } from "../contracts/agent/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { type Asker, type Caller, check, withCaller } from "./access/index.ts";
-import type { Sessions } from "./sessions/index.ts";
-import type { Triggers } from "./triggers/index.ts";
+import type { Sessions } from "./sessions/durable.ts";
+import type { Triggers } from "./triggers/durable.ts";
 
 /** What the agent API asks of the agent's instructions and triggers. */
 export interface HomeFiles {

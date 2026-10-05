@@ -3,7 +3,7 @@ import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { DEFAULT_WAKE_POLICY, type WakePolicy } from "../home/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
-import type { Admissions } from "./admit.ts";
+import type { Admissions } from "./admissions.ts";
 import { takeUpAnswer } from "./answer.ts";
 import { knownChannels } from "./channels.ts";
 import { commandFor, obey } from "./commands.ts";
