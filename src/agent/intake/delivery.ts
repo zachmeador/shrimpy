@@ -23,10 +23,11 @@ export interface Delivery {
   attach(link: ChatLink): void;
   /**
    * Post the reply if there is one and leave the receipt. It waits for chat,
-   * and tries again after a failure, but what chat refuses for good is dropped.
-   * Every step names itself, so doing all of it again after a crash posts
-   * nothing twice and changes no receipt. It ends with a rejection only when
-   * `signal` aborts.
+   * and tries again after a failure, but a reply that chat refuses for good is
+   * not posted: the receipt says it failed, with chat's reason. A receipt that
+   * chat refuses for good is dropped. Every step names itself, so doing all of
+   * it again after a crash posts nothing twice and changes no receipt. It ends
+   * with a rejection only when `signal` aborts.
    */
   tell(outstanding: Outstanding, outcome: TurnOutcome, signal: AbortSignal): Promise<void>;
   /** The agent leaves chat. What is due stays where it is until the engine closes, and is told at the next start. */
@@ -35,7 +36,12 @@ export interface Delivery {
 
 export function createDelivery(options: DeliveryOptions): Delivery {
   const onError = (error: Error): void => options.onError?.(error);
-  const posting = { messageLimit: options.messageLimit ?? MAX_MESSAGE_LENGTH, recordsId: options.recordsId };
+  const posting = {
+    messageLimit: options.messageLimit ?? MAX_MESSAGE_LENGTH,
+    recordsId: options.recordsId,
+    onRefused: (outstanding: Outstanding, error: Error): void =>
+      onError(new Error(`Chat refused the reply to ${outstanding.event.id}, so its receipt says it failed: ${error.message}`)),
+  };
   const newBackoff = options.backoff ?? backoff;
   const closing = new AbortController();
   let attached: (link: ChatLink) => void = () => undefined;
@@ -62,11 +68,7 @@ export function createDelivery(options: DeliveryOptions): Delivery {
             throw error;
           }
           if (isRefusal(error)) {
-            onError(
-              new Error(
-                `Chat refused what the agent had to say about ${outstanding.event.id}, so it was dropped: ${error.message}`,
-              ),
-            );
+            onError(new Error(`Chat refused the receipt on ${outstanding.event.id}, so it was dropped: ${error.message}`));
             return;
           }
           onError(asError(error));
