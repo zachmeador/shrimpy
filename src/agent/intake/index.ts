@@ -6,13 +6,14 @@
  * goes for a wake-up the agent asked for, which the sessions admit when it
  * is due: its reply is posted, and it has no receipt. The same goes for an
  * occurrence of a standing trigger, whose reply is posted only if the trigger
- * names a thread. Intake also tells chat which threads the agent is working in.
- * It reaches chat only through the link it is handed and the agent's sessions
- * only through `Admissions` and `Working`, and the sessions reach it through
- * `Delivery`, so it must not know the engine, a transport, or how a session or
- * a record is stored. It also decides how an event, a wake-up, an occurrence
- * and a message read to the model, and how a text too long for one message is
- * split.
+ * names a thread. Intake also tells chat which threads the agent is working in,
+ * and finds which channel a thread is in, for a trigger whose thread the agent
+ * has no session behind yet. It reaches chat only through the link it is handed
+ * and the agent's sessions only through `Admissions` and `Working`, and the
+ * sessions reach it through `Delivery`, so it must not know the engine, a
+ * transport, or how a session or a record is stored. It also decides how an
+ * event, a wake-up, an occurrence and a message read to the model, and how a
+ * text too long for one message is split.
  */
 export { createDelivery, type Delivery, type DeliveryOptions } from "./delivery.ts";
 export {
@@ -36,3 +37,4 @@ export {
 export { type Intake, type IntakeOptions, startIntake } from "./intake.ts";
 export { promptFor, standing, utc } from "./prompt.ts";
 export { endingOf, inParts } from "./reply.ts";
+export { channelOfThread, placeOfThread, type ThreadPlace } from "./thread.ts";

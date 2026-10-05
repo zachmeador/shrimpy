@@ -109,7 +109,7 @@ Look over today's notes and tidy what needs it.
 | `every` | A delay such as `15m`, `1h` or `1d`, at least a minute, counted from the last occurrence. The first occurrence is one interval after the trigger is first seen. |
 | `cron` | Five fields, such as `0 3 * * *`: the next matching time. Give `every` or `cron`, not both. |
 | `timezone` | An IANA name such as `Europe/Berlin`, for `cron`. The machine's if left out. |
-| `thread` | The ID of a thread. The occurrence goes to the session behind it and its final text is posted there as a reply is, with no receipt. The agent must already have a session behind the thread: an occurrence for a thread it has none for fails, and says so. |
+| `thread` | The ID of a thread. The occurrence goes to the session behind it and its final text is posted there as a reply is, with no receipt. If the agent has no session behind the thread yet, the occurrence asks chat which channel the thread is in, over the agent's link to chat, and makes the session there. With chat away, or when the agent is in no channel with that thread, the occurrence fails and says which. |
 | `enabled` | `false` turns the trigger off. |
 | `overlap` | `allow` hands an occurrence that is due while the last one is still going over behind it. By default (`skip`) it is skipped and recorded as skipped. |
 
@@ -129,7 +129,7 @@ npm run shrimpy -- triggers run nightly --agent scout
 npm run shrimpy -- triggers off nightly --agent scout
 ```
 
-`add` makes the file or replaces the one of that name, `on` and `off` set `enabled` in it, and `remove` deletes it. What a command is about to write is checked first by the check the agent makes when it reads a file, so a schedule that is wrong is refused with the key and what it may be, and nothing is written. A running agent is then told to `reload`, and the command prints its answer, naming any file it left out; with no agent running, the change takes effect when the agent starts. `add` ends by saying when the trigger runs first. `triggers`, `show` and `run` ask the running agent. With none running, `run` says so and names the command that starts one, and `triggers` and `show` print what the files say, which has no times and no outcomes, and exit 1.
+`add` makes the file or replaces the one of that name, `on` and `off` set `enabled` in it, and `remove` deletes it. What a command is about to write is checked first by the check the agent makes when it reads a file, so a schedule that is wrong is refused with the key and what it may be, and nothing is written. With `--thread`, `add` run in the agent's own shell first asks chat, as the agent and the way an occurrence does, whether the agent is in the thread's channel, and refuses a thread it is not in; anywhere else, or with chat out of reach, it says the thread was not checked and goes on. A running agent is then told to `reload`, and the command prints its answer, naming any file it left out; with no agent running, the change takes effect when the agent starts. `add` ends by saying when the trigger runs first. `triggers`, `show` and `run` ask the running agent. With none running, `run` says so and names the command that starts one, and `triggers` and `show` print what the files say, which has no times and no outcomes, and exit 1.
 
 ## Talk to an agent
 

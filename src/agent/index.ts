@@ -15,7 +15,7 @@ import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
 import { homePaths, loadHome, readTriggers, type TriggerFiles } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
-import { createDelivery } from "./intake/index.ts";
+import { channelOfThread, createDelivery } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { type HomeFiles, startServer } from "./server.ts";
@@ -31,6 +31,7 @@ import {
 import { type CloseOptions, stopper } from "./stop.ts";
 
 export type { ContextPreview } from "./extensions/index.ts";
+export { placeOfThread, type ThreadPlace } from "./intake/index.ts";
 export {
   checkAgentName,
   describeSchedule,
@@ -131,6 +132,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
         readTriggers(homePaths(options.home), {
           ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
         }),
+      // A thread with no session behind it gets one in the channel chat says it is in, over the link the agent has then.
+      channelOf: (threadId, signal) => channelOfThread(() => joined?.chat(), threadId, signal),
       onError: report,
     });
     host.install(

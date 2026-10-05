@@ -1,16 +1,19 @@
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   describeSchedule,
   draftTrigger,
   NoTriggerError,
+  placeOfThread,
   readHomeTriggers,
   removeTrigger,
   saveTrigger,
   switchTrigger,
   TriggerFileError,
 } from "../../agent/index.ts";
-import type { AgentConnection, TriggerSchedule } from "../../contracts/agent/index.ts";
+import { AGENT_HOME_VARIABLE, type AgentConnection, type TriggerSchedule } from "../../contracts/agent/index.ts";
 import type { Io } from "../io/index.ts";
+import { type Reached, reachChat } from "../talk/index.ts";
 import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, noAgentRunning } from "./connected.ts";
@@ -80,6 +83,50 @@ async function followed(
     if (reloaded.leftOut.length > 0) io.out(`Left out:\n${leftOutLines(reloaded.leftOut).join("\n")}`);
     await then?.(connection);
   });
+}
+
+/**
+ * Check, before a trigger is written, that the agent can use the thread it
+ * names, the way the agent does when an occurrence needs it: ask chat which of
+ * the channels it is in has the thread. Chat can only be asked as the agent in
+ * the agent's own shell, so anywhere else, or with chat out of reach, this says
+ * that the thread was not checked and carries on, since an occurrence that
+ * cannot reach its thread fails and says so. A thread that chat answers for
+ * with no channel of the agent's is refused.
+ */
+async function checkThread(io: Io, target: Target, thread: string): Promise<void> {
+  const shell = process.env[AGENT_HOME_VARIABLE];
+  if (shell === undefined || shell === "" || resolve(shell) !== target.home) {
+    io.out(
+      `Thread ${thread} was not checked, because only the agent itself can say whether it is in the thread's ` +
+        "channel, and this command is not run by it. If it is not, each occurrence fails and says so.",
+    );
+    return;
+  }
+  let reached: Reached;
+  try {
+    reached = await reachChat(io);
+  } catch (error) {
+    io.out(
+      `Thread ${thread} was not checked, because chat could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return;
+  }
+  try {
+    const place = await placeOfThread(reached.connection.chat, thread);
+    if (place.kind === "missing") {
+      throw new UsageError(
+        `Nothing was written: you are in no channel that has the thread ${thread}. There is no such thread, or you ` +
+          "are not in its channel. Give --thread one of yours: shrimpy threads <name> lists your threads with a member, " +
+          'and shrimpy threads "#room" those of a room.',
+      );
+    }
+    if (place.kind === "unreachable") {
+      io.out(`Thread ${thread} was not checked, because chat dropped the connection. If the agent is not in its channel, each occurrence fails and says so.`);
+    }
+  } finally {
+    await reached.close();
+  }
 }
 
 /** Make a change to a trigger's file, and turn what can go wrong with it into what to say. */
@@ -159,9 +206,10 @@ const add: Command = {
     "The prompt is what the agent is told at each occurrence. Without --thread, each occurrence goes to a session " +
       "of the trigger's own, called trigger:<name>, which keeps its history from one occurrence to the next. What " +
       "the agent writes last there is posted nowhere: to tell someone something it uses send_message with to. " +
-      "With --thread <id>, each goes to the session behind that thread, which the agent must already have, and " +
-      "what the agent writes last is posted in the thread. An occurrence that is due while the last is still " +
-      "going is skipped, unless --overlap allow lets it wait behind.",
+      "With --thread <id>, each goes to the session behind that thread, which the first one makes if the agent " +
+      "has none, and what the agent writes last is posted in the thread. Run in the agent's own shell, this checks " +
+      "before it writes that the agent is in the thread's channel. An occurrence that is due while the last is " +
+      "still going is skipped, unless --overlap allow lets it wait behind.",
     "",
     "What is given is checked before anything is written, and the error says what to give instead. It is written " +
       "as triggers/<name>.md in the agent's home, in place of any trigger of that name, and the new trigger is on. " +
@@ -206,6 +254,7 @@ const add: Command = {
       throw error;
     }
 
+    if (draft.definition.thread !== null) await checkThread(io, target, draft.definition.thread);
     const { file, replaced } = await saveTrigger(target.home, draft);
     io.out(`${replaced ? "Replaced" : "Made"} the trigger ${name}, written to ${file}.`);
     await followed(

@@ -130,7 +130,7 @@ test("firing a trigger now makes an occurrence of it, the schedule goes on as it
   assert.deepEqual(rig.reports, []);
 });
 
-test("a trigger with a thread runs in the session behind that thread and posts what it writes last there, and a thread the agent has no session in fails its occurrence", { timeout }, async (t) => {
+test("a trigger with a thread runs in the session behind that thread and posts what it writes last there, makes the session when the agent has none, and fails its occurrence, saying which, when chat is away or the agent is not in the thread's channel", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
   // The occurrence is held until the test lets it go, to see the thread marked as working meanwhile.
   let open: () => void = () => undefined;
@@ -145,11 +145,16 @@ test("a trigger with a thread runs in the session behind that thread and posts w
   const rig = await startAgentRig(t, { home, script, shortestEveryMs: SHORTEST });
   const connection = await rig.connect();
   await rig.receiptOn(await rig.say("hello"));
+  // Nothing has been said in this thread of the same DM, so the agent has no session behind it.
+  const side = await rig.newThread("Reports");
+  assert.deepEqual((await connection.sessions()).map((each) => each.id), [rig.thread.id]);
   writeTrigger(home, "tidy", ["every: 1s", `thread: ${rig.thread.id}`], "Tidy the notes.");
+  writeTrigger(home, "report", ["every: 1s", `thread: ${side.id}`], "Write the report.");
   writeTrigger(home, "lost", ["every: 1s", "thread: th_aaaaaaaaaaaa"], "Never gets anywhere.");
 
   const reloaded = await connection.reload();
   assert.deepEqual(reloaded.leftOut, []);
+  assert.equal(reloaded.triggers, 3);
   await rig.untilWorking();
   open();
   await trigger(connection, "tidy", (found) => ended(found, "answered") >= 1, "the occurrence to be answered");
@@ -165,12 +170,34 @@ test("a trigger with a thread runs in the session behind that thread and posts w
   assert.ok(inputs.some((text) => text.includes("hello")) && inputs.some((text) => text.includes("This is the trigger tidy")));
   await rig.untilIdle();
 
+  // The thread with no session behind it: the first occurrence asked chat which channel it is in, made the session there
+  // and ran in it, and its final text is posted in that thread.
+  await trigger(connection, "report", (found) => ended(found, "answered") >= 1, "the occurrence to make its session and be answered");
+  const made = (await connection.sessions()).find((each) => each.id === side.id);
+  assert.deepEqual([made?.threadId, made?.channelId], [side.id, rig.thread.channelId]);
+  const [first] = (await rig.replies(side.id)).map((reply) => reply.text);
+  assert.match(first ?? "", new RegExp(`^Seen: Thread ${side.id} in channel ${rig.thread.channelId}\\.\\n\\nThis is the trigger report`));
+  // A message in that thread goes to the same session, which the agent now has.
+  const asked = await rig.say("and what else?", side.id);
+  assert.equal((await rig.receiptOn(asked)).status, "answered");
+  const inSide = inputsOf((await rig.attach(side.id)).session.view);
+  assert.ok(inSide.some((text) => text.includes("This is the trigger report")) && inSide.some((text) => text.includes("and what else?")));
+
   // The other has nowhere to go. It is an occurrence all the same, failed, and the agent says so.
   const lost = await trigger(connection, "lost", (found) => ended(found, "failed") >= 1, "the occurrence with nowhere to go to fail");
-  assert.match(lost.occurrences[0]?.reason ?? "", /no session behind thread th_aaaaaaaaaaaa/);
+  assert.match(lost.occurrences[0]?.reason ?? "", /not in its channel/);
   assert.ok(rig.reports.some((report) => (report as Error).message.includes("th_aaaaaaaaaaaa")), "and it was reported");
   assert.equal(lost.session, null);
   assert.ok(!(await connection.sessions()).some((each) => each.id.startsWith("trigger:")), "no session was made for either");
+  assert.ok(!(await connection.sessions()).some((each) => each.id === "th_aaaaaaaaaaaa"));
+
+  // With chat away the agent cannot look, and that is what the occurrence says.
+  for (const name of ["tidy", "report", "lost"]) removeTrigger(home, name);
+  await rig.chat.outage();
+  writeTrigger(home, "away", ["every: 1s", "thread: th_bbbbbbbbbbbb"], "Nothing reaches it.");
+  await connection.reload();
+  const away = await trigger(connection, "away", (found) => ended(found, "failed") >= 1, "the occurrence to fail while chat is away");
+  assert.match(away.occurrences[0]?.reason ?? "", /Chat is not reachable/);
 });
 
 test("an agent that was down past several of a trigger's times runs it once when it starts, and then keeps to its schedule", { timeout }, async (t) => {

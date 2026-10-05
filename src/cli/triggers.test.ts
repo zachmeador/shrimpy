@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { parseTrigger } from "../agent/index.ts";
 import { AGENT_HOME_VARIABLE, type AgentConnection } from "../contracts/agent/index.ts";
-import { attachLocal } from "../contracts/agent/node.ts";
+import { attachLocal, saveMembership } from "../contracts/agent/node.ts";
+import { joinRoster, memberNamed } from "../contracts/chat/testing/index.ts";
+import { newToken } from "../contracts/gateway/node.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
 import { runCli } from "./index.ts";
 import {
@@ -14,6 +16,7 @@ import {
   serve,
   shrimpy,
   startModelServer,
+  startTalking,
   useShrimpyDir,
 } from "./testing/index.ts";
 
@@ -216,4 +219,39 @@ test("in an agent's shell the commands act on that agent, and anywhere else they
 
   assert.equal((await shrimpy(["triggers", "off", "nightly"], inShell)).code, 0);
   assert.equal(enabled(), false);
+});
+
+test("add with a thread, run in the agent's shell, asks chat as the agent whether the thread is one it is in, and writes nothing for one it is not", { timeout }, async (t) => {
+  const talking = await startTalking(t);
+  const you = await talking.you();
+  assert.equal((await run("agent", "init", "scout", "--model", "local/test-model")).code, 0);
+  const home = join(useShrimpyDir(t), "agents", "scout");
+  // The agent has joined the roster with a token its home keeps, which is what a command in its shell signs in with.
+  const token = newToken();
+  await (await talking.gateway.connect()).join("scout", token);
+  saveMembership(home, { token });
+  const scout = await memberNamed(t, "scout");
+  const maya = await joinRoster(t, "maya");
+  const [mine] = await you.chat.threads((await you.chat.openDm(scout.id)).id);
+  const [theirs] = await you.chat.threads((await you.chat.openDm(maya.id)).id);
+  assert.ok(mine && theirs, "the person can see both threads, and only one is the agent's");
+  const inShell = { env: { [AGENT_HOME_VARIABLE]: home } };
+  const file = join(home, "triggers", "report.md");
+
+  const refused = await shrimpy(["triggers", "add", "report", "--every", "1h", "--thread", theirs.id, "Write the report."], inShell);
+  assert.equal(refused.code, 2, refused.stderr);
+  assert.ok(refused.stderr.includes(theirs.id), refused.stderr);
+  assert.equal(existsSync(file), false, "nothing was written");
+
+  const accepted = await shrimpy(["triggers", "add", "report", "--every", "1h", "--thread", mine.id, "Write the report."], inShell);
+  assert.equal(accepted.code, 0, accepted.stderr);
+  assert.ok(!accepted.stdout.includes("not checked"), accepted.stdout);
+  assert.equal(parseTrigger("report", readFileSync(file, "utf8")).thread, mine.id);
+
+  // Anyone else can't ask chat as the agent, so the thread is not checked, and the trigger is written all the same.
+  const elsewhere = { env: { [AGENT_HOME_VARIABLE]: "" } };
+  const unchecked = await shrimpy(["triggers", "add", "other", "--every", "1h", "--thread", theirs.id, "Write it.", "--agent", "scout"], elsewhere);
+  assert.equal(unchecked.code, 0, unchecked.stderr);
+  assert.ok(unchecked.stdout.includes("not checked"), unchecked.stdout);
+  assert.equal(parseTrigger("other", readFileSync(join(home, "triggers", "other.md"), "utf8")).thread, theirs.id);
 });

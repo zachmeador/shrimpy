@@ -51,9 +51,19 @@ export interface TriggersOptions {
   defaults: SessionDefaults;
   /** Read the home's `triggers/` folder. */
   read(): Promise<TriggerFiles>;
+  /**
+   * Where the thread a trigger names is, for an occurrence that finds the agent
+   * with no session behind it: the thread's channel, which only chat knows, or
+   * why there is none to be had. It asks chat, so it is asked before the commit
+   * that makes the occurrence and never inside it. Aborting `signal` gives up.
+   */
+  channelOf(threadId: string, signal: AbortSignal): Promise<{ channelId: string } | { problem: string }>;
   /** Told of an occurrence that could not be made. */
   onError(error: Error): void;
 }
+
+/** What was found out about the thread of a trigger that has no session behind it yet. */
+type Where = { thread: string } & ({ channelId: string } | { problem: string });
 
 /** The agent's standing triggers. */
 export interface Triggers {
@@ -90,13 +100,27 @@ const context = BACKGROUND_CONTEXT;
  * of a session, followed by the same task as any input, and that task's record
  * is the occurrence's record. A trigger with no thread has a session of its
  * own, made at its first occurrence; with a thread, its occurrences go to the
- * session behind that thread, which must already exist. An occurrence that is
- * skipped, or that has nowhere to go, is still an occurrence: its task ends at
- * once with that outcome. Nothing is kept beside the engine's records but the
- * last valid definition of each trigger.
+ * session behind that thread. If the agent has none, the occurrence asks chat
+ * which channel the thread is in, before the commit that makes it, and makes
+ * the session there. An occurrence that is skipped, or that has nowhere to go,
+ * is still an occurrence: its task ends at once with that outcome. Nothing is
+ * kept beside the engine's records but the last valid definition of each
+ * trigger.
  */
 export function createTriggers(harness: Harness, options: TriggersOptions): Triggers {
   const { turn, defaults } = options;
+
+  /**
+   * Where the thread the trigger names is, when it names one and the agent has no
+   * session behind it. Nothing otherwise, and nothing is asked of chat.
+   */
+  async function whereTo(name: string, signal: AbortSignal): Promise<Where | undefined> {
+    const thread = (await stored(name))?.definition.thread ?? null;
+    if (thread === null) return undefined;
+    const sessions = (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
+    if (Object.hasOwn(sessions, thread)) return undefined;
+    return { thread, ...(await options.channelOf(thread, signal)) };
+  }
 
   const task = defineTask<Waiting, Waits, null>({
     name: TRIGGER_TASK,
@@ -109,7 +133,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
         await runtime.sleep(next, context);
 
         /** The trigger's next move at `now`: on to its next time, after making an occurrence if asked, or to its end. */
-        const carryOn = async (tx: Tx, occurrence: boolean) => {
+        const carryOn = async (tx: Tx, occurrence: boolean, where?: Where) => {
           const stored = (await tx.doc(TriggersDoc)).triggers;
           const found = Object.hasOwn(stored, name) ? stored[name] : undefined;
           // Not the trigger this task is for any more: its file changed its schedule, turned it off or is gone.
@@ -117,12 +141,16 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
             return { status: "terminal", outcome: { status: "completed", result: null } } as const;
           }
           const now = runtime.now();
-          if (occurrence) await fire(tx, { turn, defaults }, plain(found.definition), { due: next, firedAt: now, byHand: false });
+          if (occurrence) {
+            await fire(tx, { turn, defaults }, plain(found.definition), { due: next, firedAt: now, byHand: false }, where);
+          }
           return { status: "running", checkpoint: { phase: "wait", revision, next: nextOccurrence(found.definition.schedule, now) } } as const;
         };
 
         try {
-          await runtime.commit((tx) => carryOn(tx, true), context);
+          // Asking chat where the thread is comes first, and takes no part in the commit that makes the occurrence.
+          const where = await whereTo(name, runtime.signal);
+          await runtime.commit((tx) => carryOn(tx, true, where), context);
         } catch (error) {
           // The engine is closing, or the task was aborted: the engine ends the phase and carries on from the checkpoint.
           if (runtime.signal.aborted) throw error;
@@ -305,12 +333,13 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     },
 
     async fire(name) {
+      const where = await whereTo(name, new AbortController().signal);
       return harness.commit(async (tx) => {
         const triggers = (await tx.doc(TriggersDoc)).triggers;
         const found = Object.hasOwn(triggers, name) ? triggers[name] : undefined;
         if (found === undefined) refuse(noTrigger(name));
         const now = Date.now();
-        return fire(tx, { turn, defaults }, plain(found.definition), { due: now, firedAt: now, byHand: true });
+        return fire(tx, { turn, defaults }, plain(found.definition), { due: now, firedAt: now, byHand: true }, where);
       }, context);
     },
   };
@@ -352,16 +381,19 @@ interface Firing {
 /**
  * Make an occurrence of a trigger, in the commit `tx` belongs to, and take it
  * up. It goes to the session behind the trigger's thread, or to the trigger's
- * own session, which this makes the first time. If the trigger does not allow
- * overlap and the last occurrence is still going, or the thread has no session,
- * the occurrence is made all the same, as one that no turn runs, so that it is
- * on record with its outcome and the reason.
+ * own session, which this makes the first time. A thread with no session behind
+ * it gets one made, in the channel `where` says it is in, which whoever calls
+ * this found out from chat before the commit. If the trigger does not allow
+ * overlap and the last occurrence is still going, or there is no channel to make
+ * the thread's session in, the occurrence is made all the same, as one that no
+ * turn runs, so that it is on record with its outcome and the reason.
  */
 async function fire(
   tx: Tx,
   parts: { turn: TurnTask; defaults: SessionDefaults },
   definition: TriggerDefinition,
   firing: Firing,
+  where?: Where,
 ): Promise<OccurrenceView> {
   const occurrence: Occurrence = {
     id: newId("occ"),
@@ -376,12 +408,15 @@ async function fire(
   const sessions = (await tx.doc(SessionsDoc)).sessions;
   const session = Object.hasOwn(sessions, address) ? sessions[address] : undefined;
 
+  // What was found out about the thread's channel is only good for the thread it was found out for.
+  const found = session === undefined && where?.thread === definition.thread ? where : undefined;
   let unrun: { outcome: "skipped" | "failed"; reason: string } | undefined;
   if (definition.thread !== null && session === undefined) {
-    unrun = {
-      outcome: "failed",
-      reason: `The agent has no session behind thread ${definition.thread}, so the trigger had nowhere to go. A message in that thread gives the agent one.`,
-    };
+    if (found === undefined) {
+      unrun = { outcome: "failed", reason: "The trigger was changed while its occurrence was being made, so it did not run." };
+    } else if ("problem" in found) {
+      unrun = { outcome: "failed", reason: found.problem };
+    }
   } else if (session !== undefined && definition.overlap === "skip" && (await goingOn(tx, session, definition.name))) {
     unrun = { outcome: "skipped", reason: "The last occurrence was still going." };
   }
@@ -391,18 +426,24 @@ async function fire(
     return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: unrun.outcome, reason: unrun.reason };
   }
 
+  // The thread's channel, from the session that is there or from the one this makes; none for a session of the trigger's own.
+  let channelId: string | null = session?.channelId ?? null;
   let conversationId: ConversationId;
   let cancelled: ReturnType<typeof takeCancelled> = [];
   if (session === undefined) {
     conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
     await configure(tx, conversationId, agentChange(parts.defaults));
-    sessions[address] = { conversationId, channelId: null, trigger: definition.name, unacted: [] };
+    if (found !== undefined && "channelId" in found) {
+      channelId = found.channelId;
+      sessions[address] = { conversationId, channelId, unacted: [] };
+    } else {
+      sessions[address] = { conversationId, channelId: null, trigger: definition.name, unacted: [] };
+    }
   } else {
     conversationId = session.conversationId as ConversationId;
     cancelled = takeCancelled(session);
   }
-  const thread =
-    definition.thread !== null && session?.channelId != null ? { threadId: definition.thread, channelId: session.channelId } : undefined;
+  const thread = definition.thread !== null && channelId !== null ? { threadId: definition.thread, channelId } : undefined;
   const input: OccurrenceInput =
     thread === undefined ? { occurrence, ...carrying(cancelled) } : { occurrence, ...thread, ...carrying(cancelled) };
   await followInput(tx, parts.turn, conversationId, input);
