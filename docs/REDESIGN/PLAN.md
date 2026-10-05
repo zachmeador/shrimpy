@@ -118,7 +118,6 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- The rest of the cleanup agreed on 2026-10-05 after a check of the design: every command naming its agent the same way, the shell's own agent unless `--agent` says another. [Using it](design/using-it.md) has each command before and after. The README is cut back to how to run, check and lay out the code.
 - The chat store records who a message mentions, by the rule that a contract carries facts, which you confirmed on 2026-10-05. It resets chat data once. [Not built yet](design/2-contracts.md)
 
 **Next:**

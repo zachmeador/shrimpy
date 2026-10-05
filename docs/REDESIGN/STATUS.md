@@ -32,6 +32,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - A rename reaches the chat server only when that member next enters chat. The log of events doesn't help: an event names a message.
 - A command run from an agent's shell prints a gateway refusal with no advice, where the agent's own link now adds what to do.
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
+- A command's `--agent` takes the name of a home's folder, or a path, and not the name on the roster. For an agent whose name in `agent.json` differs from its folder, the line the terminal prints about stopping its work names an agent the command can't find.
 
 ### The conversation model
 

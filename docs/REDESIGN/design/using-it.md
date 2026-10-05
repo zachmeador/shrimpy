@@ -33,9 +33,9 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 | — | Rooms are new. Confirmed on 2026-10-04: `shrimpy rooms` lists the rooms you are in, `rooms new <name> [<member>...]` makes one, and `rooms add <room> <member>...` adds members. You asked for them so that making a room is something you ask an agent to do: an agent runs them from its shell as itself. Leaving and removing wait until someone needs them. |
 | Watches: list, add, enable, disable, show, history, run | Renamed to `shrimpy triggers` with no `watches` alias. Per-home trigger policy and durable occurrence observation. Agents are who will use these most, so on 2026-10-04 you asked for a command path that feels intuitive and checks what it is given: a small local model that gets a schedule wrong is told so at once, where a hand-edited file would only be checked at reload. Confirmed on 2026-10-04: `shrimpy triggers` lists them with the next run and the last outcome, `add` makes or replaces one, `show` prints one with its recent occurrences, `run` fires one now, `on` and `off` enable and disable, and `remove` deletes one. They act on the agent whose shell they run in and take `--agent <name>` elsewhere. A trigger that fires once is not among them: it is the tool `check_back`. |
 
-**How a command names its agent,** agreed on 2026-10-05 and not built. Today the commands do it two ways: `sessions` and `agent` take the agent's name first, and `triggers` and `wake` act on the agent whose shell they run in and take `--agent` for another. A check of the design found the two, and you agreed to one. A command about one agent acts on the agent whose shell it runs in, and takes `--agent <agent>`, a name or a path, to act on another. In your own terminal no agent is running the command, so you give `--agent`.
+**How a command names its agent,** agreed and built on 2026-10-05. The commands did it two ways: `sessions` and `agent` took the agent's name first, and `triggers` and `wake` acted on the agent whose shell they ran in and took `--agent` for another. A check of the design found the two, and you agreed to one. A command about one agent acts on the agent whose shell it runs in, and takes `--agent <agent>`, a name or a path, to act on another. In your own terminal no agent is running the command, so you give `--agent`.
 
-| Command | Today | After |
+| Command | Before | Now |
 |---|---|---|
 | `sessions list` | `sessions list <agent>` | `sessions list [--agent <agent>]` |
 | `sessions read` | `sessions read <agent> <session> [--json]` | `sessions read <session> [--json] [--agent <agent>]` |
@@ -46,7 +46,7 @@ This is the terminal, the web client, the commands, setup and sign-in. It is tun
 
 A name with no flag stays where it says something else. In `run <agent> "<text>"` and `threads <member>` it is who you are talking to. In `agent init <agent>`, `agent serve <agent>` and `up [<agent>...]` it is which agent to make or start, and nothing is running yet whose shell the command could be in.
 
-One addition is the coordinator's, and is yours to strike: in your own terminal, when the Shrimpy folder has exactly one agent, a command with no `--agent` acts on that one. The terminal client already takes you to the only agent in the same way. With two or more it says which agents there are and asks for the flag.
+One addition is the coordinator's, and is yours to strike: in your own terminal, when the Shrimpy folder has exactly one agent, a command with no `--agent` acts on that one. The terminal client already takes you to the only agent in the same way. With two or more it says which agents there are and asks for the flag. A command that such a command prints for you to run next always names the agent.
 
 Inherited terminal commands each need a disposition:
 

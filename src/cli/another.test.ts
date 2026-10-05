@@ -70,7 +70,7 @@ test("in an agent's shell, a sessions command about another agent is refused unl
   assert.equal((await shrimpy(["sessions", "list", "--agent", "rex"])).stdout.trim(), noSessions, "and neither does a person");
 });
 
-test("in an agent's shell, changing the triggers or the wake file of another agent asks the gateway whether the agent is an admin, and writes nothing if it is not", { timeout }, async (t) => {
+test("in an agent's shell, changing the triggers or the wake file of another agent, or reading what it is told, asks the gateway whether the agent is an admin, and writes nothing if it is not", { timeout }, async (t) => {
   await startTestGateway(t);
   const scout = await startAgentShell(t, "scout");
   assert.equal((await shrimpy(["agent", "init", "rex", "--model", "local/test-model"])).code, 0);
@@ -80,8 +80,9 @@ test("in an agent's shell, changing the triggers or the wake file of another age
 
   const refused = await scout.run(addToRex);
   const wakeRefused = await scout.run(["wake", "ops", "all", "--agent", "rex"]);
+  const contextRefused = await scout.run(["agent", "context", "--agent", "rex"]);
 
-  assert.deepEqual([refused.code, wakeRefused.code], [1, 1]);
+  assert.deepEqual([refused.code, wakeRefused.code, contextRefused.code], [1, 1, 1]);
   assert.ok(refused.stderr.includes(person), `it says who to ask:\n${refused.stderr}`);
   assert.equal(existsSync(trigger) || existsSync(join(rexHome, "wake.json")), false, "nothing was written");
 

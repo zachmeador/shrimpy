@@ -8,14 +8,14 @@ As of 2026-10-05.
 
 | Piece | Built | Building | Next |
 |---|---|---|---|
-| [The three programs](design/1-programs.md) | The agent, the chat server and the gateway run as separate programs, and `shrimpy up` starts them. An agent has one live body. The agent's code is sorted into [modules with one job each](design/code-layout.md#the-agents-modules). | Every command naming its agent the same way. | — |
+| [The three programs](design/1-programs.md) | The agent, the chat server and the gateway run as separate programs, and `shrimpy up` starts them. An agent has one live body. The agent's code is sorted into [modules with one job each](design/code-layout.md#the-agents-modules). | — | — |
 | [The contracts](design/2-contracts.md) | The agent's, the chat server's and the gateway's contracts, with refusals that say which case they are. | The chat store records who a message mentions, by the rule that a contract carries facts, which you confirmed on 2026-10-05. | Carry only Shrimpy's shapes: Pi's error types still show through. |
 | [Identity and addressing](design/3-identity.md) | The roster, member IDs, names, tickets, reaching a program by its name, and who may do what, with one role, admin. | — | Removing a member, replacing a token, renaming a person. |
 | [The conversation model](design/4-conversation.md) | The feed of events, receipts, rooms, mentions, wake policies, the backlog an agent reads, an answer waking whoever asked, a person's mention joining a running turn, `/stop`, and one task following every input. | — | The provider interface with a fake provider. Ways in for edits, deletes and reactions. |
 | [The home](design/5-home.md) | The files an agent is told from, skills, reload, `triggers/`, `wake.json`, and records with an ID of their own. | — | Breadcrumbs. Compaction with Shrimpy's guidance. Seeing the request a turn sent. Workspace context from the gateway. |
 | [The network](design/6-network.md) | On one machine: every connection by name goes through the gateway. | — | Another machine, sandboxes, Linux and Tailscale, which wait for a machine to test on. |
 | [What an agent does without being asked](design/7-on-its-own.md) | `check_back`, standing triggers and their commands. | — | Checks and breadcrumbs. Asking another agent. Helpers. |
-| [Using it](design/using-it.md) | The terminal, which browses agents and rooms, the commands, and a default folder, `~/shrimpy`. | — | What daily use asks for: resetting a session, `/new`, sign-in, the web client. |
+| [Using it](design/using-it.md) | The terminal, which browses agents and rooms, the commands, which each name their agent the same way, and a default folder, `~/shrimpy`. | — | What daily use asks for: resetting a session, `/new`, sign-in, the web client. |
 
 How the code is laid out is in [the code's layout](design/code-layout.md).
 

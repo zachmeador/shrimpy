@@ -17,7 +17,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { connectIfRunning, withConnection } from "./connected.ts";
 import { leftOutLines, whatItReads } from "./reloaded.ts";
-import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, WHICH_AGENT } from "./which-agent.ts";
+import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, mayActOn, WHICH_AGENT } from "./which-agent.ts";
 
 const init: Command = {
   name: "agent init",
@@ -166,11 +166,13 @@ const context: Command = {
   details:
     "Prints the sections the agent's instructions are made of, in order, as a model would get them. It " +
     "reads the files and starts nothing, so it also works while an agent runs there. A running agent has " +
-    `what it read when it started or last reloaded: make it read again with shrimpy agent reload. ${WHICH_AGENT}`,
+    `what it read when it started or last reloaded: make it read again with shrimpy agent reload. ${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     expectArguments(positionals, []);
-    const { home } = agentToActOn(values.agent);
+    const target = agentToActOn(values.agent);
+    await mayActOn(target, "Looking at what another agent is told");
+    const { home } = target;
 
     const { sections, leftOut, ...read } = await previewHomeContext(home);
     io.out(
