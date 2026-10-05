@@ -52,6 +52,10 @@ tester.run("imports", importsRule, {
     allowed("agent/chat/admissions.durable.ts", "../turns/durable.ts"),
     allowed("agent/turns/turn-task.test.ts", "./turn-task.durable.ts"),
     allowed("agent/index.ts", "./turns/durable.ts"),
+    // tier and noTier: a module of the agent imports from the tiers before its own, and a test reaches where it needs.
+    allowed("agent/chat/feed.ts", "../links/index.ts"),
+    allowed("agent/links/identity.ts", "../access/index.ts"),
+    allowed("agent/turns/turn-task.test.ts", "../chat/index.ts"),
     // piAi: the agent uses pi-ai, and tests and test support use it anywhere.
     allowed("agent/host/models.durable.ts", "@earendil-works/pi-ai"),
     allowed("lib/testing/model.ts", "@earendil-works/pi-ai"),
@@ -90,6 +94,9 @@ tester.run("imports", importsRule, {
     refused("agent/chat/index.ts", "./durable.ts", "plain"),
     refused("agent/message-tools/words.ts", "../turns/durable.ts", "plain"),
     // pi-ai is the agent's alone, apart from tests and test support.
+    refused("agent/turns/working.ts", "../chat/index.ts", "tier"),
+    refused("agent/chat/feed.ts", "../wakeups/index.ts", "tier"),
+    refused("agent/breadcrumbs/files.ts", "../home/index.ts", "noTier"),
     refused("cli/commands/run.ts", "@earendil-works/pi-ai", "piAi"),
     refused("contracts/agent/view.ts", "@earendil-works/pi-ai", "piAi"),
     // pi-tui is the console's alone, and only from the package root.

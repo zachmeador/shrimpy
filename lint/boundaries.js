@@ -7,6 +7,15 @@ import { posix } from "node:path";
 
 const PROGRAMS = ["agent", "chat", "gateway", "clients/console", "clients/web", "cli"];
 const FRONT_DOORS = ["index.ts", "node.ts", "durable.ts"];
+/** The agent's modules in tiers. A module imports only from the tiers before its own, so imports point one way. */
+const AGENT_TIERS = [
+  ["inputs", "home", "access"],
+  ["links", "host", "records"],
+  ["turns"],
+  ["wakeups", "triggers", "chat"],
+  ["sessions", "message-tools", "context"],
+];
+const tierOf = (module) => AGENT_TIERS.findIndex((tier) => tier.includes(module));
 
 const messages = {
   outside: "Import only from inside src/, not {{target}}.",
@@ -25,6 +34,9 @@ const messages = {
   plain:
     "This plain file can't import {{target}}, which needs Pi's durable runtime: name this file *.durable.ts too, or give what both need a plain file.",
   piAi: "Only agent/ imports pi-ai, apart from tests and test support: the rest sees only Shrimpy's own types.",
+  tier:
+    "agent/{{from}}/ can't import agent/{{target}}/, which is not in a tier before its own: put what both need in a module before them both, or let the top of agent/ hand it in.",
+  noTier: "agent/{{from}}/ has no tier: add it to AGENT_TIERS in lint/boundaries.js, after every module it imports.",
   piTui: "Only clients/console/ imports pi-tui, and only from the package root.",
   piTuiDraw:
     "Inside clients/console/, only draw/ imports pi-tui: the client's state and everything that reaches the network must work without a terminal.",
@@ -112,6 +124,16 @@ function checkRelative(from, specifier) {
   // Inside a module of the agent, plain code can't reach what needs the engine. The top of the agent wires modules together.
   if (inAgentModule(from) && !isTest(from) && !isTestSupport(from) && needsDurable(target) && !needsDurable(from)) {
     return { messageId: "plain", data: { target } };
+  }
+  // Between the agent's modules, imports point one way. The top of the agent wires them, and tests reach where they need.
+  if (inAgentModule(from) && inAgentModule(target) && !isTest(from) && !isTestSupport(from) && !isTestSupport(target)) {
+    const [fromModule, targetModule] = [from.split("/")[1], target.split("/")[1]];
+    if (fromModule !== targetModule) {
+      if (tierOf(fromModule) === -1) return { messageId: "noTier", data: { from: fromModule } };
+      if (tierOf(targetModule) >= tierOf(fromModule)) {
+        return { messageId: "tier", data: { from: fromModule, target: targetModule } };
+      }
+    }
   }
   if (target.startsWith(CONSOLE_DRAW) && inConsoleDirectory(from) && !from.startsWith(CONSOLE_DRAW)) {
     return { messageId: "drawing" };
