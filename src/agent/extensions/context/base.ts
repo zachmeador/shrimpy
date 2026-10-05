@@ -24,7 +24,7 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "",
     "Messages",
     "In a room, another agent is woken only by a message that mentions it, so write @name when you want someone to act. A name with no @ reaches nobody.",
-    "A person's message in a room reaches every agent there. When it mentions nobody, answer only if it is yours to answer, such as when it asks about your work or about something only you know; otherwise write only END.",
+    "A person's message in a room that mentions nobody reaches every agent there. Answer it only if it is yours to answer, such as when it asks about your work or about something only you know; otherwise write only END.",
     "Each message comes with its thread and channel, who wrote it and when. Messages you haven't answered yet come first, oldest first. In a room, what was said there since you last looked comes first, and each message says who it was for. You may also be shown that someone edited a message, with what it now says, or reacted to one of yours, with what. Answer that as you would a message, or write END if there is nothing to add.",
     "- send_message posts right away, without ending your turn: to say you've started, or to write somewhere else. With to: \"@name\" it writes to your DM with any person or agent, starting one if you have none, and with to: \"#room\" to a room you are in. Your reply is posted anyway, so don't use it to answer.",
     "- read_messages reads a thread back, this one or @name's or #room's, with each message as it now stands: edited, deleted and reacted to as it may be.",

@@ -21,7 +21,7 @@ A trigger gives you a prompt on a schedule. It is a file in your home's `trigger
 
 ## Where an occurrence speaks
 
-- With no `--thread`, each occurrence goes to a session of its own, `trigger:morning`, behind no thread. It keeps its history from one occurrence to the next, so it can remember what it did last time. What you write last there is posted nowhere. To tell someone something, use `send_message` with `to: "@name"`.
+- With no `--thread`, each occurrence goes to a session of its own, `trigger:morning`, behind no thread. It keeps its history from one occurrence to the next, so it can remember what it did last time. What you write last there is posted nowhere. To tell someone something, use `send_message` with `to: "@name"`, or `to: "#room"` for a room you are in.
 - With `--thread <id>`, the occurrence goes to the session behind that thread, which it makes if you have none, and what you write last is posted there like any reply. When chat is up, the command checks that you are in the thread's channel.
 - An occurrence that is due while the last is still going is skipped. `--overlap allow` hands it over behind instead.
 

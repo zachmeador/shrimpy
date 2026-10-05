@@ -30,11 +30,13 @@ export function passedOver(self: Member, event: ChatEvent): boolean {
  * Whether a post or an edit by `author` that is addressed to `addressed` wakes
  * the agent under `policy`: it does when it is addressed to the agent, which in
  * a DM every message from the other member is; when the policy is `people` and
- * a person wrote it; and when the policy is `all`.
+ * a person wrote it and mentioned nobody, so that it is for every agent in the
+ * room; and when the policy is `all`. A person who names members is talking to
+ * them, and the others only see it in what they read when something wakes them.
  */
 export function wakesAsPost(self: Member, policy: WakePolicy, author: Member, addressed: readonly string[]): boolean {
   if (addressed.includes(self.id)) return true;
-  return policy === "all" || (policy === "people" && author.kind === "person");
+  return policy === "all" || (policy === "people" && author.kind === "person" && addressed.length === 0);
 }
 
 /**

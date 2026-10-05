@@ -57,7 +57,7 @@ function anEvent({
 
 const wakes = (event: ChatEvent, policy: WakePolicy = DEFAULT_WAKE_POLICY): boolean => takeUp(scout, event, policy) !== undefined;
 
-test("what wakes the agent depends on the room's policy, and the default wakes it for a mention, a person's message, an answer to its own and a reaction to one", () => {
+test("what wakes the agent depends on the room's policy, and the default wakes it for a mention, a person's message that mentions nobody, an answer to its own and a reaction to one", () => {
   // What each policy does with one kind of message: the agent is mentioned, someone else is, nobody is, by a person or an agent.
   const messages = {
     "a person mentions the agent": anEvent({ addressed: [scout.id] }),
@@ -78,9 +78,9 @@ test("what wakes the agent depends on the room's policy, and the default wakes i
     "an agent mentions the agent",
     "a person reacts to a message of the agent's",
   ]);
+  // A person who names someone else is talking to them, and a person who names nobody is talking to the room.
   assert.deepEqual(woken("people"), [
     "a person mentions the agent",
-    "a person mentions someone else",
     "a person mentions nobody",
     "a person edits a message that mentions nobody",
     "an agent mentions the agent",

@@ -76,7 +76,7 @@ function fired(occurrence: Occurrence, inThread: boolean): string {
   const how = occurrence.byHand ? "run by hand" : "fired";
   const where = inThread
     ? ""
-    : " You are not in a thread, so what you write last is posted nowhere. To tell someone something, use send_message with to: @name.";
+    : " You are not in a thread, so what you write last is posted nowhere. To tell someone something, use send_message with to: @name for a DM, or to: #room for a room you are in.";
   return `This is the trigger ${occurrence.trigger}, ${how} at ${utc(occurrence.firedAt)}. Its schedule is ${occurrence.schedule}.${where}\n\n${occurrence.prompt}`;
 }
 

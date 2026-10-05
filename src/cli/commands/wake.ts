@@ -24,7 +24,7 @@ const POLICIES = `${WAKE_POLICIES.slice(0, -1).join(", ")} or ${WAKE_POLICIES.at
 const MEANING: Record<WakePolicy, string> = {
   none: "nothing in the room wakes the agent.",
   mentions: "a message that mentions the agent, or says @all, wakes it, and so does an answer to a message of its own.",
-  people: "as mentions, and every message a person writes in the room wakes it too, whether or not it mentions the agent.",
+  people: "as mentions, and a message a person writes in the room that mentions nobody wakes it too: it is for every agent there.",
   all: "every message in the room wakes the agent, whoever wrote it, except its own.",
 };
 

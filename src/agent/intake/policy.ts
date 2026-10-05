@@ -9,9 +9,9 @@
  * `none` wakes the agent for nothing in the room. `mentions` wakes it for a
  * message that mentions it or says `@all`, and for an answer to a message of its
  * own. `people` wakes it for those and for every message a person writes in the
- * room, mentioned or not. `all` wakes it for every message, whoever wrote it,
- * its own excepted. Whatever the policy, but for `none`, a reaction to a message
- * the agent wrote wakes it too.
+ * room that mentions nobody, which is for every agent there. `all` wakes it for
+ * every message, whoever wrote it, its own excepted. Whatever the policy, but for
+ * `none`, a reaction to a message the agent wrote wakes it too.
  */
 export const WAKE_POLICIES = ["none", "mentions", "people", "all"] as const;
 export type WakePolicy = (typeof WAKE_POLICIES)[number];

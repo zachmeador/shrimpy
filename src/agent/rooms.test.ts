@@ -238,7 +238,7 @@ test("what the model reads of a message in a room says who it was for, and in a 
   assert.ok(three.trimEnd().endsWith(`${person.me.name} wrote at ${iso(direct.sentAt)}:\nA word in private.`), `a DM's message is shown as it always was:\n${three}`);
 });
 
-test("a person's post wakes every agent in the room and an agent's post only who it mentions, until the home's wake file says otherwise, which a reload reads", { timeout }, async (t) => {
+test("a person's post that mentions nobody wakes every agent in the room, any other post only who it mentions, until the home's wake file says otherwise, which a reload reads", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await scout.chat.agent("bob");
@@ -257,16 +257,21 @@ test("a person's post wakes every agent in the room and an agent's post only who
     return (await agent.reload()).leftOut;
   };
 
-  // By default a person's post wakes it, mentioned or not, and an agent's post only when it mentions it.
+  // By default a person's post that mentions nobody wakes it, and an agent's post only when it mentions it.
   await post(bob, "Thinking aloud.");
   await post(person, "Anyone seen the disk?");
   let turns = await roomTurns();
   assert.equal(turns.length, 1);
   assert.ok(turns[0]?.includes("mentioning nobody:\nAnyone seen the disk?") && turns[0].includes("Thinking aloud."));
+  // A person who names another member is talking to them: scout is not woken, and sees it when something wakes it.
+  await post(person, "@bob, what do you make of the disk?");
+  assert.equal((await roomTurns()).length, 1);
   await post(bob, "@scout, are you there?");
-  assert.equal((await roomTurns()).length, 2);
+  turns = await roomTurns();
+  assert.equal(turns.length, 2);
+  assert.ok(turns[1]?.includes("for bob, not for you:\n@bob, what do you make of the disk?"));
 
-  // `mentions` is the default it replaced: a person has to mention it too.
+  // `mentions` is the default it replaced: a person has to mention the agent too.
   assert.deepEqual(await choose("mentions"), []);
   await post(person, "Nobody in particular, this time.");
   assert.equal((await roomTurns()).length, 2);
