@@ -1,5 +1,5 @@
-import { isWakeup, type Outstanding, type Snapshot, type Wakeup } from "../intake/index.ts";
-import { plain, type ThreadSession } from "./documents.ts";
+import { isChat, isWakeup, type Outstanding, type Snapshot, type Wakeup } from "../intake/index.ts";
+import { plain, type SessionRecord } from "./documents.ts";
 
 /*
  * What a session keeps in its record for its next input, because the model has
@@ -9,14 +9,14 @@ import { plain, type ThreadSession } from "./documents.ts";
  */
 
 /** The chat events kept for the session's next chat event, oldest first. The session keeps none afterwards. */
-export function takeEvents(session: ThreadSession): Snapshot[] {
+export function takeEvents(session: SessionRecord): Snapshot[] {
   const events = plain(session.unacted);
   session.unacted = [];
   return events;
 }
 
 /** The wake-ups kept as cancelled. The session keeps none afterwards. */
-export function takeCancelled(session: ThreadSession): Wakeup[] {
+export function takeCancelled(session: SessionRecord): Wakeup[] {
   const cancelled = plain(session.cancelled ?? []);
   if (cancelled.length > 0) session.cancelled = [];
   return cancelled;
@@ -32,7 +32,7 @@ export function carrying(cancelled: Wakeup[]): { cancelled?: Wakeup[] } {
 }
 
 /** Keep wake-ups as cancelled, each once, in the order they were for. */
-export function keepCancelled(session: ThreadSession, wakeups: readonly Wakeup[]): void {
+export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]): void {
   const byId = new Map([...plain(session.cancelled ?? []), ...wakeups].map((wakeup) => [wakeup.id, wakeup]));
   session.cancelled = [...byId.values()].sort((a, b) => a.due - b.due);
 }
@@ -41,12 +41,13 @@ export function keepCancelled(session: ThreadSession, wakeups: readonly Wakeup[]
  * Keep what an input that was skipped was to show the model, for the session's
  * next input: the model never saw it. A chat event is kept with the events that
  * came with it, and a wake-up is kept as one that was cancelled, because a stop
- * is what withdrew it. What the input carried of the cancelled wake-ups is kept
- * again too.
+ * is what withdrew it. An occurrence of a trigger is not kept: the trigger's
+ * next one says the same. What the input carried of the cancelled wake-ups is
+ * kept again too.
  */
-export function keepSkipped(session: ThreadSession, input: Outstanding): void {
+export function keepSkipped(session: SessionRecord, input: Outstanding): void {
   if (isWakeup(input)) keepCancelled(session, [input.wakeup]);
-  else session.unacted = inOrder([...plain(session.unacted), ...input.earlier, input.event]);
+  else if (isChat(input)) session.unacted = inOrder([...plain(session.unacted), ...input.earlier, input.event]);
   keepCancelled(session, input.cancelled ?? []);
 }
 

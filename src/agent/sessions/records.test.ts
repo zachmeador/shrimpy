@@ -9,7 +9,7 @@ import { homePaths } from "../home/index.ts";
 import { openHost } from "../host/index.ts";
 import { startAgent } from "../index.ts";
 import { closeAfter, fauxModels, SCOUT, startAgentRig } from "../testing/index.ts";
-import { FeedDoc, ThreadsDoc } from "./documents.ts";
+import { FeedDoc, SessionsDoc } from "./documents.ts";
 
 const timeout = 30_000;
 
@@ -19,8 +19,8 @@ const timeout = 30_000;
  */
 async function leaveOlderRecords(home: string): Promise<void> {
   const threads = defineDoc<{ sessions: Record<string, never> }>({
-    kind: ThreadsDoc.definition.kind,
-    version: ThreadsDoc.definition.version - 1,
+    kind: SessionsDoc.definition.kind,
+    version: SessionsDoc.definition.version - 1,
     scope: "session",
     initial: () => ({ sessions: {} }),
   });

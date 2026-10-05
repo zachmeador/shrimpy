@@ -1,27 +1,47 @@
 import type { Message } from "../../contracts/chat/index.ts";
-import { isWakeup, type Outstanding, type Snapshot, type Wakeup } from "./events.ts";
+import { isOccurrence, isWakeup, type Occurrence, type Outstanding, type Snapshot, threadOf, type Wakeup } from "./events.ts";
 
 /**
  * What the model is shown for an input, and the one place that decides: the
- * thread and channel it is in, then which of the wake-ups it asked for were
- * cancelled since it last heard of them, if any, then the input itself. A chat
- * event is shown under a line that says what happened and when, after any
- * earlier events of the thread the agent has not acted on, each the same way
- * and oldest first. A wake-up says that the agent asked for it, when, for when,
- * and what it wrote itself. These facts travel with the input and are never
+ * thread and channel it is in, if it is in one, then which of the wake-ups it
+ * asked for were cancelled since it last heard of them, if any, then the input
+ * itself. A chat event is shown under a line that says what happened and when,
+ * after any earlier events of the thread the agent has not acted on, each the
+ * same way and oldest first. A wake-up says that the agent asked for it, when,
+ * for when, and what it wrote itself. An occurrence of a trigger says which
+ * trigger it is, when it fired and what its schedule is, and then gives the
+ * trigger's prompt as it is. These facts travel with the input and are never
  * part of the prompt sections, which stay the same on every request. The final
  * format belongs to the work on what the model receives.
  */
 export function promptFor(outstanding: Outstanding): string {
-  const body = isWakeup(outstanding)
-    ? woken(outstanding.wakeup)
-    : [...outstanding.earlier, outstanding.event].map(written).join("\n\n");
+  const thread = threadOf(outstanding);
   const cancelled = outstanding.cancelled ?? [];
   return [
-    `Thread ${outstanding.threadId} in channel ${outstanding.channelId}.`,
+    ...(thread === undefined ? [] : [`Thread ${thread.threadId} in channel ${thread.channelId}.`]),
     ...(cancelled.length === 0 ? [] : [cancellations(cancelled)]),
-    body,
+    bodyOf(outstanding),
   ].join("\n\n");
+}
+
+function bodyOf(outstanding: Outstanding): string {
+  if (isWakeup(outstanding)) return woken(outstanding.wakeup);
+  if (isOccurrence(outstanding)) return fired(outstanding.occurrence, threadOf(outstanding) !== undefined);
+  return [...outstanding.earlier, outstanding.event].map(written).join("\n\n");
+}
+
+/**
+ * An occurrence of a trigger, as the model reads it: which trigger, when it
+ * fired and its schedule, and for a session with no thread that what it writes
+ * last goes nowhere, and then the prompt the trigger's file gives. The prompt is
+ * the instruction, from whoever wrote the trigger.
+ */
+function fired(occurrence: Occurrence, inThread: boolean): string {
+  const how = occurrence.byHand ? "run by hand" : "fired";
+  const where = inThread
+    ? ""
+    : " You are not in a thread, so what you write last is posted nowhere. To tell someone something, use send_message with to: @name.";
+  return `This is the trigger ${occurrence.trigger}, ${how} at ${utc(occurrence.firedAt)}. Its schedule is ${occurrence.schedule}.${where}\n\n${occurrence.prompt}`;
 }
 
 /** A wake-up that has come, as the model reads it. */

@@ -67,13 +67,19 @@ export interface SessionView {
 
 /**
  * A session as a list shows it. An agent has one session for each thread it
- * takes part in, and addresses it by the thread's ID. A session with no
- * thread, such as a helper's, comes later with an ID of its own.
+ * takes part in, and one for each trigger whose occurrences go to no thread.
+ * Every session has an address at the agent: a thread's ID for a session behind
+ * a thread, and `trigger:` followed by the trigger's name for a trigger's own
+ * session, which is behind none. A client treats the address as a name and
+ * never takes it apart.
  */
 export interface SessionSummary {
-  /** The thread the session is behind. It is also the session's address at the agent: `attach` takes it. */
-  threadId: string;
-  channelId: string;
+  /** The session's address at the agent: what `attach` takes. */
+  id: string;
+  /** The thread the session is behind, or null for a session behind none. For one behind a thread, it is also the address. */
+  threadId: string | null;
+  /** The channel of that thread, or null for a session behind no thread. */
+  channelId: string | null;
   /** Whether the session has input it is answering or has queued. */
   working: boolean;
 }
@@ -85,6 +91,52 @@ export interface SessionSummary {
  * it out.
  */
 export type TriggerSchedule = { every: string } | { cron: string; timezone: string };
+
+/** How an occurrence ended. A skipped occurrence never ran: the last one was still going, or there was nowhere to send it. */
+export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped";
+
+/**
+ * One occurrence of a trigger, from the agent's records. Times are milliseconds
+ * since the epoch.
+ */
+export interface Occurrence {
+  id: string;
+  /** When it was due, and when it fired, which is later when the agent was down at the time. A run by hand is due when it fires. */
+  due: number;
+  firedAt: number;
+  byHand: boolean;
+  /** How it ended, or null while it is still going. */
+  ended: OccurrenceEnding | null;
+  /** Why it failed or was skipped, when it says. */
+  reason: string | null;
+}
+
+/** A standing trigger, as the agent's records have it. */
+export interface TriggerSummary {
+  /** The trigger's name, which is its file's name. */
+  name: string;
+  schedule: TriggerSchedule;
+  /** The thread its occurrences go to, or null when they go to a session of its own. */
+  thread: string | null;
+  /** Whether it is on. `enabled: false` in its file turns it off. */
+  on: boolean;
+  /** When its next occurrence is due, or null when it is off. */
+  next: number | null;
+  /** Its latest occurrence, or null before the first. */
+  last: Occurrence | null;
+}
+
+/** A trigger with its definition and its most recent occurrences. */
+export interface TriggerDetail extends TriggerSummary {
+  /** What a running occurrence is told to do: the body of its file. */
+  prompt: string;
+  /** Whether a due occurrence is skipped while the last one is still going (`skip`), or handed over behind it (`allow`). */
+  overlap: "skip" | "allow";
+  /** The address of the session of its own that its occurrences go to, if they go there, whether or not it has been made yet. */
+  session: string | null;
+  /** The latest occurrences, newest first. */
+  occurrences: Occurrence[];
+}
 
 /**
  * How an accepted input ended. `answered` is the agent's final answer, which

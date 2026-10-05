@@ -6,7 +6,7 @@ import {
 } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { clip, inParts, readFinalText, replyRequestId } from "./reply.ts";
-import { isWakeup, type Outstanding, type TurnOutcome } from "./events.ts";
+import { isChat, type Outstanding, type TurnOutcome } from "./events.ts";
 
 /** Events one receipt call takes, as the chat contract describes. */
 const RECEIPTS_AT_ONCE = 200;
@@ -30,23 +30,24 @@ export function hasReply(outcome: TurnOutcome): boolean {
 }
 
 /**
- * Tell chat how an input's turn ended: post the reply if there is one, then
- * leave the receipt on a chat event and on the earlier events that were shown
- * with it. A wake-up has no receipt. Every step names itself, so doing all of
- * it again after a failure or a crash posts nothing twice and changes no
- * receipt. A reply that chat refuses for good is not posted, and the receipt
- * says it failed; parts of it that were posted stay.
+ * Tell chat how an input's turn ended: post the reply to the thread if there is
+ * one, then leave the receipt on a chat event and on the earlier events that
+ * were shown with it. Nothing else has a receipt. Every step names itself, so
+ * doing all of it again after a failure or a crash posts nothing twice and
+ * changes no receipt. A reply that chat refuses for good is not posted, and the
+ * receipt says it failed; parts of it that were posted stay.
  */
 export async function deliver(
   chat: ChatClient,
   outstanding: Outstanding,
+  threadId: string,
   outcome: TurnOutcome,
   posting: Posting,
   signal: AbortSignal,
 ): Promise<void> {
   let receipt: Left;
   try {
-    receipt = await postReply(chat, outstanding, outcome, posting, signal);
+    receipt = await postReply(chat, threadId, outcome, posting, signal);
   } catch (error) {
     if (!isRefusal(error)) throw error;
     posting.onRefused(outstanding, error);
@@ -56,7 +57,7 @@ export async function deliver(
       detail: clip(`The reply could not be posted: ${error.message}`, MAX_RECEIPT_DETAIL_LENGTH),
     };
   }
-  if (isWakeup(outstanding)) return;
+  if (!isChat(outstanding)) return;
   const ids = [...outstanding.earlier, outstanding.event].map((event) => event.id);
   for (let from = 0; from < ids.length; from += RECEIPTS_AT_ONCE) {
     await chat.leaveReceipt(ids.slice(from, from + RECEIPTS_AT_ONCE), receipt, signal);
@@ -66,7 +67,7 @@ export async function deliver(
 /** Post what the turn answered, in as many parts as it takes, and say what receipt it earns. */
 async function postReply(
   chat: ChatClient,
-  outstanding: Outstanding,
+  threadId: string,
   outcome: TurnOutcome,
   { messageLimit, recordsId }: Posting,
   signal: AbortSignal,
@@ -77,8 +78,8 @@ async function postReply(
       const parts = reading.kind === "silent" ? [] : inParts(reading.text, messageLimit);
       let first: Message | undefined;
       for (const [index, part] of parts.entries()) {
-        const requestId = replyRequestId(recordsId, outstanding.threadId, outcome.answer, index);
-        const posted = await chat.post(outstanding.threadId, part, requestId, signal);
+        const requestId = replyRequestId(recordsId, threadId, outcome.answer, index);
+        const posted = await chat.post(threadId, part, requestId, signal);
         first ??= posted;
       }
       return first === undefined

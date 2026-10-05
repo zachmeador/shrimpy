@@ -3,7 +3,7 @@ import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import type { ChatLink } from "../links/index.ts";
 import { deliver, hasReply } from "./deliver.ts";
-import { idOf, isWakeup, type Outstanding, type TurnOutcome } from "./events.ts";
+import { hasReceipt, idOf, isOccurrence, isWakeup, type Outstanding, threadOf, type TurnOutcome } from "./events.ts";
 import { orAborted, pause, untilAborted } from "./pause.ts";
 import { utc } from "./prompt.ts";
 
@@ -26,11 +26,12 @@ export interface Delivery {
    * Post the reply if there is one and, for a chat event, leave the receipt. It
    * waits for chat, and tries again after a failure, but a reply that chat
    * refuses for good is not posted: the receipt says it failed, with chat's
-   * reason. A receipt that chat refuses for good is dropped. A wake-up has no
-   * receipt to carry a failure, or a reply that chat refuses, so those are
-   * reported. Every step names itself, so doing all of it again after a crash
-   * posts nothing twice and changes no receipt. It ends with a rejection only
-   * when `signal` aborts.
+   * reason. A receipt that chat refuses for good is dropped. A wake-up or an
+   * occurrence of a trigger has no receipt to carry a failure, or a reply that
+   * chat refuses, so those are reported; and one in a session behind no thread
+   * has no reply to post, so it never waits for chat. Every step names itself,
+   * so doing all of it again after a crash posts nothing twice and changes no
+   * receipt. It ends with a rejection only when `signal` aborts.
    */
   tell(outstanding: Outstanding, outcome: TurnOutcome, signal: AbortSignal): Promise<void>;
   /** The agent leaves chat. What is due stays where it is until the engine closes, and is told at the next start. */
@@ -45,9 +46,9 @@ export function createDelivery(options: DeliveryOptions): Delivery {
     onRefused: (outstanding: Outstanding, error: Error): void =>
       onError(
         new Error(
-          isWakeup(outstanding)
-            ? `Chat refused the reply to the wake-up for ${utc(outstanding.wakeup.due)}, so it was not posted: ${error.message}`
-            : `Chat refused the reply to ${idOf(outstanding)}, so its receipt says it failed: ${error.message}`,
+          hasReceipt(outstanding)
+            ? `Chat refused the reply to ${idOf(outstanding)}, so its receipt says it failed: ${error.message}`
+            : `Chat refused the reply to the ${what(outstanding)}, so it was not posted: ${error.message}`,
         ),
       ),
   };
@@ -61,11 +62,11 @@ export function createDelivery(options: DeliveryOptions): Delivery {
   return {
     attach: (link) => attached(link),
     async tell(outstanding, outcome, signal) {
-      // A wake-up with no reply to post has nobody to tell, and chat being away is no reason to hold its task.
-      if (isWakeup(outstanding) && !hasReply(outcome)) {
-        if (outcome.kind === "failed") {
-          onError(new Error(`The wake-up for ${utc(outstanding.wakeup.due)} did not get an answer. ${outcome.reason}`));
-        }
+      // A wake-up or an occurrence with no reply to post, or with no thread to post it to, has nobody to tell, and
+      // chat being away is no reason to hold its task.
+      const thread = threadOf(outstanding);
+      if (thread === undefined || (!hasReceipt(outstanding) && !hasReply(outcome))) {
+        if (outcome.kind === "failed") onError(new Error(`${failureOf(outstanding)} ${outcome.reason}`));
         return;
       }
       const stop = AbortSignal.any([signal, closing.signal]);
@@ -73,7 +74,7 @@ export function createDelivery(options: DeliveryOptions): Delivery {
       for (;;) {
         try {
           const link = await orAborted(linked, stop);
-          await link.use((live, aborted) => deliver(live.chat, outstanding, outcome, posting, aborted), stop);
+          await link.use((live, aborted) => deliver(live.chat, outstanding, thread.threadId, outcome, posting, aborted), stop);
           return;
         } catch (error) {
           // The engine is closing: the task stays where it is for the next start.
@@ -94,6 +95,21 @@ export function createDelivery(options: DeliveryOptions): Delivery {
     },
     close: () => closing.abort(),
   };
+}
+
+/** What a report calls a wake-up or an occurrence: "wake-up for 2026-10-04T09:00:00Z". */
+function what(outstanding: Outstanding): string {
+  if (isWakeup(outstanding)) return `wake-up for ${utc(outstanding.wakeup.due)}`;
+  if (isOccurrence(outstanding)) {
+    return `occurrence of the trigger ${outstanding.occurrence.trigger} at ${utc(outstanding.occurrence.firedAt)}`;
+  }
+  return idOf(outstanding);
+}
+
+/** The start of what a report says about an input that failed and has no receipt to carry it. */
+function failureOf(outstanding: Outstanding): string {
+  const ran = isOccurrence(outstanding) && outstanding.unrun !== undefined ? "did not run." : "did not get an answer.";
+  return `The ${what(outstanding)} ${ran}`;
 }
 
 const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

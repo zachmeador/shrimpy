@@ -20,7 +20,7 @@ const list: Command = {
       const sessions = await connection.sessions();
       if (sessions.length === 0) io.out("The agent has no sessions yet.");
       for (const session of sessions) {
-        io.out(`${session.threadId} ${session.channelId} ${session.working ? "working" : "idle"}`);
+        io.out(`${session.id} ${session.channelId ?? "-"} ${session.working ? "working" : "idle"}`);
       }
       return 0;
     });

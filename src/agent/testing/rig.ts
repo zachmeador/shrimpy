@@ -1,5 +1,6 @@
 import type { TestContext } from "node:test";
 import type { AgentConnection, SessionHandle } from "../../contracts/agent/index.ts";
+import { attachLocal } from "../../contracts/agent/node.ts";
 import { backoff } from "../../lib/retry/index.ts";
 import { stopAfter, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 import { type JoinOptions, type RunningAgent, startAgent } from "../index.ts";
@@ -21,6 +22,8 @@ export interface AgentRigOptions {
   chat?: ChatServer;
   /** Anything about how the agent takes part in the network. */
   join?: Partial<JoinOptions>;
+  /** The shortest a trigger may repeat at, in milliseconds. A test that fires triggers makes it short. */
+  shortestEveryMs?: number;
 }
 
 /** The agent, and the person who runs the gateway to talk to it. */
@@ -32,6 +35,8 @@ export interface AgentRig extends Talk {
   readonly reports: unknown[];
   /** Connect to the agent's API and attach to the session behind a thread. The connection is closed when the test ends. */
   attach(threadId?: string): Promise<{ connection: AgentConnection; session: SessionHandle }>;
+  /** Connect to the agent's API, by the home's path. The connection is closed when the test ends. */
+  connect(): Promise<AgentConnection>;
 }
 
 /**
@@ -60,6 +65,7 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
         tokenSize: options.tokenSize,
       }),
       onReport: (error) => reports.push(error),
+      ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
       join: {
         backoff: () => backoff({ firstMs: 5, maxMs: 20 }),
         ...options.join,
@@ -78,6 +84,11 @@ export async function startAgentRig(t: TestContext, options: AgentRigOptions = {
       const attached = await attachThread(home, threadId);
       stopAfter(t, () => attached.connection.close().catch(() => undefined));
       return attached;
+    },
+    async connect() {
+      const connection = await attachLocal(home);
+      stopAfter(t, () => connection.close().catch(() => undefined));
+      return connection;
     },
   };
 }

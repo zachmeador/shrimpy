@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { CommitChange, Harness } from "@earendil-works/pi-durable";
-import type { Outstanding, Working } from "../intake/index.ts";
+import { type Outstanding, threadOf, type Working } from "../intake/index.ts";
 import { phaseOf, TURN_TASK } from "./turn-task.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -9,8 +9,10 @@ const context = BACKGROUND_CONTEXT;
  * What the agent is working on, read from the engine: an input is worked on
  * from the moment the agent takes it up until its source is told how it ended,
  * which is as long as its task is live. A wake-up that is only waiting is not
- * an input yet, and is not counted. Nothing is kept beside the tasks, so a task
- * that ends in any way, a failure included, stops counting.
+ * an input yet, and is not counted, and neither is the sleeping task of a
+ * trigger. Nothing is kept beside the tasks, so a task that ends in any way, a
+ * failure included, stops counting. Only an input in a thread marks one: a
+ * trigger's own session is behind none.
  */
 export function createWorking(harness: Harness): Working {
   /** The live tasks that follow an input, each with whether its turn is over and its source has yet to be told. */
@@ -23,13 +25,13 @@ export function createWorking(harness: Harness): Working {
         const phase = phaseOf(record);
         // A session with no input being answered has nothing left to run for the task that follows it.
         const owing = phase === "tell" || (phase === "follow" && !busy.has(record.conversationId));
-        return { id: record.id, threadId: (record.input as Outstanding).threadId, owing };
+        return { id: record.id, threadId: threadOf(record.input as Outstanding)?.threadId, owing };
       });
   }
 
   return {
     async threads() {
-      return new Set((await followed()).map(({ threadId }) => threadId));
+      return new Set((await followed()).flatMap(({ threadId }) => (threadId === undefined ? [] : [threadId])));
     },
 
     onChange(listener) {

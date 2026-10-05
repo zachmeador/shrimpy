@@ -85,31 +85,83 @@ export type ChatInput = {
   cancelled?: Wakeup[];
 };
 
+/** The thread a session is behind, for an input that goes to one. */
+type InThread = { threadId: string; channelId: string; trigger?: undefined };
+/** What an input of a session behind no thread has in place of a thread. */
+type NoThread = { threadId?: undefined; channelId?: undefined };
+
 /**
  * A wake-up the agent asked for that has come due, taken up as the input of the
  * task that follows it. It has no one to tell how its turn ended: the turn's
- * final text is posted to the thread, and a failure is reported.
+ * final text is posted to the thread, if the session is behind one, and a
+ * failure is reported. A session behind no thread is a trigger's own, and
+ * `trigger` names the trigger.
  */
 export type WakeupInput = {
   wakeup: Wakeup;
-  threadId: string;
-  channelId: string;
   /** As for a chat event. */
   cancelled?: Wakeup[];
+} & (InThread | (NoThread & { trigger: string }));
+
+/**
+ * An occurrence of a trigger, as it was when it fired. The prompt and the
+ * schedule are kept as they were then, so a later edit of the trigger's file
+ * does not change what the record says ran.
+ */
+export type Occurrence = {
+  /** Names the occurrence for as long as the agent's records last. */
+  id: string;
+  trigger: string;
+  /** When it was due, and when it fired: milliseconds since the epoch. A run by hand is due when it fires. */
+  due: number;
+  firedAt: number;
+  byHand: boolean;
+  /** The trigger's schedule, as the model is told it. */
+  schedule: string;
+  /** What the trigger is to do, from its file. */
+  prompt: string;
 };
+
+/**
+ * An occurrence of a standing trigger, taken up as the input of the task that
+ * follows it. Like a wake-up it has no one to tell how its turn ended: the
+ * final text is posted to the trigger's thread if it names one, and a failure
+ * is reported. With no thread it goes to a session of the trigger's own.
+ */
+export type OccurrenceInput = {
+  occurrence: Occurrence;
+  /** As for a chat event. */
+  cancelled?: Wakeup[];
+  /**
+   * An occurrence that no turn runs: it was skipped because the last one was
+   * still going, or could not be handed to a session. The task that follows it
+   * ends at once with this outcome, and `reason` says why. It has no thread.
+   */
+  unrun?: { outcome: "skipped" | "failed"; reason: string };
+} & (InThread | NoThread);
 
 /**
  * An input the agent took up and has not finished with, from any source: what
  * the task that follows it is given, from the moment it is taken up until its
- * source is told how its turn ended. A chat event and a wake-up are told apart
- * by their shape. Code that handles an input of any source asks `isWakeup` and
- * `idOf` and does not look inside.
+ * source is told how its turn ended. A chat event, a wake-up and an occurrence
+ * of a trigger are told apart by their shape. Code that handles an input of any
+ * source asks the helpers below and does not look inside.
  */
-export type Outstanding = ChatInput | WakeupInput;
+export type Outstanding = ChatInput | WakeupInput | OccurrenceInput;
 
-/** Whether an input is a wake-up that came due, and not a chat event. */
+/** Whether an input is a chat event. */
+export function isChat(outstanding: Outstanding): outstanding is ChatInput {
+  return "event" in outstanding;
+}
+
+/** Whether an input is a wake-up that came due. */
 export function isWakeup(outstanding: Outstanding): outstanding is WakeupInput {
   return "wakeup" in outstanding;
+}
+
+/** Whether an input is an occurrence of a trigger. */
+export function isOccurrence(outstanding: Outstanding): outstanding is OccurrenceInput {
+  return "occurrence" in outstanding;
 }
 
 /**
@@ -118,8 +170,31 @@ export function isWakeup(outstanding: Outstanding): outstanding is WakeupInput {
  * does not reuse.
  */
 export function idOf(outstanding: Outstanding): string {
-  return isWakeup(outstanding) ? outstanding.wakeup.id : outstanding.event.id;
+  if (isWakeup(outstanding)) return outstanding.wakeup.id;
+  if (isOccurrence(outstanding)) return outstanding.occurrence.id;
+  return outstanding.event.id;
 }
+
+/**
+ * The thread an input's session is behind, which its reply is posted to and
+ * which is marked as working while it runs; undefined for a session behind no
+ * thread, whose replies go nowhere.
+ */
+export function threadOf(outstanding: Outstanding): { threadId: string; channelId: string } | undefined {
+  return outstanding.threadId === undefined ? undefined : { threadId: outstanding.threadId, channelId: outstanding.channelId };
+}
+
+/** Whether the source of an input wants a receipt: a chat event does, and nothing else has anyone to leave one for. */
+export function hasReceipt(outstanding: Outstanding): boolean {
+  return isChat(outstanding);
+}
+
+/** How the turn of an input ended, as the record of its task keeps it. */
+export type Ending = {
+  ended: "answered" | "silent" | "failed" | "stopped" | "skipped";
+  /** Why a turn failed or an occurrence was skipped, when it says. */
+  reason?: string;
+};
 
 /** How the turn for an input ended. */
 export type TurnOutcome =
@@ -148,12 +223,12 @@ export interface Admissions {
   admit(draft: Omit<ChatInput, "earlier" | "cancelled">): Promise<void>;
 }
 
-/** What the agent's sessions know of the events it took up and has not left a receipt on yet. */
+/** What the agent's sessions know of the inputs it took up and has not finished telling their sources about yet. */
 export interface Working {
-  /** The threads those events are in. */
+  /** The threads those inputs are in. A session behind no thread is in none. */
   threads(): Promise<ReadonlySet<string>>;
   /** Call `listener` after the answer to `threads()` may have changed. Returns what stops that. */
   onChange(listener: () => void): () => void;
-  /** Resolve once the receipt is left on every event whose turn has ended, or `signal` aborts. A turn still running is not waited for. */
+  /** Resolve once every input whose turn has ended has been told to its source, or `signal` aborts. A turn still running is not waited for. */
   untilTold(signal: AbortSignal): Promise<void>;
 }

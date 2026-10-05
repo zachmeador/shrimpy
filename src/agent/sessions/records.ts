@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Harness } from "@earendil-works/pi-durable";
-import { FeedDoc, RecordsDoc, ThreadsDoc } from "./documents.ts";
+import { FeedDoc, RecordsDoc, SessionsDoc, TriggersDoc } from "./documents.ts";
 
 /**
  * Open the agent's records at the start, and say what they are called: the ID
@@ -21,8 +21,9 @@ export async function openRecords(harness: Harness, file: string): Promise<strin
  */
 async function read(harness: Harness, file: string): Promise<string | undefined> {
   try {
-    await harness.snapshot(ThreadsDoc, BACKGROUND_CONTEXT);
+    await harness.snapshot(SessionsDoc, BACKGROUND_CONTEXT);
     await harness.snapshot(FeedDoc, BACKGROUND_CONTEXT);
+    await harness.snapshot(TriggersDoc, BACKGROUND_CONTEXT);
     return (await harness.snapshot(RecordsDoc, BACKGROUND_CONTEXT))?.id;
   } catch (error) {
     throw new Error(refusal(file, error instanceof Error ? error.message : String(error)), { cause: error });

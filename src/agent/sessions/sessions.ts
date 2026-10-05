@@ -5,21 +5,25 @@ import type { Admissions, Working } from "../intake/index.ts";
 import { createAdmissions } from "./admissions.ts";
 import { beginRun, type Run } from "./crashes.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
-import { ThreadsDoc, type ThreadSession } from "./documents.ts";
+import { type SessionRecord, SessionsDoc } from "./documents.ts";
 import { type ServedSession, serveSession } from "./service.ts";
 import type { TurnTask } from "./turn-task.ts";
 import { createWorking } from "./working.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** The agent's sessions: one for each thread it takes part in, addressed by the thread's ID. */
+/**
+ * The agent's sessions, each addressed by a name: a thread's ID for the session
+ * behind a thread, which there is one of for each thread the agent takes part
+ * in, and `trigger:` and the trigger's name for a trigger's own session.
+ */
 export interface Sessions {
   /** Every session, in the order they were made, with whether each has work now. */
   list(): Promise<SessionSummary[]>;
-  /** Whether the agent has a session for the thread. */
-  has(threadId: string): Promise<boolean>;
-  /** Serve the session behind a thread to the clients that watch it. `takingInput` says whether new input may still come in. */
-  serve(threadId: string, takingInput: () => boolean): Promise<ServedSession>;
+  /** Whether the agent has a session with this address. */
+  has(address: string): Promise<boolean>;
+  /** Serve the session with this address to the clients that watch it. `takingInput` says whether new input may still come in. */
+  serve(address: string, takingInput: () => boolean): Promise<ServedSession>;
   /** Make every session follow the home's model and working directory, as a new session does from the start. */
   applyDefaults(): Promise<void>;
   /**
@@ -35,39 +39,40 @@ export interface Sessions {
 }
 
 export function createSessions(harness: Harness, defaults: SessionDefaults, turn: TurnTask): Sessions {
-  const threads = async (): Promise<Record<string, ThreadSession>> =>
-    (await harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
+  const records = async (): Promise<Record<string, SessionRecord>> =>
+    (await harness.snapshot(SessionsDoc, context))?.sessions ?? {};
 
   return {
     async list() {
-      const sessions = await threads();
+      const sessions = await records();
       const working = await sessionsWithWork(harness);
       return Object.entries(sessions)
         .sort(([, a], [, b]) => a.conversationId - b.conversationId)
-        .map(([threadId, session]) => ({
-          threadId,
+        .map(([address, session]) => ({
+          id: address,
+          threadId: session.channelId === null ? null : address,
           channelId: session.channelId,
           working: working.has(session.conversationId),
         }));
     },
 
-    async has(threadId) {
-      return Object.hasOwn(await threads(), threadId);
+    async has(address) {
+      return Object.hasOwn(await records(), address);
     },
 
-    async serve(threadId, takingInput) {
-      const all = await threads();
-      const session = Object.hasOwn(all, threadId) ? all[threadId] : undefined;
+    async serve(address, takingInput) {
+      const all = await records();
+      const session = Object.hasOwn(all, address) ? all[address] : undefined;
       const conversation =
         session === undefined ? undefined : await harness.conversation(session.conversationId as ConversationId, context);
-      if (conversation === undefined) throw new Error(`The agent has no session for thread ${threadId}.`);
+      if (conversation === undefined) throw new Error(`The agent has no session ${address}.`);
       return serveSession(harness, conversation, context, takingInput);
     },
 
     async applyDefaults() {
       const change = agentChange(defaults);
       await harness.commit(async (tx) => {
-        const sessions = (await tx.doc(ThreadsDoc)).sessions;
+        const sessions = (await tx.doc(SessionsDoc)).sessions;
         for (const session of Object.values(sessions)) {
           await configure(tx, session.conversationId as ConversationId, change);
         }

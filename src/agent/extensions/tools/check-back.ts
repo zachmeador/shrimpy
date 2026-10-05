@@ -37,7 +37,7 @@ export function checkBack(options: WakeupToolsOptions) {
 
       const set = await options.wakeups.set(api, { askedAt, due: when.due, note: text }, context);
       if ("waiting" in set) return failure(words.tooMany(set.waiting));
-      return answer(words.wakeSet(set.wakeup.due, set.wakeup.askedAt));
+      return answer(words.wakeSet(set.wakeup.due, set.wakeup.askedAt, set.inThread));
     },
   });
 }

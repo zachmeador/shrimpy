@@ -17,6 +17,8 @@ export { AGENT_HOME_VARIABLE, type Membership, membershipFile } from "./membersh
 export { SessionDirectory, SessionService } from "./services.ts";
 export type {
   Member,
+  Occurrence,
+  OccurrenceEnding,
   QueuedInput,
   Reloaded,
   SessionActivity,
@@ -26,5 +28,7 @@ export type {
   SessionView,
   Settlement,
   ToolStatus,
+  TriggerDetail,
   TriggerSchedule,
+  TriggerSummary,
 } from "./view.ts";

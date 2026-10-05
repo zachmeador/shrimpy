@@ -5,9 +5,9 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type CommitPublication, type ConversationId, defineExtension, defineTask } from "@earendil-works/pi-durable";
 import { eventually, stopAfter, tempDir, until } from "../../lib/testing/index.ts";
 import { openHost } from "../host/index.ts";
-import { type ChatInput, type Delivery, idOf, isWakeup, type Snapshot, type TurnOutcome } from "../intake/index.ts";
+import { type ChatInput, type Delivery, idOf, isChat, type Snapshot, type TurnOutcome } from "../intake/index.ts";
 import { type FauxScenario, fauxModels, releaseGate } from "../testing/index.ts";
-import { ThreadsDoc } from "./documents.ts";
+import { SessionsDoc } from "./documents.ts";
 import { createSessions, turnTask } from "./index.ts";
 import { TURN_TASK } from "./turn-task.ts";
 
@@ -30,7 +30,7 @@ function recordingDelivery(fail: (outcome: TurnOutcome) => Error | undefined = (
     tell(outstanding, outcome) {
       const failure = fail(outcome);
       if (failure !== undefined) return Promise.reject(failure);
-      told.push({ id: idOf(outstanding), outcome, earlier: isWakeup(outstanding) ? [] : outstanding.earlier.map((event) => event.id) });
+      told.push({ id: idOf(outstanding), outcome, earlier: isChat(outstanding) ? outstanding.earlier.map((event) => event.id) : [] });
       return Promise.resolve();
     },
     close: () => undefined,
@@ -156,7 +156,7 @@ test("a failure while handing an event over leaves a failed receipt with the rea
   await sessions.admissions.admit(draft(1));
   await until(() => told.length === 1, "the first event to be told");
   // A passive entry already holds the request ID the second event will be handed over with.
-  const conversationId = (await host.harness.snapshot(ThreadsDoc, context))?.sessions.th_1?.conversationId;
+  const conversationId = (await host.harness.snapshot(SessionsDoc, context))?.sessions.th_1?.conversationId;
   const session = await host.harness.conversation(conversationId as ConversationId, context);
   await session?.submit({ type: "write", entry: { kind: "test.note" }, requestId: "chat:evt_2" }, context);
 

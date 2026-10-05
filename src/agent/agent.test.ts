@@ -128,7 +128,7 @@ test("a thread the agent has no session for yet is refused, and the connection i
   await assert.rejects(connection.attach("th_nothing"), { code: "service_invalid_value" });
   // The sessions are looked up by the thread's ID, which no client-sent name may mistake for anything else.
   await assert.rejects(attachThread(rig.home, "constructor"), { code: "service_invalid_value" });
-  assert.equal((await connection.attach(rig.thread.id)).threadId, rig.thread.id);
+  assert.equal((await connection.attach(rig.thread.id)).id, rig.thread.id);
 });
 
 test("a file of the home that can't be used is left out and reported when the agent starts, and the agent starts anyway", { timeout }, async (t) => {

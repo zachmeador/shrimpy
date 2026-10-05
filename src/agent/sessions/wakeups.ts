@@ -11,9 +11,9 @@ import {
   type Tx,
 } from "@earendil-works/pi-durable";
 import { utc, type Wakeup } from "../intake/index.ts";
-import { ThreadsDoc } from "./documents.ts";
+import { type SessionRecord, SessionsDoc, sessionAddress } from "./documents.ts";
 import { carrying, keepCancelled, takeCancelled } from "./kept.ts";
-import { threadOfSession } from "./thread-of.ts";
+import { placeOfSession, type SessionPlace } from "./thread-of.ts";
 import { followInput, type TurnTask } from "./turn-task.ts";
 
 /** The name of the task that waits for a wake-up to come due, and then takes it up as an input. */
@@ -22,8 +22,14 @@ const WAKEUP_TASK = "shrimpy.wakeup";
 /** How many wake-ups a session may have waiting at once. */
 const MAX_WAITING = 20;
 
-/** What the task that waits is given: the wake-up, and the thread its session is behind. */
-type Waiting = { threadId: string; channelId: string; wakeup: Wakeup };
+/** What the task that waits is given: the wake-up, and where its session is. */
+type Waiting = { wakeup: Wakeup } & SessionPlace;
+
+/** The session's record for a wake-up, if the session has one. */
+function sessionOfWaiting(sessions: Record<string, SessionRecord>, waiting: Waiting): SessionRecord | undefined {
+  const address = sessionAddress(waiting);
+  return address !== undefined && Object.hasOwn(sessions, address) ? sessions[address] : undefined;
+}
 
 /** What a wake-up is asked for with. */
 export interface WakeupRequest {
@@ -34,8 +40,11 @@ export interface WakeupRequest {
   note: string;
 }
 
-/** The wake-up that was set, or how many were already waiting when the session had as many as it may. */
-export type WakeupSet = { wakeup: Wakeup } | { waiting: number };
+/**
+ * The wake-up that was set, and whether it will come in a thread; or how many
+ * were already waiting when the session had as many as it may.
+ */
+export type WakeupSet = { wakeup: Wakeup; inThread: boolean } | { waiting: number };
 
 /** The wake-ups of the agent's sessions, as the tool that asks for one sees them. */
 export interface Wakeups {
@@ -61,7 +70,8 @@ export interface WakeupsOptions {
  * task is a background task of a kind that nothing counts, so the session is not
  * working, and its thread is not marked, until the turn the wake-up starts is.
  * Ending a wake-up that waits keeps it, for the session's next input to tell the
- * model that it was cancelled.
+ * model that it was cancelled. A session behind no thread, a trigger's own, has
+ * wake-ups too.
  */
 export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups & { extension: Extension } {
   const task = defineTask<Waiting, { phase: "sleep" }, null>({
@@ -70,13 +80,13 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
     initial: () => ({ phase: "sleep" }),
     phases: {
       sleep: async (waiting, runtime, context) => {
-        const { threadId, channelId, wakeup } = waiting.input;
+        const { wakeup } = waiting.input;
         await runtime.sleep(wakeup.due, context);
         try {
           await runtime.commit(async (tx) => {
-            const session = (await tx.doc(ThreadsDoc)).sessions[threadId];
+            const session = sessionOfWaiting((await tx.doc(SessionsDoc)).sessions, waiting.input);
             const cancelled = session === undefined ? [] : takeCancelled(session);
-            await followInput(tx, turn, runtime.conversationId, { wakeup, threadId, channelId, ...carrying(cancelled) });
+            await followInput(tx, turn, runtime.conversationId, { ...waiting.input, ...carrying(cancelled) });
             return { status: "terminal", outcome: { status: "completed", result: null } };
           }, context);
         } catch (error) {
@@ -91,10 +101,9 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
     },
 
     abort: async (waiting, runtime, context) => {
-      const { threadId, wakeup } = waiting.input;
       await runtime.commit(async (tx) => {
-        const session = (await tx.doc(ThreadsDoc)).sessions[threadId];
-        if (session !== undefined) keepCancelled(session, [wakeup]);
+        const session = sessionOfWaiting((await tx.doc(SessionsDoc)).sessions, waiting.input);
+        if (session !== undefined) keepCancelled(session, [waiting.input.wakeup]);
         return { status: "terminal", outcome: { status: "aborted" } };
       }, context);
     },
@@ -105,20 +114,20 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
 
     async set(api, request, context) {
       const id = `wake_${String(api.taskId)}`;
-      const thread = await threadOfSession(api, api.conversationId, context);
-      if (thread === undefined) throw new Error("The session is not behind a thread, so there is nowhere to wake it.");
+      const place = await placeOfSession(api, api.conversationId, context);
+      if (place === undefined) throw new Error("The session is not one the agent keeps, so there is nowhere to wake it.");
       return api.commit(async (tx): Promise<WakeupSet> => {
         let waiting = 0;
         for (const record of await sleepers(tx, api.conversationId)) {
           const { wakeup } = record.input as Waiting;
-          if (wakeup.id === id) return { wakeup };
+          if (wakeup.id === id) return { wakeup, inThread: "threadId" in place };
           if (isWaiting(record)) waiting += 1;
         }
         if (waiting >= MAX_WAITING) return { waiting };
         const wakeup: Wakeup = { id, askedAt: request.askedAt, due: request.due, note: request.note };
         // The session's, not the tool call's: a call that finishes does not end what it set.
-        await tx.createTask(task, { ...thread, wakeup }, { ownership: { kind: "conversation" }, background: true });
-        return { wakeup };
+        await tx.createTask(task, { ...place, wakeup }, { ownership: { kind: "conversation" }, background: true });
+        return { wakeup, inThread: "threadId" in place };
       }, context);
     },
   };

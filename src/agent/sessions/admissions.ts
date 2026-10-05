@@ -2,7 +2,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
 import type { Admissions, Snapshot, Wakeup } from "../intake/index.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
-import { FeedDoc, plain, ThreadsDoc } from "./documents.ts";
+import { FeedDoc, plain, SessionsDoc } from "./documents.ts";
 import { carrying, takeCancelled, takeEvents } from "./kept.ts";
 import { followInput, type TurnTask } from "./turn-task.ts";
 
@@ -30,7 +30,7 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
     admit(draft) {
       return harness.commit(async (tx) => {
         (await tx.doc(FeedDoc)).cursor = draft.event.seq;
-        const threads = (await tx.doc(ThreadsDoc)).sessions;
+        const threads = (await tx.doc(SessionsDoc)).sessions;
         const known = Object.hasOwn(threads, draft.threadId) ? threads[draft.threadId] : undefined;
         let conversationId: ConversationId;
         let earlier: Snapshot[] = [];

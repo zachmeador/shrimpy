@@ -14,8 +14,20 @@ import {
   type TaskRuntime,
   type Tx,
 } from "@earendil-works/pi-durable";
-import { type Delivery, idOf, isWakeup, type Outstanding, promptFor, type TurnOutcome } from "../intake/index.ts";
-import { plain, RecordsDoc, ThreadsDoc } from "./documents.ts";
+import {
+  type Delivery,
+  type Ending,
+  endingOf,
+  idOf,
+  isChat,
+  isOccurrence,
+  isWakeup,
+  type Outstanding,
+  promptFor,
+  threadOf,
+  type TurnOutcome,
+} from "../intake/index.ts";
+import { plain, RecordsDoc, SessionsDoc, sessionAddress } from "./documents.ts";
 import { keepSkipped } from "./kept.ts";
 import { toOutcome } from "./turn.ts";
 
@@ -31,14 +43,15 @@ export const MAX_CRASHES = 2;
 
 /**
  * What the source of an input that reached `MAX_CRASHES` is told. The words say
- * "twice" for the count. A chat event can be sent again; a wake-up is only
- * reported, and the agent can ask for another.
+ * "twice" for the count. A chat event can be sent again; a wake-up or an
+ * occurrence is only reported, and the agent can ask for another wake-up while
+ * a trigger comes again by itself.
  */
 const abandonedOutcome = (input: Outstanding): TurnOutcome => ({
   kind: "failed",
   reason:
     "The agent stopped unexpectedly twice while working on this, so it gave up." +
-    (isWakeup(input) ? "" : " Send it again to try once more."),
+    (isChat(input) ? " Send it again to try once more." : ""),
 });
 
 /** Where an input's task is: handing the input over, following its turn, or telling its source how the turn ended. */
@@ -49,8 +62,8 @@ export function phaseOf(record: TaskRecord<JsonValue, JsonValue, JsonValue>): Tu
   return "checkpoint" in record.state ? (record.state.checkpoint as TurnState).phase : undefined;
 }
 
-type Runtime = TaskRuntime<Outstanding, TurnState, null, object>;
-type Turn<P extends TurnState = TurnState> = RunningTask<Outstanding, P, null>;
+type Runtime = TaskRuntime<Outstanding, TurnState, Ending, object>;
+type Turn<P extends TurnState = TurnState> = RunningTask<Outstanding, P, Ending>;
 type Phase<P extends TurnState = TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context) => Promise<void>;
 /** What a phase does when something unexpected went wrong in it, so that the task ends in a way that says so. */
 type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: Context, failure: Error) => Promise<void>;
@@ -59,8 +72,11 @@ type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: 
  * The input a task hands its session is named for the input it follows, in the
  * namespace of its source, so handing the same one over twice is one input.
  */
-const requestIdOf = (outstanding: Outstanding): string =>
-  `${isWakeup(outstanding) ? "wake" : "chat"}:${idOf(outstanding)}`;
+const requestIdOf = (outstanding: Outstanding): string => {
+  if (isWakeup(outstanding)) return `wake:${idOf(outstanding)}`;
+  if (isOccurrence(outstanding)) return `trigger:${idOf(outstanding)}`;
+  return `chat:${idOf(outstanding)}`;
+};
 
 const inputOf = (outstanding: Outstanding) => ({
   type: "input" as const,
@@ -68,6 +84,14 @@ const inputOf = (outstanding: Outstanding) => ({
   whenBusy: "followUp" as const,
   requestId: requestIdOf(outstanding),
 });
+
+/** Where an input is, as a report says it. */
+function placeText(input: Outstanding): string {
+  const thread = threadOf(input);
+  if (thread !== undefined) return `in thread ${thread.threadId}`;
+  if (isOccurrence(input)) return `of the trigger ${input.occurrence.trigger}`;
+  return isWakeup(input) && input.trigger !== undefined ? `in the session of the trigger ${input.trigger}` : "in no thread";
+}
 
 export interface TurnTaskOptions {
   /** What tells an input's source how its turn ended. */
@@ -81,16 +105,19 @@ export interface TurnTaskOptions {
  * takes it up until its source is told how it ended. It does the same four
  * things whatever the source: it hands the input over to its session, after any
  * input admitted before it that has not been; waits for the turn to settle;
- * posts the turn's final text to the session's thread; and tells the source how
- * the turn ended, which for a chat event is its receipt. It belongs to the
- * thread's session but not to the session's work: it is a background task, so
+ * posts the turn's final text to the session's thread, if it is behind one; and
+ * tells the source how the turn ended, which for a chat event is its receipt and
+ * for an occurrence of a trigger is the outcome its task keeps. It belongs to
+ * the session but not to the session's work: it is a background task, so
  * stopping the session's work leaves it to report how that ended. Each phase is
  * safe to run again after a crash, and none lets an unexpected failure out,
  * because a phase that throws ends its task for good, with nothing told and
  * nothing reported. The source is told in every case: the way the turn ended,
  * or that something went wrong. A turn that has been interrupted by
  * `MAX_CRASHES` unexpected ends of the agent is not run again: the start that
- * counted the last one stopped it, and the source is told it failed.
+ * counted the last one stopped it, and the source is told it failed. An
+ * occurrence that no turn ran, which comes with its outcome, goes straight to
+ * telling it.
  */
 export function turnTask(options: TurnTaskOptions) {
   const { delivery } = options;
@@ -105,7 +132,7 @@ export function turnTask(options: TurnTaskOptions) {
         // The engine is closing, or the task was aborted: the engine ends the phase and carries on from the checkpoint.
         if (runtime.signal.aborted) throw error;
         const failure = asError(error);
-        const where = `${idOf(turn.input)} in thread ${turn.input.threadId}`;
+        const where = `${idOf(turn.input)} ${placeText(turn.input)}`;
         options.onError(new Error(`Work on ${where} failed: ${failure.message}`));
         await recover(turn, runtime, context, failure);
       }
@@ -115,10 +142,14 @@ export function turnTask(options: TurnTaskOptions) {
   const tellFailed: Recovery<TurnState> = (_turn, runtime, context, failure) =>
     told(runtime, context, failedOutcome(failure));
 
-  const task = defineTask<Outstanding, TurnState, null>({
+  const task = defineTask<Outstanding, TurnState, Ending>({
     name: TURN_TASK,
     version: 1,
-    initial: () => ({ phase: "handOver" }),
+    initial: (input) => {
+      const unrun = isOccurrence(input) ? input.unrun : undefined;
+      if (unrun === undefined) return { phase: "handOver" };
+      return { phase: "tell", outcome: unrun.outcome === "skipped" ? { kind: "skipped" } : { kind: "failed", reason: unrun.reason } };
+    },
     phases: {
       // Hand the input over, after any input admitted before it that has not been.
       handOver: guarded(
@@ -156,7 +187,7 @@ export function turnTask(options: TurnTaskOptions) {
         async (turn, runtime, context) => {
           const { outcome } = turn.state.checkpoint;
           await delivery.tell(turn.input, outcome, runtime.signal);
-          await runtime.commit((tx) => finish(tx, turn.input, outcome, { status: "completed", result: null }), context);
+          await runtime.commit((tx) => finish(tx, turn.input, outcome, "completed"), context);
         },
         // Once more, to say that it failed; if that is what was being told, there is nothing left to try.
         (turn, runtime, context, failure) =>
@@ -172,11 +203,11 @@ export function turnTask(options: TurnTaskOptions) {
         const { checkpoint } = turn.state;
         const outcome = checkpoint.phase === "tell" ? checkpoint.outcome : await stopped(turn, runtime, context);
         await delivery.tell(turn.input, outcome, runtime.signal);
-        await runtime.commit((tx) => finish(tx, turn.input, outcome, { status: "aborted" }), context);
+        await runtime.commit((tx) => finish(tx, turn.input, outcome, "aborted"), context);
       } catch (error) {
         if (runtime.signal.aborted) throw error;
         const failure = asError(error);
-        const where = `${idOf(turn.input)} in thread ${turn.input.threadId}`;
+        const where = `${idOf(turn.input)} ${placeText(turn.input)}`;
         options.onError(new Error(`Stopping the work on ${where} failed: ${failure.message}`));
         await gaveUp(turn.input, runtime, context, failure);
       }
@@ -205,7 +236,7 @@ export async function followInput(
 
 async function sessionOf(input: Outstanding, runtime: Runtime, context: Context): Promise<ConversationHandle> {
   const session = await runtime.conversation(runtime.conversationId, context);
-  if (session === undefined) throw new Error(`The session for thread ${input.threadId} is gone.`);
+  if (session === undefined) throw new Error(`The session ${placeText(input)} is gone.`);
   return session;
 }
 
@@ -231,7 +262,7 @@ async function unhanded(turn: Turn, runtime: Runtime, context: Context): Promise
 }
 
 /** The tasks that follow an input and are live, with none of them being aborted: those of one session, or of all. */
-async function liveTurns(tx: Tx, conversationId?: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
+export async function liveTurns(tx: Tx, conversationId?: ConversationId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue>[]> {
   const found: TaskRecord<JsonValue, JsonValue, JsonValue>[] = [];
   for (const status of ["pending", "running"] as const) {
     let cursor: Cursor | undefined;
@@ -312,7 +343,7 @@ function gaveUp(input: Outstanding, runtime: Runtime, context: Context, failure:
   const error = { message: failure.message };
   return runtime.commit(async (tx) => {
     await forgetCrashes(tx, input);
-    return { status: "terminal", outcome: { status: "failed", error } };
+    return { status: "terminal", outcome: { status: "failed", error, result: { ended: "failed", reason: failure.message } } };
   }, context);
 }
 
@@ -321,18 +352,25 @@ const failedOutcome = (failure: Error): TurnOutcome => ({
   reason: `The agent hit an internal error: ${failure.message}`,
 });
 
-/** The input is done with: a skipped one is kept for the next input of its session, and the task ends. */
+/**
+ * The input is done with: a skipped one is kept for the next input of its
+ * session, and the task ends, keeping how the input ended in its record.
+ */
 async function finish(
   tx: Tx,
   input: Outstanding,
   outcome: TurnOutcome,
-  ended: TaskOutcome<null>,
-): Promise<NextTaskState<TurnState, null>> {
+  how: "completed" | "aborted",
+): Promise<NextTaskState<TurnState, Ending>> {
   await forgetCrashes(tx, input);
-  if (outcome.kind === "skipped") {
-    const session = (await tx.doc(ThreadsDoc)).sessions[input.threadId];
+  const address = sessionAddress(input);
+  if (outcome.kind === "skipped" && address !== undefined) {
+    const sessions = (await tx.doc(SessionsDoc)).sessions;
+    const session = Object.hasOwn(sessions, address) ? sessions[address] : undefined;
     if (session !== undefined) keepSkipped(session, input);
   }
+  const result = endingOf(input, outcome);
+  const ended: TaskOutcome<Ending> = how === "completed" ? { status: "completed", result } : { status: "aborted", result };
   return { status: "terminal", outcome: ended };
 }
 

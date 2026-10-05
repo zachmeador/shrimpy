@@ -19,7 +19,7 @@ import { socketPathFor } from "../lib/runtime/node.ts";
 import { carryCallers, guardSession } from "./access/index.ts";
 import { type Entry, type HomeFiles, serveDirectory } from "./directory.ts";
 import type { Host } from "./host/index.ts";
-import type { Sessions } from "./sessions/index.ts";
+import type { Sessions, Triggers } from "./sessions/index.ts";
 
 export type { HomeFiles } from "./directory.ts";
 
@@ -49,6 +49,7 @@ export interface ServerOptions {
 export async function startServer(
   host: Host,
   sessions: Sessions,
+  triggers: Triggers,
   files: HomeFiles,
   options: ServerOptions,
 ): Promise<AgentServer> {
@@ -60,7 +61,7 @@ export async function startServer(
   const gatewaySocket = socketPathFor(host.home, "gw");
   let takingInput = true;
   const serve = (socket: string, entry: Entry): Server =>
-    new Server(serverHost(sessions, files, () => takingInput, entry), {
+    new Server(serverHost(sessions, triggers, files, () => takingInput, entry), {
       serverId: endpoint.serverId,
       listeners: [createUnixListener({ path: socket })],
       onError(error) {
@@ -100,17 +101,26 @@ export async function startServer(
   };
 }
 
-function serverHost(sessions: Sessions, files: HomeFiles, takingInput: () => boolean, entry: Entry): ServerHost {
+function serverHost(
+  sessions: Sessions,
+  triggers: Triggers,
+  files: HomeFiles,
+  takingInput: () => boolean,
+  entry: Entry,
+): ServerHost {
   const serverServices: RoutedServerServiceHost = {
     attachClient(presentation) {
-      return offerToConnection(SessionDirectory, serveDirectory({ sessions, files, entry, presentation }));
+      return offerToConnection(
+        SessionDirectory,
+        serveDirectory({ sessions, triggers, files, entry, takingInput, presentation }),
+      );
     },
   };
   return {
     serverServices,
-    async resolveSession(threadId) {
-      if (!(await sessions.has(threadId))) throw new SessionNotFoundError(`Unknown session: ${threadId}`);
-      return { id: threadId };
+    async resolveSession(address) {
+      if (!(await sessions.has(address))) throw new SessionNotFoundError(`Unknown session: ${address}`);
+      return { id: address };
     },
     async openSession(metadata) {
       const served = await sessions.serve(metadata.id, takingInput);

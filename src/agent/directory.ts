@@ -2,11 +2,11 @@ import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import type { Member, Reloaded, SessionDirectory } from "../contracts/agent/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { type Caller, check, withCaller } from "./access/index.ts";
-import type { Sessions } from "./sessions/index.ts";
+import type { Sessions, Triggers } from "./sessions/index.ts";
 
-/** What the agent API asks of the agent's instructions. */
+/** What the agent API asks of the agent's instructions and triggers. */
 export interface HomeFiles {
-  /** Read the home's instructions, context files and skills again. */
+  /** Read the home's instructions, context files, skills and triggers again. */
   reload(): Promise<Reloaded>;
 }
 
@@ -19,8 +19,11 @@ export type Entry =
 
 export interface DirectoryParts {
   sessions: Sessions;
+  triggers: Triggers;
   files: HomeFiles;
   entry: Entry;
+  /** Whether new work may still be started: it may not once the agent is stopping. */
+  takingInput: () => boolean;
   /** This connection's way to pick the session it watches. */
   presentation: RoutedServerPresentation;
 }
@@ -30,10 +33,11 @@ export interface DirectoryParts {
  * is: the home's owner from the start if it came by the home's path, and
  * nobody until it has come in with a ticket if it came through the gateway,
  * which is the first thing it does. Every call after that asks `check` whether
- * its caller may.
+ * its caller may: watching the sessions and the triggers is watching, and
+ * firing a trigger starts work, which is control.
  */
 export function serveDirectory(parts: DirectoryParts): SessionDirectory {
-  const { sessions, files, entry, presentation } = parts;
+  const { sessions, triggers, files, entry, takingInput, presentation } = parts;
   let caller: Caller | undefined = entry.via === "home" ? { via: "home" } : undefined;
   let entering = false;
   const who = (): Caller =>
@@ -56,16 +60,29 @@ export function serveDirectory(parts: DirectoryParts): SessionDirectory {
       check(who(), "watch");
       return sessions.list();
     },
-    async attach(threadId, context) {
+    async attach(address, context) {
       const asking = who();
       check(asking, "watch");
       // Refused here, not by the router, so the reason reaches the client.
-      if (!(await sessions.has(threadId))) refuse(`This agent has no session for thread ${threadId} yet.`);
-      await presentation.attachSession(threadId, withCaller(context, asking));
+      if (!(await sessions.has(address))) refuse(`This agent has no session for ${address} yet.`);
+      await presentation.attachSession(address, withCaller(context, asking));
     },
     detach(context) {
       who();
       return presentation.detachSession(context);
+    },
+    async triggers() {
+      check(who(), "watch");
+      return triggers.list();
+    },
+    async trigger(name) {
+      check(who(), "watch");
+      return triggers.show(name);
+    },
+    async fire(name) {
+      check(who(), "control");
+      if (!takingInput()) refuse("The agent is stopping and is not taking new input.", "service_not_allowed");
+      return triggers.fire(name);
     },
     async reload() {
       check(who(), "administer");

@@ -13,14 +13,15 @@ export type Caller =
 
 /**
  * What a caller may be allowed to do at an agent. Messaging is the chat
- * server's, so what is left is looking at sessions, steering and stopping
- * them, and changing what the agent is told.
+ * server's, so what is left is looking at sessions and triggers, steering and
+ * stopping the sessions and firing the triggers, and changing what the agent is
+ * told.
  */
 export type Permission = "watch" | "control" | "administer";
 
 const WHAT: Record<Permission, string> = {
-  watch: "watch its sessions",
-  control: "steer or stop its sessions",
+  watch: "watch its sessions and triggers",
+  control: "steer or stop its sessions, or fire its triggers",
   administer: "change what it is told",
 };
 

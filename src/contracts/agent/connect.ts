@@ -2,7 +2,16 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ByteTransportFactory, DisconnectedError } from "@earendil-works/pi-client";
 import { openRoutedConnection, received } from "../../lib/connection/index.ts";
 import { SessionDirectory, SessionService } from "./services.ts";
-import type { Member, Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
+import type {
+  Member,
+  Occurrence,
+  Reloaded,
+  SessionSummary,
+  SessionView,
+  Settlement,
+  TriggerDetail,
+  TriggerSummary,
+} from "./view.ts";
 
 /** The connection to the agent dropped while a call was waiting for its answer. */
 export class AgentConnectionLostError extends Error {
@@ -17,8 +26,8 @@ export class AgentConnectionLostError extends Error {
 
 /** One attached session: its view, updates, and control. */
 export interface SessionHandle {
-  /** The thread the session is behind, which is how it was attached. */
-  readonly threadId: string;
+  /** The session's address, which is how it was attached. */
+  readonly id: string;
   readonly view: SessionView;
   /** Calls `listener` with the current view, then after every change. */
   subscribe(listener: (view: SessionView) => void): () => void;
@@ -37,11 +46,18 @@ export interface AgentConnection {
   enter(ticket: string): Promise<Member>;
   sessions(): Promise<SessionSummary[]>;
   /**
-   * Watch the session behind a thread. A thread the agent has no session for
-   * yet is refused. A connection watches one at a time; attaching again switches.
+   * Watch a session by its address: the thread's ID for a session behind a
+   * thread. A session the agent has not made yet is refused. A connection
+   * watches one at a time; attaching again switches.
    */
-  attach(threadId: string): Promise<SessionHandle>;
-  /** Make the agent read its home's instructions, context files and skills again. See `SessionDirectory.reload`. */
+  attach(session: string): Promise<SessionHandle>;
+  /** Every standing trigger of the agent. See `SessionDirectory.triggers`. */
+  triggers(): Promise<TriggerSummary[]>;
+  /** One trigger, with its definition and recent occurrences. See `SessionDirectory.trigger`. */
+  trigger(name: string): Promise<TriggerDetail>;
+  /** Fire a trigger once now. See `SessionDirectory.fire`. */
+  fire(name: string): Promise<Occurrence>;
+  /** Make the agent read its home's instructions, context files, skills and triggers again. See `SessionDirectory.reload`. */
   reload(): Promise<Reloaded>;
   /** Called once if the connection drops. Nothing reconnects by itself. */
   onDisconnect(listener: (reason: Error | undefined) => void): void;
@@ -86,11 +102,14 @@ export async function connectAgent(options: {
     enter: (ticket) => guarded(() => directory.enter(ticket, context)),
     sessions: () => guarded(() => directory.list(context)),
     reload: () => guarded(() => directory.reload(context)),
-    attach: (threadId) =>
+    triggers: () => guarded(() => directory.triggers(context)),
+    trigger: (name) => guarded(() => directory.trigger(name, context)),
+    fire: (name) => guarded(() => directory.fire(name, context)),
+    attach: (address) =>
       guarded(async () => {
-        const { service: session } = await connection.attach(threadId);
+        const { service: session } = await connection.attach(address);
         return {
-          threadId,
+          id: address,
           get view() {
             return received(session.state, "session view");
           },

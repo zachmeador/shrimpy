@@ -122,7 +122,8 @@ export function olderMessages(before: number, from: string | undefined): string 
 export const CHECK_DESCRIPTION =
   "Wake yourself once, later, to look at something again, such as a build or a deploy. Say how long to wait with " +
   "in, or what time with at, and write a note to yourself about what to check. Use it instead of waiting in a " +
-  "command with sleep: call it, then end your turn. When the time comes you are woken in this thread, with your note.";
+  "command with sleep: call it, then end your turn. When the time comes you are woken in this same conversation, " +
+  "with your note.";
 export const CHECK_IN =
   "How long to wait: a whole number and a unit, s, m, h or d, such as 30s, 5m, 2h or 1d. Give this or at, not both.";
 export const CHECK_AT =
@@ -160,8 +161,8 @@ export const tooMany = (waiting: number): string =>
   `Not set: ${waiting} wake-ups are already waiting for you, which is the most there can be. ` +
   "Wait for one to wake you first.";
 
-export const wakeSet = (due: number, askedAt: number): string =>
-  `You will be woken in this thread at ${utc(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now.`;
+export const wakeSet = (due: number, askedAt: number, inThread: boolean): string =>
+  `You will be woken ${inThread ? "in this thread " : ""}at ${utc(due)}, in ${howLong(due - askedAt)}, with your note. You can end your turn now.`;
 
 /** A length of time in its two largest units: "2 hours 30 minutes", "5 minutes", "1 day". */
 export function howLong(milliseconds: number): string {

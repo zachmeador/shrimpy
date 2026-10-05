@@ -14,9 +14,12 @@ async function standInAgent(t: TestContext, attach: (threadId: string) => Promis
     offer: () =>
       offer(SessionDirectory, {
         enter: () => Promise.resolve({ id: "mem_you", kind: "person", name: "you" }),
-        list: () => Promise.resolve([{ threadId: "th_1", channelId: "ch_1", working: false }]),
+        list: () => Promise.resolve([{ id: "th_1", threadId: "th_1", channelId: "ch_1", working: false }]),
         attach: (threadId) => attach(threadId),
         detach: () => Promise.resolve(),
+        triggers: () => Promise.resolve([]),
+        trigger: () => Promise.reject(new Error("No triggers here.")),
+        fire: () => Promise.reject(new Error("No triggers here.")),
         reload: () => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] }),
       }),
   });

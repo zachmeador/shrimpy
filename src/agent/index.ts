@@ -12,13 +12,21 @@
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { type ContextPreview, homeContext, messageTools, previewContext, wakeupTools } from "./extensions/index.ts";
-import { homePaths, loadHome } from "./home/index.ts";
+import { homePaths, loadHome, readTriggers } from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/index.ts";
 import { createDelivery } from "./intake/index.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
-import { startServer } from "./server.ts";
-import { createSessions, createWakeups, openRecords, type Run, type SessionDefaults, turnTask } from "./sessions/index.ts";
+import { type HomeFiles, startServer } from "./server.ts";
+import {
+  createSessions,
+  createTriggers,
+  createWakeups,
+  openRecords,
+  type Run,
+  type SessionDefaults,
+  turnTask,
+} from "./sessions/index.ts";
 import { type CloseOptions, stopper } from "./stop.ts";
 
 export type { ContextPreview } from "./extensions/index.ts";
@@ -48,6 +56,8 @@ export interface AgentOptions extends HostOptions {
   model: SessionDefaults["model"];
   /** Take part in the network and in chat. Without it, nothing reaches the agent but clients that attach to its sessions. */
   join?: JoinOptions;
+  /** The shortest a trigger may repeat at, in milliseconds. A minute, if not given. Tests shorten it. */
+  shortestEveryMs?: number;
 }
 
 export interface RunningAgent {
@@ -102,16 +112,43 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     });
     const turn = turnTask({ delivery, onError: report });
     const wakeups = createWakeups(turn.task, { onError: report });
-    host.install(context.extension, messages, wakeupTools({ wakeups }), turn.extension, wakeups.extension);
-    const sessions = createSessions(host.harness, { model: options.model, cwd: host.home }, turn.task);
+    const defaults: SessionDefaults = { model: options.model, cwd: host.home };
+    const triggers = createTriggers(host.harness, {
+      turn: turn.task,
+      defaults,
+      read: () =>
+        readTriggers(homePaths(options.home), {
+          ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
+        }),
+      onError: report,
+    });
+    host.install(
+      context.extension,
+      messages,
+      wakeupTools({ wakeups }),
+      turn.extension,
+      wakeups.extension,
+      triggers.extension,
+    );
+    const sessions = createSessions(host.harness, defaults, turn.task);
     // Sessions from an earlier start follow the home as it is now, before any of their work resumes.
     await sessions.applyDefaults();
     // The records say the agent is running, and what the last run's end cost the turns it interrupted, before any of
     // them resumes: a turn that has crashed too often is stopped here and does not run again.
     run = await sessions.start();
+    // The triggers follow the files of the home before any of their work resumes: a trigger whose schedule changed
+    // while the agent was down is not woken by its old one.
+    for (const { file, reason } of await triggers.reload()) report(new Error(`${file} was left out: ${reason}.`));
     host.resume();
+    // Reloading reads the instructions, context files and skills, and the triggers.
+    const files: HomeFiles = {
+      async reload() {
+        const read = await context.reload();
+        return { ...read, leftOut: [...read.leftOut, ...(await triggers.reload())] };
+      },
+    };
     // The gateway is joined once the server is up, so a ticket is checked over the connection it keeps, when there is one.
-    const server = await startServer(host, sessions, context, {
+    const server = await startServer(host, sessions, triggers, files, {
       whose: (ticket) => whoseTicket(() => joined?.gateway(), ticket),
     });
     try {

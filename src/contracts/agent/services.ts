@@ -1,7 +1,16 @@
 import { type Context, defineService, type ReplicatedState } from "@earendil-works/chord";
-import type { Member, Reloaded, SessionSummary, SessionView, Settlement } from "./view.ts";
+import type {
+  Member,
+  Occurrence,
+  Reloaded,
+  SessionSummary,
+  SessionView,
+  Settlement,
+  TriggerDetail,
+  TriggerSummary,
+} from "./view.ts";
 
-/** Agent scope: which sessions exist, which one this connection watches, and the agent's home. */
+/** Agent scope: which sessions exist, which one this connection watches, the agent's triggers, and the agent's home. */
 export interface SessionDirectory {
   /**
    * Come in, before anything else, with a ticket the gateway made for this
@@ -19,17 +28,42 @@ export interface SessionDirectory {
   enter(ticket: string, context: Context): Promise<Member>;
   list(context: Context): Promise<SessionSummary[]>;
   /**
-   * Watch the session behind a thread: the thread's ID is its address. A
-   * thread the agent has no session for yet is refused, with a message that
-   * says so. A connection watches one session at a time.
+   * Watch a session by its address, which `list` gives: a thread's ID for a
+   * session behind a thread, and `trigger:` and the trigger's name for a
+   * trigger's own session. A session the agent has not made yet is refused,
+   * with a message that says so. A connection watches one session at a time.
    */
-  attach(threadId: string, context: Context): Promise<void>;
+  attach(session: string, context: Context): Promise<void>;
   detach(context: Context): Promise<void>;
   /**
-   * Read the home's instructions, context files and skills again. Each session
-   * uses what changed with its next request, and what it already holds stays as
-   * it was. A file that cannot be used is left out and named in the answer; it
-   * never makes the reload fail.
+   * Every standing trigger the agent has, in order of name, with its schedule,
+   * whether it is on, when its next occurrence is due and how its last one
+   * ended. The agent reads its triggers from the files of its home when it
+   * starts and when it reloads, and this is what it runs now.
+   */
+  triggers(context: Context): Promise<TriggerSummary[]>;
+  /**
+   * One trigger with its definition and its most recent occurrences, newest
+   * first, read from the agent's records. A trigger the agent does not have is
+   * refused.
+   */
+  trigger(name: string, context: Context): Promise<TriggerDetail>;
+  /**
+   * Fire a trigger once now, apart from its schedule, which it keeps. Answers
+   * with the occurrence it made, which has not ended yet unless it was skipped:
+   * a trigger that does not allow overlap skips it while its last occurrence is
+   * going. A trigger that is off can still be fired. A trigger the agent does
+   * not have is refused.
+   */
+  fire(name: string, context: Context): Promise<Occurrence>;
+  /**
+   * Read the home's instructions, context files, skills and triggers again.
+   * Each session uses what changed with its next request, and what it already
+   * holds stays as it was. A trigger follows its file at once: a new schedule
+   * counts from now, a new prompt is used from the next occurrence, and a file
+   * that is gone or says `enabled: false` ends the trigger. A file that cannot
+   * be used is left out and named in the answer, and never makes the reload
+   * fail; a trigger whose file cannot be used keeps its last valid definition.
    */
   reload(context: Context): Promise<Reloaded>;
 }

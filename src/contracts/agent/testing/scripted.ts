@@ -25,7 +25,7 @@ export interface ScriptedSession {
 /**
  * An agent's sessions, scripted by a test: which exist, what each shows, and
  * what clients did to them. It answers the agent API as the agent does, with
- * the same refusal for a thread it has no session for.
+ * the same refusal for a session it has none of.
  */
 export interface ScriptedAgent {
   /**
@@ -46,6 +46,8 @@ interface Held {
   session: ScriptedSession;
   service: SessionService;
 }
+
+const noTrigger = (name: string): Refusal => new Refusal(`This agent has no trigger called ${name}.`);
 
 export function scriptedAgent(): ScriptedAgent {
   const held = new Map<string, Held>();
@@ -110,18 +112,23 @@ export function scriptedAgent(): ScriptedAgent {
           admitted(() =>
             Promise.resolve(
               [...held.values()].map(({ session: each }) => ({
+                id: each.threadId,
                 threadId: each.threadId,
                 channelId: each.channelId,
                 working: working(each.view),
               })),
             ),
           ),
-        attach: (threadId, context) =>
+        attach: (address, context) =>
           admitted(async () => {
-            if (!held.has(threadId)) refuse(`This agent has no session for thread ${threadId} yet.`);
-            await presentation.attachSession(threadId, context);
+            if (!held.has(address)) refuse(`This agent has no session for ${address} yet.`);
+            await presentation.attachSession(address, context);
           }),
         detach: (context) => admitted(() => presentation.detachSession(context)),
+        // A scripted agent has no triggers.
+        triggers: () => admitted(() => Promise.resolve([])),
+        trigger: (name) => admitted(() => Promise.reject(noTrigger(name))),
+        fire: (name) => admitted(() => Promise.reject(noTrigger(name))),
         reload: () => admitted(() => Promise.resolve({ soul: false, files: 0, skills: 0, leftOut: [] })),
       };
     },
