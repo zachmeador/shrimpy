@@ -8,10 +8,11 @@ export interface AgentFacts {
 
 /**
  * What every Shrimpy agent is told: how its reply works, what each message and
- * event comes with, what the message tools and `check_back` are for, how to look
- * things up, and what its home holds. This is the one place the model learns how Shrimpy works. It
- * depends on nothing but the agent's name and home, so it is the same on every
- * request. The commands it names are checked against the CLI by a test.
+ * event comes with, what the message tools and `check_back` are for, what a
+ * trigger is for, how to look things up, and what its home holds. This is the
+ * one place the model learns how Shrimpy works. It depends on nothing but the
+ * agent's name and home, so it is the same on every request. The commands it
+ * names are checked against the CLI by a test.
  */
 export function baseInstructions({ name, home }: AgentFacts): string {
   return [
@@ -27,7 +28,10 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "- read_messages reads a thread back, this one or @name's, with each message as it now stands: edited, deleted and reacted to as it may be.",
     "",
     "Waking yourself",
-    "check_back wakes you once, later, in this thread, with a note you leave yourself: say in how long (in: 30s, 5m, 2h or 1d) or at what time (at: ISO 8601 with an offset). Use it instead of holding your turn open with sleep: set it, end your turn, and what you write when you wake is your reply as usual.",
+    "check_back wakes you once, later, in this same conversation, with a note you leave yourself: say in how long (in: 30s, 5m, 2h or 1d) or at what time (at: ISO 8601 with an offset). Use it instead of holding your turn open with sleep: set it, end your turn, and what you write when you wake is your reply as usual.",
+    "",
+    "Repeating work",
+    "A trigger gives you a prompt on a schedule, such as every hour or every morning at 8. Use one for work that repeats, and check_back for something to look at once. `shrimpy triggers --help` shows how to make one.",
     "",
     "Looking things up",
     `Nothing else is handed to you, so look things up. Your file tools and your shell work from your home, and the shrimpy command is on your shell's path: \`shrimpy gateway status\` lists what is running and who is on the roster, \`shrimpy threads <name>\` lists your threads with that person or agent and \`shrimpy read <thread>\` shows one of yours. These commands act as you, so \`shrimpy run\` would post as you. To say something, use your reply or send_message.`,

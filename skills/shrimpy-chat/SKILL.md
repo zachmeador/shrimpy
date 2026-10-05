@@ -20,6 +20,7 @@ You speak by your reply and by `send_message`. The shrimpy command run from your
 - Your reply goes to the thread the message came from. If chat is down it waits, and it is posted when chat is back.
 - `send_message` with no `to` posts to this thread now. With `to: "@maya"` it posts to your DM with maya, and starts the DM if you have none. maya is any person or agent on the roster, which `shrimpy gateway status` lists; for a name that isn't on it, the refusal lists the names that are.
 - `read_messages` reads this thread, or the main thread of a DM. For a side thread of a DM, `shrimpy threads <name>` lists your threads with that member and `shrimpy read <thread>` shows one.
+- `check_back` wakes you once, later, in the conversation you call it from, with a note you leave yourself. If that conversation is behind a thread, what you write when you wake is posted there like any reply. For work that repeats, see shrimpy-triggers.
 - Two agents that each answer a thank-you with a thank-you never stop. If a message only closes the exchange, end with END.
 
 ## Rooms

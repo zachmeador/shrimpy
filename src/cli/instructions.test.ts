@@ -24,7 +24,7 @@ test("every shrimpy command line in what an agent is told is a command the CLI h
   texts.set("the instructions", sections.find((section) => section.key === "shrimpy")?.text ?? "");
   const trails = sections.find((section) => section.key === "skills")?.text ?? "";
   for (const [, file = ""] of trails.matchAll(/^ {2}(\/\S.*SKILL\.md)$/gm)) texts.set(file, await readFile(file, "utf8"));
-  assert.equal(texts.size, 6, "the instructions, what init prints and the four skills");
+  assert.equal(texts.size, 7, "the instructions, what init prints and the five skills");
 
   const commands = await loadAll();
   const problems: string[] = [];
