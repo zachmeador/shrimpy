@@ -1,14 +1,16 @@
 import { defineDoc } from "@earendil-works/pi-durable";
-import type { Outstanding, Snapshot } from "../intake/index.ts";
+import type { Snapshot } from "../intake/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
  * commits as the work they belong to. The engine has no place for these: which
- * thread a session belongs to, what the agent has picked up and still owes a
- * receipt for, and where it stands in chat's feed.
+ * thread a session belongs to, and where the agent stands in chat's feed.
  *
- * Their version is 2, the first to keep events. The engine refuses a home
- * written by version 1 instead of reading its messages as events.
+ * Their version rises when a home written under the old meaning must be refused
+ * and not read as current: the engine refuses it, and `records.ts` says what to
+ * do. A home written before every event had a task of its own keeps the events
+ * it has not answered in a record that is no longer read, so reading it would
+ * drop them.
  */
 
 /** The session behind a thread, and the events in the thread the agent has not acted on. */
@@ -23,23 +25,15 @@ export type ThreadSession = {
 /** Every thread the agent takes part in, with its session. A session never changes its thread. */
 export const ThreadsDoc = defineDoc<{ sessions: Record<string, ThreadSession> }>({
   kind: "shrimpy.threads",
-  version: 2,
+  version: 3,
   scope: "session",
   initial: () => ({ sessions: {} }),
-});
-
-/** The outbox: the events picked up, by ID, until the receipt on each is left. */
-export const OutboxDoc = defineDoc<{ entries: Record<string, Outstanding> }>({
-  kind: "shrimpy.outbox",
-  version: 2,
-  scope: "session",
-  initial: () => ({ entries: {} }),
 });
 
 /** Where the agent stands in chat's feed: the position of the last event it is done with. */
 export const FeedDoc = defineDoc<{ cursor: number | null }>({
   kind: "shrimpy.feed",
-  version: 2,
+  version: 3,
   scope: "session",
   initial: () => ({ cursor: null }),
 });

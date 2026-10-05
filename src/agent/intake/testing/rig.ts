@@ -1,14 +1,13 @@
 import type { TestContext } from "node:test";
 import { DisconnectedError } from "@earendil-works/pi-client";
-import { type ChatConnection, connectChat } from "../../../contracts/chat/index.ts";
+import { type ChatConnection, connectChat, type Message } from "../../../contracts/chat/index.ts";
 import { gatewayAsAgent } from "../../../contracts/chat/testing/index.ts";
 import { localTransports } from "../../../contracts/gateway/node.ts";
 import { backoff } from "../../../lib/retry/index.ts";
 import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
-import { openChatLink } from "../../links/index.ts";
+import { type ChatLink, openChatLink } from "../../links/index.ts";
 import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
-import { type IntakeOptions, startIntake } from "../index.ts";
-import { type ScriptedTurns, scriptedTurns } from "./turns.ts";
+import { createDelivery, type Delivery, type DeliveryOptions, type Outstanding } from "../index.ts";
 
 type Method = "post" | "leaveReceipt";
 
@@ -22,58 +21,69 @@ export interface Faults {
   calls(method: Method): number;
 }
 
-export interface IntakeRig extends Talk {
+export interface ChatRig extends Talk {
   readonly chat: ChatServer;
-  readonly turns: ScriptedTurns;
+  /** The agent's way to chat. */
+  readonly link: ChatLink;
+  /** A delivery over that link. */
+  readonly delivery: Delivery;
   readonly faults: Faults;
-  /** What the link and the intake reported. */
+  /** What the link and the delivery reported. */
   readonly errors: Error[];
-}
-
-export interface IntakeRigOptions extends Partial<Pick<IntakeOptions, "messageLimit">> {
-  /** The chat server to use; by default a new one. */
-  chat?: ChatServer;
-  /** The records to use; by default new ones. A restarted agent is a second rig over the same two. */
-  turns?: ScriptedTurns;
+  /** The event a message of the person's made, as the agent would have taken it up. */
+  outstanding(message: Message): Outstanding;
 }
 
 /**
- * An intake for the agent Scout, wired to the real chat server and gateway and
- * scripted turns, with the person who runs the gateway to talk to it. Scout is
- * a member of the roster here, signed in on a connection to the gateway that
- * makes the tickets it comes in with, without being a running agent. Pauses
- * between retries are a few milliseconds. The intake and its link are stopped
- * when the test ends.
+ * The agent Scout's way to chat, and a delivery over it, wired to the real chat
+ * server and gateway, with the person who runs the gateway to talk to it.
+ * Scout is a member of the roster here, signed in on a connection to the
+ * gateway that makes the tickets it comes in with, without being a running
+ * agent. Pauses between retries are a few milliseconds. The delivery and the
+ * link are stopped when the test ends.
  */
-export async function startIntakeRig(t: TestContext, options: IntakeRigOptions = {}): Promise<IntakeRig> {
+export async function startChatRig(
+  t: TestContext,
+  options: Pick<DeliveryOptions, "messageLimit"> = {},
+): Promise<ChatRig> {
   useRuntimeDir(t);
-  const chat = options.chat ?? (await startChatServer(t));
-  // A second rig on the same chat server is the same agent coming back: it signs in with the token it joined with.
+  const chat = await startChatServer(t);
   const gateway = await gatewayAsAgent(t, SCOUT);
   const talk = await talkTo(chat);
-  const turns = options.turns ?? scriptedTurns();
   const errors: Error[] = [];
   const faults = planFaults();
 
   const link = openChatLink({
     gateway: { untilUp: () => Promise.resolve(gateway) },
     transports: localTransports(),
-    connect: async (options) => faulty(await connectChat(options), faults),
+    connect: async (connecting) => faulty(await connectChat(connecting), faults),
     onError: (error) => errors.push(error),
     backoff: backoff({ firstMs: 5, maxMs: 20 }),
   });
-  const intake = startIntake({
-    link,
-    turns,
+  const delivery = createDelivery({
     onError: (error) => errors.push(error),
     backoff: () => backoff({ firstMs: 5, maxMs: 20 }),
     ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),
   });
-  // Stops run newest first: the intake stops before the link it uses.
+  delivery.attach(link);
+  // Stops run newest first: the delivery stops before the link it uses.
   stopAfter(t, () => link.close());
-  stopAfter(t, () => intake.close());
+  stopAfter(t, () => delivery.close());
 
-  return { ...talk, chat, turns, faults: faults.faults, errors };
+  return {
+    ...talk,
+    chat,
+    link,
+    delivery,
+    faults: faults.faults,
+    errors,
+    outstanding: (message) => ({
+      event: { kind: "posted", id: message.event, seq: message.seq, author: message.author.name, sentAt: message.sentAt, text: message.text },
+      threadId: message.threadId,
+      channelId: message.channelId,
+      earlier: [],
+    }),
+  };
 }
 
 interface FaultPlan {

@@ -19,3 +19,13 @@ export function untilAborted(signal: AbortSignal): Promise<void> {
     signal.addEventListener("abort", () => resolve(), { once: true });
   });
 }
+
+/** What `promise` resolves with, or a rejection with the reason `signal` aborts with, whichever comes first. */
+export function orAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const cancel = (): void => reject(signal.reason as Error);
+    if (signal.aborted) return cancel();
+    signal.addEventListener("abort", cancel, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", cancel));
+  });
+}

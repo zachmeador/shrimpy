@@ -1,0 +1,54 @@
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
+import type { Admissions, Snapshot } from "../intake/index.ts";
+import { agentChange, type SessionDefaults } from "./defaults.ts";
+import { FeedDoc, plain, ThreadsDoc } from "./documents.ts";
+import type { TurnTask } from "./turn-task.ts";
+
+const context = BACKGROUND_CONTEXT;
+
+/**
+ * Intake's view of the agent's records, over the engine. Each thread has one
+ * session, made when the first event in it is taken up, in the same commit
+ * that creates the task that follows the event and moves the feed's cursor
+ * past it. Nothing is lost between an event being read and being taken up, and
+ * nothing is taken up twice.
+ */
+export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask): Admissions {
+  return {
+    async cursor() {
+      return (await harness.snapshot(FeedDoc, context))?.cursor ?? undefined;
+    },
+
+    async setCursor(seq) {
+      await harness.commit(async (tx) => {
+        (await tx.doc(FeedDoc)).cursor = seq;
+      }, context);
+    },
+
+    admit(draft) {
+      return harness.commit(async (tx) => {
+        (await tx.doc(FeedDoc)).cursor = draft.event.seq;
+        const threads = (await tx.doc(ThreadsDoc)).sessions;
+        const known = Object.hasOwn(threads, draft.threadId) ? threads[draft.threadId] : undefined;
+        let conversationId: ConversationId;
+        let earlier: Snapshot[] = [];
+        if (known === undefined) {
+          conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
+          await configure(tx, conversationId, agentChange(defaults));
+          threads[draft.threadId] = { conversationId, channelId: draft.channelId, unacted: [] };
+        } else {
+          conversationId = known.conversationId as ConversationId;
+          earlier = plain(known.unacted);
+          known.unacted = [];
+        }
+        // Background, so a stop of the session's work leaves the task to report how that ended.
+        await tx.createTask(
+          turn,
+          { ...plain(draft), earlier },
+          { ownership: { kind: "conversation" }, conversationId, background: true },
+        );
+      }, context);
+    },
+  };
+}

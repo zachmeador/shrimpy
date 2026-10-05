@@ -1,54 +1,55 @@
-import type { ChatLink } from "../links/index.ts";
-
-/** Who the agent tells chat it is working for. */
-export interface WorkingMarks {
-  /** One more message is being worked on in the thread. */
-  add(threadId: string): void;
-  /** One of them is done. When the last one is, the thread is no longer marked. */
-  remove(threadId: string): void;
-}
+import type { ChatLink, LiveChat } from "../links/index.ts";
+import type { Working } from "./events.ts";
 
 /**
- * Keep chat told which threads the agent is working in, from picking a message
- * up until its receipt is left. A mark lasts as long as the connection that
- * made it, so each new connection is told again, and while there is none
- * nothing is sent. Calls go out in the order they were asked for.
+ * Keep chat told which threads the agent is working in, as its sessions say:
+ * a thread is marked from the moment an event in it is taken up until the
+ * receipt on its last event is left. A mark lasts as long as the connection
+ * that made it, so each new connection is told the whole list again, and while
+ * there is none nothing is sent. Calls go out one at a time. Returns what stops it.
  */
-export function workingMarks(link: ChatLink, onError: (error: Error) => void): WorkingMarks {
-  const counts = new Map<string, number>();
-  let sending: Promise<void> = Promise.resolve();
+export function markWorking(link: ChatLink, working: Working, onError: (error: Error) => void): () => void {
+  /** The threads marked on the connection that is up. */
+  let marked: { live: LiveChat; threads: Set<string> } | undefined;
+  let syncing: Promise<void> = Promise.resolve();
 
-  const tell = (threadId: string, working: boolean): void => {
-    sending = sending.then(async () => {
-      const live = link.current();
-      if (live === undefined) return;
-      try {
-        await live.chat.setWorking(threadId, working, live.lost);
-      } catch (error) {
-        if (!live.lost.aborted) onError(error instanceof Error ? error : new Error(String(error)));
-      }
-    });
+  async function mark(live: LiveChat, threadId: string, on: boolean): Promise<boolean> {
+    try {
+      await live.chat.setWorking(threadId, on, live.lost);
+      return true;
+    } catch (error) {
+      if (!live.lost.aborted) onError(asError(error));
+      return false;
+    }
+  }
+
+  async function sync(): Promise<void> {
+    const live = link.current();
+    if (live === undefined) return;
+    if (marked?.live !== live) marked = { live, threads: new Set() };
+    const here = marked.threads;
+    let wanted: ReadonlySet<string>;
+    try {
+      wanted = await working.threads();
+    } catch (error) {
+      onError(asError(error));
+      return;
+    }
+    for (const threadId of wanted) {
+      if (!here.has(threadId) && (await mark(live, threadId, true))) here.add(threadId);
+    }
+    for (const threadId of [...here]) {
+      if (!wanted.has(threadId) && (await mark(live, threadId, false))) here.delete(threadId);
+    }
+  }
+
+  const sooner = (): void => {
+    syncing = syncing.then(sync);
   };
-
-  link.onUp(() => {
-    for (const threadId of counts.keys()) tell(threadId, true);
-  });
-
-  return {
-    add(threadId) {
-      const count = counts.get(threadId) ?? 0;
-      counts.set(threadId, count + 1);
-      if (count === 0) tell(threadId, true);
-    },
-    remove(threadId) {
-      const count = counts.get(threadId);
-      if (count === undefined) return;
-      if (count > 1) {
-        counts.set(threadId, count - 1);
-        return;
-      }
-      counts.delete(threadId);
-      tell(threadId, false);
-    },
+  const stops = [link.onUp(sooner), working.onChange(sooner)];
+  return () => {
+    for (const stop of stops) stop();
   };
 }
+
+const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

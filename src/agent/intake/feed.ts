@@ -2,18 +2,16 @@ import type { ChatEvent } from "../../contracts/chat/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { ChatLink, LiveChat } from "../links/index.ts";
+import type { Admissions } from "./events.ts";
 import { pause } from "./pause.ts";
-import type { Turns } from "./events.ts";
-import { type Taken, takeUp } from "./wake.ts";
+import { takeUp } from "./wake.ts";
 
 /** Events asked for at a time. */
 const FEED_LIMIT = 50;
 
 export interface FeedOptions {
   link: ChatLink;
-  turns: Turns;
-  /** Take an event that wakes the agent. The agent's place in the feed moves past it only once this returns. */
-  admit(taken: Taken): Promise<void>;
+  admissions: Admissions;
   /** Told of failures, each time one ends an attempt to read. */
   onError(error: Error): void;
   /** Abort to stop reading. */
@@ -32,7 +30,7 @@ export interface FeedOptions {
  * connection that chat cuts off is carried on over the next one, without a pause.
  */
 export async function readFeed(options: FeedOptions): Promise<void> {
-  const { link, turns, stop } = options;
+  const { link, admissions, stop } = options;
   const stopped = (): boolean => stop.aborted;
   const pauses = options.backoff ?? backoff();
   let loaded = false;
@@ -43,7 +41,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
   const moveTo = async (seq: number): Promise<number> => {
     cursor = seq;
     if (seq !== stored) {
-      await turns.setCursor(seq);
+      await admissions.setCursor(seq);
       stored = seq;
     }
     return seq;
@@ -71,8 +69,9 @@ export async function readFeed(options: FeedOptions): Promise<void> {
       for (const event of events) {
         const taken = takeUp(self, event);
         if (taken !== undefined) {
-          await options.admit(taken);
-          at = await moveTo(event.seq);
+          // The agent's place in the feed moves in the commit that takes the event up.
+          await admissions.admit(taken);
+          cursor = stored = at = event.seq;
         } else {
           at = event.seq;
         }
@@ -84,7 +83,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
   while (!stopped()) {
     try {
       if (!loaded) {
-        cursor = stored = await turns.cursor();
+        cursor = stored = await admissions.cursor();
         loaded = true;
       }
       await link.use(follow, stop);

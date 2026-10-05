@@ -1,22 +1,6 @@
-import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
-import type { Conversation, EntryRecord, SettledSubmissionRecord, Submission } from "@earendil-works/pi-durable";
-import type { Turn, TurnOutcome } from "../intake/index.ts";
-import { answerEntry, answerText, describe } from "./settlement.ts";
-
-/** The turn a message became: the submission its text was handed over as. */
-export function turnOf(conversation: Conversation, submission: Submission): Turn {
-  let settled: SettledSubmissionRecord | undefined;
-  return {
-    async ended(signal) {
-      settled = await submission.wait(withAbortSignal(signal, BACKGROUND_CONTEXT));
-    },
-    async outcome() {
-      if (settled === undefined) throw new Error("The turn has not ended.");
-      const answer = await answerEntry(conversation, settled.status === "done" ? settled.answer : undefined, BACKGROUND_CONTEXT);
-      return toOutcome(settled, answer);
-    },
-  };
-}
+import type { EntryRecord, SettledSubmissionRecord } from "@earendil-works/pi-durable";
+import type { TurnOutcome } from "../intake/index.ts";
+import { answerText, describe } from "./settlement.ts";
 
 /**
  * How a settled input ended, in the terms a message's receipt uses. `answer` is

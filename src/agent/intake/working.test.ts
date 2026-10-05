@@ -1,41 +1,44 @@
-import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
-import type { Message } from "../../contracts/chat/index.ts";
-import { until } from "../../lib/testing/index.ts";
-import { type IntakeRig, startIntakeRig } from "./testing/index.ts";
+import { stopAfter } from "../../lib/testing/index.ts";
+import type { Working } from "./events.ts";
+import { startChatRig } from "./testing/index.ts";
+import { markWorking } from "./working.ts";
 
 const timeout = 15_000;
 
-async function sayAndWait(rig: IntakeRig, text: string): Promise<Message> {
-  const said = await rig.say(text);
-  await until(() => rig.turns.handed.has(said.event), `"${text}" to be handed over`);
-  return said;
+/** What the sessions know, as a test says it: the threads being worked in, which it changes. */
+function sessionsWorkingIn() {
+  let threads: string[] = [];
+  const listeners = new Set<() => void>();
+  const working: Working = {
+    threads: () => Promise.resolve(new Set(threads)),
+    onChange(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    untilTold: () => Promise.resolve(),
+  };
+  return {
+    working,
+    set(next: string[]) {
+      threads = next;
+      for (const listener of listeners) listener();
+    },
+  };
 }
 
-test("the mark stays while any message in the thread is still being worked on", { timeout }, async (t) => {
-  const rig = await startIntakeRig(t);
-  const one = await sayAndWait(rig, "one");
-  const two = await sayAndWait(rig, "two");
+test("chat is told which thread the agent is working in, and again on a new connection, until the work is done", { timeout }, async (t) => {
+  const rig = await startChatRig(t);
+  const sessions = sessionsWorkingIn();
+  stopAfter(t, markWorking(rig.link, sessions.working, (error) => rig.errors.push(error)));
 
-  rig.turns.end({ kind: "stopped" }, one.event);
-  await until(() => rig.turns.settled.length === 1, "the first message to be settled");
-  await delay(30);
-  assert.deepEqual(await rig.working(), [rig.partner.id]);
-  rig.turns.end({ kind: "skipped" }, two.event);
-
-  await rig.untilIdle();
-});
-
-test("a mark made on a connection that was lost is made again on the next one", { timeout }, async (t) => {
-  const rig = await startIntakeRig(t);
-  const said = await sayAndWait(rig, "hello");
+  sessions.set([rig.thread.id]);
   await rig.untilWorking();
 
   await rig.chat.outage();
   await rig.chat.recover();
-
   await rig.untilWorking();
-  rig.turns.end({ kind: "stopped" }, said.event);
+
+  sessions.set([]);
   await rig.untilIdle();
 });

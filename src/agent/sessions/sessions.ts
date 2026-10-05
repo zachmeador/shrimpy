@@ -1,12 +1,14 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
 import type { SessionSummary } from "../../contracts/agent/index.ts";
-import type { Turns } from "../intake/index.ts";
+import type { Admissions, Working } from "../intake/index.ts";
+import { createAdmissions } from "./admissions.ts";
 import { agentChange, type SessionDefaults } from "./defaults.ts";
 import { ThreadsDoc, type ThreadSession } from "./documents.ts";
 import { checkRecords } from "./records.ts";
 import { type ServedSession, serveSession } from "./service.ts";
-import { createTurns } from "./turns.ts";
+import type { TurnTask } from "./turn-task.ts";
+import { createWorking } from "./working.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -25,11 +27,13 @@ export interface Sessions {
   check(file: string): Promise<void>;
   /** Make every session follow the home's model and working directory, as a new session does from the start. */
   applyDefaults(): Promise<void>;
-  /** What intake hands chat messages to and keeps its records in. */
-  readonly turns: Turns;
+  /** What intake takes events up through, and keeps its place in the feed with. */
+  readonly admissions: Admissions;
+  /** What intake asks about the events taken up and not yet answered. */
+  readonly working: Working;
 }
 
-export function createSessions(harness: Harness, defaults: SessionDefaults): Sessions {
+export function createSessions(harness: Harness, defaults: SessionDefaults, turn: TurnTask): Sessions {
   const threads = async (): Promise<Record<string, ThreadSession>> =>
     (await harness.snapshot(ThreadsDoc, context))?.sessions ?? {};
 
@@ -71,7 +75,8 @@ export function createSessions(harness: Harness, defaults: SessionDefaults): Ses
       }, context);
     },
 
-    turns: createTurns(harness, defaults),
+    admissions: createAdmissions(harness, defaults, turn),
+    working: createWorking(harness),
   };
 }
 

@@ -4,7 +4,7 @@ import type { GatewayConnection, Transports } from "../contracts/gateway/index.t
 import { localTransports } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { homePaths } from "./home/index.ts";
-import { startIntake, type Turns } from "./intake/index.ts";
+import { type Admissions, type Delivery, startIntake, type Working } from "./intake/index.ts";
 import { joinGateway, type LiveChat, openChatLink } from "./links/index.ts";
 
 export interface JoinOptions {
@@ -28,11 +28,11 @@ export interface Joined {
   gateway(): GatewayConnection | undefined;
   /** The connection to chat that is up right now, if one is. The agent's tools talk to chat over it. */
   chat(): LiveChat | undefined;
-  /** Stop reading chat's feed. Turns already taken carry on. */
+  /** Stop reading chat's feed. Events already taken up carry on. */
   stopTaking(): void;
   /** Wait until the turns that have ended have been told to chat, or `signal` aborts. */
   drain(signal: AbortSignal): Promise<void>;
-  /** Leave the gateway and chat. What was not delivered stays in the outbox for the next start. */
+  /** Leave the gateway and chat. What was not delivered waits in its task for the next start. */
   close(): Promise<void>;
 }
 
@@ -44,20 +44,25 @@ export interface Participant {
   home: string;
   /** What the gateway is told about where the agent listens: its server ID and the socket it pipes connections to. */
   listening: { serverId: string; socket: string };
-  turns: Turns;
+  /** Where the agent stands in chat's feed, and how it takes an event up. */
+  admissions: Admissions;
+  /** What the agent's sessions know of the events it took up and has not left a receipt on yet. */
+  working: Working;
+  /** What the tasks that follow the events tell chat with. It is given the agent's connection to chat. */
+  delivery: Delivery;
   onError: (error: Error) => void;
 }
 
 /**
  * Take part in the network as the agent called `name`: be a member of the
- * roster and register with the gateway, keep a connection to chat, and turn the
- * events chat offers that wake the agent into turns. Who the agent is comes from the gateway and
- * from nothing the agent says. None of it delays the agent's start or stops
- * its sessions working: the gateway and chat may not be there yet, or go away,
- * and the agent finds them again.
+ * roster and register with the gateway, keep a connection to chat, and take up
+ * the events chat offers that wake the agent. Who the agent is comes from the
+ * gateway and from nothing the agent says. None of it delays the agent's start
+ * or stops its sessions working: the gateway and chat may not be there yet, or
+ * go away, and the agent finds them again.
  */
 export function join(participant: Participant, options: JoinOptions): Joined {
-  const { name, listening, turns, onError } = participant;
+  const { name, listening, admissions, working, delivery, onError } = participant;
   const paths = homePaths(participant.home);
   const backoff = options.backoff;
   const reach = options.reach ?? localTransports();
@@ -77,13 +82,8 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     onError,
     ...(backoff === undefined ? {} : { backoff: backoff() }),
   });
-  const intake = startIntake({
-    link,
-    turns,
-    onError,
-    ...(backoff === undefined ? {} : { backoff }),
-    ...(options.messageLimit === undefined ? {} : { messageLimit: options.messageLimit }),
-  });
+  delivery.attach(link);
+  const intake = startIntake({ link, admissions, working, onError, ...(backoff === undefined ? {} : { backoff }) });
 
   return {
     gateway: () => registration.current(),
@@ -95,6 +95,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
         // The gateway stops pointing at the agent first, so nobody is sent to one that is closing.
         await registration.stop();
       } finally {
+        delivery.close();
         try {
           await intake.close();
         } finally {

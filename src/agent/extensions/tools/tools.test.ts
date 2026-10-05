@@ -123,7 +123,7 @@ test("tools that find chat gone say so and do not wait, and the reply is deliver
   await rig.chat.recover();
   const receipt = await rig.receiptOn(asked);
   assert.equal(receipt.status, "answered");
-  assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Chat was away, but I am here."], "the reply waited in the outbox and was posted once");
+  assert.deepEqual(sentBy(rig.partner.id, await rig.said()), ["Chat was away, but I am here."], "the reply waited for chat and was posted once");
 });
 
 test("an agent starts a DM with a member it has never talked to, by name, and says who there is when the name is nobody's", { timeout }, async (t) => {

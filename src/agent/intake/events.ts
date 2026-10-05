@@ -1,8 +1,8 @@
 /**
- * What intake needs from the agent's sessions and records, in Shrimpy's own
- * terms. Whatever stores the agent's records and runs its sessions implements
- * `Turns`; intake sees nothing of how. What is stored is plain JSON, so these
- * are type aliases, which TypeScript lets stand for JSON.
+ * What intake and the agent's sessions agree on, in Shrimpy's own terms.
+ * Whatever stores the agent's records and runs its sessions implements
+ * `Admissions` and `Working`; intake sees nothing of how. What is stored is
+ * plain JSON, so these are type aliases, which TypeScript lets stand for JSON.
  */
 
 /**
@@ -49,9 +49,9 @@ export type Snapshot =
     };
 
 /**
- * An event the agent picked up and has not left its receipt on yet: the
- * agent's outbox holds one for each, from the moment the event is taken until
- * its receipt is left.
+ * An event the agent took up and has not left its receipt on yet: the input of
+ * the task that follows it, from the moment the event is taken up until its
+ * receipt is left.
  */
 export type Outstanding = {
   event: Snapshot;
@@ -76,44 +76,27 @@ export type TurnOutcome =
   /** The turn ended without an answer for any other reason: `reason` is short and a person can read it. */
   | { kind: "failed"; reason: string };
 
-/** The turn an event became. */
-export interface Turn {
-  /** Resolves when the event's input has ended, however it ended. Rejects if `signal` aborts first. */
-  ended(signal: AbortSignal): Promise<void>;
-  /** How it ended. Ask after `ended` has resolved. */
-  outcome(): Promise<TurnOutcome>;
-}
-
-export interface Turns {
+/** What intake needs from the agent's records: where it stands in chat's feed, and a way to take an event up. */
+export interface Admissions {
   /** Where the agent stands in chat's feed, kept with its own records. Undefined until it is first set. */
   cursor(): Promise<number | undefined>;
+  /** Move past events that wake nobody. */
   setCursor(seq: number): Promise<void>;
+  /**
+   * Take an event up: make its thread's session if the thread has none, start
+   * the task that follows the event to its receipt, and move the cursor past
+   * the event, all in one commit. The thread's earlier unacted events go with
+   * it. An event is taken up once, because the cursor moves with it.
+   */
+  admit(draft: Omit<Outstanding, "earlier">): Promise<void>;
+}
 
-  /**
-   * Write down that an event was picked up: make its thread's session if the
-   * thread has none, and add the event to the outbox, together. Taking the
-   * thread's earlier unacted events along is part of it. Repeating it for an
-   * event already recorded gives the same record, and for one whose receipt
-   * was already left gives undefined.
-   */
-  record(draft: Omit<Outstanding, "earlier">): Promise<Outstanding | undefined>;
-  /**
-   * Hand the text to the event's session as queued input, so it is answered
-   * after any work already there. The input is named for the event, so
-   * repeating this for the same event changes nothing.
-   */
-  start(outstanding: Outstanding, text: string): Promise<Turn>;
-  /**
-   * Take back an event that is still waiting for its turn, as a stop does, so
-   * its turn ends as skipped. One whose turn is running or has ended is left
-   * alone.
-   */
-  withdraw(outstanding: Outstanding): Promise<void>;
-  /** The events recorded and not yet settled, oldest first. */
-  outstanding(): Promise<Outstanding[]>;
-  /**
-   * The receipt for an event is left: take it out of the outbox. An event
-   * that was skipped stays unacted, so the next turn in its thread shows it.
-   */
-  settle(outstanding: Outstanding, outcome: TurnOutcome): Promise<void>;
+/** What the agent's sessions know of the events it took up and has not left a receipt on yet. */
+export interface Working {
+  /** The threads those events are in. */
+  threads(): Promise<ReadonlySet<string>>;
+  /** Call `listener` after the answer to `threads()` may have changed. Returns what stops that. */
+  onChange(listener: () => void): () => void;
+  /** Resolve once the receipt is left on every event whose turn has ended, or `signal` aborts. A turn still running is not waited for. */
+  untilTold(signal: AbortSignal): Promise<void>;
 }

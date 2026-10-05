@@ -2,12 +2,15 @@
  * The agent's sessions, one for each thread it takes part in, addressed by the
  * thread's ID. This is the one place that touches the engine's records: it
  * turns them into the contract's session view, runs the sessions, and writes
- * Shrimpy's own documents (which thread a session belongs to, the outbox, the
- * feed cursor) in the same commits as the work they belong to. It also refuses,
- * saying what to do, a home whose documents another version wrote. It must not
- * know about transports, or about chat beyond the messages it is handed.
+ * Shrimpy's own documents (which thread a session belongs to, the feed cursor)
+ * in the same commits as the work they belong to. It owns the task that
+ * follows each event the agent takes up, from its input to its receipt, and
+ * answers what intake asks about those tasks. It also refuses, saying what to
+ * do, a home whose documents another version wrote. It must not know about
+ * transports, or about chat beyond the messages it is handed.
  */
 export type { SessionDefaults } from "./defaults.ts";
 export type { ServedSession } from "./service.ts";
 export { createSessions, type Sessions } from "./sessions.ts";
 export { type SessionThread, threadOfSession } from "./thread-of.ts";
+export { type TurnTask, type TurnTaskOptions, turnTask } from "./turn-task.ts";
