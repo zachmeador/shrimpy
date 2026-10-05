@@ -14,11 +14,15 @@ export interface AgentConfig {
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const NAME_RULE = "must start with a letter or digit and use only letters, digits, dots, hyphens and underscores";
+/** What a name must be: an agent's, and a trigger's, which follows the same rule. */
+export const NAME_RULE = "must start with a letter or digit and use only letters, digits, dots, hyphens and underscores";
+
+/** Whether `name` follows the rule for names. */
+export const isName = (name: string): boolean => NAME.test(name);
 
 /** For a name that comes from outside a file, such as a command line. */
 export function checkAgentName(name: string): void {
-  if (!NAME.test(name)) throw new Error(`The agent name "${name}" ${NAME_RULE}.`);
+  if (!isName(name)) throw new Error(`The agent name "${name}" ${NAME_RULE}.`);
 }
 
 export function parseAgentConfig(text: string, file: string): AgentConfig {

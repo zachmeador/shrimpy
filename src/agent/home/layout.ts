@@ -11,6 +11,8 @@ export interface HomePaths {
   readonly context: string;
   readonly vault: string;
   readonly skills: string;
+  /** One small Markdown file for each standing trigger. */
+  readonly triggers: string;
   /** Pi's credential file for this home. */
   readonly auth: string;
   /** Pi's model file for this home: custom providers and their models. */
@@ -35,6 +37,7 @@ export function homePaths(home: string): HomePaths {
     context: join(root, "context"),
     vault: join(root, "vault"),
     skills: join(root, "skills"),
+    triggers: join(root, "triggers"),
     auth: join(pi, "auth.json"),
     models: join(pi, "models.json"),
     member: membershipFile(root),

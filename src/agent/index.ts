@@ -4,7 +4,8 @@
  * made by its name to), and takes part in the network as a member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
- * home and previews what a home would tell an agent through this door. It must
+ * home, previews what a home would tell an agent and checks what a trigger's
+ * file says through this door, none of which needs a running agent. It must
  * not know who its clients are beyond who it is told they are, or anything
  * about the chat server and the gateway beyond their contracts.
  */
@@ -29,6 +30,9 @@ export {
   type ModelChoice,
   modelLabel,
   parseModelChoice,
+  parseTrigger,
+  type TriggerDefinition,
+  TriggerFileError,
 } from "./home/index.ts";
 export type { JoinOptions } from "./join.ts";
 export type { CloseOptions } from "./stop.ts";

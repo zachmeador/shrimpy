@@ -10,6 +10,11 @@ const BLOCK = /^[|>][+-]?\d*$/;
  * spaces made into single spaces. Comments, lists and nested keys are not read.
  */
 export function frontmatter(text: string): Map<string, string> | undefined {
+  return frontmatterAndBody(text)?.values;
+}
+
+/** The front matter of a Markdown file as `frontmatter` reads it, and the text after its closing line. */
+export function frontmatterAndBody(text: string): { values: Map<string, string>; body: string } | undefined {
   const lines = text.replace(/^﻿/, "").split(/\r?\n/);
   if (lines[0]?.trimEnd() !== "---") return undefined;
   const end = lines.findIndex((line, index) => index > 0 && line.trimEnd() === "---");
@@ -35,7 +40,7 @@ export function frontmatter(text: string): Map<string, string> | undefined {
     }
   }
   finish();
-  return values;
+  return { values, body: lines.slice(end + 1).join("\n") };
 }
 
 function value(first: string, more: string[]): string {

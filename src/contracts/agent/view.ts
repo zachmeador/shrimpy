@@ -79,6 +79,14 @@ export interface SessionSummary {
 }
 
 /**
+ * When a trigger's occurrences come. `every` is how it was written, such as
+ * `1h`, and counts from the last occurrence. `cron` has five fields and is the
+ * next matching time in `timezone`, which is the machine's when the file left
+ * it out.
+ */
+export type TriggerSchedule = { every: string } | { cron: string; timezone: string };
+
+/**
  * How an accepted input ended. `answered` is the agent's final answer, which
  * may be empty. `cancelled` means someone stopped the work. `unanswered` is
  * anything else that left the input without an answer: `reason` is a short
