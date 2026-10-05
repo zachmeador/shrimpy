@@ -119,7 +119,8 @@ The order follows what daily use shows is rough or missing. Two things are built
 **Now:**
 
 - The agent's modules by job. `agent/sessions/` had become everything that touches Pi, because only three folders may import it. You approved the [proposal](proposals/agent-modules.md) on 2026-10-05, and it is being built.
-- Then the rest of the cleanup agreed on 2026-10-05 after a check of the design: every command naming its agent the same way, the shell's own agent unless `--agent` says another; and the README cut back to how to run, check and lay out the code.
+- Then the rest of the cleanup agreed on 2026-10-05 after a check of the design: every command naming its agent the same way, the shell's own agent unless `--agent` says another; and the README cut back to how to run, check and lay out the code. [Using it](design/using-it.md) has each command before and after.
+- The chat store records who a message mentions, by the rule that a contract carries facts, which you confirmed on 2026-10-05. It resets chat data once. [Not built yet](design/2-contracts.md)
 
 **Next:**
 

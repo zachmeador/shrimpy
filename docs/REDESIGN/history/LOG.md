@@ -35,6 +35,11 @@ A piece of work is done when its Prove list has evidence from real wiring, not e
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
 
+**Review, 2026-10-05: a contract carries facts.** You agreed to the proposal as rewritten. The rule is in the contracts' design with the case that showed it, and the proposal's file has left. The change it brings is listed there as not built: a message records `mentions` in place of `addressed`, each of the agent's rules says what it means, and the chat store's version rises, which resets your chat data once, on your word. It is built after the reshape of the agent's modules lands.
+
+- The store's ID in an agent's cursor shares the reset. The proposal recommended it, and your agreement with the proposal is taken to cover it.
+- Request IDs on edits, deletes and reactions, and a version on renaming and archiving a thread, are left for the provider interface.
+
 **Review, 2026-10-05: the agent's modules, and more detail on facts and decisions.** You approved the reshape of the agent's modules, with the name `chat/`: of a feature spanning three folders and 27 files you said "yikes". One builder has it, in four commits. You asked for the proposal on facts and decisions to be given more detail and explanation, and it now has the case with examples, what leaving it costs, each of the agent's rules as it would read, the cost, and what could share the one reset of chat data.
 
 - A reading of the approved rule that the proposal left open, given to the builder: the files at the top of `src/agent/` wire the modules together, so they may import a module's marked door, and still can't import Pi's package unless they are marked themselves. Inside a module, a plain file can't import a marked one.
