@@ -29,14 +29,12 @@ function draft(n: number, text?: string): Omit<ChatInput, "earlier" | "cancelled
 function recordingDelivery(fail: (outcome: TurnOutcome) => Error | undefined = () => undefined) {
   const told: { id: string; outcome: TurnOutcome; earlier: string[] }[] = [];
   const delivery: Delivery = {
-    attach: () => undefined,
     tell(outstanding, outcome) {
       const failure = fail(outcome);
       if (failure !== undefined) return Promise.reject(failure);
       told.push({ id: idOf(outstanding), outcome, earlier: isChat(outstanding) ? outstanding.earlier.map((event) => event.id) : [] });
       return Promise.resolve();
     },
-    close: () => undefined,
   };
   return { delivery, told };
 }

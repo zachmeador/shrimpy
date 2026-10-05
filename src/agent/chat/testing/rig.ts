@@ -8,8 +8,7 @@ import { stopAfter, useRuntimeDir } from "../../../lib/testing/index.ts";
 import type { Outstanding } from "../../inputs/index.ts";
 import { type ChatLink, openChatLink } from "../../links/index.ts";
 import { type ChatServer, SCOUT, startChatServer, type Talk, talkTo } from "../../testing/index.ts";
-import type { Delivery } from "../../turns/index.ts";
-import { createDelivery, type DeliveryOptions } from "../index.ts";
+import { type ChatDelivery, createDelivery, type DeliveryOptions } from "../index.ts";
 
 type Method = "post" | "leaveReceipt";
 
@@ -28,7 +27,7 @@ export interface ChatRig extends Talk {
   /** The agent's way to chat. */
   readonly link: ChatLink;
   /** A delivery over that link. */
-  readonly delivery: Delivery;
+  readonly delivery: ChatDelivery;
   readonly faults: Faults;
   /** What the link and the delivery reported. */
   readonly errors: Error[];

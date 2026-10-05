@@ -58,12 +58,10 @@ interface StartOptions {
 async function start(t: TestContext, home: string, script: Script, options: StartOptions = {}) {
   const told: { input: Outstanding; outcome: TurnOutcome }[] = [];
   const delivery: Delivery = {
-    attach: () => undefined,
     tell(input, outcome) {
       told.push({ input, outcome });
       return Promise.resolve();
     },
-    close: () => undefined,
   };
   const { models, model } = fauxModels({ home, script, tokensPerSecond: options.tokensPerSecond ?? 4000 });
   const reports: Error[] = [];

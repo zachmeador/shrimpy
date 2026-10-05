@@ -3,10 +3,10 @@ import type { connectChat } from "../contracts/chat/index.ts";
 import type { GatewayConnection, Transports } from "../contracts/gateway/index.ts";
 import { localTransports } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
-import { type Admissions, startIntake } from "./chat/index.ts";
+import { type Admissions, type ChatDelivery, startIntake } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
 import { joinGateway, type LiveChat, openChatLink } from "./links/index.ts";
-import type { Delivery, Working } from "./turns/index.ts";
+import type { Working } from "./turns/index.ts";
 
 export interface JoinOptions {
   /**
@@ -50,7 +50,7 @@ export interface Participant {
   /** What the agent's sessions know of the events it took up and has not left a receipt on yet. */
   working: Working;
   /** What the tasks that follow the events tell chat with. It is given the agent's connection to chat. */
-  delivery: Delivery;
+  delivery: ChatDelivery;
   onError: (error: Error) => void;
 }
 

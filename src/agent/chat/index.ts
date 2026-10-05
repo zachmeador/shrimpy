@@ -18,7 +18,7 @@
  * behind `durable.ts`.
  */
 export type { Admissions } from "./admissions.ts";
-export { createDelivery, type DeliveryOptions } from "./delivery.ts";
+export { type ChatDelivery, createDelivery, type DeliveryOptions } from "./delivery.ts";
 export { type Intake, type IntakeOptions, startIntake } from "./intake.ts";
 export { createWakes, type WakePolicies, type Wakes } from "./policy.ts";
 export { inParts } from "./reply.ts";
