@@ -50,8 +50,6 @@ Left open by the roster and by connecting by name:
 - The terminal reaches agents by name only, so with the gateway down it can't watch one. The `sessions` commands by a home's path can.
 - To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine. Also how long a dead peer's registration lasts: an agent has one live body, so over a network an agent that restarts is turned away until its old connection times out.
 
-Decided on 2026-10-05 and not built yet: who may do what, with one role, admin.
-
 Left open by rooms' first step:
 
 - The chat store keeps a column for the event a post answers, which nothing writes or reads now. It goes at the next change of the store's shape.
@@ -105,6 +103,12 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The gate held. Everything is drawn with `pi-tui`'s public pieces from the package root, with no patch and no private import. The drawing is 562 lines; the rest of the console doesn't depend on what draws it.
 - `pi-tui` doesn't make foreign text safe on its own, so the console strips control sequences from every message, name and tool output before drawing.
 - `next/src/` now holds 10,870 lines of product code, 16,779 of tests and 3,813 of test support.
+
+**2026-10-05: who may do what.** One role, admin, recorded on the roster. Every person is one, and an agent is one when it has been promoted. Making a room, adding members to one, and watching or controlling another agent's sessions and triggers take an admin. Talking never does, and an agent watches and controls itself. The gateway checks promotions, the chat server checks rooms against what the gateway says at each call, and an agent checks who came through the gateway. In an agent's shell, a command about another agent now goes through the gateway as that agent, where it used to go straight to the other home's socket as its owner, and the commands that write another agent's files ask first whether the shell's agent is an admin. `shrimpy members` lists the roster, and `members promote` and `demote` change the role. A refusal says what takes an admin, that the caller isn't one, and who is. On one machine under one OS user this stops accidents, not attacks. Checked on macOS arm64: 521 tests, 515 pass and 6 are skipped.
+
+- Nothing makes the first agent an admin: a person promotes one. The plan's row on first setup says otherwise, and is to be changed.
+- A promotion reaches an agent's own check only for connections made after it.
+- From an agent's shell, `agent context`, `agent init`, `agent serve` and `up` about another agent's home are not checked, and `gateway status` shows no admin column.
 
 **2026-10-05: one way to write a time, and who a person's mention wakes.** Every time a model is shown and every time a command prints is local time with its offset, such as `2026-10-05T09:00:29-04:00`, written by one function in `lib/time`. A person's message wakes every agent in the room only when it mentions nobody; one that names members wakes who it names. Checked on macOS arm64: 513 tests, 507 pass and 6 are skipped.
 

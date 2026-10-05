@@ -17,7 +17,7 @@ By default all of it lives in the Shrimpy folder, `~/shrimpy` or the folder `SHR
 
 `shrimpy up` starts whichever of these is missing, with every agent in `agents/`, and stays in that terminal. Ctrl+C stops what it started. Anything already running is used as it is. To add an agent to a setup that is up, the person runs `shrimpy agent serve <agent>` in another terminal. Stopping an agent that `up` started stops everything `up` started.
 
-Programs reach each other by name through the gateway, so people and agents can talk only while it runs. An agent's own work does not need it, and its replies wait until it is back, but `up` stops everything it started when any of it ends, the gateway included. With the gateway down, `shrimpy sessions list <agent>`, `shrimpy sessions read <agent> <thread>` and `shrimpy sessions stop <agent> <thread>` still reach an agent, because they go straight to its home.
+Programs reach each other by name through the gateway, so people and agents can talk only while it runs. An agent's own work does not need it, and its replies wait until it is back, but `up` stops everything it started when any of it ends, the gateway included. With the gateway down, `shrimpy sessions list <agent>`, `shrimpy sessions read <agent> <session>` and `shrimpy sessions stop <agent> <session>` still reach an agent for a person, and for an agent asking about itself, because they go straight to its home. From an agent's shell, a command about another agent goes through the gateway and takes an admin.
 
 A program that won't start says why in the terminal that started it. Ask the person to paste it.
 
