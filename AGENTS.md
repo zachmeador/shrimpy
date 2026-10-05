@@ -25,7 +25,7 @@ If `AGENTS-PRIVATE.md` exists at the project root, read it for workspace- and us
 - **Lean on Pi.** Wrap it cleanly and extend it at the point where it is the real constraint, not before.
 - **Agents and Markdown before mechanisms.** Shrimpy provides guardrails and ways to talk. What an agent can work out from its instructions, a skill or its shell doesn't get a mechanism of its own.
 - **Follow Shrimpy's own skills yourself.** If the user asks for something one of them covers, such as setting Shrimpy up, read `skills/<name>/SKILL.md` and do it.
-- **A setup in use is user data.** Never connect to, stop or change a running Shrimpy's homes, chat data or runtime directory while developing. Give every run a runtime directory of its own with `SHRIMPY_RUNTIME_DIR`.
+- **A setup in use is user data.** Never connect to, stop or change a running Shrimpy's homes, chat data or runtime directory while developing. Give every run a runtime directory of its own with `SHRIMPY_RUNTIME_DIR`, and a folder of its own with `SHRIMPY_DIR`, since the default folder, `~/shrimpy`, is someone's real setup.
 
 ## Writing
 
