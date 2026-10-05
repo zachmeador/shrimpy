@@ -35,7 +35,6 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 
 ### The conversation model
 
-- An answer is held until the agent's whole session is idle. The task that follows an input waits for the session to go idle before it reads how its own input ended. So when another message is queued behind a turn, that turn's reply and receipt wait until the next turn has ended too, and in a busy thread they wait until the queue is empty. The [design](design/7-on-its-own.md) says the task waits for the turn. Found on 2026-10-05 and seen on the real engine: with a second turn held, the first turn's finished answer wasn't posted.
 - After a fresh start an agent has forgotten where it last looked, so its first wake in a room shows up to 20,000 characters of history, from before it joined included.
 - An edit that removes a mention un-addresses the original post for an agent that reads the feed afterwards, since an event shows its message as it now stands.
 - A message recorded in the instant between a skipped message's receipt and the session noting it is handed over without the skipped one, which then shows one turn late.

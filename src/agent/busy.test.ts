@@ -16,8 +16,9 @@ import {
 
 /*
  * An agent whose turn is running when a message comes in: which messages the
- * turn reads before it ends, and which wait for the next one. The real engine
- * is under it, with the real chat server, and the model is scripted.
+ * turn reads before it ends, which wait for the next one, and when the turn's
+ * reply is posted. The real engine is under it, with the real chat server, and
+ * the model is scripted.
  */
 
 const timeout = 30_000;
@@ -38,6 +39,33 @@ function twoSteps(): { script: Script; asked: string[] } {
     return fauxAssistantMessage([call], { stopReason: "toolUse" });
   };
   return { script, asked };
+}
+
+/**
+ * A model that answers a request only when the test lets it, the requests in
+ * the order they came. `asked` is how many have come. `release` lets every
+ * request through from then on, so that a test that fails leaves no turn held.
+ */
+function heldAnswers(): { script: Script; asked(): number; answer(): void; release(): void } {
+  const held: (() => void)[] = [];
+  let answered = 0;
+  let released = false;
+  const script: Script = async () => {
+    if (!released) await new Promise<void>((resolve) => held.push(resolve));
+    return fauxAssistantMessage("Done.");
+  };
+  return {
+    script,
+    asked: () => held.length,
+    answer: () => {
+      held[answered]?.();
+      answered += 1;
+    },
+    release: () => {
+      released = true;
+      for (const answer of held) answer();
+    },
+  };
 }
 
 /** Where the person talks to the agent, which is the thread of a DM or of a room, and how they mention it there: by name, or to everyone. */
@@ -140,4 +168,29 @@ test("an agent's message that mentions the agent, sent while a turn runs, waits 
   const waited = await sayWhileTurnRuns(rig, asked, main.id, async () => [await bob.chat.post(main.id, `@${SCOUT}, one more thing`, "bob-1")]);
 
   assertWaitedForNextTurn(rig, asked, waited);
+});
+
+test("a turn's reply is posted when the turn ends, while the next turn of its session still runs", { timeout }, async (t) => {
+  const model = heldAnswers();
+  const rig = await startAgentRig(t, { script: model.script });
+  try {
+    const first = await rig.say("first");
+    await until(() => model.asked() === 1, "the model to be asked for the first turn");
+    const { session } = await rig.attach();
+    const second = await rig.say("and one more thing");
+    await waitForView(session, (view) => view.status.queued.length === 1);
+    model.answer();
+    await until(() => model.asked() === 2, "the model to be asked for the next turn");
+
+    const receipt = await rig.receiptOn(first);
+    const [reply, ...others] = await rig.replies();
+    assert.deepEqual(others, [], "the next turn has not answered yet");
+    assert.deepEqual(receipt, { memberId: rig.partner.id, event: first.event, status: "answered", reply: reply?.id, detail: null });
+
+    model.answer();
+    assert.equal((await rig.receiptOn(second)).status, "answered");
+    assert.deepEqual(rig.reports, []);
+  } finally {
+    model.release();
+  }
 });

@@ -1,4 +1,5 @@
 import type { Context, JsonValue } from "@earendil-works/chord";
+import { withCancel } from "@earendil-works/chord/context";
 import {
   type ConversationHandle,
   type ConversationId,
@@ -9,6 +10,7 @@ import {
   type NextTaskState,
   type RunningTask,
   type SettledSubmissionRecord,
+  type Submission,
   type SubmissionRecord,
   type TaskOutcome,
   type TaskRecord,
@@ -176,10 +178,10 @@ export function turnTask(options: TurnTaskOptions) {
         async (turn, runtime, context) => {
           const session = await sessionOf(turn.input, runtime, context);
           const submission = await session.submit(inputOf(turn.input), context);
-          // Nothing runs a waiting input once the session is idle, as when the turn ahead of it failed, even if the
-          // agent restarted before it was taken back. Withdraw it, as a stop does, so it is skipped and shown with
-          // the next one.
-          await session.waitForIdle(context);
+          // The input ends with its own turn, whatever its session goes on to do. If the session goes idle first,
+          // nothing runs the input, as when the turn ahead of it failed, even if the agent restarted before it was
+          // taken back. Withdraw it, as a stop does, so it is skipped and shown with the next one.
+          await endedOrIdle(submission, session, context);
           if ((await submission.status(context)).status === "queued") await submission.abort(context);
           const outcome = await outcomeOf(await submission.wait(context), runtime, context);
           // An input that reached `MAX_CRASHES` had its turn stopped by the start that counted the crash, before the
@@ -336,6 +338,22 @@ async function forgetCrashes(tx: Tx, input: Outstanding): Promise<void> {
 async function outcomeOf(settled: SettledSubmissionRecord, runtime: Runtime, context: Context): Promise<TurnOutcome> {
   const answer = settled.type === "input" && settled.status === "done" ? await runtime.entry(settled.answer, context) : undefined;
   return toOutcome(settled, answer);
+}
+
+/**
+ * Resolves when the input has ended or its session has gone idle, whichever
+ * comes first. The wait that lost is cancelled, which touches neither the input
+ * nor the session's work.
+ */
+async function endedOrIdle(submission: Submission, session: ConversationHandle, context: Context): Promise<void> {
+  const watching = withCancel(context);
+  const waits = [submission.wait(watching.context), session.waitForIdle(watching.context)].map((wait) => wait.then(() => undefined));
+  try {
+    await Promise.race(waits);
+  } finally {
+    watching.cancel();
+    for (const wait of waits) wait.catch(() => undefined);
+  }
 }
 
 /** The record of the input handed over to the session for the task's input, if one was. */
