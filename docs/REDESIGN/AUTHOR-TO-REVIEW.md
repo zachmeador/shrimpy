@@ -9,6 +9,8 @@ This page collects what you should look at: the questions waiting on you, the vi
 3. The instructions every agent always has grew from 328 words to 647 in three days. `shrimpy agent context scout` prints them. Read them once and cut what doesn't earn its place.
 4. The release's name. You were thinking about "Turning of the Tide".
 5. The two spike branches, `spike/delivery-as-task` and `spike/ask-and-resume`, exist only on this machine. Push them, or delete them now that both ideas are built or planned?
+6. How the agent's code is divided. A review is under way, since `agent/sessions/` became everything that touches Pi. Its proposal comes to you before anything moves.
+7. Refusals carry their reason inside Pi's error code, and contracts still show Pi's own error types. Nothing is broken. Deciding what a refusal is in Shrimpy's contracts would make it intentional. Not urgent.
 
 ## Worth a look
 
