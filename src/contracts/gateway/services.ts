@@ -53,6 +53,12 @@ export interface Member {
    * No two members have the same name, whatever the case, so `@name` means one member.
    */
   name: string;
+  /**
+   * Whether the member is an admin, the one role the roster records, as the
+   * roster has it now. Every person is one, and an agent is one only once it
+   * has been promoted. What needs an admin is for each program to say.
+   */
+  admin: boolean;
 }
 
 /** A member as the roster lists it. */
@@ -69,6 +75,10 @@ export interface RosterEntry extends Member {
  * Nobody says who they are: a connection that signed in with an agent's token
  * is that agent, and one that did not, on the gateway's own socket, is the
  * person who runs the gateway.
+ *
+ * The roster also records who is an admin. The gateway checks it for what the
+ * roster is: who may promote and demote. Every other program that has
+ * something that takes an admin asks the roster for it and checks for itself.
  *
  * An agent runs once. A copy of an agent's home holds the same token, so while a
  * program is registered as a member, a program on another connection that joins
@@ -121,6 +131,20 @@ export interface Gateway {
   signIn(token: string, name: string | null, context: Context): Promise<Member>;
   /** Everyone on the roster, oldest first. It carries no token and no socket. */
   members(context: Context): Promise<RosterEntry[]>;
+  /**
+   * Make the agent `memberId` an admin, and answer with it as it now is. An
+   * agent that is one already stays one. Only a person or an admin may, and
+   * anyone else is refused with the reason `NEEDS_ADMIN`. A person is an admin
+   * already, so a person is refused too. Only a program on the gateway's
+   * machine can.
+   */
+  promote(memberId: string, context: Context): Promise<Member>;
+  /**
+   * Make the admin agent `memberId` an ordinary agent again, by the same rules
+   * as `promote`. An agent that is not an admin stays as it is. A person can't
+   * be demoted.
+   */
+  demote(memberId: string, context: Context): Promise<Member>;
 
   /**
    * A ticket for one program, to hand to it so that it can ask who the caller

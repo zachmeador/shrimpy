@@ -11,6 +11,8 @@ export function gatewayThatDoes(calls: Partial<Gateway>): Gateway {
     join: unsupported,
     signIn: unsupported,
     members: unsupported,
+    promote: unsupported,
+    demote: unsupported,
     ticket: unsupported,
     redeem: unsupported,
     ...calls,

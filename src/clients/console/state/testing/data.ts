@@ -34,7 +34,7 @@ export function aModel(parts: Partial<Model> = {}): Model {
     me: zach,
     where: { screen: "agents" },
     gateway: { state: "up" },
-    listing: { programs: [], members: [{ ...zach, reachable: false }], version: SHRIMPY_VERSION },
+    listing: { programs: [], members: [{ ...zach, admin: true, reachable: false }], version: SHRIMPY_VERSION },
     chat: { state: "up" },
     agent: undefined,
     dms: {},
@@ -58,7 +58,7 @@ export function anAgent(name: string, version = SHRIMPY_VERSION): Registration {
 
 /** An agent as the roster lists it, running or not. */
 export function aRosterAgent(name: string, reachable = true): RosterEntry {
-  return { ...agentMember(name), reachable };
+  return { ...agentMember(name), admin: false, reachable };
 }
 
 /**
@@ -68,7 +68,7 @@ export function aRosterAgent(name: string, reachable = true): RosterEntry {
  */
 export function aListing(programs: Registration[], version = SHRIMPY_VERSION, idle: string[] = []) {
   const running = programs.filter((program) => program.kind === "agent").map((program) => aRosterAgent(program.name));
-  return { programs, members: [{ ...zach, reachable: false }, ...running, ...idle.map((name) => aRosterAgent(name, false))], version };
+  return { programs, members: [{ ...zach, admin: true, reachable: false }, ...running, ...idle.map((name) => aRosterAgent(name, false))], version };
 }
 
 export function aChatServer(version = SHRIMPY_VERSION): Registration {
@@ -134,7 +134,7 @@ export function onThread(agent: string, thread: Thread, view: ThreadView | undef
     where: { screen: "thread", place: { kind: "agent", name: agent }, thread: thread.id },
     listing: {
       programs: [anAgent(agent), aChatServer()],
-      members: [{ ...zach, reachable: false }, aRosterAgent(agent)],
+      members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
       version: SHRIMPY_VERSION,
     },
     agent: { state: "up" },

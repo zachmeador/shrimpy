@@ -28,6 +28,10 @@ export interface GatewayConnection {
   signIn(token: string, name: string | null): Promise<Member>;
   /** Everyone on the roster, oldest first. */
   members(): Promise<RosterEntry[]>;
+  /** Make the agent `memberId` an admin. Only a person or an admin may. See `Gateway.promote`. */
+  promote(memberId: string): Promise<Member>;
+  /** Make the admin agent `memberId` an ordinary agent again, by the same rules. See `Gateway.demote`. */
+  demote(memberId: string): Promise<Member>;
   /** A ticket for `target`, to hand to it, with the server ID it answers as. See `Gateway.ticket`, and `reachProgram` for using one. */
   ticket(target: ProgramName): Promise<Ticket>;
   /** Whose a ticket is. See `Gateway.redeem`. */
@@ -67,6 +71,8 @@ export async function connectGateway(options: {
     join: (name, token) => gateway.join(name, token, context),
     signIn: (token, name) => gateway.signIn(token, name, context),
     members: () => gateway.members(context),
+    promote: (memberId) => gateway.promote(memberId, context),
+    demote: (memberId) => gateway.demote(memberId, context),
     ticket: (target) => gateway.ticket(target, context),
     redeem: (ticket) => gateway.redeem(ticket, context),
     onDisconnect: (listener) => connection.onDisconnect(listener),

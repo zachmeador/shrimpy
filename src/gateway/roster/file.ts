@@ -12,9 +12,14 @@ import { readConfig } from "../../lib/json-config/node.ts";
  */
 export type Recognition = { osUser: string } | { tokenHash: string };
 
-/** A member as the roster keeps it. */
-export interface MemberRecord extends Member {
+/**
+ * A member as the roster keeps it. Every person is an admin and the file does
+ * not say so, so only an agent's record has `admin`. A file written before the
+ * role existed has none, and every agent in it is not an admin.
+ */
+export interface MemberRecord extends Omit<Member, "admin"> {
   recognizedBy: Recognition;
+  admin?: boolean;
 }
 
 /** The file's format. A roster of any other version is refused, never changed. */
@@ -40,6 +45,7 @@ function parseMember(entry: ConfigObject): MemberRecord {
   const id = entry.string("id");
   const kind = entry.choice("kind", ["person", "agent"] as const);
   const name = entry.string("name");
+  const admin = kind === "agent" ? (entry.optionalBoolean("admin") ?? false) : undefined;
   const by = entry.object("recognizedBy");
   const osUser = by.optionalString("osUser");
   const tokenHash = by.optionalString("tokenHash");
@@ -49,7 +55,7 @@ function parseMember(entry: ConfigObject): MemberRecord {
     return { id, kind, name, recognizedBy: { osUser } };
   }
   if (kind === "agent" && tokenHash !== undefined && osUser === undefined) {
-    return { id, kind, name, recognizedBy: { tokenHash } };
+    return { id, kind, name, admin: admin === true, recognizedBy: { tokenHash } };
   }
   throw entry.problem("recognizedBy", `must be an osUser for a person and a tokenHash for an agent, and this is the ${kind} ${name}`);
 }

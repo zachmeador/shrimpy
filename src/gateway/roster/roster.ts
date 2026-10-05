@@ -22,9 +22,10 @@ export class RosterOwnedError extends Error {
 const MAX_NAME = 200;
 
 /**
- * Who is on the network: every member with its ID, its name and how it is
- * recognized, kept in one file that survives restarts. Nothing here holds a
- * connection. Anything a caller got wrong is refused with a reason it can act on.
+ * Who is on the network: every member with its ID, its name, whether it is an
+ * admin and how it is recognized, kept in one file that survives restarts.
+ * Nothing here holds a connection. Anything a caller got wrong is refused with a
+ * reason it can act on.
  */
 export interface Roster {
   /** Everyone, oldest first. */
@@ -44,6 +45,8 @@ export interface Roster {
   join(name: string, token: string): Member;
   /** Give a member a new name. The name it has already, or a change of case in it, is fine. */
   rename(id: string, name: string): Member;
+  /** Make an agent an admin, or an ordinary agent again. Doing what is done already changes nothing. A person is always one and is refused. */
+  setAdmin(id: string, admin: boolean): Member;
   /** Let go of the data directory. */
   close(): void;
 }
@@ -73,7 +76,7 @@ const fold = (name: string): string => name.toLowerCase();
 
 const hashOf = (token: string): string => `sha256:${createHash("sha256").update(token).digest("hex")}`;
 
-const publicly = ({ id, kind, name }: MemberRecord): Member => ({ id, kind, name });
+const publicly = ({ id, kind, name, admin }: MemberRecord): Member => ({ id, kind, name, admin: kind === "person" || admin === true });
 
 function keep(file: string, lock: Lock): Roster {
   let records = readRoster(file);
@@ -161,12 +164,22 @@ function keep(file: string, lock: Lock): Roster {
         id: newId("mem"),
         kind: "agent",
         name: label,
+        admin: false,
         recognizedBy: { tokenHash: hashOf(token) },
       };
       save([...records, record]);
       return publicly(record);
     },
     rename,
+    setAdmin(id, admin) {
+      const current = records.find((record) => record.id === id);
+      if (current === undefined) refuse(`There is no member ${id}.`);
+      if (current.kind === "person") refuse(`${current.name} is a person, and every person is an admin.`);
+      if ((current.admin === true) === admin) return publicly(current);
+      const changed = { ...current, admin };
+      save(records.map((record) => (record.id === id ? changed : record)));
+      return publicly(changed);
+    },
     close: () => lock.release(),
   };
 }

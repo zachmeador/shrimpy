@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { NEEDS_ADMIN } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
+import { isRefusal, reasonOf } from "../lib/refusal/index.ts";
 import { inRuntimeDir, stopAfter, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
 import { RosterOwnedError } from "./index.ts";
 import { startGatewayInProcess } from "./testing/index.ts";
@@ -106,5 +109,94 @@ test("the person who runs the gateway is on the roster from the start, and nobod
     assert.equal(first.reachable, false, "no program is registered as them");
   } finally {
     await gateway.close();
+  }
+});
+
+test("a roster written before there was a role is read with no agent an admin, and every person is one", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const dataDir = tempDir(t, "gateway-data");
+  const token = newToken();
+  // The roster as the gateway wrote it before the role: no member has an admin field.
+  mkdirSync(dirname(rosterFile(dataDir)), { recursive: true });
+  writeFileSync(
+    rosterFile(dataDir),
+    JSON.stringify({
+      version: 1,
+      members: [
+        { id: "mem_aaaaaaaaaaaa", kind: "person", name: userInfo().username, recognizedBy: { osUser: userInfo().username } },
+        {
+          id: "mem_bbbbbbbbbbbb",
+          kind: "agent",
+          name: "scout",
+          recognizedBy: { tokenHash: `sha256:${createHash("sha256").update(token).digest("hex")}` },
+        },
+      ],
+    }),
+  );
+  const gateway = await startGatewayInProcess(t, { dataDir });
+  const client = await connectLocalGateway();
+  stopAfter(t, () => client.close());
+  try {
+    const roster = await client.members();
+
+    assert.deepEqual(
+      roster.map((member) => [member.name, member.kind, member.admin]),
+      [
+        [userInfo().username, "person", true],
+        ["scout", "agent", false],
+      ],
+    );
+    assert.deepEqual(await client.signIn(token, null), { id: "mem_bbbbbbbbbbbb", kind: "agent", name: "scout", admin: false }, "and the agent is still recognized");
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("a person or an admin promotes and demotes agents, anyone else is refused, and the role outlives the gateway", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const dataDir = tempDir(t, "gateway-data");
+  const first = await startGatewayInProcess(t, { dataDir });
+  const [person, scoutConnection, rexConnection] = await Promise.all([1, 2, 3].map(() => connectLocalGateway()));
+  for (const connection of [person, scoutConnection, rexConnection]) stopAfter(t, () => connection?.close());
+  const scout = await scoutConnection!.join("scout", newToken());
+  const rex = await rexConnection!.join("rex", newToken());
+  const adminsOf = async (): Promise<string[]> =>
+    (await person!.members()).filter((member) => member.admin).map((member) => member.name);
+  assert.deepEqual(await adminsOf(), [userInfo().username], "an agent starts as an ordinary one");
+
+  // An agent that is not an admin may not, and the refusal says why in a way a caller can tell without reading it.
+  const attempts = [() => scoutConnection!.promote(rex.id), () => scoutConnection!.demote(rex.id), () => rexConnection!.promote(rex.id)];
+  for (const attempt of attempts) {
+    await assert.rejects(attempt, (error: unknown) => isRefusal(error) && reasonOf(error) === NEEDS_ADMIN);
+  }
+  assert.deepEqual(await adminsOf(), [userInfo().username], "and nothing changed");
+
+  // The person may, and an agent that was just promoted may on the connection it already had: the gateway reads the roster as it is.
+  assert.equal((await person!.promote(scout.id)).admin, true);
+  assert.equal((await person!.promote(scout.id)).admin, true, "promoting an admin is not an error");
+  assert.equal((await scoutConnection!.promote(rex.id)).admin, true);
+  assert.deepEqual(await adminsOf(), [userInfo().username, "scout", "rex"]);
+  assert.equal((await scoutConnection!.demote(rex.id)).admin, false, "an admin demotes another");
+
+  // A person is always an admin, so there is nothing to promote or demote, and a member the roster does not have is refused.
+  const [self] = await person!.members();
+  await assert.rejects(person!.demote(self?.id ?? ""), isRefusal);
+  await assert.rejects(person!.promote("mem_nobody"), isRefusal);
+
+  await first.close();
+  const second = await startGatewayInProcess(t, { dataDir });
+  try {
+    const returning = await connectLocalGateway();
+    stopAfter(t, () => returning.close());
+    assert.deepEqual(
+      (await returning.members()).map((member) => [member.name, member.admin]),
+      [
+        [userInfo().username, true],
+        ["scout", true],
+        ["rex", false],
+      ],
+    );
+  } finally {
+    await second.close();
   }
 });

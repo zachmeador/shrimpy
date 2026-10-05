@@ -1,4 +1,10 @@
-import { type Gateway, type Member, type ProgramName, TURNED_AWAY } from "../contracts/gateway/index.ts";
+import {
+  type Gateway,
+  type Member,
+  type ProgramName,
+  refuseNeedsAdmin,
+  TURNED_AWAY,
+} from "../contracts/gateway/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
 import { checkAnnouncement, InvalidRegistrationError, type Registry } from "./registry/index.ts";
@@ -73,6 +79,21 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       "service_not_allowed",
       TURNED_AWAY.agentRunning,
     );
+  };
+
+  /**
+   * Make an agent an admin or an ordinary agent again, as the person who runs
+   * the gateway or an admin asks. Whether the caller is one is read from the
+   * roster now, so a promotion counts at once, on a connection that was made
+   * before it.
+   */
+  const changeRole = (what: string, memberId: unknown, admin: boolean): Member => {
+    onThisMachine("promote or demote an agent");
+    const asking = caller();
+    if (!asking.admin) refuseNeedsAdmin(what, asking, roster.members().filter((member) => member.admin));
+    const target = typeof memberId === "string" ? roster.member(memberId) : undefined;
+    if (target === undefined) refuse(`There is no member ${String(memberId)} on the roster.`);
+    return roster.setAdmin(target.id, admin);
   };
 
   /** Make the ways in match what is registered. A way that cannot be made is the caller's to be told of, not an internal error. */
@@ -155,6 +176,12 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     async members() {
       const running = new Set(registry.list().map((program) => program.memberId));
       return roster.members().map((member) => ({ ...member, reachable: running.has(member.id) }));
+    },
+    async promote(memberId) {
+      return changeRole("Promoting an agent", memberId, true);
+    },
+    async demote(memberId) {
+      return changeRole("Demoting an agent", memberId, false);
     },
 
     async ticket(target) {

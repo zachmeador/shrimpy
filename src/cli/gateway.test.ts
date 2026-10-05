@@ -25,7 +25,7 @@ test("status marks a program whose version differs from the command's, and says 
         Gateway,
         gatewayThatDoes({
           list: () => Promise.resolve(programs),
-          members: () => Promise.resolve([{ id: "mem_scout", kind: "agent", name: "scout", reachable: true }]),
+          members: () => Promise.resolve([{ id: "mem_scout", kind: "agent", name: "scout", admin: false, reachable: true }]),
           version: () => Promise.resolve("9.9.9"),
         }),
       ),

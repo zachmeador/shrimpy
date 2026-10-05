@@ -2,10 +2,11 @@
  * The gateway API: how programs find each other, who is on the network, how a
  * program learns who is on a connection, and how a client reaches a program by
  * its name through the gateway, which is the one way to reach a program that
- * is not a home's own agent, and the cases in which the gateway turns an agent
- * away, so that the agent can tell them apart. It must not know what the
- * programs it connects say to each other. This door is safe for browsers;
- * `node.ts` adds the parts that need Node.
+ * is not a home's own agent, the cases in which the gateway turns an agent
+ * away, so that the agent can tell them apart, and the refusal every program
+ * makes for a call that takes an admin. It must not know what the programs it
+ * connects say to each other. This door is safe for browsers; `node.ts` adds
+ * the parts that need Node.
  */
 export { connectGateway, type GatewayConnection } from "./connect.ts";
 export {
@@ -17,7 +18,7 @@ export {
   webSocketPath,
 } from "./endpoint.ts";
 export { reachProgram, type Transports } from "./reach.ts";
-export { TURNED_AWAY, type TurnedAway, whyTurnedAway } from "./refusals.ts";
+export { NEEDS_ADMIN, refuseNeedsAdmin, TURNED_AWAY, type TurnedAway, whyTurnedAway } from "./refusals.ts";
 export {
   type Announcement,
   Gateway,
