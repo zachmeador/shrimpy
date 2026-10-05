@@ -23,7 +23,7 @@ As of 2026-10-04. Before each review pause, everything under "still open" is fix
 - The terminal's Esc says there is nothing to stop while an agent is idle, so a waiting wake-up is cancelled only by `shrimpy sessions stop`.
 - A trigger that names a thread and comes due while the agent was down fires at the start before the link to chat is up, so that one occurrence fails. The next one works.
 - A trigger file that doesn't check out is named by a reload and by `agent context`, and is missing from `shrimpy triggers` while the agent runs.
-- A trigger that fires every minute leaves about 1,440 finished tasks a day, each holding its prompt, and listing triggers scans all of them. Pruning has become a real question.
+- Pi's storage keeps every finished task and every entry, so the file on disk only grows: about a megabyte a day for a trigger that fires every minute, and little for one that fires hourly. Compaction bounds what a model is shown, not what is stored. You judged it no concern for now on 2026-10-05. The one cost today is that listing triggers scans every finished task.
 - A trigger or a wake-up that comes due during a stop's grace period can still start.
 - Commands that go through the gateway warn about a version mismatch. Programs don't compare versions when they connect, and `sessions` and `agent status` don't check.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
