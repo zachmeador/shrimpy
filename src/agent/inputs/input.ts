@@ -179,9 +179,9 @@ export type ChatInput = {
    */
   place?: Place;
   /**
-   * Set when the message can't wait for the turn that is running: a person
-   * wrote it and it mentions the agent, which is how a person says so. The turn
-   * reads it at its next step, and its reply answers the message too. A turn
+   * Set when the message joins the turn that is running: a person wrote it.
+   * The turn reads it at its next step, once the tools of the step it is on
+   * have finished, and its reply answers the message too. A turn
    * with no step left can't read it, and the next turn answers it. Absent for
    * every other input, which waits for the next turn, and so for one stored
    * before this existed.
@@ -304,9 +304,9 @@ export function hasReceipt(outstanding: Outstanding): boolean {
 }
 
 /**
- * Whether an input can't wait for the turn that is running, which then reads it
- * at its next step. Only a chat event can be: what a wake-up or an occurrence
- * of a trigger has to say is for the next turn.
+ * Whether an input joins the turn that is running, which then reads it at its
+ * next step. Only a chat event can: what a wake-up or an occurrence of a
+ * trigger has to say is for the next turn.
  */
 export function isUrgent(outstanding: Outstanding): boolean {
   return isChat(outstanding) && outstanding.urgent === true;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fauxAssistantMessage, fauxToolCall, type Message } from "@earendil-works/pi-ai";
-import { eventually, waitForView } from "../lib/testing/index.ts";
+import { eventually, until, waitForView } from "../lib/testing/index.ts";
 import { callingTools, loggedRequests, releaseGate, type Script, startAgentRig, untilReleased } from "./testing/index.ts";
 
 /*
@@ -99,7 +99,9 @@ test("a stop cancels the wake-ups a session is waiting on, and the next input te
 });
 
 test("a wake-up and chat messages that arrive while the session is busy are answered in the order they came in", { timeout }, async (t) => {
-  // The turn that asks for the wake-up stays open until the test lets it go, so everything after it has to wait.
+  // The turn that asks for the wake-up stays open on its last step until the test lets it go. A person's message
+  // joins a turn that has a step left, so everything after this has to wait for the next turn.
+  let onLastStep = false;
   const script: Script = async (messages, home) => {
     const latest = latestUserText(messages);
     if (latest.includes("set a wake-up")) {
@@ -107,6 +109,7 @@ test("a wake-up and chat messages that arrive while the session is busy are answ
         const call = fauxToolCall("check_back", { in: "2s", note: "the wake-up" }, { id: "call-0" });
         return fauxAssistantMessage([call], { stopReason: "toolUse" });
       }
+      onLastStep = true;
       await untilReleased(home);
       return fauxAssistantMessage("It is set.");
     }
@@ -115,7 +118,7 @@ test("a wake-up and chat messages that arrive while the session is busy are answ
   };
   const rig = await startAgentRig(t, { script });
   await rig.say("set a wake-up");
-  await rig.untilWorking();
+  await until(() => onLastStep, "the turn to reach its last step");
   const { session } = await rig.attach();
 
   // A chat message before the wake-up comes due, and one after it has.

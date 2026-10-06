@@ -119,7 +119,7 @@ function assertWaitedForNextTurn(
   assert.deepEqual(rig.reports, []);
 }
 
-test("a person's messages that mention the agent, sent in one step of a turn that runs, are all read by that turn at its next step, and the turn's one reply answers them", { timeout }, async (t) => {
+test("a person's messages, sent in one step of a turn that runs, are all read by that turn at its next step, whether or not they mention the agent, and the turn's one reply answers them", { timeout }, async (t) => {
   for (const place of PLACES) {
     await t.test(place.name, async (inner) => {
       const { script, asked } = twoSteps();
@@ -127,7 +127,7 @@ test("a person's messages that mention the agent, sent in one step of a turn tha
       const threadId = await place.open(rig);
 
       const { first, later, receipts, replies } = await sayWhileTurnRuns(rig, asked, threadId, async () => [
-        await rig.say(`${place.mention}, one more thing`, threadId),
+        await rig.say("one more thing", threadId),
         await rig.say(`${place.mention}, and another`, threadId),
       ]);
 
@@ -141,20 +141,6 @@ test("a person's messages that mention the agent, sent in one step of a turn tha
         "each message has a receipt of its own",
       );
       assert.deepEqual(rig.reports, []);
-    });
-  }
-});
-
-test("a person's message that does not mention the agent, sent while a turn runs, waits for the next turn", { timeout }, async (t) => {
-  for (const place of PLACES) {
-    await t.test(place.name, async (inner) => {
-      const { script, asked } = twoSteps();
-      const rig = await startAgentRig(inner, { script });
-      const threadId = await place.open(rig);
-
-      const waited = await sayWhileTurnRuns(rig, asked, threadId, async () => [await rig.say("and one more thing", threadId)]);
-
-      assertWaitedForNextTurn(rig, asked, waited);
     });
   }
 });

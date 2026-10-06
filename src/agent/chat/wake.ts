@@ -48,15 +48,15 @@ export function wakesInRoom(self: Member, policy: WakePolicy, author: Member, me
 }
 
 /**
- * Whether an event is urgent, which is how a person says it can't wait for the
- * turn that is running: a post or an edit that a person wrote and that mentions
- * the agent, as `@name` or `@all`. It is the same in a room and in a DM. An
- * agent's message is never urgent, whoever it mentions, and neither is an
- * answer or a reaction.
+ * Whether an event the agent takes up joins the turn that is running, which
+ * reads it at its next step, once the tools of the step it is on have finished:
+ * a post or an edit that a person wrote, whoever it mentions. Nothing is cut
+ * short for it. It is the same in a room and in a DM. An agent's message waits
+ * for the next turn, whoever it mentions, so that two agents can't keep each
+ * other's turns going, and so do an answer and a reaction.
  */
-export function isUrgentPost(self: Member, event: ChatEvent): boolean {
-  if (event.actor.kind !== "person" || (event.kind !== "posted" && event.kind !== "edited")) return false;
-  return event.message.mentions.includes(self.id);
+export function isUrgentPost(event: ChatEvent): boolean {
+  return event.actor.kind === "person" && (event.kind === "posted" || event.kind === "edited");
 }
 
 /**

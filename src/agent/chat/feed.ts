@@ -115,8 +115,8 @@ export async function readFeed(options: FeedOptions): Promise<void> {
           // In a room the event comes with what was said before it, and who each message was for.
           // In a room or a DM it comes with where its thread is.
           const taken = await inPlace(context, await inRoom(context, event, woken));
-          // A person's message that mentions the agent is read by the turn that is running, and not after it.
-          const input = isUrgentPost(self, event) ? { ...taken, urgent: true as const } : taken;
+          // A person's message is read by the turn that is running, at its next step, and not after it.
+          const input = isUrgentPost(event) ? { ...taken, urgent: true as const } : taken;
           // The agent's place in the feed moves in the commit that takes the event up, to where the feed brought it.
           await admissions.admit(input, event.seq);
           cursor = stored = at = event.seq;

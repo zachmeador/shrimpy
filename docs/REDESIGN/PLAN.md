@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Nothing is being built. One question waits on you: whether every message a person writes joins the turn an agent is running, and not only one that mentions it.
+- Nothing is being built. Asking another agent is first under Next.
 
 **Next:**
 

@@ -34,6 +34,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 
 ### The conversation model
 
+- A message that joined a running turn is marked answered by that turn's one reply, whether or not the reply speaks to it. You took that cost on 2026-10-05 with the rule that every message a person writes joins.
 - In a room, who a message was for and the names in what was said since the agent last looked still come from what the agent remembers of the room. A member who joined and has not been mentioned is missing from them until a mention makes the agent ask again. The opening of an input, which says who is in the room, is asked afresh and has no such gap.
 - When the chat store is replaced, an agent keeps its sessions behind the old store's threads, and goes on with what was unfinished in them. A wake-up that was waiting there, or a turn that was cut short, runs once more, calls the model, and then can't post: chat refuses the mark on the thread and the reply, and the agent reports each. It ends by itself. The agent knows the store was replaced, so it could stop that work and say so once.
 - After a fresh start an agent has forgotten where it last looked, so its first wake in a room shows up to 20,000 characters of history, from before it joined included.
