@@ -29,11 +29,12 @@ export interface Admissions {
    * `position`, all in one commit. `position` is where the feed brought the
    * event, which is the event's own position unless it is a reply that a receipt
    * pointed to. The thread's earlier unacted events go with it, and so do the
-   * wake-ups cancelled since the model last heard of them. An event in a room,
+   * wake-ups cancelled since the model last heard of them and the breadcrumbs
+   * that are new to the session. An event in a room,
    * one with a `backlog`, also moves where the agent has looked in its thread to
    * the event. An event is taken up once, because the cursor moves with it.
    */
-  admit(draft: Omit<ChatInput, "earlier" | "cancelled">, position?: number): Promise<void>;
+  admit(draft: Omit<ChatInput, "earlier" | "cancelled" | "breadcrumbs">, position?: number): Promise<void>;
   /**
    * Where the agent last looked in a thread of a room: the position of the
    * newest event it took up there, kept with the thread's session. Undefined

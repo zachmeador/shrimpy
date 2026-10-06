@@ -78,6 +78,16 @@ export function isNews(when: Check["when"], output: string, last: string | undef
 export const quietBecause = (when: Check["when"]): string =>
   when === "changed" ? "Its check printed what it printed last time." : "Its check printed nothing.";
 
+/** What an occurrence says when its check found news, which it wrote to the trigger's breadcrumb. */
+export const notedIn = (trigger: string): string => `Its check printed news, which it wrote to breadcrumbs/${trigger}.md.`;
+
+/**
+ * What a trigger's breadcrumb says: the trigger's prompt, when it has one, which
+ * says what the fact is and how to look closer, above what its check printed.
+ * Never the time, or every check would count as a change.
+ */
+export const noteOf = (prompt: string, output: string): string => `${prompt === "" ? "" : `${prompt}\n\n`}${output}\n`;
+
 /** The line a failed check has for its output: what went wrong, and the end of what it printed on standard error. */
 function failed(what: string, standardError = ""): string {
   const end = endOf(standardError);

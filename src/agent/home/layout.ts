@@ -13,6 +13,8 @@ export interface HomePaths {
   readonly skills: string;
   /** One small Markdown file for each standing trigger. */
   readonly triggers: string;
+  /** One small Markdown file for each fact that moves, which a session is shown once, when the fact is new to it. */
+  readonly breadcrumbs: string;
   /** What wakes the agent in each room it has chosen for. It is not there until something is chosen. */
   readonly wake: string;
   /** Pi's credential file for this home. */
@@ -43,6 +45,7 @@ export function homePaths(home: string): HomePaths {
     vault: join(root, "vault"),
     skills: join(root, "skills"),
     triggers: join(root, "triggers"),
+    breadcrumbs: join(root, "breadcrumbs"),
     wake: join(root, "wake.json"),
     auth: join(pi, "auth.json"),
     models: join(pi, "models.json"),

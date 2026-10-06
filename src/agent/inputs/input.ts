@@ -116,6 +116,17 @@ export type Backlog = {
   atLeast?: true;
 };
 
+/** A breadcrumb as the model is shown it: the name of its file, and its text, which is already cut to what is shown. */
+export type Breadcrumb = { name: string; text: string };
+
+/**
+ * The breadcrumbs an input carries: the files of the home's `breadcrumbs/` that
+ * differ from what its session was last shown, which the session is shown with
+ * this input, before the rest of it. `more` is how many others differ and wait for
+ * later inputs, when there are more than an input carries.
+ */
+export type Breadcrumbs = { files: Breadcrumb[]; more?: number };
+
 /**
  * A chat event the agent took up and has not left its receipt on yet: the input
  * of the task that follows it, from the moment the event is taken up until its
@@ -143,6 +154,8 @@ export type ChatInput = {
    * them, told to the model with this input, once. Absent when there are none.
    */
   cancelled?: Wakeup[];
+  /** The breadcrumbs that are new to the session, shown before anything else of the input. Absent when there are none. */
+  breadcrumbs?: Breadcrumbs;
   /**
    * Set when the message can't wait for the turn that is running: a person
    * wrote it and it mentions the agent, which is how a person says so. The turn
@@ -170,6 +183,7 @@ export type WakeupInput = {
   wakeup: Wakeup;
   /** As for a chat event. */
   cancelled?: Wakeup[];
+  breadcrumbs?: Breadcrumbs;
 } & (InThread | (NoThread & { trigger: string }));
 
 /**
@@ -207,14 +221,16 @@ export type OccurrenceInput = {
   occurrence: Occurrence;
   /** As for a chat event. */
   cancelled?: Wakeup[];
+  breadcrumbs?: Breadcrumbs;
   /**
    * An occurrence that no turn runs: it was skipped because the last one was
    * still going, or could not be handed to a session; its check found no news,
-   * so it was quiet; or the agent ended while its check ran, so it was
-   * interrupted. The task that follows it ends at once with this outcome, and
-   * `reason` says why. It has no thread.
+   * so it was quiet; its check found news that it wrote to a breadcrumb, so it
+   * was noted; or the agent ended while its check ran, so it was interrupted. The
+   * task that follows it ends at once with this outcome, and `reason` says why.
+   * It has no thread.
    */
-  unrun?: { outcome: "skipped" | "failed" | "quiet" | "interrupted"; reason: string };
+  unrun?: { outcome: "skipped" | "failed" | "quiet" | "noted" | "interrupted"; reason: string };
 } & (InThread | NoThread);
 
 /**
@@ -277,8 +293,8 @@ export function isUrgent(outstanding: Outstanding): boolean {
 
 /** How the turn of an input ended, as the record of its task keeps it. */
 export type Ending = {
-  ended: "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "interrupted";
-  /** Why a turn failed, or an occurrence was skipped, quiet or interrupted, when it says. */
+  ended: "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "noted" | "interrupted";
+  /** Why a turn failed, or an occurrence was skipped, quiet, noted or interrupted, when it says. */
   reason?: string;
 };
 

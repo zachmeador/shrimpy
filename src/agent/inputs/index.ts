@@ -9,6 +9,8 @@ export { endingOf, readFinalText } from "./ending.ts";
 export {
   type Audience,
   type Backlog,
+  type Breadcrumb,
+  type Breadcrumbs,
   type ChatInput,
   type Ending,
   hasReceipt,

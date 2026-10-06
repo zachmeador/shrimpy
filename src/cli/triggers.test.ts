@@ -92,6 +92,12 @@ test("add writes a file the agent's own check accepts, a running agent picks it 
   assert.deepEqual((await (await connection()).trigger("inbox")).check, check);
   const shown = await run("triggers", "show", "inbox", "--agent", "scout");
   assert.ok(shown.out.includes(check.command) && shown.out.includes("30s"), shown.out);
+
+  // A trigger that notes what its check finds wakes nobody, so it needs no prompt.
+  const noted = await run("triggers", "add", "stuck", "--every", "1h", "--check", "test -f stuck.lock && echo stuck", "--then", "note", "--agent", "scout");
+  assert.equal(noted.code, 0, noted.err);
+  const stuck = parseTrigger("stuck", readFileSync(join(home, "triggers", "stuck.md"), "utf8"));
+  assert.deepEqual([stuck.check?.then, stuck.prompt], ["note", ""]);
 });
 
 test("a schedule that is wrong is refused with the key and the value, and nothing is written", { timeout }, async (t) => {
@@ -109,7 +115,8 @@ test("a schedule that is wrong is refused with the key and the value, and nothin
     ["an overlap that is not one", ["--every", "1h", "--overlap", "always"], "overlap: always"],
     ["a when with no check", ["--every", "1h", "--when", "output"], "when goes with check"],
     ["a when that is not one", ["--every", "1h", "--check", "true", "--when", "sometimes"], "when: sometimes"],
-    ["a then that is not built yet", ["--every", "1h", "--check", "true", "--then", "note"], "then: note"],
+    ["a then that is not one", ["--every", "1h", "--check", "true", "--then", "sometimes"], "then: sometimes"],
+    ["a thread on a trigger that notes", ["--every", "1h", "--check", "true", "--then", "note", "--thread", "th_4k9x2m7q0b3d"], "thread goes with then: wake"],
     ["a timeout that is not a delay", ["--every", "1h", "--check", "true", "--timeout", "soon"], "timeout: soon"],
     ["a timeout that is too long", ["--every", "1h", "--check", "true", "--timeout", "20m"], "timeout: 20m"],
     ["a check of more than one line", ["--every", "1h", "--check", "true\nfalse"], "check is one line"],

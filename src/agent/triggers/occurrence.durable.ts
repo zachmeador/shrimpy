@@ -2,7 +2,7 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { describeSchedule, type TriggerDefinition } from "../home/index.ts";
-import { isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
+import { type Breadcrumb, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import {
   openSession,
   type SessionDefaults,
@@ -55,7 +55,7 @@ function occurrenceOf(definition: TriggerDefinition, firing: Firing): Occurrence
 
 /** Put an occurrence on record as one that no turn runs, in the conversation that owns it: its task ends at once with `unrun`. */
 async function leave(tx: Tx, turn: TurnTask, occurrence: Occurrence, unrun: Unrun): Promise<OccurrenceView> {
-  await takeUp(tx, turn, await ownerOf(tx), { occurrence, unrun });
+  await takeUp(tx, turn, await ownerOf(tx), { occurrence, unrun }, []);
   return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: unrun.outcome, reason: unrun.reason };
 }
 
@@ -73,14 +73,15 @@ export function recordUnrun(tx: Tx, turn: TurnTask, definition: TriggerDefinitio
  * up. It goes to the session behind the trigger's thread, or to the trigger's
  * own session, which this makes the first time. A thread with no session behind
  * it gets one made, in the channel `where` says it is in, which whoever calls
- * this found out from chat before the commit. If the trigger does not allow
- * overlap and the last occurrence is still going, or there is no channel to make
- * the thread's session in, the occurrence is made all the same, as one that no
- * turn runs, so that it is on record with its outcome and the reason.
+ * this found out from chat before the commit, and `breadcrumbs`, which are the
+ * home's files, read before it too. If the trigger does not allow overlap and the
+ * last occurrence is still going, or there is no channel to make the thread's
+ * session in, the occurrence is made all the same, as one that no turn runs, so
+ * that it is on record with its outcome and the reason.
  */
 export async function fire(
   tx: Tx,
-  parts: { turn: TurnTask; defaults: SessionDefaults },
+  parts: { turn: TurnTask; defaults: SessionDefaults; breadcrumbs: readonly Breadcrumb[] },
   definition: TriggerDefinition,
   firing: Firing,
   where?: Where,
@@ -109,7 +110,8 @@ export async function fire(
   const channelId = session === undefined ? (found !== undefined && "channelId" in found ? found.channelId : null) : session.channelId;
   const thread = definition.thread !== null && channelId !== null ? { threadId: definition.thread, channelId } : undefined;
   const opened = await openSession(tx, parts.defaults, thread ?? { trigger: definition.name });
-  await takeUp(tx, parts.turn, opened.conversationId as ConversationId, thread === undefined ? { occurrence } : { occurrence, ...thread });
+  const input = thread === undefined ? { occurrence } : { occurrence, ...thread };
+  await takeUp(tx, parts.turn, opened.conversationId as ConversationId, input, parts.breadcrumbs);
   return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: null, reason: null };
 }
 

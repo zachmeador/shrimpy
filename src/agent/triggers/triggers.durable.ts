@@ -3,6 +3,7 @@ import { defineExtension, type Extension, type Harness } from "@earendil-works/p
 import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { LeftOut, TriggerFiles } from "../home/index.ts";
+import type { Breadcrumb } from "../inputs/index.ts";
 import {
   plain,
   type SessionDefaults,
@@ -31,6 +32,10 @@ export interface TriggersOptions {
    * that makes the occurrence and never inside it. Aborting `signal` gives up.
    */
   channelOf(threadId: string, signal: AbortSignal): Promise<{ channelId: string } | { problem: string }>;
+  /** The home's breadcrumbs, read before the commit that makes an occurrence, which reads no files. */
+  breadcrumbs(): Promise<readonly Breadcrumb[]>;
+  /** Write the breadcrumb `<name>.md` in the home, in place of the one there is. */
+  leaveBreadcrumb(name: string, text: string): Promise<void>;
   /** Told of an occurrence that could not be made. */
   onError(error: Error): void;
 }
@@ -54,7 +59,8 @@ export interface Triggers {
   show(name: string): Promise<TriggerDetail>;
   /**
    * Fire a trigger once now, apart from its schedule, with its prompt and without
-   * running its check. Refused when there is none of that name.
+   * running its check. Refused when there is none of that name, or when it only
+   * notes what its check finds, since firing it would wake nobody.
    */
   fire(name: string): Promise<OccurrenceView>;
 }
@@ -98,7 +104,14 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     return { thread, ...(await options.channelOf(thread, signal)) };
   }
 
-  const task = triggerTask({ turn, defaults, whereTo, onError: (error) => options.onError(error) });
+  const task = triggerTask({
+    turn,
+    defaults,
+    whereTo,
+    breadcrumbs: () => options.breadcrumbs(),
+    leaveBreadcrumb: (name, text) => options.leaveBreadcrumb(name, text),
+    onError: (error) => options.onError(error),
+  });
 
   /** Reloading twice at once would reconcile twice, and the later reading may be the older. */
   let queue: Promise<unknown> = Promise.resolve();
@@ -144,18 +157,24 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     },
 
     async fire(name) {
+      const known = await stored(name);
+      if (known?.definition.check?.then === "note") refuse(noWaking(name));
       const where = await whereTo(name, new AbortController().signal, true);
+      const breadcrumbs = await options.breadcrumbs();
       return harness.commit(async (tx) => {
         const triggers = (await tx.doc(TriggersDoc)).triggers;
         const found = Object.hasOwn(triggers, name) ? triggers[name] : undefined;
         if (found === undefined) refuse(noTrigger(name));
         const now = Date.now();
-        return fire(tx, { turn, defaults }, plain(found.definition), { due: now, firedAt: now, byHand: true }, where);
+        return fire(tx, { turn, defaults, breadcrumbs }, plain(found.definition), { due: now, firedAt: now, byHand: true }, where);
       }, context);
     },
   };
 }
 
 const noTrigger = (name: string): string => `This agent has no trigger called ${name}.`;
+
+const noWaking = (name: string): string =>
+  `The trigger ${name} notes what its check finds and wakes nobody, so there is nothing to fire by hand. Its next occurrence runs the check.`;
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);

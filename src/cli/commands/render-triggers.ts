@@ -75,9 +75,11 @@ interface Defined {
 /** What a trigger's file says as lines, with a line for when it runs next if `next` says. */
 function definition(trigger: Defined, next?: string): string[] {
   const goesTo =
-    trigger.thread === null
-      ? `a session of its own${trigger.session === null ? "" : `, ${trigger.session}`}. What the agent writes last there is posted nowhere.`
-      : `thread ${trigger.thread}. What the agent writes last is posted there.`;
+    trigger.check?.then === "note"
+      ? "nobody: it only leaves a breadcrumb"
+      : trigger.thread === null
+        ? `a session of its own${trigger.session === null ? "" : `, ${trigger.session}`}. What the agent writes last there is posted nowhere.`
+        : `thread ${trigger.thread}. What the agent writes last is posted there.`;
   const overlap =
     trigger.overlap === "skip"
       ? "skip: an occurrence that is due while the last is still going is skipped"
@@ -88,14 +90,13 @@ function definition(trigger: Defined, next?: string): string[] {
     ...(next === undefined ? [] : [`  next      ${next}`]),
     `  goes to   ${goesTo}`,
     `  overlap   ${overlap}`,
-    ...(trigger.check === null ? [] : checkLines(trigger.check)),
-    "  prompt",
-    ...indent(trigger.prompt).map((line) => `  ${line}`),
+    ...(trigger.check === null ? [] : checkLines(trigger.name, trigger.check)),
+    ...(trigger.prompt === "" ? ["  prompt    none"] : ["  prompt", ...indent(trigger.prompt).map((line) => `  ${line}`)]),
   ];
 }
 
 /** What a trigger's check says: the command, what counts as news, what news does, and how long the command may run. */
-function checkLines({ command, when, then, timeout }: Check): string[] {
+function checkLines(name: string, { command, when, then, timeout }: Check): string[] {
   const news = {
     changed: "changed: news is output that differs from the last occurrence's, and the first occurrence's always does",
     output: "output: news is any output at all",
@@ -103,6 +104,7 @@ function checkLines({ command, when, then, timeout }: Check): string[] {
   }[when];
   const does = {
     wake: "wake: the agent is woken with the prompt and, apart from it, the output, which it reads as data",
+    note: `note: the output is written to breadcrumbs/${name}.md, below the prompt if there is one, and nobody is woken`,
   }[then];
   return [
     `  check     ${command}`,

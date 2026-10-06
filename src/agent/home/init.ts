@@ -66,6 +66,7 @@ export function initHome(home: string, options: InitOptions): InitResult {
   folder(paths.context);
   folder(paths.vault);
   folder(paths.skills);
+  folder(paths.breadcrumbs);
   folder(paths.runtime);
   folder(dirname(paths.models));
   file(paths.models, EMPTY_MODELS);

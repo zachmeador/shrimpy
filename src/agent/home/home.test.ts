@@ -20,7 +20,7 @@ test("init creates every file and folder, and the home loads", (t) => {
   assert.deepEqual(JSON.parse(readFileSync(paths.models, "utf8")), { providers: {} });
   assert.deepEqual(JSON.parse(readFileSync(paths.auth, "utf8")), {});
   assert.match(readFileSync(paths.soul, "utf8"), /🦐/, "the starter SOUL.md says the agent enjoys the shrimp emoji");
-  for (const folder of [paths.context, paths.vault, paths.skills, paths.runtime]) {
+  for (const folder of [paths.context, paths.vault, paths.skills, paths.breadcrumbs, paths.runtime]) {
     assert.ok(statSync(folder).isDirectory(), folder);
   }
   // The storage is created by the agent that owns the home, not by init.

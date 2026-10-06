@@ -3,7 +3,7 @@
  * server, both without a network, the real gateway and chat server started
  * through the command, an agent taking part in the network with a person to
  * talk to it, a room for them to talk in, helpers to attach to an agent, stop it
- * and read its views, and to write the files of its triggers.
+ * and read its views, and to write the files of its triggers and its breadcrumbs.
  * Only tests and test fixtures import this. The one thing it knows of another
  * program is the command that starts it.
  */
@@ -26,6 +26,7 @@ import {
 import type { AgentOptions } from "../index.ts";
 
 export { attachThread, closeAfter } from "./attach.ts";
+export { leaveBreadcrumb } from "./breadcrumbs.ts";
 export { type ChatServer, startChatServer } from "./chat-server.ts";
 export { type ChatRequest, stubChatCompletions } from "./chat-completions.ts";
 export { startAgentChild } from "./child.ts";

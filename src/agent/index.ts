@@ -17,7 +17,17 @@ import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
 import { homeContext } from "./context/durable.ts";
 import { type ContextPreview, previewContext } from "./context/index.ts";
-import { homePaths, type LeftOut, loadHome, readTriggers, readWake, type TriggerFiles, type WakeRead } from "./home/index.ts";
+import {
+  homePaths,
+  type LeftOut,
+  loadHome,
+  readBreadcrumbs,
+  readTriggers,
+  readWake,
+  type TriggerFiles,
+  type WakeRead,
+  writeBreadcrumb,
+} from "./home/index.ts";
 import { buildModels, type HostOptions, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
@@ -130,17 +140,22 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       ...(options.join?.backoff === undefined ? {} : { backoff: options.join.backoff }),
     });
     const turn = turnTask({ delivery, onError: report });
-    const wakeups = createWakeups(turn.task, { onError: report });
+    // Every input is taken up with the breadcrumbs that are new to its session, which are read before the commit that does it.
+    const paths = homePaths(options.home);
+    const breadcrumbs = () => readBreadcrumbs(paths);
+    const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
     const defaults: SessionDefaults = { model: options.model, cwd: host.home };
     const triggers = createTriggers(host.harness, {
       turn: turn.task,
       defaults,
       read: () =>
-        readTriggers(homePaths(options.home), {
+        readTriggers(paths, {
           ...(options.shortestEveryMs === undefined ? {} : { shortestEveryMs: options.shortestEveryMs }),
         }),
       // A thread with no session behind it gets one in the channel chat says it is in, over the link the agent has then.
       channelOf: (threadId, signal) => channelOfThread(() => joined?.chat(), threadId, signal),
+      breadcrumbs,
+      leaveBreadcrumb: (name, text) => writeBreadcrumb(paths, name, text),
       onError: report,
     });
     host.install(
@@ -152,7 +167,7 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       triggers.extension,
     );
     const sessions = createSessions(host.harness, defaults);
-    const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork);
+    const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, breadcrumbs);
     const working = createWorking(host.harness);
     // What wakes the agent in each room is read from the home's wake file, at the start and on a reload. A file that
     // does not check out is left out and named, and the agent keeps what it last read.

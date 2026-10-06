@@ -33,9 +33,9 @@ export type TriggerDefinition = {
   enabled: boolean;
   /** `skip` skips an occurrence while the last one is still going, and `allow` hands it over behind the running one. */
   overlap: "skip" | "allow";
-  /** The body of the file: what an occurrence is told to do. */
+  /** The body of the file: what an occurrence is told to do. A trigger that notes may have none, and then it is empty. */
   prompt: string;
-  /** What runs at each occurrence to decide whether there is news. A trigger with none has no occurrence that is quiet. */
+  /** What runs at each occurrence to decide whether there is news. Absent for a trigger whose every occurrence wakes the agent. */
   check?: Check;
 };
 
@@ -88,9 +88,11 @@ export function checkTriggerName(name: string): void {
  *   going over behind it, where the default skips it.
  * - `check` is a command line that runs at each occurrence and decides whether
  *   there is news. `when` says what news is: `changed`, the default, `output` or
- *   `always`. `then` says what news does, and `timeout` is a delay, a minute
- *   unless given and at most ten, after which the check is stopped. All three
- *   go with a check.
+ *   `always`. `then` says what news does: `wake` the agent with the prompt and
+ *   the output, the default, or `note` the output in the home's `breadcrumbs/`,
+ *   which wakes nobody, needs no prompt and has no thread. `timeout` is a delay,
+ *   a minute unless given and at most ten, after which the check is stopped. All
+ *   three go with a check.
  */
 export function parseTrigger(name: string, text: string, check: TriggerCheck = {}): TriggerDefinition {
   if (!isName(name)) throw new TriggerFileError(`its name ${NAME_RULE}`);
@@ -112,8 +114,13 @@ export function parseTrigger(name: string, text: string, check: TriggerCheck = {
     throw new TriggerFileError(`thread: ${thread} should be the ID of a thread, such as ${EXAMPLE_THREAD}`);
   }
   const checked = checkOf(values);
+  if (checked?.then === "note" && thread !== undefined) {
+    throw new TriggerFileError("thread goes with then: wake: a trigger that notes wakes nobody, so there is no thread for it to go to");
+  }
   const prompt = body.trim();
-  if (prompt === "") throw new TriggerFileError("it has no prompt: write what the trigger is to do after the closing --- line");
+  if (prompt === "" && checked?.then !== "note") {
+    throw new TriggerFileError("it has no prompt: write what the trigger is to do after the closing --- line");
+  }
 
   return {
     name,
@@ -139,16 +146,9 @@ function checkOf(values: ReadonlyMap<string, string>): Check | undefined {
   return {
     command,
     when: oneOf("when", values.get("when"), { changed: "changed", output: "output", always: "always" } as const, "changed"),
-    then: thenOf(values.get("then")),
+    then: oneOf("then", values.get("then"), { wake: "wake", note: "note" } as const, "wake"),
     timeout: timeoutOf(values.get("timeout")),
   };
-}
-
-function thenOf(given: string | undefined): "wake" {
-  if (given?.toLowerCase() === "note") {
-    throw new TriggerFileError("then: note is not built yet: for now news can only wake the agent, so leave then out or give then: wake");
-  }
-  return oneOf("then", given, { wake: "wake" } as const, "wake");
 }
 
 function timeoutOf(given: string | undefined): string {

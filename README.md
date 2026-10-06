@@ -98,7 +98,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
 | `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |
 | `triggers [--agent <agent>]` | List the triggers of an agent: each one's schedule, whether it is on, when it runs next and how its last occurrence ended. |
-| `triggers add <name> (--every <delay> \| --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] [--check "<command>" [--when changed\|output\|always] [--then wake] [--timeout <delay>]] "<prompt>" [--agent <agent>]` | Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule. |
+| `triggers add <name> (--every <delay> \| --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] [--check "<command>" [--when changed\|output\|always] [--then wake\|note] [--timeout <delay>]] "<prompt>" [--agent <agent>]` | Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule. |
 | `triggers show <name> [--agent <agent>]` | Show a trigger: what it says, when it runs next and its latest occurrences. |
 | `triggers run <name> [--agent <agent>]` | Fire a trigger now, apart from its schedule, which it keeps. |
 | `triggers on <name> [--agent <agent>]` | Turn a trigger on. |

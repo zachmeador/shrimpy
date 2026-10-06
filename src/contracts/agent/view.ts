@@ -107,8 +107,11 @@ export type Check = {
    * fails has a line about the failure for its output.
    */
   when: "changed" | "output" | "always";
-  /** What news does: `wake` the agent with the trigger's prompt and the output, which it reads as data and not as instructions. */
-  then: "wake";
+  /**
+   * What news does: `wake` the agent with the trigger's prompt and the output, which it reads as data and not as
+   * instructions, or `note` the output in the home's `breadcrumbs/`, with the prompt above it, and wake nobody.
+   */
+  then: "wake" | "note";
   /** How long the check may run before it is stopped and counts as failed: a delay such as `30s` or `2m`, at most `10m`. */
   timeout: string;
 };
@@ -116,10 +119,11 @@ export type Check = {
 /**
  * How an occurrence ended. A skipped occurrence never ran: the last one was still
  * going, or there was nowhere to send it. A quiet one ran its check, which found
- * no news, so no turn was made. An interrupted one was running its check when the
- * agent ended, and the check was not run again for it.
+ * no news, so no turn was made. A noted one ran its check, which found news, and
+ * wrote it to a breadcrumb, so nobody was woken. An interrupted one was running
+ * its check when the agent ended, and the check was not run again for it.
  */
-export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "interrupted";
+export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "noted" | "interrupted";
 
 /**
  * One occurrence of a trigger, from the agent's records. Times are milliseconds

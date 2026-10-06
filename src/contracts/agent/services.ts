@@ -52,8 +52,10 @@ export interface SessionDirectory {
    * Fire a trigger once now, apart from its schedule, which it keeps. Answers
    * with the occurrence it made, which has not ended yet unless it was skipped:
    * a trigger that does not allow overlap skips it while its last occurrence is
-   * going. A trigger that is off can still be fired. A trigger the agent does
-   * not have is refused.
+   * going. A trigger that is off can still be fired. A trigger with a check is
+   * fired without running it, with its prompt alone, and one whose check only
+   * notes what it finds is refused, since firing it would wake nobody. A trigger
+   * the agent does not have is refused.
    */
   fire(name: string, context: Context): Promise<Occurrence>;
   /**

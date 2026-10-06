@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
+import type { Breadcrumb } from "../inputs/index.ts";
 import { FeedDoc, openSession, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 import type { Admissions } from "./admissions.ts";
@@ -18,9 +19,16 @@ export type StopWork = (harness: Harness, conversation: Conversation, context: C
  * session, made when the first event in it is taken up, in the same commit
  * that creates the task that follows the event and moves the feed's cursor
  * past it. Nothing is lost between an event being read and being taken up, and
- * nothing is taken up twice.
+ * nothing is taken up twice. The home's breadcrumbs are read before that commit,
+ * which reads no files, and the ones that are new to the session go with the event.
  */
-export function createAdmissions(harness: Harness, defaults: SessionDefaults, turn: TurnTask, stopWork: StopWork): Admissions {
+export function createAdmissions(
+  harness: Harness,
+  defaults: SessionDefaults,
+  turn: TurnTask,
+  stopWork: StopWork,
+  breadcrumbs: () => Promise<readonly Breadcrumb[]>,
+): Admissions {
   /** The chat store the agent is reading, once it has said: each cursor it sets is kept with this ID. */
   let reading: string | undefined;
   const moveCursor = (feed: { cursor: number | null; store?: string }, seq: number): void => {
@@ -65,15 +73,16 @@ export function createAdmissions(harness: Harness, defaults: SessionDefaults, tu
       if (conversation !== undefined) await stopWork(harness, conversation, context);
     },
 
-    admit(draft, position = draft.event.seq) {
-      return harness.commit(async (tx) => {
+    async admit(draft, position = draft.event.seq) {
+      const crumbs = await breadcrumbs();
+      await harness.commit(async (tx) => {
         moveCursor(await tx.doc(FeedDoc), position);
         const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
         // An event in a room is the newest thing the agent has looked at in its thread.
         if (draft.backlog !== undefined && session.channelId !== null) {
           session.looked = Math.max(session.looked ?? 0, draft.event.seq);
         }
-        await takeUp(tx, turn, session.conversationId as ConversationId, draft);
+        await takeUp(tx, turn, session.conversationId as ConversationId, draft, crumbs);
       }, context);
     },
   };

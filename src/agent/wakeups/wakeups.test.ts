@@ -66,14 +66,14 @@ async function start(t: TestContext, home: string, script: Script, options: Star
   const { models, model } = fauxModels({ home, script, tokensPerSecond: options.tokensPerSecond ?? 4000 });
   const reports: Error[] = [];
   const turn = turnTask({ delivery, onError: (error) => reports.push(error) });
-  const wakeups = createWakeups(turn.task, { onError: (error) => reports.push(error) });
+  const wakeups = createWakeups(turn.task, { onError: (error) => reports.push(error), breadcrumbs: () => Promise.resolve([]) });
   const host = await openHost({ home, models });
   host.install(turn.extension, wakeups.extension, (options.tools ?? ((real) => real))(wakeupTools({ wakeups })));
   let closing: Promise<void> | undefined;
   const stop = (): Promise<void> => (closing ??= host.close());
   stopAfter(t, stop);
   const defaults = { model, cwd: home };
-  const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork);
+  const admissions = createAdmissions(host.harness, defaults, turn.task, stopWork, () => Promise.resolve([]));
   await createSessions(host.harness, defaults).applyDefaults();
   await beginRun(host.harness);
   host.resume();

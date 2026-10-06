@@ -11,7 +11,7 @@ import {
   type Tx,
 } from "@earendil-works/pi-durable";
 import { localTime } from "../../lib/time/index.ts";
-import type { Wakeup } from "../inputs/index.ts";
+import type { Breadcrumb, Wakeup } from "../inputs/index.ts";
 import {
   keepCancelled,
   placeOfSession,
@@ -65,6 +65,8 @@ export interface Wakeups {
 export interface WakeupsOptions {
   /** Told of a wake-up that came due and could not be taken up. */
   onError(error: Error): void;
+  /** The home's breadcrumbs, read before the commit that takes a wake-up up, which reads no files. */
+  breadcrumbs(): Promise<readonly Breadcrumb[]>;
 }
 
 /**
@@ -89,8 +91,9 @@ export function createWakeups(turn: TurnTask, options: WakeupsOptions): Wakeups 
         const { wakeup } = waiting.input;
         await runtime.sleep(wakeup.due, context);
         try {
+          const crumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
-            await takeUp(tx, turn, runtime.conversationId, waiting.input);
+            await takeUp(tx, turn, runtime.conversationId, waiting.input, crumbs);
             return { status: "terminal", outcome: { status: "completed", result: null } };
           }, context);
         } catch (error) {

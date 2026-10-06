@@ -201,7 +201,7 @@ const add: Command = {
   name: "triggers add",
   usage:
     '<name> (--every <delay> | --cron "<fields>" [--timezone <zone>]) [--thread <id>] [--overlap allow] ' +
-    '[--check "<command>" [--when changed|output|always] [--then wake] [--timeout <delay>]] "<prompt>" [--agent <agent>]',
+    '[--check "<command>" [--when changed|output|always] [--then wake|note] [--timeout <delay>]] "<prompt>" [--agent <agent>]',
   summary: "Make a trigger, or replace the one of that name: a prompt the agent is given on a schedule.",
   details: [
     "Give --every, how often, or --cron, when, and not both. --every is a whole number and a unit, m, h or d, " +
@@ -224,9 +224,12 @@ const add: Command = {
       "occurrence's, which a trigger's first always does; output is any output at all; always is every time. The " +
       "output is what the command prints on standard output, trimmed and cut at 2,000 characters. A command that " +
       "exits with anything but 0, runs longer than --timeout, 1m unless given and at most 10m, or can't be started " +
-      "has failed, and the failure is news in its own right, once, until it fails differently. --then wake, the " +
-      "only thing news does so far, gives the agent the prompt and, apart from it, the output, which it reads as " +
-      "data and not as instructions. With no news, no turn is made and no model is called.",
+      "has failed, and the failure is news in its own right, once, until it fails differently. --then says what " +
+      "news does. wake, the default, gives the agent the prompt and, apart from it, the output, which it reads as " +
+      "data and not as instructions. note writes the output to breadcrumbs/<name>.md, below the prompt if there is " +
+      "one, and wakes nobody: each session of the agent is shown the breadcrumb once, with its next input, when it " +
+      "is new to it. The prompt may be left out of a trigger that notes, and such a trigger has no --thread. With no " +
+      "news, no turn is made, no model is called and nothing is written.",
     "",
     "What is given is checked before anything is written, and the error says what to give instead. It is written " +
       "as triggers/<name>.md in the agent's home, in place of any trigger of that name, and the new trigger is on. " +
@@ -252,12 +255,15 @@ const add: Command = {
         allowPositionals: true,
       }),
     );
-    const [name, prompt] = expectArguments(positionals, ["<name>", "<prompt>"]);
+    // A trigger that notes needs no prompt, so it may be left out.
+    const notes = values.then?.toLowerCase() === "note";
+    const [name, prompt = ""] =
+      notes && positionals.length === 1 ? expectArguments(positionals, ["<name>"]) : expectArguments(positionals, ["<name>", "<prompt>"]);
     if (values.every === undefined && values.cron === undefined) {
       throw new UsageError('Say when it runs: give --every, how often, such as --every 1h, or --cron, when, such as --cron "0 3 * * *".');
     }
     if (values.every !== undefined && values.cron !== undefined) throw new UsageError("Give --every or --cron, not both.");
-    if (prompt.trim() === "") throw new UsageError("The prompt is empty. Say what the trigger is to do.");
+    if (prompt.trim() === "" && !notes) throw new UsageError("The prompt is empty. Say what the trigger is to do.");
     const target = agentToActOn(values.agent);
     await mayActOn(target, CHANGE);
 
@@ -311,8 +317,9 @@ const show: Command = {
   details:
     "Its schedule, where it goes, what it does when an occurrence is due while the last is still going, its " +
     "check if it has one, its prompt, when it runs next and how its latest occurrences ended, newest first: an " +
-    "occurrence of a trigger with a check can also end quiet, when the check found no news, or interrupted, when the " +
-    "agent stopped while the check ran. With no agent running, it shows only what the trigger's file says, and exits 1.",
+    "occurrence of a trigger with a check can also end quiet, when the check found no news, noted, when it wrote " +
+    "its news to a breadcrumb, or interrupted, when the agent stopped while the check ran. With no agent running, " +
+    "it shows only what the trigger's file says, and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
@@ -347,8 +354,8 @@ const run: Command = {
   details:
     "Needs a running agent. The occurrence runs in the background: follow it with shrimpy triggers show. A trigger " +
     "that is off can be fired too. A trigger with a check is fired without running it: the agent is woken with the " +
-    "prompt alone. If the trigger does not allow overlap and its last occurrence is still going, this one is " +
-    "skipped, and the command exits 1.",
+    "prompt alone. A trigger that notes wakes nobody, so it can't be fired. If the trigger does not allow overlap and " +
+    "its last occurrence is still going, this one is skipped, and the command exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);

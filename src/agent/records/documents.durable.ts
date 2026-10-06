@@ -42,9 +42,10 @@ export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: R
  * A session of the agent, and what the model has yet to be shown for it: the
  * events in its thread the agent has not acted on, and the wake-ups it asked
  * for that were cancelled. Both go with the session's next input. A session in a
- * room also keeps where the agent last looked in the thread. A session is
- * behind a thread, and has that thread's channel, or is a trigger's own and
- * behind none, and has no channel; `trigger` names that trigger.
+ * room also keeps where the agent last looked in the thread. A session also keeps
+ * what it was shown of the home's breadcrumbs, to tell which are new to it. A
+ * session is behind a thread, and has that thread's channel, or is a trigger's
+ * own and behind none, and has no channel; `trigger` names that trigger.
  */
 export type SessionRecord =
   | {
@@ -66,6 +67,13 @@ export type SessionRecord =
        * before the agent kept it.
        */
       looked?: number;
+      /**
+       * For each breadcrumb the session was shown, a digest of the text it was
+       * shown, by the name of the file. A file whose text differs, or that is not
+       * here, is new to the session. A session written before breadcrumbs existed
+       * has none, which says it was shown nothing.
+       */
+      shown?: Record<string, string>;
     }
   | {
       conversationId: number;
@@ -75,6 +83,7 @@ export type SessionRecord =
       /** Always empty: chat events come in threads. */
       unacted: Snapshot[];
       cancelled?: Wakeup[];
+      shown?: Record<string, string>;
     };
 
 /**
