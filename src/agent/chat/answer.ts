@@ -56,7 +56,7 @@ export async function takeUpAnswer(
 }
 
 /** The message `reply` among the newest of the thread the receipt's message is in, older than the receipt. */
-async function findReply(chat: ChatClient, receipt: Receipted, reply: string, signal: AbortSignal): Promise<Message | undefined> {
+export async function findReply(chat: ChatClient, receipt: Receipted, reply: string, signal: AbortSignal): Promise<Message | undefined> {
   let before = receipt.seq;
   for (let page = 0; page < PAGES; page++) {
     let messages: Message[];

@@ -40,15 +40,16 @@ export { removeTrigger, writeTrigger } from "./triggers.ts";
 export { answered, assistantItems, toolItems } from "./views.ts";
 
 /**
- * What the scripted model does. `chat`, `fail`, `stream`, `tool` and `waking`
- * each do one thing. `mixed` picks one of them by what the latest message says:
- * "stream" streams a long answer, "refuse" fails, "slow command" runs the slow
- * shell call, "check back in 2s" asks to be woken in 2 seconds (`and 5s` asks
- * for a second wake-up), and anything else is answered as `chat` answers.
- * `gated` answers as `chat` does once `releaseGate` has been called for its
- * home, and `gatedFail` fails as `fail` does once it has.
+ * What the scripted model does. `chat`, `fail`, `stream`, `tool`, `waking` and
+ * `asking` each do one thing. `mixed` picks one of them by what the latest
+ * message says: "stream" streams a long answer, "refuse" fails, "slow command"
+ * runs the slow shell call, "check back in 2s" asks to be woken in 2 seconds
+ * (`and 5s` asks for a second wake-up), "ask maya" asks the agent maya a
+ * question, and anything else is answered as `chat` answers. `gated` answers as
+ * `chat` does once `releaseGate` has been called for its home, and `gatedFail`
+ * fails as `fail` does once it has.
  */
-export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "waking" | "mixed" | "gated" | "gatedFail";
+export type FauxScenario = "chat" | "fail" | "stream" | "tool" | "waking" | "asking" | "mixed" | "gated" | "gatedFail";
 
 /** What the model answers to the messages it is sent, so far. It may take its time. */
 export type Script = (
@@ -74,6 +75,10 @@ const LISTING_COMMAND = "printf 'listing the work directory\\n'; sleep 0.2; prin
 
 /** The delays "check back in 2s and 5s" asks for. */
 const CHECK_BACK = /\bcheck back in (\d+s(?: and \d+s)*)/i;
+
+/** What a message says to have the model ask the agent maya a question, and the question it asks. */
+const ASK_MAYA = /\bask maya\b/i;
+const ASKED_OF_MAYA = "Which stanza will you take?";
 
 /** Let the answers of a `gated` model through. */
 export function releaseGate(home: string): void {
@@ -122,6 +127,15 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     return fauxAssistantMessage([fauxText("Asking to be woken."), ...calls], { stopReason: "toolUse" });
   },
 
+  /** `ask_agent` of maya, then an answer that says so. */
+  asking: (messages) => {
+    if (pendingToolResult(messages) !== undefined) return fauxAssistantMessage("I asked maya.");
+    return fauxAssistantMessage(
+      [fauxText("Asking maya."), fauxToolCall("ask_agent", { to: "@maya", text: ASKED_OF_MAYA }, { id: "call-ask" })],
+      { stopReason: "toolUse" },
+    );
+  },
+
   /** Thinking, a short shell call when asked about files, and a markdown answer. */
   chat: (messages) => {
     const result = pendingToolResult(messages);
@@ -149,6 +163,7 @@ const SCRIPTS: Record<FauxScenario, Script> = {
     if (/\brefuse\b/i.test(user)) return SCRIPTS.fail(messages, home);
     if (/\bslow command\b/i.test(user)) return SCRIPTS.tool(messages, home);
     if (CHECK_BACK.test(user)) return SCRIPTS.waking(messages, home);
+    if (ASK_MAYA.test(user)) return SCRIPTS.asking(messages, home);
     return SCRIPTS.chat(messages, home);
   },
 

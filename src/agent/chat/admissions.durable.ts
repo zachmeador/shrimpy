@@ -1,8 +1,9 @@
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
+import type { Conversation, ConversationId, Harness, TaskId } from "@earendil-works/pi-durable";
 import type { Breadcrumb } from "../inputs/index.ts";
-import { FeedDoc, learnPlace, openSession, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
+import { closeQuestion as closeInCommit } from "../questions/durable.ts";
+import { FeedDoc, learnPlace, openSession, QuestionsDoc, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 import type { Admissions } from "./admissions.ts";
 
@@ -21,6 +22,9 @@ export type StopWork = (harness: Harness, conversation: Conversation, context: C
  * past it. Nothing is lost between an event being read and being taken up, and
  * nothing is taken up twice. The home's breadcrumbs are read before that commit,
  * which reads no files, and the ones that are new to the session go with the event.
+ * The receipt that closes a question the agent asked is taken up the same way: the
+ * question closes and its result becomes an input of the session that asked in the
+ * commit that moves the cursor past the receipt.
  */
 export function createAdmissions(
   harness: Harness,
@@ -85,6 +89,20 @@ export function createAdmissions(
         }
         await takeUp(tx, turn, session.conversationId as ConversationId, draft, crumbs);
       }, context);
+    },
+
+    async openQuestions() {
+      return Object.values((await harness.snapshot(QuestionsDoc, context))?.open ?? {});
+    },
+
+    async closeQuestion(id, result, position) {
+      const crumbs = await breadcrumbs();
+      const closed = await harness.commit(async (tx) => {
+        moveCursor(await tx.doc(FeedDoc), position);
+        return closeInCommit(tx, turn, id, result, crumbs);
+      }, context);
+      // The question has no time left to run out: its task has nothing to wait for.
+      if (closed !== undefined) await harness.abortTask(closed.task as TaskId, context);
     },
   };
 }

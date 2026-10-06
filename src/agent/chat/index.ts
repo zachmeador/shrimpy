@@ -6,11 +6,14 @@
  * among them, and taking each up as an input of its thread's session, in a room
  * with what was said there since the agent last looked. Once the task that
  * follows an input knows how its turn ended, the reply is posted and the receipt
- * left, which names the event; a wake-up the agent asked for and an occurrence of
- * a trigger are posted the same way, and have no receipt. A command a person
- * writes in a thread, `/stop`, is no input: it is acted on when the feed brings
- * it, whatever the room's wake policy, and is never handed to a session or a
- * model. It tells chat which threads the agent is working in, finds which
+ * left, which names the event; a wake-up the agent asked for, an occurrence of a
+ * trigger and the result of a question are posted the same way, and have no
+ * receipt. A command a person writes in a thread, `/stop`, is no input: it is
+ * acted on when the feed brings it, whatever the room's wake policy, and is never
+ * handed to a session or a model. What an agent the agent asked a question posts
+ * in their DM while the question is open belongs to the question and wakes nobody,
+ * and the receipt it leaves on the question closes it, as a result for the
+ * session that asked. It tells chat which threads the agent is working in, finds which
  * channel a thread is in, and where the thread is, for a trigger whose thread the
  * agent has no session behind yet, says where an event's thread is, as a DM with
  * someone or a room and who else is in it, marks a person's message as one

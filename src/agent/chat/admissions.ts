@@ -1,11 +1,12 @@
-import type { ChatInput } from "../inputs/index.ts";
+import type { ChatInput, Question, QuestionResult } from "../inputs/index.ts";
 import type { WakePolicies } from "./policy.ts";
 
 /**
  * What chat needs from the agent's records: where it stands in chat's feed and
- * in which chat store, a way to take an event up, and a way to stop the work
- * behind a thread, for a command. It is also handed the choices the agent made,
- * in a file of its home, about what wakes it in each room.
+ * in which chat store, a way to take an event up, which questions the agent has
+ * open and a way to close one, and a way to stop the work behind a thread, for a
+ * command. It is also handed the choices the agent made, in a file of its home,
+ * about what wakes it in each room.
  */
 export interface Admissions {
   /** What wakes the agent in each room. Without it, every room has the default. */
@@ -37,6 +38,20 @@ export interface Admissions {
    * An event is taken up once, because the cursor moves with it.
    */
   admit(draft: Omit<ChatInput, "earlier" | "cancelled" | "breadcrumbs">, position?: number): Promise<void>;
+  /**
+   * The questions the agent asked other agents that are open now, which the feed
+   * reads each event against: what the agent asked posts while its question is
+   * open belongs to the question, and its receipt closes it.
+   */
+  openQuestions(): Promise<readonly Question[]>;
+  /**
+   * Close the question `id` with what came back, and take that up as an input of
+   * the session that asked, in one commit with the move of the cursor to
+   * `position`, which is the receipt's own. A question that is not open any more,
+   * because its time was up first, is left alone, and the cursor still moves. The
+   * task that would have closed it when its time was up is ended afterwards.
+   */
+  closeQuestion(id: string, result: QuestionResult, position: number): Promise<void>;
   /**
    * Where the agent last looked in a thread of a room: the position of the
    * newest event it took up there, kept with the thread's session. Undefined

@@ -9,6 +9,7 @@ import { knownChannels } from "./channels.ts";
 import { commandFor, obey } from "./commands.ts";
 import { pause } from "./pause.ts";
 import { inPlace } from "./place.ts";
+import { resultOf, toQuestion } from "./questions.ts";
 import { inRoom } from "./room.ts";
 import { isUrgentPost, passedOver, wakingOf } from "./wake.ts";
 
@@ -41,7 +42,11 @@ export interface FeedOptions {
  * says another member answered a message of the agent's own in a room is a
  * reason to ask chat for the reply it points to, which only chat can give. A
  * command that a person wrote is not taken up like the rest: it is acted on as
- * the feed brings it.
+ * the feed brings it. So is what belongs to a question the agent asked another
+ * agent: while the question is open, what that agent posts in their DM wakes
+ * nobody, and the receipt it leaves on the question closes it, in the commit that
+ * moves the agent's place in the feed. A receipt that says it skipped the question
+ * leaves it open.
  */
 export async function readFeed(options: FeedOptions): Promise<void> {
   const { link, admissions, stop } = options;
@@ -102,6 +107,20 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         if (command !== undefined) {
           await obey(command, event, { chat, admissions, signal, onError: reported });
           at = event.seq;
+          continue;
+        }
+        // What the agent that was asked posts while a question is open is the question's and wakes nobody, and its
+        // receipt closes the question. The open questions are asked for at each event, since one may close in this page.
+        const asked = passed ? undefined : toQuestion(event, await admissions.openQuestions());
+        if (asked !== undefined) {
+          const result = asked.kind === "receipt" ? await resultOf(chat, asked.receipt, signal, reported) : undefined;
+          if (asked.kind === "receipt" && result !== undefined) {
+            // The agent's place in the feed moves in the commit that closes the question, to where the feed brought it.
+            await admissions.closeQuestion(asked.question.id, result, event.seq);
+            cursor = stored = at = event.seq;
+          } else {
+            at = event.seq;
+          }
           continue;
         }
         const policy = policyIn(channel);
