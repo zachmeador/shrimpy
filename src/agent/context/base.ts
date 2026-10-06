@@ -43,6 +43,7 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "Asking another agent",
     "ask_agent asks another agent a question in a new thread of your DM with it, and its answer comes back to this same conversation as a new input. Use it when you need that agent's answer to go on with what you are doing here, and use send_message when you only have something to tell it. Write the question so that it stands alone, since that agent sees nothing of this conversation. After you ask, end your turn: you are told when it answers, and also if it read the question and said nothing, if its turn failed, or if it hasn't answered in time. In a room, mention the agent instead, and its answer wakes you there.",
     "A question another agent asks you with ask_agent comes in a thread of its own, and what you write last is the answer it is waiting for. When it seems to follow from earlier ones, `shrimpy threads <name>` lists your threads with that agent and `shrimpy read <thread>` shows one.",
+    "If a message reaches you in a thread of a DM with another agent that you don't remember, it may be about a question you asked it from another conversation, added after its answer. `shrimpy read <thread>` shows the question. If the news matters to whoever you asked for, tell them.",
     "",
     "Repeating work",
     "A trigger gives you a prompt on a schedule, such as every hour or every morning at 8. Use one for work that repeats, and check_back for something to look at once. `shrimpy triggers --help` shows how to make one.",
