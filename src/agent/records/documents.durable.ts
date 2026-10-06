@@ -121,11 +121,14 @@ export function sessionAddress(input: Outstanding): string | undefined {
  * on gets a revision of its own, which no other has, so the task that waits for
  * the trigger's next occurrence, which carries the revision it was made for,
  * knows when it is out of date. A trigger with a check also keeps what its check
- * printed at the last occurrence that was told of it or found nothing to tell:
- * what `changed` compares with. A trigger that has not had one has none, and its
- * next occurrence counts as changed.
+ * printed at the last occurrence that was told of it, which is what `changed`
+ * compares with, and a trigger that has not had one has none and counts its next
+ * as changed; when it last checked, in milliseconds since the epoch; and how many
+ * checks in a row, the last included, have found no news since an occurrence was
+ * made, which is 0 when the last check made one. A check that finds no news makes
+ * no occurrence, so this is all there is of it.
  */
-export type StoredTrigger = { revision: number; definition: TriggerDefinition; last?: string };
+export type StoredTrigger = { revision: number; definition: TriggerDefinition; last?: string; checkedAt?: number; quiet?: number };
 
 /**
  * The agent's standing triggers by name. They follow the files of the home

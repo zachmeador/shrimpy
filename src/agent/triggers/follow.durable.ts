@@ -32,9 +32,9 @@ export async function reconcile(
     for (const definition of files.triggers) {
       const old = Object.hasOwn(before, definition.name) ? before[definition.name] : undefined;
       const unchanged = old !== undefined && sameSchedule(old.definition.schedule, definition.schedule);
-      // What its check printed last stays with a trigger that still has one, whatever else its file changed.
-      const last = definition.check !== undefined && old?.last !== undefined ? { last: old.last } : {};
-      after[definition.name] = { revision: unchanged ? old.revision : (revisions += 1), definition, ...last };
+      // What a trigger that still has a check keeps of its checks stays with it, whatever else its file changed.
+      const checked = definition.check !== undefined && old !== undefined ? checksOf(old) : {};
+      after[definition.name] = { revision: unchanged ? old.revision : (revisions += 1), definition, ...checked };
     }
     for (const problem of files.problems) {
       const old = keptFor(problem, before, after);
@@ -76,6 +76,15 @@ export async function reconcile(
   }, context);
   for (const id of result.abort) await harness.abortTask(id, context);
   return { count: result.count, leftOut: result.leftOut };
+}
+
+/** What a trigger keeps of its checks: what the last occurrence printed, when it last checked, and how many checks in a row found no news. */
+function checksOf({ last, checkedAt, quiet }: StoredTrigger): Pick<StoredTrigger, "last" | "checkedAt" | "quiet"> {
+  return {
+    ...(last === undefined ? {} : { last }),
+    ...(checkedAt === undefined ? {} : { checkedAt }),
+    ...(quiet === undefined ? {} : { quiet }),
+  };
 }
 
 /** The tasks that wait for a trigger and are not being ended, with what they are for. */

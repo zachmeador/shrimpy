@@ -47,7 +47,11 @@ export async function occurrences(harness: Harness): Promise<{ trigger: string; 
   return found;
 }
 
-/** A trigger as the list tells it: its schedule, whether it is on, when it is next due and how its last occurrence ended. */
+/**
+ * A trigger as the list tells it: its schedule, whether it is on, when it is next
+ * due, how its last occurrence ended and, for one with a check, how its checks
+ * have gone.
+ */
 export function summaryOf(trigger: StoredTrigger, next: NextTime | undefined, last: OccurrenceView | undefined): TriggerSummary {
   const { definition } = trigger;
   return {
@@ -57,6 +61,7 @@ export function summaryOf(trigger: StoredTrigger, next: NextTime | undefined, la
     on: definition.enabled,
     next: definition.enabled && next?.revision === trigger.revision ? next.next : null,
     last: last ?? null,
+    lastCheck: trigger.checkedAt === undefined ? null : { at: trigger.checkedAt, quiet: trigger.quiet ?? 0 },
   };
 }
 

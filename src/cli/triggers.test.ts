@@ -213,6 +213,18 @@ test("run fires a trigger now even when it is off, and show lists the occurrence
   assert.equal(nothing.code, 1);
   assert.ok(nothing.err.includes("parked"), "and an unknown name is answered with the triggers there are");
   assert.equal((await run("triggers", "show", "nothing", "--agent", "scout")).code, 1);
+
+  // A trigger with a check runs it now, in the background, and the command says how to see how it ended.
+  assert.equal((await run("triggers", "add", "watched", "--every", "1h", "--check", "echo news", "Look.", "--agent", "scout")).code, 0);
+  const started = await run("triggers", "run", "watched", "--agent", "scout");
+  assert.equal(started.code, 0, started.err);
+  assert.ok(started.out.includes("triggers show watched"), started.out);
+  const checked = await eventually(
+    () => run("triggers", "show", "watched", "--agent", "scout"),
+    (result) => result.out.includes("by hand") && result.out.includes("answered"),
+    { what: "the check run by hand to wake the agent", timeoutMs: 30_000 },
+  );
+  assert.ok(checked.out.includes("checked"), "and show says when the trigger last checked");
 });
 
 test("in an agent's shell the commands act on that agent, and in a person's terminal they need --agent when the folder has more than one", { timeout }, async (t) => {

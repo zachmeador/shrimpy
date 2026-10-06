@@ -1,3 +1,4 @@
+import { posix } from "node:path";
 import type { Context } from "@earendil-works/chord";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import { AGENT_RUNTIME_DIR, type Check } from "../../contracts/agent/index.ts";
@@ -13,30 +14,37 @@ const HELD = 100_000;
 const ERROR_END = 300;
 
 /** What an occurrence says when the agent ended while its check ran. */
-export const INTERRUPTED =
-  "The agent stopped while the check was running, so the check was not run again for this occurrence. The next occurrence runs it.";
+export const interruptedWhile = (byHand: boolean): string =>
+  `The agent stopped while the check was running, so the check was not run again for this occurrence. ${
+    byHand ? "Fire the trigger again to run it." : "The next occurrence runs it."
+  }`;
 
 /**
- * Run the check of the trigger `trigger` in `env`, which is where the agent's
- * shell tool runs, from the home, and say what it found: what it printed on
- * standard output, trimmed and cut at `OUTPUT_LIMIT` characters, or one line that
- * says it failed, with the end of what it printed on standard error, when it
- * exited with anything but 0, ran past its timeout or could not be started. The
- * environment hands over standard output and standard error as one stream, so the
- * command is told to write its standard error to a file of its own in the home's
- * runtime folder, which each run of the trigger's check writes over. Rejects when
- * `context` is aborted, as it is when the agent stops: the command is stopped
- * with it, and the check has not found anything.
+ * Where a trigger's check writes what it prints on standard error, in the home's
+ * runtime folder: a file for each trigger, which each run writes over, and one
+ * for the runs by hand, so that a run by hand and a scheduled one that overlap
+ * do not write to the same file.
  */
-export async function runCheck(env: ExecutionEnv | undefined, trigger: string, check: Check, context: Context): Promise<string> {
+export const errorsOf = (trigger: string, byHand: boolean): string => `${AGENT_RUNTIME_DIR}/checks/${byHand ? "by-hand/" : ""}${trigger}.stderr`;
+
+/**
+ * Run a check in `env`, which is where the agent's shell tool runs, from the
+ * home, and say what it found: what it printed on standard output, trimmed and
+ * cut at `OUTPUT_LIMIT` characters, or one line that says it failed, with the end
+ * of what it printed on standard error, when it exited with anything but 0, ran
+ * past its timeout or could not be started. The environment hands over standard
+ * output and standard error as one stream, so the command is told to write its
+ * standard error to the file `errors` names, which is read when it ends. Rejects
+ * when `context` is aborted, as it is when the agent stops: the command is
+ * stopped with it, and the check has not found anything.
+ */
+export async function runCheck(env: ExecutionEnv | undefined, errors: string, check: Check, context: Context): Promise<string> {
   if (env === undefined) return failed("it could not be started: the agent has no shell to run it in");
-  const folder = `${AGENT_RUNTIME_DIR}/checks`;
-  const made = await env.createDir(folder, { recursive: true }, context);
+  const made = await env.createDir(posix.dirname(errors), { recursive: true }, context);
   if (!made.ok) {
     context.abortSignal?.throwIfAborted();
     return failed(`it could not be started: ${made.error.message}`);
   }
-  const errors = `${folder}/${trigger}.stderr`;
   let printed = "";
   const ran = await env.exec(
     `exec 2>${quote(errors)}\n${check.command}`,
@@ -65,18 +73,14 @@ export async function runCheck(env: ExecutionEnv | undefined, trigger: string, c
 /**
  * Whether what a check printed is news, by what the trigger's `when` says.
  * `last` is what the check printed at the last occurrence that was told of it or
- * found nothing to tell. A trigger that has none has had no occurrence, and its
- * first counts as changed.
+ * noted. A trigger that has none has had no occurrence, and its first counts as
+ * changed.
  */
 export function isNews(when: Check["when"], output: string, last: string | undefined): boolean {
   if (when === "always") return true;
   if (when === "output") return output !== "";
   return output !== last;
 }
-
-/** What an occurrence says when its check found no news. */
-export const quietBecause = (when: Check["when"]): string =>
-  when === "changed" ? "Its check printed what it printed last time." : "Its check printed nothing.";
 
 /** What an occurrence says when its check found news, which it wrote to the trigger's breadcrumb. */
 export const notedIn = (trigger: string): string => `Its check printed news, which it wrote to breadcrumbs/${trigger}.md.`;

@@ -95,8 +95,8 @@ export type TriggerSchedule = { every: string } | { cron: string; timezone: stri
 /**
  * What a trigger's check is. The command runs at each occurrence, before
  * anything is taken up, and decides whether there is news: with none, no turn is
- * made and no model is called. The agent keeps it in its records, so it is a type
- * alias, which TypeScript lets stand for JSON.
+ * made, no model is called and no occurrence is made. The agent keeps it in its
+ * records, so it is a type alias, which TypeScript lets stand for JSON.
  */
 export type Check = {
   /** The command line, run with the agent's shell from its home. */
@@ -118,12 +118,12 @@ export type Check = {
 
 /**
  * How an occurrence ended. A skipped occurrence never ran: the last one was still
- * going, or there was nowhere to send it. A quiet one ran its check, which found
- * no news, so no turn was made. A noted one ran its check, which found news, and
- * wrote it to a breadcrumb, so nobody was woken. An interrupted one was running
- * its check when the agent ended, and the check was not run again for it.
+ * going, or there was nowhere to send it. A noted one ran its check, which found
+ * news, and wrote it to a breadcrumb, so nobody was woken. An interrupted one was
+ * running its check when the agent ended, and the check was not run again for it.
+ * A check that finds no news makes no occurrence.
  */
-export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "noted" | "interrupted";
+export type OccurrenceEnding = "answered" | "silent" | "failed" | "stopped" | "skipped" | "noted" | "interrupted";
 
 /**
  * One occurrence of a trigger, from the agent's records. Times are milliseconds
@@ -154,6 +154,13 @@ export interface TriggerSummary {
   next: number | null;
   /** Its latest occurrence, or null before the first. */
   last: Occurrence | null;
+  /**
+   * For a trigger with a check that has run: when it last ran, in milliseconds
+   * since the epoch, and how many checks in a row, that one included, have found
+   * no news since the last occurrence was made, which is 0 when the last check
+   * made one. Null for a trigger that has no check, or has not run it yet.
+   */
+  lastCheck: { at: number; quiet: number } | null;
 }
 
 /** A trigger with its definition and its most recent occurrences. */

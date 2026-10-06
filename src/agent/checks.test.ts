@@ -41,17 +41,21 @@ const trigger = (connection: AgentConnection, name: string, done: (detail: Trigg
 /** How many of a trigger's occurrences have ended in this way. */
 const ended = (detail: TriggerDetail, how: Occurrence["ended"]): number => detail.occurrences.filter((occurrence) => occurrence.ended === how).length;
 
-test("a check that finds no news makes no turn and calls no model, and its occurrence is on record as quiet", { timeout }, async (t) => {
+/** How many checks in a row, the last included, have found no news since the trigger last made an occurrence. */
+const quiet = (detail: TriggerDetail): number => detail.lastCheck?.quiet ?? 0;
+
+test("a check that finds no news calls no model and makes no occurrence, and the trigger says when it last checked", { timeout }, async (t) => {
   const home = tempDir(t, "agent");
   // It prints nothing, and `output` is news only when there is some.
   writeTrigger(home, "watch", ["every: 1s", "check: true", "when: output"], "Tell me what changed.");
   const rig = await startAgentRig(t, { home, shortestEveryMs: SHORTEST });
   const connection = await rig.connect();
 
-  const detail = await trigger(connection, "watch", (found) => ended(found, "quiet") >= 2, "two occurrences to be quiet");
+  const detail = await trigger(connection, "watch", (found) => quiet(found) >= 2, "two checks in a row to find no news");
 
-  assert.deepEqual(detail.occurrences.map((occurrence) => occurrence.ended).filter((how) => how !== "quiet"), []);
-  assert.equal(detail.last?.ended, "quiet");
+  assert.deepEqual([detail.occurrences, detail.last], [[], null], "no occurrence was made");
+  assert.ok(detail.lastCheck !== null && Math.abs(detail.lastCheck.at - Date.now()) < 5_000, "and the trigger says when it last checked");
+  assert.ok(((await connection.triggers())[0]?.lastCheck?.quiet ?? 0) >= 2, "in its summary too");
   assert.equal(existsSync(join(home, "requests.jsonl")), false, "the model was never called");
   assert.ok(!(await connection.sessions()).some((session) => session.id === "trigger:watch"), "and no session was made for it");
   assert.deepEqual(rig.reports, []);
@@ -67,8 +71,8 @@ test("output that changed wakes the agent with the prompt and, apart from it, th
   const rig = await startAgentRig(t, { home, script, shortestEveryMs: SHORTEST, tokensPerSecond: 1_000_000 });
   const connection = await rig.connect();
 
-  // A trigger's first occurrence counts as changed. The next prints the same.
-  await trigger(connection, "watch", (found) => ended(found, "answered") >= 1 && ended(found, "quiet") >= 1, "the first occurrence to wake the agent and the next to be quiet");
+  // A trigger's first occurrence counts as changed. The next check prints the same.
+  await trigger(connection, "watch", (found) => ended(found, "answered") >= 1 && quiet(found) >= 1, "the first occurrence to wake the agent and the next check to find the same");
   assert.equal(told.length, 1);
   const [first = ""] = told;
   const lines = first.split("\n");
@@ -82,8 +86,8 @@ test("output that changed wakes the agent with the prompt and, apart from it, th
   await trigger(connection, "watch", (found) => ended(found, "answered") >= 2, "the change to wake the agent");
   const [, second = ""] = told;
   assert.ok(second.includes("build 42 passed") && !second.includes("build 41 failed"), second);
-  const quiet = ended(await connection.trigger("watch"), "quiet");
-  await trigger(connection, "watch", (found) => ended(found, "quiet") > quiet, "the next occurrence to find the same");
+  const before = quiet(await connection.trigger("watch"));
+  await trigger(connection, "watch", (found) => quiet(found) > before, "the next check to find the same");
   assert.equal(told.length, 2);
   assert.deepEqual(rig.reports, []);
 });
@@ -97,9 +101,9 @@ test("a check that fails is news once, saying that it failed, and a check that o
   const connection = await rig.connect();
   const toldOf = (name: string): string[] => told.filter((text) => text.includes(`the trigger ${name},`));
 
-  // It failed the same way at the next occurrence, which woke nobody.
-  const broken = await trigger(connection, "broken", (found) => ended(found, "answered") >= 1 && ended(found, "quiet") >= 1, "the failure to be told and then found again");
-  const slow = await trigger(connection, "slow", (found) => ended(found, "answered") >= 1 && ended(found, "quiet") >= 1, "the timeout to be told and then found again");
+  // It failed the same way at the next check, which woke nobody.
+  const broken = await trigger(connection, "broken", (found) => ended(found, "answered") >= 1 && quiet(found) >= 1, "the failure to be told and then found again");
+  const slow = await trigger(connection, "slow", (found) => ended(found, "answered") >= 1 && quiet(found) >= 1, "the timeout to be told and then found again");
 
   assert.equal(ended(broken, "answered"), 1);
   assert.equal(ended(slow, "answered"), 1);
@@ -109,6 +113,34 @@ test("a check that fails is news once, saying that it failed, and a check that o
   const [outlasted = ""] = toldOf("slow");
   assert.ok(/fail/i.test(outlasted) && outlasted.includes("1s"), outlasted);
   assert.equal(toldOf("broken").length + toldOf("slow").length, 2, "each was told of once");
+  assert.deepEqual(rig.reports, []);
+});
+
+test("a trigger fired by hand runs its check, and whatever it prints wakes the agent though the output has not changed, while the schedule stays where it was", { timeout }, async (t) => {
+  const home = tempDir(t, "agent");
+  writeFileSync(join(home, "state.txt"), "build 41 failed\n");
+  writeTrigger(home, "watch", ["every: 1s", "check: cat state.txt"], "Tell me what changed.");
+  const { script, told } = listening();
+  const rig = await startAgentRig(t, { home, script, shortestEveryMs: SHORTEST, tokensPerSecond: 1_000_000 });
+  const connection = await rig.connect();
+  // The first occurrence told it, and the checks after it find the same, so no scheduled occurrence would wake it again.
+  await trigger(connection, "watch", (found) => ended(found, "answered") >= 1 && quiet(found) >= 1, "the first occurrence to wake the agent and the next check to find the same");
+  // The schedule becomes an hour long, so that it stays where it is while the test goes on.
+  writeTrigger(home, "watch", ["every: 1h", "check: cat state.txt"], "Tell me what changed.");
+  await connection.reload();
+  const { next } = await connection.trigger("watch");
+  assert.ok(next !== null && Math.abs(next - Date.now() - 3_600_000) < 60_000, "an hour from the reload");
+  assert.equal(told.length, 1);
+
+  const fired = await connection.fire("watch");
+
+  assert.deepEqual([fired.byHand, fired.ended], [true, null], "it answers once the check has started, with the occurrence the check will make");
+  const detail = await trigger(connection, "watch", (found) => ended(found, "answered") >= 2, "the check run by hand to wake the agent");
+  assert.equal(told.length, 2);
+  assert.ok(told[1]?.includes("build 41 failed"), "with what the check printed, which had not changed");
+  assert.deepEqual([detail.occurrences[0]?.id, detail.occurrences[0]?.byHand], [fired.id, true]);
+  assert.equal(detail.next, next, "and the trigger's next time did not move");
+  assert.equal(quiet(detail), 0, "the count of checks that found no news starts again");
   assert.deepEqual(rig.reports, []);
 });
 

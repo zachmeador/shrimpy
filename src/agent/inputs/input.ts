@@ -224,13 +224,12 @@ export type OccurrenceInput = {
   breadcrumbs?: Breadcrumbs;
   /**
    * An occurrence that no turn runs: it was skipped because the last one was
-   * still going, or could not be handed to a session; its check found no news,
-   * so it was quiet; its check found news that it wrote to a breadcrumb, so it
-   * was noted; or the agent ended while its check ran, so it was interrupted. The
-   * task that follows it ends at once with this outcome, and `reason` says why.
-   * It has no thread.
+   * still going, or could not be handed to a session; its check found news that
+   * it wrote to a breadcrumb, so it was noted; or the agent ended while its check
+   * ran, so it was interrupted. The task that follows it ends at once with this
+   * outcome, and `reason` says why. It has no thread.
    */
-  unrun?: { outcome: "skipped" | "failed" | "quiet" | "noted" | "interrupted"; reason: string };
+  unrun?: { outcome: "skipped" | "failed" | "noted" | "interrupted"; reason: string };
 } & (InThread | NoThread);
 
 /**
@@ -293,8 +292,8 @@ export function isUrgent(outstanding: Outstanding): boolean {
 
 /** How the turn of an input ended, as the record of its task keeps it. */
 export type Ending = {
-  ended: "answered" | "silent" | "failed" | "stopped" | "skipped" | "quiet" | "noted" | "interrupted";
-  /** Why a turn failed, or an occurrence was skipped, quiet, noted or interrupted, when it says. */
+  ended: "answered" | "silent" | "failed" | "stopped" | "skipped" | "noted" | "interrupted";
+  /** Why a turn failed, or an occurrence was skipped, noted or interrupted, when it says. */
   reason?: string;
 };
 

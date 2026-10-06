@@ -4,10 +4,10 @@ import type { Check } from "../../contracts/agent/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { nextOccurrence } from "../home/index.ts";
 import { plain, type SessionDefaults, type StoredTrigger, TriggersDoc } from "../records/durable.ts";
-import type { TurnTask } from "../turns/durable.ts";
 import type { Breadcrumb } from "../inputs/index.ts";
-import { INTERRUPTED, isNews, noteOf, notedIn, quietBecause, runCheck } from "./check.durable.ts";
-import { fire, recordUnrun, type Where } from "./occurrence.durable.ts";
+import type { TurnTask } from "../turns/durable.ts";
+import { errorsOf, isNews, noteOf, runCheck } from "./check.durable.ts";
+import { fire, type Finding, recordInterrupted, settle, type Where } from "./occurrence.durable.ts";
 
 /** The name of the task that sleeps until a trigger's next occurrence is due, and then makes it. */
 export const TRIGGER_TASK = "shrimpy.trigger";
@@ -55,11 +55,33 @@ export interface TriggerTaskOptions {
   breadcrumbs(): Promise<readonly Breadcrumb[]>;
   /** Write the breadcrumb `<name>.md`, in place of the one there is. */
   leaveBreadcrumb(name: string, text: string): Promise<void>;
+  /** The prompt the trigger has now, which is empty when it has none or is gone. */
+  promptOf(name: string): Promise<string>;
   /** Told of an occurrence that could not be made. */
   onError(error: Error): void;
 }
 
-const ENDED = { status: "terminal", outcome: { status: "completed", result: null } } as const;
+export const ENDED = { status: "terminal", outcome: { status: "completed", result: null } } as const;
+
+/**
+ * What the commit that settles a check's finding needs first, which reads and
+ * writes files and asks chat, and so comes before it: where the thread of a
+ * trigger that wakes the agent is, if the agent has no session behind it yet, and
+ * the home's breadcrumbs that are new to the session it is taken up in; or, for
+ * a trigger that notes the news, the breadcrumb itself, written whole, so that
+ * writing it again after a restart changes nothing. A finding of no news needs
+ * none of it. Shared with the task that runs a check by hand.
+ */
+export async function beforeSettling(
+  options: TriggerTaskOptions,
+  signal: AbortSignal,
+  name: string,
+  { check, output, news }: Finding,
+): Promise<{ where: Where | undefined; breadcrumbs: readonly Breadcrumb[] }> {
+  const wakes = news && check.then === "wake";
+  if (news && !wakes) await options.leaveBreadcrumb(name, noteOf(await options.promptOf(name), output));
+  return { where: wakes ? await options.whereTo(name, signal, true) : undefined, breadcrumbs: wakes ? await options.breadcrumbs() : [] };
+}
 
 /**
  * The stored trigger, if it is still the trigger a task is for. It is not when
@@ -146,7 +168,7 @@ export function triggerTask(options: TriggerTaskOptions) {
         const { name } = checking.input;
         // The check is on record as begun before its command starts, so that a task that starts again knows it may have run.
         await runtime.commit(() => ({ status: "running", checkpoint: { phase: "checking", revision, next, firedAt, check } }), context);
-        const output = await runCheck(await runtime.env(context), name, check, context);
+        const output = await runCheck(await runtime.env(context), errorsOf(name, false), check, context);
         await runtime.commit(async (tx) => {
           const found = await stillThere(tx, name, revision);
           if (found === undefined) return ENDED;
@@ -161,10 +183,7 @@ export function triggerTask(options: TriggerTaskOptions) {
         try {
           await runtime.commit(
             (tx) =>
-              onward(tx, runtime, name, revision, async (found) => {
-                const unrun = { outcome: "interrupted", reason: INTERRUPTED } as const;
-                await recordUnrun(tx, turn, plain(found.definition), { due: next, firedAt, byHand: false }, unrun);
-              }),
+              onward(tx, runtime, name, revision, (found) => recordInterrupted(tx, turn, found, { due: next, firedAt, byHand: false })),
             context,
           );
         } catch (error) {
@@ -175,29 +194,14 @@ export function triggerTask(options: TriggerTaskOptions) {
       checked: async (done, runtime, context) => {
         const { revision, next, firedAt, check, output, news } = done.state.checkpoint;
         const { name } = done.input;
-        const wakes = news && check.then === "wake";
-        // News that does not wake the agent leaves its occurrence on record all the same: noted, when it was written to the
-        // trigger's breadcrumb, and quiet when there was none.
-        const unrun = news ? ({ outcome: "noted", reason: notedIn(name) } as const) : ({ outcome: "quiet", reason: quietBecause(check.when) } as const);
+        const finding = { check, output, news };
         try {
-          // Asking chat where the thread is, reading the breadcrumbs and writing the breadcrumb come first, and take no
-          // part in the commit that makes the occurrence. The breadcrumb is written whole, so writing it again after a
-          // restart changes nothing.
-          const where = wakes ? await options.whereTo(name, runtime.signal, true) : undefined;
-          const breadcrumbs = wakes ? await options.breadcrumbs() : [];
-          if (news && !wakes) await options.leaveBreadcrumb(name, noteOf(await promptOf(runtime, context, name), output));
+          const { where, breadcrumbs } = await beforeSettling(options, runtime.signal, name, finding);
           await runtime.commit(
             (tx) =>
-              onward(tx, runtime, name, revision, async (found) => {
-                const firing = { due: next, firedAt, byHand: false };
-                const definition = plain(found.definition);
-                const made = wakes
-                  ? await fire(tx, { turn, defaults, breadcrumbs }, definition, { ...firing, output }, where)
-                  : await recordUnrun(tx, turn, definition, firing, unrun);
-                // What the agent was told, or found nothing to be told, is what the next occurrence compares with. An
-                // occurrence that did not run leaves it as it was, so that the news is not lost with the occurrence.
-                if (made.ended === null || made.ended === "quiet" || made.ended === "noted") found.last = output;
-              }),
+              onward(tx, runtime, name, revision, (found) =>
+                settle(tx, { turn, defaults, breadcrumbs }, found, finding, { due: next, firedAt, byHand: false }, where),
+              ),
             context,
           );
         } catch (error) {
@@ -210,12 +214,6 @@ export function triggerTask(options: TriggerTaskOptions) {
       await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context);
     },
   });
-}
-
-/** The prompt the trigger has now, which is empty when it has none or is gone. */
-async function promptOf(runtime: Runtime, context: Context, name: string): Promise<string> {
-  const triggers = (await runtime.snapshot(TriggersDoc, context))?.triggers ?? {};
-  return Object.hasOwn(triggers, name) ? (triggers[name]?.definition.prompt ?? "") : "";
 }
 
 /** The task that waits for a trigger's next occurrence, to create one when the trigger follows its file. */

@@ -73,7 +73,7 @@ test("a trigger that notes writes its file and wakes nobody, and the next input 
   const rig = await startAgentRig(t, { home, shortestEveryMs: 200 });
   const connection = await rig.connect();
 
-  const detail = await trigger(connection, "build", (found) => ended(found, "noted") >= 1 && ended(found, "quiet") >= 1, "the news to be noted and then found again");
+  const detail = await trigger(connection, "build", (found) => ended(found, "noted") >= 1 && (found.lastCheck?.quiet ?? 0) >= 1, "the news to be noted and then found again");
 
   const file = readFileSync(join(homePaths(home).breadcrumbs, "build.md"), "utf8");
   assert.ok(file.includes("The build's state.") && file.includes("build 41 failed"), file);

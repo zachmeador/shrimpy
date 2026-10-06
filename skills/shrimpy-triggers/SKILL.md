@@ -43,8 +43,8 @@ A breadcrumb is a fact that moves, in a small Markdown file directly in `breadcr
 
 ## Look, change, stop
 
-- `shrimpy triggers` lists your triggers with when each runs next and how its last occurrence ended. `shrimpy triggers show morning` adds its prompt, its check if it has one and its recent occurrences, with the reason for one that failed, was skipped, was `quiet` because its check found no news, was `noted` because it wrote its news to a breadcrumb, or was `interrupted` because you stopped while the check ran.
-- `shrimpy triggers run morning` fires one now, and works on one that is off. A trigger with a check is fired without running it: you are woken with the prompt alone. A trigger that notes wakes nobody, so it can't be fired.
+- `shrimpy triggers` lists your triggers with when each runs next and how its last occurrence ended. `shrimpy triggers show morning` adds its prompt, its check if it has one and its recent occurrences, with the reason for one that failed, was skipped, was `noted` because it wrote its news to a breadcrumb, or was `interrupted` because you stopped while the check ran. A check that finds no news leaves no occurrence, so for a trigger with a check both also say when it last checked and whether that was quiet.
+- `shrimpy triggers run morning` fires one now, and works on one that is off. A trigger with a check runs it in the background, and whatever it prints counts as news: you are woken with the prompt and the output, or the breadcrumb is written. The schedule does not move.
 - `shrimpy triggers off morning` stops it running on its schedule and keeps its file, `shrimpy triggers on morning` starts it again, and `shrimpy triggers remove morning` deletes it. To change a prompt or a schedule, make it again with `add`.
 - None of these stops an occurrence that is running. `shrimpy sessions stop trigger:morning` does. For a trigger with a thread, give the thread's ID.
 

@@ -1,17 +1,20 @@
 import type { ConversationId, Tx } from "@earendil-works/pi-durable";
-import type { Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
+import type { Check, Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { describeSchedule, type TriggerDefinition } from "../home/index.ts";
 import { type Breadcrumb, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import {
   openSession,
+  plain,
   type SessionDefaults,
   type SessionRecord,
   SessionsDoc,
+  type StoredTrigger,
   triggerSession,
   TriggersDoc,
 } from "../records/durable.ts";
 import { liveTurns, takeUp, type TurnTask } from "../turns/durable.ts";
+import { interruptedWhile, notedIn } from "./check.durable.ts";
 
 /** What was found out about the thread of a trigger that has no session behind it yet. */
 export type Where = { thread: string } & ({ channelId: string } | { problem: string });
@@ -19,13 +22,22 @@ export type Where = { thread: string } & ({ channelId: string } | { problem: str
 /**
  * What an occurrence needs to be made: when it was due and when it fired,
  * whether it was run by hand, and, for one that woke the agent because its check
- * found news, what the check printed.
+ * found news, what the check printed. An occurrence run by hand is named before
+ * its check runs, so that whoever asked for it has its ID: `id` is that name.
  */
 export interface Firing {
   due: number;
   firedAt: number;
   byHand: boolean;
   output?: string;
+  id?: string;
+}
+
+/** What a trigger's check found: the check as the occurrence ran it, what it printed, and whether that is news. */
+export interface Finding {
+  check: Check;
+  output: string;
+  news: boolean;
 }
 
 /** How an occurrence that no turn runs ended, and why. */
@@ -42,7 +54,7 @@ export async function ownerOf(tx: Tx): Promise<ConversationId> {
 
 function occurrenceOf(definition: TriggerDefinition, firing: Firing): Occurrence {
   return {
-    id: newId("occ"),
+    id: firing.id ?? newId("occ"),
     trigger: definition.name,
     due: firing.due,
     firedAt: firing.firedAt,
@@ -61,8 +73,8 @@ async function leave(tx: Tx, turn: TurnTask, occurrence: Occurrence, unrun: Unru
 
 /**
  * Put an occurrence on record that no turn is made for, in the commit `tx`
- * belongs to, with how it ended and why: its check found no news, or the agent
- * ended while its check ran. Nothing is taken from any session.
+ * belongs to, with how it ended and why: its check found news that was noted, or
+ * the agent ended while its check ran. Nothing is taken from any session.
  */
 export function recordUnrun(tx: Tx, turn: TurnTask, definition: TriggerDefinition, firing: Firing, unrun: Unrun): Promise<OccurrenceView> {
   return leave(tx, turn, occurrenceOf(definition, firing), unrun);
@@ -113,6 +125,47 @@ export async function fire(
   const input = thread === undefined ? { occurrence } : { occurrence, ...thread };
   await takeUp(tx, parts.turn, opened.conversationId as ConversationId, input, parts.breadcrumbs);
   return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: null, reason: null };
+}
+
+/**
+ * What a check's finding comes to, in the commit `tx` belongs to, for the trigger
+ * whose stored record is `trigger`, which the commit changes: when it last
+ * checked, and how many checks in a row have found no news. Finding none is all
+ * there is of it, with no occurrence and no task. News makes an occurrence: the
+ * agent is woken with the prompt and the output when the check says `wake`, and
+ * when it says `note` the breadcrumb was written before the commit, and the
+ * occurrence is on record as noted. The trigger then keeps what the check printed
+ * for the next occurrence to compare with, unless the occurrence did not run:
+ * one that was skipped, or that had nowhere to go, leaves it, so that the news is
+ * not lost with it. `breadcrumbs` and `where` are as for `fire`.
+ */
+export async function settle(
+  tx: Tx,
+  parts: { turn: TurnTask; defaults: SessionDefaults; breadcrumbs: readonly Breadcrumb[] },
+  trigger: StoredTrigger,
+  finding: Finding,
+  firing: Firing,
+  where?: Where,
+): Promise<void> {
+  trigger.checkedAt = firing.firedAt;
+  if (!finding.news) {
+    trigger.quiet = (trigger.quiet ?? 0) + 1;
+    return;
+  }
+  trigger.quiet = 0;
+  const definition = plain(trigger.definition);
+  const made =
+    finding.check.then === "wake"
+      ? await fire(tx, parts, definition, { ...firing, output: finding.output }, where)
+      : await recordUnrun(tx, parts.turn, definition, firing, { outcome: "noted", reason: notedIn(definition.name) });
+  if (made.ended === null || made.ended === "noted") trigger.last = finding.output;
+}
+
+/** The check of a trigger was running when the agent ended: the occurrence is on record as interrupted, and the check is not run again for it. */
+export async function recordInterrupted(tx: Tx, turn: TurnTask, trigger: StoredTrigger, firing: Firing): Promise<void> {
+  trigger.checkedAt = firing.firedAt;
+  trigger.quiet = 0;
+  await recordUnrun(tx, turn, plain(trigger.definition), firing, { outcome: "interrupted", reason: interruptedWhile(firing.byHand) });
 }
 
 /** Whether an occurrence of this trigger is still going in the session: its task is live and a turn was to run. */

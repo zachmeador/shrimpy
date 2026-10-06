@@ -36,16 +36,43 @@ function ending(occurrence: Occurrence): string {
   return occurrence.reason === null ? how : `${how}: ${occurrence.reason.replace(/\s*\n\s*/g, " ")}`;
 }
 
-/** The triggers of a running agent as a table. */
+/**
+ * When a trigger last checked, for a table: the time, and "quiet" before it when
+ * the check found no news, with how many in a row when it was not the first.
+ */
+function checkedCell(last: TriggerSummary["lastCheck"]): string {
+  if (last === null) return "-";
+  if (last.quiet === 0) return localTime(last.at);
+  return `quiet ${localTime(last.at)}${last.quiet > 1 ? `, ${String(last.quiet)} in a row` : ""}`;
+}
+
+/** How a trigger's checks have gone, on one line: when it last checked, and when it was quiet, how many checks before it were too. */
+function checkedText(last: TriggerSummary["lastCheck"], now: number): string {
+  if (last === null) return "not yet";
+  const before = last.quiet - 1;
+  const quiet =
+    last.quiet === 0
+      ? ""
+      : before === 0
+        ? ": quiet"
+        : before === 1
+          ? ": quiet, as was the check before it"
+          : `: quiet, as were the ${String(before)} checks before it`;
+  return `${when(last.at, now)}${quiet}`;
+}
+
+/** The triggers of a running agent as a table, with a column for when each last checked if any of them has. */
 export function renderTriggers(triggers: TriggerSummary[]): string[] {
+  const checked = triggers.some((trigger) => trigger.lastCheck !== null);
   const rows = triggers.map((trigger) => [
     trigger.name,
     describeSchedule(trigger.schedule),
     trigger.on ? "on" : "off",
     trigger.next === null ? "-" : localTime(trigger.next),
     trigger.last === null ? "-" : `${trigger.last.ended ?? "running"} ${localTime(trigger.last.firedAt)}`,
+    ...(checked ? [checkedCell(trigger.lastCheck)] : []),
   ]);
-  return renderTable(["trigger", "schedule", "state", "next", "last"], rows);
+  return renderTable(["trigger", "schedule", "state", "next", "last", ...(checked ? ["checked"] : [])], rows);
 }
 
 /** The triggers a home's files hold as a table: what the files say, and nothing a running agent would add. */
@@ -72,8 +99,8 @@ interface Defined {
   prompt: string;
 }
 
-/** What a trigger's file says as lines, with a line for when it runs next if `next` says. */
-function definition(trigger: Defined, next?: string): string[] {
+/** What a trigger's file says as lines, with a line for when it runs next if `next` says, and for how its checks have gone if `checked` says. */
+function definition(trigger: Defined, next?: string, checked?: string): string[] {
   const goesTo =
     trigger.check?.then === "note"
       ? "nobody: it only leaves a breadcrumb"
@@ -88,6 +115,7 @@ function definition(trigger: Defined, next?: string): string[] {
     `${trigger.name}: ${trigger.on ? "on" : "off"}`,
     `  schedule  ${describeSchedule(trigger.schedule)}`,
     ...(next === undefined ? [] : [`  next      ${next}`]),
+    ...(checked === undefined ? [] : [`  checked   ${checked}`]),
     `  goes to   ${goesTo}`,
     `  overlap   ${overlap}`,
     ...(trigger.check === null ? [] : checkLines(trigger.name, trigger.check)),
@@ -114,10 +142,11 @@ function checkLines(name: string, { command, when, then, timeout }: Check): stri
   ];
 }
 
-/** One trigger of a running agent: its definition, when it runs next, and its latest occurrences. */
+/** One trigger of a running agent: its definition, when it runs next, how its checks have gone, and its latest occurrences. */
 export function renderTrigger(trigger: TriggerDetail, now: number): string[] {
-  const lines = definition(trigger, trigger.next === null ? "never: it is off" : when(trigger.next, now));
-  if (trigger.occurrences.length === 0) return [...lines, "", "It has not run yet."];
+  const next = trigger.next === null ? "never: it is off" : when(trigger.next, now);
+  const lines = definition(trigger, next, trigger.check === null ? undefined : checkedText(trigger.lastCheck, now));
+  if (trigger.occurrences.length === 0) return [...lines, "", trigger.lastCheck === null ? "It has not run yet." : "It has made no occurrence yet."];
   const rows = trigger.occurrences.map((occurrence) => [localTime(occurrence.firedAt), occurrence.byHand ? "by hand" : "on schedule", ending(occurrence)]);
   return [...lines, "", "Occurrences, newest first:", ...renderTable(["fired", "how", "ended"], rows).map((line) => `  ${line}`)];
 }

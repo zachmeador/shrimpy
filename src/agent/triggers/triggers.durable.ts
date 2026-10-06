@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { defineExtension, type Extension, type Harness } from "@earendil-works/pi-durable";
 import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from "../../contracts/agent/index.ts";
+import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { LeftOut, TriggerFiles } from "../home/index.ts";
 import type { Breadcrumb } from "../inputs/index.ts";
@@ -14,7 +15,8 @@ import {
 } from "../records/durable.ts";
 import type { TurnTask } from "../turns/durable.ts";
 import { reconcile } from "./follow.durable.ts";
-import { fire, type Where } from "./occurrence.durable.ts";
+import { fire, ownerOf, type Where } from "./occurrence.durable.ts";
+import { runTask } from "./run.durable.ts";
 import { triggerTask } from "./task.durable.ts";
 import { nextTimes, occurrences, RECENT, summaryOf } from "./views.durable.ts";
 
@@ -58,9 +60,10 @@ export interface Triggers {
   /** One trigger with its definition and recent occurrences. Refused when there is none of that name. */
   show(name: string): Promise<TriggerDetail>;
   /**
-   * Fire a trigger once now, apart from its schedule, with its prompt and without
-   * running its check. Refused when there is none of that name, or when it only
-   * notes what its check finds, since firing it would wake nobody.
+   * Fire a trigger once now, apart from its schedule, which does not move. A
+   * trigger with a check runs it now, in a task of its own, and answers once that
+   * task exists, with the occurrence the check will make, which has not ended:
+   * whatever the check prints is news. Refused when there is none of that name.
    */
   fire(name: string): Promise<OccurrenceView>;
 }
@@ -82,9 +85,13 @@ const context = BACKGROUND_CONTEXT;
  * session behind that thread. If the agent has none, the occurrence asks chat
  * which channel the thread is in, before the commit that makes it, and makes
  * the session there. An occurrence that is skipped, or that has nowhere to go,
- * is still an occurrence: its task ends at once with that outcome. Nothing is
- * kept beside the engine's records but the last valid definition of each
- * trigger.
+ * is still an occurrence: its task ends at once with that outcome. A trigger with
+ * a check runs it first, and a check that finds no news makes no occurrence and
+ * no task: the trigger's record says when it last checked and how many checks in
+ * a row have found none. A check run by hand is a task of its own, which makes
+ * the occurrence when the check ends and leaves the trigger's own task, and so
+ * its schedule, as it was. Nothing is kept beside the engine's records but the
+ * last valid definition of each trigger, with what its checks have left.
  */
 export function createTriggers(harness: Harness, options: TriggersOptions): Triggers {
   const { turn, defaults } = options;
@@ -104,14 +111,17 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     return { thread, ...(await options.channelOf(thread, signal)) };
   }
 
-  const task = triggerTask({
+  const parts = {
     turn,
     defaults,
     whereTo,
     breadcrumbs: () => options.breadcrumbs(),
-    leaveBreadcrumb: (name, text) => options.leaveBreadcrumb(name, text),
-    onError: (error) => options.onError(error),
-  });
+    leaveBreadcrumb: (name: string, text: string) => options.leaveBreadcrumb(name, text),
+    promptOf: async (name: string) => (await stored(name))?.definition.prompt ?? "",
+    onError: (error: Error) => options.onError(error),
+  };
+  const task = triggerTask(parts);
+  const run = runTask(parts);
 
   /** Reloading twice at once would reconcile twice, and the later reading may be the older. */
   let queue: Promise<unknown> = Promise.resolve();
@@ -123,7 +133,7 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
   }
 
   return {
-    extension: defineExtension({ name: "triggers", tasks: [task] }),
+    extension: defineExtension({ name: "triggers", tasks: [task, run] }),
 
     reload() {
       const reloaded = queue.then(async () => reconcile(harness, task, await options.read()));
@@ -157,8 +167,19 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
     },
 
     async fire(name) {
-      const known = await stored(name);
-      if (known?.definition.check?.then === "note") refuse(noWaking(name));
+      if ((await stored(name))?.definition.check !== undefined) {
+        // The check runs in a task of its own, and the occurrence comes when it ends, with the ID this answers with.
+        return harness.commit(async (tx) => {
+          const triggers = (await tx.doc(TriggersDoc)).triggers;
+          const found = Object.hasOwn(triggers, name) ? triggers[name] : undefined;
+          if (found === undefined) refuse(noTrigger(name));
+          if (found.definition.check === undefined) refuse(changed(name));
+          const now = Date.now();
+          const asked = { name, id: newId("occ"), firedAt: now, check: plain(found.definition.check) };
+          await tx.createTask(run, asked, { ownership: { kind: "conversation" }, conversationId: await ownerOf(tx), background: true });
+          return { id: asked.id, due: now, firedAt: now, byHand: true, ended: null, reason: null };
+        }, context);
+      }
       const where = await whereTo(name, new AbortController().signal, true);
       const breadcrumbs = await options.breadcrumbs();
       return harness.commit(async (tx) => {
@@ -174,7 +195,6 @@ export function createTriggers(harness: Harness, options: TriggersOptions): Trig
 
 const noTrigger = (name: string): string => `This agent has no trigger called ${name}.`;
 
-const noWaking = (name: string): string =>
-  `The trigger ${name} notes what its check finds and wakes nobody, so there is nothing to fire by hand. Its next occurrence runs the check.`;
+const changed = (name: string): string => `The trigger ${name} was changed as it was being run, so it did not run. Run it again.`;
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);

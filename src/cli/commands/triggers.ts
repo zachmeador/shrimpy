@@ -317,9 +317,10 @@ const show: Command = {
   details:
     "Its schedule, where it goes, what it does when an occurrence is due while the last is still going, its " +
     "check if it has one, its prompt, when it runs next and how its latest occurrences ended, newest first: an " +
-    "occurrence of a trigger with a check can also end quiet, when the check found no news, noted, when it wrote " +
-    "its news to a breadcrumb, or interrupted, when the agent stopped while the check ran. With no agent running, " +
-    "it shows only what the trigger's file says, and exits 1.",
+    "occurrence of a trigger with a check can also end noted, when it wrote its news to a breadcrumb, or " +
+    "interrupted, when the agent stopped while the check ran. A check that finds no news makes no occurrence, so " +
+    "for a trigger with a check it also says when the check last ran, and how many in a row have found none. With " +
+    "no agent running, it shows only what the trigger's file says, and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
@@ -351,11 +352,17 @@ const run: Command = {
   name: "triggers run",
   usage: "<name> [--agent <agent>]",
   summary: "Fire a trigger now, apart from its schedule, which it keeps.",
-  details:
+  details: [
     "Needs a running agent. The occurrence runs in the background: follow it with shrimpy triggers show. A trigger " +
-    "that is off can be fired too. A trigger with a check is fired without running it: the agent is woken with the " +
-    "prompt alone. A trigger that notes wakes nobody, so it can't be fired. If the trigger does not allow overlap and " +
-    "its last occurrence is still going, this one is skipped, and the command exits 1.",
+      "that is off can be fired too. If the trigger does not allow overlap and its last occurrence is still going, " +
+      "this one is skipped, and for a trigger with no check the command says so and exits 1.",
+    "",
+    "A trigger with a check runs it now, also in the background, and this returns once the check has started, " +
+      "without waiting for it. Whatever the check prints is news, whatever --when says, because you asked, and so " +
+      "is a failure: with --then wake the agent is woken with the prompt and the output, and with --then note the " +
+      "breadcrumb is written. What it printed is what the next scheduled occurrence compares with, and the " +
+      "schedule does not move. shrimpy triggers show says how it ended.",
+  ].join("\n"),
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
     const [name] = expectArguments(positionals, ["<name>"]);
@@ -365,12 +372,19 @@ const run: Command = {
       if (connection === undefined) throw new Error(noAgentRunning(target.home, target.given));
       const known = await triggersOf(connection);
       if (!known.includes(name)) throw new Error(noTrigger(target, name, known));
+      const { check } = await connection.trigger(name);
       const occurrence = await connection.fire(name);
       if (occurrence.ended !== null) {
         io.err(`The trigger ${name} did not run. ${occurrence.reason ?? `It ended as ${occurrence.ended}.`}`);
         return 1;
       }
-      io.out(`Fired the trigger ${name}. It runs in the background; follow it with: ${command(target, `triggers show ${name}`)}`);
+      const follow = command(target, `triggers show ${name}`);
+      if (check === null) {
+        io.out(`Fired the trigger ${name}. It runs in the background; follow it with: ${follow}`);
+      } else {
+        const news = check.then === "wake" ? "wakes the agent with the prompt and the output" : `is written to breadcrumbs/${name}.md`;
+        io.out(`The check of the trigger ${name} is running. When it ends, whatever it prints ${news}. See how it ended with: ${follow}`);
+      }
       return 0;
     });
   },
