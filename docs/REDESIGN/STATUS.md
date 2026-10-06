@@ -53,7 +53,7 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 
 ### The network
 
-- Joining from another machine waits for a VM on the LAN to test on.
+- Joining from another machine is [proposed](proposals/another-machine.md) and not built. An agent under another OS user of the gateway's machine can't join either: it can't open the gateway's socket, and would come in the same way.
 - To settle before the gateway's network entry: how the gateway opens a connection to a program on another machine, since today it dials a socket path; and who is asking on a connection that comes from another machine. Also how long a dead peer's registration lasts: an agent has one live body, so over a network an agent that restarts is turned away until its old connection times out.
 
 ### What an agent does without being asked
