@@ -119,6 +119,7 @@ export function scriptedAgent(): ScriptedAgent {
                 id: each.threadId,
                 threadId: each.threadId,
                 channelId: each.channelId,
+                place: null,
                 working: working(each.view),
               })),
             );

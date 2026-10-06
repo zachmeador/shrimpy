@@ -66,6 +66,26 @@ export interface SessionView {
 }
 
 /**
+ * Where a session is, as the agent last knew it. A client can't always ask chat,
+ * which tells nobody about a channel they are not in, so the agent says. The
+ * names are as they were when the agent last took something up there: a member
+ * or a room can be renamed since.
+ */
+export type SessionPlace =
+  /** A thread of the agent's DM with one other member. */
+  | { kind: "dm"; with: { name: string; kind: "person" | "agent" }; thread: ThreadPlace }
+  /** A thread of a room the agent is in. */
+  | { kind: "room"; room: string; thread: ThreadPlace }
+  /** A trigger's own session, which is behind no thread. */
+  | { kind: "trigger"; trigger: string };
+
+/** Which thread of a channel: its main one, and its name if it has one. */
+export interface ThreadPlace {
+  main: boolean;
+  name: string | null;
+}
+
+/**
  * A session as a list shows it. An agent has one session for each thread it
  * takes part in, and one for each trigger whose occurrences go to no thread.
  * Every session has an address at the agent: a thread's ID for a session behind
@@ -80,6 +100,8 @@ export interface SessionSummary {
   threadId: string | null;
   /** The channel of that thread, or null for a session behind no thread. */
   channelId: string | null;
+  /** Where the session is, in names, or null when the agent has not learned it. */
+  place: SessionPlace | null;
   /** Whether the session has input it is answering or has queued. */
   working: boolean;
 }

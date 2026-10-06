@@ -36,6 +36,7 @@ export function createSessions(harness: Harness, defaults: SessionDefaults): Ses
           id: address,
           threadId: session.channelId === null ? null : address,
           channelId: session.channelId,
+          place: null,
           working: working.has(session.conversationId),
         }));
     },
