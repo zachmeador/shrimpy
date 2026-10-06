@@ -62,14 +62,15 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - A trigger or a wake-up that comes due during a stop's grace period can still start.
 - A check's standard error goes to a file in the home's `runtime/checks/`, because Pi hands a command's output and errors over as one stream. An engine that kept them apart would need no file.
 - A second run of a trigger by hand, while the check of the first is running, starts a second check. `triggers show` has no row for a check run by hand until it has ended.
-- The terminal's Esc says there is nothing to stop while an agent is idle, so a waiting wake-up is cancelled only by `/stop` in its thread or by `shrimpy sessions stop`.
+- Nothing in the terminal cancels a wake-up that is waiting: a key stops only work that is running. `/stop` written in its thread does, and so does `shrimpy sessions stop`.
 
 ### Using it
 
 - Bare `shrimpy` opens the list of agents and rooms, or your threads with the only agent when you are in no room. It doesn't remember your latest thread, start programs on demand, or mark what arrived while you were away.
-- The terminal lists your threads with an agent, not the agent's sessions, so a session that isn't behind one of your threads can't be reached from it.
-- `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread.
-- In a room's thread the terminal's Esc does nothing, and an agent's work isn't shown as it happens. `/stop` written in the thread stops them. The terminal polls every room's threads every two seconds.
+- `pi-tui`'s regular mode clears the terminal's scrollback on some repaints, which the old terminal didn't do. The terminal can't scroll back past the newest 200 messages of a thread, or the newest 200 items of a session it is watching, and has no scrolling keys of its own.
+- In a room's thread an agent's work isn't shown as it happens, and no key stops it. Its session for that thread can be watched from the agent's screen, and `/stop` written in the thread stops the agents it is for. The terminal polls every room's threads every two seconds, and an agent's sessions while that list is on show.
+- Where a session is has two wordings: `shrimpy sessions list` says "DM with scout (an agent)", and the terminal's list says "DM with scout · main". The order of an agent's sessions is the order it made them, which the contract doesn't promise. While a session is watched its list isn't asked for again, so the watch's title keeps the place it had.
+- The terminal now ignores the release of a key, which a terminal that speaks the Kitty keyboard protocol reports and which made every press count twice there. It was fixed from reading `pi-tui` and a test, and hasn't been tried on such a terminal.
 - `threads #ops` needs quotes in a shell, or the room's name is taken for a comment and dropped.
 - `--no-wait` prints the IDs to follow up with, but no command waits on one.
 - `run` prints only the first part of an answer posted in parts, and can't follow a message once 200 newer ones are in its thread.

@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- The terminal: watching any session of any agent, and keys that mean one thing on every screen, as you agreed on 2026-10-05. [Using it](design/using-it.md) has both.
+- Nothing is being built. One question waits on you: whether every message a person writes joins the turn an agent is running, and not only one that mentions it.
 
 **Next:**
 

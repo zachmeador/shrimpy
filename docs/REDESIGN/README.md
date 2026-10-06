@@ -15,7 +15,7 @@ As of 2026-10-05.
 | [The home](design/5-home.md) | The files an agent is told from, skills, reload, `triggers/`, `breadcrumbs/`, `wake.json`, and records with an ID of their own. | — | Compaction with Shrimpy's guidance. Seeing the request a turn sent. Workspace context from the gateway. |
 | [The network](design/6-network.md) | On one machine: every connection by name goes through the gateway. | — | Another machine, sandboxes, Linux and Tailscale, which wait for a machine to test on. |
 | [What an agent does without being asked](design/7-on-its-own.md) | `check_back`, standing triggers and their commands, a trigger's check, and breadcrumbs. | — | Asking another agent. Helpers. |
-| [Using it](design/using-it.md) | The terminal, which browses agents and rooms, the commands, which each name their agent the same way, and a default folder, `~/shrimpy`. | The terminal: watching any session of any agent, and keys that mean one thing on every screen. | What daily use asks for: resetting a session, `/new`, sign-in, the web client. |
+| [Using it](design/using-it.md) | The terminal, which browses agents and rooms and watches any session of an agent, with keys that mean one thing on every screen; the commands, which each name their agent the same way; and a default folder, `~/shrimpy`. | — | What daily use asks for: resetting a session, `/new`, sign-in, the web client. |
 
 How the code is laid out is in [the code's layout](design/code-layout.md).
 
