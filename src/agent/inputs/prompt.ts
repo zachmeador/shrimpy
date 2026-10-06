@@ -1,15 +1,19 @@
 import type { Message } from "../../contracts/chat/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import {
+  type Asked,
   type Audience,
   type Backlog,
   type Breadcrumbs,
   type ChatInput,
   isOccurrence,
+  isQuestion,
   isWakeup,
   type Occurrence,
   type Outstanding,
   type Place,
+  type QuestionInput,
+  type QuestionResult,
   type Snapshot,
   threadOf,
   type Wakeup,
@@ -30,9 +34,11 @@ import {
  * for when, and what it wrote itself. An occurrence of a trigger says which
  * trigger it is, when it fired and what its schedule is, and then gives the
  * trigger's prompt as it is, and after it, apart, what the trigger's check
- * printed, which is data and not instructions. These facts travel with the input
- * and are never part of the prompt sections, which stay the same on every
- * request. The final format belongs to the work on what the model receives.
+ * printed, which is data and not instructions. The result of a question says
+ * who the agent asked, when, and the start of what it asked, and then what came
+ * back. These facts travel with the input and are never part of the prompt
+ * sections, which stay the same on every request. The final format belongs to
+ * the work on what the model receives.
  */
 export function promptFor(outstanding: Outstanding): string {
   const thread = threadOf(outstanding);
@@ -71,6 +77,7 @@ const aKind = (kind: "person" | "agent"): string => (kind === "person" ? "a pers
 function bodyOf(outstanding: Outstanding): string {
   if (isWakeup(outstanding)) return woken(outstanding.wakeup);
   if (isOccurrence(outstanding)) return fired(outstanding.occurrence, threadOf(outstanding) !== undefined);
+  if (isQuestion(outstanding)) return answered(outstanding);
   return chatBody(outstanding);
 }
 
@@ -149,6 +156,33 @@ function woken(wakeup: Wakeup): string {
     "This is a wake-up you asked for with check_back. " +
     `You asked at ${localTime(wakeup.askedAt)}, and it was for ${localTime(wakeup.due)}. Your note:\n${wakeup.note}`
   );
+}
+
+/**
+ * What came back for a question the agent asked, as the model reads it: who it
+ * asked, when, and the start of what it asked, and then what came back.
+ */
+function answered({ question, result }: QuestionInput): string {
+  const opening = `You asked ${question.of.name} a question with ask_agent at ${localTime(question.askedAt)}. It starts:\n${question.start}`;
+  return `${opening}\n\n${cameBack(question, result)}`;
+}
+
+/** What came back for a question, in a sentence or two. */
+function cameBack({ of, due }: Asked, result: QuestionResult): string {
+  switch (result.kind) {
+    case "answered":
+      return result.reply === undefined
+        ? `They answered, but their reply can't be shown here. To read it, call read_messages with from: "@${of.name}".`
+        : `They answered at ${localTime(result.reply.at)}:\n${result.reply.text}`;
+    case "silent":
+      return `They read it and sent no reply. If they said anything along the way, it is in your DM with them: call read_messages with from: "@${of.name}".`;
+    case "failed":
+      return `Their turn failed: ${result.reason}`;
+    case "stopped":
+      return "Their work was stopped before they answered.";
+    case "unanswered":
+      return `They had not answered by ${localTime(due)}, and may not be running. If they answer later, it arrives in your DM with them like any message.`;
+  }
 }
 
 /** The wake-ups that were cancelled, each with when it was for, when it was asked for and its note on one line. */

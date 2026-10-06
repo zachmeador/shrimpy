@@ -1,6 +1,6 @@
 import type { Context } from "@earendil-works/chord";
 import type { DocumentReader } from "@earendil-works/pi-durable";
-import { type SessionRecord, SessionsDoc } from "./documents.durable.ts";
+import { type SessionRecord, SessionsDoc, triggerSession } from "./documents.durable.ts";
 
 /** The thread a session is behind, and that thread's channel. */
 export interface SessionThread {
@@ -10,6 +10,11 @@ export interface SessionThread {
 
 /** What a session is behind: a thread, or nothing but the trigger whose own session it is. */
 export type SessionPlace = SessionThread | { trigger: string };
+
+/** The address the agent's records keep the session at `place` under. */
+export function addressOfPlace(place: SessionPlace): string {
+  return "threadId" in place ? place.threadId : triggerSession(place.trigger);
+}
 
 /** The session `conversationId` is, by the agent's records: its address and its record. */
 async function findSession(

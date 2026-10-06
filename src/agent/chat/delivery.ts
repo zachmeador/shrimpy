@@ -2,7 +2,7 @@ import { MAX_MESSAGE_LENGTH } from "../../contracts/chat/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { localTime } from "../../lib/time/index.ts";
-import { hasReceipt, idOf, isOccurrence, isWakeup, type Outstanding, threadOf, type TurnOutcome } from "../inputs/index.ts";
+import { hasReceipt, idOf, isOccurrence, isQuestion, isWakeup, type Outstanding, threadOf, type TurnOutcome } from "../inputs/index.ts";
 import type { ChatLink } from "../links/index.ts";
 import type { Delivery } from "../turns/index.ts";
 import { deliver, hasReply } from "./deliver.ts";
@@ -27,12 +27,13 @@ export interface ChatDelivery extends Delivery {
    * Post the reply if there is one and, for a chat event, leave the receipt. It
    * waits for chat, and tries again after a failure, but a reply that chat
    * refuses for good is not posted: the receipt says it failed, with chat's
-   * reason. A receipt that chat refuses for good is dropped. A wake-up or an
-   * occurrence of a trigger has no receipt to carry a failure, or a reply that
-   * chat refuses, so those are reported; and one in a session behind no thread
-   * has no reply to post, so it never waits for chat. Every step names itself,
-   * so doing all of it again after a crash posts nothing twice and changes no
-   * receipt. It ends with a rejection only when `signal` aborts.
+   * reason. A receipt that chat refuses for good is dropped. A wake-up, an
+   * occurrence of a trigger or the result of a question has no receipt to carry
+   * a failure, or a reply that chat refuses, so those are reported; and one in a
+   * session behind no thread has no reply to post, so it never waits for chat.
+   * Every step names itself, so doing all of it again after a crash posts
+   * nothing twice and changes no receipt. It ends with a rejection only when
+   * `signal` aborts.
    */
   tell(outstanding: Outstanding, outcome: TurnOutcome, signal: AbortSignal): Promise<void>;
   /** The agent leaves chat. What is due stays where it is until the engine closes, and is told at the next start. */
@@ -98,11 +99,14 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
   };
 }
 
-/** What a report calls a wake-up or an occurrence: "wake-up for 2026-10-04T09:00:00Z". */
+/** What a report calls a wake-up, an occurrence or the result of a question: "wake-up for 2026-10-04T09:00:00Z". */
 function what(outstanding: Outstanding): string {
   if (isWakeup(outstanding)) return `wake-up for ${localTime(outstanding.wakeup.due)}`;
   if (isOccurrence(outstanding)) {
     return `occurrence of the trigger ${outstanding.occurrence.trigger} at ${localTime(outstanding.occurrence.firedAt)}`;
+  }
+  if (isQuestion(outstanding)) {
+    return `result of the question asked of ${outstanding.question.of.name} at ${localTime(outstanding.question.askedAt)}`;
   }
   return idOf(outstanding);
 }

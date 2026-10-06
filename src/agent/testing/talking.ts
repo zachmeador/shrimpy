@@ -1,9 +1,14 @@
 import { fauxAssistantMessage, fauxText, fauxToolCall, type Message } from "@earendil-works/pi-ai";
 import type { Script } from "./index.ts";
 
-/** What a scripted model does in one turn: send a message along the way if it says to, then end the turn with `final`. */
+/**
+ * What a scripted model does in one turn: send a message along the way, or ask
+ * another agent a question, if it says to, then end the turn with `final`. A turn
+ * does one or the other.
+ */
 export interface Turn {
   send?: { text: string; to?: string };
+  ask?: { to: string; text: string; within?: string };
   final: string;
 }
 
@@ -42,6 +47,9 @@ export function talking(respond: (shown: string, turn: number) => Turn): Talking
         const { text, to } = current.send;
         const args: Record<string, string> = to === undefined ? { text } : { text, to };
         return fauxAssistantMessage([fauxToolCall("send_message", args, { id: `call-${String(shown.length)}` })], { stopReason: "toolUse" });
+      }
+      if (current.ask !== undefined) {
+        return fauxAssistantMessage([fauxToolCall("ask_agent", current.ask, { id: `call-${String(shown.length)}` })], { stopReason: "toolUse" });
       }
     }
     return fauxAssistantMessage([fauxText(current.final)]);

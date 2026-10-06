@@ -32,6 +32,7 @@ import { buildModels, type HostOptions, openHost } from "./host/durable.ts";
 import { type Joined, join, type JoinOptions } from "./join.ts";
 import { whoseTicket } from "./links/index.ts";
 import { messageTools } from "./message-tools/durable.ts";
+import { askTools, createQuestions } from "./questions/durable.ts";
 import { openRecords, type SessionDefaults } from "./records/durable.ts";
 import { type HomeFiles, startServer } from "./server.ts";
 import { createSessions, stopWork } from "./sessions/durable.ts";
@@ -87,6 +88,8 @@ export interface AgentOptions extends HostOptions {
   join?: JoinOptions;
   /** The shortest a trigger may repeat at, in milliseconds. A minute, if not given. Tests shorten it. */
   shortestEveryMs?: number;
+  /** The shortest the agent may wait for another agent's answer to a question, in milliseconds. A minute, if not given. Tests shorten it. */
+  shortestWaitMs?: number;
 }
 
 export interface RunningAgent {
@@ -144,6 +147,14 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const paths = homePaths(options.home);
     const breadcrumbs = () => readBreadcrumbs(paths);
     const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
+    const questions = createQuestions(turn.task, { onError: report, breadcrumbs });
+    const asking = askTools({
+      questions,
+      recordsId,
+      chat: () => joined?.chat(),
+      gateway: () => joined?.gateway(),
+      ...(options.shortestWaitMs === undefined ? {} : { shortestWaitMs: options.shortestWaitMs }),
+    });
     const defaults: SessionDefaults = { model: options.model, cwd: host.home };
     const triggers = createTriggers(host.harness, {
       turn: turn.task,
@@ -162,8 +173,10 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
       context.extension,
       messages,
       wakeupTools({ wakeups }),
+      asking,
       turn.extension,
       wakeups.extension,
+      questions.extension,
       triggers.extension,
     );
     const sessions = createSessions(host.harness, defaults);

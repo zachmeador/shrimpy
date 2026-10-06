@@ -1,7 +1,17 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import { newId } from "../../lib/ids/index.ts";
 import type { TriggerDefinition } from "../home/index.ts";
-import { isOccurrence, isWakeup, type Outstanding, type Place, type Snapshot, threadOf, type Wakeup } from "../inputs/index.ts";
+import {
+  isOccurrence,
+  isQuestion,
+  isWakeup,
+  type Outstanding,
+  type Place,
+  type Question,
+  type Snapshot,
+  threadOf,
+  type Wakeup,
+} from "../inputs/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
@@ -117,10 +127,31 @@ export const triggerSession = (name: string): string => `trigger:${name}`;
 export function sessionAddress(input: Outstanding): string | undefined {
   const thread = threadOf(input);
   if (thread !== undefined) return thread.threadId;
-  if (isWakeup(input)) return input.trigger === undefined ? undefined : triggerSession(input.trigger);
+  if (isWakeup(input) || isQuestion(input)) return input.trigger === undefined ? undefined : triggerSession(input.trigger);
   if (isOccurrence(input) && input.unrun === undefined) return triggerSession(input.occurrence.trigger);
   return undefined;
 }
+
+/**
+ * A question the agent has asked and not had closed: what `Question` says, and
+ * the engine's ID for the task that sleeps until the time to wait is up, which
+ * ends when the question closes.
+ */
+export type OpenQuestion = Question & { task: number };
+
+/**
+ * The questions the agent asked other agents that are open, by their IDs. A
+ * question is in it from the commit that keeps it until the commit that closes it,
+ * which takes its result up as an input of the session that asked, or until the
+ * work of that session is stopped. It is the one place that says a question is
+ * open: a question that is not in it is closed, whatever else is left of it.
+ */
+export const QuestionsDoc = defineDoc<{ open: Record<string, OpenQuestion> }>({
+  kind: "shrimpy.questions",
+  version: 1,
+  scope: "session",
+  initial: () => ({ open: {} }),
+});
 
 /**
  * A standing trigger the agent runs: its definition as the file last said it

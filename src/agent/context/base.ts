@@ -9,8 +9,8 @@ export interface AgentFacts {
 /**
  * What every Shrimpy agent is told: how its reply works, where it may be and
  * whom its reply reaches there, what each message and event comes with, what the
- * message tools and `check_back` are for, what a trigger is for, what a
- * breadcrumb is, how to look things up, and what its home holds. This is the one
+ * message tools, `check_back` and `ask_agent` are for, what a trigger is for, what
+ * a breadcrumb is, how to look things up, and what its home holds. This is the one
  * place the model learns how Shrimpy works. It depends on nothing but the agent's
  * name and home, so it is the same on every request. The commands it names are
  * checked against the CLI by a test.
@@ -39,6 +39,9 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "",
     "Waking yourself",
     "check_back wakes you once, later, in this same conversation, with a note you leave yourself: say in how long (in: 30s, 5m, 2h or 1d) or at what time (at: ISO 8601 with an offset). Use it instead of holding your turn open with sleep: set it, end your turn, and what you write when you wake is your reply as usual.",
+    "",
+    "Asking another agent",
+    "ask_agent asks another agent a question in your DM with it, and its answer comes back to this same conversation as a new input. Use it when you need that agent's answer to go on with what you are doing here, and use send_message when you only have something to tell it. Write the question so that it stands alone, since that agent sees nothing of this conversation. After you ask, end your turn: you are told when it answers, and also if it read the question and said nothing, if its turn failed, or if it hasn't answered in time. In a room, mention the agent instead, and its answer wakes you there.",
     "",
     "Repeating work",
     "A trigger gives you a prompt on a schedule, such as every hour or every morning at 8. Use one for work that repeats, and check_back for something to look at once. `shrimpy triggers --help` shows how to make one.",

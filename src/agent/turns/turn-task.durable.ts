@@ -23,6 +23,7 @@ import {
   idOf,
   isChat,
   isOccurrence,
+  isQuestion,
   isUrgent,
   isWakeup,
   type Outstanding,
@@ -46,9 +47,9 @@ export const MAX_CRASHES = 2;
 
 /**
  * What the source of an input that reached `MAX_CRASHES` is told. The words say
- * "twice" for the count. A chat event can be sent again; a wake-up or an
- * occurrence is only reported, and the agent can ask for another wake-up while
- * a trigger comes again by itself.
+ * "twice" for the count. A chat event can be sent again; a wake-up, an
+ * occurrence or the result of a question is only reported, and the agent can ask
+ * for another wake-up while a trigger comes again by itself.
  */
 const abandonedOutcome = (input: Outstanding): TurnOutcome => ({
   kind: "failed",
@@ -78,6 +79,7 @@ type Recovery<P extends TurnState> = (turn: Turn<P>, runtime: Runtime, context: 
 const requestIdOf = (outstanding: Outstanding): string => {
   if (isWakeup(outstanding)) return `wake:${idOf(outstanding)}`;
   if (isOccurrence(outstanding)) return `trigger:${idOf(outstanding)}`;
+  if (isQuestion(outstanding)) return `question:${idOf(outstanding)}`;
   return `chat:${idOf(outstanding)}`;
 };
 
@@ -99,7 +101,7 @@ function placeText(input: Outstanding): string {
   const thread = threadOf(input);
   if (thread !== undefined) return `in thread ${thread.threadId}`;
   if (isOccurrence(input)) return `of the trigger ${input.occurrence.trigger}`;
-  return isWakeup(input) && input.trigger !== undefined ? `in the session of the trigger ${input.trigger}` : "in no thread";
+  return (isWakeup(input) || isQuestion(input)) && input.trigger !== undefined ? `in the session of the trigger ${input.trigger}` : "in no thread";
 }
 
 export interface TurnTaskOptions {

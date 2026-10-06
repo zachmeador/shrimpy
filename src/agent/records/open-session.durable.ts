@@ -1,7 +1,7 @@
 import { configure, type Tx } from "@earendil-works/pi-durable";
 import { agentChange, type SessionDefaults } from "./defaults.durable.ts";
-import { type SessionRecord, SessionsDoc, triggerSession } from "./documents.durable.ts";
-import type { SessionPlace } from "./thread-of.durable.ts";
+import { type SessionRecord, SessionsDoc } from "./documents.durable.ts";
+import { addressOfPlace, type SessionPlace } from "./thread-of.durable.ts";
 
 /**
  * Find the session that `place` says, or make it, in the commit `tx` belongs
@@ -12,7 +12,7 @@ import type { SessionPlace } from "./thread-of.durable.ts";
  */
 export async function openSession(tx: Tx, defaults: SessionDefaults, place: SessionPlace): Promise<SessionRecord> {
   const sessions = (await tx.doc(SessionsDoc)).sessions;
-  const address = "threadId" in place ? place.threadId : triggerSession(place.trigger);
+  const address = addressOfPlace(place);
   if (!Object.hasOwn(sessions, address)) {
     const conversationId = (await tx.createConversation({ ownership: { kind: "ownerless" } })).id;
     await configure(tx, conversationId, agentChange(defaults));

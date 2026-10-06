@@ -1,9 +1,9 @@
 /**
  * What an input is, in Shrimpy's own terms: a chat event, a wake-up the agent
- * asked for or an occurrence of a trigger, each as it is kept while the agent
- * works on it, and the helpers that ask an input what it is and where it is.
- * What is stored is plain JSON, so these are type aliases, which TypeScript
- * lets stand for JSON.
+ * asked for, an occurrence of a trigger or the result of a question the agent
+ * asked another agent, each as it is kept while the agent works on it, and the
+ * helpers that ask an input what it is and where it is. What is stored is plain
+ * JSON, so these are type aliases, which TypeScript lets stand for JSON.
  */
 
 /**
@@ -98,6 +98,47 @@ export type Wakeup = {
   /** What the agent wanted to be told when it was woken, in its own words. */
   note: string;
 };
+
+/**
+ * A question the agent asked another agent with `ask_agent`, as it is kept while
+ * the agent waits for the answer. It was posted in the main thread of the agent's
+ * DM with the one asked, and the question is open until that agent leaves its
+ * receipt on the question's event or the time to wait is up.
+ */
+export type Question = {
+  /** Names the question for as long as the agent's records last. */
+  id: string;
+  /** The address of the session that asked, in the agent's records. */
+  session: string;
+  /** Who was asked: the member's ID, which never changes, and the name they had when asked. */
+  of: { id: string; name: string };
+  /** When the agent asked, and when it gives up waiting: milliseconds since the epoch. */
+  askedAt: number;
+  due: number;
+  /** The start of what it asked, on one line. */
+  start: string;
+  /** The DM thread the question was posted in, the question's message there, and the event that posted it with its position in chat's order. */
+  dm: string;
+  message: string;
+  event: string;
+  seq: number;
+};
+
+/** What the model is told of a question when its result comes: who was asked, when, and the start of what was asked. */
+export type Asked = Pick<Question, "id" | "of" | "askedAt" | "due" | "start">;
+
+/** What came back for a question. */
+export type QuestionResult =
+  /** The one asked answered. `reply` is what it wrote and when, and is absent when the reply could not be read. */
+  | { kind: "answered"; reply?: { text: string; at: number } }
+  /** It read the question and wrote nothing. */
+  | { kind: "silent" }
+  /** Its turn failed, for the reason its receipt gives. */
+  | { kind: "failed"; reason: string }
+  /** Its work was stopped before it answered. */
+  | { kind: "stopped" }
+  /** It had not answered when the time was up, and may not be running. */
+  | { kind: "unanswered" };
 
 /** Someone in a channel, as the model is told of them: a name, and whether they are a person or an agent. */
 export type Named = { name: string; kind: "person" | "agent" };
@@ -255,13 +296,28 @@ export type OccurrenceInput = {
 } & (InThread | NoThread);
 
 /**
+ * What came back for a question the agent asked another agent, taken up as the
+ * input of the task that follows it, in the session that asked. Like a wake-up it
+ * has no one to tell how its turn ended: the final text is posted to the thread
+ * of the session that asked, if it is behind one, and a failure is reported. A
+ * session behind no thread is a trigger's own, and `trigger` names the trigger.
+ */
+export type QuestionInput = {
+  question: Asked;
+  result: QuestionResult;
+  /** As for a chat event. */
+  cancelled?: Wakeup[];
+  breadcrumbs?: Breadcrumbs;
+} & (InThread | (NoThread & { trigger: string }));
+
+/**
  * An input the agent took up and has not finished with, from any source: what
  * the task that follows it is given, from the moment it is taken up until its
- * source is told how its turn ended. A chat event, a wake-up and an occurrence
- * of a trigger are told apart by their shape. Code that handles an input of any
- * source asks the helpers below and does not look inside.
+ * source is told how its turn ended. A chat event, a wake-up, an occurrence of a
+ * trigger and the result of a question are told apart by their shape. Code that
+ * handles an input of any source asks the helpers below and does not look inside.
  */
-export type Outstanding = ChatInput | WakeupInput | OccurrenceInput;
+export type Outstanding = ChatInput | WakeupInput | OccurrenceInput | QuestionInput;
 
 /** Whether an input is a chat event. */
 export function isChat(outstanding: Outstanding): outstanding is ChatInput {
@@ -278,6 +334,11 @@ export function isOccurrence(outstanding: Outstanding): outstanding is Occurrenc
   return "occurrence" in outstanding;
 }
 
+/** Whether an input is the result of a question the agent asked. */
+export function isQuestion(outstanding: Outstanding): outstanding is QuestionInput {
+  return "question" in outstanding;
+}
+
 /**
  * The ID the agent's records know an input by, such as the count of crashes its
  * turn has lived through. It is the one its source gave it, which the source
@@ -286,6 +347,7 @@ export function isOccurrence(outstanding: Outstanding): outstanding is Occurrenc
 export function idOf(outstanding: Outstanding): string {
   if (isWakeup(outstanding)) return outstanding.wakeup.id;
   if (isOccurrence(outstanding)) return outstanding.occurrence.id;
+  if (isQuestion(outstanding)) return outstanding.question.id;
   return outstanding.event.id;
 }
 
@@ -305,8 +367,8 @@ export function hasReceipt(outstanding: Outstanding): boolean {
 
 /**
  * Whether an input joins the turn that is running, which then reads it at its
- * next step. Only a chat event can: what a wake-up or an occurrence of a
- * trigger has to say is for the next turn.
+ * next step. Only a chat event can: what a wake-up, an occurrence of a trigger
+ * or the result of a question has to say is for the next turn.
  */
 export function isUrgent(outstanding: Outstanding): boolean {
   return isChat(outstanding) && outstanding.urgent === true;

@@ -17,7 +17,7 @@ export { cutText, type LeftOut } from "./files.ts";
 export { type InitOptions, type InitResult, initHome } from "./init.ts";
 export { type HomePaths, homePaths } from "./layout.ts";
 export { type LoadedHome, loadHome } from "./load.ts";
-export { delayMs, describeSchedule, nextOccurrence, sameSchedule } from "./schedule.ts";
+export { delayMs, delayText, describeSchedule, nextOccurrence, normalizeDelay, sameSchedule } from "./schedule.ts";
 export { type ContextFile, type HomeSnapshot, readHomeSnapshot } from "./snapshot.ts";
 export type { SkillTrail } from "./skills.ts";
 export {

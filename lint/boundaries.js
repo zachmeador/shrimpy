@@ -12,6 +12,7 @@ const AGENT_TIERS = [
   ["inputs", "home", "access"],
   ["links", "host", "records"],
   ["turns"],
+  ["questions"],
   ["wakeups", "triggers", "chat"],
   ["sessions", "message-tools", "context"],
 ];
