@@ -24,6 +24,7 @@ src/
                     that another module makes in its own commit
     turns/          the task that follows one input to its end: taking it up, what is being worked on,
                     and what a crash costs it
+    questions/      ask_agent: the tool, the questions that are open, and what closes one
     wakeups/        check_back: the tool, and the task that sleeps until a wake-up is due
     triggers/       standing triggers: follow the home's files, sleep, make occurrences, answer the API about them
     chat/           the agent's side of chat: the feed, what wakes it, replies, receipts, working marks
@@ -96,6 +97,7 @@ Approved on 2026-10-05 and built that day. Each module has one job.
 | `host/` | Opens the engine, and is the only place that does. | Throughout |
 | `records/` | Shrimpy's own documents in the engine's storage, and the changes to a session's record made inside another module's commit. | Throughout: it defines the documents |
 | `turns/` | The task that follows one input to its end: taking it up, what is being worked on, and what a crash costs it. | Defines the task. Its plain door has what it asks of whoever tells an input's source |
+| `questions/` | `ask_agent`: the tool, the questions that are open, and closing one on a receipt or when its time is up. | A tool and a task. Its plain door has what it asks of chat |
 | `wakeups/` | `check_back`: the tool, and the task that sleeps until the wake-up is due. | A tool and a task |
 | `triggers/` | Standing triggers: follow the home's files, sleep, make occurrences, and answer the API about them. | Defines the task |
 | `chat/` | The agent's side of chat: read the feed, decide what wakes it, take that up, post replies, leave receipts, mark where it works. | One file, which takes a chat event up |
@@ -103,9 +105,9 @@ Approved on 2026-10-05 and built that day. Each module has one job.
 | `message-tools/` | `send_message` and `read_messages`. | Defines the tools |
 | `context/` | What every session is told, as prompt sections made from the home's files. | Defines the sections. The preview is plain |
 
-**Imports point one way,** in these tiers: `inputs`, `home` and `access`; then `links`, `host` and `records`; then `turns`; then `wakeups`, `triggers` and `chat`; then `sessions`, `message-tools` and `context`; then the files at the top of `agent/`, which wire the rest. A module imports only from the tiers before its own. What two modules of one tier both need belongs in an earlier tier, or is handed in from the top. The lint has the tiers, and a new module is refused until it is given one.
+**Imports point one way,** in these tiers: `inputs`, `home` and `access`; then `links`, `host` and `records`; then `turns`; then `questions`; then `wakeups`, `triggers` and `chat`; then `sessions`, `message-tools` and `context`; then the files at the top of `agent/`, which wire the rest. A module imports only from the tiers before its own. What two modules of one tier both need belongs in an earlier tier, or is handed in from the top. The lint has the tiers, and a new module is refused until it is given one.
 
-**Two functions take a transaction,** so that a source of input lives in a module of its own and still acts inside one commit. `openSession`, in `records/`, finds the session at an address or makes it. `takeUp`, in `turns/`, takes out of the session's record what it kept for its next input and creates the task that follows the input. A chat event, a wake-up and a trigger's occurrence each call them from their own module. A new source of input gets a module of its own and does the same.
+**Two functions take a transaction,** so that a source of input lives in a module of its own and still acts inside one commit. `openSession`, in `records/`, finds the session at an address or makes it. `takeUp`, in `turns/`, takes out of the session's record what it kept for its next input and creates the task that follows the input. A chat event, a wake-up, a trigger's occurrence and the result of a question each call them from their own module. A new source of input gets a module of its own and does the same.
 
 **Why it was reshaped.** `agent/sessions/` had grown to 2,019 lines doing eight jobs. The old rule, that only three folders may import Pi, was not the main cause. The records were private to `sessions/` and no other module could take part in a commit, so "find or make the session, take what it kept, create the task" was written there three times, and a feature spanned three folders: the change that added wake-ups touched 27 files. A rule by folder also made moving code into a listed folder the cheap way to satisfy the lint, which is what filled `sessions/`. Under a rule by file name the cheap way is a new file beside the feature.
 

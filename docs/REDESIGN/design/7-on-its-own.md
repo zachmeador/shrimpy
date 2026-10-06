@@ -14,7 +14,7 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 4. **A trigger has a session of its own unless it names a thread.** Its own session lives on from one occurrence to the next, which is the heartbeat pattern, and you watch it like any session. Its final text goes nowhere: it uses `send_message` when it has something to say. With `thread:` the occurrence goes to the session behind that thread and the reply is posted there. The small trigger line in the thread comes later, with a change to the chat contract.
 5. **A check decides whether there is news, and what news does.** With `check:` a command runs at each occurrence and no model is called unless there is news. `when:` says what news is: `changed` since last time, which is the default, any `output`, or `always`. `then:` says what news does: `wake` the agent with the prompt and the output, marked as data, or `note` it as a [breadcrumb](7-on-its-own.md) in `breadcrumbs/<trigger>.md`, which wakes nobody. A check that fails is news, and says so the same way.
 6. **Commands,** which act on the agent whose shell they run in, and take `--agent <name>` elsewhere: `shrimpy triggers` lists them with the next run and the last outcome, `add` makes or replaces one, `show` prints one with its recent occurrences, `run` fires one now, `on` and `off` enable and disable, and `remove` deletes one.
-**Asking another agent, agreed tentatively on 2026-10-05.** You said to go ahead and add it to the design, and that you may reshape it later. Agents can already DM each other. What is missing is the answer coming back to the conversation that needed it: today a reply in a DM wakes the session behind that DM, and the session that was talking to you never hears it.
+**Asking another agent, agreed tentatively on 2026-10-05, and built on 2026-10-06.** You said to go ahead and add it to the design, and that you may reshape it later. Agents can already DM each other. What is missing is the answer coming back to the conversation that needed it: today a reply in a DM wakes the session behind that DM, and the session that was talking to you never hears it.
 
 - A tool, `ask({to, text})`, posts the question in the agent's DM with another agent, as `send_message` would. The asking agent's turn goes on, and it ends it when it has nothing else to do.
 - When the other agent has answered, or can't, the result arrives in the session that asked, as an input from a fourth source, and the agent carries on from it. It is told the answer, or that the other agent read the question and said nothing, or that its turn failed and why, or that it hasn't answered after a time limit and may not be running.
@@ -23,16 +23,16 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 - In a room none of this is needed: an agent that mentions another is woken by the answer in the same session.
 - The spike on the branch `spike/ask-and-resume` showed the plumbing holds through kills and chat outages, with scripted models. No real model has used the tool, so whether a small one asks, ends its turn and waits is untested.
 
-**Mechanics of asking,** settled by the coordinator on 2026-10-06 for the build, and yours to change. Two things the spike found awkward have gone since: a receipt is an event in the feed now, so no second connection to chat is needed, and one task follows any input, so an answer is taken up like any other input, with its reply, its working mark and its stop.
+**Mechanics of asking,** settled by the coordinator on 2026-10-06, built that day, and yours to change. Two things the spike found awkward have gone since: a receipt is an event in the feed now, so no second connection to chat is needed, and one task follows any input, so an answer is taken up like any other input, with its reply, its working mark and its stop.
 
 1. `ask_agent({to, text, within?})`. The name says who can be asked, and matches `send_message` and `read_messages`: a bare `ask` invites a model to reach for it when it wants to ask a person something, which is only a reply. `to` is `@name`, and the name has to be an agent's. `within` is how long to wait, such as `5m` or `2h`: 30 minutes if left out, from one minute to a day. The tool answers at once that the question is asked and that the answer will come here as a new input.
 2. Each question gets a thread of its own in the agent's DM with the other agent, named for how the question starts, and is posted there. The other agent takes it up as it takes up any DM message, in a session of its own for that thread. You asked whether a question made a new thread, and it turned out it should: see 4. The first version of this mechanic posted in the DM's main thread.
 3. The agent keeps each question that is open in its records: who was asked, which session asked, the question's message and when it gives up.
 4. While a question is open, what the asked agent posts in the question's thread belongs to the question and wakes no turn there. That is what keeps two agents from answering each other in circles, as the spike saw. With a thread for each question the rule is exact, because nothing else is ever in that thread. In the main thread it wasn't: an agent can't tell an answer from anything else the other agent posts until the receipt names it, so two agents that asked each other at the same moment each passed over the other's question and waited out their time.
 5. The question closes when the asked agent leaves its receipt on it. In one commit the agent closes the question and takes the result up as an input of the session that asked: the reply, when the receipt says answered; that the other agent read it and said nothing; that its turn failed, and why; or that it was stopped. A receipt that says skipped leaves the question open, since the other agent will be shown it with its next message.
-6. A question that is still open when its time is up closes the same way, and the session is told the other agent hasn't answered and may not be running. An answer that comes after that is an ordinary DM message.
+6. A question that is still open when its time is up closes the same way, and the session is told the other agent hasn't answered and may not be running. Before it says so the agent reads the question from chat once, and closes with the receipt if the asked agent has left one, so an answer whose receipt the feed hasn't brought yet is still told as the answer. With chat away it waits for chat. An answer that comes after a question has closed is an ordinary message in that thread.
 7. The result waits for the turn that is running, as any agent's message does, and its turn's reply is posted to the asking session's thread like any other.
-8. A session may have five questions open at once. Stopping a session's work closes its open questions and says nothing more: the DM still has whatever is answered.
+8. A session may have five questions open at once. Stopping a session's work closes its open questions and says nothing more: the DM still has whatever is answered. A result that is skipped, by a stop or because the turn ahead of it failed, is kept and shown with the session's next input, as a skipped message is.
 9. What every agent is told gains a line on when to ask and when to send a message, and one for the agent that is asked: a question comes in a thread of its own, so when it seems to follow from earlier ones, `shrimpy threads <name>` lists the threads with that agent and `shrimpy read <thread>` shows one. That is your answer to the asked agent starting each question with no memory of the last.
 
 
@@ -100,19 +100,9 @@ The old row's "output filters" are `when`. A fact that changes while an input wa
 
 **Open**
 
-Asking another agent and helpers are under Not built yet below.
+Helpers are under Not built yet below.
 
 **Not built yet**
-
-*What an agent does without being asked: asking another agent.*
-
-Under Next in the [order of work](../PLAN.md#order-of-work).
-
-- The same mechanism then carries: asking another agent and carrying on with the answer, as the spike on `spike/ask-and-resume` showed, triggers that repeat and that fire once, and helpers.
-
-**Build**
-
-- Asking another agent and carrying on with the answer.
 
 *What an agent does without being asked: helpers.*
 

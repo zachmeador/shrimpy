@@ -61,6 +61,8 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - A trigger that names a thread and comes due while the agent was down fires at the start before the link to chat is up, so that one occurrence fails. The next one works.
 - A trigger file that doesn't check out is named by a reload and by `agent context`, and is missing from `shrimpy triggers` while the agent runs.
 - A trigger or a wake-up that comes due during a stop's grace period can still start.
+- A question's own thread outlives the question. A message that comes there later starts a session behind it, which has no memory of the session that asked. A question whose post chat refuses leaves an empty thread that nothing archives.
+- If an agent is killed between posting a question and keeping it, the question is not kept, and its answer wakes a session behind the question's thread like any message. It wasn't hit in a hundred runs.
 - A check's standard error goes to a file in the home's `runtime/checks/`, because Pi hands a command's output and errors over as one stream. An engine that kept them apart would need no file.
 - A second run of a trigger by hand, while the check of the first is running, starts a second check. `triggers show` has no row for a check run by hand until it has ended.
 - Nothing in the terminal cancels a wake-up that is waiting: a key stops only work that is running. `/stop` written in its thread does, and so does `shrimpy sessions stop`.
@@ -81,4 +83,5 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - Promises in the first build's Prove list that are built and have no test: a real-provider turn uses only the shell tool, not the file tools; a request ID reused with different content is tested in the chat server and not at the agent; and nothing asserts what becomes of a shell child that outlives a killed owner.
 - The terminal client's tests still run on a stand-in for the chat server, some 300 lines, that repeats two of its rules. The agent's and the CLI's tests run on the real one.
 - Small duplicates: a pause helper in `agent/chat/` and in `lib/retry`, a helper for talking in tests in `agent/testing/` and `cli/testing/`, and two fake terminals, in `cli/testing/` and the console's `draw/testing/`.
+- A test that holds a scripted model at a gate and fails before it lets go hangs its run until the suite's timeout. The tests of a busy agent and of questions let go on the way out, and the wake-ups' test doesn't.
 - Some tests assert that nothing happened after a pause, where no later event can be waited for: about a dozen, in the console's network and state tests, the agent's chat and stop tests and the registration tests. A few bound how long something takes, which could trip on a loaded machine. Neither has failed.

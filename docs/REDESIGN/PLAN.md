@@ -118,11 +118,10 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Asking another agent, which you agreed to tentatively on 2026-10-05. [What an agent does without being asked](design/7-on-its-own.md) has it, with its mechanics.
+- Nothing is being built. Two proposals wait on you: [an agent on another machine](proposals/another-machine.md), which would be next, and [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**
 
-- What an agent does without being asked: asking another agent. [Not built yet](design/7-on-its-own.md)
 - The conversation model: the provider interface with a fake provider. [Not built yet](design/4-conversation.md)
 - The home: compaction, the request a turn sent, and workspace context. [Not built yet](design/5-home.md)
 
