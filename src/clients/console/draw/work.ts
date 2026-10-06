@@ -29,14 +29,24 @@ export function workComponent(work: Work, stale: boolean, theme: Theme, room: ()
   };
 }
 
-function stepComponent(step: Step, theme: Theme): Component {
+/** One step: what the agent thought, wrote or did, or, in a session being watched, what it was shown or where it was reset. */
+export function stepComponent(step: Step, theme: Theme): Component {
   const view = new Container();
   switch (step.kind) {
+    case "shown":
+      view.addChild(new Text(theme.dim(step.label), 0, 0));
+      if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 2, 0));
+      if (step.text !== "") view.addChild(new Text(step.text, 2, 0));
+      break;
+    case "marker":
+      view.addChild(new Text(theme.dim(`-- ${step.text} --`), 0, 0));
+      break;
     case "thinking":
       if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 0, 0));
       view.addChild(new Text(theme.thinking(`${step.label}: ${step.text}`), 0, 0));
       break;
     case "text":
+      if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 0, 0));
       if (step.text !== "") view.addChild(new Markdown(step.text, 0, 0, theme.markdown));
       if (step.note !== undefined) view.addChild(new Text(theme.dim(`(${step.note})`), 0, 0));
       break;

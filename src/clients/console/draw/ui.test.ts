@@ -14,11 +14,14 @@ import {
   anAgent,
   aReceipt,
   aRoom,
+  aSession,
   aThread,
   aThreadView,
   type FakeState,
   fakeState,
+  onSession,
   onThread,
+  startRig,
   zach,
 } from "../state/testing/index.ts";
 import { QUIT_AGAIN } from "../screen/index.ts";
@@ -34,6 +37,7 @@ const ENTER = "\r";
 const ESC = "\u001b";
 /** What a terminal that reports keys being let go sends when Esc is. */
 const ESC_RELEASED = "\u001b[27;1:3u";
+const TAB = "\t";
 const CTRL_C = "\u0003";
 const CTRL_N = "\u000e";
 const CTRL_O = "\u000f";
@@ -191,7 +195,7 @@ test("escape stops the agent's work when it is working in your DM thread, and go
 test("control-o shows a tool call in full and control-t the thinking in full, and each press again puts it back", (t) => {
   const thinking = Array.from({ length: 6 }, (_, index) => `thought ${String(index + 1)}`).join("\n");
   const output = Array.from({ length: 20 }, (_, index) => `line ${String(index + 1)}`).join("\n");
-  const session = workingView(
+  const work = workingView(
     [
       userItem("go"),
       assistantItem("Looking.", { thinking, stopReason: "toolUse" }),
@@ -200,25 +204,32 @@ test("control-o shows a tool call in full and control-t the thinking in full, an
     { kind: "working" },
   );
   const working = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
-  const { terminal, lines } = start(t, onThread("scout", working, undefined, { session }));
-  const drawn = (): string => lines().join("\n");
+  const where = {
+    "work in your DM thread": onThread("scout", working, undefined, { session: work }),
+    "a session being watched": onSession("scout", aSession("th_2"), work),
+  };
 
-  assert.doesNotMatch(drawn(), /thought 1\b|line 1\b|timeout/, "brief to begin with");
-  assert.match(drawn(), /thought 6\b/);
-  assert.match(drawn(), /line 20\b/);
+  for (const [shown, model] of Object.entries(where)) {
+    const { terminal, lines } = start(t, model);
+    const drawn = (): string => lines().join("\n");
 
-  terminal.type(CTRL_O);
-  assert.match(drawn(), /line 1\b/);
-  assert.match(drawn(), /"timeout": 30/);
-  assert.doesNotMatch(drawn(), /thought 1\b/, "only the tool call changed");
-  terminal.type(CTRL_O);
-  assert.doesNotMatch(drawn(), /line 1\b|timeout/);
+    assert.doesNotMatch(drawn(), /thought 1\b|line 1\b|timeout/, `${shown}: brief to begin with`);
+    assert.match(drawn(), /thought 6\b/);
+    assert.match(drawn(), /line 20\b/);
 
-  terminal.type(CTRL_T);
-  assert.match(drawn(), /thought 1\b/);
-  assert.doesNotMatch(drawn(), /line 1\b/, "only the thinking changed");
-  terminal.type(CTRL_T);
-  assert.doesNotMatch(drawn(), /thought 1\b/);
+    terminal.type(CTRL_O);
+    assert.match(drawn(), /line 1\b/, shown);
+    assert.match(drawn(), /"timeout": 30/);
+    assert.doesNotMatch(drawn(), /thought 1\b/, `${shown}: only the tool call changed`);
+    terminal.type(CTRL_O);
+    assert.doesNotMatch(drawn(), /line 1\b|timeout/, shown);
+
+    terminal.type(CTRL_T);
+    assert.match(drawn(), /thought 1\b/, shown);
+    assert.doesNotMatch(drawn(), /line 1\b/, `${shown}: only the thinking changed`);
+    terminal.type(CTRL_T);
+    assert.doesNotMatch(drawn(), /thought 1\b/, shown);
+  }
 });
 
 test("what is typed for a thread is kept when another is opened, and is there when its thread is back", (t) => {
@@ -395,11 +406,23 @@ test("nothing drawn is wider than the terminal, however narrow, whatever the cha
       notice: { kind: "not-sent", problem: { said: "日本語".repeat(20) } },
     },
   );
-  const { drawing } = start(t, model);
+  const { drawing, state, terminal } = start(t, model);
+  const fits = (): void => {
+    for (const width of [12, 20, 33, 80, 120]) {
+      for (const line of drawing.render(width)) assert.ok(visibleWidth(line) <= width, `${String(visibleWidth(line))} > ${String(width)}: ${line}`);
+    }
+  };
+  fits();
 
-  for (const width of [12, 20, 33, 80, 120]) {
-    for (const line of drawing.render(width)) assert.ok(visibleWidth(line) <= width, `${String(visibleWidth(line))} > ${String(width)}: ${line}`);
-  }
+  const place = { kind: "room" as const, room: "日本語のとても長い部屋", thread: { main: false, name: "averyveryveryverylongthreadnamewithoutanyspacesatall".repeat(2) } };
+  const sessions = [aSession("th_1", { place, working: true })];
+  state.show({ ...model, where: { screen: "sessions", agent: "scout" }, sessions });
+  fits();
+  state.show({ ...model, where: { screen: "session", agent: "scout", session: "th_1" }, sessions });
+  fits();
+  terminal.type(CTRL_O);
+  terminal.type(CTRL_T);
+  fits();
 });
 
 test("text from other members and from tools can't reach the terminal, wherever it appears", async (t) => {
@@ -419,7 +442,7 @@ test("text from other members and from tools can't reach the terminal, wherever 
     {
       session: workingView(
         [
-          userItem("go"),
+          userItem(`shown${hostile}`),
           assistantItem(`answer${hostile}`, { thinking: `thinking${hostile}`, streaming: true }),
           toolItem(`tool${hostile}`, { args: { command: `echo ${hostile}` }, output: `output${hostile}`, notes: [`note${hostile}`] }),
         ],
@@ -428,10 +451,16 @@ test("text from other members and from tools can't reach the terminal, wherever 
       notice: { kind: "not-sent", problem: { said: `said${hostile}` } },
     },
   );
+  model.session?.status.queued.push({ mode: "steer", text: `queued${hostile}` });
   const { terminal, drawing, state } = start(t, model);
 
   const drawn = [...drawing.render(80)];
   state.show({ ...model, where: { screen: "threads", place: { kind: "agent", name: "scout" } } });
+  drawn.push(...drawing.render(80));
+  const sessions = [aSession("th_1", { place: { kind: "dm", with: { name: `mechanic${hostile}`, kind: "agent" }, thread: { main: false, name: `thread${hostile}` } } })];
+  state.show({ ...model, where: { screen: "sessions", agent: "scout" }, sessions });
+  drawn.push(...drawing.render(80));
+  state.show({ ...model, where: { screen: "session", agent: "scout", session: "th_1" }, sessions, refusal: `refused${hostile}` });
   drawn.push(...drawing.render(80));
   state.show({ ...model, where: { screen: "agents" } });
   drawn.push(...drawing.render(80));
@@ -441,7 +470,9 @@ test("text from other members and from tools can't reach the terminal, wherever 
   const own = new RegExp("\\u001b\\[[0-9;:]*m|\\u001b_pi:c\\u0007", "g");
   const text = drawn.join("\n").replace(own, "");
   assert.doesNotMatch(text, new RegExp("[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f]"));
-  for (const wanted of ["Evil", "text", "detail", "reply", "\u{1F44D}", "answer", "thinking", "output", "note", "said"]) assert.ok(text.includes(wanted), wanted);
+  for (const wanted of ["Evil", "text", "detail", "reply", "\u{1F44D}", "answer", "thinking", "output", "note", "said", "shown", "queued", "mechanic", "thread", "refused"]) {
+    assert.ok(text.includes(wanted), wanted);
+  }
   const written = terminal.output();
   for (const payload of ["pwned", "999;999H", "cHduZWQ", "]52;", "]0;"]) assert.ok(!written.includes(payload), `${payload} reached the terminal`);
 });
@@ -470,4 +501,40 @@ test("the editor's draft survives the chat server being lost and found, and the 
 
   assert.match(lines().join("\n"), /\n half a thought\n/);
   assert.doesNotMatch(lines().join("\n"), /out of date/);
+});
+
+test("watching a session shows its work as it happens, and nothing typed is sent anywhere", { timeout: 15_000 }, async (t) => {
+  const rig = await startRig(t);
+  await rig.thread("scout", "check the disk");
+  const nightly = rig.agents.scout?.agent.session("trigger:nightly", {
+    place: { kind: "trigger", trigger: "nightly" },
+    view: workingView([userItem("It is 02:00."), toolItem("bash", { args: { command: "df -h" } })], { kind: "tool", name: "bash" }),
+  });
+  assert.ok(nightly);
+  const terminal = new FakeTerminal(100, 30);
+  const drawing = startDrawing({ state: rig.state, terminal, now: () => now, quitWindowMs: 60_000 });
+  stopAfter(t, () => drawing.stop());
+  const drawn = (): string => visible(drawing.render(100)).join("\n");
+  const seen = (text: string): Promise<void> => until(() => drawn().includes(text), `the screen to show ${text}`);
+
+  await seen("your threads");
+  terminal.type(TAB);
+  await seen("nightly");
+  terminal.type(ENTER);
+  await seen("df -h");
+  nightly.update((view) => {
+    view.items.push(assistantItem("The disk is 43% full.", { streaming: true }));
+  });
+  await seen("The disk is 43% full.");
+
+  terminal.type("hello");
+  terminal.type(ENTER);
+  await settle();
+  assert.doesNotMatch(drawn(), /hello/, "there is no editor to type in");
+  assert.deepEqual(nightly.steers, []);
+  assert.equal(rig.chat.chat.messages().length, 1, "only the message the thread began with was ever posted");
+
+  terminal.type(ESC);
+  await seen("its sessions");
+  assert.equal(nightly.stops, 0, "going back stops nothing");
 });

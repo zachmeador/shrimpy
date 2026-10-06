@@ -17,8 +17,10 @@ export {
   aReceipt,
   aRoom,
   aRosterAgent,
+  aSession,
   aThread,
   aThreadView,
+  onSession,
   onThread,
   zach,
 } from "./data.ts";

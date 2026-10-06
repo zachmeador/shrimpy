@@ -29,6 +29,8 @@ export function fakeState(initial: Model): FakeState {
     selectRoom: (id) => void calls.push(`room ${id}`),
     openThread: (threadId) => void calls.push(`open ${threadId}`),
     startThread: () => void calls.push("start"),
+    switchLists: () => void calls.push("switch"),
+    openSession: (address) => void calls.push(`watch ${address}`),
     back: () => void calls.push("back"),
     send(text) {
       calls.push(`send ${text}`);

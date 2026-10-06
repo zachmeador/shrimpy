@@ -20,6 +20,7 @@ import { readChannels } from "./directory.ts";
 import {
   type AgentEntry,
   agentEntries,
+  agentLookedAt,
   type Farewell,
   type Model,
   type Notice,
@@ -32,7 +33,7 @@ import {
 export interface ConsoleStateOptions {
   /** How the console reaches the gateway, and the programs registered with it by their names. */
   transports: Transports;
-  /** How often what has no subscription is asked for again: what is running, and the threads in the person's DMs and rooms. 2 seconds by default. */
+  /** How often what has no subscription is asked for again: what is running, the threads in the person's DMs and rooms, and the sessions of the agent on show. 2 seconds by default. */
   pollMs?: number;
   /** How long a notice stays. 6 seconds by default. */
   noticeMs?: number;
@@ -56,7 +57,11 @@ export interface ConsoleState {
   openThread(threadId: string): void;
   /** Start a thread with the selected agent or in the selected room. It comes to be with its first message. */
   startThread(): void;
-  /** Go up one level: from a thread to the threads, and from those to the agents and rooms. */
+  /** On an agent's screen, switch between the person's threads with it and its sessions. */
+  switchLists(): void;
+  /** Watch one of the sessions on show, by its address. Nothing can be said or done in it. */
+  openSession(address: string): void;
+  /** Go up one level: from a thread or a session to the list it is in, and from that to the agents and rooms. */
   back(): void;
 
   /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
@@ -97,6 +102,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     rooms: {},
     thread: undefined,
     session: undefined,
+    sessions: undefined,
+    refusal: undefined,
     notice: undefined,
   };
   const set = (patch: Partial<Model>): void => {
@@ -133,6 +140,10 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     onThread,
   });
 
+  /** The address of the session that is being watched for the screen the person is on, if there is one. */
+  const watched = (where: Model["where"]): string | undefined =>
+    where.screen === "thread" ? where.thread : where.screen === "session" ? where.session : undefined;
+
   let agent: AgentLink | undefined;
   const closing: Promise<void>[] = [];
   const useAgent = (name: string | undefined): void => {
@@ -140,7 +151,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     if (agent !== undefined) closing.push(agent.close());
     if (name === undefined) {
       agent = undefined;
-      set({ agent: undefined, session: undefined });
+      set({ agent: undefined, session: undefined, sessions: undefined, refusal: undefined });
       return;
     }
     const link: AgentLink = keepAgent({
@@ -151,16 +162,21 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       backoff: options.backoff,
       onSession(update: SessionUpdate) {
         const { where } = model;
-        if (agent !== link || where.screen !== "thread" || where.thread !== update.threadId) return;
-        if ("view" in update) set({ session: update.view });
-        else say({ kind: "not-watched", problem: update.problem });
+        if (agent !== link || watched(where) !== update.session) return;
+        if ("view" in update) set({ session: update.view, refusal: undefined });
+        else if (where.screen === "session") {
+          // The screen of a session says why it can't be watched for as long as that is so. A connection that is lost is the link's to say.
+          if ("said" in update.problem) set({ refusal: update.problem.said });
+        } else say({ kind: "not-watched", problem: update.problem });
       },
     });
     link.onStatus((status) => {
-      if (agent === link) set({ agent: status });
+      if (agent !== link) return;
+      set({ agent: status });
+      if (status.state === "up") void refreshSessions();
     });
     agent = link;
-    set({ agent: link.status(), session: undefined });
+    set({ agent: link.status(), session: undefined, sessions: undefined, refusal: undefined });
   };
 
   /** The person's DMs and rooms and the threads in them, asked for again whenever something suggests they changed. */
@@ -180,6 +196,26 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       const problem = problemOf(error);
       // A connection that is down is the status's to tell; anything else is worth a notice.
       if ("said" in problem) say({ kind: "not-listed", problem });
+    },
+  );
+
+  // Read through a function: where the person is changes while the sessions are asked for, which the compiler cannot see.
+  const sessionsOnShow = (): boolean => model.where.screen === "sessions";
+
+  /** The sessions of the agent that is selected, asked for again for as long as they are on show. */
+  const refreshSessions = converge(
+    async () => {
+      const link = agent;
+      if (link === undefined || !sessionsOnShow() || link.status().state !== "up") return;
+      const sessions = await link.sessions();
+      if (agent !== link) return;
+      if (JSON.stringify(sessions) !== JSON.stringify(model.sessions)) set({ sessions });
+      if (sessionsOnShow() && model.refusal !== undefined) set({ refusal: undefined });
+    },
+    (error) => {
+      const problem = problemOf(error);
+      // A connection that is down is the status's to tell. What the agent said is said on the screen.
+      if ("said" in problem && sessionsOnShow()) set({ refusal: problem.said });
     },
   );
 
@@ -224,7 +260,10 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     set({ chat: status });
     if (status.state === "up") void refreshChannels();
   });
-  const poll = setInterval(() => void refreshChannels(), pollMs);
+  const poll = setInterval(() => {
+    void refreshChannels();
+    void refreshSessions();
+  }, pollMs);
   // The links have been trying since they were made, and may have something to say already.
   set({ gateway: registry.status(), listing: registry.listing(), chat: chat.status() });
 
@@ -233,7 +272,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     useAgent(name);
     chat.follow(undefined);
     agent?.watch(undefined);
-    set({ where: { screen: "threads", place: { kind: "agent", name } }, thread: undefined, session: undefined, notice: undefined });
+    set({ where: { screen: "threads", place: { kind: "agent", name } }, thread: undefined, session: undefined, refusal: undefined, notice: undefined });
     void refreshChannels();
   }
 
@@ -247,7 +286,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
 
   function open(threadId: string | undefined): void {
     const { where } = model;
-    if (where.screen === "agents") return;
+    if (where.screen !== "threads" && where.screen !== "thread") return;
     landed = true;
     chat.follow(threadId);
     agent?.watch(threadId);
@@ -273,6 +312,22 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       started = undefined;
       open(undefined);
     },
+    switchLists() {
+      const { where } = model;
+      if (where.screen === "threads" && where.place.kind === "agent") {
+        set({ where: { screen: "sessions", agent: where.place.name }, notice: undefined, refusal: undefined });
+        void refreshSessions();
+      } else if (where.screen === "sessions") {
+        set({ where: { screen: "threads", place: { kind: "agent", name: where.agent } }, notice: undefined, refusal: undefined });
+        void refreshChannels();
+      }
+    },
+    openSession(address) {
+      const { where } = model;
+      if (where.screen !== "sessions") return;
+      agent?.watch(address);
+      set({ where: { screen: "session", agent: where.agent, session: address }, session: undefined, notice: undefined, refusal: undefined });
+    },
     back() {
       const { where } = model;
       if (where.screen === "thread") {
@@ -280,9 +335,13 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
         agent?.watch(undefined);
         set({ where: { screen: "threads", place: where.place }, thread: undefined, session: undefined, notice: undefined });
         void refreshChannels();
-      } else if (where.screen === "threads") {
+      } else if (where.screen === "session") {
+        agent?.watch(undefined);
+        set({ where: { screen: "sessions", agent: where.agent }, session: undefined, notice: undefined, refusal: undefined });
+        void refreshSessions();
+      } else if (where.screen === "threads" || where.screen === "sessions") {
         useAgent(undefined);
-        set({ where: { screen: "agents" }, notice: undefined });
+        set({ where: { screen: "agents" }, notice: undefined, refusal: undefined });
       }
     },
 
@@ -336,8 +395,8 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
       waiting.abort();
       const { where } = model;
       const entries = agentEntries(model);
-      // Only an agent's DM is looked at: a room has no one agent's work to stop with a key.
-      const shown = where.screen !== "agents" && where.place.kind === "agent" ? where.place.name : undefined;
+      // Only the person's threads with an agent are looked at: a room has no one agent's work to stop with a key.
+      const shown = agentLookedAt(where);
       const names = [...(shown === undefined ? [] : [shown]), ...entries.map((entry) => entry.name)];
       for (const name of new Set(names)) {
         // The thread on screen comes first, then the newest thread the agent is working in.

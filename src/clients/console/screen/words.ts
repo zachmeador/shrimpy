@@ -1,4 +1,11 @@
-import type { SessionActivity, ToolStatus } from "../../../contracts/agent/index.ts";
+import type {
+  QueuedInput,
+  SessionActivity,
+  SessionItem,
+  SessionPlace,
+  ThreadPlace,
+  ToolStatus,
+} from "../../../contracts/agent/index.ts";
 import type { Receipt } from "../../../contracts/chat/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import type { Problem, Why } from "../network/index.ts";
@@ -51,20 +58,32 @@ export function chatNote(why: Why): string | undefined {
   }
 }
 
-/** What to tell about the agent that is selected, if it is not as it should be. */
-export function agentNote(agent: string, why: Why): string | undefined {
+/**
+ * What to tell about the agent that is selected, if it is not as it should be.
+ * `looking` is what is on show: the work in a thread, which can be stopped from
+ * here, or the agent's sessions, which are only watched.
+ */
+export function agentNote(agent: string, why: Why, looking: "work" | "sessions" = "work"): string | undefined {
   const name = oneLine(agent);
   switch (why.kind) {
     case "not-registered":
       return `No agent named ${name} is registered with this machine's gateway. Start it with: shrimpy agent serve ${name}, or start everything with: ${START_EVERYTHING}`;
     case "lost":
-      return `Lost the connection to ${name}. The work shown may be out of date, and it can't be stopped from here. Trying again.`;
+      return looking === "work"
+        ? `Lost the connection to ${name}. The work shown may be out of date, and it can't be stopped from here. Trying again.`
+        : `Lost the connection to ${name}. What is shown may be out of date. Trying again.`;
     case "unreachable":
       return oneLine(why.message);
     case "connecting":
     case "not-running":
       return undefined;
   }
+}
+
+/** What the agent said when it would not list its sessions, or would not let one be watched. */
+export function refusalNote(looking: "sessions" | "session", agent: string, said: string): string {
+  const reason = because({ kind: "agent", name: agent }, { said });
+  return looking === "sessions" ? `Could not list the sessions of ${oneLine(agent)}: ${reason}.` : `Could not watch the session: ${reason}.`;
 }
 
 /** A program runs another version of Shrimpy than the console does. */
@@ -136,7 +155,15 @@ export function reactionsLine(reactions: { emoji: string; by: string[] }[]): str
 
 export const agentsTitle = (): string => "Agents and rooms";
 export const threadsTitle = (agent: string): string => `${oneLine(agent)} · your threads`;
+export const sessionsTitle = (agent: string): string => `${oneLine(agent)} · its sessions`;
 export const roomThreadsTitle = (room: string): string => `${roomLabel(room)} · threads`;
+/** `where` is where the session is, as `placeWords` says. */
+export const sessionTitle = (agent: string, where: string): string => `${oneLine(agent)} · watching ${oneLine(where)}`;
+export const sessionsEmpty = (agent: string): string => `${oneLine(agent)} has no sessions yet.`;
+export const SESSION_EMPTY = "Nothing in this session yet.";
+/** The label over what a session was shown. */
+export const SHOWN = "shown";
+export const idleLine = (agent: string): string => `${oneLine(agent)} is idle`;
 /** `who` is what the conversation is called: an agent's name or a room's label. */
 export const threadTitle = (who: string, title: string | undefined): string =>
   `${oneLine(who)} · ${title === undefined ? "new thread" : oneLine(title)}`;
@@ -149,6 +176,47 @@ export const newRoomThreadHint = (room: string): string => `New thread in ${room
 export const roomLabel = (name: string): string => `#${oneLine(name)}`;
 export const earlierMessages = (count: number, threadId: string): string =>
   `${String(count)} earlier ${count === 1 ? "message is" : "messages are"} not shown. Read them with: shrimpy read ${oneLine(threadId)}`;
+export const earlierItems = (count: number, address: string, agent: string): string =>
+  `${String(count)} earlier ${count === 1 ? "item is" : "items are"} not shown. Read them with: shrimpy sessions read ${oneLine(address)} --agent ${oneLine(agent)}`;
+
+/**
+ * Where a session is, as a list says it, in the names the agent gave: `me` is
+ * the name of the person who is looking, whose DM with the agent is "your DM".
+ * With no place, which is how an agent lists a session it has not learned the
+ * place of, it is the session's address.
+ */
+export function placeWords(place: SessionPlace | null, address: string, me: string | undefined): string {
+  if (place === null) return oneLine(address);
+  switch (place.kind) {
+    case "dm": {
+      const mine = place.with.kind === "person" && place.with.name === me;
+      return `${mine ? "your DM" : `DM with ${oneLine(place.with.name)}`} · ${threadWords(place.thread, address)}`;
+    }
+    case "room":
+      return `${roomLabel(place.room)} · ${threadWords(place.thread, address)}`;
+    case "trigger":
+      return `trigger ${oneLine(place.trigger)}`;
+  }
+}
+
+/** A thread of a session's place by its name, with a mark if it is the main one, or by its address when it has no name. */
+function threadWords(thread: ThreadPlace, address: string): string {
+  const name = thread.name === null ? "" : oneLine(thread.name);
+  if (name !== "") return thread.main ? `${name} [main]` : name;
+  return thread.main ? "main" : `thread ${oneLine(address)}`;
+}
+
+/** What marks where a session was reset or compacted. */
+export const markerWords = (marker: Extract<SessionItem, { type: "marker" }>["marker"]): string =>
+  marker === "reset" ? "session reset" : "session compacted";
+
+const QUEUED_CHARACTERS = 200;
+
+/** Input a session has accepted and not picked up yet, on one line. */
+export function queuedLine(input: QueuedInput): string {
+  const text = oneLine(input.text.slice(0, QUEUED_CHARACTERS * 4)).slice(0, QUEUED_CHARACTERS);
+  return `queued (${input.mode === "followUp" ? "follow-up" : input.mode}): ${text}`;
+}
 
 /** A line under a message when its receipt says something a person needs to know, and nothing for one that doesn't. */
 export function receiptNote(receipt: Receipt, name: string): string | undefined {
@@ -240,16 +308,24 @@ export interface Can {
   escape: "stop" | "back" | undefined;
   /** Ctrl+N starts a thread. */
   newThread: boolean;
+  /** Tab switches between the person's threads with an agent and its sessions. */
+  switchLists: boolean;
   /** Ctrl+O and Ctrl+T switch tool calls and thinking between brief and in full: work is shown here. */
   work: boolean;
 }
 
-/** What the line of keys at the bottom of a screen says: every key that does something there, each with what it does. */
-export function keyHints(screen: "agents" | "threads" | "thread", can: Can, inFull: InFull): string[] {
+/**
+ * What the line of keys at the bottom of a screen says: every key that does
+ * something there, each with what it does. Where Tab goes depends on which of
+ * an agent's two lists is on show.
+ */
+export function keyHints(screen: "agents" | "threads" | "sessions" | "thread" | "session", can: Can, inFull: InFull): string[] {
   const hints: string[] = [];
   if (screen === "thread") hints.push("enter send");
-  else hints.push("↑↓ choose", "enter open");
+  else if (screen === "sessions") hints.push("↑↓ choose", "enter watch");
+  else if (screen !== "session") hints.push("↑↓ choose", "enter open");
   if (can.newThread) hints.push("ctrl+n new thread");
+  if (can.switchLists) hints.push(screen === "sessions" ? "tab your threads" : "tab sessions");
   if (can.escape === "stop") hints.push("esc stop");
   else if (can.escape === "back") hints.push("esc back");
   if (can.work) {

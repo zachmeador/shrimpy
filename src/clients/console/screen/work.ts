@@ -6,13 +6,23 @@ import {
   hiddenLines,
   hiddenSteps,
   type InFull,
+  markerWords,
   moreCharacters,
+  SHOWN,
   THINKING,
   toolStatus,
 } from "./words.ts";
 
-/** One thing the agent is doing or has done in the turn it is working on now. */
+/** One thing the agent is doing or has done in the turn it is working on now, or, in a session being watched, one thing in it. */
 export type Step =
+  /** What the session was shown. Only a session being watched has it: the thread says what was said. */
+  | {
+      kind: "shown";
+      label: string;
+      text: string;
+      /** How much of the start of it is left out, in words, when it was too long to show. */
+      earlier: string | undefined;
+    }
   | {
       kind: "thinking";
       label: string;
@@ -20,7 +30,13 @@ export type Step =
       /** How much of the start of the thinking is left out, in words, when it was too long to show whole. */
       earlier: string | undefined;
     }
-  | { kind: "text"; text: string; note: string | undefined }
+  | {
+      kind: "text";
+      text: string;
+      note: string | undefined;
+      /** How much of the start of the answer is left out, in words, when a session being watched has more than it shows. */
+      earlier: string | undefined;
+    }
   | {
       kind: "tool";
       name: string;
@@ -37,7 +53,9 @@ export type Step =
       /** How much of the start of the output is left out, in words, when there was more. */
       earlier: string | undefined;
       notes: string[];
-    };
+    }
+  /** Where a session being watched was reset or compacted. */
+  | { kind: "marker"; text: string };
 
 /** The work in progress behind the open thread: what the agent is doing, not what was said. */
 export interface Work {
@@ -73,29 +91,61 @@ export const FULL_CHARACTERS = 100_000;
 export function workOf(session: SessionView | undefined, inFull: InFull): Work | undefined {
   if (session?.status.busy !== true) return undefined;
   const live = session.items.slice(session.items.findLastIndex((item) => item.type === "user") + 1);
-  const steps = live.flatMap((item) => stepsOf(item, inFull));
+  const steps = live.flatMap((item) => stepsOf(item, inFull, false));
   const shown = steps.slice(-MAX_STEPS);
   const left = steps.length - shown.length;
   return { steps: shown, earlier: left > 0 ? hiddenSteps(left) : undefined };
 }
 
-function stepsOf(item: SessionItem, inFull: InFull): Step[] {
+/** The most items of a session shown at once, which are its newest. */
+const MAX_ITEMS = 200;
+
+/** A session being watched: its newest items as steps, oldest first, and how many items come before them. */
+export interface Watched {
+  steps: Step[];
+  earlier: number;
+}
+
+/**
+ * What a session holds, as the agent sees it: what it was shown, its thinking,
+ * what it wrote, each tool call with what it printed, and where it was reset or
+ * compacted. Thinking and tool calls are brief unless asked for in full.
+ */
+export function watchOf(session: SessionView, inFull: InFull): Watched {
+  const shown = session.items.slice(-MAX_ITEMS);
+  return { steps: shown.flatMap((item) => stepsOf(item, inFull, true)), earlier: session.items.length - shown.length };
+}
+
+/**
+ * The steps of one item. `transcript` is for a session being watched, which
+ * shows everything in it and an answer whole, where the work of a turn leaves
+ * out what was said, which the thread has, and shows the latest of an answer.
+ */
+function stepsOf(item: SessionItem, inFull: InFull, transcript: boolean): Step[] {
   switch (item.type) {
-    case "user":
+    case "user": {
+      if (!transcript) return [];
+      const { text, cut } = lastCharacters(item.text.trimEnd(), FULL_CHARACTERS);
+      return [{ kind: "shown", label: SHOWN, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined }];
+    }
     case "marker":
-      return [];
+      return transcript ? [{ kind: "marker", text: markerWords(item.marker) }] : [];
     case "assistant": {
       const steps: Step[] = [];
       if (item.thinking.trim() !== "") steps.push(thinkingStep(item.thinking.trim(), inFull.thinking));
       const cutOff = answerNote(item.stopReason);
-      if (item.text.trim() !== "" || cutOff !== undefined) {
-        steps.push({ kind: "text", text: plain(lastLines(item.text.trimEnd(), TEXT_LINES, TEXT_CHARACTERS)), note: cutOff });
-      }
+      if (item.text.trim() !== "" || cutOff !== undefined) steps.push(textStep(item.text.trimEnd(), cutOff, transcript));
       return steps;
     }
     case "tool":
       return [toolStep(item, inFull.toolCalls)];
   }
+}
+
+function textStep(text: string, note: string | undefined, whole: boolean): Step {
+  if (!whole) return { kind: "text", text: plain(lastLines(text, TEXT_LINES, TEXT_CHARACTERS)), note, earlier: undefined };
+  const kept = lastCharacters(text, FULL_CHARACTERS);
+  return { kind: "text", text: plain(kept.text), note, earlier: kept.cut > 0 ? hiddenCharacters(kept.cut) : undefined };
 }
 
 function thinkingStep(thinking: string, whole: boolean): Step {

@@ -2,7 +2,7 @@ import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts"
 import { agentEntries, type Model, type Place, roomEntries, workingIn, workingInOpenThread } from "../state/index.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
-import { type Work, workOf } from "./work.ts";
+import { type Step, type Work, watchOf, workOf } from "./work.ts";
 import {
   agentNote,
   agentsTitle,
@@ -11,18 +11,27 @@ import {
   chatNote,
   DELETED,
   editedAt,
+  earlierItems,
   earlierMessages,
   gatewayNote,
+  idleLine,
   type InFull,
   keyHints,
   newRoomThreadHint,
   newThreadHint,
   NO_TITLE,
   noticeText,
+  placeWords,
+  queuedLine,
   reactionsLine,
   receiptNote,
+  refusalNote,
   roomLabel,
   roomThreadsTitle,
+  SESSION_EMPTY,
+  sessionsEmpty,
+  sessionsTitle,
+  sessionTitle,
   THREAD_EMPTY,
   threadsEmpty,
   threadsTitle,
@@ -49,10 +58,10 @@ interface Chrome {
 
 /** A row of a list the person chooses from. */
 export interface Row {
-  /** What the state is told when the row is chosen: an agent's name, a room's channel ID or a thread's ID. It is never shown. */
+  /** What the state is told when the row is chosen: an agent's name, a room's channel ID, a thread's ID or a session's address. It is never shown. */
   id: string;
   /** What choosing it opens. */
-  kind: "agent" | "room" | "thread";
+  kind: "agent" | "room" | "thread" | "session";
   label: string;
   detail: string;
   working: boolean;
@@ -71,6 +80,16 @@ export interface AgentsScreen extends Chrome {
 export interface ThreadsScreen extends Chrome {
   kind: "threads";
   title: string;
+  stale: boolean;
+  rows: Row[];
+  empty: string | undefined;
+}
+
+/** The sessions of an agent, which is the other list on its screen beside the person's threads with it. */
+export interface SessionsScreen extends Chrome {
+  kind: "sessions";
+  title: string;
+  /** The list may be out of date: the agent is not being reached. */
   stale: boolean;
   rows: Row[];
   empty: string | undefined;
@@ -116,7 +135,29 @@ export interface ThreadScreen extends Chrome {
   workStale: boolean;
 }
 
-export type Screen = AgentsScreen | ThreadsScreen | ThreadScreen;
+/** One of an agent's sessions, as the agent sees it. It is for watching: nothing is said or done in it. */
+export interface SessionScreen extends Chrome {
+  kind: "session";
+  /**
+   * As for a thread, the title does not say when what is shown may be out of
+   * date: a long session has scrolled it away. The notes at the bottom say so.
+   */
+  title: string;
+  /** Said when there are older items than the ones shown, or when there are none to show. */
+  lead: string | undefined;
+  /** The newest items of the session, oldest first: what it was shown, what it thought and wrote, and each tool call. */
+  steps: Step[];
+  /** What the session is doing now, when it is working. */
+  working: string | undefined;
+  /** Said when the session is not working. */
+  idle: string | undefined;
+  /** The input it has accepted and not picked up yet, a line each. */
+  queued: string[];
+  /** What is shown may be out of date: the agent is not being reached. */
+  stale: boolean;
+}
+
+export type Screen = AgentsScreen | ThreadsScreen | SessionsScreen | ThreadScreen | SessionScreen;
 
 export interface ScreenOptions {
   /** The moment it is, in milliseconds since the epoch, for saying when things happened. */
@@ -138,11 +179,15 @@ export function screenOf(model: Model, options: ScreenOptions): Screen {
       return threadsScreen(model, where.place, options.now, inFull);
     case "thread":
       return threadScreen(model, where.place, where.thread, options.now, inFull);
+    case "sessions":
+      return sessionsScreen(model, where.agent, inFull);
+    case "session":
+      return sessionScreen(model, where.agent, where.session, inFull);
   }
 }
 
 function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
-  const can: Can = { escape: undefined, newThread: false, work: false };
+  const can: Can = { escape: undefined, newThread: false, switchLists: false, work: false };
   const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.name,
     kind: "agent",
@@ -203,7 +248,8 @@ function lookingAt(model: Model, place: Place): Looking {
 
 function threadsScreen(model: Model, place: Place, now: number, inFull: InFull): ThreadsScreen {
   const here = lookingAt(model, place);
-  const can: Can = { escape: "back", newThread: true, work: false };
+  // An agent has sessions to switch to, and a room does not.
+  const can: Can = { escape: "back", newThread: true, switchLists: place.kind === "agent", work: false };
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
@@ -221,6 +267,57 @@ function threadsScreen(model: Model, place: Place, now: number, inFull: InFull):
     empty: rows.length === 0 && model.chat.state === "up" && agent !== undefined ? threadsEmpty(oneLine(agent)) : undefined,
     notes: notesOf(model, agent),
     keys: keyHints("threads", can, inFull),
+    can,
+  };
+}
+
+function sessionsScreen(model: Model, agent: string, inFull: InFull): SessionsScreen {
+  const can: Can = { escape: "back", newThread: false, switchLists: true, work: false };
+  const rows: Row[] = (model.sessions ?? []).map((session) => ({
+    id: session.id,
+    kind: "session",
+    label: placeWords(session.place, session.id, model.me?.name),
+    detail: session.working ? "working" : "idle",
+    working: session.working,
+  }));
+  const stale = model.agent?.state === "down";
+  return {
+    kind: "sessions",
+    title: sessionsTitle(agent),
+    stale,
+    rows,
+    // Until the agent has said which sessions it has, there is nothing to claim about them.
+    empty: model.sessions !== undefined && rows.length === 0 && !stale ? sessionsEmpty(agent) : undefined,
+    notes: notesOf(model, agent),
+    keys: keyHints("sessions", can, inFull),
+    can,
+  };
+}
+
+function sessionScreen(model: Model, agent: string, address: string, inFull: InFull): SessionScreen {
+  const can: Can = { escape: "back", newThread: false, switchLists: false, work: true };
+  const view = model.session;
+  const summary = model.sessions?.find((each) => each.id === address);
+  // A session that was working when the agent went away is not working now, whatever its last view says.
+  const stale = model.agent?.state === "down";
+  const busy = view?.status.busy === true && !stale;
+  const watched = view === undefined ? undefined : watchOf(view, inFull);
+
+  let lead: string | undefined;
+  if (watched !== undefined && watched.earlier > 0) lead = earlierItems(watched.earlier, address, agent);
+  else if (view !== undefined && view.items.length === 0) lead = SESSION_EMPTY;
+
+  return {
+    kind: "session",
+    title: sessionTitle(agent, placeWords(summary?.place ?? null, address, model.me?.name)),
+    lead,
+    steps: watched?.steps ?? [],
+    working: busy ? workingLine([agent], view.status.activity, false) : undefined,
+    idle: view !== undefined && !busy && !stale ? idleLine(agent) : undefined,
+    queued: view?.status.queued.map(queuedLine) ?? [],
+    stale: view !== undefined && stale,
+    notes: notesOf(model, agent),
+    keys: keyHints("session", can, inFull),
     can,
   };
 }
@@ -246,7 +343,7 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
     markedWorking.length > 0 || sessionBusy
       ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, stoppable)
       : undefined;
-  const can: Can = { escape: stoppable ? "stop" : "back", newThread: true, work: isAgent };
+  const can: Can = { escape: stoppable ? "stop" : "back", newThread: true, switchLists: false, work: isAgent };
 
   let lead: string | undefined;
   if (threadId === undefined) lead = isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
@@ -311,12 +408,19 @@ function notesOf(model: Model, agent: string | undefined): Note[] {
   const warn = (text: string | undefined): void => {
     if (text !== undefined) notes.push({ tone: "warn", text });
   };
+  const { where } = model;
   const gatewayDown = model.gateway.state === "down";
   if (model.gateway.state === "down") warn(gatewayNote(model.gateway.why));
+  // An agent's sessions come from the agent, so the chat server has nothing to do with what they show.
+  const watching = where.screen === "sessions" || where.screen === "session";
   // The gateway being gone is why nothing is registered: that is not worth saying twice.
-  if (model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-registered")) warn(chatNote(model.chat.why));
-  if (model.where.screen === "thread" && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-registered")) {
-    warn(agentNote(oneLine(agent), model.agent.why));
+  if (!watching && model.chat.state === "down" && !(gatewayDown && model.chat.why.kind === "not-registered")) warn(chatNote(model.chat.why));
+  const looking = where.screen === "thread" ? "work" : watching ? "sessions" : undefined;
+  if (looking !== undefined && agent !== undefined && model.agent?.state === "down" && !(gatewayDown && model.agent.why.kind === "not-registered")) {
+    warn(agentNote(oneLine(agent), model.agent.why, looking));
+  }
+  if (model.refusal !== undefined && agent !== undefined && (where.screen === "sessions" || where.screen === "session")) {
+    warn(refusalNote(where.screen, agent, model.refusal));
   }
 
   warn(model.listing === undefined ? undefined : versionWarning("the gateway", model.listing.version));

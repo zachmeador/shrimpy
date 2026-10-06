@@ -11,12 +11,22 @@ import {
   anAgent,
   aReceipt,
   aRoom,
+  aSession,
   aThread,
   aThreadView,
   onThread,
+  startRig,
   zach,
 } from "../state/testing/index.ts";
-import { type AgentsScreen, farewellLine, type Screen, screenOf, type ThreadScreen, type ThreadsScreen } from "./index.ts";
+import {
+  type AgentsScreen,
+  farewellLine,
+  type Screen,
+  screenOf,
+  type SessionsScreen,
+  type ThreadScreen,
+  type ThreadsScreen,
+} from "./index.ts";
 
 const at = (month: number, day: number, hour: number, minute: number, year = 2026): number =>
   new Date(year, month - 1, day, hour, minute).getTime();
@@ -142,6 +152,48 @@ test("when chat is lost the threads stay and say so, and nothing claims there ar
   assert.match(screen.notes[0]?.text ?? "", /chat server/);
   const empty = threads(screenOf(aModel({ where: { screen: "threads", place: { kind: "agent", name: "scout" } }, chat: { state: "down", why: { kind: "lost" } } }), { now }));
   assert.equal(empty.empty, undefined);
+});
+
+test("an agent's sessions list has every session the agent has, one behind a thread you are not in and a trigger's own among them, each with where it is", { timeout: 15_000 }, async (t) => {
+  const rig = await startRig(t);
+  const yours = await rig.thread("scout", "check the disk");
+  const me = (await rig.person()).me;
+  const sessions = rig.agents.scout?.agent;
+  assert.ok(sessions);
+  sessions.session(yours.id, { place: { kind: "dm", with: { name: me.name, kind: "person" }, thread: { main: false, name: null } } });
+  sessions.session("th_private", { place: { kind: "dm", with: { name: "mechanic", kind: "agent" }, thread: { main: true, name: null } } });
+  sessions.session("th_in_a_room", {
+    place: { kind: "room", room: "ops", thread: { main: false, name: "Disk space" } },
+    view: workingView([userItem("go")]),
+  });
+  sessions.session("trigger:nightly", { place: { kind: "trigger", trigger: "nightly" } });
+  // An agent that has not learned where a session is lists it with no place.
+  sessions.session("th_unplaced");
+  await rig.until((model) => model.where.screen === "threads", "the agent's threads");
+
+  rig.state.switchLists();
+  const listed = await rig.until((model) => model.sessions?.length === 5, "the agent's sessions");
+
+  const screen = screenOf(listed, { now });
+  assert.equal(screen.kind, "sessions");
+  const { rows } = screen as SessionsScreen;
+  assert.deepEqual(
+    rows.map((row) => [row.id, row.working]),
+    [
+      [yours.id, false],
+      ["th_private", false],
+      ["th_in_a_room", true],
+      ["trigger:nightly", false],
+      ["th_unplaced", false],
+    ],
+  );
+  const [mine, private_, room, trigger, unplaced] = rows.map((row) => row.label);
+  assert.match(mine ?? "", /DM/);
+  assert.doesNotMatch(mine ?? "", /mechanic/);
+  assert.match(private_ ?? "", /mechanic/);
+  assert.match(room ?? "", /ops.*Disk space/);
+  assert.match(trigger ?? "", /nightly/);
+  assert.equal(unplaced, "th_unplaced", "its address, since that is all there is to say");
 });
 
 test("a thread shows who said what, oldest first, as themselves or as someone else", () => {
@@ -422,14 +474,23 @@ test("text from other members and from tools can't act on a terminal, wherever i
   ]);
   const session = workingView(
     [
-      userItem("go"),
+      userItem(`shown${hostile}`),
       assistantItem(`answer${hostile}`, { thinking: `thinking${hostile}`, streaming: true }),
       toolItem(`tool${hostile}`, { args: { command: `echo ${hostile}` }, output: `output${hostile}`, notes: [`note${hostile}`] }),
     ],
     { kind: "tool", name: `tool${hostile}` },
   );
+  session.status.queued = [{ mode: "steer", text: `queued${hostile}` }];
+  const sessions = [
+    aSession("th_1", { place: { kind: "dm", with: { name: `mechanic${hostile}`, kind: "agent" }, thread: { main: false, name: `thread${hostile}` } } }),
+    aSession(`trigger:${hostile}`, { place: { kind: "trigger", trigger: `nightly${hostile}` } }),
+    aSession(`th_2${hostile}`, { place: { kind: "room", room: `ops${hostile}`, thread: { main: true, name: null } } }),
+    aSession(`th_3${hostile}`),
+  ];
   const model = onThread(`scout${hostile}`, open, view, {
     session,
+    sessions,
+    refusal: `refused${hostile}`,
     listing: aListing([anAgent(`scout${hostile}`, `1.0${hostile}`)], `2.0${hostile}`),
     dms: { [`scout${hostile}`]: aDm(`scout${hostile}`, [open]) },
     rooms: { ch_2: aRoom(`ops${hostile}`, [`scout${hostile}`], [open]) },
@@ -446,6 +507,10 @@ test("text from other members and from tools can't act on a terminal, wherever i
     { screen: "thread" as const, place: dm, thread: "th_1" },
     { screen: "threads" as const, place: room },
     { screen: "thread" as const, place: room, thread: "th_1" },
+    { screen: "sessions" as const, agent: `scout${hostile}` },
+    { screen: "session" as const, agent: `scout${hostile}`, session: "th_1" },
+    { screen: "session" as const, agent: `scout${hostile}`, session: `trigger:${hostile}` },
+    { screen: "session" as const, agent: `scout${hostile}`, session: `th_3${hostile}` },
   ]) {
     const screen = screenOf({ ...model, where }, { now });
     const all = [...stringsIn(screen)];

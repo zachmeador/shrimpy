@@ -1,3 +1,4 @@
+import type { SessionSummary, SessionView } from "../../../../contracts/agent/index.ts";
 import type {
   Channel,
   Member,
@@ -41,6 +42,8 @@ export function aModel(parts: Partial<Model> = {}): Model {
     rooms: {},
     thread: undefined,
     session: undefined,
+    sessions: undefined,
+    refusal: undefined,
     notice: undefined,
     ...parts,
   };
@@ -126,6 +129,40 @@ export function aReceipt(agent: string, status: Receipt["status"], detail: strin
 
 export function aThreadView(thread: Thread, messages: Message[], earlier = 0): ThreadView {
   return { thread, messages, earlier };
+}
+
+/** A session as an agent lists it: behind a thread of that ID with no place yet, and idle, unless `parts` says more. */
+export function aSession(id: string, parts: Partial<SessionSummary> = {}): SessionSummary {
+  const behindThread = !id.startsWith("trigger:");
+  return {
+    id,
+    threadId: behindThread ? id : null,
+    channelId: behindThread ? "ch_1" : null,
+    place: null,
+    working: false,
+    ...parts,
+  };
+}
+
+/** A model on a session of an agent's being watched, with the sessions that agent lists and whatever else `parts` adds. */
+export function onSession(
+  agent: string,
+  session: SessionSummary,
+  view: SessionView | undefined,
+  parts: Partial<Model> = {},
+): Model {
+  return aModel({
+    where: { screen: "session", agent, session: session.id },
+    listing: {
+      programs: [anAgent(agent), aChatServer()],
+      members: [{ ...zach, admin: true, reachable: false }, aRosterAgent(agent)],
+      version: SHRIMPY_VERSION,
+    },
+    agent: { state: "up" },
+    sessions: [session],
+    session: view,
+    ...parts,
+  });
 }
 
 /** A model on a thread of an agent's, with whatever else `parts` adds. */

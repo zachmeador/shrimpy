@@ -3,13 +3,22 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { RoutedServerPresentation } from "@earendil-works/pi-server";
 import { Refusal, refuse } from "../../../lib/refusal/index.ts";
 import { offer, type Offer } from "../../../lib/testing/index.ts";
-import { type Member, type SessionDirectory, SessionService, type SessionView } from "../index.ts";
+import {
+  type Member,
+  type SessionDirectory,
+  type SessionPlace,
+  SessionService,
+  type SessionView,
+} from "../index.ts";
 import { sessionView } from "./views.ts";
 
 /** One session of a scripted agent: what its clients see, and what they did to it. */
 export interface ScriptedSession {
-  readonly threadId: string;
-  readonly channelId: string;
+  /** The session's address at the agent: a thread's ID, or `trigger:` and a trigger's name. */
+  readonly address: string;
+  /** The thread the session is behind, which is its address, or null for a trigger's own session. */
+  readonly threadId: string | null;
+  readonly channelId: string | null;
   /** A copy of what clients of the session see now. */
   readonly view: SessionView;
   /** Show clients this view. */
@@ -20,6 +29,8 @@ export interface ScriptedSession {
   readonly stops: number;
   /** Make stops be refused with `reason`, as written, or work again with undefined. */
   failStops(reason: string | undefined): void;
+  /** The text clients steered into the session, in order. */
+  readonly steers: string[];
 }
 
 /**
@@ -35,11 +46,16 @@ export interface ScriptedAgent {
    * ticket is.
    */
   serve(presentation: RoutedServerPresentation, whose: (ticket: string) => Promise<Member>): SessionDirectory;
-  /** The session behind a thread, for a server that sends a connection that attaches it there: undefined when there is none. */
-  route(threadId: string): Offer | undefined;
+  /** The session at an address, for a server that sends a connection that attaches it there: undefined when there is none. */
+  route(address: string): Offer | undefined;
 
-  /** Make the session behind a thread, idle and empty unless `view` says more. Making it again gives the same session. */
-  session(threadId: string, options?: { view?: SessionView }): ScriptedSession;
+  /**
+   * Make the session at an address, which is a thread's ID or `trigger:` and a
+   * trigger's name, idle and empty unless `view` says more, and as placed as
+   * `place` says: the agent lists it with no place otherwise. Making it again
+   * gives the same session.
+   */
+  session(address: string, options?: { view?: SessionView; place?: SessionPlace }): ScriptedSession;
   /** How many times clients have asked which sessions the agent has. */
   readonly listings: number;
 }
@@ -47,6 +63,7 @@ export interface ScriptedAgent {
 interface Held {
   session: ScriptedSession;
   service: SessionService;
+  place: SessionPlace | null;
 }
 
 const noTrigger = (name: string): Refusal => new Refusal(`This agent has no trigger called ${name}.`);
@@ -57,16 +74,19 @@ export function scriptedAgent(): ScriptedAgent {
   // The agent says a session has work when it is answering input or has input queued.
   const working = (view: SessionView): boolean => view.status.busy || view.status.queued.length > 0;
 
-  function session(threadId: string, options: { view?: SessionView } = {}): ScriptedSession {
-    const existing = held.get(threadId);
+  function session(address: string, options: { view?: SessionView; place?: SessionPlace } = {}): ScriptedSession {
+    const existing = held.get(address);
     if (existing !== undefined) return existing.session;
 
     const state = replicatedState(structuredClone(options.view ?? sessionView()));
+    const steers: string[] = [];
     let stops = 0;
     let refusal: string | undefined;
+    const behindThread = !address.startsWith("trigger:");
     const made: ScriptedSession = {
-      threadId,
-      channelId: `ch_${threadId.slice(3)}`,
+      address,
+      threadId: behindThread ? address : null,
+      channelId: behindThread ? `ch_${address.slice(3)}` : null,
       get view() {
         return structuredClone(state.value);
       },
@@ -82,17 +102,23 @@ export function scriptedAgent(): ScriptedAgent {
       failStops(reason) {
         refusal = reason;
       },
+      get steers() {
+        return [...steers];
+      },
     };
     const service: SessionService = {
       state,
-      steer: () => Promise.resolve({ submission: 1 }),
+      steer(text) {
+        steers.push(text);
+        return Promise.resolve({ submission: 1 });
+      },
       wait: () => Promise.reject(new Error("A scripted agent does not settle input.")),
       stop() {
         stops += 1;
         return refusal === undefined ? Promise.resolve() : Promise.reject(new Refusal(refusal, "service_not_allowed"));
       },
     };
-    held.set(threadId, { session: made, service });
+    held.set(address, { session: made, service, place: options.place ?? null });
     return made;
   }
 
@@ -115,11 +141,11 @@ export function scriptedAgent(): ScriptedAgent {
           admitted(() => {
             listings += 1;
             return Promise.resolve(
-              [...held.values()].map(({ session: each }) => ({
-                id: each.threadId,
+              [...held.values()].map(({ session: each, place }) => ({
+                id: each.address,
                 threadId: each.threadId,
                 channelId: each.channelId,
-                place: null,
+                place,
                 working: working(each.view),
               })),
             );
@@ -137,8 +163,8 @@ export function scriptedAgent(): ScriptedAgent {
         reload: () => admitted(() => Promise.resolve({ soul: false, files: 0, skills: 0, triggers: 0, leftOut: [] })),
       };
     },
-    route(threadId) {
-      const found = held.get(threadId);
+    route(address) {
+      const found = held.get(address);
       return found === undefined ? undefined : offer(SessionService, found.service);
     },
     session,

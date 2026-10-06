@@ -13,12 +13,22 @@ import {
   TruncatedText,
   TuiMainScreen,
 } from "@earendil-works/pi-tui";
-import { type InFull, OUT_OF_DATE, QUIT_AGAIN, type MessageRow, type Screen, screenOf, type ThreadScreen } from "../screen/index.ts";
+import {
+  type InFull,
+  type MessageRow,
+  OUT_OF_DATE,
+  QUIT_AGAIN,
+  type Screen,
+  screenOf,
+  type SessionScreen,
+  type ThreadScreen,
+} from "../screen/index.ts";
 import type { ConsoleState, Where } from "../state/index.ts";
 import { interrupt } from "./interrupt.ts";
 import { keysComponent } from "./keys.ts";
 import { listOf } from "./list.ts";
 import { messageComponent } from "./message.ts";
+import { sessionComponents } from "./session.ts";
 import { createTheme } from "./theme.ts";
 import { workComponent } from "./work.ts";
 
@@ -149,29 +159,53 @@ export function startDrawing(options: DrawingOptions): Drawing {
 
   /** What the screen holds between its title and its notes, and what the keys go to. */
   function body(screen: Screen): { parts: Component[]; focus: Component | null } {
-    if (screen.kind !== "thread") {
-      // Nothing is being worked on in a list, so its spinner has no business running.
-      working(undefined);
-      if (screen.rows.length === 0) {
-        return { parts: screen.empty === undefined ? [] : [new Text(theme.dim(screen.empty), 0, 0)], focus: null };
+    switch (screen.kind) {
+      case "thread":
+        return { parts: threadParts(screen), focus: editor };
+      // A session is watched and not talked in, so there is no editor, and what is typed goes nowhere.
+      case "session":
+        return { parts: sessionParts(screen), focus: null };
+      case "agents":
+      case "threads":
+      case "sessions": {
+        // Nothing is being worked on in a list, so its spinner has no business running.
+        working(undefined);
+        if (screen.rows.length === 0) {
+          return { parts: screen.empty === undefined ? [] : [new Text(theme.dim(screen.empty), 0, 0)], focus: null };
+        }
+        const list = listOf({
+          rows: screen.rows,
+          chosen,
+          room: rows() - 8,
+          theme,
+          open: (row) => {
+            if (row.kind === "agent") state.selectAgent(row.id);
+            else if (row.kind === "room") state.selectRoom(row.id);
+            else if (row.kind === "session") state.openSession(row.id);
+            else state.openThread(row.id);
+          },
+          moved: (id) => {
+            chosen = id;
+          },
+        });
+        return { parts: [list], focus: list };
       }
-      const list = listOf({
-        rows: screen.rows,
-        chosen,
-        room: rows() - 8,
-        theme,
-        open: (row) => {
-          if (row.kind === "agent") state.selectAgent(row.id);
-          else if (row.kind === "room") state.selectRoom(row.id);
-          else state.openThread(row.id);
-        },
-        moved: (id) => {
-          chosen = id;
-        },
-      });
-      return { parts: [list], focus: list };
     }
-    return { parts: threadParts(screen), focus: editor };
+  }
+
+  /** What the session holds, then what it is doing now, or that it is not, or that this may be out of date, and what waits for it. */
+  function sessionParts(screen: SessionScreen): Component[] {
+    const parts = sessionComponents(screen, theme);
+    const line = working(screen.working);
+    const status: Component[] = [];
+    if (screen.idle !== undefined) status.push(new Text(theme.dim(screen.idle), 0, 0));
+    if (screen.stale) status.push(new Text(theme.warn(`(${OUT_OF_DATE})`), 0, 0));
+    for (const queued of screen.queued) status.push(new Text(theme.dim(queued), 0, 0));
+    // The spinner has a blank line of its own above it.
+    if (line !== undefined) parts.push(line);
+    else if (status.length > 0 && screen.steps.length > 0) parts.push(new Spacer(1));
+    parts.push(...status);
+    return parts;
   }
 
   function threadParts(screen: ThreadScreen): Component[] {
@@ -203,12 +237,14 @@ export function startDrawing(options: DrawingOptions): Drawing {
     const { parts, focus: next } = body(screen);
 
     page.clear();
-    const stale = screen.kind !== "thread" && screen.stale ? `  ${theme.warn(`(${OUT_OF_DATE})`)}` : "";
+    // A conversation or a session scrolls its title away, and changing a line that far up repaints the whole screen, so only a list is marked.
+    const scrolls = screen.kind === "thread" || screen.kind === "session";
+    const stale = !scrolls && screen.stale ? `  ${theme.warn(`(${OUT_OF_DATE})`)}` : "";
     page.addChild(new TruncatedText(theme.title(screen.title) + stale, 0, 0));
-    if (screen.kind !== "thread") page.addChild(new Spacer(1));
+    if (!scrolls) page.addChild(new Spacer(1));
     for (const part of parts) page.addChild(part);
     // The notes sit by what the person is doing, at the bottom, where a long conversation has not pushed them out of sight.
-    if (screen.notes.length > 0 && (screen.kind === "thread" || parts.length > 0)) page.addChild(new Spacer(1));
+    if (screen.notes.length > 0 && (scrolls || parts.length > 0)) page.addChild(new Spacer(1));
     for (const note of screen.notes) page.addChild(new Text(note.tone === "warn" ? theme.warn(note.text) : theme.dim(note.text), 0, 0));
     if (screen.kind === "thread") page.addChild(editor);
     page.addChild(waitingForSecondPress ? new Text(theme.warn(QUIT_AGAIN), 0, 0) : keysComponent(screen.keys, theme));
@@ -244,6 +280,10 @@ export function startDrawing(options: DrawingOptions): Drawing {
     }
     if (matchesKey(data, "ctrl+n") && can.newThread) {
       state.startThread();
+      return { consume: true };
+    }
+    if (matchesKey(data, "tab") && can.switchLists) {
+      state.switchLists();
       return { consume: true };
     }
     if (matchesKey(data, "ctrl+o") && can.work) {

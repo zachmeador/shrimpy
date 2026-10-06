@@ -1,4 +1,4 @@
-import type { SessionView } from "../../../contracts/agent/index.ts";
+import type { SessionSummary, SessionView } from "../../../contracts/agent/index.ts";
 import type { Channel, Member, Thread, ThreadView } from "../../../contracts/chat/index.ts";
 import type { Registration, RosterEntry } from "../../../contracts/gateway/index.ts";
 import type { LinkStatus, Problem } from "../network/index.ts";
@@ -9,12 +9,33 @@ import type { LinkStatus, Problem } from "../network/index.ts";
  */
 export type Place = { kind: "agent"; name: string } | { kind: "room"; id: string };
 
-/** Where in the console the person is. */
+/**
+ * Where in the console the person is. An agent's screen is two lists, the
+ * person's threads with it and its sessions, and a room's is one.
+ */
 export type Where =
   | { screen: "agents" }
   | { screen: "threads"; place: Place }
   /** `thread` is undefined for a thread that is not started yet: it comes to be with its first message. */
-  | { screen: "thread"; place: Place; thread: string | undefined };
+  | { screen: "thread"; place: Place; thread: string | undefined }
+  /** The sessions of the agent with this name. */
+  | { screen: "sessions"; agent: string }
+  /** One session of that agent, watched, by its address at the agent. Nothing is said or done in it. */
+  | { screen: "session"; agent: string; session: string };
+
+/** The name of the agent whose threads or sessions are on show, if the person is looking at an agent's. */
+export function agentLookedAt(where: Where): string | undefined {
+  switch (where.screen) {
+    case "agents":
+      return undefined;
+    case "threads":
+    case "thread":
+      return where.place.kind === "agent" ? where.place.name : undefined;
+    case "sessions":
+    case "session":
+      return where.agent;
+  }
+}
 
 /** The person's DM with an agent, and their threads in it, newest first. */
 export interface Dm {
@@ -55,8 +76,16 @@ export interface Model {
   rooms: Record<string, Room>;
   /** The live view of the open thread. */
   thread: ThreadView | undefined;
-  /** The live view of the session behind the open thread, once the agent has one. */
+  /** The live view of the session on show: the one behind the open thread, once the agent has one, or the one being watched. */
   session: SessionView | undefined;
+  /** The sessions of the agent that is selected, as it last listed them and in its order. Undefined until it has. */
+  sessions: SessionSummary[] | undefined;
+  /**
+   * What the agent said when it would not list its sessions or let the one being
+   * watched be watched: its words, which stay until it says yes or the person
+   * goes elsewhere.
+   */
+  refusal: string | undefined;
   notice: Notice | undefined;
 }
 
