@@ -23,6 +23,19 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 - In a room none of this is needed: an agent that mentions another is woken by the answer in the same session.
 - The spike on the branch `spike/ask-and-resume` showed the plumbing holds through kills and chat outages, with scripted models. No real model has used the tool, so whether a small one asks, ends its turn and waits is untested.
 
+**Mechanics of asking,** settled by the coordinator on 2026-10-06 for the build, and yours to change. Two things the spike found awkward have gone since: a receipt is an event in the feed now, so no second connection to chat is needed, and one task follows any input, so an answer is taken up like any other input, with its reply, its working mark and its stop.
+
+1. `ask({to, text, within?})`. `to` is `@name`, and the name has to be an agent's. `within` is how long to wait, such as `5m` or `2h`: 30 minutes if left out, from one minute to a day. The tool answers at once that the question is asked and that the answer will come here as a new input.
+2. The question is posted in the main thread of the agent's DM with the other agent, as `send_message` would post it, so the other agent takes it up as it takes up any DM message.
+3. The agent keeps each question that is open in its records: who was asked, which session asked, the question's message and when it gives up.
+4. While a question is open, what the asked agent posts in that DM thread belongs to the question and wakes no turn there. That is what keeps two agents from answering each other in circles, as the spike saw.
+5. The question closes when the asked agent leaves its receipt on it. In one commit the agent closes the question and takes the result up as an input of the session that asked: the reply, when the receipt says answered; that the other agent read it and said nothing; that its turn failed, and why; or that it was stopped. A receipt that says skipped leaves the question open, since the other agent will be shown it with its next message.
+6. A question that is still open when its time is up closes the same way, and the session is told the other agent hasn't answered and may not be running. An answer that comes after that is an ordinary DM message.
+7. The result waits for the turn that is running, as any agent's message does, and its turn's reply is posted to the asking session's thread like any other.
+8. A session may have five questions open at once. Stopping a session's work closes its open questions and says nothing more: the DM still has whatever is answered.
+9. What every agent is told gains a line on when to ask and when to send a message.
+
+
 7. **Order of building:** the one task and `check_back`; then standing triggers with a prompt; then checks and breadcrumbs. Asking another agent waited for [rooms](4-conversation.md), which are built now, since how two agents talk without going round in circles is one question in a DM and in a room. Helpers and the trigger line in chat follow.
 
 - A standing trigger is defined by a file in the home's `triggers/`: front matter for the schedule and the check, and the prompt as its body. The files are read at the start and on reload, and commands that write one check it first.

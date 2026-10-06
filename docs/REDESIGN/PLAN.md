@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Nothing is being built. Asking another agent is first under Next.
+- Asking another agent, which you agreed to tentatively on 2026-10-05. [What an agent does without being asked](design/7-on-its-own.md) has it, with its mechanics.
 
 **Next:**
 
