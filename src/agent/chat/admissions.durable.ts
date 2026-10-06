@@ -1,8 +1,8 @@
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { Conversation, ConversationId, Harness, TaskId } from "@earendil-works/pi-durable";
+import type { Conversation, ConversationId, Harness, TaskId, Tx } from "@earendil-works/pi-durable";
 import type { Breadcrumb } from "../inputs/index.ts";
-import { closeQuestion as closeInCommit } from "../questions/durable.ts";
+import { closeQuestion as closeInCommit, forgetPassed } from "../questions/durable.ts";
 import { FeedDoc, learnPlace, openSession, QuestionsDoc, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 import type { Admissions } from "./admissions.ts";
@@ -35,9 +35,12 @@ export function createAdmissions(
 ): Admissions {
   /** The chat store the agent is reading, once it has said: each cursor it sets is kept with this ID. */
   let reading: string | undefined;
-  const moveCursor = (feed: { cursor: number | null; store?: string }, seq: number): void => {
+  /** Move the agent's place in the feed, and let go of the questions a look closed that the feed is now past. */
+  const moveCursor = async (tx: Tx, seq: number): Promise<void> => {
+    const feed = await tx.doc(FeedDoc);
     feed.cursor = seq;
     if (reading !== undefined) feed.store = reading;
+    await forgetPassed(tx, seq);
   };
 
   return {
@@ -53,6 +56,8 @@ export function createAdmissions(
           const kept = await tx.doc(FeedDoc);
           kept.cursor = 0;
           kept.store = store;
+          // Positions in the store that was lost mean nothing in the new one.
+          await forgetPassed(tx, Number.POSITIVE_INFINITY);
         }, context);
       }
       reading = store;
@@ -60,7 +65,7 @@ export function createAdmissions(
     },
 
     async setCursor(seq) {
-      await harness.commit(async (tx) => moveCursor(await tx.doc(FeedDoc), seq), context);
+      await harness.commit((tx) => moveCursor(tx, seq), context);
     },
 
     async looked(threadId) {
@@ -80,7 +85,7 @@ export function createAdmissions(
     async admit(draft, position = draft.event.seq) {
       const crumbs = await breadcrumbs();
       await harness.commit(async (tx) => {
-        moveCursor(await tx.doc(FeedDoc), position);
+        await moveCursor(tx, position);
         const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
         if (draft.place !== undefined) learnPlace(session, draft.place);
         // An event in a room is the newest thing the agent has looked at in its thread.
@@ -91,14 +96,14 @@ export function createAdmissions(
       }, context);
     },
 
-    async openQuestions() {
+    async questions() {
       return Object.values((await harness.snapshot(QuestionsDoc, context))?.open ?? {});
     },
 
     async closeQuestion(id, result, position) {
       const crumbs = await breadcrumbs();
       const closed = await harness.commit(async (tx) => {
-        moveCursor(await tx.doc(FeedDoc), position);
+        await moveCursor(tx, position);
         return closeInCommit(tx, turn, id, result, crumbs);
       }, context);
       // The question has no time left to run out: its task has nothing to wait for.

@@ -5,6 +5,7 @@ import {
   type Audience,
   type Backlog,
   type Breadcrumbs,
+  type CameBack,
   type ChatInput,
   isOccurrence,
   isQuestion,
@@ -12,7 +13,6 @@ import {
   type Occurrence,
   type Outstanding,
   type Place,
-  type QuestionInput,
   type QuestionResult,
   type Snapshot,
   threadOf,
@@ -25,12 +25,13 @@ import {
  * then where it is, if it is in a thread: in words when its session knows, as a
  * DM with someone or a room and who else is in it, and always the IDs of the
  * thread and its channel. Then come which of the wake-ups it asked for were
- * cancelled since it last heard of them, if any, and the input itself. A chat
- * event is shown under a line that says what happened and when, after any earlier
- * events of the thread the agent has not acted on, each the same way and oldest
- * first. In a room, what was said in the thread since the agent last looked comes
- * between those and the event, each message as one that arrives is shown, and a
- * message says who it was for. A wake-up says that the agent asked for it, when,
+ * cancelled since it last heard of them, if any, which results of questions it
+ * asked it was never shown, if any, and the input itself. A chat event is shown
+ * under a line that says what happened and when, after any earlier events of the
+ * thread the agent has not acted on, each the same way and oldest first. In a
+ * room, what was said in the thread since the agent last looked comes between
+ * those and the event, each message as one that arrives is shown, and a message
+ * says who it was for. A wake-up says that the agent asked for it, when,
  * for when, and what it wrote itself. An occurrence of a trigger says which
  * trigger it is, when it fired and what its schedule is, and then gives the
  * trigger's prompt as it is, and after it, apart, what the trigger's check
@@ -43,10 +44,12 @@ import {
 export function promptFor(outstanding: Outstanding): string {
   const thread = threadOf(outstanding);
   const cancelled = outstanding.cancelled ?? [];
+  const missed = outstanding.missed ?? [];
   return [
     ...(outstanding.breadcrumbs === undefined ? [] : [shown(outstanding.breadcrumbs)]),
     ...(thread === undefined ? [] : [whereIs(thread, outstanding.place)]),
     ...(cancelled.length === 0 ? [] : [cancellations(cancelled)]),
+    ...(missed.length === 0 ? [] : [missedResults(missed)]),
     bodyOf(outstanding),
   ].join("\n\n");
 }
@@ -162,7 +165,7 @@ function woken(wakeup: Wakeup): string {
  * What came back for a question the agent asked, as the model reads it: who it
  * asked, when, and the start of what it asked, and then what came back.
  */
-function answered({ question, result }: QuestionInput): string {
+function answered({ question, result }: CameBack): string {
   const opening = `You asked ${question.of.name} a question with ask_agent at ${localTime(question.askedAt)}. It starts:\n${question.start}`;
   return `${opening}\n\n${cameBack(question, result)}`;
 }
@@ -181,8 +184,24 @@ function cameBack({ of, due }: Asked, result: QuestionResult): string {
     case "stopped":
       return "Their work was stopped before they answered.";
     case "unanswered":
-      return `They had not answered by ${localTime(due)}, and may not be running. If they answer later, it arrives in your DM with them like any message.`;
+      return (
+        `They had not answered by ${localTime(due)}, and may not be running. ` +
+        `To see anything they wrote in your DM with them meanwhile, call read_messages with from: "@${of.name}". ` +
+        "An answer that comes later arrives there like any message."
+      );
   }
+}
+
+/**
+ * The results of questions the agent asked that its session was never shown,
+ * each as it would have been shown, oldest question first, under a line that says
+ * why they come late.
+ */
+function missedResults(missed: CameBack[]): string {
+  return [
+    "You were not shown these results of questions you asked, because your work was stopped or a turn before them failed. Oldest question first:",
+    ...missed.map(answered),
+  ].join("\n\n");
 }
 
 /** The wake-ups that were cancelled, each with when it was for, when it was asked for and its note on one line. */

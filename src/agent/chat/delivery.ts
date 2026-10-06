@@ -3,10 +3,12 @@ import { isRefusal } from "../../lib/refusal/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { localTime } from "../../lib/time/index.ts";
 import { hasReceipt, idOf, isOccurrence, isQuestion, isWakeup, type Outstanding, threadOf, type TurnOutcome } from "../inputs/index.ts";
-import type { ChatLink } from "../links/index.ts";
+import type { ChatLink, LiveChat } from "../links/index.ts";
+import type { Look } from "../questions/index.ts";
 import type { Delivery } from "../turns/index.ts";
 import { deliver, hasReply } from "./deliver.ts";
 import { orAborted, pause, untilAborted } from "./pause.ts";
+import { lookAt } from "./questions.ts";
 
 export interface DeliveryOptions {
   /** What the agent's records are called. Every reply's request ID carries it. */
@@ -19,8 +21,13 @@ export interface DeliveryOptions {
   backoff?: () => Backoff;
 }
 
-/** What goes back to chat for an input, once the task that follows it knows how its turn ended. */
-export interface ChatDelivery extends Delivery {
+/**
+ * What goes back to chat for an input, once the task that follows it knows how its
+ * turn ended, and what a question's task looks up in chat when its time is up.
+ * Both wait for chat when it is away, and both go on waiting for the engine to
+ * close when the agent leaves chat.
+ */
+export interface ChatDelivery extends Delivery, Look {
   /** Give it the agent's way to chat. Until then, what is due waits. */
   attach(link: ChatLink): void;
   /**
@@ -61,6 +68,41 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
     attached = resolve;
   });
 
+  /**
+   * Run `work` over the agent's way to chat, waiting for chat when it is not there
+   * and trying again after a failure, until it is done. It answers with what `work`
+   * answers, or with nothing when chat refuses for good, which `refused` reports.
+   * It ends with a rejection only when `signal` aborts.
+   */
+  async function overChat<T>(
+    signal: AbortSignal,
+    work: (live: LiveChat, aborted: AbortSignal) => Promise<T>,
+    refused: (error: Error) => void,
+  ): Promise<T | undefined> {
+    const stop = AbortSignal.any([signal, closing.signal]);
+    const pauses = newBackoff();
+    for (;;) {
+      try {
+        const link = await orAborted(linked, stop);
+        return await link.use(work, stop);
+      } catch (error) {
+        // The engine is closing: the task stays where it is for the next start.
+        if (signal.aborted) throw error;
+        // The agent left chat first. A rejection now would end the task for good, so wait for the engine to close.
+        if (closing.signal.aborted) {
+          await untilAborted(signal);
+          throw error;
+        }
+        if (isRefusal(error)) {
+          refused(asError(error));
+          return undefined;
+        }
+        onError(asError(error));
+        await pause(pauses.next(), stop);
+      }
+    }
+  }
+
   return {
     attach: (link) => attached(link),
     async tell(outstanding, outcome, signal) {
@@ -71,30 +113,24 @@ export function createDelivery(options: DeliveryOptions): ChatDelivery {
         if (outcome.kind === "failed") onError(new Error(`${failureOf(outstanding)} ${outcome.reason}`));
         return;
       }
-      const stop = AbortSignal.any([signal, closing.signal]);
-      const pauses = newBackoff();
-      for (;;) {
-        try {
-          const link = await orAborted(linked, stop);
-          await link.use((live, aborted) => deliver(live.chat, outstanding, thread.threadId, outcome, posting, aborted), stop);
-          return;
-        } catch (error) {
-          // The engine is closing: the task stays where it is for the next start.
-          if (signal.aborted) throw error;
-          // The agent left chat first. A rejection now would end the task for good, so wait for the engine to close.
-          if (closing.signal.aborted) {
-            await untilAborted(signal);
-            throw error;
-          }
-          if (isRefusal(error)) {
-            onError(new Error(`Chat refused the receipt on ${idOf(outstanding)}, so it was dropped: ${error.message}`));
-            return;
-          }
-          onError(asError(error));
-          await pause(pauses.next(), stop);
-        }
-      }
+      await overChat(
+        signal,
+        (live, aborted) => deliver(live.chat, outstanding, thread.threadId, outcome, posting, aborted),
+        (error) => onError(new Error(`Chat refused the receipt on ${idOf(outstanding)}, so it was dropped: ${error.message}`)),
+      );
     },
+    look: (question, signal) =>
+      overChat(
+        signal,
+        (live, aborted) => lookAt(live.chat, question, aborted, onError),
+        (error) =>
+          onError(
+            new Error(
+              `Chat refused to show the question asked of ${question.of.name} at ${localTime(question.askedAt)}, ` +
+                `so it is closed as not answered: ${error.message}`,
+            ),
+          ),
+      ),
     close: () => closing.abort(),
   };
 }

@@ -147,7 +147,8 @@ export async function startAgent(options: AgentOptions): Promise<RunningAgent> {
     const paths = homePaths(options.home);
     const breadcrumbs = () => readBreadcrumbs(paths);
     const wakeups = createWakeups(turn.task, { onError: report, breadcrumbs });
-    const questions = createQuestions(turn.task, { onError: report, breadcrumbs });
+    // The delivery waits for chat as it must, so a question's time being up looks at chat through it.
+    const questions = createQuestions(turn.task, { onError: report, breadcrumbs, looking: delivery });
     const asking = askTools({
       questions,
       recordsId,

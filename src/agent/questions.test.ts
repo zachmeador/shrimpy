@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { test } from "node:test";
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
-import type { Message } from "../contracts/chat/index.ts";
+import { fauxAssistantMessage, type Message as ModelMessage } from "@earendil-works/pi-ai";
+import { type ChatConnection, connectChat, type Message } from "../contracts/chat/index.ts";
 import type { Entered } from "../contracts/chat/testing/index.ts";
-import { eventually, tempDir, useRuntimeDir } from "../lib/testing/index.ts";
+import { eventually, stopAfter, tempDir, useRuntimeDir, waitForView } from "../lib/testing/index.ts";
 import {
   callingTools,
   loggedRequests,
+  releaseGate,
   type Script,
   startAgentChild,
   startAgentRig,
   startChatServer,
   talking,
   talkTo,
+  untilReleased,
 } from "./testing/index.ts";
 
 /*
@@ -44,6 +46,13 @@ async function answer(member: Entered, threadId: string, text: string, event: st
   const reply = await member.chat.post(threadId, text, requestId);
   await member.chat.leaveReceipt([event], { status: "answered", reply: reply.id, detail: null });
   return reply;
+}
+
+/** What the latest message to a model says. */
+function latestUser(messages: readonly ModelMessage[]): string {
+  const latest = messages.findLast((message) => message.role === "user");
+  if (latest === undefined) return "";
+  return typeof latest.content === "string" ? latest.content : latest.content.map((block) => (block.type === "text" ? block.text : "")).join("");
 }
 
 test("a question asked in a thread with a person is answered in that thread: maya answers in their DM, the session behind the thread is woken with the answer, and the session behind the DM is not", { timeout }, async (t) => {
@@ -99,11 +108,33 @@ test("when maya reads the question and says nothing, and when her turn fails, sc
   assert.deepEqual([scout.reports, maya.reports], [[], []]);
 });
 
-test("a question that gets no answer in time is closed once, and an answer that comes later wakes the session behind the DM as any message does", { timeout }, async (t) => {
-  const asking = talking((_shown, turn) =>
-    turn === 0 ? { ask: { to: "@maya", text: "Which stanza will you take?", within: "1s" }, final: "I asked maya." } : { final: "Noted." },
-  );
-  const scout = await startAgentRig(t, { script: asking.script, shortestWaitMs: 1_000 });
+test("a question that gets no answer in time is told once, and an answer that comes later wakes the session behind the DM as any message does, but an answer whose receipt the feed has not brought when the time runs out is told as the answer, once", { timeout }, async (t) => {
+  // While `held` is a promise nobody has settled, what the feed brings waits for the test.
+  let held: Promise<void> = Promise.resolve();
+  let release = (): void => undefined;
+  const holding = (connection: ChatConnection): ChatConnection => ({
+    ...connection,
+    chat: {
+      ...connection.chat,
+      feed: async (cursor, limit, signal) => {
+        const events = await connection.chat.feed(cursor, limit, signal);
+        await held;
+        return events;
+      },
+    },
+  });
+  const asking = talking((shown) => {
+    if (shown.includes("Ask maya which stanza")) return { ask: { to: "@maya", text: "Which stanza will you take?", within: "1s" }, final: "I asked maya." };
+    if (shown.includes("Ask maya which key")) return { ask: { to: "@maya", text: "And which key?", within: "1s" }, final: "I asked maya again." };
+    return { final: "Noted." };
+  });
+  const scout = await startAgentRig(t, {
+    script: asking.script,
+    shortestWaitMs: 1_000,
+    join: { connectChat: (options) => connectChat(options).then(holding) },
+  });
+  // A test that fails while it holds the feed must not leave the agent unable to stop.
+  stopAfter(t, () => release());
   const maya = await scout.chat.agent("maya");
 
   const started = Date.now();
@@ -127,11 +158,26 @@ test("a question that gets no answer in time is closed once, and an answer that 
     "scout has a session behind the DM now",
   );
 
-  // Everything is taken in order, so once the agent has answered this it has been past the receipt.
+  // Maya answers in time, but scout's feed has not brought what she left when the time runs out: chat has it, and scout looks.
+  await scout.receiptOn(await scout.say("Ask maya which key."));
+  const second = (await dm.messages()).findLast((message) => message.text === "And which key?");
+  assert.ok(second);
+  held = new Promise((resolve) => {
+    release = resolve;
+  });
+  await answer(maya, dm.threadId, "Stanza 3.", second.event, "maya-2");
+  await eventually(() => asking.shown.length, (count) => count === 5, { what: "scout to be told maya's answer", timeoutMs: PATIENT });
+  const answered = asking.shown[4] ?? "";
+  for (const fact of ["And which key?", "Stanza 3."]) assert.ok(answered.includes(fact), `${fact} reached the model in\n${answered}`);
+  assert.ok(!answered.includes("had not answered"), `the answer, not the lack of one:\n${answered}`);
+
+  // The feed then reads her reply and her receipt for a question that is closed: neither tells scout again or wakes the DM.
+  release();
   await scout.receiptOn(await scout.say("The last word."), PATIENT);
-  assert.equal(asking.shown.length, 4);
-  assert.ok((asking.shown[3] ?? "").includes("The last word."));
-  assert.equal(asking.shown.filter((shown) => shown.includes("Which stanza will you take?")).length, 1, "scout was told once");
+  assert.equal(asking.shown.length, 6);
+  assert.ok((asking.shown[5] ?? "").includes("The last word."));
+  assert.equal(asking.shown.filter((shown) => shown.includes("And which key?")).length, 1, "scout was told once");
+  assert.equal(asking.shown.filter((shown) => shown.includes("maya wrote at")).length, 1, "and only her answer that was too late woke the DM");
   assert.deepEqual(scout.reports, []);
 });
 
@@ -175,5 +221,41 @@ test("a person can't be asked, and a sixth open question of a session is refused
   const dm = await dmOf(maya, "scout");
   assert.deepEqual((await dm.messages()).map((message) => message.text), asks.map((ask) => ask.args.text), "only the five were posted");
   assert.deepEqual((await scout.replies()).map((reply) => reply.text), ["Done."], "and nothing was posted to the person");
+  assert.deepEqual(scout.reports, []);
+});
+
+test("a result that was skipped because the turn ahead of it failed is shown with the session's next input, once", { timeout }, async (t) => {
+  const asking = talking((shown) =>
+    shown.includes("Ask maya") ? { ask: { to: "@maya", text: "Which stanza will you take?" }, final: "I asked maya." } : { final: "Seen." },
+  );
+  // The turn that is asked to think it over waits until the test lets it go, and then fails.
+  const script: Script = async (messages, home) => {
+    if (!latestUser(messages).includes("Think it over")) return asking.script(messages, home);
+    await untilReleased(home);
+    return fauxAssistantMessage([], { stopReason: "error", errorMessage: "The model refused the request." });
+  };
+  const scout = await startAgentRig(t, { script });
+  const maya = await scout.chat.agent("maya");
+  await scout.receiptOn(await scout.say("Ask maya which stanza she takes."));
+  const dm = await dmOf(maya, "scout");
+  const [question] = await dm.messages();
+  assert.ok(question);
+  const { session } = await scout.attach();
+  await scout.say("Think it over.");
+  await waitForView(session, (view) => view.status.busy);
+
+  // Maya answers while that turn runs, so the result waits behind it. The turn fails, and then nothing runs the result.
+  await answer(maya, dm.threadId, "Stanza 2.", question.event, "maya-1");
+  await waitForView(session, (view) => view.status.queued.length === 1);
+  releaseGate(scout.home);
+  await scout.untilIdle();
+  assert.equal(asking.shown.length, 1, "the model has not been shown the result yet");
+
+  await scout.receiptOn(await scout.say("Anything?"), PATIENT);
+  const next = asking.shown[1] ?? "";
+  assert.ok(next.includes("Anything?") && next.includes("Which stanza will you take?"), `with the message it came with:\n${next}`);
+  assert.equal(next.split("Stanza 2.").length - 1, 1, `and once in it:\n${next}`);
+  await scout.receiptOn(await scout.say("And now?"), PATIENT);
+  assert.ok(!(asking.shown[2] ?? "").includes("Stanza 2."), "and not again after that");
   assert.deepEqual(scout.reports, []);
 });

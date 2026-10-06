@@ -122,6 +122,15 @@ export type Question = {
   message: string;
   event: string;
   seq: number;
+  /**
+   * Set once the question was closed by a look at chat that found the other
+   * agent's receipt on it, while the agent's place in chat's feed was still behind
+   * what the look saw: the position of the newest event of chat's log then. What the
+   * other agent posted in the DM up to it still belongs to the question, though
+   * the feed reads it after the question closed. Absent for a question that is
+   * open.
+   */
+  through?: number;
 };
 
 /** What the model is told of a question when its result comes: who was asked, when, and the start of what was asked. */
@@ -139,6 +148,9 @@ export type QuestionResult =
   | { kind: "stopped" }
   /** It had not answered when the time was up, and may not be running. */
   | { kind: "unanswered" };
+
+/** What came back for a question, with the question it came for: what the model is told when a result comes. */
+export type CameBack = { question: Asked; result: QuestionResult };
 
 /** Someone in a channel, as the model is told of them: a name, and whether they are a person or an agent. */
 export type Named = { name: string; kind: "person" | "agent" };
@@ -212,6 +224,13 @@ export type ChatInput = {
    * them, told to the model with this input, once. Absent when there are none.
    */
   cancelled?: Wakeup[];
+  /**
+   * Results of questions the agent asked other agents that this session was
+   * never shown, because the input they came as was taken back when work was
+   * stopped, or the turn ahead of it failed. Told to the model with this input,
+   * once, oldest question first. Absent when there are none.
+   */
+  missed?: CameBack[];
   /** The breadcrumbs that are new to the session, shown before anything else of the input. Absent when there are none. */
   breadcrumbs?: Breadcrumbs;
   /**
@@ -246,6 +265,7 @@ export type WakeupInput = {
   wakeup: Wakeup;
   /** As for a chat event. */
   cancelled?: Wakeup[];
+  missed?: CameBack[];
   breadcrumbs?: Breadcrumbs;
 } & (InThread | (NoThread & { trigger: string }));
 
@@ -284,6 +304,7 @@ export type OccurrenceInput = {
   occurrence: Occurrence;
   /** As for a chat event. */
   cancelled?: Wakeup[];
+  missed?: CameBack[];
   breadcrumbs?: Breadcrumbs;
   /**
    * An occurrence that no turn runs: it was skipped because the last one was
@@ -302,11 +323,10 @@ export type OccurrenceInput = {
  * of the session that asked, if it is behind one, and a failure is reported. A
  * session behind no thread is a trigger's own, and `trigger` names the trigger.
  */
-export type QuestionInput = {
-  question: Asked;
-  result: QuestionResult;
+export type QuestionInput = CameBack & {
   /** As for a chat event. */
   cancelled?: Wakeup[];
+  missed?: CameBack[];
   breadcrumbs?: Breadcrumbs;
 } & (InThread | (NoThread & { trigger: string }));
 

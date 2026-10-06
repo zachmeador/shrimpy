@@ -111,7 +111,7 @@ export async function readFeed(options: FeedOptions): Promise<void> {
         }
         // What the agent that was asked posts while a question is open is the question's and wakes nobody, and its
         // receipt closes the question. The open questions are asked for at each event, since one may close in this page.
-        const asked = passed ? undefined : toQuestion(event, await admissions.openQuestions());
+        const asked = passed ? undefined : toQuestion(event, await admissions.questions());
         if (asked !== undefined) {
           const result = asked.kind === "receipt" ? await resultOf(chat, asked.receipt, signal, reported) : undefined;
           if (asked.kind === "receipt" && result !== undefined) {

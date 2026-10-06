@@ -30,20 +30,23 @@ export interface Admissions {
    * `position`, all in one commit. `position` is where the feed brought the
    * event, which is the event's own position unless it is a reply that a receipt
    * pointed to. The thread's earlier unacted events go with it, and so do the
-   * wake-ups cancelled since the model last heard of them and the breadcrumbs
-   * that are new to the session. An event in a room,
+   * wake-ups cancelled since the model last heard of them, the results of
+   * questions the session was never shown and the breadcrumbs that are new to the
+   * session. An event in a room,
    * one with a `backlog`, also moves where the agent has looked in its thread to
    * the event. An event that comes with its `place` has the session's record say
    * where its thread is, written again when it differs from what the record had.
    * An event is taken up once, because the cursor moves with it.
    */
-  admit(draft: Omit<ChatInput, "earlier" | "cancelled" | "breadcrumbs">, position?: number): Promise<void>;
+  admit(draft: Omit<ChatInput, "earlier" | "cancelled" | "missed" | "breadcrumbs">, position?: number): Promise<void>;
   /**
-   * The questions the agent asked other agents that are open now, which the feed
-   * reads each event against: what the agent asked posts while its question is
-   * open belongs to the question, and its receipt closes it.
+   * The questions the agent asked other agents that still matter to what the
+   * feed reads: the ones that are open, and the ones a look at chat closed while
+   * the feed was behind what the look saw, which have `through`. What the agent
+   * asked posts while its question is open belongs to the question, and its
+   * receipt closes it.
    */
-  openQuestions(): Promise<readonly Question[]>;
+  questions(): Promise<readonly Question[]>;
   /**
    * Close the question `id` with what came back, and take that up as an input of
    * the session that asked, in one commit with the move of the cursor to

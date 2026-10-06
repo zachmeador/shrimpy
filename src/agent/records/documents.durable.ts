@@ -2,6 +2,7 @@ import { defineDoc } from "@earendil-works/pi-durable";
 import { newId } from "../../lib/ids/index.ts";
 import type { TriggerDefinition } from "../home/index.ts";
 import {
+  type CameBack,
   isOccurrence,
   isQuestion,
   isWakeup,
@@ -50,13 +51,14 @@ export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: R
 
 /**
  * A session of the agent, and what the model has yet to be shown for it: the
- * events in its thread the agent has not acted on, and the wake-ups it asked
- * for that were cancelled. Both go with the session's next input. A session in a
- * room also keeps where the agent last looked in the thread. A session also keeps
- * what it was shown of the home's breadcrumbs, to tell which are new to it. A
- * session is behind a thread, and has that thread's channel and, once it has
- * learned it, where the thread is, or is a trigger's own and behind none, and
- * has no channel and no place; `trigger` names that trigger.
+ * events in its thread the agent has not acted on, the wake-ups it asked for that
+ * were cancelled, and the results of questions it asked that it was never shown.
+ * All go with the session's next input. A session in a room also keeps where the
+ * agent last looked in the thread. A session also keeps what it was shown of the
+ * home's breadcrumbs, to tell which are new to it. A session is behind a thread,
+ * and has that thread's channel and, once it has learned it, where the thread is,
+ * or is a trigger's own and behind none, and has no channel and no place;
+ * `trigger` names that trigger.
  */
 export type SessionRecord =
   | {
@@ -71,6 +73,13 @@ export type SessionRecord =
        * session written before wake-ups existed has none.
        */
       cancelled?: Wakeup[];
+      /**
+       * Results of questions the session asked that it was never shown, because the
+       * input they came as was taken back by a stop, or the turn ahead of it failed:
+       * told to the model with the session's next input, once. A session written
+       * before questions existed has none.
+       */
+      missed?: CameBack[];
       /**
        * In a room, the position of the newest event the agent took up in the thread:
        * everything the thread says after it is what the agent has not looked at. A
@@ -100,6 +109,7 @@ export type SessionRecord =
       /** Always empty: chat events come in threads. */
       unacted: Snapshot[];
       cancelled?: Wakeup[];
+      missed?: CameBack[];
       shown?: Record<string, string>;
     };
 
@@ -133,9 +143,9 @@ export function sessionAddress(input: Outstanding): string | undefined {
 }
 
 /**
- * A question the agent has asked and not had closed: what `Question` says, and
- * the engine's ID for the task that sleeps until the time to wait is up, which
- * ends when the question closes.
+ * A question the agent has asked: what `Question` says, and the engine's ID for
+ * the task that sleeps until the time to wait is up, which ends when the question
+ * closes.
  */
 export type OpenQuestion = Question & { task: number };
 
@@ -144,7 +154,10 @@ export type OpenQuestion = Question & { task: number };
  * question is in it from the commit that keeps it until the commit that closes it,
  * which takes its result up as an input of the session that asked, or until the
  * work of that session is stopped. It is the one place that says a question is
- * open: a question that is not in it is closed, whatever else is left of it.
+ * open: one that is not in it, or has `through`, is closed. A question that was
+ * closed by a look at chat while the agent's place in chat's feed was behind what
+ * the look saw stays, with `through`, until the feed is past that, so that what
+ * the other agent posted meanwhile is still the question's when the feed reads it.
  */
 export const QuestionsDoc = defineDoc<{ open: Record<string, OpenQuestion> }>({
   kind: "shrimpy.questions",

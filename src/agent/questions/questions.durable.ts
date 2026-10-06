@@ -15,6 +15,7 @@ import type { Breadcrumb, Question } from "../inputs/index.ts";
 import { QuestionsDoc } from "../records/durable.ts";
 import type { TurnTask } from "../turns/durable.ts";
 import { closeQuestion, forgetQuestion } from "./close.durable.ts";
+import type { Look } from "./look.ts";
 
 /** The name of the task that sleeps until the time to wait for an answer is up, and then closes the question if it is still open. */
 const QUESTION_TASK = "shrimpy.question";
@@ -41,19 +42,25 @@ export interface QuestionsOptions {
   onError(error: Error): void;
   /** The home's breadcrumbs, read before the commit that takes a result up, which reads no files. */
   breadcrumbs(): Promise<readonly Breadcrumb[]>;
+  /** Looks at chat for what the other agent left on a question, once its time is up. */
+  looking: Look;
 }
 
 /**
  * The questions the agent asks other agents. Each open question is in the
  * agent's records, and has a background task of the session that asked, which
- * sleeps on the engine's timer until the time to wait is up and then closes the
- * question, if it is still open, telling the session that the other agent has not
- * answered. Closing is one commit, so a question closes once: a receipt in chat's
- * feed closes it in the commit that moves the agent's place there, and whichever
- * comes first leaves nothing for the other. A question whose time was up while the
- * agent was down is closed when it starts again. Sleeping is not work, so the
- * session is not working until the turn a result starts is. Ending the task of an
- * open question, as a stop does, closes it and tells nobody.
+ * sleeps on the engine's timer until the time to wait is up. Then it looks at the
+ * question's message in chat once, since the other agent's receipt may be there
+ * that the agent's feed has not brought yet, and closes the question, if it is
+ * still open: with what the receipt says, if the other agent left one, and
+ * otherwise by telling the session that the other agent has not answered. Not
+ * having been able to look is not a reason to say so: the look waits for chat.
+ * Closing is one commit, so a question closes once: a receipt in chat's feed
+ * closes it in the commit that moves the agent's place there, and whichever comes
+ * first leaves nothing for the other. A question whose time was up while the agent
+ * was down is closed when it starts again. Sleeping is not work, so the session is
+ * not working until the turn a result starts is. Ending the task of an open
+ * question, as a stop does, closes it and tells nobody.
  */
 export function createQuestions(turn: TurnTask, options: QuestionsOptions): Questions & { extension: Extension } {
   const task = defineTask<Question, { phase: "sleep" }, null>({
@@ -65,9 +72,10 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
         const question = waiting.input;
         await runtime.sleep(question.due, context);
         try {
+          const looked = await options.looking.look(question, runtime.signal);
           const crumbs = await options.breadcrumbs();
           await runtime.commit(async (tx) => {
-            await closeQuestion(tx, turn, question.id, { kind: "unanswered" }, crumbs);
+            await closeQuestion(tx, turn, question.id, looked?.result ?? { kind: "unanswered" }, crumbs, looked?.through);
             return { status: "terminal", outcome: { status: "completed", result: null } };
           }, context);
         } catch (error) {
@@ -106,8 +114,8 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
     },
 
     async count(api, address, context) {
-      const open = (await api.snapshot(QuestionsDoc, context))?.open ?? {};
-      return Object.values(open).filter((question) => question.session === address).length;
+      const kept = (await api.snapshot(QuestionsDoc, context))?.open ?? {};
+      return Object.values(kept).filter((question) => question.session === address && question.through === undefined).length;
     },
 
     async keep(api, question, context) {

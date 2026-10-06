@@ -3,7 +3,9 @@ import { isDeepStrictEqual } from "node:util";
 import {
   type Breadcrumb,
   type Breadcrumbs,
+  type CameBack,
   isChat,
+  isQuestion,
   isWakeup,
   type Outstanding,
   type Place,
@@ -14,12 +16,13 @@ import { plain, type SessionRecord } from "./documents.durable.ts";
 
 /*
  * What a session keeps in its record for its next input, because the model has
- * not been shown it: chat events nobody acted on, and wake-ups that were
- * cancelled. It is taken out of the record in the commit that admits the input
- * it goes with, so it is told once, and put back if that input is skipped. The
- * breadcrumbs are kept the other way round: the record says which were shown,
- * and the files that differ from that go with the next input. A thread's session
- * also keeps where the thread is, which every input of the session carries.
+ * not been shown it: chat events nobody acted on, wake-ups that were cancelled,
+ * and results of questions it asked that came as an input that was taken back. It
+ * is taken out of the record in the commit that admits the input it goes with, so
+ * it is told once, and put back if that input is skipped. The breadcrumbs are
+ * kept the other way round: the record says which were shown, and the files that
+ * differ from that go with the next input. A thread's session also keeps where
+ * the thread is, which every input of the session carries.
  */
 
 /** How many breadcrumbs an input carries at the most: when more differ, the rest wait for later inputs. */
@@ -40,6 +43,13 @@ export function takeCancelled(session: SessionRecord): Wakeup[] {
   const cancelled = plain(session.cancelled ?? []);
   if (cancelled.length > 0) session.cancelled = [];
   return cancelled;
+}
+
+/** The results of questions kept as missed, oldest question first. The session keeps none afterwards. */
+export function takeMissed(session: SessionRecord): CameBack[] {
+  const missed = plain(session.missed ?? []);
+  if (missed.length > 0) session.missed = [];
+  return missed;
 }
 
 /**
@@ -67,13 +77,18 @@ export function takeBreadcrumbs(session: SessionRecord, files: readonly Breadcru
 }
 
 /**
- * What an input carries of the cancelled wake-ups and the breadcrumbs it was
- * handed: nothing of either when there is none, so that an input with none is
- * stored as it was before they existed.
+ * What an input carries of the cancelled wake-ups, the missed results and the
+ * breadcrumbs it was handed: nothing of any when there is none, so that an input
+ * with none is stored as it was before they existed.
  */
-export function carrying(cancelled: Wakeup[], breadcrumbs?: Breadcrumbs): { cancelled?: Wakeup[]; breadcrumbs?: Breadcrumbs } {
+export function carrying(
+  cancelled: Wakeup[],
+  missed: CameBack[],
+  breadcrumbs?: Breadcrumbs,
+): { cancelled?: Wakeup[]; missed?: CameBack[]; breadcrumbs?: Breadcrumbs } {
   return {
     ...(cancelled.length === 0 ? {} : { cancelled }),
+    ...(missed.length === 0 ? {} : { missed }),
     ...(breadcrumbs === undefined ? {} : { breadcrumbs }),
   };
 }
@@ -100,23 +115,33 @@ export function keepCancelled(session: SessionRecord, wakeups: readonly Wakeup[]
   session.cancelled = [...byId.values()].sort((a, b) => a.due - b.due);
 }
 
+/** Keep results of questions as missed, each once, the question asked first coming first. */
+export function keepMissed(session: SessionRecord, results: readonly CameBack[]): void {
+  if (results.length === 0) return;
+  const byId = new Map([...plain(session.missed ?? []), ...results].map((each) => [each.question.id, each]));
+  session.missed = [...byId.values()].sort((a, b) => a.question.askedAt - b.question.askedAt);
+}
+
 /**
  * Keep what an input that was skipped was to show the model, for the session's
  * next input: the model never saw it. A chat event is kept with the events that
- * came with it, and a wake-up is kept as one that was cancelled, because a stop
- * is what withdrew it. An occurrence of a trigger is not kept: the trigger's
- * next one says the same. What the input carried of the cancelled wake-ups is
- * kept again too, and so are the messages of a room that came with a chat event,
- * since the agent has moved past them. The breadcrumbs it carried were never
- * shown, so the session forgets that it was shown them, unless a later input has
- * shown it a later version of the file since.
+ * came with it, a wake-up is kept as one that was cancelled, because a stop is
+ * what withdrew it, and the result of a question is kept as one the session
+ * missed. An occurrence of a trigger is not kept: the trigger's next one says the
+ * same. What the input carried of the cancelled wake-ups and the missed results
+ * is kept again too, and so are the messages of a room that came with a chat
+ * event, since the agent has moved past them. The breadcrumbs it carried were
+ * never shown, so the session forgets that it was shown them, unless a later
+ * input has shown it a later version of the file since.
  */
 export function keepSkipped(session: SessionRecord, input: Outstanding): void {
   if (isWakeup(input)) keepCancelled(session, [input.wakeup]);
+  else if (isQuestion(input)) keepMissed(session, [{ question: input.question, result: input.result }]);
   else if (isChat(input)) {
     session.unacted = inOrder([...plain(session.unacted), ...input.earlier, ...(input.backlog?.messages ?? []), input.event]);
   }
   keepCancelled(session, input.cancelled ?? []);
+  keepMissed(session, input.missed ?? []);
   if (input.breadcrumbs !== undefined && session.shown !== undefined) {
     const shown = plain(session.shown);
     const carried = new Map(input.breadcrumbs.files.map(({ name, text }) => [name, digestOf(text)]));

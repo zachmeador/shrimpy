@@ -27,7 +27,7 @@ export async function takeUpAnswer(
   signal: AbortSignal,
   onError: (error: Error) => void,
 ): Promise<Taken | undefined> {
-  const found = await findReply(chat, receipt, reply, signal);
+  const found = await findReply(chat, receipt.message.threadId, receipt.seq, reply, signal);
   if (found === undefined) {
     onError(
       new Error(
@@ -55,13 +55,23 @@ export async function takeUpAnswer(
   };
 }
 
-/** The message `reply` among the newest of the thread the receipt's message is in, older than the receipt. */
-export async function findReply(chat: ChatClient, receipt: Receipted, reply: string, signal: AbortSignal): Promise<Message | undefined> {
-  let before = receipt.seq;
+/**
+ * The message `reply` among the newest of the thread `threadId` older than the
+ * position `before`, which is a receipt's own for a reply a receipt points to, or
+ * among the newest of all when it is null.
+ */
+export async function findReply(
+  chat: ChatClient,
+  threadId: string,
+  before: number | null,
+  reply: string,
+  signal: AbortSignal,
+): Promise<Message | undefined> {
+  let from = before;
   for (let page = 0; page < PAGES; page++) {
     let messages: Message[];
     try {
-      messages = await chat.read(receipt.message.threadId, before, PAGE, signal);
+      messages = await chat.read(threadId, from, PAGE, signal);
     } catch (error) {
       // A thread that chat won't show is a reply that can't be found: the agent is told, and goes on with the rest of the feed.
       if (isRefusal(error)) return undefined;
@@ -71,7 +81,7 @@ export async function findReply(chat: ChatClient, receipt: Receipted, reply: str
     if (found !== undefined) return found;
     const oldest = messages[0];
     if (oldest === undefined) return undefined;
-    before = oldest.seq;
+    from = oldest.seq;
   }
   return undefined;
 }

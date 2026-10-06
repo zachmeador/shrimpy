@@ -35,6 +35,7 @@ export {
   takeBreadcrumbs,
   takeCancelled,
   takeEvents,
+  takeMissed,
 } from "./kept.durable.ts";
 export { openSession } from "./open-session.durable.ts";
 export { openRecords } from "./records.durable.ts";
