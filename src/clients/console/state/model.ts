@@ -35,7 +35,6 @@ export type Notice =
   | { kind: "not-watched"; problem: Problem }
   | { kind: "not-listed"; problem: Problem }
   | { kind: "stopped" }
-  | { kind: "nothing-to-stop" }
   | { kind: "not-stopped"; problem: Problem };
 
 export interface Model {
@@ -97,6 +96,20 @@ export function agentEntries(model: Pick<Model, "listing" | "dms">): AgentEntry[
       working: model.dms[member.name]?.threads.some((thread) => workingIn(thread, member.id)) ?? false,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Whether the agent was last seen working in the open thread of the person's DM
+ * with it: its session says it is busy, or chat marks it as working there. What
+ * was last seen may be out of date when the agent is not being reached.
+ */
+export function workingInOpenThread(model: Pick<Model, "where" | "thread" | "session" | "dms" | "listing">): boolean {
+  const { where } = model;
+  if (where.screen !== "thread" || where.place.kind !== "agent" || where.thread === undefined) return false;
+  const { name } = where.place;
+  const thread = model.thread?.thread ?? model.dms[name]?.threads.find((each) => each.id === where.thread);
+  const agentId = agentEntries(model).find((entry) => entry.name === name)?.id;
+  return model.session?.status.busy === true || (thread !== undefined && agentId !== undefined && workingIn(thread, agentId));
 }
 
 /** A room as the list of agents and rooms shows it. */

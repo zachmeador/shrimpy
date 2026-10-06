@@ -76,10 +76,10 @@ test("a bare shrimpy at a terminal opens the console, in which a person can see 
 
   // One agent is running, so it goes straight to that agent, whom the person has not talked to yet.
   await seen(terminal, "scout · your threads");
-  await seen(terminal, "You have not talked to scout yet. Press n to start a thread.");
+  await seen(terminal, "You have not talked to scout yet.");
 
   // A new thread, and a message in it: the thread is made with the message, and the reply comes back into it.
-  terminal.type("n");
+  terminal.type(CTRL_N);
   await seen(terminal, "New thread with scout. Type below to start it.");
   terminal.type("hi there");
   terminal.type(ENTER);
@@ -134,8 +134,8 @@ test("the gateway killed while an agent works: the turn finishes, its reply is p
     cli.requestStop();
     await exited.catch(() => undefined);
   });
-  await seen(terminal, "You have not talked to scout yet. Press n to start a thread.");
-  terminal.type("n");
+  await seen(terminal, "You have not talked to scout yet.");
+  terminal.type(CTRL_N);
   await seen(terminal, "New thread with scout. Type below to start it.");
   terminal.type("go slow");
   terminal.type(ENTER);

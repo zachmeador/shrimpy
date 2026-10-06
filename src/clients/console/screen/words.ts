@@ -105,8 +105,6 @@ export function noticeText(notice: Notice, agentName: string): string {
       return `Could not read your threads: ${because({ kind: "chat" }, notice.problem)}.`;
     case "stopped":
       return `Stopped ${agent}'s work in this thread.`;
-    case "nothing-to-stop":
-      return `Nothing to stop: ${agent} is not working in this thread.`;
     case "not-stopped":
       return `Could not stop the work: ${because({ kind: "agent", name: agent }, notice.problem)}.`;
   }
@@ -143,7 +141,7 @@ export const roomThreadsTitle = (room: string): string => `${roomLabel(room)} ·
 export const threadTitle = (who: string, title: string | undefined): string =>
   `${oneLine(who)} · ${title === undefined ? "new thread" : oneLine(title)}`;
 export const threadsEmpty = (agent: string): string =>
-  `You have not talked to ${oneLine(agent)} yet. Press n to start a thread.`;
+  `You have not talked to ${oneLine(agent)} yet. Press Ctrl+N to start a thread.`;
 export const newThreadHint = (agent: string): string => `New thread with ${oneLine(agent)}. Type below to start it.`;
 export const newRoomThreadHint = (room: string): string => `New thread in ${roomLabel(room)}. Type below to start it.`;
 
@@ -170,7 +168,7 @@ export function receiptNote(receipt: Receipt, name: string): string | undefined 
 
 /**
  * Who is working in a thread, and what the session is doing. At least one name.
- * Esc stops an agent's work in its DM, and does nothing in a room.
+ * `canStop` says that Esc stops the work here, which it does for an agent in its DM.
  */
 export function workingLine(names: string[], activity: SessionActivity | undefined, canStop: boolean): string {
   const who = names.map(oneLine).join(" and ");
@@ -200,6 +198,12 @@ export const hiddenSteps = (count: number): string =>
   `${String(count)} earlier ${count === 1 ? "step" : "steps"} not shown`;
 export const hiddenLines = (count: number): string =>
   `${String(count)} earlier ${count === 1 ? "line" : "lines"}`;
+/** What is left out of the start of something shown in full, when it was longer than the limit. */
+export const hiddenCharacters = (count: number): string =>
+  `${String(count)} earlier ${count === 1 ? "character" : "characters"} not shown`;
+/** What is left out of the end of something shown in full, when it was longer than the limit. */
+export const moreCharacters = (count: number): string =>
+  `${String(count)} more ${count === 1 ? "character" : "characters"} not shown`;
 
 /** How a tool call stands, with a mark, and how to draw it. */
 export function toolStatus(status: ToolStatus): { label: string; tone: "good" | "bad" | "busy" | "idle" } {
@@ -224,10 +228,34 @@ export function answerNote(stopReason: string | null): string | undefined {
   return undefined;
 }
 
-export const KEYS = {
-  agents: "↑↓ choose · enter open · ctrl+c twice to quit",
-  threads: "↑↓ choose · enter open · n new thread · esc back · ctrl+c twice to quit",
-  thread: "enter send · esc stop · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
-  roomThread: "enter send · ctrl+t threads · ctrl+n new · ctrl+c clear, then quit",
-};
+/** What the person asked to see in full. What is not is brief. */
+export interface InFull {
+  toolCalls: boolean;
+  thinking: boolean;
+}
+
+/** What the keys that depend on the screen do on it. The line of keys is made from this, so it names what they do. */
+export interface Can {
+  /** Esc stops the agent's work, or goes back a level, or does nothing on the first screen. */
+  escape: "stop" | "back" | undefined;
+  /** Ctrl+N starts a thread. */
+  newThread: boolean;
+  /** Ctrl+O and Ctrl+T switch tool calls and thinking between brief and in full: work is shown here. */
+  work: boolean;
+}
+
+/** What the line of keys at the bottom of a screen says: every key that does something there, each with what it does. */
+export function keyHints(screen: "agents" | "threads" | "thread", can: Can, inFull: InFull): string[] {
+  const hints: string[] = [];
+  if (screen === "thread") hints.push("enter send");
+  else hints.push("↑↓ choose", "enter open");
+  if (can.newThread) hints.push("ctrl+n new thread");
+  if (can.escape === "stop") hints.push("esc stop");
+  else if (can.escape === "back") hints.push("esc back");
+  if (can.work) {
+    hints.push(`ctrl+o tool calls: ${inFull.toolCalls ? "full" : "brief"}`, `ctrl+t thinking: ${inFull.thinking ? "full" : "brief"}`);
+  }
+  hints.push("ctrl+d quit", screen === "thread" ? "ctrl+c clear, then quit" : "ctrl+c twice to quit");
+  return hints;
+}
 export const QUIT_AGAIN = "Press Ctrl+C again to quit.";

@@ -13,6 +13,7 @@ import {
   aModel,
   anAgent,
   aReceipt,
+  aRoom,
   aThread,
   aThreadView,
   type FakeState,
@@ -31,9 +32,12 @@ const now = at(15, 0);
 const DOWN = "\u001b[B";
 const ENTER = "\r";
 const ESC = "\u001b";
+/** What a terminal that reports keys being let go sends when Esc is. */
+const ESC_RELEASED = "\u001b[27;1:3u";
 const CTRL_C = "\u0003";
-const CTRL_T = "\u0014";
 const CTRL_N = "\u000e";
+const CTRL_O = "\u000f";
+const CTRL_T = "\u0014";
 
 interface Started {
   state: FakeState;
@@ -100,22 +104,22 @@ test("the choice stays where it was when the list is drawn again with something 
   assert.deepEqual(state.calls, ["select scout"]);
 });
 
-test("in an agent's threads, enter opens one, n starts one and escape goes back", (t) => {
+test("in an agent's threads, enter opens one, control-n starts one and escape goes back", (t) => {
   const { terminal, state } = start(t, threadsModel());
 
   terminal.type(DOWN);
   terminal.type(ENTER);
-  terminal.type("n");
+  terminal.type(CTRL_N);
   terminal.type(ESC);
 
   assert.deepEqual(state.calls, ["open th_b", "start", "back"]);
 });
 
-test("with nothing to choose from, enter does nothing and n still starts a thread", (t) => {
+test("with nothing to choose from, enter does nothing and control-n still starts a thread", (t) => {
   const { terminal, state } = start(t, aModel({ where: { screen: "threads", place: { kind: "agent", name: "scout" } } }));
 
   terminal.type(ENTER);
-  terminal.type("n");
+  terminal.type(CTRL_N);
 
   assert.deepEqual(state.calls, ["start"]);
 });
@@ -166,14 +170,55 @@ test("a message that is not sent comes back to the editor to be sent again, ahea
   assert.match(lines().join("\n"), /\n will not go!\n/);
 });
 
-test("escape stops the work, control-t goes to the threads and control-n starts a thread", (t) => {
-  const { terminal, state } = start(t, conversation());
+test("escape stops the agent's work when it is working in your DM thread, and goes back when it is not, and in a room's thread", (t) => {
+  const busy = onThread("scout", aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] }), undefined);
+  const { terminal, state } = start(t, busy);
 
   terminal.type(ESC);
-  terminal.type(CTRL_T);
+  terminal.type(ESC_RELEASED);
+  assert.deepEqual(state.calls, ["stop"], "a press is one press, whether or not the terminal reports the key being let go");
   terminal.type(CTRL_N);
 
-  assert.deepEqual(state.calls, ["stop", "back", "start"]);
+  state.show(conversation());
+  terminal.type(ESC);
+  const inRoom = aThread("th_2", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  state.show(aModel({ where: { screen: "thread", place: { kind: "room", id: "ch_2" }, thread: "th_2" }, rooms: { ch_2: aRoom("ops", ["scout"], [inRoom]) } }));
+  terminal.type(ESC);
+
+  assert.deepEqual(state.calls, ["stop", "start", "back", "back"]);
+});
+
+test("control-o shows a tool call in full and control-t the thinking in full, and each press again puts it back", (t) => {
+  const thinking = Array.from({ length: 6 }, (_, index) => `thought ${String(index + 1)}`).join("\n");
+  const output = Array.from({ length: 20 }, (_, index) => `line ${String(index + 1)}`).join("\n");
+  const session = workingView(
+    [
+      userItem("go"),
+      assistantItem("Looking.", { thinking, stopReason: "toolUse" }),
+      toolItem("bash", { args: { command: "ls", timeout: 30 }, status: "done", output }),
+    ],
+    { kind: "working" },
+  );
+  const working = aThread("th_1", { preview: "go", working: [{ memberId: scout.id, since: now }] });
+  const { terminal, lines } = start(t, onThread("scout", working, undefined, { session }));
+  const drawn = (): string => lines().join("\n");
+
+  assert.doesNotMatch(drawn(), /thought 1\b|line 1\b|timeout/, "brief to begin with");
+  assert.match(drawn(), /thought 6\b/);
+  assert.match(drawn(), /line 20\b/);
+
+  terminal.type(CTRL_O);
+  assert.match(drawn(), /line 1\b/);
+  assert.match(drawn(), /"timeout": 30/);
+  assert.doesNotMatch(drawn(), /thought 1\b/, "only the tool call changed");
+  terminal.type(CTRL_O);
+  assert.doesNotMatch(drawn(), /line 1\b|timeout/);
+
+  terminal.type(CTRL_T);
+  assert.match(drawn(), /thought 1\b/);
+  assert.doesNotMatch(drawn(), /line 1\b/, "only the thinking changed");
+  terminal.type(CTRL_T);
+  assert.doesNotMatch(drawn(), /thought 1\b/);
 });
 
 test("what is typed for a thread is kept when another is opened, and is there when its thread is back", (t) => {

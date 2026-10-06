@@ -1,5 +1,5 @@
 import type { Channel, Message, Thread } from "../../../contracts/chat/index.ts";
-import { agentEntries, type Model, type Place, roomEntries, workingIn } from "../state/index.ts";
+import { agentEntries, type Model, type Place, roomEntries, workingIn, workingInOpenThread } from "../state/index.ts";
 import { oneLine, plain } from "./plain.ts";
 import { whenOf } from "./time.ts";
 import { type Work, workOf } from "./work.ts";
@@ -7,12 +7,14 @@ import {
   agentNote,
   agentsTitle,
   AGENTS_EMPTY,
+  type Can,
   chatNote,
   DELETED,
   editedAt,
   earlierMessages,
   gatewayNote,
-  KEYS,
+  type InFull,
+  keyHints,
   newRoomThreadHint,
   newThreadHint,
   NO_TITLE,
@@ -39,8 +41,10 @@ export interface Note {
 interface Chrome {
   /** What is not working, or has just gone wrong, most pressing first. */
   notes: Note[];
-  /** The keys that do something here. */
-  keys: string;
+  /** The line of keys, one hint to an item: every key that does something here, with what it does. */
+  keys: string[];
+  /** What the keys that depend on the screen do here. `keys` is made from it. */
+  can: Can;
 }
 
 /** A row of a list the person chooses from. */
@@ -117,22 +121,28 @@ export type Screen = AgentsScreen | ThreadsScreen | ThreadScreen;
 export interface ScreenOptions {
   /** The moment it is, in milliseconds since the epoch, for saying when things happened. */
   now: number;
+  /** What is shown in full where work is shown. Everything is brief when this is left out. */
+  inFull?: InFull;
 }
+
+const BRIEF: InFull = { toolCalls: false, thinking: false };
 
 /** Everything the console shows for the model, as plain text and facts. Nothing in it can act on a terminal. */
 export function screenOf(model: Model, options: ScreenOptions): Screen {
   const { where } = model;
+  const inFull = options.inFull ?? BRIEF;
   switch (where.screen) {
     case "agents":
-      return agentsScreen(model);
+      return agentsScreen(model, inFull);
     case "threads":
-      return threadsScreen(model, where.place, options.now);
+      return threadsScreen(model, where.place, options.now, inFull);
     case "thread":
-      return threadScreen(model, where.place, where.thread, options.now);
+      return threadScreen(model, where.place, where.thread, options.now, inFull);
   }
 }
 
-function agentsScreen(model: Model): AgentsScreen {
+function agentsScreen(model: Model, inFull: InFull): AgentsScreen {
+  const can: Can = { escape: undefined, newThread: false, work: false };
   const agents: Row[] = agentEntries(model).map((entry) => ({
     id: entry.name,
     kind: "agent",
@@ -155,7 +165,8 @@ function agentsScreen(model: Model): AgentsScreen {
     rows,
     empty: rows.length === 0 && model.gateway.state === "up" && model.listing !== undefined ? AGENTS_EMPTY : undefined,
     notes: notesOf(model, undefined),
-    keys: KEYS.agents,
+    keys: keyHints("agents", can, inFull),
+    can,
   };
 }
 
@@ -190,8 +201,9 @@ function lookingAt(model: Model, place: Place): Looking {
   };
 }
 
-function threadsScreen(model: Model, place: Place, now: number): ThreadsScreen {
+function threadsScreen(model: Model, place: Place, now: number, inFull: InFull): ThreadsScreen {
   const here = lookingAt(model, place);
+  const can: Can = { escape: "back", newThread: true, work: false };
   const rows: Row[] = here.threads.map((thread) => ({
     id: thread.id,
     kind: "thread",
@@ -208,11 +220,12 @@ function threadsScreen(model: Model, place: Place, now: number): ThreadsScreen {
     // A room always has its main thread, so there is no one to ask the person to start a talk with.
     empty: rows.length === 0 && model.chat.state === "up" && agent !== undefined ? threadsEmpty(oneLine(agent)) : undefined,
     notes: notesOf(model, agent),
-    keys: KEYS.threads,
+    keys: keyHints("threads", can, inFull),
+    can,
   };
 }
 
-function threadScreen(model: Model, place: Place, threadId: string | undefined, now: number): ThreadScreen {
+function threadScreen(model: Model, place: Place, threadId: string | undefined, now: number, inFull: InFull): ThreadScreen {
   const here = lookingAt(model, place);
   const live = threadId !== undefined && model.thread?.thread.id === threadId ? model.thread : undefined;
   const listed = threadId === undefined ? undefined : here.threads.find((thread) => thread.id === threadId);
@@ -227,10 +240,13 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
   const markedWorking = thread?.working.map((mark) => names(mark.memberId)) ?? [];
   // A session that was working when the agent went away is not working now, whatever its last view says.
   const sessionBusy = session?.status.busy === true && model.agent?.state !== "down";
+  // Esc stops the work when the agent was last seen working in its DM with the person, and goes back otherwise.
+  const stoppable = workingInOpenThread(model);
   const working =
     markedWorking.length > 0 || sessionBusy
-      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, isAgent)
+      ? workingLine(markedWorking.length > 0 ? markedWorking : [who], sessionBusy ? session.status.activity : undefined, stoppable)
       : undefined;
+  const can: Can = { escape: stoppable ? "stop" : "back", newThread: true, work: isAgent };
 
   let lead: string | undefined;
   if (threadId === undefined) lead = isAgent ? newThreadHint(who) : newRoomThreadHint(here.name);
@@ -243,10 +259,11 @@ function threadScreen(model: Model, place: Place, threadId: string | undefined, 
     lead,
     messages,
     working,
-    work: workOf(session),
+    work: workOf(session, inFull),
     workStale: isAgent && model.agent?.state === "down",
     notes: notesOf(model, isAgent ? here.name : undefined),
-    keys: isAgent ? KEYS.thread : KEYS.roomThread,
+    keys: keyHints("thread", can, inFull),
+    can,
   };
 }
 

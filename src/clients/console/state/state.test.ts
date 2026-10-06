@@ -271,7 +271,7 @@ test("stopping reaches the session behind the open thread when the agent is work
   assert.deepEqual(rig.state.model().notice, { kind: "stopped" });
 });
 
-test("stopping when nothing is working says so and asks no one", { timeout }, async (t) => {
+test("stopping when nothing is working asks no one", { timeout }, async (t) => {
   const rig = await startRig(t);
   const thread = await rig.thread("scout", "hello");
   const session = rig.agents.scout?.agent.session(thread.id);
@@ -282,7 +282,7 @@ test("stopping when nothing is working says so and asks no one", { timeout }, as
   await rig.state.stop();
 
   assert.equal(session?.stops, 0);
-  assert.deepEqual(rig.state.model().notice, { kind: "nothing-to-stop" });
+  assert.equal(rig.state.model().notice, undefined);
 });
 
 test("a stop the agent refuses, or cannot hear, says why", { timeout }, async (t) => {

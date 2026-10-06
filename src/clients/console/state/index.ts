@@ -22,4 +22,5 @@ export {
   type SendResult,
   type Where,
   workingIn,
+  workingInOpenThread,
 } from "./model.ts";

@@ -389,7 +389,7 @@ test("a message that was not sent says the message is still in the editor, and a
     [["warn", true]],
   );
   assert.deepEqual(on({ kind: "stopped" }).map(([tone]) => tone), ["info"]);
-  assert.deepEqual(on({ kind: "nothing-to-stop" }).map(([tone]) => tone), ["warn"]);
+  assert.deepEqual(on({ kind: "not-stopped", problem: { said: "The work would not stop." } }).map(([tone]) => tone), ["warn"]);
 });
 
 test("the line for leaving names the thread, says the work continues, and says how to stop it", () => {

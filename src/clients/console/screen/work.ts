@@ -1,22 +1,40 @@
 import type { SessionItem, SessionView } from "../../../contracts/agent/index.ts";
-import { lastLines, oneLine, plain } from "./plain.ts";
-import { answerNote, hiddenLines, hiddenSteps, THINKING, toolStatus } from "./words.ts";
+import { countLines, firstCharacters, lastCharacters, lastLines, oneLine, plain } from "./plain.ts";
+import {
+  answerNote,
+  hiddenCharacters,
+  hiddenLines,
+  hiddenSteps,
+  type InFull,
+  moreCharacters,
+  THINKING,
+  toolStatus,
+} from "./words.ts";
 
 /** One thing the agent is doing or has done in the turn it is working on now. */
 export type Step =
-  | { kind: "thinking"; label: string; text: string }
+  | {
+      kind: "thinking";
+      label: string;
+      text: string;
+      /** How much of the start of the thinking is left out, in words, when it was too long to show whole. */
+      earlier: string | undefined;
+    }
   | { kind: "text"; text: string; note: string | undefined }
   | {
       kind: "tool";
       name: string;
+      /** The call: on one line when brief, and every argument when whole, which may take many. */
       call: string;
+      /** The call and what it printed are shown whole, as far as the limit allows. */
+      whole: boolean;
       /** How the call stands, with a mark: done, running, failed. */
       status: string;
       /** The tool's severity for how it is drawn. */
       tone: "good" | "bad" | "busy" | "idle";
-      /** The last lines of what it printed. */
+      /** What it printed: its last lines when brief, and all of it when whole. */
       output: string[];
-      /** How many earlier lines of output there were, in words, when there were more. */
+      /** How much of the start of the output is left out, in words, when there was more. */
       earlier: string | undefined;
       notes: string[];
     };
@@ -36,10 +54,14 @@ const THINKING_CHARACTERS = 2_000;
 const TEXT_LINES = 80;
 const TEXT_CHARACTERS = 20_000;
 const OUTPUT_LINES = 6;
-/** What is read of a tool's output to find those lines. */
-const OUTPUT_READ_LINES = 40;
 const OUTPUT_CHARACTERS = 8_000;
 const CALL_CHARACTERS = 300;
+/**
+ * The most of any one thing that is shown in full: a call, what a tool printed,
+ * or the thinking of one answer. A line can be megabytes long, so what is whole
+ * has a limit too, and says how much it left out.
+ */
+export const FULL_CHARACTERS = 100_000;
 
 /**
  * The work in the session's current turn, or none when the session is not
@@ -48,49 +70,67 @@ const CALL_CHARACTERS = 300;
  * with their status and output follow, and when the turn settles the reply is
  * a message in the thread and this goes away.
  */
-export function workOf(session: SessionView | undefined): Work | undefined {
+export function workOf(session: SessionView | undefined, inFull: InFull): Work | undefined {
   if (session?.status.busy !== true) return undefined;
   const live = session.items.slice(session.items.findLastIndex((item) => item.type === "user") + 1);
-  const steps = live.flatMap(stepsOf);
+  const steps = live.flatMap((item) => stepsOf(item, inFull));
   const shown = steps.slice(-MAX_STEPS);
   const left = steps.length - shown.length;
   return { steps: shown, earlier: left > 0 ? hiddenSteps(left) : undefined };
 }
 
-function stepsOf(item: SessionItem): Step[] {
+function stepsOf(item: SessionItem, inFull: InFull): Step[] {
   switch (item.type) {
     case "user":
     case "marker":
       return [];
     case "assistant": {
       const steps: Step[] = [];
-      if (item.thinking.trim() !== "") {
-        steps.push({ kind: "thinking", label: THINKING, text: plain(lastLines(item.thinking.trim(), THINKING_LINES, THINKING_CHARACTERS)) });
-      }
+      if (item.thinking.trim() !== "") steps.push(thinkingStep(item.thinking.trim(), inFull.thinking));
       const cutOff = answerNote(item.stopReason);
       if (item.text.trim() !== "" || cutOff !== undefined) {
         steps.push({ kind: "text", text: plain(lastLines(item.text.trimEnd(), TEXT_LINES, TEXT_CHARACTERS)), note: cutOff });
       }
       return steps;
     }
-    case "tool": {
-      const lines = plain(lastLines(item.output.trimEnd(), OUTPUT_READ_LINES, OUTPUT_CHARACTERS)).split("\n");
-      const shown = lines.slice(-OUTPUT_LINES);
-      const status = toolStatus(item.status);
-      return [
-        {
-          kind: "tool",
-          name: oneLine(item.name),
-          call: callOf(item.name, item.args),
-          status: status.label,
-          tone: status.tone,
-          output: shown.length === 1 && shown[0] === "" ? [] : shown,
-          earlier: lines.length > shown.length ? hiddenLines(lines.length - shown.length) : undefined,
-          notes: item.notes.map(oneLine),
-        },
-      ];
-    }
+    case "tool":
+      return [toolStep(item, inFull.toolCalls)];
   }
+}
+
+function thinkingStep(thinking: string, whole: boolean): Step {
+  if (!whole) {
+    return { kind: "thinking", label: THINKING, text: plain(lastLines(thinking, THINKING_LINES, THINKING_CHARACTERS)), earlier: undefined };
+  }
+  const { text, cut } = lastCharacters(thinking, FULL_CHARACTERS);
+  return { kind: "thinking", label: THINKING, text: plain(text), earlier: cut > 0 ? hiddenCharacters(cut) : undefined };
+}
+
+function toolStep(item: Extract<SessionItem, { type: "tool" }>, whole: boolean): Step {
+  const status = toolStatus(item.status);
+  const printed = item.output.trimEnd();
+  let lines: string[];
+  let earlier: string | undefined;
+  if (whole) {
+    const { text, cut } = lastCharacters(printed, FULL_CHARACTERS);
+    lines = plain(text).split("\n");
+    earlier = cut > 0 ? hiddenCharacters(cut) : undefined;
+  } else {
+    lines = plain(lastLines(printed, OUTPUT_LINES, OUTPUT_CHARACTERS)).split("\n").slice(-OUTPUT_LINES);
+    const total = countLines(printed);
+    earlier = total > lines.length ? hiddenLines(total - lines.length) : undefined;
+  }
+  return {
+    kind: "tool",
+    name: oneLine(item.name),
+    call: whole ? wholeCallOf(item.name, item.args) : callOf(item.name, item.args),
+    whole,
+    status: status.label,
+    tone: status.tone,
+    output: lines.length === 1 && lines[0] === "" ? [] : lines,
+    earlier,
+    notes: item.notes.map(oneLine),
+  };
 }
 
 /** A tool call on one line: the command for the shell, the arguments for any other. */
@@ -103,4 +143,26 @@ function callOf(name: string, args: string): string {
     // Arguments that are not JSON are shown as they are.
   }
   return oneLine(call.slice(0, CALL_CHARACTERS * 4)).slice(0, CALL_CHARACTERS);
+}
+
+/**
+ * A tool call with every argument, over as many lines as it takes: the command
+ * for the shell, with the arguments that go with it, and the arguments for any
+ * other tool, one to a line.
+ */
+function wholeCallOf(name: string, args: string): string {
+  let call = args === "{}" ? "" : args;
+  try {
+    const parsed = JSON.parse(args) as unknown;
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      const { command, ...rest } = parsed as Record<string, unknown>;
+      const others = Object.keys(rest).length === 0 ? "" : JSON.stringify(rest, null, 2);
+      if (name === "bash" && typeof command === "string") call = others === "" ? `$ ${command}` : `$ ${command}\n${others}`;
+      else call = Object.keys(parsed).length === 0 ? "" : JSON.stringify(parsed, null, 2);
+    }
+  } catch {
+    // Arguments that are not JSON are shown as they are.
+  }
+  const { text, cut } = firstCharacters(call, FULL_CHARACTERS);
+  return plain(cut > 0 ? `${text}\n${moreCharacters(cut)}` : text).trimEnd();
 }

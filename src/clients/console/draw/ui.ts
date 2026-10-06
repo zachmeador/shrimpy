@@ -2,6 +2,7 @@ import {
   type Component,
   Container,
   Editor,
+  isKeyRelease,
   Loader,
   matchesKey,
   ProcessTerminal,
@@ -12,9 +13,10 @@ import {
   TruncatedText,
   TuiMainScreen,
 } from "@earendil-works/pi-tui";
-import { OUT_OF_DATE, QUIT_AGAIN, type MessageRow, type Screen, screenOf, type ThreadScreen } from "../screen/index.ts";
+import { type InFull, OUT_OF_DATE, QUIT_AGAIN, type MessageRow, type Screen, screenOf, type ThreadScreen } from "../screen/index.ts";
 import type { ConsoleState, Where } from "../state/index.ts";
 import { interrupt } from "./interrupt.ts";
+import { keysComponent } from "./keys.ts";
 import { listOf } from "./list.ts";
 import { messageComponent } from "./message.ts";
 import { createTheme } from "./theme.ts";
@@ -46,9 +48,9 @@ export interface Drawing {
 
 /**
  * Draw the console on a terminal and carry what the person types to the state:
- * keys choose, open, send, stop and go back, and everything else they type goes
- * to the editor. The screen is drawn again from the state's model after each
- * change.
+ * keys choose, open, send, stop and go back, switch tool calls and thinking
+ * between brief and in full, and everything else they type goes to the editor.
+ * The screen is drawn again from the state's model after each change.
  */
 export function startDrawing(options: DrawingOptions): Drawing {
   // A link in a message would show its text and hide where it goes. With this the address is printed with it.
@@ -136,6 +138,11 @@ export function startDrawing(options: DrawingOptions): Drawing {
     return component;
   };
 
+  // What the person asked to see in full, wherever work is shown. It outlasts the screen it was asked on.
+  const inFull: InFull = { toolCalls: false, thinking: false };
+  // The screen as it was last drawn, which says what the keys do on it.
+  let current: Screen = screenOf(state.model(), { now: now(), inFull });
+
   let chosen: string | undefined;
   let focus: Component | null | undefined;
   const rows = (): number => tui.terminal.rows;
@@ -178,7 +185,9 @@ export function startDrawing(options: DrawingOptions): Drawing {
     for (const id of messages.keys()) if (!seen.has(id)) messages.delete(id);
     if (screen.work !== undefined) {
       parts.push(new Spacer(1));
-      parts.push(workComponent(screen.work, screen.workStale, theme, () => Math.max(6, Math.floor(rows() / 2))));
+      // What the person asked to see in full is not cut to half the screen.
+      const whole = inFull.toolCalls || inFull.thinking;
+      parts.push(workComponent(screen.work, screen.workStale, theme, () => (whole ? Number.POSITIVE_INFINITY : Math.max(6, Math.floor(rows() / 2)))));
     }
     const line = working(screen.working);
     if (line !== undefined) parts.push(line);
@@ -189,7 +198,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   function update(): void {
     const model = state.model();
     syncDraft(model.where);
-    const screen = screenOf(model, { now: now() });
+    const screen = screenOf(model, { now: now(), inFull });
+    current = screen;
     const { parts, focus: next } = body(screen);
 
     page.clear();
@@ -201,7 +211,7 @@ export function startDrawing(options: DrawingOptions): Drawing {
     if (screen.notes.length > 0 && (screen.kind === "thread" || parts.length > 0)) page.addChild(new Spacer(1));
     for (const note of screen.notes) page.addChild(new Text(note.tone === "warn" ? theme.warn(note.text) : theme.dim(note.text), 0, 0));
     if (screen.kind === "thread") page.addChild(editor);
-    page.addChild(new Text(waitingForSecondPress ? theme.warn(QUIT_AGAIN) : theme.dim(screen.keys), 0, 0));
+    page.addChild(waitingForSecondPress ? new Text(theme.warn(QUIT_AGAIN), 0, 0) : keysComponent(screen.keys, theme));
 
     if (focus !== next) {
       focus = next;
@@ -211,6 +221,8 @@ export function startDrawing(options: DrawingOptions): Drawing {
   }
 
   tui.addInputListener((data) => {
+    // A terminal that reports keys being let go sends one more event for each press, and a key is pressed once.
+    if (isKeyRelease(data)) return undefined;
     if (matchesKey(data, "ctrl+c")) {
       const where = state.model().where;
       const pressed = quitting.press(where.screen === "thread" && editor.getText() !== "");
@@ -220,33 +232,29 @@ export function startDrawing(options: DrawingOptions): Drawing {
       return { consume: true };
     }
     quitting.other();
-    switch (state.model().where.screen) {
-      case "thread":
-        if (matchesKey(data, "escape")) {
-          void state.stop();
-          return { consume: true };
-        }
-        if (matchesKey(data, "ctrl+t")) {
-          state.back();
-          return { consume: true };
-        }
-        if (matchesKey(data, "ctrl+n")) {
-          state.startThread();
-          return { consume: true };
-        }
-        break;
-      case "threads":
-        if (matchesKey(data, "escape")) {
-          state.back();
-          return { consume: true };
-        }
-        if (data === "n") {
-          state.startThread();
-          return { consume: true };
-        }
-        break;
-      case "agents":
-        break;
+    const { can } = current;
+    if (matchesKey(data, "ctrl+d") && (current.kind !== "thread" || editor.getText() === "")) {
+      leave();
+      return { consume: true };
+    }
+    if (matchesKey(data, "escape") && can.escape !== undefined) {
+      if (can.escape === "stop") void state.stop();
+      else state.back();
+      return { consume: true };
+    }
+    if (matchesKey(data, "ctrl+n") && can.newThread) {
+      state.startThread();
+      return { consume: true };
+    }
+    if (matchesKey(data, "ctrl+o") && can.work) {
+      inFull.toolCalls = !inFull.toolCalls;
+      update();
+      return { consume: true };
+    }
+    if (matchesKey(data, "ctrl+t") && can.work) {
+      inFull.thinking = !inFull.thinking;
+      update();
+      return { consume: true };
     }
     return undefined;
   });

@@ -33,6 +33,7 @@ function stepComponent(step: Step, theme: Theme): Component {
   const view = new Container();
   switch (step.kind) {
     case "thinking":
+      if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 0, 0));
       view.addChild(new Text(theme.thinking(`${step.label}: ${step.text}`), 0, 0));
       break;
     case "text":
@@ -40,8 +41,10 @@ function stepComponent(step: Step, theme: Theme): Component {
       if (step.note !== undefined) view.addChild(new Text(theme.dim(`(${step.note})`), 0, 0));
       break;
     case "tool": {
-      const call = step.call === "" ? "" : ` ${theme.dim(step.call)}`;
-      view.addChild(new TruncatedText(`${theme.tone[step.tone](step.status)}  ${theme.bold(step.name)}${call}`, 0, 0));
+      // A call shown whole may take many lines, so it goes under the line that says how the call stands.
+      const inline = step.whole || step.call === "" ? "" : ` ${theme.dim(step.call)}`;
+      view.addChild(new TruncatedText(`${theme.tone[step.tone](step.status)}  ${theme.bold(step.name)}${inline}`, 0, 0));
+      if (step.whole && step.call !== "") view.addChild(new Text(step.call, 2, 0));
       if (step.earlier !== undefined) view.addChild(new Text(theme.dim(`… ${step.earlier}`), 2, 0));
       if (step.output.length > 0) view.addChild(new Text(theme.dim(step.output.join("\n")), 2, 0));
       for (const note of step.notes) view.addChild(new Text(theme.dim(`· ${note}`), 2, 0));

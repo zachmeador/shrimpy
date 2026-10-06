@@ -26,6 +26,7 @@ import {
   type Place,
   type SendResult,
   workingIn,
+  workingInOpenThread,
 } from "./model.ts";
 
 export interface ConsoleStateOptions {
@@ -60,7 +61,7 @@ export interface ConsoleState {
 
   /** Say something in the open thread, or in a new one. The person's draft is theirs to put back when it fails. */
   send(text: string): Promise<SendResult>;
-  /** Stop the work in the session behind the open thread, for everyone. */
+  /** Stop the work in the session behind the open thread, for everyone, when the agent is working there. Does nothing otherwise. */
   stop(): Promise<void>;
 
   /** The work that goes on if the console is left now, if there is any. It asks chat once more, briefly. */
@@ -321,19 +322,9 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
     },
 
     async stop() {
-      const { where } = model;
-      if (where.screen !== "thread" || where.place.kind !== "agent" || where.thread === undefined || agent === undefined) return;
-      const { name } = where.place;
-      const thread = model.thread?.thread ?? model.dms[name]?.threads.find((each) => each.id === where.thread);
-      const agentId = agentEntries(model).find((entry) => entry.name === name)?.id;
-      const working =
-        model.session?.status.busy === true || (thread !== undefined && agentId !== undefined && workingIn(thread, agentId));
-      if (!working) {
-        say({ kind: "nothing-to-stop" });
-        return;
-      }
+      if (agent === undefined || !workingInOpenThread(model)) return;
       try {
-        say((await agent.stop()) ? { kind: "stopped" } : { kind: "nothing-to-stop" });
+        if (await agent.stop()) say({ kind: "stopped" });
       } catch (error) {
         say({ kind: "not-stopped", problem: problemOf(error) });
       }
