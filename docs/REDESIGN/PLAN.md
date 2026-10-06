@@ -200,6 +200,17 @@ Fable was asked about this shape on 2026-10-04 and argued against it. An agent t
 - Whether each context file should be a section of its own. You would rather have several small files than one big one such as a `MEMORY.md`. Today that saves nothing, because all of `context/` is one section. With a section for each file, a changed file would be sent alone to the models that take a change in place. On the others any change still costs a full read.
 - Whether a message that wakes nobody is the same flag as `quiet` on `send_message`, which so far means a person isn't notified. It would be the way to leave something in a thread for an agent's next turn there, where people see it too.
 
+### The agent's tools, as an agent meets them
+
+**State:** a bucket, kept since 2026-10-06. You have thoughts on what agents' tools should be called and how they should feel to use, and want to test them once the core is there. Questions of that kind are collected here and not put to you one at a time.
+
+- What the tools are called: `send_message`, `read_messages`, `check_back` and `ask_agent`, beside Pi's own `read`, `write`, `edit` and `bash`.
+- What a channel's default thread is called. It is `main` today, and you may want a clearer name.
+- `send_message` and `read_messages` can't name a thread of a DM, only a room's. A result of `ask_agent` points to `shrimpy read <thread>` in the shell for that.
+- Whether an agent should be told to read a thread before it answers a message that went to everyone, which is the version of [hearing a thread](proposals/hearing-a-thread.md) with no mechanism.
+- Whether input steered into a session by `shrimpy sessions steer` should say who sent it.
+- `react`, an `edit` option and `quiet` on `send_message`, which the design names and nothing builds yet.
+
 ### A member that is neither a person nor an agent
 
 **State:** your idea from 2026-10-05, set aside. Nothing asks for it yet.
