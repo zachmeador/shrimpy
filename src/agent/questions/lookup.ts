@@ -26,15 +26,19 @@ export async function agentNamed(
   return { agent: found };
 }
 
-/** The main thread of the agent's DM with `agent`, made if there is no DM yet. */
-export async function dmThreadWith(
+/**
+ * The ID of a thread of the DM `channelId` called `name` that has no message in
+ * it, if there is one: what a call that made its thread and ended before it posted
+ * the question leaves.
+ */
+export async function emptyThread(
   chat: ChatClient,
-  agent: RosterEntry,
+  channelId: string,
+  name: string,
   signal: AbortSignal,
-): Promise<{ threadId: string } | { problem: string }> {
-  const channel = await chat.openDm(agent.id, signal);
-  const main = (await chat.threads(channel.id, signal)).find((thread) => thread.main);
-  return main === undefined ? { problem: words.noMainThread(agent.name) } : { threadId: main.id };
+): Promise<string | undefined> {
+  const threads = await chat.threads(channelId, signal);
+  return threads.find((thread) => !thread.main && thread.name === name && thread.preview === null)?.id;
 }
 
 /** Everyone on the roster, or undefined when the gateway cannot be asked. */

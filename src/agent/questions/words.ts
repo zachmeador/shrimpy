@@ -8,7 +8,7 @@ import { delayText } from "../home/index.ts";
 
 export const ASK_DESCRIPTION =
   "Ask another agent a question, and carry on with its answer. Use it when you need that agent's answer to go on " +
-  "with what you are doing here. The question is posted in your DM with the agent, and this answers at once: " +
+  "with what you are doing here. The question is posted in a new thread of your DM with the agent, and this answers at once: " +
   "end your turn, and the answer comes to you in this same conversation as a new input. You are also told if the " +
   "agent read the question and said nothing, if its turn failed, or if it hasn't answered in time. The agent sees " +
   "nothing of this conversation, so write the question to stand alone. Only an agent can be asked: to tell a " +
@@ -48,15 +48,13 @@ export const tooMany = (open: number): string =>
   `Not asked: ${open} of your questions in this conversation are already waiting for answers, which is the most there can be. ` +
   "Wait for one of them to come back first.";
 
-export const noMainThread = (name: string): string => `Not asked: your DM with @${name} has no main thread to post in.`;
-
 export const UNREACHABLE = "Not asked: chat is unreachable right now, so nothing was posted. Try again later.";
 
 export const refused = (reason: string): string => `Not asked: chat did not accept it (${reason}).`;
 
 export const uncertain = (name: string): string =>
   "Chat dropped the connection before it confirmed the question, so it may or may not have been posted. " +
-  `Read your DM with @${name} to check before you ask again.`;
+  `To check before you ask again, run \`shrimpy threads ${name}\` in your shell: the question's thread is named for how it starts.`;
 
 export const asked = (name: string, due: number): string =>
   `Asked @${name}. The answer comes to you here as a new input, and if there is none by ${localTime(due)} you are told that instead. ` +

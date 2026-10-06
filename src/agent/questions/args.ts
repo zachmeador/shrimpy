@@ -6,7 +6,7 @@ export const DEFAULT_WITHIN = 30 * 60_000;
 export const SHORTEST_WITHIN = 60_000;
 export const LONGEST_WITHIN = 24 * 3_600_000;
 
-/** How many characters of a question are kept to say which one it was. */
+/** How many characters of a question are kept to say which one it was, and to name its thread, far inside what chat takes for a name. */
 const START_LENGTH = 80;
 
 /** How long to wait for the answer, in milliseconds, or why what the model wrote can't be used, in words for the model. */
@@ -32,7 +32,14 @@ export function readTo(written: string): string | undefined {
   return /^@(.+)$/s.exec(written.trim())?.[1]?.trim();
 }
 
-/** The start of a question on one line, which says which question it was. */
+/**
+ * The start of a question on one line, which says which question it was and is
+ * what its thread is called. Chat refuses a name with a control character in it,
+ * such as the escape of a terminal's colors, so those count as spaces.
+ */
 export function startOf(text: string): string {
-  return Array.from(text.replace(/\s+/g, " ").trim()).slice(0, START_LENGTH).join("");
+  return Array.from(text.replace(/[\p{Cc}\s]+/gu, " ").trim())
+    .slice(0, START_LENGTH)
+    .join("")
+    .trimEnd();
 }

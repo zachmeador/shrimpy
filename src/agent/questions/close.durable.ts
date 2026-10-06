@@ -40,7 +40,7 @@ export async function closeQuestion(
   const sessions = (await tx.doc(SessionsDoc)).sessions;
   const session = Object.hasOwn(sessions, question.session) ? sessions[question.session] : undefined;
   if (session === undefined) throw new Error(`The session ${question.session}, which asked the question, is gone.`);
-  const asked = { id, of: question.of, askedAt: question.askedAt, due: question.due, start: question.start };
+  const asked = { id, of: question.of, askedAt: question.askedAt, due: question.due, start: question.start, thread: question.thread };
   const input: QuestionInput =
     session.channelId === null
       ? { question: asked, result, trigger: session.trigger }

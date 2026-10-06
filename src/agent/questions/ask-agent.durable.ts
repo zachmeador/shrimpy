@@ -7,7 +7,7 @@ import { isRefusal } from "../../lib/refusal/index.ts";
 import type { LiveChat } from "../links/index.ts";
 import { addressOfPlace, placeOfSession } from "../records/durable.ts";
 import { readTo, readWithin, SHORTEST_WITHIN, startOf } from "./args.ts";
-import { agentNamed, dmThreadWith } from "./lookup.ts";
+import { agentNamed, emptyThread } from "./lookup.ts";
 import { MAX_OPEN, type Questions } from "./questions.durable.ts";
 import * as words from "./words.ts";
 
@@ -36,15 +36,17 @@ const answer = (text: string): ToolExecutionResult => ({ content: [{ type: "text
 const failure = (text: string): ToolExecutionResult => ({ isError: true, content: [{ type: "text", text }] });
 
 /**
- * `ask_agent`: post a question in the agent's DM with another agent, and answer
- * at once, so the model can end its turn. What comes back is an input of the same
- * session, later. The question is named for the call: a call that runs again
- * after a crash finds the question its first run kept, and the request ID makes
- * the one post it made the same post. A run that loses chat after a first run
- * that was about to post can't say whether the question was posted, and says so,
- * as it does when the connection ends while it posts. Calls of one round run
- * one after another, so the count of open questions read before a question is
- * posted is the count when it is kept.
+ * `ask_agent`: make a thread of its own for a question in the agent's DM with
+ * another agent, post the question in it, and answer at once, so the model can end
+ * its turn. What comes back is an input of the same session, later. The question
+ * is named for the call: a call that runs again after a crash finds the question
+ * its first run kept, and the thread its first run made, which it keeps as soon
+ * as chat has made it, and the request ID makes the one post it made the same
+ * post. A run that loses chat after a first run that was about to make the thread
+ * can't say whether the question was posted, and says so, as it does when the
+ * connection ends while it posts. Calls of one round run one after another, so the
+ * count of open questions read before a question is posted is the count when it is
+ * kept.
  */
 export function askAgent(options: AskToolsOptions) {
   return defineTool({
@@ -59,7 +61,8 @@ export function askAgent(options: AskToolsOptions) {
     executionMode: "sequential",
     async execute({ to, text, within }, api, context) {
       const question = text.trim();
-      if (question === "") return failure(words.TEXT_EMPTY);
+      const start = startOf(question);
+      if (start === "") return failure(words.TEXT_EMPTY);
       const name = readTo(to);
       if (name === undefined) return failure(words.BAD_TO);
       const wait = readWithin(within, options.shortestWaitMs ?? SHORTEST_WITHIN);
@@ -73,7 +76,7 @@ export function askAgent(options: AskToolsOptions) {
       const kept = await options.questions.find(api, id, context);
       if (kept !== undefined) return answer(words.asked(kept.of.name, kept.due));
 
-      // A call that ran before and left its time was about to post the question, and may have.
+      // A call that ran before and left its time was about to make the thread and post the question, and may have.
       const earlier = await api.memo<number>("askedAt", context);
       const live = options.chat();
       if (live === undefined) return failure(earlier === undefined ? words.UNREACHABLE : words.uncertain(name));
@@ -84,13 +87,19 @@ export function askAgent(options: AskToolsOptions) {
         if ("problem" in found) return failure(found.problem);
         const open = await options.questions.count(api, session, context);
         if (open >= MAX_OPEN) return failure(words.tooMany(open));
-        const dm = await dmThreadWith(live.chat, found.agent, signal);
-        if ("problem" in dm) return failure(dm.problem);
+        const channel = await live.chat.openDm(found.agent.id, signal);
 
         // Fixed for the call, so that a run after a crash gives up at the same time as the first.
         const askedAt = earlier ?? (await api.memo("askedAt", Date.now(), context));
+        // The question's thread: the one an earlier run of this call made, or a new one named for how the question starts.
+        let thread = await api.memo<string>("thread", context);
+        if (thread === undefined) {
+          // A run that ended after chat made the thread and before the call kept its ID left it empty: that one is used.
+          const left = earlier === undefined ? undefined : await emptyThread(live.chat, channel.id, start, signal);
+          thread = await api.memo("thread", left ?? (await live.chat.createThread(channel.id, start, signal)).id, context);
+        }
         posting = true;
-        const posted = await live.chat.post(dm.threadId, question, requestId(options.recordsId, api), signal);
+        const posted = await live.chat.post(thread, question, requestId(options.recordsId, api), signal);
         posting = false;
         const due = askedAt + wait.ms;
         await options.questions.keep(
@@ -101,8 +110,8 @@ export function askAgent(options: AskToolsOptions) {
             of: { id: found.agent.id, name: found.agent.name },
             askedAt,
             due,
-            start: startOf(question),
-            dm: dm.threadId,
+            start,
+            thread,
             message: posted.id,
             event: posted.event,
             seq: posted.seq,

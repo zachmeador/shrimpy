@@ -13,17 +13,18 @@ export type Asked = { kind: "belongs" } | { kind: "receipt"; question: Question;
 
 /**
  * What an event means to the questions the agent asked, or nothing when it is none
- * of their business. The agent asked the member `question.of` in the DM thread
- * `question.dm`. What that member posts or edits there after the question belongs
- * to the question and wakes nobody, so that two agents do not answer each other in
- * circles, while the question is open, and for a question that was closed by a
- * look at chat, up to what the look saw. The receipt that member leaves on the
- * question says how its turn for the question ended, and closes the question if
- * it is open.
+ * of their business. Each question has a thread of its own, which the agent asked
+ * the member `question.of` in. What that member posts or edits in it after the
+ * question belongs to the question and wakes nobody, so that two agents do not
+ * answer each other in circles, while the question is open, and for a question
+ * that was closed by a look at chat, up to what the look saw. What the member
+ * posts anywhere else is an ordinary message. The receipt that member leaves on
+ * the question says how its turn for the question ended, and closes the question
+ * if it is open.
  */
 export function toQuestion(event: ChatEvent, kept: readonly Question[]): Asked | undefined {
   for (const question of kept) {
-    if (event.actor.id !== question.of.id || event.message.threadId !== question.dm) continue;
+    if (event.actor.id !== question.of.id || event.message.threadId !== question.thread) continue;
     const open = question.through === undefined;
     if (open && event.kind === "receipted" && event.event === question.event) return { kind: "receipt", question, receipt: event };
     const post = event.kind === "posted" || event.kind === "edited";
@@ -100,13 +101,13 @@ export async function lookAt(
   signal: AbortSignal,
   onError: (error: Error) => void,
 ): Promise<Looked | undefined> {
-  const [message] = await chat.read(question.dm, question.seq + 1, 1, signal);
+  const [message] = await chat.read(question.thread, question.seq + 1, 1, signal);
   if (message?.id !== question.message) return undefined;
   const receipt = message.receipts.find((each) => each.memberId === question.of.id && each.event === question.event);
   if (receipt === undefined) return undefined;
   const result = await fromReceipt(
     receipt,
-    (reply) => findReply(chat, question.dm, null, reply, signal),
+    (reply) => findReply(chat, question.thread, null, reply, signal),
     () =>
       onError(
         new Error(

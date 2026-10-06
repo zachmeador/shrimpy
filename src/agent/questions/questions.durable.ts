@@ -131,7 +131,7 @@ export function createQuestions(turn: TurnTask, options: QuestionsOptions): Ques
 /**
  * Close the questions a session has open and tell nobody, and wait until the
  * tasks that waited for them have ended. The other agent's answer, if it comes, is
- * an ordinary message in the DM.
+ * an ordinary message in the question's thread.
  */
 export async function closeQuestions(harness: Harness, conversationId: ConversationId, context: Context): Promise<void> {
   const { tasks } = await harness.inspect(context);

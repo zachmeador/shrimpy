@@ -101,9 +101,9 @@ export type Wakeup = {
 
 /**
  * A question the agent asked another agent with `ask_agent`, as it is kept while
- * the agent waits for the answer. It was posted in the main thread of the agent's
- * DM with the one asked, and the question is open until that agent leaves its
- * receipt on the question's event or the time to wait is up.
+ * the agent waits for the answer. It was posted as the first message of a new
+ * thread of the agent's DM with the one asked, and the question is open until that
+ * agent leaves its receipt on the question's event or the time to wait is up.
  */
 export type Question = {
   /** Names the question for as long as the agent's records last. */
@@ -115,10 +115,10 @@ export type Question = {
   /** When the agent asked, and when it gives up waiting: milliseconds since the epoch. */
   askedAt: number;
   due: number;
-  /** The start of what it asked, on one line. */
+  /** The start of what it asked, on one line, which is also what its thread is called. */
   start: string;
-  /** The DM thread the question was posted in, the question's message there, and the event that posted it with its position in chat's order. */
-  dm: string;
+  /** The thread the question made, the question's message in it, and the event that posted it with its position in chat's order. */
+  thread: string;
   message: string;
   event: string;
   seq: number;
@@ -126,15 +126,15 @@ export type Question = {
    * Set once the question was closed by a look at chat that found the other
    * agent's receipt on it, while the agent's place in chat's feed was still behind
    * what the look saw: the position of the newest event of chat's log then. What the
-   * other agent posted in the DM up to it still belongs to the question, though
-   * the feed reads it after the question closed. Absent for a question that is
-   * open.
+   * other agent posted in the question's thread up to it still belongs to the
+   * question, though the feed reads it after the question closed. Absent for a
+   * question that is open.
    */
   through?: number;
 };
 
-/** What the model is told of a question when its result comes: who was asked, when, and the start of what was asked. */
-export type Asked = Pick<Question, "id" | "of" | "askedAt" | "due" | "start">;
+/** What the model is told of a question when its result comes: who was asked, when, the start of what was asked, and the thread it was asked in. */
+export type Asked = Pick<Question, "id" | "of" | "askedAt" | "due" | "start" | "thread">;
 
 /** What came back for a question. */
 export type QuestionResult =

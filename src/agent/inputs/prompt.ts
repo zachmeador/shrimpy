@@ -170,15 +170,20 @@ function answered({ question, result }: CameBack): string {
   return `${opening}\n\n${cameBack(question, result)}`;
 }
 
-/** What came back for a question, in a sentence or two. */
-function cameBack({ of, due }: Asked, result: QuestionResult): string {
+/**
+ * What came back for a question, in a sentence or two. Where there may be more to
+ * read, it says where: the thread the question was asked in, which a command in
+ * the agent's shell reads.
+ */
+function cameBack({ thread, due }: Asked, result: QuestionResult): string {
+  const read = `run \`shrimpy read ${thread}\` in your shell`;
   switch (result.kind) {
     case "answered":
       return result.reply === undefined
-        ? `They answered, but their reply can't be shown here. To read it, call read_messages with from: "@${of.name}".`
+        ? `They answered, but their reply can't be shown here. To read it, ${read}.`
         : `They answered at ${localTime(result.reply.at)}:\n${result.reply.text}`;
     case "silent":
-      return `They read it and sent no reply. If they said anything along the way, it is in your DM with them: call read_messages with from: "@${of.name}".`;
+      return `They read it and sent no reply. If they wrote anything along the way, it is in the thread you asked in: ${read}.`;
     case "failed":
       return `Their turn failed: ${result.reason}`;
     case "stopped":
@@ -186,8 +191,8 @@ function cameBack({ of, due }: Asked, result: QuestionResult): string {
     case "unanswered":
       return (
         `They had not answered by ${localTime(due)}, and may not be running. ` +
-        `To see anything they wrote in your DM with them meanwhile, call read_messages with from: "@${of.name}". ` +
-        "An answer that comes later arrives there like any message."
+        `To see anything they wrote in the thread you asked in meanwhile, ${read}. ` +
+        "An answer that comes later arrives in that thread like any message."
       );
   }
 }

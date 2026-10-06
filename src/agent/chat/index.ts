@@ -11,20 +11,19 @@
  * receipt. A command a person writes in a thread, `/stop`, is no input: it is
  * acted on when the feed brings it, whatever the room's wake policy, and is never
  * handed to a session or a model. What an agent the agent asked a question posts
- * in their DM while the question is open belongs to the question and wakes nobody,
- * and the receipt it leaves on the question closes it, as a result for the
- * session that asked. When a question's time is up, it looks at the question's
- * message in chat once for that receipt, which the feed may not have brought yet,
- * waiting for chat as a reply does. It tells chat which threads the agent is
- * working in, finds which channel a thread is in, and where the thread is, for a
- * trigger whose thread the agent has no session behind yet, says where an event's
- * thread is, as a DM with someone or a room and who else is in it, marks a
- * person's message as one that joins the turn that is running, and splits a text
- * too long for one message. It
- * reaches chat only through the link it is handed, and the agent's records only
- * through `Admissions`, so it must not know a transport, or how a session or a
- * record is stored. This door is all of it that needs no engine: what takes an
- * event up is behind `durable.ts`.
+ * in the question's own thread while the question is open belongs to the question
+ * and wakes nobody, and the receipt it leaves on the question closes it, as a
+ * result for the session that asked. When a question's time is up, it looks at
+ * the question's message in chat once for that receipt, which the feed may not
+ * have brought yet, waiting for chat as a reply does. It tells chat which threads
+ * the agent is working in, finds which channel a thread is in, and where the
+ * thread is, for a trigger whose thread the agent has no session behind yet, says
+ * where an event's thread is, as a DM with someone or a room and who else is in
+ * it, marks a person's message as one that joins the turn that is running, and
+ * splits a text too long for one message. It reaches chat only through the link
+ * it is handed, and the agent's records only through `Admissions`, so it must not
+ * know a transport, or how a session or a record is stored. This door is all of
+ * it that needs no engine: what takes an event up is behind `durable.ts`.
  */
 export type { Admissions } from "./admissions.ts";
 export { type ChatDelivery, createDelivery, type DeliveryOptions } from "./delivery.ts";

@@ -43,10 +43,10 @@ export interface FeedOptions {
  * reason to ask chat for the reply it points to, which only chat can give. A
  * command that a person wrote is not taken up like the rest: it is acted on as
  * the feed brings it. So is what belongs to a question the agent asked another
- * agent: while the question is open, what that agent posts in their DM wakes
- * nobody, and the receipt it leaves on the question closes it, in the commit that
- * moves the agent's place in the feed. A receipt that says it skipped the question
- * leaves it open.
+ * agent: while the question is open, what that agent posts in the question's own
+ * thread wakes nobody, and the receipt it leaves on the question closes it, in the
+ * commit that moves the agent's place in the feed. A receipt that says it skipped
+ * the question leaves it open.
  */
 export async function readFeed(options: FeedOptions): Promise<void> {
   const { link, admissions, stop } = options;
