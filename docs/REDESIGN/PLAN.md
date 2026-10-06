@@ -119,7 +119,6 @@ The order follows what daily use shows is rough or missing. Two things are built
 **Now:**
 
 - The terminal: watching any session of any agent, and keys that mean one thing on every screen, as you agreed on 2026-10-05. [Using it](design/using-it.md) has both.
-- An agent is told where it is: its DM with whom, or which room and who else is there, with brief examples in what every agent is told. You asked for it on 2026-10-05 after a demo. [The conversation model](design/4-conversation.md) has it.
 
 **Next:**
 
