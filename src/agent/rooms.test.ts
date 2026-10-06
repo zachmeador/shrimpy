@@ -227,22 +227,25 @@ test("an input tells the model where it is: its DM with a person, a thread of th
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
   const bob = await scout.chat.agent("bob");
-  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
+  const maya = await scout.chat.agent("maya");
+  const { person, room: ops, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
   const connection = await scout.connect();
 
   await scout.receiptOn(await scout.say("Hello in private."), PATIENT);
-  // The thread is made after the agent first asked chat about this DM, so it is a thread the agent has to ask again for.
   const side = await scout.newThread("Budget");
   await scout.receiptOn(await scout.say("A side matter.", side.id), PATIENT);
   await scout.receiptOn(await person.chat.post(main.id, "@scout, hello in the room.", "person-1"), PATIENT);
+  await person.chat.addMembers(ops.id, [maya.me.id]);
+  await scout.receiptOn(await person.chat.post(main.id, "@scout, and now?", "person-2"), PATIENT);
 
   // What opens each input is its first paragraph, before the message.
-  const [dm = "", aside = "", room = ""] = model.shown.map((shown) => shown.split("\n\n")[0] ?? "");
+  const [dm = "", aside = "", room = "", later = ""] = model.shown.map((shown) => shown.split("\n\n")[0] ?? "");
   const isDm = (opening: string): boolean => /\bDM\b/.test(opening);
   assert.ok(isDm(dm) && dm.includes(person.me.name) && dm.includes(`Thread ${scout.thread.id}`), dm);
   assert.ok(isDm(aside) && aside.includes("Budget") && aside.includes(`Thread ${side.id}`), aside);
   assert.ok(room.includes("Ops") && room.includes(person.me.name) && /bob[^.]*agent/.test(room) && room.includes(`Thread ${main.id}`), room);
   assert.ok(!isDm(room) && !dm.includes("Ops"), "a room is not a DM");
+  assert.ok(!room.includes("maya") && later.includes("maya"), `a member added to the room, and not mentioned, is named by the next input there:\n${later}`);
 
   const where = (await connection.sessions()).map((session) => [session.threadId, session.place]);
   const withPerson = { name: person.me.name, kind: "person" };
