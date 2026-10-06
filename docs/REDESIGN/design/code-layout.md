@@ -86,6 +86,21 @@ Keep this simple:
 - Test support lives in a `testing/` module that only tests import.
 - ESLint enforces the import table, the front doors, the Pi package rules and the tiers of the agent's modules from a module's first commit, through one local rule in `lint/boundaries.js` with its own tests. `npm run check` runs types, lint and tests.
 
+## Where the words are
+
+Every sentence a model or a person reads is kept in a few files, so that wording is found and changed in one place and no logic has to be read to do it.
+
+| What | Where |
+|---|---|
+| What every agent is told | `agent/context/base.ts`, one function that returns the whole text |
+| How an input reads to the model: a message, a wake-up, a trigger's occurrence, a question's result, breadcrumbs, and where the session is | `agent/inputs/prompt.ts` |
+| What a tool says: its description, its arguments and its answers | `words.ts` in the tool's module: `agent/message-tools/`, `agent/wakeups/` and `agent/questions/` |
+| The skills Shrimpy ships | `skills/<name>/SKILL.md` |
+| Everything the terminal shows | `clients/console/screen/words.ts` |
+| A command's usage and help | The command's own file in `cli/commands/` |
+
+`shrimpy agent context` prints what an agent would be told, put together from its home as it is now. A test holds every `shrimpy` command line in these words to the commands the CLI has.
+
 ## The agent's modules
 
 Approved on 2026-10-05 and built that day. Each module has one job.
