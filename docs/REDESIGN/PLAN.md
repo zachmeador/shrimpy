@@ -118,11 +118,10 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Checks and breadcrumbs, first under Next.
+- The terminal: watching any session of any agent, and keys that mean one thing on every screen, as you agreed on 2026-10-05. [Using it](design/using-it.md) has both.
 
 **Next:**
 
-- What an agent does without being asked: checks and breadcrumbs. [Not built yet](design/7-on-its-own.md)
 - What an agent does without being asked: asking another agent. [Not built yet](design/7-on-its-own.md)
 - The conversation model: the provider interface with a fake provider. [Not built yet](design/4-conversation.md)
 - The home: compaction, the request a turn sent, and workspace context. [Not built yet](design/5-home.md)

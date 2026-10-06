@@ -59,6 +59,8 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - A trigger that names a thread and comes due while the agent was down fires at the start before the link to chat is up, so that one occurrence fails. The next one works.
 - A trigger file that doesn't check out is named by a reload and by `agent context`, and is missing from `shrimpy triggers` while the agent runs.
 - A trigger or a wake-up that comes due during a stop's grace period can still start.
+- A check's standard error goes to a file in the home's `runtime/checks/`, because Pi hands a command's output and errors over as one stream. An engine that kept them apart would need no file.
+- A second run of a trigger by hand, while the check of the first is running, starts a second check. `triggers show` has no row for a check run by hand until it has ended.
 - The terminal's Esc says there is nothing to stop while an agent is idle, so a waiting wake-up is cancelled only by `/stop` in its thread or by `shrimpy sessions stop`.
 
 ### Using it

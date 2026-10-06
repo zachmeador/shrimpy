@@ -29,6 +29,7 @@
 - The agent's modules sorted by job, with two functions that let a source of input act inside one commit from a module of its own, and a file that needs Pi marked by its name. ([log, 2026-10-05](#log))
 - Every command about one agent names it the same way: the agent whose shell it runs in, unless `--agent` says another. ([log, 2026-10-05](#log))
 - A contract carries facts: a message says who it mentions and never who it is for, and the chat store has an ID that an agent keeps with its place in the feed. ([log, 2026-10-05](#log))
+- A trigger's check, which wakes the agent only on news or notes it in a breadcrumb, and breadcrumbs, which reach a session once with its next input. ([log, 2026-10-05](#log))
 
 ## Log
 
@@ -37,6 +38,19 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**Review, 2026-10-05: the terminal's keys, and watching any session.** You asked to peer into any agent's running sessions from the terminal, ahead of the web client: watching only, with no input and no stop. Then, when the key for tool calls in full turned out to be taken, you asked for a doc on the terminal as a whole, since its keys weren't intuitive, borrowing from Pi and Codex. You took its proposal as written: "love it". The rules and the keys are in the design of using it, and the proposal's file has left.
+
+- Esc goes back a level, except in your DM thread while the agent works there, where it stops the work. Ctrl+N is a new thread on both screens. Tab switches an agent's screen between your threads and its sessions. Ctrl+O shows tool calls in full and Ctrl+T thinking, which are Pi's keys. Ctrl+D quits when nothing is typed.
+- The key you first named for tool calls, Ctrl+T, is Codex's for its transcript. Pi and Claude Code have Ctrl+O.
+- Left for later by the coordinator: a screen that lists every key, and scrolling keys.
+
+**2026-10-05: a trigger's check, and breadcrumbs.** Built as designed on 2026-10-04, with fifteen mechanics the coordinator settled for the build. A trigger's file takes `check`, `when`, `then` and `timeout`. The check runs where the agent's shell tool runs, once for an occurrence, and the agent is woken only on news, with the trigger's prompt and the output apart from it, each line of the output marked as data. With `then: note` the news is written to `breadcrumbs/<trigger>.md` and nobody is woken. A breadcrumb is a Markdown file in the home's `breadcrumbs/`, and the ones a session hasn't been shown come with its next input, once, before the rest of the input.
+
+- Two of the mechanics were wrong, and were corrected before the merge. Every quiet check left a finished task, 1,440 a day for a check every minute, so a quiet check now leaves nothing but when it ran and how many in a row were quiet. And firing a trigger by hand ignored its check, so `triggers run` now runs it and counts what it prints as news.
+- Tried through the real commands with a scripted model: a check fired by hand woke the agent with its prompt and the output as quoted lines, a trigger that notes wrote its file with the prompt above the output, and the next message to the agent carried the breadcrumb ahead of the message.
+- Choices the build made: a note refuses `thread`; an empty breadcrumb counts as absent; only Markdown files directly in the folder count; a check of several lines is refused by `triggers add`; the next time counts from the end of the check; and a change to a trigger's schedule stops a check that is running and leaves no record of it.
+- Pi hands a command's output and errors over as one stream, so a check's standard error goes to a file in the home's `runtime/checks/`. That and two small gaps of a run by hand are in the status list.
 
 **2026-10-05: a message says who it mentions, and the chat store has an ID.** Built as the contracts' design had it. `mentions` replaces `addressed` in the chat contract and the store, and the function that finds a mention is the chat server's own. Each of the agent's rules says what it means: a DM wakes it whoever is mentioned, a person's mention joins a running turn with no text read, `/stop` in a DM is always for the agent, and an answer in a DM needs nothing asked of chat. The chat store is version 7 and has an ID, which the chat contract answers with `store`. An agent keeps the ID with its place in the feed, and a place kept for another store, or for none, is dropped with a report.
 

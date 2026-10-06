@@ -47,24 +47,24 @@ It covers waking itself later, standing triggers, breadcrumbs, asking another ag
 
 Settled on 2026-10-04 with the trigger design: the folder is `breadcrumbs/`, and a trigger whose check says `then: note` owns the write, to `breadcrumbs/<trigger>.md`, since a command that died can't write its own failure. Anything else may still write a file there.
 
-**Mechanics of checks and breadcrumbs,** settled by the coordinator on 2026-10-05 for the build, and yours to change.
+**Mechanics of checks and breadcrumbs,** settled by the coordinator on 2026-10-05, built that day, and yours to change.
 
 *A check.*
 
 1. A trigger's front matter takes `check`, a command line; `when`, which is `changed`, `output` or `always`, and `changed` if left out; `then`, which is `wake` or `note`, and `wake` if left out; and `timeout`, a delay such as `30s` or `2m`, which is `1m` if left out and at most `10m`.
 2. The check runs where the agent's shell tool runs: the home is its working directory, and `shrimpy` on its path is the agent.
-3. Its output is what it prints on standard output, trimmed, and cut at 2,000 characters. A check that exits with anything but 0, outlasts its timeout or can't be started has failed, and its output is then one line that says so, with the end of what it printed on standard error.
+3. Its output is what it prints on standard output, trimmed, and cut at 2,000 characters. A check that exits with anything but 0, outlasts its timeout or can't be started has failed, and its output is then one line that says so, with the end of what it printed on standard error. Pi hands a command's output and its errors over as one stream, so the check is run with its standard error sent to a file in the home's `runtime/checks/`, which each run writes over and which is read only for the line about a failure.
 4. `changed` is news when the output, or the line about a failure, differs from the last occurrence's. A trigger's first occurrence counts as changed. `output` is news when there is any output, or the check failed. `always` is news every time. So a check that keeps failing the same way is news once.
 5. With no news there is no occurrence: no model is called, nothing is written and no record of a task is left. The trigger keeps when it last checked and how many checks in a row were quiet, and `triggers show` says so. An occurrence is on record when something happened: the agent was woken, a breadcrumb was noted, or the check was interrupted, skipped or failed to be handed over. The first version of this mechanic recorded every quiet check as an occurrence, which left a finished task for each one, 1,440 a day for a check every minute.
 6. With `then: wake` the agent is woken as for any occurrence, with the trigger's prompt and, apart from it, the output, marked as data. With `then: note` the output is written to `breadcrumbs/<trigger>.md`, the occurrence is on record as noted, and nobody is woken. A trigger that notes needs no prompt. When it has one, it is written above the output, as what the fact is and how to look closer.
-7. A check runs once for an occurrence. The occurrence records that the check is starting before it starts. If the agent ends while it runs, the occurrence says it was interrupted, and the check isn't run again for it: the next occurrence runs it.
+7. A check runs once for an occurrence. The occurrence records that the check is starting before it starts. If the agent ends while it runs, the occurrence says it was interrupted, and the check isn't run again for it: the next occurrence runs it. What the next occurrence compares with is what the agent was last told, by being woken or by a note, so news that an occurrence failed to deliver is told by the next one.
 8. `shrimpy triggers add` takes `--check`, `--when`, `--then` and `--timeout`, and checks them as it checks a schedule. `triggers show` prints them, and how each occurrence ended. `triggers run` runs the check now, and counts whatever it prints as news, whatever `when` says, because someone asked: the agent is woken, or the breadcrumb is written. It doesn't move the trigger's schedule, and it doesn't wait for the check.
 
 *Breadcrumbs.*
 
 9. A breadcrumb is a Markdown file directly in the home's `breadcrumbs/`, which `agent init` makes.
 10. The files are compared when an input is taken up, in the same commit. Those whose text differs from what the session was last shown come with the input, and the session's record keeps what it was shown of each. A session's first input carries every file, since all of them are new to it.
-11. An input carries at most 10 files, each cut at 1,000 characters. When more differ, it says how many more, and they come with later inputs.
+11. An input carries at most 10 files, the first by name, each cut at 1,000 characters. When more differ, it says how many more, and they come with later inputs.
 12. An input that is skipped showed the model nothing, so what it carried counts as not seen and comes again.
 13. A file that is removed is forgotten, and nothing is said about it.
 14. The model reads them before the rest of the input, marked as data to read and not instructions.
@@ -87,26 +87,9 @@ The old row's "output filters" are `when`. A fact that changes while an input wa
 
 **Open**
 
-Left to the build: how many breadcrumbs an input may carry.
-
-Checks, breadcrumbs, asking another agent and helpers are under Not built yet below.
+Asking another agent and helpers are under Not built yet below.
 
 **Not built yet**
-
-*What an agent does without being asked: checks and breadcrumbs.*
-
-Under Next in the [order of work](../PLAN.md#order-of-work).
-
-**Build**
-
-- The trigger extension, following the design above and the [trigger contract](7-on-its-own.md): standing triggers with a prompt first, then checks.
-- [Breadcrumbs](7-on-its-own.md): the fact files in the home, the record of what each session last saw, and a way for a trigger's check to keep a fact current without waking anyone.
-
-**Prove**
-
-- Triggers: cron with timezones, intervals, one overdue run, overlap skipping and opt-in overlap, invalid edits at startup and on reload, manual runs, disabling, removing or reloading mid-run, cancelling one occurrence, changed and unchanged output, timeouts, and restarts before and after a command's effect and its input admission.
-- Deterministic checks make no model calls until they emit something.
-- Breadcrumbs: a changed fact is told once to each session and not again, a session idle through several changes is told the latest once, a failed check is told, and killing the owner at hand-over neither repeats nor loses one.
 
 *What an agent does without being asked: asking another agent.*
 
