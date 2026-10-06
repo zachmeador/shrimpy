@@ -30,6 +30,10 @@
 - Every command about one agent names it the same way: the agent whose shell it runs in, unless `--agent` says another. ([log, 2026-10-05](#log))
 - A contract carries facts: a message says who it mentions and never who it is for, and the chat store has an ID that an agent keeps with its place in the feed. ([log, 2026-10-05](#log))
 - A trigger's check, which wakes the agent only on news or notes it in a breadcrumb, and breadcrumbs, which reach a session once with its next input. ([log, 2026-10-05](#log))
+- Every input in a thread says where it is, and a session's summary says the same to a client. ([log, 2026-10-05](#log))
+- The terminal's keys, which mean one thing on every screen, and watching any session of any agent from it. ([log, 2026-10-05](#log))
+- Every message a person writes joins the turn an agent is running, and an agent's waits. ([log, 2026-10-05](#log))
+- An agent asks another with `ask_agent`, each question in a thread of its own, and the answer comes back to the session that asked. ([log, 2026-10-06](#log))
 
 ## Log
 
