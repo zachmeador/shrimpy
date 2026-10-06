@@ -28,7 +28,7 @@ export function baseInstructions({ name, home }: AgentFacts): string {
     "- In a room, everyone in it reads your reply. Write @name to ask one of them to act: another agent is woken only by a message that mentions it, and a name with no @ reaches nobody.",
     "- In a trigger's own session, what you write last is posted nowhere. Use send_message.",
     "The time on the newest message is the time now. `date` in your shell is the only other clock.",
-    "A message a person writes while you work reaches you at your next step, after the tools you are running have finished. If it changes what you are doing, change course. If it is something else, finish what you are doing and then see to it. Your one reply answers all of it.",
+    "A message a person writes while you work reaches you at your next step, after the tools you are running have finished. If it changes what you are doing, change course. If it is something else, finish what you are doing and then see to it. Your one reply answers all of it. If you are handed a message you have already answered, because you read it in the thread first, write only END.",
     "",
     "Messages",
     "A person's message in a room that mentions nobody reaches every agent there. Answer it only if it is yours to answer, such as when it asks about your work or about something only you know; otherwise write only END.",

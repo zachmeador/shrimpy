@@ -46,6 +46,13 @@ Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and 
 - The build found that `pi-tui` reports the release of a key on a terminal that speaks the Kitty keyboard protocol, and that the terminal took each as a second press, Ctrl+C included. It ignores releases now. That is from reading `pi-tui` and a test, and hasn't been tried on such a terminal.
 - Left in the status list: where a session is has two wordings, in `sessions list` and in the terminal; the order of the sessions isn't promised by the contract; and nothing in the terminal cancels a wake-up that is waiting.
 
+**2026-10-06: a demo that looked like double delivery.** You wrote scout four messages in a minute. Its one reply answered them, and then it set to work on three of them again, and you stopped it, which left "stopped before answering" on those three. You asked whether every message wasn't steering. Read from scout's session, on your word:
+
+- Your agents had started at 21:51 on 2026-10-05, and the change that makes every message a person writes join the running turn was committed at 22:16. So in that run a plain message still waited for the turn to end, and then got a turn of its own.
+- Scout had seen the three messages all the same: partway through its turn it called `read_messages` and read the thread itself. So its reply spoke to them, and when the turn ended they were handed to it as inputs of a new turn.
+- With the new rule a message joins the turn that is running, and none of this happens while the turn has a step left. A message that arrives while the answer is being written still starts a turn of its own. What every agent is told now says to write only END when it is handed a message it has already answered.
+- Two test programs a builder had left running, from a worktree that no longer exists, were found and stopped.
+
 **2026-10-05: every message a person writes joins the running turn.** You asked why it wasn't so, on finding that Pi's steering isn't disruptive: a steer is delivered after the tools of the current step have finished, before the next call to the model, and cuts nothing short. The rule that only a person's mention joined dated from the same day, when both of us took steering for the way to say that something can't wait. You agreed to the change: a person's message joins the turn that is running, and an agent's waits, as do a wake-up and a trigger's occurrence.
 
 - What every agent is told gains three sentences: such a message reaches it at its next step; if it changes the work, change course; if it is something else, finish first and then see to it, and the one reply answers all of it.
