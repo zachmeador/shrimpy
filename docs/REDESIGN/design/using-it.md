@@ -48,6 +48,15 @@ A name with no flag stays where it says something else. In `run <agent> "<text>"
 
 One addition is the coordinator's, and is yours to strike: in your own terminal, when the Shrimpy folder has exactly one agent, a command with no `--agent` acts on that one. The terminal client already takes you to the only agent in the same way. With two or more it says which agents there are and asks for the flag. A command that such a command prints for you to run next always names the agent.
 
+**Watching any session from the terminal,** which you asked for on 2026-10-05, ahead of the web client. Not built yet. The direction already says that opening the terminal, picking an agent and entering any of its sessions is core UX. Until now the terminal listed only your own threads with an agent, so a session behind a room, behind the agent's DM with another member, or a trigger's own couldn't be reached from it.
+
+- An agent's screen lists its sessions: every one it has, wherever it is. Each says where it is and whether it is working: your DM with it, a room and its thread, its DM with another member, or a trigger's own.
+- Entering one shows the session as the agent sees it, live: what it was shown, its thinking in brief, what it wrote, and each tool call. It is for watching only. There is no input and no stop, as you decided, and Esc goes back.
+- Ctrl+T shows tool calls in full, the whole call and what it printed, and again puts them back in brief. You named the key as the convention among agent clients. It does the same wherever work is shown, your own DM thread included.
+- Ctrl+T was the key from a thread to the thread list. That becomes Esc: Esc goes back, except in your DM thread while the agent is working there, where it stops the work as it does now. This part is the coordinator's, and yours to strike. It also ends the terminal saying there is nothing to stop when you press Esc in a thread where the agent is idle.
+- The agent says where each session is. The terminal can't ask chat, which tells nobody about a channel they aren't in, and you aren't in an agent's DM with another agent. So a session's summary in the agent's contract carries the place as facts: a DM and with whom, a room and its name, the thread's name, or a trigger's name. `shrimpy sessions list` prints the same.
+- Watching takes what `sessions read` takes: you, or an admin. Watching scout's session behind its DM with another agent shows you that DM as scout was shown it.
+
 Inherited terminal commands each need a disposition:
 
 - **Keep the intent:** `/settings /model /thinking /copy /name /session /changelog /hotkeys /login /logout /compact /reload /quit`, plus Shrimpy's `/agents /status /shrimpy`. Help, status and changelog stay presentation-only; default saving, reload and quit follow the decisions above.
