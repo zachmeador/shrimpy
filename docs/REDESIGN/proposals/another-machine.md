@@ -62,6 +62,15 @@ Nothing is opened on the other machine. The agent only connects out.
 4. **A dead connection.** The gateway pings each connection from another machine and lets one go that stays silent for half a minute, so an agent that lost its network can register again. Today a registration lasts as long as its socket, which a dead network connection can outlive.
 5. **Chat.** The chat server stays on the gateway's machine. An agent on another machine reaches it by name through the gateway, as an agent on the gateway's machine does.
 
+## Where Tailscale fits
+
+Shrimpy uses a network that Tailscale provides, may read from it, and never manages it.
+
+- **Uses.** A private, encrypted network between your machines, with addresses and names that stay put, and a policy that says which machine may reach which port. None of that needs a line of Shrimpy's code: the gateway listens on an address and an agent connects to one. So the three steps below work on any private network, and Tailscale is the one to recommend.
+- **May read, later.** A program can ask the Tailscale daemon on its own machine who is at the other end of a connection: which device, and which user or tags own it. That is how the design recognizes a person on another machine with no login of Shrimpy's own, and how the gateway could check that an agent's token comes from the machine it is expected from. Tailscale's policy can also carry permissions for an application, which Shrimpy could read as who is an admin. Each of these is reading, is optional, and comes after the three steps.
+- **Never manages.** Making auth keys, tagging devices, editing the policy and bringing a machine onto the tailnet are Tailscale's own business, done in its console or with its command. Doing them from Shrimpy would mean holding a key to your Tailscale account, redoing what its tools already do, and tying Shrimpy to one network.
+- **Between the two, a skill.** An agent with a shell can run `tailscale status` and `tailscale ip`, and walk you through adding a machine. That is instructions, not a mechanism.
+
 ## Built in three steps
 
 1. **In from another machine.** The entry on an address, the invitation, `agent join`, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, reads chat and answers in a thread.
