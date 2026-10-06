@@ -93,7 +93,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `agent status [--agent <agent>]` | Say whether the agent is running, and how to reach it. |
 | `agent reload [--agent <agent>]` | Make a running agent read its instructions, context files, skills and triggers again. |
 | `agent context [--agent <agent>]` | Preview what an agent would be told, from its home's files as they are now. |
-| `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working. |
+| `sessions list [--agent <agent>]` | List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working. |
 | `sessions read <session> [--json] [--agent <agent>]` | Show a session: what was said, what the tools did, and what it is doing now. |
 | `sessions steer <session> <text> [--request-id <id>] [--wait] [--agent <agent>]` | Give a session input; it joins work already running. |
 | `sessions stop <session> [--agent <agent>]` | Stop the work in a session, and withdraw the input it has not picked up. |

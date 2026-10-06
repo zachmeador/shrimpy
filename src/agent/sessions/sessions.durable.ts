@@ -1,6 +1,6 @@
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, configure, type Harness } from "@earendil-works/pi-durable";
-import type { SessionSummary } from "../../contracts/agent/index.ts";
+import type { SessionPlace, SessionSummary } from "../../contracts/agent/index.ts";
 import { agentChange, type SessionDefaults, type SessionRecord, SessionsDoc } from "../records/durable.ts";
 import { serveSession, type ServedSession } from "./service.durable.ts";
 
@@ -12,7 +12,7 @@ const context = BACKGROUND_CONTEXT;
  * in, and `trigger:` and the trigger's name for a trigger's own session.
  */
 export interface Sessions {
-  /** Every session, in the order they were made, with whether each has work now. */
+  /** Every session, in the order they were made, with where each is, if the agent has learned it, and whether it has work now. */
   list(): Promise<SessionSummary[]>;
   /** Whether the agent has a session with this address. */
   has(address: string): Promise<boolean>;
@@ -36,7 +36,7 @@ export function createSessions(harness: Harness, defaults: SessionDefaults): Ses
           id: address,
           threadId: session.channelId === null ? null : address,
           channelId: session.channelId,
-          place: null,
+          place: placeSeen(session),
           working: working.has(session.conversationId),
         }));
     },
@@ -64,6 +64,20 @@ export function createSessions(harness: Harness, defaults: SessionDefaults): Ses
       }, context);
     },
   };
+}
+
+/**
+ * Where a session is, as clients see it: a trigger's own session by its trigger,
+ * a thread's by the place the agent learned there without who else is in a room,
+ * and nothing for one that has not learned it.
+ */
+function placeSeen(session: SessionRecord): SessionPlace | null {
+  if (session.channelId === null) return { kind: "trigger", trigger: session.trigger };
+  const { place } = session;
+  if (place === undefined) return null;
+  const thread = { main: place.thread.main, name: place.thread.name };
+  if (place.kind === "dm") return { kind: "dm", with: { name: place.with.name, kind: place.with.kind }, thread };
+  return { kind: "room", room: place.room, thread };
 }
 
 /** The sessions with input they are answering or have queued. */

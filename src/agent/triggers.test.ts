@@ -176,6 +176,11 @@ test("a trigger with a thread runs in the session behind that thread and posts w
   await trigger(connection, "report", (found) => ended(found, "answered") >= 1, "the occurrence to make its session and be answered");
   const made = (await connection.sessions()).find((each) => each.id === side.id);
   assert.deepEqual([made?.threadId, made?.channelId], [side.id, rig.thread.channelId]);
+  assert.deepEqual(
+    made?.place,
+    { kind: "dm", with: { name: rig.me.name, kind: "person" }, thread: { main: false, name: "Reports" } },
+    "and it knows where that is, which the first occurrence asked chat",
+  );
   const [first] = (await rig.replies(side.id)).map((reply) => reply.text);
   assert.match(first ?? "", new RegExp(`^Seen: [^\\n]*Thread ${side.id} in channel ${rig.thread.channelId}\\.\\n\\nThis is the trigger report`));
   // A message in that thread goes to the same session, which the agent now has.

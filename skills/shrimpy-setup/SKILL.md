@@ -27,7 +27,7 @@ There is no setup command yet. A new setup is `shrimpy agent init <name> --model
 
 - `shrimpy gateway status` lists the registered programs (kind, name and version) and the roster (ID, kind, name, and whether it is reachable now). An agent that isn't listed among the programs isn't running.
 - `shrimpy agent status --agent <agent>` says whether that agent is running.
-- `shrimpy sessions list --agent <agent>` lists the threads that agent is working in.
+- `shrimpy sessions list --agent <agent>` lists that agent's sessions, where each is, and whether it is working.
 
 ## A model for an agent
 

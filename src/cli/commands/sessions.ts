@@ -5,6 +5,7 @@ import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { withConnection } from "./connected.ts";
 import { renderSession } from "./render.ts";
+import { renderSessions } from "./render-sessions.ts";
 import { ABOUT_ANOTHER_AGENT, AGENT_OPTION, agentToActOn, type Target, WHICH_AGENT } from "./which-agent.ts";
 
 /** The exit code of `steer --wait` for work that someone cancelled, as a shell reports an interrupted command. */
@@ -19,7 +20,7 @@ const list: Command = {
   name: "sessions list",
   usage: "[--agent <agent>]",
   summary:
-    "List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), the channel it is behind, if any, and whether it is working.",
+    "List the sessions of a running agent: each one's name (a thread's ID, or trigger: and a trigger's name), where it is (a DM with someone, a room, or a trigger's own), and whether it is working.",
   details: `${WHICH_AGENT} ${ABOUT_ANOTHER_AGENT}`,
   async run(args, io) {
     const { values, positionals } = parsing(() => parseArgs({ args, options: AGENT_OPTION, allowPositionals: true }));
@@ -27,9 +28,7 @@ const list: Command = {
     return withConnection(agentToActOn(values.agent), async (connection) => {
       const sessions = await connection.sessions();
       if (sessions.length === 0) io.out("The agent has no sessions yet.");
-      for (const session of sessions) {
-        io.out(`${session.id} ${session.channelId ?? "-"} ${session.working ? "working" : "idle"}`);
-      }
+      else for (const line of renderSessions(sessions)) io.out(line);
       return 0;
     });
   },

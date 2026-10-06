@@ -223,6 +223,37 @@ test("what the model reads of a message in a room says who it was for, and in a 
   assert.ok(three.trimEnd().endsWith(`${person.me.name} wrote at ${localTime(direct.sentAt)}:\nA word in private.`), `a DM's message is shown as it always was:\n${three}`);
 });
 
+test("an input tells the model where it is: its DM with a person, a thread of that DM, or a room and who else is in it, and the list of sessions says the same places", { timeout }, async (t) => {
+  const model = talking(() => ({ final: "Seen." }));
+  const scout = await startAgentRig(t, { script: model.script });
+  const bob = await scout.chat.agent("bob");
+  const { person, main } = await roomWith(scout.chat, "Ops", [scout.partner, bob.me]);
+  const connection = await scout.connect();
+
+  await scout.receiptOn(await scout.say("Hello in private."), PATIENT);
+  // The thread is made after the agent first asked chat about this DM, so it is a thread the agent has to ask again for.
+  const side = await scout.newThread("Budget");
+  await scout.receiptOn(await scout.say("A side matter.", side.id), PATIENT);
+  await scout.receiptOn(await person.chat.post(main.id, "@scout, hello in the room.", "person-1"), PATIENT);
+
+  // What opens each input is its first paragraph, before the message.
+  const [dm = "", aside = "", room = ""] = model.shown.map((shown) => shown.split("\n\n")[0] ?? "");
+  const isDm = (opening: string): boolean => /\bDM\b/.test(opening);
+  assert.ok(isDm(dm) && dm.includes(person.me.name) && dm.includes(`Thread ${scout.thread.id}`), dm);
+  assert.ok(isDm(aside) && aside.includes("Budget") && aside.includes(`Thread ${side.id}`), aside);
+  assert.ok(room.includes("Ops") && room.includes(person.me.name) && /bob[^.]*agent/.test(room) && room.includes(`Thread ${main.id}`), room);
+  assert.ok(!isDm(room) && !dm.includes("Ops"), "a room is not a DM");
+
+  const where = (await connection.sessions()).map((session) => [session.threadId, session.place]);
+  const withPerson = { name: person.me.name, kind: "person" };
+  assert.deepEqual(where, [
+    [scout.thread.id, { kind: "dm", with: withPerson, thread: { main: true, name: null } }],
+    [side.id, { kind: "dm", with: withPerson, thread: { main: false, name: "Budget" } }],
+    [main.id, { kind: "room", room: "Ops", thread: { main: true, name: null } }],
+  ]);
+  assert.deepEqual(scout.reports, []);
+});
+
 test("a person's post that mentions nobody wakes every agent in the room, any other post only who it mentions, until the home's wake file says otherwise, which a reload reads", { timeout }, async (t) => {
   const model = talking(() => ({ final: "Seen." }));
   const scout = await startAgentRig(t, { script: model.script });
