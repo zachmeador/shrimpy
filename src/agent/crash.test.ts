@@ -128,7 +128,7 @@ test("killed between the turn ending and the reply being posted: the reply arriv
   assert.equal((await talk.receiptOn(asked)).status, "answered");
   const replies = await talk.replies();
   assert.equal(replies.length, 1);
-  assert.match(replies[0]?.text ?? "", /^You said: Thread th_\w+ in channel ch_\w+\.\n\n/);
+  assert.match(replies[0]?.text ?? "", /^You said: [^\n]*Thread th_\w+ in channel ch_\w+\.\n\n/);
   assert.ok(replies[0]?.text.includes(`${talk.me.name} wrote at `));
   assert.equal(loggedRequests(home).length, 1, "the model was not asked again");
 });

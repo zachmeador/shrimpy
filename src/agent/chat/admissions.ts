@@ -32,7 +32,9 @@ export interface Admissions {
    * wake-ups cancelled since the model last heard of them and the breadcrumbs
    * that are new to the session. An event in a room,
    * one with a `backlog`, also moves where the agent has looked in its thread to
-   * the event. An event is taken up once, because the cursor moves with it.
+   * the event. An event that comes with its `place` has the session's record say
+   * where its thread is, written again when it differs from what the record had.
+   * An event is taken up once, because the cursor moves with it.
    */
   admit(draft: Omit<ChatInput, "earlier" | "cancelled" | "breadcrumbs">, position?: number): Promise<void>;
   /**

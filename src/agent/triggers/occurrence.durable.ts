@@ -2,8 +2,16 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { Check, Occurrence as OccurrenceView } from "../../contracts/agent/index.ts";
 import { newId } from "../../lib/ids/index.ts";
 import { describeSchedule, type TriggerDefinition } from "../home/index.ts";
-import { type Breadcrumb, isOccurrence, type Occurrence, type OccurrenceInput, type Outstanding } from "../inputs/index.ts";
 import {
+  type Breadcrumb,
+  isOccurrence,
+  type Occurrence,
+  type OccurrenceInput,
+  type Outstanding,
+  type Place,
+} from "../inputs/index.ts";
+import {
+  learnPlace,
   openSession,
   plain,
   type SessionDefaults,
@@ -16,8 +24,8 @@ import {
 import { liveTurns, takeUp, type TurnTask } from "../turns/durable.ts";
 import { interruptedWhile, notedIn } from "./check.durable.ts";
 
-/** What was found out about the thread of a trigger that has no session behind it yet. */
-export type Where = { thread: string } & ({ channelId: string } | { problem: string });
+/** What was found out about the thread of a trigger that has no session behind it yet: its channel and where it is, or why there is none. */
+export type Where = { thread: string } & ({ channelId: string; place?: Place } | { problem: string });
 
 /**
  * What an occurrence needs to be made: when it was due and when it fired,
@@ -84,12 +92,13 @@ export function recordUnrun(tx: Tx, turn: TurnTask, definition: TriggerDefinitio
  * Make an occurrence of a trigger, in the commit `tx` belongs to, and take it
  * up. It goes to the session behind the trigger's thread, or to the trigger's
  * own session, which this makes the first time. A thread with no session behind
- * it gets one made, in the channel `where` says it is in, which whoever calls
- * this found out from chat before the commit, and `breadcrumbs`, which are the
- * home's files, read before it too. If the trigger does not allow overlap and the
- * last occurrence is still going, or there is no channel to make the thread's
- * session in, the occurrence is made all the same, as one that no turn runs, so
- * that it is on record with its outcome and the reason.
+ * it gets one made, in the channel `where` says it is in and with the place it
+ * says the thread is, which whoever calls this found out from chat before the
+ * commit, and `breadcrumbs`, which are the home's files, read before it too. If
+ * the trigger does not allow overlap and the last occurrence is still going, or
+ * there is no channel to make the thread's session in, the occurrence is made
+ * all the same, as one that no turn runs, so that it is on record with its
+ * outcome and the reason.
  */
 export async function fire(
   tx: Tx,
@@ -122,6 +131,7 @@ export async function fire(
   const channelId = session === undefined ? (found !== undefined && "channelId" in found ? found.channelId : null) : session.channelId;
   const thread = definition.thread !== null && channelId !== null ? { threadId: definition.thread, channelId } : undefined;
   const opened = await openSession(tx, parts.defaults, thread ?? { trigger: definition.name });
+  if (found !== undefined && "place" in found && found.place !== undefined) learnPlace(opened, found.place);
   const input = thread === undefined ? { occurrence } : { occurrence, ...thread };
   await takeUp(tx, parts.turn, opened.conversationId as ConversationId, input, parts.breadcrumbs);
   return { id: occurrence.id, due: occurrence.due, firedAt: occurrence.firedAt, byHand: occurrence.byHand, ended: null, reason: null };

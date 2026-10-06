@@ -2,6 +2,7 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { Breadcrumb, Outstanding } from "../inputs/index.ts";
 import {
   carrying,
+  keptPlace,
   plain,
   sessionAddress,
   SessionsDoc,
@@ -22,8 +23,10 @@ type Fresh = Outstanding extends infer Each ? (Each extends unknown ? Omit<Each,
  * cancelled, and a chat event the events nobody acted on. It also carries the
  * `breadcrumbs` that differ from what the session was last shown, and the
  * session's record says it was shown them. They were read before the commit,
- * since a commit reads no files. The session is the one the input names, which is
- * also where a skipped input is put back. An occurrence that no session runs
+ * since a commit reads no files. An input in a thread also carries where the
+ * session says the thread is, if it has learned that, so that what the model was
+ * shown can be read back as it was. The session is the one the input names, which
+ * is also where a skipped input is put back. An occurrence that no session runs
  * names none, and is taken up in the conversation that owns it, taking nothing.
  * The task is a background task, so a stop of the session's work leaves it to
  * report how that ended.
@@ -40,9 +43,14 @@ export async function takeUp(
   const session = address !== undefined && Object.hasOwn(sessions, address) ? sessions[address] : undefined;
   const cancelled = session === undefined ? [] : takeCancelled(session);
   const crumbs = session === undefined ? undefined : takeBreadcrumbs(session, breadcrumbs);
+  const carried = carrying(cancelled, crumbs);
+  const place = session === undefined ? undefined : keptPlace(session);
+  const there = place === undefined ? {} : { place };
   const taken: Outstanding =
     "event" in input
-      ? { ...plain(input), earlier: session === undefined ? [] : takeEvents(session), ...carrying(cancelled, crumbs) }
-      : { ...input, ...carrying(cancelled, crumbs) };
+      ? { ...plain(input), earlier: session === undefined ? [] : takeEvents(session), ...carried, ...there }
+      : input.threadId === undefined
+        ? { ...input, ...carried }
+        : { ...input, ...carried, ...there };
   await tx.createTask(turn, taken, { ownership: { kind: "conversation" }, conversationId, background: true });
 }

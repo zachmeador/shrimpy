@@ -163,7 +163,7 @@ test("a trigger with a thread runs in the session behind that thread and posts w
   // Its final text is a reply in the thread, like any other, and there is no receipt for it.
   const replies = (await rig.replies()).map((reply) => reply.text);
   assert.ok(replies.length >= 2);
-  assert.match(replies[1] ?? "", new RegExp(`^Seen: Thread ${rig.thread.id} in channel ch_\\w+\\.\\n\\nThis is the trigger tidy`));
+  assert.match(replies[1] ?? "", new RegExp(`^Seen: [^\\n]*Thread ${rig.thread.id} in channel ch_\\w+\\.\\n\\nThis is the trigger tidy`));
   assert.equal((await rig.said()).flatMap((message) => message.receipts).length, 1, "only the receipt on the message that was said");
   // The session behind the thread is the one that took the message: one history.
   const { session } = await rig.attach();
@@ -177,7 +177,7 @@ test("a trigger with a thread runs in the session behind that thread and posts w
   const made = (await connection.sessions()).find((each) => each.id === side.id);
   assert.deepEqual([made?.threadId, made?.channelId], [side.id, rig.thread.channelId]);
   const [first] = (await rig.replies(side.id)).map((reply) => reply.text);
-  assert.match(first ?? "", new RegExp(`^Seen: Thread ${side.id} in channel ${rig.thread.channelId}\\.\\n\\nThis is the trigger report`));
+  assert.match(first ?? "", new RegExp(`^Seen: [^\\n]*Thread ${side.id} in channel ${rig.thread.channelId}\\.\\n\\nThis is the trigger report`));
   // A message in that thread goes to the same session, which the agent now has.
   const asked = await rig.say("and what else?", side.id);
   assert.equal((await rig.receiptOn(asked)).status, "answered");

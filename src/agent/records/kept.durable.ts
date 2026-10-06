@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import {
   type Breadcrumb,
   type Breadcrumbs,
   isChat,
   isWakeup,
   type Outstanding,
+  type Place,
   type Snapshot,
   type Wakeup,
 } from "../inputs/index.ts";
@@ -16,7 +18,8 @@ import { plain, type SessionRecord } from "./documents.durable.ts";
  * cancelled. It is taken out of the record in the commit that admits the input
  * it goes with, so it is told once, and put back if that input is skipped. The
  * breadcrumbs are kept the other way round: the record says which were shown,
- * and the files that differ from that go with the next input.
+ * and the files that differ from that go with the next input. A thread's session
+ * also keeps where the thread is, which every input of the session carries.
  */
 
 /** How many breadcrumbs an input carries at the most: when more differ, the rest wait for later inputs. */
@@ -73,6 +76,22 @@ export function carrying(cancelled: Wakeup[], breadcrumbs?: Breadcrumbs): { canc
     ...(cancelled.length === 0 ? {} : { cancelled }),
     ...(breadcrumbs === undefined ? {} : { breadcrumbs }),
   };
+}
+
+/** Where the session's thread is, as a copy, or nothing for a session that has not learned it or is behind no thread. */
+export function keptPlace(session: SessionRecord): Place | undefined {
+  return session.channelId === null || session.place === undefined ? undefined : plain(session.place);
+}
+
+/**
+ * Keep where a session's thread is, as chat says it now. The record is written
+ * only when that differs from what it has, as after a rename or when a member
+ * joins a room. A trigger's own session is behind no thread and has none.
+ */
+export function learnPlace(session: SessionRecord, place: Place): void {
+  if (session.channelId === null) return;
+  if (session.place !== undefined && isDeepStrictEqual(plain(session.place), place)) return;
+  session.place = plain(place);
 }
 
 /** Keep wake-ups as cancelled, each once, in the order they were for. */

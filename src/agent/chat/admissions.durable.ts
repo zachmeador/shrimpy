@@ -2,7 +2,7 @@ import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Conversation, ConversationId, Harness } from "@earendil-works/pi-durable";
 import type { Breadcrumb } from "../inputs/index.ts";
-import { FeedDoc, openSession, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
+import { FeedDoc, learnPlace, openSession, type SessionDefaults, SessionsDoc } from "../records/durable.ts";
 import { takeUp, type TurnTask } from "../turns/durable.ts";
 import type { Admissions } from "./admissions.ts";
 
@@ -78,6 +78,7 @@ export function createAdmissions(
       await harness.commit(async (tx) => {
         moveCursor(await tx.doc(FeedDoc), position);
         const session = await openSession(tx, defaults, { threadId: draft.threadId, channelId: draft.channelId });
+        if (draft.place !== undefined) learnPlace(session, draft.place);
         // An event in a room is the newest thing the agent has looked at in its thread.
         if (draft.backlog !== undefined && session.channelId !== null) {
           session.looked = Math.max(session.looked ?? 0, draft.event.seq);

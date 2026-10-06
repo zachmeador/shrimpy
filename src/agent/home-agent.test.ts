@@ -124,7 +124,7 @@ test("an agent starts from a home alone, registers with the gateway, finds chat 
   assert.equal(system?.role, "system");
   assert.match(
     String(user?.content),
-    new RegExp(`^Thread th_\\w+ in channel ch_\\w+\\.\\n\\n${escaped(person.me.name)} wrote at \\S+:\\nhi$`),
+    new RegExp(`^[^\\n]*Thread th_\\w+ in channel ch_\\w+\\.\\n\\n${escaped(person.me.name)} wrote at \\S+:\\nhi$`),
     "the facts about a message travel with it",
   );
   const { connection, session } = await attachThread(paths.root, person.thread.id);

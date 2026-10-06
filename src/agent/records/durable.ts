@@ -23,7 +23,16 @@ export {
   triggerSession,
   TriggersDoc,
 } from "./documents.durable.ts";
-export { carrying, keepCancelled, keepSkipped, takeBreadcrumbs, takeCancelled, takeEvents } from "./kept.durable.ts";
+export {
+  carrying,
+  keepCancelled,
+  keepSkipped,
+  keptPlace,
+  learnPlace,
+  takeBreadcrumbs,
+  takeCancelled,
+  takeEvents,
+} from "./kept.durable.ts";
 export { openSession } from "./open-session.durable.ts";
 export { openRecords } from "./records.durable.ts";
 export { placeOfSession, type SessionPlace, type SessionThread, threadOfSession } from "./thread-of.durable.ts";

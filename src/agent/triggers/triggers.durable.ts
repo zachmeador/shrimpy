@@ -4,7 +4,7 @@ import type { Occurrence as OccurrenceView, TriggerDetail, TriggerSummary } from
 import { newId } from "../../lib/ids/index.ts";
 import { refuse } from "../../lib/refusal/index.ts";
 import type { LeftOut, TriggerFiles } from "../home/index.ts";
-import type { Breadcrumb } from "../inputs/index.ts";
+import type { Breadcrumb, Place } from "../inputs/index.ts";
 import {
   plain,
   type SessionDefaults,
@@ -29,11 +29,12 @@ export interface TriggersOptions {
   read(): Promise<TriggerFiles>;
   /**
    * Where the thread a trigger names is, for an occurrence that finds the agent
-   * with no session behind it: the thread's channel, which only chat knows, or
-   * why there is none to be had. It asks chat, so it is asked before the commit
-   * that makes the occurrence and never inside it. Aborting `signal` gives up.
+   * with no session behind it: the thread's channel, which only chat knows, and
+   * where the thread is in words, or why there is no channel to be had. It asks
+   * chat, so it is asked before the commit that makes the occurrence and never
+   * inside it. Aborting `signal` gives up.
    */
-  channelOf(threadId: string, signal: AbortSignal): Promise<{ channelId: string } | { problem: string }>;
+  channelOf(threadId: string, signal: AbortSignal): Promise<{ channelId: string; place?: Place } | { problem: string }>;
   /** The home's breadcrumbs, read before the commit that makes an occurrence, which reads no files. */
   breadcrumbs(): Promise<readonly Breadcrumb[]>;
   /** Write the breadcrumb `<name>.md` in the home, in place of the one there is. */

@@ -1,7 +1,7 @@
 import { defineDoc } from "@earendil-works/pi-durable";
 import { newId } from "../../lib/ids/index.ts";
 import type { TriggerDefinition } from "../home/index.ts";
-import { isOccurrence, isWakeup, type Outstanding, type Snapshot, threadOf, type Wakeup } from "../inputs/index.ts";
+import { isOccurrence, isWakeup, type Outstanding, type Place, type Snapshot, threadOf, type Wakeup } from "../inputs/index.ts";
 
 /**
  * Shrimpy's own documents, kept in the engine's storage and written in the same
@@ -44,8 +44,9 @@ export const RecordsDoc = defineDoc<{ id: string; running?: boolean; crashes?: R
  * for that were cancelled. Both go with the session's next input. A session in a
  * room also keeps where the agent last looked in the thread. A session also keeps
  * what it was shown of the home's breadcrumbs, to tell which are new to it. A
- * session is behind a thread, and has that thread's channel, or is a trigger's
- * own and behind none, and has no channel; `trigger` names that trigger.
+ * session is behind a thread, and has that thread's channel and, once it has
+ * learned it, where the thread is, or is a trigger's own and behind none, and
+ * has no channel and no place; `trigger` names that trigger.
  */
 export type SessionRecord =
   | {
@@ -74,6 +75,12 @@ export type SessionRecord =
        * has none, which says it was shown nothing.
        */
       shown?: Record<string, string>;
+      /**
+       * Where the thread is, as chat said when the agent last took something up
+       * there, and written again when what chat says has changed. A session that
+       * has not learned it, or was written before the agent kept it, has none.
+       */
+      place?: Place;
     }
   | {
       conversationId: number;

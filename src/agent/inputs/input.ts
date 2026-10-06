@@ -99,6 +99,23 @@ export type Wakeup = {
   note: string;
 };
 
+/** Someone in a channel, as the model is told of them: a name, and whether they are a person or an agent. */
+export type Named = { name: string; kind: "person" | "agent" };
+
+/** Which thread of a channel: its main one, and its name if it has one. */
+type Which = { main: boolean; name: string | null };
+
+/**
+ * Where a thread is, as chat said when the agent last took something up there,
+ * and as an input tells the model: the agent's DM with one other member, or a
+ * room and who else is in it. A room names at most a dozen of the others, and
+ * `more` counts the rest. Names are as they were then, since a member or a room
+ * can be renamed after.
+ */
+export type Place =
+  | { kind: "dm"; with: Named; thread: Which }
+  | { kind: "room"; room: string; others: Named[]; more?: number; thread: Which };
+
 /** A message of a thread, as the model reads one that arrives. */
 export type Said = Extract<Snapshot, { kind: "posted" }>;
 
@@ -157,6 +174,11 @@ export type ChatInput = {
   /** The breadcrumbs that are new to the session, shown before anything else of the input. Absent when there are none. */
   breadcrumbs?: Breadcrumbs;
   /**
+   * Where the thread is, which opens what the model is shown. Absent when the
+   * agent has not learned it, and so for an input stored before it kept it.
+   */
+  place?: Place;
+  /**
    * Set when the message can't wait for the turn that is running: a person
    * wrote it and it mentions the agent, which is how a person says so. The turn
    * reads it at its next step, and its reply answers the message too. A turn
@@ -167,10 +189,10 @@ export type ChatInput = {
   urgent?: true;
 };
 
-/** The thread a session is behind, for an input that goes to one. */
-type InThread = { threadId: string; channelId: string; trigger?: undefined };
+/** The thread a session is behind, for an input that goes to one, and where it is when the session knows. */
+type InThread = { threadId: string; channelId: string; place?: Place; trigger?: undefined };
 /** What an input of a session behind no thread has in place of a thread. */
-type NoThread = { threadId?: undefined; channelId?: undefined };
+type NoThread = { threadId?: undefined; channelId?: undefined; place?: undefined };
 
 /**
  * A wake-up the agent asked for that has come due, taken up as the input of the

@@ -9,6 +9,7 @@ import {
   isWakeup,
   type Occurrence,
   type Outstanding,
+  type Place,
   type Snapshot,
   threadOf,
   type Wakeup,
@@ -17,31 +18,55 @@ import {
 /**
  * What the model is shown for an input, and the one place that decides: first the
  * breadcrumbs that are new to its session, if any, as data and not instructions,
- * then the thread and channel it is in, if it is in one, then which of the
- * wake-ups it asked for were cancelled since it last heard of them, if any, then
- * the input itself. A chat event is shown under a line that says what happened
- * and when, after any earlier events of the thread the agent has not acted on,
- * each the same way and oldest first. In a room, what was said in the thread
- * since the agent last looked comes between those and the event, each message as
- * one that arrives is shown, and a message says who it was for. A wake-up says
- * that the agent asked for it, when, for when, and what it wrote itself. An
- * occurrence of a trigger says which trigger it is, when it fired and what its
- * schedule is, and then gives the trigger's prompt as it is, and after it, apart,
- * what the trigger's check printed, which is data and not instructions. These
- * facts travel with the input and are never part of the prompt sections, which
- * stay the same on every request. The final format belongs to the work on what
- * the model receives.
+ * then where it is, if it is in a thread: in words when its session knows, as a
+ * DM with someone or a room and who else is in it, and always the IDs of the
+ * thread and its channel. Then come which of the wake-ups it asked for were
+ * cancelled since it last heard of them, if any, and the input itself. A chat
+ * event is shown under a line that says what happened and when, after any earlier
+ * events of the thread the agent has not acted on, each the same way and oldest
+ * first. In a room, what was said in the thread since the agent last looked comes
+ * between those and the event, each message as one that arrives is shown, and a
+ * message says who it was for. A wake-up says that the agent asked for it, when,
+ * for when, and what it wrote itself. An occurrence of a trigger says which
+ * trigger it is, when it fired and what its schedule is, and then gives the
+ * trigger's prompt as it is, and after it, apart, what the trigger's check
+ * printed, which is data and not instructions. These facts travel with the input
+ * and are never part of the prompt sections, which stay the same on every
+ * request. The final format belongs to the work on what the model receives.
  */
 export function promptFor(outstanding: Outstanding): string {
   const thread = threadOf(outstanding);
   const cancelled = outstanding.cancelled ?? [];
   return [
     ...(outstanding.breadcrumbs === undefined ? [] : [shown(outstanding.breadcrumbs)]),
-    ...(thread === undefined ? [] : [`Thread ${thread.threadId} in channel ${thread.channelId}.`]),
+    ...(thread === undefined ? [] : [whereIs(thread, outstanding.place)]),
     ...(cancelled.length === 0 ? [] : [cancellations(cancelled)]),
     bodyOf(outstanding),
   ].join("\n\n");
 }
+
+/** Where an input is: its place in words, when its session knows it, and the IDs `shrimpy read` takes. */
+function whereIs({ threadId, channelId }: { threadId: string; channelId: string }, place: Place | undefined): string {
+  const ids = `Thread ${threadId} in channel ${channelId}.`;
+  return place === undefined ? ids : `${inWords(place)} ${ids}`;
+}
+
+/**
+ * A place as the model reads it: the agent's DM with a person or an agent, by
+ * name, or a room, by name, and who else is in it, each with whether they are a
+ * person or an agent. A thread that is not its channel's main one says so.
+ */
+function inWords(place: Place): string {
+  const { main, name } = place.thread;
+  const side = main ? "" : name === null ? "a side thread of " : `the thread "${name}" of `;
+  if (place.kind === "dm") return `You are in ${side}your DM with ${place.with.name}, ${aKind(place.with.kind)}.`;
+  const others = place.others.map((other) => `${other.name} (${aKind(other.kind)})`);
+  if (place.more !== undefined) others.push(`${String(place.more)} more`);
+  const who = others.length === 0 ? "Nobody else is in it." : `Also in it: ${list(others)}.`;
+  return `You are in ${side}the room #${place.room}. ${who}`;
+}
+
+const aKind = (kind: "person" | "agent"): string => (kind === "person" ? "a person" : "an agent");
 
 function bodyOf(outstanding: Outstanding): string {
   if (isWakeup(outstanding)) return woken(outstanding.wakeup);

@@ -1,10 +1,12 @@
-import type { ChatClient } from "../../contracts/chat/index.ts";
+import type { Channel, ChatClient, Thread } from "../../contracts/chat/index.ts";
 import { isDisconnected } from "../../lib/connection/index.ts";
+import type { Place } from "../inputs/index.ts";
 import type { LiveChat } from "../links/index.ts";
+import { describePlace } from "./place.ts";
 
 /** Where a thread is, among the channels whoever asks is in. */
 export type ThreadPlace =
-  | { kind: "found"; channelId: string }
+  | { kind: "found"; channelId: string; channel: Channel; thread: Thread }
   /** None of those channels has it: there is no such thread, or the asker is not in its channel. Chat does not tell the two apart. */
   | { kind: "missing" }
   /** The connection to chat dropped while asking. */
@@ -20,7 +22,7 @@ export async function placeOfThread(chat: ChatClient, threadId: string, signal?:
   try {
     for (const channel of await chat.channels(signal)) {
       const found = (await chat.threads(channel.id, signal)).find((thread) => thread.id === threadId);
-      if (found !== undefined) return { kind: "found", channelId: found.channelId };
+      if (found !== undefined) return { kind: "found", channelId: found.channelId, channel, thread: found };
     }
     return { kind: "missing" };
   } catch (error) {
@@ -33,23 +35,26 @@ export async function placeOfThread(chat: ChatClient, threadId: string, signal?:
 const LONGEST_WAIT_MS = 15_000;
 
 /**
- * The channel of a thread for an occurrence of a trigger, asked of the chat
- * link the agent has now, or the reason there is none in words for whoever reads
- * the occurrence's record: chat is away, or the agent is not in the thread's
- * channel. Chat being away is no failure of its own to report, and aborting
- * `signal` gives up.
+ * The channel of a thread for an occurrence of a trigger, and where the thread is,
+ * asked of the chat link the agent has now, or the reason there is none in words
+ * for whoever reads the occurrence's record: chat is away, or the agent is not in
+ * the thread's channel. Chat being away is no failure of its own to report, and
+ * aborting `signal` gives up.
  */
 export async function channelOfThread(
   link: () => LiveChat | undefined,
   threadId: string,
   signal: AbortSignal,
-): Promise<{ channelId: string } | { problem: string }> {
+): Promise<{ channelId: string; place?: Place } | { problem: string }> {
   const live = link();
   if (live === undefined) return { problem: chatAway(threadId) };
   const patience = AbortSignal.timeout(LONGEST_WAIT_MS);
   try {
     const place = await placeOfThread(live.chat, threadId, AbortSignal.any([signal, live.lost, patience]));
-    if (place.kind === "found") return { channelId: place.channelId };
+    if (place.kind === "found") {
+      const where = describePlace(live.self, place.channel, place.thread);
+      return { channelId: place.channelId, ...(where === undefined ? {} : { place: where }) };
+    }
     return { problem: place.kind === "missing" ? notInAChannel(threadId) : chatAway(threadId) };
   } catch (error) {
     if (signal.aborted) throw error;
