@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import type { Announcement } from "../../../contracts/gateway/index.ts";
-import { keepRegistered, newToken } from "../../../contracts/gateway/node.ts";
+import { entryTransports, joinAsMachine, keepRegistered, newToken, readMachine } from "../../../contracts/gateway/node.ts";
 import { startTestGateway } from "../../../contracts/gateway/testing/index.ts";
-import { eventually, stopAfter, until, useRuntimeDir, within } from "../../../lib/testing/index.ts";
+import { eventually, stopAfter, tempDir, until, useRuntimeDir, within } from "../../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../../lib/version/index.ts";
 import { quick, startRegistry } from "./testing/index.ts";
 
@@ -93,6 +94,40 @@ test("when the gateway goes away the last listing stays, and the registry comes 
   await until(() => registry.status().state === "up", "the gateway to be reached again");
   // Scout signs in and registers again on its own when the gateway is back.
   await eventually(() => registry.listing(), (listing) => listing?.programs.length === 1, { what: "scout to be listed again" });
+});
+
+test("a registry told how to sign in does so on every connection it makes, so over the gateway's entry it is the person, and it is again once the gateway is back", { timeout }, async (t) => {
+  useRuntimeDir(t);
+  const gateway = await startTestGateway(t, { listen: [{ host: "127.0.0.1", port: 0 }] });
+  const [address] = gateway.listening;
+  assert.ok(address);
+  const person = await gateway.connect();
+  const folder = join(tempDir(t, "machine"), "shrimpy");
+  await joinAsMachine(folder, { name: null, address, code: (await person.inviteMachine()).code });
+  const token = readMachine(folder)?.token;
+  assert.ok(token !== undefined);
+
+  // A connection over the entry that signed in as nobody is turned away, so a registry that lists has signed in.
+  const nobody = startRegistry(t, { transports: entryTransports(address) });
+  await until(() => {
+    const status = nobody.status();
+    return status.state === "down" && status.why.kind === "unreachable";
+  }, "the gateway to turn it away");
+  assert.equal(nobody.listing(), undefined);
+  await nobody.close();
+  const registry = startRegistry(t, {
+    transports: entryTransports(address),
+    signIn: async (connection) => {
+      await connection.signIn(token, null);
+    },
+  });
+  const listed = await eventually(() => registry.listing(), (listing) => listing !== undefined, { what: "the gateway to be listed" });
+  assert.deepEqual(listed?.members.map((member) => member.kind), ["person"]);
+
+  await gateway.outage();
+  await until(() => registry.status().state === "down", "the loss to be noticed");
+  await gateway.recover();
+  await until(() => registry.status().state === "up", "the gateway to be reached again, and signed in to again");
 });
 
 test("a ticket for the chat server comes from the gateway, for the person who runs it, and the registry says why it cannot when it is away", { timeout }, async (t) => {

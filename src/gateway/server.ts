@@ -23,8 +23,9 @@ export interface GatewayServer {
   readonly listingSocket: string;
   /**
    * The socket the network entry pipes `/ws/gateway` to. A connection here is
-   * apart from the gateway: it is never the person who runs it, and it can do
-   * nothing until it has signed in or joined.
+   * apart from the gateway: it is nobody, and it can do nothing, until it has
+   * signed in or joined. It is the person only by showing the token of a machine
+   * of theirs, never for being on the gateway's machine.
    */
   readonly apartSocket: string;
   close(): Promise<void>;

@@ -30,7 +30,7 @@ function homeOf(t: TestContext, name: string): string {
   return home;
 }
 
-test("a home whose agent is called something else than the link says is refused, and so is text that is not a link, before the home is touched", async (t) => {
+test("a home whose agent is called something else than the link says is refused, and so is text that is not a link or a link that names no agent, before the home is touched", async (t) => {
   const home = homeOf(t, "crab");
   const address = await closedAddress();
   const { paths } = loadHome(home);
@@ -41,7 +41,8 @@ test("a home whose agent is called something else than the link says is refused,
     return true;
   });
   await assert.rejects(joinHome(home, "not a link"), /is not an invitation link/);
-  assert.equal(existsSync(paths.member), false, "no token was made for either");
+  await assert.rejects(joinHome(home, writeLink({ name: null, address, code: "K7Q2-9FXD" })), /names no agent/);
+  assert.equal(existsSync(paths.member), false, "no token was made for any of them");
 });
 
 test("a home that is a member somewhere already is refused, with the file to delete to join anew, and nothing in it changes", async (t) => {

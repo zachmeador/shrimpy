@@ -6,7 +6,7 @@ import { keptListenAddresses } from "../../gateway/index.ts";
 import { allHomes, dataFolder, folderPath, homeNamed, nothingToStart } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd, type Program, ProgramEndedError, startProgram } from "../programs/index.ts";
-import { askGateway } from "../talk/index.ts";
+import { askLocalGateway } from "../talk/index.ts";
 import { parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
@@ -168,7 +168,7 @@ async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch
 
 /** Start the gateway and the chat server, whichever is not already running, in that order. */
 async function startGatewayAndChat(io: Io, here: NonNullable<Plan["here"]>, crew: Started[], stop: StopWatch): Promise<void> {
-  const found = await askGateway(stop.signal);
+  const found = await askLocalGateway(stop.signal);
   if (found === undefined) {
     const data = join(here.data, "gateway");
     const listen = (here.listen ?? []).flatMap((address) => ["--listen", formatAddress(address)]);

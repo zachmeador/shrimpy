@@ -25,6 +25,14 @@ export interface Listing {
 
 export interface RegistryOptions {
   transports: Transports;
+  /**
+   * Run on each connection to the gateway, the first and every one made after
+   * the gateway was lost, before anything is asked of it, so that the console is
+   * somebody to a gateway that takes a connection for nobody until it has signed
+   * in. A failure, a refusal included, ends the attempt, is shown as the gateway
+   * not being reachable, and is tried again after a pause.
+   */
+  signIn?: (gateway: GatewayConnection) => Promise<void>;
   /** How often the gateway is asked what is running. It has nothing to tell the console when that changes. */
   pollMs: number;
   /** The pauses between attempts to reach the gateway. Tests shorten them. */
@@ -46,9 +54,9 @@ export interface RegistryLink {
   untilListed(match: (program: Registration) => boolean, signal: AbortSignal, waiting?: () => void): Promise<Registration>;
   /**
    * A ticket from the gateway for `target`, to hand to it, with the server ID it
-   * answers as. The console never signs in, so the gateway says the ticket is
-   * for the person who runs it. Fails with `Down`, saying why, when the gateway
-   * is not being reached.
+   * answers as. It is for whoever the console signed in as, and for the person
+   * who runs the gateway when it signs in as nobody. Fails with `Down`, saying
+   * why, when the gateway is not being reached.
    */
   ticket(target: ProgramName): Promise<Ticket>;
   /** Hang up and stop asking. */
@@ -96,6 +104,7 @@ export function keepRegistry(options: RegistryOptions): RegistryLink {
       const hangUp = (): void => void gateway.close().catch(() => undefined);
       signal.addEventListener("abort", hangUp, { once: true });
       try {
+        await options.signIn?.(gateway);
         const version = await gateway.version();
         established();
         setStatus({ state: "up" });

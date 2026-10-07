@@ -62,6 +62,23 @@ export async function connectApart(
 }
 
 /**
+ * A machine of the person's own that joined from apart with an invitation the
+ * person asked for on the gateway's own socket, and the connection it joined
+ * on, which is signed in as the person. The token is what makes any other
+ * connection the person.
+ */
+export async function invitedMachine(
+  t: TestContext,
+  gateway: { readonly listening: Address[] },
+  person: GatewayConnection,
+): Promise<{ connection: GatewayConnection; member: Member; token: string; code: string }> {
+  const { code } = await person.inviteMachine();
+  const connection = await connectApart(t, gateway);
+  const token = newToken();
+  return { connection, member: await connection.joinMachine(token, code), token, code };
+}
+
+/**
  * An agent that joined from apart with an invitation the person asked for, and
  * the connection it joined on, which is signed in as the agent. It has not
  * registered.

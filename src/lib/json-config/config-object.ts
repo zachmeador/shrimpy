@@ -106,8 +106,13 @@ export class ConfigObject {
   objects(key: string): ConfigObject[] {
     const items = this.#take(key);
     if (items === undefined) throw this.#problem(key, "is required");
-    if (!Array.isArray(items)) throw this.#problem(key, "must be an array");
-    return items.map((item: unknown, index) => this.#child(item, `${key}[${index}]`));
+    return this.#children(items, key);
+  }
+
+  /** The objects in an array that the file may leave out. */
+  optionalObjects(key: string): ConfigObject[] | undefined {
+    const items = this.#take(key);
+    return items === undefined ? undefined : this.#children(items, key);
   }
 
   /** An object whose keys are chosen by the file: each key with its object. */
@@ -173,6 +178,11 @@ export class ConfigObject {
 
   #child(value: unknown, key: string): ConfigObject {
     return new ConfigObject(value, this.#file, this.#at(key));
+  }
+
+  #children(items: unknown, key: string): ConfigObject[] {
+    if (!Array.isArray(items)) throw this.#problem(key, "must be an array");
+    return items.map((item: unknown, index) => this.#child(item, `${key}[${index}]`));
   }
 
   #at(key: string): string {

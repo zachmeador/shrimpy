@@ -43,6 +43,8 @@ export type Peer = "program" | "browser" | "apart";
 /** The wrong codes one connection may give before every join on it is refused. */
 const WRONG_CODES = 5;
 
+const CODE_USED = "That invitation was used already. An invitation is good once, so ask for a new one.";
+
 /** What one connection to the gateway is: its `Gateway`, and how to let go of what it leaves behind. */
 export interface ServedGateway {
   readonly gateway: Gateway;
@@ -78,7 +80,11 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     refuse(`Sign in with the agent's token, or join with an invitation, before this connection can ${what}.`, "service_not_allowed");
   };
 
-  /** The person who runs the gateway, which only a connection on its own socket can be: nothing over the network is. */
+  /**
+   * The person who runs the gateway, which a connection on its own socket is
+   * until it signs in. Nothing over the network is, until it shows the token of
+   * a machine of the person's own, which signs it in as the person.
+   */
   const person = (): Member | undefined => (peer === "program" ? roster.person(deps.osUser) : undefined);
 
   /** Who this connection is: the member it signed in as, or on the gateway's own socket the person who runs it. */
@@ -136,8 +142,29 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     wrongCodes += 1;
     refuse(
       checked.why === "used"
-        ? "That invitation was used already. An invitation is good once, so ask for a new one."
+        ? CODE_USED
         : `The gateway has no invitation like that for ${String(name)}. An invitation is good once, for fifteen minutes and for one name. Check the code, or ask for a new one.`,
+    );
+  };
+
+  /** The invitation `code` gives a machine of a person's own, not yet used up, as `invitationFor` has it for an agent. */
+  const machineInvitationFor = (code: unknown) => {
+    const checked = invitations.checkForMachine(code);
+    if (checked.ok) return checked;
+    wrongCodes += 1;
+    refuse(
+      checked.why === "used"
+        ? CODE_USED
+        : "The gateway has no invitation like that for a machine of a person's own. An invitation is good once, for fifteen minutes and for what it was made for. Check the code, or ask for a new one.",
+    );
+  };
+
+  /** A connection that has given too many wrong codes may not join, whatever it gives next. */
+  const refuseIfGuessing = (): void => {
+    if (wrongCodes < WRONG_CODES) return;
+    refuse(
+      `This connection has given ${String(WRONG_CODES)} wrong codes, so the gateway takes no more joins on it. Connect again with the right code, or ask for a new invitation.`,
+      "service_not_allowed",
     );
   };
 
@@ -157,9 +184,16 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       if (registrant === undefined) return;
       try {
         const checked = checkAnnouncement(announcement, peer === "apart");
+        const member = signedIn === undefined ? undefined : roster.member(signedIn);
+        // A person's machine is no program, whatever it announces.
+        if (member?.kind === "person") {
+          refuse(
+            `${member.name} is a person, and a person's machine is no program, so it can't register one. Only an agent registers, as itself.`,
+            "service_not_allowed",
+          );
+        }
         let memberId: string | null = null;
         if (checked.kind === "agent") {
-          const member = signedIn === undefined ? undefined : roster.member(signedIn);
           if (member === undefined) refuse("An agent registers as a member: join or sign in first.");
           refuseIfRunning(member);
           memberId = member.id;
@@ -217,17 +251,33 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       }
       return { ...invitations.issue(roster.vacant(name)), addresses };
     },
+    async inviteMachine() {
+      notForBrowsers("invite a machine");
+      signedInIfApart("invite a machine");
+      const asking = caller();
+      if (asking.kind !== "person") {
+        const people = roster.members().filter((member) => member.kind === "person");
+        refuse(
+          `Only a person may invite a machine of their own, and ${asking.name} is an agent. Whoever uses that invitation is let in ` +
+            `as the person, with everything the person may do, so no agent may ask for one, an admin included. Ask ${people.map((each) => each.name).join(" or ")}.`,
+          "service_not_allowed",
+        );
+      }
+      const addresses = deps.addresses();
+      if (addresses.length === 0) {
+        refuse(
+          "This gateway listens on no address for a machine apart from it, so nobody could use an invitation. Start it with one.",
+          "service_not_allowed",
+        );
+      }
+      return { ...invitations.issueForMachine(asking.id), addresses, person: asking };
+    },
     async join(name, token, code) {
       notForBrowsers("join");
       beforeRegistering("join");
       if (signedIn !== undefined) refuse(`This connection is already signed in as ${caller().name}.`);
       if (peer === "apart") {
-        if (wrongCodes >= WRONG_CODES) {
-          refuse(
-            `This connection has given ${String(WRONG_CODES)} wrong codes, so the gateway takes no more joins on it. Connect again with the right code, or ask for a new invitation.`,
-            "service_not_allowed",
-          );
-        }
+        refuseIfGuessing();
         if (typeof code !== "string") {
           refuse("Joining from apart takes the code of an invitation. Ask the person who runs the gateway for one.");
         }
@@ -242,10 +292,35 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       signedIn = member.id;
       return member;
     },
+    async joinMachine(token, code) {
+      notForBrowsers("join as a machine");
+      if (signedIn !== undefined) refuse(`This connection is already signed in as ${caller().name}.`);
+      if (peer !== "apart") {
+        refuse(
+          "A machine joins over the gateway's network entry. On the gateway's own socket you are the person who runs it already.",
+          "service_not_allowed",
+        );
+      }
+      refuseIfGuessing();
+      // A machine that never heard the answer has its token on the roster already, and the code was used up for it.
+      const known = typeof token === "string" ? roster.personWithMachine(token) : undefined;
+      if (known !== undefined) {
+        signedIn = known.id;
+        return known;
+      }
+      if (typeof code !== "string") {
+        refuse("Joining from apart takes the code of an invitation. Ask the person who runs the gateway for one.");
+      }
+      const invited = machineInvitationFor(code);
+      const person = roster.addMachine(invited.person, token);
+      invited.spend();
+      signedIn = person.id;
+      return person;
+    },
     async signIn(token, name) {
       notForBrowsers("sign in");
       beforeRegistering("sign in");
-      const member = typeof token === "string" ? roster.memberWithToken(token) : undefined;
+      const member = typeof token === "string" ? (roster.memberWithToken(token) ?? roster.personWithMachine(token)) : undefined;
       if (member === undefined) {
         refuse(
           "The gateway does not know that token. It may belong to a roster that was replaced.",
@@ -258,6 +333,14 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       }
       const wanted: unknown = name;
       const named = wanted !== null && wanted !== undefined;
+      if (member.kind === "person") {
+        // A machine is a way to be the person, and no way to change who they are.
+        if (named && wanted !== member.name) {
+          refuse(`${member.name} is a person, and nothing renames a person, so a machine of theirs can't.`, "service_not_allowed");
+        }
+        signedIn = member.id;
+        return member;
+      }
       // Signing in without a rename changes nothing, so a command in the agent's shell can do it while the agent runs.
       if (named && wanted !== member.name) refuseIfRunning(member);
       const signed = named ? roster.rename(member.id, wanted as string) : member;

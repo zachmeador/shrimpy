@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import type { Channel, ChatClient } from "../../../contracts/chat/index.ts";
-import type { Transports } from "../../../contracts/gateway/index.ts";
+import type { GatewayConnection, Transports } from "../../../contracts/gateway/index.ts";
 import { createListeners } from "../../../lib/listeners/index.ts";
 import type { Backoff } from "../../../lib/retry/index.ts";
 import {
@@ -34,6 +34,8 @@ import {
 export interface ConsoleStateOptions {
   /** How the console reaches the gateway, and the programs registered with it by their names. */
   transports: Transports;
+  /** Run on each connection the console makes to the gateway, before anything else, to be somebody to it. See `RegistryOptions`. */
+  signIn?: (gateway: GatewayConnection) => Promise<void>;
   /** How often what has no subscription is asked for again: what is running, the threads in the person's DMs and rooms, and the sessions of the agent on show. 2 seconds by default. */
   pollMs?: number;
   /** How long a notice stays. 6 seconds by default. */
@@ -128,7 +130,7 @@ export function createConsoleState(options: ConsoleStateOptions): ConsoleState {
   // Whether the person's channels have been read yet, since without them it is not known whether they are in a room.
   let channelsRead = false;
 
-  const registry = keepRegistry({ transports: options.transports, pollMs, backoff: options.backoff });
+  const registry = keepRegistry({ transports: options.transports, signIn: options.signIn, pollMs, backoff: options.backoff });
 
   const onThread = (update: ThreadUpdate): void => {
     const { where } = model;

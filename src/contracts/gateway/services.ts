@@ -80,18 +80,25 @@ export interface RosterEntry extends Member {
   reachable: boolean;
 }
 
-/** What lets an agent in from apart: a code for one name, and where to take it. */
+/** What lets an agent, or a machine of a person's own, in from apart: a code, and where to take it. */
 export interface Invitation {
   /**
    * Written like `K7Q2-9FXD`: eight letters and digits that can't be mistaken
    * for one another, read without regard to case or the hyphen. It is good
-   * once, for fifteen minutes, and for the name it was asked for only.
+   * once, for fifteen minutes, and for what it was asked for only: the name of
+   * an agent, or a machine of the person who asked.
    */
   code: string;
-  /** The addresses the gateway listens on, which the agent connects to. There is at least one: with none, no invitation is made. */
+  /** The addresses the gateway listens on, which the agent or machine connects to. There is at least one: with none, no invitation is made. */
   addresses: Address[];
   /** When the code stops being good, in milliseconds since the epoch. */
   expires: number;
+}
+
+/** An invitation for a machine of a person's own, with the person it lets the machine in as. */
+export interface MachineInvitation extends Invitation {
+  /** The person who asked, and who the machine is from then on. */
+  person: Member;
 }
 
 /**
@@ -100,17 +107,20 @@ export interface Invitation {
  * it never holds an agent's home, its work or a conversation.
  *
  * Nobody says who they are: a connection that signed in with an agent's token
- * is that agent, and one that did not, on the gateway's own socket, is the
- * person who runs the gateway.
+ * is that agent, one that signed in with the token a machine of the person's
+ * own keeps is that person, and one that did not, on the gateway's own socket,
+ * is the person who runs the gateway.
  *
  * A connection over the gateway's network entry, which is "the entry" below, is
  * apart from the gateway: it comes from another machine, another user or a
- * container, and is never the person. Until it has signed in or joined it can
- * do nothing else: it can't list, read the roster, ask for the version or a
- * ticket, register, ask for calls or invite. Once it has, it is that agent and
- * may do what an agent on the gateway's machine may. A page in a browser that
- * came through the browser entry may list the programs and the roster, and
- * nothing else.
+ * container. Until it has signed in or joined it is nobody and can do nothing
+ * else: it can't list, read the roster, ask for the version or a ticket,
+ * register, ask for calls or invite. Once it has, it is that agent and may do
+ * what an agent on the gateway's machine may, or, if it showed a machine's
+ * token, it is the person and may do all that the person may, which is not to
+ * register a program or to be renamed: a machine is no program. A page in a
+ * browser that came through the browser entry may list the programs and the
+ * roster, and nothing else.
  *
  * The roster also records who is an admin. The gateway checks it for what the
  * roster is: who may promote and demote. Every other program that has
@@ -138,7 +148,8 @@ export interface Gateway {
    * dial an agent that is apart from it, so it lists it as running, and when
    * someone asks for it, makes a call for it and waits for the agent to answer
    * (see `calls`). A connection that came through the browser entry can't
-   * register. A connection over the entry can die with no word, so the gateway
+   * register, and neither can the person on a machine of theirs: a machine is no
+   * program. A connection over the entry can die with no word, so the gateway
    * pings it and lets go of it once it has answered none for half a minute,
    * which takes the registration away: an agent that lost its network is listed
    * as running for no longer than that, and registers again when it is back.
@@ -182,6 +193,17 @@ export interface Gateway {
    */
   invite(name: string, context: Context): Promise<Invitation>;
   /**
+   * An invitation for a machine of the caller's own to join from apart, which
+   * is the caller from then on. Only a person may ask, on the gateway's own
+   * socket or over the entry from a machine of theirs that is in already, and
+   * it is for the person who asks. No agent may, an admin included, since
+   * whoever uses the invitation is let in as the person: an agent is refused,
+   * with the reason `service_not_allowed` and a message that says why. The
+   * answer says who the machine will be. It is made, kept and refused as
+   * `invite`'s is, and a machine is let in with it by `joinMachine`.
+   */
+  inviteMachine(context: Context): Promise<MachineInvitation>;
+  /**
    * Make a new agent member called `name` that is recognized by `token`, and be
    * it from now on. The caller made the token and keeps it, and shows it only to
    * the gateway, which keeps a hash of it and never the token. A caller that
@@ -204,12 +226,29 @@ export interface Gateway {
    */
   join(name: string, token: string, code: string | null, context: Context): Promise<Member>;
   /**
-   * Be the member that holds `token` from now on. With a `name` that is not the
-   * member's, the member is renamed first, and a name another member has is
-   * refused. So is a rename while a program on another connection is registered
-   * as the member. With null, or the member's own name, nothing changes, and the
-   * member is signed in as. A token the roster does not have is refused. A page
-   * in a browser can't sign in.
+   * Make a machine of the person the invitation `code` is for, and be that
+   * person from now on, as a machine of theirs is. The caller made the token
+   * and keeps it, and shows it only to the gateway, which keeps a hash of it
+   * with the person's record, beside how the person is recognized on the
+   * gateway's own machine, and never the token. A machine joins over the entry
+   * only, with the code of an invitation that `inviteMachine` made: one the
+   * gateway never made, that was used, that ran out or that is for an agent is
+   * refused. A machine that never heard the answer joins again with the same
+   * token and code and is let in: the roster has the token already, so the
+   * code is not asked for again. Wrong codes are counted as `join` counts
+   * them: after five on one connection every join on it is refused. A page in
+   * a browser can't join.
+   */
+  joinMachine(token: string, code: string, context: Context): Promise<Member>;
+  /**
+   * Be the member that holds `token` from now on: the agent, or the person whose
+   * machine keeps it. With a `name` that is not an agent's, the agent is renamed
+   * first, and a name another member has is refused. So is a rename while a
+   * program on another connection is registered as the agent. A person is never
+   * renamed, so a name that is not the person's is refused for a machine's
+   * token. With null, or the member's own name, nothing changes, and the member
+   * is signed in as. A token the roster does not have is refused. A page in a
+   * browser can't sign in.
    */
   signIn(token: string, name: string | null, context: Context): Promise<Member>;
   /** Everyone on the roster, oldest first. It carries no token and no socket. */

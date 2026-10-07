@@ -232,6 +232,7 @@ test("an agent joins over an IPv6 address, from the link the invitation makes", 
   assert.match(link, /^shrimpy:\/\/crab@\[::1\]:\d+\//);
 
   const read = readLink(link);
+  assert.ok(read.name !== null);
   const connection = await connectGateway({ transportFactory: entryTransports(read.address).gateway });
   stopAfter(t, () => connection.close());
   assert.equal((await connection.join(read.name, newToken(), read.code)).name, "crab");

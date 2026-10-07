@@ -5,12 +5,22 @@ import type { ConfigObject } from "../../lib/json-config/index.ts";
 import { readConfig } from "../../lib/json-config/node.ts";
 
 /**
- * How a member is recognized. A person is the operating system user of the
- * gateway's own socket. An agent is whoever presents its token, and only a
- * hash of the token is kept: the token itself is shown to the gateway and never
- * stored.
+ * A machine of a person's own, which keeps a token and shows it to be that
+ * person. Only a hash of the token is kept.
  */
-export type Recognition = { osUser: string } | { tokenHash: string };
+export interface MachineRecord {
+  tokenHash: string;
+}
+
+/**
+ * How a member is recognized. A person is the operating system user of the
+ * gateway's own socket, and also each of the person's machines that shows the
+ * token it keeps, if the person has any: a file written before there were
+ * machines has none, and that is all it means. An agent is whoever presents its
+ * token. Only a hash of a token is kept: the token itself is shown to the
+ * gateway and never stored.
+ */
+export type Recognition = { osUser: string; machines?: MachineRecord[] } | { tokenHash: string };
 
 /**
  * A member as the roster keeps it. Every person is an admin and the file does
@@ -49,15 +59,25 @@ function parseMember(entry: ConfigObject): MemberRecord {
   const by = entry.object("recognizedBy");
   const osUser = by.optionalString("osUser");
   const tokenHash = by.optionalString("tokenHash");
+  const machines = by.optionalObjects("machines")?.map(parseMachine);
   by.done();
   entry.done();
   if (kind === "person" && osUser !== undefined && tokenHash === undefined) {
-    return { id, kind, name, recognizedBy: { osUser } };
+    return { id, kind, name, recognizedBy: { osUser, ...(machines === undefined ? {} : { machines }) } };
   }
-  if (kind === "agent" && tokenHash !== undefined && osUser === undefined) {
+  if (kind === "agent" && tokenHash !== undefined && osUser === undefined && machines === undefined) {
     return { id, kind, name, admin: admin === true, recognizedBy: { tokenHash } };
   }
-  throw entry.problem("recognizedBy", `must be an osUser for a person and a tokenHash for an agent, and this is the ${kind} ${name}`);
+  throw entry.problem(
+    "recognizedBy",
+    `must be an osUser, with machines if it has any, for a person and a tokenHash for an agent, and this is the ${kind} ${name}`,
+  );
+}
+
+function parseMachine(entry: ConfigObject): MachineRecord {
+  const tokenHash = entry.string("tokenHash");
+  entry.done();
+  return { tokenHash };
 }
 
 /**

@@ -51,6 +51,11 @@ export interface JoinedHome {
  */
 export async function joinHome(home: string, link: string, options: JoinHomeOptions = {}): Promise<JoinedHome> {
   const invitation = readLink(link);
+  if (invitation.name === null) {
+    throw new Error(
+      "The invitation names no agent, so it is for another machine of the person's own. An invitation for an agent has the agent's name in it.",
+    );
+  }
   const { name, paths } = loadHome(home);
   if (name !== invitation.name) {
     throw new Error(

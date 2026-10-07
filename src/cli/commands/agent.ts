@@ -192,12 +192,18 @@ const join: Command = {
   },
 };
 
-/** What the link says, or a usage error that says what is wrong with it: it is not a link, or it names an agent that can't be made. */
-function invitationIn(text: string): Link {
+/**
+ * What the link says, or a usage error that says what is wrong with it: it is not a link, it is for another machine
+ * of the person's own and names no agent, or it names an agent that can't be made.
+ */
+function invitationIn(text: string): Link & { name: string } {
   try {
     const link = readLink(text);
+    if (link.name === null) {
+      throw new Error("That link is for another machine of yours, and names no agent.");
+    }
     checkAgentName(link.name);
-    return link;
+    return { ...link, name: link.name };
   } catch (error) {
     throw new UsageError((error as Error).message);
   }

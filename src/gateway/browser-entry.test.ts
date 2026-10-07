@@ -43,7 +43,7 @@ test("a browser reads the registry and reaches a registered program through the 
   }
 });
 
-test("a browser can list programs and the roster, but cannot register a program, join, sign in or ask for a ticket", { timeout }, async (t) => {
+test("a browser can list programs and the roster, but cannot register a program, join, sign in, invite or ask for a ticket", { timeout }, async (t) => {
   useRuntimeDir(t);
   const gateway = await startGatewayInProcess(t, { web: { port: 0 } });
   const port = webPortOf(gateway);
@@ -54,6 +54,8 @@ test("a browser can list programs and the roster, but cannot register a program,
     await assert.rejects(browser.register(agent("planted")), { code: "service_not_allowed" });
     await assert.rejects(browser.join("planted", newToken()), { code: "service_not_allowed" });
     await assert.rejects(browser.signIn("a-token", null), { code: "service_not_allowed" });
+    await assert.rejects(browser.inviteMachine(), { code: "service_not_allowed" });
+    await assert.rejects(browser.joinMachine(newToken(), "AAAA-AAAA"), { code: "service_not_allowed" });
     await assert.rejects(browser.ticket({ kind: "chat", name: "chat" }), { code: "service_not_allowed" });
 
     assert.deepEqual(await browser.list(), []);

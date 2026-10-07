@@ -15,6 +15,7 @@ export {
   connectApart,
   entryOf,
   invited,
+  invitedMachine,
   joinAndRegister,
   LOOPBACK,
   webPortOf,

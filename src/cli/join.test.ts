@@ -57,7 +57,7 @@ test("agent join makes the home with no model and joins with the link, keeps whe
   assert.equal(readMembership(home)?.memberId, crab.id);
 });
 
-test("agent join makes nothing for text that is not a link or a name no agent can have", { timeout }, async (t) => {
+test("agent join makes nothing for text that is not a link, a link for a machine of the person's own or a name no agent can have", { timeout }, async (t) => {
   const folder = useShrimpyDir(t);
   const address = { host: "127.0.0.1", port: 7447 };
 
@@ -66,6 +66,7 @@ test("agent join makes nothing for text that is not a link or a name no agent ca
     "crab",
     writeLink({ name: "../elsewhere", address, code: "K7Q2-9FXD" }),
     writeLink({ name: "Scout Bot", address, code: "K7Q2-9FXD" }),
+    writeLink({ name: null, address, code: "K7Q2-9FXD" }),
   ]) {
     assert.equal((await shrimpy(["agent", "join", wrong])).code, 2, wrong);
   }

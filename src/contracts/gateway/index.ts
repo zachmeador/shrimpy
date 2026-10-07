@@ -2,8 +2,9 @@
  * The gateway API: how programs find each other, who is on the network, how a
  * program learns who is on a connection, and how a client reaches a program by
  * its name through the gateway, which is the one way to reach a program that
- * is not a home's own agent. It also has the link that invites an agent in from
- * apart, how an agent apart, which the gateway can't dial, is asked for and
+ * is not a home's own agent. It also has the link that invites an agent, or a
+ * machine of a person's own, in from apart, what a machine keeps to be that
+ * person, how an agent apart, which the gateway can't dial, is asked for and
  * answers by connecting out, the cases in which the gateway turns an agent away,
  * so that the agent can tell them apart, and the refusal every program makes for
  * a call that takes an admin. It must not know what the programs it connects say
@@ -25,6 +26,7 @@ export {
   webSocketPath,
 } from "./endpoint.ts";
 export { type Link, readLink, writeLink } from "./link.ts";
+export { type Machine, MACHINE_FILE, machineFile } from "./machine.ts";
 export { reachProgram, type Transports } from "./reach.ts";
 export { NEEDS_ADMIN, refuseNeedsAdmin, TURNED_AWAY, type TurnedAway, whyTurnedAway } from "./refusals.ts";
 export {
@@ -32,6 +34,7 @@ export {
   type Announcement,
   Gateway,
   type Invitation,
+  type MachineInvitation,
   type Member,
   type ProgramName,
   type Registration,

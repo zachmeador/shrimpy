@@ -1,4 +1,5 @@
 import {
+  type Address,
   connectGateway,
   formatAddress,
   type GatewayConnection,
@@ -7,7 +8,7 @@ import {
 } from "../../contracts/gateway/index.ts";
 import { connectLocalGateway, entryTransports, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
 import { START_EVERYTHING } from "./hints.ts";
-import { shellsGateway, signInAsTheShellsAgent } from "./shell.ts";
+import { type Me, me } from "./me.ts";
 
 /** What the gateway says is running and who is on its roster. */
 export interface GatewayView {
@@ -20,28 +21,27 @@ export interface GatewayView {
 }
 
 /**
- * Use a connection to the gateway for the length of `use`: the one on this
- * machine, or the one the shell's agent reaches when it is apart from the
- * gateway. There is no gateway on this machine when none runs, which gives
- * undefined. A gateway that an agent apart from it can't reach is an error that
- * says where. Aborting `signal` gives up, even on a gateway that has stopped
- * answering.
+ * Use a connection to the gateway at `entry` for the length of `use`, or the
+ * one on this machine when there is none. There is no gateway on this machine
+ * when none runs, which gives undefined. A gateway at an address that can't be
+ * reached is an error that says where. Aborting `signal` gives up, even on a
+ * gateway that has stopped answering.
  */
-export async function withGateway<T>(
+async function connectedTo<T>(
+  entry: Address | undefined,
   signal: AbortSignal | undefined,
   use: (gateway: GatewayConnection) => Promise<T>,
 ): Promise<T | undefined> {
-  const apart = shellsGateway();
   let gateway: GatewayConnection;
   try {
     gateway =
-      apart === undefined
+      entry === undefined
         ? await connectLocalGateway({ signal })
-        : await connectGateway({ transportFactory: entryTransports(apart).gateway, signal });
+        : await connectGateway({ transportFactory: entryTransports(entry).gateway, signal });
   } catch (error) {
     if (error instanceof GatewayNotRunningError) return undefined;
-    if (apart !== undefined && signal?.aborted !== true) {
-      throw new Error(`The gateway at ${formatAddress(apart)} can't be reached: ${(error as Error).message}`, {
+    if (entry !== undefined && signal?.aborted !== true) {
+      throw new Error(`The gateway at ${formatAddress(entry)} can't be reached: ${(error as Error).message}`, {
         cause: error,
       });
     }
@@ -59,27 +59,53 @@ export async function withGateway<T>(
 }
 
 /**
+ * Use a connection to the gateway the command reaches for the length of `use`,
+ * which is told who the command is: the one on this machine, or the one the
+ * shell's agent, when it is apart from the gateway, or the person's machine,
+ * when it has joined one, reaches over its entry. There is no gateway on this
+ * machine when none runs, which gives undefined. A gateway that can't be
+ * reached over the network is an error that says where. Aborting `signal` gives
+ * up, even on a gateway that has stopped answering.
+ */
+export function withGateway<T>(
+  signal: AbortSignal | undefined,
+  use: (gateway: GatewayConnection, who: Me) => Promise<T>,
+): Promise<T | undefined> {
+  const who = me();
+  return connectedTo(who.entry, signal, (gateway) => use(gateway, who));
+}
+
+/**
  * Use a connection to the gateway, as withGateway has it, for the length of
- * `use`, as whoever runs the command: the agent whose shell it is, or the
- * person who runs the gateway anywhere else. With no gateway the error says
- * what to start.
+ * `use`, as whoever runs the command: the agent whose shell it is, the person
+ * whose machine this is, or the person who runs the gateway anywhere else. With
+ * no gateway the error says what to start.
  */
 export async function withGatewayAsMe<T>(use: (gateway: GatewayConnection) => Promise<T>): Promise<T> {
-  const used = await withGateway(undefined, async (gateway) => {
-    await signInAsTheShellsAgent(gateway);
+  const used = await withGateway(undefined, async (gateway, who) => {
+    await who.signIn(gateway);
     return { value: await use(gateway) };
   });
   if (used === undefined) throw new Error(`No gateway is running on this machine. Start Shrimpy with: ${START_EVERYTHING}`);
   return used.value;
 }
 
-/** What the gateway says, or undefined when no gateway is running on this machine. */
+/** What the gateway the command reaches says, or undefined when no gateway is running on this machine. */
 export function askGateway(signal?: AbortSignal): Promise<GatewayView | undefined> {
-  return withGateway(signal, async (gateway) => {
-    // An agent apart from the gateway is nobody to it until it has signed in.
-    if (shellsGateway() !== undefined) await signInAsTheShellsAgent(gateway);
+  return withGateway(signal, async (gateway, who) => {
+    // Over the network a connection is nobody until it has signed in.
+    if (who.entry !== undefined) await who.signIn(gateway);
     return view(gateway);
   });
+}
+
+/**
+ * What the gateway on this machine says, or undefined when none runs here:
+ * whoever runs the command, and whatever the Shrimpy folder has joined. For a
+ * command that starts what is missing on this machine.
+ */
+export function askLocalGateway(signal?: AbortSignal): Promise<GatewayView | undefined> {
+  return connectedTo(undefined, signal, view);
 }
 
 /** Ask a connection what is running and who is on the roster. */

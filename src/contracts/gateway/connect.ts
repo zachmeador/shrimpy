@@ -6,6 +6,7 @@ import {
   type Announcement,
   Gateway,
   type Invitation,
+  type MachineInvitation,
   type Member,
   type ProgramName,
   type Registration,
@@ -32,6 +33,8 @@ export interface GatewayConnection {
   version(): Promise<string>;
   /** An invitation for an agent called `name` to join from apart. Only a person or an admin may ask. See `Gateway.invite`. */
   invite(name: string): Promise<Invitation>;
+  /** An invitation for a machine of the caller's own to join from apart. Only a person may ask, and no agent. See `Gateway.inviteMachine`. */
+  inviteMachine(): Promise<MachineInvitation>;
   /**
    * Make a new agent member called `name`, recognized by the token the caller
    * made, and be it from now on. Over the gateway's entry it takes the code of
@@ -39,7 +42,13 @@ export interface GatewayConnection {
    * need. See `Gateway.join`.
    */
   join(name: string, token: string, code?: string): Promise<Member>;
-  /** Be the member that holds `token` from now on, renamed to `name` unless it is null. See `Gateway.signIn`. */
+  /**
+   * Make a machine of the person the invitation `code` is for, recognized by the
+   * token the caller made, and be that person from now on. Over the gateway's
+   * entry only. See `Gateway.joinMachine`.
+   */
+  joinMachine(token: string, code: string): Promise<Member>;
+  /** Be the member that holds `token` from now on, an agent renamed to `name` unless it is null. See `Gateway.signIn`. */
   signIn(token: string, name: string | null): Promise<Member>;
   /** Everyone on the roster, oldest first. */
   members(): Promise<RosterEntry[]>;
@@ -85,7 +94,9 @@ export async function connectGateway(options: {
     list: () => gateway.list(context),
     version: () => gateway.version(context),
     invite: (name) => gateway.invite(name, context),
+    inviteMachine: () => gateway.inviteMachine(context),
     join: (name, token, code) => gateway.join(name, token, code ?? null, context),
+    joinMachine: (token, code) => gateway.joinMachine(token, code, context),
     signIn: (token, name) => gateway.signIn(token, name, context),
     members: () => gateway.members(context),
     promote: (memberId) => gateway.promote(memberId, context),

@@ -1,17 +1,18 @@
 /**
  * The gateway program: one process per machine that keeps the roster of who is
  * on the network, the registry of programs that are running, the tickets that
- * tell a program who a client is, the invitations that let an agent in from
- * apart, the calls it makes for an agent that connects out, and a way in to each
- * registered program, and gives browsers and agents apart from it a way in
- * too. A program is reached by its name through the gateway, which pipes the
- * connection to the program's socket, or for an agent apart, to the connection
- * the agent opens when it is called, and does not look at it. It keeps the
- * addresses it listens on for agents apart from it, so that a start with none
- * listens where the last one did. It only connects things: it never holds an
- * agent's home, its work or a conversation. Other programs reach it through
- * `contracts/gateway`; they never import this program's modules. It must not
- * know what the programs it connects say to each other.
+ * tell a program who a client is, the invitations that let an agent, or a
+ * machine of a person's own, in from apart, the calls it makes for an agent that
+ * connects out, and a way in to each registered program, and gives browsers,
+ * agents and machines apart from it a way in too. A program is reached by its
+ * name through the gateway, which pipes the connection to the program's socket,
+ * or for an agent apart, to the connection the agent opens when it is called,
+ * and does not look at it. It keeps the addresses it listens on for agents and
+ * machines apart from it, so that a start with none listens where the last one
+ * did. It only connects things: it never holds an agent's home, its work or a
+ * conversation. Other programs reach it through `contracts/gateway`; they never
+ * import this program's modules. It must not know what the programs it connects
+ * say to each other.
  */
 import { userInfo } from "node:os";
 import type { Duplex } from "node:stream";

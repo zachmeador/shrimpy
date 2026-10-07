@@ -1,3 +1,4 @@
+import type { ConsoleOptions } from "../clients/console/index.ts";
 import { type Command, loadFamily, loadGroups } from "./commands/index.ts";
 import { FOLDER_VARIABLE, folderPath, lookForHome } from "./folder/index.ts";
 import type { Io } from "./io/index.ts";
@@ -68,10 +69,24 @@ async function runConsole(io: Io, open: (io: Io) => Promise<number>): Promise<nu
   }
 }
 
-/** The console is only loaded when it is opened, so no other command loads the terminal library. */
-async function openTheConsole(io: Io): Promise<number> {
+/**
+ * The console is only loaded when it is opened, so no other command loads the
+ * terminal library. It is handed what a command that talks has: where the
+ * gateway is and how to sign in to it, which is the person whose machine this
+ * is when it has joined a gateway. `terminal` and `pollMs` are for a test,
+ * which draws on a terminal of its own.
+ */
+export async function openTheConsole(io: Io, stand: Pick<ConsoleOptions, "terminal" | "pollMs"> = {}): Promise<number> {
   const { openConsole } = await import("../clients/console/index.ts");
-  return openConsole({ io, homes: lookForHome });
+  const { me } = await import("./talk/index.ts");
+  const who = me();
+  return openConsole({
+    io,
+    homes: lookForHome,
+    transports: who.transports(),
+    signIn: (gateway) => who.signIn(gateway),
+    ...stand,
+  });
 }
 
 /** The words that select a command: one for `up`, two for `agent serve`. */

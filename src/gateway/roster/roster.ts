@@ -21,6 +21,8 @@ export class RosterOwnedError extends Error {
 /** Characters in a member's name. */
 const MAX_NAME = 200;
 
+const TOKEN_RULE = "A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.";
+
 /**
  * Who is on the network: every member with its ID, its name, whether it is an
  * admin and how it is recognized, kept in one file that survives restarts.
@@ -33,6 +35,8 @@ export interface Roster {
   member(id: string): Member | undefined;
   /** The agent whose token this is. */
   memberWithToken(token: string): Member | undefined;
+  /** The person who has a machine that keeps this token. */
+  personWithMachine(token: string): Member | undefined;
   /** The person who is the operating system user `osUser`. */
   person(osUser: string): Member | undefined;
   /** Make the person for `osUser` if there is none yet. */
@@ -43,6 +47,13 @@ export interface Roster {
    * that is the member, renamed to `name` if it is not called that.
    */
   join(name: string, token: string): Member;
+  /**
+   * Let a machine of the person `id` in: keep the hash of the token it made,
+   * with the person. A machine that is in already is the same machine, and the
+   * person is the answer. A token is one member's, so one that an agent or
+   * another person's machine has is refused.
+   */
+  addMachine(id: string, token: string): Member;
   /** Give a member a new name. The name it has already, or a change of case in it, is fine. */
   rename(id: string, name: string): Member;
   /** The name as it would be kept, when no member has it. A name that is not fit to keep, or that a member has, is refused. */
@@ -130,6 +141,14 @@ function keep(file: string, lock: Lock): Roster {
     return find((record) => "tokenHash" in record.recognizedBy && record.recognizedBy.tokenHash === hash);
   };
 
+  const personWithMachine = (token: string): Member | undefined => {
+    const hash = hashOf(token);
+    return find(
+      (record) =>
+        "osUser" in record.recognizedBy && (record.recognizedBy.machines ?? []).some((machine) => machine.tokenHash === hash),
+    );
+  };
+
   const rename = (id: string, name: string): Member => {
     const label = checked(name);
     const current = records.find((record) => record.id === id);
@@ -145,6 +164,7 @@ function keep(file: string, lock: Lock): Roster {
     members: () => records.map(publicly),
     member: (id) => find((record) => record.id === id),
     memberWithToken,
+    personWithMachine,
     person,
     ensurePerson(osUser) {
       const existing = person(osUser);
@@ -155,11 +175,10 @@ function keep(file: string, lock: Lock): Roster {
       return publicly(record);
     },
     join(name, token) {
-      if (!isToken(token)) {
-        refuse("A token is 32 to 200 letters, digits, hyphens or underscores, such as 32 random bytes in base64url.");
-      }
+      if (!isToken(token)) refuse(TOKEN_RULE);
       const holder = memberWithToken(token);
       if (holder !== undefined) return rename(holder.id, name);
+      if (personWithMachine(token) !== undefined) refuse("That token belongs to a machine of a person, and a token belongs to one member.");
       const label = checked(name);
       available(label);
       const record: MemberRecord = {
@@ -171,6 +190,24 @@ function keep(file: string, lock: Lock): Roster {
       };
       save([...records, record]);
       return publicly(record);
+    },
+    addMachine(id, token) {
+      if (!isToken(token)) refuse(TOKEN_RULE);
+      const current = records.find((record) => record.id === id);
+      if (current === undefined || !("osUser" in current.recognizedBy)) refuse(`There is no person ${id}.`);
+      if (memberWithToken(token) !== undefined) refuse("That token belongs to an agent, and a token belongs to one member.");
+      const holder = personWithMachine(token);
+      if (holder !== undefined) {
+        if (holder.id === id) return holder;
+        refuse("That token belongs to a machine of another person, and a token belongs to one member.");
+      }
+      const by = current.recognizedBy;
+      const changed: MemberRecord = {
+        ...current,
+        recognizedBy: { ...by, machines: [...(by.machines ?? []), { tokenHash: hashOf(token) }] },
+      };
+      save(records.map((record) => (record.id === id ? changed : record)));
+      return publicly(changed);
     },
     rename,
     vacant(name) {

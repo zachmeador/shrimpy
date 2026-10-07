@@ -1,4 +1,4 @@
-import type { Transports } from "../../contracts/gateway/index.ts";
+import type { GatewayConnection, Transports } from "../../contracts/gateway/index.ts";
 import { localTransports } from "../../contracts/gateway/node.ts";
 import { type ConsoleTerminal, startDrawing } from "./draw/index.ts";
 import { farewellLine } from "./screen/index.ts";
@@ -16,6 +16,14 @@ export interface ConsoleOptions {
   io: ConsoleIo;
   /** How to reach the gateway, and the programs registered with it by their names. This machine's sockets by default. */
   transports?: Transports;
+  /**
+   * Run on each connection the console makes to the gateway, the first and every
+   * one after the gateway was lost, before anything else, to be somebody to a
+   * gateway that takes a connection for nobody until it has signed in, as one
+   * over its network entry does. Without it the console signs in as nobody, which
+   * on the gateway's own socket is the person who runs the gateway.
+   */
+  signIn?: (gateway: GatewayConnection) => Promise<void>;
   /** The terminal to draw on. The person's by default. */
   terminal?: ConsoleTerminal;
   /** How often what has no subscription is asked for again, in milliseconds. 2 seconds by default. */
@@ -44,6 +52,7 @@ export interface ConsoleOptions {
 export async function openConsole(options: ConsoleOptions): Promise<number> {
   const state = createConsoleState({
     transports: options.transports ?? localTransports(),
+    signIn: options.signIn,
     pollMs: options.pollMs,
     noticeMs: options.noticeMs,
     homes: options.homes,
