@@ -10,7 +10,7 @@ The tree is organized by program. Shrimpy is three programs (an agent, the chat 
 src/
   contracts/        the only code programs share: each contract's shapes and its client caller,
                     and for the gateway, the loop that keeps a program registered
-    agent/          the agent API: sessions, control, offers, login prompts
+    agent/          the agent API: sessions, control, offers
     chat/           the chat API: channels, threads, messages, attachments
     gateway/        the roster as clients see it, joining and signing in, tickets, registration and routing
   agent/            the agent program, one process per home

@@ -4,7 +4,7 @@ This is one piece of the design. The words for a decision's status, such as Conf
 
 **The design**
 
-An agent home works on its own, with no workspace pointer, gateway or other agent; it keeps a cached copy of the workspace context. It holds identity and instructions, selected resources and skills, retained knowledge, provider credentials and defaults, and Pi storage. Joining a gateway puts the agent on its roster under a name, and the agent's token stays in its home: [identity and addressing](3-identity.md) has the rest.
+An agent home works on its own, with no workspace pointer, gateway or other agent; it keeps a cached copy of the workspace context. It holds identity and instructions, selected resources and skills, retained knowledge and Pi storage. It may hold provider credentials and a model of its own, and what it doesn't hold of those it takes from the folder it is started in. Joining a gateway puts the agent on its roster under a name, and the agent's token stays in its home: [identity and addressing](3-identity.md) has the rest.
 
 Proposed layout; final paths settle with setup and the CLI:
 
@@ -17,14 +17,29 @@ skills/
 triggers/             one small file for each standing trigger
 wake.json             what wakes the agent in each room, when it isn't the default
 breadcrumbs/          one small file for each fact that moves
-state/pi/auth.json
-state/pi/models.json
+state/pi/auth.json    keys and sign-ins of the agent's own, when it has any
+state/pi/models.json  model servers of the agent's own, when it has any
 state/member.json     the agent's token, made before it first joins
 state/agent.sqlite
 runtime/              disposable endpoint and log files
 ```
 
-Shared resources are explicit references, never ancestor or global discovery. Development uses fresh fixture homes, and no existing user data is transformed for a proof.
+Shared resources are explicit references, never ancestor or global discovery. The one exception is providers, below, and the agent doesn't look for those either: whoever starts it says where they are. Development uses fresh fixture homes, and no existing user data is transformed for a proof.
+
+**Providers.** Decided on 2026-10-06. You sign in to a provider once in each place agents run, and every agent started there uses it. The place is the Shrimpy folder, which holds three files in `providers/`:
+
+```text
+providers/auth.json           sign-ins and keys
+providers/models.json         model servers of your own
+providers/default-model.json  the model an agent starts with when its agent.json names none
+```
+
+- **A home's own files win.** Its `auth.json` for a provider it has an entry for, its `models.json` for a provider it declares, and the model its `agent.json` names. An agent on another account keeps its own.
+- **The agent is told, and doesn't look.** `shrimpy up` and `shrimpy agent serve` say where the folder's `providers/` is. An agent started with none has only what its home holds.
+- **A sign-in is renewed where it is stored,** under a lock on that file, so agents that share one renew it once. Each reads the file again for every request, so a new sign-in needs no restart.
+- **`shrimpy providers login` signs a folder in** with Pi's own flows, in the terminal. It shows a link or a code and takes what you paste back, so it works over SSH. A place you have no shell in isn't covered: you, or an agent of yours, are taken to have one.
+
+A single sign-in kept at the gateway was looked at first and dropped. The gateway would hold secrets, and every agent would need it to reach a model.
 
 A durable extension supplies base instructions, skill trails, input facts and compaction guidance. Dynamic facts are captured when input is consumed, with provenance and budgets, and committed before the request. Queued input sees the facts from when it was consumed, not when it was queued.
 
@@ -59,8 +74,8 @@ Inspection shows raw entries, effective model messages, selected tools, source r
 | Skills | Trails, `/skill:name` and templates | Same mechanics. The skills themselves are rewritten, as the next two rows say. | Keep |
 | Which skills come first | 16 included skills, rewritten together | The first rewrite covers the four an agent needs to look after a Shrimpy setup: setting it up, making and maintaining agents, where messages go, and making skills. A skill for a feature that comes later is rewritten with that feature: watches and the default watches, coding delegation, update, the journals and audits, which run from watches, and `memory-management`, which comes with memory breadcrumbs. `remember`, search and web search wait until they're wanted. | Confirmed |
 | Docs, skills and agent instructions | Written for old Shrimpy and grown along with it | Rewritten from scratch for the new Shrimpy: the reference docs, the included skills, the base instructions and starter files agents get, and the developer docs. The charming parts of today's are kept, starting from the [keep list](../history/keep-list.md), which you review before anything is rewritten. Keep it shrimple is the standard they're written to. | Confirmed |
-| Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. Provider login repeats per home unless a shared read-only config is referenced; mutable OAuth stores keep one owner. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed |
-| Where keys come from | — | Only the home's `auth.json` and `models.json`. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed |
+| Settings ownership | Credentials, model catalogs and policies, compaction and skill switches are workspace-wide | Home-owned defaults with session overrides. What a home doesn't set comes from the folder it is started in: sign-ins, model servers and the model it starts with, as Providers, above, has it. A sign-in is made once for a folder, and the file that holds it is the one place it is renewed. Appearance and favorite models are per-user client settings on each machine. Ambient Pi settings are ignored. | Confirmed, and changed on 2026-10-06 |
+| Where keys come from | — | The home's `auth.json` and `models.json`, then those of the folder it is started in. Environment variables aren't read, and a key written as a command or a variable is refused. | Confirmed, and changed on 2026-10-06 |
 | How much an agent is told | — | Nothing limits the size of `SOUL.md`, a context file, the list of skills or the earlier messages that come with an input. | Confirmed for now |
 
 **Open**

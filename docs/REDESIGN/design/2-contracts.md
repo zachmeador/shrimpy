@@ -11,7 +11,6 @@ Clients use two APIs, each the same for local and gateway-routed use. The chat s
 - session inspection and selection
 - reset, fork, steer, status, wait, withdraw and stop
 - model, thinking, defaults and reload
-- provider login, relaying Pi's login prompts to the person's client
 - raw and effective context, entry queries and committed subscriptions
 - completion against the agent's filesystem
 - publication and chat-provider status, trigger and delegation controls
