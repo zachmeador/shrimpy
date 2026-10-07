@@ -134,7 +134,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **`shrimpy agent join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
 - **`shrimpy up` where there is no gateway.** When every agent it is to start belongs to a gateway elsewhere, it starts those agents and no gateway or chat server, unless it is told to listen.
 
-**Linux comes first if the gateway's machine runs it.** All three programs would run there, and none has been run on Linux: the design left that for the pieces that cross machines. Running the checks there needs no new code. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
+**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
 
 **Left for later**
 
@@ -157,7 +157,7 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 - Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
 - Reading from Tailscale where it is there, and never needing it: whose a person's machine is, and whether an agent connects from the machine it is expected from.
-- The programs and their locks qualified on Linux.
+- The programs kept running by a service on Linux, and the tests run there with dependencies installed on the machine.
 
 **Prove**
 

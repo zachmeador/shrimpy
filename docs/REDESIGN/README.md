@@ -4,7 +4,7 @@ Shrimpy is being rebuilt on Pi's durable runtime. This folder holds its design, 
 
 ## Where it stands
 
-As of 2026-10-06.
+As of 2026-10-07.
 
 | Piece | Built | Building | Next |
 |---|---|---|---|
@@ -13,7 +13,7 @@ As of 2026-10-06.
 | [Identity and addressing](design/3-identity.md) | The roster, member IDs, names, tickets, reaching a program by its name, and who may do what, with one role, admin. | — | Removing a member, replacing a token, renaming a person. |
 | [The conversation model](design/4-conversation.md) | The feed of events, receipts, rooms, mentions, wake policies, the backlog an agent reads, an answer waking whoever asked, a person's message joining a running turn, `/stop`, one task following every input, and every input saying where it is. | — | The provider interface with a fake provider. Ways in for edits, deletes and reactions. |
 | [The home](design/5-home.md) | The files an agent is told from, skills, reload, `triggers/`, `breadcrumbs/`, `wake.json`, and records with an ID of their own. Providers for a whole folder: sign-ins, model servers and a default model that every agent started there uses. | — | Compaction with Shrimpy's guidance. Seeing the request a turn sent. Workspace context from the gateway. |
-| [The network](design/6-network.md) | Every connection by name goes through the gateway. An agent apart from the gateway, as another OS user, in a container or on another machine, joins with an invitation, is listed as running and answers in chat, from code so far. | The commands for it: `--listen`, `members invite`, `agent join`, and `up` where there is no gateway. | Reaching such an agent's sessions, keeping the connection honest, and you from another machine. Then sandboxes and Linux. |
+| [The network](design/6-network.md) | Every connection by name goes through the gateway. An agent apart from the gateway, as another OS user, in a container or on another machine, joins with an invitation, is listed as running and answers in chat, from code so far. | The commands for it: `--listen`, `members invite`, `agent join`, and `up` where there is no gateway. | Reaching such an agent's sessions, keeping the connection honest, and you from another machine. Then sandboxes. The tests have run on Linux. |
 | [What an agent does without being asked](design/7-on-its-own.md) | `check_back`, standing triggers and their commands, a trigger's check, breadcrumbs, and asking another agent with `ask_agent`. | — | Helpers. |
 | [Using it](design/using-it.md) | The terminal, which browses agents and rooms and watches any session of an agent, with keys that mean one thing on every screen; the commands, which each name their agent the same way; a default folder, `~/shrimpy`; and `shrimpy providers login`, which signs a folder in to a model provider. | — | What daily use asks for: resetting a session, `/new`, choosing a model from the terminal, the web client. |
 
