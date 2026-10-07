@@ -9,6 +9,7 @@ import {
   parseModelChoice,
   previewHomeContext,
   providerPaths,
+  readDefaultModel,
   startHomeAgent,
 } from "../../agent/index.ts";
 import { readEndpoint } from "../../contracts/agent/node.ts";
@@ -50,30 +51,35 @@ const init: Command = {
     const named = !isPath(given);
     // Where an agent's model and its access come from: its own files first, then the Shrimpy folder's providers/.
     const folder = providerPaths(providersPath());
+    const shared = model === undefined ? folderDefault(folder.defaultModel) : undefined;
     io.out(
-      model === undefined
-        ? `Created the agent ${name} in ${paths.root}. It names no model, so it starts with the one in ${folder.defaultModel}.`
-        : `Created the agent ${name} in ${paths.root}, with the model ${modelLabel(model)}.`,
+      model !== undefined
+        ? `Created the agent ${name} in ${paths.root}, with the model ${modelLabel(model)}.`
+        : shared !== undefined
+          ? `Created the agent ${name} in ${paths.root}. It names no model, so it starts with ${modelLabel(shared)}, your Shrimpy folder's default.`
+          : `Created the agent ${name} in ${paths.root}. It names no model, so it starts with the one in ${folder.defaultModel}.`,
     );
     io.out("");
     io.out("Next:");
     const own = dirname(paths.models);
-    const steps: string[][] = [
-      model === undefined
-        ? [
-            `Choose ${name}'s model and give it access. This signs in to a provider for every agent in your Shrimpy ` +
-              "folder, and asks which model they start with, unless the folder has both already:",
-            "     shrimpy providers login",
-            `   Or, for ${name} alone, name a model under "model" in ${paths.config}, and declare a server in ` +
-              `models.json or add a key to auth.json in ${own}.`,
-          ]
-        : [
-            `Give ${name} access to its model's provider. This signs in for every agent in your Shrimpy folder, ` +
-              "unless it is signed in already:",
-            "     shrimpy providers login",
-            `   Or, for ${name} alone, declare a server in models.json or add a key to auth.json in ${own}.`,
-          ],
-    ];
+    const steps: string[][] = [];
+    if (model !== undefined) {
+      steps.push([
+        `Give ${name} access to its model's provider. This signs in for every agent in your Shrimpy folder, ` +
+          "unless it is signed in already:",
+        "     shrimpy providers login",
+        `   Or, for ${name} alone, declare a server in models.json or add a key to auth.json in ${own}.`,
+      ]);
+    } else if (shared === undefined) {
+      // A folder that has a default model was set up for its agents already, and starting says what is missing if it wasn't.
+      steps.push([
+        `Choose ${name}'s model and give it access. This signs in to a provider for every agent in your Shrimpy ` +
+          "folder, and asks which model they start with:",
+        "     shrimpy providers login",
+        `   Or, for ${name} alone, name a model under "model" in ${paths.config}, and declare a server in ` +
+          `models.json or add a key to auth.json in ${own}.`,
+      ]);
+    }
     steps.push(
       [`Say who ${name} is in ${paths.soul}. It starts with a few plain defaults that work as they are.`],
       [
@@ -90,6 +96,16 @@ const init: Command = {
     return 0;
   },
 };
+
+/** The model the folder gives an agent that names none, or undefined when it names none or its file can't be read. */
+function folderDefault(file: string): ModelChoice | undefined {
+  try {
+    return readDefaultModel(file);
+  } catch {
+    // What is wrong with the file is for starting the agent to say. The home is made either way.
+    return undefined;
+  }
+}
 
 /** The name an agent gets when `--name` gives none: the name of its home's folder, if an agent can have that name. */
 function folderName(home: string): string {
