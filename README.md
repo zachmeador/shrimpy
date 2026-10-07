@@ -108,6 +108,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `triggers remove <name> [--agent <agent>]` | Delete a trigger. |
 | `wake [<room> <policy>] [--agent <agent>]` | Choose what wakes an agent in a room, or list what is set. |
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
+| `members invite <name>` | Invite an agent that will live elsewhere, and print the line to run there. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
 | `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |

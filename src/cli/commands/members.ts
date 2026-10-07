@@ -1,15 +1,17 @@
 import { parseArgs } from "node:util";
-import type { RosterEntry } from "../../contracts/gateway/index.ts";
+import { checkAgentName } from "../../agent/index.ts";
+import { type Address, type Invitation, type RosterEntry, writeLink } from "../../contracts/gateway/index.ts";
 import type { Io } from "../io/index.ts";
 import { askGateway, memberNamed, START_EVERYTHING, withGatewayAsMe } from "../talk/index.ts";
-import { expectArguments, parsing } from "../usage/index.ts";
+import { expectArguments, parsing, UsageError } from "../usage/index.ts";
 import type { Command } from "./command.ts";
 import { renderTable } from "./table.ts";
 
 /** What an admin is, for the help of the commands that list and change them. */
 const ADMIN =
-  "An admin may make rooms, add members to them, watch and control other agents' sessions and triggers, and " +
-  "promote and demote agents. Every person is one, and an agent is one once it has been promoted.";
+  "An admin may make rooms, add members to them, watch and control other agents' sessions and triggers, " +
+  "promote and demote agents, and invite agents in from elsewhere. Every person is one, and an agent is one " +
+  "once it has been promoted.";
 
 const members: Command = {
   name: "members",
@@ -31,6 +33,63 @@ function renderMembers(roster: RosterEntry[]): string[] {
   const yesNo = (flag: boolean): string => (flag ? "yes" : "no");
   const rows = roster.map((member) => [member.name, member.kind, yesNo(member.admin), yesNo(member.reachable)]);
   return renderTable(["name", "kind", "admin", "reachable"], rows);
+}
+
+const invite: Command = {
+  name: "members invite",
+  usage: "<name>",
+  summary: "Invite an agent that will live elsewhere, and print the line to run there.",
+  details:
+    "Asks the gateway for an invitation for an agent called <name>, as whoever runs the command: the person who " +
+    `runs the gateway, or the agent whose shell it runs in. ${ADMIN} Anyone else is refused, with the names of ` +
+    "the admins. It prints shrimpy agent join <link>, once for each address the gateway listens on, to run " +
+    "where the agent will live: on another machine, in a container or as another user of the gateway's machine, " +
+    "which is what a loopback address is for. The invitation works once, for fifteen minutes, and only for that " +
+    "name. The gateway keeps it in memory, so one that has not been used is gone when the gateway restarts. A " +
+    "name another member has is refused, whatever the case, and so is a name no agent can have: it starts with a " +
+    "letter or digit and has only letters, digits, dots, hyphens and underscores. The gateway has to listen " +
+    "for agents apart from it, which it is told with shrimpy up --listen <host:port>: with no address, nobody " +
+    "could use an invitation, and it refuses to make one. Exits 1 if no gateway is running.",
+  async run(args, io) {
+    const { positionals } = parsing(() => parseArgs({ args, options: {}, allowPositionals: true }));
+    const [name] = expectArguments(positionals, ["<name>"]);
+    // A home could not be made for any other name, so there is no use in asking.
+    try {
+      checkAgentName(name);
+    } catch (error) {
+      throw new UsageError((error as Error).message);
+    }
+    const invitation = await withGatewayAsMe((gateway) => gateway.invite(name));
+    for (const line of invitationLines(name, invitation)) io.out(line);
+    return 0;
+  },
+};
+
+/** Whether `host` reaches only the machine it is used on. */
+const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host.startsWith("127.");
+
+/** `text` as one word of a shell: as it is when the shell reads nothing in it, and in quotes when it does, as the brackets of an IPv6 address are. */
+function shellWord(text: string): string {
+  return /^[\w@%+=:,./-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`;
+}
+
+/** What `members invite` prints: what the invitation is good for, and for each address the gateway listens on the line to run where the agent will live. */
+function invitationLines(name: string, { code, addresses }: Invitation): string[] {
+  const lines = [
+    `The invitation works once, for fifteen minutes, and only for the name ${name}. ` +
+      `Run ${addresses.length > 1 ? "one of these" : "this"} where the agent will live:`,
+  ];
+  const near = addresses.filter((address) => isLoopback(address.host));
+  const far = addresses.filter((address) => !isLoopback(address.host));
+  const group = (label: string | undefined, these: Address[]): void => {
+    if (these.length === 0) return;
+    lines.push("");
+    if (label !== undefined) lines.push(label);
+    for (const address of these) lines.push(`  shrimpy agent join ${shellWord(writeLink({ name, address, code }))}`);
+  };
+  group("As another user of this machine, since only this machine reaches a loopback address:", near);
+  group(near.length > 0 ? "From another machine:" : undefined, far);
+  return lines;
 }
 
 /**
@@ -77,4 +136,4 @@ const demote: Command = {
   },
 };
 
-export const membersCommands: Command[] = [members, promote, demote];
+export const membersCommands: Command[] = [members, invite, promote, demote];

@@ -103,6 +103,7 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Pro
   const agent = crew.find((member) => member.role === "agent")?.program.listening.name;
   io.out("Running. Press Ctrl+C to stop what this command started.");
   if (plan.homes.length > 0) io.out(`Talk to an agent with: shrimpy run ${agent ?? "<agent>"} "<text>"`);
+  else io.out("Let an agent in from another machine or user with: shrimpy members invite <name>");
   io.out("See what is running with: shrimpy gateway status");
 
   const ended = await Promise.race([
