@@ -1,13 +1,12 @@
 import { readMembership, saveMembership } from "../../contracts/agent/node.ts";
 import {
   connectGateway,
-  entryTransports,
   formatAddress,
   type GatewayConnection,
   type Member,
   readLink,
 } from "../../contracts/gateway/index.ts";
-import { newToken } from "../../contracts/gateway/node.ts";
+import { entryTransports, newToken } from "../../contracts/gateway/node.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import { loadHome } from "../home/index.ts";
 
@@ -73,7 +72,7 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
   const where = formatAddress(invitation.address);
   let gateway: GatewayConnection;
   try {
-    gateway = await connectGateway({ transportFactory: entryTransports(invitation.address, signal).gateway, signal });
+    gateway = await connectGateway({ transportFactory: entryTransports(invitation.address).gateway, signal });
   } catch (error) {
     throw new JoinFailedError(`Could not reach the gateway at ${where}: ${(error as Error).message}`, { cause: error });
   }

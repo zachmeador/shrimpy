@@ -5,12 +5,11 @@ import {
   type Address,
   type Announcement,
   connectGateway,
-  entryTransports,
   type GatewayConnection,
   type Member,
   type Registration,
 } from "../../contracts/gateway/index.ts";
-import { newToken } from "../../contracts/gateway/node.ts";
+import { entryTransports, newToken } from "../../contracts/gateway/node.ts";
 import { stopAfter } from "../../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../../lib/version/index.ts";
 

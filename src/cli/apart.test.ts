@@ -8,7 +8,6 @@ import { AGENT_HOME_VARIABLE, connectAgent } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
 import {
   connectGateway,
-  entryTransports,
   formatAddress,
   type GatewayConnection,
   type Member,
@@ -17,7 +16,7 @@ import {
   type Transports,
   writeLink,
 } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, localTransports, newToken } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, entryTransports, localTransports, newToken } from "../contracts/gateway/node.ts";
 import { type RunningGateway, startGateway } from "../gateway/index.ts";
 import { isRefusal, reasonOf } from "../lib/refusal/index.ts";
 import { eventually, stopAfter, tempDir, until, useRuntimeDir, waitForView, within } from "../lib/testing/index.ts";
@@ -26,6 +25,7 @@ import {
   type ModelServer,
   serve,
   serveChat,
+  serveGateway,
   shrimpy,
   shrimpyInBackground,
   startModelServer,
@@ -34,11 +34,14 @@ import {
 
 /*
  * An agent apart from the gateway, through real programs. The gateway runs in this process and listens on loopback, the
- * chat server and each agent in a process of their own. What is apart has a runtime directory and a Shrimpy folder of
- * its own, so it shares no socket with the gateway and reaches it only over the network entry.
+ * chat server and each agent in a process of their own, except where a test has to stop the gateway with a signal and
+ * leave it open, and then the gateway is a process of its own too. What is apart has a runtime directory and a Shrimpy
+ * folder of its own, so it shares no socket with the gateway and reaches it only over the network entry.
  */
 
 const timeout = 120_000;
+/** How long an agent gives a stop, if it has turns to wait for. One that has none ends much sooner, whatever the network is doing. */
+const GRACE_MS = 5_000;
 const CRAB = { kind: "agent", name: "crab" } as const;
 
 interface Network {
@@ -68,8 +71,30 @@ async function startNetwork(t: TestContext, options: { silenceMs?: number } = {}
   return { model, gateway, dataDir, person };
 }
 
+/**
+ * What an agent apart needs of a network to join it: the test model its home talks to, and a connection on the
+ * gateway's own socket, which is the person who runs the gateway.
+ */
+type Joining = Pick<Network, "model" | "person">;
+
+/**
+ * The gateway as the process people start, with the chat server and a test model, in the test's runtime directory.
+ * Unlike the one in `startNetwork`, it can be stopped with a signal and left open, as a gateway that went dead is.
+ */
+async function startNetworkOfProcesses(t: TestContext) {
+  useRuntimeDir(t);
+  const model = await startModelServer();
+  stopAfter(t, () => model.close());
+  const gateway = await serveGateway(t, ["--listen", "127.0.0.1:0"]);
+  await serveChat(t, tempDir(t, "chat-data"));
+  await untilRegistered("chat", "chat");
+  const person = await connectLocalGateway();
+  stopAfter(t, () => person.close());
+  return { model, gateway, person };
+}
+
 /** A home for the agent called `name` that talks to the test model. */
-function homeFor(t: TestContext, { model }: Network, name: string): string {
+function homeFor(t: TestContext, { model }: Pick<Network, "model">, name: string): string {
   const home = join(tempDir(t, "home"), name);
   initHome(home, { name, model: { provider: "local", id: "test-model" } });
   declareLocalModel(home, { url: model.url, model: "test-model" });
@@ -80,7 +105,7 @@ function homeFor(t: TestContext, { model }: Network, name: string): string {
  * A home for the agent called `name`, joined with the link of an invitation that the person asked for, as a person
  * pastes it where the agent lives. It keeps the gateway's address.
  */
-async function homeFromApart(t: TestContext, network: Network, name: string): Promise<{ home: string; member: Member }> {
+async function homeFromApart(t: TestContext, network: Joining, name: string): Promise<{ home: string; member: Member }> {
   const { code, addresses } = await network.person.invite(name);
   const [address] = addresses;
   assert.ok(address);
@@ -347,4 +372,53 @@ test("an agent apart whose connection stops answering without closing is no long
   await eventually(listed, (running) => running === true, { what: "crab to be listed as running again", timeoutMs: 15_000 });
   const again = await reachCrab(t, person, localTransports());
   assert.deepEqual(await again.connection.sessions(), [], "and it is reached again");
+});
+
+test("an agent apart that is told to stop while its gateway is frozen ends within its grace, whether it had reached the gateway or not", { timeout }, async (t) => {
+  const network = await startNetworkOfProcesses(t);
+  const { gateway } = network;
+  const { home: reachedHome } = await homeFromApart(t, network, "rex");
+  const { home: neverHome } = await homeFromApart(t, network, "maya");
+  const reached = await serve(t, reachedHome, [], { env: apartEnv(t) });
+  await untilRegistered("agent", "rex");
+  // Rex has chat too, which goes through the gateway as well.
+  const said = await shrimpy(["run", "rex", "hi"]);
+  assert.equal(said.code, 0, said.stderr);
+
+  // A process that is stopped takes connections and answers none of them, and the connections it holds stay open.
+  process.kill(gateway.listening.pid, "SIGSTOP");
+  // Maya starts with a gateway that takes her connection and never answers.
+  const never = await serve(t, neverHome, [], { env: apartEnv(t) });
+
+  const stops = await Promise.all(
+    [reached, never].map(async (agent) => {
+      const started = Date.now();
+      const result = await within(2 * GRACE_MS, agent.stop(), "the agent to stop");
+      return { result, took: Date.now() - started };
+    }),
+  );
+  for (const { result, took } of stops) {
+    assert.equal(result.code, 0, result.stderr);
+    assert.ok(took < GRACE_MS, `it ended in ${String(took)} ms`);
+  }
+});
+
+test("a shrimpy command in the shell of an agent apart that is interrupted while its gateway is frozen ends at once", { timeout }, async (t) => {
+  const network = await startNetworkOfProcesses(t);
+  const { gateway, model } = network;
+  await serve(t, homeFor(t, network, "rex"), [], { env: { HOME: tempDir(t, "rex-user") } });
+  await untilRegistered("agent", "rex");
+  const { home } = await homeFromApart(t, network, "crab");
+  // The shell has a runtime directory of its own, so its commands come in over the gateway's entry.
+  const shell = { env: { [AGENT_HOME_VARIABLE]: home, SHRIMPY_RUNTIME_DIR: tempDir(t, "rt-shell") } };
+
+  // The command waits for an answer that comes slowly, over a connection through the gateway.
+  const asked = model.requests.length;
+  const waiting = shrimpyInBackground(["run", "rex", "go slow"], shell);
+  await until(() => model.requests.length > asked, "rex to start answering");
+  process.kill(gateway.listening.pid, "SIGSTOP");
+
+  waiting.kill("SIGINT");
+  const result = await within(5_000, waiting.finished, "the command to end");
+  assert.equal(result.code, 130, result.stderr);
 });

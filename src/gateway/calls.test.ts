@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { type TestContext, test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { answerPath, entryTransports, type GatewayConnection, reachProgram, type Transports } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, localTransports } from "../contracts/gateway/node.ts";
+import { answerPath, type GatewayConnection, reachProgram, type Transports } from "../contracts/gateway/index.ts";
+import { connectLocalGateway, entryTransports, localTransports } from "../contracts/gateway/node.ts";
 import { isDisconnected } from "../lib/connection/index.ts";
 import { eventually, stopAfter, useRuntimeDir, within } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";

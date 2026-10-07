@@ -1,7 +1,7 @@
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { connectChat } from "../contracts/chat/index.ts";
-import { type Address, entryTransports, type GatewayConnection } from "../contracts/gateway/index.ts";
-import { localTransports } from "../contracts/gateway/node.ts";
+import { type Address, type GatewayConnection } from "../contracts/gateway/index.ts";
+import { entryTransports, localTransports } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, startIntake } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";

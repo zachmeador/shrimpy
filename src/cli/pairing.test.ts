@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
-import { connectGateway, entryTransports, formatAddress, readLink, writeLink } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
+import { connectGateway, formatAddress, readLink, writeLink } from "../contracts/gateway/index.ts";
+import { connectLocalGateway, entryTransports, newToken } from "../contracts/gateway/node.ts";
 import { stopAfter, tempDir } from "../lib/testing/index.ts";
 import {
   commandLines,

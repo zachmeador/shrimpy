@@ -6,7 +6,6 @@ import { type TestContext, test } from "node:test";
 import {
   type Announcement,
   connectGateway,
-  entryTransports,
   type GatewayConnection,
   NEEDS_ADMIN,
   readLink,
@@ -15,7 +14,7 @@ import {
   whyTurnedAway,
   writeLink,
 } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, newToken, waysDirectory } from "../contracts/gateway/node.ts";
+import { connectLocalGateway, entryTransports, newToken, waysDirectory } from "../contracts/gateway/node.ts";
 import { isRefusal, reasonOf } from "../lib/refusal/index.ts";
 import { eventually, stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";

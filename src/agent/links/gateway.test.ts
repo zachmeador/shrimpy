@@ -7,14 +7,13 @@ import type { Membership } from "../../contracts/agent/index.ts";
 import {
   type Address,
   connectGateway,
-  entryTransports,
   formatAddress,
   Gateway,
   GATEWAY_SERVER_ID,
   GATEWAY_SOCKET_NAME,
   type Member,
 } from "../../contracts/gateway/index.ts";
-import { type Heartbeat, localTransports, newToken } from "../../contracts/gateway/node.ts";
+import { entryTransports, type Heartbeat, localTransports, newToken } from "../../contracts/gateway/node.ts";
 import { gatewayThatDoes, startTestGateway, type TestGateway } from "../../contracts/gateway/testing/index.ts";
 import { type Backoff, backoff } from "../../lib/retry/index.ts";
 import { countedBackoff, offer, startStandIn, stopAfter, until, useRuntimeDir } from "../../lib/testing/index.ts";

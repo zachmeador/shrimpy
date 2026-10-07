@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { networkInterfaces, userInfo } from "node:os";
 import { test } from "node:test";
-import { connectGateway, entryTransports, type GatewayConnection, readLink } from "../contracts/gateway/index.ts";
-import { connectLocalGateway, newToken } from "../contracts/gateway/node.ts";
+import { connectGateway, type GatewayConnection, readLink } from "../contracts/gateway/index.ts";
+import { connectLocalGateway, entryTransports, newToken } from "../contracts/gateway/node.ts";
 import { startTestGateway } from "../contracts/gateway/testing/index.ts";
 import { stopAfter, useRuntimeDir } from "../lib/testing/index.ts";
 import { commandLines, serveGateway, shrimpy, startAgentShell } from "./testing/index.ts";

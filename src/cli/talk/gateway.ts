@@ -1,12 +1,11 @@
 import {
   connectGateway,
-  entryTransports,
   formatAddress,
   type GatewayConnection,
   type Registration,
   type RosterEntry,
 } from "../../contracts/gateway/index.ts";
-import { connectLocalGateway, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
+import { connectLocalGateway, entryTransports, GatewayNotRunningError } from "../../contracts/gateway/node.ts";
 import { START_EVERYTHING } from "./hints.ts";
 import { shellsGateway, signInAsTheShellsAgent } from "./shell.ts";
 

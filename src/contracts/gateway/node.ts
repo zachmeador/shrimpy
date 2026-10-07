@@ -1,9 +1,10 @@
 /**
  * The Node-only door of the gateway contract: reaching the gateway on this
- * machine, and programs through it, over Unix sockets, staying registered with
- * the gateway, and making an agent's token. Browser code must not import this
- * file.
+ * machine, and programs through it, over Unix sockets, or the gateway at an
+ * address, over its network entry, staying registered with the gateway, and
+ * making an agent's token. Browser code must not import this file.
  */
+export { entryTransports } from "./entry.node.ts";
 export {
   type Heartbeat,
   type KeepRegisteredOptions,

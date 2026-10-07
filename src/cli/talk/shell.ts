@@ -3,12 +3,11 @@ import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
 import {
   type Address,
-  entryTransports,
   type GatewayConnection,
   type Member,
   type Transports,
 } from "../../contracts/gateway/index.ts";
-import { localTransports } from "../../contracts/gateway/node.ts";
+import { entryTransports, localTransports } from "../../contracts/gateway/node.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 
 /**
