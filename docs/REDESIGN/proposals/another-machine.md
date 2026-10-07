@@ -53,17 +53,17 @@ To let an agent in, make an invitation for it:
 shrimpy members invite crab
 ```
 
-A name that is taken is refused there and then. Otherwise it prints one line to run where the agent will live, with an address and a code. The code works once, for fifteen minutes, and for that name only:
+A name that is taken is refused there and then. Otherwise it prints one line to run where the agent will live, with the agent's name, an address and a code. The code works once, for fifteen minutes, and for that name only:
 
 ```text
-shrimpy agent join shrimpy://100.101.102.103:7447/K7Q2-9FXD
+shrimpy agent join shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD
 ```
 
 Where the agent will live, with Shrimpy at the same version, you sign the folder in if it isn't yet, paste that line and start the agent:
 
 ```bash
 shrimpy providers login
-shrimpy agent join shrimpy://100.101.102.103:7447/K7Q2-9FXD
+shrimpy agent join shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD
 shrimpy up
 ```
 
@@ -83,8 +83,8 @@ An admin agent can do the rest for you. It makes the invitation, reaches the oth
 
 ## Underneath
 
-1. **The entry.** The WebSocket entry the browser uses also listens on each address you chose. A connection that shows an agent's token may do what a program on the gateway's machine does: sign in, ask for tickets, register. One that shows a code may join. One that shows neither is never taken for you, which only the gateway's own socket does. I'd give it nothing at all, where a page in a browser on the gateway's machine gets the list of programs and the roster today.
-2. **Joining.** `join` takes the code with the token. The gateway keeps a hash of the token and forgets the code, as it keeps no token today. A code is for one name, so that whoever holds it can't take another. Being a member takes a name and a token, and no model: a home made by `join` names none, and takes the one its folder gives.
+1. **The entry.** The gateway listens on each address you chose, with the WebSocket entry it already has for a browser. A connection there that shows an agent's token is that agent, and may do what the agent may on the gateway's machine. One that shows a code, with the name the code is for, may join. One that shows neither gets nothing, not even the list a page in a browser on the gateway's machine gets today, and it is never taken for you, which only the gateway's own socket does. A way through to a program, such as chat, opens only with a ticket for that program, so nobody who hasn't signed in reaches one. A connection that says it comes from a web page is refused.
+2. **Joining.** `join` shows the gateway the name, the code and the token. The gateway keeps a hash of the token and forgets the code, as it keeps no token today. A code is for one name, so that whoever holds it can't take another, and it is kept in memory as a ticket is, so a gateway that restarts forgets it. Being a member takes a name and a token, and no model: a home made by `join` names none, and takes the one its folder gives.
 3. **Reaching an agent that only connects out.** An agent apart from the gateway registers with no socket. When someone asks for it, the gateway tells the agent, over the connection the agent keeps open, and the agent opens one more connection to the gateway, which joins the two. The design already says this, in one sentence. The agent asks "who wants me" and waits, as it asks chat for events, so the gateway never has to reach it.
 4. **A dead connection.** The gateway pings each connection that comes over the entry and lets one go that stays silent for half a minute, so an agent that lost its network can register again. Today a registration lasts as long as its socket, which a dead network connection can outlive.
 5. **Chat.** The chat server stays on the gateway's machine. An agent apart from the gateway reaches it by name through the gateway, as an agent beside the gateway does.
@@ -101,14 +101,26 @@ You said on 2026-10-06 that Tailscale is never to be needed, and that it should 
 
 ## Built in four steps
 
-1. **Letting an agent in.** The entry on an address, the invitation, `agent join`, a home that remembers its gateway, and `up` where there is no gateway. An agent in a folder that shares no sockets with the gateway joins, reads chat and answers in a thread.
-2. **Reached through the gateway.** Registering with no socket, and the gateway joining a client to an agent that connects out. The terminal watches and stops that agent's sessions as it does those of an agent beside the gateway.
+1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Being built since 2026-10-06, underneath first, as below. The commands follow as changes of their own: `--listen`, `members invite` and `agent join`, then `up` where there is no gateway.
+2. **Reached through the gateway.** The gateway joining a client to an agent that connects out. Until then the gateway says that an agent apart from it can't be reached yet, where a client asks for its sessions. The terminal watches and stops that agent's sessions as it does those of an agent beside the gateway.
 3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Then the same with an agent under a second OS user, and on a real second machine.
 4. **You, from another machine,** if you agree to the fifth decision: the terminal on a machine that isn't the gateway's, let in by an invitation of its own.
 
 Each is tested on one machine over a real connection first.
 
 **Linux comes first if the gateway's machine runs it.** All three programs would run there, and none has been run on Linux: the design left that for the pieces that cross machines. Running the checks there needs no new code, so it can happen before the first step. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
+
+## The first step, underneath
+
+What is built first has no command. It is reached from code, and each command comes after as a change of its own.
+
+- **Where the gateway listens.** It is started with the addresses to listen on, each a host and a port, and says which it got. On each it serves the entry: `/ws/gateway` for the gateway itself, and `/ws/<kind>/<name>` for a way through to a registered program. No files are served there.
+- **Who a connection is.** A connection over the entry is apart from the gateway. Until it signs in or joins it may do only those two things. Once it has, it is that agent, and may list what is running and who is on the roster, ask for tickets, register, and promote or demote if it is an admin. It is never the person who runs the gateway.
+- **An invitation.** A person or an admin asks the gateway for one, for a name that nobody has. It is a code of eight characters from an alphabet with no look-alikes, written `K7Q2-9FXD`, good once and for fifteen minutes, and kept in memory. The answer has the code and the addresses the gateway listens on, and with none it is refused: nobody could use it.
+- **The link.** `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD` is the name, the address and the code. One function writes it and one reads it, for the command that prints it and the one that takes it.
+- **Joining.** The home makes its token and keeps it first, as it does today. It then shows the entry the name, the token and the code. The gateway makes the member if the code is good for that name, and a home that never heard the answer asks again with the same token and is the same member. The home then keeps the gateway's address beside its token, and from then on reaches the gateway and chat there.
+- **Being there.** An agent apart signs in and registers with no socket, so the roster says it is running and a copy of its home is turned away. A client that asks for a ticket to it is told that an agent apart from the gateway can't be reached yet.
+- **A way through.** A program is reached over the entry with a ticket in hand, which the gateway looks at before it opens the way and the program then spends. So the way to a program takes the ticket as well as the name.
 
 ## Left for later
 
@@ -120,11 +132,11 @@ Each is tested on one machine over a real connection first.
 
 ## For you to decide
 
-1. **Pairing by an invitation** made on the gateway's machine and pasted where the agent will live, as above. The other way round is the new machine asking and you approving it on the gateway's machine, which needs the gateway open to strangers first.
-2. **Tailscale for the wire, and never needed.** No encryption of Shrimpy's own for now, and a plain statement that the address you listen on should be one only your machines reach.
-3. **Two new commands,** `members invite` and `agent join`, one option, `--listen`, and one change to `shrimpy up`: in a folder whose agents all belong to a gateway elsewhere, it starts those agents and no gateway. Today it would start a second gateway and chat server there. You are who asks for them.
-4. **The order.** This next, ahead of the provider interface and the rest of the home.
-5. **You come in by an invitation too.** A machine of yours gets an invitation as an agent does, keeps a token in its Shrimpy folder, and is you from then on. Your Tailscale login becomes a way to skip that, and stops being the only way in. This follows from Tailscale never being needed, and it changes three confirmed rows of [identity](../design/3-identity.md): a person on another machine is their Tailscale login, a page from another device waits for Tailscale, and the gateway checks that an agent connects from the machine it is expected from.
+1. **Pairing by an invitation** made on the gateway's machine and pasted where the agent will live, as above. Decided on 2026-10-06: you agreed, with `shrimpy members invite` printing the line to paste.
+2. **Tailscale for the wire, and never needed.** Never needed is your rule of 2026-10-06. Still yours to say: no encryption of Shrimpy's own for now, so that on a network that isn't a tailnet a token and the messages travel in the clear, with a plain statement that the address you listen on should be one only your machines reach.
+3. **The rest of the commands.** `agent join`, which the pasted line is, and one option, `--listen`. And one change to `shrimpy up`, which you asked about on 2026-10-06 and haven't decided: in a folder whose agents all belong to a gateway elsewhere, it starts those agents and no gateway. Today it would start a second gateway and chat server there, which nothing would use. You are who asks for them.
+4. **The order.** You said on 2026-10-06 to get back to this after providers, and the first step is being built.
+5. **You come in by an invitation too.** A machine of yours gets an invitation as an agent does, keeps a token in its Shrimpy folder, and is you from then on, and your Tailscale login can stand in for the token later. The rows of [identity](../design/3-identity.md) that had Tailscale as the only way in for you were changed on 2026-10-06, when you said you hadn't known the plan made it needed. The invitation for your own machine is proposed, and waits on you.
 6. **A home can be made with no model.** Decided on 2026-10-06, with [providers](../design/5-home.md): an agent takes its model from the folder it is started in unless its `agent.json` names one. So `agent join` takes the invitation and nothing else, and the line the gateway's machine prints is the line you paste.
 
 ## What the proof needs

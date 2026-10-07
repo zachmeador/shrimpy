@@ -57,13 +57,13 @@ Under Later in the [order of work](../PLAN.md#order-of-work).
 
 Under Later in the [order of work](../PLAN.md#order-of-work).
 
-**Outcome:** agents run in sandboxes and on Linux, people's devices are identified by Tailscale, and chat reaches Telegram through the provider interface. Joining from another machine and reaching an agent's sessions through the gateway are already in the MVP.
+**Outcome:** agents run in sandboxes and on Linux, the gateway reads who is at the other end from Tailscale where it is there, and chat reaches Telegram through the provider interface. Joining from another machine and reaching an agent's sessions through the gateway are already in the MVP.
 
 **Build**
 
 - Telegram as the first provider, reusing the existing sender, formatting and media helpers, without `AppRuntime`, `SessionPool` or the control bus. One poller per bot account, and an explicit owner for cursors, batches and receipts.
 - Gateway registration and routing, with agents connecting out to it.
-- Tailscale identity for people, and the gateway checking that an agent's token comes from the expected machine.
+- Reading from Tailscale where it is there, and never needing it: whose a person's machine is, and whether an agent connects from the machine it is expected from.
 - The programs and their locks qualified on Linux.
 
 **Prove**

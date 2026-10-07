@@ -31,7 +31,7 @@ Confirmed during review:
 - **Every conversation is a thread in a channel.** A channel is a place: a DM with an agent, or a room with people and agents. It has a main thread, and side threads hold parallel topics. The console, the web app, Telegram and a future desktop app are all clients of channels; there's no separate way of talking to an agent from the console.
 - **Sessions sit behind threads.** Each agent taking part in a thread keeps one current session for it: its private work. Work with no thread, such as a helper's, has a session too. Opening the terminal or web app, picking an authorized agent and entering any of its sessions to watch, steer or stop it is core UX, locally or through a gateway.
 - **A chat server keeps channels.** It's a service of its own that holds channels with their threads, messages and attachments, and bridges chat providers in: the shared record of what was said. Agents keep their sessions, their own private work. That's the split between channels and sessions Shrimpy has today.
-- **The gateway only connects things.** It handles discovery, access and routing between clients, agents and the chat server, and keeps the workspace's configuration: registrations, tokens and workspace context. It never hosts agents or conversations. A gateway on Tailscale is the leading option for network identity and security.
+- **The gateway only connects things.** It handles discovery, access and routing between clients, agents and the chat server, and keeps the workspace's configuration: registrations, tokens and workspace context. It never hosts agents or conversations. Tailscale is the network to recommend for it, and is never needed.
 - **Shrimpy leaves Pi's terminal app.** Shrimpy owns its session-client contract and presentation, reusing public `pi-tui` components where they fit.
 - **Pi's durable runtime is the engine.** Shrimpy reshapes around it instead of wrapping it.
 - **Chat providers are interchangeable.** Telegram is one chat provider among possible others, such as Discord or iMessage. Shrimpy's chat behavior lives in the chat server, and each provider only translates its own API. A desktop chat app, possibly a fork Shrimpy maintains someday, would plug in the same way; it isn't part of this plan.
@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Nothing is being built. Two proposals wait on you: [an agent on another machine](proposals/another-machine.md), which would be next, and [hearing a thread while working in it](proposals/hearing-a-thread.md).
+- The first step of an agent on another machine: letting one in from apart. Two proposals wait on you: [an agent on another machine](proposals/another-machine.md), which would be next, and [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**
 
