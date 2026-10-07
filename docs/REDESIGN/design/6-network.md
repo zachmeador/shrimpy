@@ -96,7 +96,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 | Tailscale | — | Never needed. Shrimpy uses a network that Tailscale provides, may later read from it who is at the other end, never manages it and is never served through it. | Confirmed on 2026-10-06 |
 | Encryption | — | None of Shrimpy's own for now. On a tailnet the link is encrypted already. On a network that isn't one, a token and the messages travel in the clear, so the address you listen on should be one only your machines reach. | Confirmed for now on 2026-10-06 |
 | The commands for it | — | `members invite` and `agent join`, one option, `--listen`, and `shrimpy up` starting only the agents in a folder whose agents all belong to a gateway elsewhere. | Confirmed on 2026-10-06: you agreed to the pairing they carry out, and to the change to `up` |
-| You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. Its lines are shown to you before it is built |
+| You, from another machine | Over SSH to the gateway's machine | A machine of yours comes in by an invitation, as an agent does. It keeps a token in its Shrimpy folder and is you from then on. A Tailscale login may stand in for the token later. | Confirmed on 2026-10-06, as long as it is simple and clean. You saw its lines on 2026-10-07 and said to go on 2026-10-08 |
 
 **Open**
 
@@ -115,7 +115,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Built: underneath on 2026-10-06, and its commands on 2026-10-07, each a change of its own.
 2. **Reached through the gateway.** The gateway joining a client to an agent that connects out, so that the terminal watches and stops that agent's sessions as it does those of an agent beside the gateway. Built on 2026-10-07.
 3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Built on 2026-10-07. Then the same with an agent under a second OS user, and over an address a second machine reaches directly.
-4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own.
+4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own. Being built since 2026-10-08, as below.
 
 **The first step, underneath.** What was built first has no command. It is reached from code, and each command comes after as a change of its own.
 
@@ -154,6 +154,26 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **A stop always ends.** A program reaches the entry with a transport that can drop a connection at once, so an agent apart that is told to stop ends whatever the network is doing, and says nothing. A page in a browser has only the platform's WebSocket, which waits for a closing that a dead end never gives, and the entry takes no page.
 - **A limit on connecting.** Each try at connecting, signing in and registering gives up after a quarter of a minute, so an agent that starts while its gateway takes connections and answers nothing says so within that time.
 - **Chat follows the gateway.** When an agent loses its gateway it lets go of its connection to chat too, and comes in again with a new ticket once it has registered again, so it never waits on a feed that can't arrive.
+
+**The fourth step: you, from another machine.** You saw its lines on 2026-10-07 and said to go on 2026-10-08.
+
+```text
+$ shrimpy members invite
+The invitation works once, for fifteen minutes, and lets another machine of yours in as zachmeador. Run this there:
+  shrimpy join shrimpy://100.101.102.103:7447/K7Q2-9FXD
+```
+
+```text
+$ shrimpy join shrimpy://100.101.102.103:7447/K7Q2-9FXD
+This machine is zachmeador's now, on the gateway at 100.101.102.103:7447.
+Open the terminal with: shrimpy
+```
+
+- **The invitation.** `shrimpy members invite` with no name is for a machine of your own. Only you can ask for it: on the gateway's machine, or from a machine of yours that is in already. No agent can, admin or not, since it would let the agent in as you. Its link carries no name.
+- **Joining.** `shrimpy join <link>` makes a token, keeps it in the Shrimpy folder of that machine, and shows the gateway the code and the token. The gateway keeps a hash of the token with your record, beside how it knows you on its own machine. A machine that never heard the answer shows the same link again and is let in.
+- **From then on** a connection over the entry that shows that token is you, with everything you may do. A command in that folder that is not in an agent's shell reaches the gateway there as you: the terminal, `run`, `threads`, `read`, `rooms`, `members` and the rest that talk. A command about an agent's home acts on the homes of the machine it runs on, as it does everywhere.
+- **A folder that has a gateway of its own** is not joined: you are you there already, and `shrimpy join` says so.
+- **Leaving** is deleting the file the token is kept in. Nothing yet takes a machine's token back at the gateway.
 
 **Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 646 there were later that day, 636: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
 

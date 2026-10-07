@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- The network: an agent apart from the gateway, in four steps. The first, letting one in, is being built. [Not built yet](design/6-network.md)
+- The network: an agent apart from the gateway, in four steps. Three are built. The fourth, you from another machine, is being built. [Not built yet](design/6-network.md)
 - One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**
