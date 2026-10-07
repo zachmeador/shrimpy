@@ -1,14 +1,13 @@
 import { type ChatConnection, connectChat, type Member } from "../../contracts/chat/index.ts";
-import { reachProgram, type Registration, type RosterEntry } from "../../contracts/gateway/index.ts";
-import { localTransports } from "../../contracts/gateway/node.ts";
+import { formatAddress, reachProgram, type Registration, type RosterEntry } from "../../contracts/gateway/index.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 import type { Io } from "../io/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import { view, withGateway } from "./gateway.ts";
 import { START_EVERYTHING } from "./hints.ts";
-import { signInAsTheShellsAgent } from "./shell.ts";
+import { shellsGateway, shellsTransports, signInAsTheShellsAgent } from "./shell.ts";
 
-/** A connection to the chat server on this machine, made through the gateway, as whoever the gateway says this is. */
+/** A connection to the chat server, made through the gateway, as whoever the gateway says this is. */
 export interface Reached {
   /** You, as the chat server knows you. */
   readonly me: Member;
@@ -22,12 +21,14 @@ export interface Reached {
 }
 
 /**
- * Reach the chat server on this machine the way every command that talks does:
- * by its name through this machine's gateway, which gives a ticket to hand it,
- * so that the chat server asks the gateway who is talking. Nobody says who they
- * are: the gateway decides. A command run from an agent's shell signs in with
- * that agent's token and is the agent; any other is the person who runs the
- * gateway. A gateway or chat server of another version than this command is
+ * Reach the chat server the way every command that talks does: by its name
+ * through the gateway, which gives a ticket to hand it, so that the chat server
+ * asks the gateway who is talking. The gateway is this machine's, or, in the
+ * shell of an agent apart from the gateway, the one that agent reaches over
+ * its entry. Nobody says who they are: the gateway decides. A command run from
+ * an agent's shell signs in with that agent's token and is the agent; any other
+ * is the person who runs the gateway. A gateway or chat server of another
+ * version than this command is
  * named on standard error, and the command carries on. When nothing is running
  * the error says what to start. Aborting `signal` gives up, even on a server
  * that is not answering.
@@ -39,16 +40,19 @@ export async function reachChat(io: Io, signal?: AbortSignal): Promise<Reached> 
     warnIfVersionDiffers(io, "the gateway", listing.version);
     const chat = listing.programs.findLast((program) => program.kind === "chat");
     if (chat === undefined) {
+      const apart = shellsGateway();
       throw new Error(
-        "No chat server is registered with this machine's gateway. " +
-          `Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`,
+        apart === undefined
+          ? "No chat server is registered with this machine's gateway. " +
+              `Start one with: shrimpy chat serve <data-dir>, or start everything with: ${START_EVERYTHING}`
+          : `No chat server is registered with the gateway at ${formatAddress(apart)}.`,
       );
     }
     warnIfVersionDiffers(io, "the chat server", chat.version);
     try {
       const { connection, entered } = await reachProgram({
         gateway,
-        transports: localTransports(),
+        transports: shellsTransports(),
         target: { kind: chat.kind, name: chat.name },
         connect: connectChat,
         enter: (opened, ticket, enterSignal) => opened.chat.enter(ticket, enterSignal),

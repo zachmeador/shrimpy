@@ -1,7 +1,14 @@
 import { resolve } from "node:path";
 import { AGENT_HOME_VARIABLE } from "../../contracts/agent/index.ts";
 import { readMembership } from "../../contracts/agent/node.ts";
-import type { GatewayConnection, Member } from "../../contracts/gateway/index.ts";
+import {
+  type Address,
+  entryTransports,
+  type GatewayConnection,
+  type Member,
+  type Transports,
+} from "../../contracts/gateway/index.ts";
+import { localTransports } from "../../contracts/gateway/node.ts";
 import { isRefusal } from "../../lib/refusal/index.ts";
 
 /**
@@ -35,6 +42,23 @@ export async function signInAsAgentAt(gateway: GatewayConnection, home: string):
 export async function signInAsTheShellsAgent(gateway: GatewayConnection): Promise<void> {
   const home = process.env[AGENT_HOME_VARIABLE];
   if (home !== undefined && home !== "") await signInAsAgentAt(gateway, home);
+}
+
+/**
+ * The address of the gateway's entry that the agent whose shell this command
+ * runs in reaches, when the agent is apart from the gateway: the one its home
+ * keeps. A command run anywhere else, and one in the shell of an agent beside
+ * the gateway, has none, and reaches the gateway on this machine.
+ */
+export function shellsGateway(): Address | undefined {
+  const home = process.env[AGENT_HOME_VARIABLE];
+  return home === undefined || home === "" ? undefined : readMembership(home)?.gateway;
+}
+
+/** How this command reaches the gateway and the programs behind it: over the shell's agent's entry if it has one, and else on this machine. */
+export function shellsTransports(): Transports {
+  const gateway = shellsGateway();
+  return gateway === undefined ? localTransports() : entryTransports(gateway);
 }
 
 /**
