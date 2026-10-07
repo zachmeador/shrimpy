@@ -100,7 +100,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 
 **Open**
 
-- **Which machines prove it.** Two that reach each other over a network only your machines are on, with Shrimpy at the same version on both, at least one of them running Linux, and a second OS user on the gateway's machine. Either machine can be the gateway's. Which they are is yours to say, and is no part of the design: nothing here assumes where the gateway runs, where an agent runs, or where the work on Shrimpy is done.
+- **An agent under a second OS user of the gateway's machine** has not been tried. A gateway on one machine and an agent on another have, on 2026-10-07 and 2026-10-08, the second time straight over a tailnet. Nothing in the design assumes where the gateway runs, where an agent runs, or where the work on Shrimpy is done.
 
 **Not built yet**
 
