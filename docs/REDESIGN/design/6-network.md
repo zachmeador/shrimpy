@@ -126,6 +126,14 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **Being there.** An agent apart signs in and registers with no socket, so the roster says it is running and a copy of its home is turned away. A client that asks for a ticket to it is told that an agent apart from the gateway can't be reached yet.
 - **A way through.** The way to a program takes the ticket as well as the name.
 
+**The commands of the first step.** Each is a change of its own.
+
+- **`--listen <host:port>`** on `shrimpy up` and `shrimpy gateway serve`, given more than once for more addresses. The gateway keeps them with its roster, so a later start with no `--listen` listens there again, and says so. Giving them again replaces what was kept. An address that means every interface is refused, since an invitation needs one that another machine can use.
+- **`shrimpy up` that is told to listen** starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join it.
+- **`shrimpy members invite <name>`** prints the line to paste, one for each address the gateway listens on, and says which is for another user of the gateway's machine.
+- **`shrimpy agent join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
+- **`shrimpy up` where there is no gateway.** When every agent it is to start belongs to a gateway elsewhere, it starts those agents and no gateway or chat server, unless it is told to listen.
+
 **Linux comes first if the gateway's machine runs it.** All three programs would run there, and none has been run on Linux: the design left that for the pieces that cross machines. Running the checks there needs no new code. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
 
 **Left for later**
