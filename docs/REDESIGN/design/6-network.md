@@ -112,12 +112,12 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 
 **Build,** in four steps, each tested on one machine over a real connection first:
 
-1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Being built since 2026-10-06, underneath first, as below. The commands follow as changes of their own: `--listen`, `members invite` and `agent join`, then `up` where there is no gateway.
+1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Underneath, as below, it was built on 2026-10-06. Its commands are being built as changes of their own: `--listen`, `members invite` and `agent join`, then `up` where there is no gateway.
 2. **Reached through the gateway.** The gateway joining a client to an agent that connects out. Until then the gateway says that an agent apart from it can't be reached yet, where a client asks for its sessions. The terminal then watches and stops that agent's sessions as it does those of an agent beside the gateway.
 3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Then the same with an agent under a second OS user, and on a real second machine.
 4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own.
 
-**The first step, underneath.** What is built first has no command. It is reached from code, and each command comes after as a change of its own.
+**The first step, underneath.** What was built first has no command. It is reached from code, and each command comes after as a change of its own.
 
 - **Where the gateway listens.** It is started with the addresses to listen on, each a host and a port, and says which it got. No files are served there.
 - **Who a connection is.** A connection over the entry is apart from the gateway. Until it signs in or joins it may do only those two things. Once it has, it is that agent, and may list what is running and who is on the roster, ask for tickets, register, and promote or demote if it is an admin. It is never the person who runs the gateway.

@@ -35,6 +35,7 @@
 - Every message a person writes joins the turn an agent is running, and an agent's waits. ([log, 2026-10-05](#log))
 - An agent asks another with `ask_agent`, each question in a thread of its own, and the answer comes back to the session that asked. ([log, 2026-10-06](#log))
 - Providers for a whole folder: one sign-in in each place agents run, made with `shrimpy providers login`, serves every agent started there, and an agent names a model only when it wants one of its own. ([log, 2026-10-06](#log))
+- An agent apart from the gateway, underneath: the gateway listens on an address, an invitation lets one agent in, and an agent that shares no socket with the gateway joins, is listed as running, reads chat and answers. ([log, 2026-10-06](#log))
 
 ## Log
 
@@ -43,6 +44,14 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-06: an agent apart from the gateway joins and answers, underneath.** The first of four steps, built as the network's design has it, by one builder in two commits, with no command yet. The gateway is started with addresses and serves its entry on each. A connection there is a third kind of peer, apart from the gateway: until it signs in or joins it can do nothing, and it is never the person who runs the gateway. An invitation is a code for one name, good once and for fifteen minutes. A home joins with a link, keeps the gateway's address beside its token, and an agent started from it reaches the gateway and chat over the entry, as does a `shrimpy` command in its shell.
+
+- The contract: `invite(name)`, `join` with a code, a registration with no socket, and a way to a program that takes its ticket. A link is written and read by one pair of functions.
+- A gap the builder closed: an agent apart must register with no socket, and may not name one. Naming the gateway's own socket would have had the gateway pipe a client to itself as the person.
+- Small choices: the entry pipes to a third Unix socket of the gateway, so the gateway serves one contract in three places. A ticket travels in the WebSocket's address, and an error never repeats it. A wrong or missing ticket and a web page both get a plain refusal, which shows nothing of what is registered. A code is spent only when it makes a member, so a home that never heard the answer shows the same link again and is the same member.
+- Tried through real programs on one machine: a gateway and a chat server, and an agent in a process with a runtime directory and a folder of its own, joined by a link. `shrimpy run` printed its answer, the roster said it was running, a copy of its home was turned away, and it left the list when it stopped. Over a real connection at the gateway: a connection that hasn't signed in gets nothing, a way through opens only with a ticket for that program, and a code works once, for its name.
+- Not tried: a second machine, a second OS user, Linux, a connection that goes dead, either side restarting, and versions that differ.
 
 **2026-10-06: an agent apart from the gateway is decided.** You asked when the real piece starts: agents on other machines, and how pairing works. It had stayed last in the order behind "a second machine to test on", which was the wrong thing to wait for: nearly all of it can be built and tested on one machine, with two folders that share no sockets and a real connection between them. The proposal went through one day of your questions and is now [the network's](../design/6-network.md) design.
 
