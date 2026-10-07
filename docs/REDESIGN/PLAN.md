@@ -118,7 +118,7 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- Providers for a whole folder, and `shrimpy providers login`, as [the home](design/5-home.md) has them. Two proposals wait on you: [an agent on another machine](proposals/another-machine.md), which would be next, and [hearing a thread while working in it](proposals/hearing-a-thread.md).
+- Nothing is being built. Two proposals wait on you: [an agent on another machine](proposals/another-machine.md), which would be next, and [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**
 

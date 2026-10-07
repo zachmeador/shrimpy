@@ -50,8 +50,9 @@ As of 2026-10-05. An item leaves when it is fixed or when the design changes to 
 - The facts that come with a message are fixed when it is handed to its session, not when the session takes it up. Nothing differs yet, because each fact is fixed for a message. Pi has no hook for the moment input is taken up, so a fact that changes while a message waits needs a capture of its own.
 - Skills are trails only. `/skill:name`, templates, required-tool filtering and choosing skills for one agent aren't built.
 - The skills name what doesn't exist yet and say so: a setup command, OAuth sign-in and a command that removes an agent.
-- Nothing signs in to a provider yet: `shrimpy providers login` is being built. An `oauth` entry written into an `auth.json` by hand is used and renewed, which no real sign-in has been through. Nothing lists what a folder is signed in to, or signs it out.
-- A sign-in that is renewed at the provider and not saved, because the process died in between, is lost, and the folder has to be signed in again. A change to the credentials waits up to 30 seconds for another process to let go of the file, and that limit has no test. An `auth.json` that is a symbolic link is replaced by a plain file at the first renewal.
+- No real sign-in has run. `shrimpy providers login` has been through a made-up sign-in and an API key, so a subscription's flow, a device code and the callback on a local port are untried, and so is a renewal at a real provider. Asking at a real terminal is not in the tests.
+- Nothing lists what a folder is signed in to, or signs it out: an entry is removed from `providers/auth.json` by hand. The command signs in the folder and never one home, can't sign in to a server that a `models.json` declares, and doesn't open a browser. When it asks for a model it lists every model the provider has, whether or not the account can use it.
+- A sign-in that is renewed at the provider and not saved, because the process died in between, is lost, and the folder has to be signed in again. A change to the credentials waits up to 30 seconds for another process to let go of the file, and that limit has no test. An `auth.json` that is a symbolic link is replaced by a plain file at the first renewal. A Shrimpy folder that the sign-in command makes is private to its owner, and one that `agent init` makes is not.
 
 ### The network
 

@@ -26,7 +26,7 @@ runtime/              disposable endpoint and log files
 
 Shared resources are explicit references, never ancestor or global discovery. The one exception is providers, below, and the agent doesn't look for those either: whoever starts it says where they are. Development uses fresh fixture homes, and no existing user data is transformed for a proof.
 
-**Providers.** Decided on 2026-10-06. You sign in to a provider once in each place agents run, and every agent started there uses it. The place is the Shrimpy folder, which holds three files in `providers/`:
+**Providers.** Decided and built on 2026-10-06. You sign in to a provider once in each place agents run, and every agent started there uses it. The place is the Shrimpy folder, which holds three files in `providers/`:
 
 ```text
 providers/auth.json           sign-ins and keys
@@ -37,7 +37,7 @@ providers/default-model.json  the model an agent starts with when its agent.json
 - **A home's own files win.** Its `auth.json` for a provider it has an entry for, its `models.json` for a provider it declares, and the model its `agent.json` names. An agent on another account keeps its own. A provider the home declares takes its key from the home alone, so a key the folder holds never goes to a server the home gave the same name.
 - **The agent is told, and doesn't look.** `shrimpy up` and `shrimpy agent serve` say where the folder's `providers/` is. An agent started with none has only what its home holds.
 - **A sign-in is renewed where it is stored,** under a lock on that file, so agents that share one renew it once. Each reads the file again for every request, so a new sign-in needs no restart.
-- **`shrimpy providers login` signs a folder in** with Pi's own flows, in the terminal. It shows a link or a code and takes what you paste back, so it works over SSH. A place you have no shell in isn't covered: you, or an agent of yours, are taken to have one.
+- **`shrimpy providers login` signs a folder in** with Pi's own flows, in the terminal. It shows a link or a code and takes what you paste back, so it works over SSH, and it asks which model agents start with when the folder names none. A place you have no shell in isn't covered: you, or an agent of yours, are taken to have one.
 
 A single sign-in kept at the gateway was looked at first and dropped. The gateway would hold secrets, and every agent would need it to reach a model.
 

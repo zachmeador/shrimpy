@@ -34,6 +34,7 @@
 - The terminal's keys, which mean one thing on every screen, and watching any session of any agent from it. ([log, 2026-10-05](#log))
 - Every message a person writes joins the turn an agent is running, and an agent's waits. ([log, 2026-10-05](#log))
 - An agent asks another with `ask_agent`, each question in a thread of its own, and the answer comes back to the session that asked. ([log, 2026-10-06](#log))
+- Providers for a whole folder: one sign-in in each place agents run, made with `shrimpy providers login`, serves every agent started there, and an agent names a model only when it wants one of its own. ([log, 2026-10-06](#log))
 
 ## Log
 
@@ -42,6 +43,16 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-06: providers belong to the folder, and `shrimpy providers login` signs one in.** You asked why the line that joins an agent from another machine carried a model, which showed that a home couldn't be made without one. You then said that signing in to a provider's subscription with Pi's flows is a priority before the release, looked at one sign-in kept at the gateway and dropped it, and proposed one command, run once in each place agents run. It was built that day: three commits by one builder and two by the coordinator. The Shrimpy folder has a `providers/` with `auth.json`, `models.json` and `default-model.json`. An agent takes from them what its home doesn't hold, and whoever starts it says where they are, so the agent never looks. `agent.json` no longer has to name a model, and `agent init` no longer needs `--model`.
+
+- What it replaced: a home's credentials were read once at the start and couldn't be written. Pi renews a sign-in by writing to the store, so a subscription sign-in in a home stopped working when its first token ran out. That was seen with a made-up sign-in before the build.
+- A sign-in is renewed under a lock on the file that holds it, which the operating system drops when a process dies, and every request reads the file again. Two stores on one file renewed a made-up sign-in once, and both used the new token.
+- The first build sent a key the folder held to a server a home had declared under the same name. A provider a home declares now takes its key from the home alone, and a test that failed before passes.
+- Other small choices: `providers/` marks a folder as Shrimpy's as `agents/` does, so a folder can be signed in before it has an agent. An entry that neither file holds is the home's. A change waits up to 30 seconds for the file. The command makes a device ID for the folder the first time a flow asks for one, asks which model agents start with only when the folder has none, and never opens a browser. Nothing keeps it out of an agent's shell, where it works with a key that is piped in.
+- The agent's API loses its login relay, which was designed and never built: a command run where the files are needs none. The rows of the home, the contracts, the network and using it that kept credentials in the home alone changed with it.
+- Tried by hand through the real command, in a folder of its own: a made-up API key for a built-in provider and a model chosen, then an agent made with plain `agent init` started on them.
+- No real sign-in has run. A subscription's flow, a device code and the callback on a local port are untried. Asking at a real terminal is not in the tests: the builder drove it by hand at a pseudo-terminal, which found one bug. The first real sign-in is yours.
 
 **2026-10-05: the terminal's keys, and watching any session.** Built as confirmed. Esc goes back a level, and stops the agent's work only in your DM thread while it works there. Ctrl+N is a new thread on both screens, Ctrl+D quits when nothing is typed, and Ctrl+O and Ctrl+T show tool calls and thinking in full, wherever work is shown. An agent's screen has its sessions as a second list, one Tab from your threads with it: every session the agent has, each with where it is and whether it is working. Enter on one shows it live as the agent sees it, with no editor and no stop.
 
