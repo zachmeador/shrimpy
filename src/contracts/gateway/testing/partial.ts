@@ -6,6 +6,7 @@ export function gatewayThatDoes(calls: Partial<Gateway>): Gateway {
   const unsupported = (): never => refuse("The stand-in gateway does not do this.");
   return {
     register: unsupported,
+    calls: unsupported,
     list: unsupported,
     version: unsupported,
     invite: unsupported,

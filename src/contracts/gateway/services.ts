@@ -20,7 +20,8 @@ export interface Announcement {
    * which came in over its entry, has none and must say none: the gateway
    * can't dial a socket on another machine or under another user, and one it
    * could dial would let the agent point the gateway at any socket it can open.
-   * A program on the gateway's machine must give one.
+   * It is called instead, and connects out (see `Gateway.calls`). A program on
+   * the gateway's machine must give one.
    */
   socket?: string;
   /**
@@ -106,9 +107,10 @@ export interface Invitation {
  * apart from the gateway: it comes from another machine, another user or a
  * container, and is never the person. Until it has signed in or joined it can
  * do nothing else: it can't list, read the roster, ask for the version or a
- * ticket, register or invite. Once it has, it is that agent and may do what an
- * agent on the gateway's machine may. A page in a browser that came through
- * the browser entry may list the programs and the roster, and nothing else.
+ * ticket, register, ask for calls or invite. Once it has, it is that agent and
+ * may do what an agent on the gateway's machine may. A page in a browser that
+ * came through the browser entry may list the programs and the roster, and
+ * nothing else.
  *
  * The roster also records who is an admin. The gateway checks it for what the
  * roster is: who may promote and demote. Every other program that has
@@ -133,11 +135,31 @@ export interface Gateway {
    * member, so it does not sign in. A program on the gateway's machine registers
    * with the socket it listens on. A connection over the entry registers as an
    * agent with no socket, and is refused if it gives one: the gateway can't
-   * reach an agent that is apart from it yet, so it lists it as running and
-   * refuses a ticket for it. A connection that came through the browser entry
-   * can't register.
+   * dial an agent that is apart from it, so it lists it as running, and when
+   * someone asks for it, makes a call for it and waits for the agent to answer
+   * (see `calls`). A connection that came through the browser entry can't
+   * register.
    */
   register(announcement: Announcement, context: Context): Promise<void>;
+  /**
+   * Who wants this agent: the IDs of the calls the gateway has made for it since
+   * it last asked, oldest first, waiting until there is one. The gateway makes a
+   * call when a client asks to be connected to an agent that registered with no
+   * socket, since it can't dial one, and the client's connection waits at the
+   * gateway meanwhile. The agent answers a call by opening one more connection
+   * to the gateway's network entry, at the path `answerPath` makes of the ID,
+   * and joining it to its own server. The gateway joins that connection to the
+   * client's, and reads none of the bytes that pass after that.
+   *
+   * A call's ID can't be guessed and is good once, for fifteen seconds from
+   * when the call was made, whether or not the agent was told of it. One the
+   * agent doesn't answer in time ends the client's connection, and so does the
+   * agent's registration ending. A call made while the agent isn't asking waits
+   * for it, for as long as it is good. Only the connection that is registered
+   * as the agent, with no socket, is told of its calls, and any other is
+   * refused. Cancelling this request ends the wait.
+   */
+  calls(context: Context): Promise<string[]>;
   list(context: Context): Promise<Registration[]>;
   /**
    * The version of Shrimpy the gateway runs, so that whoever talks through it
@@ -209,9 +231,10 @@ export interface Gateway {
    * it hands over. The caller is the member this connection signed in as, or the
    * person who runs the gateway when it did not sign in, on the gateway's own
    * socket. A ticket is good once, for a short time, and for `target` only,
-   * which must be registered. A ticket for an agent that registered with no
-   * socket is refused, since an agent apart from the gateway can't be reached
-   * yet. A page in a browser can't ask.
+   * which must be registered. It is made the same for an agent apart from the
+   * gateway, which asks the gateway whose it is over the connection it is
+   * registered on, so what the agent lets the caller do is the agent's rule, as
+   * it is for an agent beside the gateway. A page in a browser can't ask.
    */
   ticket(target: ProgramName, context: Context): Promise<Ticket>;
   /**

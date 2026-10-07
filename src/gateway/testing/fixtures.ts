@@ -7,6 +7,7 @@ import {
   connectGateway,
   entryTransports,
   type GatewayConnection,
+  type Member,
   type Registration,
 } from "../../contracts/gateway/index.ts";
 import { newToken } from "../../contracts/gateway/node.ts";
@@ -59,4 +60,21 @@ export async function connectApart(
   const connection = await connectGateway({ transportFactory: entryTransports(entryOf(gateway)).gateway });
   stopAfter(t, () => connection.close());
   return connection;
+}
+
+/**
+ * An agent that joined from apart with an invitation the person asked for, and
+ * the connection it joined on, which is signed in as the agent. It has not
+ * registered.
+ */
+export async function invited(
+  t: TestContext,
+  gateway: { readonly listening: Address[] },
+  person: GatewayConnection,
+  name: string,
+): Promise<{ connection: GatewayConnection; member: Member; token: string; code: string }> {
+  const { code } = await person.invite(name);
+  const connection = await connectApart(t, gateway);
+  const token = newToken();
+  return { connection, member: await connection.join(name, token, code), token, code };
 }

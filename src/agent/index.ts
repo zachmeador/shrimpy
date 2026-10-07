@@ -1,7 +1,8 @@
 /**
  * The agent program: one process that owns one home, serves the agent API for
- * it on two sockets (the home's own, and the one the gateway pipes connections
- * made by its name to), and takes part in the network as a member and in chat.
+ * it on two sockets (the home's own, and the one that connections made by its
+ * name through the gateway come in on), and takes part in the network as a
+ * member and in chat.
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
  * home, previews what a home would tell an agent, reads, checks and
@@ -14,7 +15,6 @@
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
-import { entryTransports } from "../contracts/gateway/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
@@ -276,7 +276,8 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * model, if the file names one: otherwise it starts with the folder's default.
  * Its instructions come from the files of the home. A home that names a gateway
  * address in its membership, as one does that joined from apart, reaches the
- * gateway and chat there. Reading `agent.json` takes no lock and changes
+ * gateway and chat there, and answers there the calls the gateway makes for it,
+ * since the gateway can't dial it. Reading `agent.json` takes no lock and changes
  * nothing, so a home that does not load, or a model that is missing or cannot
  * be used, fails before the agent claims the home. `shrimpy` is the program and arguments that run Shrimpy, which the agent's
  * shell finds as the `shrimpy` command. `providers` is the `providers/`
@@ -303,7 +304,7 @@ export async function startHomeAgent(
     name: loaded.name,
     models,
     model,
-    join: gateway === undefined ? {} : { reach: entryTransports(gateway) },
+    join: gateway === undefined ? {} : { apart: gateway },
     ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
   });
   return { ...agent, name: loaded.name, home: loaded.paths.root };

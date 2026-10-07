@@ -1,9 +1,15 @@
 import { createServer, type IncomingMessage, type Server, STATUS_CODES } from "node:http";
-import type { AddressInfo, Socket } from "node:net";
+import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { DEFAULT_MAX_FRAME_LENGTH } from "@earendil-works/pi-protocol";
 import { createWebSocketStream, WebSocketServer } from "ws";
-import { type Address, formatAddress, parseWebSocketRequest, type ProgramName } from "../../contracts/gateway/index.ts";
+import {
+  type Address,
+  formatAddress,
+  parseAnswerPath,
+  parseWebSocketRequest,
+  type ProgramName,
+} from "../../contracts/gateway/index.ts";
 import { bridge, connectUpstream } from "../pipe/index.ts";
 
 export interface EntryOptions {
@@ -13,8 +19,20 @@ export interface EntryOptions {
   gatewaySocket: string;
   /** Whether `ticket` is good for `target` now. Nothing is spent: the program spends it when the client hands it over. */
   good(ticket: string, target: ProgramName): boolean;
-  /** The socket the gateway pipes connections to `target` to, or undefined when it has none. */
-  resolve(target: ProgramName): string | undefined;
+  /**
+   * Open a connection to the newest program registered under `target`:
+   * undefined when there is none. The answer fails when the connection can't be
+   * made, and may take a while, since an agent apart from the gateway is called
+   * and answers by connecting out. Aborting `signal` gives up, because whoever
+   * asked has gone.
+   */
+  reach(target: ProgramName, signal: AbortSignal): Promise<Duplex> | undefined;
+  /**
+   * Take the call `call` for answering, which spends its ID, or undefined when
+   * no call waits under it. `arrive` is given the connection that answers it,
+   * and `abandon` is told when that connection did not open.
+   */
+  answer(call: string): { arrive(connection: Duplex): void; abandon(): void } | undefined;
 }
 
 export interface Entry {
@@ -26,12 +44,14 @@ export interface Entry {
 
 /**
  * Open the network entry on each address: an HTTP server that does nothing but
- * pipe a WebSocket, to the gateway itself or to a program that is registered.
- * No files are served. The gateway's own pipe is the way in for a connection
- * from apart, which signs in or joins before it does anything else, and a way
- * through to a program opens only with a ticket that is good for that program.
- * A request that carries an `Origin` is a web page, which has no business
- * here, and is refused.
+ * pipe a WebSocket, to the gateway itself or to a program that is registered,
+ * and take the connection an agent apart opens to answer a call. No files are
+ * served. The gateway's own pipe is the way in for a connection from apart,
+ * which signs in or joins before it does anything else, and a way through to a
+ * program opens only with a ticket that is good for that program, once the
+ * program is reached. A connection that answers a call opens only for an ID of
+ * a call that is waiting, once. A request that carries an `Origin` is a web
+ * page, which has no business here, and is refused.
  */
 export async function startEntry(options: EntryOptions): Promise<Entry> {
   // One protocol frame plus its length prefix is the most a client sends in one message.
@@ -39,27 +59,46 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
     noServer: true,
     maxPayload: DEFAULT_MAX_FRAME_LENGTH + 4,
   });
-  const upstreams = new Set<Socket>();
+  const upstreams = new Set<Duplex>();
   const servers: Server[] = [];
   let closing: Promise<void> | undefined;
+
+  /** An agent opens this to answer a call. Its ID is what lets it in, and is good once. */
+  function answer(call: string, request: IncomingMessage, socket: Duplex, head: Buffer): void {
+    if (closing !== undefined) return void socket.destroy();
+    const answering = options.answer(call);
+    if (answering === undefined) return refuse(socket, 403);
+    // The handshake can still fail, and then no connection ever arrives.
+    socket.once("close", () => answering.abandon());
+    webSockets.handleUpgrade(request, socket, head, (ws) => answering.arrive(createWebSocketStream(ws)));
+  }
 
   async function upgrade(request: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
     // Browsers always send an Origin, and a client that is not a web page sends none.
     if (request.headers.origin !== undefined) return refuse(socket, 403);
 
+    const [path = ""] = (request.url ?? "").split("?", 1);
+    const call = parseAnswerPath(path);
+    if (call !== undefined) return answer(call, request, socket, head);
+
     const asked = parseWebSocketRequest(request.url ?? "");
     if (asked === undefined) return refuse(socket, 404);
-    let path: string | undefined;
+    // A client that goes while it waits for the program ends the call that was made for it. This server lets a
+    // connection stay half open, so one that went has ended before it has closed.
+    const gone = new AbortController();
+    socket.once("end", () => gone.abort());
+    socket.once("close", () => gone.abort());
+    let reaching: Promise<Duplex> | undefined;
     if (asked.target === "gateway") {
-      path = options.gatewaySocket;
+      reaching = connectUpstream(options.gatewaySocket);
     } else {
       if (asked.ticket === undefined || !options.good(asked.ticket, asked.target)) return refuse(socket, 403);
-      path = options.resolve(asked.target);
+      reaching = options.reach(asked.target, gone.signal);
     }
-    if (path === undefined) return refuse(socket, 404);
+    if (reaching === undefined) return refuse(socket, 404);
 
-    // Connect before accepting, so a program that went away is a refusal rather than a pipe that dies at once.
-    const upstream = await connectUpstream(path).catch(() => undefined);
+    // Reach the program before accepting, so one that went away, or an agent that did not answer, is a refusal rather than a pipe that dies at once.
+    const upstream = await reaching.catch(() => undefined);
     if (upstream === undefined) return refuse(socket, 502);
     if (closing !== undefined) {
       upstream.destroy();

@@ -4,12 +4,10 @@ import { readdirSync } from "node:fs";
 import { networkInterfaces, userInfo } from "node:os";
 import { type TestContext, test } from "node:test";
 import {
-  type Address,
   type Announcement,
   connectGateway,
   entryTransports,
   type GatewayConnection,
-  type Member,
   NEEDS_ADMIN,
   readLink,
   TURNED_AWAY,
@@ -28,6 +26,7 @@ import {
   connectEcho,
   entryOf,
   handshakeStatus,
+  invited,
   joinAndRegister,
   LOOPBACK,
   rawRequest,
@@ -55,19 +54,6 @@ async function onTheSocket(t: TestContext): Promise<GatewayConnection> {
   const connection = await connectLocalGateway();
   stopAfter(t, () => connection.close());
   return connection;
-}
-
-/** An agent that joined from apart with an invitation the person asked for, and the connection it joined on. */
-async function invited(
-  t: TestContext,
-  gateway: { readonly listening: Address[] },
-  person: GatewayConnection,
-  name: string,
-): Promise<{ connection: GatewayConnection; member: Member; token: string; code: string }> {
-  const { code } = await person.invite(name);
-  const connection = await connectApart(t, gateway);
-  const token = newToken();
-  return { connection, member: await connection.join(name, token, code), token, code };
 }
 
 /** An agent's announcement as one apart from the gateway makes it: it has no socket. */
@@ -262,19 +248,20 @@ test("with no address to listen on, nobody could use an invitation, so none is m
   await assert.rejects(person.invite("crab"), /listens on no address/);
 });
 
-test("an agent apart registers with no socket and is listed as running, can't be reached yet, and a copy of its home is turned away while it runs", { timeout }, async (t) => {
+test("an agent apart registers with no socket, is listed as running and has a way in and a ticket like any program, and a copy of its home is turned away while it runs", { timeout }, async (t) => {
   const gateway = await gatewayWithEntry(t);
   const person = await onTheSocket(t);
   const crab = await invited(t, gateway, person, "crab");
-  await crab.connection.register(apartAnnouncement());
+  const announced = apartAnnouncement();
+  await crab.connection.register(announced);
 
   assert.deepEqual(
     (await person.list()).map((program) => [program.kind, program.name, program.memberId]),
     [["agent", "crab", crab.member.id]],
   );
   assert.equal((await person.members()).find((member) => member.id === crab.member.id)?.reachable, true);
-  await assert.rejects(person.ticket({ kind: "agent", name: "crab" }), /an agent apart from the gateway can't be reached yet/);
-  assert.deepEqual(readdirSync(waysDirectory()), [], "and the gateway listens for no one at a way in to it");
+  assert.equal((await person.ticket({ kind: "agent", name: "crab" })).serverId, announced.serverId);
+  assert.equal(readdirSync(waysDirectory()).length, 1, "and the gateway listens at a way in to it, as it does for a program with a socket");
 
   // A registration says it has a socket only where the gateway can dial it: on the gateway's own machine.
   const scout = await onTheSocket(t);
@@ -304,4 +291,5 @@ test("an agent apart registers with no socket and is listed as running, can't be
     { what: "the agent to stop being listed as running" },
   );
   assert.deepEqual((await person.list()).map((program) => program.name), []);
+  await eventually(() => readdirSync(waysDirectory()), (ways) => ways.length === 0, { what: "its way in to go with it" });
 });

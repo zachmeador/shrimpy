@@ -30,3 +30,21 @@ test("find returns the newest live registration of a program, by the member's na
   old.close();
   assert.equal(registry.find("agent", "uno"), undefined);
 });
+
+test("an agent that registered with no socket is a program a connection can be made to, found with the connection it registered on", () => {
+  const registry = createRegistry({ nameOf: () => "crab" });
+  const apart = registry.connect();
+  const other = registry.connect();
+  assert.equal(apart.current(), undefined);
+
+  const registered = apart.register({ kind: "agent", serverId: randomUUID(), version: "1.2.3" }, "mem_crab");
+
+  assert.equal(registered.socket, undefined);
+  assert.deepEqual(registry.names(), [{ kind: "agent", name: "crab" }]);
+  assert.equal(registry.find("agent", "crab")?.registrant, apart);
+  assert.equal(apart.current()?.name, "crab");
+  assert.equal(other.current(), undefined);
+  assert.deepEqual(Object.keys(registry.list()[0] ?? {}).sort(), ["kind", "memberId", "name", "version"], "and what clients are told shows none of it");
+  apart.close();
+  assert.equal(apart.current(), undefined);
+});

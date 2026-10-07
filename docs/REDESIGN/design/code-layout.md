@@ -12,12 +12,13 @@ src/
                     and for the gateway, the loop that keeps a program registered
     agent/          the agent API: sessions, control, offers
     chat/           the chat API: channels, threads, messages, attachments
-    gateway/        the roster as clients see it, joining and signing in, invitations and their links, tickets, registration and routing
+    gateway/        the roster as clients see it, joining and signing in, invitations and their links, tickets, registration, routing
+                    and the calls made for an agent that connects out
   agent/            the agent program, one process per home
     home/           home layout, agent.json, resource and skill selection, model policy, credential paths
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
-    links/          reaching the gateway and chat: joining and signing in, registering, entering chat with a ticket,
-                    keeping the connection
+    links/          reaching the gateway and chat: joining and signing in, registering, answering the gateway's calls,
+                    entering chat with a ticket, keeping the connection
     access/         who is asking on a connection, and what they may do
     inputs/         what an input is, from any source, how it reads to the model, and how its turn can end
     records/        Shrimpy's own documents in the engine's storage, and the changes to a session's record
@@ -43,6 +44,7 @@ src/
     roster/         every member, with its name and how it is recognized, in one file
     tickets/        tickets in flight
     invitations/    invitations in flight: a code that lets one agent in from apart
+    calls/          calls in flight: what it makes for an agent that connects out, which it can't dial
     listening/      the addresses the gateway listens on for agents apart from it, kept between starts
     ways/           a way in for each registered program
     pipe/           bytes both ways between two connections, shared with the entries

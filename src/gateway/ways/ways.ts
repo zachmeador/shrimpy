@@ -4,13 +4,18 @@ import { join } from "node:path";
 import type { Duplex } from "node:stream";
 import type { ProgramName } from "../../contracts/gateway/index.ts";
 import { waysDirectory, wayInSocket } from "../../contracts/gateway/node.ts";
-import { bridge, connectUpstream } from "../pipe/index.ts";
+import { bridge } from "../pipe/index.ts";
 
 export interface WaysOptions {
-  /** The programs that are registered now and have a socket, each once. */
+  /** The programs that are registered now, each once. */
   names(): ProgramName[];
-  /** The socket of the newest program registered under `target`, or undefined when there is none. */
-  resolve(target: ProgramName): string | undefined;
+  /**
+   * Open a connection to the newest program registered under `target`: undefined
+   * when there is none. The answer fails when the connection can't be made, and
+   * may take a while: an agent apart from the gateway is called, and answers by
+   * connecting out. Aborting `signal` gives up, because whoever asked has gone.
+   */
+  reach(target: ProgramName, signal: AbortSignal): Promise<Duplex> | undefined;
   /** Told of a failure that belongs to no call, such as a way in that could not be taken away. */
   onError(error: Error): void;
 }
@@ -36,8 +41,10 @@ interface Way {
 /**
  * The gateway's way in for each registered program: a Unix socket in the
  * runtime directory, named for the program, that pipes every connection to the
- * program's own socket and does nothing else. Nothing is read from the bytes,
- * so what a client says first is the program's own protocol, and a client
+ * program and does nothing else. A client that comes in waits at the gateway
+ * until the program is reached, which is at once for a program with a socket,
+ * and when the agent answers for one that is apart. Nothing is read from the
+ * bytes, so what a client says first is the program's own protocol, and a client
  * needs to be told no path, because the name works it out
  * (`wayInSocket`). The caller holds the gateway's lock, so every socket
  * already in the directory is left by a gateway that is gone, and is removed.
@@ -65,12 +72,15 @@ export function createWays(options: WaysOptions): Ways {
     // A client can reset the connection at any point before the pipe takes it.
     client.on("error", () => undefined);
     track(client);
-    const path = options.resolve(target);
-    if (path === undefined) {
+    // A call that waits for an agent ends when the client that made it leaves.
+    const gone = new AbortController();
+    client.once("close", () => gone.abort());
+    const reaching = options.reach(target, gone.signal);
+    if (reaching === undefined) {
       client.destroy();
       return;
     }
-    connectUpstream(path).then(
+    reaching.then(
       (upstream) => {
         track(upstream);
         bridge(client, upstream);

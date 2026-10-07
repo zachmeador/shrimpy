@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseWebSocketPath, parseWebSocketRequest, type WebTarget, webSocketPath } from "./endpoint.ts";
+import {
+  answerPath,
+  parseAnswerPath,
+  parseWebSocketPath,
+  parseWebSocketRequest,
+  type WebTarget,
+  webSocketPath,
+} from "./endpoint.ts";
 
 test("a path names the target it was made from, and a path that names nothing the gateway serves is refused", () => {
   const targets: WebTarget[] = [
@@ -27,4 +34,13 @@ test("a request to the network entry names its target and carries its ticket, wh
   assert.deepEqual(parseWebSocketRequest(webSocketPath(target)), { target, ticket: undefined });
   assert.deepEqual(parseWebSocketRequest(webSocketPath("gateway")), { target: "gateway", ticket: undefined });
   assert.equal(parseWebSocketRequest("/ws/robot/a?ticket=x"), undefined);
+});
+
+test("an answering path names the call it answers, whatever the characters of its ID, and is no way to a program", () => {
+  for (const call of ["Zx-_09abc", "a b&c=d?e#f%g+h/i"]) assert.equal(parseAnswerPath(answerPath(call)), call);
+  for (const path of ["", "/ws/call", "/ws/call/", "/ws/call/a/b", "/ws/agent/a", "/ws/call/%E0%A4%A"]) {
+    assert.equal(parseAnswerPath(path), undefined, path);
+  }
+  assert.equal(parseWebSocketPath(answerPath("a")), undefined);
+  assert.equal(parseWebSocketRequest(answerPath("a")), undefined);
 });

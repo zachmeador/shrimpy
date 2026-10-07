@@ -12,12 +12,15 @@ export class InvalidRegistrationError extends Error {
 
 /**
  * A registered program with what only the gateway is told: the server ID it
- * answers as and the socket the gateway pipes connections to, which an agent
- * apart from the gateway has none of. The registry's list never shows these.
+ * answers as, the socket the gateway pipes connections to, which an agent
+ * apart from the gateway has none of, and the connection it registered on. The
+ * registry's list never shows these.
  */
 export interface Registered extends Registration {
   serverId: string;
   socket?: string;
+  /** The connection that registered it, for whoever has to tell one registration from another, such as the calls made for an agent with no socket. */
+  registrant: Registrant;
 }
 
 /** What one connection may register. */
@@ -28,6 +31,8 @@ export interface Registrant {
    * what was registered. The announcement has been checked.
    */
   register(announcement: Announcement, memberId: string | null): Registered;
+  /** What this connection has registered, or undefined when it has registered nothing or is gone. */
+  current(): Registered | undefined;
   /** The connection is gone: drop its entry. */
   close(): void;
 }
@@ -37,7 +42,7 @@ export interface Registry {
   connect(): Registrant;
   /** The live registrations, oldest first, as clients are told of them. */
   list(): Registration[];
-  /** The name of each program the gateway can pipe a connection to, once: those that registered a socket. */
+  /** The name of each program a connection can be made to, once: every program that is registered, whether the gateway dials its socket or calls it. */
   names(): ProgramName[];
   /**
    * The newest live registration of a program. The gateway lets an agent
@@ -69,15 +74,16 @@ interface Entry {
 export function createRegistry(options: RegistryOptions): Registry {
   // A replaced entry moves to the end, so the map's order is oldest first.
   const entries = new Map<Registrant, Entry>();
-  const describe = ({ announcement, memberId }: Entry): Registered => ({
+  const describe = ({ announcement, memberId }: Entry, registrant: Registrant): Registered => ({
     kind: announcement.kind,
     name: memberId === null ? CHAT_NAME : (options.nameOf(memberId) ?? memberId),
     memberId,
     version: announcement.version,
     serverId: announcement.serverId,
     ...(announcement.socket === undefined ? {} : { socket: announcement.socket }),
+    registrant,
   });
-  const all = (): Registered[] => [...entries.values()].map(describe);
+  const all = (): Registered[] => [...entries].map(([registrant, entry]) => describe(entry, registrant));
   return {
     connect() {
       let closed = false;
@@ -87,7 +93,11 @@ export function createRegistry(options: RegistryOptions): Registry {
           const entry = { announcement, memberId };
           entries.delete(registrant);
           entries.set(registrant, entry);
-          return describe(entry);
+          return describe(entry, registrant);
+        },
+        current() {
+          const entry = entries.get(registrant);
+          return entry === undefined ? undefined : describe(entry, registrant);
         },
         close() {
           closed = true;
@@ -99,9 +109,7 @@ export function createRegistry(options: RegistryOptions): Registry {
     list: () => all().map(({ kind, name, memberId, version }) => ({ kind, name, memberId, version })),
     names() {
       const seen = new Map<string, ProgramName>();
-      for (const { kind, name, socket } of all()) {
-        if (socket !== undefined) seen.set(`${kind}\0${name}`, { kind, name });
-      }
+      for (const { kind, name } of all()) seen.set(`${kind}\0${name}`, { kind, name });
       return [...seen.values()];
     },
     find: (kind, name) => all().findLast((entry) => entry.kind === kind && entry.name === name),

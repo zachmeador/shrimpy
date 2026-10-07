@@ -1,4 +1,4 @@
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/context";
 import type { ByteTransportFactory } from "@earendil-works/pi-client";
 import { openConnection } from "../../lib/connection/index.ts";
 import { GATEWAY_SERVER_ID } from "./endpoint.ts";
@@ -20,6 +20,13 @@ export interface GatewayConnection {
    * who it registers as.
    */
   register(announcement: Announcement): Promise<void>;
+  /**
+   * The IDs of the calls the gateway made for this agent since it last asked,
+   * waiting until there is one. Cancelling `signal` ends the wait. Only an agent
+   * that registered with no socket may ask, on the connection it registered on.
+   * See `Gateway.calls`, and `answerPath` for answering one.
+   */
+  calls(signal?: AbortSignal): Promise<string[]>;
   list(): Promise<Registration[]>;
   /** The version of Shrimpy the gateway runs. */
   version(): Promise<string>;
@@ -74,6 +81,7 @@ export async function connectGateway(options: {
   const gateway = connection.service;
   return {
     register: (announcement) => gateway.register(announcement, context),
+    calls: (signal) => gateway.calls(signal === undefined ? context : withAbortSignal(signal, context)),
     list: () => gateway.list(context),
     version: () => gateway.version(context),
     invite: (name) => gateway.invite(name, context),

@@ -21,7 +21,12 @@ export type { HomeFiles } from "./directory.ts";
 export interface AgentServer {
   /** Where the agent is reached by its home's path: the socket the home's owner connects to, which asks for no ticket. */
   readonly endpoint: AgentEndpoint;
-  /** The socket the gateway pipes connections to, which asks for a ticket first. Only the gateway is told. */
+  /**
+   * The socket that connections made by the agent's name through the gateway
+   * come in on, which asks for a ticket first. The gateway pipes them to it, and
+   * is told, when the agent is beside it. An agent apart from the gateway joins
+   * the connections it opens to answer calls to it, and tells no one.
+   */
   readonly gatewaySocket: string;
   /** Refuse new input from now on. Clients can still watch and stop work. */
   stopIntake(): void;
@@ -36,8 +41,8 @@ export interface ServerOptions {
 /**
  * Serve the agent API for `host`'s sessions on two Unix sockets: the home's,
  * which the home's owner reaches by the home's path and which asks for no
- * ticket, as it never has; and the one the gateway pipes the connections made
- * by the agent's name to, whose connections come in with a ticket before
+ * ticket, as it never has; and the one that connections made by the agent's
+ * name through the gateway come in on, which come in with a ticket before
  * anything else. Both are the same server to a client, and the home's path is
  * recorded for them to find.
  */

@@ -44,6 +44,25 @@ export function parseWebSocketPath(path: string): WebTarget | undefined {
 }
 
 /**
+ * The path of the WebSocket on which an agent apart from the gateway answers
+ * the call `id`, on the gateway's network entry. The gateway opens it once, for
+ * an ID of a call that is waiting, and joins the connection to the one that
+ * asked for the agent. The ID is what lets the agent in: it is told only to the
+ * connection registered as the agent.
+ */
+export function answerPath(call: string): string {
+  return `/ws/call/${encodeURIComponent(call)}`;
+}
+
+/** The call a WebSocket path answers, or undefined when it answers none. */
+export function parseAnswerPath(path: string): string | undefined {
+  const [leading, root, kind, encodedId, ...rest] = path.split("/");
+  if (leading !== "" || root !== "ws" || kind !== "call" || encodedId === undefined || rest.length > 0) return undefined;
+  const id = decodeUri(encodedId);
+  return id === undefined || id === "" ? undefined : id;
+}
+
+/**
  * What a request to the gateway's network entry asks for: the target its path
  * names, and the ticket it carries, if it carries one. Undefined when the path
  * names nothing the gateway serves.

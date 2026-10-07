@@ -8,6 +8,7 @@ import {
 } from "../contracts/gateway/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
+import type { Calls } from "./calls/index.ts";
 import type { Invitations } from "./invitations/index.ts";
 import { checkAnnouncement, InvalidRegistrationError, type Registry } from "./registry/index.ts";
 import type { Roster } from "./roster/index.ts";
@@ -20,6 +21,8 @@ export interface GatewayDeps {
   registry: Registry;
   tickets: Tickets;
   invitations: Invitations;
+  /** The calls made for agents that registered with no socket, which they are told of over the connection they registered on. */
+  calls: Calls;
   /** The ways in to the programs that are registered, kept to match the registry. */
   ways: Ways;
   /** The operating system user who runs the gateway, which is who a connection on its own socket that signed in as nobody is. */
@@ -54,7 +57,7 @@ export interface ServedGateway {
  * connection that made it.
  */
 export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
-  const { roster, registry, tickets, invitations, ways } = deps;
+  const { roster, registry, tickets, invitations, calls, ways } = deps;
   const registrant = peer === "browser" ? undefined : registry.connect();
   let signedIn: string | undefined;
   let registered: ProgramName | undefined;
@@ -178,6 +181,19 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
         throw error;
       }
     },
+    async calls(context) {
+      notForBrowsers("ask for calls");
+      signedInIfApart("ask for calls");
+      // Only the connection an agent registered on with no socket is told of its calls, so nobody learns an ID that lets them in as the agent.
+      const mine = registrant?.current();
+      if (registrant === undefined || mine === undefined || mine.socket !== undefined) {
+        refuse(
+          "Only an agent that registered with no socket is told of calls: the gateway reaches any other program by its socket.",
+          "service_not_allowed",
+        );
+      }
+      return calls.next(registrant, context.abortSignal);
+    },
     async list() {
       signedInIfApart("list what is running");
       return registry.list();
@@ -273,12 +289,6 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
           `There is no ${target.kind === "chat" ? "chat server" : `${target.kind} called ${target.name}`} registered with the gateway, so there is nobody to give a ticket for.`,
         );
       }
-      if (found.socket === undefined) {
-        refuse(
-          `The agent ${found.name} is apart from the gateway, and an agent apart from the gateway can't be reached yet.`,
-          "service_not_allowed",
-        );
-      }
       return {
         value: tickets.issue(caller().id, { kind: found.kind, name: found.name }),
         serverId: found.serverId,
@@ -301,6 +311,8 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     gateway,
     end() {
       registrant?.close();
+      // The calls made for it have nobody left to answer them.
+      if (registrant !== undefined) calls.end(registrant);
       // Its way in goes with it, unless another program has the same name.
       ways.sync().catch((error: unknown) => {
         deps.onError(error instanceof Error ? error : new Error(String(error)));

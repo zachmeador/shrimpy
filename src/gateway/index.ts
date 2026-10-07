@@ -2,24 +2,28 @@
  * The gateway program: one process per machine that keeps the roster of who is
  * on the network, the registry of programs that are running, the tickets that
  * tell a program who a client is, the invitations that let an agent in from
- * apart, and a way in to each registered program, and gives browsers and
- * agents apart from it a way in too. A program is reached by its name through
- * the gateway, which pipes the connection to the program's socket and does not
- * look at it. It keeps the addresses it listens on for agents apart from it, so
- * that a start with none listens where the last one did. It only connects
- * things: it never holds an agent's home, its work or a conversation. Other
- * programs reach it through `contracts/gateway`; they never import this
- * program's modules. It must not know what the programs it connects say to each
- * other.
+ * apart, the calls it makes for an agent that connects out, and a way in to each
+ * registered program, and gives browsers and agents apart from it a way in
+ * too. A program is reached by its name through the gateway, which pipes the
+ * connection to the program's socket, or for an agent apart, to the connection
+ * the agent opens when it is called, and does not look at it. It keeps the
+ * addresses it listens on for agents apart from it, so that a start with none
+ * listens where the last one did. It only connects things: it never holds an
+ * agent's home, its work or a conversation. Other programs reach it through
+ * `contracts/gateway`; they never import this program's modules. It must not
+ * know what the programs it connects say to each other.
  */
 import { userInfo } from "node:os";
-import { type Address, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
+import type { Duplex } from "node:stream";
+import { type Address, GATEWAY_SOCKET_NAME, type ProgramName } from "../contracts/gateway/index.ts";
 import { wayInSocket } from "../contracts/gateway/node.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
+import { createCalls } from "./calls/index.ts";
 import { type Entry, startEntry } from "./entry/index.ts";
 import { createInvitations } from "./invitations/index.ts";
 import { checkListenAddresses, keep, listeningFile, readKept } from "./listening/index.ts";
 import { takeGatewayLock } from "./lock.ts";
+import { connectUpstream } from "./pipe/index.ts";
 import { createRegistry } from "./registry/index.ts";
 import { openRoster } from "./roster/index.ts";
 import { startServer } from "./server.ts";
@@ -102,11 +106,15 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
     const wanted = given ?? (kept.length > 0 ? kept : undefined);
     const listeningAsKept = given === undefined && kept.length > 0 ? listeningFile(options.dataDir) : undefined;
     const registry = createRegistry({ nameOf: (memberId) => roster.member(memberId)?.name });
-    const ways = createWays({
-      names: () => registry.names(),
-      resolve: (target) => registry.find(target.kind, target.name)?.socket,
-      onError,
-    });
+    const calls = createCalls();
+    open.push(() => calls.close());
+    /** A connection to the newest program registered under `target`, if there is one: dialed, or for an agent with no socket, called. */
+    const reach = (target: ProgramName, signal: AbortSignal): Promise<Duplex> | undefined => {
+      const found = registry.find(target.kind, target.name);
+      if (found === undefined) return undefined;
+      return found.socket === undefined ? calls.make(found.registrant, signal) : connectUpstream(found.socket);
+    };
+    const ways = createWays({ names: () => registry.names(), reach, onError });
     open.push(() => ways.close());
     const tickets = createTickets();
     // The invitations ask for the addresses the entry got, which are known once it has listened.
@@ -117,6 +125,7 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
         registry,
         tickets,
         invitations: createInvitations(),
+        calls,
         ways,
         osUser,
         addresses: () => entry?.addresses ?? [],
@@ -140,7 +149,8 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
           addresses: wanted,
           gatewaySocket: server.apartSocket,
           good: (ticket, target) => tickets.check(ticket, target),
-          resolve: (target) => registry.find(target.kind, target.name)?.socket,
+          reach,
+          answer: (call) => calls.answer(call),
         });
       } catch (error) {
         if (listeningAsKept === undefined) throw error;
