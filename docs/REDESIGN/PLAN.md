@@ -118,7 +118,8 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Now:**
 
-- The first step of an agent on another machine: letting one in from apart. Two proposals wait on you: [an agent on another machine](proposals/another-machine.md), which would be next, and [hearing a thread while working in it](proposals/hearing-a-thread.md).
+- The network: an agent apart from the gateway, in four steps. The first, letting one in, is being built. [Not built yet](design/6-network.md)
+- One proposal waits on you: [hearing a thread while working in it](proposals/hearing-a-thread.md).
 
 **Next:**
 
@@ -127,7 +128,6 @@ The order follows what daily use shows is rough or missing. Two things are built
 
 **Later:**
 
-- The network: from another machine. [Not built yet](design/6-network.md)
 - The network: agents everywhere. [Not built yet](design/6-network.md)
 - What an agent does without being asked: helpers. [Not built yet](design/7-on-its-own.md)
 - Using it: what daily use asks for. [Not built yet](design/using-it.md)
