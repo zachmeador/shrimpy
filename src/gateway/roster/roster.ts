@@ -45,6 +45,8 @@ export interface Roster {
   join(name: string, token: string): Member;
   /** Give a member a new name. The name it has already, or a change of case in it, is fine. */
   rename(id: string, name: string): Member;
+  /** The name as it would be kept, when no member has it. A name that is not fit to keep, or that a member has, is refused. */
+  vacant(name: string): string;
   /** Make an agent an admin, or an ordinary agent again. Doing what is done already changes nothing. A person is always one and is refused. */
   setAdmin(id: string, admin: boolean): Member;
   /** Let go of the data directory. */
@@ -171,6 +173,11 @@ function keep(file: string, lock: Lock): Roster {
       return publicly(record);
     },
     rename,
+    vacant(name) {
+      const label = checked(name);
+      available(label);
+      return label;
+    },
     setAdmin(id, admin) {
       const current = records.find((record) => record.id === id);
       if (current === undefined) refuse(`There is no member ${id}.`);

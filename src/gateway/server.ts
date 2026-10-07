@@ -21,15 +21,23 @@ export interface GatewayServer {
    * never register, sign in or ask for a ticket.
    */
   readonly listingSocket: string;
+  /**
+   * The socket the network entry pipes `/ws/gateway` to. A connection here is
+   * apart from the gateway: it is never the person who runs it, and it can do
+   * nothing until it has signed in or joined.
+   */
+  readonly apartSocket: string;
   close(): Promise<void>;
 }
 
 /**
- * Serve the gateway contract on `socket` and on the listing socket beside it.
- * The caller holds the gateway's lock, so a socket left at either path is stale.
+ * Serve the gateway contract on `socket`, and on the listing socket and the
+ * socket for connections from apart beside it. The caller holds the gateway's
+ * lock, so a socket left at any of the paths is stale.
  */
 export async function startServer(deps: GatewayDeps, socket: string): Promise<GatewayServer> {
   const listingSocket = namedSocketPath(`${GATEWAY_SOCKET_NAME}-listing`);
+  const apartSocket = namedSocketPath(`${GATEWAY_SOCKET_NAME}-apart`);
   const servers: Server[] = [];
   const close = async (): Promise<void> => {
     await Promise.all(servers.splice(0).map((server) => server.close()));
@@ -37,7 +45,8 @@ export async function startServer(deps: GatewayDeps, socket: string): Promise<Ga
   try {
     servers.push(await serve(socket, serverHost(deps, "program")));
     servers.push(await serve(listingSocket, serverHost(deps, "browser")));
-    return { socket, listingSocket, close };
+    servers.push(await serve(apartSocket, serverHost(deps, "apart")));
+    return { socket, listingSocket, apartSocket, close };
   } catch (error) {
     await close();
     throw error;

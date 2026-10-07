@@ -1,18 +1,21 @@
 /**
  * The gateway program: one process per machine that keeps the roster of who is
  * on the network, the registry of programs that are running, the tickets that
- * tell a program who a client is, and a way in to each registered program, and
- * gives browsers a way in too. A program is reached by its name through the
- * gateway, which pipes the connection to the program's socket and does not look
- * at it. It only connects things: it never holds an agent's home, its work or a
- * conversation. Other programs reach it through `contracts/gateway`; they never
- * import this program's modules. It must not know what the programs it connects
- * say to each other.
+ * tell a program who a client is, the invitations that let an agent in from
+ * apart, and a way in to each registered program, and gives browsers and
+ * agents apart from it a way in too. A program is reached by its name through
+ * the gateway, which pipes the connection to the program's socket and does not
+ * look at it. It only connects things: it never holds an agent's home, its work
+ * or a conversation. Other programs reach it through `contracts/gateway`; they
+ * never import this program's modules. It must not know what the programs it
+ * connects say to each other.
  */
 import { userInfo } from "node:os";
-import { GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
+import { type Address, GATEWAY_SOCKET_NAME } from "../contracts/gateway/index.ts";
 import { wayInSocket } from "../contracts/gateway/node.ts";
 import { namedSocketPath } from "../lib/runtime/node.ts";
+import { type Entry, startEntry } from "./entry/index.ts";
+import { createInvitations } from "./invitations/index.ts";
 import { takeGatewayLock } from "./lock.ts";
 import { createRegistry } from "./registry/index.ts";
 import { openRoster } from "./roster/index.ts";
@@ -30,6 +33,13 @@ export interface GatewayOptions {
   dataDir: string;
   /** Open the browser entry on loopback. Without it the gateway listens only on its Unix sockets. */
   web?: WebOptions;
+  /**
+   * The addresses to open the network entry on, for agents apart from the
+   * gateway: under another user, in a container or on another machine. A port
+   * of 0 picks one. Without any, the gateway listens only on its Unix sockets,
+   * and makes no invitations, since nobody could use one.
+   */
+  listen?: Address[];
 }
 
 export interface RunningGateway {
@@ -37,15 +47,18 @@ export interface RunningGateway {
   readonly socket: string;
   /** The port of the browser entry, when it is open. */
   readonly webPort: number | undefined;
+  /** The addresses the network entry listens on, each with the port it got. None when it is not open. */
+  readonly listening: Address[];
   close(): Promise<void>;
 }
 
 /**
- * Start serving this machine's gateway socket, and the browser entry if
- * asked. Fails if a gateway is already serving the socket or using the data
- * directory. The socket comes first, so a refused gateway touches neither the
- * data directory nor a port. The person who runs the gateway joins the roster
- * as it starts, so no agent can take their name before they are first seen.
+ * Start serving this machine's gateway socket, and the browser entry and the
+ * network entry if asked. Fails if a gateway is already serving the socket or
+ * using the data directory. The socket comes first, so a refused gateway
+ * touches neither the data directory nor a port. The person who runs the
+ * gateway joins the roster as it starts, so no agent can take their name before
+ * they are first seen.
  */
 export async function startGateway(options: GatewayOptions): Promise<RunningGateway> {
   // The longest path this gateway makes, so that a runtime directory too long for it is refused before anything is made.
@@ -79,7 +92,22 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
       onError,
     });
     open.push(() => ways.close());
-    const server = await startServer({ roster, registry, tickets: createTickets(), ways, osUser, onError }, socket);
+    const tickets = createTickets();
+    // The invitations ask for the addresses the entry got, which are known once it has listened.
+    let entry: Entry | undefined;
+    const server = await startServer(
+      {
+        roster,
+        registry,
+        tickets,
+        invitations: createInvitations(),
+        ways,
+        osUser,
+        addresses: () => entry?.addresses ?? [],
+        onError,
+      },
+      socket,
+    );
     open.push(() => server.close());
     const web =
       options.web === undefined
@@ -88,7 +116,16 @@ export async function startGateway(options: GatewayOptions): Promise<RunningGate
             target === "gateway" ? server.listingSocket : registry.find(target.kind, target.name)?.socket,
           );
     if (web !== undefined) open.push(() => web.close());
-    return { socket, webPort: web?.port, close: closeAll };
+    if (options.listen !== undefined && options.listen.length > 0) {
+      entry = await startEntry({
+        addresses: options.listen,
+        gatewaySocket: server.apartSocket,
+        good: (ticket, target) => tickets.check(ticket, target),
+        resolve: (target) => registry.find(target.kind, target.name)?.socket,
+      });
+      open.push(() => entry?.close());
+    }
+    return { socket, webPort: web?.port, listening: entry?.addresses ?? [], close: closeAll };
   } catch (error) {
     await closeAll().catch(() => undefined);
     throw error;

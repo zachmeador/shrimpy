@@ -22,9 +22,10 @@ export interface GatewayLinkOptions extends Pick<KeepRegisteredOptions, "transpo
   /**
    * What the agent tells the gateway about where it listens: the server ID it
    * answers as and the socket the gateway pipes connections to, which is the
-   * one that asks for a ticket.
+   * one that asks for a ticket. An agent apart from the gateway has no socket
+   * to tell, since the gateway can't dial one.
    */
-  listening: { serverId: string; socket: string };
+  listening: { serverId: string; socket?: string };
   membership: MembershipStore;
   /** The file that says what the agent is called and the file that holds its token, for telling a person which to look at. */
   files: { name: string; membership: string };
@@ -57,8 +58,9 @@ function adviceFor(why: TurnedAway | undefined, files: HomeFiles): string | unde
 }
 
 /**
- * Stay a member of the network and registered with this machine's gateway as
- * the agent called `name`. The first time, the agent makes its token and keeps
+ * Stay a member of the network and registered with the gateway as the agent
+ * called `name`: the gateway on this machine, unless `transportFactory` reaches
+ * another. The first time, the agent makes its token and keeps
  * it in its home before it asks to join, so that a join whose answer never
  * arrives is made again with the same token and finds the same member. Once the
  * gateway has said who it is, the agent keeps that too, and every time after
@@ -79,7 +81,7 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
     if (saved === undefined) membership.save(kept);
     if (kept.memberId === undefined) {
       const member = await gateway.join(name, kept.token);
-      membership.save({ memberId: member.id, token: kept.token });
+      membership.save({ ...kept, memberId: member.id });
     } else {
       const member = await gateway.signIn(kept.token, name);
       if (member.id !== kept.memberId) {
@@ -100,7 +102,7 @@ export function joinGateway(options: GatewayLinkOptions): KeptRegistration {
     {
       kind: "agent",
       serverId: options.listening.serverId,
-      socket: options.listening.socket,
+      ...(options.listening.socket === undefined ? {} : { socket: options.listening.socket }),
       version: SHRIMPY_VERSION,
     },
     {

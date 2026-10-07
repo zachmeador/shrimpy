@@ -5,6 +5,7 @@ import { GATEWAY_SERVER_ID } from "./endpoint.ts";
 import {
   type Announcement,
   Gateway,
+  type Invitation,
   type Member,
   type ProgramName,
   type Registration,
@@ -22,8 +23,15 @@ export interface GatewayConnection {
   list(): Promise<Registration[]>;
   /** The version of Shrimpy the gateway runs. */
   version(): Promise<string>;
-  /** Make a new agent member called `name`, recognized by the token the caller made, and be it from now on. See `Gateway.join`. */
-  join(name: string, token: string): Promise<Member>;
+  /** An invitation for an agent called `name` to join from apart. Only a person or an admin may ask. See `Gateway.invite`. */
+  invite(name: string): Promise<Invitation>;
+  /**
+   * Make a new agent member called `name`, recognized by the token the caller
+   * made, and be it from now on. Over the gateway's entry it takes the code of
+   * an invitation for `name`, which a program on the gateway's machine does not
+   * need. See `Gateway.join`.
+   */
+  join(name: string, token: string, code?: string): Promise<Member>;
   /** Be the member that holds `token` from now on, renamed to `name` unless it is null. See `Gateway.signIn`. */
   signIn(token: string, name: string | null): Promise<Member>;
   /** Everyone on the roster, oldest first. */
@@ -68,7 +76,8 @@ export async function connectGateway(options: {
     register: (announcement) => gateway.register(announcement, context),
     list: () => gateway.list(context),
     version: () => gateway.version(context),
-    join: (name, token) => gateway.join(name, token, context),
+    invite: (name) => gateway.invite(name, context),
+    join: (name, token, code) => gateway.join(name, token, code ?? null, context),
     signIn: (token, name) => gateway.signIn(token, name, context),
     members: () => gateway.members(context),
     promote: (memberId) => gateway.promote(memberId, context),

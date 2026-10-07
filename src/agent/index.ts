@@ -5,14 +5,16 @@
  * Other programs reach an agent only through `contracts/agent`; they never
  * import this program's modules, except that the CLI starts an agent, creates a
  * home, previews what a home would tell an agent, reads, checks and
- * changes the files of its triggers and its wake file, and signs the folder its
- * agents are started in to a model provider, through this door, none
- * of which needs a running agent. It must not know who its clients are beyond who it is told
+ * changes the files of its triggers and its wake file, signs the folder its
+ * agents are started in to a model provider, and joins a home to a gateway
+ * apart from it with an invitation, through this door, none of which needs a
+ * running agent. It must not know who its clients are beyond who it is told
  * they are, or anything about the chat server and the gateway beyond their
  * contracts.
  */
 import type { AgentEndpoint } from "../contracts/agent/index.ts";
 import { readMembership } from "../contracts/agent/node.ts";
+import { entryTransports } from "../contracts/gateway/index.ts";
 import { socketPathFor } from "../lib/runtime/node.ts";
 import { createAdmissions } from "./chat/durable.ts";
 import { channelOfThread, createDelivery, createWakes } from "./chat/index.ts";
@@ -88,6 +90,7 @@ export {
   type WayToSignIn,
 } from "./host/durable.ts";
 export type { JoinOptions } from "./join.ts";
+export { joinHome } from "./links/index.ts";
 export type { CloseOptions } from "./stop.ts";
 
 export interface AgentOptions extends HostOptions {
@@ -271,10 +274,11 @@ function reporter(options: AgentOptions): (error: Error) => void {
  * Start the agent that lives at `home`, and have it take part in chat as the
  * agent its `agent.json` names. Its name comes from that file, and so does its
  * model, if the file names one: otherwise it starts with the folder's default.
- * Its instructions come from the files of the home. Reading `agent.json` takes
- * no lock and changes nothing, so a home that does not load, or a model that
- * is missing or cannot be used, fails before the agent claims the home.
- * `shrimpy` is the program and arguments that run Shrimpy, which the agent's
+ * Its instructions come from the files of the home. A home that names a gateway
+ * address in its membership, as one does that joined from apart, reaches the
+ * gateway and chat there. Reading `agent.json` takes no lock and changes
+ * nothing, so a home that does not load, or a model that is missing or cannot
+ * be used, fails before the agent claims the home. `shrimpy` is the program and arguments that run Shrimpy, which the agent's
  * shell finds as the `shrimpy` command. `providers` is the `providers/`
  * directory of the folder the agent is started in: what its home doesn't
  * declare or hold, such as a model server, a sign-in or the model to start
@@ -293,12 +297,13 @@ export async function startHomeAgent(
     ...(options.providers === undefined ? {} : { providers: options.providers }),
     ...(loaded.model === undefined ? {} : { model: { provider: loaded.model.provider, modelId: loaded.model.id } }),
   });
+  const gateway = readMembership(loaded.paths.root)?.gateway;
   const agent = await startAgent({
     home: loaded.paths.root,
     name: loaded.name,
     models,
     model,
-    join: {},
+    join: gateway === undefined ? {} : { reach: entryTransports(gateway) },
     ...(options.shrimpy === undefined ? {} : { shrimpy: options.shrimpy }),
   });
   return { ...agent, name: loaded.name, home: loaded.paths.root };

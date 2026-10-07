@@ -8,6 +8,13 @@ export { type BytesTarget, canConnect, startBytesTarget } from "./bytes.ts";
 export { startGatewayChild, startRegistrantChild } from "./child.ts";
 export { connectEcho, type EchoClient, type EchoProgram, startEchoProgram } from "./echo.ts";
 export { agentUrl, openEntry } from "./entry.ts";
-export { agentAnnouncement, joinAndRegister, webPortOf } from "./fixtures.ts";
+export {
+  agentAnnouncement,
+  connectApart,
+  entryOf,
+  joinAndRegister,
+  LOOPBACK,
+  webPortOf,
+} from "./fixtures.ts";
 export { startGatewayInProcess } from "./gateway.ts";
 export { handshakeStatus, type RawResponse, rawRequest } from "./http.ts";

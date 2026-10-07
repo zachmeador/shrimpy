@@ -11,8 +11,10 @@ import type { Working } from "./turns/index.ts";
 export interface JoinOptions {
   /**
    * How to reach the gateway, and the chat server through it. By default the
-   * gateway on this machine, over its Unix sockets; a gateway on another machine
-   * is reached over transports to it.
+   * gateway on this machine, over its Unix sockets. Given, the agent is apart
+   * from the gateway, as one under another user or on another machine is and
+   * reaches it over its network entry: the gateway can't dial a socket here, so
+   * the agent registers with none and the roster says it is running.
    */
   reach?: Transports;
   /** Open the connection to chat over what the gateway offers. By default `connectChat`; a test wraps it. */
@@ -43,7 +45,7 @@ export interface Participant {
   name: string;
   /** The agent's home, where its membership is kept. */
   home: string;
-  /** What the gateway is told about where the agent listens: its server ID and the socket it pipes connections to. */
+  /** Where the agent listens: its server ID, and the socket the gateway pipes connections to, which an agent apart from the gateway doesn't tell it. */
   listening: { serverId: string; socket: string };
   /** Where the agent stands in chat's feed, and how it takes an event up. */
   admissions: Admissions;
@@ -69,7 +71,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
   const reach = options.reach ?? localTransports();
   const registration = joinGateway({
     name,
-    listening,
+    listening: options.reach === undefined ? listening : { serverId: listening.serverId },
     membership: { read: () => readMembership(paths.root), save: (membership) => saveMembership(paths.root, membership) },
     files: { name: paths.config, membership: paths.member },
     onError: (error) => onError(new Error(`Could not join the network: ${error.message}`)),

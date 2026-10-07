@@ -6,21 +6,27 @@ import type { ProgramName } from "./services.ts";
  * How to open a byte connection to a gateway and, through it, to a program it
  * has registered. A program is reached by its name over one of these: on this
  * machine the gateway's Unix sockets, from a browser its WebSocket entry, and
- * from another machine a connection to the gateway there. What each does with
- * the name is the gateway's own business, and a caller never sees it.
+ * from another machine, another user or a container the gateway's network
+ * entry. What each does with the name is the gateway's own business, and a
+ * caller never sees it.
  */
 export interface Transports {
   /** To the gateway itself. */
   gateway: ByteTransportFactory;
-  /** Through the gateway to the program called `target`. */
-  program(target: ProgramName): ByteTransportFactory;
+  /**
+   * Through the gateway to the program called `target`. The ticket is the one
+   * the client was given for it, which the network entry looks at before it
+   * opens the way, and the program spends. The ways on this machine ignore it.
+   */
+  program(target: ProgramName, ticket: string): ByteTransportFactory;
 }
 
 /**
  * Connect to a program by its name, through the gateway, whatever machine it is
  * on: ask the gateway for a ticket, open the program's own connection over the
- * way the gateway offers to it, and hand over the ticket, which every program
- * that accepts connections asks for before anything else. The program asks the
+ * way the gateway offers to it, which on the network entry opens only with the
+ * ticket, and hand over the ticket, which every program that accepts
+ * connections asks for before anything else. The program asks the
  * gateway whose it is, so nobody says who they are. `connect` is the program's
  * contract opening its connection (`connectChat`, `connectAgent`), and `enter`
  * is that contract's way to hand the ticket over, answering whom the program
@@ -40,7 +46,7 @@ export async function reachProgram<C extends { close(): Promise<void> }, Entered
   const ticket = await options.gateway.ticket(target);
   const connection = await options.connect({
     serverId: ticket.serverId,
-    transportFactory: options.transports.program(target),
+    transportFactory: options.transports.program(target, ticket.value),
     signal,
   });
   try {

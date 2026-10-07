@@ -1,4 +1,5 @@
 import {
+  type Address,
   type Gateway,
   type Member,
   type ProgramName,
@@ -7,6 +8,7 @@ import {
 } from "../contracts/gateway/index.ts";
 import { refuse } from "../lib/refusal/index.ts";
 import { SHRIMPY_VERSION } from "../lib/version/index.ts";
+import type { Invitations } from "./invitations/index.ts";
 import { checkAnnouncement, InvalidRegistrationError, type Registry } from "./registry/index.ts";
 import type { Roster } from "./roster/index.ts";
 import type { Tickets } from "./tickets/index.ts";
@@ -17,16 +19,26 @@ export interface GatewayDeps {
   roster: Roster;
   registry: Registry;
   tickets: Tickets;
+  invitations: Invitations;
   /** The ways in to the programs that are registered, kept to match the registry. */
   ways: Ways;
-  /** The operating system user who runs the gateway, which is who a connection that signed in as nobody is. */
+  /** The operating system user who runs the gateway, which is who a connection on its own socket that signed in as nobody is. */
   osUser: string;
+  /** The addresses the network entry listens on now, which are none while it is not open. */
+  addresses(): Address[];
   /** Told of what goes wrong that belongs to no call. */
   onError(error: Error): void;
 }
 
-/** Who is on the other end: a program on this machine, or a page that came through the browser entry. */
-export type Peer = "program" | "browser";
+/**
+ * Who is on the other end: a program on this machine, a page that came through
+ * the browser entry, or a connection that came over the network entry, which
+ * is apart from the gateway: another machine, another user or a container.
+ */
+export type Peer = "program" | "browser" | "apart";
+
+/** The wrong codes one connection may give before every join on it is refused. */
+const WRONG_CODES = 5;
 
 /** What one connection to the gateway is: its `Gateway`, and how to let go of what it leaves behind. */
 export interface ServedGateway {
@@ -37,27 +49,41 @@ export interface ServedGateway {
 
 /**
  * The `Gateway` one connection talks to. The connection holds who it signed in
- * as and what it registered, and nothing else in the gateway remembers a
- * connection: a registration lasts as long as the connection that made it.
+ * as, what it registered and how many wrong codes it gave, and nothing else in
+ * the gateway remembers a connection: a registration lasts as long as the
+ * connection that made it.
  */
 export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
-  const { roster, registry, tickets, ways } = deps;
-  const registrant = peer === "program" ? registry.connect() : undefined;
+  const { roster, registry, tickets, invitations, ways } = deps;
+  const registrant = peer === "browser" ? undefined : registry.connect();
   let signedIn: string | undefined;
   let registered: ProgramName | undefined;
+  let wrongCodes = 0;
 
-  const onThisMachine = (what: string): void => {
-    if (peer === "program") return;
+  /** A page in a browser lists what is running and who is on the roster, and does nothing else. */
+  const notForBrowsers = (what: string): void => {
+    if (peer !== "browser") return;
     refuse(
-      `Only a program on the gateway's machine can ${what}. A browser can list what is running and who is on the roster.`,
+      `A browser can't ${what}. It can list what is running and who is on the roster.`,
       "service_not_allowed",
     );
   };
 
-  /** Who this connection is: the member it signed in as, or the person who runs the gateway. */
+  /** A connection from apart does nothing until it has signed in or joined: nobody has said who it is. */
+  const signedInIfApart = (what: string): void => {
+    if (peer !== "apart" || signedIn !== undefined) return;
+    refuse(`Sign in with the agent's token, or join with an invitation, before this connection can ${what}.`, "service_not_allowed");
+  };
+
+  /** The person who runs the gateway, which only a connection on its own socket can be: nothing over the network is. */
+  const person = (): Member | undefined => (peer === "program" ? roster.person(deps.osUser) : undefined);
+
+  /** Who this connection is: the member it signed in as, or on the gateway's own socket the person who runs it. */
   const caller = (): Member =>
-    (signedIn === undefined ? roster.person(deps.osUser) : roster.member(signedIn)) ??
+    (signedIn === undefined ? person() : roster.member(signedIn)) ??
     refuse("The gateway has no member for this connection.");
+
+  const admins = (): Member[] => roster.members().filter((member) => member.admin);
 
   /** Who a connection is cannot change under a registration that was made as someone. */
   const beforeRegistering = (what: string): void => {
@@ -88,12 +114,28 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
    * before it.
    */
   const changeRole = (what: string, memberId: unknown, admin: boolean): Member => {
-    onThisMachine("promote or demote an agent");
+    notForBrowsers("promote or demote an agent");
+    signedInIfApart("promote or demote an agent");
     const asking = caller();
-    if (!asking.admin) refuseNeedsAdmin(what, asking, roster.members().filter((member) => member.admin));
+    if (!asking.admin) refuseNeedsAdmin(what, asking, admins());
     const target = typeof memberId === "string" ? roster.member(memberId) : undefined;
     if (target === undefined) refuse(`There is no member ${String(memberId)} on the roster.`);
     return roster.setAdmin(target.id, admin);
+  };
+
+  /**
+   * The invitation `code` gives `name`, not yet used up, or a refusal that says
+   * what is wrong with the code. Every wrong code counts against the connection.
+   */
+  const invitationFor = (code: unknown, name: unknown) => {
+    const checked = invitations.check(code, name);
+    if (checked.ok) return checked;
+    wrongCodes += 1;
+    refuse(
+      checked.why === "used"
+        ? "That invitation was used already. An invitation is good once, so ask for a new one."
+        : `The gateway has no invitation like that for ${String(name)}. An invitation is good once, for fifteen minutes and for one name. Check the code, or ask for a new one.`,
+    );
   };
 
   /** Make the ways in match what is registered. A way that cannot be made is the caller's to be told of, not an internal error. */
@@ -107,12 +149,13 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
 
   const gateway: Gateway = {
     async register(announcement) {
-      onThisMachine("register");
+      notForBrowsers("register");
+      signedInIfApart("register");
       if (registrant === undefined) return;
       try {
-        const { kind } = checkAnnouncement(announcement);
+        const checked = checkAnnouncement(announcement, peer === "apart");
         let memberId: string | null = null;
-        if (kind === "agent") {
+        if (checked.kind === "agent") {
           const member = signedIn === undefined ? undefined : roster.member(signedIn);
           if (member === undefined) refuse("An agent registers as a member: join or sign in first.");
           refuseIfRunning(member);
@@ -120,7 +163,7 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
         } else if (signedIn !== undefined) {
           refuse("Only an agent is a member. A program that is not one registers without signing in.");
         }
-        const entry = registrant.register(announcement, memberId);
+        const entry = registrant.register(checked, memberId);
         registered = { kind: entry.kind, name: entry.name };
       } catch (error) {
         if (error instanceof InvalidRegistrationError) refuse(error.message);
@@ -135,22 +178,56 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
         throw error;
       }
     },
-    list: async () => registry.list(),
-    version: async () => SHRIMPY_VERSION,
+    async list() {
+      signedInIfApart("list what is running");
+      return registry.list();
+    },
+    async version() {
+      signedInIfApart("ask for the version");
+      return SHRIMPY_VERSION;
+    },
 
-    async join(name, token) {
-      onThisMachine("join");
+    async invite(name) {
+      notForBrowsers("invite an agent");
+      signedInIfApart("invite an agent");
+      const asking = caller();
+      if (!asking.admin) refuseNeedsAdmin("Inviting an agent", asking, admins());
+      const addresses = deps.addresses();
+      if (addresses.length === 0) {
+        refuse(
+          "This gateway listens on no address for an agent apart from it, so nobody could use an invitation. Start it with one.",
+          "service_not_allowed",
+        );
+      }
+      return { ...invitations.issue(roster.vacant(name)), addresses };
+    },
+    async join(name, token, code) {
+      notForBrowsers("join");
       beforeRegistering("join");
       if (signedIn !== undefined) refuse(`This connection is already signed in as ${caller().name}.`);
+      if (peer === "apart") {
+        if (wrongCodes >= WRONG_CODES) {
+          refuse(
+            `This connection has given ${String(WRONG_CODES)} wrong codes, so the gateway takes no more joins on it. Connect again with the right code, or ask for a new invitation.`,
+            "service_not_allowed",
+          );
+        }
+        if (typeof code !== "string") {
+          refuse("Joining from apart takes the code of an invitation. Ask the person who runs the gateway for one.");
+        }
+      }
       // The roster renames the member that holds the token, so whether it runs is checked first.
       const holder = typeof token === "string" ? roster.memberWithToken(token) : undefined;
       if (holder !== undefined) refuseIfRunning(holder);
+      // The code is used up to make a member. The one that holds the token is made already, as a caller that never heard the answer finds.
+      const invited = peer === "apart" && holder === undefined ? invitationFor(code, name) : undefined;
       const member = roster.join(name, token);
+      invited?.spend();
       signedIn = member.id;
       return member;
     },
     async signIn(token, name) {
-      onThisMachine("sign in");
+      notForBrowsers("sign in");
       beforeRegistering("sign in");
       const member = typeof token === "string" ? roster.memberWithToken(token) : undefined;
       if (member === undefined) {
@@ -174,6 +251,7 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
       return signed;
     },
     async members() {
+      signedInIfApart("read the roster");
       const running = new Set(registry.list().map((program) => program.memberId));
       return roster.members().map((member) => ({ ...member, reachable: running.has(member.id) }));
     },
@@ -185,13 +263,20 @@ export function serveGateway(deps: GatewayDeps, peer: Peer): ServedGateway {
     },
 
     async ticket(target) {
-      onThisMachine("ask for a ticket");
+      notForBrowsers("ask for a ticket");
+      signedInIfApart("ask for a ticket");
       // A program that has just registered may not have its way in yet, and a ticket is for one that has.
       await openWays();
       const found = registry.find(target.kind, target.name);
       if (found === undefined) {
         refuse(
           `There is no ${target.kind === "chat" ? "chat server" : `${target.kind} called ${target.name}`} registered with the gateway, so there is nobody to give a ticket for.`,
+        );
+      }
+      if (found.socket === undefined) {
+        refuse(
+          `The agent ${found.name} is apart from the gateway, and an agent apart from the gateway can't be reached yet.`,
+          "service_not_allowed",
         );
       }
       return {

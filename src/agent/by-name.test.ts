@@ -56,7 +56,7 @@ test("a connection to an agent through the gateway is refused without a good tic
   const open = async (): Promise<AgentConnection> => {
     const connection = await connectAgent({
       serverId: ticket.serverId,
-      transportFactory: localTransports().program(SCOUT),
+      transportFactory: localTransports().program(SCOUT, ticket.value),
     });
     stopAfter(t, () => connection.close());
     return connection;

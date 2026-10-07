@@ -7,7 +7,7 @@ import { waysDirectory, wayInSocket } from "../../contracts/gateway/node.ts";
 import { bridge, connectUpstream } from "../pipe/index.ts";
 
 export interface WaysOptions {
-  /** The programs that are registered now, each once. */
+  /** The programs that are registered now and have a socket, each once. */
   names(): ProgramName[];
   /** The socket of the newest program registered under `target`, or undefined when there is none. */
   resolve(target: ProgramName): string | undefined;

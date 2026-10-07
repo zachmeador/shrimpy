@@ -155,8 +155,8 @@ test("a message whose acknowledgment was lost can be sent again without being po
   const rig = await startRig(t, {
     transports: (local) => ({
       ...local,
-      program(target) {
-        const wrapped = freezable(local.program(target));
+      program(target, ticket) {
+        const wrapped = freezable(local.program(target, ticket));
         if (target.kind === "chat") frozen.push(wrapped);
         return wrapped.transportFactory;
       },
@@ -188,8 +188,8 @@ test("a message to a chat server that has stopped answering is not left in limbo
     sendMs: 150,
     transports: (local) => ({
       ...local,
-      program(target) {
-        const wrapped = freezable(local.program(target));
+      program(target, ticket) {
+        const wrapped = freezable(local.program(target, ticket));
         if (target.kind === "chat") frozen.push(wrapped);
         return wrapped.transportFactory;
       },
@@ -222,8 +222,8 @@ test("leaving does not wait for a chat server that has stopped answering", { tim
   const rig = await startRig(t, {
     transports: (local) => ({
       ...local,
-      program(target) {
-        const wrapped = freezable(local.program(target));
+      program(target, ticket) {
+        const wrapped = freezable(local.program(target, ticket));
         if (target.kind === "chat") frozen.push(wrapped);
         return wrapped.transportFactory;
       },

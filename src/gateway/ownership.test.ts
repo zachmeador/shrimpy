@@ -36,7 +36,7 @@ test("a second gateway is refused and the first is undisturbed", { timeout }, as
         error.message.includes("already running"),
     );
 
-    // Only the first gateway's own files: its two sockets and its lock, and its ways in.
+    // Only the first gateway's own files: its three sockets and its lock, and its ways in.
     assert.deepEqual(
       readdirSync(runtime).filter((name) => !name.startsWith("gateway") && name !== "ways"),
       [],
@@ -141,7 +141,7 @@ test("a client that is gone before the gateway's answer reaches it is not report
   }
 });
 
-test("a gateway whose browser entry cannot start gives the socket back", { timeout }, async (t) => {
+test("a gateway whose browser entry or network entry cannot start gives the socket back", { timeout }, async (t) => {
   const runtime = useRuntimeDir(t);
   const squatter = createServer();
   await new Promise<void>((resolve) => squatter.listen(0, "127.0.0.1", resolve));
@@ -149,6 +149,8 @@ test("a gateway whose browser entry cannot start gives the socket back", { timeo
     const { port } = squatter.address() as AddressInfo;
     await assert.rejects(startGatewayInProcess(t, { web: { port } }), /EADDRINUSE/);
     await assert.rejects(startGatewayInProcess(t, { web: { port: 0, staticDir: join(runtime, "no-such-site") } }), /ENOENT/);
+    // The first address was listening by then, and is let go with the rest.
+    await assert.rejects(startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }, { host: "127.0.0.1", port }] }), /EADDRINUSE/);
 
     const gateway = await startGatewayInProcess(t);
     await gateway.close();

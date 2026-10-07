@@ -1,3 +1,5 @@
+import type { Address } from "../gateway/index.ts";
+
 /**
  * What an agent's home keeps so that the agent is the same member of the
  * network every time it starts, and so that a `shrimpy` command run from the
@@ -13,6 +15,13 @@ export interface Membership {
   token: string;
   /** The agent's ID in the gateway's roster, once the gateway has said it is a member. It never changes. */
   memberId?: string;
+  /**
+   * The gateway's entry, for an agent apart from the gateway: the one it joined
+   * through, where it reaches the gateway and chat from then on, and where a
+   * command run in its shell does. A home with none uses the gateway on its own
+   * machine.
+   */
+  gateway?: Address;
 }
 
 /** Where a home keeps its membership, inside the home. */

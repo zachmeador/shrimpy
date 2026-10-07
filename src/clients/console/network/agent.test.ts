@@ -51,9 +51,9 @@ test("it reaches the agent through the transports it is handed", { timeout }, as
   const reached: string[] = [];
   const { link } = startLink(t, {
     ...local,
-    program(target) {
+    program(target, ticket) {
       reached.push(`${target.kind} ${target.name}`);
-      return local.program(target);
+      return local.program(target, ticket);
     },
   });
 

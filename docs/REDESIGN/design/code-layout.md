@@ -12,7 +12,7 @@ src/
                     and for the gateway, the loop that keeps a program registered
     agent/          the agent API: sessions, control, offers
     chat/           the chat API: channels, threads, messages, attachments
-    gateway/        the roster as clients see it, joining and signing in, tickets, registration and routing
+    gateway/        the roster as clients see it, joining and signing in, invitations and their links, tickets, registration and routing
   agent/            the agent program, one process per home
     home/           home layout, agent.json, resource and skill selection, model policy, credential paths
     host/           owner lock, model runtime and provider login, registry, environment, storage, supervision
@@ -42,10 +42,12 @@ src/
   gateway/          the gateway program: discovery, access, routing, the roster, workspace context
     roster/         every member, with its name and how it is recognized, in one file
     tickets/        tickets in flight
+    invitations/    invitations in flight: a code that lets one agent in from apart
     ways/           a way in for each registered program
-    pipe/           bytes both ways between two connections, shared with the browser entry
+    pipe/           bytes both ways between two connections, shared with the entries
     registry/       the programs that are running, one registration per live connection
     web/            the browser entry: WebSocket pipes and the web client's files
+    entry/          the network entry: WebSocket pipes for agents apart from the gateway
   clients/
     console/        terminal client
       network/      links to the gateway, the chat server and an agent, kept across losses

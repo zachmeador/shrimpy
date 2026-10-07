@@ -1,5 +1,13 @@
 import { type Context, defineService } from "@earendil-works/chord";
 
+/** Where something is reached over the network. */
+export interface Address {
+  /** An IP address or a name. An IPv6 address is written without brackets. */
+  host: string;
+  /** A port from 1 to 65535. Asking the gateway to listen on 0 has it pick one, and it says which. */
+  port: number;
+}
+
 /** What a program says about itself when it registers. */
 export interface Announcement {
   kind: "agent" | "chat";
@@ -8,9 +16,13 @@ export interface Announcement {
   /**
    * Absolute path of the Unix socket the gateway pipes connections to. Only the
    * gateway is told: the gateway's list never shows it, and a client reaches the
-   * program through the gateway by its name.
+   * program through the gateway by its name. An agent apart from the gateway,
+   * which came in over its entry, has none and must say none: the gateway
+   * can't dial a socket on another machine or under another user, and one it
+   * could dial would let the agent point the gateway at any socket it can open.
+   * A program on the gateway's machine must give one.
    */
-  socket: string;
+  socket?: string;
   /**
    * The version of Shrimpy the program runs. Programs upgrade together, so this
    * is how a mismatch between peers gets reported. The gateway lists it and
@@ -67,6 +79,20 @@ export interface RosterEntry extends Member {
   reachable: boolean;
 }
 
+/** What lets an agent in from apart: a code for one name, and where to take it. */
+export interface Invitation {
+  /**
+   * Written like `K7Q2-9FXD`: eight letters and digits that can't be mistaken
+   * for one another, read without regard to case or the hyphen. It is good
+   * once, for fifteen minutes, and for the name it was asked for only.
+   */
+  code: string;
+  /** The addresses the gateway listens on, which the agent connects to. There is at least one: with none, no invitation is made. */
+  addresses: Address[];
+  /** When the code stops being good, in milliseconds since the epoch. */
+  expires: number;
+}
+
 /**
  * Connection scope: finding the programs that are running, knowing who is on
  * the network, and being let in to a program. The gateway only connects things;
@@ -75,6 +101,14 @@ export interface RosterEntry extends Member {
  * Nobody says who they are: a connection that signed in with an agent's token
  * is that agent, and one that did not, on the gateway's own socket, is the
  * person who runs the gateway.
+ *
+ * A connection over the gateway's network entry, which is "the entry" below, is
+ * apart from the gateway: it comes from another machine, another user or a
+ * container, and is never the person. Until it has signed in or joined it can
+ * do nothing else: it can't list, read the roster, ask for the version or a
+ * ticket, register or invite. Once it has, it is that agent and may do what an
+ * agent on the gateway's machine may. A page in a browser that came through
+ * the browser entry may list the programs and the roster, and nothing else.
  *
  * The roster also records who is an admin. The gateway checks it for what the
  * roster is: who may promote and demote. Every other program that has
@@ -96,8 +130,12 @@ export interface Gateway {
    * An agent registers as the member this connection signed in as, and is
    * refused if it did not sign in, or if a program on another connection is
    * registered as that member. The chat server registers as itself and is not a
-   * member, so it does not sign in. Only a program on the gateway's machine can
-   * register: a connection that came through the browser entry is refused.
+   * member, so it does not sign in. A program on the gateway's machine registers
+   * with the socket it listens on. A connection over the entry registers as an
+   * agent with no socket, and is refused if it gives one: the gateway can't
+   * reach an agent that is apart from it yet, so it lists it as running and
+   * refuses a ticket for it. A connection that came through the browser entry
+   * can't register.
    */
   register(announcement: Announcement, context: Context): Promise<void>;
   list(context: Context): Promise<Registration[]>;
@@ -109,6 +147,15 @@ export interface Gateway {
   version(context: Context): Promise<string>;
 
   /**
+   * An invitation for an agent called `name` to join from apart. Only a person
+   * or an admin may ask, and anyone else is refused with the reason
+   * `NEEDS_ADMIN`. A name another member has, whatever the case, is refused. So
+   * is asking while the gateway listens on no address for agents apart from
+   * it, since nobody could use the invitation. The gateway keeps the code in
+   * memory only, so one that was not used is gone when it restarts.
+   */
+  invite(name: string, context: Context): Promise<Invitation>;
+  /**
    * Make a new agent member called `name` that is recognized by `token`, and be
    * it from now on. The caller made the token and keeps it, and shows it only to
    * the gateway, which keeps a hash of it and never the token. A caller that
@@ -117,16 +164,26 @@ export interface Gateway {
    * is that member, renamed to `name` if it is not called that. A name another
    * member has, whatever the case, is refused. So is joining, under any name,
    * with the token of a member that a program on another connection is
-   * registered as. Only a program on the gateway's machine can join.
+   * registered as.
+   *
+   * A program on the gateway's machine joins with a `code` of null, and the
+   * gateway does not look at one. A connection over the entry gives the code of
+   * an invitation for `name`, which is used up when it makes the member. A code
+   * the gateway never made, that was used, that ran out or that is for another
+   * name is refused, and so is none. A caller that never heard the answer joins
+   * again with the same token and code and is the same member: the roster has
+   * the token already, so the code is not asked for again. After five wrong
+   * codes on one connection every further join on it is refused. A page in a
+   * browser can't join.
    */
-  join(name: string, token: string, context: Context): Promise<Member>;
+  join(name: string, token: string, code: string | null, context: Context): Promise<Member>;
   /**
    * Be the member that holds `token` from now on. With a `name` that is not the
    * member's, the member is renamed first, and a name another member has is
    * refused. So is a rename while a program on another connection is registered
    * as the member. With null, or the member's own name, nothing changes, and the
-   * member is signed in as. A token the roster does not have is refused. Only a
-   * program on the gateway's machine can sign in.
+   * member is signed in as. A token the roster does not have is refused. A page
+   * in a browser can't sign in.
    */
   signIn(token: string, name: string | null, context: Context): Promise<Member>;
   /** Everyone on the roster, oldest first. It carries no token and no socket. */
@@ -135,8 +192,7 @@ export interface Gateway {
    * Make the agent `memberId` an admin, and answer with it as it now is. An
    * agent that is one already stays one. Only a person or an admin may, and
    * anyone else is refused with the reason `NEEDS_ADMIN`. A person is an admin
-   * already, so a person is refused too. Only a program on the gateway's
-   * machine can.
+   * already, so a person is refused too. A page in a browser can't.
    */
   promote(memberId: string, context: Context): Promise<Member>;
   /**
@@ -151,9 +207,11 @@ export interface Gateway {
    * is, with the server ID the program answers as. A client connects to a
    * program through the gateway by its name, and the ticket is the first thing
    * it hands over. The caller is the member this connection signed in as, or the
-   * person who runs the gateway when it did not sign in. A ticket is good once,
-   * for a short time, and for `target` only, which must be registered. Only a
-   * program on the gateway's machine can ask.
+   * person who runs the gateway when it did not sign in, on the gateway's own
+   * socket. A ticket is good once, for a short time, and for `target` only,
+   * which must be registered. A ticket for an agent that registered with no
+   * socket is refused, since an agent apart from the gateway can't be reached
+   * yet. A page in a browser can't ask.
    */
   ticket(target: ProgramName, context: Context): Promise<Ticket>;
   /**

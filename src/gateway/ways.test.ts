@@ -113,8 +113,9 @@ test("a program that registers again after a restart is reached by the same name
   const gateway = await startGatewayInProcess(t);
   stopAfter(t, () => gateway.close());
   const ways = (): string[] => (existsSync(waysDirectory()) ? readdirSync(waysDirectory()) : []);
+  // The ways in on this machine ask for no ticket.
   const reach = (serverId: string) =>
-    connectEcho(serverId, localTransports().program({ kind: "agent", name: "echo" }));
+    connectEcho(serverId, localTransports().program({ kind: "agent", name: "echo" }, ""));
   // The same agent each time it starts: it joins once, and signs in with its token after.
   const token = newToken();
 

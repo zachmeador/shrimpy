@@ -24,6 +24,8 @@ export interface Tickets {
    * does not spend it: the one it is for still can.
    */
   redeem(ticket: string, program: ProgramName): Redeemed;
+  /** Whether a ticket is good for `program` now. Nothing is spent: the program spends it when the client hands it over. */
+  check(ticket: string, program: ProgramName): boolean;
 }
 
 export interface TicketsOptions {
@@ -62,6 +64,15 @@ export function createTickets(options: TicketsOptions = {}): Tickets {
       }
       issued.delete(ticket);
       return { ok: true, memberId: found.memberId };
+    },
+    check(ticket, program) {
+      const found = issued.get(ticket);
+      return (
+        found !== undefined &&
+        found.expires > now() &&
+        found.program.kind === program.kind &&
+        found.program.name === program.name
+      );
     },
   };
 }

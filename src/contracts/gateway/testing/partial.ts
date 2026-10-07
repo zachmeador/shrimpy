@@ -8,6 +8,7 @@ export function gatewayThatDoes(calls: Partial<Gateway>): Gateway {
     register: unsupported,
     list: unsupported,
     version: unsupported,
+    invite: unsupported,
     join: unsupported,
     signIn: unsupported,
     members: unsupported,

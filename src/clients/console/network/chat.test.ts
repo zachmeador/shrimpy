@@ -77,9 +77,9 @@ test("it reaches the chat server through the transports it is handed", { timeout
   const reached: string[] = [];
   const { link } = startLink(t, {
     ...local,
-    program(target) {
+    program(target, ticket) {
       reached.push(`${target.kind} ${target.name}`);
-      return local.program(target);
+      return local.program(target, ticket);
     },
   });
 
