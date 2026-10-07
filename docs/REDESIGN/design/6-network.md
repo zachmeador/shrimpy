@@ -100,7 +100,7 @@ The [sandbox runtime scout](../../research/sandbox-runtime-scout-2026-08-26.md) 
 
 **Open**
 
-- **An agent under a second OS user of the gateway's machine** has not been tried. A gateway on one machine and an agent on another have, on 2026-10-07 and 2026-10-08, the second time straight over a tailnet. Nothing in the design assumes where the gateway runs, where an agent runs, or where the work on Shrimpy is done.
+- **An agent under a second OS user of the gateway's machine** has not been tried. A gateway on one machine and an agent on another have, on 2026-10-07, the second time straight over a tailnet. Nothing in the design assumes where the gateway runs, where an agent runs, or where the work on Shrimpy is done.
 
 **Not built yet**
 
@@ -115,7 +115,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Built: underneath on 2026-10-06, and its commands on 2026-10-07, each a change of its own.
 2. **Reached through the gateway.** The gateway joining a client to an agent that connects out, so that the terminal watches and stops that agent's sessions as it does those of an agent beside the gateway. Built on 2026-10-07.
 3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Built on 2026-10-07. Then the same with an agent under a second OS user, and over an address a second machine reaches directly.
-4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own. Being built since 2026-10-08, as below.
+4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own. Built on 2026-10-07, as below.
 
 **The first step, underneath.** What was built first has no command. It is reached from code, and each command comes after as a change of its own.
 
@@ -155,7 +155,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **A limit on connecting.** Each try at connecting, signing in and registering gives up after a quarter of a minute, so an agent that starts while its gateway takes connections and answers nothing says so within that time.
 - **Chat follows the gateway.** When an agent loses its gateway it lets go of its connection to chat too, and comes in again with a new ticket once it has registered again, so it never waits on a feed that can't arrive.
 
-**The fourth step: you, from another machine.** You agreed to it on 2026-10-06 as long as it was simple and clean, and saw these lines on 2026-10-07. You haven't said yes or no to them: the build went ahead on 2026-10-08 as shown, for you to change.
+**The fourth step: you, from another machine.** You agreed to it on 2026-10-06 as long as it was simple and clean, and saw these lines on 2026-10-07. You haven't said yes or no to them: it was built that day as shown, for you to change.
 
 ```text
 $ shrimpy members invite
@@ -175,7 +175,7 @@ Open the terminal with: shrimpy
 - **A folder that has a gateway of its own** is not joined: you are you there already, and `shrimpy join` says so.
 - **Leaving** is deleting the file the token is kept in. Nothing yet takes a machine's token back at the gateway.
 
-**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 646 there were later that day, 636: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
+**Linux.** The tests ran there for the first time on 2026-10-07, on a machine of yours: Ubuntu 24.04 on x86_64 with Node 22.23. Of 613, 603 passed and 7 were skipped, and of the 661 there were by the end of that day, 651: the six that call a real model and one that needs an IPv6 loopback, which that machine has none of. The other three bundle a contract for a browser and failed because the dependencies were copied from a Mac and not installed there, so the bundler's Linux binary was missing. Two things were found and fixed: Node 22 warned that SQLite is experimental at the start of every program, and a test let go of a lock it meant to hold. Still to try there: the programs kept running by a service, and a pairing with a second machine. One thing to look at: the runtime directory is `$XDG_RUNTIME_DIR/shrimpy` where that variable is set and `/tmp/shrimpy-<uid>` where it isn't, so a gateway started by a service and a command typed in a login shell may not look in the same place.
 
 **Left for later**
 
