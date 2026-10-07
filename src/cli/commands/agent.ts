@@ -159,11 +159,7 @@ const join: Command = {
       // Only an attempt that was made can be made again. A link that does not fit the home is said as it is.
       if (!(error instanceof JoinFailedError)) throw error;
       let said = error.message;
-      if (gaveUp.signal.aborted) {
-        said = `The gateway at ${where} did not answer within fifteen seconds.`;
-        // A WebSocket that never opened can't be closed from here, and would keep this process running after it has answered.
-        setTimeout(() => process.exit(1), 250).unref();
-      }
+      if (gaveUp.signal.aborted) said = `The gateway at ${where} did not answer within fifteen seconds.`;
       const stays = exists ? "" : `The agent's home, ${home}, was made and stays. `;
       throw new Error(`${said}\n${stays}Running this again with the same link is safe while the code is good.`, { cause: error });
     } finally {

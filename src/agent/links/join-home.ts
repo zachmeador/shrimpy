@@ -73,7 +73,7 @@ export async function joinHome(home: string, link: string, options: JoinHomeOpti
   const where = formatAddress(invitation.address);
   let gateway: GatewayConnection;
   try {
-    gateway = await connectGateway({ transportFactory: entryTransports(invitation.address).gateway, signal });
+    gateway = await connectGateway({ transportFactory: entryTransports(invitation.address, signal).gateway, signal });
   } catch (error) {
     throw new JoinFailedError(`Could not reach the gateway at ${where}: ${(error as Error).message}`, { cause: error });
   }
