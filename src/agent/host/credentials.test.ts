@@ -136,14 +136,14 @@ test("a change waits for the process that holds a file, gives up when told to, a
   const file = join(tempDir(t, "held"), "auth.json");
   const before = signIn({ access: "access-1", refresh: "refresh-1", expiresIn: 60_000 });
   writeFileSync(file, JSON.stringify({ sub: before }));
-  // Another process is renewing, and never finishes.
+  // Another process is renewing, and doesn't finish while the test runs. A timer holds its wait: a promise that
+  // nothing holds is collected with the lock it waits under, which Node 22 on Linux does within the test.
   const source = `
     import { credentialStore } from ${JSON.stringify(credentialsModule)};
     credentialStore(${JSON.stringify(file)}).modify("sub", async () => {
       console.log(JSON.stringify({ event: "renewing" }));
-      await new Promise(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 600_000));
     });
-    setInterval(() => {}, 1000);
   `;
   const renewing = await startChild(t, { source });
   const store = credentialStore(file);

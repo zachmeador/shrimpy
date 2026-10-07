@@ -10,6 +10,8 @@ export interface Lock {
  * does not exist. The operating system holds it for the process and drops it
  * when the process dies, so there is no heartbeat, pid file or stale lock to
  * clean up, and two callers that start at the same moment cannot both get it.
+ * It is held for as long as the caller holds what this returns: a lock that
+ * nothing holds any more is let go of when Node collects it.
  *
  * When someone else holds the lock, this throws what `heldElsewhere` returns
  * for the underlying error. Any other failure, such as a file that cannot be
