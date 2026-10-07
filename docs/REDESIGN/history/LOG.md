@@ -37,6 +37,7 @@
 - Providers for a whole folder: one sign-in in each place agents run, made with `shrimpy providers login`, serves every agent started there, and an agent names a model only when it wants one of its own. ([log, 2026-10-06](#log))
 - An agent apart from the gateway, underneath: the gateway listens on an address, an invitation lets one agent in, and an agent that shares no socket with the gateway joins, is listed as running, reads chat and answers. ([log, 2026-10-06](#log))
 - The commands that pair an agent apart from the gateway: `shrimpy up --listen`, `shrimpy members invite` and `shrimpy agent join`, and `shrimpy up` starting only the agents where the gateway is elsewhere. ([log, 2026-10-07](#log))
+- A client reaches an agent apart from the gateway by its name: the gateway makes a call, and the agent answers it by connecting out. ([log, 2026-10-07](#log))
 
 ## Log
 
@@ -45,6 +46,14 @@ Newest first, roughly: the entries of one day aren't always in the order they ha
 A piece of work is done when its Prove list has evidence from real wiring, not equivalent mocks. A passing build or deleted files don't count. A newly found experience difference stays pending until it is reviewed.
 
 Planning evidence: Shrimpy `main` at `574bb2c` runs Pi `0.84.4`. Its source and its CLI, TUI, context, tool, channel, watch, worker, Telegram and web contracts were inspected. No live workspace, configuration or installed watches were inspected to infer actual usage. Pi was inspected at `a276dabe57911253350bffb93cb7d7aff6a73261`, whose durable code matches `v1.0.0`. The research record covers 278 selected upstream tests, six real SQLite owner-kill scenarios, cancelled-wait and storage probes, and three in-memory client/server scenarios. These qualify upstream mechanisms, not a replacement Shrimpy or a production deployment.
+
+**2026-10-07: an agent apart from the gateway is reached by its name.** The second of four steps, by one builder in one commit, as the network's design has it. When a client asks for an agent that registered with no socket, the gateway makes a call: an ID nobody could guess, good once and for fifteen seconds. The agent asks for its calls over the connection it registered on, opens one more connection to the entry for each, and joins it to its own socket on its own machine. The gateway joins that to the client's connection and reads none of the bytes. The agent's server, its ticket and its rules for who may do what are untouched.
+
+- The contract gains `calls`, which waits as chat's feed does and tells only the connection registered as that agent. A ticket is given for an agent apart as for any program. Both ways in make a call: the one on the gateway's machine and the one over the entry.
+- Small choices: a call belongs to the connection that registered, so it ends with it. A wrong, used or late ID gets a plain refusal, as a wrong ticket does. A client whose call isn't answered loses its connection, which the terminal shows as a lost connection that it tries again.
+- Tried through real programs on one machine, and by hand between two: from a gateway on a Mac, as the person, an agent on Linux was reached by its name in 67 ms, said who it took the connection for, listed its session, was watched and was told to stop. With the agent stopped, asking for it said that no agent of that name is registered.
+- The tests passed on Linux with Node 22 as well, apart from the three that want a dependency installed there.
+- Not tried: an agent that stops answering while a client waits, beyond the test of it, and many clients at once.
 
 **2026-10-07: a gateway on one machine and an agent on another.** The first pairing between two machines, by hand, through the commands. A throwaway gateway ran on a Mac with Node 26, listening on its loopback, and an SSH tunnel made that address reachable on the loopback of your Linux machine, which has Node 22. So each end stayed on loopback and nothing listened on a network address.
 

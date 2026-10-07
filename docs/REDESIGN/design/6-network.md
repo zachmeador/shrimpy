@@ -55,7 +55,7 @@ By hand that is one line on the gateway's machine and two where the agent will l
 
 **Underneath**
 
-1. **The entry.** The gateway listens on each address you chose, with the WebSocket entry it already has for a browser: `/ws/gateway` for the gateway itself, and `/ws/<kind>/<name>` for a way through to a registered program. A connection there that shows an agent's token is that agent, and may do what the agent may on the gateway's machine. One that shows a code, with the name the code is for, may join. One that shows neither gets nothing, and is never taken for you, which only the gateway's own socket does. A connection that says it comes from a web page is refused.
+1. **The entry.** The gateway listens on each address you chose, with the WebSocket entry it already has for a browser: `/ws/gateway` for the gateway itself, and `/ws/<kind>/<name>` for a way through to a registered program. A connection there that shows an agent's token is that agent, and may do what the agent may on the gateway's machine. One that shows a code, with the name the code is for, may join. One that shows neither gets nothing, and is never taken for you, which only the gateway's own socket does. The one other thing that opens a path there is the ID of a call, which only the agent that was called is told. A connection that says it comes from a web page is refused.
 2. **An invitation.** A person or an admin asks the gateway for one, for a name that nobody has. It is a code of eight characters from an alphabet with no look-alikes, written `K7Q2-9FXD`. It is kept in memory as a ticket is, so a gateway that restarts forgets it. The link, `shrimpy://crab@100.101.102.103:7447/K7Q2-9FXD`, is the name, the address and the code.
 3. **Joining.** The home makes its token and keeps it first, as it does beside the gateway. The gateway keeps a hash of the token and never the token, and a home that never heard the answer asks again with the same token and is the same member. The home keeps the gateway's address beside its token.
 4. **A way through.** A program, such as chat, is reached over the entry only with a ticket for it in hand. The gateway looks at the ticket before it opens the way, and the program then spends it. So nobody who hasn't signed in reaches a program.
@@ -113,7 +113,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 **Build,** in four steps, each tested on one machine over a real connection first:
 
 1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Built: underneath on 2026-10-06, and its commands on 2026-10-07, each a change of its own.
-2. **Reached through the gateway.** The gateway joining a client to an agent that connects out. Until then the gateway says that an agent apart from it can't be reached yet, where a client asks for its sessions. The terminal then watches and stops that agent's sessions as it does those of an agent beside the gateway.
+2. **Reached through the gateway.** The gateway joining a client to an agent that connects out, so that the terminal watches and stops that agent's sessions as it does those of an agent beside the gateway. Built on 2026-10-07.
 3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Then the same with an agent under a second OS user, and on a real second machine.
 4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own.
 
@@ -123,7 +123,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **Who a connection is.** A connection over the entry is apart from the gateway. Until it signs in or joins it may do only those two things. Once it has, it is that agent, and may list what is running and who is on the roster, ask for tickets, register, and promote or demote if it is an admin. It is never the person who runs the gateway.
 - **An invitation.** It is good once and for fifteen minutes. The answer has the code and the addresses the gateway listens on, and with none it is refused: nobody could use it.
 - **The link.** One function writes it and one reads it, for the command that prints it and the one that takes it.
-- **Being there.** An agent apart signs in and registers with no socket, so the roster says it is running and a copy of its home is turned away. A client that asks for a ticket to it is told that an agent apart from the gateway can't be reached yet.
+- **Being there.** An agent apart signs in and registers with no socket, so the roster says it is running and a copy of its home is turned away.
 - **A way through.** The way to a program takes the ticket as well as the name.
 
 **The commands of the first step,** as they were built.
@@ -134,7 +134,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **`shrimpy agent join <link>`** makes the home in the Shrimpy folder if there is none, joins, and gives up on a gateway that doesn't answer within a quarter of a minute.
 - **`shrimpy up` where there is no gateway.** When every agent it is to start belongs to a gateway elsewhere, it starts those agents and no gateway or chat server, unless it is told to listen.
 
-**The second step, underneath.** A client reaches an agent apart by its name, as it reaches one beside the gateway, and neither it nor the agent's own server can tell the difference.
+**The second step, underneath,** as it was built. A client reaches an agent apart by its name, as it reaches one beside the gateway, and neither it nor the agent's own server can tell the difference.
 
 - **A call.** When a client asks for an agent that registered with no socket, the gateway makes a call for it: an ID that nobody could guess, good once and for a quarter of a minute. The client's connection waits at the gateway.
 - **Who wants me.** The agent asks the gateway for its calls over the connection it registered on, and waits for the answer, as it waits on chat's feed. Only the connection that registered as the agent is told of its calls.
