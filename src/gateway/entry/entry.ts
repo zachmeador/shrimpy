@@ -3,7 +3,7 @@ import type { AddressInfo, Socket } from "node:net";
 import type { Duplex } from "node:stream";
 import { DEFAULT_MAX_FRAME_LENGTH } from "@earendil-works/pi-protocol";
 import { createWebSocketStream, WebSocketServer } from "ws";
-import { type Address, parseWebSocketRequest, type ProgramName } from "../../contracts/gateway/index.ts";
+import { type Address, formatAddress, parseWebSocketRequest, type ProgramName } from "../../contracts/gateway/index.ts";
 import { bridge, connectUpstream } from "../pipe/index.ts";
 
 export interface EntryOptions {
@@ -82,7 +82,11 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
       upgrade(request, socket, head).catch(() => socket.destroy());
     });
     servers.push(http);
-    await listen(http, host, port);
+    try {
+      await listen(http, host, port);
+    } catch (error) {
+      throw cannotListen({ host, port }, error);
+    }
     return { host, port: (http.address() as AddressInfo).port };
   };
 
@@ -111,6 +115,20 @@ export async function startEntry(options: EntryOptions): Promise<Entry> {
     await close();
     throw error;
   }
+}
+
+/** Why the gateway could not listen on `address`: which address, and the reason in plain words. */
+function cannotListen(address: Address, cause: unknown): Error {
+  const { code, message } = cause as NodeJS.ErrnoException;
+  const why =
+    code === "EADDRINUSE"
+      ? "another program is using that port"
+      : code === "EADDRNOTAVAIL"
+        ? "this machine has no such address"
+        : code === "EACCES"
+          ? "this user may not listen on that port"
+          : message;
+  return new Error(`The gateway can't listen on ${formatAddress(address)}: ${why}.`, { cause });
 }
 
 function listen(http: Server, host: string, port: number): Promise<void> {

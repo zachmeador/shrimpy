@@ -2,6 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+import type { Address } from "../../contracts/gateway/index.ts";
 import { firstLine, tempDir, useRuntimeDir } from "../../lib/testing/index.ts";
 
 const main = fileURLToPath(new URL("../main.ts", import.meta.url));
@@ -137,6 +138,8 @@ export type ServedGateway = Served<{
   dataDir: string;
   socket: string;
   webPort: number | null;
+  listen: Address[];
+  listenKept: string | null;
   pid: number;
 }>;
 

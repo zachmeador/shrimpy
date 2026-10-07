@@ -149,8 +149,11 @@ test("a gateway whose browser entry or network entry cannot start gives the sock
     const { port } = squatter.address() as AddressInfo;
     await assert.rejects(startGatewayInProcess(t, { web: { port } }), /EADDRINUSE/);
     await assert.rejects(startGatewayInProcess(t, { web: { port: 0, staticDir: join(runtime, "no-such-site") } }), /ENOENT/);
-    // The first address was listening by then, and is let go with the rest.
-    await assert.rejects(startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }, { host: "127.0.0.1", port }] }), /EADDRINUSE/);
+    // The first address was listening by then, and is let go with the rest. The error names the address that failed.
+    await assert.rejects(
+      startGatewayInProcess(t, { listen: [{ host: "127.0.0.1", port: 0 }, { host: "127.0.0.1", port }] }),
+      (error: Error) => error.message.includes(`127.0.0.1:${String(port)}`),
+    );
 
     const gateway = await startGatewayInProcess(t);
     await gateway.close();

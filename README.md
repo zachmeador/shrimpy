@@ -82,7 +82,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 <!-- commands:start -->
 | Command | What it does |
 |---|---|
-| `up [<agent>...] [--data <dir>]` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
+| `up [<agent>...] [--data <dir>] [--listen <host:port>]...` | Start what is missing on this machine and keep it running: the gateway, the chat server and your agents. |
 | `run <agent> "<text>" [--thread <id>] [--no-wait]` | Say something to an agent and print its reply. |
 | `threads <member\|#room> [--json]` | List your threads with a person or an agent, or in a room: ID, when last updated, who is working in it, and its name. |
 | `read <thread> [--json]` | Show a thread: who said what and when, oldest first, with each message's ID. |
@@ -110,7 +110,7 @@ The table is written by `npm run readme` from the commands the CLI has, and a te
 | `members` | List the roster: each member's kind, whether it is an admin, and whether a program is running as it. |
 | `members promote <name>` | Make an agent an admin. |
 | `members demote <name>` | Make an admin agent an ordinary agent again. |
-| `gateway serve --data <dir> [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
+| `gateway serve --data <dir> [--listen <host:port>]... [--web-port <port>] [--web-dir <dir>]` | Run the gateway in the foreground until it is told to stop. |
 | `gateway status` | List the programs registered with this machine's gateway, and the members on its roster. |
 | `chat serve <data-dir>` | Run the chat server in the foreground until it is told to stop, registered with the gateway. |
 <!-- commands:end -->

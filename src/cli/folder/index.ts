@@ -19,6 +19,7 @@ export {
   homeNamed,
   isPath,
   newHome,
+  nothingToStart,
   providersFolder,
   providersPath,
 } from "./folder.ts";

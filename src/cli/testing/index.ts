@@ -5,11 +5,12 @@
  * `shrimpy up` running, waiting for a program to register with the gateway,
  * the CLI itself as a child process, including the commands that serve a
  * program, the shell of an agent that runs it, the finding of `shrimpy` command
- * lines in a text, and a Shrimpy
+ * lines in a text, free loopback addresses to listen on, and a Shrimpy
  * folder of its own for every test, which importing this gives each one so that
  * no test can reach a real `~/shrimpy`. Only tests and test fixtures import
  * this, and it must not know how a program works inside.
  */
+export { canConnect, freeAddresses } from "./addresses.ts";
 export { commandLines, whyNotACommand } from "./commands.ts";
 export { useShrimpyDir } from "./folder.ts";
 export { declareLocalModel, localProvider } from "./home.ts";

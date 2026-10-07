@@ -126,16 +126,19 @@ export function agentsListed(): { where: string; names: string[] } {
   return { where: join(folder, AGENTS), names: agentsIn(folder) };
 }
 
-/** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. With none, the error says how to make one. */
+/** The homes of every agent in the Shrimpy folder, for `up` when it is told no agents. A folder with none gives an empty list. */
 export function allHomes(): string[] {
   const folder = ownFolder();
-  const names = agentsIn(folder);
-  if (names.length === 0) {
-    throw new Error(
-      `There are no agents in ${join(folder, AGENTS)} yet, so there is nothing to start. Make one with: ${MAKE_AN_AGENT}`,
-    );
-  }
-  return names.map((name) => join(folder, AGENTS, name));
+  return agentsIn(folder).map((name) => join(folder, AGENTS, name));
+}
+
+/** The error for `up` when there is nothing to start: the folder has no agents, and the error says how to make one, or how to start the gateway for agents elsewhere. */
+export function nothingToStart(): Error {
+  return new Error(
+    `There are no agents in ${join(folderPath(), AGENTS)} yet, so there is nothing to start. To start the gateway and ` +
+      "the chat server for agents that live elsewhere, give --listen <host:port>. " +
+      `To make an agent here, run: ${MAKE_AN_AGENT}`,
+  );
 }
 
 /**

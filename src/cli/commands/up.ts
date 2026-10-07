@@ -1,17 +1,20 @@
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { AgentNotRunningError, attachLocal, readEndpoint } from "../../contracts/agent/node.ts";
-import { allHomes, dataFolder, homeNamed } from "../folder/index.ts";
+import { type Address, formatAddress } from "../../contracts/gateway/index.ts";
+import { keptListenAddresses } from "../../gateway/index.ts";
+import { allHomes, dataFolder, folderPath, homeNamed, nothingToStart } from "../folder/index.ts";
 import type { Io } from "../io/index.ts";
 import { describeEnd, type Program, ProgramEndedError, startProgram } from "../programs/index.ts";
 import { askGateway } from "../talk/index.ts";
 import { parsing, UsageError } from "../usage/index.ts";
 import { warnIfVersionDiffers } from "../versions/index.ts";
 import type { Command } from "./command.ts";
+import { ABOUT_LISTEN, LISTEN_OPTION, listenAddresses } from "./listen.ts";
 
 const up: Command = {
   name: "up",
-  usage: "[<agent>...] [--data <dir>]",
+  usage: "[<agent>...] [--data <dir>] [--listen <host:port>]...",
   summary: "Start what is missing on this machine and keep it running: the gateway, the chat server and your agents.",
   details:
     "With no agents named, it starts every agent in your Shrimpy folder, which is ~/shrimpy or the folder " +
@@ -19,17 +22,26 @@ const up: Command = {
     "gateway/ and the chat server its store in chat/, in that folder or in the directory --data names, which " +
     "is made if it is missing. Each program runs as a process of its own, the same one that gateway serve, " +
     "chat serve and agent serve start. A gateway, chat server or agent that is already running is used as it " +
-    "is, and left running when this stops. Ctrl+C or SIGTERM stops what this started, agents first, and " +
+    `is, and left running when this stops. ${ABOUT_LISTEN} This passes --listen to the gateway it starts, and ` +
+    "says where the gateway listens. A gateway that is already running is used as it is, so --listen can't " +
+    "change it, and this says so. When it is told to listen, by --listen or by the addresses the gateway kept, " +
+    "it starts the gateway and the chat server in a folder with no agents too, since agents elsewhere can join " +
+    "it. Ctrl+C or SIGTERM stops what this started, agents first, and " +
     "exits 0 once they have stopped; a second request tells the agents to stop without waiting for running " +
     "turns, and a third ends everything at once. If a program this started ends by itself, this says which, " +
     "stops the rest and exits 1.",
   async run(args, io) {
     const { values, positionals } = parsing(() =>
-      parseArgs({ args, options: { data: { type: "string" } }, allowPositionals: true }),
+      parseArgs({ args, options: { data: { type: "string" }, ...LISTEN_OPTION }, allowPositionals: true }),
     );
     if (values.data === "") throw new UsageError("--data needs a directory.");
+    const listen = listenAddresses(values.listen);
     const homes = positionals.length === 0 ? allHomes() : positionals.map(homeNamed);
-    return bringUp(io, { data: values.data === undefined ? dataFolder() : resolve(values.data), homes });
+    // Nothing is made until there is something to start, so where the gateway keeps its data is only read.
+    const given = values.data === undefined ? undefined : resolve(values.data);
+    const told = listen !== undefined || keptListenAddresses(join(given ?? folderPath(), "gateway")).length > 0;
+    if (homes.length === 0 && !told) throw nothingToStart();
+    return bringUp(io, { data: given ?? dataFolder(), homes, listen });
   },
 };
 
@@ -37,12 +49,17 @@ interface Plan {
   /** Where the gateway and the chat server keep their data, each in a folder of its own. */
   data: string;
   homes: string[];
+  /** The addresses `--listen` gave the gateway, when it gave any. */
+  listen: Address[] | undefined;
 }
 
 /** The line a program prints to say it is listening, as far as `up` reads it. */
 interface Listening {
   pid: number;
   name?: string;
+  /** The gateway's: the addresses it listens on for agents apart from it, and the file it read them from when it was given none. */
+  listen?: Address[];
+  listenKept?: string | null;
 }
 
 /** A program `up` started. */
@@ -85,7 +102,7 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Pro
   }
   const agent = crew.find((member) => member.role === "agent")?.program.listening.name;
   io.out("Running. Press Ctrl+C to stop what this command started.");
-  io.out(`Talk to an agent with: shrimpy run ${agent ?? "<agent>"} "<text>"`);
+  if (plan.homes.length > 0) io.out(`Talk to an agent with: shrimpy run ${agent ?? "<agent>"} "<text>"`);
   io.out("See what is running with: shrimpy gateway status");
 
   const ended = await Promise.race([
@@ -103,12 +120,17 @@ async function keepUp(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Pro
 async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch): Promise<void> {
   const found = await askGateway(stop.signal);
   if (found === undefined) {
-    const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve", "--data", join(plan.data, "gateway")]);
+    const data = join(plan.data, "gateway");
+    const listen = (plan.listen ?? []).flatMap((address) => ["--listen", formatAddress(address)]);
+    const program = await launch(io, { text: "gateway" }, "the gateway", ["gateway", "serve", "--data", data, ...listen]);
     crew.push({ role: "gateway", what: "the gateway", program });
-    io.out(`Started the gateway (pid ${program.pid}), keeping its roster in ${join(plan.data, "gateway")}.`);
+    io.out(`Started the gateway (pid ${program.pid}), keeping its roster in ${data}.`);
+    const { listen: listening = [], listenKept = null } = program.listening;
+    if (listening.length > 0) io.out(listeningLine(listening, listenKept));
   } else {
     warnIfVersionDiffers(io, "the gateway", found.version);
     io.out("The gateway is already running; using it as it is.");
+    if (plan.listen !== undefined) io.err(cannotChangeListening(plan.listen));
   }
   if (stop.requests() > 0) return;
 
@@ -134,6 +156,24 @@ async function startMissing(io: Io, plan: Plan, crew: Started[], stop: StopWatch
     io.out(result.value.line);
   }
   if (failed !== undefined) throw failed.reason;
+}
+
+/** Where the gateway it started listens for agents apart from it, and, when it was given no addresses, where it got them. */
+function listeningLine(addresses: Address[], keptIn: string | null): string {
+  const where = addresses.map(formatAddress).join(", ");
+  return keptIn === null
+    ? `The gateway listens for agents apart from it on ${where}, and keeps that for its next start.`
+    : `The gateway listens for agents apart from it on ${where}, where it listened last time. ` +
+        `That is kept in ${keptIn}: --listen replaces it, and deleting the file stops it.`;
+}
+
+/** What to tell someone who gave --listen to a gateway that is running already, which keeps the addresses it started with. */
+function cannotChangeListening(addresses: Address[]): string {
+  const listen = addresses.map((address) => `--listen ${formatAddress(address)}`).join(" ");
+  return (
+    `The gateway is already running, so ${listen} changes nothing: it listens where it was started. ` +
+    `To make it listen there, stop it and run shrimpy up ${listen} again.`
+  );
 }
 
 /** Start the agent at `home`, unless one already is, and say which in a line. */
