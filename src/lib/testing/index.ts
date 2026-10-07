@@ -3,8 +3,9 @@
  * when it ends, temporary directories, a runtime directory of its own (and
  * work run in another), waiting for something to happen, pauses between
  * attempts that count themselves, child processes to signal, a stand-in for a
- * program to connect to, a server that stops answering, and a client that
- * leaves before it is answered. Node only.
+ * program to connect to, a server that stops answering, a link between two
+ * programs that goes quiet without closing, and a client that leaves before it
+ * is answered. Node only.
  * Only tests and test fixtures import this, and it must not know about any
  * program.
  */
@@ -12,6 +13,7 @@ export { stopAfter, tempDir } from "./cleanup.ts";
 export { type Child, type ChildProgram, firstLine, startChild } from "./child.ts";
 export { type Freezable, freezable } from "./frozen.ts";
 export { leaveUnanswered } from "./gone.ts";
+export { type QuietLink, startQuietLink } from "./link.ts";
 export { type CountedBackoff, countedBackoff } from "./pauses.ts";
 export { inRuntimeDir, useRuntimeDir } from "./runtime.ts";
 export { runUntilStopped } from "./run-until-stopped.ts";

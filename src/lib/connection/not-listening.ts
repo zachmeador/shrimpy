@@ -6,6 +6,15 @@ export function isDisconnected(error: unknown): boolean {
 }
 
 /**
+ * An error that says a connection ended, which `isDisconnected` knows, for a
+ * program that gives up on a connection and wants what waits on it to be told it
+ * the way it is told when the other end goes away.
+ */
+export function disconnected(message: string): Error {
+  return new DisconnectedError(message);
+}
+
+/**
  * Whether a connection failed because nothing is listening where it went: the
  * socket is gone (ENOENT) or nothing answers on it (ECONNREFUSED). Any other
  * failure, such as a server that answers as someone else, says something more.

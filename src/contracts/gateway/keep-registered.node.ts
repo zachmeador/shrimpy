@@ -9,13 +9,22 @@ import type { Announcement } from "./services.ts";
 const ASK_EVERY_MS = 15_000;
 /** How long an answer may take before such a program takes the connection for lost. */
 const ANSWER_WITHIN_MS = 15_000;
+/** How long such a program gives one try at connecting, signing in and registering. */
+const TRY_WITHIN_MS = 15_000;
 
-/** How a program checks that its gateway still answers. */
+/** How a program checks that its gateway answers, which a gateway that went quiet with its connection still open would not tell it. */
 export interface Heartbeat {
   /** How long after the connection opens, and after each answer, the gateway is asked again, in milliseconds. A quarter of a minute if not given. */
   everyMs?: number;
   /** How long an answer may take before the connection is taken for lost, in milliseconds. A quarter of a minute if not given. */
   withinMs?: number;
+  /**
+   * How long one try at connecting, signing in and registering may take before
+   * it is given up and the next begins, in milliseconds. A gateway that takes the
+   * connection and never answers would otherwise hold the program for as long as
+   * the operating system lets it. A quarter of a minute if not given.
+   */
+  tryMs?: number;
 }
 
 export interface KeepRegisteredOptions {
@@ -53,9 +62,11 @@ export interface KeepRegisteredOptions {
   /**
    * Ask the gateway something small every so often over the connection, and
    * take the connection for lost when no answer comes in time: let go of it and
-   * connect again, as when it closes. A gateway on another machine can stop
-   * answering with its connection still open, which one on this machine, over a
-   * Unix socket, can't. Giving it, even as `{}`, turns it on.
+   * connect again, as when it closes. A try that has not got as far as being
+   * registered when its time is up is given up the same way. A gateway on
+   * another machine can stop answering with its connection still open, which
+   * one on this machine, over a Unix socket, can't. Giving it, even as `{}`,
+   * turns it on.
    */
   heartbeat?: Heartbeat;
   /** The pauses between attempts. Tests shorten them. */
@@ -104,18 +115,26 @@ export function keepRegistered(
     async attempt(established, signal) {
       const stopped = (): boolean => signal.aborted;
       const breakable = failable(transportFactory);
-      const gateway = await connectGateway({ transportFactory: breakable.transportFactory, signal });
-      // Ending the connection ends a call that is waiting for its answer too.
-      const hangUp = (): void => void gateway.close();
-      signal.addEventListener("abort", hangUp, { once: true });
-      const stopAsking =
-        options.heartbeat === undefined
-          ? undefined
-          : keepAsking(gateway, options.heartbeat, () => breakable.fail("The gateway did not answer in time."));
+      const { heartbeat } = options;
+      const quiet = (): void => breakable.fail("The gateway did not answer in time.");
+      // A try gets only so long to be registered, from the moment it begins to connect.
+      const giveUp = heartbeat === undefined ? undefined : setTimeout(quiet, heartbeat.tryMs ?? TRY_WITHIN_MS);
+      let gateway: GatewayConnection | undefined;
+      let stopAsking: (() => void) | undefined;
+      // Whatever waits on the connection hears that it is gone, as it does when the gateway goes away, and
+      // not that it was disposed of: a program that stops is no failure to anything that was asking.
+      const hangUp = (): void => {
+        breakable.fail("The program is stopping.");
+        void gateway?.close();
+      };
       try {
+        gateway = await connectGateway({ transportFactory: breakable.transportFactory, signal });
+        signal.addEventListener("abort", hangUp, { once: true });
+        if (heartbeat !== undefined) stopAsking = keepAsking(gateway, heartbeat, quiet);
         if (signal.aborted) return;
         await options.signIn?.(gateway);
         await gateway.register(announcement);
+        clearTimeout(giveUp);
         live = gateway;
         established();
         options.onRegistered?.(gateway);
@@ -124,10 +143,11 @@ export function keepRegistered(
         // Read through a function: stopping is what ended the connection, if it is. Nothing is lost then.
         if (!stopped()) options.onLost?.();
       } finally {
+        clearTimeout(giveUp);
         stopAsking?.();
         live = undefined;
         signal.removeEventListener("abort", hangUp);
-        await gateway.close();
+        await gateway?.close();
       }
     },
   });

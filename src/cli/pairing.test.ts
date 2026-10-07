@@ -5,7 +5,7 @@ import { test, type TestContext } from "node:test";
 import { readMembership } from "../contracts/agent/node.ts";
 import { connectGateway, formatAddress, readLink, writeLink } from "../contracts/gateway/index.ts";
 import { connectLocalGateway, entryTransports, newToken } from "../contracts/gateway/node.ts";
-import { stopAfter, tempDir } from "../lib/testing/index.ts";
+import { stopAfter, tempDir, until } from "../lib/testing/index.ts";
 import {
   commandLines,
   localProvider,
@@ -63,10 +63,11 @@ test("members invite prints a line that lets an agent in from a folder of its ow
   // Where the agent lives, up starts the agent, and neither a gateway nor a chat server, and says who it is talked to from.
   const there = await startUp(t, [], { env: apart });
   assert.equal(there.programs().length, 1, "only the agent");
+  // It says which gateway the agent belongs to in the line after the one that says it is running, which may arrive a moment later.
+  await until(() => there.output().stdout.includes(formatAddress(address)), "up to say which gateway the agent belongs to");
   const said = there.output().stdout;
   assert.doesNotMatch(said, /gateway \(pid|chat server \(pid/);
   assert.ok(!said.includes("shrimpy run") && !said.includes("gateway status"), "and no hint that works only beside a gateway");
-  assert.ok(said.includes(formatAddress(address)), "it says which gateway the agent belongs to");
   assert.deepEqual(readdirSync(apart.SHRIMPY_RUNTIME_DIR).filter((name) => /^(gateway|chat)/.test(name)), [], "nor a socket of theirs");
 
   // From the gateway's folder, the agent is on the roster and answers.

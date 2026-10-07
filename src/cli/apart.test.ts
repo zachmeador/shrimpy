@@ -204,9 +204,10 @@ test("an agent apart joins with an invitation link, answers a person, is listed 
   copying.kill("SIGTERM");
   assert.equal((await copying.finished).code, 0);
 
-  // When crab stops, it is no longer listed as running, and it is still on the roster.
+  // When crab stops, it is no longer listed as running, and it is still on the roster. A stop is no failure, so it says nothing.
   const stopped = await crab.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
+  assert.equal(stopped.stderr, "", "a plain stop says nothing of the gateway, chat or calls");
   const gone = await eventually(crabOnTheRoster, (entry) => entry?.reachable === false, { what: "crab to stop being listed as running" });
   assert.equal(gone?.name, "crab");
   assert.deepEqual((await person.list()).map((program) => program.kind), ["chat"]);
@@ -314,6 +315,7 @@ test("an agent apart is reached by its name through the gateway, from the gatewa
   );
   const stopped = await crab.stop();
   assert.equal(stopped.code, 0, stopped.stderr);
+  assert.equal(stopped.stderr, "", "and a stop that ends them says nothing of them");
   await within(10_000, ended, "the connections through the gateway to end with the agent");
 });
 
@@ -374,7 +376,7 @@ test("an agent apart whose connection stops answering without closing is no long
   assert.deepEqual(await again.connection.sessions(), [], "and it is reached again");
 });
 
-test("an agent apart that is told to stop while its gateway is frozen ends within its grace, whether it had reached the gateway or not", { timeout }, async (t) => {
+test("an agent apart that is told to stop while its gateway is frozen ends within its grace and says nothing, whether it had reached the gateway or not", { timeout }, async (t) => {
   const network = await startNetworkOfProcesses(t);
   const { gateway } = network;
   const { home: reachedHome } = await homeFromApart(t, network, "rex");
@@ -399,6 +401,7 @@ test("an agent apart that is told to stop while its gateway is frozen ends withi
   );
   for (const { result, took } of stops) {
     assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stderr, "", "a stop says nothing, however the network is");
     assert.ok(took < GRACE_MS, `it ended in ${String(took)} ms`);
   }
 });

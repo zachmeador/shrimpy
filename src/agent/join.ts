@@ -1,7 +1,7 @@
 import { readMembership, saveMembership } from "../contracts/agent/node.ts";
 import type { connectChat } from "../contracts/chat/index.ts";
 import { type Address, type GatewayConnection } from "../contracts/gateway/index.ts";
-import { entryTransports, localTransports } from "../contracts/gateway/node.ts";
+import { entryTransports, type Heartbeat, localTransports } from "../contracts/gateway/node.ts";
 import type { Backoff } from "../lib/retry/index.ts";
 import { type Admissions, type ChatDelivery, startIntake } from "./chat/index.ts";
 import { homePaths } from "./home/index.ts";
@@ -24,6 +24,8 @@ export interface JoinOptions {
    * there.
    */
   apart?: Address;
+  /** How often an agent apart asks the gateway something, how long it waits for the answer, and how long it gives one try at getting in. Tests shorten them. */
+  heartbeat?: Heartbeat;
   /** Open the connection to chat over what the gateway offers. By default `connectChat`; a test wraps it. */
   connectChat?: typeof connectChat;
   /** The pauses between tries at reaching the gateway and chat, and at what fails meanwhile. Tests shorten them. */
@@ -90,6 +92,7 @@ export function join(participant: Participant, options: JoinOptions): Joined {
     onError,
     transportFactory: reach.gateway,
     ...(options.apart === undefined ? {} : { apart: options.apart }),
+    ...(options.heartbeat === undefined ? {} : { heartbeat: options.heartbeat }),
     ...(backoff === undefined ? {} : { backoff: backoff() }),
   });
   const answering =

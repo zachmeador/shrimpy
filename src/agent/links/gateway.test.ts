@@ -113,6 +113,7 @@ test("a turned-away agent is told why once, with the advice that fits and the pa
   await until(() => copy.attempts() >= 5, "the copy to be turned away again and again");
   assert.equal(copy.told.length, 1, "and told once");
   assert.ok(copy.told[0]?.includes(copy.files("state/member.json")) && copy.told[0].includes(copy.files("agent.json")));
+  assert.ok(!copy.told[0]?.includes("shrimpy agent join"), "nothing beside the gateway asks for an invitation");
   assert.equal(copy.link.current(), undefined);
   assert.equal((await observer.ticket({ kind: "agent", name: "scout" })).serverId, original.serverId, "the first is still the one reached");
 
@@ -142,6 +143,40 @@ test("an agent apart whose token the gateway does not know is told to join again
   const beside = agentAt(t, "/homes/rex", "rex", unknown);
   await until(() => beside.told.length === 1, "the agent beside the gateway to be turned away");
   assert.ok(!beside.told[0]?.includes("shrimpy agent join"), beside.told.join("\n"));
+});
+
+test("an agent apart that is a copy of one that runs is told that it needs an invitation of its own, and which command uses it", { timeout }, async (t) => {
+  const { gateway, address } = await gatewayWithEntry(t);
+  const membership = await joinedFromApart(gateway, address, "crab");
+  const original = agentAt(t, "/homes/crab", "crab", membership, { apart: address });
+  await original.link.untilUp(AbortSignal.timeout(10_000));
+
+  const copy = agentAt(t, "/homes/crab-copy", "crab", membership, { apart: address });
+  await until(() => copy.told.length === 1, "the copy to be turned away");
+
+  assert.ok(copy.told[0]?.includes(copy.files("state/member.json")) && copy.told[0].includes(copy.files("agent.json")));
+  assert.ok(copy.told[0]?.includes("shrimpy agent join"), copy.told.join("\n"));
+});
+
+test("an agent apart that starts while its gateway takes its connection and answers nothing says that it can't reach it within the time a try is given, and is registered once the gateway answers", { timeout }, async (t) => {
+  const { gateway, address } = await gatewayWithEntry(t);
+  const membership = await joinedFromApart(gateway, address, "crab");
+  // A process that is stopped takes connections and answers none of them.
+  gateway.freeze();
+
+  const started = Date.now();
+  const tryMs = 300;
+  const crab = agentAt(t, "/homes/crab", "crab", membership, { apart: address, heartbeat: { tryMs } });
+  await until(() => crab.told.length > 0, "the agent to say that it can't reach the gateway");
+  assert.ok(Date.now() - started < 10 * tryMs, `it took ${String(Date.now() - started)} ms`);
+  assert.ok(crab.told[0]?.includes(formatAddress(address)), crab.told.join("\n"));
+
+  // It gives up each try the same way, and says no more.
+  await until(() => crab.attempts() >= 4, "the agent to have tried again and again");
+  assert.equal(crab.told.length, 1);
+  gateway.thaw();
+  await crab.link.untilUp(AbortSignal.timeout(10_000));
+  assert.equal(crab.told.length, 2, "and that it is back");
 });
 
 test("an agent apart whose gateway stops answering with its connection still open lets go of the connection, and is registered again once the gateway answers", { timeout }, async (t) => {

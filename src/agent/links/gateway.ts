@@ -38,7 +38,7 @@ export interface GatewayLinkOptions extends Pick<KeepRegisteredOptions, "transpo
    * gateway needs none of that: its Unix socket closes when the gateway goes.
    */
   apart?: Address;
-  /** How often an agent apart asks the gateway something, and how long it waits for the answer. Tests shorten them. */
+  /** How often an agent apart asks the gateway something, how long it waits for the answer, and how long it gives one try at getting in. Tests shorten them. */
   heartbeat?: Heartbeat;
   /**
    * What the agent tells the gateway about where it listens: the server ID it
@@ -79,7 +79,9 @@ function adviceFor(why: TurnedAway | undefined, files: HomeFiles, apart: boolean
     case TURNED_AWAY.agentRunning:
       return (
         `If this home is a copy that should be an agent of its own, stop it, delete ${files.membership}, ` +
-        `give it another name in ${files.name} and start it again.`
+        (apart
+          ? `give it another name in ${files.name}, get a new invitation for that name and join with it: shrimpy agent join <link>`
+          : `give it another name in ${files.name} and start it again.`)
       );
     case undefined:
       return undefined;
