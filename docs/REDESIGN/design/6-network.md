@@ -114,7 +114,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 
 1. **Letting an agent in.** The entry on an address, the invitation, and a home that remembers its gateway. An agent in a folder that shares no sockets with the gateway joins, is listed as running, reads chat and answers in a thread. Built: underneath on 2026-10-06, and its commands on 2026-10-07, each a change of its own.
 2. **Reached through the gateway.** The gateway joining a client to an agent that connects out, so that the terminal watches and stops that agent's sessions as it does those of an agent beside the gateway. Built on 2026-10-07.
-3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Then the same with an agent under a second OS user, and on a real second machine.
+3. **Kept honest.** Pings, coming back after either side restarts, a wrong or missing token refused, a version that differs reported. Built on 2026-10-07, with a stop that always ends and three smaller things still being built. Then the same with an agent under a second OS user, and over an address a second machine reaches directly.
 4. **You, from another machine.** The terminal on a machine that isn't the gateway's, let in by an invitation of its own.
 
 **The first step, underneath.** What was built first has no command. It is reached from code, and each command comes after as a change of its own.
@@ -143,7 +143,7 @@ Under Now in the [order of work](../PLAN.md#order-of-work).
 - **From either side.** The way in on the gateway's machine and the way through over the entry both make a call for an agent apart, so a client beside the gateway and a client apart from it reach the agent the same way.
 - **No answer.** A call that the agent doesn't answer in time ends the client's connection, which a client already shows as an agent it couldn't reach.
 
-**The third step, underneath.** What keeps an agent apart and its gateway honest about each other.
+**The third step, underneath,** as it was built. What keeps an agent apart and its gateway honest about each other.
 
 - **A connection that went dead at the gateway.** The entry pings every connection it holds, and lets go of one that hasn't answered for half a minute. A registration goes with its connection, so an agent that lost its network without a word stops being listed, and can register again when it is back.
 - **A gateway that went dead at the agent.** An agent apart asks its gateway something small every quarter of a minute, and takes no answer within a quarter of a minute for a lost connection: it lets go and connects again, as it does when the connection closes.
